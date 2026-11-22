@@ -85,14 +85,13 @@
 <p>The per-requirement detail behind each row is published at <code>/quality/rfc-compliance/&lt;stem&gt;/</code>, one page for every summary under <code>rfc/short/</code>, naming each requirement, the tests bound to it, the audit verdict a reader recorded, and every gap and untested MUST under its own requirement id. The 24 of 243 summaries (9.9%) with no row on this page are published there too, and the index at <code>/quality/rfc-compliance/</code> links all of them.</p>
 <p><strong>Area</strong> is the one cell an author writes, a classification. Every other cell is derived, and no author can change it:</p>
 <ul>
-<li><strong>Proof</strong> is <code>N of M MUST proven</code>: of the M MUST-level requirements the summary gates, the N whose tests a recorded break still verifies (<code>rfc/discrimination/&lt;stem&gt;.json</code>), counting a requirement a layer under Ze performs once its recorded break proves the state Ze installs for that layer (OS verified). A tag with no verifying record, and a record that escapes the break (<code>no-break</code>, <code>kernel-producer</code>), prove nothing here. An RFC whose requirement list has not been walked against the RFC's own text (no valid <code>rfc/extraction/&lt;stem&gt;.json</code>) reads <code>not walked</code> and publishes no number, because its list bounds nothing. A walked RFC gating no MUST-level requirement reads <code>no MUST rows</code>.</li>
+<li><strong>Proof</strong> is <code>N of M MUST proven</code>: of the M MUST-level requirements the summary gates, the N whose tests a recorded break still verifies (<code>rfc/discrimination/&lt;stem&gt;/&lt;requirement-id&gt;.json</code>), counting a requirement a layer under Ze performs once its recorded break proves the state Ze installs for that layer (OS verified). A tag with no verifying record, and a record that escapes the break (<code>no-break</code>, <code>kernel-producer</code>), prove nothing here. An RFC whose requirement list has not been walked against the RFC's own text (no valid <code>rfc/extraction/&lt;stem&gt;.json</code>) reads <code>not walked</code> and publishes no number, because its list bounds nothing. A walked RFC gating no MUST-level requirement reads <code>no MUST rows</code>.</li>
 <li><strong>Evidence</strong> counts the rows Ze's tests prove by the strongest kind of test behind each (<code>interop</code>, then <code>functional</code>, <code>editor</code>, <code>unit</code>), and the OS verified rows as <code>os</code>, so the counts sum to N.</li>
 <li><strong>Unmet</strong> lists the requirement ids the summary annotates <code>{gap}</code>, <code>{partial}</code> or <code>{linux-limit}</code>, and those an audit judged not met, at every level.</li>
 </ul>
 <p>A brief table (Internet-Drafts and other standards) carries Area, Proof and Unmet and leaves Evidence out, so an unmet requirement of a draft is still named by its id.</p>
 <p><strong>How strong the proof behind a row is.</strong> Every requirement's evidence is listed in that RFC's own file under <code>rfc/requirements/</code>, with a <code>kind/tier</code> cell per test link. <code>kind</code> is the layer the test exercises (<code>unit</code>, <code>functional</code>, <code>editor</code>, <code>interop</code>); <code>tier</code> is whether anything executes it. <code>verify</code> means it runs in <code>./le verify current</code> on every push. <code>interop/nightly</code> runs only in the scheduled, advisory <code>evidence-nightly</code> workflow -- so a requirement whose evidence is entirely nightly-tier is marked <code>**nightly-only**</code> on its row there, and counted in its own column of the coverage rollup in <code>ai/RFC-REQUIREMENTS.md</code>. A tag in a suite no pipeline runs is refused outright rather than published with a caveat.</p>
 <p><code>./le rfc check</code> refuses an enrolled RFC that carries an unmet requirement and renders no row here, and a row that disappears while its summary remains.</p>
-<!-- source: internal/le/rfc/actions.go -- Answer -->
 <h2 id="bidirectional-forwarding-detection">Bidirectional Forwarding Detection</h2>
 <table>
 <thead>
@@ -178,22 +177,22 @@
 <tr>
 <td>RFC 4360</td>
 <td>Extended communities</td>
-<td>2 of 5 MUST proven</td>
-<td>unit 2</td>
-<td>RFC4360-6-1, RFC4360-7-1, RFC4360-7-2</td>
+<td>3 of 5 MUST proven</td>
+<td>unit 3</td>
+<td>RFC4360-7-1, RFC4360-7-2</td>
 </tr>
 <tr>
 <td>RFC 5701</td>
 <td>IPv6 extended communities</td>
-<td>0 of 4 MUST proven</td>
+<td>4 of 4 MUST proven</td>
+<td>unit 4</td>
 <td>-</td>
-<td>RFC5701-4-1</td>
 </tr>
 <tr>
 <td>RFC 7611</td>
 <td>ACCEPT_OWN community</td>
-<td>2 of 5 MUST proven</td>
-<td>unit 2</td>
+<td>3 of 5 MUST proven</td>
+<td>unit 3</td>
 <td>RFC7611-2.3-1, RFC7611-3-1</td>
 </tr>
 <tr>
@@ -213,9 +212,9 @@
 <tr>
 <td>RFC 9234</td>
 <td>BGP Role and OTC</td>
-<td>12 of 19 MUST proven</td>
-<td>interop 1, functional 5, unit 6</td>
-<td>RFC9234-5-7, RFC9234-5-8, RFC9234-6-1</td>
+<td>17 of 19 MUST proven</td>
+<td>interop 1, functional 5, unit 11</td>
+<td>RFC9234-5-7, RFC9234-5-8</td>
 </tr>
 </tbody>
 </table>
@@ -234,8 +233,8 @@
 <tr>
 <td>RFC 4271</td>
 <td>BGP-4 base protocol</td>
-<td>112 of 133 MUST proven</td>
-<td>interop 4, functional 12, unit 96</td>
+<td>119 of 133 MUST proven</td>
+<td>interop 5, functional 13, unit 101</td>
 <td>RFC4271-5.1.6-1, RFC4271-5.1.7-1, RFC4271-6.2-3, RFC4271-9.1.2.2-2, RFC4271-9.2-2, RFC4271-9.2-3, RFC4271-9.2.1.1-2, RFC4271-9.2.1.1-3, RFC4271-9.2.2.2-1, RFC4271-9.2.2.2-2, RFC4271-9.2.2.2-3, RFC4271-9.2.2.2-4, RFC4271-9.2.2.2-5</td>
 </tr>
 <tr>
@@ -269,9 +268,9 @@
 <tr>
 <td>RFC 9072</td>
 <td>Extended Optional Parameters Length for BGP OPEN</td>
-<td>5 of 9 MUST proven</td>
-<td>unit 5</td>
-<td>RFC9072-2-5, RFC9072-2-6, RFC9072-3-1, RFC9072-3-3</td>
+<td>9 of 9 MUST proven</td>
+<td>unit 9</td>
+<td>-</td>
 </tr>
 <tr>
 <td>RFC 9687</td>
@@ -290,15 +289,15 @@
 <tr>
 <td>RFC 2918</td>
 <td>Route Refresh</td>
-<td>4 of 6 MUST proven</td>
-<td>functional 1, unit 3</td>
+<td>6 of 6 MUST proven</td>
+<td>functional 1, unit 5</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 4486</td>
 <td>BGP Cease subcodes and prefix maximum</td>
-<td>0 of 1 MUST proven</td>
-<td>-</td>
+<td>1 of 1 MUST proven</td>
+<td>functional 1</td>
 <td>-</td>
 </tr>
 <tr>
@@ -311,8 +310,8 @@
 <tr>
 <td>RFC 7311</td>
 <td>AIGP attribute</td>
-<td>14 of 22 MUST proven</td>
-<td>unit 14</td>
+<td>22 of 22 MUST proven</td>
+<td>unit 22</td>
 <td>-</td>
 </tr>
 <tr>
@@ -332,29 +331,29 @@
 <tr>
 <td>RFC 7606</td>
 <td>Revised UPDATE error handling</td>
-<td>34 of 53 MUST proven</td>
-<td>interop 2, functional 5, unit 27</td>
+<td>52 of 53 MUST proven</td>
+<td>interop 2, functional 5, unit 45</td>
 <td>RFC7606-8-1</td>
 </tr>
 <tr>
 <td>RFC 8950</td>
 <td>Extended Next Hop</td>
-<td>3 of 6 MUST proven</td>
-<td>unit 3</td>
+<td>6 of 6 MUST proven</td>
+<td>unit 6</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 5549</td>
 <td>Legacy extended next-hop encoding</td>
-<td>3 of 6 MUST proven</td>
-<td>unit 3</td>
+<td>6 of 6 MUST proven</td>
+<td>unit 6</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 7313</td>
 <td>Enhanced Route Refresh</td>
-<td>5 of 11 MUST proven</td>
-<td>unit 5</td>
+<td>6 of 11 MUST proven</td>
+<td>unit 6</td>
 <td>RFC7313-4-13, RFC7313-4-4, RFC7313-4-5, RFC7313-4-6, RFC7313-4-7</td>
 </tr>
 <tr>
@@ -367,9 +366,9 @@
 <tr>
 <td>RFC 8654</td>
 <td>BGP Extended Message</td>
-<td>8 of 12 MUST proven</td>
-<td>interop 2, unit 6</td>
-<td>RFC8654-5-3, RFC8654-5-4</td>
+<td>10 of 12 MUST proven</td>
+<td>interop 2, unit 8</td>
+<td>RFC8654-5-4</td>
 </tr>
 <tr>
 <td>RFC 9774</td>
@@ -395,15 +394,15 @@
 <tr>
 <td>RFC 8955</td>
 <td>IPv4 FlowSpec</td>
-<td>14 of 29 MUST proven</td>
-<td>unit 14</td>
-<td>RFC8955-12-2, RFC8955-4-3</td>
+<td>27 of 29 MUST proven</td>
+<td>functional 2, unit 25</td>
+<td>RFC8955-4-3</td>
 </tr>
 <tr>
 <td>RFC 5575</td>
 <td>BGP Flowspec (obsoleted by RFC 8955)</td>
-<td>4 of 9 MUST proven</td>
-<td>unit 4</td>
+<td>8 of 9 MUST proven</td>
+<td>unit 8</td>
 <td>RFC5575-6-1</td>
 </tr>
 <tr>
@@ -500,8 +499,8 @@
 <tr>
 <td>RFC 8671</td>
 <td>BMP Adj-RIB-Out</td>
-<td>2 of 11 MUST proven</td>
-<td>unit 2</td>
+<td>9 of 11 MUST proven</td>
+<td>unit 9</td>
 <td>RFC8671-5.2-1, RFC8671-5.2-2</td>
 </tr>
 <tr>
@@ -528,8 +527,8 @@
 <tr>
 <td>RFC 4456</td>
 <td>Route Reflection</td>
-<td>1 of 4 MUST proven</td>
-<td>unit 1</td>
+<td>4 of 4 MUST proven</td>
+<td>interop 2, unit 2</td>
 <td>-</td>
 </tr>
 <tr>
@@ -549,9 +548,9 @@
 <tr>
 <td>RFC 4724</td>
 <td>Graceful Restart</td>
-<td>14 of 26 MUST proven</td>
-<td>interop 1, unit 13</td>
-<td>RFC4724-3-5, RFC4724-4.1-1, RFC4724-4.1-2, RFC4724-4.1-3, RFC4724-4.1-5, RFC4724-4.1-6, RFC4724-4.1-8, RFC4724-4.2-1, RFC4724-4.2-2</td>
+<td>18 of 26 MUST proven</td>
+<td>interop 1, unit 17</td>
+<td>RFC4724-4.1-1, RFC4724-4.1-2, RFC4724-4.1-3, RFC4724-4.1-5, RFC4724-4.1-6, RFC4724-4.1-8, RFC4724-4.2-1, RFC4724-4.2-2</td>
 </tr>
 <tr>
 <td>RFC 7947</td>
@@ -563,15 +562,15 @@
 <tr>
 <td>RFC 8203</td>
 <td>Administrative Shutdown Communication</td>
-<td>3 of 5 MUST proven</td>
-<td>unit 3</td>
+<td>5 of 5 MUST proven</td>
+<td>unit 5</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 9003</td>
 <td>Administrative Shutdown Communication update</td>
-<td>1 of 4 MUST proven</td>
-<td>unit 1</td>
+<td>4 of 4 MUST proven</td>
+<td>unit 4</td>
 <td>-</td>
 </tr>
 <tr>
@@ -584,9 +583,9 @@
 <tr>
 <td>RFC 9494</td>
 <td>Long-Lived Graceful Restart</td>
-<td>8 of 25 MUST proven</td>
-<td>functional 2, unit 6</td>
-<td>RFC9494-4.2-10, RFC9494-4.2-7, RFC9494-4.2-9, RFC9494-4.3-2, RFC9494-4.7.2-1, RFC9494-4.7.2-2, RFC9494-5-2</td>
+<td>22 of 25 MUST proven</td>
+<td>functional 2, unit 20</td>
+<td>RFC9494-4.7.2-1, RFC9494-4.7.2-2, RFC9494-5-2</td>
 </tr>
 </tbody>
 </table>
@@ -1101,8 +1100,8 @@
 <tr>
 <td>RFC 7011</td>
 <td>IPFIX</td>
-<td>12 of 50 MUST proven</td>
-<td>unit 12</td>
+<td>17 of 50 MUST proven</td>
+<td>unit 17</td>
 <td>RFC7011-10-1, RFC7011-10-2, RFC7011-10-5, RFC7011-10.2.2-1, RFC7011-10.3.2-1, RFC7011-10.4.1-1, RFC7011-10.4.4-1, RFC7011-11-1, RFC7011-11.1-1, RFC7011-11.1-2, RFC7011-11.1-3, RFC7011-11.1-4, RFC7011-11.3-1, RFC7011-11.3-2, RFC7011-11.3-3, RFC7011-11.3-4, RFC7011-3.2-2, RFC7011-3.4.2-1, RFC7011-3.4.2.1-1, RFC7011-4.1-1, RFC7011-4.1-2, RFC7011-4.1-3, RFC7011-6.1.3-1, RFC7011-6.1.4-1, RFC7011-6.1.6-1, RFC7011-6.1.6-2, RFC7011-6.2-3, RFC7011-7-1, RFC7011-7-2, RFC7011-8.1-1, RFC7011-8.2-4, RFC7011-x-2</td>
 </tr>
 <tr>
@@ -1885,9 +1884,9 @@
 <tr>
 <td>RFC 6396</td>
 <td>MRT</td>
-<td>6 of 13 MUST proven</td>
-<td>unit 6</td>
-<td>RFC6396-4.2-1, RFC6396-4.3.4-2, RFC6396-4.4.2-1, RFC6396-4.4.3-1, RFC6396-5.1-1, RFC6396-B.1-1</td>
+<td>12 of 13 MUST proven</td>
+<td>unit 12</td>
+<td>RFC6396-5.1-1</td>
 </tr>
 <tr>
 <td>RFC 6397</td>
@@ -1899,9 +1898,9 @@
 <tr>
 <td>RFC 8050</td>
 <td>MRT ADD-PATH</td>
-<td>5 of 6 MUST proven</td>
-<td>unit 5</td>
-<td>RFC8050-4.1-1</td>
+<td>6 of 6 MUST proven</td>
+<td>unit 6</td>
+<td>-</td>
 </tr>
 </tbody>
 </table>
@@ -1955,9 +1954,9 @@
 <tr>
 <td>RFC 8210</td>
 <td>RPKI RTR v1</td>
-<td>12 of 59 MUST proven</td>
-<td>unit 12</td>
-<td>RFC8210-2-1, RFC8210-4-2, RFC8210-4-3, RFC8210-5.1-3, RFC8210-5.1-4, RFC8210-5.1-5, RFC8210-5.10-1, RFC8210-5.10-2, RFC8210-5.11-2, RFC8210-5.11-3, RFC8210-5.3-1, RFC8210-5.3-2, RFC8210-5.5-1, RFC8210-5.6-1, RFC8210-5.8-1, RFC8210-7-2, RFC8210-7-4, RFC8210-9-2, RFC8210-9.1-2, RFC8210-9.1-5, RFC8210-9.2-12, RFC8210-9.2-3, RFC8210-9.2-6, RFC8210-9.2-9, RFC8210-9.3-1, RFC8210-9.3-2, RFC8210-9.4-1, RFC8210-9.4-2, RFC8210-9.4-3</td>
+<td>29 of 59 MUST proven</td>
+<td>unit 29</td>
+<td>RFC8210-2-1, RFC8210-4-2, RFC8210-4-3, RFC8210-5.10-1, RFC8210-5.10-2, RFC8210-5.11-2, RFC8210-5.11-3, RFC8210-5.3-1, RFC8210-5.3-2, RFC8210-5.5-1, RFC8210-5.6-1, RFC8210-5.8-1, RFC8210-7-2, RFC8210-9-2, RFC8210-9.1-2, RFC8210-9.1-5, RFC8210-9.2-12, RFC8210-9.2-3, RFC8210-9.2-6, RFC8210-9.2-9, RFC8210-9.3-1, RFC8210-9.3-2, RFC8210-9.4-1, RFC8210-9.4-2, RFC8210-9.4-3</td>
 </tr>
 </tbody>
 </table>
@@ -2010,7 +2009,6 @@
 </tr>
 </tbody>
 </table>
-<!-- source: internal/le/rfc/profilecoverage.go -- StemFiguresOf, the derived proof -->
 </div>
 </div>
             </section>
@@ -2044,7 +2042,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

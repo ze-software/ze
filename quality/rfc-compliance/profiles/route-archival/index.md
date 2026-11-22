@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/route-archival.json](
 
 ## Figures
 
-- **MUST bar**: Ze verified 11, Tests awaiting verification 1, Not built 11
-- **Overview bar**: Ze MUST verified 11, Tests awaiting verification 1, Not assessed 13, Not built 11
+- **MUST bar**: Ze verified 18, Not built 5
+- **Overview bar**: Ze MUST verified 18, Not assessed 13, Not built 5
 
 | Figure | Rows |
 |---|---|
@@ -18,13 +18,13 @@ Figures as of the last build, read from [data/rfc/profiles/route-archival.json](
 | Mandatory requirements complete | not complete |
 | MUST rows | 23 |
 | MUST rows kept (the MUST bar) | 23 |
-| Ze verified | 11 |
+| Ze verified | 18 |
 | OS verified | 0 |
-| Tests awaiting verification | 1 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 11 |
+| Not built | 5 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -52,11 +52,11 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6396](../../rfc6396/) | Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format | Ze verified 6, Tests awaiting verification 1, Not built 6 | Ze MUST verified 6, Tests awaiting verification 1, Not assessed 12, Not built 6 |
+| [RFC 6396](../../rfc6396/) | Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format | Ze verified 12, Not built 1 | Ze MUST verified 12, Not assessed 12, Not built 1 |
 
 ### Level 11
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 6397](../../rfc6397/) | Multi-Threaded Routing Toolkit (MRT) Border Gateway Protocol (BGP) Routing Information Export Format with Geo-Location Extensions | Not built 4 | Not assessed 1, Not built 4 |
-| [RFC 8050](../../rfc8050/) | Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions | Ze verified 5, Not built 1 | Ze MUST verified 5, Not built 1 |
+| [RFC 8050](../../rfc8050/) | Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions | Ze verified 6 | Ze MUST verified 6 |

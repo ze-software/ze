@@ -18,6 +18,8 @@ Environment variables:
     ze.gnmi.enabled=true
     ze.gnmi.listen=0.0.0.0:9339
     ze.gnmi.token=your-secret-token
+    ze.gnmi.tls.cert=/path/to/cert.pem
+    ze.gnmi.tls.key=/path/to/key.pem
 
 YANG config (in ze.conf):
 
@@ -25,6 +27,10 @@ YANG config (in ze.conf):
         gnmi {
             enabled true;
             token your-secret-token;
+            tls {
+                cert /path/to/cert.pem;
+                key /path/to/key.pem;
+            }
             server default {
                 ip 0.0.0.0;
                 port 9339;
@@ -36,9 +42,15 @@ YANG config (in ze.conf):
 
 When `ze.gnmi.token` is set, every gNMI request must include a `Bearer` token in the `authorization` gRPC metadata header. The token is compared using constant-time comparison (SHA-256 hash with `subtle.ConstantTimeCompare`) to prevent timing attacks.
 
-When no token is configured, the server accepts unauthenticated requests. This is only appropriate for loopback or trusted-network deployments.
+When no token is configured, gNMI may bind only to a literal loopback address (`127.0.0.1` or `::1`) and runs in read-only mode: `Capabilities`, `Get`, and `Subscribe` succeed, while `Set` is refused with `PermissionDenied` (matching REST and gRPC read-only loopback enforcement). Non-loopback listeners without a token are refused.
+
+Failed bearer token checks record `auth-fail` audit entries (without logging any rejected token bytes) and committed `Set` operations record `config-commit` audit entries under the `gnmi` audit surface.
+<!-- source: internal/component/gnmi/server.go -- checkGNMIListenAddr, checkAuth, recordAuthFailure -->
+<!-- source: internal/component/gnmi/set.go -- Set read-only refusal and audit recording -->
 
 ## TLS
+
+TLS is **required** on every non-loopback gNMI listener: both the boot-time management-listener guard and `Server.Serve` refuse to start a non-loopback listener without both a token and TLS credentials so credentials and configuration never cross the network in clear text. Loopback listeners (`127.0.0.1` or `::1`) may run without TLS.
 
 To enable TLS on the gNMI gRPC transport:
 

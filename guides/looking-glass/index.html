@@ -70,7 +70,6 @@
 <li><a href="#alice-lg-integration">Alice-LG Integration</a></li>
 <li><a href="#security">Security</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/lg/server.go -- LGServer -->
 <h2 id="configuration">Configuration</h2>
 <p>Add the <code>looking-glass</code> block under <code>environment</code> in your Ze config:</p>
 <pre><code>environment {
@@ -89,7 +88,6 @@
     }
 }
 </code></pre>
-<!-- source: internal/component/lg/yang/ze-lg-conf.yang -- YANG schema -->
 <table>
 <thead>
 <tr>
@@ -206,18 +204,12 @@ and every intermediate the entry holds:</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/lg/yang/ze-lg-conf.yang -- leaf certificate -->
-<!-- source: cmd/ze/hub/service_tls.go -- listenerTLSMaterial (fail-closed selection) -->
-<!-- source: cmd/ze/hub/main.go -- runYANGConfig, the looking-glass certificate startup gate -->
-<!-- source: cmd/ze/hub/main_reload.go -- lgCertificateName and the reload refusal -->
-<!-- source: cmd/ze/hub/listener_migrate.go -- updateLGCertificate (rotation without rebind) -->
 <h3 id="optional-bearer-token">Optional bearer token</h3>
 <p>A looking glass is normally public and read-only, so <code>token</code> is off by default.
 Set it to require a bearer token on every route. Ze compares the token
 constant-time over SHA-256 digests. A request with no token, a wrong token, or
 an <code>Authorization</code> header that is not <code>Bearer &lt;token&gt;</code> gets <code>401</code>.</p>
 <p>When the <code>looking-glass</code> block is absent, no HTTP server is started and no resources are consumed.</p>
-<!-- source: cmd/ze/hub/service_lg.go -- buildLGService -->
 <h2 id="web-ui">Web UI</h2>
 <p>The HTMX web UI is available at <code>https://&lt;host&gt;:&lt;port&gt;/lg/</code> (<code>http://</code> when you
 set <code>tls false</code>). No authentication is required unless you set <code>token</code>.</p>
@@ -368,9 +360,6 @@ of the description cell and a <code>Group</code> entry in the header of
 <p>A peer's description and the names of your next-hop ranges are public where
 the looking glass is public. Write nothing in them that a visitor must not
 read, or set <code>token</code>.</p>
-<!-- source: internal/component/config/lg_next_hop_ranges.go -- ExtractLGNextHopRanges: the reader, the one-range-one-name refusal, the 256 bound -->
-<!-- source: internal/component/lg/nexthop_ranges.go -- nextHopRanges.nameOf (longest prefix), UpdateNextHopRanges, validateNextHopRanges -->
-<!-- source: internal/component/lg/handler_ui.go -- extractPeers, peerInfoFrom read description and group -->
 <h3 id="route-age">Route age</h3>
 <p>Every route table has an Age column, the last one: how long ago the route last
 changed. The search results and a peer's route table show it, and so does the
@@ -413,10 +402,6 @@ route detail a click on a row opens.</p>
 <code>age</code> member of each received route when it answers, and the page shows them.
 The birdwatcher API answers the same seconds in its <code>age</code> field, with
 <code>age_available</code> beside it (see below).</p>
-<!-- source: internal/component/lg/handler_ui.go -- routeAgeFrom, routeRows -->
-<!-- source: internal/component/lg/view.go -- routeAge -->
-<!-- source: internal/component/lg/render.go -- formatElapsed -->
-<!-- source: internal/component/bgp/plugins/rib/rib_route_age.go -- writeRouteAge -->
 <h3 id="inside-by-address-outside-by-as-number">Inside by address, outside by AS number</h3>
 <p>The next-hop graph and the trace draw the two sides of your network's edge
 differently, so a reader tells them apart at a glance:</p>
@@ -457,9 +442,6 @@ internal or external, the graph is refused with the reason and
 <code>ze show bgp</code>, as the trace is. It is never drawn with every node as an
 address, because that would show a neighbour as if it were one of your
 routers.</p>
-<!-- source: internal/component/lg/graph_nexthop.go -- nextHopOutsideFrom, buildNextHopGraph, renderNextHopGraphText -->
-<!-- source: internal/component/lg/handler_graph.go -- handleNextHopGraph, nextHopSummaryRefusal -->
-<!-- source: internal/component/lg/layout_nexthop.go -- outsideNodeClass, renderNextHopGraphSVG -->
 <h3 id="tracing-a-prefix-through-the-network">Tracing a prefix through the network</h3>
 <p>When every router of your network holds a session to Ze, the looking glass
 holds each router's chosen route for a prefix, and the BGP next hop that
@@ -558,9 +540,6 @@ walks than that. Every walk still gives the graph its routers and
 ASes; the last line then says how many traces are not listed, and the text
 form ends with an <code>unlisted traces=&lt;count&gt;</code> line. Ask for one prefix with its
 length to read all of its traces.</p>
-<!-- source: internal/component/lg/handler_graph.go -- handleGraph, handleTraceGraph -->
-<!-- source: internal/component/lg/graph_trace.go -- traceRoutersFrom, traceWalkFrom, traceWalk.statement, traceNote, traceGraph.listedWalks, traceCounts.noTrace -->
-<!-- source: internal/component/lg/layout_trace.go -- computeTraceLayout, renderTraceGraphSVG -->
 <h3 id="live-updates-and-what-is-public">Live updates and what is public</h3>
 <p>The live stream (<code>/lg/events</code>) sends the whole rows, so the two columns of an
 open peers page follow the sessions: a drop appears on the next message, at
@@ -571,9 +550,6 @@ only names Ze knows for the NOTIFICATION code and subcode, or fixed words for
 a session Ze closed itself. It never holds bytes the peer sent: an unknown
 code is shown as <code>Unknown(N)</code>. Set <code>token</code> when the reason your sessions close
 is not for everyone to read.</p>
-<!-- source: internal/component/lg/handler_ui.go -- extractPeers, peerInfoFrom, connectionsDroppedFrom, peerStreamBody -->
-<!-- source: internal/component/lg/view.go -- peerRow, connectionsDropped, peersColumns -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- lastErrorString, stateChangedString -->
 <p>The prefix field of the search, the graph and the API's <code>prefix</code> parameter
 read the value the same way:</p>
 <table>
@@ -604,7 +580,6 @@ read the value the same way:</p>
 </table>
 <p>An address finds IPv4 and IPv6 routes only. Routes keyed by a route
 distinguisher, such as VPN routes, are not searched this way.</p>
-<!-- source: internal/component/lg/prefix_lookup.go -- parsePrefixLookup, prefixLookup.receivedCommand -->
 <p>The AS path field of the search takes AS numbers separated by spaces, as a
 router prints a path:</p>
 <table>
@@ -652,7 +627,6 @@ router prints a path:</p>
 place only, directly after the last AS number, with no space before it.
 Commas work as separators too. An AS number may be written as <code>65546</code> or as
 <code>1.10</code>, and is sent as <code>65546</code>. Hover the field to read the form.</p>
-<!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern -->
 <p>Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v4.0.0) is embedded, and the peers page also loads hx-sse.min.js, htmx 4's SSE extension.</p>
 <p>When the engine cannot answer, a page says so. The peers and search pages show
 a banner. The per-peer page, its download, the route detail and the graph
@@ -665,9 +639,6 @@ log:</p>
 the engine failed or refused this command, so there is no answer to show
 fix: ze show log recent level warn component lg.server
 </code></pre>
-<!-- source: internal/component/lg/handler_ui.go -- UI handlers -->
-<!-- source: internal/component/lg/server.go -- ask, engineFailure, engineRefusal -->
-<!-- source: internal/component/lg/handler_graph.go -- Graph handler -->
 <h2 id="birdwatcher-rest-api">Birdwatcher REST API</h2>
 <p>The looking glass exposes a birdwatcher-compatible JSON API for integration with tools like Alice-LG.</p>
 <table>
@@ -710,7 +681,6 @@ nothing usable, with a JSON <code>error</code> that carries the same three lines
 pages, for example <code>show bmp peers: engine error</code> on the first line from
 <code>/protocols/bmp</code> on a daemon that runs no BMP. It never answers 200 with an
 empty result. The last line names the command that shows the full reason.</p>
-<!-- source: internal/component/lg/handler_api.go -- engineAnswer, writeEngineFailure -->
 <p>The per-peer route counts on <code>/protocols/bgp</code> come from the <code>bgp-rib</code> plugin's
 Adj-RIB-In and Adj-RIB-Out sizes, merged into <code>show bgp</code>:
 <code>routes_received</code> and <code>routes_imported</code> are both the Adj-RIB-In size (Ze retains
@@ -735,12 +705,6 @@ paths). A client that shows an age reads <code>age_available</code> first, and n
 takes an <code>age</code> of <code>0</code> on its own for a route learned this second. Ages start
 again from zero when the daemon restarts. The normative statement is Section
 6.2 of the same page.</p>
-<!-- source: internal/component/lg/handler_api.go -- transformRoutes -->
-<!-- source: internal/component/lg/handler_ui.go -- routeAgeFrom -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- fetchRibRouteCounts, mergeRibRouteCounts -->
-<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- status per-peer route-counts -->
-<!-- source: internal/component/lg/handler_api.go -- API handlers and birdwatcher transform -->
-<!-- source: internal/component/lg/handler_api.go -- routeCountsAvailable -->
 <h2 id="alice-lg-integration">Alice-LG Integration</h2>
 <p>To use Ze as a data source for <a href="https://github.com/alice-lg/alice-lg" target="_blank" rel="noopener">Alice-LG</a>, point Alice-LG's birdwatcher source configuration at the looking glass API:</p>
 <pre><code class="language-yaml">sources:
@@ -760,8 +724,6 @@ again from zero when the daemon restarts. The normative statement is Section
 <li>The <code>Content-Security-Policy</code> is <code>default-src 'self'</code>, so no page carries an inline script or an inline event handler. A test refuses one in any <code>.templ</code> source of the package.</li>
 <li>No direct RIB or plugin imports; all data accessed via command dispatcher.</li>
 </ul>
-<!-- source: internal/component/lg/markup_check_test.go -- TestTemplatesAvoidInlineScriptAndStyle, lgMarkupExempt -->
-<!-- source: internal/component/lg/layout.go -- renderGraphSVG label escaping -->
 <p>When TLS is enabled, the server uses TLS 1.2 minimum. It reads its own
 <code>certificate</code> leaf, resolved against the same PKI store the web UI reads, and
 serves a self-signed certificate when that leaf is unset.</p>
@@ -814,7 +776,7 @@ serves a self-signed certificate when that leaf is unset.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

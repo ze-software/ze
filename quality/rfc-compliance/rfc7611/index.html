@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 5 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 5 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 5 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>4</strong><b>4 of 8 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>6</strong><b>6 of 8 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -259,7 +259,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>4</td>
+<td>6</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7611.md</code></td>
@@ -279,8 +279,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> ACCEPT_OWN community</p>
-<p><strong>Test verification:</strong> 2 of 5 MUST proven</p>
-<p><strong>Evidence:</strong> unit 2</p>
+<p><strong>Test verification:</strong> 3 of 5 MUST proven</p>
+<p><strong>Evidence:</strong> unit 3</p>
 <p><strong>Unmet:</strong> RFC7611-2.3-1, RFC7611-3-1</p>
 
 </section>
@@ -326,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7611:must">Ze verified 2, Tests awaiting verification 1, Not built 2</div>
+<div data-ze-rfc-bar="rfc7611:must">Ze verified 3, Not built 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7611:overview">Ze MUST verified 2, Tests awaiting verification 1, Not assessed 3, Not built 2</div>
+<div data-ze-rfc-bar="rfc7611:overview">Ze MUST verified 3, Not assessed 3, Not built 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -349,13 +349,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7611:must.kept">5</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc7611:must.ze-proven">2</span></td>
+<td><span data-ze-rfc="rfc7611:must.ze-proven">3</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7611:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc7611:must.proof-pending">1</span></td>
+<td><span data-ze-rfc="rfc7611:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc7611:must.os-gap">0</span></td>
@@ -589,12 +589,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L58" title="internal/component/bgp/reactor/rfc7611_receive_test.go" target="_blank" rel="noopener"><code>TestACCEPTOwnDoesNotEnableAcceptanceImplicitly</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L57" title="internal/component/bgp/reactor/rfc7611_receive_test.go" target="_blank" rel="noopener"><code>TestACCEPTOwnDoesNotEnableAcceptanceImplicitly</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -788,7 +788,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

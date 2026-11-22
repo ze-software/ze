@@ -8,7 +8,7 @@
         <meta name="description" content="AI often writes better code than I would, and far more tests per feature. I judge that code by what it does and the evidence behind it, and remain responsible for what Ze releases." />
         <meta property="og:title" content="AI slop is human slop - Ze Blog" />
         <meta property="og:description" content="AI often writes better code than I would, and far more tests per feature. I judge that code by what it does and the evidence behind it, and remain responsible for what Ze releases." />
-        <meta property="og:type" content="website" />
+        <meta property="og:type" content="article" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -24,6 +24,7 @@
         <link rel="stylesheet" href="../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <meta name="author" content="Thomas Mangin" />
+        <meta property="article:published_time" content="2026-08-03" />
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -53,7 +54,7 @@
 </div>
                 <div class="blog-article-meta"><time datetime="2026-08-03">2026-08-03</time><span>by Thomas Mangin</span></div>
                 </div>
-<figure class="blog-theme-image has-dark blog-article-visual reveal" role="img" aria-label="Generated code is checked against protocol requirements, fuzz tests, integration tests and benchmarks."><img class="blog-theme-image-light" src="../../assets/blog/ai-slop-is-the-wrong-test.svg" alt="" loading="eager" decoding="async" /><img class="blog-theme-image-dark" src="../../assets/blog/ai-slop-is-the-wrong-test-dark.svg" alt="" loading="eager" decoding="async" /></figure>
+<figure class="blog-theme-image has-dark blog-article-visual reveal" role="img" aria-label="Generated code is checked against protocol requirements, fuzz tests, integration tests and benchmarks."><img class="blog-theme-image-light" src="../../assets/blog/ai-slop-is-the-wrong-test.svg" alt="" width="1200" height="675" loading="eager" decoding="async" /><img class="blog-theme-image-dark" src="../../assets/blog/ai-slop-is-the-wrong-test-dark.svg" alt="" width="1200" height="675" loading="eager" decoding="async" /></figure>
             </section>
             <div class="blog-reading-layout">
                 <aside class="blog-reading-rail" aria-label="Article navigation">
@@ -100,7 +101,7 @@
 <h2 id="what-makes-a-change-acceptable">What makes a change acceptable</h2>
 <p>Neither a broad study nor my experience of using Claude establishes that a particular change to Ze is correct. For a BGP encoder, we have to check the bytes it produces against what the protocol requires and check how it handles invalid input. An optimisation needs measurement too, or we could add complexity without reducing the cost of processing routes.</p>
 <p>The saving has to preserve correct behaviour. Reusing a buffer can reduce allocations, but overwriting it while another reader still needs its contents can corrupt a route. In <a href="../how-ze-manages-memory/">How Ze reuses memory</a>, I explain how we decide when data can be shared and when it must be copied.</p>
-<p>Checking the bytes returned by an encoder does not show that the running daemon sends them to another router. For that, we have to start the programs and observe their exchange. Ze's <a href="https://ze-software.net/quality/">quality model</a> describes the checks different changes require. Some parts of Ze do not yet meet those requirements, and a passing run says nothing about a case the tests never exercise.</p>
+<p>Checking the bytes returned by an encoder does not show that the running daemon sends them to another router. For that, we have to start the programs and observe their exchange. Ze's <a href="../../quality/">quality model</a> describes the checks different changes require. Some parts of Ze do not yet meet those requirements, and a passing run says nothing about a case the tests never exercise.</p>
 <p>This is also why the number of tests Claude writes is a poor measure on its own. When a test fails, the model can change the expected result to match the bug or remove the assertion which caught it. The next run passes without restoring the required behaviour, so the tests need review against the requirements as well.</p>
 <p>Ze's <a href="../../project/ai-development/">development framework</a> makes that review part of a change. An agreed specification states the required behaviour and how it will be checked, then an agent implements it and another independently reviews the code and tests against that specification. For RFC requirements, deliberately breaking the implementation and observing the test fail gives us evidence that it detects that particular fault. Changes which could weaken a test also require independent judgement under the <a href="https://github.com/ze-software/ze/blob/main/ai/rules/testing.md" target="_blank" rel="noopener">testing rules</a>.</p>
 <p>I review the structure and overall implementation, and rely on this process to establish that the tests check the details correctly. <a href="../the-proof-is-the-expensive-part/">The proof is the expensive part</a> explains the further work involved in connecting a protocol requirement to behaviour the running application actually demonstrates. A mistake shared by the author and reviewer can still survive, which is one reason my overview of the system remains necessary.</p>
@@ -127,7 +128,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 11:56 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

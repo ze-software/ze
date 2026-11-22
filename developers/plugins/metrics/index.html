@@ -76,7 +76,6 @@ process uses the deferred daemon hook described below.</p>
 <li><a href="#reference-implementation">Reference Implementation</a></li>
 <li><a href="#shared-local-series-holders">Shared local series holders</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/plugin/registry/registry.go -- Registration.ConfigureMetrics -->
 <h2 id="implementation-pattern">Implementation Pattern</h2>
 <p>Each plugin follows the same three-step pattern used by bgp-rib and bgp-gr:</p>
 <ol>
@@ -94,8 +93,6 @@ The struct contains the counters and gauges created from the registry.</p>
 skip. Otherwise update the metric.</p>
 </li>
 </ol>
-<!-- source: internal/component/bgp/plugins/rib/register.go -- ConfigureMetrics callback -->
-<!-- source: internal/component/bgp/plugins/rib/rib.go -- ribMetrics struct, metricsPtr, SetMetricsRegistry -->
 <h2 id="naming-policy">Naming Policy</h2>
 <p>Every metric name is built from four parts in fixed order:</p>
 <pre><code>ze_{scope}_{subject}_{detail}
@@ -131,12 +128,6 @@ skip. Otherwise update the metric.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/rib/rib.go -- ze_rib_* metric names -->
-<!-- source: internal/component/bgp/plugins/gr/gr.go -- ze_gr_* metric names -->
-<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- ze_peer_* metric names -->
-<!-- source: internal/component/plugin/ipc/filter_batch_metrics.go -- SetFilterMetrics -->
-<!-- source: internal/component/bgp/policychain/metrics.go -- SetMetricsRegistry, countSetRefusal -->
-<!-- source: internal/component/bgp/filterapi/metrics.go -- ze_bgp_attr_mod_* metric names -->
 <h3 id="type-specific-rules">Type-Specific Rules</h3>
 <table>
 <thead>
@@ -1264,23 +1255,12 @@ rising while <code>ze_iface_carrier_resyncs_total</code> stays flat is the healt
 under load: the worker was behind and the event path still carried every
 interface to its final state. The resync counter moving is the one that says a
 transition never arrived at all.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- SetMetricsRegistry, handleEvent -->
-<!-- source: internal/component/iface/rate.go -- ownedDevices gauge registration -->
-<!-- source: internal/component/iface/link_queue.go -- coalesced and resync counters -->
-<!-- source: internal/component/iface/resolve.go -- onLinkEvent and sendLatest, the discard counter -->
-<!-- source: internal/component/iface/device_owner.go -- updateOwnedDeviceGauge -->
-<!-- source: internal/plugins/iface/ra/ifacera.go -- SetMetricsRegistry, incSent, incSolicited -->
-<!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer metric registration -->
-<!-- source: internal/component/plugin/server/server.go -- NewServer write-watchdog hook -->
-<!-- source: pkg/plugin/rpc/conn.go -- fireWatchdog, SetWriteWatchdogHook -->
 <p>The two <code>iface-ra</code> counters carry one <code>interface</code> label each.
 <code>ze_iface_ra_sent_total</code> counts every Router Advertisement put on the wire.
 <code>ze_iface_ra_solicited_total</code> counts the subset that answered a Router
 Solicitation, and each of those increments both counters, so the first one stays
 the total. A rise in the solicited counter with a flat send rate means that
 hosts join the link.</p>
-<!-- source: internal/plugins/iface/ra/ifacera.go -- incSent, incSolicited -->
-<!-- source: internal/plugins/iface/ra/sender_linux.go -- send call sites -->
 <p><code>ze_iface_delegated_prefixes_held{name}</code> counts the delegated prefixes the
 DHCPv6 lease of the pppoe-client <code>name</code> holds. It is set each time the client
 binds, renews or loses a prefix, so 0 means no LAN unit that takes a /64 from
@@ -1291,10 +1271,6 @@ restart and once the session ends. Read together: a client at 1 on IPv6CP and
 0 on delegated prefixes has IPv6 on the WAN but no delegation for the LAN.
 <code>ze_pppoe_client_renegotiations_total{name}</code> counts network-phase LCP
 renegotiations the client started.</p>
-<!-- source: internal/component/iface/delegated_lease.go -- delegations.record, publishHeld -->
-<!-- source: internal/component/l2tp/pppoeclient/metrics.go -- bindClientMetrics, recordIPv6CPOpened, countRenegotiation -->
-<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- applyIPv6CP -->
-<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
 <p>The LAN resolver's <code>ze_dns_resolver_queries_total</code> counts answered queries
 only: a query dropped by the rate or the outstanding bound gets no reply and
 is counted by <code>ze_dns_resolver_rate_limited_total</code> or
@@ -1302,23 +1278,17 @@ is counted by <code>ze_dns_resolver_rate_limited_total</code> or
 published by the resolver's sweeper every 10 seconds and by a cache clear, so
 it can lag the cache by that interval. What each label value means is in
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/dns/lan-resolver.md#metrics" target="_blank" rel="noopener">the LAN resolver design</a>.</p>
-<!-- source: internal/plugins/dnsresolver/metrics.go -- buildMetrics, countQuery, cacheGauges -->
 <p><code>ze_plugin_write_watchdog_total</code> increments when a plugin RPC write on a
 transport that does not support <code>SetWriteDeadline</code> (SSH channels, <code>io.Pipe</code>)
 stalls past the write-watchdog window (default 30s); the connection is then
 closed (fail-fast). Deadline-capable transports (<code>net.Conn</code>) use write
 deadlines instead and never contribute to this counter. The <code>transport</code> label
 is a low-cardinality bucket (<code>stream</code>, <code>pipe</code>, <code>file</code>).</p>
-<!-- source: internal/plugins/trafficusage/metrics.go -- BindMetrics -->
-<!-- source: internal/plugins/ospf/spf/computer.go -- SetMetrics -->
-<!-- source: internal/plugins/ospf/spf/install.go -- SetMetrics and publishCounts -->
 <p><code>ze_ospf_packets_dropped_total</code> counts transport drops before packet dispatch or
 after a failed send. The Linux receive path currently emits reason
 <code>malformed-ipv4</code> when a raw datagram is too short for an IPv4 header or its IHL
 overruns the received bytes; <code>SendPacket</code> emits reason <code>send-error</code> when the
 backend transmit call fails.</p>
-<!-- source: internal/plugins/ospf/transport/backend_linux.go -- deliverDatagram -->
-<!-- source: internal/plugins/ospf/transport/transport.go -- SendPacket -->
 <p>The two <code>ospf (iface)</code> series track the OSPFv2 Interface State Machine:
 <code>ze_ospf_interface_up{area,interface}</code> is 1 for active point-to-point or
 broadcast interfaces and 0 for Down, passive, or loopback records;
@@ -1335,17 +1305,11 @@ self-LSA lifecycle events, <code>ze_ospf_lsupdates_sent_total{interface}</code> 
 <code>ze_ospf_lsupdates_received_total{interface}</code> count flooding packets,
 <code>ze_ospf_lsacks_sent_total{interface}</code> counts explicit acknowledgements, and
 <code>ze_ospf_retransmissions_total{area}</code> counts retransmit-list resends.</p>
-<!-- source: internal/plugins/ospf/lsdb/lsdb.go -- SetMetrics -->
-<!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, RetransmitTick, sendAck -->
 <p><code>ReceiveUpdate</code> increments the received-packet counter on entry, before interface
 lookup and per-LSA validation. A packet whose LSAs all fail checksum, opaque-body
 alignment, or the registered receive validator still increments this counter.
 Those LSAs are skipped before installation, acknowledgement, or reflooding, so
 the received count is not an accepted-LSA count.</p>
-<!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate -->
-<!-- source: internal/plugins/ospf/instance.go -- setMetrics -->
-<!-- source: internal/plugins/ospf/iface/iface.go -- setUpLocked, runElectionLocked -->
-<!-- source: internal/plugins/ospf/neighbor/table.go -- setStateLocked, recordEventLocked -->
 <p>The five <code>ospf (spf)</code> series track route computation and install state:
 <code>ze_ospf_spf_runs_total{area}</code> and <code>ze_ospf_spf_duration_seconds{area}</code> report
 SPF scheduling and runtime, <code>ze_ospf_routes_installed{type,af}</code> reports the current
@@ -1353,8 +1317,6 @@ Loc-RIB-owned route count by OSPF path type and address family (RFC 5838), <code
 router has an active backbone attachment and at least one other active area, and
 <code>ze_ospf_summary_lsas{area}</code> reports current self-originated Summary-LSA count by
 area.</p>
-<!-- source: internal/plugins/ospf/spf/computer.go -- SetMetrics and Run -->
-<!-- source: internal/plugins/ospf/spf/install.go -- SetMetrics and publishCounts -->
 <p>The two <code>isis (dis)</code> series are the Designated IS / pseudo-node metrics (broadcast
 LANs): <code>ze_isis_dis_elections_total</code> counts DIS elections that changed the elected
 DIS per level, and <code>ze_isis_pseudonode_lsps</code> gauges the pseudo-node LSPs this node
@@ -1364,7 +1326,6 @@ currently originates as the elected DIS per level.</p>
 event it does not know, so any sample above zero is a defect in Ze: the first
 refusal is also logged at WARN under <code>doctor-internal-defect</code> and raised as an
 error event, and the later ones are only counted here.</p>
-<!-- source: internal/plugins/isis/events.go -- noteLSPChangeRefused -->
 <p>The <code>isis (auth)</code> series <code>ze_isis_auth_failures_total</code> counts IS-IS PDUs rejected
 because authentication verification failed, by level and receiving interface. It
 is incremented at the receive verify site (a PDU with no, wrong, or misordered
@@ -1393,7 +1354,6 @@ that arrived after a producer emitted. That party is either a BGP peer whose
 session just established, or a destination protocol's consumer that just
 registered. One counter serves both, labeled by the producing source rather than
 by which of the two triggered it.</p>
-<!-- source: internal/plugins/redistribute/redistribute.go -- setMetricsRegistry -->
 <p>The four <code>isis (spf)</code> series track the shortest-path computation and its Loc-RIB
 install: <code>ze_isis_spf_runs_total{level}</code> counts Dijkstra runs per level,
 <code>ze_isis_spf_duration_seconds{level}</code> is a histogram of each run's wall-clock
@@ -1429,8 +1389,6 @@ registry yet. <code>registry.InjectPluginMetrics</code> therefore defers the hoo
 <code>registry.SetMetricsRegistry</code> drains the deferred set the moment a registry
 exists; whichever of the two happens second performs the injection, exactly once
 per plugin.</p>
-<!-- source: internal/component/plugin/registry/registry.go -- InjectPluginMetrics, SetMetricsRegistry -->
-<!-- source: internal/component/plugin/server/startup.go -- runPluginPhase spawns before the tier handshake -->
 <p>Two consequences for a plugin author:</p>
 <ul>
 <li>Do not read your metrics struct during <code>init()</code> or at the top of <code>RunEngine</code>;
@@ -1448,9 +1406,6 @@ daemon's BGP chain even when the plugin's command process runs forked.
 <code>bgp-filter-path-asn</code> therefore declares no process <code>ConfigureMetrics</code> callback
 for these counters. The command process must not publish a second copy of
 daemon-owned observations.</p>
-<!-- source: internal/plugins/crashes/register.go -- init -->
-<!-- source: internal/component/bgp/plugins/filter_path_asn/register.go -- init -->
-<!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- setMetricsRegistry, recordReject -->
 <h3 id="a-plugin-run-in-its-own-process">A plugin run in its own process</h3>
 <p>A plugin the daemon forks (<code>plugin { external &lt;name&gt; { run ...; } }</code>) cannot
 reach the daemon's registry. Its runner, <code>cli.RunPlugin</code>, calls the same
@@ -1515,20 +1470,15 @@ acknowledged, its values no longer constrain later deltas against a possible
 restoration. A gauge can replace its value with <code>Set</code>. This is a transport
 boundary, not parity with native Prometheus's support for infinite aggregates:
 <code>metrics-publish</code> carries no non-finite JSON number.</p>
-<!-- source: internal/component/plugin/cli/cli.go -- withForkedMetrics -->
-<!-- source: pkg/plugin/sdk/metrics.go -- MetricsPublisher, SetMetricsInterval, FlushMetrics, flushMetricsAtBye -->
-<!-- source: internal/component/plugin/server/dispatch_metrics.go -- pluginMetricSet -->
 <h2 id="system-rib-routing-view-metrics">System RIB routing-view metrics</h2>
 <p>The existing <code>ze_systemrib_events_received_total</code> counter counts each accepted
 nonempty authoritative selected-change batch, including a duplicate input that
 produces no FIB change. Malformed batches and empty selected-feed idle polls do
 not count. Route-change counters count the emitted forwarding effects separately.
 Both placements retain their existing metrics registration and transport.</p>
-<!-- source: internal/component/sysrib/route_view_forwarding.go -- applySelectedBatch -->
 <p>The system RIB's routing-view monitor creates three scalar metrics through
 <code>Plugin.MetricsRegistry</code> before <code>Run</code>. The SDK's existing publisher carries
 them in both placements; the monitor starts no publisher of its own.</p>
-<!-- source: internal/component/sysrib/doctor_route_view.go -- newRouteViewHealth -->
 <table>
 <thead>
 <tr>
@@ -1551,13 +1501,9 @@ them in both placements; the monitor starts no publisher of its own.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/sysrib/doctor_route_view.go -- beginResync, setPending, markSynchronized, fail, stop -->
 <p>These names have no labels, so route prefixes and session tokens cannot grow
 their series. The <code>ze_rib_view_</code> names describe the shared routing-view
 transport; the existing system RIB metrics retain <code>ze_systemrib_</code>.</p>
-<!-- source: internal/component/sysrib/doctor_route_view.go -- newRouteViewHealth -->
-<!-- source: internal/component/sysrib/route_view_worker.go -- readSelected -->
-<!-- source: internal/component/sysrib/route_view_worker_operations.go -- reopen, collect -->
 <h2 id="nopregistry-fallback">NopRegistry Fallback</h2>
 <p>When telemetry is disabled in config, plugins receive a <code>NopRegistry</code> that returns
 no-op metric implementations. The nil-check on the atomic pointer handles the case
@@ -1565,7 +1511,6 @@ where <code>ConfigureMetrics</code> is never called at all (plugin loaded withou
 registry). A forked plugin always receives its publisher; with telemetry
 disabled the daemon creates the published metrics in the <code>NopRegistry</code>, so
 they vanish there exactly as an in-process plugin's do.</p>
-<!-- source: internal/core/metrics/nop.go -- NopRegistry -->
 <h2 id="the-task-panic-counter">The Task Panic Counter</h2>
 <p>A plugin with a task that handles network input (a receive goroutine, a
 session read loop, a request handler) guards it with <code>internal/core/taskguard</code>,
@@ -1584,7 +1529,6 @@ counts and writes the crash record, then calls <code>end</code> to tear the unit
 component registering it shares one vector. The log line and the crash record
 are described in <code>docs/architecture/diagnostics/crash-capture.md</code>, "Recovered
 panics".</p>
-<!-- source: internal/core/taskguard/guard.go -- New, Guard.Task, Guard.SetMetricsRegistry, Task.Contain -->
 <h2 id="which-plugins-need-metrics">Which Plugins Need Metrics</h2>
 <p>Not every plugin needs metrics. NLRI codec plugins (flowspec, evpn, labeled, etc.)
 are stateless encoders/decoders with no runtime state to observe. Only plugins
@@ -1630,9 +1574,6 @@ refused at config load, so no fail-closed reject reaches the counter, and its
 the path the match was, so an operator reads which rule is eating the routes
 rather than only how many. The peer is in the log line: a peer address in a label would grow the
 series count with the session count.</p>
-<!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
-<!-- source: internal/component/bgp/plugins/role/otc.go -- decideOTCIngress, OTCEgressFilter -->
-<!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
 <p>A filter that rewrites a received route is the same case again: the route is
 the only trace of the rewrite. <code>bgp-filter-community</code> counts the values its
 own-GA scrub removes (RFC 7454 Section 11), labelled <code>width</code> (<code>standard</code> or
@@ -1653,9 +1594,6 @@ each UPDATE once it is queued for the client: a client the egress filters
 refused, a failed rebuild and a withdrawal count nothing, and a received UPDATE
 split into several sections counts once per section, because each section
 carries the edit.</p>
-<!-- source: internal/component/bgp/plugins/filter_community/metrics.go -- recordScrub, recordRelationTag, recordBlackholeGuard -->
-<!-- source: internal/component/bgp/plugins/filter_community/register.go -- ConfigureMetrics -->
-<!-- source: internal/component/bgp/reactor/forward_rs_community.go -- recordRSCommunityEdits -->
 <h2 id="reference-implementation">Reference Implementation</h2>
 <p>The bgp-rib plugin (<code>internal/component/bgp/plugins/rib/</code>) is the reference
 implementation. It demonstrates all aspects: registration callback, metrics struct,
@@ -1697,8 +1635,6 @@ no value; ordinary <code>With</code> makes it visible. On an unsupported capabil
 failed admission, return the error before starting the dependent work; do not
 continue with unchecked deletion or treat the refusal as disabled telemetry.
 The publisher keeps no released label sets in its custody map.</p>
-<!-- source: pkg/plugin/sdk/metrics_series.go -- SeriesRetainer, SeriesLease -->
-<!-- source: pkg/plugin/sdk/metrics.go -- publishedVec.RetainSeries -->
 </div>
 </div>
             </section>
@@ -1712,7 +1648,7 @@ The publisher keeps no released label sets in its custody map.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

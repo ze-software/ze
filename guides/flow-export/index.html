@@ -44,10 +44,6 @@
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-observe">
-<!-- source: internal/plugins/flowexport/exporter.go -- newExporter, collectorState, ProtocolEncoder, per-collector senders -->
-<!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- YANG config -->
-<!-- source: internal/plugins/flowexport/cmd_show.go -- ze-flowexport:show-flow-export RPC -->
-<!-- source: internal/plugins/flowexport/metrics.go -- ze_flowexport_* Prometheus metrics -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="flow-export">Flow Export</h1>
@@ -174,16 +170,12 @@ configure several collectors at once (for example one sFlow and one IPFIX).</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- collector -->
 <p>The default reserves IPv6 and UDP headers within a 512-byte packet when the
 path MTU is unknown. Raise it only when the path MTU is known, after subtracting
 all IP, UDP and tunnel headers. Encoders split batches or cap sampled headers
 to this bound. Oversized sends return an error.</p>
-<!-- source: internal/plugins/flowexport/sender.go -- DatagramSizeDefault, Sender.Send -->
 <p>sFlow uses expanded counter and flow samples for every interface, preserving
 full-width interface indexes without mixing compact and expanded formats.</p>
-<!-- source: internal/plugins/flowexport/sflow/counter.go -- writeCounterSample -->
-<!-- source: internal/plugins/flowexport/sflow/flow.go -- writeFlowSample -->
 <p>An sFlow counter collector:</p>
 <pre><code>flow-export {
     collector edge-sflow {
@@ -207,7 +199,6 @@ flow-export: sflow agent-address 198.51.100.1 is not configured on any interface
 <p>A dummy interface counts as a loopback, so
 <code>create interface dummy name agent0 address 198.51.100.1/32</code> silences both.
 The warning never refuses the config: the export runs either way.</p>
-<!-- source: internal/plugins/flowexport/sflow/agent_address.go -- classifyAgentAddress, agentAddressAdvice -->
 <p>A NetFlow v9 collector plus an IPFIX collector on the same device:</p>
 <pre><code>flow-export {
     collector nf9 {
@@ -347,8 +338,6 @@ Errors:
 <p>Set <code>bgp false</code> (or leave the leaf out) to run flow export on that build.
 Before this refusal existed, such a build accepted the setting and the exporter
 silently received no RIB data.</p>
-<!-- source: internal/plugins/flowexport/register.go -- ConfigNeeds, bgpRIBPlugin -->
-<!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders, unmetNeedMessage -->
 <h2 id="operational-command">Operational Command</h2>
 <p><code>show flow export [name &lt;collector&gt;]</code> reports per-collector export statistics.
 With no argument it lists every collector; with <code>name &lt;collector&gt;</code> it returns
@@ -425,7 +414,6 @@ set of pipe operators selects another one.</p>
 sent before a later error in the same batch. A failed template blocks its data
 batch until a subsequent template attempt succeeds. Counter and flow exporters
 share the sequence; a configuration reload creates a new transport session.</p>
-<!-- source: internal/plugins/flowexport/exporter.go -- collectorState.recordSent, notifySnapshot, exportFlows, status -->
 <h2 id="prometheus-metrics">Prometheus Metrics</h2>
 <p>The component registers the following metrics:</p>
 <table>
@@ -490,10 +478,7 @@ virtual or down links, where the kernel does not report them. Outbound
 multicast, broadcast and unknown-protocol counts carry <code>0xFFFFFFFF</code>, the
 unavailable-counter value: Linux does not expose these counters through
 <code>rtnl_link_stats64</code>. IPFIX packet totals use the original 64-bit receive and
-transmit counts, without the sFlow sentinels.
-<!-- source: internal/plugins/flowexport/register.go -- interfaceCountersFrom -->
-<!-- source: internal/plugins/flowexport/ipfix/data.go -- writeCounterRecord -->
-</li>
+transmit counts, without the sFlow sentinels.</li>
 <li><strong>Conntrack export combines periodic dumps with destroy events.</strong> Records
 are emitted on each table dump (<code>active-timeout</code>), and a
 <code>NFNLGRP_CONNTRACK_DESTROY</code> netlink listener exports each torn-down flow's
@@ -576,7 +561,7 @@ the collector endpoints off any untrusted path.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

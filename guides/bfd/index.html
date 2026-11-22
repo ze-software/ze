@@ -89,18 +89,10 @@ a plugin whose session service is used by BGP, OSPF, and static-route monitors.<
 <li><a href="#what-is-not-yet-supported">What is not yet supported</a></li>
 <li><a href="#reference">Reference</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/bfd/api/registry.go -- SetService, GetService -->
-<!-- source: internal/component/bgp/reactor/peer_bfd.go -- startBFDClient, runBFDSubscriber -->
-<!-- source: internal/plugins/ospf/bfd_client.go -- bfdNeighborFull, startBFDSession, runBFDSubscriber -->
-<!-- source: internal/plugins/static/inject.go -- setupBFDLocked -->
 <p>The transport uses GTSM, outbound IP_TTL=255, SO_BINDTODEVICE for single-hop
 and multi-VRF sockets, and RFC 5880 §6.8.7 transmit jitter. You can inspect
 sessions with <code>show bfd sessions</code> and <code>show bfd session address &lt;peer&gt;</code>, view
 profiles with <code>show bfd profile</code>, and monitor Prometheus <code>ze_bfd_*</code> metrics.</p>
-<!-- source: internal/component/bfd/cmd/bfd.go -- handleShowSessions, handleShowSession, handleShowProfile -->
-<!-- source: internal/component/bfd/metrics.go -- bindMetricsRegistry -->
-<!-- source: internal/component/bfd/transport/udp_linux.go -- applySocketOptions -->
-<!-- source: internal/component/bfd/engine/loop.go -- passesTTLGate, tick -->
 <p>Adding <code>bfd { ... }</code> inside a
 <code>bgp peer connection</code> block opens a per-peer BFD session on
 Established and tears the BGP session down with RFC 9384 Cease
@@ -109,12 +101,6 @@ Adding <code>strict true</code> to that block runs
 <code>draft-ietf-idr-bgp-bfd-strict-mode</code> instead: capability 74 is
 negotiated, the BFD session opens before the BGP FSM starts, and the
 BGP session is held out of Established until BFD is Up.</p>
-<!-- source: internal/component/bfd/bfd.go — runtimeState, loopFor, newUDPTransport, pluginService -->
-<!-- source: internal/component/bfd/api/registry.go — SetService, GetService -->
-<!-- source: internal/component/bfd/engine/loop.go — passesTTLGate, tick jitter -->
-<!-- source: internal/component/bfd/transport/udp.go — ListenConfig.Control, ReadMsgUDPAddrPort -->
-<!-- source: internal/component/bfd/transport/udp_linux.go — IP_RECVTTL, IP_TTL, SO_BINDTODEVICE -->
-<!-- source: internal/component/bgp/reactor/peer_bfd.go — startBFDClient, stopBFDClient, runBFDSubscriber -->
 <h2 id="when-to-use-it">When to use it</h2>
 <table>
 <thead>
@@ -226,9 +212,6 @@ valid only on single-hop sessions -- RFC 5883 §3 prohibits
 multi-hop echo. A configured multi-hop session that uses an echo
 profile is refused at load, and a multi-hop BGP peer that names one
 is refused at commit, each with a descriptive error.</p>
-<!-- source: internal/component/bfd/config.go — parseEchoConfig + profileConfig.permitsMode -->
-<!-- source: internal/component/bfd/packet/echo.go — ZEEC 16-byte envelope -->
-<!-- source: internal/component/bfd/session/timers.go — EchoEnabled, EchoInterval -->
 <pre><code>bfd {
     profile fast-echo {
         desired-min-tx-us   100000;
@@ -278,13 +261,6 @@ digest is checked, in the order RFC 5880 §6.7.3 gives, so a first packet that
 fails authentication is discarded and has still set the floor. Ze does not
 yet clear the floor after two Detection Times without a packet (RFC 5880
 §6.8.1), so such a floor stays until the session is recreated.</p>
-<!-- source: internal/component/bfd/auth/signer.go — Signer/Verifier + Settings -->
-<!-- source: internal/component/bfd/auth/sha1.go — digestSigner/digestVerifier -->
-<!-- source: internal/component/bfd/auth/simple.go — simpleSigner/simpleVerifier -->
-<!-- source: internal/component/bfd/config.go — parseAuthConfig bounds the simple-password and keyed secrets -->
-<!-- source: internal/component/bfd/auth/meticulous.go — SeqState.Check replay window -->
-<!-- source: internal/component/bfd/auth/sha1.go — digestVerifier.Verify seeds bfd.RcvAuthSeq before the digest step -->
-<!-- source: internal/component/bfd/config.go — profileConfig.permitsMode refuses a passive single-hop session -->
 <pre><code>bfd {
     persist-dir "/var/lib/ze/bfd";
 
@@ -308,8 +284,6 @@ holding a zero byte or a byte above 0x7F can be configured (RFC 5880 §6.7.2,
 <code>keyed-sha1</code> key is 40 hex digits. <code>ze config validate</code> refuses an odd digit
 count, a character that is not a hex digit, and a profile that names both forms
 or neither. Both forms are redacted from <code>ze config show</code> output.</p>
-<!-- source: internal/component/bfd/config.go — parseAuthSecret decodes secret or secret-hex -->
-<!-- source: internal/component/bfd/yang/ze-bfd-conf.yang — choice secret-form -->
 <pre><code>auth {
     type                keyed-sha1;
     key-id              7;
@@ -338,7 +312,6 @@ verify, and its warning would otherwise stay for as long as the session is
 configured. A packet that verifies does not restart the minute, so bad
 packets mixed with the peer's good ones give one warning a minute. The secret
 is never logged.</p>
-<!-- source: internal/component/bfd/engine/problems.go -- warnAuthFailedLocked, clearAuthWarning, expireQuietWarnings -->
 <!-- test: internal/component/bfd/engine/failure_report_test.go TestAuthFailureIsCountedWarnedOnceAndClearedOnRecovery -->
 <!-- test: internal/component/bfd/engine/failure_report_test.go TestInterleavedAuthFailuresWarnAndRaiseOncePerWindow -->
 <!-- test: internal/component/bfd/engine/failure_report_test.go TestAuthWarningIsWithdrawnOnceTheFailuresStop -->
@@ -348,8 +321,6 @@ in <code>show errors</code>, and so is a session whose authentication closes wit
 last write refused: after a restart such a session starts from an older
 number, and a meticulous peer drops its packets until the number passes the
 one it last accepted. <code>ze doctor</code> reports why the store cannot be written.</p>
-<!-- source: internal/component/bfd/auth/persist.go -- flushIfChanged, Close -->
-<!-- source: internal/component/bfd/engine/problems.go -- closeAuth, reportSeqUnsaved -->
 <!-- test: internal/component/bfd/auth/persist_test.go TestSeqPersistWriteFailure -->
 <!-- test: internal/component/bfd/engine/failure_report_test.go TestSeqUnsavedIsReportedWhenASessionIsRemovedAndWhenTheLoopStops -->
 <h3 id="enabling-bfd-on-a-bgp-peer">Enabling BFD on a BGP peer</h3>
@@ -369,15 +340,12 @@ request. The same holds for a dynamic group's template, on every running
 dynamic peer of the group. A change with <code>strict true</code> before or after
 restarts the BGP session, because strict mode is announced in the OPEN
 (<code>docs/guide/config-reload.md</code>).</p>
-<!-- source: internal/component/bgp/reactor/peer_bfd.go -- Peer.applyBFDOptInChange -->
 <p>A released session does not leave <code>show bfd sessions</code> at once when it has
 heard from its peer. It stays there in <code>admin-down</code> for three of its
 Detection Times, because RFC 5880 Section 6.8.1 says its state "MUST be
 preserved for at least one Detection Time" and Section 6.8.16 asks for
 AdminDown Control packets for at least as long. A client that asks for
 the same session inside that window revives it, discriminator included.</p>
-<!-- source: internal/component/bfd/engine/engine.go -- ReleaseSession, retireReleasedLocked, reviveReleasedLocked -->
-<!-- source: internal/component/bfd/session/fsm.go -- AdminDown, adminDownTransmitDetectionTimes -->
 <p>With <code>strict true</code>, the peer opens its BFD session before the BGP FSM starts
 and keeps it across every retry, releasing it only when the peer itself stops
 (draft-ietf-idr-bgp-bfd-strict-mode Section 7). "BFD strict mode" below
@@ -407,12 +375,6 @@ block to define and the <code>connection { bfd { profile &lt;name&gt;; } }</code
 names it. An IBGP peer, a profile with an
 <code>auth</code> block, and a static next-hop's <code>bfd-profile</code> draw no warning, because
 the recommendation covers the BFD session of an EBGP peer only.</p>
-<!-- source: internal/component/bgp/reactor/peer_bfd.go — verifyPeerBFDProfiles warns for an EBGP peer's unauthenticated or absent profile -->
-<!-- source: internal/component/bfd/config.go — checkClientProfile answers whether the resolved profile authenticates -->
-<!-- source: internal/component/bgp/reactor/peer_bfd.go — startBFDClient, runBFDSubscriber -->
-<!-- source: internal/component/bgp/reactor/peer_bfd.go — bfdRequestFor carries the profile name, never a key -->
-<!-- source: internal/component/bfd/config.go — resolveProfile, profileConfig.applyTo copies the profile's auth into the request -->
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang — peer connection bfd container -->
 <pre><code>bgp {
     peer peer1 {
         connection {
@@ -474,13 +436,6 @@ a strict-mode peer then restarts, and a peer outside strict mode stays
 up. If a session is still refused at start for another reason, the
 peer logs the refusal and runs without BFD unless it is in strict mode,
 where it stays down.</p>
-<!-- source: internal/component/bgp/reactor/peer_bfd.go — verifyPeerBFDProfiles, checkPeerBFDOptIns -->
-<!-- source: internal/component/bfd/api/opt_in_check.go — CheckOptIns -->
-<!-- source: internal/component/bfd/config.go — checkClientsEnabled -->
-<!-- source: internal/component/bfd/api/profile_check.go — CheckProfile refuses when no BFD registered a checker -->
-<!-- source: internal/component/config/plugin_verify.go — VerifyPluginConfigMapTransition runs only a registration's InProcessConfigVerifier, which BGP does not set -->
-<!-- source: internal/component/plugin/server/reload_compensation.go — reloadConfigSections -->
-<!-- source: internal/component/bfd/api/registry.go — SetService / GetService -->
 <h3 id="multi-hop">Multi-hop</h3>
 <p>For iBGP between loopbacks or any peering that crosses more than one IP
 hop:</p>
@@ -579,8 +534,6 @@ KEEPALIVE while BFD is pending. The displayed sub-state is
 BFD Up, AdminDown or Disabled releases that wait to OpenConfirm. The bounds
 below apply in those states too; DelayOpen does not introduce an unbounded
 strict-mode wait. With <code>delay-open 0</code>, the existing OpenSent path is unchanged.</p>
-<!-- source: internal/component/bgp/fsm/delay_open.go -- EnterDelayOpenBfdUpPending, releaseDelayOpenBfdPending -->
-<!-- source: internal/component/bgp/reactor/session_bfd_strict.go -- advanceAfterOpen, handleBFDEvent -->
 <p><strong>Both speakers must advertise it.</strong> Against a peer whose OPEN carries no
 capability 74, Ze establishes on the normal path and BFD stays a failure
 detector. That is deliberate: a one-sided strict mode is a session that never
@@ -617,8 +570,6 @@ block above is the answer.</li>
 <p><strong>The BFD plugin must be loaded.</strong> A strict peer with no BFD plugin is held
 down rather than run without the check: establishing would deliver the
 opposite of what was configured. Ze logs an error naming the peer.</p>
-<!-- source: internal/component/bgp/reactor/session_bfd_strict.go — advanceAfterOpen, bfdStrictHolds, handleBFDEvent -->
-<!-- source: internal/component/bgp/fsm/state.go — BfdSubState, EventBfdUp -->
 <h2 id="standalone-sessions">Standalone sessions</h2>
 <p>Some paths have no protocol client. For those, pin the session explicitly
 in the top-level <code>bfd</code> block. It exists for the lifetime of the config.</p>
@@ -748,12 +699,6 @@ helps:</p>
 <p>The other way round, changing every other client to match the refused one,
 also works, but a live session keeps its authentication until every client has
 released it, so it needs the release in "Editing live" too.</p>
-<!-- source: internal/component/bfd/engine/auth_join.go -- joinAuthCheck, authMismatchCase, sourceCurrent -->
-<!-- source: internal/component/bfd/bfd.go -- profileAuthFor, loopFor -->
-<!-- source: internal/component/bfd/engine/engine.go -- EnsureSession -->
-<!-- source: internal/component/bgp/reactor/peer_bfd.go -- startBFDClient -->
-<!-- source: internal/plugins/static/inject.go -- setupBFDLocked -->
-<!-- source: internal/plugins/ospf/bfd_client.go -- startBFDSession, bfdRequestForNeighbor -->
 <h2 id="editing-live">Editing live</h2>
 <p>BFD configuration is reachable through the standard <code>ze config edit</code> CLI:</p>
 <pre><code>operator@router&gt; configure
@@ -853,27 +798,10 @@ go of it; if that happens, tear it down again once they have.</p>
 <p>A client refused because its authentication differs from the live
 session's asks again at the same moments, so a fix to its own config
 takes effect then.</p>
-<!-- source: internal/component/bfd/bfd.go -- applyPinned, reprofileClients -->
-<!-- source: internal/component/bfd/config_tx.go -- commitConfig, rollbackConfig -->
-<!-- source: internal/component/plugin/server/reload.go -- reactor ApplyConfigDiff after the transaction -->
-<!-- source: internal/component/bfd/engine/shared_session.go -- UpdateSession, Reprofile, reprofileEntryLocked, retimeLocked, fastestRequest -->
-<!-- source: internal/component/bfd/session/timers.go -- ApplyRole, ApplyEcho -->
-<!-- source: internal/component/bfd/engine/engine.go -- EnsureSession, reviveReleasedLocked, createSessionLocked -->
-<!-- source: internal/component/bfd/engine/auth_join.go -- authMismatchCase -->
-<!-- source: internal/component/bgp/reactor/peer_run.go -- startBFDClient and stopBFDClient callers -->
-<!-- source: internal/component/bgp/reactor/peer_up_delivery.go -- startEstablishedSession, the startBFDClient caller on Established -->
-<!-- source: internal/plugins/static/inject.go -- setupBFDLocked, releaseBFDLocked -->
-<!-- source: internal/plugins/ospf/bfd_client.go -- bfdNeighborFull, startBFDSession, reconcileBFD -->
-<!-- source: internal/plugins/ospf/instance.go -- reconcileBFD caller on every ospf apply -->
-<!-- source: internal/plugins/static/inject.go -- applyRouteLocked -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- teardown cease-subcode -->
-<!-- source: internal/component/plugin/server/reload_compensation.go -- reloadConfigSections -->
 <h2 id="observing-state">Observing state</h2>
 <p>The BFD commands show the engine's live session state and configured
 profiles. Their handlers return JSON payloads for scripts, which the
 interactive CLI can also render.</p>
-<!-- source: internal/component/bfd/cmd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
-<!-- source: internal/component/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
 <p>The terminal lab starts with an established FRR BGP peer and no BFD binding.
 It loads the profile and peer opt-in through one live SSH candidate, then
 checks Up, packet exchange and unchanged connection counts on both Ze and
@@ -881,7 +809,6 @@ FRR. FRR's counters also detect a reconnect hidden by recreating Ze's peer
 object. Cutting <code>frr0</code> exercises the detection-expired diagnostic and BGP's BFD notification
 before its negotiated hold timer. The lab also checks released-session
 retirement and restores the link without replacing the shown Ze process.</p>
-<!-- source: internal/le/site/terminaldemo/validate_topic_bfd.go -- checkTopicBFD -->
 <figure class="terminal-demo" data-terminal-demo="bfd-failover">
   <div class="terminal-demo__intro">
     <div>
@@ -1041,7 +968,6 @@ peer must share a subnet with; the fix of any other session is
 and its warning clears when a packet of that kind is sent again, when the
 session is removed, or when no packet of that kind has been refused for two
 minutes.</p>
-<!-- source: internal/component/bfd/engine/problems.go -- warnSendFailedLocked, clearSendWarning, expireQuietWarnings, sendFailedFix -->
 <!-- test: internal/component/bfd/engine/failure_report_test.go TestControlSendFailureIsRaisedWithItsFixAndClearedWhenASendLands -->
 <!-- test: internal/component/bfd/engine/failure_report_test.go TestEchoReflectWarningIsWithdrawnOnceTheFailuresStop -->
 <h3 id="prometheus-metrics">Prometheus metrics</h3>
@@ -1049,7 +975,6 @@ minutes.</p>
 <code>internal/component/bfd/metrics.go</code>. The families appear on the
 telemetry endpoint when <code>telemetry { prometheus { enabled true } }</code>
 is set.</p>
-<!-- source: internal/component/bfd/metrics.go — bindMetricsRegistry, metricsHook, refreshSessionsGauge -->
 <table>
 <thead>
 <tr>
@@ -1175,7 +1100,6 @@ TTL gate fails closed when the kernel cannot extract the received TTL
 carries a <code>min-ttl</code> leaf (default 254). Packets arriving with a TTL below
 that floor are discarded before reaching the FSM. Pick <code>min-ttl</code> to be
 <code>256 - max-hops</code>.</p>
-<!-- source: internal/component/bfd/engine/loop.go — passesTTLGate -->
 <h3 id="multi-vrf-and-interface-binding">Multi-VRF and interface binding</h3>
 <p>A single-hop session to an IPv6 link-local peer (<code>fe80::/10</code>) must name its
 link in <code>interface</code>, in the default VRF and in any other: the same address can
@@ -1190,14 +1114,12 @@ two links is two entries:</p>
 <code>local</code> written with a zone (<code>fe80::b%eth0</code>): write the address without the
 zone and the link in <code>interface</code>. A global IPv6 or an IPv4 peer needs no
 <code>interface</code>.</p>
-<!-- source: internal/component/bfd/config.go -- parseSingleHopSession -->
 <p>Any IPv6 peer also needs <code>bfd { bind-v6 true; }</code>. The leaf defaults to false,
 and then each session loop holds only an IPv4 socket. A protocol that asks for
 a session to an IPv6 neighbour (OSPFv3, a BGP peer over IPv6) is then refused
 with an error that names the leaf, rather than given a session that can never
 send. An IPv4-mapped address (<code>::ffff:192.0.2.1</code>) travels on the IPv4 socket
 and needs no IPv6 one.</p>
-<!-- source: internal/component/bfd/bfd.go -- pluginService.EnsureSession, newTransport -->
 <p>Single-hop pinned sessions may specify an <code>interface</code> leaf. When every
 pinned session in the same <code>(vrf, single-hop)</code> pair names the same
 interface, the plugin binds the socket to that interface via
@@ -1234,16 +1156,12 @@ Those are what tell Ze which of its own addresses a packet was sent to and
 which link it arrived on, which is how a Control packet carrying no
 discriminator finds its session (RFC 5880 Section 6.8.6). They are Linux
 control messages: on any other platform that lookup has neither field.</p>
-<!-- source: internal/component/bfd/bfd.go — resolveLoopDevices, loopDeviceFor, loopFor, newUDPTransport -->
-<!-- source: internal/component/bfd/transport/udp_linux.go — applySocketOptions, parseReceivedPktinfo -->
 <h3 id="transmit-jitter">Transmit jitter</h3>
 <p>RFC 5880 §6.8.7 requires the TX interval to be reduced by 0-25% on each
 packet, and the reduction must be at least 10% when <code>detect-multiplier</code>
 is 1 so the receiver cannot detect before the next packet arrives. Ze
 implements both bands via <code>engine.Loop.applyJitter</code>; operators do not
 configure it.</p>
-<!-- source: internal/component/bfd/engine/engine.go — applyJitter -->
-<!-- source: internal/component/bfd/engine/loop.go — tick -->
 <h3 id="gc-pause-sensitivity">GC pause sensitivity</h3>
 <p>At 50 ms intervals with <code>mult=3</code>, a 150 ms GC pause looks indistinguishable
 from a real failure. Ze's BFD plugin uses pool-backed buffers and runs
@@ -1351,7 +1269,7 @@ document for the full gap list and the intended follow-up order.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

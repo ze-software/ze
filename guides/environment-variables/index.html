@@ -59,7 +59,6 @@ Bootstrap, safety, and test keys can be environment-only.</p>
 <li><a href="#discoverability">Discoverability</a></li>
 <li><a href="#changes-in-2026-04">Changes in 2026-04</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/config/environment.go -- env var registrations; internal/core/paths/paths.go -- ze.config.dir registration -->
 <p>See <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/environment.md" target="_blank" rel="noopener">environment.md</a> for the
 authoritative list.</p>
 <h2 id="priority-for-config-backed-keys">Priority for Config-Backed Keys</h2>
@@ -152,14 +151,11 @@ authoritative list.</p>
 <code>ze env registered</code> using canonical dot-form keys. Concrete
 <code>ze.log.&lt;subsystem&gt;</code> keys (visible in <code>ze env list</code>) are completable
 and inspectable via <code>ze env get</code>.</p>
-<!-- source: internal/core/envcatalog/catalog.go -- VisibleEntries -->
 <p>In the interactive CLI operational mode, <code>show env get</code> and
 <code>show env registered</code> also offer env-key completion through the
 shared command tree. <code>wireEnvHints</code> spells the <code>show</code> in those two paths
 as <code>command.VerbShow</code>, the verb registry's own constant, so renaming the
 read verb moves the completion paths with it.</p>
-<!-- source: internal/component/command/valuehints.go -- wireEnvHints -->
-<!-- source: internal/component/command/verbs.go -- VerbShow -->
 <h2 id="changes-in-2026-04">Changes in 2026-04</h2>
 <p>The ExaBGP compatibility surface was trimmed. Every
 <code>ze.bgp.daemon.*</code>, <code>ze.bgp.log.*</code>, <code>ze.bgp.tcp.*</code>, <code>ze.bgp.api.*</code>, and
@@ -283,7 +279,7 @@ ones so an operator can audit an ExaBGP env file before commit.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

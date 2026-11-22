@@ -595,7 +595,7 @@ clears those descriptors from the worker; its teardown still closes the
 PPPoX transport. Bridged sessions and sessions without a PPP driver stay
 worker-owned. A cancelled delivery closes the claimed descriptors; an
 accepted queue item belongs to PPP even if rejected or drained during stop.
-<!-- source: internal/component/l2tp/kernel_linux.go -- takePPPDescriptors -->
+<!-- source: internal/component/l2tp/kernel_linux.go -- preparePPPTransfer, takePPPConfig -->
 <!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess -->
 <!-- source: internal/component/l2tp/ppp/manager.go -- dispatch, spawnSession -->
 

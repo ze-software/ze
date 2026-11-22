@@ -138,7 +138,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>10</strong><b>of 66 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>55</strong><b>of 66 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>55</strong><b>of 66 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -2476,7 +2476,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc9568-7.2-5"><code>RFC9568-7.2-5</code></a></h3>
 <p>* Compute the VRRP checksum (§7.2)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-10-31 (independent auditor, authored none of 7682a5dc93). RFC 9568 Section 7.2 says &#34;The following operations MUST be performed when transmitting a VRRP packet: ... * Compute the VRRP checksum&#34;, in the Section 5.2.8 form: message-only for IPv4, and for IPv6 &#34;the checksum calculation also includes a prepended \&#34;pseudo-header\&#34;, as defined in Section 8.1 of [RFC8200].&#34; 7682a5dc93 moved openV6&#39;s RX socket from the parent to the instance MACVLAN; the TX socket still sets IPV6_CHECKSUM 6, so the kernel still computes the IPv6 checksum with its pseudo-header. Tagged units are byte-identical to the 2026-10-18 judgement. IPv4: proven (TestTransmittedAdvertFilledFromInstanceState asserts p.Checksum == spec.Checksum in both modes; TestSendAdvertFillsFieldsAndChecksum computes the expected sums itself; the compatible-mode subtest is the negative). IPv6: still unproven by any tagged unit; the transport test&#39;s fake backend carries no IPv6 checksum and the instance test computes FillChecksum in its own body, so removing the setsockopt leaves every tagged unit green. Only the untagged integration QEMU units TestIntegrationOpenInstanceSocketOptions and TestIntegrationAdvertV6OnWire read it. Fix unchanged: tag one positive for this row with its QEMU discrimination record. Verdict unchanged: weak.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/plugins/vrrp/transport/backend_linux.go::openV6 moved. Re-judged 2026-10-31 (independent auditor, authored none of 7682a5dc93). RFC 9568 Section 7.2 says &#34;The following operations MUST be performed when transmitting a VRRP packet: ... * Compute the VRRP checksum&#34;, in the Section 5.2.8 form: message-only for IPv4, and for IPv6 &#34;the checksum calculation also includes a prepended \&#34;pseudo-header\&#34;, as defined in Section 8.1 of [RFC8200].&#34; 7682a5dc93 moved openV6&#39;s RX socket from the parent to the instance MACVLAN; the TX socket still sets IPV6_CHECKSUM 6, so the kernel still computes the IPv6 checksum with its pseudo-header. Tagged units are byte-identical to the 2026-10-18 judgement. IPv4: proven (TestTransmittedAdvertFilledFromInstanceState asserts p.Checksum == spec.Checksum in both modes; TestSendAdvertFillsFieldsAndChecksum computes the expected sums itself; the compatible-mode subtest is the negative). IPv6: still unproven by any tagged unit; the transport test&#39;s fake backend carries no IPv6 checksum and the instance test computes FillChecksum in its own body, so removing the setsockopt leaves every tagged unit green. Only the untagged integration QEMU units TestIntegrationOpenInstanceSocketOptions and TestIntegrationAdvertV6OnWire read it. Fix unchanged: tag one positive for this row with its QEMU discrimination record. Verdict unchanged: weak.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -3621,7 +3621,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

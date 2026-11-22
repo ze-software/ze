@@ -71,7 +71,7 @@ These features have code, but still need production testing or have unfinished p
 - Structured **JSON** per module
 - Privacy-by-default, **gokrazy**-safe
 
-[Learn more](https://ze-software.net/features/)
+[Learn more](https://ze-software.net/guides/production-diagnostics/)
 
 ### Audit Trail
 
@@ -92,7 +92,7 @@ These features have code, but still need production testing or have unfinished p
 - Shared by IPsec, **TLS**, mutual auth
 - **Local CA** issues 24-hour certs to Ze's components
 
-[Learn more](https://ze-software.net/features/)
+[Learn more](https://ze-software.net/reference/feature-status/)
 
 ### IPsec VPN
 
@@ -103,7 +103,7 @@ These features have code, but still need production testing or have unfinished p
 - EAP-MSCHAPv2, **EAP-TLS**, road warrior
 - **CRL** and OCSP revocation checks on EAP-TLS
 
-[Learn more](https://ze-software.net/features/)
+[Learn more](https://ze-software.net/guides/ipsec/)
 
 ### L2TPv2 BNG
 
@@ -165,7 +165,7 @@ These features have code, but still need production testing or have unfinished p
 - LDP **discovery** and sessions
 - RSVP-TE **ERO**, bandwidth admission
 
-[Learn more](https://ze-software.net/features/)
+[Learn more](https://ze-software.net/guides/mpls/)
 
 ### OSPFv2 / OSPFv3
 
@@ -237,7 +237,7 @@ These features have code, but still need production testing or have unfinished p
 - Named **profiles** (DSR, router, hardened)
 - Originals **restored** on stop
 
-[Learn more](https://ze-software.net/features/)
+[Learn more](https://ze-software.net/reference/plugins/sysctl/)
 
 ### AS112 Anycast DNS
 
@@ -257,7 +257,7 @@ These features have code, but still need production testing or have unfinished p
 - MPLS and **SRv6** binding SID, tunnel encap
 - **ExaBGP bridge** for SR-Policy migration
 
-[Learn more](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy)
+[Learn more](https://ze-software.net/features/srv6/)
 
 ### Fleet Management
 
@@ -317,7 +317,7 @@ These features have code, but still need production testing or have unfinished p
 - Health, warnings, and **errors**
 - Structured **remediation** with `ze show diagnostic`
 
-[Learn more](https://ze-software.net/guides/production-diagnostics/)
+[Learn more](https://ze-software.net/guides/system-readiness/)
 
 ### Native BGP Engine
 
@@ -395,7 +395,7 @@ These features have code, but still need production testing or have unfinished p
 
 *automate / Experimental* -- `Self-describing` `Skills`
 
-- **Self-describing** command catalogue from the live binary
+- **Self-describing** command catalog from the live binary
 - Every command is available to **automation**
 - Structured **diagnostics** and repair plans
 - `ze create agent skill` sets up **Claude Code** and **Codex**
@@ -450,7 +450,7 @@ These features have code, but still need production testing or have unfinished p
 - Per-component **status** checks
 - BGP, FIB, IPsec, L2TP, **VPP**
 
-[Learn more](https://ze-software.net/features/)
+[Learn more](https://ze-software.net/guides/system-readiness/)
 
 ### Host Inventory
 
@@ -460,7 +460,7 @@ These features have code, but still need production testing or have unfinished p
 - **SMART** disk health and self-tests
 - **JSON** output for pipelines
 
-[Learn more](https://ze-software.net/features/)
+[Learn more](https://ze-software.net/reference/feature-status/)
 
 ### Crash Capture
 
@@ -470,7 +470,7 @@ These features have code, but still need production testing or have unfinished p
 - Last 64 **diagnostic entries** saved with each crash
 - **show crashes** CLI command
 
-[Learn more](https://ze-software.net/features/)
+[Learn more](https://ze-software.net/reference/plugins/crashes/)
 
 ### Production Diagnostics
 
@@ -531,7 +531,7 @@ These features have code, but still need production testing or have unfinished p
 - **Compose** support included
 - Optional **build tags**
 
-[Learn more](https://ze-software.net/features/)
+[Learn more](https://ze-software.net/guides/docker/)
 
 ### Choose Features at Build Time
 

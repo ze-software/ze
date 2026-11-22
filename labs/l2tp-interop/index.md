@@ -17,13 +17,13 @@ Two scenarios: end-to-end PPP/IPv4 dataplane tests with cleanup verification, an
 
 ```
 # Docker lab, all scenarios
-$ ./le deployment docker-l2tp-ppp
+$ ./le test deployment docker-l2tp-ppp
 
 # single scenario, verbose
-$ ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 ./le deployment docker-l2tp-ppp
+$ ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 ./le test deployment docker-l2tp-ppp
 
 # QEMU path instead of Docker (needs tmp/kernel/vmlinuz)
-$ ./le deployment gokrazy-l2tp-ppp
+$ ./le test deployment gokrazy-l2tp-ppp
 ```
 
 `Prerequisites`

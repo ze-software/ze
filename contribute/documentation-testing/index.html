@@ -75,9 +75,6 @@ change.</p>
 <li><a href="#adding-a-new-documentation-check">Adding a new documentation check</a></li>
 <li><a href="#see-also">See also</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/le/doc/check/actions.go -- Actions -->
-<!-- source: internal/le/doc/wiring/docwiring.go -- Run -->
-<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 <h2 id="quick-start">Quick start</h2>
 <pre><code class="language-sh">./le doc check all              # Run all documentation tests
 ./le doc wiring    # Run changed-file-aware wiring/doc/inventory gate
@@ -151,16 +148,6 @@ are the list the <code>test-only-imports</code> tier check reads
 (<code>docs/architecture/module-tiers.md</code>, "Test-only helpers"). The tier check
 restricts these helpers to tests and tooling under <code>internal/le</code>, so the wiring
 check exempts their exports without requiring a non-test reference.</p>
-<!-- source: internal/le/doc/wiring/wiring.go -- checkWiring -->
-<!-- source: internal/le/doc/wiring/allowlist.go -- wiringAllowlist -->
-<!-- source: internal/le/arch/testonly/testonly.go -- Packages -->
-<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
-<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
-<!-- source: internal/le/doc/index/actions.go -- Answer -->
-<!-- source: internal/le/doc/check/actions.go -- Answer -->
-<!-- source: internal/le/doc/consistency/consistency.go -- Answer -->
-<!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
-<!-- source: internal/le/doc/ste/actions.go -- Answer -->
 <h3 id="native-catalog-lifetime">Native catalog lifetime</h3>
 <p>The <code>doc-drift</code> action builds a native daemon before reading its command catalog.
 SIGINT or SIGTERM cancels that invocation's build or catalog command. The caller's
@@ -173,10 +160,6 @@ explicitly.</p>
 <p>The drift stage of <code>doc check all</code> has the same invocation-level cancellation.
 The aggregate documentation checker still runs its independent later stages after
 a failed stage; this is not a claim that one interrupt cancels that whole sequence.</p>
-<!-- source: internal/le/doc/yangcontract/actions.go -- runDrift -->
-<!-- source: internal/le/doc/yangcontract/drift.go -- Drift -->
-<!-- source: internal/le/doc/yangcontract/command_surfaces.go -- BuildDaemon, runCommandCatalog, runCatalogProcess -->
-<!-- source: internal/le/doc/wiring/docverify.go -- docDriftStage, answerDocVerify -->
 <h2 id="when-to-run">When to run</h2>
 <table>
 <thead>
@@ -231,7 +214,6 @@ a failed stage; this is not a claim that one interrupt cancels that whole sequen
 <p>The full <code>./le doc check all</code> remains the explicit documentation review target.
 Thomas's release check, <code>./le verify current</code>, runs <code>./le doc wiring</code>, which invokes the relevant doc,
 command, inventory, and wiring checks for changed files.</p>
-<!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
 <p>The change is the unpushed range. The base is the merge base of HEAD and the
 branch upstream, or of HEAD and <code>refs/remotes/origin/HEAD</code> when the branch
 tracks none (<code>ResolveAnchor</code>, <code>internal/le/repo/changed/anchor.go</code>), and
@@ -250,9 +232,6 @@ never read as an empty file. A file named with
 base reads refs only, so the detached worktree that Thomas's release check, <code>./le verify worktree</code>,
 makes judges the same range. When no base resolves, the gate exits 2 and names
 why, and no check runs.</p>
-<!-- source: internal/le/doc/wiring/docwiring.go -- Run -->
-<!-- source: internal/le/repo/changed/lines.go -- LinesSinceUpstream, PathsSince -->
-<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 <h2 id="how-to-interpret-output">How to interpret output</h2>
 <h3 id="le-doc-yang-contract-doc-drift"><code>./le doc yang-contract doc-drift</code></h3>
 <pre><code>  Documentation drift detected (N issues)
@@ -277,8 +256,6 @@ unit-test count applies the same exclusions within <code>internal</code>, <code>
 A source file or directory that cannot be read still produces a finding,
 including a failed scan root. Absent optional roots contribute no files and
 no finding. A partial count is not evidence that a published claim is correct.</p>
-<!-- source: internal/le/doc/yangcontract/scan.go -- countFuzzTargets, countGoTestFunctions, countGoFunctions -->
-<!-- source: internal/le/doc/index/docstocode.go -- SkipsDir, ModCache, Cache, walkGo -->
 <h3 id="le-doc-yang-contract-command-contract"><code>./le doc yang-contract command-contract</code></h3>
 <pre><code># Command Validation
 
@@ -302,16 +279,13 @@ FAILED: 30 problem(s)
 <li>An rpc whose published wire method no handler serves -&gt; <code>ze schema methods</code> and <code>ze help ai --json</code> publish a method the daemon answers with "unknown method". The method is the one <code>yang.PublishedRPCs</code> gives it: the <code>ze:command</code> method of the node whose <code>ze:rpc</code> points at it. An rpc no node points at, and that declares no <code>ze:method</code>, is published under no name and is named as "(no ze:command node points at it)". The row names the wire method, the rpc and the module</li>
 <li>A wire method under a prefix its package does not own -&gt; two subsystems can then spell one method, and the clash is found only when the daemon refuses to start (<code>ErrWireMethodHeld</code>). The prefix a package owns is <code>pluginserver.OwnerPrefix</code> of the package that called <code>RegisterRPCs</code>: <code>ze-</code> and the directory directly under <code>internal/component/</code> or <code>internal/plugins/</code>, <code>-cmd</code> dropped (<code>docs/architecture/api/wire-format.md</code>, "Method Naming"). The row names the method, the registering package and the prefix it owns; rename the method in the <code>ze:command</code> node and the <code>WireMethod</code> literal together. A node no builtin handler serves is judged by the package that called <code>RegisterModule</code> for its module, and its row names that module</li>
 </ul>
-<!-- source: internal/le/doc/yangcontract/contract.go -- foreignPrefixes, foreignCommandPrefixes -->
 <p>A run that loads no <code>-api</code> module is an error rather than a pass, because it
 judged no declaration.</p>
-<!-- source: internal/le/doc/yangcontract/contract.go -- contractSatisfied, publishedRPCs, unservedRPCs -->
 <p>Local-handler discovery reads <code>cmd/ze/main.go</code>, the <code>register.go</code> and non-test
 <code>register_*.go</code> files in <code>cmd/ze/*/</code>, and those same registration filenames
 recursively under <code>internal/</code>. Test files, source backups and other Go
 filenames do not declare handlers for this census. A registration source that
 cannot be read or parsed fails the check.</p>
-<!-- source: internal/le/doc/yangcontract/contract.go -- localCommandRegistryFiles, localCommandRegistrySource, scanLocalHandlers -->
 <h3 id="le-doc-yang-contract-help-shape"><code>./le doc yang-contract help-shape</code></h3>
 <pre><code># Command Help Shape
 
@@ -367,7 +341,6 @@ is held to the two caps and to the pair rules, and to nothing else: the
 summary of a config node is written over as many lines as its author needed,
 and <code>entryShortHelp</code> collapses the whitespace before it renders, so a newline
 in one is the normal spelling rather than a defect.</p>
-<!-- source: internal/le/doc/yangcontract/helpshape_schema.go -- collectSchema -->
 <h4 id="what-the-config-corpus-is">What the config corpus IS</h4>
 <p>The population is the RESOLVED entry tree of the <code>-conf</code> modules, which is the
 tree the completer itself walks. Deriving it settles three questions no rule
@@ -467,7 +440,6 @@ an operator can reach owes both texts wherever it was written.</p>
 written, so the rule holds over the whole tree and the <code>HEAD</code> baseline that
 scoped it is gone. There is no file to append a path to, and no scope line in
 the report: a summary with no long text beside it is refused wherever it sits.</p>
-<!-- source: internal/le/doc/yangcontract/helpshape.go -- judgePair -->
 <p>The third corpus is read two ways, because Go forbids importing a main package.
 The registrations this binary links are read from the registry. The four
 <code>cmd/ze</code> declares in <code>package main</code> are read from its source, and a registration
@@ -494,7 +466,6 @@ one-line surface reads.</p>
 an agent writes or edits, and warns with exit 1. It loads no YANG model. It
 reads the file it was handed, which is not on disk yet. It never speaks for the
 tree: <code>./le doc yang-contract help-shape</code> is the gate.</p>
-<!-- source: internal/le/hookruntime/writeedit.go -- writeYangDescription, scanYangText -->
 <table>
 <thead>
 <tr>
@@ -541,8 +512,6 @@ container and calls <code>argDefFor</code>, which passes the leaf's <code>ze:hel
 command surface prints the one it has. <code>entryShortHelp</code> puts a config leaf's
 <code>ze:help</code> summary on the completion row. The file name is what separates the
 two at the level the hook reads.</p>
-<!-- source: internal/component/config/yang/command.go -- extractArgDefs, argDefFor -->
-<!-- source: internal/component/cli/completer.go -- entryShortHelp -->
 <p>Each finding names the file, the statement that encloses the text, the rule, and
 the measured value beside its bound. The text is joined across its concatenated
 parts and its lines, and its whitespace is collapsed. The author is therefore
@@ -588,7 +557,7 @@ that stopped early must not read as a file that broke no rule.</p>
 </tr>
 <tr>
 <td>Stale source anchor path</td>
-<td>Fix or remove the <code>&lt;!-- source: ... --&gt;</code> path, then rerun <code>./le doc check all</code></td>
+<td>Fix or remove the `` path, then rerun <code>./le doc check all</code></td>
 </tr>
 <tr>
 <td><code>CLAIM: ... names 'Sym', which is not declared there</code></td>
@@ -640,9 +609,8 @@ tags, so a Linux declaration remains visible on a macOS host.</p>
 <p>The same walk answers the opposite question. <code>internal/le/doc/index.ClaimsByPath</code>
 maps a code path to the claims written about it, each with the symbols its
 anchor names, and the <code>doc-drift</code> check in <code>internal/le/doc/wiring</code> refuses a
-commit that changed one of those symbols and left its page alone.</p>
-<!-- source: internal/le/doc/wiring/checks.go -- checkDocDrift, touchedSymbols -->
-<p>The check reads the diff hunks, maps each to the declaration it lands in, and
+commit that changed one of those symbols and left its page alone.
+The check reads the diff hunks, maps each to the declaration it lands in, and
 compares those names with the anchor's claim. So an edit elsewhere in the same
 file reports nothing, and a page counts for itself alone. A test file is out of
 scope. A claim naming no resolvable symbol blocks nothing and is counted in the
@@ -701,7 +669,6 @@ counts them.</p>
 behavior a claim states MUST edit the page, in the same work as the code
 (<code>ai/rules/documentation.md</code>). A row that accepts a false claim hides exactly
 the defect this check exists to find.</p>
-<!-- source: internal/le/doc/wiring/reviewed.go -- ReviewedDir, readReviewLedger -->
 <p><code>internal/le/doc/check.Answer</code> walks the instruction corpus for paths,
 <code>// Design:</code> targets and hook names. Its last two checks do not use that
 corpus. <code>sweep_tracked</code> reads every file <code>git ls-files</code> names, one time, and
@@ -739,9 +706,6 @@ section is reported as nothing. The judgment is also registered as a
 change-set check, so <code>./le commit create</code> refuses a malformed row the commit
 adds and a row present at its parent that it changes or removes without
 Thomas (<code>docs/contributing/committing.md</code>, "What the command refuses").</p>
-<!-- source: internal/le/doc/consistency/consistency.go -- checkDesignRefs, designHeader -->
-<!-- source: internal/le/doc/consistency/decisions.go -- designTargets, ParseDecisions, JudgeDecisionRow, checkDesignDecisions -->
-<!-- source: internal/le/doc/consistency/decisionschange.go -- judgeDecisionRows -->
 <h2 id="adding-a-new-documentation-check">Adding a new documentation check</h2>
 <ol>
 <li>Add callable Go behavior to the owning package under <code>internal/le/</code>.</li>
@@ -781,7 +745,7 @@ command validation, and changed-file wiring</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

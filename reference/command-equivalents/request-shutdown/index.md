@@ -29,7 +29,7 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-### Reload\, reboot\, halt\, or shut down
+### Halt or power off the system
 
 Category: Lifecycle
 
@@ -49,6 +49,4 @@ No equivalent listed.
 
 ### VyOS
 - `poweroff` (verified, vyos\-cli)
-  - Intent: Reload\, reboot\, halt\, or shut down
-- `reboot` (verified, vyos\-cli)
-  - Intent: Reload\, reboot\, halt\, or shut down
+  - Intent: Halt or power off the system

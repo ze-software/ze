@@ -31,7 +31,7 @@ Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states\. Pass ipv4 or 
 
 ## Mapping intents
 
-### ARP and neighbor cache
+### IPv6 neighbor discovery cache
 
 Category: Neighbors
 
@@ -50,5 +50,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `show arp` (verified, vyos\-cli)
-  - Intent: ARP and neighbor cache
+- `show ipv6 neighbors` (verified, vyos\-cli)
+  - Intent: IPv6 neighbor discovery cache

@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 22 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 22 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 22 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 55 | 55 of 81 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 71 | 71 of 81 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 81 |
 | Tests linked to requirements | 81 |
 | Recorded audit verdicts | 12 |
-| Fault test records | 55 |
+| Fault test records | 71 |
 | Summary | `rfc/short/rfc7311.md` |
 | Requirement table | `rfc/requirements/rfc7311.md` |
 | RFC text | `rfc/full/rfc7311.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: Ze implements AIGP validation, per-session policy,
 
 **Area:** AIGP attribute
 
-**Test verification:** 14 of 22 MUST proven
+**Test verification:** 22 of 22 MUST proven
 
-**Evidence:** unit 14
+**Evidence:** unit 22
 
 **Unmet:** -
 
@@ -110,19 +110,19 @@ Included in automatic checks: Ze implements AIGP validation, per-session policy,
 
 ## Figures
 
-- **MUST bar**: Ze verified 14, Tests awaiting verification 8
-- **Overview bar**: Ze MUST verified 14, Tests awaiting verification 8, Not assessed 4
+- **MUST bar**: Ze verified 22
+- **Overview bar**: Ze MUST verified 22, Not assessed 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 22 |
 | MUST rows kept (the MUST bar) | 22 |
-| Ze verified | 14 |
+| Ze verified | 22 |
 | OS verified | 0 |
-| Tests awaiting verification | 8 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -248,8 +248,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAIGPConfiguredOriginationRejectsOutsideDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L241) | unit/verify | not verified |
-| positive | [`TestAIGPConfiguredOriginationRejectsOutsideDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L240) | unit/verify | not verified |
+| negative | [`TestAIGPConfiguredOriginationRejectsOutsideDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L241) | unit/verify | revert, verified |
+| positive | [`TestAIGPConfiguredOriginationRejectsOutsideDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L240) | unit/verify | revert, verified |
 
 ### [`RFC7311-3.2-5`](#rfc7311-3.2-5)
 
@@ -259,8 +259,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAIGPReceiveValidatesEveryTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L83) | unit/verify | not verified |
-| positive | [`TestAIGPReceiveValidatesEveryTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L82) | unit/verify | not verified |
+| negative | [`TestAIGPReceiveValidatesEveryTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L83) | unit/verify | revert, verified |
+| positive | [`TestAIGPReceiveValidatesEveryTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L82) | unit/verify | revert, verified |
 
 ### [`RFC7311-3.2-6`](#rfc7311-3.2-6)
 
@@ -281,8 +281,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAIGPSessionReceiveBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L45) | unit/verify | not verified |
-| positive | [`TestAIGPSessionReceiveBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L44) | unit/verify | not verified |
+| negative | [`TestAIGPSessionReceiveBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L45) | unit/verify | revert, verified |
+| positive | [`TestAIGPSessionReceiveBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L44) | unit/verify | revert, verified |
 
 ### [`RFC7311-3.3-2`](#rfc7311-3.3-2)
 
@@ -292,8 +292,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAIGPSessionReceiveBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L47) | unit/verify | not verified |
-| positive | [`TestAIGPSessionReceiveBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L46) | unit/verify | not verified |
+| negative | [`TestAIGPSessionReceiveBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L47) | unit/verify | revert, verified |
+| positive | [`TestAIGPSessionReceiveBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L46) | unit/verify | revert, verified |
 
 ### [`RFC7311-3.3-3`](#rfc7311-3.3-3)
 
@@ -314,8 +314,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAIGPSessionReceiveBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L49) | unit/verify | not verified |
-| positive | [`TestAIGPSessionReceiveBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L48) | unit/verify | not verified |
+| negative | [`TestAIGPSessionReceiveBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L49) | unit/verify | revert, verified |
+| positive | [`TestAIGPSessionReceiveBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L48) | unit/verify | revert, verified |
 
 ### [`RFC7311-3.4.1-1`](#rfc7311-3.4.1-1)
 
@@ -325,8 +325,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAIGPOriginationControlsReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L135) | unit/verify | not verified |
-| positive | [`TestAIGPOriginationControlsReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L134) | unit/verify | not verified |
+| negative | [`TestAIGPOriginationControlsReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L135) | unit/verify | revert, verified |
+| positive | [`TestAIGPOriginationControlsReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L134) | unit/verify | revert, verified |
 
 ### [`RFC7311-3.4.1-2`](#rfc7311-3.4.1-2)
 
@@ -336,8 +336,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAIGPOriginationControlsReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L137) | unit/verify | not verified |
-| positive | [`TestAIGPOriginationControlsReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L136) | unit/verify | not verified |
+| negative | [`TestAIGPOriginationControlsReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L137) | unit/verify | revert, verified |
+| positive | [`TestAIGPOriginationControlsReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L136) | unit/verify | revert, verified |
 
 ### [`RFC7311-3.4.1-3`](#rfc7311-3.4.1-3)
 
@@ -347,8 +347,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAIGPOriginationControlsReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L139) | unit/verify | not verified |
-| positive | [`TestAIGPOriginationControlsReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L138) | unit/verify | not verified |
+| negative | [`TestAIGPOriginationControlsReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L139) | unit/verify | revert, verified |
+| positive | [`TestAIGPOriginationControlsReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L138) | unit/verify | revert, verified |
 
 ### [`RFC7311-3.4.3-1`](#rfc7311-3.4.3-1)
 

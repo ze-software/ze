@@ -611,15 +611,15 @@ The route enters Ze's BGP RIB, wins best-path selection, reaches the protocol-in
 ```
 
 
-## Live warnings and retained errors
+<!-- ## Live warnings and retained errors
 
-<!-- The health-reports demo is not embedded while its recording is wrong. Its
+     The health-reports demo is not embedded while its recording is wrong. Its
      tape drives an SSH session whose commands the CLI answers with a completion
      listing rather than a result, so the recording holds the intro card, a
      config box and the recap, and none of the output this gallery describes.
-     Restore this marker when the recording shows the session again.
-     Recorded in plan/journal/green-that-could-not-have-been-red.md -->
-<!-- terminal-demo-disabled: health-reports -->
+     Restore this heading and marker when the recording shows the session again.
+     Recorded in plan/journal/green-that-could-not-have-been-red.md
+     terminal-demo-disabled: health-reports -->
 
 ## Configuration views and formatter pipes
 

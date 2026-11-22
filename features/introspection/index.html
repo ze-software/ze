@@ -44,13 +44,6 @@
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-observe">
-<!-- source: internal/component/config/yang/cli/main.go -- ze schema subcommands -->
-<!-- source: internal/plugins/env/env.go -- ze env subcommands -->
-<!-- source: internal/plugins/help/help_ai.go -- ze help ai output -->
-<!-- source: internal/le/repo/inventory/inventory.go -- Answer -->
-<!-- source: internal/le/cli/list/commandlist.go -- Answer -->
-<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
-<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="self-documenting-system">Self-Documenting System</h1>
@@ -157,7 +150,6 @@ alone, through <code>show command help "&lt;name&gt;"</code> and Tab completion 
 interactive session. That answer carries a command's two help texts under
 <code>short-help</code> (the one-line summary) and <code>description</code> (the explanation), for a
 builtin and for a plugin command alike.</p>
-<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp -->
 <p><code>ze show plugin declarations</code> closes that last gap. One row for each plugin
 this binary carries, one for each plugin the named config file declares, and no
 plugin omitted. The plugins this binary carries are the set <code>ze show plugin list</code> answers for, so a plugin whose own <code>init()</code> recorded a setup outcome and
@@ -224,18 +216,11 @@ Stage 1, so a row reads <code>declared</code> only when the daemon would start t
 <code>ze show plugin conformance run "&lt;run string&gt;"</code> judges one program against the
 same checks and writes one row for each check
 (<code>docs/plugin-development/testing.md</code>).</p>
-<!-- source: internal/component/plugin/declarations.go -- configuredDeclarationRow, unavailableDeclarationRow, queriedDeclarationRow, stateUnjudged, stateNotAvailable -->
-<!-- source: internal/component/plugin/conformance/register.go -- dataConformance -->
 <p>The budget is 5 seconds, the same wait a startup stage gets, and
 <code>ze.plugin.query.timeout</code> sets it. A value of zero or less is refused rather
 than read as "wait no time". A plugin that runs out of the budget is stopped
 with everything it started: the run string is given to a shell, and a shell
 that runs more than one command holds the plugin as its own child.</p>
-<!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
-<!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
-<!-- source: internal/plugins/help/help_command.go -- collectCommands, pipeOperationsFor -->
-<!-- source: internal/component/command/declared.go -- DeclaredForCommand -->
-<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp -->
 <h2 id="build-time-verification">Build-Time Verification</h2>
 <table>
 <thead>
@@ -268,8 +253,6 @@ independent of the host and uncommitted edits. Each plugin row carries the
 package that defines its engine function and the YANG files beside its
 registered module. If the plugin declares no module, the file list comes from
 its package's <code>yang/</code> directory. The public plugin catalog publishes both.</p>
-<!-- source: internal/le/repo/inventory/source.go -- ReadCommitted -->
-<!-- source: internal/le/repo/inventory/registrations.go -- engineSource, yangFiles -->
 <p>The inventory keeps startup ordering separate from dependencies. Its JSON uses
 <code>start-after</code> (omitted when empty), and its plugin table labels the same metadata
 <strong>Start after</strong>. These names only constrain startup when both plugins are
@@ -327,7 +310,7 @@ completion, schema discovery, inventory, and environment variable listing. No ma
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

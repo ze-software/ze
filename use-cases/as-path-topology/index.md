@@ -37,6 +37,10 @@ environment {
 bgp {
     router-id 192.0.2.10;
     session { asn { local 64500; } }
+    filter {
+        import { final accept; }
+        export { final reject; }
+    }
 
     peer transit-a {
         connection {
@@ -83,7 +87,7 @@ graph engine or external topology service.
 
 ## Interpret the result
 
-Read paths from the observing peer toward the origin. Repeated AS numbers may be intentional prepending. Private ASNs, confederation segments, and path sanitisation can change what the graph can display.
+Read paths from the observing peer toward the origin. Repeated AS numbers may be intentional prepending. Private ASNs, confederation segments, and path sanitization can change what the graph can display.
 
 Compare the graph with route detail. A graph shows adjacency and path alternatives, while route detail carries local preference, MED, communities, validation state, next hop, and the reason one path won.
 

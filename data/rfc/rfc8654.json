@@ -8,13 +8,13 @@
   "must": {
     "total": 12,
     "kept": 11,
-    "ze-proven": 8,
+    "ze-proven": 10,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 1,
+    "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 2,
+    "not-built": 1,
     "not-owed": 1,
     "not-owed-by-kind": {
       "not-applicable": 1
@@ -34,10 +34,9 @@
   },
   "proven-by-kind": {
     "interop": 2,
-    "unit": 6
+    "unit": 8
   },
   "unmet": [
-    "RFC8654-5-3",
     "RFC8654-5-4"
   ]
 }

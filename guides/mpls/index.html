@@ -113,8 +113,6 @@ enables MPLS input on the VPP interface instead of only writing the sysctl.
 has no per-route MTU, so labeled frames are bounded by the interface MTU, and
 an RSVP-TE facility-backup push into a private table is refused. The details
 are in <a href="../vpp/">VPP</a>, row vpp-3.</p>
-<!-- source: internal/plugins/fib/vpp/mplsentry.go -- handleMPLSEntry -->
-<!-- source: internal/plugins/iface/vpp/mplsinput.go -- ReplaceMPLSInput -->
 <h2 id="inspecting-the-forwarding-table">Inspecting the forwarding table</h2>
 <pre><code>ze show mpls forwarding              # all installed MPLS entries
 ze show mpls forwarding limit 500    # cap the response size
@@ -173,9 +171,6 @@ triggers a Shutdown Notification and ends the transport session before its body
 is applied. The Initialization PDU's LSR ID and label-space ID must also match
 the Hello adjacency that opened the session; a mismatch receives Session
 Rejected/No Hello.</p>
-<!-- source: internal/plugins/ldp/session.go -- NewSession, SendInit -->
-<!-- source: internal/plugins/ldp/session.go -- processMessages, rejectInit -->
-<!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj -->
 <p>With the LDP log at info (<code>environment { log { ldp info } }</code>), ze logs
 <code>ldp: session operational</code> with the peer address when a session reaches
 OPERATIONAL, so the log shows when each session came up.</p>
@@ -191,9 +186,6 @@ the message type it refers to; the WARN's cause carries both. A session Ze
 stopped itself (an expired adjacency, a reload, a KeepAlive it could not send,
 the engine stopping) is logged at info as <code>ldp: session closed</code>, with the peer
 and the reason.</p>
-<!-- source: internal/plugins/ldp/session.go -- processMessages -->
-<!-- source: internal/plugins/ldp/problems.go -- reportSessionEnd -->
-<!-- source: internal/plugins/ldp/register.go -- runSession -->
 <p>Inspect LDP state with <code>show ldp neighbor</code> (session state, transport address)
 and <code>show ldp binding</code> (FEC-to-label bindings). A label binding learned from a
 neighbor programs an ingress push entry toward that neighbor, in the kernel MPLS
@@ -202,11 +194,7 @@ FIB under <code>interface { backend netlink; }</code> and in VPP under <code>bac
 <code>backend vpp</code> it lists the labels in VPP MPLS table 0 and VPP's labeled IP
 routes, in the same row format as the kernel table. When VPP does not answer,
 the command fails and names <code>ze doctor</code>. It does not answer an empty table.</p>
-<!-- source: internal/plugins/fib/vpp/mplsforwarding.go -- readMPLSForwarding -->
-<!-- source: internal/core/mplsfib/label.go -- label validation -->
-<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildMPLSEncap (push) -->
 <!-- source: internal/component/iface/config_sysctl.go -- net.mpls.conf.<iface>.input -->
-<!-- source: internal/component/mpls/show_forwarding.go -- show mpls forwarding -->
 </div>
 </div>
             </section>
@@ -256,7 +244,7 @@ the command fails and names <code>ze doctor</code>. It does not answer an empty 
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

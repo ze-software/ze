@@ -293,7 +293,7 @@ cannot be identified is withdrawn only while the prefix holds a route this route
 originated: a fresher route another source put under the same prefix stays.
 
 Known defects, owned by
-[`spec-bgp-refresh-reapplies-export-policy`](https://github.com/ze-software/ze/blob/main/docs/../plan/release/fixes/spec-bgp-refresh-reapplies-export-policy.md):
+[`spec-bgp-refresh-reapplies-export-policy`](https://github.com/ze-software/ze/blob/main/plan/release/fixes/spec-bgp-refresh-reapplies-export-policy.md):
 this run goes over the bytes already sent, so a non-idempotent set such as AS-path
 prepend applies a second time to that route, and a change inside an external
 plugin's own data is not seen as an export policy change and does not trigger it.

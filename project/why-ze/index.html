@@ -76,7 +76,6 @@ software that configures a router and its services.</p>
 </ol></li>
 <li><a href="#further-reading">Further reading</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: feature-gates.txt -- BGP, routing, management and network-service feature boundaries -->
 <blockquote>
 <p>Ze is pre-release software. This assessment was reviewed on November 16, 2026.
 APIs and configuration syntax can change. The
@@ -85,110 +84,78 @@ implementation scope and maturity, including partial and experimental features.
 Corrections are welcome through the
 <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">issue tracker</a>.</p>
 </blockquote>
-<!-- source: website/data/github-releases.json -- recorded release inventory -->
-<!-- source: features/configuration.md -- Scope, Scope gaps and Level -->
 <h2 id="reasons-to-consider-ze">Reasons to consider Ze</h2>
 <h3 id="programmable-routing-with-control-of-the-device-around-it">Programmable routing, with control of the device around it</h3>
 <p>Ze keeps ExaBGP's controller model: a process can receive BGP events and inject
 routes. Your controller can remain a separate program, written in a language
 that can read and write the process protocol. The Go plugin SDK provides another
 way to integrate custom logic.</p>
-<!-- source: pkg/plugin/sdk/sdk.go -- plugin SDK entry point -->
-<!-- source: pkg/plugin/rpc/mux.go -- multiplexed process protocol -->
 <p>That controller can run alongside the device functions Ze provides. The code
 includes interface configuration, routing-table installation, firewall rules
 and IPsec, plus access services such as L2TP and PPPoE. Each has its own scope
 and maturity record. A route-injection deployment can use the BGP functions
 without configuring those services.</p>
-<!-- source: feature-gates.txt -- ze_bgp, ze_ike, ze_l2tp and system feature boundaries -->
-<!-- source: features/route-installation.md -- route installation declaration -->
-<!-- source: features/firewall.md -- firewall declaration -->
 <p>For an existing ExaBGP deployment, <code>ze exabgp migrate</code> converts configuration
 and <code>ze exabgp plugin</code> bridges process scripts. The
 <a href="https://ze-software.net/use-cases/exabgp-migration/">migration guide</a> explains the differences to check
 with your own configuration and scripts before replacing a deployment.</p>
-<!-- source: internal/plugins/exabgp/main.go -- cmdMigrate, cmdPlugin -->
 <h3 id="operator-tools-that-share-the-configuration-model">Operator tools that share the configuration model</h3>
 <p>Ze uses YANG to describe configuration. Its CLI and web editor use that schema,
 so operators can inspect and edit the same configuration through either
 interface. The editor provides completion, comparisons and commit validation.
 The <a href="../../guides/config-editor/">configuration editor guide</a> shows the workflow.</p>
-<!-- source: features/configuration.md -- configuration model and transactional commits -->
-<!-- source: features/web-interface.md -- web configuration editor -->
 <p>Operational tools include a live BGP dashboard, a looking glass and <code>ze doctor</code>
 for configuration and runtime diagnostics. These are useful when the task is
 to understand the device as well as exchange routes. The
 <a href="../../guides/operations/">operations guide</a> describes the diagnostic commands.</p>
-<!-- source: README.md -- Why Ze, Tools for operators -->
 <h3 id="automation-through-native-apis-and-mcp">Automation through native APIs and MCP</h3>
 <p>REST and gRPC are implemented command transports. They share an execution
 engine and expose command discovery and execution, with streaming for registered
 streaming commands. The gRPC service also provides configuration sessions.
 The <a href="../../guides/api/">API guide</a> documents authentication and listener requirements.</p>
-<!-- source: internal/component/api/engine.go -- APIEngine.ListCommands, Execute, Stream -->
-<!-- source: internal/component/api/grpc/server.go -- zeServiceImpl.Execute, Stream, zeConfigServiceImpl -->
 <p>Ze's Model Context Protocol (MCP) server builds tools from command metadata,
 so an AI assistant can discover commands and call the daemon. This gives an
 assistant access to the operator's tools. The
 <a href="../../guides/mcp/overview/">MCP guide</a> explains the connection and access controls.</p>
-<!-- source: internal/component/mcp/tools.go -- groupCommands, generateTools, buildToolDef -->
 <p>API compatibility still matters when you choose an implementation. Ze's gRPC
 service uses Ze's command model, so an integration written for another daemon's
 protobuf service needs an adapter. API completion is unimplemented, and the
 REST/gRPC feature remains experimental. <a href="../../guides/gnmi/">gNMI</a> is a separate
 configuration and telemetry interface.</p>
-<!-- source: internal/component/api/grpc/server.go -- zeServiceImpl.Execute, Complete -->
-<!-- source: features/rest-grpc-api.md -- Scope gaps and Level -->
-<!-- source: features/gnmi.md -- gNMI declaration -->
 <h3 id="deployment-as-a-service-or-an-appliance">Deployment as a service or an appliance</h3>
 <p>Ze can run as a Linux daemon or in a container. There is also an immutable
 appliance image built with Linux and gokrazy, with a read-only root filesystem
 and persistent storage under <code>/perm</code>. The <a href="../../guides/appliance/">appliance guide</a>
 and <a href="../../guides/docker/">Docker guide</a> describe those deployment choices.</p>
-<!-- source: gokrazy/ze/config.json -- appliance package composition -->
-<!-- source: docs/guide/appliance.md -- image contents and filesystem layout -->
-<!-- source: docs/guide/docker.md -- container deployment -->
 <p>Optional subsystems have build tags, so you can compile a focused service or
 include the wider network OS. An omitted subsystem's code and schema are
 excluded from the build. The available functions therefore depend on both the
 build and its configuration.</p>
-<!-- source: feature-gates.txt -- optional subsystem package declarations -->
 <h3 id="routing-policy-monitoring-and-protocol-tools">Routing policy, monitoring and protocol tools</h3>
 <p>BGP functions include route-server and route-reflector plugins, routing
 information base (RIB) storage, graceful restart and filter plugins. Custom
 plugins can extend policy through the same plugin interfaces. The
 <a href="../../developers/plugins/">plugin guide</a> explains those interfaces and their
 configuration requirements.</p>
-<!-- source: internal/component/plugin/all/all_ze_bgp.go -- BGP plugin composition -->
-<!-- source: internal/component/bgp/plugins/rs/register.go -- route-server registration and filters -->
 <p>For monitoring and analysis, Ze includes BGP events, a looking glass and MRT
 recording. The MRT recorder can write UPDATEs, all BGP messages and periodic
 TABLE_DUMP_V2 RIB snapshots. MRT recording is experimental. The
 <a href="../../guides/mrt-analysis/">MRT guide</a> also describes tools to inspect and replay
 recorded data.</p>
-<!-- source: internal/plugins/mrt/component.go -- Component.Start, OnBGPMessage, ribDumpLoop -->
-<!-- source: features/mrt-dump.md -- MRT scope and maturity -->
 <p>Standalone tools include <code>ze bgp decode</code>, <code>ze bgp encode</code> and
 <code>ze config validate</code>. They are useful for protocol debugging and offline
 configuration checks, even when you do not run Ze as the router.</p>
-<!-- source: cmd/ze/dispatch_bgp.go -- BGP command registration -->
-<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation -->
 <h2 id="reasons-to-choose-another-implementation">Reasons to choose another implementation</h2>
 <h3 id="your-deployment-requires-a-released-operationally-established-nos">Your deployment requires a released, operationally established NOS</h3>
 <p>Ze has no published release. Its test suites and interoperability labs provide
 evidence about specific behavior, but they do not establish a history of
 production operation. A network that requires an established release and support
 process needs an implementation that already meets those requirements.</p>
-<!-- source: website/data/github-releases.json -- empty release inventory -->
 <p>The distinction applies across the network OS. OSPFv2, OSPFv3 and IS-IS exist,
 and the code includes BFD, MPLS, IPsec and subscriber access functions. OSPF,
 IS-IS and PPPoE remain experimental and partial. Their presence in the binary
 is a reason to evaluate the documented behavior in a lab, rather than assume
 that the whole routing suite is ready for your network.</p>
-<!-- source: feature-gates.txt -- protocol and dataplane composition -->
-<!-- source: features/ospf.md -- Scope, Scope gaps and Level -->
-<!-- source: features/is-is.md -- Scope, Scope gaps and Level -->
-<!-- source: features/pppoe-access.md -- Scope, Scope gaps and Level -->
 <h3 id="you-need-a-feature-ze-does-not-provide">You need a feature Ze does not provide</h3>
 <p>The <a href="https://ze-software.net/reference/feature-status/">feature inventory</a>
 records what each feature implements and the evidence behind its maturity.
@@ -196,26 +163,20 @@ The <a href="https://ze-software.net/compare/bgp/">comparison</a> identifies gap
 support and PIM multicast routing. Check the behavior your deployment depends
 on, including the selected dataplane, rather than infer support from a protocol
 name.</p>
-<!-- source: docs/comparison.md -- Key Gaps and protocol comparison tables -->
-<!-- source: features/rest-grpc-api.md -- example of partial feature scope -->
 <p>The <a href="https://ze-software.net/quality/rfc-compliance/">standards coverage pages</a>
 describe what has been tested and what is missing. They list tests that still
 need checking separately from behavior Ze does not implement. A feature label
 or a large test count alone does not tell you whether Ze meets your network's
 requirements.</p>
-<!-- source: docs/contributing/rfc-conformance-gates.md -- requirement evidence and discrimination records -->
 <h3 id="your-project-requires-a-different-license-or-maintenance-model">Your project requires a different license or maintenance model</h3>
 <p>Ze is licensed under AGPL-3.0-only. If your project requires a permissive
 license, Ze does not meet that requirement. The <a href="https://ze-software.net/license/">license</a> and
 <a href="https://ze-software.net/contribute/guide/">contribution policy</a> describe the project terms and contribution requirements.</p>
-<!-- source: LICENSE -- GNU Affero General Public License version 3 -->
-<!-- source: README.md -- Contributing and License -->
 <p>Ze is developed with AI coding assistants, with Thomas Mangin directing the
 architecture and development decisions. Specifications, tests and independent
 review constrain that process. If your organization requires a larger
 maintainer team or a contracted support arrangement, evaluate those requirements
 separately from the feature list.</p>
-<!-- source: README.md -- AI-Assisted Development -->
 <h2 id="engineering-tradeoffs">Engineering tradeoffs</h2>
 <h3 id="plugins-share-a-contract-with-a-choice-of-process-boundary">Plugins share a contract, with a choice of process boundary</h3>
 <p>Ze separates BGP functions such as RIB storage and route-server behavior into
@@ -223,36 +184,25 @@ plugins. Internal plugins run inside the daemon and use DirectBridge for typed
 calls after startup. External plugins run in separate processes and communicate
 through the process protocol. The separation lets a plugin be replaced without
 moving its policy into the BGP engine.</p>
-<!-- source: internal/component/plugin/process/process.go -- Process.startInternal, startExternal -->
-<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->
 <p>Internal plugins share the daemon's address space. External processes provide
 a process boundary, with transport and serialization costs. Both forms still
 need correct lifecycle handling and event ordering.</p>
-<!-- source: internal/component/plugin/process/process.go -- Process.startInternal, startExternal -->
-<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.SendCallback, DeliverEvents -->
 <h3 id="performance-depends-on-the-workload">Performance depends on the workload</h3>
 <p>Ze is written in Go and uses pooled data and lazy wire parsing to reduce
 allocation and decoding costs. <code>WireUpdate</code> retains the supplied payload and
 parses sections when needed. These techniques reduce particular costs, and their
 effect on throughput depends on the workload.</p>
-<!-- source: internal/component/bgp/wireu/wire_update.go -- NewWireUpdate, InitWireUpdate, ensureParsed -->
-<!-- source: internal/component/bgp/attrpool/pool.go -- attribute pool -->
 <p>The <a href="../../performance/bgp/">performance results</a> describe measured scenarios, with
 their dates and environments. They cannot establish a general percentage cost
 for Go, a plugin boundary or another implementation. For a deployment decision,
 use the <a href="../../guides/benchmarking/">benchmarking guide</a> to test your route counts,
 policies and peer topology, and check that all expected routes arrive.</p>
-<!-- source: docs/performance.md -- Methodology, Environment and Reading the Results -->
-<!-- source: docs/guide/benchmarking.md -- Before you report a number -->
 <h3 id="process-ipc-and-management-apis-serve-different-callers">Process IPC and management APIs serve different callers</h3>
 <p>External plugins use a multiplexed text protocol, while operators and automation
 can use REST, gRPC or MCP. A custom plugin therefore needs to implement the
 plugin contract even if its application already uses a management API. The
 <a href="../../developers/plugins/protocol/">process protocol reference</a> describes
 that contract, and the <a href="../../guides/api/">API guide</a> describes daemon management.</p>
-<!-- source: pkg/plugin/rpc/framing.go -- multiplexed protocol framing -->
-<!-- source: pkg/plugin/rpc/mux.go -- MuxConn -->
-<!-- source: internal/component/api/engine.go -- APIEngine -->
 <h2 id="further-reading">Further reading</h2>
 <ul>
 <li><a href="https://ze-software.net/reference/feature-status/">Feature inventory</a>: scope, maturity and evidence for each feature.</li>
@@ -273,7 +223,7 @@ that contract, and the <a href="../../guides/api/">API guide</a> describes daemo
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:15 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

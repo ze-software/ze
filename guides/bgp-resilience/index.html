@@ -126,9 +126,6 @@ alias. See <a href="../plugins/#migrating-from-bgp-persist">migration instructio
 <p>Use <code>show bgp rib status</code>, the peer RIB commands, warnings, and the receiving
 peer's routes to inspect replay results. A session-ready report means replay
 attempts finished, not that every historical route was delivered.</p>
-<!-- source: internal/component/bgp/plugins/rib/register.go -- ConfigRoots -->
-<!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- collectPeerUpReplay, replayRoutesWithCursor -->
-<!-- source: internal/component/bgp/reactor/session_ownership.go -- checkInitialWrite, allow -->
 <h2 id="route-reflection">Route reflection</h2>
 <p>Route reflection replaces an iBGP full mesh with client and non-client relationships. Ze applies ORIGINATOR_ID and CLUSTER_LIST loop protection and retains ordinary import and export policy per destination.</p>
 <p>Design points:</p>
@@ -215,7 +212,7 @@ attempts finished, not that every historical route was delivered.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

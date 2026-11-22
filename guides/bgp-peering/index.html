@@ -76,7 +76,6 @@
 RFC 8212 requires an explicit import policy for received routes and an explicit
 export policy for advertised routes. IBGP keeps its existing behavior when
 policy is absent. Automatic filters do not supply operator policy.</p>
-<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, InternalPolicy -->
 <p>This example deliberately permits both directions with <code>final accept</code>. Use
 that choice only when unrestricted exchange is intended, or add the filters
 your routing agreement requires.</p>
@@ -107,7 +106,6 @@ your routing agreement requires.</p>
     }
 }
 </code></pre>
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- bgp, peer-fields, filter-policy -->
 <p>Validate before starting or reloading:</p>
 <pre><code class="language-console">ze config validate ze.conf
 ze doctor
@@ -154,18 +152,14 @@ ze doctor
     }
 }
 </code></pre>
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- group, peer-fields, filter-policy -->
 <p>Peer values override group values. Group values override the global BGP block. Inspect the resolved result with <code>show config dump</code> rather than reasoning about inheritance from the source file alone.</p>
-<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 <p>The group explicitly permits import and export for both transit peers. A global
 <code>bgp filter</code> policy also counts as explicit policy for peers that inherit it.
 Filters accumulate from BGP to group to peer. The most-specific configured
 direction supplies the final decision, and an absent child inherits it.</p>
-<!-- source: internal/component/policy/chain.go -- ConcatChains -->
 <h2 id="dynamic-peer-groups">Dynamic peer groups</h2>
 <p>A group with <code>connection { remote { ip dynamic } }</code> accepts a session from any address in its ranges. Use it for an IXP route server or any fabric where the members are not known when you write the configuration.</p>
 <p>A member that connects while Ze is still starting its plugins is held: its session opens only once every plugin is running, the same as a configured peer, so its first UPDATE meets the filters its policy names.</p>
-<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- createDynamicPeer -->
 <pre><code class="language-text">policy {
     reject-asn NO-TRANSIT {
         indirect [ 174 701 3356 ]
@@ -223,7 +217,6 @@ bgp {
     }
 }
 </code></pre>
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, filter-policy -->
 <p>The <code>role { import rs }</code> leaf needs no filter of yours beyond RFC 8212's explicit
 policy: the role inserts the RFC 7454 upstream check, <code>bgp-role:upstream-asn</code>, on
 the session's import chain for you. It rejects a route whose AS path carries one of
@@ -242,8 +235,6 @@ decision: that explicit final, not the inactive reference, supplies operator
 policy. See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-deactivate.md" target="_blank" rel="noopener">config-deactivate.md</a> for both forms, and
 <a href="../bgp-role/">bgp-role.md</a> for which directions each role checks and how the
 provider set is derived.</p>
-<!-- source: internal/component/bgp/plugins/role/upstream.go -- upstreamInsertions -->
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <p><code>ip dynamic</code> is valid at group level only. A peer that states it is refused. Two more statements are required, and the configuration is refused without them: at least one <code>range</code>, and an explicit <code>connect false</code>. Ze only accepts on a dynamic group and never dials one, so an absent <code>connect</code> leaf, which YANG defaults to true, is refused rather than corrected.</p>
 <table>
 <thead>
@@ -330,13 +321,9 @@ provider set is derived.</p>
 <li>When the configuration loads, every variable must be one of the three, and at least one filter under <code>policy</code> must match the pattern. Otherwise the configuration is refused. A static peer naming a variable is refused too, because only a dynamic group resolves one.</li>
 <li>When a member establishes, and again when a reload changes its group's chain, the resolved name is judged as a static peer's chain is at load. A member whose resolved name no filter has, or names a filter the attachment refuses, rejects every route in that direction. Ze logs an error naming the member and the reason, and the next reload that defines the filter brings the member back to normal filtering.</li>
 </ul>
-<!-- source: internal/component/bgp/config/templated_chain.go -- checkTemplatedMember, templatedChain.CompileResolved -->
-<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- resolveDynamicPolicy -->
 <p>A dynamic group is held to the same rules as a static peer. A family with no prefix maximum is refused (RFC 4486). A hold time RFC 4271 Section 4.2 refuses is refused here too.</p>
 <p>The group opens its own listening socket on <code>connection/local/ip</code> and the group's listen port. A configuration that names no static peer is enough to accept members. Ze selects a dynamic group using the connection's actual local address and port before choosing the longest remote prefix. An <code>auto</code> local address accepts any local address on that listen port. Explicit wildcard addresses <code>0.0.0.0</code> and <code>::</code> keep TCP wildcard binding semantics while still checking the receiving port. A group whose local address or port does not admit the socket cannot create or reuse a member through it. The member keeps the remote address's interface zone in its identity.</p>
-<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- findDynamicGroupEligible, tryCreateDynamicPeerAt -->
 <p>When a static peer and a dynamic group share one socket, Ze attributes each connection by remote address, so a static peer inside the group's range keeps its own session and its own settings. The incoming source port is ephemeral; it does not replace the configured remote port in the peer's key.</p>
-<!-- source: internal/component/bgp/reactor/reactor_connection.go -- peerForConnection, handleListenerConnection -->
 <p>A per-peer plugin config that a group states reaches its members. RFC 9234 role checks, the RPKI action, the blackhole block, and the community policy all resolve through the group when the member has no entry of its own. See the <a href="../bgp-role/">BGP Role guide</a>.</p>
 <p>A configuration reload keeps a member's session up when its settings did not change. Ze removes a member in three cases only: its group is gone, its address left every range, or the group template would now build different settings for that address. A wider range or a raised <code>max-peers</code> changes no member and bounces no session.</p>
 <h2 id="address-families">Address families</h2>
@@ -414,7 +401,6 @@ provider set is derived.</p>
 </table>
 <p><code>reconnect</code> with no value means <code>timer</code> when <code>idle-timeout</code> is above zero, and <code>never</code> when it is zero. A family that configured nothing therefore stays down after a teardown, and the peer state reads <code>idle-hold</code> until an operator restarts it. <code>ze show warnings</code> carries the prefix-hold warning for the whole hold.</p>
 <p>Both reconnect waits forget their history after a stable session. Ze waits 5 seconds before it redials a peer whose session failed, and doubles the wait after each new failure, up to 60 seconds. A <code>timer</code> wait doubles the same way, up to one hour. When a session stayed established for at least 60 seconds before it ended, the next wait starts again from 5 seconds, and the <code>timer</code> wait from <code>idle-timeout</code>. A session that ends sooner keeps the longer wait, so a peer that flaps is still slowed down. A teardown you request and an inbound connection from the peer still redial at once.</p>
-<!-- source: internal/component/bgp/reactor/peer_run.go -- run, cycleStayedEstablished -->
 <p>The teardown NOTIFICATION and the log line name the family that exceeded its maximum.</p>
 <h2 id="attached-programs">Attached programs</h2>
 <p><code>attach process &lt;name&gt;</code> states which events a peer feeds a program, and which message types that program can originate toward the peer. Ze reads both halves at delivery.</p>
@@ -463,16 +449,11 @@ group blocks too.</p>
 <p>While the wait runs, peer detail reports Connect or Active, not OpenSent. A
 second connection waits for its OPEN before collision arbitration; it cannot
 displace the held connection merely by connecting.</p>
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf delay-open -->
-<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject -->
-<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision -->
 <p>With <code>connection { bfd { enabled true; strict true; } }</code> and strict mode
 negotiated by both peers, an early OPEN sends Ze's OPEN but withholds KEEPALIVE
 until BFD permits the session. <code>show bgp peer detail</code> reports a Connect or Active
 DelayOpen BFD pending sub-state. A nonzero negotiated HoldTimer bounds that wait;
 zero hold uses the configured BFD <code>hold-time</code> instead.</p>
-<!-- source: internal/component/bgp/reactor/session_bfd_strict.go -- advanceAfterOpen -->
-<!-- source: internal/component/bgp/fsm/delay_open.go -- EnterDelayOpenBfdUpPending -->
 <h3 id="hold-timer-expiry">Hold timer expiry</h3>
 <p>When the hold timer expires, Ze runs the full RFC 4271 Section 8.2.2 Event 10 action list. It sends NOTIFICATION Hold Timer Expired (error 4), releases the session resources, moves the FSM to Idle, and increases the ConnectRetryCounter.</p>
 <p>Ze granted one reprieve on a hold expiry until 2026-08-03. That grace is removed. Event 10 does not permit it, and worst-case dead-peer detection falls from two hold times to one. A daemon whose CPU is saturated now drops sessions that the grace used to keep.</p>
@@ -555,7 +536,7 @@ ze cli -c "show bgp rib status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

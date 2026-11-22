@@ -76,8 +76,6 @@
 <li><a href="#http-receiver">HTTP receiver</a></li>
 </ol></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/config/archive/archive.go -- archive core logic -->
-<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system and archive YANG schema -->
 <h2 id="configuration">Configuration</h2>
 <p>Archive destinations are named blocks under <code>system { archive { } }</code>. Each block defines one destination with its own trigger, filename format, and timeout.</p>
 <pre><code>system {
@@ -98,7 +96,6 @@
     }
 }
 </code></pre>
-<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- archive list definition -->
 <h3 id="fields">Fields</h3>
 <table>
 <thead>
@@ -166,7 +163,6 @@
 </tbody>
 </table>
 <p>Use absolute paths for <code>file://</code> locations. <code>file://./relative</code> does not work correctly in Go's URL parser.</p>
-<!-- source: internal/component/config/archive/archive.go -- ToFile, ToHTTP -->
 <p>An HTTP or HTTPS upload follows no redirect, to the same host included. The
 upload carries the whole config with its reversible <code>$9$</code> secrets, so it goes
 only to the location the config names, never to one a server answers with.
@@ -180,8 +176,6 @@ fix: set system archive offsite location https://backup.example.com/configs
 <p>Run that command only when you trust the server the redirect names. <code>ze doctor</code>
 probes each HTTP or HTTPS location the same way and reports one that redirects
 as <code>doctor-archive-redirected</code>, with the same fix.</p>
-<!-- source: internal/component/config/archive/archive.go -- archiveClient, redirectOf, uploadRedirect.refusal -->
-<!-- source: internal/component/config/archive/doctor.go -- probeArchiveDestination, checkArchiveDestinations -->
 <h3 id="validation">Validation</h3>
 <p><code>ze config validate</code> and every commit check each archive entry, so an entry
 the uploader cannot use never reaches the running config:</p>
@@ -210,8 +204,6 @@ the uploader cannot use never reaches the running config:</p>
 location never echoes the password of a URL with credentials in it. An entry
 with no <code>timeout</code> uses <code>30s</code>; an invalid <code>timeout</code> is refused rather than
 replaced by <code>30s</code>.</p>
-<!-- source: internal/component/config/validators_archive.go -- ValidateArchiveLocation, ParseArchiveTimeout -->
-<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- ze:validate archive-location, archive-timeout -->
 <h3 id="triggers">Triggers</h3>
 <table>
 <thead>
@@ -250,12 +242,9 @@ replaced by <code>30s</code>.</p>
 </tbody>
 </table>
 <p>Time-based triggers (<code>daily</code>, <code>hourly</code>) always fire once on daemon boot regardless of <code>on-change</code>, establishing a baseline. Subsequent ticks respect the <code>on-change</code> flag.</p>
-<!-- source: internal/component/config/archive/archive.go -- TriggerCommit, TriggerManual, TriggerDaily, TriggerHourly -->
 <p>Shutdown and reload cancel future scheduled runs, then wait for the current
 configuration read or archive to finish before releasing or replacing its
 store. An upload already running retains its configured archive timeout.</p>
-<!-- source: cmd/ze/hub/main_system.go -- archiveSchedulerRun.stop, startArchiveScheduler, stopArchiveScheduler -->
-<!-- source: internal/component/config/archive/scheduler.go -- Scheduler.Run -->
 <p>A scheduled archive has no command to answer, so its failure is reported in two
 places: a warning in the log, and an error event in <code>ze show errors</code> that the
 recent-events row of <code>ze show doctor</code> also lists. Both carry the code
@@ -264,8 +253,6 @@ config file could not be read), the error, and the command that fixes it:
 <code>ze config validate &lt;file&gt;</code> for a config that could not be read or parsed, and
 <code>ze config archive &lt;name&gt;</code> for a copy that could not be written or old copies
 that could not be removed. The next scheduled run tries again.</p>
-<!-- source: internal/component/config/archive/scheduler.go -- reportScheduled, readFailure, archiveFix -->
-<!-- source: internal/component/config/archive/register.go -- init -->
 <h3 id="filename-tokens">Filename Tokens</h3>
 <table>
 <thead>
@@ -309,7 +296,6 @@ that could not be removed. The next scheduled run tries again.</p>
 </tbody>
 </table>
 <p>The <code>.conf</code> extension is always appended. With the default format <code>{name}-{host}-{date}-{time}</code>, a file named <code>router.conf</code> on host <code>router1</code> produces <code>router-router1-20260329-143045.conf</code>.</p>
-<!-- source: internal/component/config/archive/archive.go -- FormatFilename, DefaultFilenameFormat -->
 <h2 id="system-identity">System Identity</h2>
 <p>The <code>system</code> block provides hostname and domain values used in archive filenames and elsewhere.</p>
 <pre><code>system {
@@ -324,7 +310,6 @@ that could not be removed. The next scheduled run tries again.</p>
 }
 </code></pre>
 <p>If the environment variable is empty or unset, the literal string is kept (e.g., <code>$HOSTNAME</code> stays as-is). When <code>host</code> is not configured, it defaults to the machine's host name (<code>os.Hostname()</code>), or <code>unknown</code> when that cannot be read.</p>
-<!-- source: internal/component/config/system/system.go -- ExpandEnvValue, ExtractSystemConfig -->
 <h2 id="cli-usage">CLI Usage</h2>
 <p>Archive a configuration to a named destination:</p>
 <pre><code class="language-bash">ze config archive &lt;name&gt; &lt;config-file&gt;
@@ -337,7 +322,6 @@ ze config archive offsite router.conf
 <pre><code class="language-bash">cat router.conf | ze config archive local-backup -
 </code></pre>
 <p>If the named block does not exist, the command prints the available archive names and exits with code 1.</p>
-<!-- source: internal/component/config/cli/cmd_archive.go -- cmdArchiveImpl -->
 <h3 id="exit-codes">Exit Codes</h3>
 <table>
 <thead>
@@ -357,16 +341,12 @@ ze config archive offsite router.conf
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/cli/cmd_archive.go -- exitOK, exitError -->
 <h2 id="editor-integration">Editor Integration</h2>
 <p>When the editor starts, it reads archive blocks from the config. Blocks with <code>trigger commit</code> are wired into the editor's commit path. After every successful <code>commit</code>, the editor archives the current config content to all <code>trigger commit</code> destinations.</p>
 <p>Archive errors during commit are non-fatal. The commit succeeds and the editor reports the number of archive failures in the status line. Other trigger types (<code>manual</code>, <code>daily</code>, <code>hourly</code>) are not fired by the editor.</p>
-<!-- source: internal/component/config/cli/cmd_edit.go -- Wire archive notifier -->
-<!-- source: internal/component/cli/model_commands.go -- cmdCommit archive dispatch -->
 <p>Archive locations are read from the config at editor startup. Adding an <code>archive</code> block during an editing session requires restarting the editor for it to take effect.</p>
 <h2 id="fan-out-behavior">Fan-Out Behavior</h2>
 <p>All configured destinations are attempted regardless of individual failures. Errors are collected per destination. A failure uploading to one location does not prevent archiving to other locations.</p>
-<!-- source: internal/component/config/archive/archive.go -- NewNotifier -->
 <h2 id="pruning-old-archives">Pruning Old Archives</h2>
 <p><code>commit-revisions</code> caps the number of archive files a <code>file://</code> location keeps.
 It is a <code>system</code> leaf, so one value applies to every archive block.</p>
@@ -379,7 +359,6 @@ It is a <code>system</code> leaf, so one value applies to every archive block.</
     }
 }
 </code></pre>
-<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- leaf commit-revisions -->
 <table>
 <thead>
 <tr>
@@ -414,20 +393,15 @@ It is a <code>system</code> leaf, so one value applies to every archive block.</
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/archive/archive.go -- NewNotifier, pruneAfterWrite, ArchiveMatcher, PruneFileArchives -->
-<!-- source: internal/component/config/archive/scheduler.go -- Scheduler boot archive and fireByTrigger -->
 <p>Two blocks that write to the same directory with the same filename format share
 one count. Put <code>{archive}</code> in the format to give each block its own count.</p>
-<!-- source: internal/component/config/archive/archive.go -- FormatFilename, DefaultFilenameFormat -->
 <p>A format that starts with <code>{date}</code> or <code>{time}</code> is matched the same way, so a
 <code>.conf</code> file whose name differs from the format is never counted or removed. A
 file you name in the same shape, such as <code>20260101.conf</code> beside the format
 <code>{date}</code>, counts as one of the block's copies and can be removed.</p>
-<!-- source: internal/component/config/archive/archive.go -- ArchiveMatcher -->
 <h2 id="change-detection">Change Detection</h2>
 <p>For time-based triggers with <code>on-change true</code>, ze tracks config changes using SHA-256 hashes in memory. Each named archive block has its own hash. The first check after daemon start always reports "changed" (no baseline yet), so the boot archive fires unconditionally. Subsequent checks compare the current config hash against the last archived hash and skip the archive if unchanged.</p>
 <p>The tracker resets on daemon restart since hashes are in-memory only.</p>
-<!-- source: internal/component/config/archive/archive.go -- ChangeTracker, HasChanged -->
 <h2 id="examples">Examples</h2>
 <h3 id="local-backup-on-every-commit">Local backup on every commit</h3>
 <pre><code>system {
@@ -538,7 +512,7 @@ file you name in the same shape, such as <code>20260101.conf</code> beside the f
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

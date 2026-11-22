@@ -173,8 +173,6 @@ on the same field.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/message/rfc7606.go -- RFC 7606 validation checks -->
-<!-- source: internal/component/bgp/reactor/session_validation.go -- family negotiation check (validateUpdateFamilies) -->
 <h3 id="rfc-7606-error-escalation">RFC 7606 Error Escalation</h3>
 <p>Validation collects all errors and applies the strongest action:</p>
 <table>
@@ -230,8 +228,6 @@ only at Debug. iBGP and multihop eBGP still reject the speaker's own addresses,
 but do not apply the one-hop common-subnet condition. A sender at a loopback
 address, or at an address this host holds, runs on the receiving host. It is zero
 IP hops away, so the common-subnet condition does not apply to it either.</p>
-<!-- source: internal/component/bgp/reactor/session_next_hop.go -- invalidReceiveNextHop, logIgnoredNextHopRoute, withdrawLegacyAnnouncements -->
-<!-- source: internal/component/bgp/reactor/reactor_iface.go -- refreshPeerLinkScopes -->
 <h3 id="rpki-validation">RPKI Validation</h3>
 <p>RPKI validation is asynchronous. <code>validation-timeout</code> defaults to 30 seconds and
 accepts 1 through 65535 seconds. Undecided routes wait separately from eligible
@@ -286,9 +282,6 @@ administrative distance and selection rules without storing a path or publishing
 an event. A more-specific interior route and a preferred same-prefix connected
 or static route remain available; a candidate that would capture its own
 resolution chain is excluded.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- candidateNextHopResolved -->
-<!-- source: internal/core/rib/locrib/prospective.go -- PreviewSelected -->
-<!-- source: internal/core/rib/igpcost/prospective.go -- ResolveProspective, prospectiveReader.LPM -->
 <p>This admission belongs to the forwarding election. The existing source-owned
 Adj-RIB-Out recovery query instead ranks retained received paths for another
 peer's wire; it does not propose a local forwarding-table installation. Its
@@ -296,8 +289,6 @@ private gather purpose omits the local resolution check while retaining import
 policy, self-next-hop, validation and recovery-source exclusions. Ordinary
 candidate gathering always selects forwarding admission. Neither <code>RSClient</code>
 nor the native relay execution choice selects an exemption.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- candidateAdmission, gatherPrefixCandidatesForLocked, gatherKeyCandidatesForLocked -->
-<!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked -->
 <p>Unresolved paths remain in Adj-RIB-In. The existing routing-change worker
 re-runs selection after next-hop reachability changes, replacing the winner
 with a reachable alternative or removing it from the Loc-RIB. Restored
@@ -305,9 +296,6 @@ reachability can select the retained path without another BGP UPDATE. A forked
 RIB asks the engine through <code>route-metrics</code>; its bounded cache includes the
 candidate destination and path fields and is cleared when the routing revision
 changes.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_aigp.go -- runAIGPSelection, reselectAIGPRoutes -->
-<!-- source: internal/component/bgp/plugins/rib/rib_remote.go -- runRemoteMetrics -->
-<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- prospectiveDistance, prospectiveMetricKey -->
 <p>Each engine metric request has a five-second response bound. A failed lookup
 leaves its candidate ineligible and is not cached. The existing remote-metric
 worker coalesces lookup failures into one <code>doctor-bgp-next-hop-metrics</code> warning,
@@ -315,7 +303,6 @@ through the SDK report bus, and clears it after a successful retry. Report calls
 run outside peer admission and the remote cache lock. A revision-feed failure
 raises a bounded error report before closing the plugin, retaining the feed's
 mandatory-dependency behavior.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_remote.go -- runRemoteMetrics, reportRemoteMetricIssue, reportRemoteMetricFailure -->
 <p>Validation of this admission change is still in progress. The native RIB package
 run exposes existing fixture topologies with no route to their next hops, plus
 concurrency fixtures that need their controlled resolver seam revalidated.
@@ -324,24 +311,19 @@ Those failures have not been cleared by changing expected selections.</p>
 reselection and removal after reachability loss, recovery without another
 UPDATE, and preservation of a directly reachable control. Native producer
 faults exercise the kernel-removal assertions after BGP and Loc-RIB clear.</p>
-<!-- source: internal/test/fixture/rfc4271_next_hop_daemon_fixture.go -- rfc4271NextHopWinner, rfc4271NextHopAbsent, rfc4271NextHopSurvivor -->
-<!-- source: rfc/discrimination/rfc4271/RFC4271-9.1.2.1-2.json -- native kernel removal records -->
 <p>Live proof of prospective self-dependency remains incomplete. The daemon tests
 do not exercise that condition; broader RIB fixture review also remains open.</p>
-<!-- source: plan/release/fixes/spec-bgp-next-hop-reachability-admission.md -- Current Evidence, Remaining Work for Review -->
 <p>Eligible routes are removed from consideration in criterion order. Before later
 tie-breaks, MED removes each route whose MED exceeds another surviving route's
 MED from the same neighboring AS. A route removed by an earlier criterion cannot
 remove another route at MED. This whole-set step avoids insertion-order results
 from pairwise conditional-MED comparisons.</p>
-<!-- source: internal/component/bgp/plugins/rib/bestpath_selection.go -- selectBestCandidates, retainLowestMED -->
 <p><code>SelectBest</code> and <code>SelectMultipath</code> use the caller-owned candidate slice as scratch:
 they can reorder its pointers but retain every candidate. Only MED survivors can
 become multipath siblings. Single-best selection adds no allocation or map.
 <code>SelectBestExplain</code> uses separate scratch to preserve the input order and original
 indices. Each removed route names its elimination witness, even when that witness
 later loses too.</p>
-<!-- source: internal/component/bgp/plugins/rib/bestpath.go -- SelectBest, SelectMultipath, SelectBestExplain -->
 <table>
 <thead>
 <tr>
@@ -439,14 +421,12 @@ later loses too.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/rib/ -- best-path selection implementation -->
 <p>Under ADD-PATH (RFC 7911) every path a session holds for a CIDR prefix is a
 candidate of the one selection for that prefix: RFC 8277 Section 3.1 makes two
 paths of one session, under different path identifiers, comparable. The RIB
 elects one best per prefix across every peer and every path, and the
 best-change names the winning path by its path id
 (<code>gatherPrefixCandidatesLocked</code>, <code>rib_commands.go</code>).</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- gatherPrefixCandidatesLocked -->
 <h3 id="candidate-extraction">Candidate Extraction</h3>
 <p>Before comparison, each route's attributes are extracted from pool handles into a
 flat <code>Candidate</code> struct: LocalPref, AIGP, HasAIGP, IGPCost, ASPathLen, FirstAS,
@@ -461,12 +441,9 @@ winner metadata reads run under that peer admission. DOWN removes the peer
 under <code>peerMu</code>, releases it, then purges best-path shards. No peer writer waits
 for a shard while holding <code>peerMu</code>, and Loc-RIB publication happens after peer
 admission is released so synchronous subscribers can read peer state.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange, purgeBestPrevForPeer -->
-<!-- source: internal/component/bgp/plugins/rib/rib.go -- handleStructuredState, handleState -->
 <p>Both state handlers also record the session's configured name
 (<code>recordPeerName</code>), and it outlives the session the way <code>peerUp</code> does, so a
 name selector still reaches a down session's retained and sent routes.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_peer_name.go -- recordPeerName, selectsPeer -->
 <p>The peer-map lock does not protect route handles against UPDATE mutation.
 <code>AppendPrefixPathsRetained</code> and <code>AppendKeyPathsRetained</code> retain each storage
 revision under <code>PeerRIB.mu</code>; gathering transfers entry and label ownership to
@@ -478,9 +455,6 @@ record. Candidate references and peer admission are released before next-hop
 or metric interning and Loc-RIB callbacks. Failed next-hop or metric admission
 releases the reserved slot; successful insertion transfers it to the record.
 A same-best decision acquires no new peer reference.</p>
-<!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- AppendPrefixPathsRetained, AppendKeyPathsRetained -->
-<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- gatherPrefixCandidatesLocked, gatherKeyCandidatesLocked, releaseCandidates -->
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange -->
 <p>Same-best also requires the same attribute set. The record keeps the winner's
 <code>AttrFingerprint</code>, so a re-announcement that changes only an attribute (a
 COMMUNITY, a LOCAL_PREF) publishes a best change, and BMP's Loc-RIB follows it.
@@ -489,7 +463,6 @@ carries the winner's attribute set as an owned copy (<code>storedAttributes</cod
 before the candidates are released; a handle that no longer resolves publishes
 the change without it and logs a warning, and a consumer that needs the set
 refuses that entry. The replay walks read the same pair through <code>replayPath</code>.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- sameAttributeSet, storedAttributes, setEntryPath, replayPath -->
 <h3 id="enforced-before-selection-not-best-path-reasons">Enforced Before Selection (Not Best-Path Reasons)</h3>
 <p>These checks are implemented, but as ingress filters that reject the UPDATE
 before it reaches best-path selection, so they never appear as a reason in the
@@ -505,8 +478,6 @@ rejected on ingress by the same loop filter (iBGP sessions).</li>
 <li><strong>OTC mismatch</strong> (RFC 9234, Only-To-Customer attribute validation): enforced
 by the bgp-role plugin.</li>
 </ul>
-<!-- source: internal/component/bgp/reactor/loopdetect/loop.go -- ingress AS/cluster-list/originator-id loop filter -->
-<!-- source: internal/component/bgp/plugins/role/otc.go -- RFC 9234 OTC validation -->
 <h2 id="aigp-session-policy">AIGP session policy</h2>
 <p><code>session aigp enabled</code> controls receipt and transmission per peer or group.
 Without an explicit value, iBGP enables AIGP and eBGP disables it.
@@ -542,9 +513,6 @@ A resolved recursive sum may be zero; it remains an announcement with the
 computed AIGP. A source withdrawal, replacement or disconnect still invalidates
 the generation. A recursive BGP next hop with no AIGP is different: RFC 7311
 Section 3.4.3 explicitly requires removal of the attribute in that case.</p>
-<!-- source: internal/component/bgp/reactor/forward_aigp.go -- applyFactsAIGP -->
-<!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- noteAIGPWrite, commitAIGPWrites, replayAIGP -->
-<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
 <p>The received metric is retained separately from MED in best-path events and the
 shared Loc-RIB. Selection resolves both legacy NEXT_HOP and MP_REACH next hops;
 it reads AIGP from the RIB's pooled attribute framing. Recursive static routes
@@ -580,8 +548,6 @@ so one batch never writes the same UPDATE twice. The forward worker releases
 that claim when its batch ends, whether the write emitted the UPDATE or nothing
 (PATHS-LIMIT, the adj-out filter, a rejected final policy), so a later pass with
 the same outcome queues it again.</p>
-<!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- replayAIGP, releaseAIGPReplays -->
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler -->
 <p>Live AIGP announcements and their later attribute-free withdrawals use the same
 source FIFO. A source that has entered this path stays on it across settings
 reloads. Live items also carry a session generation, checked before destination
@@ -599,7 +565,6 @@ rollback installs the previous rules the same way and reselects again. The walk
 runs one election per route, keyed by the prefix for a CIDR family and by the
 route key otherwise, never by the path identifier: one election already
 gathers the path of every peer holding the prefix.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_aigp.go -- runAIGPSelection, reselectAIGPRoutes -->
 <p>The RIB reads interior distances from the engine's registered <code>route-metrics</code>
 RPC when it runs in a subprocess. A one-second revision poll invalidates its
 next-hop cache and reruns selection, including recursive BGP metric changes.
@@ -621,12 +586,6 @@ peer bindings retain their separate grants.</p>
 <p>Origination uses configured metrics only. Ze does not automatically derive
 origination policy from redistribution. ACCEPT_OWN re-import is disabled;
 non-RD families still discard the community and all normal loop checks apply.</p>
-<!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- retained sources and committed recipients -->
-<!-- source: internal/component/bgp/plugins/rib/rib_remote.go -- forked metrics and selected-path publication -->
-<!-- source: internal/component/plugin/server/dispatch_route_metrics.go -- registered metric RPC -->
-<!-- source: internal/component/bgp/config/redistribute_binding.go -- mandatory selection inputs -->
-<!-- source: internal/component/bgp/reactor/forward_aigp.go -- forwardUpdateSelected, aigpNextHop -->
-<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS -->
 <p>The <code>bgp-nexthop-self-local-auto-frr</code> interop scenario uses separate containers
 for its non-loopback source, FRR, GoBGP and byte-recording recipient. A received
 127/8 NEXT_HOP fails syntactic validation; a next hop owned by Ze's host fails
@@ -636,12 +595,6 @@ readiness route. The wire recipient requires metric 107, an exact unknown-cost
 withdrawal, and metric 111 after a route-install RPC, without another source
 UPDATE. Further metric 7, zero and 7 transitions retain the original recovery
 controls; GoBGP must keep received metric 100 with unchanged next hops.</p>
-<!-- source: internal/component/bgp/message/rfc7606.go -- validateNextHopAttr -->
-<!-- source: internal/component/bgp/reactor/session_next_hop.go -- invalidReceiveNextHop -->
-<!-- source: internal/le/interoplab/bgp/check_aigp_wire.go -- requireAIGPWire -->
-<!-- source: internal/le/interoplab/bgp/check_aigp_source_cost.go -- checkAIGPSourceCostFRR -->
-<!-- source: internal/component/bgp/reactor/config_aigp.go -- per-session AIGP policy -->
-<!-- source: internal/component/bgp/reactor/session_validation.go -- AIGP receive boundary -->
 <h2 id="complete-reason-table">Complete Reason Table</h2>
 <p>All reasons in evaluation order. A route gets exactly one reason: the first check
 it fails.</p>
@@ -810,7 +763,7 @@ updated after.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

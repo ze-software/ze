@@ -307,7 +307,6 @@ ze show diagnostic doctor-config-root-unclaimed
 </code></pre>
 <p><code>doctor-config-root-unclaimed</code> names the subtree. The usual cause is a plugin
 that is not in this binary or did not start; check with <code>ze plugin list</code>.</p>
-<!-- source: internal/component/doctor/checks_config_claims.go -- checkConfigClaims -->
 <h3 id="13b-ipsec-peers-never-establish">13b. IPsec Peers Never Establish</h3>
 <pre><code>ze doctor --json
 ze show diagnostic doctor-ipsec-iface
@@ -342,7 +341,6 @@ benign partial config.</p>
 <p>The check reads <code>net.InterfaceByName</code>, while the code whose failure it predicts
 resolves through the iface resolver. It therefore does not honour <code>os-name</code> or
 <code>mac</code> selectors and is blind to VPP interfaces.</p>
-<!-- source: internal/component/ike/engine/doctor.go -- checkIPsecInterface -->
 <h3 id="14-plugin-crash-restart-loop">14. Plugin Crash / Restart Loop</h3>
 <pre><code>show errors count 20
 show warnings
@@ -493,7 +491,7 @@ show system platform | json
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

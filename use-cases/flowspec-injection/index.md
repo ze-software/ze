@@ -8,7 +8,7 @@ Use Ze to inject or relay BGP FlowSpec rules when an automation system must dist
 
 The router can take either of these roles:
 
-1. A FlowSpec route reflector receives rules from an authorised controller and reflects them to clients.
+1. A FlowSpec route reflector receives rules from an authorized controller and reflects them to clients.
 2. A protected router receives FlowSpec and translates accepted rules into local firewall actions.
 
 The existing [FlowSpec route-reflector](../../guides/flowspec-route-reflector/) and [protected-router](../../guides/flowspec-protected-router/) guides cover those complete roles. This page explains how an automation system sends and withdraws rules.
@@ -27,6 +27,10 @@ plugin {
 bgp {
     router-id 192.0.2.10;
     session { asn { local 64500; } }
+    filter {
+        import { final reject; }
+        export { final accept; }
+    }
 
     peer flowspec-client {
         connection {
@@ -54,14 +58,14 @@ ze cli -c "show bgp peer flowspec-client capabilities"
 In a lab, inject a discard rule for TCP destination port 443:
 
 ```console
-ze cli -c "send bgp flowspec-client update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
+ze cli -c "send bgp flowspec-client update text extended-community [rate-limit:0] nhop self mp ipv4/flow add destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
 ```
 
 The command uses the same registered dispatcher through CLI, REST, gRPC, and
 MCP. Confirm the remote router installed the rule, then withdraw the exact NLRI:
 
 ```console
-ze cli -c "send bgp flowspec-client update text nlri ipv4/flow del destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
+ze cli -c "send bgp flowspec-client update text mp ipv4/flow del destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
 ```
 
 ## Send related rules together
@@ -70,8 +74,8 @@ When several rules form one mitigation, stage and inspect them before release:
 
 ```console
 ze cli -c "request commit start mitigation-42"
-ze cli -c "send bgp flowspec-client update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
-ze cli -c "send bgp flowspec-client update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination-ipv4 203.0.113.0/24 protocol udp destination-port =53"
+ze cli -c "send bgp flowspec-client update text extended-community [rate-limit:0] nhop self mp ipv4/flow add destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
+ze cli -c "send bgp flowspec-client update text extended-community [rate-limit:9600] nhop self mp ipv4/flow add destination-ipv4 203.0.113.0/24 protocol udp destination-port =53"
 ze cli -c "request commit show mitigation-42"
 ze cli -c "request commit end mitigation-42"
 ```
@@ -79,11 +83,11 @@ ze cli -c "request commit end mitigation-42"
 Use `request commit rollback mitigation-42` instead of `end` if validation or
 review fails. This prevents clients from observing a partial mitigation policy.
 
-## Authorisation and policy
+## Authorization and policy
 
 Treat route injection as a privileged operation:
 
-- restrict it with Ze authorisation profiles;
+- restrict it with Ze authorization profiles;
 - bind the controller to only the intended peers and families;
 - validate component ranges, actions, and traffic rates;
 - reject rules outside the protected address space;

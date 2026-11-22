@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4360 requirements and tests - Ze</title>
-        <meta name="description" content="RFC 4360: BGP Extended Communities Attribute. 5 mandatory requirements included in automatic checks, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 4360: BGP Extended Communities Attribute. 5 mandatory requirements included in automatic checks, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4360 requirements and tests - Ze" />
-        <meta property="og:description" content="RFC 4360: BGP Extended Communities Attribute. 5 mandatory requirements included in automatic checks, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 4360: BGP Extended Communities Attribute. 5 mandatory requirements included in automatic checks, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4360 requirements and tests - Ze" />
-        <meta name="twitter:description" content="RFC 4360: BGP Extended Communities Attribute. 5 mandatory requirements included in automatic checks, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 4360: BGP Extended Communities Attribute. 5 mandatory requirements included in automatic checks, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -128,16 +128,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>2</strong><b>of 5 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>3</strong><b>of 5 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 5 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 5 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 5 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>4</strong><b>4 of 8 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>6</strong><b>6 of 10 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>3</strong><b>of 5 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>2</strong><b>of 5 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -238,7 +238,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>3</td>
+<td>2</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -250,16 +250,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>8</td>
+<td>10</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>8</td>
+<td>10</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>2</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>4</td>
+<td>6</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4360.md</code></td>
@@ -275,13 +275,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Automatic checks</h2>
-<p>Included in automatic checks: BGP Extended Communities: five MUST-level requirements. Two are tested with both polarities over the codec (internal/core/bgp/attribute/community.go): RFC4360-2-1 (equal only when all 8 octets match) via ExtendedCommunity [8]byte equality, RFC4360-x-1 (length a multiple of 8) via ParseExtendedCommunities (wired at wire.go:412). Three are gaps: RFC4360-6-1, which ze&#39;s decision process meets (rib/bestpath.go reads no Extended Community) with no test and with operator policy free to steer selection from one, and RFC4360-7-1 and 7-2, IANA type-allocation rules no sentence scopes to a role, which no test checks against ze&#39;s type table. A non-supporting speaker&#39;s pass-through is RFC 4271&#39;s rule (RFC4271-5-3), so no RFC 4360 row carries it (rfc/corrections/rfc4360.md). The 6-2 SHOULD, 6-3 SHOULD NOT and 6-4/6-5 MAYs are not gated.</p>
+<p>Included in automatic checks: BGP Extended Communities: five MUST-level requirements. Three are tested with both polarities: RFC4360-2-1 (equal only when all 8 octets match) via ExtendedCommunity [8]byte equality, RFC4360-x-1 (length a multiple of 8) via ParseExtendedCommunities (wired at wire.go:412), and RFC4360-6-1 (decision process does not use Extended Communities to modify best-path selection, internal/component/bgp/plugins/rib/bestpath.go::comparePair). Two are gaps: RFC4360-7-1 and 7-2, IANA type-allocation rules no sentence scopes to a role, which no test checks against ze&#39;s type table. A non-supporting speaker&#39;s pass-through is RFC 4271&#39;s rule (RFC4271-5-3), so no RFC 4360 row carries it (rfc/corrections/rfc4360.md). The 6-2 SHOULD, 6-3 SHOULD NOT and 6-4/6-5 MAYs are not gated.</p>
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Extended communities</p>
-<p><strong>Test verification:</strong> 2 of 5 MUST proven</p>
-<p><strong>Evidence:</strong> unit 2</p>
-<p><strong>Unmet:</strong> RFC4360-6-1, RFC4360-7-1, RFC4360-7-2</p>
+<p><strong>Test verification:</strong> 3 of 5 MUST proven</p>
+<p><strong>Evidence:</strong> unit 3</p>
+<p><strong>Unmet:</strong> RFC4360-7-1, RFC4360-7-2</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -290,11 +290,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>2</strong></td>
+<td><strong>3</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>3</strong></td>
+<td><strong>2</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Only a positive or negative test</td>
@@ -321,14 +321,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc4360-2-1"><code>RFC4360-2-1</code></a>, <a href="#rfc4360-x-1"><code>RFC4360-x-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc4360-6-1"><code>RFC4360-6-1</code></a>, <a href="#rfc4360-7-1"><code>RFC4360-7-1</code></a>, <a href="#rfc4360-7-2"><code>RFC4360-7-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc4360-6-1"><code>RFC4360-6-1</code></a>, <a href="#rfc4360-2-1"><code>RFC4360-2-1</code></a>, <a href="#rfc4360-x-1"><code>RFC4360-x-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (2):</strong> <a href="#rfc4360-7-1"><code>RFC4360-7-1</code></a>, <a href="#rfc4360-7-2"><code>RFC4360-7-2</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc4360:must">Ze verified 2, Not built 3</div>
+<div data-ze-rfc-bar="rfc4360:must">Ze verified 3, Not built 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc4360:overview">Ze MUST verified 2, Not assessed 4, Not built 3</div>
+<div data-ze-rfc-bar="rfc4360:overview">Ze MUST verified 3, Not assessed 4, Not built 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -349,7 +349,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4360:must.kept">5</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc4360:must.ze-proven">2</span></td>
+<td><span data-ze-rfc="rfc4360:must.ze-proven">3</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc4360:must.os-verified">0</span></td>
@@ -367,7 +367,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4360:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc4360:must.not-built">3</span></td>
+<td><span data-ze-rfc="rfc4360:must.not-built">2</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc4360:must.not-owed">0</span></td>
@@ -433,9 +433,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>6 - Operations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4360-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> gap in proof: internal/component/bgp/plugins/rib/bestpath.go::comparePair meets it for the decision process itself, whose steps read no Extended Community; no test asserts it, and operator policy can still steer selection from an Extended Community (filter_community_match matches one, filter_modify then sets local-preference) with nothing refusing a policy that loops</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4360_bestpath_test.go#L31" title="internal/component/bgp/plugins/rib/rfc4360_bestpath_test.go" target="_blank" rel="noopener"><code>TestRFC4360ExtendedCommunitiesDoNotAlterBestPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4360_bestpath_test.go#L35" title="internal/component/bgp/plugins/rib/rfc4360_bestpath_test.go" target="_blank" rel="noopener"><code>TestRFC4360ExtendedCommunitiesDoNotAlterBestPath</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4360-7-1">RFC4360-7-1</code></td><td colspan="3"><span class="rfc-subject">The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7)</span></td></tr>
 <tr><td></td>
@@ -522,10 +522,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc4360-6-1"><code>RFC4360-6-1</code></a> The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6)</td>
-<td>{gap}, no test</td>
-<td>gap in proof: internal/component/bgp/plugins/rib/bestpath.go::comparePair meets it for the decision process itself, whose steps read no Extended Community; no test asserts it, and operator policy can still steer selection from an Extended Community (filter_community_match matches one, filter_modify then sets local-preference) with nothing refusing a policy that loops</td>
-</tr>
 <tr><td><a href="#rfc4360-7-1"><code>RFC4360-7-1</code></a> The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7)</td>
 <td>{gap}, no test</td>
 <td>an IANA allocation rule with no implementer role the RFC names; ze allocates no Type value, and its codec (internal/core/bgp/attribute/community.go) reads only codes IANA assigned; no test pins ze&#39;s type table against the registry, so nothing proves ze treats no regular Type as an extended Type&#39;s high-order octet</td>
@@ -543,7 +539,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc4360-6-1"><code>RFC4360-6-1</code></a></h3>
 <p>The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC4360-6-1, so there is no linked test.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4360_bestpath_test.go#L35" title="internal/component/bgp/plugins/rib/rfc4360_bestpath_test.go" target="_blank" rel="noopener"><code>TestRFC4360ExtendedCommunitiesDoNotAlterBestPath</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4360_bestpath_test.go#L31" title="internal/component/bgp/plugins/rib/rfc4360_bestpath_test.go" target="_blank" rel="noopener"><code>TestRFC4360ExtendedCommunitiesDoNotAlterBestPath</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4360-7-1"><code>RFC4360-7-1</code></a></h3>
 <p>The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
@@ -818,7 +830,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

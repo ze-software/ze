@@ -91,9 +91,7 @@ plugins connect back via TLS.</p>
 <li><a href="#scoped-origin-intake">Scoped origin intake</a></li>
 </ol></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: pkg/plugin/sdk/sdk.go -- NewWithConn, NewFromTLSEnv -->
 <p>All messages use newline-delimited framing with the wire format <code>#&lt;id&gt; &lt;verb&gt; [&lt;json&gt;]\n</code>.</p>
-<!-- source: pkg/plugin/rpc/conn.go -- Conn doc comment -->
 <h2 id="wire-format">Wire Format</h2>
 <p>Every message is a single newline-terminated line:</p>
 <table>
@@ -122,7 +120,6 @@ plugins connect back via TLS.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
 <p>The record answer applies to three methods. It replaces the single success line
 with a head, zero or more records, and a terminator. Every other method keeps
 the three forms above.</p>
@@ -256,7 +253,6 @@ head and a terminator whose message names the reason. Your plugin reads
 <p><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/ipc_protocol.md" target="_blank" rel="noopener">ipc_protocol.md</a>, "Answer Protocol",
 carries the same grammar with the buffering threshold and the failure cases
 beside it.</p>
-<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerTerminator -->
 <table>
 <thead>
 <tr>
@@ -285,20 +281,15 @@ beside it.</p>
 </table>
 <p>One encoding covers both columns, on every connection. Nothing is declared and
 nothing is negotiated, so a plugin author sets no field and reaches no option.</p>
-<!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput -->
-<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
 <p>A plugin READS an engine answer in one of two ways, and both read the same
 frame. <code>Plugin.DispatchCommandAnswer</code> yields each row as it arrives, which is
 what bounds the memory of a walk over a large table. <code>Plugin.DispatchCommand</code>
 and <code>Plugin.DispatchCommandArgs</code> collapse the same answer into the one document
 a caller that wants the whole payload reads.</p>
-<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommandAnswer, Plugin.DispatchCommand, dispatchCommandValue -->
 <p>A plugin WRITES its own answer to <code>execute-command</code>, and the frame is the same
 whatever the payload is. A handler that returns a <code>plugin.Records</code> writes one
 line for each row of the walk. A handler that returns a built value writes that
 value as the one record of a <code>doc</code> answer, byte for byte.</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
-<!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
 <ul>
 <li><code>&lt;id&gt;</code> is a monotonically increasing uint64 correlation ID</li>
 <li><code>&lt;method&gt;</code> uses YANG-style <code>&lt;module&gt;:&lt;rpc-name&gt;</code> naming (e.g., <code>ze-plugin-engine:declare-registration</code>)</li>
@@ -308,7 +299,6 @@ value as the one record of a <code>doc</code> answer, byte for byte.</p>
 <p><strong>Routing:</strong> <code>MuxConn</code> multiplexes a single connection for concurrent RPCs. A background
 reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</code> responses go to the waiting
 <code>CallRPC</code> caller by <code>#&lt;id&gt;</code>, while method-name requests go to the <code>Requests()</code> channel.</p>
-<!-- source: pkg/plugin/rpc/mux.go -- MuxConn, readLoop -->
 <p><strong>Examples:</strong></p>
 <pre><code># Plugin sends declare-registration (Stage 1)
 #1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
@@ -333,10 +323,8 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 </code></pre>
 <h2 id="protocol-stages">Protocol Stages</h2>
 <p>The SDK handles the 5-stage startup protocol automatically via <code>Plugin.Run()</code>.</p>
-<!-- source: pkg/plugin/sdk/sdk.go -- Run -->
 <h3 id="stage-1-registration-plugin-to-engine">Stage 1: Registration (Plugin to Engine)</h3>
 <p>Plugin sends <code>ze-plugin-engine:declare-registration</code> with a <code>DeclareRegistrationInput</code>:</p>
-<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput -->
 <table>
 <thead>
 <tr>
@@ -540,9 +528,6 @@ real problem ("The protocol version", below).</p>
 key, and a declaration that carries it is refused with the fix: send
 <code>"schemas":[{"module":...,"namespace":...,"yang-text":...}]</code> in place of
 <code>"schema":{...}</code>.</p>
-<!-- source: pkg/plugin/rpc/declaration.go -- DecodeDeclaration, retiredSchemaRefusal -->
-<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
-<!-- source: internal/component/plugin/server/early_stage1.go -- readEarlyDeclaration -->
 <p><strong>The failure policy is what your plugin asks ze to do when your plugin fails.</strong>
 It is voluntary, and a plugin that omits it is carried on without. A value that
 is none of the three fails the whole registration, so ze never guesses.</p>
@@ -627,20 +612,11 @@ even when you had nothing to send.</p>
 replay is out; it releases the hold for that session. End-of-RIB still waits
 for no report. Without the fence opt-in, your existing non-fencing behavior
 remains. Neither flag grants an attachment, a receive subscription or send
-permission. Removal or replacement ends the old process's declaration.</p>
-<!-- source: internal/component/plugin/server/replay_fence.go -- validateReplayFenceDeclaration, declaresReplayFence -->
-<p>Ze uses your current authenticated Stage-1 flags even when your process name
+permission. Removal or replacement ends the old process's declaration.
+Ze uses your current authenticated Stage-1 flags even when your process name
 also names a compiled plugin. Forked in-tree programs declare the flags too.
 Only an Internal runner can use its compiled defaults.</p>
-<!-- source: internal/component/plugin/server/replay_fence.go -- sessionReplayDeclarations -->
-<!-- source: internal/component/plugin/registry/registry.go -- SignalsSessionReady, FencesLiveForwards -->
-<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
-<!-- source: internal/component/bgp/reactor/peer.go -- Peer.SignalAPIReady, Peer.creditAPIReady -->
-<!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters, Peer.replayFenceOwners -->
-<!-- source: internal/component/plugin/registry/registry.go -- registry.FencesLiveForwards -->
 <p>Each <code>CommandDecl</code> has these fields:</p>
-<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
-<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateHelpDecls, registerPluginShapes -->
 <table>
 <thead>
 <tr>
@@ -720,8 +696,6 @@ terminal candidate. A newline, a tab or an ESC in it breaks the format for
 every row that follows. The alias <code>description</code> below is held to the same
 one-line rule.</p>
 <p>Each <code>PipeDecl</code> has these fields:</p>
-<!-- source: pkg/plugin/rpc/types.go -- PipeDecl -->
-<!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
 <table>
 <thead>
 <tr>
@@ -779,8 +753,6 @@ list and fails the plugin's startup. Read
 <code>docs/architecture/api/commands.md</code> for the collision rules and the payload
 obligation.</p>
 <p>Each <code>FamilyDecl</code> has these fields:</p>
-<!-- source: pkg/plugin/rpc/types.go -- FamilyDecl -->
-<!-- source: internal/component/plugin/server/startup.go -- registerPluginFamilies -->
 <table>
 <thead>
 <tr>
@@ -815,7 +787,6 @@ obligation.</p>
 <p>Set <code>afi</code> and <code>safi</code> for a custom family. A built-in family can omit both numeric fields.</p>
 <p>Each <code>SchemaDecl</code> is one YANG module. A plugin that brings several modules
 sends one entry for each (<code>schema.md</code>):</p>
-<!-- source: pkg/plugin/rpc/types.go -- SchemaDecl -->
 <table>
 <thead>
 <tr>
@@ -848,7 +819,6 @@ sends one entry for each (<code>schema.md</code>):</p>
 </tbody>
 </table>
 <p>Each <code>ConfigOperationDecl</code> has these fields:</p>
-<!-- source: pkg/plugin/rpc/types.go -- ConfigOperationDecl -->
 <table>
 <thead>
 <tr>
@@ -877,7 +847,6 @@ sends one entry for each (<code>schema.md</code>):</p>
 </table>
 <p>Each <code>FilterDecl</code> has these fields (<code>docs/architecture/api/process-protocol.md</code>,
 "Filter Declaration"):</p>
-<!-- source: pkg/plugin/rpc/types.go -- FilterDecl -->
 <table>
 <thead>
 <tr>
@@ -936,7 +905,6 @@ sends one entry for each (<code>schema.md</code>):</p>
 </table>
 <p>Each <code>FilterInsertion</code> has these fields (<code>docs/architecture/api/process-protocol.md</code>,
 "Filter Insertion"):</p>
-<!-- source: pkg/plugin/rpc/types.go -- FilterInsertion, FilterSessionFact -->
 <table>
 <thead>
 <tr>
@@ -994,7 +962,6 @@ sends one entry for each (<code>schema.md</code>):</p>
 </tbody>
 </table>
 <p>Each <code>DoctorCheckDecl</code> has these fields:</p>
-<!-- source: pkg/plugin/rpc/types.go -- DoctorCheckDecl -->
 <table>
 <thead>
 <tr>
@@ -1038,11 +1005,9 @@ sends one entry for each (<code>schema.md</code>):</p>
 </table>
 <p>Each <code>EnricherDecl</code> has a <code>command</code>, the show command path it enriches, and a
 <code>key</code>, its kebab-case key, unique within that command.</p>
-<!-- source: pkg/plugin/rpc/types.go -- EnricherDecl -->
 <p>Each <code>DisseminationDecl</code> has a <code>namespace</code> and a <code>role</code>, and the grants the
 role needs: <code>source-receive</code>, <code>destination-receive</code> and <code>destination-send</code>,
 each a <code>[]string</code>.</p>
-<!-- source: pkg/plugin/rpc/dissemination.go -- DisseminationDecl -->
 <p><strong>Wire example:</strong></p>
 <pre><code>#1 ze-plugin-engine:declare-registration {"protocol-version":1,"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","short-help":"Show FlowSpec status"}],"wants-config":["bgp"]}
 #1 ok {"protocol-version":1,"plugin-name":"flow-export"}
@@ -1055,19 +1020,13 @@ filters declared the route fields they read, and the engine refuses it with
 one error that names the plugin and the version to declare; the startup tier
 then stops, as for any plugin failure. Version <code>1</code> is the first versioned
 contract. The Go SDK declares it and refuses an engine that answers any other.</p>
-<!-- source: pkg/plugin/rpc/declaration.go -- NegotiateProtocolVersion -->
-<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
-<!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
 <p>The answer also includes <code>plugin-name</code>, the configured instance name of the
 authenticated process. It can differ from the implementation's name. The Go
 SDK exposes this through <code>Plugin.InstanceName()</code> before <code>OnConfigure</code> runs;
 before the Stage 1 answer it is empty. Use that configured identity in recovery
 commands that restart the plugin.</p>
-<!-- source: pkg/plugin/rpc/declaration.go -- DeclareRegistrationOutput -->
-<!-- source: pkg/plugin/sdk/sdk_identity.go -- InstanceName -->
 <h3 id="stage-2-config-engine-to-plugin">Stage 2: Config (Engine to Plugin)</h3>
 <p>Engine sends <code>ze-plugin-callback:configure</code> with a <code>ConfigureInput</code>:</p>
-<!-- source: pkg/plugin/rpc/types.go -- ConfigureInput -->
 <table>
 <thead>
 <tr>
@@ -1085,7 +1044,6 @@ commands that restart the plugin.</p>
 </tbody>
 </table>
 <p>Each <code>ConfigSection</code> has:</p>
-<!-- source: pkg/plugin/rpc/types.go -- ConfigSection -->
 <table>
 <thead>
 <tr>
@@ -1125,7 +1083,6 @@ connection: a lost connection is a transport failure, which says nothing about
 the configuration and so never stops ze.</p>
 <h3 id="stage-3-capabilities-plugin-to-engine">Stage 3: Capabilities (Plugin to Engine)</h3>
 <p>Plugin sends <code>ze-plugin-engine:declare-capabilities</code> with a <code>DeclareCapabilitiesInput</code>:</p>
-<!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput -->
 <table>
 <thead>
 <tr>
@@ -1142,9 +1099,7 @@ the configuration and so never stops ze.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
 <p>Each <code>CapabilityDecl</code> has:</p>
-<!-- source: pkg/plugin/rpc/types.go -- CapabilityDecl -->
 <table>
 <thead>
 <tr>
@@ -1182,7 +1137,6 @@ the configuration and so never stops ze.</p>
 </code></pre>
 <h3 id="stage-4-registry-engine-to-plugin">Stage 4: Registry (Engine to Plugin)</h3>
 <p>Engine sends <code>ze-plugin-callback:share-registry</code> with a <code>ShareRegistryInput</code>:</p>
-<!-- source: pkg/plugin/rpc/types.go -- ShareRegistryInput -->
 <table>
 <thead>
 <tr>
@@ -1200,7 +1154,6 @@ the configuration and so never stops ze.</p>
 </tbody>
 </table>
 <p>Each <code>RegistryCommand</code> has:</p>
-<!-- source: pkg/plugin/rpc/types.go -- RegistryCommand -->
 <table>
 <thead>
 <tr>
@@ -1233,7 +1186,6 @@ the configuration and so never stops ze.</p>
 </code></pre>
 <h3 id="stage-5-ready-plugin-to-engine">Stage 5: Ready (Plugin to Engine)</h3>
 <p>Plugin sends <code>ze-plugin-engine:ready</code> with an optional <code>ReadyInput</code>:</p>
-<!-- source: pkg/plugin/rpc/types.go -- ReadyInput -->
 <table>
 <thead>
 <tr>
@@ -1258,13 +1210,11 @@ the configuration and so never stops ze.</p>
 <p>The <code>subscribe</code> field allows plugins to register event subscriptions atomically with
 startup completion. This avoids a race where <code>SignalAPIReady</code> triggers route sends before
 a separate <code>subscribe-events</code> RPC could be processed.</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions -->
 <p>When <code>transport</code> is <code>"bridge"</code>, the engine publishes bridge callbacks on the
 <code>PluginConn</code> before acknowledging ready. The SDK activates that bridge, runs
 <code>OnStarted</code>, then closes the startup pipe and begins its bridge event loop.
 Subsequent generic callbacks flow through <code>bridge.CallbackCh()</code> instead of the
 MuxConn, so bridge activation alone is not initialization completion.</p>
-<!-- source: pkg/plugin/rpc/types.go -- ReadyInput.Transport -->
 <p><strong>Wire example:</strong></p>
 <pre><code>#3 ze-plugin-engine:ready {"subscribe":{"events":["update","state"],"peers":["*"],"format":"json"},"transport":"bridge"}
 #3 ok
@@ -1322,7 +1272,6 @@ func start() int {
 </code></pre>
 <p>The declaration is the same <code>*sdk.Registration</code> you pass to <code>Plugin.Run</code>,
 so query mode reads nothing new and adds no second list to keep in step.</p>
-<!-- source: pkg/plugin/sdk/sdk_query.go -- RunOrDeclare -->
 <h3 id="what-the-sdk-guarantees">What the SDK guarantees</h3>
 <ul>
 <li>Your start function is NOT called under the mode. Side-effecting code inside
@@ -1347,7 +1296,6 @@ for everyone else.</li>
 to branch. It is a reader, not a guarantee: the branch is yours to place, and
 anything above it has already run.</li>
 </ul>
-<!-- source: pkg/plugin/sdk/sdk.go -- QueryModeRequested, EnvPluginMode, ModeDeclare -->
 <h3 id="write-the-declaration-line-alone">Write the declaration line alone</h3>
 <p>In declare mode, write nothing to stdout except the declaration line. Send
 every diagnostic, banner and log line to stderr.</p>
@@ -1362,15 +1310,9 @@ the one line, and the row names the rule the output broke. A plugin that passes
 the strict check is read correctly by every reader.
 <code>ze show plugin conformance run "&lt;run string&gt;"</code> runs the check
 (<a href="../testing/">testing.md</a>, "Checking That a Program Is a Valid Plugin").</p>
-<!-- source: internal/component/plugin/conformance/checks.go -- strictLine, declarationLine -->
-<!-- source: internal/component/plugin/declarations.go -- declarationFromStdout -->
-<!-- source: pkg/plugin/rpc/declaration.go -- WriteDeclaration -->
 <h2 id="runtime-callbacks-engine-to-plugin">Runtime Callbacks (Engine to Plugin)</h2>
 <p>After startup, the engine sends runtime RPCs to the plugin. The SDK dispatches
 each wire method to its registered handler.</p>
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- callbackBye through callbackPostStartup -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent through OnAllPluginsReady -->
-<!-- source: pkg/plugin/rpc/types.go -- callback input and output types -->
 <table>
 <thead>
 <tr>
@@ -1580,9 +1522,6 @@ each wire method to its registered handler.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete, operation callback registration -->
-<!-- source: pkg/plugin/rpc/types.go -- ConfigCompleteInput, ConfigCompleteOutput -->
-<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- OnOriginAdmissionLookup -->
 <p>An <code>OnConfigComplete</code> handler automatically declares <code>config-completion</code> in
 Stage 1. Its context carries the absolute <code>deadline-ms</code> work bound. Complete
 cleanup before returning: callback queue admission is not a receipt. Keep
@@ -1593,9 +1532,6 @@ error after acceptance reports an active candidate, not a rollback.
 Requests and receipts MUST carry an explicit JSON boolean <code>accepted</code>, including
 <code>false</code> for rejection. Missing or <code>null</code> decisions never invoke SDK cleanup and
 never acknowledge completion to the engine; they are malformed messages.</p>
-<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigComplete -->
-<!-- source: internal/component/plugin/server/reload_tx.go -- completeBatches, finishWithLock -->
 <p>Plugins retaining source state MUST declare <code>source-policy-owner</code> in Stage 1,
 even if they do not implement the lifecycle yet. That unsupported declaration
 refuses policy changes before publication; pure observers are not owners.
@@ -1611,10 +1547,8 @@ callbacks and current-selection lookups remain live during this wait. The
 engine first awaits event application; settlement never replaces that FIFO
 receipt. A plugin written in another language declares the same support and
 answers <code>event-settlement</code> with the echoed <code>deadline-ms</code>, explicit <code>status</code>
-and a cause for failure. An error or missing outcome never confirms completion.</p>
-<!-- source: pkg/plugin/sdk/sdk_event_settlement.go -- OnEventSettlement, eventSettlementWorker -->
-<!-- source: pkg/plugin/rpc/event_settlement.go -- EventSettlementInput, EventSettlementOutput -->
-<p><code>OnSourcePolicy(func(context.Context, rpc.SourcePolicyInput) error)</code> automatically
+and a cause for failure. An error or missing outcome never confirms completion.
+<code>OnSourcePolicy(func(context.Context, rpc.SourcePolicyInput) error)</code> automatically
 declares both ownership and <code>source-policy</code> handler support. All four operations
 use one registered callback on both transports, not the shutdown <code>OnDrain</code> path.</p>
 <p>Requests carry a transaction, operation, captured source identity, target epoch
@@ -1660,13 +1594,9 @@ error.
 A plugin written in another language owes the same: answer <code>source-policy</code>
 without stopping its event delivery.</li>
 </ul>
-<!-- source: pkg/plugin/sdk/sdk_source_policy.go -- SourcePolicyHandler, sourcePolicyWorker, sourcePolicyQueueDepth -->
 <p>Retained/replayed received routes MUST preserve their original
 <code>StoredRoute.SourcePolicyEpoch</code> (<code>source-policy-epoch</code>), never stamp the current
 epoch onto old work. Zero is unrecorded, independently of session generation.</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnSourcePolicy -->
-<!-- source: pkg/plugin/rpc/source_policy.go -- SourcePolicyInput.Validate, UnmarshalJSON -->
-<!-- source: internal/component/plugin/server/source_policy.go -- CaptureSourcePolicyOwners, SourcePolicyOwner.Call -->
 <p>A peer's AS is not always known when an event is written. A dynamic peer's AS
 comes from its OPEN, so the OPEN Ze sends, a NOTIFICATION Ze sends in
 OpenSent and the FSM changes before OpenConfirm carry none. The JSON peer
@@ -1677,7 +1607,6 @@ known" and never AS 0. Read it with <code>PeerAS.ASN()</code>, which answers
 Rendered without a branch, it writes the number or <code>unknown</code> through <code>%v</code>, <code>%s</code>
 and <code>log/slog</code>, and the number or <code>null</code> through <code>encoding/json</code>, where a field
 tagged <code>omitzero</code> is omitted while the AS is unknown.</p>
-<!-- source: pkg/plugin/rpc/remote_as.go -- RemoteAS, ASN, MarshalJSON, IsZero, String, LogValue -->
 <p>Every peer event also carries the engine's stable Peer incarnation as numeric
 <code>peer-owner</code> in JSON, <code>peer-owner &lt;uint64&gt;</code> in text, and
 <code>StructuredEvent.PeerOwner</code> internally. It agrees with
@@ -1696,8 +1625,6 @@ departure without it, and with it owes only routes that session or an older
 one wrote, so a down handled after the peer reconnected never takes the newer
 session's routes (<code>docs/architecture/plugin/rib-storage-design.md</code>,
 "Source-DOWN replacement and sent ordering").</p>
-<!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent -->
-<!-- source: internal/component/bgp/plugins/cmd/update/recovery.go -- recoveryFromMeta -->
 <h3 id="the-filter-update-batch">The filter-update batch</h3>
 <p>One <code>filter-update</code> exchange carries a batch of routes. The request is
 <code>{"routes":[...]}</code>, each entry one route as <code>FilterUpdateInput</code> describes it
@@ -1747,15 +1674,6 @@ ownership processing, and counts no completed typed judgment. The
 conformance harness compares these consumer-visible failures rather than
 the ignored fields of a failed verdict.</li>
 </ul>
-<!-- source: pkg/plugin/rpc/filter_slot.go -- CallFilterSlot -->
-<!-- source: internal/component/plugin/ipc/filter_slot.go -- CallFilter -->
-<!-- source: internal/component/bgp/reactor/filter_library.go -- libraryCaller.CallFilter -->
-<!-- source: pkg/plugin/rpc/types.go -- FilterUpdateBatchMax, FilterUpdateBatchInput, FilterUpdateBatchOutput -->
-<!-- source: internal/component/plugin/ipc/filter_batch.go -- SendFilterUpdate, filterBatcher -->
-<!-- source: internal/component/plugin/ipc/filter_batch_bytes.go -- exchange, frameFits, filterBatchWireFixedSize -->
-<!-- source: pkg/plugin/rpc/filter_batch_size.go -- FilterUpdateInput.JSONSizeBound -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch -->
-<!-- source: pkg/plugin/sdk/filter_conformance.go -- answerText -->
 <h3 id="the-route-fields-of-filter-update">The Route Fields of filter-update</h3>
 <p><code>FilterUpdateInput.Fields</code> (<code>fields</code> on the wire) is one JSON object holding the
 route fields the filter declared in <code>reads</code>, and no other. Each key is the
@@ -1934,14 +1852,6 @@ local-preference, med or community an earlier member set, in process or in
 a plugin, is what this filter reads. <code>raw</code> is still the received body. A
 filter that declared no <code>reads</code> fails the route under its <code>on-error</code>.</li>
 </ul>
-<!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
-<!-- source: internal/component/bgp/policyview/register_writers.go -- the field writers -->
-<!-- source: internal/component/bgp/policyview/session.go -- ImportSession, ExportSession, the session fact answers -->
-<!-- source: internal/component/bgp/policyview/metadata.go -- MustRegisterMetadata, readMetadata, SetMetadata -->
-<!-- source: internal/component/bgp/policychain/sets_metadata.go -- applyExternalMetadata, metadataValue -->
-<!-- source: internal/component/bgp/policyview/register.go -- sessionFacts -->
-<!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON, AppendWithdrawnNLRIJSON -->
-<!-- source: internal/component/bgp/policychain/external.go -- judgeExternal -->
 <h3 id="the-sets-of-a-filter-update-answer">The Sets of a filter-update answer</h3>
 <p>A filter answers its changes in <code>FilterUpdateOutput.Sets</code> (<code>sets</code> on the wire), with <code>"action":"modify"</code>.
 Each entry names one field the filter declared in <code>sets</code>, how it changes, and
@@ -2098,18 +2008,6 @@ pass over a body that differs from the chain's input ("Filter Run Occasions").</
 <li><code>teardown</code> on an import route closes the session; on export it is ignored
 and the action stands.</li>
 </ul>
-<!-- source: internal/component/bgp/policychain/external.go -- externalAnswer, applyExternalSets, rawAnswer -->
-<!-- source: internal/component/bgp/reactor/filter_library.go -- libraryCaller.CallFilter, runLibraryChain -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- decodeFilterRawOverride, filterRawTunnelEncap -->
-<!-- source: internal/component/bgp/policychain/external.go -- judgeExternal, errExternalNoReads -->
-<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, the import-only teardown -->
-<!-- source: internal/component/bgp/policychain/chain.go -- rawOutcome -->
-<!-- source: internal/component/bgp/policychain/external_intents.go -- applyASPathIntent, applyPrefixIntent, applyFamilyIntent -->
-<!-- source: internal/component/bgp/policychain/external.go -- externalIntentsOfReads -->
-<!-- source: internal/component/bgp/policychain/external_attributes.go -- applyAttributeSet, removeMED -->
-<!-- source: internal/component/bgp/policychain/chain_overlay_attributes.go -- overlayAttributes -->
-<!-- source: internal/component/bgp/policyview/fields_json.go -- appendOverlaid -->
-<!-- source: pkg/plugin/rpc/types.go -- FilterSet, FilterSetAction -->
 <h3 id="filter-run-occasions">Filter Run Occasions</h3>
 <p>An export chain calls a filter once for each route. Two fields of the filter's
 declaration add occasions, and both default to false. Stage 1 refuses each one
@@ -2178,12 +2076,6 @@ leaves as it is.</li>
 <li>A side effect in the filter (a counter, a log line, a lookup) happens on each
 run, so it cannot count routes.</li>
 </ul>
-<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, readvertiseRuns, Readvertises, judgesFinalRuns, HoldsFinalJudge, RailEndsOnFinalJudge -->
-<!-- source: internal/component/bgp/policychain/external.go -- ExternalRoute, errExternalRawAfterSets -->
-<!-- source: internal/component/bgp/reactor/filter_library.go -- runFinalJudges, runLibraryChain -->
-<!-- source: internal/component/bgp/reactor/stale_readvertise_chain.go -- runStaleChain -->
-<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- runFinalJudges -->
-<!-- source: internal/component/plugin/registry/filter_declaration.go -- JudgesFinal on an import-only filter -->
 <h2 id="runtime-rpcs-plugin-to-engine">Runtime RPCs (Plugin to Engine)</h2>
 <p>Full update-route result methods preserve explicit retained/suppressed admission
 with zero announced routes, warning reasons and partial failure counts. The
@@ -2192,9 +2084,6 @@ be inferred from zero counts; direct origination and control commands may
 return explicit count-only results. See <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md#update-route-command-and-admission-results" target="_blank" rel="noopener">Update-route results</a>
 for the numeric result fields and the separation from selected-output authority.</p>
 <p>Plugins call the engine during runtime through these SDK methods:</p>
-<!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRoute through DecodeUpdate -->
-<!-- source: pkg/plugin/rpc/types.go -- plugin-to-engine runtime RPC input and output types -->
-<!-- source: pkg/plugin/rpc/bridge.go -- BatchValidateResult -->
 <table>
 <thead>
 <tr>
@@ -2374,16 +2263,11 @@ for the numeric result fields and the separation from selected-output authority.
 application and declared deferred work. Supply a context deadline and release
 locks the recipients need. A matching subscription on the emitter refuses the
 operation before publication. Ordinary <code>EmitEvent</code> retains queue-only behavior.</p>
-<!-- source: pkg/plugin/sdk/sdk_emit_applied.go -- EmitEventApplied -->
 <p>The same <code>emit-event</code> RPC carries <code>await-applied: true</code> and <code>deadline-ms</code>.
 Success requires <code>applied: true</code> and the exact request deadline. A failed or
 canceled call can leave partial application. It cannot authorize source cleanup
 or confirm downstream output. Resolve the named failure before retrying.</p>
-<!-- source: internal/core/ipc/yang/ze-plugin-engine.yang -- emit-event -->
-<!-- source: internal/component/plugin/server/emit_event_applied.go -- emitEventApplied -->
 <h3 id="selected-output-receipts">Selected output receipts</h3>
-<!-- source: pkg/plugin/sdk/sdk_selected.go -- SelectRoutes -->
-<!-- source: pkg/plugin/rpc/selected.go -- selected DTOs, outcomes and frame sizing -->
 <p><code>SelectRoutes</code> is the selected-owner operation; <code>RelayStoredRoute</code> keeps its
 existing source-owned behavior. Supply the destination's exact UP
 <code>initial-replay</code> token as <code>destination-session</code>, a monotonic nonzero revision,
@@ -2417,8 +2301,6 @@ means enhanced markers were not negotiated. A zero or missing receipt fails.
 This uses the effective selecting role and its existing update send grant;
 it grants no right to send a normal refresh request. If our own OPEN advertised GR, Begin
 requires this connection's actual completed EOR for that family.</p>
-<!-- source: pkg/plugin/sdk/sdk_selected_refresh.go -- SelectRefresh -->
-<!-- source: pkg/plugin/rpc/selected_refresh.go -- SelectRefreshInput, SelectRefreshOutput -->
 <p>The SDK sets the absolute <code>deadline-ms</code> from the caller's context, capped at
 thirty seconds per batch. When that context ends, the socket form sends
 <code>cancel-request</code> for its original correlation ID and method, and joins the
@@ -2436,15 +2318,10 @@ resolve supplied names from existing registrations and reject an unknown name.
 The authority keeps same-target members with different owners until the
 consumer applies each owner's FIB permission, then renders the target group.
 Member ownership never changes the primary protocol credited with the prefix.</p>
-<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewNextHop -->
-<!-- source: internal/component/sysrib/projection_path.go -- projectionPath -->
 <p>The system RIB owns the <code>ze-sysrib</code> namespace. Its routing view transfers the
 daemon's selected routes as values to either an internal or an external
 consumer. The daemon remains the authority for route admission, import policy,
 administrative distance and selection.</p>
-<!-- source: pkg/plugin/rpc/route_view.go -- routing-view values and method names -->
-<!-- source: pkg/plugin/rpc/route_view_codec.go -- reply presence and atomic decoding -->
-<!-- source: internal/component/sysrib/yang/ze-sysrib-api.yang -- native RPC schema -->
 <table>
 <thead>
 <tr>
@@ -2493,10 +2370,6 @@ administrative distance and selection.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: pkg/plugin/sdk/sdk_route_view.go -- RouteViewOpen, RouteViewRead, RouteViewCandidates, RouteViewDistances, RouteViewPublish, RouteViewClose -->
-<!-- source: internal/component/sysrib/register_route_view.go -- init -->
-<!-- source: internal/component/sysrib/register_route_view_policy.go -- init -->
-<!-- source: internal/component/sysrib/register_route_view_output.go -- init -->
 <p><code>open</code> accepts an optional <code>reader</code>: <code>selected-feed</code> or <code>local-authority</code>.
 An empty input selects <code>selected-feed</code>. The authenticated process generation owns
 the returned session token. Subsequent requests carry that token and cannot choose
@@ -2506,7 +2379,6 @@ the initial snapshot before forwarding and MUST discard its projection on reset.
 An empty delta preserves the current projection.
 An explicit reset can advance the cursor to a newer fenced marker. It clears
 readiness and authorizes no forwarding. Older reset cursors remain invalid.</p>
-<!-- source: internal/component/sysrib/projection.go -- validateSequence, Apply -->
 <p>A refused publication does not by itself authorize reopening. For a benign
 selected-feed retention reset, a subsequent read on the exact refused session
 may return <code>rejected-publication</code>, a positive operation identity. The consumer
@@ -2517,27 +2389,19 @@ retains one fully validated refused batch, and only its exact operation,
 cursor and values can repeat that proof. Malformed attempts, output delivery
 errors and foreign or replaced leases cannot acquire it. Internal local readers
 do not use selected-feed publication recovery.</p>
-<!-- source: pkg/plugin/rpc/route_view.go -- RouteViewReadOutput -->
-<!-- source: pkg/plugin/rpc/route_view_codec.go -- RouteViewReadOutput.UnmarshalJSON -->
-<!-- source: internal/component/sysrib/route_view_output.go -- provePublicationReset -->
-<!-- source: internal/component/sysrib/route_view_worker_output.go -- publicationReset -->
 <p><code>local-authority</code> requires an authenticated internal system RIB with direct access
 to the daemon's Loc-RIB. It retains no selected snapshot or delta journal.
 Its direct reader is ready at logical cursor zero. Distance acknowledgment follows
 authoritative reselection and returns zero. Selected reads require reopening with
 <code>selected-feed</code>. Both transports provide the same reader choices and refusals.
 External system RIBs use <code>selected-feed</code>.</p>
-<!-- source: internal/component/sysrib/route_view.go -- open, read -->
-<!-- source: internal/component/sysrib/route_view_feed.go -- synchronize, validateConsumed -->
 <p>Requests require every mandatory field even when its value is zero. <code>read</code>
 requires explicit <code>cursor</code> and <code>wait-ms</code> fields. Candidate reads and publications
 also require an explicit cursor. Unknown request fields and null mandatory
 fields fail before the session changes. An omitted distance list remains empty.</p>
-<!-- source: pkg/plugin/rpc/route_view_input_codec.go -- routing-view input decoding -->
 <p>The complete request must fit <code>rpc.MaxMessageSize</code>, including its method and
 correlation ID. <code>rpc.RouteViewRequestBudget</code> reserves the widest ID and the
 method header. Direct calls enforce the same bound.</p>
-<!-- source: pkg/plugin/rpc/route_view_input_codec.go -- RouteViewRequestBudget -->
 <p><code>read</code> accepts a record limit from 1 through 4096 and a wait from 0 through
 1000 milliseconds. The producer MUST also keep the complete encoded reply within
 <code>rpc.MaxMessageSize</code>; <code>rpc.RouteViewResultBudget()</code> reserves framing for the
@@ -2550,41 +2414,30 @@ The selected path requires non-null <code>protocol</code>, <code>instance</code>
 <code>metric</code> fields. Explicit zero ranking values remain valid. A distance row
 requires non-null <code>protocol</code> and <code>distance</code>, including an explicit zero distance.
 Malformed values leave the current decoded value unchanged.</p>
-<!-- source: pkg/plugin/rpc/route_view_codec.go -- RouteViewPath.UnmarshalJSON, RouteViewDistance.UnmarshalJSON -->
 <p>Candidate scans use their own snapshot and cursor. Their entries preserve the
 existing <code>show rib candidates</code> JSON, including hidden paths and a present zero
 tag. A candidate scan does not feed selection. <code>distances</code> carries a complete
 protocol distance declaration and an ordered operation ID. Its acknowledgment
 follows authoritative application and reselection.</p>
-<!-- source: internal/component/sysrib/route_view_candidates.go -- readCandidates -->
-<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
 <p><code>publish</code> wraps the unchanged system <code>best-change</code> JSON with the consumed cursor
 and operation ID. The consumer MUST retain this operation until acknowledgment.
 The owner MUST fence stale generations before emission and return an identical
 retry's acknowledgment without emitting twice. A newer completed read preserves
 that original acknowledgment. A new operation requires the latest consumed cursor.</p>
-<!-- source: internal/component/sysrib/route_view_output.go -- publish -->
 <p>Each publication accepts at most 4096 changes. The JSON adapter refuses
 an excess row before decoding the remaining rows. Device and gateway-zone names
 must contain valid UTF-8 through both transports.</p>
-<!-- source: internal/component/sysrib/register_route_view_output.go -- routeViewDecodeOutputBatch, routeViewOutputRows -->
-<!-- source: internal/component/sysrib/route_view_output.go -- routeViewValidateOutputTarget -->
 <p>Publication withdrawals retain an explicit empty <code>protocol</code> field. Device-only
 <code>ecmp-paths</code> and <code>backup</code> members retain an explicit empty <code>next-hop</code> and name
 their <code>interface</code>. The publication schema accepts these existing event values.
 Add and update still require a registered protocol, and each member requires a
 gateway or interface. Selected-view addresses keep their nonempty address type.</p>
-<!-- source: internal/component/sysrib/events/events.go -- BestChangeEntry, ECMPPath -->
-<!-- source: internal/component/sysrib/yang/ze-sysrib-api.yang -- route-view-publish, publication-member, next-hop -->
-<!-- source: internal/component/sysrib/route_view_output.go -- routeViewValidateOutputEntry -->
 <p><code>close</code> fences the session and releases its readers and pinned values before
 acknowledgment. Its cleanup withdraws only owned prefixes, in separate family
 batches of at most 4096 entries. Every emitted batch retains independent storage.
 A failed withdrawal keeps its ledger entries and blocks replacement until retry
 succeeds. Fencing releases the retained publication, and successful cleanup
 releases the empty ledger.</p>
-<!-- source: internal/component/sysrib/route_view.go -- cleanupLocked -->
-<!-- source: internal/component/sysrib/route_view_output.go -- withdraw -->
 <h3 id="owned-interface-devices-and-firewall-tables">Owned interface devices and firewall tables</h3>
 <p>A plugin compiled into ze that owns kernel state asks the interface and firewall
 components to create it, so the same calls work internal and forked. Only a
@@ -2593,8 +2446,6 @@ or reserved table names (<code>firewall.MustReserveTableNames</code>) from its <
 accepted. A plugin built outside the ze binary cannot make either declaration,
 so every call it makes is refused. The owner is the plugin's authenticated
 name: a forked plugin MUST be declared under its registry name.</p>
-<!-- source: pkg/plugin/sdk/sdk_owned_devices.go -- OwnedBridgesReplace, OwnedLinkCreate, OwnedLinkRemove -->
-<!-- source: pkg/plugin/sdk/sdk_firewall_tables.go -- FirewallTablesReplace -->
 <table>
 <thead>
 <tr>
@@ -2631,8 +2482,6 @@ name: a forked plugin MUST be declared under its registry name.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: pkg/plugin/rpc/owned_devices.go -- MethodOwnedBridgesReplace, MethodOwnedLinkCreate, MethodOwnedLinkRemove -->
-<!-- source: pkg/plugin/rpc/firewall_tables.go -- MethodFirewallTablesReplace -->
 <p>The bridge and table calls replace the caller's complete set; an empty set
 withdraws everything the caller holds. <code>FirewallTablesReplace</code> carries its
 tables as a firewall config section, <code>{"firewall":{"table":{...}}}</code>, the form
@@ -2658,8 +2507,6 @@ place, the tables of a plugin process that ended are withdrawn, and the
 firewall's orderly stop removes them with every other Ze table
 (<code>docs/architecture/api/process-protocol.md</code>, "Owned interface devices and
 firewall table contribution").</p>
-<!-- source: internal/component/iface/owned_bridge_link.go -- ReplaceOwnedBridges, CreateOwnedLink, WithdrawOwnedDevices -->
-<!-- source: internal/component/firewall/contribution.go -- replaceContributedTables, withdrawContributedTables -->
 <h2 id="message-flow-example">Message Flow Example</h2>
 <pre><code>Plugin                                             Engine
    |                                                  |
@@ -2710,104 +2557,77 @@ plugin's <code>Run</code> returns nil (<code>docs/architecture/api/process-proto
 <h2 id="error-handling">Error Handling</h2>
 <p><strong>Stage errors:</strong> If any stage RPC fails (error response or timeout), the SDK returns
 an error from <code>Run()</code> with context like <code>"stage 1 (declare-registration): ..."</code>.</p>
-<!-- source: pkg/plugin/sdk/sdk.go -- Run -->
 <p><strong>Runtime errors:</strong> Callback handlers return errors via <code>#&lt;id&gt; error {"code":"...","message":"..."}</code>.
 Unknown methods are rejected with <code>"unknown method: &lt;method&gt;"</code>.</p>
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop -->
 <p><strong>Connection errors:</strong> EOF or closed connection during the event loop is treated as
 clean shutdown (engine closes socket to signal exit).</p>
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, isConnectionClosed -->
 <p><strong>Config reload errors:</strong> <code>config-verify</code> and <code>config-apply</code> return structured results
 with <code>{"status":"ok"}</code> or <code>{"status":"error","error":"..."}</code>. A plugin with no
 <code>OnConfigVerify</code> handler accepts at config-verify. A plugin that registered neither
 <code>OnConfigApply</code> nor <code>DeclareAppliesNothing</code> answers both with an error naming the
 plugin and the roots, so the reload is refused rather than accepted and ignored
 (handlers.md, "A plugin with no apply handler").</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigVerify, OnConfigApply, initCallbackDefaults, configVerifyCallback, refuseConfigApply -->
 <h2 id="batched-event-delivery">Batched Event Delivery</h2>
 <p>Events are batched for efficiency. The engine collects pending events from a per-process
 channel, JSON-quotes each one, and sends them in a single <code>deliver-batch</code> RPC.</p>
-<!-- source: pkg/plugin/rpc/batch.go -- WriteBatchFrame -->
 <pre><code>#42 ze-plugin-callback:deliver-batch {"events":["&lt;json-event-1&gt;","&lt;json-event-2&gt;",...]}
 #42 ok
 </code></pre>
 <p>The SDK unpacks the batch and dispatches each event to the <code>OnEvent</code> handler individually.
 Both <code>deliver-event</code> and <code>deliver-batch</code> handlers are registered in the callback map
 when <code>OnEvent</code> is called.</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent -->
 <p>For internal plugins with an active <code>DirectBridge</code>, event delivery bypasses the callback
 channel entirely: <code>bridge.DeliverEvents(events)</code> calls the <code>onEvent</code> handler directly
 (hot path). The callback channel is only used for non-event callbacks (execute-command,
 config-verify, etc.) and bye.</p>
-<!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->
 <h3 id="original-accepted-redistribution-records">Original accepted redistribution records</h3>
 <p><code>OnOriginAdmissionLookup</code> registers a read-only handler before <code>Run</code>. Stage 1
 derives its support bit. The callback works through the typed bridge and the
 same framed public RPC, independently of an ordinary command that awaits it.</p>
-<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- OnOriginAdmissionLookup, startOriginAdmissionLookupWorker -->
 <p>Answer only from the original published accepted record. Echo the requested
 ID, canonical family and prefix, concrete peer and owner, and operation.
 Missing or stale records return an error. A retiring record answers only its
 exact withdrawal. Explicit peer scope, BGP class and distance presence prevent
 missing values from acquiring a different meaning.</p>
-<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- OriginAdmissionLookupOutput, OriginAdmissionSnapshot, Validate -->
 <p>The original source metric differs from optional transformed wire MED. Zero
 distance and initial rule generation are valid explicit facts. Transfer output
 ownership to the SDK, including communities. The handler MUST honor its context,
 perform no engine call or I/O, and read no election state under a blocking lock.</p>
-<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- OriginAdmissionSnapshot -->
-<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- OriginAdmissionLookupHandler -->
 <p>A read deadline ends work, not the healthy connection. The SDK sends a refusal
 within a fresh bounded process budget. Stop still cancels replies, and a real
 writer failure still closes the connection. A snapshot permits at most 65535
 communities, as declared by both Go validation and YANG.</p>
-<!-- source: pkg/plugin/sdk/sdk_origin_admission_lookup.go -- answer -->
-<!-- source: pkg/plugin/rpc/origin_admission_lookup.go -- OriginAdmissionCommunityMax, Validate -->
-<!-- source: internal/core/ipc/yang/ze-plugin-callback.yang -- origin-admission-snapshot -->
 <p>A successful lookup grants no origination or send authority. The engine caller
 keeps the original process connection and separately verifies publisher,
 accepted lifetime, actual grants and route build. The complete value contract
 is in <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md#original-redistribution-admission-lookup" target="_blank" rel="noopener">the process protocol</a>.</p>
-<!-- source: internal/component/plugin/ipc/origin_admission_lookup.go -- SendOriginAdmissionLookup -->
 <h3 id="scoped-origin-intake">Scoped origin intake</h3>
 <p><code>OnOriginIntake</code> registers an optional mutation handler for a deciding plugin
 before <code>Run</code>. Each call carries owned original local-build data and an
 engine-issued receipt for one concrete peer.</p>
-<!-- source: pkg/plugin/rpc/origin_intake.go -- OriginIntakeInput and ValidateOriginIntakeOutput -->
 <p>An accepted loser returns the full update-route result with an explicit
 retained receipt and zero <code>Announced</code>. A missing result or bare zero is not
 acceptance. A removal returns its completed command count.</p>
-<!-- source: pkg/plugin/rpc/origin_intake.go -- OriginIntakeInput and ValidateOriginIntakeOutput -->
 <p>The handler MUST serialize exact source/key/scope mutations and refuse older
 generations. It MUST honor cancellation and join every mutation and writer
 barrier before it returns. The SDK provides a separate bounded worker.
 <code>CurrentSelection</code> remains read-only and can run during engine calls from intake.</p>
-<!-- source: pkg/plugin/sdk/sdk_origin_intake.go -- OnOriginIntake and joined worker -->
 <p>The callback has both a typed slot and the same framed public RPC. Cancellation
 joins the handler and response attempt before settlement. The complete value,
 authority boundaries and activation dependencies are documented in
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md#mutating-local-origin-intake" target="_blank" rel="noopener">the process protocol</a>.</p>
-<!-- source: internal/component/plugin/ipc/origin_intake.go -- SendOriginIntake -->
-<!-- source: pkg/plugin/sdk/sdk_origin_intake.go -- answer, runCancellations -->
 <p>The original <code>source-context</code> belongs to the engine. A reader decodes original
 AS-path bytes only when <code>as-path-known</code> is true and uses <code>as-path-asn4</code> for their
 width. A reader keeps bytes with unknown encoding opaque.</p>
-<!-- source: internal/component/bgp/reactor/origin_intake.go -- originIntakeValue -->
 <p>If a configured owner has not completed registration and startup, the engine
 refuses origination. A known live legacy owner keeps direct origination, as
 does a peer without an ordinary deciding owner.</p>
-<!-- source: internal/component/plugin/server/origin_intake.go -- OriginIntakeOwner -->
 <p>The selected-origin writer reconstructs the issued build and uses the existing
 export and socket writer.</p>
-<!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin -->
-<!-- source: internal/component/bgp/reactor/selected_flush.go -- writeSelected -->
 <p>No in-tree provider currently enables this optional callback. Runtime activation
 still requires the origin domain and its lifecycle barriers, plus a RIB candidate
 provider. Configured and redistributed producers must preserve their original
 source provenance before Ze can advertise origin arbitration.</p>
-<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor.originReceipts -->
-<!-- source: internal/component/bgp/reactor/origin_receipt.go -- newOriginReceiptStore -->
-<!-- source: internal/component/bgp/reactor/origin_intake.go -- originBatchProducer, offerOriginToPeer -->
 </div>
 </div>
             </section>
@@ -2821,7 +2641,7 @@ source provenance before Ze can advertise origin arbitration.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

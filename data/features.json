@@ -123,7 +123,7 @@
         "tech-support-bundle"
       ],
       "title": "Tech-Support Bundle",
-      "href": "features/",
+      "href": "guides/production-diagnostics/",
       "external": false,
       "chips": [
         {
@@ -171,7 +171,7 @@
         "pki-certificate-store"
       ],
       "title": "PKI Store",
-      "href": "features/",
+      "href": "reference/feature-status/",
       "external": false,
       "chips": [
         {
@@ -199,7 +199,7 @@
         "ipsec-eap-authentication"
       ],
       "title": "IPsec VPN",
-      "href": "features/",
+      "href": "guides/ipsec/",
       "external": false,
       "chips": [
         {
@@ -382,7 +382,7 @@
         "mpls-ldp-rsvp-te"
       ],
       "title": "MPLS / LDP / RSVP-TE",
-      "href": "features/",
+      "href": "guides/mpls/",
       "external": false,
       "chips": [
         {
@@ -570,7 +570,7 @@
         "kernel-tunable-management"
       ],
       "title": "Kernel Tunables",
-      "href": "features/",
+      "href": "reference/plugins/sysctl/",
       "external": false,
       "chips": [
         {
@@ -618,8 +618,8 @@
         "bgp-protocol"
       ],
       "title": "Segment Routing",
-      "href": "https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy",
-      "external": true,
+      "href": "features/srv6/",
+      "external": false,
       "chips": [
         {
           "text": "SAFI 73",
@@ -767,7 +767,7 @@
         "system-readiness"
       ],
       "title": "System Readiness",
-      "href": "guides/production-diagnostics/",
+      "href": "guides/system-readiness/",
       "external": false,
       "chips": [
         {
@@ -993,7 +993,7 @@
         }
       ],
       "bullets": [
-        "**Self-describing** command catalogue from the live binary",
+        "**Self-describing** command catalog from the live binary",
         "Every command is available to **automation**",
         "Structured **diagnostics** and repair plans",
         "`ze create agent skill` sets up **Claude Code** and **Codex**"
@@ -1106,7 +1106,7 @@
         "health-registry"
       ],
       "title": "Health Registry",
-      "href": "features/",
+      "href": "guides/system-readiness/",
       "external": false,
       "chips": [
         {
@@ -1131,7 +1131,7 @@
         "storage-smart-management"
       ],
       "title": "Host Inventory",
-      "href": "features/",
+      "href": "reference/feature-status/",
       "external": false,
       "chips": [
         {
@@ -1159,7 +1159,7 @@
         "crash-capture"
       ],
       "title": "Crash Capture",
-      "href": "features/",
+      "href": "reference/plugins/crashes/",
       "external": false,
       "chips": [
         {
@@ -1316,7 +1316,7 @@
         "docker-support"
       ],
       "title": "Docker Support",
-      "href": "features/",
+      "href": "guides/docker/",
       "external": false,
       "chips": [
         {

@@ -31,9 +31,7 @@ Shows revisions with timestamps and commit metadata\. Pair with \'show config di
 
 ## Mapping intents
 
-### Show running\, candidate\, and diffed configuration
-
-Category: Configuration
+No vendor equivalent has been curated yet for this Ze command.
 
 ## Vendor equivalents
 
@@ -50,7 +48,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `compare` (verified, vyos\-cli)
-  - Intent: Show running\, candidate\, and diffed configuration
-- `show configuration` (verified, vyos\-cli)
-  - Intent: Show running\, candidate\, and diffed configuration
+
+No equivalent listed.

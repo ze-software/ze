@@ -115,22 +115,17 @@ never from ze's own output.</p>
 </table>
 <p>Split brain is its own assertion: two owners is what a scenario watching only its
 own side would call a pass.</p>
-<!-- source: internal/le/interoplab/bgp/checkers.go -- the three mastership phases -->
-<!-- source: internal/le/interoplab/bgp/prepare.go -- keepalived container preparation -->
 <p>A second scenario, <code>vrrp-v2-owner-keepalived</code>, runs Ze as a VRRPv2 address owner.
 keepalived claims the same address at priority 255 from a greater source address.
 RFC 3768 Section 7.1 has the owner discard every advertisement, so Ze keeps the
 address on its virtual-MAC interface and counts each discard as <code>owner</code> under
 <code>packet-errors</code> in <code>show vrrp statistics</code>. Without the discard, keepalived's
 advertisement wins the tie-break and Ze gives the address up.</p>
-<!-- source: internal/le/interoplab/bgp/checkers.go -- vrrp-v2-owner-keepalived -->
 <p>The IPv6 unsolicited Neighbor Advertisement burst on promotion is resolved on the
 caller's goroutine, because netlink sockets are created in the calling thread's
 network namespace and a lazy resolution on the announcer worker saw the wrong one.
 A compile-time check pins that path: a type assertion cannot report a break, so the
 break is a build error instead.</p>
-<!-- source: internal/plugins/vrrp/transport/transport.go -- AnnounceMaster, v6SourceWarmer -->
-<!-- source: internal/plugins/vrrp/transport/backend_linux.go -- warmV6Source, var _ v6SourceWarmer -->
 <h3 id="ipv4-forwarding-and-redirects">IPv4 forwarding and redirects</h3>
 <p>VRRP supplies the virtual gateway addresses and MACs; IPv4 forwarding must also
 be enabled for the router, including its virtual-MAC interfaces. A system-wide
@@ -142,7 +137,6 @@ reverse route to a host cannot select the physical address or another group's
 VIP. This affects IPv4 ICMP error source selection throughout the network
 namespace. The prior value is restored when the last IPv4 group is removed;
 Ze does not disable redirects.</p>
-<!-- source: internal/plugins/vrrp/dataplane_linux.go -- globalDataplaneSysctls, applyDataplaneSysctls, revertDataplaneSysctls -->
 <h2 id="configuration">Configuration</h2>
 <p>A VRRP group lives under the interface unit's address family, next to the
 addresses it backs:</p>
@@ -410,8 +404,6 @@ Section 7.1 requires, and counts each one under the <code>owner</code> reason.</
 from its own counts it under <code>address-list</code>. It drops it, unless the sender
 advertised priority 255: an advertisement from the address owner is still
 processed, as RFC 3768 Section 7.1 says.</p>
-<!-- source: internal/plugins/vrrp/instance.go -- onPacket, the v2 and rfc5798-compatible owner discard and the address-list carve-out -->
-<!-- source: internal/plugins/vrrp/instance.go -- noteOwnerConflict, the v3 owner count and rate-limited log -->
 <h2 id="proxy-arp-is-refused">Proxy ARP is refused</h2>
 <p>RFC 9568 Section 8.1.3 says: "If Proxy ARP is to be used on a VRRP Router, then
 the VRRP Router MUST advertise the Virtual Router MAC address in the Proxy ARP
@@ -432,7 +424,6 @@ off there, or run the group on an interface without it.</p>
 <p>The same check runs on a runtime write: <code>set sysctl &lt;key&gt; &lt;value&gt;</code> that turns
 proxy ARP on for a device a running IPv4 VRRP group uses, or for <code>all</code> or
 <code>default</code>, is refused with the same explanation.</p>
-<!-- source: internal/plugins/vrrp/proxyarp.go -- validateNoProxyARP, refuseLiveProxyARP -->
 <h2 id="the-virtual-mac">The virtual MAC</h2>
 <p>Each group gets its own macvlan device carrying the RFC virtual MAC:</p>
 <table>
@@ -572,7 +563,6 @@ tracking changes preference, not eligibility. Restarting keepalived hands
 the VIP back; restoring the tracked uplink lets Ze preempt at 200. The lab
 checks exclusive VIP ownership, the VRID 12 virtual MAC and reachability
 through each transition.</p>
-<!-- source: internal/le/site/terminaldemo/validate_topic_vrrp.go -- checkTopicVRRPTracking -->
 <figure class="terminal-demo" data-terminal-demo="vrrp-tracking">
   <div class="terminal-demo__intro">
     <div>
@@ -729,14 +719,6 @@ filters link-local multicast will break the election.</p>
 </tbody>
 </table>
 <p>Run <code>ze show diagnostic &lt;code&gt;</code> for the remediation.</p>
-<!-- source: internal/plugins/vrrp/yang/ze-vrrp-conf.yang -- config surface -->
-<!-- source: internal/plugins/vrrp/groups.go -- cross-leaf verifier and its messages -->
-<!-- source: internal/plugins/vrrp/cmd_show.go -- show/clear commands -->
-<!-- source: internal/plugins/vrrp/doctor.go -- diagnostic codes -->
-<!-- source: internal/plugins/vrrp/telemetry.go -- metrics and state-change event -->
-<!-- source: internal/plugins/vrrp/engine.go -- state-change log line -->
-<!-- source: internal/component/iface/macvlan.go -- per-group macvlan virtual MAC (private mode) -->
-<!-- source: internal/plugins/vrrp/dataplane_linux.go -- ARP-ownership sysctls that make the virtual MAC answer for the VIP -->
 <!-- test: test/vrrp/vrrp-config.ci -- every valid shape shown above validates -->
 <!-- test: test/vrrp/vrrp-config-invalid.ci -- every rejection rule described above -->
 <!-- test: test/vrrp/vrrp-doctor.ci -- the diagnostic codes are explainable -->
@@ -789,7 +771,7 @@ filters link-local multicast will break the election.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

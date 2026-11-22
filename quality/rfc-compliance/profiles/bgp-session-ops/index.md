@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 
 ## Figures
 
-- **MUST bar**: Ze verified 39, Tests awaiting verification 21, Not built 17
-- **Overview bar**: Ze MUST verified 39, SHOULD verified 6, Tests awaiting verification 25, Not assessed 112, Not built 17
+- **MUST bar**: Ze verified 65, Not built 12
+- **Overview bar**: Ze MUST verified 65, SHOULD verified 6, Tests awaiting verification 4, Not assessed 112, Not built 12
 
 | Figure | Rows |
 |---|---|
@@ -20,13 +20,13 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 | Mandatory requirements complete | not complete |
 | MUST rows | 77 |
 | MUST rows kept (the MUST bar) | 77 |
-| Ze verified | 39 |
+| Ze verified | 65 |
 | OS verified | 0 |
-| Tests awaiting verification | 21 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 17 |
+| Not built | 12 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -54,7 +54,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4456](../../rfc4456/) | BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP) | Ze verified 1, Tests awaiting verification 3 | Ze MUST verified 1, Tests awaiting verification 6, Not assessed 2 |
+| [RFC 4456](../../rfc4456/) | BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP) | Ze verified 4 | Ze MUST verified 4, Tests awaiting verification 3, Not assessed 2 |
 | [RFC 5065](../../rfc5065/) | Autonomous System Confederations for BGP | requirements not reviewed | requirements not reviewed |
 
 ### Level 5
@@ -68,7 +68,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze verified 14, Tests awaiting verification 3, Not built 9 | Ze MUST verified 14, SHOULD verified 1, Tests awaiting verification 3, Not assessed 4, Not built 9 |
+| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze verified 18, Not built 8 | Ze MUST verified 18, SHOULD verified 1, Not assessed 4, Not built 8 |
 | [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze verified 2, Not built 1 | Ze MUST verified 2, SHOULD verified 4, Tests awaiting verification 1, Not built 1 |
 
 ### Level 7
@@ -77,8 +77,8 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 |---|---|---|---|
 | [RFC 6996](../../rfc6996/) | Autonomous System (AS) Reservation for Private Use | Ze verified 1 | Ze MUST verified 1, Not assessed 2 |
 | [RFC 7948](../../rfc7948/) | Internet Exchange BGP Route Server Operations | no rows | Not assessed 11 |
-| [RFC 8203](../../rfc8203/) | BGP Administrative Shutdown Communication | Ze verified 3, Tests awaiting verification 2 | Ze MUST verified 3, Tests awaiting verification 2, Not assessed 4 |
-| [RFC 9003](../../rfc9003/) | Extended BGP Administrative Shutdown Communication | Ze verified 1, Tests awaiting verification 3 | Ze MUST verified 1, Tests awaiting verification 3, Not assessed 7 |
+| [RFC 8203](../../rfc8203/) | BGP Administrative Shutdown Communication | Ze verified 5 | Ze MUST verified 5, Not assessed 4 |
+| [RFC 9003](../../rfc9003/) | Extended BGP Administrative Shutdown Communication | Ze verified 4 | Ze MUST verified 4, Not assessed 7 |
 
 ### Level 8
 
@@ -91,4 +91,4 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9494](../../rfc9494/) | Long-Lived Graceful Restart for BGP | Ze verified 8, Tests awaiting verification 10, Not built 7 | Ze MUST verified 8, SHOULD verified 1, Tests awaiting verification 10, Not assessed 10, Not built 7 |
+| [RFC 9494](../../rfc9494/) | Long-Lived Graceful Restart for BGP | Ze verified 22, Not built 3 | Ze MUST verified 22, SHOULD verified 1, Not assessed 10, Not built 3 |

@@ -71,11 +71,6 @@
 starts a Ze command session, so a successful login grants access to Ze commands
 and the config editor rather than to a Unix shell. Local users, TACACS+, and
 RADIUS all map back to Ze authorization profiles, audit, and accounting.</p>
-<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
-<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
-<!-- source: internal/component/authz/authz.go -- built-in profile behavior and fail-closed assignments -->
-<!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing, at commit and at config load -->
-<!-- source: docs/guide/tacacs.md -- TACACS+ fallback and profile mapping -->
 <h2 id="1-start-from-the-ubuntu-install-page">1. Start from the Ubuntu install page</h2>
 <p>Follow <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a> through <code>database/</code> creation. The commands below assume:</p>
 <table>
@@ -150,7 +145,6 @@ change in configuration mode, while the edit section's <code>default-action deny
 still refuses <code>clear</code>, <code>request</code> and the other commands that act on the box.
 An entry that matches <code>configure</code> or <code>commit</code> covers no configuration change.
 <a href="../authorization/">Authorization</a>, "Configuration mode", lists the strings.</p>
-<!-- source: internal/component/cli/config_permission.go -- ConfigPermission -->
 <h2 id="3-build-and-load-a-set-format-update">3. Build and load a set-format update</h2>
 <p>Use <code>ze passwd</code> before writing stored config values. This keeps plaintext out of shell history, process arguments, and the stored command history.</p>
 <p>The commands below read the current active config from zefs, convert it to set format, append the SSH and RBAC changes, render the import file, validate the result, then load it back into zefs with one <code>ze config import</code> command. Unrelated existing config sections stay in the candidate because they came from <code>ze config cat</code>.</p>
@@ -239,8 +233,6 @@ set system host check-only
 ask an administrator for a profile whose edit section allows `config set`
 </code></pre>
 <p><code>show</code>, <code>edit</code>, <code>up</code> and <code>top</code> still work, so NOC can browse the configuration. Repeat the same lines as <code>operator</code>: the <code>set</code> is accepted. Then type <code>discard all</code> to drop it, or <code>commit</code> to apply it. The same profile also refuses <code>operator</code> the <code>clear interface counters all</code> command, because <code>clear</code> is in the edit section and only <code>config</code> is allowed there.</p>
-<!-- source: internal/component/cli/model_commands.go -- dispatchCommandWords -->
-<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
 <h3 id="how-authorization-decides">How authorization decides</h3>
 <p>Once you define any <code>system.authorization</code> profile, authorization is in use and it fails closed for a user the profiles do not cover:</p>
 <ul>
@@ -370,9 +362,6 @@ cookie the browser still holds, the SSH password, the SSH public key, and
 the connection closes, because an operator may be editing their own account. A
 session a TACACS+ or RADIUS backend granted is not revoked by the local user
 list, which never authenticated it.</p>
-<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers -->
-<!-- source: internal/component/web/auth.go -- SessionStore.validateToken, webSession -->
-<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKeyResult -->
 </div>
 </div>
             </section>
@@ -418,7 +407,7 @@ list, which never authenticated it.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

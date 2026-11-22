@@ -199,7 +199,7 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 <td>buffers</td>
 <td>page-size</td>
 <td>default-hugepage</td>
-<td>Omitted/explicit <code>2M</code> uses kernel default hugepages. Explicit <code>1G</code> uses <code>1G</code>; explicit <code>default</code> uses native base pages. <!-- source: internal/component/vpp/startupconf.go -- pageSize --></td>
+<td>Omitted/explicit <code>2M</code> uses kernel default hugepages. Explicit <code>1G</code> uses <code>1G</code>; explicit <code>default</code> uses native base pages.</td>
 </tr>
 <tr>
 <td><a href="https://github.com/FDio/vpp/blob/v26.06/src/vpp/vnet/main.c" target="_blank" rel="noopener">memory</a></td>
@@ -217,7 +217,7 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 <td>statseg</td>
 <td>page-size</td>
 <td>default-hugepage</td>
-<td>Uses the same explicit page mode as buffers, including native base pages. <!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf --></td>
+<td>Uses the same explicit page mode as buffers, including native base pages.</td>
 </tr>
 <tr>
 <td>dpdk</td>
@@ -235,13 +235,13 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 <td>plugins</td>
 <td>plugin dpdk_plugin.so { enable }</td>
 <td>(line)</td>
-<td>Enabled by default. Explicit <code>vpp.plugins.dpdk false</code> omits it and is refused with configured DPDK interfaces. <!-- source: internal/component/vpp/managed_startup.go -- VPPSettings.managedStartupPlugins --></td>
+<td>Enabled by default. Explicit <code>vpp.plugins.dpdk false</code> omits it and is refused with configured DPDK interfaces.</td>
 </tr>
 <tr>
 <td>plugins</td>
 <td>plugin af_packet_plugin.so { enable }</td>
 <td>(line)</td>
-<td>Emitted only for explicit <code>vpp.plugins.af-packet true</code>; default false. <!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf --></td>
+<td>Emitted only for explicit <code>vpp.plugins.af-packet true</code>; default false.</td>
 </tr>
 <tr>
 <td>plugins</td>
@@ -286,7 +286,6 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 The consumer functions, rather than a third-party template, define the accepted
 directives. These links are release-pinned; they cover every section emitted by
 <code>GenerateStartupConf</code>, including optional settings.</p>
-<!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf, confBuilder.devEntry, pageSize -->
 <table>
 <thead>
 <tr>
@@ -357,9 +356,8 @@ directives. These links are release-pinned; they cover every section emitted by
 <a href="https://github.com/FDio/vpp/blob/v26.06/src/vppinfra/std-formats.c" target="_blank" rel="noopener"><code>unformat_log2_page_size</code></a>:
 Ze's <code>2M</code> setting emits <code>default-hugepage</code>, <code>1G</code> emits <code>1G</code>, and explicit
 <code>default</code> emits native base pages. The default remains <code>2M</code>; no failed allocation
-changes the requested mode.</p>
-<!-- source: internal/component/vpp/startupconf.go -- pageSize -->
-<p><code>default-hugepage-size</code> is a separate key in the <code>memory</code> section, not a
+changes the requested mode.
+<code>default-hugepage-size</code> is a separate key in the <code>memory</code> section, not a
 page-size value. Ze does not emit that key or set the main heap's page size.
 VPP's main heap therefore retains the upstream OS-page default.</p>
 <p>The buffer directive has a space in <code>default data-size</code>; <code>default-data-size</code>
@@ -368,7 +366,6 @@ is rejected. The Linux netlink directive requires the <code>nl-</code> prefix;
 source matching does not establish native startup. A native run must still
 prove the installed plugin set, memory allocation, CPU affinity, device access,
 namespace access and API connection on the deployment host.</p>
-<!-- source: internal/component/vpp/startupconf_test.go -- TestStartupConfConsumerGrammar -->
 <h3 id="startupconf-syntax">startup.conf Syntax</h3>
 <p>Forwarding features register their additional startup requirements with
 <code>RegisterStartupFeature</code>. Each declaration supplies its plugin, section flags
@@ -377,19 +374,15 @@ plugin's <code>ConfigReads</code>; the SDK delivery list derives from the same d
 <code>ParseConfigSections</code> selects immutable requirements from the delivered candidate,
 and <code>GenerateStartupConf</code> renders only the selected requirements. The VPP
 component does not enumerate the forwarding features that consume it.</p>
-<!-- source: internal/component/vpp/startup_feature.go -- RegisterStartupFeature, ParseConfigSections, startupConfigRoots -->
-<!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf -->
 <p>A feature can also declare <code>StartupRuntime</code> with its generated binary API
 messages and its own diagnostic code. Registration copies each message's name,
 CRC and type. The compatibility check reads the message table supplied by the
 VPP instance on the configured API socket. It therefore tests the loaded
 plugin's API, including patched layouts, rather than a library on disk.</p>
-<!-- source: internal/component/vpp/startup_runtime.go -- newStartupRuntime, VPPSettings.checkStartupRuntime, VPPSettings.checkStartupAPI -->
 <p>Each runtime declaration registers a doctor check with the same requirements.
 An answered API mismatch is an error. A connection that cannot be queried is
 a warning, because it does not prove a plugin is absent. The check opens and
 closes its own API client and never starts or stops the VPP process.</p>
-<!-- source: internal/component/vpp/startup_doctor.go -- registerStartupDoctor, checkStartupDoctor, probeStartupRuntime -->
 <p>When <code>vpp.startup-cli-file</code> is configured for managed VPP, the manager first
 compares the retained API Unix peer with the supervised child's atomic process descriptor, then
 executes that exact file once through a synchronous CLI request on the same
@@ -399,8 +392,6 @@ and readiness. Generated startup.conf omits asynchronous unix exec for this
 setting. Native failure kills and reaps the original child before runOnce
 returns. The independent retained pidfd observer alone proves physical death;
 notification may precede reap. External supervision owns its own bootstrap.</p>
-<!-- source: internal/component/vpp/startup_cli.go -- ExecuteStartupCLI, VPPManager.activateManagedRuntime -->
-<!-- source: internal/component/vpp/vpp.go -- VPPManager.runOnce -->
 <p>The manager checks selected runtime requirements after publishing statistics
 and before announcing readiness. A refusal closes the statistics owner and
 the candidate API connection. The plugin's startup callback waits for this
@@ -408,8 +399,6 @@ answer, so a dependent plugin cannot start against an unchecked connection.
 Each ready lifetime emits one disconnected event when it ends, including a
 configuration replacement. A candidate that fails before readiness emits no
 disconnected event.</p>
-<!-- source: internal/component/vpp/runtime_stats.go -- VPPManager.activateRuntimeStats -->
-<!-- source: internal/component/vpp/startup_readiness.go -- VPPManager.notifyStartup, VPPManager.retireReadiness -->
 <p>Configuration applies use the SDK's existing transaction. The lifecycle
 cancels and joins the previous manager before starting a replacement, then
 waits for the replacement's readiness. If the candidate fails after confirmed
@@ -423,9 +412,6 @@ child-cleanup result remains a separate barrier. If restoration also fails,
 the transaction retains the original settings for a later retry.
 Selected startup settings contain immutable requirements; registry predicates
 are used during selection and do not make equal settings compare unequal.</p>
-<!-- source: internal/component/vpp/register.go -- runVPPEngine, runConfiguredVPP -->
-<!-- source: internal/component/vpp/startup_lifecycle.go -- newVPPConfigTx, vppLifecycle.Install, vppLifecycle.replace -->
-<!-- source: internal/component/vpp/cleanup_outcome.go -- nativeCleanupReceipt.retry -->
 <p>VPP's startup.conf uses a custom format (not INI, not YAML):</p>
 <pre><code>section-name {
   key value
@@ -450,8 +436,6 @@ telemetry. A failed connection or read remains explicitly unavailable; it is
 never interpreted as zero traffic or idle time. The runtime doctor and health
 row retain <code>doctor-vpp-stats</code>, with the underlying failure in <code>show warnings</code>.
 An unavailable statistics segment does not restart an otherwise usable VPP API.</p>
-<!-- source: internal/component/vpp/runtime_stats.go -- VPPManager.activateRuntimeStats, VPPManager.connectRuntimeStats -->
-<!-- source: internal/component/vpp/runtime_stats_doctor.go -- checkRuntimeStats, reportRuntimeStatsFailure -->
 <p>A session retains its binary API connector and connection generation.
 <code>InterfaceCountersForGeneration</code> accepts only the statistics connection published
 for that pair and checks the generation again after reading. A replaced VPP
@@ -462,7 +446,6 @@ the poller, withdraws the statistics publication and disconnects it before
 closing the binary API connection. A success clears only the same live owner's
 statistics category, and a confirmed new statistics connection clears its own
 connection failure.</p>
-<!-- source: internal/component/vpp/runtime_stats.go -- statsForGeneration, runtimeStats.readLocked, runtimeStats.read, runtimeStats.Close -->
 <p>Per-session counters come from one shared snapshot, not one dump per session.
 <code>InterfaceCountersForGeneration</code> answers one interface index from the
 statistics owner's latest dump, indexed by interface, and takes a new dump
@@ -475,8 +458,6 @@ answer re-checks that generation, so a replaced VPP process never answers from
 it. A request with no bound is refused, a failed dump discards the snapshot so
 the failure reaches the next caller, and a missing or duplicated interface row
 is an error.</p>
-<!-- source: internal/component/vpp/runtime_stats_counters.go -- InterfaceCountersForGeneration, runtimeStats.interfaceCounters, runtimeStats.refreshCountersLocked -->
-<!-- source: internal/component/vpp/vpp.go -- VPPManager.runOnce -->
 <h2 id="system-prerequisites">System Prerequisites</h2>
 <table>
 <thead>
@@ -630,7 +611,6 @@ only after complete restoration; failed native calls remain wrapped causes.
 A failed later input preserves both its primary error and any failed rollback.
 No on-disk recovery journal or native hardware restoration proof is implied by
 the portable operation-table tests.</p>
-<!-- source: internal/component/vpp/dpdk.go -- DPDKBinder, bindPCIWithOps, restoreDPDKDevice -->
 <p>Only absence of <code>driver_override_raw</code> allows legacy fallback. A failed raw read
 keeps its original cause, while a legacy <code>(null)</code> is refused before device
 mutation because it does not identify the original override. The reader removes
@@ -638,14 +618,11 @@ only one final newline; spaces, tabs and carriage returns remain policy bytes.
 Restoration writes a nonempty value without an added newline and clears an
 unset override with exactly one newline. An ambiguous legacy host needs a
 kernel that provides the raw getter before Ze can bind the NIC.</p>
-<!-- source: internal/component/vpp/dpdk.go -- readDriverOverrideAt, setDriverOverrideAt, readSysfsValue -->
 <p>The configured-device doctor check uses the binder's same read-only original
 state capture. It skips missing devices and borrowed VFIO attachments, reports
 capture failure with its original path and cause, and changes no device state.
 Portable file and operation-table controls do not establish raw-getter kernel
 support or physical NIC restoration.</p>
-<!-- source: internal/component/vpp/doctor_dpdk_linux.go -- checkVPPDPDK, dpdkOriginalStateDiagnostic -->
-<!-- source: internal/component/vpp/dpdk.go -- readDPDKOriginalState -->
 <p>The earlier vendor/device-wide <code>new_id</code> path could attach an unconfigured
 matching driverless NIC: Linux v7.3 <code>do_pci_add_dynid</code> calls <code>driver_attach</code>,
 which walks every bus device and attempts matching probes. Removing that ID
@@ -661,8 +638,6 @@ separate failed native cleanup remains a typed cause and stops child restart.
 Deferred DPDK restoration errors are joined into the terminal manager result.
 The independent retained-pidfd observer still supplies physical process-exit
 proof; neither cancellation nor that proof alone confirms NIC restoration.</p>
-<!-- source: internal/component/vpp/cleanup_outcome.go -- nativeCleanupError, expectedVPPKill, managedChildCleanup -->
-<!-- source: internal/component/vpp/vpp.go -- runWithOps, runOnce, waitVPPConnection -->
 <h3 id="mellanox-rdma-exception">Mellanox RDMA Exception</h3>
 <p>mlx5 NICs use bifurcated driver mode. The kernel <code>mlx5_core</code> driver stays loaded. VPP creates
 the interface via <code>create interface rdma host-if &lt;pci-addr&gt;</code> instead of a DPDK dev entry.</p>
@@ -777,10 +752,6 @@ context-bound stream; it never starts the shared channel's lazy interface dump.
 An unresolved name is a failed lookup, not proof that a pair is absent. The
 targeted <code>lcp_itf_pair_get_v2</code> exchange must contain one details message and its
 explicit final reply, with matching identity and the configured global namespace.</p>
-<!-- source: internal/component/iface/lcp_pair.go -- LCPPairReader -->
-<!-- source: internal/plugins/iface/vpp/query.go -- detailsByName -->
-<!-- source: internal/plugins/iface/vpp/naming.go -- learnNativeName, lookupNativeIndex -->
-<!-- source: internal/plugins/iface/vpp/lcp_query.go -- GetLCPPair, readLCPPair -->
 <h2 id="govpp-connection">GoVPP Connection</h2>
 <p>Resource owners capture <code>Connector.ConnectionGeneration</code> when they acquire
 VPP state and use <code>NewStreamForGeneration</code> for later operations. The epoch
@@ -789,7 +760,6 @@ selecting the connection share the connector mutex, so a retained session or
 LCP-map lease cannot send its cleanup to a replacement connection through the
 same connector object. Each returned stream remains the caller's resource
 and must be closed.</p>
-<!-- source: internal/component/vpp/conn.go -- Connector.ConnectionGeneration, Connector.NewStreamForGeneration, Connector.Close -->
 <h3 id="socket-transport">Socket Transport</h3>
 <p>GoVPP connects via Unix socket at <code>/run/vpp/api.sock</code>. Pure Go, no CGo.</p>
 <p>Ze uses synchronous <code>core.Connect</code>, with at most ten attempts separated by one
@@ -799,11 +769,9 @@ generation before notifying the manager. Closing the connector cancels and joins
 that worker. GoVPP's <code>AsyncConnect</code> is deliberately avoided: its internal redial
 could otherwise replace the underlying socket while Ze still held an older
 generation. Existing streams must remain tied to their original Unix connection.</p>
-<!-- source: internal/component/vpp/conn.go -- Connector.Connect, Connector.closeConnection -->
-<!-- source: internal/component/vpp/conn_health.go -- connectVPPOnce, Connector.connectionLost, stopConnectorHealth -->
 <p>A stream context does not interrupt GoVPP's native Unix socket write. Bounded
 shutdown also requires the retained
-<a href="https://github.com/ze-software/ze/blob/main/docs/../internal/le/vendorpatch/patches/govpp-socket-bounded-close.patch" target="_blank" rel="noopener"><code>govpp-socket-bounded-close.patch</code></a>.
+<a href="https://github.com/ze-software/ze/blob/main/internal/le/vendorpatch/patches/govpp-socket-bounded-close.patch" target="_blank" rel="noopener"><code>govpp-socket-bounded-close.patch</code></a>.
 Its separate deadline mutex prevents an ordinary writer from extending or
 clearing the shutdown deadline, while the client-delete handshake remains
 allowed. A failed partial write closes that connection before another request
@@ -843,11 +811,6 @@ are retained; no reconnect history accumulates. <code>ze doctor</code> probes th
 socketpair/pidfs capability, and <code>doctor-vpp-process</code> retains observation and
 descriptor-close failures. The server must create its own listeners: inheriting
 another process's listener does not change its original kernel peer owner.</p>
-<!-- source: internal/component/vpp/process_peer.go -- ProcessLease, Connector.checkStatsProcessLocked -->
-<!-- source: internal/component/vpp/process_peer_linux.go -- captureProcessWitness -->
-<!-- source: internal/component/vpp/process_managed_linux.go -- startManagedProcess -->
-<!-- source: internal/component/vpp/vpp.go -- waitVPPConnection, VPPManager.runOnce -->
-<!-- source: internal/component/vpp/process_exit.go -- ProcessExit, Connector.bindManagedProcess, Connector.retireManagedConnection -->
 <p>External mode also observes API loss and retries its connection through the
 manager's backoff loop. Its supervisor is external: Ze neither kills that
 process nor treats an API failure as proof of process death. Owners must retain
@@ -1074,7 +1037,7 @@ at a time), 256 = saturated (processing full vectors). Production typically 4-16
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/route-server.json](..
 
 ## Figures
 
-- **MUST bar**: Ze verified 278, Tests awaiting verification 47, Not built 53
-- **Overview bar**: Ze MUST verified 278, SHOULD verified 19, Not owed 3, Tests awaiting verification 49, Not assessed 192, Not built 55
+- **MUST bar**: Ze verified 325, Tests awaiting verification 5, Not built 48
+- **Overview bar**: Ze MUST verified 325, SHOULD verified 19, Not owed 3, Tests awaiting verification 7, Not assessed 192, Not built 50
 
 | Figure | Rows |
 |---|---|
@@ -20,13 +20,13 @@ Figures as of the last build, read from [data/rfc/profiles/route-server.json](..
 | Mandatory requirements complete | not complete |
 | MUST rows | 381 |
 | MUST rows kept (the MUST bar) | 378 |
-| Ze verified | 278 |
+| Ze verified | 325 |
 | OS verified | 0 |
-| Tests awaiting verification | 47 |
+| Tests awaiting verification | 5 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 53 |
+| Not built | 48 |
 | MUST rows not owed | 3 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -54,7 +54,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 112, Tests awaiting verification 8, Not built 13 | Ze MUST verified 112, SHOULD verified 3, Tests awaiting verification 9, Not assessed 30, Not built 13 | route-server: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 119, Tests awaiting verification 1, Not built 13 | Ze MUST verified 119, SHOULD verified 3, Tests awaiting verification 2, Not assessed 30, Not built 13 | route-server: required by rfc/short/rfc4271.md |
 
 ### Level 4
 
@@ -87,7 +87,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 |---|---|---|---|---|
 | [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Ze verified 4 | Ze MUST verified 4, SHOULD verified 1 | route-server: required by rfc/short/rfc6286.md |
 | [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze verified 5 | Ze MUST verified 5, Not assessed 4 | route-server: required by rfc/short/rfc6811.md |
-| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze verified 34, Tests awaiting verification 18, Not built 1 | Ze MUST verified 34, Tests awaiting verification 18, Not assessed 4, Not built 1 | route-server: required by rfc/short/rfc7606.md |
+| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze verified 52, Not built 1 | Ze MUST verified 52, Not assessed 4, Not built 1 | route-server: required by rfc/short/rfc7606.md |
 | [RFC 7948](../../rfc7948/) | Internet Exchange BGP Route Server Operations | no rows | Not assessed 11 | route-server: required by rfc/short/rfc7948.md |
 
 ### Level 8
@@ -99,21 +99,21 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | [RFC 7999](../../rfc7999/) | BLACKHOLE Community | Ze verified 4 | Ze MUST verified 4, SHOULD verified 3, Not assessed 9 | route-server: required by rfc/short/rfc7999.md |
 | [RFC 8092](../../rfc8092/) | BGP Large Communities Attribute | Ze verified 7 | Ze MUST verified 7, Not assessed 4 | route-server: required by rfc/short/rfc8092.md |
 | [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | Not built 4 | Not assessed 2, Not built 4 | route-server: required by rfc/short/rfc8893.md |
-| [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | Ze verified 12, Tests awaiting verification 4, Not built 3 | Ze MUST verified 12, SHOULD verified 1, Tests awaiting verification 4, Not assessed 4, Not built 3 | route-server: required by rfc/short/rfc9234.md |
+| [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | Ze verified 17, Not built 2 | Ze MUST verified 17, SHOULD verified 1, Not assessed 4, Not built 2 | route-server: required by rfc/short/rfc9234.md |
 | [RFC 9774](../../rfc9774/) | Deprecation of AS_SET and AS_CONFED_SET in BGP | Ze verified 2, Not built 1 | Ze MUST verified 2, Not built 1 | route-server: required by rfc/short/rfc9774.md |
 
 ### Level 9
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | Ze verified 12, Tests awaiting verification 17, Not built 27 | Ze MUST verified 12, SHOULD verified 6, Not owed 3, Tests awaiting verification 17, Not assessed 19, Not built 29 | route-server: required by rfc/short/rfc8210.md |
+| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | Ze verified 29, Tests awaiting verification 4, Not built 23 | Ze MUST verified 29, SHOULD verified 6, Not owed 3, Tests awaiting verification 4, Not assessed 19, Not built 25 | route-server: required by rfc/short/rfc8210.md |
 
 ## Optional (not counted)
 
 RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own bars and figures follow.
 
-- **MUST bar**: Ze verified 57, Tests awaiting verification 16, Not built 39
-- **Overview bar**: Ze MUST verified 57, SHOULD verified 5, Not owed 1, Tests awaiting verification 17, Not assessed 57, Not built 39
+- **MUST bar**: Ze verified 80, Not built 32
+- **Overview bar**: Ze MUST verified 80, SHOULD verified 5, Not owed 1, Tests awaiting verification 1, Not assessed 57, Not built 32
 
 | Figure | Rows |
 |---|---|
@@ -122,13 +122,13 @@ RFCs this use case lists as optional, each declared by the Optional use cases ro
 | Mandatory requirements complete | not complete |
 | MUST rows | 113 |
 | MUST rows kept (the MUST bar) | 112 |
-| Ze verified | 57 |
+| Ze verified | 80 |
 | OS verified | 0 |
-| Tests awaiting verification | 16 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 39 |
+| Not built | 32 |
 | MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -152,14 +152,14 @@ The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and S
 |---|---|---|---|---|
 | [RFC 2385](../../rfc2385/) | Protection of BGP Sessions via the TCP MD5 Signature Option | Ze verified 8 | Ze MUST verified 8, Not assessed 1 | route-server: optional in rfc/short/rfc2385.md |
 | [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | Not built 16 | Not assessed 6, Not built 16 | route-server: optional in rfc/short/rfc9582.md |
-| [RFC 9072](../../rfc9072/) | Extended Optional Parameters Length for BGP OPEN Message | Ze verified 5, Not built 4 | Ze MUST verified 5, SHOULD verified 1, Not assessed 2, Not built 4 | route-server: optional in rfc/short/rfc9072.md |
-| [RFC 4360](../../rfc4360/) | BGP Extended Communities Attribute | Ze verified 2, Not built 3 | Ze MUST verified 2, Not assessed 4, Not built 3 | route-server: optional in rfc/short/rfc4360.md |
+| [RFC 9072](../../rfc9072/) | Extended Optional Parameters Length for BGP OPEN Message | Ze verified 9 | Ze MUST verified 9, SHOULD verified 1, Not assessed 2 | route-server: optional in rfc/short/rfc9072.md |
+| [RFC 4360](../../rfc4360/) | BGP Extended Communities Attribute | Ze verified 3, Not built 2 | Ze MUST verified 3, Not assessed 4, Not built 2 | route-server: optional in rfc/short/rfc4360.md |
 | [RFC 5082](../../rfc5082/) | The Generalized TTL Security Mechanism (GTSM) | Ze verified 4 | Ze MUST verified 4, SHOULD verified 1, Not assessed 5 | route-server: optional in rfc/short/rfc5082.md |
-| [RFC 2918](../../rfc2918/) | Route Refresh Capability for BGP-4 | Ze verified 4, Tests awaiting verification 2 | Ze MUST verified 4, SHOULD verified 1, Tests awaiting verification 2, Not assessed 4 | route-server: optional in rfc/short/rfc2918.md |
-| [RFC 4486](../../rfc4486/) | Subcodes for BGP Cease NOTIFICATION Message | Tests awaiting verification 1 | Tests awaiting verification 2, Not assessed 9 | route-server: optional in rfc/short/rfc4486.md |
-| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze verified 14, Tests awaiting verification 3, Not built 9 | Ze MUST verified 14, SHOULD verified 1, Tests awaiting verification 3, Not assessed 4, Not built 9 | route-server: optional in rfc/short/rfc4724.md |
-| [RFC 8203](../../rfc8203/) | BGP Administrative Shutdown Communication | Ze verified 3, Tests awaiting verification 2 | Ze MUST verified 3, Tests awaiting verification 2, Not assessed 4 | route-server: optional in rfc/short/rfc8203.md |
-| [RFC 8950](../../rfc8950/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8277) | Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop | Ze verified 3, Tests awaiting verification 3 | Ze MUST verified 3, Tests awaiting verification 3, Not assessed 2 | route-server: optional in rfc/short/rfc8950.md |
-| [RFC 9003](../../rfc9003/) | Extended BGP Administrative Shutdown Communication | Ze verified 1, Tests awaiting verification 3 | Ze MUST verified 1, Tests awaiting verification 3, Not assessed 7 | route-server: optional in rfc/short/rfc9003.md |
-| [RFC 7313](../../rfc7313/) | Enhanced Route Refresh Capability for BGP-4 | Ze verified 5, Tests awaiting verification 1, Not built 5 | Ze MUST verified 5, Tests awaiting verification 1, Not assessed 6, Not built 5 | route-server: optional in rfc/short/rfc7313.md |
-| [RFC 8654](../../rfc8654/) | Extended Message Support for BGP | Ze verified 8, Tests awaiting verification 1, Not built 2 | Ze MUST verified 8, SHOULD verified 1, Not owed 1, Tests awaiting verification 1, Not assessed 3, Not built 2 | route-server: optional in rfc/short/rfc8654.md |
+| [RFC 2918](../../rfc2918/) | Route Refresh Capability for BGP-4 | Ze verified 6 | Ze MUST verified 6, SHOULD verified 1, Not assessed 4 | route-server: optional in rfc/short/rfc2918.md |
+| [RFC 4486](../../rfc4486/) | Subcodes for BGP Cease NOTIFICATION Message | Ze verified 1 | Ze MUST verified 1, Tests awaiting verification 1, Not assessed 9 | route-server: optional in rfc/short/rfc4486.md |
+| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze verified 18, Not built 8 | Ze MUST verified 18, SHOULD verified 1, Not assessed 4, Not built 8 | route-server: optional in rfc/short/rfc4724.md |
+| [RFC 8203](../../rfc8203/) | BGP Administrative Shutdown Communication | Ze verified 5 | Ze MUST verified 5, Not assessed 4 | route-server: optional in rfc/short/rfc8203.md |
+| [RFC 8950](../../rfc8950/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8277) | Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop | Ze verified 6 | Ze MUST verified 6, Not assessed 2 | route-server: optional in rfc/short/rfc8950.md |
+| [RFC 9003](../../rfc9003/) | Extended BGP Administrative Shutdown Communication | Ze verified 4 | Ze MUST verified 4, Not assessed 7 | route-server: optional in rfc/short/rfc9003.md |
+| [RFC 7313](../../rfc7313/) | Enhanced Route Refresh Capability for BGP-4 | Ze verified 6, Not built 5 | Ze MUST verified 6, Not assessed 6, Not built 5 | route-server: optional in rfc/short/rfc7313.md |
+| [RFC 8654](../../rfc8654/) | Extended Message Support for BGP | Ze verified 10, Not built 1 | Ze MUST verified 10, SHOULD verified 1, Not owed 1, Not assessed 3, Not built 1 | route-server: optional in rfc/short/rfc8654.md |

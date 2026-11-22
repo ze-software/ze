@@ -98,21 +98,13 @@
 <li><a href="#admin-commands">Admin Commands</a></li>
 <li><a href="#resilience">Resilience</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/web/handler.go -- URL routing, three-tier scheme -->
-<!-- source: internal/component/web/auth.go -- authMiddleware, AuthMiddlewareWithAudit -->
-<!-- source: cmd/ze/hub/service_web.go -- buildWebService -->
-<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthenticator, liveAAABundleAuthenticator.Authenticate -->
-<!-- source: internal/component/authz/auth.go -- LocalAuthenticator.Authenticate, authenticateUser -->
 <h2 id="starting-the-web-server">Starting the Web Server</h2>
 <h3 id="command-line">Command Line</h3>
 <pre><code class="language-bash">ze start --web 8443                              # Start daemon + web on port 8443
 ze start --web 8443 --insecure-web               # No authentication (forces 127.0.0.1)
 </code></pre>
 <p>When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address. <code>WebCertHosts</code> builds that list, and a listen address of <code>0.0.0.0</code> adds every non-loopback interface address of the machine.</p>
-<!-- source: cmd/ze/ze_core_start.go -- cmdStart, flagStartWeb, flagStartInsecureWeb -->
 <p>When no config file is named, the daemon reads the config name from the store. If the store's instance name cannot be read, <code>ze start</code> exits 1 with an error naming <code>ze doctor</code>, and a web server started with no config path stays off and prints <code>warning: web server disabled:</code> with the reason.</p>
-<!-- source: cmd/ze/hub/service_web.go -- startWebServer -->
-<!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, GenerateWebCertWithNames, WebCertHosts -->
 <table>
 <thead>
 <tr>
@@ -149,8 +141,6 @@ selection of Workbench remains selected for that browser.</p>
 default) and <code>workbench</code>. The equivalent environment key is <code>ze.web.ui-mode</code>:</p>
 <pre><code class="language-bash">env ze.web.ui-mode=workbench ze start --web 8443
 </code></pre>
-<!-- source: internal/component/web/ui_mode.go -- parseUIMode, GetUIMode, ReadUIModeFromRequest -->
-<!-- source: internal/component/web/component_breadcrumb.templ -- topbarActions -->
 <h3 id="configuration">Configuration</h3>
 <p>The web server listen address can also be set in the ze configuration file:</p>
 <pre><code>environment {
@@ -163,15 +153,11 @@ default) and <code>workbench</code>. The equivalent environment key is <code>ze.
     }
 }
 </code></pre>
-<!-- source: internal/component/web/yang/ze-web-conf.yang -- web container, server list -->
 <h2 id="offline-backup-workspace">Offline backup workspace</h2>
 <p>Choose <strong>Services → Backup workspace</strong>, or open <code>/backups/</code>, to edit a <code>.zefs</code>
 backup independently of the running configuration. This page uses a full-text
 configuration editor. It requires an account with configuration edit access,
 because the artifact can contain credentials.</p>
-<!-- source: internal/component/web/register_backup_workspace.go -- init -->
-<!-- source: internal/component/web/backup_workspace.go -- HandleBackupWorkspace, ServeHTTP -->
-<!-- source: internal/component/web/page_backup_workspace.templ -- pageBackupWorkspace -->
 <p>To make a new backup of the system serving this page, choose <strong>Create backup of
 this system</strong>. The browser downloads <code>system-backup.zefs</code>, containing the complete
 store: configurations, history, saved drafts, credentials and other stored keys.
@@ -179,8 +165,6 @@ Creating the backup does not commit pending edits or change uploaded workspaces.
 The system must have an open device store, and the complete snapshot must fit
 the workspace's size and temporary-storage allowance. A refused creation returns
 an explanation instead of a partial backup.</p>
-<!-- source: internal/component/web/backup_transfer.go -- downloadSystem -->
-<!-- source: internal/component/config/storage/cli/system_backup.go -- BackupSystemTo -->
 <p>Before opening the new download in the Ze CLI on Unix, run
 <code>chmod 600 system-backup.zefs</code>. Keep the backup private because it contains
 credentials. You can upload it here to inspect or edit its configuration.</p>
@@ -208,55 +192,48 @@ An unconfigured development
 binary whose platform data directory cannot be resolved keeps the operating
 system's temporary folder. Browser downloads go to the location chosen in the
 browser's download settings.</p>
-<!-- source: internal/component/hub/yang/ze-hub-conf.yang -- environment, backup, directory -->
-<!-- source: internal/component/config/artifact/directory.go -- configuredBackupParent, backupDirectory -->
-<!-- source: internal/component/config/artifact/directory.go -- PrepareDirectory, Complete -->
-<!-- source: internal/component/config/artifact/owner.go -- ensureRoot -->
 <p>The backup workspace also runs with <code>ze start --web-only</code>. It uses the same
 artifact commands as the configured daemon; opening it starts no routing
 protocol. Stop the web process only after downloading the changes you need.</p>
-<!-- source: cmd/ze/hub/service_web.go -- runWebOnly, webOnlyDispatcher -->
 <p>Full-store restore also uses the normal recovery lifecycle in web-only mode.
 It waits for web requests and the original store owner to finish before
 replacing the store. A cleanup failure prevents replacement and returns a
 failure with the recovery instructions. Applying only the running configuration
 requires a loaded daemon; web-only mode refuses that operation before staging
 any configuration candidate.</p>
-<!-- source: cmd/ze/hub/web_only_owner.go -- bindWebOnlyRecovery, shutdownWebOnly, webOnlyExitStatus -->
-<!-- source: cmd/ze/ze_core_start_recovery.go -- runOwnedDaemonStore -->
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreDaemonConfig -->
 <ol>
-<li>Select a backup file and choose <strong>Open backup</strong>.</li>
-<li>Choose its <strong>Configuration</strong>, then <strong>Open configuration</strong>. The editor starts
+<li>
+<p>Select a backup file and choose <strong>Open backup</strong>.</p>
+</li>
+<li>
+<p>Choose its <strong>Configuration</strong>, then <strong>Open configuration</strong>. The editor starts
 with the committed configuration. Existing saved drafts and pending
-candidates remain in the artifact and are not resumed.</li>
-<li>Edit the text and choose <strong>Validate</strong>. A refused edit keeps your text available
+candidates remain in the artifact and are not resumed.</p>
+</li>
+<li>
+<p>Edit the text and choose <strong>Validate</strong>. A refused edit keeps your text available
 for correction. Validation covers the checks available in this Ze process;
-it does not prove acceptance on the target host or running system.</li>
-<li>Choose <strong>Review changes</strong>, then <strong>Save into backup</strong>. Changing the text after
+it does not prove acceptance on the target host or running system.</p>
+</li>
+<li>
+<p>Choose <strong>Review changes</strong>, then <strong>Save into backup</strong>. Changing the text after
 review requires another review. A form opened before another tab saved the
-same configuration must be reviewed against the newer saved configuration.</li>
-<li>Choose <strong>Download saved backup</strong>. The download is a complete artifact with
+same configuration must be reviewed against the newer saved configuration.</p>
+</li>
+<li>
+<p>Choose <strong>Download saved backup</strong>. The download is a complete artifact with
 the edited configuration, its history and the original backup's other keys.
-Unsaved text is not included.</li>
-</ol>
-<!-- source: internal/component/web/backup_edit.go -- edit -->
-<!-- source: internal/component/config/artifact/edit.go -- Edit, prepare, publish -->
-<!-- source: internal/component/web/backup_transfer.go -- upload, download -->
-<!-- source: internal/component/config/storage/artifact_workspace.go -- PublishArtifactConfig -->
-<ol start="6">
+Unsaved text is not included.</p>
+</li>
 <li>
 <p>Before opening the downloaded backup in the Ze CLI on Unix, restrict access to your account:</p>
 <pre><code class="language-sh">chmod 600 updated-backup.zefs
 </code></pre>
 </li>
+<li>
+<p>Choose <strong>Close workspace</strong> when finished.</p>
+</li>
 </ol>
-<!-- source: internal/component/web/page_backup_workspace.templ -- pageBackupWorkspace -->
-<!-- source: internal/component/config/storage/tree.go -- secureNode, openNode -->
-<ol start="7">
-<li>Choose <strong>Close workspace</strong> when finished.</li>
-</ol>
-<!-- source: internal/component/web/backup_edit.go -- edit -->
 <p>Each workspace has its own URL and is available only to the account that
 uploaded it. Uploaded copies are private temporary files; the original file on
 your computer is unchanged. An artifact can be at most 64 MiB, and configuration
@@ -316,8 +293,6 @@ transfer contains one complete <code>set</code> statement; activation transfers 
 contain one <code>activate</code> or <code>deactivate</code> statement. A replacement contains the
 configuration. Adding <code>dry-run</code> returns a masked preview without changing the
 retained artifact. These operations preserve saved drafts and unrelated keys.</p>
-<!-- source: internal/component/config/cli/artifact_config.go -- artifactConfigMutation, artifactReplace, artifactRollback -->
-<!-- source: internal/plugins/config-cli/yang/ze-config-artifact-cmd.yang -- native-change, revision -->
 <p>To check a damaged backup in the browser, open <strong>Check or repair a data file</strong>
 on <code>/backups/</code>. Select the file, or expand <strong>Paste base64 data instead</strong>, then
 open the source. Both forms accept up to 64 MiB after decoding. The data need
@@ -330,8 +305,6 @@ salvage can be downloaded. Inspect the report before using that download.
 <strong>Download original source</strong> preserves the uploaded bytes, including after
 repair. <strong>Close source</strong> removes only the uploaded copy. Sources expire after
 two minutes without use, so download what you need before closing or leaving.</p>
-<!-- source: internal/component/web/backup_source.go -- uploadSource, source, downloadSource -->
-<!-- source: internal/component/web/component_backup_source.templ -- componentBackupSourceUpload, componentBackupSource -->
 <p>For raw maintenance from a command surface, <code>show config artifact key list artifact &lt;id&gt;</code> lists keys.
 <code>request config artifact key read artifact &lt;id&gt; key &lt;key&gt;</code> returns a private
 download transfer; read its chunks and abort it afterward. To write a key, begin
@@ -345,7 +318,6 @@ returns a separate downloadable salvage. Keep the source until you have checked
 the salvage: skipped or dropped keys produce warnings, and unresolved history
 is a failed repair even though recovered keys remain available. A normal
 workspace can be checked with <code>show config artifact check artifact &lt;id&gt;</code>.</p>
-<!-- source: internal/component/config/cli/artifact_raw.go -- artifactCheck, artifactRepair -->
 <p>To reopen saved offline CLI edits deliberately, use <code>request config artifact session resume artifact &lt;id&gt; name &lt;config&gt;</code>. This resumes your account's saved
 <code>local</code> editing origin and keeps other accounts' pending work separate. The
 <code>session set</code>, <code>activate</code>, <code>deactivate</code> and <code>delete</code> operations take a text
@@ -353,29 +325,24 @@ transfer containing one matching editing statement. <code>session replace</code>
 <code>merge</code> take configuration text. <code>session save</code> retains your draft; <code>session diff</code>, <code>changes</code> and <code>history</code> inspect it. <code>session commit</code> validates and
 publishes your changes; <code>session discard</code> removes your pending intent. The
 ordinary configuration page continues to open committed content.</p>
-<!-- source: internal/component/config/cli/artifact_session.go -- artifactSessionOperation -->
 <p><code>request config artifact restore full artifact &lt;id&gt;</code> requests a complete device
 store recovery. An accepted response confirms that independent recovery bytes
 are retained; the running configuration remains in place through the response.
 The daemon then restarts, and its outer owner imports the source only after a
 successful shutdown and store close. Download the backup before the restart if
-you also need to retain your own copy.</p>
-<!-- source: internal/component/config/cli/artifact_restore.go -- artifactRestoreFull -->
-<p>Saving and downloading also need temporary disk space for a complete working
+you also need to retain your own copy.
+Saving and downloading also need temporary disk space for a complete working
 copy. If private-file cleanup fails, new uploads, saves and downloads wait until that
 cleanup succeeds; existing workspace inspection remains available.</p>
-<!-- source: internal/component/config/artifact/owner.go -- Owner, expire, Close -->
-<!-- source: internal/component/config/artifact/transfer.go -- Begin, Append, Finish, Snapshot, Abort -->
 <h2 id="authentication">Authentication</h2>
 <p>The web interface uses the same user database as the SSH server. Users log in through a browser login page or authenticate API requests with HTTP Basic Auth.</p>
-<!-- source: internal/component/web/auth.go -- authMiddleware, loginHandler, parseBasicAuth -->
 <h3 id="browser-sessions">Browser Sessions</h3>
 <ol>
 <li>Navigate to <code>https://&lt;host&gt;:8443/</code>. Unauthenticated requests receive a login page.</li>
 <li>Enter username and password. On success, a <code>ze-session</code> cookie is set.</li>
 <li>The cookie is <code>Secure</code>, <code>HttpOnly</code>, and <code>SameSite=Strict</code>.</li>
 <li>Each user can have one active session. Logging in again invalidates the previous session.</li>
-<li>A session lasts 24 hours, and ends earlier if the configuration stops declaring the user. Remove a user and reload, and their open browser tab is refused on its next request. No daemon restart is necessary.</li>
+<li>A session lasts 24 hours, and ends earlier if the configuration stops declaring the user or rotates local credentials (such as a password change). Remove a user or rotate their password and reload, and their open browser tab is refused on its next request while unrelated config reloads leave the session intact. No daemon restart is necessary.</li>
 </ol>
 <p>A user authenticated by RADIUS or TACACS+ keeps their session: the local user list did not grant it and does not end it.</p>
 <h3 id="json-api">JSON API</h3>
@@ -385,10 +352,7 @@ cleanup succeeds; existing workspace inspection remains available.</p>
 <h3 id="security-headers">Security Headers</h3>
 <p>Every response carries <code>X-Frame-Options: DENY</code>, <code>X-Content-Type-Options: nosniff</code>, <code>Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'</code>, and HSTS (<code>max-age=63072000; includeSubDomains</code>). An authenticated response adds <code>Cache-Control: no-store</code> and <code>X-Ze-Version</code>.</p>
 <p><code>X-Ze-Version</code> carries the release, the git commit, the Go version and the OS, which tells a client the exact build it speaks to. Write <code>environment { hide-version true; }</code> to keep it off every response of the web interface and the looking glass together. The default is false, so the banner stays until you hide it, and no other header changes. Ze sends no <code>Server</code> header at all.</p>
-<!-- source: internal/component/web/auth.go -- setSecurityHeaders, addSecurityHeaders -->
-<!-- source: internal/core/version/version.go -- HTTPHeaderHidden -->
 <p><code>script-src 'self'</code> refuses an inline script and refuses <code>Function()</code>. No page therefore carries an inline event handler, and no htmx attribute uses a bracketed trigger filter, because htmx compiles such a filter into source and calls <code>Function()</code> on it. A test refuses both in any <code>.templ</code> source.</p>
-<!-- source: internal/component/web/markup_contract_test.go -- TestNoTriggerFilterNeedsEval, TestSelfReplacingControlsCarryAStableID -->
 <h3 id="secret-masking">Secret Masking</h3>
 <p>No render path prints a value the schema marks <code>ze:sensitive</code> or <code>ze:bcrypt</code>. One
 predicate, <code>config.LeafHoldsSecret</code>, answers whether a leaf holds a secret. The
@@ -424,9 +388,6 @@ apart.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, ChangedSecretPaths, DisplayValueAtPath, RejectMaskedSecretLeaves -->
-<!-- source: internal/component/web/cli_editor.go -- executeTerminalEditorCommand -->
-<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet -->
 <h2 id="rendering">Rendering</h2>
 <p>Every page, panel, fragment and out-of-band swap is written in a <code>.templ</code> source
 and compiled to Go by <a href="https://templ.guide" target="_blank" rel="noopener">templ</a>. No Go file in the package
@@ -459,7 +420,6 @@ supplied-input controls:</p>
 <code>-path</code>: that root is written into generated runtime filenames and must match
 the checker. <code>./le repo update</code> has no templ stage. The complete workflow is in
 <a href="../../contribute/testing/">Testing</a>.</p>
-<!-- source: internal/le/doc/wiring/templ.go -- answerTemplOutput -->
 <p>The browser assets are vendored in <code>third_party/web/</code> and copied to each
 consumer by the same <code>./le repo update</code> run. htmx 4.0.0 and its
 <code>hx-sse.min.js</code> extension serve the web interface, the looking glass and the
@@ -467,8 +427,6 @@ chaos dashboard. <code>internal/le/web/assets.Write</code> derives each page's a
 from its component graph, so a page loads only what it reaches. Each
 third-party package travels with its licence file, which the interface and the
 looking glass serve beside the asset.</p>
-<!-- source: internal/component/web/markup_check_test.go -- webMarkupExempt, TestNoGoFileBuildsMarkup -->
-<!-- source: third_party/web/MANIFEST.md -- vendored versions, consumers, sync targets -->
 <h2 id="navigation">Navigation</h2>
 <h3 id="url-scheme">URL Scheme</h3>
 <p>URLs follow a verb-first three-tier pattern. A segment that is also a canonical
@@ -477,11 +435,6 @@ takes its spelling from <code>command.Verbs</code>, so the web URL and the CLI c
 cannot drift apart. <code>config</code>, <code>admin</code>, <code>portal</code>, <code>login</code>, <code>assets</code> and the
 editor words <code>edit</code>, <code>add</code>, <code>form</code>, <code>add-form</code>, <code>changes</code>, <code>rename</code>, <code>discard</code>
 and <code>compare</code> are this router's own and the verb registry holds none of them.</p>
-<!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes, configVerbs -->
-<!-- source: cmd/ze/hub/service_web.go -- buildWebService, canonical show routing -->
-<!-- source: internal/component/web/handler_workbench.go -- HandleWorkbench, per-user editable fields -->
-<!-- source: internal/component/command/verbs.go -- VerbShow, VerbMonitor, VerbSet, VerbDelete, VerbCommit -->
-<!-- source: internal/component/web/handler_config_form.go -- HandleConfigDeleteWithAuthorizer -->
 <table>
 <thead>
 <tr>
@@ -587,16 +540,12 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 <p>The root URL <code>/</code> redirects to <code>/show/</code>.</p>
 <h3 id="finder-navigation">Finder Navigation</h3>
 <p>The left panel uses a Finder-style column browser (similar to macOS Finder). It shows up to 3 columns, scrolling horizontally as you navigate deeper.</p>
-<!-- source: internal/component/web/fragment.go -- buildFinderColumns, buildColumnAt -->
 <p><strong>Named vs unnamed containers:</strong> Named containers (lists with YANG keys, like <code>peer</code>, <code>group</code>) appear above unnamed containers (global settings like <code>local</code>, <code>timer</code>), separated by a horizontal rule. This makes keyed sections easy to find.</p>
 <p><strong>Simple lists:</strong> Lists without unique constraints show as a flat column of clickable entries with a <code>+ new</code> button.</p>
 <h3 id="context-heading">Context Heading</h3>
 <p>When inside a list entry, the detail panel shows a context heading at the top with the list name and entry key (e.g., <code>PEER london</code>). This provides immediate context without checking the breadcrumb.</p>
-<!-- source: internal/component/web/fragment.go -- buildContextHeading, ContextEntry -->
 <h3 id="list-table-view">List Table View</h3>
 <p>Lists that have YANG <code>unique</code> constraints (e.g., <code>peer</code> with <code>unique "remote/ip"</code>) display as an interactive table in the detail panel. The table shows the list key and all unique fields as columns.</p>
-<!-- source: internal/component/web/fragment.go -- buildListTable, collectUniqueFields -->
-<!-- source: internal/component/web/component_list_table.templ -->
 <table>
 <thead>
 <tr>
@@ -624,11 +573,8 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 </tbody>
 </table>
 <p>The <code>+ new</code> button below the table opens a server-rendered form (via HTMX) with inputs for the entry name and all unique fields. Field values are validated against YANG types before the entry is created.</p>
-<!-- source: internal/component/web/handler_config_entry.go -- HandleConfigAddWithAuthorizer, HandleConfigAddForm -->
-<!-- source: internal/component/web/component_add_form_overlay.templ -->
 <h3 id="breadcrumb-navigation">Breadcrumb Navigation</h3>
 <p>Every page displays a breadcrumb trail from root to the current YANG path. Clicking any breadcrumb segment navigates to that level.</p>
-<!-- source: internal/component/web/handler_config_leaf.go -- buildBreadcrumbs -->
 <h3 id="content-negotiation">Content Negotiation</h3>
 <p>The response format is determined by:</p>
 <ol>
@@ -638,7 +584,6 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 </ol>
 <h2 id="config-editing">Config Editing</h2>
 <p>Each authenticated user gets an independent editor session with its own working tree. Changes are tracked per-user and do not affect other users until committed.</p>
-<!-- source: internal/component/web/editor.go -- EditorManager, userSession -->
 <h3 id="workflow">Workflow</h3>
 <ol>
 <li><strong>Browse:</strong> Navigate to a list (e.g., <code>/show/bgp/peer/</code>) to see entries in a table.</li>
@@ -649,8 +594,6 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 <li><strong>Commit:</strong> Apply changes. Conflicts with other users are detected and reported.</li>
 <li><strong>Discard:</strong> Click "Discard" to abandon your browser's pending changes. Separate SSH edits under the same username remain pending.</li>
 </ol>
-<!-- source: internal/component/web/editor.go -- Discard -->
-<!-- source: internal/component/cli/editor_commit.go -- DiscardSessionPath -->
 <h3 id="collections-and-configuration-actions">Collections and Configuration Actions</h3>
 <p>Multi-word settings and leaf-lists show editable rows with Add, Remove, Move up,
 Move down, Save and Clear controls. The schema decides which values and repeated
@@ -686,11 +629,6 @@ file and pasted text remain available for correction.</p>
 local file comparison: BGP settings as resolved values, every other setting as
 written, including <code>system host</code>, and schema-declared ordered-list ordering.
 Secrets are masked.</p>
-<!-- source: internal/component/config/infra/diff.go -- DiffConfigs -->
-<!-- source: internal/component/web/component_graphical_supplied.templ -- graphicalSuppliedPanel, graphicalSuppliedInputs -->
-<!-- source: internal/component/web/graphical_supplied.go -- HandleSuppliedInspection -->
-<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve -->
-<!-- source: internal/component/config/infra/diff.go -- DiffConfigs, diffListOrders -->
 <p>In <strong>Edit</strong>, open <strong>Import into candidate</strong> to select a local file or paste
 configuration. Choose <strong>Configuration root</strong> for a complete configuration or
 <strong>Selected item</strong> for a body relative to the item you are viewing. <strong>Merge</strong>
@@ -699,14 +637,8 @@ The request is limited to 4 MiB, including form fields and file headers.
 An import changes only your candidate. Review its changes, then commit to apply
 them. A refused import keeps both the candidate and your form available for
 correction. Read-only accounts have no import controls.</p>
-<!-- source: internal/component/web/component_graphical_import.templ -- graphicalImportPanel -->
-<!-- source: internal/component/web/graphical_import.go -- HandleGraphicalImport -->
-<!-- source: internal/component/web/component_graphical_values.templ -- graphicalValues, graphicalInlineList -->
-<!-- source: internal/component/web/component_graphical_actions.templ -- graphicalActionPanel -->
-<!-- source: internal/component/web/graphical_actions.go -- HandleGraphicalAction, rollbackGraphicalRevision -->
 <h3 id="validation">Validation</h3>
 <p>Field values are validated server-side against YANG types before being accepted:</p>
-<!-- source: internal/component/config/schema.go -- ValidateValue -->
 <p>Every value set from the web (a form field, the add form or browser CLI
 <code>set</code>) is then judged with the checks a config file gets: the
 enumeration, range, length and pattern the YANG declares, a union's members,
@@ -735,16 +667,9 @@ A key refused by the terminal's <code>rename</code>, <code>copy</code>, <code>in
 <code>deactivate</code> gets that same command as its fix, with the key corrected and
 framed for the position, and the Rename button's refusal ends with
 <code>fix: rename &lt;full path&gt; to &lt;corrected key&gt;</code>.</p>
-<!-- source: internal/component/web/editor.go -- EditorManager.SetValue, judgeValue -->
-<!-- source: internal/component/web/cli_editor.go -- executeTerminalEditorCommand -->
-<!-- source: internal/component/web/handler_config_entry.go -- HandleConfigRenameWithAuthorizer -->
-<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet -->
-<!-- source: internal/component/web/handler_config_entry.go -- addFieldSetPath -->
 <p>Fix commands quote list keys and values that contain spaces or quotes. Type
 the whole printed command, including its quotes. A refused key can precede a
 secret assignment: its correction keeps the assignment and masks the secret.</p>
-<!-- source: internal/component/cli/fix_frame.go -- FrameFix -->
-<!-- source: internal/component/cli/fix_frame.go -- FrameFix -->
 <table>
 <thead>
 <tr>
@@ -780,45 +705,30 @@ secret assignment: its correction keeps the assignment and masks the secret.</p>
 </tbody>
 </table>
 <p>YANG <code>unique</code> constraints are enforced: duplicate values are rejected with an error naming the conflicting entry.</p>
-<!-- source: internal/component/web/handler_config_walk.go -- checkUniqueConstraint, validateUniqueOnSet -->
 <p>Add and rename preserve entry key case and literal bytes accepted by the
 schema. Generated links encode each key separately, so a space or slash inside
 a key remains part of that key when the operator follows it or saves a field.</p>
-<!-- source: internal/component/web/path_transport.go -- encodeConfigPath, decodeConfigPath -->
-<!-- source: internal/component/web/handler_config_entry.go -- HandleConfigAddWithAuthorizer, HandleConfigRenameWithAuthorizer -->
 <p>Duplicate entry keys are rejected. Validation runs before the entry is created, so invalid input never produces a partial entry.</p>
 <p>Navigating to a non-existent list entry (e.g., <code>/show/bgp/peer/london/</code> when <code>london</code> has not been created) redirects to the root view with an error notification.</p>
-<!-- source: internal/component/web/fragment.go -- HandleFragment, isListEntryPath check -->
 <p>A field check reads one value. A commit runs the whole-config validator, the same one <code>ze config validate</code> runs, over the config the commit is about to write. This includes the BGP peer pipeline, so a peer the daemon would refuse blocks the commit while the config is still on the screen. The refusal appears in the commit modal as <code>Commit failed:</code> with the validator's message, and nothing is written.</p>
-<!-- source: internal/component/cli/editor_commit.go -- validateStagedTree -->
-<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
 <h3 id="notifications">Notifications</h3>
 <p>Error notifications appear as toasts in the top-right corner with a 30-second countdown. Click the countdown to pause (for screenshots). Click the close button to dismiss immediately.</p>
-<!-- source: internal/component/web/component_notification_error.templ -->
 <p>A refused action raises a toast carrying the status and the message the daemon wrote, and the same message lands in the field or panel the action came from. A request that gets no answer at all raises a toast that says so instead: the daemon is unreachable, and nothing was changed.</p>
-<!-- source: internal/component/web/assets/notification.js -- handleResponseError and handleRequestError -->
 <h3 id="input-auto-save">Input Auto-Save</h3>
 <p>Text and number fields save on blur, Enter and a one-second debounce after
 typing. A save issued while that same field's request is in flight is dropped;
 the response replaces the field with the accepted candidate value. Enter saves
 the field, and the separate commit step applies the candidate configuration.</p>
 <p>Enter arrives as <code>ze-enter</code>, a named event a delegated listener in <code>assets/cli.js</code> dispatches. The listener reads the element's own <code>hx-trigger</code>, lives in a file rather than in an attribute, and survives every swap. An inline editor replaces itself, so each input also carries a stable id derived from its leaf path: without one, htmx restored focus by looking up the empty string and the caret was lost on every save.</p>
-<!-- source: internal/component/web/input_text.templ -- hx-trigger="blur changed, ze-enter, input changed delay:1s" -->
-<!-- source: internal/component/web/assets/cli.js -- initEnterSubmit -->
-<!-- source: internal/component/web/view.go -- fieldInputID, escapeFieldID, fieldSaveSync -->
 <h3 id="conflict-detection">Conflict Detection</h3>
 <p>When two users edit the same leaf concurrently, the commit reports which paths conflict, showing both the local and other user's values. The user must resolve conflicts before committing.</p>
-<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
-<!-- source: internal/component/cli/contract/contract.go -- CommitResult.Conflicts, Conflict -->
 <h3 id="session-limits">Session Limits</h3>
 <p>The editor manager allows up to 50 concurrent user sessions. Idle sessions (no activity for 1 hour) are evicted when capacity is reached.</p>
-<!-- source: internal/component/web/editor.go -- NewEditorManager, maxSessions, idleTimeout -->
 <p>Reopening an evicted editor or reconnecting after a daemon restart restores
 your saved and unsaved web changes. Review, pending counts, save and commit
 refer to those resumed changes. Other users' changes and your SSH sessions
 remain separate. If the stored intent cannot be read or recovery cannot finish,
 the page refuses to open; repair the reported problem, then reload <code>/show/</code>.</p>
-<!-- source: internal/component/cli/editor_resume.go -- ResumeSession -->
 <h2 id="browser-cli">Browser CLI</h2>
 <p>The <strong>CLI</strong> link opens the dedicated <code>/cli</code> page. Its prompt shows the current
 configuration position, for example <code>ze[bgp peer london]#</code>. Commands execute in
@@ -843,12 +753,10 @@ the command bar, terminal and stream endpoint share this saved history producer.
 Editor discard preserves recall. A terminal response carries <code>history-warning</code>
 when recall could not be updated; the command can still execute. Uploaded file
 and pasted configuration content never become recall entries.</p>
-<!-- source: internal/component/web/cli_history.go -- recordCLIHistory, writeCLIHistory -->
 <p>Recall survives reloading the page and stays separate for each account and CLI
 mode. Press Up with the completion menu closed to read the latest saved recall.
 Press Down past the newest entry to restore your unfinished input. If recall is
 unavailable, the page displays the failure and still accepts commands.</p>
-<!-- source: internal/component/web/assets/cli.js -- commandRecall, initTerminal -->
 <p>Configuration commands use the same editor producers as the SSH CLI. Commit and
 discard use the web session's shared publication and confirmed-commit controls.
 Operational commands and live monitors require the running daemon; <code>--web-only</code>
@@ -949,12 +857,6 @@ candidate unchanged.</p>
 confirmation and still require permission through the normal command service.
 <code>top stop</code> and <code>top restart</code> have the same effect from configuration mode.
 These actions keep your candidate and are separate from clearing the display.</p>
-<!-- source: internal/component/cli/contract/lifecycle.go -- LifecycleCommand -->
-<!-- source: internal/component/web/cli_controls.go -- executeTerminalControl, terminalEditorHelp -->
-<!-- source: internal/component/web/cli_terminal.go -- executeTerminalCommand, executeTerminalConfigMode -->
-<!-- source: internal/component/web/cli_editor.go -- executeTerminalEditorCommand -->
-<!-- source: internal/component/cli/editor_transport.go -- ExecuteConfigCommand -->
-<!-- source: internal/component/cli/model_commands_commit.go -- cmdErrors -->
 <h3 id="loading-configuration">Loading Configuration</h3>
 <p><code>load terminal absolute|relative merge|replace</code> opens a paste form. A <code>load file</code>
 command opens a browser file chooser; its filename labels the input rather than
@@ -962,8 +864,6 @@ reading a file from the daemon's filesystem. Both load paths accept at most
 4 MiB and stage the parsed changes in the candidate, ready for review and commit.
 A relative load takes a hierarchical body for the current position; absolute
 loads can also use set-format statements.</p>
-<!-- source: internal/component/web/assets/cli.js -- initTerminal -->
-<!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace -->
 <p>For read-only inspection, operational commands under <code>show config supplied</code>
 accept <code>content &lt;base64&gt;</code> for dump, validation, formatting, dependency graphs
 and comparison. These inspect the supplied bytes without loading them into
@@ -973,9 +873,6 @@ encoded together. The decoded input is limited to 195,840 bytes. See the
 <a href="../command-reference/#conventions">command reference</a> for labels and selections.
 The graphical <strong>Inspect supplied configuration</strong> controls compose these inputs
 for you, so no manual base64 encoding is needed when using those forms.</p>
-<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
-<!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler, suppliedPair -->
-<!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- supplied-content -->
 <h3 id="completion-and-output-format">Completion and Output Format</h3>
 <p>Tab offers schema and command completions for the terminal's current position.
 Arrow keys or Tab select an item and Enter accepts it. An unquoted <code>?</code> explains
@@ -985,19 +882,14 @@ Escape closes the explanation before closing a menu beneath it. Enum values
 declared in YANG, including enum members of a union, are offered by the shared
 completer. A failed runtime query displays its reason and correction, so it
 cannot be mistaken for an empty set of values.</p>
-<!-- source: internal/component/web/assets/cli.js -- completionResponse, initTerminal -->
 <p>In configuration mode, <code>top set</code> completes paths from the root, even when your
 current position is nested. <code>top run</code> completes operational commands and live
 argument values as <code>run</code> does. Repeated <code>top</code> prefixes keep that root selection.</p>
-<!-- source: internal/component/web/cli.go -- completeCLIInput, explainCLIInput -->
 <p>In operational mode, <code>set cli format</code> queries the output preference and
 <code>set cli format json</code> selects a format for this authenticated user's session.
 The preference also applies to config-mode <code>run</code> commands; an explicit format
 pipe overrides it for one command. The configured process default remains
 unchanged, and raw live streams retain their existing text format.</p>
-<!-- source: internal/component/web/cli.go -- HandleCLIComplete -->
-<!-- source: internal/component/cli/session_format.go -- ExecuteSessionFormat, SessionFormatCompletions -->
-<!-- source: internal/component/web/cli_format.go -- sessionFormatCommand, executeTerminalOperationalForUser -->
 <h3 id="live-commands">Live Commands</h3>
 <p>Registered interactive monitors show the same live view as the CLI, with buttons
 for the actions that view offers. For <code>run monitor bgp</code>, use <strong>Next sort column</strong>
@@ -1017,13 +909,8 @@ accept the same stream pipes as the CLI, such as <code>| json</code>, <code>| lo
 <code>| match &lt;text&gt;</code>. Invalid chains name the refused pipe. Remote <code>| save &lt;path&gt;</code>
 is refused; use Download to save results on your computer. A raw piped event
 larger than 4 MiB stops the stream with a reason.</p>
-<!-- source: internal/component/web/cli_stream.go -- HandleCLITerminalStream, cliStreamWriter.Write -->
-<!-- source: cmd/ze/hub/server_stream.go -- serverStreamDispatcher -->
-<!-- source: internal/component/command/pipe_stream.go -- RunStreamPipes -->
-<!-- source: internal/component/web/assets/cli.js -- initTerminal -->
 <h2 id="live-updates">Live Updates</h2>
 <p>The web interface uses Server-Sent Events (SSE) to notify connected browsers when configuration changes are committed by any user. A notification banner appears with the username and a "Refresh" button.</p>
-<!-- source: internal/component/web/sse.go -- EventBroker, BroadcastConfigChange, SendTo -->
 <p>The same stream carries, to each user alone, what the SSH editor's status
 line would show that user: the countdown of a <code>commit confirmed</code> window, or
 whose window is pending, how a window ended, and that another user's forced
@@ -1032,7 +919,6 @@ so they use the same banner. While a user's own commit is in flight, the
 window news for that user waits, so a user's own <code>commit accept</code> or
 <code>commit abort</code> is never reported as closed by another session. See "Commit
 Confirmed" in <code>config-editor.md</code>.</p>
-<!-- source: internal/component/web/window_notices.go -- WindowNotices, pollWindow -->
 <p>Connect to the SSE stream at <code>/events</code> (requires authentication). Each stream is registered under its user. The broker supports up to 100 concurrent SSE clients. Slow clients that fall behind have events dropped rather than blocking other clients.</p>
 <h3 id="event-format">Event Format</h3>
 <p>Events use the standard SSE wire format:</p>
@@ -1043,8 +929,6 @@ data: &lt;html-fragment&gt;
 <h2 id="admin-commands">Admin Commands</h2>
 <p>The <code>/admin/</code> tier provides a browsable tree of administrative commands. Container nodes display navigable links to sub-commands. Leaf commands display a parameter form with an "Execute" button.</p>
 <p>The form also shows the command's help, read from the same command model every other surface reads. The declared one-line summary is the lede above the form, and the declared long explanation is the paragraph under it. A command that declares no explanation shows the summary alone. A path the command tree does not hold shows neither text, and never borrows its parent's.</p>
-<!-- source: internal/component/web/handler_admin.go -- HandleAdminView, HandleAdminExecute, buildAdminFragmentData -->
-<!-- source: internal/component/web/component_command_form.templ -- commandForm -->
 <p>Admin command results are displayed as titled cards showing the command name, output text, and success/error styling.</p>
 <h2 id="resilience">Resilience</h2>
 <p><strong>Corrupt change files:</strong> An unknown path, malformed command or invalid
@@ -1063,11 +947,7 @@ An invalid leaf value or leaf-list member
 in an otherwise readable API candidate remains editable: commit refuses the
 value, and the operator can apply its proposed correction while preserving
 other changes.</p>
-<!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
-<!-- source: internal/component/cli/editor_change_recovery.go -- InspectCorruptChangeFile, CorruptChangeFile.Discard -->
-<!-- source: internal/component/web/component_config_recovery.templ -- recovery confirmation -->
 <p><strong>Asset caching:</strong> Static assets (<code>/assets/</code>) are served with <code>Cache-Control: no-cache, must-revalidate</code> so browsers always pick up changes after binary updates without requiring a hard refresh.</p>
-<!-- source: internal/component/web/render.go -- AssetHandler -->
 </div>
 </div>
             </section>
@@ -1117,7 +997,7 @@ other changes.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

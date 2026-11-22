@@ -36,7 +36,7 @@ The options are source\, max\-hops\, timeout and probes\, each one a keyword and
 
 ## Mapping intents
 
-### Ping and traceroute diagnostics
+### Traceroute path diagnostic
 
 Category: Diagnostics
 
@@ -51,11 +51,9 @@ No equivalent listed.
 No equivalent listed.
 
 ### SR OS
-- `ping <target>` (verified, nokia\-mdcli)
-  - Intent: Ping and traceroute diagnostics
+
+No equivalent listed.
 
 ### VyOS
-- `ping <target>` (verified, vyos\-cli)
-  - Intent: Ping and traceroute diagnostics
 - `traceroute <target>` (verified, vyos\-cli)
-  - Intent: Ping and traceroute diagnostics
+  - Intent: Traceroute path diagnostic

@@ -8,13 +8,13 @@
   "must": {
     "total": 4,
     "kept": 4,
-    "ze-proven": 0,
+    "ze-proven": 4,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 3,
+    "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 1,
+    "not-built": 0,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -30,8 +30,8 @@
     "not-built": 0,
     "not-owed-by-kind": {}
   },
-  "proven-by-kind": {},
-  "unmet": [
-    "RFC5701-4-1"
-  ]
+  "proven-by-kind": {
+    "unit": 4
+  },
+  "unmet": []
 }

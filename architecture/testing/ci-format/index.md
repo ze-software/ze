@@ -574,7 +574,7 @@ option=<type>:key=value[:key=value...]
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
 | `needs-arch` | `value=<goarch>[,<goarch>]` | Run only on a host whose CPU arch (`GOARCH`) is in the list. On any other host the test is SKIPPED, and the SKIP line names both arches: `SKIP ... -- needs-arch=arm64, host GOARCH=amd64: ...`. A test that builds or boots for a target arch carries it (owner decision 2026-10-13: a target arch is tested only on a CPU of that arch), because Ze builds every kernel on a host of its own arch, with no CPU emulation. Each token must be an arch the kernel builder supports (`kernelbuilder.SupportedArches`, today `amd64` and `arm64`): an empty token, a typo such as `amd46`, a kernel spelling such as `x86_64` or `aarch64`, a missing `value=` or any other key is a parse error on every host. A fixture whose arch is incidental to what it asserts asks for the host's arch instead (`hostKernelArch`, `internal/test/fixture/install_fixture.go`), so it runs everywhere. The `test/parse` suite has its own parser and does not take `needs-arch`. |
-| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le test qemu all`; the skip reason ends with the host command that runs that one test there, `./le test qemu ci test <path>`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, `sys-time` and `sys-admin`; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty `caps=` is refused on every host. |
+| `needs-linux` | `[caps=<tok>[,<tok>]][:lacks-caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le test qemu all`; the skip reason ends with the host command that runs that one test there, `./le test qemu ci test <path>`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `net-bind`, `bpf`, `sys-time` and `sys-admin`; an unavailable capability produces a visible skip. `lacks-caps=` takes the same tokens for capabilities the daemon must NOT hold, and skips when ze would hold one (see "Capabilities the daemon must not hold"). An unknown token, an unknown key, an empty `caps=` or `lacks-caps=`, or a token in both lists is refused on every host. |
 | `needs-build-tag` | `value=<feature-tag>:state=present\|absent` | Run when the selected DUT has the declared feature state. Repeat for a conjunction over distinct tags. Names come from this CI checkout's `feature-gates.txt`. A known mismatch reports SKIP; unreadable, missing, empty, duplicate or malformed Go build-tag metadata reports FAIL. |
 | `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an optional heavyweight artifact. The runner resolves the path against the repository root and prints the native `hint` when the artifact is absent. A malformed or escaping path is a parse error. |
 | `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le test qemu netns` path because the named link must never be created on the host. |
@@ -711,6 +711,7 @@ the context check, so an unfinished frame cannot prevent teardown.
 | The same, and loads eBPF | `option=needs-linux:caps=bpf` |
 | The same, and sets the system clock (the NTP plugin restoring persisted time) | `option=needs-linux:caps=sys-time` |
 | The same, and starts a container (namespaces, a root mount and a control group on the host) | `option=needs-linux:caps=sys-admin` |
+| Asserts what a daemon WITHOUT a capability meets (a listener on a privileged port refused for CAP_NET_BIND_SERVICE) | `option=needs-linux:lacks-caps=net-bind` |
 | Skips on one non-Linux OS for a reason unrelated to the kernel | `option=skip-os:value=darwin` |
 | Builds or boots for one target arch, which only a CPU of that arch can do | `option=needs-arch:value=arm64` |
 | Needs an optional heavyweight artifact the checkout does not carry | `option=needs-path:value=<repo-rel>:hint=<cmd>` |
@@ -761,6 +762,36 @@ wearing a skip's clothing.
 <!-- source: internal/test/runner/caps.go -- capsRequired, capsAccepted -->
 <!-- source: internal/test/runner/caps_linux.go -- probeCaps, the CapEff read -->
 <!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestCapabilityGatedTestsHaveANativeVMHome -->
+
+#### Capabilities the daemon must not hold
+
+`lacks-caps=` is the mirror of `caps=`. A test that proves what an
+unprivileged daemon meets, such as
+`test/plugin/bgp-listen-privileged-port-refused.ci` asserting the refusal of a
+BGP listener on 127.0.0.1:178, goes red for the host rather than for ze when ze
+holds the capability: ze binds the port and starts. The test declares
+`option=needs-linux:lacks-caps=net-bind`, and the runner skips it, naming the
+capability it found and the remedy, when the process that will run ze holds
+any listed token. It runs only when ze holds none.
+
+The credential judged is the one `caps=` judges. In the per-test netns mode ze
+runs as `ZE_TEST_UID` with exactly the systemd unit's grant
+(`netnsDaemonCapBits`), whatever the root runner holds, so a token is held when
+that grant carries it. Off netns mode the runner and ze share one credential,
+and the runner's `CapEff` decides. A token can be in `caps=` or `lacks-caps=`,
+never both.
+
+Such a test has no home in the QEMU guest: its runner is root, and its
+netns-mode daemon is granted `cap_net_bind_service`. `NeedsGuest` therefore
+answers false for it, and its skip reason names an unprivileged Linux host
+instead of `./le test qemu ci test <path>`. It runs where the gated suites run
+unprivileged: the developer machines and GitHub's runners.
+
+The option judges capabilities only. A sysctl that changes the same outcome,
+such as `net.ipv4.ip_unprivileged_port_start` at or below the test's port, has
+no option: the test's header states the default it assumes (1024).
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux, parseCapsTokens, applyLacksCapsGate, lacksCapsAdvice -->
+<!-- source: internal/test/runner/caps.go -- daemonHeldCaps, daemonHoldsToken, NeedsGuest -->
 
 ### OPEN Behaviors
 
@@ -2765,7 +2796,7 @@ Key changes:
 ## Editor Test Format (.et)
 
 Editor resource declarations use the shared `.ci` grammar for
-`option=needs-linux[:caps=<tokens>]` and `option=exclusive:group=<name>`.
+`option=needs-linux[:caps=<tokens>][:lacks-caps=<tokens>]` and `option=exclusive:group=<name>`.
 Discovery rejects unknown resource keys, duplicate keys, invalid capabilities,
 missing groups, and invalid or overflowing effective timeouts. A parse failure
 outranks a capability skip. The native editor runner retains the discovered

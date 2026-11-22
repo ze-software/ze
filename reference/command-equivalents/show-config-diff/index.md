@@ -29,7 +29,7 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-### Show running\, candidate\, and diffed configuration
+### Compare candidate and running configuration
 
 Category: Configuration
 
@@ -49,6 +49,4 @@ No equivalent listed.
 
 ### VyOS
 - `compare` (verified, vyos\-cli)
-  - Intent: Show running\, candidate\, and diffed configuration
-- `show configuration` (verified, vyos\-cli)
-  - Intent: Show running\, candidate\, and diffed configuration
+  - Intent: Compare candidate and running configuration

@@ -17,13 +17,13 @@ to Thomas Mangin under the
 which the [contribute page](../contribute/) explains.
 
 Third-party code and fonts that Ze includes keep their own copyright and
-licences. `ze thanks` lists the third-party works compiled into the `ze`
-binary you run, with the version, licence and copyright holder of each, and
-`ze thanks licence` prints their licence texts, which the binary carries. The
+licenses. `ze thanks` lists the third-party works compiled into the `ze`
+binary you run, with the version, license, and copyright holder of each, and
+`ze thanks licence` prints their license texts, which the binary carries. The
 [Dependencies page](../reference/dependencies/) lists the same works and the
 development tools Ze is built with.
 
-## Licence
+## License
 
 Ze is free software under the GNU Affero General Public License, version 3
 only.

@@ -6,7 +6,7 @@
             "columns": [
                 [
                     {"label_only": "Install"},
-                    {"href": "guides/ze-install/", "icon": "💿", "title": "Install Ze", "desc": "One command installs Ze: sudo ze install. Compare Linux, Docker, VM and lab", "feature": true},
+                    {"href": "guides/ze-install/", "icon": "💿", "title": "Install Ze", "desc": "Build from source and install with sudo ./ze install, or compare Linux, Docker, VM and lab", "feature": true},
                     {"href": "guides/quickstart/", "icon": "🚀", "title": "Quickstart", "desc": "Two local BGP peers and a received route"},
                     {"href": "guides/ubuntu-build-install/", "icon": "\ud83d\udc27", "title": "Build and install on Linux", "desc": "Build Ze, then install, upgrade or remove it with its own CLI"},
                     {"href": "guides/docker/", "icon": "📦", "title": "Docker", "desc": "Keep configuration and login across container recreation"},
@@ -35,7 +35,7 @@
                     {"label_only": "Evidence"},
                     {"href": "quality/", "icon": "✓", "title": "Code quality", "desc": "Tests, QEMU, fuzzing, and mutation checks", "feature": true},
                     {"href": "quality/health/", "icon": "📈", "title": "Testing health", "desc": "Test coverage, known weaknesses, and results over time"},
-                    {"href": "quality/rfc-compliance/", "icon": "🤖", "title": "RFC compliance", "desc": "Standards requirements, test evidence, and missing coverage"},
+                    {"href": "quality/rfc-compliance/", "icon": "📋", "title": "RFC compliance", "desc": "Standards requirements, test evidence, and missing coverage"},
                     {"href": "quality/rfc-map/", "icon": "🗺️", "title": "RFC dependency map", "desc": "Explore standards, release layers, and the work behind them"},
                     {"href": "reference/dependencies/", "icon": "📦", "title": "Dependencies", "desc": "{{ze:dependencies}} direct packages, generated from go.mod"},
                     {"href": "security/", "icon": "🔒", "title": "Security", "desc": "Security policy and vulnerability reporting"}
@@ -47,7 +47,7 @@
             "columns": [
                 [
                     {"label_only": "Operate"},
-                    {"href": "docs/", "icon": "📚", "title": "Documentation", "desc": "All docs, organised by what you want to do", "feature": true},
+                    {"href": "docs/", "icon": "📚", "title": "Documentation", "desc": "All docs, organized by what you want to do", "feature": true},
                     {"href": "guides/production-diagnostics/", "icon": "🩺", "title": "Production diagnostics", "desc": "Start from symptoms and debug safely"},
                     {"href": "guides/monitoring/", "icon": "📈", "title": "Monitoring", "desc": "Metrics, health, and operational visibility"},
                     {"href": "guides/lifecycle/", "icon": "🔄", "title": "Lifecycle and rollback", "desc": "Start, reload, update, recover, and verify"},
@@ -71,7 +71,7 @@
                     {"href": "use-cases/", "icon": "🧰", "title": "Use cases", "desc": "Complete examples for real network roles", "feature": true},
                     {"href": "use-cases/route-server/", "icon": "🔀", "title": "IXP route server", "desc": "Member policy, RPKI validation, and replay"},
                     {"href": "use-cases/transit-edge-rpki/", "icon": "🔏", "title": "Transit edge with RPKI", "desc": "Dual-transit policy and tested failover"},
-                    {"href": "use-cases/flowspec-injection/", "icon": "🛡️", "title": "FlowSpec injection", "desc": "Authorised, atomic, reversible mitigation routes"},
+                    {"href": "use-cases/flowspec-injection/", "icon": "🛡️", "title": "FlowSpec injection", "desc": "Authorized, atomic, reversible mitigation routes"},
                     {"href": "use-cases/exabgp-migration/", "icon": "🔀", "title": "ExaBGP migration", "desc": "Migrate process scripts to Ze"},
                     {"href": "quality/rfc-compliance/profiles/", "icon": "📈", "title": "Completion by use case", "desc": "RFC requirements proven for each use case"}
                 ],
@@ -95,7 +95,7 @@
                     {"href": "reference/", "icon": "📚", "title": "Reference index", "desc": "Commands, configuration, plugins, standards, and feature status", "feature": true},
                     {"href": "reference/cli/", "icon": "⌨️", "title": "CLI reference", "desc": "{{ze:cli_commands}} commands, generated from Ze's live binary"},
                     {"href": "reference/configuration/", "icon": "🧬", "title": "Configuration reference", "desc": "{{ze:config_sections}} sections, generated from Ze's YANG schemas"},
-                    {"href": "reference/plugins/", "icon": "🔌", "title": "Plugin catalogue", "desc": "Find runtime plugins by purpose, config, or dependency"}
+                    {"href": "reference/plugins/", "icon": "🔌", "title": "Plugin catalog", "desc": "Find runtime plugins by purpose, config, or dependency"}
                 ],
                 [
                     {"label_only": "Standards and lookup"},
@@ -113,15 +113,15 @@
                     {"label_only": "Progress and history"},
                     {"href": "project/", "icon": "🧭", "title": "Project overview", "desc": "Progress, history, talks, and contribution paths", "feature": true},
                     {"href": "project/activity/", "icon": "📈", "title": "Activity", "desc": "A year of commits, at a glance"},
-                    {"href": "project/milestones/", "icon": "🏁", "title": "Milestone", "desc": "Landmark features, newest to oldest"},
+                    {"href": "project/milestones/", "icon": "🏁", "title": "Milestones", "desc": "Landmark features, newest to oldest"},
                     {"href": "project/changes/", "icon": "🧾", "title": "Changes", "desc": "{{ze:changes}} update reports, what shipped"},
-                    {"href": "project/history/", "icon": "🕰️", "title": "Project History", "desc": "How ExaBGP's programmable model grew into Ze"},
+                    {"href": "project/history/", "icon": "🕰️", "title": "Project history", "desc": "How ExaBGP's programmable model grew into Ze"},
                     {"href": "project/roadmap/", "icon": "\ud83d\uddfa\ufe0f", "title": "Roadmap", "desc": "Planned changes and remaining release work, awaiting prioritization"}
                 ],
                 [
                     {"label_only": "Community and notes"},
                     {"href": "faq/", "icon": "?", "title": "FAQ", "desc": "Common questions before trying Ze", "feature": true},
-                    {"href": "blog/", "icon": "✍", "title": "Blog", "desc": "Project notes and release stories"},
+                    {"href": "blog/", "icon": "✍", "title": "Blog", "desc": "Engineering essays on architecture, testing, and AI-assisted development"},
                     {"href": "talks/", "icon": "🎤", "title": "Talks", "desc": "Talk slides and conference material"},
                     {"href": "contribute/", "icon": "🤝", "title": "Contribute", "desc": "How to send code, reports, and interop results"},
                     {"href": "contribute/testing/", "icon": "✅", "title": "Contributor testing", "desc": "How to choose and run the right test layer"}

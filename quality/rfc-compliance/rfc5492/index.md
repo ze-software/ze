@@ -15,6 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Tests shown to detect a fault | 19 | 19 of 26 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Audit verdicts | 9 | of 9 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Negative
 
@@ -61,7 +62,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
@@ -79,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Nightly-only evidence | 0 |
 | Test tags | 26 |
 | Tests linked to requirements | 26 |
-| Recorded audit verdicts | 8 |
+| Recorded audit verdicts | 9 |
 | Fault test records | 19 |
 | Summary | `rfc/short/rfc5492.md` |
 | Requirement table | `rfc/requirements/rfc5492.md` |
@@ -262,7 +263,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sess
 
 Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability. (§4)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: not-applicable (the requirement has no reachable code path in Ze), fresh. Independent audit (2026-11-22) against rfc/full/rfc5492.txt Section 4, rfc/short/rfc5492.md, and rfc/extraction/rfc5492.json (site 4:2). The row's verbatim text, [MUST] level, Ze roles ('BGP speaker'), and {not-applicable} annotation accurately reflect a document-author obligation. Speaker runtime obligations for multiple capability instances and parameters remain covered by RFC5492-4-1 and RFC5492-4-2, and per-capability semantics belong to each capability's own RFC. No tests tag RFC5492-4-3.
 
 No test carries RFC5492-4-3, so there is no linked test.
 

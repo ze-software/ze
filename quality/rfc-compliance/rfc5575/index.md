@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 18 | 18 of 31 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 25 | 25 of 31 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -80,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 31 |
 | Tests linked to requirements | 31 |
 | Recorded audit verdicts | 8 |
-| Fault test records | 18 |
+| Fault test records | 25 |
 | Summary | `rfc/short/rfc5575.md` |
 | Requirement table | `rfc/requirements/rfc5575.md` |
 | RFC text | `rfc/full/rfc5575.txt` |
@@ -93,9 +93,9 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 
 **Area:** BGP Flowspec (obsoleted by RFC 8955)
 
-**Test verification:** 4 of 9 MUST proven
+**Test verification:** 8 of 9 MUST proven
 
-**Evidence:** unit 4
+**Evidence:** unit 8
 
 **Unmet:** RFC5575-6-1
 
@@ -121,8 +121,8 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 
 ## Figures
 
-- **MUST bar**: Ze verified 4, Tests awaiting verification 4, Not built 1
-- **Overview bar**: Ze MUST verified 4, Tests awaiting verification 4, Not assessed 4, Not built 1
+- **MUST bar**: Ze verified 8, Not built 1
+- **Overview bar**: Ze MUST verified 8, Not assessed 4, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -131,9 +131,9 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 | Mandatory requirements complete | not complete |
 | MUST rows | 9 |
 | MUST rows kept (the MUST bar) | 9 |
-| Ze verified | 4 |
+| Ze verified | 8 |
 | OS verified | 0 |
-| Tests awaiting verification | 4 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -228,8 +228,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseFlowSpecRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1307) | unit/verify | not verified |
-| positive | [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1227) | unit/verify | not verified |
+| negative | [`TestParseFlowSpecRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1307) | unit/verify | revert, verified |
+| positive | [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1227) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecJoinsRepeatedTypeIntoOneComponent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1270) | unit/verify | not verified |
 
 ### [`RFC5575-4-4`](#rfc5575-4-4)
@@ -240,8 +240,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseFlowSpecRefusesDescendingComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1335) | unit/verify | not verified |
-| positive | [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1228) | unit/verify | not verified |
+| negative | [`TestParseFlowSpecRefusesDescendingComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1335) | unit/verify | revert, verified |
+| positive | [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1228) | unit/verify | revert, verified |
 
 ### [`RFC5575-6-1`](#rfc5575-6-1)
 
@@ -283,7 +283,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestFlowSpecTrafficMarkingReservedBytesZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1508) | unit/verify | not verified |
+| positive | [`TestFlowSpecTrafficMarkingReservedBytesZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1508) | unit/verify | revert, verified |
 
 ### [`RFC5575-4-8`](#rfc5575-4-8)
 
@@ -325,8 +325,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L37) | unit/verify | not verified |
-| positive | [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L36) | unit/verify | not verified |
+| negative | [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L37) | unit/verify | revert, verified |
+| positive | [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L36) | unit/verify | revert, verified |
 
 ## Requirement list review
 

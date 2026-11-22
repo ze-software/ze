@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0 | of 5 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 5 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 5 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 4 | 4 of 8 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 6 | 6 of 8 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -80,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 8 |
 | Tests linked to requirements | 8 |
 | Recorded audit verdicts | 2 |
-| Fault test records | 4 |
+| Fault test records | 6 |
 | Summary | `rfc/short/rfc7611.md` |
 | Requirement table | `rfc/requirements/rfc7611.md` |
 | RFC text | `rfc/full/rfc7611.txt` |
@@ -93,9 +93,9 @@ Included in automatic checks: Ze recognizes ACCEPT_OWN and implements the Sectio
 
 **Area:** ACCEPT_OWN community
 
-**Test verification:** 2 of 5 MUST proven
+**Test verification:** 3 of 5 MUST proven
 
-**Evidence:** unit 2
+**Evidence:** unit 3
 
 **Unmet:** RFC7611-2.3-1, RFC7611-3-1
 
@@ -119,8 +119,8 @@ Included in automatic checks: Ze recognizes ACCEPT_OWN and implements the Sectio
 
 ## Figures
 
-- **MUST bar**: Ze verified 2, Tests awaiting verification 1, Not built 2
-- **Overview bar**: Ze MUST verified 2, Tests awaiting verification 1, Not assessed 3, Not built 2
+- **MUST bar**: Ze verified 3, Not built 2
+- **Overview bar**: Ze MUST verified 3, Not assessed 3, Not built 2
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: Ze recognizes ACCEPT_OWN and implements the Sectio
 | Mandatory requirements complete | not complete |
 | MUST rows | 5 |
 | MUST rows kept (the MUST bar) | 5 |
-| Ze verified | 2 |
+| Ze verified | 3 |
 | OS verified | 0 |
-| Tests awaiting verification | 1 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -221,8 +221,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestACCEPTOwnDoesNotEnableAcceptanceImplicitly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L58) | unit/verify | not verified |
-| positive | [`TestACCEPTOwnDoesNotEnableAcceptanceImplicitly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L57) | unit/verify | not verified |
+| negative | [`TestACCEPTOwnDoesNotEnableAcceptanceImplicitly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L58) | unit/verify | revert, verified |
+| positive | [`TestACCEPTOwnDoesNotEnableAcceptanceImplicitly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L57) | unit/verify | revert, verified |
 
 ### [`RFC7611-3-1`](#rfc7611-3-1)
 

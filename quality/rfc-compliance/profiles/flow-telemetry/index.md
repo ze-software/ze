@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/flow-telemetry.json](
 
 ## Figures
 
-- **MUST bar**: Ze verified 17, Tests awaiting verification 6, Not built 43
-- **Overview bar**: Ze MUST verified 17, Not owed 4, Tests awaiting verification 6, Not assessed 19, Not built 43
+- **MUST bar**: Ze verified 22, Tests awaiting verification 1, Not built 43
+- **Overview bar**: Ze MUST verified 22, Not owed 4, Tests awaiting verification 1, Not assessed 19, Not built 43
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/flow-telemetry.json](
 | Mandatory requirements complete | not complete |
 | MUST rows | 70 |
 | MUST rows kept (the MUST bar) | 66 |
-| Ze verified | 17 |
+| Ze verified | 22 |
 | OS verified | 0 |
-| Tests awaiting verification | 6 |
+| Tests awaiting verification | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -58,5 +58,5 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7011](../../rfc7011/) (cycle with rfc7012) | Specification of the IP Flow Information Export (IPFIX) Protocol for the Exchange of Flow Information | Ze verified 12, Tests awaiting verification 6, Not built 32 | Ze MUST verified 12, Tests awaiting verification 6, Not assessed 7, Not built 32 |
+| [RFC 7011](../../rfc7011/) (cycle with rfc7012) | Specification of the IP Flow Information Export (IPFIX) Protocol for the Exchange of Flow Information | Ze verified 17, Tests awaiting verification 1, Not built 32 | Ze MUST verified 17, Tests awaiting verification 1, Not assessed 7, Not built 32 |
 | [RFC 7012](../../rfc7012/) (cycle with rfc7011) | Information Model for IP Flow Information Export (IPFIX) | Ze verified 1, Not built 5 | Ze MUST verified 1, Not built 5 |

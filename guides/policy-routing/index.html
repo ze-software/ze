@@ -77,8 +77,6 @@ That block is shared: route filters (<code>prefix-list</code>, <code>modify</cod
 filter types) are defined beside it, and the two never mix. A filter chain
 cannot name a <code>policy route</code> entry, and a <code>policy route</code> entry is not a filter.
 See <a href="../bgp-policy/">BGP Policy</a> for the filters.</p>
-<!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang -- augment /policy:policy -->
-<!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
 <p>An address or port match can name a set with <code>@name</code> instead of a prefix or a
 port list. The set is declared in a <code>firewall</code> table, as any firewall set is
 (see <a href="../firewall/">Firewall Guide</a> for set syntax). <code>source-address</code> and
@@ -89,9 +87,6 @@ into the policy-routing table <code>ze_pr</code>, and <code>show firewall rulese
 that copy. A commit that changes the <code>firewall</code> or the <code>policy route</code> section
 takes the copy again from the firewall section, so a commit that changes a
 referenced set's elements updates the copy too.</p>
-<!-- source: internal/plugins/policyroute/sets.go -- parsePolicySections, resolveSetReferences, checkSetType -->
-<!-- source: internal/plugins/policyroute/translate.go -- referencedSets -->
-<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerMatchInSet -->
 <p>A commit whose policies come out the same as the installed ones re-applies
 nothing: a commit that changes only a firewall set no policy route names, or
 leaves a referenced set as it was, leaves <code>ze_pr</code>, the ip rules and the routes
@@ -99,7 +94,6 @@ alone. When the policies did change, Ze installs the new ip rules before it
 removes the old ones, and leaves a rule both hold in place, so traffic a rule
 steers before and after the commit stays steered throughout. If the install
 fails, the previous table and rules are put back.</p>
-<!-- source: internal/plugins/policyroute/rules_diff.go -- policiesUnchanged, replaceRules -->
 <p>The commit is refused, naming the set, when no firewall table declares the
 name, when two firewall tables each declare it (rename all but one), or when
 the set holds elements the leaf cannot read (an address leaf naming an
@@ -233,8 +227,6 @@ backend puts the counter after the rule's matches, so each row counts
 the packets that arrived on the interface the row names. An interface
 that carries nothing reads zero while its siblings climb.</p>
 <p>A policy that names no interface matches every ingress interface.</p>
-<!-- source: internal/plugins/policyroute/translate.go -- ruleTerms, termName -->
-<!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules, mergeRuleCounters -->
 <p>The <code>order</code> leaf still decides which rule runs first. The nftables rules
 of one policy rule stay together, in the order the interfaces are
 listed.</p>
@@ -329,8 +321,6 @@ the option, so match <code>tcp-flags syn</code>. RFC 6691 Section 2 sets N as th
 minus the fixed IP and TCP headers: 40 bytes for IPv4 and 60 for IPv6, so a
 1492-byte PPPoE link takes 1452 for IPv4 and 1432 for IPv6, and the example
 above, 1436, fits a 1476-byte GRE tunnel.</p>
-<!-- source: internal/plugins/policyroute/translate.go -- buildActions -->
-<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerSetTCPMSS -->
 <h3 id="table-action">table action</h3>
 <p><code>then { table 100; }</code> internally allocates an fwmark from the reserved
 range 0x50000-0x5FFFF, adds a SetMark action to the nftables rule, and
@@ -394,8 +384,6 @@ rule third  { order 30; ... }
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang — leaf table range "1..999|3000..max" -->
-<!-- source: internal/plugins/policyroute/marks.go — autoTableBase/autoTableMax 2000-2999 -->
 <p>User-specified table IDs in the 1000-2999 range are rejected at config
 validation time, as are 0 and the kernel tables 253-255.</p>
 <p>The upper bound is the kernel's own: table IDs run to 4294967295. A 32-bit
@@ -403,8 +391,6 @@ build cannot program an ID above 2147483647 (the netlink bindings carry a
 table ID in a machine int), and rejects it at config validation rather than
 installing a rule that would silently select no table. Ze's released targets
 are 64-bit, where the whole range is available.</p>
-<!-- source: internal/plugins/policyroute/config.go — validateActionTable, maxEncodableTable -->
-<!-- source: internal/core/routingtable/registry.go — validateTableID, maxEncodableTableID -->
 <h2 id="cli">CLI</h2>
 <pre><code>ze&gt; show policy routes
 </code></pre>
@@ -421,8 +407,6 @@ reconciliation used by the firewall component.</p>
 <code>policy route</code> entry: its config root is the list path <code>policy/route</code>, not the
 whole <code>policy</code> block. A <code>policy {}</code> block holding only filters therefore loads
 neither policy routing nor the firewall.</p>
-<!-- source: internal/plugins/policyroute/register.go -- configRoot -->
-<!-- source: internal/component/config/tree.go -- collectPaths -->
 <p>The policy-routes plugin depends on the firewall plugin. Both must be
 available for policy routing to function. The firewall backend (nft) is
 loaded by the firewall plugin; policy routing registers its tables with
@@ -477,7 +461,7 @@ the shared firewall table registry.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

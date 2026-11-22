@@ -216,15 +216,29 @@ complete declaration set, never a temporary gap between owners.
 <!-- source: internal/component/bgp/reactor/peer_settings_negotiation.go -- pluginDeclarationsKept -->
 <!-- source: internal/plugins/exabgp/bridgeplugin/config_tx.go -- verifyReload, changedBridgeLeaves -->
 
-`systemctl restart ze` and `ze signal stop` end each session with a normal
-teardown, so peers withdraw ze's routes until it is back. The appliance routes
-(`request reboot`, `ze signal reboot`) write the Graceful Restart marker and
-stop without a NOTIFICATION, so peers that negotiated Graceful Restart keep
-ze's routes for the restart time. Under systemd, the restart that keeps the
-marker is `ze signal restart`, a wait until the process has exited, then
-`systemctl start ze`: `ze signal restart` alone leaves ze stopped, because it
-exits cleanly and the unit restarts only on failure.
-<!-- source: pkg/plugin/sdk/restart_text.go -- RestartSteps -->
+The restart steps a refusal ends with give the route for the ze that refused.
+They name `sudo systemctl restart ze` only when Ze establishes, from its own
+cgroup, that it runs under the `ze.service` unit the installer writes. A ze
+started another way is told to run `ze signal stop`, then start ze again the
+way it was started, because no single command restarts it. A ze that cannot
+read its cgroup says so, then gives those same steps. A plugin's refusal
+answers for the daemon: a plugin the daemon forks inherits the daemon's
+cgroup, and an internal plugin is the daemon. The appliance route (`request
+reboot` in the ze CLI, `ze signal reboot` from a shell) is always a line of
+its own, because a plugin cannot tell an appliance: the setting that marks
+one is not linked into every plugin.
+
+`sudo systemctl restart ze` and `ze signal stop` end each session with a
+normal teardown, so peers withdraw ze's routes until it is back. The appliance
+routes write the Graceful Restart marker and stop without a NOTIFICATION, so
+peers that negotiated Graceful Restart keep ze's routes for the restart time.
+Under `ze.service`, the restart that keeps the marker is `ze signal restart`:
+ze exits with status 75, which the unit restarts. A ze no unit started stays
+stopped after `ze signal restart`, so it is not one of the routes.
+<!-- source: pkg/plugin/sdk/restart_text.go -- RestartSteps, applianceRestartRoute -->
+<!-- source: internal/core/privilege/membership.go -- DaemonServiceMembership, RestartRemedy -->
+<!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
+<!-- source: pkg/plugin/rpc/drain.go -- DaemonRestartExitStatus -->
 
 ## Binding Plugins to Peers
 
@@ -1443,8 +1457,8 @@ module before it asks the plugin.
 
 See [plugin-development/protocol.md](../../developers/plugins/protocol/index.md) for the
 protocol, [plugin-development/commands.md](../../developers/plugins/commands/index.md)
-for defining a command in YANG, and [`examples/plugin/go`](https://github.com/ze-software/ze/tree/main/docs/../examples/plugin/go)
-(Go SDK) or [`examples/plugin/python`](https://github.com/ze-software/ze/tree/main/docs/../examples/plugin/python) (no SDK)
+for defining a command in YANG, and [`examples/plugin/go`](https://github.com/ze-software/ze/tree/main/examples/plugin/go)
+(Go SDK) or [`examples/plugin/python`](https://github.com/ze-software/ze/tree/main/examples/plugin/python) (no SDK)
 for a complete plugin.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, Run -->
 <!-- source: examples/plugin/go/main.go -- declaration, main -->

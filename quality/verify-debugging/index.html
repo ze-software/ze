@@ -58,11 +58,6 @@
 <li><a href="#skipped-and-intermittent-tests">Skipped and intermittent tests</a></li>
 <li><a href="#debugging-order">Debugging order</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: ../main/internal/le/verify/engine/run.go -- verify entry point -->
-<!-- source: ../main/internal/le/verify/lock/register.go -- verify lock -->
-<!-- source: ../main/internal/test/runner/failure_group.go -- failure grouping -->
-<!-- source: ../main/internal/test/trace/trace.go -- per-step trace output -->
-<!-- source: ../main/docs/guide/debugging-tools.md -- debugging tools -->
 <p><code>./le verify current</code> is a release check, also run by GitHub CI on pushed commits. It runs checks in stages, prevents overlapping verification runs, and reports commands for reproducing failures. During development, a change is checked with the tests for the affected packages and behavior; a full verification run is scheduled by the maintainer.</p>
 <pre><code class="language-bash">./le verify current fast
 ./le verify current
@@ -144,7 +139,7 @@ VERIFY STEP: {"file":"test/web/foo.wb","step":13,"kind":"expect","status":"fail"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

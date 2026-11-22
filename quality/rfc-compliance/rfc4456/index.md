@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 4 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 4 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 4 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 2 | 2 of 22 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 8 | 8 of 22 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 22 |
 | Tests linked to requirements | 22 |
 | Recorded audit verdicts | 7 |
-| Fault test records | 2 |
+| Fault test records | 8 |
 | Summary | `rfc/short/rfc4456.md` |
 | Requirement table | `rfc/requirements/rfc4456.md` |
 | RFC text | `rfc/full/rfc4456.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: BGP Route Reflection: four MUST-level requirements
 
 **Area:** Route Reflection
 
-**Test verification:** 1 of 4 MUST proven
+**Test verification:** 4 of 4 MUST proven
 
-**Evidence:** unit 1
+**Evidence:** interop 2, unit 2
 
 **Unmet:** -
 
@@ -110,19 +110,19 @@ Included in automatic checks: BGP Route Reflection: four MUST-level requirements
 
 ## Figures
 
-- **MUST bar**: Ze verified 1, Tests awaiting verification 3
-- **Overview bar**: Ze MUST verified 1, Tests awaiting verification 6, Not assessed 2
+- **MUST bar**: Ze verified 4
+- **Overview bar**: Ze MUST verified 4, Tests awaiting verification 3, Not assessed 2
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 4 |
 | MUST rows kept (the MUST bar) | 4 |
-| Ze verified | 1 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -188,10 +188,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L202) | unit/verify | not verified |
+| negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L202) | unit/verify | revert, verified |
 | negative | [`TestForwardReflectionLeavesAWithdrawalUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L436) | unit/verify | not verified |
 | negative | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L284) | interop/nightly | not verified |
-| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L171) | unit/verify | not verified |
+| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L171) | unit/verify | revert, verified |
 | positive | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L283) | interop/nightly | not verified |
 
 ### [`RFC4456-8-2`](#rfc4456-8-2)
@@ -202,9 +202,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L206) | unit/verify | not verified |
+| negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L206) | unit/verify | revert, verified |
 | negative | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L286) | interop/nightly | not verified |
-| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L173) | unit/verify | not verified |
+| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L173) | unit/verify | revert, verified |
 | positive | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L285) | interop/nightly | not verified |
 
 ### [`RFC4456-8-3`](#rfc4456-8-3)
@@ -239,8 +239,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. asse
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L235) | unit/verify | not verified |
-| positive | [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L233) | unit/verify | not verified |
+| negative | [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L235) | unit/verify | revert, verified |
+| positive | [`TestReactorForwardRRNonClientRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L233) | unit/verify | revert, verified |
 
 ### [`RFC4456-9-1`](#rfc4456-9-1)
 

@@ -89,9 +89,6 @@ validation. Two scenarios turn on a knob of a test-only freeRouter patch
 establish complete RFC conformance. Use for evaluation, not production
 forwarding.</p>
 </blockquote>
-<!-- source: internal/plugins/rsvpte/producer_integration_linux_test.go -- TestRSVPNativeProducer -->
-<!-- source: internal/le/interoplab/rsvpte/checkers.go -- the interop-rsvpte scenarios and what each peer observes -->
-<!-- source: test/interop-rsvpte/freertr/ze-interop-resv.patch -- the test-only freeRouter RESV knobs -->
 <h2 id="configuration">Configuration</h2>
 <pre><code>rsvp-te {
     router-id          10.0.0.1
@@ -130,10 +127,7 @@ forwarding.</p>
 </code></pre>
 <ul>
 <li><code>router-id</code> identifies this LSR and sets the SESSION extended-tunnel-id.
-RESV replies use an IPv4 address assigned to the outgoing interface.
-<!-- source: internal/plugins/rsvpte/register.go -- tunnelKey -->
-<!-- source: internal/plugins/rsvpte/transport_linux.go -- rawTransport.Send, rawTransport.outgoingSource -->
-</li>
+RESV replies use an IPv4 address assigned to the outgoing interface.</li>
 <li><code>refresh-period</code> -- how often ze re-sends PATH and RESV, 1 to 65535 seconds,
 default 30. Ze advertises this value in TIME_VALUES, and a neighbor derives the
 lifetime of the state ze created from it (RFC 2205 Section 3.7).</li>
@@ -161,9 +155,7 @@ backup. Presence of the container is what enables protection.</li>
 <li><code>bypass</code> -- a facility-backup bypass LSP from this node (a Point of Local
 Repair) to a <code>merge-point</code> along an <code>explicit-route</code> that avoids the protected
 resource. Configure the bypass path explicitly. <code>node-protection true</code> marks
-a bypass that merges at a next-next hop (for node protection).
-<!-- source: internal/plugins/rsvpte/register.go -- setupBypass -->
-</li>
+a bypass that merges at a next-next hop (for node protection).</li>
 </ul>
 <h3 id="what-a-commit-changes">What a commit changes</h3>
 <p>A <code>commit</code> applies the rsvp-te block to the running daemon. <code>refresh-period</code> and
@@ -183,7 +175,6 @@ the established LSP continues forwarding until the latest replacement is up.</p>
 <p><code>router-id</code> is the one leaf a commit does not change. The engine keeps the
 running value and logs a warning, because the LSP keys and the message encoders
 are built from it. Restart ze to change it.</p>
-<!-- source: internal/plugins/rsvpte/register.go -- reconcileInterfaces, refreshTick, the OnConfigApply hook -->
 <h2 id="how-signaling-works">How signaling works</h2>
 <ol>
 <li><strong>Ingress</strong> sends a PATH along the ERO toward the egress.</li>
@@ -196,11 +187,8 @@ upstream.</li>
 </ol>
 <p>Admission control reserves the requested bandwidth per interface. If a RESV
 exceeds the available bandwidth, Ze sends a <code>ResvErr</code> (admission-control failure).</p>
-<!-- source: internal/plugins/rsvpte/reservation.go -- acceptReservation -->
-<!-- source: internal/plugins/rsvpte/reservation_build.go -- rejectReservation, sendResvError -->
 <p>Make-before-break reroute signals a replacement LSP (new LSP-ID, SHARED-EXPLICIT
 style) and tears the old one down only once the new one is up.</p>
-<!-- source: internal/plugins/rsvpte/reservation.go -- acceptReservation -->
 <h2 id="fast-reroute-rfc-4090">Fast Reroute (RFC 4090)</h2>
 <p>Fast Reroute pre-signals a backup so an LSP survives a link or node failure with
 local repair instead of waiting for the head-end to re-signal from scratch. ze
@@ -250,11 +238,6 @@ is available / in use.</li>
 <code>ze_rsvpte_resv_recv_total</code>, <code>ze_rsvpte_patherr_recv_total</code>,
 <code>ze_rsvpte_admission_denied_total</code>, <code>ze_rsvpte_local_repairs_total</code>,
 <code>ze_rsvpte_protected_lsps</code>, <code>ze_rsvpte_bypass_lsps</code>.</p>
-<!-- source: internal/plugins/rsvpte/engine.go -- signaling engine -->
-<!-- source: internal/plugins/rsvpte/admission.go -- bandwidth admission -->
-<!-- source: internal/plugins/rsvpte/reroute.go -- make-before-break -->
-<!-- source: internal/plugins/rsvpte/frr.go -- RFC 4090 fast reroute -->
-<!-- source: internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang -- config schema -->
 <h2 id="native-linux-carrier">Native Linux carrier</h2>
 <p><code>TestRSVPNativeProducer</code> runs three Ze daemons in private network namespaces.
 It checks installed forwarding state when an LSP reports Up, then sends UDP
@@ -356,8 +339,6 @@ not enable protection or alter either implementation to bypass them.</p>
 <p>The selected direction uses freeRouter's own <code>clntMplsTeP2p</code> and
 <code>ipFwdTab.refreshTrfngDel</code> to originate PATH and PathTear. Ze's existing egress
 path handles these messages and programs the kernel label through <code>fib-kernel</code>.</p>
-<!-- source: internal/plugins/rsvpte/freertr_interop_integration_linux_test.go -- TestRSVPFreeRouterInterop -->
-<!-- source: test/interop-rsvpte/Dockerfile.freertr -- pinned Java and static TAP artifacts -->
 </div>
 </div>
             </section>
@@ -407,7 +388,7 @@ path handles these messages and programs the kernel label through <code>fib-kern
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

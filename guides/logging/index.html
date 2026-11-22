@@ -69,7 +69,6 @@
 <li><a href="#subsystems">Subsystems</a></li>
 <li><a href="#inspecting-current-configuration">Inspecting Current Configuration</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/core/slogutil/slogutil.go -- Logger, PluginLogger, level definitions -->
 <h2 id="log-levels">Log Levels</h2>
 <table>
 <thead>
@@ -113,7 +112,6 @@
     }
 }
 </code></pre>
-<!-- source: internal/component/hub/yang/ze-hub-conf.yang -- environment log config block -->
 <h3 id="environment-variables">Environment Variables</h3>
 <p>Environment variables take precedence over the config file:</p>
 <pre><code class="language-bash"># Set base level
@@ -142,7 +140,6 @@ level again. <code>show log levels</code> reports it as <code>disabled</code>, a
 started disabled through <code>ze.log.&lt;subsystem&gt;=disabled</code> is listed the same way,
 so the runtime command can enable it. A level set at runtime is lost on
 restart.</p>
-<!-- source: internal/plugins/log/cmd/handlers.go -- log show/set RPCs; internal/core/slogutil/slogutil.go -- SetLevel, disabledLevel -->
 <h2 id="priority-order">Priority Order</h2>
 <p>Most specific wins, environment beats config:</p>
 <ol>
@@ -193,7 +190,6 @@ restart.</p>
 <p>Each syslog record carries the severity of its level: <code>debug</code> is sent as
 debug, <code>info</code> as info, <code>warn</code> as warning and <code>err</code> as err. A collector can
 select records by facility and severity.</p>
-<!-- source: internal/core/slogutil/syslog.go -- severityHandler -->
 <p>Every subsystem goes out on the <code>daemon</code> facility unless the <code>syslog</code>
 container names another one. The <code>facility</code> leaf changes the facility for all
 subsystems. Any other name in the container is a subsystem, and its value is
@@ -203,7 +199,6 @@ matching name first, as it does for levels, so <code>bgp</code> covers <code>bgp
 subsystem called <code>facility</code> cannot be mapped here. Facility names are <code>kern</code>, <code>user</code>, <code>mail</code>,
 <code>daemon</code>, <code>auth</code>, <code>syslog</code>, <code>lpr</code>, <code>news</code>, <code>uucp</code>, <code>cron</code>, <code>authpriv</code>, <code>ftp</code>
 and <code>local0</code> to <code>local7</code>.</p>
-<!-- source: internal/core/slogutil/syslog.go -- syslogFacilities, facilityFor -->
 <p>The level of a facility is the level of the subsystems it carries. To send
 everything at <code>info</code> on <code>daemon</code>, and the BGP subsystems at <code>debug</code> on
 <code>local7</code>:</p>
@@ -234,31 +229,25 @@ everything at <code>info</code> on <code>daemon</code>, and the BGP subsystems a
 <code>ze.log.syslog.&lt;subsystem&gt;</code> overrides a subsystem name (<code>ZE_LOG_SYSLOG_BGP=local7</code>).
 A word that names no facility is refused with a warning on stderr, and the
 subsystem keeps the facility of the next shorter name.</p>
-<!-- source: internal/core/slogutil/slogutil.go -- syslogConfigEntries -->
 <h2 id="plugin-stderr-relay">Plugin Stderr Relay</h2>
 <p>External plugins (forked processes) write to stderr. Ze captures this output and relays it through the logging system tagged with subsystem <code>plugin.relay</code>.</p>
 <pre><code class="language-bash">export ZE_LOG_PLUGIN_RELAY=debug      # see all plugin stderr
 export ZE_LOG_PLUGIN_RELAY=disabled   # silence plugin output
 </code></pre>
 <p>Default relay level: <code>warn</code>.</p>
-<!-- source: internal/component/plugin/process/process.go -- stderrLogger -->
 <p>The relay keeps the LAST line a plugin wrote. Ze attaches a parent-owned pipe to
 the child and drains it after reaping the process, with a bounded grace period,
 so a verdict written immediately before the plugin exits still reaches the log. A
 grandchild holding the descriptor open cannot hold the drain open forever.</p>
-<!-- source: internal/component/plugin/process/process.go -- monitorCmd, parent-owned stderr pipe -->
 <p>A quoted value in a relayed line arrives decoded. The parser reads the escapes
 the structured logger wrote, so a backslash no longer doubles at every relay hop.
 A value that ends in a backslash no longer runs the scan past its own closing
 quote and into the attributes after it.</p>
-<!-- source: internal/core/slogutil/parse.go -- unquoteValue, findClosingQuote -->
 <p>A fatal diagnostic from a dying process goes to the real stderr rather than to
 the crash-capture pipe. Crash capture redirects <code>os.Stderr</code> into a pipe whose
 reader goroutine dies with the process, so a fatal message written there existed,
 was written, and reached no one. The last thing a dying process says now reaches
 the terminal.</p>
-<!-- source: internal/core/env/env.go -- fatalOut, SetFatalOutput -->
-<!-- source: internal/core/crashlog/crashlog.go -- SetFatalOutput called with the pre-redirect descriptor -->
 <h2 id="naming-convention">Naming Convention</h2>
 <p>Subsystem names follow <code>&lt;domain&gt;.&lt;component&gt;[.&lt;concern&gt;]</code>:</p>
 <table>
@@ -296,7 +285,6 @@ the terminal.</p>
 </tbody>
 </table>
 <p>Setting a parent level applies to all children. <code>ze.log.bgp=debug</code> enables debug for every <code>bgp.*</code> subsystem. <code>ze.log.plugin=info</code> enables info for every <code>plugin.*</code> subsystem.</p>
-<!-- source: internal/core/slogutil/slogutil.go -- getLogEnv hierarchical lookup -->
 <h2 id="subsystems">Subsystems</h2>
 <p>Run <code>ze env</code> to see the full list with descriptions. Below is the complete inventory:</p>
 <table>
@@ -405,7 +393,6 @@ the terminal.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/core/slogutil/slogutil.go -- subsystemDescriptions map -->
 <h2 id="inspecting-current-configuration">Inspecting Current Configuration</h2>
 <pre><code class="language-bash">ze env list -v                 # show all env vars with current values
 ze env get ze.log              # show specific var details
@@ -460,7 +447,7 @@ ze cli -c "show log levels"    # show runtime log levels
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

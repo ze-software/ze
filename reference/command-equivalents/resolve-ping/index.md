@@ -35,7 +35,7 @@ The target takes a hostname or an address\, and it accepts a zone suffix such as
 
 ## Mapping intents
 
-### Ping and traceroute diagnostics
+### Ping reachability check
 
 Category: Diagnostics
 
@@ -51,10 +51,8 @@ No equivalent listed.
 
 ### SR OS
 - `ping <target>` (verified, nokia\-mdcli)
-  - Intent: Ping and traceroute diagnostics
+  - Intent: Ping reachability check
 
 ### VyOS
 - `ping <target>` (verified, vyos\-cli)
-  - Intent: Ping and traceroute diagnostics
-- `traceroute <target>` (verified, vyos\-cli)
-  - Intent: Ping and traceroute diagnostics
+  - Intent: Ping reachability check

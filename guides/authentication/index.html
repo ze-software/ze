@@ -130,22 +130,16 @@ Each value is a complete plain OpenSSH public-key line for the bootstrap usernam
 Assembly stores them with the local recovery credential, and the daemon reads
 them into the same accepted identity as its password. A missing or comment-only
 key file leaves password recovery available.</p>
-<!-- source: internal/appliance/cmd_init.go -- runInit -->
-<!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS -->
-<!-- source: cmd/ze/hub/main_servers.go -- usersFromStore -->
 <p>Bootstrap keys must have no <code>authorized_keys</code> options. Ze refuses malformed
 lines, SSH certificates and restrictions such as <code>from=</code>, <code>command=</code> or <code>restrict</code>.
 Bootstrap login does not validate certificate expiry, permitted users or critical
 options. Generate a dedicated plain public key with
 <code>ssh-keygen -y -f &lt;recovery-private-key&gt;</code> and supply its complete output.</p>
-<!-- source: internal/core/authorizedkeys/authorizedkeys.go -- Parse -->
 <h3 id="diagnosing-bootstrap-credentials">Diagnosing bootstrap credentials</h3>
 <p><code>ze doctor</code> reports <code>doctor-local-admin-credentials</code> when the same credential
 reader used at boot refuses the local recovery account. An explicitly disabled
 account is not a fault. Boot also logs the code and repair command and keeps one
 active warning until a successful read or explicit disable clears it.</p>
-<!-- source: cmd/ze/hub/bootstrap_credentials.go -- checkLocalAdminCredentials, reportLocalAdminCredentialRead -->
-<!-- source: cmd/ze/hub/register_bootstrap_credentials.go -- init -->
 <p>Keep console access or another working login while repairing credentials.
 Restore the affected <code>meta/auth/local/</code> frame from a known backup, then
 restart the daemon. Select the device's database explicitly:</p>
@@ -158,23 +152,15 @@ the bytes in the audit log and the SSH exec log. That route needs a login the
 daemon still accepts, and carries at most 195,840 bytes, far more than a
 credential frame holds. With no working login, stop the daemon and run the
 same command: it then writes the store directly.</p>
-<!-- source: internal/component/config/storage/cli/main.go -- writeKeyThroughDaemon -->
 <p>The password frame contains a bcrypt hash, not a plaintext password. Restoring
 an unrelated frame does not repair the reported credential. A store that could
 not be opened is reported as unchecked rather than as a usable recovery account.</p>
-<!-- source: cmd/ze/hub/bootstrap_credentials.go -- localAdminCredentialFailure, checkLocalAdminCredentials -->
-<!-- source: internal/component/config/storage/cli/main.go -- cmdWrite -->
-<!-- source: cmd/ze/hub/main_servers.go -- usersFromStore, validateLocalAdminCreds -->
 <h3 id="disabling-the-super-admin">Disabling the super-admin</h3>
 <p>Setting <code>meta/instance/admin-disabled</code> to <code>"true"</code> in the <code>database/</code> store
 (via <code>admin-enabled: false</code> in the appliance config) disables the super-admin
 on all surfaces: SSH, web, API, and serial console. The serial console
 returns "local admin login disabled" and denies access (fail-closed), unlike
 the missing-database case which grants access for emergency recovery.</p>
-<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers candidate assembly -->
-<!-- source: cmd/ze/hub/aaa_lifecycle.go -- publishAcceptedLocalIdentity, liveAcceptedLocalUsers -->
-<!-- source: cmd/ze/hub/main.go -- runYANGConfig boot publication -->
-<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext reload publication -->
 <h2 id="a-backend-that-will-not-build-is-dropped-and-the-others-still-answer">A backend that will not build is dropped, and the others still answer</h2>
 <p>The table above is about who CAN log in. This is about a backend that never
 starts. A TACACS+ server declared with no shared secret is one case, and any
@@ -229,9 +215,6 @@ ze show diagnostic doctor-aaa-no-local-fallback
 <p>It warns where a RADIUS or TACACS+ server is configured and no
 <code>system.authentication.user</code> is. <code>docs/architecture/aaa-tacacs.md</code> carries the
 mechanism.</p>
-<!-- source: internal/component/aaa/types.go -- backendRegistry.Build -->
-<!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition -->
-<!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
 <h2 id="adding-a-user">Adding a user</h2>
 <h3 id="step-1-hash-a-password">Step 1: hash a password</h3>
 <p><code>ze passwd</code> takes plaintext on stdin or via interactive prompt and prints
@@ -246,7 +229,6 @@ hash to stdout anyway with exit code 0:</p>
 warning: weak password (shorter than 8 characters)
 $2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 </code></pre>
-<!-- source: internal/plugins/passwd/main.go -- runImpl -->
 <h3 id="step-2-declare-the-user-in-yang">Step 2: declare the user in YANG</h3>
 <p>Three ways to set the password:</p>
 <table>
@@ -283,9 +265,6 @@ $2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 <p>After <code>commit</code> (or <code>ze config set</code>), the persisted file contains
 only the bcrypt hash; the <code>plaintext-password</code> leaf is removed and never
 written to disk. This matches Junos's <code>plain-text-password</code> behavior.</p>
-<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user -->
-<!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
-<!-- source: internal/component/cli/editor_commit.go -- commit path caller -->
 <h3 id="migrated-accounts-keep-their-sha-crypt-hash">Migrated accounts keep their SHA-crypt hash</h3>
 <p>An account copied from another system keeps the password its user already
 has. Put the system's stored hash on <code>password</code> as it is:</p>
@@ -343,10 +322,6 @@ as bcrypt and the SHA-crypt hash is gone, and with it the timing difference.
 Every <code>ze:bcrypt</code> leaf accepts both formats, the telemetry exporter's
 <code>basic-auth/password</code> included, because the config check and every consumer
 of such a leaf use the same verifier.</p>
-<!-- source: internal/core/shacrypt/shacrypt.go -- Parse, Hash.Matches -->
-<!-- source: internal/core/passhash/passhash.go -- Check, Verify -->
-<!-- source: internal/component/authz/auth.go -- CheckPassword -->
-<!-- source: internal/component/config/password_hash.go -- CheckBcryptLeaves -->
 <h3 id="weak-passwords-are-named-never-refused">Weak passwords are named, never refused</h3>
 <p>Ze judges the plaintext before it hashes it, and warns when the password is
 shorter than 8 characters or is one of eight passwords an attacker tries first:
@@ -393,8 +368,6 @@ set system authentication user alice plaintext-password /* SECRET-DATA */
 <p>The warning names the leaf and the rule the password failed. It never carries
 the password, so it is safe in a log an operator can read. The <code>set</code> line that
 follows masks the value too, because <code>plaintext-password</code> is a sensitive leaf.</p>
-<!-- source: internal/component/config/password_strength.go -- PasswordWeakness, PasswordMinLength; internal/component/config/cli/cmd_set.go -- DisplayValueAtPath -->
-<!-- source: internal/component/config/password_hash.go -- HashedPassword, PasswordWeaknessWarnings -->
 <!-- test: test/parse/password-weakness-warning.ci -- weak warns and sets, strong is silent -->
 <h3 id="passwords-in-a-config-file">Passwords in a config file</h3>
 <p>An operator, a template, or a lab tool can also write <code>plaintext-password</code> straight
@@ -402,7 +375,6 @@ into a config file. Ze hashes that leaf when it loads the file, at daemon start 
 every SIGHUP reload. The running tree then holds the bcrypt hash and no
 <code>plaintext-password</code> leaf, which is the same tree the editor produces. The user
 authenticates with the password as written.</p>
-<!-- source: internal/component/config/loader.go -- LoadConfig calls ApplyPasswordHashing -->
 <p><strong>The load path does not rewrite your file.</strong> <code>LoadConfig</code> writes nothing, so the secret
 stays readable on disk exactly as you typed it. The daemon says so once per load, naming
 the file:</p>
@@ -411,16 +383,13 @@ the file:</p>
 <p>The warning names the leaf paths in a log attribute and never the password. Replace the
 plaintext with a hash from <code>ze passwd</code>, or protect the file, or accept the risk if the
 file is a throwaway lab render (see <a href="../netlab/">netlab</a>).</p>
-<!-- source: internal/component/config/loader.go -- warnPlaintextOnDisk -->
 <p>A weak password in that file gets its own log line, one for each leaf, and the
 load continues:</p>
 <pre><code>system.authentication.user.alice.password: weak password (shorter than 8 characters)
 </code></pre>
-<!-- source: internal/component/config/loader.go -- warnWeakPassword -->
 <p>One later step DOES rewrite that file and replace the plaintext with the hash: after a
 downgrade, <code>RecoverConfig</code> serializes the rollback it recovered back to the config path.
 It archives the current file first, so the archived version keeps the plaintext.</p>
-<!-- source: internal/component/config/stamp.go -- RecoverConfig -->
 <h3 id="step-3-reload">Step 3: reload</h3>
 <p>The daemon picks up the new user on the next config reload. A session
 already open for a user the reload KEEPS is not interrupted.</p>
@@ -435,9 +404,6 @@ deletes stops authenticating at once on every credential surface:</p>
 </ul>
 <p>The daemon does not restart. The 24h session TTL is a ceiling, never the
 only test. A connection already open outlives the removal until it closes.</p>
-<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers -->
-<!-- source: internal/component/web/auth.go -- SessionStore.validateToken -->
-<!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKeyResult -->
 <h2 id="logging-in-as-a-yang-user">Logging in as a YANG user</h2>
 <p>Any <code>ze</code> CLI tool accepts a <code>--user</code>/<code>-u</code> flag to override the zefs
 super-admin username. The password is read from <code>ze.ssh.password</code> (env
@@ -454,7 +420,6 @@ ze cli -u alice
 # Single command, then exit
 ze cli -u alice -c "show version"
 </code></pre>
-<!-- source: internal/component/cli/sshclient/client.go -- ReadCredentialsWithFlags -->
 <p>The same flag works on <code>ze bgp plugin cli</code>, <code>ze signal</code>, <code>ze config set</code>,
 <code>ze config edit</code>, and <code>ze interface migrate</code>.</p>
 <h3 id="the-stored-hash-is-a-credential-only-over-a-local-connection">The stored hash is a credential only over a local connection</h3>
@@ -466,16 +431,12 @@ bearer path) the hash is <strong>rejected</strong> as a credential, so a leaked 
 or zefs copy cannot be replayed as a password from another machine. Remote
 logins must supply the real plaintext password (via <code>ze.ssh.password</code> or an
 interactive prompt); plaintext works from anywhere.</p>
-<!-- source: internal/component/ssh/passwordauth.go -- isLocalTransport, authenticatePasswordResult -->
-<!-- source: internal/component/authz/auth.go -- CheckPassword allowHashToken gate -->
 <p>The stored bcrypt hash is also <strong>masked</strong> in every config display: <code>show config</code>,
 the web config views, <code>ze config dump</code>, and CLI search show <code>ze:bcrypt</code> leaves as
 <code>/* SECRET-DATA */</code>, never the hash and never <code>$9$</code>-encoded. The edit-authorized
 raw download (<code>GET /config/download</code>, gated behind edit permission) keeps the real
 hash so a download → edit → upload round-trip is byte-exact; a masked value pasted
 back into a commit or upload is rejected with a clear error.</p>
-<!-- source: internal/component/config/mask.go -- MaskBcrypt, RejectMaskedSecretLeaves -->
-<!-- source: cmd/ze/hub/service_web.go -- GET /config/download editWrap gate -->
 <h3 id="remote-management-listener-guard">Remote management listener guard</h3>
 <p>Ze refuses to start an unauthenticated management service on a non-loopback
 listener. The guard runs before any covered listener binds:</p>
@@ -497,7 +458,7 @@ listener. The guard runs before any covered listener binds:</p>
 </tr>
 <tr>
 <td>gNMI</td>
-<td>Configure <code>ze.gnmi.token</code> or <code>environment.gnmi token</code></td>
+<td>Configure <code>ze.gnmi.token</code> (or <code>environment.gnmi token</code>) and TLS (<code>ze.gnmi.tls.cert</code>/<code>key</code> or <code>environment.gnmi tls</code>)</td>
 </tr>
 <tr>
 <td>REST and gRPC API</td>
@@ -520,11 +481,6 @@ token gives <code>config-gnmi-invalid</code>, and an MCP block that asks for a r
 with no authentication gives <code>config-mcp-invalid</code>. Neither command can read
 another process's environment, so a listener published only by an environment
 variable is caught at startup rather than by these checks.</p>
-<!-- source: internal/component/config/validate_semantic.go -- ValidateSemantics gNMI and MCP entries -->
-<!-- source: internal/component/config/loader_extract.go -- GNMIListenConfig.Validate -->
-<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners, listenAddrIsNonLoopback -->
-<!-- source: cmd/ze/hub/main.go -- management listener declarations and remedies -->
-<!-- source: cmd/ze/hub/listener_migrate.go -- reload refusal -->
 <h4 id="upgrading-from-a-release-without-the-guard">Upgrading from a release without the guard</h4>
 <p>The guard is a boot refusal, so a config that started a daemon yesterday can
 stop one today. Three changes break an upgrade. Read them before you upgrade.</p>
@@ -559,10 +515,6 @@ keeps authentication on and logs a WARN that names the leaf. Set
 <p>Run <code>ze config validate</code> or <code>ze doctor --json</code> over the config first. Both
 report the same exposure offline. Neither reads the daemon's environment, so
 check <code>ze.gnmi.listen</code>, <code>ze.mcp.listen</code>, and <code>ze.web.insecure</code> by hand.</p>
-<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners refusal message -->
-<!-- source: cmd/ze/hub/api_infra.go -- resolveAPIListeners settings/listener split -->
-<!-- source: cmd/ze/hub/service_lg.go -- buildLGService TLS default, explicit-vs-inherited fallback -->
-<!-- source: cmd/ze/hub/main.go -- ExtractWebSettings branch, insecure exclusion and its WARN -->
 <h3 id="authentication-on-reload">Authentication on reload</h3>
 <p>A config reload rebuilds the credentials of the running REST and gRPC servers.
 Add a token, rotate it, remove it, or edit the user list, and the change takes
@@ -589,10 +541,6 @@ started with. A reload that removes the API credentials and moves the same
 listener off loopback is refused for that reason. The refusal restores the
 credentials the reload had already installed, so the daemon keeps serving the
 config it rolled back to.</p>
-<!-- source: cmd/ze/hub/mgmt_auth_reload.go -- markMgmtAuth, registerMgmtAuthReloaders -->
-<!-- source: cmd/ze/hub/listener_migrate.go -- (*ListenerMigrator).checkAuthRebuildable, (*ListenerMigrator).applyAuthIntents, (*ListenerMigrator).checkReloadExposure -->
-<!-- source: internal/component/api/rest/auth.go -- RESTServer.Authenticated -->
-<!-- source: internal/component/api/grpc/server.go -- GRPCServer.Authenticated -->
 <h3 id="tab-completion-ze-completion">Tab completion (<code>ze completion</code>)</h3>
 <p>Tab completion runs silently in the shell and does not accept flags. To
 have completions resolve as a non-super-admin user, set the env vars in
@@ -607,7 +555,6 @@ so completion stays silent and returns no peer completions. Other completion
 still works; only dynamic peer names are missing.</p>
 <p>If you would rather not keep a password in the environment, leave both unset and
 completion resolves as the zefs super-admin, which needs no password.</p>
-<!-- source: internal/component/cli/sshclient/client.go -- LoadCredentialsNoPrompt -->
 <h2 id="ssh-public-key-authentication">SSH public key authentication</h2>
 <p>Users can authenticate to the SSH server with public keys instead of (or in
 addition to) passwords. Each user can have multiple named keys.</p>
@@ -689,8 +636,6 @@ SSH-specific.</p>
 <h3 id="scope">Scope</h3>
 <p>Public key configuration applies to YANG-configured users only. The zefs
 super-admin (created by <code>ze init</code>) authenticates with a password.</p>
-<!-- source: internal/component/ssh/pubkey.go -- matchPublicKey -->
-<!-- source: internal/component/ssh/ssh.go -- wish.WithPublicKeyAuth -->
 <h2 id="why-two-leaves-instead-of-auto-detecting-the-format">Why two leaves instead of auto-detecting the format</h2>
 <p>The canonical <code>password</code> leaf is marked <code>ze:bcrypt</code> -- the parser stores
 the value verbatim and never tries to apply the <code>$9$</code> reversible
@@ -705,7 +650,6 @@ mixing it with <code>$9$</code> would let an operator recover the password from 
 load, and the user cannot authenticate (the value is neither a bcrypt hash
 nor a SHA-crypt hash, so no comparison can match). Use
 <code>plaintext-password</code> (auto-hashed) or <code>ze passwd</code> (manual) instead.</p>
-<!-- source: internal/component/config/password_hash.go -- CheckBcryptLeaves -->
 <h2 id="notes-on-plaintext-lifetime">Notes on plaintext lifetime</h2>
 <p>While an interactive <code>ze config edit</code> session is open, the plaintext value
 of <code>plaintext-password</code> is held in-memory by the editor and persisted to a
@@ -717,7 +661,6 @@ during the editing session.</p>
 <p>A config file you write yourself is the other path. Ze hashes it at load and leaves
 your file as you wrote it, so the plaintext stays on disk until you replace it. Refer
 to <a href="#passwords-in-a-config-file">Passwords in a config file</a>.</p>
-<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
 <p>bcrypt takes 72 bytes at most. The vendored library refuses a longer input with
 <code>ErrPasswordTooLong</code> and hashes nothing, so no path stores a hash that matches
 only a prefix. Every path reports the refusal as an error, and none of them warns
@@ -744,11 +687,6 @@ and continues.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/password_hash.go -- hashPlaintextSibling -->
-<!-- source: internal/component/config/loader.go -- LoadConfig -->
-<!-- source: internal/component/cli/editor_commit.go -- CommitSession, ApplyPasswordHashing -->
-<!-- source: internal/plugins/passwd/main.go -- runImpl -->
-<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext -->
 <h2 id="things-that-do-not-work">Things that do NOT work</h2>
 <table>
 <thead>
@@ -877,7 +815,7 @@ and continues.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -73,19 +73,15 @@ is <code>request halt</code>, <code>daemon shutdown</code> is <code>request shut
 The adapter sends their canonical <code>request shutdown</code>, <code>request restart</code> and
 <code>request reboot</code> commands through the authenticated session executor. Interactive
 stop/restart controls require confirmation before that same dispatch.</p>
-<!-- source: internal/plugins/signal/main.go -- Commands table ExecCommand column -->
-<!-- source: internal/component/ssh/ssh.go -- execMiddleware lifecycle interception -->
 <p>Every subcommand of <code>ze show</code>, <code>ze clear</code>, <code>ze monitor</code>, <code>ze request</code>, <code>ze set</code>,
 and <code>ze delete</code> resolves against the daemon's own registrations. The verb-relative
 tree is built from the same registration set the dispatcher is keyed on, so the
 client and the daemon cannot disagree about which words are a command.</p>
-<!-- source: internal/component/cli/client/verb_tree.go -- BuildVerbCommandTree, AbsoluteVerbPath -->
 <p>A local in-process handler is refused for any argv that reaches a declared
 command below it. <code>show interface</code> is registered at two words and takes an
 interface name, so <code>brief</code>, <code>scan</code>, <code>type</code>, <code>errors</code>, <code>rate</code>, and the two
 <code>name &lt;name&gt; ...</code> forms all go to the daemon rather than being read as interface
 names.</p>
-<!-- source: internal/component/command/local.go -- LookupLocal prefix refusal -->
 <h3 id="peer-selectors-on-a-destructive-command">Peer selectors on a destructive command</h3>
 <p>One resolver answers the peer selector for every peer-scoped command. It accepts
 a name, an address, an ASN (<code>as65001</code>), or a prefix, so a selector that works on
@@ -97,8 +93,6 @@ unresolvable selector is an error with the selector quoted, rather than a no-op
 reported as success. A <code>show</code> command that narrows a list still accepts an
 exclusion, because a complement is a good answer when the command filters rather
 than acts.</p>
-<!-- source: internal/component/plugin/server/command.go -- ResolveSinglePeer, errExcludePeerSelector -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handleTeardown, handleBgpPeerFlush -->
 <h3 id="positional-arguments">Positional arguments</h3>
 <p>Every declared argument kind takes part in positional matching, typed kinds
 included, and mandatory definitions are offered a token before optional ones. A
@@ -139,19 +133,12 @@ Ze runs a command only when every word of it is valid, and each line below is on
 - router-id requires a value: it is the last word, so nothing follows it to read as its value; write the value right after the keyword, as in 'router-id &lt;router-id&gt;'
 fix: correct each fault listed above, then type the command again
 </code></pre>
-<!-- source: internal/component/plugin/server/command.go -- Dispatch, argFaultOutsideSelector -->
-<!-- source: internal/component/command/argfaults.go -- ArgumentFaults, newArgumentFaults -->
-<!-- source: internal/component/plugin/server/arg_faults.go -- restateArgumentFaults -->
-<!-- source: internal/component/command/argfaults.go -- RestatedForLine -->
 <p>A value that sits BETWEEN two keywords reaches the leaf the model anchored to
 the first of them. A leaf declared on a grouping container carries that
 container's name. That name is the word the operator types the value after, so
 <code>send bgp &lt;selector&gt; unicast &lt;prefix&gt;</code> binds the selector and leaves the
 prefix to the handler. The shape-based fallback stays for a command that
 anchors nothing, and both refuse ambiguity: two candidates name none.</p>
-<!-- source: internal/component/plugin/server/command.go -- matchCommandTokens, anchoredDef, implicitSelectorDef -->
-<!-- source: internal/component/command/argbind.go -- ValidateArgs, positionalDef -->
-<!-- source: internal/component/config/yang/command.go -- appendAnchored -->
 <h3 id="a-command-declares-what-its-answer-holds">A command declares what its answer holds</h3>
 <p>A command declares whether its answer holds rows or one document, and which of
 its fields hold an IP address. The CLI refuses an operator that declaration
@@ -175,11 +162,6 @@ refusal names the route the CLI does offer: a row operator placed after
 no pipe operator selects one of these lists, but after '| text' match acts on the rendered lines instead
 fix: | text | match peer/upstream
 </code></pre>
-<!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
-<!-- source: internal/component/command/pipe.go -- rowOperatorRefusal -->
-<!-- source: internal/component/command/answer_shape.go -- RegisterShape, RegisterAddressFields, RegisterPluginShapes -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerShapes -->
-<!-- source: internal/component/plugin/server/startup.go -- registerPluginShapes -->
 <h3 id="protocol-tools">Protocol Tools</h3>
 <table>
 <thead>
@@ -199,7 +181,6 @@ fix: | text | match peer/upstream
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/cli/main.go -- bgp decode/encode dispatch -->
 <h3 id="configuration-management">Configuration Management</h3>
 <table>
 <thead>
@@ -259,37 +240,26 @@ fix: | text | match peer/upstream
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/cli/main.go -- config subcommand dispatch -->
-<!-- source: internal/component/config/cli/cmd_archive.go -- archive subcommand -->
-<!-- source: internal/component/config/cli/cmd_validate.go -- validate command -->
-<!-- source: internal/component/config/cli/cmd_migrate.go -- migrate command -->
-<!-- source: internal/component/config/cli/cmd_dump.go -- dump command -->
-<!-- source: internal/component/config/cli/cmd_diff.go -- diff command -->
 <p><code>ze config diff</code> compares every root of the two configurations: the <code>bgp</code>
 block as resolved values after template expansion, every other root as
 written (for example, <code>~ plugin/hub/client/edge-01/host: 10.0.0.1 -&gt; 10.0.0.2</code>).
 It also reports entry-order changes for every YANG <code>ordered-by user</code> list,
 including nested lists outside BGP. Plain-list reorder alone reports
-<code>No differences</code>. Comparisons need no BGP block.</p>
-<!-- source: internal/component/config/infra/diff.go -- DiffConfigs --> Ordered sequences use the existing
-<p><code>@&lt;list-name&gt;</code> metadata key at their full config path: text shows, for example,
+<code>No differences</code>. Comparisons need no BGP block.
+Ordered sequences use the existing
+<code>@&lt;list-name&gt;</code> metadata key at their full config path: text shows, for example,
 <code>~ firewall/table/wan/chain/input/@term: [b a] -&gt; [a b]</code>; JSON puts that path
 under <code>changed</code> with <code>old</code> and <code>new</code> arrays. Inserting or deleting entries changes
 the sequence too; adding or removing the whole list uses <code>added</code> or <code>removed</code>.
 Files, stored sources and
 rollback revisions use the same comparison, and changed secret values remain
 masked in both output shapes.</p>
-<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs -->
-<!-- source: internal/component/config/infra/diff.go -- diffListOrders, maskDiffSecrets -->
 <p>Interactive <code>ze config edit</code> and <code>ze cli</code> run their models in the daemon over
 SSH. The daemon owns their drafts, commits, and command history. A named stored
 config selects that config, not another config with the daemon's active path.
 Invalid or missing selections are refused.</p>
 <p><code>ze config edit -f &lt;file&gt;</code> edits a loose file offline. It does not bypass an
 active writer's store lock. For a running daemon, omit <code>-f</code>.</p>
-<!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
-<!-- source: internal/component/ssh/session.go -- parseSessionRequest -->
-<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
 <h3 id="schema-discovery">Schema Discovery</h3>
 <table>
 <thead>
@@ -325,7 +295,6 @@ active writer's store lock. For a running daemon, omit <code>-f</code>.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/yang/cli/main.go -- schema subcommand dispatch -->
 <h3 id="daemon-control">Daemon Control</h3>
 <table>
 <thead>
@@ -369,7 +338,6 @@ active writer's store lock. For a running daemon, omit <code>-f</code>.</p>
 sends <code>request reload</code>, <code>status</code> sends <code>show status</code>, and <code>quit</code> sends <code>request halt</code>. <code>stop</code>, <code>restart</code>, and <code>reboot</code> keep their bare spelling on the SSH wire;
 the adapter maps them to the canonical lifecycle request before authorization,
 accounting and response completion.</p>
-<!-- source: internal/plugins/signal/main.go -- Commands registry, ExecCommand column -->
 <h3 id="runtime-interaction">Runtime Interaction</h3>
 <table>
 <thead>
@@ -398,13 +366,7 @@ ze cli -c "monitor ping 8.8.8.8 interval 500ms"
 ze cli -c "monitor ping 8.8.8.8 count 5 size 1400"
 ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 </code></pre>
-<!-- source: internal/component/ping/cmd/register.go -- showPingLocal, monitorPingLocal -->
-<!-- source: internal/component/traceroute/cmd/register.go -- showTracerouteLocal -->
-<!-- source: internal/component/cli/model_ping_test.go -- parsePingMonitorArgs -->
-<!-- source: internal/component/cli/model_traceroute_test.go -- parseTracerouteMonitorArgs -->
 <p><strong>Live peer dashboard:</strong> <code>monitor bgp</code> in the interactive CLI opens a live dashboard showing router identity, a sortable colour-coded peer table with update rates, and a drill-down detail view. It refreshes every second. Use j/k to move, s/S to sort, Enter for detail, and Esc to exit. The state column renders green for <code>established</code>, yellow for the transitional states, and red for <code>stopped</code>, <code>idle</code>, and <code>idle-hold</code>. <code>idle-hold</code> is the state a prefix limit leaves a peer in when the family that overflowed asked for no reconnect, so it needs an operator and is coloured like the other down states.</p>
-<!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
-<!-- source: internal/component/cli/model_dashboard_render.go -- stateStyled -->
 <figure class="terminal-demo" data-terminal-demo="cli-dashboard">
   <div class="terminal-demo__intro">
     <div>
@@ -449,15 +411,9 @@ The dashboard polls three local BGP sessions. Press &#34;s&#34; to sort by the n
   </details>
 </figure>
 <p><strong>Commit confirmed:</strong> The editor supports <code>commit confirmed &lt;seconds&gt;</code> for safe remote changes. The config is applied immediately but auto-reverts if <code>commit accept</code> is not issued within the timeout window (1-3600 seconds). Use <code>commit abort</code> to revert manually. A plain commit is <code>commit now</code>; <code>commit verify</code> validates without applying. Modeled after Junos commit confirmed.</p>
-<!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->
 <p><strong>Command history persistence:</strong> Both <code>ze config edit</code> and <code>ze cli</code> persist command history to the <code>database/</code> store. History survives graceful session close and application restarts, is stored per-mode (config vs operational) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Accepted commands are immediately browsable; storage publication runs on one session-owned worker rather than blocking input, timers or command results. Waiting whole snapshots coalesce to the newest for each mode. Graceful model shutdown drains them before releasing the store; abrupt process death can lose queued history. With no store, history stays in memory. This does not change draft, configuration or commit durability, and independent sessions retain their existing whole-snapshot overwrite behavior rather than merging histories.
 The SSH model owner's <code>Server.Stop</code> waits for admitted model cleanup before its caller may release the store, including disconnected channels. Its network shutdown timeout does not discard accepted history. Concurrent terminal channels on one SSH connection each close their own model.
 The daemon retains hook-built SSH through the plugin server's <code>OnStop</code> callbacks. <code>runYANGConfig</code> owns one immediately deferred <code>sync.OnceFunc</code> stop, so normal shutdown and startup failure both join SSH cleanup before its caller releases the store. Hook admission seals and joins an in-flight constructor; callback order does not matter.</p>
-<!-- source: internal/component/ssh/ssh.go -- Stop, sessionCloseMiddleware -->
-<!-- source: internal/component/ssh/model_lifetime.go -- modelSessions, modelSession -->
-<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
-<!-- source: cmd/ze/hub/infra_setup.go -- setupInfraHook -->
-<!-- source: internal/component/cli/history.go -- History type -->
 <p>History publication failures reach the model's close error. The latest completed
 write outcome is retained separately for each mode; a successful later write
 clears that mode's failure. Configuration and operational recall follow the same
@@ -466,13 +422,8 @@ records under configuration mode, while mode/exit and lifecycle controls do not
 add entries. Browser HTTP adapters use the same History producer and keys, with
 bounded owners that survive editor discard; independently opened SSH and browser
 owners keep the documented whole-snapshot overwrite behavior.</p>
-<!-- source: internal/component/cli/history.go -- LastWriteError -->
-<!-- source: internal/component/cli/history_policy.go -- HistoryCommandMode -->
-<!-- source: internal/component/web/editor_history.go -- RecordHistory, Close -->
 <p><strong>Login warnings:</strong> When an operator connects via SSH, ze checks for conditions requiring attention and displays warnings in the welcome area. Each warning includes a message and an actionable command. Currently checks for stale prefix data (peers with <code>prefix-updated</code> older than 6 months); run <code>update bgp peer * prefix</code> to refresh from PeeringDB.</p>
-<!-- source: internal/component/ssh/session.go -- createSessionModel login warning collection -->
 <p><strong>Plugin debug shell:</strong> <code>ze bgp plugin cli</code> connects to the daemon via SSH, runs the 5-stage plugin handshake, and enters interactive command mode. Developers can test plugin protocol interactions by hand -- sending dispatch-command, subscribe-events, decode-nlri, etc. Accepts defaults (Enter through Q&amp;A) or custom registration parameters (families, plugin name).</p>
-<!-- source: internal/component/bgp/cli/cmd_plugin.go -- cmdPluginCLI -->
 <h3 id="other">Other</h3>
 <table>
 <thead>
@@ -504,9 +455,6 @@ owners keep the documented whole-snapshot overwrite behavior.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/completion/main.go -- completion subcommand -->
-<!-- source: internal/component/plugin/cli/main.go -- plugin subcommand -->
-<!-- source: internal/plugins/exabgp/main.go -- exabgp subcommand -->
 </div>
 </div>
             </section>
@@ -544,7 +492,7 @@ owners keep the documented whole-snapshot overwrite behavior.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -48,7 +48,7 @@ Neither a broad study nor my experience of using Claude establishes that a parti
 
 The saving has to preserve correct behaviour. Reusing a buffer can reduce allocations, but overwriting it while another reader still needs its contents can corrupt a route. In [How Ze reuses memory](../how-ze-manages-memory/), I explain how we decide when data can be shared and when it must be copied.
 
-Checking the bytes returned by an encoder does not show that the running daemon sends them to another router. For that, we have to start the programs and observe their exchange. Ze's [quality model](https://ze-software.net/quality/) describes the checks different changes require. Some parts of Ze do not yet meet those requirements, and a passing run says nothing about a case the tests never exercise.
+Checking the bytes returned by an encoder does not show that the running daemon sends them to another router. For that, we have to start the programs and observe their exchange. Ze's [quality model](../../quality/) describes the checks different changes require. Some parts of Ze do not yet meet those requirements, and a passing run says nothing about a case the tests never exercise.
 
 This is also why the number of tests Claude writes is a poor measure on its own. When a test fails, the model can change the expected result to match the bug or remove the assertion which caught it. The next run passes without restoring the required behaviour, so the tests need review against the requirements as well.
 

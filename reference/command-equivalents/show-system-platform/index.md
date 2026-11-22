@@ -29,7 +29,7 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-### CPU\, memory\, platform\, and host health
+### CPU and memory usage
 
 Category: System
 
@@ -49,6 +49,6 @@ No equivalent listed.
 
 ### VyOS
 - `show hardware cpu` (verified, vyos\-cli)
-  - Intent: CPU\, memory\, platform\, and host health
+  - Intent: CPU and memory usage
 - `show system memory` (verified, vyos\-cli)
-  - Intent: CPU\, memory\, platform\, and host health
+  - Intent: CPU and memory usage

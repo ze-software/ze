@@ -204,9 +204,6 @@ See <code>ai/rules/rfc-compliance.md</code> and <code>docs/contributing/spec-wor
 </tr>
 </tbody>
 </table>
-<!-- source: internal/core/bgp/capability/capability.go -- capability codes and parsing -->
-<!-- source: internal/core/bgp/attribute/attribute.go -- attribute code constants -->
-<!-- source: internal/core/bgp/context/context.go -- PackContext encoding rules -->
 <h2 id="phase-0-preparation">Phase 0: Preparation</h2>
 <h3 id="01-rfc-analysis">0.1 RFC Analysis</h3>
 <pre><code>[ ] Download RFC: curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt
@@ -597,8 +594,6 @@ The obligation still binds and remains unmet; the annotation earns no proof
 credit. Its evidence must qualify under
 <a href="https://github.com/ze-software/ze/blob/main/docs/contributing/rfc-conformance-gates.md#the-linux-limit-annotation" target="_blank" rel="noopener">the Linux-limit gate</a>,
 and each new or reworded instance owes the owner's attestation before push.</p>
-<!-- source: internal/le/rfc/linux_limit.go -- linuxLimitEntryRefusal -->
-<!-- source: internal/le/commit/linux_limit.go -- linuxLimitTrailers -->
 </li>
 <li>
 <p><strong>Demonstrate a <code>{gap}</code> rather than only describe it.</strong> A test that asserts
@@ -648,12 +643,10 @@ the defect the record exists to refuse.</p>
 </li>
 </ul>
 <h4 id="what-each-carrier-earns-in-the-ledger">What each carrier earns in the ledger</h4>
-<!-- source: internal/le/rfc/carriers.go -- Carrier, suiteCarriers, carriersFor, CarrierFor, interopCarriers, interopTrees -->
 <p>Evidence has two axes: KIND (which layer the test exercises) and TIER (whether
 anything executes it). Both are DERIVED from the carrier table rather than
 declared by the test.</p>
 <p>The scanner includes command tests under <code>cmd/</code>, including tests of daemon listeners.</p>
-<!-- source: internal/le/rfc/rfc.go -- testRoots -->
 <table>
 <thead>
 <tr>
@@ -745,7 +738,6 @@ recorded verdicts a judge re-made, in place, and accepts <code>upgrade_reason</c
 </ul>
 <p>For an enrolled RFC the gate fails unless every MUST has its pair or a
 reasoned annotation. Writing a summary does not enrol an RFC.</p>
-<!-- source: internal/le/rfc/actions.go -- Actions -->
 </li>
 <li>
 <p><strong>Declare enrolment in the summary, and the public row with it.</strong> Both live in
@@ -792,9 +784,6 @@ and <code>ParseMeta</code> refuses a leftover <code>Support status</code>, <code
 (<code>{gap}</code>, <code>{partial}</code>, <code>{linux-limit}</code>) on an enrolled RFC whose summary
 declares no public row (<code>| Support | - |</code>), because the Unmet cell discloses
 it only on a row that exists.</p>
-<!-- source: internal/le/rfc/meta.go -- ParseMeta, readEnrolment, readSupport -->
-<!-- source: internal/le/rfc/meta.go -- retiredSupportLabels -->
-<!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkSourceRestricted, checkStatusAgreement -->
 </li>
 <li>
 <p><strong>Audit letter and spirit with <code>/ze-rfc-audit &lt;rfc&gt;</code>.</strong> The gate proves a link
@@ -814,9 +803,6 @@ their evidence and public disclosure satisfy the gate.</li>
 re-stales a verdict when the requirement text, declared partial scope, tagged
 test's own function, or a cited producer changes. Whitespace-only partial
 reflow is not a new judgment; ordinary requirement fingerprints are unchanged.</p>
-<!-- source: internal/le/rfc/audit.go -- auditVerdicts -->
-<!-- source: internal/le/rfc/check_audit.go -- checkAuditSchema -->
-<!-- source: internal/le/rfc/coverage.go -- auditCoverageRows -->
 </li>
 <li>
 <p><strong>A <code>SHIFTED</code> verdict is not your problem to re-read.</strong> When the gate says a
@@ -826,8 +812,6 @@ moved: a line shift, a sibling test, or a rewritten import. Run
 fingerprint shifts, not independent rejudgment. Semantic changes require a
 new audit and <code>audit-stamp ... mode rejudge</code>; regeneration never authorizes
 a broader claim.</p>
-<!-- source: internal/le/rfc/freshness.go -- auditFreshness -->
-<!-- source: internal/le/rfc/reseal.go -- resealStems -->
 </li>
 <li>
 <p><strong>A <code>STALE</code> verdict is.</strong> The tagged unit itself changed, so re-run
@@ -855,7 +839,6 @@ file refuse until the file matches HEAD again or the judge approves. The
 commit gate,
 <code>rfcChangeProblems</code> in <code>internal/le/commit/rfcchange.go</code>, reads its baseline
 from HEAD too.</p>
-<!-- source: internal/le/test/weakened/proposed.go -- committedRFCChanges -->
 </li>
 </ul>
 <h3 id="the-judges-approval-lives-in-the-commit">The judge's approval lives in the commit</h3>
@@ -878,7 +861,6 @@ Go identity uses the exact declaration boundary, including one-line functions;
 a following declaration is not part of that function. An unresolved Go
 declaration cannot authorize an approval. The existing tag-scope reader keeps
 its conservative behavior for incomplete source.</p>
-<!-- source: internal/le/rfc/approvalunits.go -- ResolveApprovalUnit -->
 <p>Approvals live in the existing <code>tmp/commit-rfc-approved-&lt;session&gt;.md</code> table,
 <code>| Test | Reason | Target | Content |</code>. Ordinary rows have no target and admit
 only their own change carrier, and only while the unit still matches the
@@ -916,8 +898,6 @@ fully validated stream. An empty table reads neither source nor history.
 A later load starts fresh, so edits, new duplicate carriers and changed history
 cannot reuse an earlier load's authority. Selected-content and publication-parent
 checks still run independently.</p>
-<!-- source: internal/le/rfc/approvalunits.go -- ApprovalResolver, Resolve -->
-<!-- source: internal/le/rfc/approvalhistory.go -- readApprovalHistoryAll -->
 <p>Ordinary RFC and weakening verdicts are captured with the prepared block and
 checked against each publication attempt's actual parent. Earlier blocks of
 the same appended script count as spent history too. Pruning the first block's
@@ -932,16 +912,12 @@ The selected full SHA must still precede that actual parent on every attempt;
 a branch rewrite cannot redirect the approval to another change.
 The ordinary row also accepts a weakening of the same unit, so a tagged test
 needs no second weakening approval (<code>docs/contributing/testing.md</code>).</p>
-<!-- source: internal/le/test/weakened/ledger.go -- parseLedger, LoadApprovals -->
-<!-- source: internal/le/commit/rfcchange.go -- ResolveRFCApprovalSelections, SelectRFCApprovals -->
 <p>An ordinary judge verdict remains agent-callable. A reason citing <code>owner ruling &lt;identity&gt;</code> instead issues owner authorization: the existing <code>ownerRuling</code>
 predicate selects exactly those reasons, and both stdin and stdout must be
 terminals before a session directory or approval row is written or replaced.
 A pipe or an unanswered terminal check refuses with an owner-authorization
 instruction, not a full-verification instruction. The shared weakening writer
 and readers of recorded RFC approvals retain their noninteractive behavior.</p>
-<!-- source: internal/le/rfc/approve.go -- Approve, approveAnswer, ApproveInto -->
-<!-- source: internal/le/rfc/coverage_ruling.go -- ownerRuling, ownerRuledMove -->
 <p>When the judge has not ruled yet, <code>rfc-change-ok "&lt;reason&gt;"</code> on
 <code>./le commit create</code> admits the commit anyway and writes one trailer per
 unapproved unit, <code>RFC-approval-owed: &lt;package&gt;.&lt;TestName&gt;: &lt;reason&gt;</code>. The
@@ -954,8 +930,6 @@ that unit. The owner's attestation remains an alternative:
 an empty commit carrying <code>Owner-attested: &lt;stable patch-id&gt;: &lt;owner words&gt;</code>.
 Nothing outside the commits records either
 (<code>docs/architecture/testing/verify-freshness-scope.md</code>).</p>
-<!-- source: internal/le/commit/prepare.go -- admissionTrailer -->
-<!-- source: internal/le/commit/owed_trailers.go -- readPersonActs -->
 <p>Linux-limit instances use the same owner-attestation route, but not an RFC
 test-review approval. <code>./le commit create</code> automatically records
 <code>Linux-limit-owed: &lt;RID&gt;: &lt;LL-id&gt;</code> for each added or reworded annotation in its
@@ -963,11 +937,8 @@ selected summary content. The commit may land; only the owner's attestation
 for that commit discharges its Linux-limit obligation before push. See
 <a href="https://github.com/ze-software/ze/blob/main/docs/contributing/committing.md" target="_blank" rel="noopener">committing</a> for selected-content checks and the attestation
 command.</p>
-<!-- source: internal/le/commit/linux_limit.go -- linuxLimitTrailers -->
 <p>A trailer commit that cannot be read is never counted as discharging the act:
 <code>./le commit create</code> refuses with <code>commit &lt;sha&gt;: cannot judge "&lt;subject&gt;", so it stays owed</code>, the read error, and <code>git show &lt;sha&gt;</code> to inspect it.</p>
-<!-- source: internal/le/test/weakened/proposed.go -- RFC-tagged carrier approval -->
-<!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
 <p>Full rules: <code>ai/skills/ze-rfc.md</code>; audit method: <code>ai/skills/ze-rfc-audit.md</code>.</p>
 <pre><code>[ ] Every MUST-level line in rfc/short/rfcNNNN.md has an id (allocated by /ze-rfc)
 [ ] Each gated MUST has a positive AND a negative tagged test, or a reasoned annotation
@@ -1014,16 +985,13 @@ reference: <code>rfc/extraction/README.md</code>.</p>
 <p>Only the native writer derives source hashes and locators. A source revision
 requires a new walk of changed sites and sections; retaining an older artifact
 preserves history but does not sign off the revised document.</p>
-<!-- source: internal/le/rfc/extraction_create.go -- deriveExtractionDocument, placeExtractionDocument -->
 <p>One exclusion kind does not dismiss its sentence. <code>relocated-to-spec</code> says the
 obligation is owed by a named spec, under an id reserved there, because an owner
 ruling moved it out of the summary. It authors <code>relocated-to</code>
 (<code>plan/spec-&lt;name&gt;.md</code>) and <code>reserved-id</code>, and the gate refuses the sign-off
 unless that spec exists and still names that id.</p>
-<!-- source: internal/le/rfc/actions.go -- Answer -->
 <p>Read the signed, enrolled, relocated, and unsigned counts with
 <code>./le rfc extraction report</code>. The action emits structured output directly.</p>
-<!-- source: internal/le/rfc/actions.go -- Actions -->
 <hr>
 <h2 id="final-checklist">Final Checklist</h2>
 <p>Before marking implementation complete:</p>
@@ -1149,9 +1117,6 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
 </tr>
 </tbody>
 </table>
-<!-- source: internal/core/bgp/capability/session.go -- GR capability -->
-<!-- source: internal/core/bgp/capability/encoding.go -- ADD-PATH capability -->
-<!-- source: internal/core/bgp/attribute/mpnlri.go -- MP_REACH/MP_UNREACH attributes -->
 </div>
 </div>
             </section>
@@ -1165,7 +1130,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

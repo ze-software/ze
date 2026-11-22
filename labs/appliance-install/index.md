@@ -6,7 +6,7 @@ Run the installer in QEMU through HTTP/PXE, ISO, or Ventoy-on-FAT paths, with se
 
 `Appliance`
 
-Four native QEMU actions exercise the installer end to end: the PXE/HTTP chain boots the installer kernel and initrd, serves the image over HTTP, and asserts serial success markers before rebooting into the written disk and logging in over SSH. The ISO path wraps the same image in a bootable ISO and also verifies GPT layout and power-off-not-reboot behaviour. The Ventoy path checks that the installer finds the appliance ISO as a *file* on a FAT/exFAT data partition rather than as burned boot media. The scenarios action covers what the other three do not: a forced mid-init panic recovering cleanly, MAC-based install pinning on multi-homed boxes, and rescue console access.
+Four native QEMU actions exercise the installer end to end: the PXE/HTTP chain boots the installer kernel and initrd, serves the image over HTTP, and asserts serial success markers before rebooting into the written disk and logging in over SSH. The ISO path wraps the same image in a bootable ISO and also verifies GPT layout and power-off-not-reboot behavior. The Ventoy path checks that the installer finds the appliance ISO as a *file* on a FAT/exFAT data partition rather than as burned boot media. The scenarios action covers what the other three do not: a forced mid-init panic recovering cleanly, MAC-based install pinning on multi-homed boxes, and rescue console access.
 
 Until a release publishes an appliance image, build one with the appliance guide. The current amd64 installation ISO is under 150 MB. The `prod` build with the hardware kernel profile on October 1, 2026 produced `ze-20261001-142644.iso`: 128,933,888 bytes (128.93 MB) for the complete ISO.
 

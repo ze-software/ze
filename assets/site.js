@@ -84,130 +84,6 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    function initTaglineCarousel() {
-        var carousel = document.querySelector("[data-tagline-carousel]");
-        if (!carousel) return;
-
-        var text = carousel.querySelector("[data-tagline-text]");
-        var template = carousel.querySelector("[data-tagline-options]");
-        var dotsHost = carousel.querySelector("[data-tagline-dots]");
-        var previous = carousel.querySelector("[data-tagline-prev]");
-        var next = carousel.querySelector("[data-tagline-next]");
-        var status = carousel.querySelector("[data-tagline-status]");
-        if (!text || !template || !template.content || !dotsHost || !previous || !next) return;
-
-        var taglines = slice(template.content.querySelectorAll("span")).map(function (option) {
-            return cleanLabel(option.textContent);
-        }).filter(Boolean);
-        if (taglines.length < 2) return;
-
-        var current = 0;
-        var transitionTimer = null;
-        var autoplayTimer = null;
-        var hovered = false;
-        var focused = false;
-        var reduceMotion = window.matchMedia &&
-            window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        var dots = taglines.map(function (tagline, index) {
-            var button = document.createElement("button");
-            button.type = "button";
-            button.className = "tagline-carousel-dot";
-            button.setAttribute("aria-label", "Show tagline " + (index + 1) + ": " + tagline);
-            button.setAttribute("aria-controls", "hero-title");
-            button.addEventListener("click", function () {
-                show(index, true);
-            });
-            dotsHost.appendChild(button);
-            return button;
-        });
-
-        function updateDots() {
-            dots.forEach(function (dot, index) {
-                if (index === current) {
-                    dot.setAttribute("aria-current", "true");
-                } else {
-                    dot.removeAttribute("aria-current");
-                }
-            });
-        }
-
-        function announce() {
-            if (!status) return;
-            status.textContent =
-                "Showing tagline " + (current + 1) + " of " + taglines.length + ": " + taglines[current];
-        }
-
-        function commit(index, manual) {
-            current = (index + taglines.length) % taglines.length;
-            text.textContent = taglines[current];
-            updateDots();
-            if (manual) announce();
-            window.requestAnimationFrame(function () {
-                carousel.classList.remove("is-changing");
-            });
-        }
-
-        function show(index, manual) {
-            window.clearTimeout(transitionTimer);
-            carousel.classList.remove("is-changing");
-            if (reduceMotion) {
-                commit(index, manual);
-                return;
-            }
-            carousel.classList.add("is-changing");
-            transitionTimer = window.setTimeout(function () {
-                commit(index, manual);
-            }, 180);
-        }
-
-        function stopAutoplay() {
-            window.clearTimeout(autoplayTimer);
-            autoplayTimer = null;
-        }
-
-        function scheduleAutoplay() {
-            stopAutoplay();
-            if (reduceMotion || hovered || focused || document.hidden) return;
-            autoplayTimer = window.setTimeout(function () {
-                show(current + 1, false);
-                scheduleAutoplay();
-            }, 6000);
-        }
-
-        previous.setAttribute("aria-controls", "hero-title");
-        next.setAttribute("aria-controls", "hero-title");
-        previous.addEventListener("click", function () {
-            show(current - 1, true);
-            scheduleAutoplay();
-        });
-        next.addEventListener("click", function () {
-            show(current + 1, true);
-            scheduleAutoplay();
-        });
-        carousel.addEventListener("mouseenter", function () {
-            hovered = true;
-            stopAutoplay();
-        });
-        carousel.addEventListener("mouseleave", function () {
-            hovered = false;
-            scheduleAutoplay();
-        });
-        carousel.addEventListener("focusin", function () {
-            focused = true;
-            stopAutoplay();
-        });
-        carousel.addEventListener("focusout", function () {
-            window.setTimeout(function () {
-                focused = carousel.contains(document.activeElement);
-                scheduleAutoplay();
-            }, 0);
-        });
-        document.addEventListener("visibilitychange", scheduleAutoplay);
-
-        updateDots();
-        scheduleAutoplay();
-    }
-
     function escapeRegExp(text) {
         return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }
@@ -298,9 +174,14 @@ document.addEventListener("DOMContentLoaded", function () {
         loadSiteFacts().then(function (facts) {
             if (!facts) return;
             nodes.forEach(function (node) {
-                var value = lookupFact(facts, node.getAttribute("data-ze-stat"));
+                var key = node.getAttribute("data-ze-stat");
+                var value = lookupFact(facts, key);
                 if (value !== null && value !== undefined) {
                     node.textContent = String(value);
+                    if (key === "rfc.not_walked_display" && String(value).trim() === "0") {
+                        var holder = node.closest(".index4-small-figures > div");
+                        if (holder) holder.hidden = true;
+                    }
                 }
             });
             bars.forEach(function (bar) {
@@ -369,6 +250,24 @@ document.addEventListener("DOMContentLoaded", function () {
             brand.appendChild(logo);
             brand.appendChild(name);
             nav.appendChild(brand);
+
+            var fallbackLinks = [
+                ["docs/", "Docs"],
+                ["features/", "Features"],
+                ["compare/", "Compare"],
+                ["guides/", "Guides"],
+                ["reference/", "Reference"],
+                ["search/", "Search"],
+            ];
+            var linkWrap = document.createElement("div");
+            linkWrap.className = "nav-links";
+            fallbackLinks.forEach(function (item) {
+                var a = document.createElement("a");
+                a.setAttribute("href", root + item[0]);
+                a.textContent = item[1];
+                linkWrap.appendChild(a);
+            });
+            nav.appendChild(linkWrap);
             header.appendChild(nav);
             mount.parentNode.replaceChild(header, mount);
         }
@@ -506,12 +405,9 @@ document.addEventListener("DOMContentLoaded", function () {
                     trigger.setAttribute("aria-expanded", "false");
                 }
             });
-            dropdown.addEventListener("focusin", function () {
-                trigger.setAttribute("aria-expanded", "true");
-            });
             dropdown.addEventListener("focusout", function (event) {
-                if (!dropdown.contains(event.relatedTarget) && !dropdown.classList.contains("is-open")) {
-                    trigger.setAttribute("aria-expanded", "false");
+                if (!dropdown.contains(event.relatedTarget) && dropdown.classList.contains("is-open")) {
+                    setDropdown(dropdown, false);
                 }
             });
         });
@@ -525,11 +421,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
         document.addEventListener("keydown", function (event) {
             if (event.key !== "Escape") return;
+            var active = document.activeElement;
+            var activeDropdown = active && active.closest ? active.closest(".nav-dropdown") : null;
             document.querySelectorAll(".nav-dropdown.is-open").forEach(function (dropdown) {
                 setDropdown(dropdown, false);
             });
-            var active = document.activeElement;
-            if (active && active.closest(".nav-dropdown")) active.blur();
+            if (activeDropdown) {
+                var ownerTrigger = activeDropdown.querySelector(".nav-dropdown-trigger");
+                if (ownerTrigger) ownerTrigger.focus();
+            }
         });
     }
 
@@ -537,20 +437,52 @@ document.addEventListener("DOMContentLoaded", function () {
         return String(query || "").toLowerCase().split(/\s+/).filter(Boolean);
     }
 
+    var searchIndexPromise = null;
+    var searchIndexRoot = null;
+
+    function loadSearchIndex(root) {
+        if (searchIndexPromise && searchIndexRoot === root) return searchIndexPromise;
+        searchIndexRoot = root;
+        searchIndexPromise = fetch(root + "data/search-index.json")
+            .then(function (response) {
+                if (!response.ok) throw new Error("search index");
+                return response.json();
+            })
+            .then(normalizeSearchRecords)
+            .catch(function (err) {
+                searchIndexPromise = null;
+                throw err;
+            });
+        return searchIndexPromise;
+    }
+
+    function searchSectionPriority(url) {
+        if (!url || url === "./") return 4;
+        if (url.indexOf("guides/") === 0 || url.indexOf("features/") === 0 || url.indexOf("use-cases/") === 0) return 4;
+        if (url.indexOf("compare/") === 0 || url.indexOf("performance/") === 0 || url.indexOf("docs/") === 0 || url.indexOf("architecture/") === 0 || url.indexOf("labs/") === 0 || url.indexOf("blog/") === 0) return 3;
+        if (url.indexOf("reference/command-equivalents/") === 0 && url !== "reference/command-equivalents/") return 0;
+        if (url.indexOf("quality/rfc-compliance/") === 0 && url !== "quality/rfc-compliance/" && url !== "quality/rfc-compliance/profiles/") return 0;
+        if (url.indexOf("reference/") === 0 || url.indexOf("quality/") === 0 || url.indexOf("project/") === 0) return 2;
+        return 1;
+    }
+
     function normalizeSearchRecord(record) {
         var title = record.displayTitle || record.title || "";
         var section = record.displaySection || record.section || "";
         var text = record.text || "";
+        var url = record.url || "";
         return {
             title: record.title || title,
             displayTitle: title,
             section: record.section || section,
             displaySection: section,
-            url: record.url || "",
+            url: url,
             text: text,
             titleLower: textLower((record.title || "") + " " + title),
+            urlLower: textLower(url),
             sectionLower: textLower((record.section || "") + " " + section),
             textLower: textLower(text),
+            priority: searchSectionPriority(url),
         };
     }
 
@@ -586,13 +518,14 @@ document.addEventListener("DOMContentLoaded", function () {
             var token = tokens[i];
             var hit = 0;
             if (record.titleLower.indexOf(token) !== -1) hit += 12;
+            if (record.urlLower.indexOf(token) !== -1) hit += 10;
             if (record.sectionLower.indexOf(token) !== -1) hit += 4;
             var bodyHits = record.textLower.split(token).length - 1;
             if (bodyHits > 0) hit += Math.min(bodyHits, 5);
             if (hit === 0) return 0;
             total += hit;
         }
-        return total;
+        return total + record.priority;
     }
 
     function renderSearchResults(config) {
@@ -689,7 +622,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 status: status,
                 root: root,
                 limit: 30,
-                emptyQuote: '"',
+                emptyPrefix: 'No pages matched "',
+                emptySuffix: '".',
             });
         }
 
@@ -697,10 +631,9 @@ document.addEventListener("DOMContentLoaded", function () {
             if (records || loading) return;
             loading = true;
             status.textContent = "Loading index...";
-            fetch(root + "data/search-index.json")
-                .then(function (response) { return response.json(); })
+            loadSearchIndex(root)
                 .then(function (data) {
-                    records = normalizeSearchRecords(data);
+                    records = data;
                     loading = false;
                     run(input.value);
                 })
@@ -843,10 +776,9 @@ document.addEventListener("DOMContentLoaded", function () {
         if (initial) input.value = initial;
 
         status.textContent = "Loading index...";
-        fetch(siteRootFromScript() + "data/search-index.json")
-            .then(function (response) { return response.json(); })
+        loadSearchIndex(siteRootFromScript())
             .then(function (data) {
-                records = normalizeSearchRecords(data);
+                records = data;
                 status.textContent = "";
                 if (input.value) run(input.value);
             })
@@ -1282,9 +1214,8 @@ document.addEventListener("DOMContentLoaded", function () {
             var javaDirs = vocab.sourceJavaDirs || {};
             if (!sources.length) return;
 
-            function lineAnchor(forge, start, end) {
+            function lineAnchor(start, end) {
                 if (!start) return "";
-                if (forge === "github") return "#L" + start + (end ? "-L" + end : "");
                 return "#L" + start + (end ? "-L" + end : "");
             }
 
@@ -1301,7 +1232,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
                 for (var i = 0; i < sources.length; i++) {
                     if (!sources[i].match.test(path)) continue;
-                    return sources[i].base + path + lineAnchor(sources[i].forge, match[2], match[3]);
+                    return sources[i].base + path + lineAnchor(match[2], match[3]);
                 }
                 return "";
             }
@@ -1760,8 +1691,14 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!window.MutationObserver || !document.body) return;
         var observer = new MutationObserver(function (mutations) {
             mutations.forEach(function (mutation) {
+                if (mutation.target && mutation.target.closest && mutation.target.closest("[data-terminal-demo-player], .ap-wrapper, .search-overlay")) {
+                    return;
+                }
                 slice(mutation.addedNodes).forEach(function (node) {
-                    if (node.nodeType === 1) initAutomaticTableColumnSelectors(node);
+                    if (node.nodeType !== 1) return;
+                    if (node.tagName === "TABLE" || (node.querySelector && node.querySelector("table"))) {
+                        initAutomaticTableColumnSelectors(node);
+                    }
                 });
             });
         });
@@ -1951,7 +1888,14 @@ document.addEventListener("DOMContentLoaded", function () {
             button.textContent = "Copy";
             button.setAttribute("aria-label", "Copy code block");
             button.addEventListener("click", function () {
-                copyText(code.textContent).then(function () {
+                var clone = code.cloneNode(true);
+                slice(clone.querySelectorAll(".term-prompt")).forEach(function (prompt) {
+                    if (prompt.nextSibling && prompt.nextSibling.nodeType === 3) {
+                        prompt.nextSibling.nodeValue = prompt.nextSibling.nodeValue.replace(/^[ \t]/, "");
+                    }
+                    prompt.parentNode.removeChild(prompt);
+                });
+                copyText(clone.textContent).then(function () {
                     button.textContent = "Copied";
                     window.setTimeout(function () { button.textContent = "Copy"; }, 1600);
                 }).catch(function () {
@@ -1982,17 +1926,15 @@ document.addEventListener("DOMContentLoaded", function () {
     // terminalFontFamily is passed here rather than set in CSS because the
     // player MEASURES the font to size a character cell, and a stack it renders
     // with but did not measure gives the wrong cell.
-    // castVersion appends the recording's own digest to its URL, so a browser
-    // that cached a previous render fetches the new bytes. The digest is read
-    // at RUNTIME from the demo manifest rather than written into data-cast-src,
-    // the same reason data-ze-stat reads site-facts.json: a hash baked into the
-    // markup rewrites every page carrying a demo at every release, and the
-    // recordings change far more often than the pages around them do.
+    // castVersion appends the recording's own digest to its URL when the markup
+    // does not already carry one, so a browser that cached a previous render
+    // fetches the new bytes.
     function castVersion(manifest, src) {
-        if (!manifest || !manifest.demos) {
+        if (!manifest || !manifest.demos || /[?&]v=/.test(src)) {
             return src;
         }
-        var name = src.split("/").pop();
+        var clean = src.split(/[?#]/)[0];
+        var name = clean.split("/").pop();
         var id = name.replace(/\.cast$/, "");
         var entry = manifest.demos[id];
         var cast = entry && entry.assets && entry.assets.cast;
@@ -2008,48 +1950,73 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        function mountAll(manifest) {
-            mounts.forEach(function (mount) {
-                var src = mount.getAttribute("data-cast-src");
-                if (!src) {
-                    return;
-                }
-                var chapter = mount.closest("[data-cast-start]");
-                var preview = mount.closest("[data-cast-poster]");
-                var poster = chapter ? chapter.getAttribute("data-cast-start") :
-                    preview ? preview.getAttribute("data-cast-poster") : undefined;
-                var player = AsciinemaPlayer.create(castVersion(manifest, src), mount, {
-                    startAt: chapter ? chapter.getAttribute("data-cast-start") : undefined,
-                    poster: poster !== undefined ? "npt:" + poster : undefined,
-                    autoPlay: false,
-                    fit: "both",
-                    controls: true,
-                    theme: "ze",
-                    terminalLineHeight: 1.32,
-                    terminalFontFamily:
-                        '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
-                });
-                if (preview && !chapter) {
-                    mount.setAttribute("data-cast-preview-active", "");
-                    var clearPreview = function () {
-                        mount.removeAttribute("data-cast-preview-active");
-                    };
-                    player.addEventListener("play", clearPreview);
-                    player.addEventListener("seeked", clearPreview);
-                    player.addEventListener("ready", function () {
-                        // Initial poster output precedes ready; later output can
-                        // also come from frame stepping without a seeked event.
-                        player.addEventListener("output", clearPreview);
-                    });
-                }
+        function mountOne(mount, manifest) {
+            if (mount.getAttribute("data-terminal-demo-mounted") === "true") {
+                return;
+            }
+            var src = mount.getAttribute("data-cast-src");
+            if (!src) {
+                return;
+            }
+            mount.setAttribute("data-terminal-demo-mounted", "true");
+            var chapter = mount.closest("[data-cast-start]");
+            var preview = mount.closest("[data-cast-poster]");
+            var poster = chapter ? chapter.getAttribute("data-cast-start") :
+                preview ? preview.getAttribute("data-cast-poster") : undefined;
+            var player = AsciinemaPlayer.create(castVersion(manifest, src), mount, {
+                startAt: chapter ? chapter.getAttribute("data-cast-start") : undefined,
+                poster: poster !== undefined ? "npt:" + poster : undefined,
+                autoPlay: false,
+                fit: "both",
+                controls: true,
+                theme: "ze",
+                terminalLineHeight: 1.32,
+                terminalFontFamily:
+                    '"JetBrains Mono", "SFMono-Regular", Consolas, monospace',
             });
+            if (preview && !chapter) {
+                mount.setAttribute("data-cast-preview-active", "");
+                var clearPreview = function () {
+                    mount.removeAttribute("data-cast-preview-active");
+                };
+                player.addEventListener("play", clearPreview);
+                player.addEventListener("seeked", clearPreview);
+                player.addEventListener("ready", function () {
+                    // Initial poster output precedes ready; later output can
+                    // also come from frame stepping without a seeked event.
+                    player.addEventListener("output", clearPreview);
+                });
+            }
         }
 
-        // The manifest is the one file that must never come from the cache:
-        // it is what says which bytes are current. It is a few KB, and a
-        // failed or unsupported fetch falls back to the unversioned URL, so a
-        // demo still plays when this lookup does not answer.
-        if (!window.fetch) {
+        function mountAll(manifest) {
+            var deferred = [];
+            mounts.forEach(function (mount) {
+                var rect = mount.getBoundingClientRect ? mount.getBoundingClientRect() : null;
+                var belowFold = rect && rect.top > (window.innerHeight || 900) * 1.25 && !mount.closest(".hero");
+                if (belowFold && "IntersectionObserver" in window) {
+                    deferred.push(mount);
+                    return;
+                }
+                mountOne(mount, manifest);
+            });
+            if (deferred.length) {
+                var observer = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (entry) {
+                        if (!entry.isIntersecting) return;
+                        observer.unobserve(entry.target);
+                        mountOne(entry.target, manifest);
+                    });
+                }, { rootMargin: "250px 0px" });
+                deferred.forEach(function (mount) { observer.observe(mount); });
+            }
+        }
+
+        var needsManifest = mounts.some(function (mount) {
+            var src = mount.getAttribute("data-cast-src") || "";
+            return src !== "" && !/[?&]v=/.test(src);
+        });
+        if (!needsManifest || !window.fetch) {
             mountAll(null);
             return;
         }
@@ -2134,7 +2101,6 @@ document.addEventListener("DOMContentLoaded", function () {
     initReadingOutlines();
     initPageOutlines();
     initBlogCards();
-    initTaglineCarousel();
     initSearchPage();
     initFeatureFilters();
     initTimelineFilters();

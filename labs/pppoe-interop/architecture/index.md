@@ -131,7 +131,7 @@ passed again after restoration.
 
 `./le --name session build vpp run` builds the pinned, patched VPP image for
 the PPPoE data-plane mechanism lab. Its recipe and patch provenance live in
-[`third_party/vpp-patches`](../../third_party/vpp-patches/README.md). The
+[`third_party/vpp-patches`](https://github.com/ze-software/ze/blob/main/third_party/vpp-patches/README.md). The
 image includes the `af_packet`, Linux CP and PPPoE plugins, with one compile
 worker for the small Docker VM. The answer names its immutable image ID.
 The optional `variant missing-frame-metadata` keyword builds a separate proof

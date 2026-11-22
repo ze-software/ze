@@ -85,13 +85,10 @@ ze doctor --json kernel-capabilities
 stdin. The file is always the value of the <code>config</code> keyword: a bare path such as
 <code>ze doctor router.conf</code> is refused with an error that names
 <code>ze doctor config &lt;file&gt;</code>.</p>
-<!-- source: internal/component/doctor/doctor.go -- Run -->
-<!-- source: internal/component/doctor/answer.go -- Answer, readDoctorRequest -->
 <p><code>ze doctor kernel-capabilities</code> asks a different question: it probes every
 kernel feature Ze enrolls, whatever the configuration uses, prints one row per
 feature (subsystem, <code>CONFIG_</code> symbol, state, reason) and exits 0 only when every
 row is <code>present</code>. It is how a host is checked before it runs Ze's Docker labs.</p>
-<!-- source: internal/component/doctor/kernel_capabilities.go -- writeKernelCapabilities -->
 <p>Each check produces a diagnostic with a code (e.g., <code>doctor-config-reference</code>),
 severity (<code>error</code> or <code>warning</code>), and message. When a command clears the
 problem, the finding also names it as its fix, drawn on a line of its own under
@@ -100,7 +97,6 @@ the message (JSON carries it under <code>fix</code>):</p>
       fix: ze start
 </code></pre>
 <p>Use <code>ze show diagnostic &lt;code&gt;</code> for remediation guidance.</p>
-<!-- source: internal/component/doctor/doctor.go -- outputText -->
 <h3 id="checks">Checks</h3>
 <table>
 <thead>
@@ -120,11 +116,11 @@ the message (JSON carries it under <code>fix</code>):</p>
 </tr>
 <tr>
 <td><code>doctor-config-parse</code></td>
-<td>The config file parses, and then passes the same load validation the daemon applies at startup. A syntax error or a load refusal is reported under this code, and no <code>post-config</code> check runs after it <!-- source: internal/component/doctor/doctor.go -- runChecks --></td>
+<td>The config file parses, and then passes the same load validation the daemon applies at startup. A syntax error or a load refusal is reported under this code, and no <code>post-config</code> check runs after it</td>
 </tr>
 <tr>
 <td><code>doctor-config-reference</code></td>
-<td>Dangling policy/filter references, reported before load validation can refuse the configuration <!-- source: internal/component/bgp/config/filter_reference_doctor.go -- filterReferenceDoctorCheck --></td>
+<td>Dangling policy/filter references, reported before load validation can refuse the configuration</td>
 </tr>
 <tr>
 <td><code>doctor-tls-*</code></td>
@@ -136,91 +132,91 @@ the message (JSON carries it under <code>fix</code>):</p>
 </tr>
 <tr>
 <td><code>doctor-plugin-shell-missing</code></td>
-<td>The shell an external plugin is started with. Ze runs the <code>run</code> string as <code>/bin/sh -c &lt;run&gt;</code>, so a host with no shell, such as a gokrazy appliance image, starts none of them <!-- source: internal/component/plugin/doctor/check_shell.go -- diagnosePluginShell --></td>
+<td>The shell an external plugin is started with. Ze runs the <code>run</code> string as <code>/bin/sh -c &lt;run&gt;</code>, so a host with no shell, such as a gokrazy appliance image, starts none of them</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-setup-failed</code></td>
-<td>A plugin's setup step recorded a failure: an error when the failure stops ze starting, a warning when the plugin runs degraded. The fix is the remedy the failure names, else <code>ze show plugin list</code> <!-- source: internal/component/plugin/doctor/check_setup.go -- checkPluginSetup --></td>
+<td>A plugin's setup step recorded a failure: an error when the failure stops ze starting, a warning when the plugin runs degraded. The fix is the remedy the failure names, else <code>ze show plugin list</code></td>
 </tr>
 <tr>
 <td><code>doctor-plugin-fatal-stop</code></td>
-<td>The last stop of ze was a plugin whose failure policy is <code>fatal</code>, or a boot ze refused: the plugin, what happened and when, read from the record the stop left <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- checkPluginFatalStop --></td>
+<td>The last stop of ze was a plugin whose failure policy is <code>fatal</code>, or a boot ze refused: the plugin, what happened and when, read from the record the stop left</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-schema-refused</code>, <code>doctor-plugin-schema-undeclared</code></td>
-<td>The last start of ze was refused for an external plugin's YANG: a module it declared that ze refused (config, command or rpc), or a configuration section of a plugin that gave ze no schema. The row names the time, the plugin and the cause, read from the same record, and its fix is the one the refusal named <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- schemaRefusedRow --></td>
+<td>The last start of ze was refused for an external plugin's YANG: a module it declared that ze refused (config, command or rpc), or a configuration section of a plugin that gave ze no schema. The row names the time, the plugin and the cause, read from the same record, and its fix is the one the refusal named</td>
 </tr>
 <tr>
 <td><code>doctor-build-registration-unheld</code></td>
-<td>The last start of ze was refused because this ze was built wrong: a YANG module compiled into it names a validator or a reference source no package in it registers. The row names the time, the module and the name, read from the same record; the config is not at fault <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- buildRegistrationUnheldRow --></td>
+<td>The last start of ze was refused because this ze was built wrong: a YANG module compiled into it names a validator or a reference source no package in it registers. The row names the time, the module and the name, read from the same record; the config is not at fault</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-stop-cleanup-late</code></td>
-<td>A warning: the last stop went on before a plugin finished its cleanup, so state that plugin installs may remain. The fix searches the log up to that stop <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- cleanupLateRow --></td>
+<td>A warning: the last stop went on before a plugin finished its cleanup, so state that plugin installs may remain. The fix searches the log up to that stop</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-autoload-unresolved</code></td>
-<td>A plugin the config loads needs a plugin this build does not carry, so ze would refuse to start; the row carries the refusal ze would give <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- checkPluginAutoload --></td>
+<td>A plugin the config loads needs a plugin this build does not carry, so ze would refuse to start; the row carries the refusal ze would give</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-no-dataplane-writer</code></td>
-<td>The config loads a plugin whose routes need a data-plane writer (static, bgp-epe) and no plugin programs the data plane the config selects, or this build was compiled without it, so ze would refuse to start or reload; an explicit <code>fib { ... }</code> block is never reported <!-- source: internal/component/plugin/doctor/check_dataplane_writer.go -- dataPlaneWriterRows --></td>
+<td>The config loads a plugin whose routes need a data-plane writer (static, bgp-epe) and no plugin programs the data plane the config selects, or this build was compiled without it, so ze would refuse to start or reload; an explicit <code>fib { ... }</code> block is never reported</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-removal-unrecovered</code></td>
-<td>A plugin a refused reload removed could not be restored and stays removed; <code>ze request reload</code> retries it <!-- source: internal/component/plugin/doctor/check_reload_records.go -- removalUnrecoveredRows --></td>
+<td>A plugin a refused reload removed could not be restored and stays removed; <code>ze request reload</code> retries it</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-capabilities-not-restored</code></td>
-<td>A refused reload could not restore the plugins' capability declarations, so a BGP OPEN may carry what it declared; kept until a reload commits <!-- source: internal/component/plugin/doctor/check_reload_records.go -- capabilitiesNotRestoredRows --></td>
+<td>A refused reload could not restore the plugins' capability declarations, so a BGP OPEN may carry what it declared; kept until a reload commits</td>
 </tr>
 <tr>
 <td><code>doctor-audit-record-failed</code></td>
-<td>The audit log's last write failed (file, error, time, count); the records stay in memory until a write lands <!-- source: internal/component/doctor/checks_audit.go -- auditRecordFailedRow --></td>
+<td>The audit log's last write failed (file, error, time, count); the records stay in memory until a write lands</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-stopped</code></td>
-<td>Inside the daemon only (<code>show doctor</code>): each configured plugin that is not running, with why (its failure policy after an exit, the respawn limit, a failed restart, a failed startup handshake), the exit status and since when. An error, fixed by <code>ze request plugin restart &lt;name&gt;</code> <!-- source: internal/component/plugin/doctor/checks_runtime.go -- checkPluginStopped, pluginStoppedRow --></td>
+<td>Inside the daemon only (<code>show doctor</code>): each configured plugin that is not running, with why (its failure policy after an exit, the respawn limit, a failed restart, a failed startup handshake), the exit status and since when. An error, fixed by <code>ze request plugin restart &lt;name&gt;</code></td>
 </tr>
 <tr>
 <td><code>doctor-plugin-command-not-registered</code></td>
-<td>Inside the daemon only: a command or deprecated alias a running plugin declared was refused because another plugin, or a builtin, owns the name. A warning naming both, fixed by removing or renaming one of them <!-- source: internal/component/plugin/doctor/checks_delivery.go -- commandRefusalRows --></td>
+<td>Inside the daemon only: a command or deprecated alias a running plugin declared was refused because another plugin, or a builtin, owns the name. A warning naming both, fixed by removing or renaming one of them</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-subscription-dropped</code></td>
-<td>Inside the daemon only: a plugin's event subscriptions were dropped (unknown namespace, no default namespace, ready parameters that did not parse), so it receives none of those events. An error <!-- source: internal/component/plugin/doctor/checks_delivery.go -- subscriptionDropRows --></td>
+<td>Inside the daemon only: a plugin's event subscriptions were dropped (unknown namespace, no default namespace, ready parameters that did not parse), so it receives none of those events. An error</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-delivery-disagreement</code></td>
-<td>Inside the daemon only: a peer's <code>attach process</code> block and the events a plugin declared do not meet, so the event is never delivered. A warning per finding, fixed by the <code>attach process</code> change it names <!-- source: internal/component/plugin/doctor/checks_delivery.go -- deliveryDisagreementRows --></td>
+<td>Inside the daemon only: a peer's <code>attach process</code> block and the events a plugin declared do not meet, so the event is never delivered. A warning per finding, fixed by the <code>attach process</code> change it names</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-claim-unbacked</code></td>
-<td>Inside the daemon only: an exclusive role is claimed and no claimant runs, so nobody performs it. An error naming the role and the claimants <!-- source: internal/component/plugin/doctor/checks_delivery.go -- unbackedClaimRows --></td>
+<td>Inside the daemon only: an exclusive role is claimed and no claimant runs, so nobody performs it. An error naming the role and the claimants</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-poststartup-undelivered</code></td>
-<td>Inside the daemon only: a running plugin's post-startup callback failed, so the work it starts after startup never ran. An error, fixed by <code>ze request plugin restart &lt;name&gt;</code> <!-- source: internal/component/plugin/doctor/checks_delivery.go -- postStartupRows --></td>
+<td>Inside the daemon only: a running plugin's post-startup callback failed, so the work it starts after startup never ran. An error, fixed by <code>ze request plugin restart &lt;name&gt;</code></td>
 </tr>
 <tr>
 <td><code>doctor-plugin-panic</code></td>
-<td>Inside the daemon only: a plugin failed to apply an event, or an engine event handler panicked and was recovered. An error naming the plugin, or the handler's namespace and event type, and the first error <!-- source: internal/component/plugin/doctor/checks_delivery.go -- panicRows --></td>
+<td>Inside the daemon only: a plugin failed to apply an event, or an engine event handler panicked and was recovered. An error naming the plugin, or the handler's namespace and event type, and the first error</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-delivery-failed</code></td>
-<td>Inside the daemon only: in the last five minutes, event batches failed with no caller waiting, or took over 500 ms. A warning naming the counts, the slowest batch and the last error <!-- source: internal/component/plugin/doctor/checks_delivery.go -- deliveryFailedRows --></td>
+<td>Inside the daemon only: in the last five minutes, event batches failed with no caller waiting, or took over 500 ms. A warning naming the counts, the slowest batch and the last error</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-enricher-unavailable</code></td>
-<td>Inside the daemon only: a plugin's <code>show</code> enricher failed to register or its last call failed, so the command answers without its field. A warning naming plugin, command and key, and one counting the failing enrichers past the 16 listed <!-- source: internal/component/plugin/doctor/checks_delivery.go -- enricherRows --></td>
+<td>Inside the daemon only: a plugin's <code>show</code> enricher failed to register or its last call failed, so the command answers without its field. A warning naming plugin, command and key, and one counting the failing enrichers past the 16 listed</td>
 </tr>
 <tr>
 <td><code>doctor-plugin-config-unapplied</code></td>
-<td>Inside the daemon only: a running plugin was not told its last transaction committed, so it keeps that transaction's undo set. A warning naming the transaction and the daemon's last one, fixed by <code>ze request plugin restart &lt;name&gt;</code>: a reload of an unchanged config tells no plugin anything <!-- source: internal/component/plugin/doctor/checks_delivery.go -- configUnappliedRows --></td>
+<td>Inside the daemon only: a running plugin was not told its last transaction committed, so it keeps that transaction's undo set. A warning naming the transaction and the daemon's last one, fixed by <code>ze request plugin restart &lt;name&gt;</code>: a reload of an unchanged config tells no plugin anything</td>
 </tr>
 <tr>
 <td><code>doctor-hub-managed-collision</code></td>
-<td>A <code>plugin/hub/server</code> block declares managed clients on the address the plugin acceptor binds, so its managed listener cannot bind and its clients are refused <!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener --></td>
+<td>A <code>plugin/hub/server</code> block declares managed clients on the address the plugin acceptor binds, so its managed listener cannot bind and its clients are refused</td>
 </tr>
 <tr>
 <td><code>doctor-service-executable</code></td>
@@ -232,11 +228,11 @@ the message (JSON carries it under <code>fix</code>):</p>
 </tr>
 <tr>
 <td><code>doctor-service-stop</code></td>
-<td>The stop settings systemd applies to the installed <code>ze.service</code> (<code>systemctl show -p TimeoutStopUSec -p KillMode</code>, drop-ins included) give ze its whole stop: a timeout of at least 90 s (60 s drain ceiling plus 30 s teardown) and <code>KillMode=mixed</code>. A host with no <code>systemctl</code> is told it does not run systemd and that the unit file is stale; any other failed query carries systemctl's own error <!-- source: internal/plugins/systemd/doctor.go -- checkServiceStop, stopQueryFailure --></td>
+<td>The stop settings systemd applies to the installed <code>ze.service</code> (<code>systemctl show -p TimeoutStopUSec -p KillMode</code>, drop-ins included) give ze its whole stop: a timeout of at least 90 s (60 s drain ceiling plus 30 s teardown) and <code>KillMode=mixed</code>. A host with no <code>systemctl</code> is told it does not run systemd and that the unit file is stale; any other failed query carries systemctl's own error</td>
 </tr>
 <tr>
 <td><code>doctor-service-restart</code></td>
-<td>The effective systemd policy preserves clean stop, intentional restart and failure recovery: <code>Restart=on-failure</code>, <code>SuccessExitStatus=75</code>, <code>RestartForceExitStatus=75</code> and no restart-prevention override. Missing or unreadable policy is a warning with the query or reinstall command that resolves it <!-- source: internal/plugins/systemd/doctor.go -- checkServicePolicy, checkServiceRestartOutput --></td>
+<td>The effective systemd policy preserves clean stop, intentional restart and failure recovery: <code>Restart=on-failure</code>, <code>SuccessExitStatus=75</code>, <code>RestartForceExitStatus=75</code> and no restart-prevention override. Missing or unreadable policy is a warning with the query or reinstall command that resolves it</td>
 </tr>
 <tr>
 <td><code>doctor-ssh-hostkey-missing</code></td>
@@ -248,7 +244,7 @@ the message (JSON carries it under <code>fix</code>):</p>
 </tr>
 <tr>
 <td><code>doctor-listener-set-unknown</code></td>
-<td>The listen addresses to check cannot be derived: the YANG schema built into ze failed to load, so no web, SSH, gNMI or API listener was checked. An error, because it means an incomplete ze binary <!-- source: internal/component/doctor/checks_listener.go -- collectSchemaListeners, listenerSetUnknown --></td>
+<td>The listen addresses to check cannot be derived: the YANG schema built into ze failed to load, so no web, SSH, gNMI or API listener was checked. An error, because it means an incomplete ze binary</td>
 </tr>
 <tr>
 <td><code>doctor-iface-missing</code> / <code>doctor-iface-down</code></td>
@@ -268,7 +264,7 @@ the message (JSON carries it under <code>fix</code>):</p>
 </tr>
 <tr>
 <td><code>doctor-storage-not-grown</code></td>
-<td>On an appliance, the persistent storage is smaller than its disk: the system was not installed by the installer, or the growth failed at install. A warning naming the device and both sizes, fixed by <code>ze request system storage grow</code>. Also a warning when the sizes cannot be read, which is the answer on every appliance today, because the size read is not written yet <!-- source: internal/component/doctor/checks_storage.go -- checkStorageGrown --></td>
+<td>On an appliance, the persistent storage is smaller than its disk: the system was not installed by the installer, or the growth failed at install. A warning naming the device and both sizes, fixed by <code>ze request system storage grow</code>. Also a warning when the sizes cannot be read, which is the answer on every appliance today, because the size read is not written yet</td>
 </tr>
 <tr>
 <td><code>doctor-dns-resolver</code></td>
@@ -276,7 +272,7 @@ the message (JSON carries it under <code>fix</code>):</p>
 </tr>
 <tr>
 <td><code>doctor-*-unreachable</code></td>
-<td>External-service reachability probes that warn (never fail startup) when a configured peer is down: RADIUS admin (<code>doctor-radius-admin-unreachable</code>), RPKI cache (<code>doctor-rpki-unreachable</code>), BMP collector (<code>doctor-bmp-unreachable</code>), NTP (<code>doctor-ntp-server-unreachable</code>), management hub (<code>doctor-hub-unreachable</code>) <!-- source: internal/component/managed/doctor.go -- checkHubReachable / doctor-hub-unreachable --></td>
+<td>External-service reachability probes that warn (never fail startup) when a configured peer is down: RADIUS admin (<code>doctor-radius-admin-unreachable</code>), RPKI cache (<code>doctor-rpki-unreachable</code>), BMP collector (<code>doctor-bmp-unreachable</code>), NTP (<code>doctor-ntp-server-unreachable</code>), management hub (<code>doctor-hub-unreachable</code>)</td>
 </tr>
 <tr>
 <td><code>doctor-clock-skew</code></td>
@@ -284,7 +280,7 @@ the message (JSON carries it under <code>fix</code>):</p>
 </tr>
 <tr>
 <td><code>doctor-gtsm-kernel-state</code></td>
-<td>A BGP peer or dynamic group range with <code>connection ttl</code> (RFC 5082 GTSM) whose kernel state is short: inside the daemon (<code>show doctor</code>), the host route carrying hop limit 255, or a <code>ze_gtsm</code> term the daemon published (the listen-port drop or a related-ICMP drop), is missing from the kernel. The report names each missing term and the fix, <code>ze signal restart</code>, because a reload leaves an unchanged peer set alone. In <code>ze doctor</code>, before a start, the kernel resolves no route to the peer, so that route cannot be installed at apply <!-- source: internal/component/gtsm/doctor.go -- checkKernelState, installedStateDiagnostics, missingStateDiagnostic --></td>
+<td>A BGP peer or dynamic group range with <code>connection ttl</code> (RFC 5082 GTSM) whose kernel state is short: inside the daemon (<code>show doctor</code>), the host route carrying hop limit 255, or a <code>ze_gtsm</code> term the daemon published (the listen-port drop or a related-ICMP drop), is missing from the kernel. The report names each missing term and the fix, <code>ze signal restart</code>, because a reload leaves an unchanged peer set alone. In <code>ze doctor</code>, before a start, the kernel resolves no route to the peer, so that route cannot be installed at apply</td>
 </tr>
 <tr>
 <td><code>doctor-vpp-unreachable</code></td>
@@ -355,7 +351,7 @@ when any component is <code>down</code>.</p>
 </tr>
 <tr>
 <td><code>vpp</code></td>
-<td>Present only while <code>interface { backend vpp; }</code> is the loaded backend. Down, with the socket path and <code>ze doctor</code> as the next step, when the vpp component is not running, the configured <code>vpp { api-socket }</code> does not exist, or it refuses connections <!-- source: internal/plugins/iface/vpp/health.go -- checkVPPHealth, vppHealthApplies --></td>
+<td>Present only while <code>interface { backend vpp; }</code> is the loaded backend. Down, with the socket path and <code>ze doctor</code> as the next step, when the vpp component is not running, the configured <code>vpp { api-socket }</code> does not exist, or it refuses connections</td>
 </tr>
 <tr>
 <td><code>ipsec</code></td>
@@ -367,7 +363,7 @@ when any component is <code>down</code>.</p>
 </tr>
 <tr>
 <td><code>l2tp</code></td>
-<td>L2TP subsystem running, and every listener programming sessions into the kernel data plane. Degraded, with the reason and <code>ze doctor</code> to check the kernel modules, when the l2tp generic netlink family could not be resolved, <code>ze.l2tp.disable-kernel-dataplane</code> is set, or the platform is not Linux <!-- source: internal/component/l2tp/health.go -- checkHealth, dataPlaneHealth --></td>
+<td>L2TP subsystem running, and every listener programming sessions into the kernel data plane. Degraded, with the reason and <code>ze doctor</code> to check the kernel modules, when the l2tp generic netlink family could not be resolved, <code>ze.l2tp.disable-kernel-dataplane</code> is set, or the platform is not Linux</td>
 </tr>
 <tr>
 <td><code>flow-export</code></td>
@@ -379,13 +375,11 @@ when any component is <code>down</code>.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/flowexport/health.go -- RegisterHealthCheck, checkFlowExportHealth; internal/core/report/register.go -- init -->
 <p>Each check completes within 1 second. Components report <code>healthy</code>, <code>degraded</code>,
 or <code>down</code>. The overall status is the worst of all components. A component that
 has nothing to measure on this host, such as <code>vpp</code> when another interface
 backend is loaded, has no row at all rather than a <code>healthy</code> row nobody
 measured.</p>
-<!-- source: internal/core/health/registry.go -- RegisterWhen, invokeCheck -->
 <!-- The health-reports demo is not embedded while its recording is wrong. The
      tape drives an SSH session whose commands the CLI answers with a completion
      listing rather than a result, so the recording shows the intro card, a
@@ -497,25 +491,25 @@ show warnings source bgp
 <td><code>doctor-iface-address-unattributed</code></td>
 <td>iface</td>
 <td>error</td>
-<td>The netlink monitor received an address for an interface it had not seen yet, and the kernel lookup of that interface failed, so Ze did not announce the address: its connected route is missing until the address changes. The subject is the address and the interface index, the detail carries the kernel's error; the fix is <code>ip -o addr show to &lt;address&gt;; ip addr del &lt;address&gt; dev &lt;device&gt;; ip addr add &lt;address&gt; dev &lt;device&gt;</code>. Raised once per lost address and never cleared, so not in the <code>iface</code> health row <!-- source: internal/plugins/iface/netlink/monitor_report_linux.go -- reportAddressUnattributed --></td>
+<td>The netlink monitor received an address for an interface it had not seen yet, and the kernel lookup of that interface failed, so Ze did not announce the address: its connected route is missing until the address changes. The subject is the address and the interface index, the detail carries the kernel's error; the fix is <code>ip -o addr show to &lt;address&gt;; ip addr del &lt;address&gt; dev &lt;device&gt;; ip addr add &lt;address&gt; dev &lt;device&gt;</code>. Raised once per lost address and never cleared, so not in the <code>iface</code> health row</td>
 </tr>
 <tr>
 <td><code>doctor-bfd-auth-failed</code></td>
 <td>bfd</td>
 <td>warning</td>
-<td>A BFD session drops its peer's Control packets because they fail authentication; the subject names the peer, VRF, hop mode and local discriminator, and the fix names the profile whose auth type, key-id and secret must match the peer's. Cleared when a packet verifies again, the session's authentication changes, the session is removed, or no packet has failed for two minutes; raised at most once a minute per session <!-- source: internal/component/bfd/engine/problems.go -- warnAuthFailedLocked, clearAuthWarning, expireQuietWarnings --></td>
+<td>A BFD session drops its peer's Control packets because they fail authentication; the subject names the peer, VRF, hop mode and local discriminator, and the fix names the profile whose auth type, key-id and secret must match the peer's. Cleared when a packet verifies again, the session's authentication changes, the session is removed, or no packet has failed for two minutes; raised at most once a minute per session</td>
 </tr>
 <tr>
 <td><code>doctor-bfd-send-failed</code></td>
 <td>bfd</td>
 <td>warning</td>
-<td>The transport refused a BFD packet of a session: a Control packet (the peer takes the session Down when its Detection Time passes), an Echo packet (the session goes Down with Echo Function Failed) or the return of the peer's Echo packet (the peer's echo function fails). The subject names the peer, VRF, hop mode, local discriminator and packet kind; the fix is <code>ze show interface name &lt;interface&gt; detail</code> for a session bound to an interface, which shows the subnets the peer must be on, else <code>ze show bfd session address &lt;peer&gt;</code>. Each kind is raised at most once a minute per session and cleared when a packet of that kind is sent, the session is removed, or none has been refused for two minutes <!-- source: internal/component/bfd/engine/problems.go -- warnSendFailedLocked, clearSendWarning, expireQuietWarnings --></td>
+<td>The transport refused a BFD packet of a session: a Control packet (the peer takes the session Down when its Detection Time passes), an Echo packet (the session goes Down with Echo Function Failed) or the return of the peer's Echo packet (the peer's echo function fails). The subject names the peer, VRF, hop mode, local discriminator and packet kind; the fix is <code>ze show interface name &lt;interface&gt; detail</code> for a session bound to an interface, which shows the subnets the peer must be on, else <code>ze show bfd session address &lt;peer&gt;</code>. Each kind is raised at most once a minute per session and cleared when a packet of that kind is sent, the session is removed, or none has been refused for two minutes</td>
 </tr>
 <tr>
 <td><code>doctor-bfd-auth-seq-unsaved</code></td>
 <td>bfd</td>
 <td>error</td>
-<td>The state store refused to save the TX sequence number of a BFD session using meticulous keyed authentication, raised once per run of refused writes and again when the session's authentication closes with its last write refused. After a restart the session starts from an older number and the peer drops its packets until it passes the one it last accepted; the subject names the peer, VRF and hop mode, and the fix is <code>ze doctor</code>, which reports why the store cannot be written <!-- source: internal/component/bfd/engine/problems.go -- reportSeqUnsaved, closeAuth --></td>
+<td>The state store refused to save the TX sequence number of a BFD session using meticulous keyed authentication, raised once per run of refused writes and again when the session's authentication closes with its last write refused. After a restart the session starts from an older number and the peer drops its packets until it passes the one it last accepted; the subject names the peer, VRF and hop mode, and the fix is <code>ze doctor</code>, which reports why the store cannot be written</td>
 </tr>
 <tr>
 <td><code>firewall-stale-table</code></td>
@@ -751,7 +745,7 @@ is present and emits the registered code.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

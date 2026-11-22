@@ -65,15 +65,11 @@ whether the daemon answers, and where the configuration is.</p>
 <li><a href="#an-agent-that-reaches-a-remote-router">An agent that reaches a remote router</a></li>
 <li><a href="#details">Details</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, stubText -->
-<!-- source: internal/plugins/skills/agent_hook.go -- hookCommand -->
 <p>Ze is pre-release software. Give the agent a lab, not a live network.</p>
 <h2 id="before-you-start">Before you start</h2>
 <p><code>ze</code> must be installed on the machine the agent runs on, and on the path the
 agent sees: the skill and the hook both run <code>ze</code>. To build and install it, see
 <a href="../quickstart/#build">Quick Start</a>. Check with <code>ze version</code>.</p>
-<!-- source: internal/plugins/skills/agent_skill.go -- stubText -->
-<!-- source: internal/plugins/skills/agent_hook.go -- hookCommand -->
 <h2 id="set-the-agent-up">Set the agent up</h2>
 <p>Run the command as the user who runs the agent, on the machine the agent runs
 on:</p>
@@ -100,14 +96,12 @@ for Pi. To set up one harness before its directory exists, name it:
 <code>ze create agent skill agent codex</code>. When Ze finds no harness, it writes only
 the shared skill and says so. The command exits 1 when a row is refused, and
 the row names the fix.</p>
-<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, placeOf, localRun.note, exitCode -->
 <h2 id="trust-the-hook-in-codex">Trust the hook in Codex</h2>
 <p>Codex does not run a new or changed hook until you trust it. Open Codex, run
 <code>/hooks</code>, and trust the hook that runs <code>ze show agent context</code>. Do this again
 when a later <code>ze create agent skill</code> updates the hook. Ze never writes Codex's
 trust store, so <code>ze show agent skill</code> can say the hook is installed, but it can
 not say whether Codex trusts it.</p>
-<!-- source: internal/plugins/skills/agent_hook.go -- hookEditor.create, inspectHook -->
 <h2 id="what-to-ask-the-agent-first">What to ask the agent first</h2>
 <p>Ask it to use the ze skill, for example "use the ze skill and check my
 configuration". The agent reads the guide itself: the skill sends it to
@@ -117,8 +111,6 @@ command reference from <code>ze help ai --json</code>). <code>ze show skills</co
 guides the binary carries, and the agent loads the one its task needs with
 <code>ze show skill &lt;name&gt;</code>. The guides come from the binary, so they change when
 you upgrade it.</p>
-<!-- source: internal/plugins/skills/data/ze.md -- Agent Entry Points -->
-<!-- source: internal/plugins/skills/main.go -- inventory, showSkills, showSkill -->
 <h2 id="what-changed-on-your-machine">What changed on your machine</h2>
 <table>
 <thead>
@@ -146,14 +138,11 @@ you upgrade it.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, harness.stubPath, harness.hookPath -->
 <p>When <code>CLAUDE_CONFIG_DIR</code> is set, both Claude Code files are under that
 directory. When <code>CODEX_HOME</code> is set, only Codex's <code>hooks.json</code> moves there: the
 skill Codex reads stays at <code>~/.agents/skills/ze/SKILL.md</code>. Ze adds its hook to
 the settings file and leaves the rest of the file as it was. OpenCode and Pi
 get the skill only, because Ze knows no session-start hook format for them.</p>
-<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, placeOf -->
-<!-- source: internal/plugins/skills/agent_hook.go -- createHook -->
 <p>At each session start, the hook adds a few lines like these to the agent's
 context:</p>
 <pre><code>ze dev (built unknown)
@@ -164,8 +153,6 @@ guide: the ze skill, read it with ze show skill ze
 <p>The hook waits at most one second for the daemon and always succeeds. When
 <code>ze</code> is not on the path the harness sees, the hook prints nothing and the
 session starts as usual.</p>
-<!-- source: internal/plugins/skills/agent_context.go -- dialBound, showAgentContextLocal, drawAgentContext -->
-<!-- source: internal/plugins/skills/agent_hook.go -- hookCommand, hookTimeoutSeconds -->
 <h2 id="check-the-setup">Check the setup</h2>
 <pre><code>ze show agent skill
 </code></pre>
@@ -173,8 +160,6 @@ session starts as usual.</p>
 skill and hook. It changes nothing. Run <code>ze create agent skill</code> again after you
 upgrade Ze: it rewrites what an older version wrote and leaves a current setup
 as it is.</p>
-<!-- source: internal/plugins/skills/agent_stub.go -- createStub, inspectStub -->
-<!-- source: internal/plugins/skills/agent_hook.go -- inspectHook -->
 <h2 id="remove-the-setup">Remove the setup</h2>
 <pre><code>ze delete agent skill
 </code></pre>
@@ -183,8 +168,6 @@ did not add stay as they are. Without <code>agent</code> it acts on every harnes
 finds, and <code>agent &lt;name&gt;</code> limits it to one. When you name one harness, the
 shared skill under <code>~/.agents</code> stays while another harness on the machine
 still reads it.</p>
-<!-- source: internal/plugins/skills/agent_stub.go -- removeStub, keptSharedStub -->
-<!-- source: internal/plugins/skills/agent_hook.go -- deleteHook -->
 <h2 id="an-agent-that-reaches-a-remote-router">An agent that reaches a remote router</h2>
 <p>When the agent runs on another machine and reaches Ze over MCP, REST, gRPC,
 SSH or the web, send the same commands over that connection, for example
@@ -194,7 +177,6 @@ directory and the skill to write there, on the agent's machine. That skill
 tells the agent to ask the Ze system it is connected to for <code>show skill ze</code>
 over the connection it already uses. There is no hook, because the hook needs
 a local <code>ze</code>. To connect an agent over MCP, see <a href="../mcp/overview/">MCP Integration</a>.</p>
-<!-- source: internal/plugins/skills/agent_skill.go -- remoteAnswer, remoteNote, stubText -->
 <h2 id="details">Details</h2>
 <p>The full behavior of each command (every state a row can answer, how Ze edits
 the settings files, what it refuses) is in
@@ -250,7 +232,7 @@ reference has one entry per command:
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

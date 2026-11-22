@@ -65,8 +65,6 @@ revision <code>2026-07-28</code> it does so through
 </ol></details></nav><div class="doc-body">
 <p>The single place this happens is the <code>ze_execute</code> tool called without a
 <code>command</code> argument.</p>
-<!-- source: internal/component/mcp/mrtr.go -- newInputRequiredResult, inputRequiredForMissingCommand -->
-<!-- source: internal/component/mcp/tools.go -- ze_execute handler -->
 <h2 id="the-round-trip">The round trip</h2>
 <p>A server that needs more input answers the original request with
 <code>resultType: "input_required"</code> and an <code>inputRequests</code> map, which <strong>ends</strong>
@@ -87,7 +85,6 @@ is explicit that there cannot be: "The server <strong>MUST NOT</strong> send ind
 JSON-RPC <em>requests</em> on this stream. Server-to-client interactions (sampling,
 elicitation, list-roots) are embedded as input requests inside an
 <code>InputRequiredResult</code>."</p>
-<!-- source: internal/component/mcp/streamable_tools.go -- runMethod, ok -->
 <h2 id="declaring-the-capability">Declaring the capability</h2>
 <p>The elicitation capability is <strong>mode-structured</strong>, and a client declares it on
 <strong>every</strong> request in <code>params._meta</code>, not once at a handshake (there is no
@@ -144,16 +141,12 @@ supported by the client.</p>
 <p>A client that declares only <code>url</code> supports elicitation, and it does not support
 the one mode Ze emits. Ze therefore treats that client exactly like a client
 that declared nothing.</p>
-<!-- source: internal/component/mcp/mrtr.go -- elicitationFormSupported -->
-<!-- source: internal/component/mcp/meta.go -- parseClientCapabilities, clientCapabilities.ElicitForm -->
 <p>The same capability shapes the tool descriptor, so a client does not have to
 know this page to find the round trip. Declare form mode, and the <code>ze_execute</code>
 entry in <code>tools/list</code> omits <code>command</code> from its <code>inputSchema.required</code>. That <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 omission tells a schema-validating host that the argument-less call is legal.
 Declare nothing, or <code>url</code> only, and <code>required</code> names <code>command</code>, which is honest:
 that client will get an error rather than a prompt.</p>
-<!-- source: internal/component/mcp/mrtr.go -- gateExecuteCommandRequired -->
-<!-- source: internal/component/mcp/streamable_tools.go -- allTools -->
 <h2 id="what-ze-returns">What Ze returns</h2>
 <pre><code class="language-json">{
   "jsonrpc": "2.0",
@@ -186,8 +179,6 @@ that client will get an error rather than a prompt.</p>
 <p><code>ze_execute_command</code> is the server-assigned key the retry must echo. <code>mode</code> is
 stated explicitly even though form is the default, so the absence of url-mode
 support is visible at the emission point rather than implied.</p>
-<!-- source: internal/component/mcp/mrtr.go -- inputKeyExecuteCommand, elicitPromptCommand -->
-<!-- source: internal/component/mcp/elicit.go -- newElicitRequest, elicitModeForm -->
 <h2 id="what-the-client-sends-back">What the client sends back</h2>
 <p>The retry is the original request plus <code>inputResponses</code>, under a new id.</p>
 <pre><code class="language-json">{
@@ -248,8 +239,6 @@ explicitly permitted:</p>
 <p>Servers <strong>MAY</strong> choose to return an <code>InputRequiredResult</code> on multiple attempts
 at the same request.</p>
 </blockquote>
-<!-- source: internal/component/mcp/mrtr.go -- resolveElicitedValue, inputOutcome -->
-<!-- source: internal/component/mcp/mrtr.go -- resolveExecuteCommand, askForCommand -->
 <h2 id="ze-issues-no-requeststate">Ze issues no <code>requestState</code></h2>
 <p>MRTR lets a server attach an opaque <code>requestState</code> blob to an
 <code>InputRequiredResult</code> and have the client echo it on the retry. <strong>Ze never
@@ -269,8 +258,6 @@ supplied value.</p>
 <pre><code>probe status=400 code=-32602 message=invalid params: params.requestState is not
 accepted; this server issues no requestState, so a retry must not carry one
 </code></pre>
-<!-- source: internal/component/mcp/mrtr.go -- rejectUnsolicitedRequestState, errUnsolicitedRequestState -->
-<!-- source: internal/component/mcp/streamable.go -- handlePOST requestState guard -->
 <h2 id="limits">Limits</h2>
 <ul>
 <li><strong>Form mode only.</strong> URL-mode elicitation is not implemented. Ze asks for a
@@ -299,8 +286,6 @@ otherwise elicit reads form-mode support as undeclared. That handler takes the
 missing-argument path instead. No Ze task can raise <code>inputRequests</code>, and none
 can reach the <code>input_required</code> state.</li>
 </ul>
-<!-- source: internal/component/mcp/elicit.go -- validateElicitSchema, elicitFieldIsSecret -->
-<!-- source: internal/component/mcp/streamable_tools.go -- createTask worker runner -->
 <h2 id="trying-it">Trying it</h2>
 <p>The functional-test client speaks the client half of the loop:</p>
 <pre><code>le test mcp --port 8080 --elicit form
@@ -312,8 +297,6 @@ can reach the <code>input_required</code> state.</li>
 <p><code>--elicit</code> takes <code>form</code>, <code>url</code>, <code>form,url</code>, or <code>empty</code> for the <code>{}</code> shape.
 <code>elicit-answer</code> also accepts <code>decline</code>, <code>cancel</code>, and <code>omit</code> (retry with an
 empty <code>inputResponses</code>, which drives the re-ask path).</p>
-<!-- source: internal/test/cli/cmd_mcp_mrtr.go -- send retry loop, elicitDirective -->
-<!-- source: internal/test/cli/cmd_mcp.go -- --elicit flag -->
 <h2 id="related">Related</h2>
 <ul>
 <li><a href="../overview/">MCP Overview</a> -- tools, transport and configuration</li>
@@ -369,7 +352,7 @@ empty <code>inputResponses</code>, which drives the re-ask path).</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

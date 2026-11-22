@@ -761,10 +761,9 @@ Implementation: `internal/core/privilege/` -- calls `setgid` then `setuid` after
 `privilege.DaemonCapabilities` is the one declaration of the capabilities a
 non-root daemon runs with: `CAP_NET_ADMIN`, `CAP_NET_RAW`, `CAP_NET_BIND_SERVICE`
 and `CAP_BPF`, each with its kernel bit and what Ze needs it for. The systemd unit
-grants exactly that set, ambient and bounding alike; when `CheckPrivileges`
-reports one a non-root daemon lacks, the hub logs one warning at start under
-`doctor-daemon-capability-missing`, and the `daemon-capabilities` runtime check
-reports the same in `show doctor`; the per-test netns mode of
+grants exactly that set, ambient and bounding alike; `CheckPrivileges` takes
+the generic inventory of the ones this process lacks, reading the effective set
+of a root process like any other; the per-test netns mode of
 `./le test qemu all` runs ze with the same set (`netnsDaemonCapBits`); and a unit
 capability test (`unit_capabilities_integration_linux_test.go` in the package
 that owns the program, for traffic-usage, the IPsec ESP form fast path and the
@@ -773,10 +772,50 @@ process holding exactly it, which is how the verifier's unprivileged rules are
 proven. Each kernel bit is written out, because
 `golang.org/x/sys/unix` declares the `CAP_` constants on Linux alone, and
 `TestDaemonCapabilityBitsAreTheKernels` compares it with that constant.
-<!-- source: internal/core/privilege/capabilities.go -- DaemonCapabilities -->
+
+A missing capability is not a problem by itself, because the inventory is taken
+before the config is read and a config that uses nothing the capability serves
+runs without it: an interfaces-and-SSH config starts with `CAP_NET_ADMIN` alone.
+So the inventory is information. The hub logs it at debug at start
+(`logDaemonCapabilities`), with no doctor code and no remedy, and the
+`daemon-capabilities` runtime check shows it in `show doctor` as an `info` row
+under `doctor-daemon-capability-missing` that never makes the box not ready
+(`docs/architecture/doctor-and-health-checks.md`, "Three severities"). A process
+whose set cannot be read is logged and shown as one whose capabilities Ze cannot
+determine. Each configured feature that needs a capability checks for it at
+start and reload, or when an on-demand operation is invoked, and reports its own
+impact under its own code.
+
+Every site that reports a missing capability takes its remedy from
+`privilege.CapabilityRemedy`, so the operator reads one wording everywhere. The
+remedy depends on `privilege.DaemonServiceMembership`, read from the cgroup v2
+line of `/proc/self/cgroup`:
+
+| Membership | When | Remedy |
+|------------|------|--------|
+| `ze.service` | the cgroup path's last element is `privilege.ServiceUnit`, the unit the installer writes | `DaemonCapabilitiesFix` (`sudo systemctl stop ze && sudo ze install systemd --force --start`) when the unit's set holds every capability named; a `sudo systemctl edit ze` drop-in for one outside it |
+| other | the path was read and names another unit, a session, a container root | restart ze as root, or holding the capabilities named: ambient capabilities from whatever starts ze, or `setcap` on the binary |
+| unknown | no cgroup v2 line, an unreadable file, or not Linux | the same as other, after saying Ze could not tell whether it runs under `ze.service`, and why |
+
+A systemd command is offered only when Ze establishes that the process runs
+under `ze.service`: for any other process the unit is not what started it, and
+reinstalling it changes nothing. The same membership gate governs every other
+fix that mentions `systemctl` through `privilege.ServiceRemedy` (choosing
+between a `ze.service` command and a non-systemd remedy) and
+`privilege.RestartRemedy` (returning `sudo systemctl restart ze` under
+`ze.service`, and otherwise explaining that no single command restarts an
+unsupervised daemon and naming `ze signal stop` followed by starting `ze`
+again).
+<!-- source: internal/core/privilege/capabilities.go -- DaemonCapabilities, DaemonCapabilitiesFix -->
 <!-- source: internal/core/privilege/check_linux.go -- CheckPrivileges, effectiveCapabilities -->
-<!-- source: cmd/ze/hub/main.go -- warnDaemonPrivileges -->
+<!-- source: internal/core/privilege/membership.go -- ServiceUnit, DaemonServiceMembership, membershipFromCgroup, CapabilityRemedy, ServiceRemedy, RestartRemedy -->
+<!-- source: cmd/ze/hub/main.go -- logDaemonCapabilities -->
 <!-- source: internal/component/doctor/checks_daemon_capabilities.go -- daemonCapabilitiesCheck, checkDaemonCapabilities -->
+<!-- test: internal/core/privilege/membership_test.go TestMembershipFromCgroup -->
+<!-- test: internal/core/privilege/membership_test.go TestCapabilityRemedy -->
+<!-- test: internal/core/privilege/membership_test.go TestServiceRemedy -->
+<!-- test: internal/core/privilege/membership_test.go TestRestartRemedy -->
+<!-- test: cmd/ze/hub/capabilities_log_test.go TestLogDaemonCapabilitiesNeverWarns -->
 <!-- source: internal/plugins/systemd/unit.go -- writeCapabilities -->
 <!-- source: internal/test/runner/caps.go -- netnsDaemonCapBits, daemonCapBits -->
 
@@ -843,7 +882,7 @@ $ kill -TERM $(pgrep -f "ze start config.conf")
 - [Hub Architecture](https://github.com/ze-software/ze/blob/main/docs/architecture/hub-architecture.md) - Hub mode internal design details
 - [Process Protocol](https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md) - 5-stage protocol specification
 - [YANG Config Design](https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md) - Schema design
-- Config Dispatch - mode selection by config content (completed). This was summary 189, retired on 2026-08-01 and not carried into [Design History](https://github.com/ze-software/ze/blob/main/docs/../plan/learned/DESIGN-HISTORY.md), whose header gives the git-recovery route
+- Config Dispatch - mode selection by config content (completed). This was summary 189, retired on 2026-08-01 and not carried into [Design History](https://github.com/ze-software/ze/blob/main/plan/learned/DESIGN-HISTORY.md), whose header gives the git-recovery route
 
 ---
 

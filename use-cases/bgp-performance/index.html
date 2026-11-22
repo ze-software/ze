@@ -64,11 +64,8 @@
 <li><a href="#lab-evidence">Lab evidence</a></li>
 </ol></details></nav><div class="doc-body">
 <p><strong>RFC completion:</strong> the <a href="../../quality/rfc-compliance/profiles/bgp-core/">BGP core coverage page</a> shows which requirements have passed the recorded test checks for this use case.</p>
-<p>AMS-IX used ExaBGP as a lightweight BGP route source. bgperf formalised the same idea with tester, target, and monitor containers. Ze can run that setup with <code>le perf</code>: Ze supplies the sender and receiver, the target is any BGP speaker you want to test, and the output is a repeatable report instead of a stopwatch and screenshots.</p>
+<p>AMS-IX used ExaBGP as a lightweight BGP route source. bgperf formalized the same idea with tester, target, and monitor containers. Ze can run that setup with <code>le perf</code>: Ze supplies the sender and receiver, the target is any BGP speaker you want to test, and the output is a repeatable report instead of a stopwatch and screenshots.</p>
 <p>This page shows Ze in the tester role. The device under test can be FRR, BIRD, GoBGP, OpenBGPD, a route-server appliance, or Ze itself.</p>
-<!-- source: ../main/internal/perf/cli/cmd_run.go -- le perf sender, receiver, repeat, JSON, and output flags -->
-<!-- source: ../main/internal/perf/result.go -- result fields -->
-<!-- source: ../main/internal/test/perfrunner/run.go -- Runner.RunCLI -->
 <h2 id="what-a-good-test-answers">What a good test answers</h2>
 <p>A performance test has to answer these questions and publish the evidence for each.</p>
 <table>
@@ -441,7 +438,7 @@ birdc show route count
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

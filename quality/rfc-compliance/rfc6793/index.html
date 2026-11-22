@@ -720,8 +720,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6793-6-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go#L482" title="internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go" target="_blank" rel="noopener"><code>TestCollapseAS4DiscardsMalformedAS4Aggregator</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go#L350" title="internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go" target="_blank" rel="noopener"><code>TestCollapseAS4SelectsAggregatorPerSection423</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go#L483" title="internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go" target="_blank" rel="noopener"><code>TestCollapseAS4DiscardsMalformedAS4Aggregator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go#L351" title="internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go" target="_blank" rel="noopener"><code>TestCollapseAS4SelectsAggregatorPerSection423</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6793-6-6">RFC6793-6-6</code></td><td colspan="3"><span class="rfc-subject">A NEW BGP speaker that receives the AS4_PATH attribute or the AS4_AGGREGATOR attribute in an UPDATE message from another NEW BGP speaker MUST discard the path attribute and continue processing the UPDATE message. This case SHOULD be logged locally for analysis. (§6)</span></td></tr>
@@ -1514,18 +1514,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc6793-6-5"><code>RFC6793-6-5</code></a></h3>
 <p>A NEW BGP speaker that receives a malformed AS4_AGGREGATOR attribute in an UPDATE message from an OLD BGP speaker MUST discard the attribute and continue processing the UPDATE message. (Section 6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestCollapseAS4DiscardsMalformedAS4Aggregator: a 7-octet AS4_AGGREGATOR is removed from the collapsed payload, not promoted, NLRI kept, drop reported; negative reads an 8-octet one.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go::TestCollapseAS4DiscardsMalformedAS4Aggregator, internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go::TestCollapseAS4SelectsAggregatorPerSection423 moved. TestCollapseAS4DiscardsMalformedAS4Aggregator: a 7-octet AS4_AGGREGATOR is removed from the collapsed payload, not promoted, NLRI kept, drop reported; negative reads an 8-octet one.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go#L350" title="internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go" target="_blank" rel="noopener"><code>TestCollapseAS4SelectsAggregatorPerSection423</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go#L351" title="internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go" target="_blank" rel="noopener"><code>TestCollapseAS4SelectsAggregatorPerSection423</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go#L482" title="internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go" target="_blank" rel="noopener"><code>TestCollapseAS4DiscardsMalformedAS4Aggregator</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go#L483" title="internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go" target="_blank" rel="noopener"><code>TestCollapseAS4DiscardsMalformedAS4Aggregator</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1762,7 +1762,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

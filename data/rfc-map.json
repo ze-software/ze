@@ -4,13 +4,13 @@
     {
       "label": "RFC requirement ledger",
       "path": "data/rfc-requirements.json",
-      "sha256": "2c6e6d77d7de467f8d36cc29ca7ce638d86a9bc7b056a80b0ec9a7f58fc860bc"
+      "sha256": "f76cdd4edfafcd9fa5e3f9de6e74d5ccf0b3e3eb6c984fe66ad92e235c73cba7"
     },
     {
       "label": "Committed spec roadmap",
       "path": "data/release-roadmap.json",
-      "sha256": "a5e43576f4978e2de4bf3504e6fba79e85cbfdc2c8e14374c8877bb22448dfe7",
-      "revision": "006886540d1e95de1fa04b2258730f6a554eb627"
+      "sha256": "1b40e95f7067da583c63a55ba71340582678ff47e85f25c4bb4d9db6229f63bc",
+      "revision": "827c73e9e131702d2815e3fd46ad302cb2db5ea3"
     },
     {
       "label": "Proposed release layers",
@@ -1013,6 +1013,14 @@
     },
     {
       "stem": "draft-mangin-netcapstring-00",
+      "title": "",
+      "aggregate": "",
+      "summary": false,
+      "walked": false,
+      "component": []
+    },
+    {
+      "stem": "iso-iec-10589",
       "title": "",
       "aggregate": "",
       "summary": false,
@@ -30516,11 +30524,7 @@
         "level": "MUST NOT",
         "gated": true,
         "text": "The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6)",
-        "section": "6",
-        "annotation": {
-          "kind": "gap",
-          "reason": "gap in proof: internal/component/bgp/plugins/rib/bestpath.go::comparePair meets it for the decision process itself, whose steps read no Extended Community; no test asserts it, and operator policy can still steer selection from an Extended Community (filter_community_match matches one, filter_modify then sets local-preference) with nothing refusing a policy that loops"
-        }
+        "section": "6"
       },
       {
         "rid": "RFC4360-7-1",
@@ -32782,11 +32786,7 @@
         "level": "MUST NOT",
         "gated": true,
         "text": "When set (value 1), this bit indicates that the BGP speaker has restarted, and its peer MUST NOT wait for the End-of-RIB marker from the speaker before advertising routing information to the speaker. (Section 3)",
-        "section": "3",
-        "annotation": {
-          "kind": "gap",
-          "reason": "gap in proof: internal/component/bgp/reactor/peer_initial_sync.go::sendInitialRoutes meets it, since ze advertises its Adj-RIB-Out and End-of-RIB on reaching Established without waiting for the peer's End-of-RIB, and the only End-of-RIB timer (session_health.go, startEORTimer) raises a health warning and defers nothing; no test asserts it"
-        }
+        "section": "3"
       },
       {
         "rid": "RFC4724-4-1",
@@ -43390,11 +43390,7 @@
         "level": "MUST",
         "gated": true,
         "text": "There is a potential serious issue if a malformed, optional, transitive attribute is received. This issue and the steps to avoid it are discussed in [OPT_TRANS]. (§4)",
-        "section": "4",
-        "annotation": {
-          "kind": "gap",
-          "reason": "Ze does not apply RFC 7606 malformed-attribute handling (treat-as-withdraw) to a malformed IPv6 Address Specific Extended Community (attribute code 25). The RFC 7606 structural validation pass has no per-attribute validator for code 25 (internal/component/bgp/message/rfc7606.go attrValidators[25] is unset), so a code-25 attribute whose length is not a multiple of 20 passes structural validation instead of being treat-as-withdrawn. The lazy value parser ParseIPv6ExtendedCommunities (internal/core/bgp/attribute/community.go:515) does reject a bad length with ErrInvalidLength, but only when the attribute is later accessed, which is not the RFC 4271/7606-mandated optional-transitive treat-as-withdraw at ingest. This is the same code-25 omission already disclosed under RFC 7606 (§7.15). Disclosed in docs/features/rfc-status.md"
-        }
+        "section": "4"
       },
       {
         "rid": "RFC5701-2-4",
@@ -46524,8 +46520,9 @@
         "text": "The AS_PATH attribute MUST only consist of 2-byte AS numbers. (§4.2)",
         "section": "4.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "gap in proof: ze meets it by writing no TABLE_DUMP record: its RIB export writes TABLE_DUMP_V2 (internal/plugins/mrt/dump.go::writePeerIndexTable), and internal/mrt/encode.go::WriteTableDump has no production caller; no test asserts it"
+          "kind": "single-polarity",
+          "polarity": "positive",
+          "reason": "ze writes no TABLE_DUMP (type 12) record: its RIB export writes TABLE_DUMP_V2 exclusively (internal/plugins/mrt/dump.go::writeTableDumpV2), so there is no TABLE_DUMP emission path to reject"
         }
       },
       {
@@ -46583,22 +46580,14 @@
         "level": "MUST",
         "gated": true,
         "text": "There is one exception to the encoding of BGP attributes for the BGP MP_REACH_NLRI attribute (BGP Type Code 14) [RFC4760].  Since the AFI, SAFI, and NLRI information is already encoded in the RIB Entry Header or RIB_GENERIC Entry Header, only the Next Hop Address Length and Next Hop Address fields are included.  The Reserved field is omitted. (§4.3.4)",
-        "section": "4.3.4",
-        "annotation": {
-          "kind": "gap",
-          "reason": "the RIB stores the UPDATE's whole path-attribute section (internal/component/bgp/plugins/rib/rib_structured.go, msg.AttrsWire.Packed()), and storage.ParseRouteEntry keeps MP_REACH_NLRI (code 14) in OtherAttrs, so internal/component/bgp/plugins/rib/rib_mrt.go::reconstructWireAttrs, through appendOtherAttrsWire, re-emits it unabbreviated into every TABLE_DUMP_V2 RIB entry of an MP route: AFI, SAFI and the Reserved octet are included, and on the structured path the NLRI of the whole UPDATE too. RFC 6396 Section 4.3.4: \"only the Next Hop Address Length and Next Hop Address fields are included.  The Reserved field is omitted.\""
-        }
+        "section": "4.3.4"
       },
       {
         "rid": "RFC6396-4.4.2-1",
         "level": "MUST",
         "gated": true,
         "text": "The BGP4MP_MESSAGE Subtype does not support 4-byte AS numbers.  The AS_PATH contained in these messages MUST only consist of 2-byte AS numbers. (§4.4.2)",
-        "section": "4.4.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "gap in proof: ze meets it by never writing the 2-byte BGP4MP_MESSAGE subtype: internal/plugins/mrt/dump.go::bgp4mpTypeSubtype always picks BGP4MP_MESSAGE_AS4 or its ADDPATH form; no test asserts it"
-        }
+        "section": "4.4.2"
       },
       {
         "rid": "RFC6396-4.4.2-2",
@@ -46617,11 +46606,7 @@
         "level": "MUST",
         "gated": true,
         "text": "The AS_PATH in these messages MUST only consist of 4-byte AS numbers. (§4.4.3)",
-        "section": "4.4.3",
-        "annotation": {
-          "kind": "gap",
-          "reason": "the live writer hardcodes the AS4 subtype and copies the on-wire message verbatim without checking negotiated AS4 capability, so a 2-byte (OLD-peer) session's 2-byte AS_PATH is mislabeled as AS4 (internal/plugins/mrt/dump.go:240-250, component.go:123; ze supports 2-byte sessions per internal/component/bgp/plugins/rib/storage/attrparse.go:18-24)"
-        }
+        "section": "4.4.3"
       },
       {
         "rid": "RFC6396-1-1",
@@ -46653,8 +46638,9 @@
         "text": "The message string encoding MUST follow the UTF-8 transformation format [RFC3629]. (§B.1)",
         "section": "B.1",
         "annotation": {
-          "kind": "gap",
-          "reason": "gap in proof: ze meets it by producing none of the deprecated informational types 0 to 4 whose message string this governs: its type table starts at OSPFv2 (11) (internal/mrt/types.go); no test asserts it"
+          "kind": "single-polarity",
+          "polarity": "positive",
+          "reason": "ze produces none of the deprecated informational types 0 to 4 whose message string this governs (its type table starts at OSPFv2 = 11 in internal/mrt/types.go), so no informational message string is ever emitted"
         }
       },
       {
@@ -60024,14 +60010,7 @@
         "level": "MUST",
         "gated": true,
         "text": "the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows: 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Peer Index | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Originated Time | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Path Identifier | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Attribute Length | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | BGP Attributes... (variable) +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Figure 1: RIB Entries for AFI/SAFI-Specific RIB Subtypes with Support for Additional Paths This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes. (§4.1)",
-        "section": "4.1",
-        "annotation": {
-          "kind": "partial",
-          "reason": "tested \"the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows\"; gap \"This adds a field to the RIB Entries record to store the Path Identifier\"; the record layout is met on both sides, proven by the tags: the reader parses the Path Identifier field and WriteRIBEntries places it. The TABLE_DUMP_V2 snapshot does not store the route's Path Identifier in it: internal/plugins/mrt/dump.go::writeTableDumpV2 writes an ADDPATH subtype when the operator toggle is set, but builds each RIBEntry with no PathID, because the RIB dump callback carries none, so every entry's field holds 0 and two paths of one prefix from one peer cannot be told apart",
-          "tested": "the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows",
-          "gap": "This adds a field to the RIB Entries record to store the Path Identifier",
-          "producer": "internal/plugins/mrt/dump.go::writeTableDumpV2"
-        }
+        "section": "4.1"
       },
       {
         "rid": "RFC8050-4.2-1",
@@ -60567,33 +60546,21 @@
         "level": "MUST",
         "gated": true,
         "text": "If, at any time after the protocol version has been negotiated (Section 7), either the router or the cache finds that the value of the Session ID is not the same as the other's, the party which detects the mismatch MUST immediately terminate the session with an Error Report PDU with code 0 (\"Corrupt Data\") (§5.1)",
-        "section": "5.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "handlePDU adopts the Cache Response Session ID without comparing it with the prior session; the Error Report encoder exists, but this mismatch does not reach it (internal/component/bgp/plugins/rpki/rtr_session.go)"
-        }
+        "section": "5.1"
       },
       {
         "rid": "RFC8210-5.1-4",
         "level": "MUST",
         "gated": true,
         "text": "If, at any time after the protocol version has been negotiated (Section 7), either the router or the cache finds that the value of the Session ID is not the same as the other's, the party which detects the mismatch MUST immediately terminate the session with an Error Report PDU with code 0 (\"Corrupt Data\"), and the router MUST flush all data learned from that cache. (§5.1)",
-        "section": "5.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "Cache Response Session ID changes are not detected, so they do not trigger the required data flush (internal/component/bgp/plugins/rpki/rtr_session.go)"
-        }
+        "section": "5.1"
       },
       {
         "rid": "RFC8210-5.1-5",
         "level": "MUST",
         "gated": true,
         "text": "routers MUST treat sessions with different Protocol Version fields as separate sessions even if they do happen to have the same Session ID. (§5.1)",
-        "section": "5.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "downgrade after Error Report 4 resets the serial base, but other received supported-version mismatches are not separated or rejected; handlePDU rejects versions outside the supported range without comparing every payload against the negotiated version (internal/component/bgp/plugins/rpki/rtr_session.go)"
-        }
+        "section": "5.1"
       },
       {
         "rid": "RFC8210-5.3-1",
@@ -60773,11 +60740,7 @@
         "level": "MUST",
         "gated": true,
         "text": "If either party receives a PDU for a different Protocol Version once the above negotiation completes, that party MUST drop the session (§7)",
-        "section": "7",
-        "annotation": {
-          "kind": "gap",
-          "reason": "handlePDU rejects versions outside the supported range but does not compare a supported received version against the negotiated s.version (internal/component/bgp/plugins/rpki/rtr_session.go)"
-        }
+        "section": "7"
       },
       {
         "rid": "RFC8210-4-1",
@@ -63258,11 +63221,7 @@
         "level": "MUST NOT",
         "gated": true,
         "text": "However, if a NOTIFICATION is to be sent to a BGP speaker that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets. (§5)",
-        "section": "5",
-        "annotation": {
-          "kind": "gap",
-          "reason": "gap in proof: internal/component/bgp/message/notification.go::Len meets it, since a NOTIFICATION is 19 + 2 + len(Data) octets, its Data copies at most a field of a message the peer sent within its own 4096-octet limit, and BuildCeaseData cuts the Administrative Shutdown Communication to 128 octets; no test asserts it"
-        }
+        "section": "5"
       },
       {
         "rid": "RFC8654-5-4",
@@ -65855,11 +65814,7 @@
         "level": "MUST",
         "gated": true,
         "text": "For a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty. (§12)",
-        "section": "12",
-        "annotation": {
-          "kind": "gap",
-          "reason": "gap in proof: internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized meets it, since it always requires a valid destination and covering unicast reachability and no configuration enables the empty-origin relaxation; no test asserts it"
-        }
+        "section": "12"
       },
       {
         "rid": "RFC8955-4.2.2.3-1",
@@ -67402,33 +67357,21 @@
         "level": "MUST",
         "gated": true,
         "text": "The Non-Extended Optional Parameters Length field (Non-Ext OP Len.) SHOULD be set to 255 on transmission and, in any event, MUST NOT be set to 0; it MUST be ignored on receipt once the use of the extended format is determined positively by inspection of the Non-Extended Optional Parameters Type (Non-Ext OP Type) field. (S2)",
-        "section": "2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze's OPEN decoder (internal/component/bgp/message/open.go:190) requires the Non-Ext OP Len octet to equal 255 to select the extended form, so it does not ignore that octet once the extended format would be determined; the octet stays load-bearing and a conformant sender using a non-255 Non-Ext OP Len is mis-parsed as a classic OPEN"
-        }
+        "section": "2"
       },
       {
         "rid": "RFC9072-2-6",
         "level": "MUST",
         "gated": true,
         "text": "In parsing an OPEN message, if the one-octet Optional Parameters Length field (labeled \"Non-Ext OP Len.\" in Figure 1) is non-zero, a BGP speaker MUST use the value of the octet following the one-octet Optional Parameters Length field (labeled \"Non-Ext OP Type\" in Figure 1) to determine both the encoding of the Optional Parameters length and the size of the Parameter Length field of individual Optional Parameters. (S2)",
-        "section": "2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze's OPEN decoder (internal/component/bgp/message/open.go:190) inspects the octet following Non-Ext OP Len only when Non-Ext OP Len equals 255, so for any other non-zero Non-Ext OP Len it never uses the following octet to determine the encoding and always decodes the classic form"
-        }
+        "section": "2"
       },
       {
         "rid": "RFC9072-3-1",
         "level": "MUST",
         "gated": true,
         "text": "It is not considered a fatal error to receive an OPEN message whose (non-extended) Optional Parameters Length value is not 255 and whose first Optional Parameter type code is 255 -- in this case, the encoding of this specification MUST be used for decoding the message. (S3)",
-        "section": "3",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze's OPEN decoder (internal/component/bgp/message/open.go:190) selects the extended form only when Non-Ext OP Len equals 255, not whenever the first type code is 255; the open.go:186-189 comment and the TestOpenUnpackExtendedParams standard-format-first-param-byte-0xFF case cement this, so a first type code of 255 with Non-Ext OP Len != 255 is decoded as a classic OPEN instead of extended"
-        }
+        "section": "3"
       },
       {
         "rid": "RFC9072-3-2",
@@ -67442,11 +67385,7 @@
         "level": "MUST",
         "gated": true,
         "text": "Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above. If encountered other than as the Non-Ext OP Type, it MUST be treated as an unrecognized Optional Parameter and handled according to [RFC4271], Section 6.2. (S3)",
-        "section": "3",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze silently ignores an unrecognized BGP OPEN optional-parameter type; ParseFromOptionalParams (internal/core/bgp/capability/capability.go:867-874) skips any parameter whose type is not 2 instead of emitting the RFC 4271 Section 6.2 OPEN Message Error (Unsupported Optional Parameter) NOTIFICATION"
-        }
+        "section": "3"
       },
       {
         "rid": "RFC9072-2-7",
@@ -68877,11 +68816,7 @@
         "level": "MUST NOT",
         "gated": true,
         "text": "Roles MUST NOT be configured on an eBGP session with a Complex peering relationship. (S6)",
-        "section": "6",
-        "annotation": {
-          "kind": "gap",
-          "reason": "this MUST binds the operator's configuration, and ze cannot know whether a peering relationship is Complex (internal/component/bgp/plugins/role/config.go::parseRoleContainer reads one role per peer). What is owed is operator documentation stating that a role must not be configured on a Complex eBGP session, and no test asserts that the documentation carries it"
-        }
+        "section": "6"
       },
       {
         "rid": "RFC9234-3.1-1",
@@ -70895,11 +70830,7 @@
         "level": "MUST NOT",
         "gated": true,
         "text": "However, in the case of consecutive restarts, the previously marked stale routes MUST NOT be deleted before the timer for the Long-Lived Stale Time expires. (§4.2)",
-        "section": "4.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze applies the RFC 4724 Section 4.2 consecutive-restart rule unconditionally, including during an LLGR period -- every activation of a session-down dispatches \"request bgp rib purge-stale \u003cpeer\u003e\" as its first step (internal/component/bgp/plugins/gr/gr.go:362, internal/component/bgp/plugins/gr/gr.go:532), and onSessionDown clears the prior peer state through clearPeerLocked (internal/component/bgp/plugins/gr/gr_state.go:125), so routes marked stale in the previous cycle are deleted at the new session drop rather than kept until their LLST timer expires"
-        }
+        "section": "4.2"
       },
       {
         "rid": "RFC9494-4.2-8",
@@ -70913,11 +70844,7 @@
         "level": "MUST NOT",
         "gated": true,
         "text": "If a Long-Lived Stale Time timer is running for routes with a given AFI/SAFI received from a peer, it MUST NOT be updated (other than by manual operator intervention) until the peer has established and synchronized a new session. (§4.2)",
-        "section": "4.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "a consecutive session drop while the peer is already in LLGR replaces the running timer -- onSessionDown calls clearPeerLocked, which stops every LLST timer via stopLLSTTimersLocked (internal/component/bgp/plugins/gr/gr_state.go:125, :457-465, :476-481), and enterLLGRLocked then arms a fresh time.AfterFunc for the family's full LLST (internal/component/bgp/plugins/gr/gr_state.go:384-387), so the remaining Long-Lived Stale Time is reset before the peer has established and synchronized a new session"
-        }
+        "section": "4.2"
       },
       {
         "rid": "RFC9494-4.3-1",
@@ -70931,11 +70858,7 @@
         "level": "MUST NOT",
         "gated": true,
         "text": "The LLGR_STALE community MUST NOT be removed when the route is further advertised (§4.3)",
-        "section": "4.3",
-        "annotation": {
-          "kind": "gap",
-          "reason": "two egress paths strip the whole COMMUNITIES attribute with no LLGR_STALE (0xFFFF0006) exemption. applyFactsSendCommunity emits a whole-attribute suppress for code 8 whenever the peer's `send-community` is `none` or omits `standard` (internal/component/bgp/reactor/peer_forward_facts.go:249, mask set at :195-223), and it runs on both readvertise rails (internal/component/bgp/reactor/reactor_api_forward.go:516, internal/component/bgp/reactor/forward_rs.go:343). A `community-remove ffff0006` filter reaches the same attribute through AttrModRemove (internal/component/bgp/reactor/filter_delta.go:270), and removeValues drops every matching 4-octet value without checking which community it is (internal/component/bgp/plugins/filter_community/handler.go:120-131). The RIB-side attach path only appends (internal/component/bgp/plugins/rib/rib_commands_community.go:222-236), but that is not the path on which the community is lost"
-        }
+        "section": "4.3"
       },
       {
         "rid": "RFC9494-4.4-1",
@@ -71017,11 +70940,7 @@
         "level": "MUST",
         "gated": true,
         "text": "If the session subsequently resets prior to becoming synchronized, any remaining routes (for the AFI/SAFI whose LLST timer expired) MUST be removed immediately. (§4.2)",
-        "section": "4.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze holds no record of an LLST that elapsed during synchronization, because no LLST timer runs then -- onSessionReestablished stops every LLST timer and clears state.inLLGR the moment the session comes back (internal/component/bgp/plugins/gr/gr_state.go:194, :231, :476-481), so the expiry this requirement keys on cannot be observed and the next session reset starts an ordinary GR cycle with a full restart timer (internal/component/bgp/plugins/gr/gr_state.go:153-156) instead of removing the family's remaining routes immediately"
-        }
+        "section": "4.2"
       },
       {
         "rid": "RFC9494-4.2-11",
@@ -80868,5 +80787,5 @@
     }
   ],
   "default-layer": "base-ipv4-bgp",
-  "roadmap-revision": "006886540d1e95de1fa04b2258730f6a554eb627"
+  "roadmap-revision": "827c73e9e131702d2815e3fd46ad302cb2db5ea3"
 }

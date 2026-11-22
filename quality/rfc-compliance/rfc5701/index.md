@@ -10,19 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 3 | of 4 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 4 | of 4 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 0 | of 4 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 4 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 4 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 0 | 0 of 6 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Declared gap or no test | 1 | of 4 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 0 | of 4 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 8 | 8 of 8 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -55,7 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
 | Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
-| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -73,39 +66,39 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 6 |
 | Mandatory requirements (MUST level) | 4 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 1 |
+| Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 6 |
-| Tests linked to requirements | 6 |
+| Test tags | 8 |
+| Tests linked to requirements | 8 |
 | Recorded audit verdicts | 3 |
-| Fault test records | 0 |
+| Fault test records | 8 |
 | Summary | `rfc/short/rfc5701.md` |
 | Requirement table | `rfc/requirements/rfc5701.md` |
 | RFC text | `rfc/full/rfc5701.txt` |
 
 ## Automatic checks
 
-Included in automatic checks: IPv6 Address Specific BGP Extended Community Attribute (code 25): four MUST-level requirements over the codec (internal/core/bgp/attribute/community.go). RFC5701-2-1 (optional transitive, O=1 T=1) has both polarities in TestRFC5701IPv6ExtCommunityFlags: Flags() (community.go:483) returns exactly FlagOptional\|FlagTransitive, never the non-transitive 0x80 or a well-known/partial form. RFC5701-2-2 (each community exactly 20 octets) has both polarities in TestRFC5701IPv6ExtCommunityTwentyOctets: the [20]byte type, Len()=20*count and WriteTo lay each community on a 20-octet stride, and the second community starts at offset 20 not the 8-octet RFC 4360 stride. RFC5701-2-3 (length a multiple of 20) has both polarities in TestRFC5701IPv6ExtCommunityLengthMultipleOf20: a 40-octet buffer parses to 2 communities while 19/21/8/39/41 are rejected with ErrInvalidLength (community.go:515). RFC5701-4-1 (RFC 4271/7606 malformed optional-transitive handling) is {gap}: code 25 has no RFC 7606 structural validator (attrValidators[25] unset), so a malformed code-25 attribute passes structural validation rather than being treat-as-withdrawn; the lazy parser rejects a bad length only on access. Disclosed in the docs/features/rfc-status.md RFC 5701 row (Partial); same code-25 omission tracked under RFC 7606. The 2-4 SHOULD (non-transitive not propagated to external peers) and 2-5 MAY are not gated.
+Included in automatic checks: IPv6 Address Specific BGP Extended Community Attribute (code 25): all four MUST-level requirements are met and tested with both polarities. RFC5701-2-1 (optional transitive, O=1 T=1) in TestRFC5701IPv6ExtCommunityFlags; RFC5701-2-2 (20-octet community stride) in TestRFC5701IPv6ExtCommunityTwentyOctets; RFC5701-2-3 (length a multiple of 20) in TestRFC5701IPv6ExtCommunityLengthMultipleOf20; RFC5701-4-1 (RFC 7606 treat-as-withdraw for malformed optional-transitive code-25 attribute via validateIPv6ExtCommunityAttr in internal/component/bgp/message/rfc7606_optional_attrs.go) in TestRFC5701MalformedIPv6ExtCommunity. The 2-4 SHOULD (non-transitive not propagated to external peers) and 2-5 MAY are not gated.
 
 ## Published support status
 
 **Area:** IPv6 extended communities
 
-**Test verification:** 0 of 4 MUST proven
+**Test verification:** 4 of 4 MUST proven
 
-**Evidence:** -
+**Evidence:** unit 4
 
-**Unmet:** RFC5701-4-1
+**Unmet:** -
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 3 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
+| Positive and negative tests | 4 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -113,29 +106,27 @@ Included in automatic checks: IPv6 Address Specific BGP Extended Community Attri
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **4** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (3):** [`RFC5701-2-1`](#rfc5701-2-1), [`RFC5701-2-2`](#rfc5701-2-2), [`RFC5701-2-3`](#rfc5701-2-3)
-
-**Annotated (including scoped evidence) (1):** [`RFC5701-4-1`](#rfc5701-4-1)
+**Positive and negative tests (4):** [`RFC5701-2-1`](#rfc5701-2-1), [`RFC5701-2-2`](#rfc5701-2-2), [`RFC5701-2-3`](#rfc5701-2-3), [`RFC5701-4-1`](#rfc5701-4-1)
 
 ## Figures
 
-- **MUST bar**: Tests awaiting verification 3, Not built 1
-- **Overview bar**: Tests awaiting verification 3, Not assessed 2, Not built 1
+- **MUST bar**: Ze verified 4
+- **Overview bar**: Ze MUST verified 4, Not assessed 2
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 4 |
 | MUST rows kept (the MUST bar) | 4 |
-| Ze verified | 0 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 1 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -164,15 +155,13 @@ Source: [data/rfc/rfc5701.json](../../../data/rfc/rfc5701.json).
 | `RFC5701-2-1` | The IPv6 Address Specific Extended Community Attribute is a transitive, optional BGP attribute [BGP-4]. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5701IPv6ExtCommunityFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L14). **negative:** `unit/verify` [`TestRFC5701IPv6ExtCommunityFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L19) |
 | `RFC5701-2-2` | Each IPv6 Address Specific extended community is encoded as a 20-octet quantity (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5701IPv6ExtCommunityTwentyOctets`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L46). **negative:** `unit/verify` [`TestRFC5701IPv6ExtCommunityTwentyOctets`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L50) |
 | `RFC5701-2-3` | The attribute consists of a set of "IPv6 Address Specific extended communities". All routes with the IPv6 Address Specific Extended Community attribute belong to the communities listed in the attribute. Just like all other BGP Extended Communities, the IPv6 Address Specific Extended Community supports multiple sub-types. Each IPv6 Address Specific extended community is encoded as a 20-octet quantity (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5701IPv6ExtCommunityLengthMultipleOf20`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L80). **negative:** `unit/verify` [`TestRFC5701IPv6ExtCommunityLengthMultipleOf20`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L83) |
-| `RFC5701-4-1` | There is a potential serious issue if a malformed, optional, transitive attribute is received. This issue and the steps to avoid it are discussed in [OPT_TRANS]. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not apply RFC 7606 malformed-attribute handling (treat-as-withdraw) to a malformed IPv6 Address Specific Extended Community (attribute code 25). The RFC 7606 structural validation pass has no per-attribute validator for code 25 (internal/component/bgp/message/rfc7606.go attrValidators[25] is unset), so a code-25 attribute whose length is not a multiple of 20 passes structural validation instead of being treat-as-withdrawn. The lazy value parser ParseIPv6ExtendedCommunities (internal/core/bgp/attribute/community.go:515) does reject a bad length with ErrInvalidLength, but only when the attribute is later accessed, which is not the RFC 4271/7606-mandated optional-transitive treat-as-withdraw at ingest. This is the same code-25 omission already disclosed under RFC 7606 (§7.15). Disclosed in docs/features/rfc-status.md |
+| `RFC5701-4-1` | There is a potential serious issue if a malformed, optional, transitive attribute is received. This issue and the steps to avoid it are discussed in [OPT_TRANS]. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5701MalformedIPv6ExtCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc5701_malformed_test.go#L27). **negative:** `unit/verify` [`TestRFC5701MalformedIPv6ExtCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc5701_malformed_test.go#L30) |
 | `RFC5701-2-4` | The first high-order octet indicates whether a particular sub-type of this community is transitive across Autonomous Systems (ASes) (0x00), or not (0x40). (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5701-2-5` | The organization that has been assigned the IPv6 address in the Global Administrator field can encode any information in this field. (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC5701-4-1`](#rfc5701-4-1) There is a potential serious issue if a malformed, optional, transitive attribute is received. This issue and the steps to avoid it are discussed in [OPT_TRANS]. (§4) | {gap}, no test | Ze does not apply RFC 7606 malformed-attribute handling (treat-as-withdraw) to a malformed IPv6 Address Specific Extended Community (attribute code 25). The RFC 7606 structural validation pass has no per-attribute validator for code 25 (internal/component/bgp/message/rfc7606.go attrValidators[25] is unset), so a code-25 attribute whose length is not a multiple of 20 passes structural validation instead of being treat-as-withdrawn. The lazy value parser ParseIPv6ExtendedCommunities (internal/core/bgp/attribute/community.go:515) does reject a bad length with ErrInvalidLength, but only when the attribute is later accessed, which is not the RFC 4271/7606-mandated optional-transitive treat-as-withdraw at ingest. This is the same code-25 omission already disclosed under RFC 7606 (§7.15). Disclosed in docs/features/rfc-status.md |
+RFC 5701 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Test status
 
@@ -186,8 +175,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5701IPv6ExtCommunityFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L19) | unit/verify | not verified |
-| positive | [`TestRFC5701IPv6ExtCommunityFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L14) | unit/verify | not verified |
+| negative | [`TestRFC5701IPv6ExtCommunityFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L19) | unit/verify | revert, verified |
+| positive | [`TestRFC5701IPv6ExtCommunityFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L14) | unit/verify | revert, verified |
 
 ### [`RFC5701-2-2`](#rfc5701-2-2)
 
@@ -197,8 +186,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5701IPv6ExtCommunityTwentyOctets`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L50) | unit/verify | not verified |
-| positive | [`TestRFC5701IPv6ExtCommunityTwentyOctets`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L46) | unit/verify | not verified |
+| negative | [`TestRFC5701IPv6ExtCommunityTwentyOctets`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L50) | unit/verify | revert, verified |
+| positive | [`TestRFC5701IPv6ExtCommunityTwentyOctets`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L46) | unit/verify | revert, verified |
 
 ### [`RFC5701-2-3`](#rfc5701-2-3)
 
@@ -208,8 +197,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. The 
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5701IPv6ExtCommunityLengthMultipleOf20`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L83) | unit/verify | not verified |
-| positive | [`TestRFC5701IPv6ExtCommunityLengthMultipleOf20`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L80) | unit/verify | not verified |
+| negative | [`TestRFC5701IPv6ExtCommunityLengthMultipleOf20`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L83) | unit/verify | revert, verified |
+| positive | [`TestRFC5701IPv6ExtCommunityLengthMultipleOf20`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go#L80) | unit/verify | revert, verified |
 
 ### [`RFC5701-4-1`](#rfc5701-4-1)
 
@@ -217,7 +206,10 @@ There is a potential serious issue if a malformed, optional, transitive attribut
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC5701-4-1, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC5701MalformedIPv6ExtCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc5701_malformed_test.go#L30) | unit/verify | revert, verified |
+| positive | [`TestRFC5701MalformedIPv6ExtCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc5701_malformed_test.go#L27) | unit/verify | revert, verified |
 
 ## Requirement list review
 

@@ -265,7 +265,7 @@ Ze includes a production BNG stack with two access methods: L2TPv2 (RFC 2661) an
 
 ## Where Ze is behind today
 
-The detail tables above are useful. The gaps also need to be visible without reading thirteen tables.
+The detail tables above are useful. The gaps also need to be visible without reading ten tables.
 
 - **OSPF as PE/CE (RFC 4577) is absent.** No DN-bit originator, no VRF, and no sham link. FRR has none of it either; BIRD has the DN bit alone.
 - **OSPFv3 Extended LSAs (RFC 8362) are partial.** Ze builds 3 of the 7 LSA types. They carry the U-bit and their assigned scope since 2026-09-17, so a router that does not understand them floods them on. Neither FRR nor BIRD implements RFC 8362 at all.
@@ -308,7 +308,7 @@ It is also pre-release, with a first release planned for 2026. It sits beside im
 
 **Ze is pre-release. Why trust it yet?**
 
-Do not take that on faith: it is backed by 52,900+ Go test functions, 3,100+ end-to-end tests, 120+ fuzz targets, and 13 test images in the main shared suite’s recorded set. That set covers routing and network services; other labs and tools use additional images, including pmacct. That evidence can be checked. It is not a promise. Ze does not have operational mileage yet: real deployments over real time, on real networks. Use it in labs first.
+Do not take that on faith: it is backed by 53,100+ Go test functions, 3,200+ end-to-end tests, 120+ fuzz targets, and 13 test images in the main shared suite’s recorded set. That set covers routing and network services; other labs and tools use additional images, including pmacct. That evidence can be checked. It is not a promise. Ze does not have operational mileage yet: real deployments over real time, on real networks. Use it in labs first.
 
 **Why no BGP confederations yet?**
 

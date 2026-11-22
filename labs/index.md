@@ -6,12 +6,14 @@ Each lab runs Ze on your own machine so you can examine its behavior and repeat 
 
 Labs run against real third-party daemons (xl2tpd, accel-ppp, strongSwan), or boot Ze in a VM using Docker or QEMU. Some need Docker with host-kernel features Docker Desktop on macOS doesn't provide; a QEMU path is noted where one exists. The lab pages describe what each run checks and its limitations. Measurements of speed are covered under [Performance](https://ze-software.net/performance/).
 
+## Available labs
+
 ### [BGP Protocol Interop](https://ze-software.net/labs/bgp-interop/)
 
 `Daemon` `Docker`
 
 - BGP sessions with **FRR, BIRD, and GoBGP**
-- 68 scenarios across core protocol and **extensions**
+- 422 scenarios across core protocol and **extensions**
 
 ### [netlab Topology Lab](https://ze-software.net/labs/netlab/)
 
@@ -52,8 +54,8 @@ Labs run against real third-party daemons (xl2tpd, accel-ppp, strongSwan), or bo
 
 `Daemon` `Browsable`
 
-- Realistic UK topology, real external **ASNs**
-- A **browser graph** for inspecting AS paths
+- Interactive **browser replay** recorded from an 11-speaker simulated network
+- Inspect prefixes, AS paths, and route graphs without installing anything
 
 ### [Appliance Installer Evidence](https://ze-software.net/labs/appliance-install/)
 

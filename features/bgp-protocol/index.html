@@ -325,20 +325,6 @@ octets (AFI 2) makes its UPDATE treat-as-withdraw, and NLRI framing that
 cannot be walked resets the session (RFC 9830 Section 5). An SR-Policy
 announcement with no Tunnel Encapsulation attribute is treat-as-withdraw
 (RFC 9830 Section 4.2.1).</p>
-<!-- source: internal/component/bgp/plugins/nlri/srpolicy/config.go -- buildBindingSIDSubTLV, checkBindingSIDLabel, parseSegmentList -->
-<!-- source: internal/component/bgp/plugins/nlri/srpolicy/split.go -- judgeSRPolicySection -->
-<!-- source: internal/component/bgp/reactor/session_tunnel_encap.go -- applyTunnelEncap -->
-<!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN family registration -->
-<!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- SR-Policy family registration -->
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family registration -->
-<!-- source: internal/component/bgp/plugins/nlri/vpn/register.go -- VPN family registration -->
-<!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP family registration -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- BGP-LS family registration -->
-<!-- source: internal/component/bgp/plugins/nlri/labeled/register.go -- MPLS label family registration -->
-<!-- source: internal/component/bgp/plugins/nlri/vpls/register.go -- VPLS family registration -->
-<!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MVPN family registration -->
-<!-- source: internal/component/bgp/plugins/nlri/rtc/register.go -- RTC family registration -->
-<!-- source: internal/component/bgp/plugins/nlri/rtc/encode.go -- EncodeNLRIHex -->
 <h3 id="capabilities">Capabilities</h3>
 <table>
 <thead>
@@ -436,13 +422,6 @@ announcement with no Tunnel Encapsulation attribute is treat-as-withdraw
 </tr>
 </tbody>
 </table>
-<!-- source: internal/core/bgp/capability/capability.go -- capability code constants -->
-<!-- source: internal/core/bgp/capability/encoding.go -- EncodingCaps fields ASN4, ExtendedMessageRecv, ExtendedMessageSend, AddPathMode, ExtendedNextHop, PathsLimitSend, PathsLimitRecv -->
-<!-- source: internal/core/bgp/capability/session.go -- SessionCaps fields RouteRefresh, EnhancedRouteRefresh, GracefulRestart -->
-<!-- source: internal/component/bgp/plugins/role/register.go -- BGP Role capability plugin -->
-<!-- source: internal/component/bgp/plugins/hostname/register.go -- Hostname capability plugin -->
-<!-- source: internal/component/bgp/plugins/softver/register.go -- Software Version capability plugin -->
-<!-- source: internal/component/bgp/plugins/llnh/register.go -- Link-Local NH capability plugin -->
 <h3 id="as-number-notation">AS number notation</h3>
 <p>An AS number is one 4-octet number on the wire (RFC 6793). RFC 5396 Section 2
 names three ways to write that number in text. Ze READS all three wherever an
@@ -504,14 +483,6 @@ contract rather than a display:</p>
 <p>A dotted AS number there would stop a configured filter matching, or fail a
 client that parses an integer. The ExaBGP bridge writes ExaBGP's own text
 format, and that program fixes the spelling.</p>
-<!-- source: internal/core/bgp/asn/asn.go -- Parse, Append, Number, Configured -->
-<!-- source: internal/core/bgp/attribute/text.go -- ParseASPathText, ParseCommunity, ParseLargeCommunity -->
-<!-- source: internal/component/bgp/config/routeattr.go -- ParseRouteDistinguisher, ParseASPath, ParseAggregator -->
-<!-- source: internal/core/bgp/nlri/rd.go -- ParseRDString, the RD reader every command word reaches -->
-<!-- source: internal/core/bgp/attribute/text.go -- ParseExtCommunityAdmin, the one extended-community administrator reader -->
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- as-notation leaf -->
-<!-- source: internal/component/bgp/plugins/rib/rib_attr_format.go -- asPathList -->
-<!-- source: internal/core/bgp/attribute/text_append.go -- AppendText, which stays asplain -->
 <h3 id="peer-as-check-and-as-migration-rfc-7705">Peer AS check and AS migration (RFC 7705)</h3>
 <p>Ze refuses an OPEN whose AS is not the one the peer is configured for, and an
 OPEN carrying AS 0, with NOTIFICATION 2/2 Bad Peer AS. The AS judged is the
@@ -526,9 +497,6 @@ on the next attempt only after the peer answers Bad Peer AS. The external-sessio
 options of RFC 7705 Section 3.3 are <code>local</code> and <code>local-options</code>. Both are in
 <code>docs/guide/configuration.md</code>, "AS Migration (<code>local-as</code>)" and "Internal AS
 Migration (RFC 7705 Section 4.2)".</p>
-<!-- source: internal/component/bgp/reactor/session_open_as.go -- validateOpenPeerAS, rejectOpenPeerAS -->
-<!-- source: internal/component/bgp/reactor/session_as_migration.go -- peerASAccepted, isIBGPWith, noteASMigrationRejection, openLocalAS -->
-<!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings, migration -->
 <h3 id="multipath-installation">Multipath installation</h3>
 <p>When several BGP candidates tie under multipath selection, Ze carries the
 winner and its equal-cost sibling next hops into the shared Loc-RIB. The system
@@ -537,26 +505,17 @@ changes, such as one equal-cost peer disappearing, update the installed group
 without requiring the winning peer to change.</p>
 <p><code>show rib</code> reports the primary <code>next-hop</code> and the additional <code>ecmp-paths</code>.
 Together they are the complete installed next-hop set.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- SelectMultipath, mirrorToLocRIB -->
-<!-- source: internal/core/rib/locrib/candidate.go -- Path.ECMP -->
-<!-- source: internal/core/rib/locrib/manager.go -- siblingNextHops -->
 <h3 id="ordinary-bgp-transit">Ordinary BGP transit</h3>
 <p>The source and destination peers explicitly attach the same <code>bgp-rib</code> process.
 The source grants received UPDATEs and session state. The destination grants
 permission to send UPDATEs and to receive session state, refresh requests, and
 sent UPDATE events. The <a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#without-route-reflection" target="_blank" rel="noopener">ordinary transit guide</a>
 shows the attachments.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_dissemination.go -- disseminationDecls -->
-<!-- source: internal/component/plugin/server/dissemination_validate.go -- validateDisseminationProcess -->
 <p>Ze advertises the selected learned route when the destination's configured
 export policy accepts it. This applies to internal and external peers. A new
 session receives the current exportable selection, and a negotiated route
 refresh resends the selection for the requested address family. Ze replaces
 or withdraws earlier advertisements as selection or export eligibility changes.</p>
-<!-- source: internal/component/bgp/filterapi/export_kind.go -- UnconfiguredExportAccepts -->
-<!-- source: internal/component/bgp/plugins/rib/rib_ordinary_destination.go -- updateSelectedDestination -->
-<!-- source: internal/component/bgp/plugins/rib/rib_selected_refresh.go -- requestRefresh -->
-<!-- source: internal/component/bgp/reactor/selected_flush.go -- writeSelected, retireSelected -->
 <h3 id="startup-convergence-hold-update-delay">Startup convergence hold (<code>update-delay</code>)</h3>
 <p><code>bgp update-delay max-delay &lt;seconds&gt;</code> holds the first advertisement of a
 speaker that has just started, so a neighbor receives one settled route set
@@ -584,8 +543,6 @@ ended it, and how many expected peers have converged.</p>
 and Ze keeps the hold it already armed, or none: re-arming would withhold routes
 from a neighbor that already has them.</p>
 <p>An absent <code>max-delay</code>, or <code>max-delay 0</code>, is the default and holds nothing.</p>
-<!-- source: internal/component/bgp/reactor/update_delay.go -- updateDelayHold, Peer.startInitialRoutes -->
-<!-- source: internal/component/bgp/config/update_delay.go -- ParseUpdateDelay -->
 <h3 id="long-lived-graceful-restart-readvertisement">Long-Lived Graceful Restart readvertisement</h3>
 <p>RFC 9494 stale-route handling is applied per destination on both normal
 forwarding and RIB readvertisement. An LLGR-capable peer receives the stale
@@ -599,8 +556,6 @@ advertises it: live forwarding, RIB replay and route refresh, and the
 LLGR_STALE and is advertised like any other.</p>
 <p>Only the LLGR filter runs during stale readvertisement. Other export policy has
 already run on the original announcement and is not applied twice.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter -->
-<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendStaleReadvertise -->
 <h3 id="egress-attribute-rules">Egress attribute rules</h3>
 <p>Several rails write an UPDATE: the announce rails that encode a route Ze
 produced, the forward rail that relays another speaker's UPDATE, and the
@@ -719,19 +674,6 @@ rail did not.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/reactor/forward_local_pref.go -- localPrefAllowedTo, applyFactsLocalPref -->
-<!-- source: internal/component/bgp/reactor/forward_med.go -- medPropagationAllowedTo, applyFactsMED -->
-<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopIsPeerOwn, originatedNextHopIsPeerOwn, egressNextHopIsLinkLocalOnly -->
-<!-- source: internal/component/bgp/reactor/link_scope.go -- sameLinkLayerSegment -->
-<!-- source: internal/component/bgp/reactor/link_scope.go -- linkScope.linkLocalNextHop, linkScope.thirdPartyLinkLocal -->
-<!-- source: internal/component/bgp/message/rfc7606_linklocal.go -- validateLinkLocalNextHopPair -->
-<!-- source: internal/component/bgp/reactor/peer.go -- linkLocalOnlyNextHopPermitted -->
-<!-- source: internal/component/bgp/plugins/rib/rib_self_nexthop.go -- refreshSelfNextHopsLocked, isSelfNextHop -->
-<!-- source: internal/component/bgp/reactor/forward_build.go -- planAttr, buildModifiedPayload -->
-<!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
-<!-- source: internal/component/bgp/reactor/session_rfc9774.go -- transmittedPathHoldsSet, writeUpdateAsWithdrawal -->
-<!-- source: internal/component/bgp/message/rfc9774.go -- ASPathSetSegment, asPathSetVerdict -->
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- medRemoveFor -->
 <h3 id="unrecognized-nlri-types-in-a-typed-family">Unrecognized NLRI types in a typed family</h3>
 <p>RFC 7606 Section 5.4 requires a speaker advertising a typed address family to
 discard routes carrying an NLRI type it does not implement, "unless the relevant
@@ -805,14 +747,6 @@ configured to accept the Prefix-SID (RFC 8669 Section 4) is withdrawn too.</p>
 <p>When the length fields do not agree with the section the NLRI boundaries are
 unknowable, so no decision is made rather than one being guessed, and RFC 7606
 Section 5.3 resets the session.</p>
-<!-- source: internal/core/bgp/nlri/nlritype/nlritype.go -- Register, Retain, RegisterBodyRecognizer, JudgesBody -->
-<!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN recognizer -->
-<!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MCAST-VPN recognizer -->
-<!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP recognizer -->
-<!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- recognizerFor, CheckDSDPrefixSID -->
-<!-- source: internal/core/bgp/nlri/nlritype/update_check.go -- RegisterUpdateCheck, UpdateAttrs -->
-<!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- applyTypedNLRIDiscard, typedNLRIUpdateAttrs -->
-<!-- source: internal/component/bgp/reactor/session_validation_nlritype_held.go -- typedNLRIHold, typedNLRIWithdrawable, typedNLRIWithdrawBodies, typedNLRIHeldRoutes -->
 <h3 id="rfc-7911-path-identifier-regeneration">RFC 7911 Path Identifier regeneration</h3>
 <p>RFC 7911 Section 2 requires a speaker that re-advertises a route to generate its
 own Path Identifier, assigned so that (prefix, identifier) uniquely names a path
@@ -835,7 +769,6 @@ identifiers its destinations already hold. Zero is minted and accepted like any
 other value (RFC 7911 Section 3).</p>
 <p>Regeneration runs whenever either side of the forward frames identifiers. A
 session where neither side negotiated ADD-PATH keeps its zero-copy forward.</p>
-<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs, fwdPathIDTable.generatePath, fwdReleaseWithdrawnPathIDs -->
 <h3 id="protocol-event-capture-and-replay">Protocol event capture and replay</h3>
 <p>A peer writes every message it receives to a bounded JSONL file, together with
 the config operations applied while the capture runs. <code>le test replay &lt;file&gt;</code>
@@ -852,10 +785,6 @@ whether an enabled peer's capture directory is usable
 (<code>doctor-bgp-capture-directory</code>).</p>
 <pre><code class="language-bash">le test replay [--json] [--local-as N] [--peer-as N] [--router-id N] &lt;capture-file|-&gt;
 </code></pre>
-<!-- source: internal/core/capture/capture.go -- the bounded JSONL writer -->
-<!-- source: internal/component/bgp/reactor/capture_replay.go -- the session tee and the replay driver -->
-<!-- source: internal/test/cli/cmd_replay.go -- CmdReplay -->
-<!-- source: internal/component/bgp/config/doctor_checks.go -- doctorCheckBGPCaptureDirectory, capture directory readiness -->
 <h3 id="path-attributes">Path Attributes</h3>
 <table>
 <thead>
@@ -959,11 +888,6 @@ whether an enabled peer's capture directory is usable
 </tr>
 </tbody>
 </table>
-<!-- source: internal/core/bgp/attribute/attribute.go -- attribute code constants -->
-<!-- source: internal/component/bgp/message/update_build.go -- appendMED, appendLocalPref -->
-<!-- source: internal/core/bgp/attribute/origin.go -- ORIGIN -->
-<!-- source: internal/core/bgp/attribute/aspath.go -- AS_PATH -->
-<!-- source: internal/core/bgp/attribute/community.go -- Communities, ExtendedCommunities, LargeCommunities -->
 </div>
 </div>
             </section>
@@ -1001,7 +925,7 @@ whether an enabled peer's capture directory is usable
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

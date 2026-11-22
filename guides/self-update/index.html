@@ -123,8 +123,6 @@ guarantees either the old or new binary is always present.</p>
 </table>
 <p>The server computes SHA-256 at startup. If the binary changes on disk (rebuild),
 restart the server.</p>
-<!-- source: internal/plugins/update-cmd/cmd/serve.go -- runUpdateServe, the foreground server -->
-<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner, the server under the daemon -->
 <h3 id="under-the-daemon">Under the daemon</h3>
 <p>A running daemon can serve the same endpoints itself, from any command surface
 (<code>ze cli</code>, SSH, the web, REST, gRPC, MCP):</p>
@@ -144,9 +142,6 @@ the daemon stops its update server, and the daemon finishes stopping only once
 the server has ended. A failed graceful shutdown or forced connection close is
 returned to <code>update serve stop</code>. During daemon shutdown, the same failure is
 retained in <code>StopFailure</code> and makes the daemon exit with failure.</p>
-<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.endWithDaemon -->
-<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.status -->
-<!-- source: internal/component/plugin/server/stop_hooks.go -- Server.OnStop -->
 <h3 id="pause-mechanism">Pause Mechanism</h3>
 <p>Two mechanisms, ORed together:</p>
 <ul>
@@ -373,7 +368,7 @@ including failures with their reason. History survives restarts.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 6 | of 50 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 50 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 50 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 31 | 31 of 40 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 38 | 38 of 40 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -80,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 40 |
 | Tests linked to requirements | 40 |
 | Recorded audit verdicts | 13 |
-| Fault test records | 31 |
+| Fault test records | 38 |
 | Summary | `rfc/short/rfc7011.md` |
 | Requirement table | `rfc/requirements/rfc7011.md` |
 | RFC text | `rfc/full/rfc7011.txt` |
@@ -93,9 +93,9 @@ Included in automatic checks: IP Flow Information Export / IPFIX (RFC 7011): exp
 
 **Area:** IPFIX
 
-**Test verification:** 12 of 50 MUST proven
+**Test verification:** 17 of 50 MUST proven
 
-**Evidence:** unit 12
+**Evidence:** unit 17
 
 **Unmet:** RFC7011-10-1, RFC7011-10-2, RFC7011-10-5, RFC7011-10.2.2-1, RFC7011-10.3.2-1, RFC7011-10.4.1-1, RFC7011-10.4.4-1, RFC7011-11-1, RFC7011-11.1-1, RFC7011-11.1-2, RFC7011-11.1-3, RFC7011-11.1-4, RFC7011-11.3-1, RFC7011-11.3-2, RFC7011-11.3-3, RFC7011-11.3-4, RFC7011-3.2-2, RFC7011-3.4.2-1, RFC7011-3.4.2.1-1, RFC7011-4.1-1, RFC7011-4.1-2, RFC7011-4.1-3, RFC7011-6.1.3-1, RFC7011-6.1.4-1, RFC7011-6.1.6-1, RFC7011-6.1.6-2, RFC7011-6.2-3, RFC7011-7-1, RFC7011-7-2, RFC7011-8.1-1, RFC7011-8.2-4, RFC7011-x-2
 
@@ -119,8 +119,8 @@ Included in automatic checks: IP Flow Information Export / IPFIX (RFC 7011): exp
 
 ## Figures
 
-- **MUST bar**: Ze verified 12, Tests awaiting verification 6, Not built 32
-- **Overview bar**: Ze MUST verified 12, Tests awaiting verification 6, Not assessed 7, Not built 32
+- **MUST bar**: Ze verified 17, Tests awaiting verification 1, Not built 32
+- **Overview bar**: Ze MUST verified 17, Tests awaiting verification 1, Not assessed 7, Not built 32
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: IP Flow Information Export / IPFIX (RFC 7011): exp
 | Mandatory requirements complete | not complete |
 | MUST rows | 50 |
 | MUST rows kept (the MUST bar) | 50 |
-| Ze verified | 12 |
+| Ze verified | 17 |
 | OS verified | 0 |
-| Tests awaiting verification | 6 |
+| Tests awaiting verification | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -268,7 +268,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC7011VersionIsIPFIX`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L102) | unit/verify | not verified |
+| positive | [`TestRFC7011VersionIsIPFIX`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L102) | unit/verify | revert, verified |
 
 ### [`RFC7011-3.3.1-1`](#rfc7011-3.3.1-1)
 
@@ -278,8 +278,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7011PaddingZeroedOverGarbage`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L149) | unit/verify | not verified |
-| positive | [`TestRFC7011PaddingIsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L137) | unit/verify | not verified |
+| negative | [`TestRFC7011PaddingZeroedOverGarbage`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L149) | unit/verify | revert, verified |
+| positive | [`TestRFC7011PaddingIsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L137) | unit/verify | revert, verified |
 
 ### [`RFC7011-3.3.1-2`](#rfc7011-3.3.1-2)
 
@@ -289,7 +289,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC7011PaddingShorterThanRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L161) | unit/verify | not verified |
+| positive | [`TestRFC7011PaddingShorterThanRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L161) | unit/verify | revert, verified |
 
 ### [`RFC7011-3.4.1-1`](#rfc7011-3.4.1-1)
 
@@ -405,7 +405,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC7011NoReducedSizeForAddressOrTimestamp`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L227) | unit/verify | not verified |
+| positive | [`TestRFC7011NoReducedSizeForAddressOrTimestamp`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L227) | unit/verify | revert, verified |
 
 ### [`RFC7011-3.3.1-3`](#rfc7011-3.3.1-3)
 
@@ -627,8 +627,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7011MaxDatagramSizeOutOfRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_datagram_test.go#L56) | unit/verify | not verified |
-| positive | [`TestRFC7011MaxDatagramSizeConfigured`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_datagram_test.go#L23) | unit/verify | not verified |
+| negative | [`TestRFC7011MaxDatagramSizeOutOfRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_datagram_test.go#L56) | unit/verify | revert, verified |
+| positive | [`TestRFC7011MaxDatagramSizeConfigured`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_datagram_test.go#L23) | unit/verify | revert, verified |
 
 ### [`RFC7011-10.4.1-1`](#rfc7011-10.4.1-1)
 

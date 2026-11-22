@@ -132,13 +132,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5</strong><b>of 53 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 53 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 53 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>103</strong><b>103 of 232 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>135</strong><b>135 of 232 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>1</strong><b>of 53 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>53</strong><b>of 53 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 5 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -206,7 +205,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
 </tr>
 <tr><td>Mandatory requirements (MUST level)</td>
@@ -260,7 +259,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>53</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>104</td>
+<td>136</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7606.md</code></td>
@@ -280,8 +279,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Revised UPDATE error handling</p>
-<p><strong>Test verification:</strong> 34 of 53 MUST proven</p>
-<p><strong>Evidence:</strong> interop 2, functional 5, unit 27</p>
+<p><strong>Test verification:</strong> 52 of 53 MUST proven</p>
+<p><strong>Evidence:</strong> interop 2, functional 5, unit 45</p>
 <p><strong>Unmet:</strong> RFC7606-8-1</p>
 
 </section>
@@ -327,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7606:must">Ze verified 34, Tests awaiting verification 18, Not built 1</div>
+<div data-ze-rfc-bar="rfc7606:must">Ze verified 52, Not built 1</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7606:overview">Ze MUST verified 34, Tests awaiting verification 18, Not assessed 4, Not built 1</div>
+<div data-ze-rfc-bar="rfc7606:overview">Ze MUST verified 52, Not assessed 4, Not built 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -350,13 +349,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7606:must.kept">53</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc7606:must.ze-proven">34</span></td>
+<td><span data-ze-rfc="rfc7606:must.ze-proven">52</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7606:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc7606:must.proof-pending">18</span></td>
+<td><span data-ze-rfc="rfc7606:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc7606:must.os-gap">0</span></td>
@@ -1001,8 +1000,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7606-2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L261" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L262" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L281" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L282" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7606-5.3-1">RFC7606-5.3-1</code></td><td colspan="3"><span class="rfc-subject">The NLRI field or Withdrawn Routes field SHALL be considered &#34;syntactically incorrect&#34; if either of the following are true: o The length of any of the included NLRI is greater than 32. (§5.3)</span></td></tr>
@@ -1144,7 +1143,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L255" title="internal/component/bgp/message/rfc7606_attr_discard_test.go" target="_blank" rel="noopener"><code>TestApplyAttrDiscardMultipleEntries</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2059" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestSessionRFC7606AttributeDiscardContinues</code></a></td>
@@ -1154,7 +1153,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L336" title="internal/component/bgp/message/rfc7606_attr_discard_test.go" target="_blank" rel="noopener"><code>TestApplyAttrDiscardEmptyEntries</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1169,12 +1168,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L423" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606RouteSelectionAttributesNeverDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L494" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606NonRouteSelectionAttributesAreDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1189,12 +1188,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L154" title="internal/component/bgp/reactor/rfc7606_session_structural_test.go" target="_blank" rel="noopener"><code>TestSessionRFC7606SectionLengthConflictNotification</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L115" title="internal/component/bgp/reactor/rfc7606_session_structural_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_SectionLengthsExactlyFitAccepted</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1404,7 +1403,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1536" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606CollectAllErrors</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1419,7 +1418,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1512" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606MultipleErrorsStrongest</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1434,12 +1433,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L177" title="internal/component/bgp/reactor/session_validate_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_InvalidWithdrawnNLRI</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L73" title="internal/component/bgp/reactor/rfc7606_session_structural_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_ValidWithdrawnNLRIAccepted</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2144,12 +2143,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1053" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606OriginatorIDEBGPDiscard</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1074" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606OriginatorIDIBGPValid</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2164,12 +2163,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1094" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606OriginatorIDIBGPInvalid</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1075" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606OriginatorIDIBGPValid</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2189,12 +2188,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1119" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ClusterListEBGPDiscard</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1140" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ClusterListIBGPValid</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2244,7 +2243,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L682" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPReachIPv6NextHopInvalid</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L785" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPReachVPNv4NextHopInvalid</code></a></td>
@@ -2264,7 +2263,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L629" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPReachIPv6NextHopValid</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L759" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPReachVPNv4NextHopValid</code></a></td>
@@ -2284,12 +2283,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L56" title="internal/component/bgp/message/rfc7606_optional_attrs_test.go" target="_blank" rel="noopener"><code>TestRFC7606TrafficEngineeringTooShort</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L83" title="internal/component/bgp/message/rfc7606_optional_attrs_test.go" target="_blank" rel="noopener"><code>TestRFC7606TrafficEngineeringValid</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2334,7 +2333,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L369" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ExtendedCommunityUnrecognizedType</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2349,12 +2348,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L115" title="internal/component/bgp/message/rfc7606_optional_attrs_test.go" target="_blank" rel="noopener"><code>TestRFC7606IPv6ExtCommunityBadLength</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L142" title="internal/component/bgp/message/rfc7606_optional_attrs_test.go" target="_blank" rel="noopener"><code>TestRFC7606IPv6ExtCommunityValidLength</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2369,7 +2368,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L172" title="internal/component/bgp/message/rfc7606_optional_attrs_test.go" target="_blank" rel="noopener"><code>TestRFC7606IPv6ExtCommunityUnrecognizedType</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2516,7 +2515,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7606-8-1"><code>RFC7606-8-1</code></a></h3>
 <p>A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled. (§8)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-10-30 (independent judge, part-B backfill review) after the row&#39;s annotation moved from {not-applicable} to {gap}. RFC 7606 Section 8: &#39;A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled.&#39; The sentence binds the document, and its subject carries a relative clause that the not-applicable role binding cannot name, so the exclusion has no evidence the ratchet accepts and the summary records it as a gap. The earlier not-applicable verdict agreed with an annotation the owner has voided as authority (OR-1 note in the prior record, which flagged this row for re-derivation) and it is refused over a {gap} row. The behaviour Ze could be held to under the row is that each attribute it decodes is handled by the error rules its own document specifies; internal/component/bgp/message/rfc7606.go::validateAttribute is the per-attribute error dispatcher that would carry it, and no tagged unit asserts that every attribute it decodes follows its own document&#39;s error rules. With no test enforcing the row the verdict is unimplemented over that producer.</p>
+<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. Independent re-judgment (2026-11-22) against rfc/full/rfc7606.txt Section 8, rfc/short/rfc7606.md, and rfc/extraction/rfc7606.json (site 8:1). The row&#39;s verbatim text, [MUST] level, Ze roles (&#39;BGP speaker&#39;), and {not-applicable} annotation accurately reflect a document-author obligation. Replaces the 2026-10-30 unimplemented placeholder recorded when the gate lacked document-author {not-applicable} evidence support; per-attribute runtime error handling belongs to Section 7 and each attribute&#39;s own RFC, not Section 8&#39;s specification-author directive. No tests tag RFC7606-8-1.</p>
 <p>No test carries RFC7606-8-1, so there is no linked test.</p>
 <h3><a href="#rfc7606-6-1"><code>RFC7606-6-1</code></a></h3>
 <p>Because of these potential issues, a BGP speaker must provide debugging facilities to permit issues caused by a malformed attribute to be diagnosed. At a minimum, such facilities must include logging an error listing the NLRI involved and containing the entire malformed UPDATE message when such an attribute is detected. (§6)</p>
@@ -2585,18 +2584,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7606-2-5"><code>RFC7606-2-5</code></a></h3>
 <p>thus causing them to be removed from the Adj-RIB-In according to the procedures of [RFC4271]. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently rejudged 2026-11-19 against the complete RFC 7606 Section 2 treat-as-withdraw bullet and the unchanged extracted removal clause. Retain enforced at the existing Adj-RIB-In storage scope. There is one current whole test, TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute, with positive and negative tag bindings; the #2 audit key is the second tag in that same function, not another root. A valid legacy IPv4 UPDATE installs 10.0.0.0/8 and require.Equal demands exactly one stored route before the negative input can run. The same prefix with malformed ORIGIN is passed to the production message.SynthesizeWithdraw helper with ADD-PATH false; changed must be true, and feeding its result through handleReceivedStructured must leave exactly zero entries in the same received-source inventory. The source trace reaches installStructuredNLRIs for the useful baseline, then removeStructuredNLRIs and removeReceivedLocked for the synthesized withdrawal. The test&#39;s unrecorded observational source remains explicitly owner/connection zero; it neither invents nor claims physical-session authorization. Selected commit 0e34a62474 changed only this root&#39;s two map lookup expressions from the address key to receivedPeer{address: peer}, matching the source-key migration. It preserved both input buffers, prefix, synthesis call, required setup, exact 1-to-0 assertions and both tag claims. The native closure finding is therefore selected function-unit drift, not a line shift to reseal or foreign RFC scope. Independently read the actual prior selected proof receipts: job-advertiser-provider-rfc7606-store-proof-0be214be.log has named clean PASS and a normal-return install mutation replacing Put with Delete, failing the initial required 1-versus-0 assertion before the negative is reached; job-advertiser-provider-rfc7606-remove-proof-fc8fee24.log has named clean PASS, preserves the useful installation, then omits removeReceivedLocked and fails the final 0-versus-1 removal assertion. These are the existing distinct positive installation and negative removal records, unchanged by this audit write. The witness proves actual received storage removal rather than a withdrawal-shaped dispatch proxy. It calls the synthesis helper directly and does not additionally prove automatic malformed-attribute detection or transport dispatch. Its unchanged input scope is legacy IPv4 body NLRI, not the MP_UNREACH parenthetical or a new all-family/ADD-PATH matrix. No requirement text, annotation, claim, carrier body or discrimination record is changed by this rejudgment.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go::TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute, internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go::TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute#2 moved. Independently rejudged 2026-11-19 against the complete RFC 7606 Section 2 treat-as-withdraw bullet and the unchanged extracted removal clause. Retain enforced at the existing Adj-RIB-In storage scope. There is one current whole test, TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute, with positive and negative tag bindings; the #2 audit key is the second tag in that same function, not another root. A valid legacy IPv4 UPDATE installs 10.0.0.0/8 and require.Equal demands exactly one stored route before the negative input can run. The same prefix with malformed ORIGIN is passed to the production message.SynthesizeWithdraw helper with ADD-PATH false; changed must be true, and feeding its result through handleReceivedStructured must leave exactly zero entries in the same received-source inventory. The source trace reaches installStructuredNLRIs for the useful baseline, then removeStructuredNLRIs and removeReceivedLocked for the synthesized withdrawal. The test&#39;s unrecorded observational source remains explicitly owner/connection zero; it neither invents nor claims physical-session authorization. Selected commit 0e34a62474 changed only this root&#39;s two map lookup expressions from the address key to receivedPeer{address: peer}, matching the source-key migration. It preserved both input buffers, prefix, synthesis call, required setup, exact 1-to-0 assertions and both tag claims. The native closure finding is therefore selected function-unit drift, not a line shift to reseal or foreign RFC scope. Independently read the actual prior selected proof receipts: job-advertiser-provider-rfc7606-store-proof-0be214be.log has named clean PASS and a normal-return install mutation replacing Put with Delete, failing the initial required 1-versus-0 assertion before the negative is reached; job-advertiser-provider-rfc7606-remove-proof-fc8fee24.log has named clean PASS, preserves the useful installation, then omits removeReceivedLocked and fails the final 0-versus-1 removal assertion. These are the existing distinct positive installation and negative removal records, unchanged by this audit write. The witness proves actual received storage removal rather than a withdrawal-shaped dispatch proxy. It calls the synthesis helper directly and does not additionally prove automatic malformed-attribute detection or transport dispatch. Its unchanged input scope is legacy IPv4 body NLRI, not the MP_UNREACH parenthetical or a new all-family/ADD-PATH matrix. No requirement text, annotation, claim, carrier body or discrimination record is changed by this rejudgment.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L262" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L282" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L261" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L281" title="internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go" target="_blank" rel="noopener"><code>TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -2613,7 +2612,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L854" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606NLRIPrefixLengthTooLongIPv4</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L201" title="internal/component/bgp/reactor/session_validate_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_InvalidTrailingNLRI</code></a></td>
@@ -2623,7 +2622,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L54" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606NLRIMaxPrefixLengthAccepted</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2668,12 +2667,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L907" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606NLRIPrefixLengthTooLongIPv6</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L97" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPNLRILengthConsistentWithAFIAccepted</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L290" title="internal/component/bgp/message/rfc7606_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPReachWellFormedAccepted</code></a></td>
@@ -2718,12 +2717,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L262" title="internal/component/bgp/message/rfc7606_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPReachFlagsInconsistentWithRFC4760</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L292" title="internal/component/bgp/message/rfc7606_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPReachWellFormedAccepted</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2768,12 +2767,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L321" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606StrongestActionWins</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L375" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606EqualStrengthErrorsDoNotEscalate</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3102,7 +3101,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

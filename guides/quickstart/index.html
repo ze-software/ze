@@ -74,8 +74,6 @@ router or development test peer. Ze is pre-release software; use an isolated lab
 <li><a href="#stop">Stop</a></li>
 <li><a href="#next-steps">Next Steps</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: examples/quickstart/r1.conf -- local lab endpoints and originated prefix -->
-<!-- source: examples/quickstart/r2.conf -- local lab endpoints and originated prefix -->
 <p>To run Ze as a service, in a container or as an appliance instead, see
 <a href="../ze-install/#choose-a-deployment-path">Choose a deployment path</a>.</p>
 <h2 id="build">Build</h2>
@@ -87,14 +85,10 @@ cd ze
 the launcher selects that version and builds <code>bin/ze</code> with Ze's patched standard
 library when the binary is absent. A first build takes longer than starting an
 existing binary. Windows is not a supported runtime platform.</p>
-<!-- source: ze -- first-build bootstrap, toolchain pin and patched GOROOT -->
-<!-- source: go.mod -- Go version -->
 <h3 id="optional-install-the-built-command-on-path">Optional: install the built command on PATH</h3>
 <p>From the same checkout, select the patched toolchain before using <code>go install</code>.
 This installs the daemon on your Go binary path; it does not create a system
 service. The default feature tags below are derived from <code>feature-gates.txt</code>.</p>
-<!-- source: internal/le/repo/featuretags/daemontags.go -- DaemonTags -->
-<!-- source: internal/le/go/stdpatch/gen/stdpatch.go -- patched toolchain generation -->
 <pre><code class="language-bash">GOROOT="$(go run ./internal/le/go/stdpatch/goroot)"
 export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
 CGO_ENABLED=0 go install -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_container ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_fleet_ui ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' ./cmd/ze
@@ -103,7 +97,6 @@ CGO_ENABLED=0 go install -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_
 <a href="../ubuntu-build-install/">Linux installation</a>. For a container, use
 <a href="../docker/">Docker</a>. For an immutable VM or hardware image, use
 <a href="../appliance/">VM Appliance</a>.</p>
-<!-- source: ze -- checkout launcher and executable path -->
 <h2 id="local-two-peer-lab">Local two-peer lab</h2>
 <p>The files <code>examples/quickstart/r1.conf</code> and <code>r2.conf</code> declare both ends of the
 session, explicit import/export policy, and a BGP RIB. Each announces one prefix:
@@ -113,16 +106,12 @@ The BGP transport uses <code>127.0.0.1:1179</code> and <code>127.0.0.2:2179</cod
 next hops are the documentation addresses <code>192.0.2.1</code> and <code>192.0.2.2</code>.
 These next hops support route inspection in this control-plane lab; they do
 not establish forwarding connectivity.</p>
-<!-- source: examples/quickstart/r1.conf -- r1 endpoints, policy and update -->
-<!-- source: examples/quickstart/r2.conf -- r2 endpoints, policy and update -->
 <p>These files contain the known lab username and password <code>lab</code> / <code>lab</code>. They bind
 management to loopback and disable resolver file output. Do not use these
 credentials on a production system.
 Explicit-file startup creates the private store beside each file, so each peer
 must have its own directory. No <code>ze init</code> step is needed for this configured-user
 lab; the later initialization section covers a real installation.</p>
-<!-- source: examples/quickstart/r1.conf -- lab authentication, management binding and disabled resolver output -->
-<!-- source: cmd/ze/ze_core_start.go -- explicit configuration path -->
 <p>Run the following from the repository root in one shell:</p>
 <pre><code class="language-bash">mkdir -p tmp
 ZE_LAB_DIR="$(mktemp -d "$PWD/tmp/quickstart.XXXXXX")"
@@ -137,12 +126,8 @@ R1_PID=$!
 ./ze start "$ZE_LAB_DIR/r2/ze.conf" &gt;"$ZE_LAB_DIR/r2.log" 2&gt;&amp;1 &amp;
 R2_PID=$!
 </code></pre>
-<!-- source: examples/quickstart/r1.conf -- first peer configuration -->
-<!-- source: examples/quickstart/r2.conf -- second peer configuration -->
-<!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate -->
 <p>On Linux, both loopback addresses are available. On macOS, add the second
 address once before starting the peers: <code>sudo ifconfig lo0 alias 127.0.0.2</code>.</p>
-<!-- source: internal/le/setup/system.go -- loopbackAddArgv -->
 <h3 id="verify-a-session-and-received-routes">Verify a session and received routes</h3>
 <p>Run these commands in the same shell. If a listener is still starting, inspect
 the log files and retry the command after it is ready.</p>
@@ -150,14 +135,10 @@ the log files and retry the command after it is ready.</p>
 ZE_SSH_PASSWORD=lab ./ze cli --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"
 ZE_SSH_PASSWORD=lab ./ze cli --remote 127.0.0.1:2222 --user lab -c "show bgp rib | received"
 </code></pre>
-<!-- source: internal/component/cli/client/main.go -- remote SSH command execution -->
-<!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- show bgp rib -->
 <p>The peer list must show an established session. The r1 received RIB must contain
 <code>198.51.100.0/24</code>; r2 must contain <code>192.0.2.0/24</code>. A configured peer or an open
 management port alone is not this success check. This lab verifies control-plane
 route exchange; it does not install forwarding routes on the host.</p>
-<!-- source: examples/quickstart/r1.conf -- r1 advertised documentation prefix -->
-<!-- source: examples/quickstart/r2.conf -- r2 advertised documentation prefix -->
 <h3 id="stop-and-keep-or-remove-the-lab">Stop and keep or remove the lab</h3>
 <pre><code class="language-bash">kill -TERM "$R1_PID" "$R2_PID"
 wait "$R1_PID" "$R2_PID"
@@ -166,20 +147,17 @@ printf 'Lab files and stores: %s\n' "$ZE_LAB_DIR"
 <p>SIGTERM uses Ze's normal shutdown path. Keep the directory if you want to inspect
 the stores and logs or restart the lab. To discard this lab after both processes
 stop, remove the directory printed above. It contains only this run's copies.</p>
-<!-- source: cmd/ze/hub/main.go -- daemon shutdown signal handling -->
 <h2 id="use-an-existing-router-as-the-peer">Use an existing router as the peer</h2>
 <p>The remainder shows initialization and a configuration for an external peer.
 Replace the addresses and ASNs with your network's values and configure the
 other router's BGP session as well. The local lab above supplies both ends when
 you do not have another router.</p>
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer connection and session settings -->
 <h2 id="initialize">Initialize</h2>
 <p>Ze runs an SSH server on localhost for CLI access (<code>ze cli</code>, <code>ze show</code>, <code>ze signal</code>). This keeps the control plane authenticated even in multi-user environments. Initialize the folder that will hold the example config:</p>
 <pre><code class="language-bash">export ZE_CONFIG_DIR="$PWD"
 ./ze init
 </code></pre>
 <p>This prompts for username, password, SSH host (default <code>127.0.0.1</code>), port (default <code>2222</code>), and node name (default: hostname). Credentials are stored locally with bcrypt-hashed passwords. For scripting (later fields fall back to their defaults):</p>
-<!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, bcrypt hashing -->
 <pre><code class="language-bash">printf 'admin\nREPLACE_WITH_A_STRONG_PASSWORD\n' | ./ze init
 </code></pre>
 <p>Initialization creates a private <code>database/</code> tree in the selected folder.
@@ -190,16 +168,12 @@ as <code>database.replaced-&lt;stamp&gt;</code> before publishing the fully seed
 <pre><code class="language-bash">./ze signal stop             # stop daemon first
 ./ze init --force            # prompts for confirmation, then backs up and reinitializes
 </code></pre>
-<!-- source: internal/plugins/init/main.go -- forceFlag -->
 <p><code>--force --yes</code> confirms replacement in a script. Replacement refuses while any
 process owns the store, regardless of the selected SSH target. Ordinary startup
 refuses an existing blob without converting it. The diagnostic names
 <code>ze init --from &lt;blob&gt;</code>, which imports a local blob; the URL form is storage-2.
 Appliance first boot already imports its seed. <code>ze init --seed</code> writes an
 explicit blob artifact for appliance builders.</p>
-<!-- source: internal/plugins/init/main.go -- Run -->
-<!-- source: internal/component/config/storage/open.go -- detect -->
-<!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
 <figure class="terminal-demo" data-terminal-demo="zefs-config">
   <div class="terminal-demo__intro">
     <div>
@@ -343,21 +317,16 @@ a prefix into BGP:</p>
 <li><strong>Redistribution</strong> (<code>172.16.0.0/24</code>): a <code>static</code> route pulled into BGP by the top-level
 <code>redistribute { destination bgp { import static } }</code> block. Every source protocol
 (<code>static</code>, <code>connected</code>, <code>kernel</code>, <code>ospf</code>, <code>isis</code>, ...) redistributes into any destination
-the same way -- this is how interface and interior-gateway routes reach your peers.
-<!-- source: internal/plugins/static/register.go -- registerStaticSources; internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
-</li>
+the same way -- this is how interface and interior-gateway routes reach your peers.</li>
 <li><strong>Direct announcement</strong> (<code>192.168.1.0/24</code>): a prefix declared inline on the peer in its
 <code>update {}</code> block, sent when the session establishes. The automatic End-of-RIB
 marker follows Ze's own routes and the separate peer-up registration barrier,
 not a plugin's session-ready route report (owner ruling, 2026-09-18).
-<code>behavior { manual-eor true }</code> suppresses that automatic marker, not the routes.
-<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, the marker follows the routes the peer owns -->
-</li>
+<code>behavior { manual-eor true }</code> suppresses that automatic marker, not the routes.</li>
 </ul>
 <p>The <code>filter { export { final accept } }</code> block is required: <code>test-peer</code> is an EBGP peer
 (AS 65001), and with no export policy Ze sends an EBGP peer no routes at all (RFC 8212
 Section 3), originated ones included. See <a href="../bgp-policy/">BGP policy</a>.</p>
-<!-- source: internal/component/bgp/reactor/peer_session_factory.go -- newSession -->
 <blockquote>
 <p>Advanced: a <code>process</code> binding attaches a plugin or your own external program to a peer (the
 ExaBGP-style event API), including making a peer RIB-backed so it stores and re-advertises
@@ -366,14 +335,12 @@ received routes. It is not needed for the config above; see <a href="../plugins/
 <h2 id="validate">Validate</h2>
 <pre><code class="language-bash">./ze config validate example.conf
 </code></pre>
-<!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate -->
 <p>Expected output:</p>
 <pre><code>configuration valid: example.conf
 </code></pre>
 <h2 id="start">Start</h2>
 <pre><code class="language-bash">./ze start example.conf
 </code></pre>
-<!-- source: cmd/ze/ze_core_dispatch.go -- registerLocalCommands, "start" root handler; cmd/ze/ze_core_start.go -- cmdStart, startConfigPath -->
 <p>With no file, <code>ze start</code> uses the config the store names, and refuses with exit 1 if the store's instance name cannot be read; <code>ze doctor</code> checks the store.</p>
 <p>The config path goes behind the <code>start</code> keyword. A bare <code>./ze example.conf</code> is rejected with <code>unknown command: example.conf</code> (exit 1); global flags such as <code>-d</code> are consumed before the keyword, so they stay ahead of it.</p>
 <p>An explicit path selects the store in that file's folder, before
@@ -389,7 +356,6 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
 <p>Silence means the default log level (<code>warn</code>) has nothing to report -- that's normal. To see all activity:</p>
 <pre><code class="language-bash">./ze -d start example.conf  # debug logging
 </code></pre>
-<!-- source: cmd/ze/main.go -- "-d" debug flag sets ze.log=debug -->
 <h2 id="verify">Verify</h2>
 <p>In another terminal:</p>
 <pre><code class="language-bash"># Check daemon is running
@@ -404,14 +370,12 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
 # Watch live events (streams until Ctrl-C)
 ./ze cli -c "monitor event"
 </code></pre>
-<!-- source: internal/component/cli/client/main.go -- Execute, StreamMonitor -->
 <h2 id="test-without-a-real-peer">Test Without a Real Peer</h2>
 <p>Use the local two-peer lab above for route verification. Developers who only need
 a protocol sink can start the repository's test peer through the <code>le</code> launcher:</p>
 <pre><code class="language-bash"># Terminal 1: start a sink peer (accepts sessions, replies keepalive)
 ./le test peer --mode sink --port 1179 --asn 65001
 </code></pre>
-<!-- source: internal/test/cli/cmd_peer.go -- le test peer command -->
 <p>For this optional sink, copy the external-peer configuration to its own directory
 and change its peer's <code>connection</code> block to dial <code>127.0.0.1:1179</code>:</p>
 <pre><code>        connection {
@@ -443,7 +407,6 @@ announce a route; the address split is what keeps it working when you do.</p>
 <pre><code class="language-bash">./ze signal stop             # graceful shutdown
 ./ze signal restart          # graceful restart (preserves routes via GR)
 </code></pre>
-<!-- source: internal/plugins/signal/main.go -- Run -->
 <h2 id="next-steps">Next Steps</h2>
 <ul>
 <li><a href="../ai-agent/">Use Ze with an AI agent</a> -- <code>ze create agent skill</code> sets Claude Code or Codex up to test Ze</li>
@@ -500,7 +463,7 @@ announce a route; the address split is what keeps it working when you do.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

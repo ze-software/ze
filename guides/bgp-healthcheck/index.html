@@ -62,7 +62,6 @@
 <li><a href="#cli-commands">CLI Commands</a></li>
 <li><a href="#migration-from-exabgp">Migration from ExaBGP</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- runHealthcheckPlugin -->
 <h2 id="quick-start">Quick Start</h2>
 <pre><code>bgp {
     router-id 192.0.2.1
@@ -93,9 +92,6 @@ announces it. If <code>withdraw</code> is omitted or set to <code>false</code>, 
 is announced when the BGP session reaches Established, matching ExaBGP.
 Reload preserves the runtime state of an existing route; a newly added route
 uses its configured initial state.</p>
-<!-- source: internal/component/bgp/plugins/watchdog/config.go -- collectWatchdogRoutes reads the boolean value -->
-<!-- source: internal/component/bgp/plugins/watchdog/config_tx.go -- carryEntryState preserves existing state on reload -->
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- update-block watchdog withdraw default -->
 <p>The probe runs <code>dig</code> every 5 seconds (default). After 3 consecutive successes, the route <code>10.0.0.1/32</code> is announced. After 3 consecutive failures, the route is withdrawn.</p>
 <h2 id="configuration-reference">Configuration Reference</h2>
 <p>All leaves go under <code>bgp { healthcheck { probe &lt;name&gt; { ... } } }</code>.</p>
@@ -189,7 +185,6 @@ uses its configured initial state.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang -- YANG leaves -->
 <h3 id="ip-management-internal-mode-only">IP Management (internal mode only)</h3>
 <pre><code>ip-setup {
     interface lo
@@ -229,7 +224,6 @@ uses its configured initial state.</p>
 </tbody>
 </table>
 <p>IPs are added at probe startup (before the first check), regardless of the <code>dynamic</code> setting. Non-dynamic probes keep IPs present through all states except EXIT. Not available in external plugin mode.</p>
-<!-- source: internal/component/bgp/plugins/healthcheck/ip.go -- ipTracker -->
 <h3 id="hooks">Hooks</h3>
 <pre><code>on-up "curl -X POST http://notify/up"
 on-down "curl -X POST http://notify/down"
@@ -237,7 +231,6 @@ on-disabled "curl -X POST http://notify/disabled"
 on-change "logger -t healthcheck state=$STATE"
 </code></pre>
 <p>Each hook is a leaf-list (multiple commands per event). Hooks execute asynchronously in goroutines with a 30-second timeout and process group kill. The <code>STATE</code> environment variable is set to the current state name (UP, DOWN, DISABLED, etc.). State-specific hooks fire before on-change hooks.</p>
-<!-- source: internal/component/bgp/plugins/healthcheck/hooks.go -- runHooks -->
 <h2 id="fsm-states">FSM States</h2>
 <table>
 <thead>
@@ -311,7 +304,6 @@ on-change "logger -t healthcheck state=$STATE"
 and <code>| display</code> act on either. The list rows come back in ascending probe name.
 The two answers carry different field sets, so the command declares the <code>map</code>
 shape and <code>| fill</code> is refused by name.</p>
-<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleShow, commandDecls -->
 <h2 id="migration-from-exabgp">Migration from ExaBGP</h2>
 <p>Ze's healthcheck replaces ExaBGP's <code>healthcheck.py</code> program. Key differences:</p>
 <ul>
@@ -321,8 +313,6 @@ shape and <code>| fill</code> is refused by name.</p>
 <li>Hooks have a 30-second timeout (ExaBGP hooks can hang forever).</li>
 <li>Per-state community and as-path variation is not supported. Use separate watchdog groups if needed.</li>
 </ul>
-<!-- source: internal/component/bgp/plugins/healthcheck/hooks.go -- hookTimeout, the 30-second hook bound -->
-<!-- source: internal/component/bgp/plugins/healthcheck/config.go -- Disable and the watchdog metric fields -->
 </div>
 </div>
             </section>
@@ -372,7 +362,7 @@ shape and <code>| fill</code> is refused by name.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

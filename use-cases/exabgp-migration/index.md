@@ -1,13 +1,13 @@
 # ExaBGP Migration
 
-Ze provides tools for converting ExaBGP configurations and running existing ExaBGP plugins with ze as the BGP engine.
+Ze provides tools for converting ExaBGP configurations and running existing ExaBGP plugins with Ze as the BGP engine.
 <!-- source: internal/plugins/exabgp/main.go -- Run; internal/exabgp/migration/ -- config conversion; internal/exabgp/bridge/ -- plugin bridge -->
 
 **RFC completion:** the [BGP core coverage page](../../quality/rfc-compliance/profiles/bgp-core/) shows which requirements have passed the recorded test checks for this use case.
 
 ## Config Migration
 
-Convert an ExaBGP configuration file to ze-native format:
+Convert an ExaBGP configuration file to Ze-native format:
 
 ```bash
 ze exabgp migrate exabgp.conf > ze.conf
@@ -30,11 +30,11 @@ ze config validate ze.conf              # Validate the result
 
 - Complex ExaBGP features (watchdog groups, split configurations) may need manual adjustment
 - Process scripts need the compatibility bridge (see below)
-- Migration is one-time; the output is ze-native config
+- Migration is one-time; the output is Ze-native config
 
 ## Plugin Compatibility Bridge
 
-Run existing ExaBGP process scripts with ze using the compatibility bridge:
+Run existing ExaBGP process scripts with Ze using the compatibility bridge:
 
 ```
 plugin {
@@ -47,6 +47,10 @@ plugin {
 bgp {
     router-id 10.0.0.2;
     session { asn { local 65000; } }
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
 
     peer upstream1 {
         connection {
@@ -61,7 +65,7 @@ bgp {
                 }
             }
         }
-        process my-exabgp-plugin {
+        attach process my-exabgp-plugin {
             receive [ update state ];
         }
     }
@@ -80,7 +84,7 @@ The bridge translates bidirectionally:
 <!-- source: internal/exabgp/bridge/bridge_event.go -- zebgpToExabgpJSON -->
 <!-- source: internal/exabgp/bridge/bridge_command.go -- TranslateLine -->
 
-When ze's process manager launches the bridge, the bridge detects `ZE_PLUGIN_HUB_TOKEN` and
+When Ze's process manager launches the bridge, the bridge detects `ZE_PLUGIN_HUB_TOKEN` and
 connects back via TLS using the SDK. The SDK handles the 5-stage startup protocol
 and MuxConn multiplexing automatically. In standalone mode (no env var), the bridge
 uses stdin/stdout with inline MuxConn framing.
@@ -116,8 +120,8 @@ The migration tool adds `prefix { maximum 10000; }` to every converted address f
 2. **Review prefix limits:** Check `prefix { maximum ... }` values match expected route counts
 3. **Validate:** `ze config validate new.conf`
 4. **Bridge plugins:** Update `run` directives to use `ze exabgp plugin`
-5. **Test:** Run ze with the new config and verify sessions establish
-6. **Port plugins:** Gradually rewrite plugins to use the ze SDK directly
+5. **Test:** Run Ze with the new config and verify sessions establish
+6. **Port plugins:** Gradually rewrite plugins to use the Ze SDK directly
 
 ## Worked migration
 
@@ -228,8 +232,8 @@ rewrite.
 
 ## When to Port Plugins
 
-The compatibility bridge adds translation overhead. Consider porting to native ze plugins when:
-- You need access to ze-specific features (RPKI events, cache commands, commit workflow)
+The compatibility bridge adds translation overhead. Consider porting to native Ze plugins when:
+- You need access to Ze-specific features (RPKI events, cache commands, commit workflow)
 - Performance matters (native plugins skip the translation layer)
 - You want to use the Go SDK for direct in-process execution
 <!-- source: internal/exabgp/bridge/ -- bidirectional translation; internal/exabgp/migration/ -- config converter -->

@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 6 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 6 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 9 | 9 of 26 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 13 | 13 of 26 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 26 |
 | Tests linked to requirements | 26 |
 | Recorded audit verdicts | 5 |
-| Fault test records | 9 |
+| Fault test records | 13 |
 | Summary | `rfc/short/rfc5549.md` |
 | Requirement table | `rfc/requirements/rfc5549.md` |
 | RFC text | `rfc/full/rfc5549.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: Advertising IPv4 NLRI with an IPv6 Next Hop (legac
 
 **Area:** Legacy extended next-hop encoding
 
-**Test verification:** 3 of 6 MUST proven
+**Test verification:** 6 of 6 MUST proven
 
-**Evidence:** unit 3
+**Evidence:** unit 6
 
 **Unmet:** -
 
@@ -112,19 +112,19 @@ Included in automatic checks: Advertising IPv4 NLRI with an IPv6 Next Hop (legac
 
 ## Figures
 
-- **MUST bar**: Ze verified 3, Tests awaiting verification 3
-- **Overview bar**: Ze MUST verified 3, Tests awaiting verification 3, Not assessed 3
+- **MUST bar**: Ze verified 6
+- **Overview bar**: Ze MUST verified 6, Not assessed 3
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 6 |
 | MUST rows kept (the MUST bar) | 6 |
-| Ze verified | 3 |
+| Ze verified | 6 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -211,7 +211,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 |---|---|---|---|
 | positive | [`TestCapabilityCodeConstants`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L17) | unit/verify | not verified |
 | positive | [`TestExtendedNextHopCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L565) | unit/verify | not verified |
-| positive | [`TestExtendedNextHopRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L598) | unit/verify | not verified |
+| positive | [`TestExtendedNextHopRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L598) | unit/verify | revert, verified |
 
 ### [`RFC5549-3-1`](#rfc5549-3-1)
 
@@ -221,8 +221,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseMPReachNLRI_InvalidNextHopLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L493) | unit/verify | not verified |
-| positive | [`TestParseMPReachNLRI_ExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L342) | unit/verify | not verified |
+| negative | [`TestParseMPReachNLRI_InvalidNextHopLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L493) | unit/verify | revert, verified |
+| positive | [`TestParseMPReachNLRI_ExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L342) | unit/verify | revert, verified |
 | positive | [`TestParseMPReachNLRI_ExtendedNextHop_DualStack`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L446) | unit/verify | not verified |
 | positive | [`TestParseMPReachNLRI_ExtendedNextHop_VPN`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L400) | unit/verify | not verified |
 
@@ -234,7 +234,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestReactorForwardRRPreservesExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L259) | unit/verify | not verified |
+| positive | [`TestReactorForwardRRPreservesExtendedNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L259) | unit/verify | revert, verified |
 
 ### [`RFC5549-4-4`](#rfc5549-4-4)
 

@@ -127,7 +127,6 @@ raises the warning <code>doctor-plugin-schema-changed</code>, which <code>ze sho
 reports with the first module that differs. To ship a new schema, install
 the new program and restart <code>ze</code>.</li>
 </ul>
-<!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema, schemaDifference -->
 <p>A plugin that cannot be run, or that sends no declaration within its stage
 timeout, declares nothing: a config section only its module defines is then
 refused as <code>unknown top-level keyword: &lt;root&gt;</code>, and the refusal names the
@@ -177,15 +176,11 @@ effect.</p>
 reaches your plugin as verify then apply, and Ze saves it: the next <code>ze start</code>
 on the same config directory runs your plugin, reads your modules again and
 configures your plugin with the committed value.</p>
-<!-- source: test/ui/external-yang-session-save.ci -- a commit under an external root survives a restart -->
 <p>Your plugin's process reads the settings of the config's <code>environment</code> block
 in its own environment, although Ze starts it before it has parsed the whole
 config and applied that block to itself. A variable set in the environment Ze
 was started from wins over the block, as it does for Ze. A plugin Ze starts
 again later inherits Ze's environment, which holds the block by then.</p>
-<!-- source: internal/component/config/apply_env.go -- EnvironmentEntries -->
-<!-- source: internal/component/plugin/process/process.go -- SetConfigEnvironment -->
-<!-- source: internal/core/env/env.go -- WithDefaults -->
 <p>With no daemon, <code>ze schema</code> shows the modules compiled into <code>ze</code> only. A
 <code>--plugin</code> that names your program does not start it: the answer is followed
 by a warning that your module is not available with no running Ze, whose fix
@@ -265,14 +260,6 @@ no daemon, because running the program you name is what it is for. No other
 command with no daemon starts it: <code>ze show plugin declarations config &lt;file&gt;</code>
 lists your plugin with the state <code>not-available</code> and names that checker. A
 running Ze starts your program in declare mode when <code>show plugin declarations config &lt;file&gt;</code> is typed in a session it serves.</p>
-<!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins, PublishDeclaredSchemas, DeclaredSchemas.ParseRefusal -->
-<!-- source: internal/component/command/local_data.go -- ServeLocal -->
-<!-- source: internal/component/plugin/declarations.go -- QueryDeclaration -->
-<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation -->
-<!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins, undeclaredPluginLines -->
-<!-- source: internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins -->
-<!-- source: internal/component/config/first_pass.go -- FirstPass -->
-<!-- source: internal/component/config/plugin_verify.go -- BuildPluginConfigSections -->
 <h2 id="registering-a-schema">Registering a Schema</h2>
 <p>Schemas are declared via the <code>Schemas</code> field of <code>sdk.Registration</code>, which is passed to
 <code>p.Run()</code>. It lists one <code>sdk.SchemaDecl</code> for each module the plugin brings: a
@@ -289,8 +276,6 @@ no module defines. A plugin that answers a command also declares it in
 <code>Commands</code>, and Ze refuses the start when a <code>ze:command</code> node of its modules
 is reached by no command it declares there. Defining a command in a <code>-cmd</code> module, with a worked example and
 the refusals, is <a href="../commands/">commands.md</a>, "Defining a Command in YANG".</p>
-<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, SchemaDecl -->
-<!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl -->
 <pre><code class="language-go">p := sdk.NewWithConn("my-plugin", conn)
 
 p.Run(ctx, &amp;sdk.Registration{
@@ -303,7 +288,6 @@ p.Run(ctx, &amp;sdk.Registration{
     WantsConfig: []string{"my-plugin"},
 })
 </code></pre>
-<!-- source: pkg/plugin/sdk/sdk.go -- Run -->
 <h3 id="schemadecl-fields">SchemaDecl Fields</h3>
 <table>
 <thead>
@@ -336,11 +320,8 @@ p.Run(ctx, &amp;sdk.Registration{
 </tr>
 </tbody>
 </table>
-<!-- source: pkg/plugin/rpc/types.go -- SchemaDecl -->
 <h3 id="embedding-yang-files">Embedding YANG Files</h3>
 <p>Internal plugins use <code>//go:embed</code> to embed YANG files at compile time:</p>
-<!-- source: internal/component/bgp/plugins/rib/yang/embed.go -- ZeRibYANG (go:embed) -->
-<!-- source: internal/component/bgp/plugins/rib/register.go -- YANG field set to ribschema.ZeRibYANG -->
 <pre><code class="language-go">import _ "embed"
 
 //go:embed my-plugin.yang
@@ -497,9 +478,6 @@ leaf default-class {
 </code></pre>
 <p>A reference no YANG path can express, such as one into state a plugin holds,
 stays a string checked by a <code>ze:validate</code> function.</p>
-<!-- source: internal/component/config/yang/loader_reference.go -- checkReferences -->
-<!-- source: internal/component/config/yang/validator_reference.go -- validateLeafref, validateIdentityref, validateInstanceIdentifier -->
-<!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences -->
 <h2 id="extensions-that-name-a-registration">Extensions that name a registration</h2>
 <p>Four <code>ze:</code> extensions name something registered inside Ze rather than
 something your module defines. A name is held only when the component that
@@ -545,12 +523,6 @@ this <code>ze</code> was built wrong and that the config is not at fault. It nam
 module, the extension, the name and the schema path, with the code
 <code>doctor-build-registration-unheld</code>. A test over the shipped module set keeps
 such a build from shipping.</p>
-<!-- source: internal/component/config/yang/join.go -- refuseUnheldRegistrations, unheldRegistration, unheldRegistrationRefusal -->
-<!-- source: internal/component/config/yang/registration_held.go -- unheldName, RefuseUnheldCompiledRegistrations -->
-<!-- source: cmd/ze/hub/build_registrations.go -- refuseWronglyBuilt -->
-<!-- source: internal/component/web/decorator.go -- DecoratorRegistry.Get -->
-<!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures -->
-<!-- source: internal/component/cli/completer.go -- backendAllowed -->
 <h2 id="best-practices">Best Practices</h2>
 <ol>
 <li><strong>Use meaningful namespaces</strong> -- include your organization</li>
@@ -659,10 +631,6 @@ func main() {
     }
 }
 </code></pre>
-<!-- source: pkg/plugin/sdk/sdk.go -- NewFromEnv, Run -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent -->
-<!-- source: pkg/plugin/sdk/config_tx.go -- NewConfigTx, ConfigTx.Register, ConfigParser, ConfigInstaller -->
-<!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl, ConfigSection -->
 <h3 id="example-yang-schema">Example YANG Schema</h3>
 <pre><code class="language-yang">module acme-monitor-conf {
     namespace "urn:acme:monitor";
@@ -722,7 +690,7 @@ func main() {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

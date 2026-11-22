@@ -6,12 +6,12 @@ Ze's looking glass, replayed from a real run: Ze collects routes from eleven sim
 
 `Daemon`
 
-The replay comes from a functional test. It generates a network from a seed: five routers of AS65000, one of them a route reflector, and six external neighbours on eBGP. Each speaker holds a real BGP session to Ze and announces the routes a model of the network computed for it. The test asks the looking glass for its pages and its three graphs and compares every answer with the model, router by router, before the recorder keeps a copy for this page.
+The replay comes from a functional test. It generates a network from a seed: five routers of AS65000, one of them a route reflector, and six external peers on eBGP. Each speaker holds a real BGP session to Ze and announces the routes a model of the network computed for it. The test asks the looking glass for its pages and its three graphs and compares every answer with the model, router by router, before the recorder keeps a copy for this page.
 
 The UK lab injects 36 routes for a small network: a core ring (Telehouse, Leeds, Manchester, Birmingham) with edge sites (Slough, Bradford) under AS65000, peered with NTT and Cogent for transit and Cloudflare and Akamai for peering. It checks the AS path and next-hop drawings byte for byte, AS names included, which a stub name server supplies. As that stub listens on port 53, this lab runs on Linux only.
 
 - **What this lab tests:** The looking glass pages and its three graphs (AS path, next hop, trace) over real BGP sessions, compared with what a model of the network computed
-- **Topology:** Replay: five routers of AS65000 with a route reflector, six external neighbours. UK lab: AS65000 core ring and edge sites, peers NTT, Cogent, Cloudflare and Akamai
+- **Topology:** Replay: five routers of AS65000 with a route reflector, six external peers. UK lab: AS65000 core ring and edge sites, peers NTT, Cogent, Cloudflare and Akamai
 - **Requires:** Go toolchain. The UK lab also needs Linux and permission to bind port 53
 - **Source:** [test/plugin/lg-simulated-network.ci](https://github.com/ze-software/ze/blob/main/test/plugin/lg-simulated-network.ci), [internal/le/interoplab/bgp/](https://github.com/ze-software/ze/tree/main/internal/le/interoplab/bgp)
 

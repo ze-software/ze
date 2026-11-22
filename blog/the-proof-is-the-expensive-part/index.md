@@ -4,6 +4,8 @@
 
 Tests can pass while the router still does the wrong thing.
 
+![Protocol requirements are verified against running routers, interoperability labs, and recorded fault-injection proofs.](../../assets/blog/the-proof-is-the-expensive-part.svg)
+
 AI can write a feature and get its first tests passing quickly. If the code and its tests have both been written and reviewed by agents, someone considering the software still needs a reason to trust it. Establishing that the running router does what the protocol requires takes much longer.
 
 *This article was drafted and revised with OpenAI Codex. The ideas, experience and conclusions are mine.*

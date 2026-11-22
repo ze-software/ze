@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 18 | of 25 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 22 | of 25 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 0 | of 25 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 25 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 25 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 65 | 65 of 98 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 94 | 94 of 106 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -22,7 +22,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Declared gap or no test | 7 | of 25 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 3 | of 25 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 | Audit verdicts | 19 | of 25 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -74,14 +74,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 36 |
 | Mandatory requirements (MUST level) | 25 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 7 |
+| Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 98 |
-| Tests linked to requirements | 98 |
+| Test tags | 106 |
+| Tests linked to requirements | 106 |
 | Recorded audit verdicts | 19 |
-| Fault test records | 65 |
+| Fault test records | 94 |
 | Summary | `rfc/short/rfc9494.md` |
 | Requirement table | `rfc/requirements/rfc9494.md` |
 | RFC text | `rfc/full/rfc9494.txt` |
@@ -94,19 +94,19 @@ Included in automatic checks: Long-Lived Graceful Restart for BGP
 
 **Area:** Long-Lived Graceful Restart
 
-**Test verification:** 8 of 25 MUST proven
+**Test verification:** 22 of 25 MUST proven
 
-**Evidence:** functional 2, unit 6
+**Evidence:** functional 2, unit 20
 
-**Unmet:** RFC9494-4.2-10, RFC9494-4.2-7, RFC9494-4.2-9, RFC9494-4.3-2, RFC9494-4.7.2-1, RFC9494-4.7.2-2, RFC9494-5-2
+**Unmet:** RFC9494-4.7.2-1, RFC9494-4.7.2-2, RFC9494-5-2
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 18 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 7 | one part of the mandatory requirements |
+| Positive and negative tests | 22 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 3 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -114,14 +114,14 @@ Included in automatic checks: Long-Lived Graceful Restart for BGP
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **25** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (18):** [`RFC9494-3.1-1`](#rfc9494-3.1-1), [`RFC9494-4.1-1`](#rfc9494-4.1-1), [`RFC9494-3.1-2`](#rfc9494-3.1-2), [`RFC9494-4-1`](#rfc9494-4-1), [`RFC9494-4.2-1`](#rfc9494-4.2-1), [`RFC9494-4.2-2`](#rfc9494-4.2-2), [`RFC9494-4.2-3`](#rfc9494-4.2-3), [`RFC9494-4.2-4`](#rfc9494-4.2-4), [`RFC9494-4.2-5`](#rfc9494-4.2-5), [`RFC9494-4.2-6`](#rfc9494-4.2-6), [`RFC9494-4.2-8`](#rfc9494-4.2-8), [`RFC9494-4.3-1`](#rfc9494-4.3-1), [`RFC9494-4.4-1`](#rfc9494-4.4-1), [`RFC9494-4.5-1`](#rfc9494-4.5-1), [`RFC9494-4.6-1`](#rfc9494-4.6-1), [`RFC9494-4.6-2`](#rfc9494-4.6-2), [`RFC9494-4.6-3`](#rfc9494-4.6-3), [`RFC9494-5-1`](#rfc9494-5-1)
+**Positive and negative tests (22):** [`RFC9494-3.1-1`](#rfc9494-3.1-1), [`RFC9494-4.1-1`](#rfc9494-4.1-1), [`RFC9494-3.1-2`](#rfc9494-3.1-2), [`RFC9494-4-1`](#rfc9494-4-1), [`RFC9494-4.2-1`](#rfc9494-4.2-1), [`RFC9494-4.2-2`](#rfc9494-4.2-2), [`RFC9494-4.2-3`](#rfc9494-4.2-3), [`RFC9494-4.2-4`](#rfc9494-4.2-4), [`RFC9494-4.2-5`](#rfc9494-4.2-5), [`RFC9494-4.2-6`](#rfc9494-4.2-6), [`RFC9494-4.2-7`](#rfc9494-4.2-7), [`RFC9494-4.2-8`](#rfc9494-4.2-8), [`RFC9494-4.2-9`](#rfc9494-4.2-9), [`RFC9494-4.3-1`](#rfc9494-4.3-1), [`RFC9494-4.3-2`](#rfc9494-4.3-2), [`RFC9494-4.4-1`](#rfc9494-4.4-1), [`RFC9494-4.5-1`](#rfc9494-4.5-1), [`RFC9494-4.6-1`](#rfc9494-4.6-1), [`RFC9494-4.6-2`](#rfc9494-4.6-2), [`RFC9494-4.6-3`](#rfc9494-4.6-3), [`RFC9494-5-1`](#rfc9494-5-1), [`RFC9494-4.2-10`](#rfc9494-4.2-10)
 
-**Annotated (including scoped evidence) (7):** [`RFC9494-4.2-7`](#rfc9494-4.2-7), [`RFC9494-4.2-9`](#rfc9494-4.2-9), [`RFC9494-4.3-2`](#rfc9494-4.3-2), [`RFC9494-4.7.2-1`](#rfc9494-4.7.2-1), [`RFC9494-4.7.2-2`](#rfc9494-4.7.2-2), [`RFC9494-5-2`](#rfc9494-5-2), [`RFC9494-4.2-10`](#rfc9494-4.2-10)
+**Annotated (including scoped evidence) (3):** [`RFC9494-4.7.2-1`](#rfc9494-4.7.2-1), [`RFC9494-4.7.2-2`](#rfc9494-4.7.2-2), [`RFC9494-5-2`](#rfc9494-5-2)
 
 ## Figures
 
-- **MUST bar**: Ze verified 8, Tests awaiting verification 10, Not built 7
-- **Overview bar**: Ze MUST verified 8, SHOULD verified 1, Tests awaiting verification 10, Not assessed 10, Not built 7
+- **MUST bar**: Ze verified 22, Not built 3
+- **Overview bar**: Ze MUST verified 22, SHOULD verified 1, Not assessed 10, Not built 3
 
 | Figure | Rows |
 |---|---|
@@ -130,13 +130,13 @@ Included in automatic checks: Long-Lived Graceful Restart for BGP
 | Mandatory requirements complete | not complete |
 | MUST rows | 25 |
 | MUST rows kept (the MUST bar) | 25 |
-| Ze verified | 8 |
+| Ze verified | 22 |
 | OS verified | 0 |
-| Tests awaiting verification | 10 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 7 |
+| Not built | 3 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -172,11 +172,11 @@ Source: [data/rfc/rfc9494.json](../../../data/rfc/rfc9494.json).
 | `RFC9494-4.2-4` | * The helper router MUST attach the LLGR_STALE community to the stale routes being retained. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestAttachCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go#L621). **positive:** `unit/verify` [`TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L68). **negative:** `unit/verify` [`TestRFC9494_FreshRoutesDoNotGetLLGRStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L34) |
 | `RFC9494-4.2-5` | * If any of the routes from the peer have been marked with the NO_LLGR community, either as sent by the peer or as the result of a configured policy, they MUST NOT be retained and MUST be removed as per the normal operation of [RFC4271]. (§4.2) | MUST NOT | 4.2 | **positive:** `unit/verify` [`TestDeleteWithCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go#L662). **positive:** `unit/verify` [`TestRFC9494NoLLGRSweepWithdrawsTheBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go#L80). **positive:** `unit/verify` [`TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L69). **negative:** `unit/verify` [`TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go#L100). **negative:** `unit/verify` [`TestRFC9494_StaleRouteWithoutNoLLGRRetained`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L63). **positive:** `functional/verify` [`llgr-import-no-llgr.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/llgr-import-no-llgr.ci#L6). **negative:** `functional/verify` [`llgr-import-no-llgr.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/llgr-import-no-llgr.ci#L7) |
 | `RFC9494-4.2-6` | * The helper router MUST perform the procedures listed in Section 4.3. (§4.2, §4.3) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC9494_LLGRStaleRouteIsLeastPreferred`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L137). **negative:** `unit/verify` [`TestRFC9494_RouteWithoutLLGRStaleNotLeastPreferred`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L175) |
-| `RFC9494-4.2-7` | However, in the case of consecutive restarts, the previously marked stale routes MUST NOT be deleted before the timer for the Long-Lived Stale Time expires. (§4.2) | MUST NOT | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze applies the RFC 4724 Section 4.2 consecutive-restart rule unconditionally, including during an LLGR period -- every activation of a session-down dispatches "request bgp rib purge-stale <peer>" as its first step (internal/component/bgp/plugins/gr/gr.go:362, internal/component/bgp/plugins/gr/gr.go:532), and onSessionDown clears the prior peer state through clearPeerLocked (internal/component/bgp/plugins/gr/gr_state.go:125), so routes marked stale in the previous cycle are deleted at the new session drop rather than kept until their LLST timer expires |
+| `RFC9494-4.2-7` | However, in the case of consecutive restarts, the previously marked stale routes MUST NOT be deleted before the timer for the Long-Lived Stale Time expires. (§4.2) | MUST NOT | 4.2 | **positive:** `unit/verify` [`TestRFC9494ConsecutiveRestartPreservesLLGRStaleRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go#L32). **negative:** `unit/verify` [`TestRFC9494ConsecutiveRestartPreservesLLGRStaleRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go#L36) |
 | `RFC9494-4.2-8` | Similar to [RFC4724], once the LLGR Period begins, the Helper MUST immediately remove all the stale routes from the peer that it is retaining for that address family if any of the following occur: * the F bit for a specific address family is not set in the newly received LLGR Capability, or * a specific address family is not included in the newly received LLGR Capability, or * the LLGR and accompanying GR Capability are not received in the re-established session at all. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestOnSessionReestablished_DuringLLGR_NoCaps`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L849). **positive:** `unit/verify` [`TestOnSessionReestablished_FamilyAbsentFromLLGRPurges`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go#L65). **positive:** `unit/verify` [`TestOnSessionReestablished_LLGRFBitClearPurges`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go#L40). **positive:** `unit/verify` [`TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go#L93). **negative:** `unit/verify` [`TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go#L133). **negative:** `unit/verify` [`TestOnSessionReestablished_DuringLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L798). **negative:** `unit/verify` [`TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go#L156) |
-| `RFC9494-4.2-9` | If a Long-Lived Stale Time timer is running for routes with a given AFI/SAFI received from a peer, it MUST NOT be updated (other than by manual operator intervention) until the peer has established and synchronized a new session. (§4.2) | MUST NOT | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** a consecutive session drop while the peer is already in LLGR replaces the running timer -- onSessionDown calls clearPeerLocked, which stops every LLST timer via stopLLSTTimersLocked (internal/component/bgp/plugins/gr/gr_state.go:125, :457-465, :476-481), and enterLLGRLocked then arms a fresh time.AfterFunc for the family's full LLST (internal/component/bgp/plugins/gr/gr_state.go:384-387), so the remaining Long-Lived Stale Time is reset before the peer has established and synchronized a new session |
+| `RFC9494-4.2-9` | If a Long-Lived Stale Time timer is running for routes with a given AFI/SAFI received from a peer, it MUST NOT be updated (other than by manual operator intervention) until the peer has established and synchronized a new session. (§4.2) | MUST NOT | 4.2 | **positive:** `unit/verify` [`TestRFC9494LLSTTimerNotUpdatedUntilSynchronized`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go#L128). **negative:** `unit/verify` [`TestRFC9494LLSTTimerNotUpdatedUntilSynchronized`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go#L131) |
 | `RFC9494-4.3-1` | A BGP speaker that has advertised the Long-Lived Graceful Restart Capability to a neighbor MUST perform the following upon receiving a route from that neighbor with the LLGR_STALE community or upon attaching the LLGR_STALE community itself per Section 4.2: * Treat the route as the least preferred in route selection (see below). (§4.3, §4.4) | MUST | 4.3 | **positive:** `unit/verify` [`TestComparePair_LLGRStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L820). **positive:** `unit/verify` [`TestLLGRIngressFilter_MarksReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go#L72). **positive:** `unit/verify` [`TestRFC9494LLGRStaleLosesEveryLaterTieBreak`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_least_preferred_test.go#L37). **positive:** `unit/verify` [`TestRFC9494NegotiateWithKeysOnAdvertisedLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go#L46). **positive:** `unit/verify` [`TestRFC9494ReceivedEventCarriesIngressStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go#L101). **positive:** `unit/verify` [`TestRFC9494ReceivedLLGRStaleIsLeastPreferred`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go#L125). **positive:** `unit/verify` [`TestRFC9494SelfAttachedLLGRStaleIsLeastPreferred`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_self_attach_test.go#L95). **negative:** `unit/verify` [`TestComparePair_GRStaleCompetesNormally`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L856). **negative:** `unit/verify` [`TestLLGRIngressFilter_NoLLGRSentLeavesFresh`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go#L91). **negative:** `unit/verify` [`TestRFC9494NegotiateWithKeysOnAdvertisedLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go#L48). **negative:** `unit/verify` [`TestRFC9494ReceivedEventNoLLGRSessionStaysFresh`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go#L117). **negative:** `unit/verify` [`TestRFC9494ReceivedLLGRStaleFromNonLLGRNeighborCompetesNormally`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go#L198). **negative:** `unit/verify` [`TestRFC9494ReceivedOtherCommunityCompetesNormally`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go#L146). **negative:** `unit/verify` [`TestRFC9494SelfAttachSkipsRouteLearnedAfterLoss`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_self_attach_test.go#L114). **positive:** `functional/verify` [`llgr-stale-received-depreferenced.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/llgr-stale-received-depreferenced.ci#L10). **negative:** `functional/verify` [`llgr-stale-received-depreferenced.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/llgr-stale-received-depreferenced.ci#L11) |
-| `RFC9494-4.3-2` | The LLGR_STALE community MUST NOT be removed when the route is further advertised (§4.3) | MUST NOT | 4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** two egress paths strip the whole COMMUNITIES attribute with no LLGR_STALE (0xFFFF0006) exemption. applyFactsSendCommunity emits a whole-attribute suppress for code 8 whenever the peer's `send-community` is `none` or omits `standard` (internal/component/bgp/reactor/peer_forward_facts.go:249, mask set at :195-223), and it runs on both readvertise rails (internal/component/bgp/reactor/reactor_api_forward.go:516, internal/component/bgp/reactor/forward_rs.go:343). A `community-remove ffff0006` filter reaches the same attribute through AttrModRemove (internal/component/bgp/reactor/filter_delta.go:270), and removeValues drops every matching 4-octet value without checking which community it is (internal/component/bgp/plugins/filter_community/handler.go:120-131). The RIB-side attach path only appends (internal/component/bgp/plugins/rib/rib_commands_community.go:222-236), but that is not the path on which the community is lost |
+| `RFC9494-4.3-2` | The LLGR_STALE community MUST NOT be removed when the route is further advertised (§4.3) | MUST NOT | 4.3 | **positive:** `unit/verify` [`TestRFC9494LLGRStaleNotRemovedOnEgress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc9494_llgr_stale_preserve_test.go#L26). **negative:** `unit/verify` [`TestRFC9494LLGRStaleNotRemovedOnEgress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc9494_llgr_stale_preserve_test.go#L30) |
 | `RFC9494-4.4-1` | A least preferred route MUST be treated as less preferred than any other route that is not also least preferred. (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestSelectBest_LLGRStaleDepreference`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L755). **negative:** `unit/verify` [`TestSelectBest_BothLLGRStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L783) |
 | `RFC9494-4.5-1` | If the LLGR Capability is received without an accompanying GR Capability, the LLGR Capability MUST be ignored, that is, the implementation MUST behave as though no LLGR Capability has been received. (§4.5) | MUST | 4.5 | **positive:** `unit/verify` [`TestHandleEventOpenLLGR_NoGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L301). **negative:** `unit/verify` [`TestHandleEventOpenLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L266) |
 | `RFC9494-4.6-1` | The neighbors MUST be internal (Internal BGP (IBGP) or Confederation) neighbors. (§4.6) | MUST | 4.6 | **positive:** `unit/verify` [`TestLLGREgressFilter_IBGPPartial`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L429). **negative:** `unit/verify` [`TestLLGREgressFilter_EBGPNonLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L399) |
@@ -186,7 +186,7 @@ Source: [data/rfc/rfc9494.json](../../../data/rfc/rfc9494.json).
 | `RFC9494-4.7.2-2` | In addition to including in the VPN route the ATTR_SET derived from the path attributes as per [RFC6368], the PE router MUST also include the LLGR_STALE community in the VPN route if it is present in the path attributes of the route as received from the CE. (§4.7.2) | MUST | 4.7.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no VRF export of a CE route into a VPN address family and no owner decision declines it: route-target handling is only the extended community and the RTC NLRI codec (internal/component/bgp/plugins/nlri/rtc), so no CE route's LLGR_STALE reaches a VPN route |
 | `RFC9494-5-1` | Implementations MUST NOT enable these procedures by default. (§5) | MUST NOT | 5 | **positive:** `unit/verify` [`TestRFC9494HelperProceduresOnPerConfiguredFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go#L117). **positive:** `unit/verify` [`TestRFC9494_LLGRNotEnabledByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L119). **negative:** `unit/verify` [`TestRFC9494HelperProceduresOffWithoutLocalConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go#L81). **negative:** `unit/verify` [`TestRFC9494_LLGREnabledByExplicitConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L144) |
 | `RFC9494-5-2` | They MUST require affirmative configuration per AFI/SAFI in order to enable them. (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze requires affirmative configuration, but its granularity is the peer, not the AFI/SAFI -- parseLLGRCapValue reads a single long-lived-stale-time from the peer's (or group's) graceful-restart container and stamps that same LLST onto every negotiated family (internal/component/bgp/plugins/gr/gr_llgr.go:130-171), and the YANG leaf sits in the per-peer capability container with the description "Applied to all negotiated address families for the peer" (internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang), so an operator cannot enable LLGR for one address family and leave another off |
-| `RFC9494-4.2-10` | If the session subsequently resets prior to becoming synchronized, any remaining routes (for the AFI/SAFI whose LLST timer expired) MUST be removed immediately. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze holds no record of an LLST that elapsed during synchronization, because no LLST timer runs then -- onSessionReestablished stops every LLST timer and clears state.inLLGR the moment the session comes back (internal/component/bgp/plugins/gr/gr_state.go:194, :231, :476-481), so the expiry this requirement keys on cannot be observed and the next session reset starts an ordinary GR cycle with a full restart timer (internal/component/bgp/plugins/gr/gr_state.go:153-156) instead of removing the family's remaining routes immediately |
+| `RFC9494-4.2-10` | If the session subsequently resets prior to becoming synchronized, any remaining routes (for the AFI/SAFI whose LLST timer expired) MUST be removed immediately. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC9494ResetAfterSyncLLSTExpiryRemovesImmediately`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go#L230). **negative:** `unit/verify` [`TestRFC9494ResetAfterSyncLLSTExpiryRemovesImmediately`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go#L233) |
 | `RFC9494-4.2-11` | The timers received in the Long-Lived Graceful Restart Capability SHOULD be modifiable by local configuration, which may impose an upper bound, a lower bound, or both on their respective values. (§4.2) | SHOULD | 4.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9494-4.3-3` | The route SHOULD NOT be advertised to any neighbor from which the Long-Lived Graceful Restart Capability has not been received. The exception is described in Section 4.6. (§4.3) | SHOULD NOT | 4.3 | **positive:** `unit/verify` [`TestBuildRelayUpdateMarksRebuilt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go#L69). **positive:** `unit/verify` [`TestLLGREgressFilter_NilStateWithdrawsEBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L156). **positive:** `unit/verify` [`TestLLGREgressFilter_RebuiltRecoversReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go#L106). **positive:** `unit/verify` [`TestLLGREgressFilter_StateLoadedWithdrawsEBGPNonLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go#L46). **positive:** `unit/verify` [`TestPeerUpReplayReportsSourceIngressLevel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go#L131). **positive:** `unit/verify` [`TestRFC9494CachedForwardWithholdsReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L275). **positive:** `unit/verify` [`TestRFC9494RouteServerForwardWithholdsReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L308). **positive:** `unit/verify` [`TestRIBReplayMetaReadsSourceIngressLevel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go#L177). **negative:** `unit/verify` [`TestBuildRelayUpdateMarksRebuilt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_relay_rebuilt_test.go#L73). **negative:** `unit/verify` [`TestLLGREgressFilter_GRStaleLevelOnePassesThrough`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go#L73). **negative:** `unit/verify` [`TestLLGREgressFilter_RebuiltRecoversReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_rails_test.go#L110). **negative:** `unit/verify` [`TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L340). **negative:** `unit/verify` [`TestPeerUpReplayReportsSourceIngressLevel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go#L135). **negative:** `unit/verify` [`TestRFC9494CachedForwardWithholdsReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L277). **negative:** `unit/verify` [`TestRFC9494RouteServerForwardWithholdsReceivedStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L310). **negative:** `unit/verify` [`TestRIBReplayMetaReadsSourceIngressLevel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_llgr_replay_stale_test.go#L182). **positive:** `functional/verify` [`llgr-egress-state-unloaded.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/llgr-egress-state-unloaded.ci#L23) |
 | `RFC9494-4.7.1-1` | Finally, if this exception is used, the implementation SHOULD, by default, attach the NO_EXPORT community to the routes in question, as an additional protection against stale routes spreading without limit. (§4.7.1) | SHOULD | 4.7.1 | **positive:** no positive test. **negative:** no negative test |
@@ -203,13 +203,9 @@ Source: [data/rfc/rfc9494.json](../../../data/rfc/rfc9494.json).
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC9494-4.2-7`](#rfc9494-4.2-7) However, in the case of consecutive restarts, the previously marked stale routes MUST NOT be deleted before the timer for the Long-Lived Stale Time expires. (§4.2) | {gap}, no test | ze applies the RFC 4724 Section 4.2 consecutive-restart rule unconditionally, including during an LLGR period -- every activation of a session-down dispatches "request bgp rib purge-stale <peer>" as its first step (internal/component/bgp/plugins/gr/gr.go:362, internal/component/bgp/plugins/gr/gr.go:532), and onSessionDown clears the prior peer state through clearPeerLocked (internal/component/bgp/plugins/gr/gr_state.go:125), so routes marked stale in the previous cycle are deleted at the new session drop rather than kept until their LLST timer expires |
-| [`RFC9494-4.2-9`](#rfc9494-4.2-9) If a Long-Lived Stale Time timer is running for routes with a given AFI/SAFI received from a peer, it MUST NOT be updated (other than by manual operator intervention) until the peer has established and synchronized a new session. (§4.2) | {gap}, no test | a consecutive session drop while the peer is already in LLGR replaces the running timer -- onSessionDown calls clearPeerLocked, which stops every LLST timer via stopLLSTTimersLocked (internal/component/bgp/plugins/gr/gr_state.go:125, :457-465, :476-481), and enterLLGRLocked then arms a fresh time.AfterFunc for the family's full LLST (internal/component/bgp/plugins/gr/gr_state.go:384-387), so the remaining Long-Lived Stale Time is reset before the peer has established and synchronized a new session |
-| [`RFC9494-4.3-2`](#rfc9494-4.3-2) The LLGR_STALE community MUST NOT be removed when the route is further advertised (§4.3) | {gap}, no test | two egress paths strip the whole COMMUNITIES attribute with no LLGR_STALE (0xFFFF0006) exemption. applyFactsSendCommunity emits a whole-attribute suppress for code 8 whenever the peer's `send-community` is `none` or omits `standard` (internal/component/bgp/reactor/peer_forward_facts.go:249, mask set at :195-223), and it runs on both readvertise rails (internal/component/bgp/reactor/reactor_api_forward.go:516, internal/component/bgp/reactor/forward_rs.go:343). A `community-remove ffff0006` filter reaches the same attribute through AttrModRemove (internal/component/bgp/reactor/filter_delta.go:270), and removeValues drops every matching 4-octet value without checking which community it is (internal/component/bgp/plugins/filter_community/handler.go:120-131). The RIB-side attach path only appends (internal/component/bgp/plugins/rib/rib_commands_community.go:222-236), but that is not the path on which the community is lost |
 | [`RFC9494-4.7.2-1`](#rfc9494-4.7.2-1) In addition to including the path attributes derived from the ATTR_SET attribute in the advertised route as per [RFC6368], the PE router MUST also include the LLGR_STALE community if it is present in the path attributes of the imported route, even if it is not present in the ATTR_SET attribute. (§4.7.2) | {gap}, no test | ze fills the PE role on the control plane (it originates and reflects VPN routes) but implements no ATTR_SET attribute and no RFC 6368 PE-CE model, and no owner decision declines them: the attribute code table (internal/core/bgp/attribute/attribute.go) holds no code 128 and no VRF imports a VPN route into a CE session, so no imported route's LLGR_STALE is carried |
 | [`RFC9494-4.7.2-2`](#rfc9494-4.7.2-2) In addition to including in the VPN route the ATTR_SET derived from the path attributes as per [RFC6368], the PE router MUST also include the LLGR_STALE community in the VPN route if it is present in the path attributes of the route as received from the CE. (§4.7.2) | {gap}, no test | ze implements no VRF export of a CE route into a VPN address family and no owner decision declines it: route-target handling is only the extended community and the RTC NLRI codec (internal/component/bgp/plugins/nlri/rtc), so no CE route's LLGR_STALE reaches a VPN route |
 | [`RFC9494-5-2`](#rfc9494-5-2) They MUST require affirmative configuration per AFI/SAFI in order to enable them. (§5) | {gap}, no test | ze requires affirmative configuration, but its granularity is the peer, not the AFI/SAFI -- parseLLGRCapValue reads a single long-lived-stale-time from the peer's (or group's) graceful-restart container and stamps that same LLST onto every negotiated family (internal/component/bgp/plugins/gr/gr_llgr.go:130-171), and the YANG leaf sits in the per-peer capability container with the description "Applied to all negotiated address families for the peer" (internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang), so an operator cannot enable LLGR for one address family and leave another off |
-| [`RFC9494-4.2-10`](#rfc9494-4.2-10) If the session subsequently resets prior to becoming synchronized, any remaining routes (for the AFI/SAFI whose LLST timer expired) MUST be removed immediately. (§4.2) | {gap}, no test | ze holds no record of an LLST that elapsed during synchronization, because no LLST timer runs then -- onSessionReestablished stops every LLST timer and clears state.inLLGR the moment the session comes back (internal/component/bgp/plugins/gr/gr_state.go:194, :231, :476-481), so the expiry this requirement keys on cannot be observed and the next session reset starts an ordinary GR cycle with a full restart timer (internal/component/bgp/plugins/gr/gr_state.go:153-156) instead of removing the family's remaining routes immediately |
 
 ## Test status
 
@@ -223,8 +219,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9494_NoLLGRCapWithoutGRContainer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L53) | unit/verify | not verified |
-| positive | [`TestRFC9494_LLGRCapDeclaredWithGRCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L29) | unit/verify | not verified |
+| negative | [`TestRFC9494_NoLLGRCapWithoutGRContainer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L53) | unit/verify | revert, verified |
+| positive | [`TestRFC9494_LLGRCapDeclaredWithGRCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L29) | unit/verify | revert, verified |
 
 ### [`RFC9494-4.1-1`](#rfc9494-4.1-1)
 
@@ -234,8 +230,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestHandleStructuredOpenGRPlusLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L689) | unit/verify | not verified |
-| positive | [`TestHandleStructuredOpenLLGRNoGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L610) | unit/verify | not verified |
+| negative | [`TestHandleStructuredOpenGRPlusLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L689) | unit/verify | revert, verified |
+| positive | [`TestHandleStructuredOpenLLGRNoGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L610) | unit/verify | revert, verified |
 
 ### [`RFC9494-3.1-2`](#rfc9494-3.1-2)
 
@@ -245,8 +241,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Two 
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9494_FlagsReservedBitsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L91) | unit/verify | not verified |
-| positive | [`TestRFC9494_FlagsReservedBitsZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L71) | unit/verify | not verified |
+| negative | [`TestRFC9494_FlagsReservedBitsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L91) | unit/verify | revert, verified |
+| positive | [`TestRFC9494_FlagsReservedBitsZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_test.go#L71) | unit/verify | revert, verified |
 
 ### [`RFC9494-4-1`](#rfc9494-4-1)
 
@@ -256,14 +252,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestExtractLLGRCapabilities_NoLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_test.go#L690) | unit/verify | not verified |
-| positive | [`TestExtractLLGRCapabilities_Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_test.go#L663) | unit/verify | not verified |
+| negative | [`TestExtractLLGRCapabilities_NoLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_test.go#L690) | unit/verify | revert, verified |
+| positive | [`TestExtractLLGRCapabilities_Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_test.go#L663) | unit/verify | revert, verified |
 
 ### [`RFC9494-4.2-1`](#rfc9494-4.2-1)
 
 After the session goes down, and before the session is re- established, the stale routes for an AFI/SAFI MUST be retained. (§4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Section4.2 retention is bounded by the received GR+LLST periods, including zero and GR-omitted families. Read all10whole roots. State-only last-family/GR-only callback tests are supplementary, not the sole evidence. Real registered-RIB roots first require actual received inventory, then GR stale-level1, LLGR stale-level2, both-zero deletion, exact family survival/removal and original absolute deadlines on JSON/structured rails. The four omitted-family roots include empty/mixed GR lists, LLST2 vs sibling GR6+LLST4, an LLST8 timer that survives sibling entry, zero/unexchanged absence and a blocked immediate-family re-advertisement while sibling deadlines still fire. Before/at-boundary inventory and stale-community assertions discriminate duration/retention, not just timer-map membership. These tests do not establish consecutive-restart or synchronization requirements outside this row. Fresh native receipt scratch/job-advertiser-llgr-local-record-renewal-b4406954.log wrote this row at lines41,131,186,243,309,377,449,527, each after its own named healthy baseline and producer-halt failure. The whole-body panic proves producer dependency only; it can occur in setup, the first event-path/subcase, or an asynchronous timer. It does not independently isolate timer duration, later skipped subcases, partial deployment, or normal-return route omission. Exact useful healthy assertions and independent source judgment supply the semantic scope; no unexecuted broken branch is credited.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 9494 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires retaining stale routes after session down and before re-establishment, bounded by Restart Time + Long-Lived Stale Time (including zero-GR immediate LLGR, omitted-GR deemed zero, and both-zero base BGP). onSessionDownPlan preserves identical first-DOWN retention and immediate-entry scheduling; in handleLLSTExpired, while the session is down (syncing==false, llstExpiredDuringSync empty), lastFamily expiry still deletes peer state and fires onLLGRFamilyExpired + onLLGRComplete. All 10 tagged units verified: real-RIB tests TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod, TestRFC9494RestartTimeThenLongLivedStaleTime, TestRFC9494DelayedDownPreservesLLSTDeadlines, TestLLGROmittedGRFamilyRetainsRealRIB, TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry, and TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry verify GR level-1 -> LLGR level-2 + LLGR_STALE retention and 1ns virtual-clock boundaries on both JSON and structured paths; negatives TestOnTimerExpired_WithoutLLGR, TestRFC9494BothTimesZeroRetainsNothing, and TestLLGROmittedGRFamilyWithoutLLSTIsRemoved verify deletion without LLGR or with zero/unexchanged LLST; TestLLSTTimerExpiry_LastFamily supplements state-manager coverage.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -282,7 +278,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 * For each AFI/SAFI for which it has received a nonzero Long-Lived Stale Time, the helper router MUST start a timer for that Long- Lived Stale Time. (§4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Section4.2 requires each nonzero received LLST timer, starting when that family enters LLGR. All8whole roots read. Actual inventory exists one nanosecond before and disappears at the expected absolute boundary; omitted IPv4 starts at DOWN while conventional IPv6 follows its own GR interval. Sibling GR entry does not restart the running omitted-family LLST8, and blocking immediate-family readvertisement does not postpone sibling GR1+LLST2. Zero/unexchanged family controls have no retained route and no LLST timer. Callback-only legacy units are supplemented by the exact virtual-time real-RIB tests. Source deadline arithmetic subtracts dispatch delay from the original sum rather than extending it. No consecutive reset/synchronization claim is added. Fresh native receipt scratch/job-advertiser-llgr-local-record-renewal-b4406954.log wrote this row at lines603,658,707,775,847,925, each after its own named healthy baseline and producer-halt failure. The whole-body panic proves producer dependency only; it can occur in setup, the first event-path/subcase, or an asynchronous timer. It does not independently isolate timer duration, later skipped subcases, partial deployment, or normal-return route omission. Exact useful healthy assertions and independent source judgment supply the semantic scope; no unexecuted broken branch is credited.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 9494 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires starting a timer for each AFI/SAFI with a nonzero received Long-Lived Stale Time once its LLGR period begins. onSessionDownPlan schedules immediate LLGR entry for omitted GR families and arms startRestartTimer for GR families; enterLLGRLocked arms a per-family timer for each family with LLST>0 anchored to deadline+LLST (subtracting dispatch delay) and skips already-active LLST timers. All 8 tagged units verified: TestOnTimerExpired_WithLLGR, TestRFC9494RestartTimeThenLongLivedStaleTime, TestLLGROmittedGRFamilyRetainsRealRIB, TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry, and TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry prove per-family timer arming and exact 1ns virtual-clock expiry boundaries in the real RIB; negatives TestOnSessionDown_ZeroGR_ZeroLLST, TestRFC9494BothTimesZeroRetainsNothing, and TestLLGROmittedGRFamilyWithoutLLSTIsRemoved prove zero LLST and unexchanged LLGR families arm no timer and retain no routes.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -299,7 +295,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 If the timer for the Long-Lived Stale Time for a given AFI/SAFI expires before the session is re-established, the helper MUST delete all stale routes of that AFI/SAFI from the neighbor that it is retaining. (§4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Section4.2 requires deletion of every stale route of the expired family. Read all4tag bindings/3distinct roots: the legacy callback-only family expiry, actual production wired purge-command observation and delayed-DOWN real registered-RIB positive/negative deadline test. The real RIB deadline controls require exact original family/owner/connection removal at expiry while the sibling remains before its own boundary. Current wireStateCallbacks dispatches source-scoped purge-stale; purgePhysicalSourceCommand removes only stale original received entries for the named family, with source ownership checked in the physical mutation consumer. Legacy purgeStaleCommand and RemoveFamilyMatching fingerprints are preserved as prior cited consumers, supplemented by the actually used physical-source boundary. No runtime guarantee is inferred from command text alone; real inventory/deadline checks supply the storage evidence. Fresh native receipt scratch/job-advertiser-llgr-local-record-renewal-b4406954.log wrote this row at lines1015,1107, each after its own named healthy baseline and producer-halt failure. The whole-body panic proves producer dependency only; it can occur in setup, the first event-path/subcase, or an asynchronous timer. It does not independently isolate timer duration, later skipped subcases, partial deployment, or normal-return route omission. Exact useful healthy assertions and independent source judgment supply the semantic scope; no unexecuted broken branch is credited.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 9494 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires deleting all retained stale routes of an AFI/SAFI if its LLST timer expires before the session is re-established. In handleLLSTExpired, while syncing==false, expiring a family removes it from staleFamilies and llgrFamilies, dispatches onLLGRFamilyExpired(expiredSource, fam) -> request bgp rib source purge-stale for that family, and fires onLLGRComplete -> release-routes when the last family expires. All 4 tag bindings across 3 functions verified: TestLLSTTimerExpiry_SingleFamily verifies single-family expiry leaves sibling active; TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes drives production wireStateCallbacks and asserts exact IPv4 source purge-stale with no IPv6 purge; TestRFC9494DelayedDownPreservesLLSTDeadlines (positive and negative tags) verifies in the real RIB with synctest that each family remains at stale-level 2 one nanosecond before its deadline (even after its sibling expires) and disappears at its exact deadline.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -312,11 +308,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 * The helper router MUST attach the LLGR_STALE community to the stale routes being retained. (§4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity moved. Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Section4.2 requires attaching LLGR_STALE to retained stale routes. All3whole tagged questions read. The zero-GR real-RIB test exercises both event rails and requires literal0xffff0006 on a retained received route at level2. TestAttachCommunity requires actual pooled community bytes equalffff0006 after generic stale marking; the fresh-route negative requires attached0, fresh level retained and no community bundle. Current physical and generic attach consumers skip fresh entries and only mutate retained original source state; wireStateCallbacks orders NO_LLGR deletion before marker attachment and level2 marking. These tags prove storage attachment, not a separately observed destination-wire dissemination guarantee or neighboring4.3-2 community-preservation obligation. Fresh native receipt scratch/job-advertiser-llgr-local-record-renewal-b4406954.log wrote this row at lines1181, each after its own named healthy baseline and producer-halt failure. The whole-body panic proves producer dependency only; it can occur in setup, the first event-path/subcase, or an asynchronous timer. It does not independently isolate timer duration, later skipped subcases, partial deployment, or normal-return route omission. Exact useful healthy assertions and independent source judgment supply the semantic scope; no unexecuted broken branch is credited.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Section4.2 requires attaching LLGR_STALE to retained stale routes. All3whole tagged questions read. The zero-GR real-RIB test exercises both event rails and requires literal0xffff0006 on a retained received route at level2. TestAttachCommunity requires actual pooled community bytes equalffff0006 after generic stale marking; the fresh-route negative requires attached0, fresh level retained and no community bundle. Current physical and generic attach consumers skip fresh entries and only mutate retained original source state; wireStateCallbacks orders NO_LLGR deletion before marker attachment and level2 marking. These tags prove storage attachment, not a separately observed destination-wire dissemination guarantee or neighboring4.3-2 community-preservation obligation. Fresh native receipt scratch/job-advertiser-llgr-local-record-renewal-b4406954.log wrote this row at lines1181, each after its own named healthy baseline and producer-halt failure. The whole-body panic proves producer dependency only; it can occur in setup, the first event-path/subcase, or an asynchronous timer. It does not independently isolate timer duration, later skipped subcases, partial deployment, or normal-return route omission. Exact useful healthy assertions and independent source judgment supply the semantic scope; no unexecuted broken branch is credited.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9494_FreshRoutesDoNotGetLLGRStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L34) | unit/verify | not verified |
+| negative | [`TestRFC9494_FreshRoutesDoNotGetLLGRStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L34) | unit/verify | revert, verified |
 | positive | [`TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go#L68) | unit/verify | revert, verified |
 | positive | [`TestAttachCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go#L621) | unit/verify | not verified |
 
@@ -352,8 +348,8 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9494_RouteWithoutLLGRStaleNotLeastPreferred`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L175) | unit/verify | not verified |
-| positive | [`TestRFC9494_LLGRStaleRouteIsLeastPreferred`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L137) | unit/verify | not verified |
+| negative | [`TestRFC9494_RouteWithoutLLGRStaleNotLeastPreferred`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L175) | unit/verify | revert, verified |
+| positive | [`TestRFC9494_LLGRStaleRouteIsLeastPreferred`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9494_test.go#L137) | unit/verify | revert, verified |
 
 ### [`RFC9494-4.2-7`](#rfc9494-4.2-7)
 
@@ -361,13 +357,16 @@ However, in the case of consecutive restarts, the previously marked stale routes
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9494-4.2-7, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC9494ConsecutiveRestartPreservesLLGRStaleRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go#L36) | unit/verify | revert, verified |
+| positive | [`TestRFC9494ConsecutiveRestartPreservesLLGRStaleRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go#L32) | unit/verify | revert, verified |
 
 ### [`RFC9494-4.2-8`](#rfc9494-4.2-8)
 
 Similar to [RFC4724], once the LLGR Period begins, the Helper MUST immediately remove all the stale routes from the peer that it is retaining for that address family if any of the following occur: * the F bit for a specific address family is not set in the newly received LLGR Capability, or * a specific address family is not included in the newly received LLGR Capability, or * the LLGR and accompanying GR Capability are not received in the re-established session at all. (§4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Read all7whole tagged roots and source helper downIntoLLGR. The prior conventional-GR/LLGR per-family scope is preserved. New-capability F-clear, missing LLGR family and nil capability cases return exactly the affected purge families and release corresponding state; a sibling retained family survives. Both F bits set keeps an LLGR family, while a family still in GR is not judged by the LLGR bullets even when its sibling entered LLGR. A new physical connection42 is distinct from retained41; the old connection cannot reestablish itself. These are state-manager immediate-removal decisions. The physical purge dispatch is read in the shared structured UP handler, but no new end-to-end LLGR F-bit reconnect wire experiment is invented. Timer/synchronization/consecutive-restart gaps outside this row remain unchanged. Fresh native receipt scratch/job-advertiser-llgr-local-record-renewal-b4406954.log wrote this row at lines1311,1369,1429,1491,1553,1615,1677, each after its own named healthy baseline and producer-halt failure. The whole-body panic proves producer dependency only; it can occur in setup, the first event-path/subcase, or an asynchronous timer. It does not independently isolate timer duration, later skipped subcases, partial deployment, or normal-return route omission. Exact useful healthy assertions and independent source judgment supply the semantic scope; no unexecuted broken branch is credited.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 9494 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires immediate removal of retained stale routes for an LLGR-period family on re-establishment when the new LLGR capability clears F, omits the family, or neither GR nor LLGR is received. Commit 18b491ae23 changed onSessionReestablished so surviving families keep their running LLST timers until EoR (as Section 4.2 requires), while families failing reconnectKeepsFamily (or all families when newCap==nil) still have their LLST timers stopped and are returned in purged for immediate purge-stale dispatch in handleStructuredState. All 7 tagged units verified: positives TestOnSessionReestablished_LLGRFBitClearPurges, TestOnSessionReestablished_FamilyAbsentFromLLGRPurges, TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily, and TestOnSessionReestablished_DuringLLGR_NoCaps cover every bullet; negatives TestOnSessionReestablished_DuringLLGR, TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily, and TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets verify keeping both-F-set LLGR families and confining LLGR bullets to families whose LLGR period has begun. Note: TestOnSessionReestablished_DuringLLGR carries a stale doc comment claiming reconnect stops LLST timers, though its assertion only checks purged is empty.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -385,7 +384,10 @@ If a Long-Lived Stale Time timer is running for routes with a given AFI/SAFI rec
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9494-4.2-9, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC9494LLSTTimerNotUpdatedUntilSynchronized`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go#L131) | unit/verify | revert, verified |
+| positive | [`TestRFC9494LLSTTimerNotUpdatedUntilSynchronized`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go#L128) | unit/verify | revert, verified |
 
 ### [`RFC9494-4.3-1`](#rfc9494-4.3-1)
 
@@ -438,7 +440,10 @@ The LLGR_STALE community MUST NOT be removed when the route is further advertise
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9494-4.3-2, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC9494LLGRStaleNotRemovedOnEgress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc9494_llgr_stale_preserve_test.go#L30) | unit/verify | revert, verified |
+| positive | [`TestRFC9494LLGRStaleNotRemovedOnEgress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc9494_llgr_stale_preserve_test.go#L26) | unit/verify | revert, verified |
 
 ### [`RFC9494-4.4-1`](#rfc9494-4.4-1)
 
@@ -448,8 +453,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestSelectBest_BothLLGRStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L783) | unit/verify | not verified |
-| positive | [`TestSelectBest_LLGRStaleDepreference`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L755) | unit/verify | not verified |
+| negative | [`TestSelectBest_BothLLGRStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L783) | unit/verify | revert, verified |
+| positive | [`TestSelectBest_LLGRStaleDepreference`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L755) | unit/verify | revert, verified |
 
 ### [`RFC9494-4.5-1`](#rfc9494-4.5-1)
 
@@ -459,8 +464,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestHandleEventOpenLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L266) | unit/verify | not verified |
-| positive | [`TestHandleEventOpenLLGR_NoGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L301) | unit/verify | not verified |
+| negative | [`TestHandleEventOpenLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L266) | unit/verify | revert, verified |
+| positive | [`TestHandleEventOpenLLGR_NoGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go#L301) | unit/verify | revert, verified |
 
 ### [`RFC9494-4.6-1`](#rfc9494-4.6-1)
 
@@ -470,8 +475,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestLLGREgressFilter_EBGPNonLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L399) | unit/verify | not verified |
-| positive | [`TestLLGREgressFilter_IBGPPartial`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L429) | unit/verify | not verified |
+| negative | [`TestLLGREgressFilter_EBGPNonLLGR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L399) | unit/verify | revert, verified |
+| positive | [`TestLLGREgressFilter_IBGPPartial`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L429) | unit/verify | revert, verified |
 
 ### [`RFC9494-4.6-2`](#rfc9494-4.6-2)
 
@@ -481,9 +486,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestLLGREgressFilter_LLGRPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L369) | unit/verify | not verified |
+| negative | [`TestLLGREgressFilter_LLGRPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L369) | unit/verify | revert, verified |
 | positive | [`TestLLGREgressFilter_IBGPPartial`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L433) | unit/verify | not verified |
-| positive | [`TestLLGREgressFilter_NilStateDepreferencesIBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L182) | unit/verify | not verified |
+| positive | [`TestLLGREgressFilter_NilStateDepreferencesIBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L182) | unit/verify | revert, verified |
 
 ### [`RFC9494-4.6-3`](#rfc9494-4.6-3)
 
@@ -493,9 +498,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestLLGREgressFilter_LLGRPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L373) | unit/verify | not verified |
+| negative | [`TestLLGREgressFilter_LLGRPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L373) | unit/verify | revert, verified |
 | positive | [`TestLLGREgressFilter_IBGPPartial`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L436) | unit/verify | not verified |
-| positive | [`TestLLGREgressFilter_NilStateDepreferencesIBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L186) | unit/verify | not verified |
+| positive | [`TestLLGREgressFilter_NilStateDepreferencesIBGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go#L186) | unit/verify | revert, verified |
 
 ### [`RFC9494-4.7.2-1`](#rfc9494-4.7.2-1)
 
@@ -540,13 +545,16 @@ If the session subsequently resets prior to becoming synchronized, any remaining
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC9494-4.2-10, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC9494ResetAfterSyncLLSTExpiryRemovesImmediately`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go#L233) | unit/verify | revert, verified |
+| positive | [`TestRFC9494ResetAfterSyncLLSTExpiryRemovesImmediately`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go#L230) | unit/verify | revert, verified |
 
 ### [`RFC9494-4.3-3`](#rfc9494-4.3-3)
 
 The route SHOULD NOT be advertised to any neighbor from which the Long-Lived Graceful Restart Capability has not been received. The exception is described in Section 4.6. (§4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent final source rejudgment, 2026-11-19. Read RFC 9494 Sections 4.3 and 4.6, the current requirement and old verdict, all seventeen tagged bindings in eleven distinct roots, their fixture boundaries, the current producing boundaries, sixteen discrimination records, and the renewed Main receipts. Verdict remains enforced for this requirement, with the existing SHOULD NOT strength and Section 4.6 exception preserved. This is not a whole-RFC support claim. Section 4.3 requires that the route SHOULD NOT be advertised to a neighbor from which LLGR has not been received and explains that this implies withdrawal; Section 4.6 permits advertisement to internal neighbors only with NO_EXPORT and LOCAL_PREF zero.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult, internal/component/bgp/reactor/reactor_api_relay.go::buildRelayUpdate moved. Independent final source rejudgment, 2026-11-19. Read RFC 9494 Sections 4.3 and 4.6, the current requirement and old verdict, all seventeen tagged bindings in eleven distinct roots, their fixture boundaries, the current producing boundaries, sixteen discrimination records, and the renewed Main receipts. Verdict remains enforced for this requirement, with the existing SHOULD NOT strength and Section 4.6 exception preserved. This is not a whole-RFC support claim. Section 4.3 requires that the route SHOULD NOT be advertised to a neighbor from which LLGR has not been received and explains that this implies withdrawal; Section 4.6 permits advertisement to internal neighbors only with NO_EXPORT and LOCAL_PREF zero.
 
 The direct GR roots assert the actual withdrawal decision toward an incapable external destination under both nil state and a nonempty loaded capability map. The capable-destination contrasts require no withdrawal and no modification; the conventional-GR level-one contrast likewise requires unchanged advertisement while level two is withdrawn. Runtime capabilities are keyed by original destination owner and connection. The rebuilt-route root requires the rebuilt key, source LLGR offer and LLGR_STALE wire community together, checks withdrawal versus a capable destination, and removes each of the three prerequisites separately with exact unchanged-route controls. These are outcome assertions, not merely handled/no-panic checks.
 

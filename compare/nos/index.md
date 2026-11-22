@@ -2,7 +2,7 @@
 
 A source-backed comparison of Ze, VyOS, and freeRtr as router operating systems rather than only BGP implementations.
 
-> **Scope and evidence:** this page summarises the local research artefact produced from the checked-out Ze, VyOS `vyos-1x`, and freeRtr sources. Runtime protocol daemons external to `vyos-1x` are intentionally labelled that way, and VyOS rows may cite FRR or other integrated projects when those projects own the runtime behaviour. `Not found` means not found in the inspected source roots after targeted searches, not a universal upstream absence claim. The inline code paths link to upstream source where the site can map them.
+> **Scope and evidence:** this page summarizes the local research artifact produced from the checked-out Ze, VyOS `vyos-1x`, and freeRtr sources. Runtime protocol daemons external to `vyos-1x` are intentionally labeled that way, and VyOS rows may cite FRR or other integrated projects when those projects own the runtime behavior. `Not found` means not found in the inspected source roots after targeted searches, not a universal upstream absence claim. The inline code paths link to upstream source where the site can map them.
 
  Find in this page Section
 
@@ -12,7 +12,7 @@ A source-backed comparison of Ze, VyOS, and freeRtr as router operating systems 
 | --- | --- |
 | `Yes` or `Present` | Direct source evidence found in inspected checkout. |
 | `Partial` | Source evidence exists, but scope is narrower than the comparable feature in at least one other product. |
-| `Unclear` | Related source evidence exists, but the exact feature or behaviour was not traced to a producer. |
+| `Unclear` | Related source evidence exists, but the exact feature or behavior was not traced to a producer. |
 | `No` or `Not found` | Targeted and alternate searches did not find the feature in inspected sources. This is not a global claim about every version or external package. |
 
 ## Executive conclusion
@@ -306,7 +306,7 @@ This question belongs on this page, not the BGP daemon page, because it asks abo
 
 ### freeRtr
 
-- freeRtr has the broadest router-native protocol and service catalogue in inspected source: many routing protocols, tunnels, LSP mechanisms, crypto/VPNs, services, NETCONF, Java-based CLI/config, test topology corpus, and optional native/P4/XDP dataplanes.
+- freeRtr has the broadest router-native protocol and service catalog in inspected source: many routing protocols, tunnels, LSP mechanisms, crypto/VPNs, services, NETCONF, Java-based CLI/config, test topology corpus, and optional native/P4/XDP dataplanes.
 - Feature evidence is concentrated in large Java registries and config/runtime classes. That gives huge breadth but less small-file discoverability than Ze or VyOS.
 - Best fit from this evidence: all-in-one router process and protocol laboratory with exceptional feature breadth and multiple dataplane export paths.
 
@@ -319,6 +319,8 @@ This question belongs on this page, not the BGP daemon page, because it asks abo
 | freeRtr | `freeRtr/` checkout | Java router, config, routing, service, interface, auth, packet and user packages, plus `cfg/` tests and `misc/` platform files. |
 
 ## Evidence appendix: routing and control plane
+
+**Show evidence tables and source citations**
 
 ### Feature inventory
 
@@ -374,14 +376,19 @@ This question belongs on this page, not the BGP daemon page, because it asks abo
 
 ## Evidence appendix: interfaces, L2, L3, and dataplane
 
-Architecture notes for the final comparison:
+**Show evidence tables and source citations**
 
-- Ze uses a typed Go interface backend abstraction. The iface component parses config into typed entries, then dispatches lifecycle, addressing, routes, link state, tunnels, VLANs, bridge operations, MAC, MTU and route queries through the active Backend. `netlink` is the default backend, `vpp` is also registered, and OnConfigure loads the configured backend. Some interface leaves and kinds are still explicitly Linux/netlink-gated, including DHCP client, mirror, veth, bridge, tunnel, WireGuard, XFRM and PPPoE, so Ze is narrower than VyOS/freeRtr in appliance breadth, but its interface control plane is not netlink-only.
-- VyOS is schema-first around interface-definitions XML and Python conf_mode owners. Feature breadth is high in the inspected source: many discrete interface kinds are first-class CLI nodes, with includes for common addressing, DHCP, VRF, MTU, IPv6 ND, mirror, VLAN, QoS and containers. VPP has parallel interface definitions for selected kinds.
-- freeRtr centralizes a very large router-native interface model in cfgIfc.java and related cfg classes, with broad protocol handlers and custom dataplane backends. It exposes many interface and tunnel functions through cfgIfc commands, VPDN types, service daemons and native/P4/XDP dataplane code. It is broad and router-specific, but feature evidence often lives in large Java configuration classes rather than small per-feature files.
-- Paths likely worth citing in the final comparison are the files listed above, especially Ze `backend.go`, `register.go`, netlink and VPP backend registrations, `ifacevpp.go`, VyOS `interface-definitions/interfaces_*.xml.in` and `include/interface/vif-s.xml.i`, and freeRtr `cfgIfc.java`, `cfgVpdn.java`, `cfgInit.java`, `misc/native/p4emu_*.h` and `p4xdp_*.c`.
+### Architecture summary
+
+| Project | Interface &amp; dataplane architecture | Representative source files |
+| --- | --- | --- |
+| Ze | Typed Go interface backend abstraction. The `iface` component parses configuration into typed entries and dispatches lifecycle, addressing, routes, link state, tunnels, VLANs, bridge operations, MAC, MTU, and route queries through the active `Backend` (`netlink` default, `vpp` also registered). Some interface kinds and leaves remain Linux/netlink-gated (DHCP client, mirror, veth, bridge, tunnel, WireGuard, XFRM, and PPPoE). | `internal/component/iface/backend.go`, `internal/component/iface/register.go`, `internal/plugins/iface/vpp/ifacevpp.go` |
+| VyOS | Schema-first around interface-definitions XML and Python `conf_mode` owners. Discrete interface kinds are first-class CLI nodes with shared includes for addressing, DHCP, VRF, MTU, IPv6 ND, mirror, VLAN, QoS, and containers, plus parallel VPP definitions for selected kinds. | `interface-definitions/interfaces_*.xml.in`, `interface-definitions/include/interface/vif-s.xml.i` |
+| freeRtr | Centralizes a broad router-native interface model in `cfgIfc.java` and related configuration classes, with protocol handlers, VPDN types, service daemons, and native/P4/XDP dataplane backends. | `src/org/freertr/cfg/cfgIfc.java`, `src/org/freertr/cfg/cfgVpdn.java`, `src/org/freertr/cfg/cfgInit.java`, `misc/native/p4emu_*.h`, `misc/native/p4xdp_*.c` |
 
 ## Evidence appendix: security, firewall, NAT, VPN, and AAA
+
+**Show evidence tables and source citations**
 
 ### Feature inventory
 
@@ -428,6 +435,8 @@ Explicitly unclear or not found in inspected sources:
 10. **CoPP**: explicit control-plane policing as a named feature was not found in Ze, VyOS, or freeRtr inspected sources. Related controls exist, such as sysctls, SSH dynamic protection, service filters, rate limits, and source validation.
 
 ## Evidence appendix: network services and operations
+
+**Show evidence tables and source citations**
 
 ### Feature inventory
 
@@ -477,6 +486,8 @@ Explicitly unclear or not found in inspected sources:
 
 ## Evidence appendix: management, automation, UI, and API
 
+**Show evidence tables and source citations**
+
 ### Feature inventory
 
 | Area | Feature | Ze evidence | VyOS evidence | freeRtr evidence | Notes |
@@ -522,6 +533,8 @@ Explicitly unclear or not found in inspected sources:
 - **freeRtr HTMX/MCP/gNMI:** not found in inspected sources.
 
 ## Evidence appendix: platform, packaging, and appliance
+
+**Show evidence tables and source citations**
 
 ### Feature inventory
 
@@ -577,6 +590,8 @@ Explicitly unclear or not found in inspected sources:
 
 ## Evidence appendix: observability, diagnostics, and testing
 
+**Show evidence tables and source citations**
+
 ### Feature inventory
 
 | Area | Feature | Ze evidence | VyOS evidence | freeRtr evidence | Notes |
@@ -616,6 +631,8 @@ Explicitly unclear or not found in inspected sources:
 - VyOS topology/interop scope: QEMU ISO smoketests and VPP jobs are visible in `vyos-1x`, but broader topology/interop harnesses may live in `vyos-build`, not in this source root.
 
 ## Evidence appendix: architecture, extensibility, and implementation model
+
+**Show evidence tables and source citations**
 
 ### Feature inventory
 

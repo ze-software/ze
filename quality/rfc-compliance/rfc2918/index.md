@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 6 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 6 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 13 | 13 of 27 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 17 | 17 of 27 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 27 |
 | Tests linked to requirements | 27 |
 | Recorded audit verdicts | 7 |
-| Fault test records | 13 |
+| Fault test records | 17 |
 | Summary | `rfc/short/rfc2918.md` |
 | Requirement table | `rfc/requirements/rfc2918.md` |
 | RFC text | `rfc/full/rfc2918.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: BGP Route Refresh: six MUST-level requirements, al
 
 **Area:** Route Refresh
 
-**Test verification:** 4 of 6 MUST proven
+**Test verification:** 6 of 6 MUST proven
 
-**Evidence:** functional 1, unit 3
+**Evidence:** functional 1, unit 5
 
 **Unmet:** -
 
@@ -110,19 +110,19 @@ Included in automatic checks: BGP Route Refresh: six MUST-level requirements, al
 
 ## Figures
 
-- **MUST bar**: Ze verified 4, Tests awaiting verification 2
-- **Overview bar**: Ze MUST verified 4, SHOULD verified 1, Tests awaiting verification 2, Not assessed 4
+- **MUST bar**: Ze verified 6
+- **Overview bar**: Ze MUST verified 6, SHOULD verified 1, Not assessed 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 6 |
 | MUST rows kept (the MUST bar) | 6 |
-| Ze verified | 4 |
+| Ze verified | 6 |
 | OS verified | 0 |
-| Tests awaiting verification | 2 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -192,8 +192,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseHeaderAllTypes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L39) | unit/verify | not verified |
-| positive | [`TestRouteRefreshType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L16) | unit/verify | not verified |
+| negative | [`TestParseHeaderAllTypes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L39) | unit/verify | revert, verified |
+| positive | [`TestRouteRefreshType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L16) | unit/verify | revert, verified |
 
 ### [`RFC2918-3-2`](#rfc2918-3-2)
 
@@ -216,9 +216,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L115) | unit/verify | not verified |
-| negative | [`TestRFC2918SoftClearPeerSkipsPeerWithoutCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L173) | unit/verify | not verified |
+| negative | [`TestRFC2918SoftClearPeerSkipsPeerWithoutCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L173) | unit/verify | revert, verified |
 | positive | [`TestRFC2918SendRouteRefreshToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L94) | unit/verify | not verified |
-| positive | [`TestRFC2918SoftClearPeerSendsRefreshToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L158) | unit/verify | not verified |
+| positive | [`TestRFC2918SoftClearPeerSendsRefreshToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L158) | unit/verify | revert, verified |
 
 ### [`RFC2918-4-2`](#rfc2918-4-2)
 
@@ -237,7 +237,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy. (S4)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/rib/rib.go::runRIBPlugin moved. Independent final source rejudgment of RFC2918-4-3, 2026-11-19. Main's final configured-refresh healthy/broken receipts and canonical discrimination record were independently read before this verdict. RFC 2918 was read in full, including Section 4: Otherwise the speaker shall re-advertise to that peer the Adj-RIB-Out of the carried AFI/SAFI, based on its outbound route filtering policy. Preserve enforced and all eight existing bindings; no requirement, tag, polarity, capability or whole-RFC support scope is changed.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/rib/rib.go::runRIBPlugin, internal/component/bgp/reactor/session_ownership_walk.go::adjOutWrite.recordNLRI moved. Independent final source rejudgment of RFC2918-4-3, 2026-11-19. Main's final configured-refresh healthy/broken receipts and canonical discrimination record were independently read before this verdict. RFC 2918 was read in full, including Section 4: Otherwise the speaker shall re-advertise to that peer the Adj-RIB-Out of the carried AFI/SAFI, based on its outbound route filtering policy. Preserve enforced and all eight existing bindings; no requirement, tag, polarity, capability or whole-RFC support scope is changed.
 
 The four tagged RIB roots retain their existing legacy observation scope. ConfigStaticRetainedForRefresh records an actual structured config-static SENT UPDATE on the attached original owner/session, drives an IPv4 refresh, parses the production update commands and requires exactly 198.51.100.0/24 with byte-identical original attributes. Config-static remains excluded from peer-up replay before and after replay feedback, remains in refresh inventory, and a genuinely local plugin replacement becomes peer-up eligible. RefreshDoesNotSendToDownPeer seeds useful Adj-RIB-Out, installs separate failure hooks for route and marker calls, and requires neither. InternalState drives the actual event handler, parses exactly the two requested IPv4 routes with no IPv6 leakage or withdrawals, requires replay metadata on every command and both exact markers, and preserves the peer and inventory. PeerNotUp has the narrower historical body: it checks that the peer remains down after the request, without independently observing route/marker absence. Its comment is not promoted into an additional negative witness; the sibling with both refusal hooks supplies that proof.
 

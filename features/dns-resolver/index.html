@@ -44,9 +44,6 @@
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-services">
-<!-- source: internal/component/resolve/dns/resolver.go -- miekg/dns resolver with cache -->
-<!-- source: internal/component/resolve/dns/cache.go -- O(1) LRU cache with TTL -->
-<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system DNS config -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="dns-resolver">DNS Resolver</h1>
@@ -71,9 +68,8 @@ authoritative ones, <code>as112</code> (see
 enforces) and <code>geodns</code> (per-source-IP answers, <code>service { geodns { ... } }</code>),
 and the LAN resolver <code>dnsresolver</code> (<code>service { dns-resolver { ... } }</code>), a
 caching forwarder that answers recursive queries from customer LANs
-(<a href="https://github.com/ze-software/ze/blob/main/docs/guide/dns-resolver.md" target="_blank" rel="noopener">LAN DNS resolver guide</a>).</p>
-<!-- source: internal/plugins/dnsresolver/server.go -- newResolverServer -->
-<p>The client side shares no configuration and no cache with any of them.</p>
+(<a href="https://github.com/ze-software/ze/blob/main/docs/guide/dns-resolver.md" target="_blank" rel="noopener">LAN DNS resolver guide</a>).
+The client side shares no configuration and no cache with any of them.</p>
 <table>
 <thead>
 <tr>
@@ -140,8 +136,6 @@ caching forwarder that answers recursive queries from customer LANs
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/system/resolv.go -- routerDefault, Resolvers.refresh -->
-<!-- source: internal/component/resolve/dns/resolver.go -- Resolver.query, unansweredError, queryTries, timedOut -->
 <h2 id="configuration">Configuration</h2>
 <pre><code>system {
     name-server [8.8.8.8 1.1.1.1]
@@ -226,9 +220,6 @@ with the session, and the next session's RAs build a fresh record. An
 interface unit's RA record is not tied to its device that way: it stays
 until its Lifetime runs out, a Lifetime 0 arrives, or a commit removes the
 unit.</p>
-<!-- source: internal/component/iface/ra_rdnss.go -- raRDNSS.handle, raServerList.apply, raRDNSS.withdrawPPPoESession -->
-<!-- source: internal/component/iface/pppoe_client.go -- PPPoEClient.runSession, PPPoEClient.endSessionLeases -->
-<!-- source: internal/core/ndp/rdnss.go -- ParseRDNSS -->
 <p>On every change, one rule selects the router's servers from them, walking
 the list <code>system dns-source</code> names. Two classes of source can be named
 there: <code>configured</code> (the <code>name-server</code> list) and <code>received</code> (every learned
@@ -339,15 +330,10 @@ later.</p>
 </table>
 <p>A list naming one source needs no <code>mode</code>, because both modes give it the
 same answer.</p>
-<!-- source: internal/component/config/system/dns_source.go -- RouterDNSSource, routerDNSSourceRefusals, validateRouterDNSSourceTree -->
-<!-- source: internal/core/dnssource/select.go -- NewWrittenList, List.Received, ModeRequiredError, ReceivedInterfaceError, ClassRefusedError -->
 <p>An address that cannot name a resolver (the unspecified address, a multicast
 address, 255.255.255.255) is skipped, whatever its source. A loopback
 address such as the 127.0.0.53 of a host stub resolver stays, because Ze's
 own lookups can reach it.</p>
-<!-- source: internal/component/config/system/resolv.go -- Resolvers, routerDefault, Resolvers.records, ValidFor, Resolvers.armExpiryLocked -->
-<!-- source: internal/core/dnssource/select.go -- Select, Usable -->
-<!-- source: internal/plugins/iface/dhcp/resolv_linux.go -- setV4Resolvers, setV6Resolvers -->
 <p>The host's <code>/etc/resolv.conf</code> keeps a Ze on a standard distribution
 resolving when no <code>name-server</code> is configured and no lease supplies one. It
 stands in for a lease and never joins one: while a DHCPv4, DHCPv6, PPPoE or
@@ -357,10 +343,6 @@ supplied. When the last such record expires or is withdrawn, the host's
 servers return. Ze reads it at startup and on every config reload, not when the file changes.
 Ze never reads it when it is the same file as <code>resolv-conf-path</code> (symlinks
 are followed), because Ze would then read back the servers it wrote.</p>
-<!-- source: internal/component/config/system/resolv_host.go -- readHost, sameFile -->
-<!-- source: internal/component/config/system/register_dns.go -- hostResolverOrigin -->
-<!-- source: internal/component/config/system/resolv.go -- RegisterFallbackResolverOrigin -->
-<!-- source: internal/core/dnssource/record.go -- liveAddresses -->
 <p>The selection is the one source of truth for every reader:</p>
 <table>
 <thead>
@@ -384,13 +366,10 @@ are followed), because Ze would then read back the servers it wrote.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: cmd/ze/hub/main_system.go -- newResolvers -->
-<!-- source: cmd/ze/hub/main.go -- PublishOn -->
 <p>The local commands <code>ze resolve dns</code> and <code>ze resolve cymru</code> run without a
 daemon, so they cannot see a lease. They ask the server that <code>--server</code>
 (<code>--dns-server</code> for cymru) names, else the servers of the host's
 <code>/etc/resolv.conf</code>, else they fail closed.</p>
-<!-- source: internal/component/resolve/cli/local_servers.go -- localServers -->
 <h3 id="the-dns-source-list-and-the-learned-record">The <code>dns-source</code> list and the learned record</h3>
 <p><code>dns-source</code> is one YANG grouping, declared in <code>ze-types</code>, so every consumer
 that hands resolver addresses on writes the same list. The router's
@@ -461,7 +440,6 @@ link-local address with no zone from them, logs each drop with the
 consumer's path, and falls through to the next entry or class. IPv4
 link-local (169.254.0.0/16) is kept: a server there on the client's own
 link is reachable from it.</p>
-<!-- source: internal/core/dnssource/select.go -- Audience, HostOnly, appendUsable -->
 <p>A consumer plugin, in the engine process or its own, subscribes to the
 <code>system-dns</code> snapshot, asks for a replay once it has started, and keeps the
 newest snapshot's records with <code>dnssource.Follower</code>, which drops a
@@ -477,10 +455,6 @@ snapshot, including one delivered in the same batch. A plugin that answers
 clients (the LAN resolver, the DHCP server) holds each answer until it applied
 the replay, for 2 seconds at most (<code>ExpectReplay</code>, <code>Replayed</code>,
 <code>AwaitReplay</code>), so none is built from the empty record set it starts with.</p>
-<!-- source: internal/core/dnssource/follow.go -- Follower, Accept, AcceptSnapshot, RejectedCounter, ExpectReplay, Replayed, AwaitReplay -->
-<!-- source: internal/plugins/dnsresolver/register.go -- learnedSnapshotHandler -->
-<!-- source: internal/plugins/dhcpserver/register.go -- learnedSnapshotHandler -->
-<!-- source: internal/core/dnssource/register.go -- SnapshotEvent, SnapshotRequest -->
 <p>Each consumer also publishes what its lists chose, so <code>show system dns</code> and
 <code>show doctor</code> (the daemon form of <code>ze doctor</code>) can read every consumer from
 the daemon. A consumer emits
@@ -531,11 +505,6 @@ selection stays in the snapshot.</p>
 <p>RADIUS names a subscriber's servers when the session asks, so the pool's
 published selection is what a session whose RADIUS reply carries no MS DNS
 server is offered: the <code>radius</code> class contributes nothing to it.</p>
-<!-- source: internal/core/dnssource/record.go -- ConsumerSelection, NewConsumerSelection, Publication -->
-<!-- source: internal/plugins/dhcpserver/publish.go -- dhcpPublisher -->
-<!-- source: internal/component/iface/ra_dns_source.go -- publishRASelections -->
-<!-- source: internal/component/l2tp/plugins/pool/publish.go -- publishPools -->
-<!-- source: internal/component/config/system/resolv.go -- PublishOn, SetPublication, Consumers -->
 <p><code>show system dns</code> answers <code>records</code> (every learned record) and <code>consumers</code>:
 the router first, under the consumer name <code>system</code>, then every consumer that
 has published, sorted by name. A consumer that has not published yet is
@@ -543,15 +512,11 @@ absent: its plugin is not running or has not received its first snapshot.
 A plugin the engine removes while the daemon runs sends a withdrawal
 (<code>dnssource.NewWithdrawal</code>) from its <code>bye</code> handler, and the registry then
 forgets it, so its last selection is not reported after it stopped.</p>
-<!-- source: internal/component/config/system/resolv.go -- SetPublication -->
-<!-- source: internal/core/dnssource/record.go -- NewWithdrawal -->
-<!-- source: internal/plugins/system-dns-cmd/cmd/show_dns.go -- showSystemDNS, newSystemDNSAnswer -->
 <p>The registry exports <code>ze_dns_source_records{origin}</code>, the learned records
 each origin holds (zero once its leases are withdrawn), and
 <code>ze_dns_source_selection_changes_total{consumer}</code>, one per change of a
 consumer's published selection after its first, the router's under
 <code>system</code>. A repeated publication of the same answer is not a change.</p>
-<!-- source: internal/component/config/system/resolv_metrics.go -- SetMetrics, observe -->
 <p><code>show doctor</code> warns, for the router and every published list, when a list
 that names <code>received</code> selected no server (<code>doctor-dns-source-empty</code>), when a
 <code>received-interface</code> entry names an interface that holds no learned record
@@ -564,7 +529,6 @@ for an unserved <code>self</code> address. The local <code>ze doctor</code> proc
 these checks, because the registry they read is filled only in the daemon: it
 asks the running daemon's <code>show doctor</code> for them, and says so with a
 <code>doctor-runtime-not-checked</code> warning when no daemon answers.</p>
-<!-- source: internal/component/config/system/doctor_dns_source.go -- dnsSourceFindings -->
 <table>
 <thead>
 <tr>
@@ -612,14 +576,6 @@ resolver discovery (DNR), which Ze does not implement yet. A record that
 names a <code>transport</code> is not plain DNS on port 53, so <code>received</code> skips it. The
 JSON form of a record is in <code>docs/architecture/api/process-protocol.md</code>,
 "The <code>system-dns</code> namespace".</p>
-<!-- source: internal/component/config/yang/modules/ze-types.yang -- dns-source-class, dns-source -->
-<!-- source: internal/core/dnssource/select.go -- Class, ParseClass, ParseMode, NewList, NewWrittenList, Refusal, EmptyListError, RepeatedSourceError -->
-<!-- source: internal/core/dnssource/written.go -- ParseContainer -->
-<!-- source: internal/core/dnssource/record.go -- Record, CompareRecords, liveAddresses -->
-<!-- source: internal/component/config/system/dns_source.go -- readWrittenDNSSource, unknownDNSSourceClassError -->
-<!-- source: internal/plugins/iface/dhcp/register.go -- dhcpv4ResolverOrigin, dhcpv6ResolverOrigin -->
-<!-- source: internal/component/iface/register.go -- pppoeClientResolverOrigin, raResolverOrigin -->
-<!-- source: internal/component/config/system/register_dns.go -- hostResolverOrigin -->
 <h2 id="cache-management">Cache management</h2>
 <p>The DNS cache can be inspected and managed at runtime via CLI commands.</p>
 <p><strong>Inspection:</strong></p>
@@ -664,8 +620,6 @@ back to the learned records. A reload whose <code>dns-source</code> Ze refuses i
 refused whole, and the running list stays. The <code>dns</code> settings
 (<code>timeout</code>, <code>cache-size</code>, <code>cache-ttl</code>) are applied at startup, and a change to
 them needs a process restart.</p>
-<!-- source: cmd/ze/hub/main_system.go -- applyResolvConf, newResolvers -->
-<!-- source: internal/component/config/system/system.go -- ExtractSystemConfig, SystemConfig.DNSSource -->
 </div>
 </div>
             </section>
@@ -703,7 +657,7 @@ them needs a process restart.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

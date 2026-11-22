@@ -128,17 +128,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>4</strong><b>of 6 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5</strong><b>of 6 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 6 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 6 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 6 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 6 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>32</strong><b>32 of 36 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Partial test coverage</span><strong>1</strong><b>of 6 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 6 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>38</strong><b>38 of 42 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>6</strong><b>of 6 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -178,7 +174,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
 <tr><td>Partial test coverage</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
@@ -206,7 +202,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
 </tr>
 <tr><td>Mandatory requirements (MUST level)</td>
@@ -251,16 +247,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>36</td>
+<td>42</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>36</td>
+<td>42</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>6</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>32</td>
+<td>38</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8050.md</code></td>
@@ -280,9 +276,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> MRT ADD-PATH</p>
-<p><strong>Test verification:</strong> 5 of 6 MUST proven</p>
-<p><strong>Evidence:</strong> unit 5</p>
-<p><strong>Unmet:</strong> RFC8050-4.1-1</p>
+<p><strong>Test verification:</strong> 6 of 6 MUST proven</p>
+<p><strong>Evidence:</strong> unit 6</p>
+<p><strong>Unmet:</strong> -</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -291,11 +287,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>4</strong></td>
+<td><strong>5</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>2</strong></td>
+<td><strong>1</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Only a positive or negative test</td>
@@ -307,7 +303,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
-<td><strong>1</strong></td>
+<td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -322,15 +318,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc8050-x-1"><code>RFC8050-x-1</code></a>, <a href="#rfc8050-4.2-1"><code>RFC8050-4.2-1</code></a>, <a href="#rfc8050-x-3"><code>RFC8050-x-3</code></a>, <a href="#rfc8050-x-4"><code>RFC8050-x-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (2):</strong> <a href="#rfc8050-4.1-1"><code>RFC8050-4.1-1</code></a>, <a href="#rfc8050-x-2"><code>RFC8050-x-2</code></a></p>
-<p class="rfc-id-list"><strong>Partial test coverage (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc8050-4.1-1"><code>RFC8050-4.1-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc8050-x-1"><code>RFC8050-x-1</code></a>, <a href="#rfc8050-4.1-1"><code>RFC8050-4.1-1</code></a>, <a href="#rfc8050-4.2-1"><code>RFC8050-4.2-1</code></a>, <a href="#rfc8050-x-3"><code>RFC8050-x-3</code></a>, <a href="#rfc8050-x-4"><code>RFC8050-x-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc8050-x-2"><code>RFC8050-x-2</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8050:must">Ze verified 5, Not built 1</div>
+<div data-ze-rfc-bar="rfc8050:must">Ze verified 6</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8050:overview">Ze MUST verified 5, Not built 1</div>
+<div data-ze-rfc-bar="rfc8050:overview">Ze MUST verified 6</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -342,7 +337,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8050:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc8050:register">not complete</span></td>
+<td><span data-ze-rfc="rfc8050:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc8050:must.total">6</span></td>
@@ -351,7 +346,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8050:must.kept">6</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc8050:must.ze-proven">5</span></td>
+<td><span data-ze-rfc="rfc8050:must.ze-proven">6</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8050:must.os-verified">0</span></td>
@@ -369,7 +364,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8050:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc8050:must.not-built">1</span></td>
+<td><span data-ze-rfc="rfc8050:must.not-built">0</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc8050:must.not-owed">0</span></td>
@@ -436,8 +431,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8050-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L34" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc8050_message_addpath_as2_test.go#L33" title="internal/plugins/mrt/rfc8050_message_addpath_as2_test.go" target="_blank" rel="noopener"><code>TestRFC8050BGP4MPAddPathAS2Subtypes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L23" title="internal/component/bgp/reactor/rfc8050_mrt_observer_test.go" target="_blank" rel="noopener"><code>TestRFC8050MessageCallbackPreservesEncodingAndFraming</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L35" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc8050_message_addpath_as2_test.go#L34" title="internal/plugins/mrt/rfc8050_message_addpath_as2_test.go" target="_blank" rel="noopener"><code>TestRFC8050BGP4MPAddPathAS2Subtypes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L24" title="internal/component/bgp/reactor/rfc8050_mrt_observer_test.go" target="_blank" rel="noopener"><code>TestRFC8050MessageCallbackPreservesEncodingAndFraming</code></a></span></div>
 </div></td>
 </tr>
@@ -447,9 +444,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8050-4.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_layout_test.go#L167" title="internal/mrt/rfc8050_layout_test.go" target="_blank" rel="noopener"><code>TestRFC8050AddPathRIBEntryFollowsFigure1</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc8050_dump_addpath_test.go#L31" title="internal/plugins/mrt/rfc8050_dump_addpath_test.go" target="_blank" rel="noopener"><code>TestRFC8050DumpV2AddPathStoresPathID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go#L37" title="internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go" target="_blank" rel="noopener"><code>TestRFC8050MRTSnapshotPreservesPathIDs</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L264" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestRIBRecordAddPathRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc8050_dump_addpath_test.go#L35" title="internal/plugins/mrt/rfc8050_dump_addpath_test.go" target="_blank" rel="noopener"><code>TestRFC8050DumpV2AddPathStoresPathID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go#L42" title="internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go" target="_blank" rel="noopener"><code>TestRFC8050MRTSnapshotPreservesPathIDs</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L216" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestRIBRecordRoundTrip</code></a></span></div>
-</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows&#34;; gap &#34;This adds a field to the RIB Entries record to store the Path Identifier&#34;; the record layout is met on both sides, proven by the tags: the reader parses the Path Identifier field and WriteRIBEntries places it. The TABLE_DUMP_V2 snapshot does not store the route&#39;s Path Identifier in it: internal/plugins/mrt/dump.go::writeTableDumpV2 writes an ADDPATH subtype when the operator toggle is set, but builds each RIBEntry with no PathID, because the RIB dump callback carries none, so every entry&#39;s field holds 0 and two paths of one prefix from one peer cannot be told apart</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 8050 Section 4.1: &#34;This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes.&#34; Tested: the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows. TestRFC8050AddPathRIBEntryFollowsFigure1 compares WriteRIBEntries output with the literal Figure 1 octets and decodes them under subtypes 8-11; TestRIBRecordAddPathRoundTrip round-trips PathID 1 and 2 under subtype 8; TestRIBRecordRoundTrip (negative) reads no Path Identifier under base subtype 2. Gap: This adds a field to the RIB Entries record to store the Path Identifier. Producer internal/plugins/mrt/dump.go::writeTableDumpV2 builds each mrtfmt.RIBEntry from PeerIndex, OrigTime and Attributes only, because registry.RIBDumpVisitor.OnRoute carries no path id, so under the add-path toggle every entry&#39;s field is written as 0 and the route&#39;s Path Identifier is not stored. Revert records cover all three tagged units.</p></td>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8050-4.2-1">RFC8050-4.2-1</code></td><td colspan="3"><span class="rfc-subject">These fields continue to encapsulate the raw and additional-path- enabled AFI/SAFI/NLRI in the record, and the raw attributes in the RIB Entries. For clarity, the RIB Entries in this subtype are not redefined. (§4.2)</span></td></tr>
 <tr><td></td>
@@ -514,23 +515,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc8050-4.1-1"><code>RFC8050-4.1-1</code></a> the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows: 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Peer Index | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Originated Time | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Path Identifier | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Attribute Length | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | BGP Attributes... (variable) +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Figure 1: RIB Entries for AFI/SAFI-Specific RIB Subtypes with Support for Additional Paths This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes. (§4.1)</td>
-<td>{partial}, Partial test coverage</td>
-<td>tested &#34;the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows&#34;; gap &#34;This adds a field to the RIB Entries record to store the Path Identifier&#34;; the record layout is met on both sides, proven by the tags: the reader parses the Path Identifier field and WriteRIBEntries places it. The TABLE_DUMP_V2 snapshot does not store the route&#39;s Path Identifier in it: internal/plugins/mrt/dump.go::writeTableDumpV2 writes an ADDPATH subtype when the operator toggle is set, but builds each RIBEntry with no PathID, because the RIB dump callback carries none, so every entry&#39;s field holds 0 and two paths of one prefix from one peer cannot be told apart</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 8050 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
 <section><h2>Test status</h2>
 <p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc8050-x-1"><code>RFC8050-x-1</code></a></h3>
 <p>The Advertisement of Multiple Paths [RFC7911] extension for BGP alters the encoding of the BGP Network Layer Reachability Information (NLRI) format for withdraws and announcements. Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/session_wire.go::observe moved. Independent rejudgment against the complete RFC 8050, Sections 2 and 3. Section 3 says, &#34;These enhancements continue to encapsulate the entire BGP message in the BGP message field.&#34; The live collision test retains the winning TCP connection and exact directional OPEN occurrences, then compares complete isolated classic and MP announcements and withdrawals against received subtypes 9/4 and sent subtypes 11/7. Its ordinary-family controls distinguish per-family and per-direction ADD-PATH from a global flag. The observer matrix separately covers both BGP4MP and BGP4MP_ET, every NLRI location, exact record count, subtype and unchanged complete message bytes. The changed collision helper now reports full-stream context ambiguity explicitly; its separately retained known-connection context uses only the actual winning OPEN occurrences, never synthesized settings. This change does not remove the subtype or byte-preservation assertions. observeReceivedWire reads the receive context; the retained writer carries its own send context and transport. OnBGPMessage selects updateAddPath from the actual UPDATE&#39;s family fields and preserves the original message. No TABLE_DUMP_V2 or new foreign-parser execution is claimed.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 8050 Sections 2 and 3 after adding internal/plugins/mrt/rfc8050_message_addpath_as2_test.go::TestRFC8050BGP4MPAddPathAS2Subtypes. All four RFC 8050 Section 3 BGP4MP/BGP4MP_ET ADD-PATH subtypes (8 BGP4MP_MESSAGE_ADDPATH, 9 BGP4MP_MESSAGE_AS4_ADDPATH, 10 BGP4MP_MESSAGE_LOCAL_ADDPATH, 11 BGP4MP_MESSAGE_AS4_LOCAL_ADDPATH) and all four RFC 6396 base counterparts (1, 4, 6, 7) are now enforced end-to-end through OnBGPMessage, bgp4mpTypeSubtypeFor, localSubtype, and updateAddPath, and verified round-trip via mrt.ReadFile. TestRFC8050BGP4MPAddPathAS2Subtypes covers ASN4=false ADD-PATH IPv4 and IPv6 UPDATEs (subtypes 8 received, 10 sent) vs plain ASN4=false UPDATEs (subtypes 1 received, 6 sent) across both BGP4MP and BGP4MP_ET, asserting exact record count, MRT Type/Subtype, 2-byte PeerAS/LocalAS decoding, and byte-for-byte BGP message preservation, with discrimination records targeting dump.go::bgp4mpTypeSubtypeFor. TestRFC8050MessageCallbackPreservesEncodingAndFraming and TestMRTWinningCollisionPreservesOPEN continue to prove ASN4=true subtypes 9/11 vs 4/7 across both BGP4MP and BGP4MP_ET, all four NLRI locations (classic announcements/withdrawals, MP_REACH_NLRI, MP_UNREACH_NLRI), per-family/per-direction isolation (ADD-PATH negotiated for another family or opposite direction keeps base subtypes), live collision handoff OPEN fidelity, and complete message framing via observeReceivedWire and observedBGPWriter.observe -&gt; selected_refresh_eor.go::complete. Verdict: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -545,6 +536,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc8050_message_addpath_as2_test.go#L34" title="internal/plugins/mrt/rfc8050_message_addpath_as2_test.go" target="_blank" rel="noopener"><code>TestRFC8050BGP4MPAddPathAS2Subtypes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L34" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></td>
 <td>unit/verify</td>
@@ -555,19 +551,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc8050_message_addpath_as2_test.go#L33" title="internal/plugins/mrt/rfc8050_message_addpath_as2_test.go" target="_blank" rel="noopener"><code>TestRFC8050BGP4MPAddPathAS2Subtypes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc8050-4.1-1"><code>RFC8050-4.1-1</code></a></h3>
 <p>the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows: 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Peer Index | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Originated Time | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Path Identifier | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Attribute Length | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | BGP Attributes... (variable) +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Figure 1: RIB Entries for AFI/SAFI-Specific RIB Subtypes with Support for Additional Paths This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes. (§4.1)</p>
-<p>Records cover only part of this requirement: tested &#34;the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows&#34;; gap &#34;This adds a field to the RIB Entries record to store the Path Identifier&#34;; the record layout is met on both sides, proven by the tags: the reader parses the Path Identifier field and WriteRIBEntries places it. The TABLE_DUMP_V2 snapshot does not store the route&#39;s Path Identifier in it: internal/plugins/mrt/dump.go::writeTableDumpV2 writes an ADDPATH subtype when the operator toggle is set, but builds each RIBEntry with no PathID, because the RIB dump callback carries none, so every entry&#39;s field holds 0 and two paths of one prefix from one peer cannot be told apart; they do not verify the whole requirement.</p>
-<p><strong>Audit verdict:</strong> partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 8050 Section 4.1: &#34;This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes.&#34; Tested: the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows. TestRFC8050AddPathRIBEntryFollowsFigure1 compares WriteRIBEntries output with the literal Figure 1 octets and decodes them under subtypes 8-11; TestRIBRecordAddPathRoundTrip round-trips PathID 1 and 2 under subtype 8; TestRIBRecordRoundTrip (negative) reads no Path Identifier under base subtype 2. Gap: This adds a field to the RIB Entries record to store the Path Identifier. Producer internal/plugins/mrt/dump.go::writeTableDumpV2 builds each mrtfmt.RIBEntry from PeerIndex, OrigTime and Attributes only, because registry.RIBDumpVisitor.OnRoute carries no path id, so under the add-path toggle every entry&#39;s field is written as 0 and the route&#39;s Path Identifier is not stored. Revert records cover all three tagged units.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment against RFC 8050 Section 4.1 after fixing multicast Path ID extraction and subtype dispatch across dumpRIBForMRT and writeTableDumpV2/ribSubtypeFor. RFC 8050 Section 4.1: &#34;This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes.&#34; Q1-Q4 all pass: (1) Wire codec: TestRFC8050AddPathRIBEntryFollowsFigure1 compares WriteRIBEntries output byte-for-byte against literal Figure 1 octets (Peer Index, Originated Time, 4-octet big-endian Path Identifier 0x01020304, Attribute Length, Attributes) and decodes those literal octets under all four subtypes (8, 9, 10, 11); TestRIBRecordAddPathRoundTrip proves multi-entry round-trip under subtype 8; TestRIBRecordRoundTrip (negative) proves base subtype 2 omits the Path Identifier field. (2) RIB snapshot bridge: internal/component/bgp/plugins/rib/rib_mrt.go::dumpRIBForMRT now peels the 4-octet big-endian Path Identifier and clean prefix for both unicast and multicast IPv4/IPv6 families ((AFI 1|2) &amp;&amp; (SAFI 1|2)); TestRFC8050MRTSnapshotPreservesPathIDs stores two ADD-PATH paths (IDs 7 and 42) plus a non-ADD-PATH control in real PeerRIBs for all four families and verifies exact Path IDs, clean prefixes, and Figure 1 decode across subtypes 8-11 (and pathID 0 with intact prefix for the non-ADD-PATH controls). (3) TABLE_DUMP_V2 writer: internal/plugins/mrt/dump.go::writeTableDumpV2 and ribSubtypeFor now dispatch on both AFI and SAFI to emit subtypes 8, 9, 10, 11 with RIBEntry.PathID populated when Config.AddPath is true (and WriteRIBGenericHeader with entryAddPath=false for generic subtypes 6/12); TestRFC8050DumpV2AddPathStoresPathID writes and reads back MRT files for all four families, asserting exact ADD-PATH subtypes (8, 9, 10, 11) with distinct Path IDs 7 and 42 on the positive path and base subtypes (2, 3, 4, 5) with no wire Path Identifier (decoded PathID 0) on the negative path. Fresh discrimination records cover all seven tags.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go#L42" title="internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go" target="_blank" rel="noopener"><code>TestRFC8050MRTSnapshotPreservesPathIDs</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L216" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestRIBRecordRoundTrip</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc8050_dump_addpath_test.go#L35" title="internal/plugins/mrt/rfc8050_dump_addpath_test.go" target="_blank" rel="noopener"><code>TestRFC8050DumpV2AddPathStoresPathID</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go#L37" title="internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go" target="_blank" rel="noopener"><code>TestRFC8050MRTSnapshotPreservesPathIDs</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -578,6 +593,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_layout_test.go#L167" title="internal/mrt/rfc8050_layout_test.go" target="_blank" rel="noopener"><code>TestRFC8050AddPathRIBEntryFollowsFigure1</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc8050_dump_addpath_test.go#L31" title="internal/plugins/mrt/rfc8050_dump_addpath_test.go" target="_blank" rel="noopener"><code>TestRFC8050DumpV2AddPathStoresPathID</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -656,7 +676,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8050-x-4"><code>RFC8050-x-4</code></a></h3>
 <p>MRT parsers are usually stateless. In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/session_wire.go::observe moved. Independent rejudgment against RFC 8050 Section 2: &#34;In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized.&#34; Read all current tagged units and their assertion-producing helpers. Subtype-only controls decode all four ADD-PATH and four ordinary BGP4MP forms under both timestamp types without OPENs, preserving exact prefixes, identifiers including zero, and complete bytes. Mixed-family/direction controls require actual matching directional OPENs and refuse missing, stale, repeated, unrelated, identity-mismatched or independently opened context rather than guessing a mode. Real command handlers preserve that refusal and decode the exact mixed route counts with valid context. The changed live collision carrier preserves its original winner socket and OPEN occurrences at both handoff barriers. BGP4MP has no TCP ports: the full overlapping stream must report context unavailable; a separate known-winner decoder is explicitly seeded only from that TCP connection&#39;s two captured OPEN occurrences and excludes the observed old-socket Cease. It still asserts exact directional mixed prefixes and Path Identifiers, isolated subtype controls and record counts. Adoption retains the original Session rather than taking the old acceptWithOpen path. The migration carrier also pins the actual fallback OPEN identity and retained writer epoch. These are data/connection evidence assertions, not a claim that ambiguous overlapping TCP epochs can be inferred from one MRT endpoint tuple. Final closure rejudgment: independently reread the complete RFC 8050, its Section 2 rationale and Section 3 complete-message constraint, all 21 tagged entries and their assertion-producing helpers, current MRT context producers, both wire observers, and incoming adoption. The incoming Session is still acquired on its original TCP connection. Private decoded OPEN observations now wait for selection in a bounded owned pair, with callbacks outside the epoch mutex and replay after selected validation/liveness checks before peer-up. That semantic publication does not recapture frames or increment physical counters: readFrame and the observed writer still supply actual original directional OPENs at transport time, including losing observations and the old-socket Cease. The exact winner byte/count assertions, deliberately unavailable overlapping-stream context and separately seeded known-winner decode remain the correct bounded claims. All 21 entries and seven existing producer keys remain intact; this verdict does not infer TCP ports absent from BGP4MP or invent mixed-family negotiation from the subtype.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 8050 Section 2 (&#34;MRT parsers are usually stateless.  In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized.&#34;). Re-read all 21 tagged test entries across internal/mrt, internal/analyze, and internal/component/bgp/reactor, plus all cited producers including the updated OnBGPMessage and observedBGPWriter.observe -&gt; selected_refresh_eor.go::complete. On the parser side, TestRFC8050NoOPENSubtypeDecodesExactNLRI proves stateless decoding without OPENs across both TypeBGP4MP and TypeBGP4MPET, all eight BGP4MP subtypes (1, 4, 6, 7, 8, 9, 10, 11 — both 2-byte and 4-byte AS, received and LOCAL), and all six isolated NLRI locations, asserting exact prefixes, exact Path Identifiers (0 and 0x01020304 vs empty), and unchanged message bytes; TestIsAddPathHelpers covers all five RIB and four BGP4MP ADD-PATH subtypes vs base subtypes; TestRFC8050SubtypeControlsEveryNLRILocation verifies all eight subtypes and rejects truncated Path Identifiers in all four NLRI locations; TestRFC8050SessionContextDecodesMixedDirections, TestMRTContextCapabilityASNBoundaries (including narrow 2-byte AS_TRANS matching OnBGPMessage&#39;s new !as4 capping), TestMRTEmptyMPFamilyRequiresContext, TestRFC8050CommandsReadSubtypeContext, and TestRFC8050CommandsRequireMixedContext prove directional OPEN context for mixed-family UPDATEs and explicit ErrContextUnavailable refusal across all six CLI commands when context is missing, stale, mismatched, or ambiguous. Live collision and migration tests (TestMRTWinningCollisionPreservesOPEN, TestMRTCollisionWinnerReservation, TestMRTMigrationEpochUsesActualLocalOPEN) and TestRFC8050MessageCallbackPreservesEncodingAndFraming confirm original OPEN and frame preservation through observeReceivedWire, observe -&gt; complete (whose completeEOR is read-only), adoptIncoming, and OnBGPMessage. Verdict: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -946,7 +966,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

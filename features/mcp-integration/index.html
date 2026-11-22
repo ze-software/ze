@@ -44,8 +44,6 @@
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-automate">
-<!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
-<!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="mcp-integration">MCP Integration</h1>
@@ -69,14 +67,12 @@ an interactive CLI view is not automatically a one-shot MCP operation.</p>
 </ol></li>
 <li><a href="#testing">Testing</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/command/surface.go -- AnswerSurface, answerView -->
 <h2 id="discoverable-command-tools">Discoverable command tools</h2>
 <p>Generated groups use typed inputs where YANG RPC metadata supplies them.
 Groups without typed inputs expose an <code>arguments</code> string. Every generated
 group takes an optional ordered <code>pipe</code> list of <code>{"name", "args"}</code> elements,
 applied to the answer as <code>| name args</code> stages, each name one of the command's
 pipe operations.</p>
-<!-- source: internal/component/mcp/tools.go -- buildToolDef -->
 <table>
 <thead>
 <tr>
@@ -102,13 +98,10 @@ pipe operations.</p>
 <p><code>ze_execute</code> and <code>ze_reference</code> are the fixed tools. Generated tool groups read
 the live command list at <code>tools/list</code> time. Groups with named actions expose an <!-- doc-links: ignore (MCP method name, not a path) -->
 <code>action</code> enum; selector parameters appear only where the command supports them.</p>
-<!-- source: internal/component/mcp/tools.go -- toolHandlers, groupCommands, buildToolDef -->
 <p>A plugin command registered with <code>Hidden</code> true reaches no tool list. The flag
 already removed the command from completion and from help, and <code>buildCommandMeta</code>
 is the one source both the MCP tool list and the API command list read, so the
 skip covers both surfaces.</p>
-<!-- source: internal/component/mcp/tools.go -- toolName, generateTools -->
-<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta: the Hidden skip -->
 <p><code>ze_execute</code> uses the daemon command grammar for the operations that command
 registrations offer on MCP. Offline commands may have a different daemon path;
 terminal-only views and streaming-only operations are not automatically
@@ -116,8 +109,6 @@ equivalent one-shot calls. Discover current commands rather than copying an old
 route, configuration or cache example.</p>
 <p>Notification metadata in <code>ze_reference</code> describes the schema. Its presence
 does not itself provide an MCP event subscription.</p>
-<!-- source: internal/component/command/surface.go -- AnswerSurface, answerOfflineRoot, answerView -->
-<!-- source: internal/component/aihelp/aihelp.go -- Build -->
 <h2 id="starting-the-mcp-server">Starting the MCP Server</h2>
 <pre><code>ze start --mcp 8080            # start from stored (blob) config; run `ze init` first
 ze --mcp 8080 config.conf      # start from a config file
@@ -144,8 +135,6 @@ ze help ai api          # daemon RPCs, update syntax, families and plugins
 explanations are maintained text, not a guarantee that every example is current.
 <code>ze_reference</code> returns the JSON reference inside MCP text content. The legacy
 <code>ze help --ai</code> flag form is still accepted.</p>
-<!-- source: internal/plugins/help/help_ai.go -- renderAIHelpDocument, printSummary -->
-<!-- source: internal/component/mcp/tools.go -- toolHandlers, TextResult -->
 <h2 id="example-ai-driven-route-announcement">Example: AI-Driven Route Announcement</h2>
 <p>An AI assistant connected via MCP can:</p>
 <ol>
@@ -158,8 +147,6 @@ explanations are maintained text, not a guarantee that every example is current.
 <p>Current results use MCP text-content envelopes. JSON references and rendered
 command data are carried in that text; the envelope is not a promise of a
 separate typed result object for every command.</p>
-<!-- source: internal/plugins/help/help_ai.go -- printRecipes -->
-<!-- source: internal/component/mcp/tools.go -- toolHandlers, TextResult -->
 <h2 id="protocol-2026-07-28">Protocol (2026-07-28)</h2>
 <p>Ze speaks MCP protocol revision <code>2026-07-28</code> and no other. The profile is
 stateless, and every message is its own HTTP POST to <code>/mcp</code>. Each POST carries
@@ -167,15 +154,11 @@ its own protocol version, client capabilities and credential. Three standard
 headers and a <code>_meta</code> block inside <code>params</code> hold them. There is no <code>initialize</code>
 handshake, no session, no <code>Mcp-Session-Id</code>, no GET stream, and no
 server-initiated request.</p>
-<!-- source: internal/component/mcp/streamable.go -- ProtocolVersion, supportedProtocolVersions, handlePOST -->
-<!-- source: internal/component/mcp/meta.go -- parseRequestMeta -->
 <p>Two consequences are worth stating plainly:</p>
 <ul>
 <li><strong>Authentication runs on every request</strong>, so a revoked token stops working on
 the very next call rather than at session expiry, and there is no long-lived
-identifier that acts as a bearer credential in its own right.
-<!-- source: internal/component/mcp/streamable.go -- authenticate -->
-</li>
+identifier that acts as a bearer credential in its own right.</li>
 <li><strong>Elicitation is inverted, not gone.</strong> The revision forbids a server to send
 an independent JSON-RPC request on any stream, so a server can no longer push
 a prompt. The server RETURNS the prompt instead: <code>ze_execute</code> called without a
@@ -185,10 +168,7 @@ the original call with <code>inputResponses</code>, which carries the value. Ze 
 no <code>requestState</code>, so it holds nothing between the two requests and
 authenticates each one on its own. A client that did not declare <strong>form-mode</strong>
 elicitation is never prompted, and it gets the missing-argument error instead.
-See <a href="../../guides/mcp/elicitation/">MCP Elicitation</a> for the full round trip.
-<!-- source: internal/component/mcp/mrtr.go -- inputRequiredForMissingCommand, elicitationFormSupported -->
-<!-- source: internal/component/mcp/tools.go -- ze_execute handler -->
-</li>
+See <a href="../../guides/mcp/elicitation/">MCP Elicitation</a> for the full round trip.</li>
 </ul>
 <p>Capability discovery is a single optional call: <code>server/discover</code> returns the
 supported versions, the server's capabilities, and natural-language
@@ -197,7 +177,6 @@ empty settings object: <code>io.modelcontextprotocol/ui</code>, the MCP Apps ext
 <code>io.modelcontextprotocol/tasks</code>, the Tasks extension. The second extension is
 what makes the <code>task</code> result type interpretable, because a client can reject a
 <code>resultType</code> that no advertised extension defines.</p>
-<!-- source: internal/component/mcp/discover.go -- serverDiscover, serverCapabilities -->
 <h3 id="client-compatibility">Client compatibility</h3>
 <p>A client connects only if it speaks revision <code>2026-07-28</code>. One that opens with
 the <code>initialize</code> handshake of an earlier revision gets error <code>-32020</code>, which
@@ -206,7 +185,6 @@ names the revision Ze speaks, and cannot connect. The owner-run
 client tried. In its first round, on 2026-11-11, Claude Code 2.1.322 connected
 and called <code>ze_reference</code>. Codex 0.167.1 opened with the <code>2025-06-18</code>
 <code>initialize</code> handshake and could not connect.</p>
-<!-- source: internal/component/mcp/headers.go -- initializeEraError -->
 <h3 id="cacheable-results">Cacheable results</h3>
 <p><code>server/discover</code>, <code>tools/list</code>, <code>resources/list</code> and <code>resources/read</code> return <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 <code>ttlMs</code> and <code>cacheScope</code>, so a client can hold a result and does not re-fetch it
@@ -221,7 +199,6 @@ which a client can still offer a command that a config reload has removed. A
 call to that command returns an error. The protocol names such an error as
 grounds for an early re-fetch, so the stale entry usually clears after one
 failed call.</p>
-<!-- source: internal/component/mcp/caching.go -- cacheTTLByMethod, cacheScopePrivate -->
 <h3 id="mcp-apps">MCP Apps</h3>
 <p>Tool descriptors for command groups carrying a <code>ze:ui-resource</code> YANG annotation
 include <code>_meta.ui</code>, pointing at a <code>ui://</code> asset the host renders in a sandboxed
@@ -229,7 +206,6 @@ panel. That metadata is emitted only when the request declared the
 <code>io.modelcontextprotocol/ui</code> extension in a form compatible with the HTML
 bundles Ze serves. A host without MCP Apps support gets the same tool list, the
 same tools and the same behavior, minus the panel metadata. Ze rejects nothing.</p>
-<!-- source: internal/component/mcp/apps.go -- clientSupportsUIApps, gateUIMeta -->
 <h3 id="resources">Resources</h3>
 <p><code>resources/list</code> and <code>resources/read</code> serve every conformant caller, with no <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 client-capability gate. <code>resources</code> is a member of <code>ServerCapabilities</code>, not of
@@ -242,7 +218,6 @@ conformant caller while <code>server/discover</code> advertised the capability a
 path must equal the given path, and the depth is capped at 8 segments. A URI that
 fails validation gets <code>invalid uri</code>, and one that resolves to nothing gets
 <code>resource not found</code>.</p>
-<!-- source: internal/component/mcp/resources.go -- resourcesList, resourcesRead, validateResourceURI -->
 <h2 id="testing">Testing</h2>
 <p><code>le test mcp</code> provides a functional test client with <code>wait-established</code>
 synchronization for CI pipelines. It also provides a <code>probe-*</code> directive family,
@@ -255,7 +230,6 @@ synchronous answer and no taskId), then <code>task-get</code>, <code>task-result
 <code>io.modelcontextprotocol/tasks</code> extension on every request. A run without the
 flag is itself a test, because the server must still serve an undeclaring client
 synchronously.</p>
-<!-- source: internal/test/cli/cmd_mcp.go -- taskDirective -->
 <p>The <code>tools-size</code> directive measures the <code>tools/list</code> answer a running daemon <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 serves: tool count, total bytes, the largest tool, and each tool's input schema
 size and depth. It prints one violation line for each tool that breaks a limit
@@ -263,8 +237,6 @@ strict clients enforce: an input schema above 13,312 bytes, nesting deeper
 than 10 levels, an <code>enum</code> with no sibling <code>type</code>, or a <code>oneOf</code>, <code>allOf</code> or
 <code>anyOf</code>. <code>test/plugin/mcp-tools-list-structural-limits.ci</code> refuses a catalog
 that prints a violation.</p>
-<!-- source: internal/test/cli/cmd_mcp.go -- sizeDirective -->
-<!-- source: internal/test/cli/cmd_mcp_calls.go -- measureToolsSize, toolSchemaBytesMax, toolSchemaDepthMax -->
 <p>See <a href="../../guides/mcp/overview/">MCP Guide</a> for details and
 <a href="../../guides/mcp/remote-access/">MCP Remote Access</a> for tunneling.</p>
 </div>
@@ -304,7 +276,7 @@ that prints a violation.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

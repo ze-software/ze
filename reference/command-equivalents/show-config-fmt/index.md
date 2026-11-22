@@ -32,9 +32,7 @@ Normalizes indentation and ordering\. Output goes to stdout \(read\-only\)\. To 
 
 ## Mapping intents
 
-### Show running\, candidate\, and diffed configuration
-
-Category: Configuration
+No vendor equivalent has been curated yet for this Ze command.
 
 ## Vendor equivalents
 
@@ -51,7 +49,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `compare` (verified, vyos\-cli)
-  - Intent: Show running\, candidate\, and diffed configuration
-- `show configuration` (verified, vyos\-cli)
-  - Intent: Show running\, candidate\, and diffed configuration
+
+No equivalent listed.

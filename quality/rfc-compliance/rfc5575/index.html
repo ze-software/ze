@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 9 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 9 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 9 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>18</strong><b>18 of 31 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>25</strong><b>25 of 31 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -259,7 +259,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>8</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>18</td>
+<td>25</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5575.md</code></td>
@@ -279,8 +279,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> BGP Flowspec (obsoleted by RFC 8955)</p>
-<p><strong>Test verification:</strong> 4 of 9 MUST proven</p>
-<p><strong>Evidence:</strong> unit 4</p>
+<p><strong>Test verification:</strong> 8 of 9 MUST proven</p>
+<p><strong>Evidence:</strong> unit 8</p>
 <p><strong>Unmet:</strong> RFC5575-6-1</p>
 
 </section>
@@ -327,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc5575:must">Ze verified 4, Tests awaiting verification 4, Not built 1</div>
+<div data-ze-rfc-bar="rfc5575:must">Ze verified 8, Not built 1</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc5575:overview">Ze MUST verified 4, Tests awaiting verification 4, Not assessed 4, Not built 1</div>
+<div data-ze-rfc-bar="rfc5575:overview">Ze MUST verified 8, Not assessed 4, Not built 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -350,13 +350,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc5575:must.kept">9</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc5575:must.ze-proven">4</span></td>
+<td><span data-ze-rfc="rfc5575:must.ze-proven">8</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc5575:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc5575:must.proof-pending">4</span></td>
+<td><span data-ze-rfc="rfc5575:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc5575:must.os-gap">0</span></td>
@@ -695,12 +695,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1307" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestParseFlowSpecRefusesRepeatedComponentType</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1227" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecComponentsAscendingOrder</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1270" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecJoinsRepeatedTypeIntoOneComponent</code></a></td>
@@ -720,12 +720,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1335" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestParseFlowSpecRefusesDescendingComponentType</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1228" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecComponentsAscendingOrder</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -756,7 +756,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1508" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecTrafficMarkingReservedBytesZero</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -861,12 +861,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L37" title="internal/component/bgp/message/flowspec_wire_contract_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNUpdateCountsRouteDistinguisher</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L36" title="internal/component/bgp/message/flowspec_wire_contract_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNUpdateCountsRouteDistinguisher</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1183,7 +1183,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

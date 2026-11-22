@@ -17,10 +17,10 @@ The native Go runner owns Docker lifecycle, scenario discovery, and protocol che
 
 ```
 # all scenarios
-$ ./le integration interop-ipsec
+$ ./le test integration interop-ipsec
 
 # a single named scenario
-$ IPSEC_INTEROP_SCENARIO=name ./le integration interop-ipsec
+$ IPSEC_INTEROP_SCENARIO=name ./le test integration interop-ipsec
 ```
 
 `Prerequisites`

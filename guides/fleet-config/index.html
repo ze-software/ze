@@ -81,8 +81,6 @@ hub, the hub tells that client, and the client fetches and applies the change.</
 <li><a href="#what-the-client-keeps-in-its-store">What the Client Keeps in Its Store</a></li>
 </ol></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
-<!-- source: internal/component/managed/client.go -- RunManagedClient -->
 <blockquote>
 <p><strong>Status:</strong> Implemented. The hub serves each client its configuration, and
 a client fetches, applies, caches and reconnects.</p>
@@ -162,15 +160,12 @@ with a different port, <code>1791</code> here.</li>
 clients, the hub refuses a client on the address of the other block. List a
 client under both blocks if it must reach both.</li>
 </ul>
-<!-- source: internal/component/plugin/server/managed_serve.go -- ManagedListener, handleConn -->
-<!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener -->
 <p>Start the hub with <code>ze start</code>. It also needs the root of its certificate
 authority later, in step 3. Print it now and save it to a file:</p>
 <pre><code class="language-bash">ze show pki local-ca pem &gt; hub-root.pem
 </code></pre>
 <p>The hub makes this authority at its first start and keeps it. The root is
 public: it holds no private key.</p>
-<!-- source: internal/component/pki/show.go -- handleShowPKILocalCAPEM -->
 <h2 id="2-write-each-clients-configuration">2. Write Each Client's Configuration</h2>
 <p>The hub stores one full configuration for each client, under the name
 <code>client-&lt;name&gt;.conf</code>. Write it as you write any Ze configuration, and add the
@@ -197,13 +192,11 @@ bgp {
 <p>The <code>client</code> block must be there. The name and the secret are the ones in the
 hub's <code>client edge-01</code> entry. A client that applies a configuration with no
 <code>client</code> block stops following its hub.</p>
-<!-- source: internal/component/managed/client.go -- adoptEndpoint -->
 <p>Give the file to a running hub, on the hub's own host:</p>
 <pre><code class="language-bash">ze data import client-edge-01.conf
 </code></pre>
 <p>The hub keeps it as a new version of that client's configuration. It refuses a
 name that has no <code>client</code> entry in step 1, because no client would fetch it.</p>
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreConfigFromSource -->
 <h2 id="3-provision-a-client">3. Provision a Client</h2>
 <p>On the new client, <code>ze init --managed</code> asks for what the first start needs.
 It asks for the usual SSH login, then for three things about the hub:</p>
@@ -268,8 +261,6 @@ First use never happens a second time. To trust a different hub, run
 <code>ze init --managed --force</code> again.</p>
 <p>With either choice, the client keeps the root in its store. Its configuration
 then needs no certificate settings at all.</p>
-<!-- source: internal/plugins/init/main.go -- managedInitFromFlags, runInitPublishedProfile -->
-<!-- source: internal/component/managed/tls.go -- clientTLSConfig, FirstUseTLSConfig -->
 <p>To provision with no prompt, give the seven answers on standard input:</p>
 <pre><code class="language-bash">echo -e "admin\nsecret\n127.0.0.1\n2222\nedge-01\n10.0.0.1:1791\nedge-01-secret-of-at-least-32-chars" \
     | ze init --managed --hub-ca hub-root.pem
@@ -288,7 +279,6 @@ at the first start. The flags go before <code>start</code>:</p>
 </code></pre>
 <p>When the first start lacks a value, it stops and names the value and the flag
 that gives it.</p>
-<!-- source: cmd/ze/ze_core_start.go -- cmdStartManaged, readManagedBootstrap, fetchInitialConfig -->
 <h2 id="change-a-clients-configuration">Change a Client's Configuration</h2>
 <p>Edit the client's file and give it to the running hub again:</p>
 <pre><code class="language-bash">ze data import client-edge-01.conf
@@ -306,29 +296,23 @@ the refusal and its reason in <code>show doctor</code>.</p>
 applies your configuration only over the one it ran when it fetched. When its
 configuration changed in between, it applies nothing, fetches once more, and
 holds (see "When a Client Holds").</p>
-<!-- source: internal/component/managed/client.go -- holdOrApply, activeCheck, refetchOverLocalCommit -->
 <p>A change reaches the client it belongs to and no other. To change ten
 clients, import ten files. A client that is not connected gets the change the
 next time it connects.</p>
-<!-- source: internal/component/plugin/server/managed_serve.go -- NotifyConfigChanged, pushConfigChanged -->
-<!-- source: internal/component/managed/client.go -- fetchAndProcess -->
 <p><strong>To move a client to another hub, or to change its secret,</strong> change the
 <code>client</code> block in its configuration. The client applies the configuration and
 reconnects with the new values. It needs no restart. Change the secret in the
 hub's <code>client</code> entry at the same time, or the client cannot come back.</p>
-<!-- source: internal/component/managed/client.go -- adoptEndpoint -->
 <p><strong>To restore a client's configuration from a backup,</strong> on a running hub:</p>
 <pre><code>request data restore path /var/backups/edge-01.zefs config client edge-01
 </code></pre>
 <p>The hub pushes the restored configuration as it pushes any change.</p>
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreConfigFromSource -->
 <p><strong>To edit with the configuration editor,</strong> on the hub's own host, in the
 folder that holds the hub's store (its <code>ze.config.dir</code>):</p>
 <pre><code class="language-bash">ze config edit client-edge-01.conf
 </code></pre>
 <p>The command opens the store of the folder its path names, so a bare name
 typed in another folder finds no store there.</p>
-<!-- source: internal/core/resolve/resolve.go -- StoreDir -->
 <p>The editor runs inside the running hub. When you commit, the hub records a new
 version of that client's configuration and pushes it to the client, as it
 pushes an import. The file must exist first: give the hub the first version
@@ -337,16 +321,10 @@ with <code>ze data import</code>.</p>
 own configuration does not declare, as it refuses to import one. Add the
 <code>client</code> entry to the hub first. The client does not have to be connected: a
 client that is away gets the change the next time it connects.</p>
-<!-- source: cmd/ze/hub/session_factory.go -- undeclaredClientSessionRefusal -->
 <p>The history and the archive of a client's configuration use the same name:</p>
 <pre><code class="language-bash">ze config history client-edge-01.conf
 ze config archive backup client-edge-01.conf
 </code></pre>
-<!-- source: internal/component/config/cli/cmd_edit.go -- runStoredEditor -->
-<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
-<!-- source: internal/component/cli/editor_commit.go -- publishCommitted -->
-<!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
-<!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->
 <h2 id="when-the-hub-is-down">When the Hub Is Down</h2>
 <p>A client does not need its hub to run.</p>
 <table>
@@ -377,8 +355,6 @@ ze config archive backup client-edge-01.conf
 </table>
 <p>The client waits 1 second before the first new attempt, then twice as long
 each time, up to 60 seconds.</p>
-<!-- source: internal/component/managed/reconnect.go -- newBackoff -->
-<!-- source: internal/component/managed/client.go -- RunManagedClient -->
 <h2 id="leave-and-rejoin-the-fleet">Leave and Rejoin the Fleet</h2>
 <p>A client can leave its fleet and rejoin it. Neither command changes the
 client's configuration, and neither needs a restart of a client that was
@@ -400,8 +376,6 @@ that client after this does not reach it.</p>
 client has no connection, and when the client's configuration names no hub.
 It also works when the client is stopped: it stores the flag, and the next
 <code>ze start</code> starts the client outside the fleet.</p>
-<!-- source: internal/component/managed/cmd_fleet.go -- disableOnDaemon, disableStopped, changeFleetLocal -->
-<!-- source: cmd/ze/hub/managed_owner.go -- managedClientOwner, stopWith, join -->
 <h3 id="rejoin-the-fleet">Rejoin the Fleet</h3>
 <p>On the client:</p>
 <pre><code class="language-bash">ze request fleet enable
@@ -443,9 +417,6 @@ configuration, and applies it if it is a different one.</li>
 <code>doctor-managed-diverged</code> with the two ways to end the hold. See
 <a href="#when-a-client-holds">When a Client Holds</a>.</li>
 </ul>
-<!-- source: internal/component/managed/cmd_fleet.go -- enableOnDaemon, enableStopped, requireDeclaredHub, noDeclaredHub -->
-<!-- source: cmd/ze/hub/managed_owner.go -- managedClientOwner, startWith -->
-<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline -->
 <h3 id="see-where-a-client-stands">See Where a Client Stands</h3>
 <pre><code class="language-bash">ze show fleet status
 </code></pre>
@@ -497,8 +468,6 @@ connection of a running client:</p>
 <p>Use the two commands to leave and to rejoin. Another write of
 <code>meta/instance/managed</code>, with <code>update data key</code> or <code>ze data write</code>, decides
 the next start and does not close a connection that is open.</p>
-<!-- source: internal/component/managed/cmd_fleet.go -- daemonClientReport, reportOf, noDaemonReport -->
-<!-- source: internal/component/managed/client.go -- RunManagedClient -->
 <h2 id="when-a-client-refuses-your-change">When a Client Refuses Your Change</h2>
 <p>A managed client takes its configuration from its hub. While it is managed,
 it refuses a change that you make on the client itself, with the daemon
@@ -507,7 +476,6 @@ running or stopped. The refusal reads:</p>
 local changes are frozen while it follows a hub, so that a hub push cannot overwrite one
 fix: request fleet disable
 </code></pre>
-<!-- source: internal/component/config/storage/freeze.go -- ErrConfigFrozen, refuseFrozenConfigLocked -->
 <p>A commit in the editor, an SSH configuration upload, an import, a restore and
 a rollback all give this problem, reason and fix, and the fix is always the
 last line. Some of them
@@ -517,9 +485,6 @@ example <code>write candidate:</code>.</p>
 rolls back the file it names on disk and does not touch the stored
 configuration, so it is not refused. A configuration read from a file is
 never frozen.</p>
-<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- daemonConfigImportRefusal -->
-<!-- source: cmd/ze/hub/config_upload.go -- Upload -->
-<!-- source: internal/component/config/cli/cmd_rollback.go -- rollbackStoredConfig, storedRollbackRefusal, cmdRollbackThrough -->
 <p>Nothing was written. The client runs the configuration it ran before.</p>
 <p>To change the configuration of a client that stays in the fleet, change it
 on the hub (see "Change a Client's Configuration").</p>
@@ -529,7 +494,6 @@ on the hub (see "Change a Client's Configuration").</p>
 <p>The client then accepts your change. <code>show fleet status</code> reports <code>frozen</code> as
 <code>false</code>. When the client rejoins with <code>request fleet enable</code>, it holds until
 its hub has the same configuration (see "When a Client Holds").</p>
-<!-- source: internal/component/managed/cmd_fleet.go -- readFleetStatus -->
 <p>The refusal covers the commands that record a new version of the
 configuration. These change the client's configuration without a refusal:</p>
 <ul>
@@ -541,12 +505,10 @@ such as a write of the active version pointer back to an earlier version</li>
 </ul>
 <p>A change made that way is not lost either: the client holds when it next
 compares its configuration with its hub's.</p>
-<!-- source: internal/component/config/storage/import_config.go -- ImportConfig -->
 <p>A daemon that was started from a configuration file or from standard input,
 and not from its store, follows no hub. It refuses nothing: its input is its
 configuration. <code>show fleet status</code> reports <code>frozen</code> as <code>false</code> there, even
 when <code>managed</code> is <code>true</code>.</p>
-<!-- source: internal/component/config/storage/freeze.go -- refuseFrozenConfigLocked -->
 <h2 id="when-a-client-holds">When a Client Holds</h2>
 <p>A client remembers which configuration its hub last gave it. When the
 configuration it runs is a different one, the client takes nothing from the
@@ -564,8 +526,6 @@ apply that configuration over the change, and holds.</p>
 </ul>
 <p>A restart is not a change. A client that nobody changed follows its hub after
 a restart, as before.</p>
-<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, holdFetched -->
-<!-- source: internal/component/managed/baseline.go -- Diverged -->
 <h3 id="see-that-a-client-holds">See That a Client Holds</h3>
 <p>On the client:</p>
 <pre><code class="language-bash">ze doctor
@@ -602,10 +562,6 @@ and their count. It never shows either configuration's text. When the client's
 configuration holds a section of an external plugin the hub did not start, the
 hub cannot compare the two: the show says so and names the plugins, and adopt
 and revert still work.</p>
-<!-- source: internal/component/managed/doctor.go -- checkManagedDiverged, managedDivergedFix, checkHubClientsDiverged -->
-<!-- source: internal/component/managed/cmd_divergence_show.go -- readDivergenceList, readDivergenceDetail, divergenceParseRefusal -->
-<!-- source: internal/component/managed/cmd_fleet.go -- readFleetStatus, reportOf, hubAnswerOf -->
-<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- managedRejectedRow -->
 <h3 id="end-the-hold">End the Hold</h3>
 <p>The hold ends when the hub and the client hold the same configuration. You
 keep the client's change on the hub with adopt, or discard it with revert.</p>
@@ -636,8 +592,6 @@ it is refused, fix <code>ze start</code>: only the running hub records the audit
 <code>fleet-divergence-adopt</code>, so an adopt is taken only there. Adopt needs the
 edit permission, as every <code>update</code> command does, and the hub records it in
 its audit log (<code>show audit action fleet-divergence-adopt</code>).</p>
-<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceAdopt, adoptLocal, adoptHeld, adoptHeldLocked -->
-<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, settleBaseline -->
 <p><strong>Keep it by hand.</strong> The hub keeps no copy, and there is nothing to adopt,
 when the configuration is larger than 1 MiB, when the hub or the client runs
 a version of Ze that does not send or keep the copy, or when the hub refused
@@ -653,9 +607,6 @@ must be the client's configuration byte for byte. If <code>show fleet status</co
 import, the two copies differ.</p>
 <p>The client also tells the hub that it no longer holds, and the hub removes
 the <code>doctor-managed-client-rejected</code> row of that client from <code>show doctor</code>.</p>
-<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, settleBaseline -->
-<!-- source: internal/component/config/storage/cli/main.go -- cmdCat, importConfigs -->
-<!-- source: internal/component/plugin/server/managed_serve.go -- handleRequest -->
 <p><strong>Discard the client's configuration.</strong> Revert the client from the hub.
 Read the two hashes in the show, the copy's <code>device-version</code> and the
 <code>hub-version</code> of the configuration the hub serves the client, then give both
@@ -689,9 +640,6 @@ run: run it again after <code>ze start</code>. Revert needs the edit permission,
 hub records it in its audit log (<code>show audit action fleet-divergence-revert</code>).
 A client with a confirmed commit open refuses the revert as it refuses any
 change from its hub, and takes it at the fetch after the window closes.</p>
-<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceRevert, revertLocal, revertHeld, revertHeldLocked -->
-<!-- source: internal/component/managed/cmd_divergence_show.go -- divergenceRowOf, revertVoidReason -->
-<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, applyReverted -->
 <p><strong>Discard it by hand.</strong> A client whose copy the hub does not keep, or that
 runs a version of Ze that ignores a revert, is put back on the version its hub
 sent from the client itself. Take the client out of the fleet, put it back
@@ -710,14 +658,10 @@ holds again when it rejoins.</p>
 <p>The client then runs the configuration its hub last gave it, so it does not
 hold when it rejoins. It connects to the hub at once and takes the hub's
 configuration if the hub's copy changed meanwhile.</p>
-<!-- source: internal/component/managed/doctor.go -- managedDivergedManualFix -->
-<!-- source: internal/component/managed/cmd_fleet.go -- disableOnDaemon, enableOnDaemon, readFleetStatus -->
-<!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
 <p>A client provisioned before Ze recorded this, or provisioned again with
 <code>ze init --managed --force</code>, has no record of what its hub gave it. It does
 not hold. It takes the hub's configuration once, and holds from then on when
 it is changed.</p>
-<!-- source: internal/component/managed/baseline.go -- Diverged -->
 <h2 id="troubleshooting">Troubleshooting</h2>
 <p>Start with <code>show doctor</code> on the hub, and <code>ze doctor</code> on the client.</p>
 <table>
@@ -846,12 +790,6 @@ it is changed.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, checkManagedListenerUnbound -->
-<!-- source: cmd/ze/hub/managed_owner.go -- startAtBoot, state -->
-<!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
-<!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared, checkManagedDiverged -->
-<!-- source: internal/component/managed/client.go -- configFetchTimeout, handleConfigChangedRequest -->
-<!-- source: internal/component/managed/cmd_fleet.go -- noDeclaredHub, daemonClientReport, reportOf -->
 <h2 id="reference">Reference</h2>
 <h3 id="ze-init-options-for-a-managed-client"><code>ze init</code> Options for a Managed Client</h3>
 <table>
@@ -880,7 +818,6 @@ it is changed.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/init/main.go -- Run, managedInitFromFlags -->
 <h3 id="ze-start-flags"><code>ze start</code> Flags</h3>
 <p>The flags go before the command: <code>ze --server 10.0.0.1:1791 start</code>.</p>
 <table>
@@ -922,8 +859,6 @@ it is changed.</p>
 <p><code>--server</code>, <code>--name</code> and <code>--token</code> replace what <code>ze init</code> stored, and what the
 <code>client</code> block of the configuration says, for as long as that Ze runs. Use them
 for a first start and for troubleshooting.</p>
-<!-- source: cmd/ze/ze_core_dispatch.go -- zeParseGlobalFlags -->
-<!-- source: cmd/ze/ze_core_start.go -- hubClientEndpoint, readManagedBootstrap -->
 <h3 id="the-client-block-of-a-clients-configuration">The <code>client</code> Block of a Client's Configuration</h3>
 <table>
 <thead>
@@ -963,8 +898,6 @@ MIIB...
     }
 }
 </code></pre>
-<!-- source: internal/component/config/loader_extract.go -- extractHubClientConfig -->
-<!-- source: internal/component/managed/tls.go -- clientTLSConfig -->
 <h3 id="what-the-client-keeps-in-its-store">What the Client Keeps in Its Store</h3>
 <table>
 <thead>
@@ -1015,10 +948,6 @@ MIIB...
 <p><code>request fleet disable</code> and <code>request fleet enable</code> change
 <code>meta/instance/managed</code> with no change to the client's configuration. See
 <a href="#leave-and-rejoin-the-fleet">Leave and Rejoin the Fleet</a>.</p>
-<!-- source: internal/component/managed/cmd_fleet.go -- storeManagedFlag -->
-<!-- source: pkg/zefs/keys.go -- KeyManagedHubAddress, KeyManagedHubToken, KeyManagedHubCA, KeyManagedHubTrust, KeyManagedBaseVersion -->
-<!-- source: internal/component/managed/baseline.go -- StoreBaseline -->
-<!-- source: cmd/ze/ze_core_start.go -- isManaged -->
 <p>The design, the protocol and the reasons are in
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/fleet-config.md" target="_blank" rel="noopener">the architecture page</a>.</p>
 </div>
@@ -1070,7 +999,7 @@ MIIB...
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

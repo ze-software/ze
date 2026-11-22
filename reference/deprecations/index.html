@@ -44,8 +44,6 @@
 
         <main id="top" tabindex="-1">
             <section class="md-content reveal cat-operate">
-<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate, form conversion only -->
-<!-- source: internal/component/config/loader.go -- parseSetConfig, the unknown-field message -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Architecture</span>
     <h1 id="configuration-syntax-changes">Configuration Syntax Changes</h1>
@@ -167,7 +165,6 @@ draft that expired without becoming an RFC.</p>
 <p><code>operational</code> therefore has no assigned value to put on the wire. ExaBGP fills
 both with private values of its own, capability <code>0xB9</code> and message type <code>0x06</code>.
 Ze does not copy a private codepoint.</p>
-<!-- source: internal/exabgp/migration/migrate_unimplemented.go -- untranslatedCapabilityWarning, the warning and the two drafts -->
 <h2 id="commands">Commands</h2>
 <pre><code class="language-bash"># Check whether a file matches the current binary
 ze config validate config.conf
@@ -192,7 +189,7 @@ ze config migrate format hierarchical config.conf
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -2440,7 +2440,7 @@
                     "type": "string"
                   }
                 ],
-                "description": "The container turns on the role rules for this peer. A peer with no role container sends no\nRole capability, and Ze accepts whatever role the peer declares.",
+                "description": "The container turns on the role rules for this peer. A peer with no role container sends no\nRole capability, and Ze accepts whatever role the peer declares. RFC 9234 Section 6: Roles MUST NOT\nbe configured on an eBGP session with a Complex peering relationship; omit the role container on a\nComplex peering session or segregate it into multiple eBGP sessions with normal relationships.",
                 "kind": "container",
                 "name": "role",
                 "short-help": "RFC 9234 BGP Role configuration",
@@ -3886,7 +3886,7 @@
                 "type": "string"
               }
             ],
-            "description": "The container turns on the role rules for this peer. A peer with no role container sends no\nRole capability, and Ze accepts whatever role the peer declares.",
+            "description": "The container turns on the role rules for this peer. A peer with no role container sends no\nRole capability, and Ze accepts whatever role the peer declares. RFC 9234 Section 6: Roles MUST NOT\nbe configured on an eBGP session with a Complex peering relationship; omit the role container on a\nComplex peering session or segregate it into multiple eBGP sessions with normal relationships.",
             "kind": "container",
             "name": "role",
             "short-help": "RFC 9234 BGP Role configuration",
@@ -6192,7 +6192,7 @@
                 "type": "string"
               }
             ],
-            "description": "The container turns on the role rules for this peer. A peer with no role container sends no\nRole capability, and Ze accepts whatever role the peer declares.",
+            "description": "The container turns on the role rules for this peer. A peer with no role container sends no\nRole capability, and Ze accepts whatever role the peer declares. RFC 9234 Section 6: Roles MUST NOT\nbe configured on an eBGP session with a Complex peering relationship; omit the role container on a\nComplex peering session or segregate it into multiple eBGP sessions with normal relationships.",
             "kind": "container",
             "name": "role",
             "short-help": "RFC 9234 BGP Role configuration",
@@ -9985,7 +9985,7 @@
           {
             "children": [
               {
-                "description": "This leaf-list is optional. An empty leaf-list carries no\nscope.",
+                "description": "This leaf-list is optional. When non-empty, Ze enforces\nthe identity's scopes on tools/call: mcp.read authorizes read-only tools and commands,\nmcp.write authorizes mutating tools and commands, and mcp.admin authorizes both.\nInsufficient scope returns HTTP 403. An empty leaf-list imposes no scope restriction.",
                 "kind": "leaf-list",
                 "name": "scope",
                 "short-help": "Scopes Ze carries on a request this identity authenticates.",
@@ -10076,7 +10076,7 @@
                 "type": "string"
               },
               {
-                "description": "Ze refuses a key file that group or other can read, and refuses\na symbolic link, when it runs as a user other than root. The\nMCP server does not start in that case. Under root Ze reads the\nfile whatever its mode, because root reads every file anyway.",
+                "description": "Ze refuses a key file that grants any permission to group or\nother, and refuses a symbolic link or non-regular file, for\nevery user including root. The MCP server does not start in\nthat case.",
                 "kind": "leaf",
                 "name": "key",
                 "short-help": "Path to PEM-encoded private-key file.",
@@ -10084,7 +10084,7 @@
                 "type": "string"
               }
             ],
-            "description": "This container is required when auth-mode is oauth and a listen\nendpoint is not a loopback address. ze config verify rejects a config that leaves the\ncert leaf empty in that case, and one that sets cert without key.",
+            "description": "This container is required when auth-mode is bearer, bearer-list,\nor oauth and a listen endpoint is not a loopback address. ze config verify rejects a config\nthat leaves cert or key empty in that case, and one that sets cert without key.",
             "kind": "container",
             "name": "tls",
             "short-help": "TLS certificate that serves the MCP endpoint over HTTPS.",
@@ -26413,7 +26413,7 @@
             "name": "anywhere",
             "short-help": "Reject these ASNs at any position: direct, transit and origin together.",
             "source": "config",
-            "type": "asn"
+            "type": "asn-filter"
           },
           {
             "description": "The position is the leading run of tokens equal to the ASN of the sending peer, so four\nprepends are one direct position. On export no ASN is direct, because the filter input carries\nthe destination peer rather than the sender. A path that starts with another ASN is a leak, and\ndirect does not catch it.",
@@ -26421,7 +26421,7 @@
             "name": "direct",
             "short-help": "Reject these ASNs where they are the peer we are talking to, prepends collapsed.",
             "source": "config",
-            "type": "asn"
+            "type": "asn-filter"
           },
           {
             "description": "The keyword covers transit and origin together. It is the leaf an operator writes for RFC\n7454 Section 9. The route reached you through the ASN, and a direct session with that ASN is\nstill fine. On export the sender is unknown, so indirect covers the whole path.",
@@ -26429,7 +26429,7 @@
             "name": "indirect",
             "short-help": "Reject these ASNs anywhere they are NOT the peer we are talking to.",
             "source": "config",
-            "type": "asn"
+            "type": "asn-filter"
           },
           {
             "children": [
@@ -26439,7 +26439,7 @@
                 "name": "asn",
                 "short-help": "The ASNs this position rejects.",
                 "source": "config",
-                "type": "asn"
+                "type": "asn-filter"
               }
             ],
             "description": "Ze counts the positions from us, and 1 is the ASN we are talking to. A run of consecutive\nidentical ASNs counts once, so a peer cannot move your rule by a prepend. The keyword cuts\nacross the other five, because an ASN at position 2 CAN also be transit.",
@@ -26454,7 +26454,7 @@
             "name": "origin",
             "short-help": "Reject these ASNs where they are the last ASN of the AS_PATH.",
             "source": "config",
-            "type": "asn"
+            "type": "asn-filter"
           },
           {
             "description": "No position applies to a pattern. Ze matches it against the flat path, so a pattern reaches\nan ASN inside an AS_SET and meets no bracket. The 512-character bound is the bound\nbgp-filter-aspath applies to a regex. Ze reads the patterns only when no position matched.",
@@ -26470,7 +26470,7 @@
             "name": "transit",
             "short-help": "Reject these ASNs where they sit past the peer and are not the last ASN of the AS_PATH.",
             "source": "config",
-            "type": "asn"
+            "type": "asn-filter"
           }
         ],
         "description": "Every ASN written under the list is looked for in the AS_PATH of the route. The keyword it\nsits under decides which positions reject it. The list is an unordered reject set, so any keyword\nthat matches rejects the route and no keyword wins over another. Ze reads the positions first and\nthe patterns after them.",

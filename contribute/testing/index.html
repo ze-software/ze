@@ -206,8 +206,6 @@ flag: a run that needs <code>-v</code>, <code>-count</code>, <code>-bench</code>
 <code>./le job run label unit-pkg quiet command go test -race -tags "$tags" ...</code>
 with the tags written out (<code>running-commands.md</code>, "Testing one package while
 you develop it").</p>
-<!-- source: internal/le/test/unit/pkg.go -- pkgParameters, answerPkg, pkgLineOf, namedPackagesRun, changedPackages, PkgReport.Text -->
-<!-- source: internal/le/test/unit/groups.go -- groups, place -->
 <h3 id="component-groups-for-step-3">Component groups for step 3</h3>
 <table>
 <thead>
@@ -276,7 +274,6 @@ group and peer values expose lost inheritance; same-name peers and groups expose
 namespace collisions. A list of caller filenames or helper names proves neither.
 For example, the redirect tests pass plugin JSON through the RIB parser before
 querying the session's effective setting.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect_config_test.go -- TestFlowSpecRedirectDynamicGroupLookup, TestFlowSpecRedirectDynamicGroupRejectsInvalidSwitch -->
 <h4 id="plugin-transport-fixtures">Plugin transport fixtures</h4>
 <p>Plugin transport fixtures use <code>internal/test/pluginengine</code> to run a plugin's
 actual entry point and SDK callbacks over the framed connection and bridge.
@@ -287,14 +284,12 @@ do not by themselves prove initialization finished. A fixture can run its first
 command immediately after <code>Start</code> returns. The wire fixture keeps serving
 ordinary engine requests while it waits, so an initializer can emit its startup
 events without waiting on the caller of <code>Start</code>.</p>
-<!-- source: internal/test/pluginengine/pluginengine.go -- Start -->
 <!-- test: internal/test/pluginengine/startup_ready_test.go TestStartJoinsRuntimeInitialization, TestStartFirstCommandUsesInitializedCallback -->
 <p>Ordinary command dispatch answers use the daemon's record-answer writer,
 including its warnings and completed record metadata. Physical and destination
 bound dispatch keeps the joined JSON receipt expected by the SDK's constrained
 command reader. A fake evaluator supplies the real answer value; the fixture
 selects the encoding from the request's bound identity.</p>
-<!-- source: internal/test/pluginengine/pluginengine.go -- answerWire -->
 <!-- test: internal/test/pluginengine/dispatch_answer_test.go TestDispatchAnswersUseActualSDKReaders -->
 <p>Use <code>ExecutePeer</code> when a command needs an explicit peer address. It forwards
 that value to the actual SDK callback on both transports; <code>Execute</code> keeps its
@@ -302,7 +297,6 @@ empty-peer default. The fixture supplies context, not authentication or native
 authority, which the feature's own tests must establish.
 Both helpers return a document only for a final <code>done</code> verdict. A warning or
 failed verdict is an error on either transport.</p>
-<!-- source: internal/test/pluginengine/pluginengine.go -- Execute, ExecutePeer -->
 <!-- test: internal/test/pluginengine/execute_peer_test.go TestExecutePeerReachesActualSDKAndPreservesEmptyControl -->
 <p>A received route that requires a source lease must carry a receipt the fixture
 engine issued with <code>IssueSource(peer)</code>. Reuse it for that source Session's
@@ -312,7 +306,6 @@ acquisition. Release settles absent authority without issuing or retaining
 a source grant. These checks exercise transport and ownership lifecycle;
 the real engine's grant and
 original-Session authorization are proved by its own tests.</p>
-<!-- source: internal/test/pluginengine/pluginengine.go -- IssueSource, sourceLeaseAnswer -->
 <h4 id="kernel-tests-in-a-user-namespace">Kernel tests in a user namespace</h4>
 <p>A unit test that needs kernel privilege (links, routes, XFRM, nftables,
 conntrack, raw or AF_PACKET sockets, a low port, a named network namespace)
@@ -353,8 +346,6 @@ the test runs in place, which serves a portable test such as the traceroute
 command tests. The namespace mechanics are in
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/testing/qemu-integration.md" target="_blank" rel="noopener">QEMU integration testing</a>,
 "Build Tags".</p>
-<!-- source: internal/test/userns/userns_linux.go -- Enter, childSetup, childFailure -->
-<!-- source: internal/test/userns/userns_other.go -- Enter -->
 <h4 id="fixture-environment-isolation">Fixture environment isolation</h4>
 <p>Native Go test commands remove the launching le's <code>ze.repo.root</code> and
 <code>ze.le.build.name</code> values under every case/dot/underscore spelling. The test
@@ -364,7 +355,6 @@ reset. Toolchain caches, tags and unrelated environment settings remain intact.
 Go test callers using <code>gotoolchain.Toolchain.Environment</code> MUST set
 <code>EnvOptions.Test</code>, including fuzz and benchmark runs. Ordinary builds and
 production commands retain operator checkout overrides and named-build checks.</p>
-<!-- source: internal/le/go/toolchain/gotoolchain.go -- EnvOptions, Environment -->
 <p>A <code>go test</code> that <code>./le job run</code> starts as its direct child, and the one
 <code>./le test unit pkg</code> starts through it, use the same isolation
 at the process boundary, including Go's optional leading <code>-C</code> directory option.
@@ -373,23 +363,16 @@ checkout/build identity is removed. The test child also gets <code>GOTMPDIR</cod
 the test temp dir on the home device, as every le-started test does
 (<a href="https://github.com/ze-software/ze/blob/main/docs/contributing/running-commands.md" target="_blank" rel="noopener">running-commands.md</a>, "Where a Go test keeps its temp
 dirs").</p>
-<!-- source: internal/le/job/process.go -- commandEnvironment, RunProcess -->
-<!-- source: internal/le/job/job.go -- Admission.stream -->
 <p>Tests that invoke fixture binaries remove inherited launcher identity before
 adding their explicit child environment. The production named-build refusal is
 not disabled: a child given an explicit mismatching identity still fails.
 Tests that run git-changing actions MUST verify the resolved root is their own
 temporary fixture before invoking those actions. They MUST NOT use the
 developer's checkout or linked worktrees as mutation fixtures.</p>
-<!-- source: internal/le/worktree/actions_test.go -- useCheckout -->
-<!-- source: cmd/ze/root_launcher_test.go -- launcherEnv -->
-<!-- source: cmd/ze/ze_le_personality_test.go -- invokePersonality -->
 <p>Verifier lifecycle fixtures need a real Git repository with <code>HEAD</code>, even when
 they inject the lifecycle's Git calls. Admission measures the actual checkout
 before the worktree operation: an empty directory fails that measurement
 instead of exercising the intended branch, timeout, or add refusal.</p>
-<!-- source: internal/le/verify/lifecycle_test.go -- newFixtureRepo -->
-<!-- source: internal/le/verify/lifecycle.go -- run, admitWorktree -->
 <p>CLI personality parity runs both real binaries against one isolated Git
 repository with a committed original, a tracked modification, and an untracked
 file. The fixture copies the checkout's real <code>.gitignore</code> before committing, so
@@ -397,7 +380,6 @@ runtime scratch files follow the same ignore policy. Both binaries receive the
 same explicit fixture root. Stdout equality remains exact; stderr keeps only
 the existing program-name normalization. Concurrent developer edits are not
 fixture inputs.</p>
-<!-- source: cmd/ze/ze_le_personality_test.go -- writePersonalityWorkingTree, assertInvocationPair -->
 <h3 id="functional-tests-ci-files">Functional tests (<code>.ci</code> files)</h3>
 <p>These spin up real Ze processes and test behavior end-to-end: does the config
 parse, does the BGP session establish, does the plugin produce the right output.</p>
@@ -491,10 +473,6 @@ time").</p>
 ./le test editor -p nav              # editor tests matching "nav"
 ./le test exabgp --start 20          # resume ExaBGP compatibility
 </code></pre>
-<!-- source: internal/le/test/harnesstool/harnesstool.go -- RunnerAnswer, admitRun -->
-<!-- source: internal/test/runner/selection.go -- Selection -->
-<!-- source: internal/test/runner/display.go -- TestFinished -->
-<!-- source: internal/test/cli/cmd_exabgp.go -- ExaBGP compatibility selection -->
 <p>Run a full suite:</p>
 <pre><code class="language-sh">./le test functional encode
 ./le test functional plugin
@@ -589,7 +567,6 @@ history is tracked in <code>test/mutation/history.ndjson</code>.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: vendor/github.com/sivchari/gomu/cmd/gomu/main.go -- runCmd flag defaults -->
 <h3 id="interop-and-integration-tests">Interop and integration tests</h3>
 <p>These require external infrastructure (Docker, root/CAP_NET_ADMIN, QEMU, or internet).
 They are not part of the normal development cycle.</p>
@@ -705,8 +682,6 @@ text only</li>
 </ul>
 <p>The rules are in <code>docs/architecture/testing/test-health.md</code>, "One approval
 names one test".</p>
-<!-- source: internal/le/test/weakened/proposed.go -- Proposed, proposedRenamedFindings, renamedLines -->
-<!-- source: internal/le/hookruntime/bash.go -- governedShellWrite -->
 <p>A test edited again after its verdict is refused at commit, even when the new
 edit weakens nothing: the row is stale, because the judge saw other text. Run
 the judge again on the change as it stands and record its fresh verdict, or
@@ -716,8 +691,6 @@ refuses an unknown or ambiguous key before it changes an approval file. The
 registered action checks the unit and the reason in a read-only preparation
 before startup, so a refused request writes nothing. Its admitted answer
 creates the commit namespace and writes the row.</p>
-<!-- source: internal/le/test/weakened/approve.go -- Approve, approveAnswer, approveAdmitted -->
-<!-- source: internal/le/rfc/approvalunits.go -- ResolveApprovalUnit -->
 <p>Known limit: two kinds of unit cannot be approved at all, because the unit must match
 <code>&lt;package&gt;.&lt;TestName&gt;</code> with one dot and no empty side. A <code>.ci</code> or <code>.et</code> file
 whose stem holds a dot (<code>x.y.ci</code> is <code>suite.x.y</code>), and a test file at the
@@ -751,7 +724,6 @@ path on Linux and Darwin. Its test binaries are never release/build evidence.</l
 </ol>
 <p>Common case (one group changed): ~2 min total instead of 6+.</p>
 <h3 id="the-builds-the-linter-reads">The builds the linter reads</h3>
-<!-- source: internal/le/go/lint/actions.go -- Answer -->
 <p>golangci-lint analyzes ONE build for each run: one GOOS, one GOARCH, one tag
 set. <code>./le go lint run</code> therefore runs more than one.</p>
 <table>
@@ -781,7 +753,6 @@ set. <code>./le go lint run</code> therefore runs more than one.</p>
 </tbody>
 </table>
 <h3 id="waiting-for-the-linters-own-lock">Waiting for the linter's own lock</h3>
-<!-- source: internal/le/go/lint/verifylint.go -- passPlan, allowSerial -->
 <p>golangci-lint takes one lock for the whole machine, at
 <code>$TMPDIR/golangci-lint.lock</code>. Several sessions share this checkout, so a second
 linter is normal here. Every command line Ze builds therefore carries
@@ -791,8 +762,6 @@ the child gives up after five seconds and exits <code>parallel golangci-lint is 
 lock for about ten minutes on this workstation, so a pass behind one can stay
 silent for that long. That is the linter in a queue, not a hang.</p>
 <h3 id="the-post-edit-lint-takes-no-index-lock">The post-edit lint takes no index lock</h3>
-<!-- source: internal/le/hookruntime/postwrite.go -- postLintCommand, postLinter -->
-<!-- source: internal/le/gitenv/gitenv.go -- ReadOnly, ReadOnlyPatch, ReadOnlyQuery -->
 <p>After each Go edit the post-write hook lints the edited package with
 <code>--new-from-rev=HEAD --timeout=30s</code>. For <code>--new-from-rev</code>, golangci-lint runs
 <code>git status</code> and <code>git diff</code> itself, and its timeout SIGKILLs them. A git killed
@@ -809,10 +778,6 @@ starts a detached maintenance run under <code>.git</code>. The post-edit hook st
 the <code>golangci-lint</code> shim, so the kill at the hook's 60 second budget ends the linter
 itself and no <code>le exec</code> waits for a job slot on an edit (<code>postLinter</code>).</p>
 <h3 id="post-tool-hooks-block-only-on-the-authors-own-files">Post-tool hooks block only on the author's own files</h3>
-<!-- source: internal/le/hookruntime/postwrite.go -- postLintVerdict -->
-<!-- source: internal/le/hookruntime/postbash.go -- postBashGofmt, commandNames, commandNamedPaths, redirectWritesGo, readerCall, wordPath, globOnly, commandUnread -->
-<!-- source: internal/le/hookruntime/shellparse.go -- treeMisreadsLine -->
-<!-- source: internal/le/hookruntime/runtime.go -- shownVerdicts -->
 <p>A post-tool hook's blocking text enters the agent's context, and every later
 turn re-reads it. Several sessions share this checkout, so a check that judged
 every uncommitted file blocked each session on the others' work. Each check
@@ -926,9 +891,6 @@ deliberate: the check cannot know what the variable changes.</li>
 <code>[[ ]]</code> or a case pattern is a candidate like any other.</li>
 </ul>
 <h3 id="the-slot-a-lint-holds">The slot a lint holds</h3>
-<!-- source: internal/le/go/lint/actions.go -- runHere, jobArgv -->
-<!-- source: internal/le/job/registry.go -- shares, reportBusy -->
-<!-- source: internal/le/job/treehash.go -- InputHash, lintIgnores -->
 <p><code>./le go lint run</code> claims the <code>lint</code> label in the shared job registry
 (<code>internal/le/job</code>) before it plans anything. A lint uses cores allocated for
 the whole machine, so admission decides how many run at once, and it prints
@@ -1002,7 +964,6 @@ negated term at once. A feature-only helper must therefore carry its consumer's
 build constraint. Without it, the bare-core build reports the helper as
 <code>unused</code>, which is what it is in a binary that compiles its only caller out.</p>
 <h3 id="the-accounting-every-gate-owes-its-population">The accounting every gate owes its population</h3>
-<!-- source: internal/le/population/population.go -- Claim -->
 <p>The lint driver above is the shape every gate is held to, and
 <code>internal/le/population</code> is that shape as a callable type. A gate states what it
 governs, what it walked, and a reason for each member it deliberately skipped.
@@ -1016,7 +977,6 @@ because a walk that found nothing prints what a healthy tree prints.</p>
 case, and comparing sizes where the question is about sets is the same defect one
 level up. <code>plan/journal/gate-excludes-part-of-its-population.md</code> records both.</p>
 <h3 id="the-exemptions-are-a-population-too">The exemptions are a population too</h3>
-<!-- source: internal/le/population/population.go -- Exemptions -->
 <p>A gate that either scans a member or exempts it balances by construction. Its own
 accounting proves nothing, because every member it read fell into one of the two
 buckets by definition. <code>population.Exemptions</code> asks the other question: of the
@@ -1035,7 +995,6 @@ The two empties are different facts. A walked population that came back empty is
 a walk that found nothing, which looks like a healthy tree. A rule set was
 written empty, in source a reader can see.</p>
 <h3 id="feature-tag-structural-type-check">Feature-tag structural type check</h3>
-<!-- source: internal/le/go/staticcheck/actions.go -- Answer -->
 <p><code>./le go staticcheck check</code> type-checks the working tree in N+2
 configurations derived from the N unique features in <code>feature-gates.txt</code>: one
 distro all-on row, one bare-core row, and one row that omits each feature.
@@ -1169,7 +1128,6 @@ against the configured tree, rather than pinning the whole page's HTML. They
 exercise authentication, edit permissions, full-page and HTMX responses, links,
 CLI context and escaped field values. A newly registered schema container must
 not require a snapshot rewrite; omitting a configured peer must still fail.</p>
-<!-- source: internal/component/web/handler_finder_behavior_test.go -- TestWebFinderHandlerBehavior, TestWebFinderEscapesFieldValues -->
 <h2 id="flake-shapes-seen-in-this-repository">Flake shapes seen in this repository</h2>
 <p>Check each of these against the test before investigating a new race or
 isolation flake: locked-write with unlocked-read, subscribe-before-broadcast,
@@ -1207,7 +1165,6 @@ The PPP NCP lifetime fixtures require the authenticated principal, negotiated
 address and address-before-session-up ordering everywhere. They require no
 IPv6 backend call from the non-Linux stub; Linux additionally requires the
 negotiated link-local address pair.</p>
-<!-- source: internal/component/l2tp/ppp/lcp_lifecycle_test.go -- assertLifecycleNCPPublished -->
 <p>Reproducing a load-dependent flake is
 <code>../architecture/testing/runner-architecture.md</code>.</p>
 <h2 id="cheat-sheet">Cheat sheet</h2>
@@ -1306,7 +1263,7 @@ negotiated link-local address pair.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

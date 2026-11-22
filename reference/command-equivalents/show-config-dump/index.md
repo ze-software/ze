@@ -31,7 +31,7 @@ Parses the config and outputs it after includes\, defaults\, and group inheritan
 
 ## Mapping intents
 
-### Show running\, candidate\, and diffed configuration
+### Show running configuration
 
 Category: Configuration
 
@@ -50,7 +50,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `compare` (verified, vyos\-cli)
-  - Intent: Show running\, candidate\, and diffed configuration
 - `show configuration` (verified, vyos\-cli)
-  - Intent: Show running\, candidate\, and diffed configuration
+  - Intent: Show running configuration

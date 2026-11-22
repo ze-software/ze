@@ -276,6 +276,10 @@ A peer with no role has no OTC ingress procedure and no inserted upstream check:
 ze says so rather than passing in silence. The role plugin writes ONE warning naming how many peers and dynamic groups declare no role and the first few by name, each time it installs a config (at start and at every reload) and when `ze config validate` checks one. `ze doctor` reports every one of them under `doctor-bgp-peer-no-role`. All three read the same set, so they always name the same peers.
 
 A dynamic group is named with the peers. Its members' AS arrives in the OPEN (RFC 4271 Section 4.2), so ze cannot know a listen range is eBGP, and an IXP route-server range that declares no role is exactly what the report is for. An iBGP peer is left out: a role describes an eBGP relationship, so a route reflector's sessions owe none.
+
+### Complex Peering Relationships
+
+RFC 9234 Section 6 states: "Roles MUST NOT be configured on an eBGP session with a Complex peering relationship." Because a Complex peering relationship mixes customer, provider, or lateral-peer semantics across prefixes on one session, no single BGP Role describes it. Omit the `role` block on any eBGP session with a Complex peering relationship, or segregate the relationship into multiple eBGP sessions with normal peering relationships and configure BGP Roles on each resulting session.
 <!-- source: internal/component/bgp/plugins/role/ -- role plugin implementation -->
 <!-- source: internal/component/bgp/plugins/role/roleless.go -- rolelessPeers, warnPeersWithoutRole -->
 <!-- source: internal/component/bgp/plugins/role/config_tx.go -- installRoleConfig, verifyRoleConfig -->

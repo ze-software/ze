@@ -25,7 +25,7 @@ Enlarged preview from the recording. Play shows the full terminal. Use full scre
 
 Inspect prefixes, AS paths and peers through a read-only BGP interface.
 
- [Explore the looking glass →](https://ze-software.net/features/looking-glass/)
+ [Try the live browser replay →](https://ze-software.net/labs/looking-glass-graph/) · [Explore the looking glass →](https://ze-software.net/features/looking-glass/)
 
 Captured for the June 2026 LINX talk.
 
@@ -58,14 +58,14 @@ A frame from the published terminal recording. Explore the recordings in the dem
 **Planned release** Initial version
 Q4 2026
 
- [**1.96 million** lines of Go source code](https://ze-software.net/project/activity/) [**2.37 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.06 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/ai-first/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
+ [**1.96 million** lines of Go source code](https://ze-software.net/project/activity/) [**2.37 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.06 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/cli-commands/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
 
 ## Getting started with Ze.
 
-Run the two-peer BGP lab by hand, or ask Claude Code or Codex to run it with Ze’s bundled skill. Both paths start on a Linux lab host with Go and Git.
+Run the [two-peer BGP quickstart](https://ze-software.net/guides/quickstart/) by hand, or ask Claude Code or Codex to run it with Ze’s bundled skill. Works on a Linux or macOS development host with Go and Git.
 
 ```
-# build from source
+# build from source (first run compiles bin/ze)
 $ git clone https://github.com/ze-software/ze.git
 $ cd ze && ./ze version
 
@@ -78,7 +78,7 @@ $ cp examples/quickstart/r2.conf lab/r2/ze.conf
 $ ./ze start lab/r1/ze.conf
 $ ./ze start lab/r2/ze.conf
 
-# inspect received routes from a third terminal
+# inspect received routes (expects 198.51.100.0/24 on r1)
 $ ZE_SSH_PASSWORD=lab ./ze cli --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"
 ```
 
@@ -212,13 +212,13 @@ Go tests, complete operator scenarios, generated inputs and exchanges with other
 
 Inspect the requirements and remaining gaps for your network role, alongside the feature maturity information.
 
- [See completion by use case →](https://ze-software.net/quality/rfc-compliance/profiles/) [How Ze is tested](https://ze-software.net/quality/)Watch the configuration demo Standards requirements
+ [See completion by use case →](https://ze-software.net/quality/rfc-compliance/profiles/) [Compare with BIRD, FRR and VyOS](https://ze-software.net/compare/)[BGP benchmarks](https://ze-software.net/performance/)[How Ze is tested](https://ze-software.net/quality/) Standards requirements
 
 ### Mandatory RFC requirements proven
 
-52.0%
+54.9%
 
-2,487 of 4,779 requirements for Ze or the OS.
+2,626 of 4,779 requirements for Ze or the OS.
 
 **198**RFCs implemented **0**unreviewed requirement lists excluded
 
@@ -238,7 +238,7 @@ Later RFCs can update or replace earlier requirements, so our tests must follow 
 
 BGP sessions, routes, policy and recovery, alongside routing, VPN, access and multi-node cases.
 
-**8**lab suites **13**test images listed BIRDFRRGoBGPOpenBGPD freeRouterRustyBGPrustbgpdStayRTR keepaliveddnsmasqKeaKnot DNSUnbound
+**8**lab suites **13**test images listed BIRDFRRGoBGPOpenBGPD freeRtrRustyBGPrustbgpdStayRTR keepaliveddnsmasqKeaKnot DNSUnbound
 
 These test images are reused across many scenarios. Other labs and tools use additional images, including pmacct.
 
@@ -279,7 +279,7 @@ A scenario can contain many checks, and many scenarios reuse the same peer imple
 
 ### Go tests
 
-52,900+
+53,100+
 
 Check encoded bytes and parsed values. Verify configuration, state transitions and plugins. Mutation checks with gomu examine whether tests catch code changes.
 
@@ -287,7 +287,7 @@ Check encoded bytes and parsed values. Verify configuration, state transitions a
 
 ### End-to-end tests
 
-3,100+
+3,200+
 
 Start sessions and exchange route updates. Run editor commands, commits and reloads. Check output, errors and saved state.
 
@@ -303,7 +303,7 @@ Generate inputs for parsers and decoders. Probe packets and configuration text f
 
 Ze is written with AI agents working under a quality process based on ISO management systems. [How Ze is developed with AI](https://ze-software.net/project/ai-development/) explains the process.
 
- Tested against **BGP**[FRR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[BIRD](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[GoBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[OpenBGPd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRtr](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[RustyBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[rustbgpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[ExaBGP](https://ze-software.net/features/exabgp-compatibility/) **BGP support**[StayRTR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[pmacct](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **VPN**[strongSwan](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Access**[accel-ppp](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[xl2tpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[kl2tpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRADIUS](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Redundancy**[keepalived](https://ze-software.net/quality/qemu-interop-release/#docker-interop)
+ Tested against **BGP**[FRR](https://ze-software.net/labs/bgp-interop/)[BIRD](https://ze-software.net/labs/bgp-interop/)[GoBGP](https://ze-software.net/labs/bgp-interop/)[OpenBGPd](https://ze-software.net/labs/bgp-interop/)[FreeRtr](https://ze-software.net/labs/bgp-interop/)[RustyBGP](https://ze-software.net/labs/bgp-interop/)[rustbgpd](https://ze-software.net/labs/bgp-interop/)[ExaBGP](https://ze-software.net/features/exabgp-compatibility/) **BGP support**[StayRTR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[pmacct](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **VPN**[strongSwan](https://ze-software.net/labs/ipsec-interop/) **Access**[accel-ppp](https://ze-software.net/labs/pppoe-interop/)[xl2tpd](https://ze-software.net/labs/l2tp-interop/)[kl2tpd](https://ze-software.net/labs/l2tp-interop/)[FreeRADIUS](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Redundancy**[keepalived](https://ze-software.net/quality/qemu-interop-release/#docker-interop)
 
 ## Capabilities and current limitations.
 
@@ -316,7 +316,7 @@ Feature pages explain behavior and limits. The [maturity record](https://ze-soft
 [Open page](https://ze-software.net/reference/configuration/)
 **Commands**
 
-**623 CLI commands** Syntax, arguments and pipe operators →
+**624 CLI commands** Syntax, arguments and pipe operators →
 
 [Open page](https://ze-software.net/reference/cli/)
 **Plugins**
@@ -333,15 +333,15 @@ The configuration and command references come from the definitions used by Ze it
 
 ### Operate
 
- [Output Formatting](https://ze-software.net/features/formatting/) [Web Workbench](https://ze-software.net/features/web-interface/) [Looking Glass](https://ze-software.net/features/looking-glass/) [SSH CLI](https://ze-software.net/features/cli-commands/) [YANG Configuration](https://ze-software.net/features/bgp-configuration/) [System Readiness](https://ze-software.net/guides/production-diagnostics/) [View operate features →](https://ze-software.net/features/#operate)
+ [Output Formatting](https://ze-software.net/features/formatting/) [Web Workbench](https://ze-software.net/features/web-interface/) [Looking Glass](https://ze-software.net/features/looking-glass/) [SSH CLI](https://ze-software.net/features/cli-commands/) [YANG Configuration](https://ze-software.net/features/bgp-configuration/) [System Readiness](https://ze-software.net/guides/system-readiness/) [View operate features →](https://ze-software.net/features/#operate)
 
 ### Routing
 
- [MPLS / LDP / RSVP-TE](https://ze-software.net/features/) [OSPFv2 / OSPFv3](https://ze-software.net/guides/ospf/) [IS-IS](https://ze-software.net/guides/isis/) [VRRP](https://ze-software.net/guides/vrrp/) [Segment Routing](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy) [Native BGP Engine](https://ze-software.net/features/bgp-protocol/) [Static Routes](https://ze-software.net/guides/static-routes/) [BFD](https://ze-software.net/features/bgp-protocol/) [MRT Recording](https://ze-software.net/guides/mrt-analysis/) [View routing features →](https://ze-software.net/features/#routing)
+ [MPLS / LDP / RSVP-TE](https://ze-software.net/guides/mpls/) [OSPFv2 / OSPFv3](https://ze-software.net/guides/ospf/) [IS-IS](https://ze-software.net/guides/isis/) [VRRP](https://ze-software.net/guides/vrrp/) [Segment Routing](https://ze-software.net/features/srv6/) [Native BGP Engine](https://ze-software.net/features/bgp-protocol/) [Static Routes](https://ze-software.net/guides/static-routes/) [BFD](https://ze-software.net/features/bgp-protocol/) [MRT Recording](https://ze-software.net/guides/mrt-analysis/) [View routing features →](https://ze-software.net/features/#routing)
 
 ### Services
 
- [IPsec VPN](https://ze-software.net/features/) [L2TPv2 BNG](https://ze-software.net/guides/l2tp/) [PPPoE Access](https://ze-software.net/guides/pppoe/) [Interface Management](https://ze-software.net/features/interfaces/) [Firewall](https://ze-software.net/guides/firewall/) [Policy Routing](https://ze-software.net/guides/policy-routing/) [VPP Data Plane](https://ze-software.net/guides/vpp/) [AS112 Anycast DNS](https://ze-software.net/guides/as112/) [DNS Resolver](https://ze-software.net/features/dns-resolver/) [View services features →](https://ze-software.net/features/#services)
+ [IPsec VPN](https://ze-software.net/guides/ipsec/) [L2TPv2 BNG](https://ze-software.net/guides/l2tp/) [PPPoE Access](https://ze-software.net/guides/pppoe/) [Interface Management](https://ze-software.net/features/interfaces/) [Firewall](https://ze-software.net/guides/firewall/) [Policy Routing](https://ze-software.net/guides/policy-routing/) [VPP Data Plane](https://ze-software.net/guides/vpp/) [AS112 Anycast DNS](https://ze-software.net/guides/as112/) [DNS Resolver](https://ze-software.net/features/dns-resolver/) [View services features →](https://ze-software.net/features/#services)
 
 ### Automate
 
@@ -349,25 +349,25 @@ The configuration and command references come from the definitions used by Ze it
 
 ### Observe
 
- [Development Activity](https://ze-software.net/project/activity/) [Tech-Support Bundle](https://ze-software.net/features/) [Flow Export](https://ze-software.net/guides/flow-export/) [Evidence Over Claims](https://ze-software.net/features/interoperability-testing/) [Prometheus Telemetry](https://ze-software.net/guides/monitoring/) [Health Registry](https://ze-software.net/features/) [Host Inventory](https://ze-software.net/features/) [Crash Capture](https://ze-software.net/features/) [Production Diagnostics](https://ze-software.net/guides/production-diagnostics/) [View observe features →](https://ze-software.net/features/#observe)
+ [Development Activity](https://ze-software.net/project/activity/) [Tech-Support Bundle](https://ze-software.net/guides/production-diagnostics/) [Flow Export](https://ze-software.net/guides/flow-export/) [Evidence Over Claims](https://ze-software.net/features/interoperability-testing/) [Prometheus Telemetry](https://ze-software.net/guides/monitoring/) [Health Registry](https://ze-software.net/guides/system-readiness/) [Host Inventory](https://ze-software.net/reference/feature-status/) [Crash Capture](https://ze-software.net/reference/plugins/crashes/) [Production Diagnostics](https://ze-software.net/guides/production-diagnostics/) [View observe features →](https://ze-software.net/features/#observe)
 
 ### Secure
 
- [Audit Trail](https://ze-software.net/guides/audit/) [PKI Store](https://ze-software.net/features/) [DDoS and Anomaly Detection](https://ze-software.net/guides/anomaly/) [IRR Route Filtering](https://ze-software.net/guides/irr-filtering/) [Secure by Default](https://ze-software.net/reference/plugins/) [TACACS+ AAA](https://ze-software.net/guides/tacacs/) [View secure features →](https://ze-software.net/features/#secure)
+ [Audit Trail](https://ze-software.net/guides/audit/) [PKI Store](https://ze-software.net/reference/feature-status/) [DDoS and Anomaly Detection](https://ze-software.net/guides/anomaly/) [IRR Route Filtering](https://ze-software.net/guides/irr-filtering/) [Secure by Default](https://ze-software.net/reference/plugins/) [TACACS+ AAA](https://ze-software.net/guides/tacacs/) [View secure features →](https://ze-software.net/features/#secure)
 
 ### Setup
 
- [ISO and PXE Install](https://ze-software.net/guides/ze-install/) [Kernel Tunables](https://ze-software.net/features/) [Minimal Appliance Mode](https://ze-software.net/guides/appliance/) [Runs Itself](https://ze-software.net/features/introspection/) [Docker Support](https://ze-software.net/features/) [Choose Features at Build Time](https://ze-software.net/guides/quickstart/) [View setup features →](https://ze-software.net/features/#platform)
+ [ISO and PXE Install](https://ze-software.net/guides/ze-install/) [Kernel Tunables](https://ze-software.net/reference/plugins/sysctl/) [Minimal Appliance Mode](https://ze-software.net/guides/appliance/) [Runs Itself](https://ze-software.net/features/introspection/) [Docker Support](https://ze-software.net/guides/docker/) [Choose Features at Build Time](https://ze-software.net/guides/quickstart/) [View setup features →](https://ze-software.net/features/#platform)
 
 **Find the right page**
 
 ### Keep the reference close.
 
-The documentation index groups guides by the job you want to do. The feature catalogue includes maturity filters.
+The documentation index groups guides by the job you want to do. The feature catalog includes maturity filters.
 
- [Open documentation →](https://ze-software.net/docs/) [Browse the feature catalogue →](https://ze-software.net/features/)
+ [Open documentation →](https://ze-software.net/docs/) [Browse the feature catalog →](https://ze-software.net/features/)
 
-## Recent engineering notes.
+## Recent development updates.
 
 The update reports describe changes recorded in git and shared in Discord's `ze-news` channel.
 
@@ -377,7 +377,7 @@ The update reports describe changes recorded in git and shared in Discord's `ze-
 
 2026-10-25 – 2026-11-09 (16 days)
 
-### [eBGP now rejects by default, routing policy is one shared tree for every protocol, RADIUS answers must be…](https://ze-software.net/project/changes/2026-10-25/)
+### [RFC 8212 eBGP default-reject, shared multi-protocol policy, signed RADIUS answers and home FTTP CPE support.](https://ze-software.net/project/changes/2026-10-25/)
 
  BGP CPE gNMI Config
 
@@ -387,7 +387,7 @@ The update reports describe changes recorded in git and shared in Discord's `ze-
 
 2026-10-12 – 2026-10-25 (2 weeks)
 
-### [Two weeks of stricter configuration, an IPsec drop-by-default policy and BGP filter changes, plus BGP…](https://ze-software.net/project/changes/2026-10-12/)
+### [Stricter config validation, IPsec drop-by-default, BGP filter updates, OSPF unnumbered links and DHCP fixes.](https://ze-software.net/project/changes/2026-10-12/)
 
  BGP DHCP Config API
 
@@ -400,3 +400,5 @@ The update reports describe changes recorded in git and shared in Discord's `ze-
 ### [Safer configuration commits, API changes and a new appliance kernel, plus BGP, RSVP-TE and IPsec fixes.](https://ze-software.net/project/changes/2026-10-05/)
 
  BGP IPsec Config API - [See all updates](https://ze-software.net/project/changes/)
+- [Read the engineering blog](https://ze-software.net/blog/)
+- [View the release roadmap](https://ze-software.net/project/roadmap/)

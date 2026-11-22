@@ -142,6 +142,11 @@ bgp {
         }
     }
 
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
+
     peer core-v4 {
         connection {
             remote {
@@ -508,7 +513,7 @@ INTEROP_SCENARIO=as112-redistribute-community-frr ./le test integration interop
                     </a>
                     <a class="page-sidebar-link" href="../../features/bgp-protocol/">
                         <span class="page-sidebar-link-label">BGP protocol</span>
-                        <small>Behaviour used by the route examples.</small>
+                        <small>Behavior used by the route examples.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../labs/">
                         <span class="page-sidebar-link-label concept-evidence">Lab evidence</span>
@@ -527,7 +532,7 @@ INTEROP_SCENARIO=as112-redistribute-community-frr ./le test integration interop
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

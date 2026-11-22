@@ -74,8 +74,6 @@ operator the command's answer cannot support is refused by name rather than
 answered wrongly. A command whose answer is text or bytes, such as <code>show data cat</code> returning the bytes of one stored file, declares the <code>blob</code> shape: it
 prints the bytes unchanged, <code>| json</code> shows them inside an envelope that names
 their encoding, and every row operator is refused by name.</p>
-<!-- source: internal/plugins/help/help_command.go -- pipeOperationsFor, daemonHandlesPath -->
-<!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 <h3 id="the-simple-way-set-a-default-once">The simple way: set a default once</h3>
 <p><code>set cli format &lt;name&gt;</code> in the interactive CLI picks a default so every
 command already displays that way, with no piping needed at all:</p>
@@ -114,8 +112,6 @@ set cli format          # shows the current default
 </table>
 <p>The choice persists for the session via the <code>ze.cli.format</code> setting; it can
 also be set permanently through YANG config.</p>
-<!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat, cliFormatLeafPath -->
-<!-- source: internal/component/command/pipe.go -- ze.cli.format env registration, configuredDefault -->
 <h3 id="piping-inline">Piping inline</h3>
 <p>Append <code>| &lt;operator&gt;</code> to a command that answers with data, shell-like:</p>
 <pre><code>show bgp peer list | table
@@ -131,7 +127,6 @@ or <code>raw</code>. Two together are rejected. Filter and display operators cha
 second operator. The quotes are removed. Inside them, <code>\"</code> and <code>\\</code> stand for
 a quote and a backslash. Outside quotes a backslash is an ordinary character,
 so <code>| match a\b</code> matches <code>a\b</code>. A quote left open is refused with its column.</p>
-<!-- source: internal/component/command/invocation_scan.go -- scanChain -->
 <p>The complete, current set is generated from the operator catalog:
 <a href="https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md" target="_blank" rel="noopener"><code>pipe-operators.generated.md</code></a>. It is the list to
 build a tool against, and <code>./le doc check all</code> fails when it and the product
@@ -150,15 +145,12 @@ name rather than silently answering the last one.</li>
 </ul>
 <p><code>resolve</code> and <code>origin</code> decorate a field the command DECLARES to hold an IP
 address, and are refused over a command that declares none.</p>
-<!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog, RenderOperatorReference -->
-<!-- source: internal/component/command/pipe.go -- validateDeclaredShape, validateRepeats -->
 <p>A display operator changes how an answer is shown. A data operator changes what
 the answer holds. The two are independent, so a display mode never suppresses a
 data transform: <code>monitor traceroute | log</code> and <code>monitor ping | log</code> render
 directly from hop and ping statistics rather than through <code>ApplyPipes</code>, and they
 still apply <code>resolve</code> and <code>origin</code> to their legend addresses through the shared
 <code>enrichAddr</code> helper.</p>
-<!-- source: internal/component/cli/model_enrich.go -- enrichAddr -->
 <h3 id="scripting-against-the-daemon-raw">Scripting against the daemon: <code>| raw</code></h3>
 <p>The SSH exec channel is two surfaces at once. An operator running
 <code>ssh &lt;host&gt; 'show bgp peer list'</code> gets the format <code>environment cli format default</code> names. A program that parses the answer wants the data behind that
@@ -180,12 +172,9 @@ it cannot recover precision already lost by an upstream producer.</p>
 JSON or trailing content is never accepted as one complete JSON value: format
 operators pass it through, while line-oriented fallbacks keep their existing
 behaviour.</p>
-<!-- source: internal/component/command/pipe.go -- decodePipeJSON, applyJSON, applyNDJSON -->
-<!-- source: internal/component/command/format.go -- formatNumber, writeScalar -->
 <p>Ze's own tooling uses the same operator. Completion, the runtime command tree
 and the live dashboard each parse an exec-channel answer. Each asks for it
 through one helper, rather than composing the pipe itself.</p>
-<!-- source: internal/component/cli/sshclient/client.go -- RawCommand, ExecCommandRaw -->
 <h3 id="the-offline-way-ze-pipe">The offline way: <code>ze pipe</code></h3>
 <p>Scripts and pipelines outside an interactive session apply the same
 operators to any captured JSON via <code>ze pipe</code>:</p>
@@ -202,7 +191,6 @@ is refused there, by name, because it needs a command that keeps answering;
 session. Standalone input carries no declaration, so <code>| resolve</code> and <code>| origin</code>
 walk every field whose value parses as an address rather than the declared ones.</p>
 <p><code>ze pipe help</code> lists every operator, split into the three classes below.</p>
-<!-- source: cmd/ze/ze_core_pipe.go -- runPipe, pipeUsage -->
 <h3 id="asking-the-product-ze-pipe-help-json">Asking the product: <code>ze pipe help --json</code></h3>
 <p>Do not hand-copy the operator list into a tool. <code>ze pipe help --json</code> answers
 the whole language, and it is generated from the same table the parser reads,
@@ -240,8 +228,6 @@ the answer head uses on the wire: <code>doc</code> for one document or one value
 for rows that describe themselves, <code>tab</code> for rows read against declared column
 names. <code>blob</code> names text or bytes read as they are, which no answer head
 writes: a <code>blob</code> command's answer travels in a <code>doc</code> head.</p>
-<!-- source: cmd/ze/ze_core_pipe.go -- printPipeCatalogJSON -->
-<!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->
 <h3 id="saving-an-answer-save-path">Saving an answer: <code>| save &lt;path&gt;</code></h3>
 <p><code>| save</code> writes the answer to a file and passes it through, so the terminal
 still shows it:</p>
@@ -262,7 +248,6 @@ never reaches a pipe.</p>
 The daemon expands the chain on those surfaces, so the file would be written on
 the daemon's filesystem, with the daemon's privileges, at a path the caller
 chose. Redirect the output from your shell there; that already works.</p>
-<!-- source: internal/component/command/pipe_save.go -->
 <h3 id="configuration-presentation">Configuration presentation</h3>
 <p>Configuration uses the same separation between data and presentation. Operators
 can inspect compact hierarchical blocks, while automation can consume one complete
@@ -273,8 +258,6 @@ ze config migrate format set router.conf
 <p><code>ze config migrate format hierarchical</code> converts set syntax back to blocks.
 Rendering both forms back to canonical set syntax provides a presentation-neutral
 comparison.</p>
-<!-- source: internal/component/config/cli/cmd_show.go -- path-scoped hierarchical view -->
-<!-- source: internal/component/config/cli/cmd_migrate.go -- set and hierarchical rendering -->
 <figure class="terminal-demo" data-terminal-demo="config-views">
   <div class="terminal-demo__intro">
     <div>
@@ -378,10 +361,6 @@ channels write them: Go compiled into the daemon, and a plugin's startup
 message. Each declaration is an operator judgment about what leads, so a command
 takes one as somebody makes that judgment. <code>ze help command "&lt;path&gt;" --json</code>
 answers what one command declares, and it reads the two channels together.</p>
-<!-- source: internal/component/command/column_order.go -- RegisterColumns, ColumnsForCommand -->
-<!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, bestColumnOrder -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerColumns -->
-<!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes -->
 <h3 id="choosing-the-columns-display-and-fill">Choosing the columns: <code>| display</code> and <code>| fill</code></h3>
 <p>A nineteen-column table answers many questions at once. <code>| display</code> cuts it to
 the question you asked:</p>
@@ -437,8 +416,6 @@ the answer you asked for. The sequence of JSON keys carries no meaning for a
 program, so it stays alphabetical.</p>
 <pre><code>show bgp peer list | display state name | json     # two fields per peer
 </code></pre>
-<!-- source: internal/component/command/pipe_columns.go -- parseDisplay, parseFill, applyDisplaySelect -->
-<!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, fillKeys -->
 <h3 id="a-name-for-a-chain-pipe-aliases">A name for a chain: pipe aliases</h3>
 <p>Some selections are worth a name. <code>show bgp</code> answers its aggregate
 fields and its peer rows side by side, and an operator usually wants one half:</p>
@@ -470,10 +447,6 @@ expands the chain itself. A plugin's alias comes back there as
 <code>ze cli -c "show bgp rpki | summary"</code>, or the interactive session a plain ssh
 client reaches. The aliases built into Ze itself, <code>| summary</code> and <code>| peers</code> on
 <code>show bgp</code>, resolve in every client.</p>
-<!-- source: internal/component/command/alias.go -- RegisterAliases, RegisterPluginAliases, AliasesForCommand -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases -->
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
-<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
 <h3 id="command-specific-filters">Command-specific filters</h3>
 <p>Some commands extend the generic set with their own filter vocabulary,
 handed to the command's own handler rather than applied to its answer. <code>show bgp rib</code>, for example, adds:</p>
@@ -558,9 +531,6 @@ either way. <code>show bgp rib protocol &lt;protocol&gt;</code> takes the same s
 scope word, and <code>show bgp rib best</code> takes neither a scope word nor <code>covering</code>
 and <code>exact</code>, and adds <code>reason</code>. <code>show command help "&lt;command&gt;"</code> lists every operation a command
 takes after the pipe, each marked <code>generic</code>, <code>override</code>, <code>command</code> or <code>alias</code>.</p>
-<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- registerPipeFilters, ribScopeFilters, ribAttributeFilters, ribSourceFilters, ribRouteReducers, ribBestReducers -->
-<!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- graphTerminal, renderGraphText -->
-<!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain, lookupFilter, validateDeclaredArgument -->
 </div>
 </div>
             </section>
@@ -598,7 +568,7 @@ takes after the pipe, each marked <code>generic</code>, <code>override</code>, <
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

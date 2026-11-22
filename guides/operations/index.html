@@ -104,7 +104,6 @@ exits with status 1. A defect met while a login is checked refuses that login.
 The listener and every other session keep running, and each such panic is
 logged, crash recorded, and counted in
 <code>ze_task_panics_total{component="ssh"}</code> (<a href="../monitoring/">monitoring</a>).</p>
-<!-- source: internal/component/ssh/panic_guard.go -- panicMiddleware, endSessionAfterPanic, containAuth -->
 <h3 id="setup">Setup</h3>
 <pre><code class="language-bash">ze init                        # interactive: prompts for username, password, host, port
 </code></pre>
@@ -112,7 +111,6 @@ logged, crash recorded, and counted in
 <p>Credentials are stored under <code>database/</code> in the resolved configuration folder,
 with bcrypt-hashed passwords. Initialization seeds every key before publishing
 the directory, so an interrupted initialization cannot expose partial credentials.</p>
-<!-- source: internal/plugins/init/main.go -- Run, runInit, runInitPublished -->
 <table>
 <thead>
 <tr>
@@ -147,7 +145,6 @@ the directory, so an interrupted initialization cannot expose partial credential
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/init/main.go -- Run -->
 <h3 id="reinitializing">Reinitializing</h3>
 <p>Running <code>ze init</code> a second time fails with <code>error: database already exists</code>. This is intentional -- it prevents accidental credential loss.</p>
 <p>To reinitialize:</p>
@@ -161,15 +158,12 @@ and configs. Confirmation requires a terminal unless <code>--yes</code> is suppl
 Replacement acquires the same ownership lock as the daemon and refuses while
 any process owns the store, including a web-only daemon. Changing the SSH target
 does not bypass this protection.</p>
-<!-- source: internal/plugins/init/main.go -- Run, runInit -->
 <p>The initial config is written under the name the store's instance name gives it. When that name cannot be read, <code>ze init</code> fails with <code>name initial config: ...</code> and closes the interface backend it opened, rather than writing the config under <code>ze.conf</code>.</p>
-<!-- source: internal/plugins/init/main.go -- runInitPublished -->
 <h3 id="store-folder-and-ownership">Store folder and ownership</h3>
 <p>An explicit config path selects its parent folder. Without one, clients and
 daemons use <code>ze.config.dir</code>, then the binary's default configuration folder.
 <code>-</code> uses the same environment/default resolution. To reach credentials for a
 daemon started on a non-default folder, set <code>ZE_CONFIG_DIR</code> to that folder.</p>
-<!-- source: internal/core/resolve/resolve.go -- StoreDir -->
 <p><code>ze start &lt;file&gt;</code> creates <code>database/</code> when neither store shape exists and reads
 the explicit file on every start. Its daemon commits update that file and stored
 history. Bare <code>ze start</code> reads the stored active configuration. A <code>database.zefs</code>
@@ -184,29 +178,16 @@ and names <code>meta/config/&lt;name&gt;/active</code> and the stamp; it never s
 the rollback or an empty config. <code>ze start &lt;file&gt;</code> rebuilds the active version
 from the file, leaves <code>rollback</code> on the version that still reads, and logs the
 stamp that would not resolve. <code>ze data check</code> lists what repair left behind.</p>
-<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig, PromoteCandidate -->
-<!-- source: cmd/ze/hub/config_source.go -- initializeConfigSource -->
-<!-- source: cmd/ze/ze_core_start.go -- openExplicitStore, cmdStart -->
 <p>Without a file, <code>ze start</code> names its config after the instance name (<code>meta/instance/name</code>), or <code>ze.conf</code> when that key is absent, blank or not a valid file stem. When the key exists but cannot be read (a CRC mismatch, an I/O error), <code>ze start</code> exits 1 with an error that names <code>ze doctor</code> and <code>ze init</code>, rather than starting <code>ze.conf</code> on a device whose own name it could not read.</p>
-<!-- source: internal/core/resolve/resolve.go -- DefaultConfig -->
-<!-- source: cmd/ze/ze_core_start.go -- cmdStart, cmdStartManaged -->
-<!-- source: internal/plugins/init/main.go -- Run -->
-<!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
 <p>The tree root and every directory beneath it must be 0700, each frame file 0600,
 and all must belong to the caller. Symlinks and non-regular leaves are refused.
 Root has no ownership exception. Permission errors name the path and the repair.
 Only one process may own the store for writing. Read-only credential lookup and
 inspection remain available while that owner runs; offline writers such as
 <code>ze connect add</code>, <code>remove</code>, and <code>default</code> refuse until it stops.</p>
-<!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, lockOwner -->
 <p>The owner holds <code>database.lock</code> until the store closes. The lock stays outside
 the replaceable tree. Removing this file would break writer exclusion.
 Initialization uses a private random staging directory and a no-replace rename.</p>
-<!-- source: internal/component/config/storage/open.go -- populateOwned, lockOwner -->
-<!-- source: internal/component/config/storage/tree.go -- makeStage -->
-<!-- source: internal/core/resolve/resolve.go -- StoreDir, StorageFor -->
-<!-- source: internal/component/cli/sshclient/client.go -- ResolveStoreDir, openStoreIfReadable -->
-<!-- source: internal/plugins/connect/main.go -- AddCredentials, RemoveCredentials, SetDefault -->
 <h3 id="offline-data-access">Offline data access</h3>
 <p><code>ze data --path &lt;folder&gt;/database</code> addresses a tree, while an explicit <code>.zefs</code>
 file addresses a blob artifact. Run mutating commands only after stopping the
@@ -311,11 +292,6 @@ commands expose decoded values, never the tree's framing bytes.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/storage/cli/main.go -- subcommandHandlers, removeKeysThroughDaemon, writeKeyThroughDaemon -->
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete -->
-<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- handleDataRepair -->
-<!-- source: internal/component/config/storage/cli/storage_data.go -- dataCheck -->
-<!-- source: internal/component/config/storage/cli/data_rpc_full_restore.go -- acceptFullRestore, fullRestoreLifecycleUnavailable -->
 <p>A full daemon restore requires the outer live-tree lifetime installed by
 <code>ze start</code>. It first makes an independent verified source. After its accepted
 response is delivered, the daemon drains and stops normally. The store is
@@ -328,14 +304,12 @@ recovery retains its private source and names the command that finishes it.
 sends that same request to its owner. The local command confirms the source,
 digest, byte count and restart status in the acceptance receipt before reporting
 success. This confirms acceptance; completion still follows clean teardown.</p>
-<!-- source: internal/component/config/storage/cli/cmd_restore.go -- restoreFullThroughDaemon, fullRestoreAnswer.matches -->
 <h3 id="connection">Connection</h3>
 <pre><code class="language-bash">ze cli                         # interactive CLI
 ze cli -c "show bgp peer list"  # single command
 ze show bgp peer list                # read-only shorthand
 ze cli -c "request peer transit teardown 2" # one-shot command
 </code></pre>
-<!-- source: internal/component/cli/client/main.go -- Run -->
 <p>An operator can use a standalone or downloaded Ze binary without creating a
 local database. Supply the remote endpoint and username explicitly, with the
 password in <code>ZE_SSH_PASSWORD</code> or the interactive password prompt:</p>
@@ -344,7 +318,6 @@ password in <code>ZE_SSH_PASSWORD</code> or the interactive password prompt:</p>
 <p>An available local store is an optional credential source. A nonempty store
 that is corrupt or unsafe still causes an error; explicit credentials do not
 bypass its validation or the remote host-key checks.</p>
-<!-- source: internal/component/cli/sshclient/client.go -- readCredentials, openStoreIfReadable -->
 <h3 id="override-hostport">Override Host/Port</h3>
 <p>An SSH tunnel is an alternative when Ze listens only on the device's loopback
 interface. The example below assumes
@@ -372,8 +345,6 @@ work through the same parser. Loopback keeps its existing local trust policy;
 <pre><code class="language-bash">ZE_SSH_KNOWN_HOSTS="$HOME/.ssh/known_hosts" ZE_SSH_PASSWORD='your-password' \
     ./ze cli --remote router.example:2222 --user operator -c "show version"
 </code></pre>
-<!-- source: internal/component/cli/sshclient/host_keys.go -- knownHostsPath, knownHostKeyCallback, knownHostKeyError -->
-<!-- source: internal/component/cli/sshclient/client.go -- hostKeyCallback, resolveHostPort -->
 <h2 id="signals">Signals</h2>
 <h3 id="via-ssh-preferred">Via SSH (preferred)</h3>
 <table>
@@ -406,7 +377,6 @@ work through the same parser. Loopback keeps its existing local trust policy;
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/signal/main.go -- Commands registry -->
 <h3 id="via-unix-signals">Via Unix Signals</h3>
 <table>
 <thead>
@@ -430,7 +400,6 @@ work through the same parser. Loopback keeps its existing local trust policy;
 </tr>
 </tbody>
 </table>
-<!-- source: cmd/ze/hub/main.go -- signal.Notify, SIGHUP/SIGTERM/SIGINT handling -->
 <p>Reload writes the edited config as a candidate version. The active pointer moves
 only after verification, apply, and subsystem reload succeed. A failed reload
 clears the candidate and keeps the previous active config.</p>
@@ -503,8 +472,6 @@ start.</p>
 </table>
 <p>After <code>request shutdown</code> the first signal is the one that aborts the drain. Once
 the drain has begun the stop is final: a plugin that exits is not restarted.</p>
-<!-- source: cmd/ze/hub/drain.go -- stopSignals, runStopDrain, requestRestartStop, requestRebootStop -->
-<!-- source: internal/component/plugin/server/drain.go -- BeginDrain, DrainRound.Run -->
 <h3 id="exit-codes-signal-command">Exit Codes (signal command)</h3>
 <table>
 <thead>
@@ -532,13 +499,11 @@ the drain has begun the stop is final: a plugin that exits is not restarted.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/signal/main.go -- ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
 <h2 id="health-checks">Health Checks</h2>
 <h3 id="liveness">Liveness</h3>
 <pre><code class="language-bash">ze status                      # exit 0 = running, exit 1 = not running
 </code></pre>
 <p>This dials the SSH port without completing a handshake. Suitable for systemd watchdog or load balancer TCP check.</p>
-<!-- source: internal/plugins/signal/main.go -- RunStatus, net.Dialer -->
 <h3 id="scripting">Scripting</h3>
 <pre><code class="language-bash">if ze status --host 127.0.0.1 --port 2222; then
     echo "ze is running"
@@ -621,8 +586,6 @@ configuration serving. The operator sees the refusal through <code>ze config com
 <p><code>ze config validate</code> answers about the host running the command. A config written
 for another machine and validated on a workstation is judged against the
 workstation.</p>
-<!-- source: internal/component/kernelcap/kernelcap.go -- Refuse, Evaluate -->
-<!-- source: cmd/ze/hub/main.go -- runYANGConfig, the kernel capability refusal -->
 <h2 id="environment-variables">Environment Variables</h2>
 <p>Ze environment variables use dot notation (<code>ze.log.bgp</code>) and are case-insensitive. All forms are equivalent: <code>ze.log.bgp</code>, <code>ZE_LOG_BGP</code>, <code>ze_log_bgp</code>.</p>
 <p>List all registered variables:</p>
@@ -697,10 +660,6 @@ ze env get ze.log              # details for one var
 </tr>
 </tbody>
 </table>
-<!-- source: internal/core/slogutil/slogutil.go -- ze.log registration -->
-<!-- source: internal/component/cli/sshclient/client.go -- ze.ssh.host/port -->
-<!-- source: internal/component/cli/sshclient/host_keys.go -- ze.ssh.known.hosts -->
-<!-- source: internal/core/paths/paths.go -- ze.config.dir -->
 <h2 id="cli-flags">CLI Flags</h2>
 <table>
 <thead>
@@ -740,7 +699,6 @@ ze env get ze.log              # details for one var
 </tr>
 </tbody>
 </table>
-<!-- source: cmd/ze/main.go -- global flag parsing -->
 <h2 id="install-and-remove-a-standalone-linux-daemon">Install and remove a standalone Linux daemon</h2>
 <p>From the directory containing the selected Ze executable, run:</p>
 <pre><code class="language-bash">sudo ./ze install
@@ -749,8 +707,6 @@ ze env get ze.log              # details for one var
 username, password, SSH address, SSH port and instance name. Keep the SSH
 address on loopback. The default listener is <code>127.0.0.1:2222</code>. This bootstrap
 does not configure the host's interfaces.</p>
-<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, selectNativeTarget -->
-<!-- source: internal/plugins/init/main.go -- runInstallInit, runInitPublishedProfile -->
 <p>On a running systemd host, installation creates and starts the service.
 Connect with the account and store path the installer prints:</p>
 <pre><code class="language-bash">sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze ze cli
@@ -759,8 +715,6 @@ sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze ze doctor
 <p>An existing private store, credentials and compatible administrator unit are
 preserved during repeat installation. Conflicting services, package ownership
 markers and symlink paths refuse installation before executable replacement.</p>
-<!-- source: internal/plugins/systemd/native.go -- nativeService.Preflight, nativeService.Install, nativeService.compatibleUnit -->
-<!-- source: internal/plugins/local/native.go -- nativeTarget.preflight, nativePath -->
 <p>Choose another prefix or foreground operation with:</p>
 <pre><code class="language-bash">./ze install --dry-run --prefix /opt/ze
 sudo ./ze install --prefix /opt/ze
@@ -770,17 +724,12 @@ sudo ./ze install --prefix /opt/ze
 <p>Without a running systemd manager, the installer also prints the foreground
 start command. A foreground daemon must be stopped before replacement or
 removal. <code>--no-service</code> does not bypass the store ownership lock.</p>
-<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, nativeRuntime.selectedService, nativeRuntime.uninstall -->
-<!-- source: internal/plugins/systemd/native.go -- nativeService.Available -->
 <p>A service installation needs a root-owned executable path. Existing ancestors
 and the executable must not permit group or other write access. Use a
 protected prefix such as <code>/opt/ze</code>, or select <code>--no-service</code> for a user-owned
 prefix. Installation refuses conflicting runtime units, masks, indirect
 configuration sources and unsupported service execution overrides before
 changing files or service state.</p>
-<!-- source: internal/plugins/systemd/native_trust.go -- nativeService.trustedExecutable -->
-<!-- source: internal/plugins/systemd/native.go -- nativeService.Preflight, nativeService.compatibleUnit -->
-<!-- source: internal/plugins/systemd/native_unit.go -- nativeService.effectiveUnit, validateNativePolicy -->
 <p>To remove the default installation, run:</p>
 <pre><code class="language-bash">sudo ze uninstall
 </code></pre>
@@ -788,19 +737,14 @@ changing files or service state.</p>
 removes the executable. It retains <code>/etc/ze</code> and the service account.
 A stop failure retains the executable and service. Use the installation's
 prefix when removing a custom installation. <code>--yes</code> confirms removal in scripts.</p>
-<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
-<!-- source: internal/plugins/systemd/cmd_uninstall.go -- serviceRuntime.cmdUninstall -->
 <p>A foreground process that still owns the selected store also refuses removal.
 The installer takes the store lock before disabling or deleting the unit.
 That refusal preserves the previous service policy and resumes only a service
 that was active before the attempt.</p>
-<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
-<!-- source: internal/plugins/systemd/native.go -- nativeService.Stop, nativeStoppedService.Restore -->
 <p>Explicit purge also removes the selected config directory, including its
 backups. Copy required backups elsewhere first. The service account remains.</p>
 <pre><code class="language-bash">sudo ze uninstall --prefix /opt/ze --purge
 </code></pre>
-<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
 <h3 id="upgrade-and-recover-a-standalone-installation">Upgrade and recover a standalone installation</h3>
 <p>Keep the previous executable and a live store backup before upgrading:</p>
 <pre><code class="language-bash">sudo install -m 0755 /usr/local/bin/ze /var/tmp/ze-before-upgrade
@@ -809,7 +753,6 @@ sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze \
 </code></pre>
 <p>Choose a new backup filename when that file already exists. The backup
 command runs on the daemon and preserves the complete store in a private blob.</p>
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup -->
 <p>Run the new executable's native installer, then verify the running version
 and diagnostic results:</p>
 <pre><code class="language-bash">sudo ./ze install
@@ -823,15 +766,10 @@ and compatible administrator service settings. A failed replacement restores
 the prior executable and resumes a service that was previously active.
 The existing binary is replaced atomically. Preserve the backup executable
 until the new version and required routes are verified.</p>
-<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
-<!-- source: internal/plugins/local/cmd_install.go -- copyFile -->
-<!-- source: internal/plugins/systemd/native.go -- nativeService.Stop, nativeService.Install -->
-<!-- source: internal/plugins/local/native_replace.go -- nativeReplacement.restore, nativeRuntime.recoverInstall -->
 <p>To restore the previous executable with the current configuration, run its
 installer:</p>
 <pre><code class="language-bash">sudo /var/tmp/ze-before-upgrade install
 </code></pre>
-<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
 <p>If configuration restoration is also required, stop the service first.
 Restore the saved store as its owner, then install the previous executable:</p>
 <pre><code class="language-bash">sudo systemctl stop ze.service
@@ -842,8 +780,6 @@ sudo /var/tmp/ze-before-upgrade install
 <p>Full restoration retains the replaced tree as a recovery directory. Verify
 the restored version, login and routes after startup. Package-managed
 installations use their package manager for upgrade and removal.</p>
-<!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestoreFull -->
-<!-- source: internal/plugins/local/native.go -- nativeTarget.preflight -->
 <h2 id="systemd">systemd</h2>
 <p>Use <code>ze install systemd</code> on standard Linux hosts:</p>
 <pre><code class="language-bash">sudo ze init
@@ -908,12 +844,9 @@ RuntimeDirectory=ze
 [Install]
 WantedBy=multi-user.target
 </code></pre>
-<!-- source: internal/plugins/systemd/cmd_install.go -- cmdInstall -->
-<!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
 <p><code>CAP_BPF</code> is granted for the eBPF programs of the IPsec ESP form fast path,
 the IPsec application override guard and traffic-usage, which the kernel
 refuses to load without it.</p>
-<!-- source: internal/plugins/systemd/unit.go -- capabilities -->
 <h2 id="troubleshooting">Troubleshooting</h2>
 <h3 id="peer-wont-connect">Peer Won't Connect</h3>
 <pre><code>Symptom: peer stays in Connect/Active state
@@ -959,7 +892,6 @@ refused), the code and subcode as names and numbers, and the peer's
 shutdown message when it sent one:</p>
 <pre><code>level=WARN msg="notification received" subsystem=bgp.reactor.session peer=192.0.2.1 state=OPENCONFIRM code="OPEN Message Error" code-number=2 subcode=Unspecific subcode-number=0
 </code></pre>
-<!-- source: internal/component/bgp/reactor/session_handlers.go -- logNotificationReceived -->
 </li>
 <li>
 <p>Read the code and subcode against this table (the same values appear in monitor output):</p>
@@ -1021,7 +953,6 @@ shutdown message when it sent one:</p>
 <li><strong>SSH port conflict:</strong> Default SSH is 2222. Check with <code>netstat -tlnp | grep 2222</code></li>
 <li><strong>Missing credentials:</strong> Run <code>ze init</code> before starting</li>
 </ol>
-<!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate; internal/component/ssh/ -- SSH server -->
 <h3 id="plugin-not-working">Plugin Not Working</h3>
 <ol>
 <li>
@@ -1039,7 +970,6 @@ shutdown message when it sent one:</p>
 <p><strong>Plugin not reaching Ready state:</strong> Enable <code>ZE_LOG_PLUGIN=debug</code> and look for startup stage failures</p>
 </li>
 </ol>
-<!-- source: internal/component/plugin/server/server.go -- plugin stage timeout; internal/component/plugin/registry/registry.go -- plugin registration -->
 <h3 id="no-routes-in-rib">No Routes in RIB</h3>
 <ol>
 <li>
@@ -1156,7 +1086,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

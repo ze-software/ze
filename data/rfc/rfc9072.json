@@ -8,13 +8,13 @@
   "must": {
     "total": 9,
     "kept": 9,
-    "ze-proven": 5,
+    "ze-proven": 9,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 4,
+    "not-built": 0,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -31,12 +31,7 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 5
+    "unit": 9
   },
-  "unmet": [
-    "RFC9072-2-5",
-    "RFC9072-2-6",
-    "RFC9072-3-1",
-    "RFC9072-3-3"
-  ]
+  "unmet": []
 }

@@ -44,13 +44,6 @@
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-routing">
-<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- SRv6 SID extraction and transposition -->
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- SID lookup at best-path emission -->
-<!-- source: internal/component/sysrib/sysrib.go -- SID resolvability check and FIB emission -->
-<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- Linux SEG6 encap -->
-<!-- source: internal/plugins/fib/vpp/srv6.go -- VPP SR steer -->
-<!-- source: internal/component/bgp/message/rfc7606.go -- PrefixSID attribute validation -->
-<!-- source: internal/component/bgp/reactor/session_validation.go -- EBGP PrefixSID filtering -->
 <!-- rfc: rfc/short/rfc8669.md -- BGP Prefix-SID attribute (code 40) -->
 <!-- rfc: rfc/short/rfc9252.md -- SRv6 overlay services -->
 <div class="journey-hero reveal">
@@ -87,7 +80,6 @@ SID. Ze does not allocate egress Service SIDs or install endpoint behaviors.</p>
 </ol></li>
 <li><a href="#limitations">Limitations</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/plugins/fib/vpp/srv6.go -- acquirePolicy, addSRv6Steer -->
 <table>
 <thead>
 <tr>
@@ -208,16 +200,11 @@ does not withdraw omitted live routes. External-VPP process restart does not
 provide that reconnect notification. See the <a href="../../guides/vpp/">VPP guide</a>
 and <a href="../../architecture/testing/interop/#real-vpp-srv6-service-route-proof">runtime proof contract</a>.
 These implementation details are not evidence of an executed forwarding proof.</p>
-<!-- source: internal/plugins/fib/vpp/srv6.go -- addSRv6Steer, acquirePolicy, releasePolicy -->
-<!-- source: internal/plugins/fib/vpp/srv6_state.go -- restore -->
-<!-- source: internal/plugins/fib/vpp/register.go -- runFibVPPPlugin -->
 <p>The VPP writer exists only when VPP answers. With no vpp connector, or a GoVPP
 channel that will not open, <code>fib-vpp</code> programs nothing and logs <code>no route is programmed into VPP</code>, rather than running a no-op backend that reported every
 route installed; the Connected and Reconnected events retry, and the replay
 then installs every route. Meanwhile <code>show fib vpp</code> refuses with the cause
 instead of answering an empty list.</p>
-<!-- source: internal/plugins/fib/vpp/register.go -- openFibVPPWriter, answerShowFibVPP -->
-<!-- source: internal/component/vpp/vpp.go -- runOnce -->
 <p>Durable admission is bounded by 4,096 ownership keys across policies, steering,
 and temporary IP/SRv6 transition records. New growth is refused before mutation
 when it cannot fit; existing-key replay and withdrawal remain available.
@@ -225,9 +212,6 @@ Ordinary-route cleanup ownership survives restart as confirmed installation
 history, not adoption of matching live routes. VPP cannot expose every hidden
 API-source route through its winning-source dump, so external writers must not
 replace those owned entries.</p>
-<!-- source: internal/plugins/fib/vpp/srv6_fallback.go -- reserveState, checkpointSRv6Fallback, srv6Fallback -->
-<!-- source: internal/plugins/fib/vpp/srv6.go -- restoreSRv6 -->
-<!-- source: pkg/plugin/rpc/state.go -- StateListMax -->
 <h3 id="explicit-service-sid-advertisement">Explicit Service SID advertisement</h3>
 <p>The <code>bgp-prefix-sid-srv6</code> route attribute accepts an IPv6 Service SID, an optional
 endpoint behavior, and an optional SID structure:</p>
@@ -281,14 +265,11 @@ bgp {
     }
 }
 </code></pre>
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <p>This peer receives service 20 but not service 10. Other peers can use different
 lists or no filter. Community-match lists deny unmatched routes, so include
 each service the peer should receive. This route-level control is separate from
 <code>propagate-srv6-prefix-sid</code>, which only controls the attribute at an EBGP SR
 domain boundary.</p>
-<!-- source: internal/component/bgp/plugins/filter_community_match/match.go -- Route Target matching and implicit deny -->
-<!-- source: internal/component/bgp/reactor/session_write.go -- originated UPDATE export gate -->
 <h2 id="data-flow">Data Flow</h2>
 <pre><code>BGP UPDATE with PrefixSID (attr 40)
   |
@@ -340,7 +321,6 @@ body unmodified. This applies to forwarded routes as well as originated routes, 
 extra buffer or a change to the borrowed received UPDATE. The Section 3.2
 unchanged-propagation rule applies specifically to Originator SRGB: its bytes
 are never normalized on relay.</p>
-<!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearLabelIndexTLVs -->
 <p>Forwarding compares the received next-hop entity with the effective address
 after export policy, configured rewriting and Link-Local scope normalization.
 An explicit third-party A-to-A rewrite keeps the Service TLVs, including their
@@ -359,8 +339,6 @@ When a raw export result has an empty or undecodable MP next-hop field and a
 configured rewrite repairs it before admission, the repaired address still
 governs this comparison. The MP carrier did not disappear with its intermediate
 address, and policy is not run again.</p>
-<!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- applyEgressPrefixSIDNextHop -->
-<!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- prefixSIDAllowedTo -->
 <h3 id="the-api-and-readvertise-announce-rail">The API and readvertise announce rail</h3>
 <p>The fifth rail asks the same question at the same site.
 <code>buildBatchAnnounceUpdate</code> (<code>internal/component/bgp/reactor/reactor_api_batch.go</code>)
@@ -371,7 +349,6 @@ RFC 4271 Section 5.1.5 LOCAL_PREF drop. The destination's leaf joins
 longer share a built UPDATE. The rail carries an API announce, a grouped
 announce, and the RFC 9494 stale readvertise (<code>sendStaleReadvertise</code>), which
 replays a stored received block.</p>
-<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- buildBatchAnnounceUpdate -->
 <h2 id="transposition-vpnevpn">Transposition (VPN/EVPN)</h2>
 <p>For SAFI 128 (VPN) and SAFI 70 (EVPN), RFC 9252 Section 3.2.1 specifies that
 part of the SRv6 SID function bits are encoded in the MPLS label field of the
@@ -407,8 +384,6 @@ and <code>gokrazy/kernel/runtime.require</code> fails the kernel build if it sto
 resolving to <code>=y</code>. A kernel without it refuses the install with EOPNOTSUPP.
 Linux's seg6 encapsulation does not lower the inner TTL or Hop Limit, which
 RFC 8986 Section 5.1 H.Encaps requires; that gap is open.</p>
-<!-- source: gokrazy/kernel/runtime.config -- CONFIG_IPV6_SEG6_LWTUNNEL -->
-<!-- source: gokrazy/kernel/runtime.require -- CONFIG_IPV6_SEG6_LWTUNNEL -->
 <h3 id="vpp">VPP</h3>
 <p>Routes with SRv6 SID are steered via VPP's SR policy infrastructure:</p>
 <pre><code>sr_steering_add_del bsid=&lt;SID&gt; prefix=&lt;prefix&gt; traffic_type=IPv4|IPv6
@@ -546,9 +521,6 @@ the VPP dispatch logic.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- isSRv6Ineligible, srv6SIDFromResult -->
-<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- ExtractSRv6SIDFull, parseSIDStructure -->
-<!-- source: internal/core/bgp/nlri/nlrisplit/transposition.go -- TranspositionLabelWidth -->
 <h2 id="limitations">Limitations</h2>
 <ul>
 <li>
@@ -609,7 +581,7 @@ propagates without negotiation. Ze does not signal SRv6 support via capabilities
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

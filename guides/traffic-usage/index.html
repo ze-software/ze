@@ -46,10 +46,6 @@
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-observe">
-<!-- source: internal/plugins/trafficusage/monitor.go -- reconcile, lifecycle, poller -->
-<!-- source: internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang -- traffic-usage config -->
-<!-- source: internal/plugins/trafficusage/show.go -- ze-trafficusage:show-traffic-usage RPC -->
-<!-- source: internal/plugins/trafficusage/metrics.go -- ze_traffic_usage_* Prometheus metrics -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="traffic-usage">Traffic Usage</h1>
@@ -105,7 +101,6 @@ deliberately differs from the L2TP XDP-policing plugin, which commits <code>bpf2
 generated <code>.o</code> files. The cost of the pure-Go approach is hand-written assembly,
 which is validated by <code>BPF_PROG_TEST_RUN</code> tests that feed crafted packets through
 the loaded programs and assert on the resulting map state.</p>
-<!-- source: internal/plugins/trafficusage/program_linux.go -- pure-Go asm.Instructions program assembly -->
 <h2 id="configuration">Configuration</h2>
 <p>All traffic usage configuration lives under a single <code>traffic { usage { } }</code> section.</p>
 <pre><code>traffic {
@@ -220,7 +215,6 @@ interface's <code>track-ip</code> or <code>max-entries</code> rebuilds and re-at
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang -- traffic-usage -->
 <h2 id="operational-command">Operational Command</h2>
 <p><code>show traffic usage [name &lt;interface&gt;]</code> reports the accounted byte totals. With
 no argument it lists every monitored interface; with <code>name &lt;interface&gt;</code> it
@@ -234,7 +228,6 @@ ze cli -c 'show traffic usage name eth0'
 <code>environment cli format default</code> names. The registered value is <code>text</code>. Append
 <code>| json</code>, <code>| table</code>, <code>| yaml</code> or <code>| ndjson</code> to select another one, and the full
 set of pipe operators applies.</p>
-<!-- source: internal/plugins/trafficusage/show.go -- ze-trafficusage:show-traffic-usage -->
 <p>The terminal lab enables accounting on <code>traffic0</code> through a live SSH commit.
 Real ICMP and HTTP requests establish a baseline for source <code>10.77.0.2</code>
 and TCP destination port <code>8080</code>. A heavier burst must increase those
@@ -248,8 +241,6 @@ leaving the HTTP server and Ze running; lab cleanup also owns those senders.
 After the stop, the validator requires a stable two-second window within ten
 seconds. The totals remain cumulative: stopping traffic does not reset them to
 zero.</p>
-<!-- source: internal/le/site/terminaldemo/scenarios_showcase_network.go -- startShowcaseTraffic -->
-<!-- source: internal/le/site/terminaldemo/validate_topic_traffic.go -- checkTopicTrafficUsage -->
 <figure class="terminal-demo" data-terminal-demo="traffic-anomaly">
   <div class="terminal-demo__intro">
     <div>
@@ -379,29 +370,48 @@ cumulative byte totals.</p>
 <p>The <code>protocol</code> label is one of <code>tcp</code>, <code>udp</code>, <code>icmp</code>, <code>gre</code>, <code>esp</code>, <code>ah</code>, or
 <code>icmpv6</code>; unknown protocols render as their decimal protocol number. ICMP and
 other packets with no L4 port aggregate under <code>dst_port</code>/<code>src_port</code> <code>0</code>.</p>
-<!-- source: internal/plugins/trafficusage/metrics.go -- BindMetrics -->
 <h2 id="doctor-check">Doctor Check</h2>
-<p>The <code>doctor-traffic-usage-ebpf</code> check warns when <code>traffic-usage</code> is enabled in
-the config but eBPF/TCX is unavailable on the running kernel, so the operator
-learns that accounting is configured but inert rather than silently producing no
-metrics.</p>
-<!-- source: internal/plugins/trafficusage/doctor.go -- checkTrafficUsageBPF, doctor-traffic-usage-ebpf -->
-<p>The check probes TCX only when <code>traffic-usage</code> is enabled. It runs in the
-process that answers doctor: the running daemon when one answers <code>ze doctor</code>
-or <code>show doctor</code>, and your own <code>ze doctor</code> process only when no daemon answers.
-When the probe cannot measure readiness (that process lacks CAP_BPF or
-CAP_NET_ADMIN), it does not guess: it warns under
-<code>doctor-traffic-usage-ebpf-unknown</code> with the reason, and its fix is
-<code>sudo systemctl stop ze &amp;&amp; sudo ze install systemd --force --start</code>. When the
-daemon answered, the daemon is what lacks the capability: under systemd a ze
-unit written by an older ze does not grant <code>CAP_BPF</code>, and that one line stops
-ze, which the install needs, rewrites the unit and starts ze again; without
-systemd, start ze with <code>CAP_BPF</code> and
-<code>CAP_NET_ADMIN</code>. When no daemon answered, the answer also carries
-<code>doctor-runtime-not-checked</code>, and <code>sudo ze doctor</code> measures the host as root.
-<code>doctor-traffic-usage-ebpf</code> is kept for a kernel that lacks TCX, and names the
-Linux 6.6 and <code>CONFIG_NET_XGRESS</code> requirement.</p>
-<!-- source: internal/plugins/trafficusage/doctor.go -- checkTrafficUsageBPF, trafficUsageDiagnostic, probeTCX -->
+<p><code>show doctor</code> reports, for each interface <code>traffic-usage</code> is configured to
+account, what the daemon's own attach established. The daemon attaches when it
+starts and on every reload that touches <code>traffic usage</code>, and again each second
+for an interface that comes up. Nothing is checked while <code>traffic-usage</code> is
+disabled, and an attached or down interface reports nothing.</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>What the daemon met</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>doctor-traffic-usage-attach-refused</code></td>
+<td>the kernel refused it permission to load or attach the programs: the daemon lacks <code>CAP_BPF</code> or <code>CAP_NET_ADMIN</code></td>
+<td>the systemd repair when ze established that the daemon runs as the ze service, otherwise the capabilities to start ze with</td>
+</tr>
+<tr>
+<td><code>doctor-traffic-usage-tcx-absent</code></td>
+<td>the kernel or build has no TCX attach point (Linux 6.6 or later with <code>CONFIG_NET_XGRESS</code> is needed), so the plugin runs inert</td>
+<td><code>set traffic usage enabled false</code></td>
+</tr>
+<tr>
+<td><code>doctor-traffic-usage-attach-unknown</code></td>
+<td>the attach failed with an answer that does not say why; the finding carries it</td>
+<td><code>ze show log recent level error component traffic.usage</code></td>
+</tr>
+<tr>
+<td><code>doctor-traffic-usage-interface-missing</code></td>
+<td class="cell-no">✕</td>
+<td><code>delete traffic usage interfaces interface &lt;name&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<p>The daemon logs each of these once, when the outcome changes, under the same
+code. It does not retry a refusal or a missing TCX attach point each second,
+because neither changes while the daemon runs; a reload retries them. The
+check reads the daemon's memory, so a <code>ze doctor</code> that no daemon answers
+cannot run it, and says so with <code>doctor-runtime-not-checked</code>.</p>
 <h2 id="limitations">Limitations</h2>
 <ul>
 <li><strong>IPv4 only.</strong> Per-port and per-IP accounting cover IPv4 traffic; IPv6 is not
@@ -413,8 +423,8 @@ interface's tc hook: the filters after them still run.</li>
 <code>ze_traffic_usage_egress_bytes_total</code> series are only produced when <code>track-ip</code>
 is enabled. Per-port accounting is always on.</li>
 <li><strong>Linux &gt;= 6.6, no-op elsewhere.</strong> TCX attach requires Linux 6.6 or later, plus
-<code>CAP_BPF</code> and <code>CAP_NET_ADMIN</code>. On other platforms the plugin is a no-op. The
-<code>doctor-traffic-usage-ebpf</code> check reports when the kernel cannot support the
+<code>CAP_BPF</code> and <code>CAP_NET_ADMIN</code>. On other platforms the plugin is a no-op. <code>show doctor</code> reports
+<code>doctor-traffic-usage-tcx-absent</code> when the kernel cannot support the
 feature.</li>
 <li><strong>Bounded cardinality.</strong> Stale metric series (unseen within <code>stale-timeout</code>)
 are deleted, and each map is an LRU capped at <code>max-entries</code>; under high key
@@ -440,9 +450,6 @@ by the peer's address either way. Ingress UDP to port 4500 from an IPsec peer
 then holds both its IKE messages and its ESP. The Child SA's own counters,
 <code>bytes-in</code> and <code>packets-in</code> in <code>ze show vpn ipsec sa</code>, count its ESP in either
 form.</p>
-<!-- source: internal/plugins/trafficusage/attach_linux.go -- the ingress link.AttachTCX with no anchor -->
-<!-- source: internal/component/ike/dataplane/espform_fastpath_linux.go -- linkAdded, the link.Head() anchor -->
-<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathPorts, espFormFastPathNext -->
 </div>
 </div>
             </section>
@@ -492,7 +499,7 @@ form.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

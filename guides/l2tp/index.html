@@ -110,8 +110,6 @@ into the protocol RIB.</p>
 PPP negotiation, authentication, IP pools, traffic shaping, RADIUS,
 metrics, the web UI, reload semantics, and how subscriber routes flow
 out to BGP.</p>
-<!-- source: internal/component/l2tp/subsystem.go -->
-<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -->
 <h2 id="configuration">Configuration</h2>
 <p>The <code>l2tp {}</code> container carries protocol settings; listener endpoints
 live under <code>environment { l2tp { server ... } }</code>:</p>
@@ -160,8 +158,6 @@ the session limit, and a new tunnel is refused as at the tunnel limit. The log
 line and <code>ze doctor</code> (<code>doctor-ppp-cleanup</code>) say how many places unconfirmed
 cleanup holds, and <code>show warnings</code> lists the cleanup failures to repair. A
 limit of 0 then reads as the 16-bit ID space.</p>
-<!-- source: internal/component/l2tp/session.go -- sessionSlotsFull -->
-<!-- source: internal/component/l2tp/session_retirement.go -- tunnelSlotsFullLocked, reportCleanupHeldSessionSlots -->
 <p><code>shared-secret</code> is also the secret a LAC hides AVPs under (RFC 2661 Section
 4.3). Ze reveals a hidden AVP, a hidden Calling Number or proxy
 authentication field for instance, with the tunnel's secret and the Random
@@ -172,31 +168,22 @@ then refuses its message (a CDN for a session, a StopCCN for the tunnel), and
 an optional one is ignored. The line names the peer, and <code>ze doctor</code> reports
 it under <code>doctor-l2tp-hidden-avp-unrevealed</code> with the same fix, at most once a
 minute per peer.</p>
-<!-- source: internal/component/l2tp/hidden.go -- revealHiddenAVPs, hiddenLeft.log -->
-<!-- source: internal/component/l2tp/register_hidden_diagnostic.go -- reportHiddenLeft -->
 <p>The <code>lcp</code> settings control RFC 1661 retransmission on local PPP
 sessions. Each limit accepts 1 through 255. The Restart timer is restarted by
 each Configure-Request or Terminate-Request transmission, and by the
 Zero-Restart-Count action after the peer stops LCP. A silent peer receives
 exactly <code>max-configure</code> requests before negotiation ends. The defaults give a
 30-second budget.</p>
-<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP settings -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- armRestartTimer, spendRestartCount, handleRestartTimeout -->
 <p><code>max-failure</code> counts Configure-Naks sent since the last Configure-Ack.
 After that many Naks, Ze rejects unacceptable options.
 An accepted proxy LCP starts already Opened and sends no initial requests.
 It retains the configured request budget for a later peer-triggered LCP
 renegotiation. Its Restart timer stays stopped while Opened.</p>
-<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP settings -->
-<!-- source: internal/component/l2tp/pppconfig/lcp.go -- ParseLCP -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- run, applyTransition, spendRestartCount, handleRestartTimeout, sendConfigureNakOrReject -->
 <p>A responding peer can renew the request budget with valid negotiation replies.
 Each LCP negotiation therefore has a convergence deadline of twice the Restart
 timer times <code>max-configure</code>, or 60 seconds at the defaults. A new negotiation
 after Opened gets a new deadline. Replies within one negotiation do not extend
 that deadline.</p>
-<!-- source: internal/component/l2tp/ppp/session_run.go -- updateLCPConvergence, lcpNegotiating -->
-<!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
 <h2 id="initiator-dial-targets-and-outgoing-calls">Initiator: dial targets and outgoing calls</h2>
 <p>Beyond answering tunnels, ze can INITIATE them (send SCCRQ) toward a
 configured remote. A <code>remote</code> list under <code>l2tp {}</code> declares dial targets;
@@ -235,10 +222,6 @@ to an address that reaches the remote, or to the wildcard of the remote's
 family (<code>0.0.0.0</code> for IPv4, <code>::</code> for IPv6) to let the route choose it. Ze
 binds a listener only when it starts, so after a reload that moves the
 listener, a dial asks for a restart instead.</p>
-<!-- source: internal/component/l2tp/config.go -- validateDialSources -->
-<!-- source: cmd/ze/hub/register_l2tp.go -- registerBNGSubsystems -->
-<!-- source: internal/component/l2tp/subsystem_reload.go -- Reload, reloadDialSource -->
-<!-- source: internal/component/l2tp/reactor_dial.go -- handleDial, dialSourceUnreachable, wildcardFor -->
 <p>The <code>relay</code> binding is the LAC path: a PPPoE subscriber whose Service-Name
 matches is relayed into an L2TP incoming call (ICRQ) toward the bound remote
 instead of terminating PPP locally. The subscriber-PPP↔L2TP kernel channel
@@ -334,7 +317,6 @@ proxy data and renegotiate LCP and authentication; a Ze LNS does so under
 The <code>access-wholesale</code> topology scenario proves the relay end to end: a Ze LAC
 runs LCP and CHAP with a Ze CPE, picks the LNS by the realm, and the LNS
 renegotiates LCP and challenges again before the CPE reaches IPCP Opened.</p>
-<!-- source: internal/le/interoplab/topology/check_wholesale.go -- checkAccessWholesale -->
 <p><code>ze config validate</code>, a commit and the daemon at start refuse a binding
 whose remote is not declared, an empty realm, a realm holding <code>@</code> or
 whitespace, a realm longer than 253 octets, and two bindings that differ only
@@ -372,19 +354,6 @@ its pppd. The Linux tests <code>TestLACRealmBridgeAfterLocalLCP</code> and
 <code>TestLACRealmHandoffRetransmission</code> bridge real pppox channels after local
 LCP, and <code>pppoe-realm-relay-nomatch.ci</code> shows an unbound realm terminated
 locally and refused.</p>
-<!-- source: internal/le/interoplab/topology/check_realm_relay.go -- checkRealmRelayAccel, checkRealmRelayXL2TPD -->
-<!-- source: internal/component/l2tp/bridge_realm_integration_linux_test.go -- TestLACRealmBridgeAfterLocalLCP, TestLACRealmHandoffRetransmission -->
-<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay/relay-realm lists -->
-<!-- source: internal/component/l2tp/config.go -- validateRelayRealms, checkRealmSyntax, LookupRealmRelay -->
-<!-- source: internal/component/l2tp/config_policy.go -- validateParameters -->
-<!-- source: internal/component/l2tp/relay_sink.go -- RelayRealm, realmCall.Cancel -->
-<!-- source: internal/component/l2tp/iccn_proxy.go -- newICCNProxy, writeICCNProxyAVPs -->
-<!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmHandoff.run, subscriberGone -->
-<!-- source: internal/component/l2tp/ppp/auth.go -- awaitAuthDecision, serveFrameAwaitingDecision -->
-<!-- source: internal/component/l2tp/ppp/mschapv2.go -- mschapv2RefusalMessage -->
-<!-- source: internal/component/l2tp/teardown.go -- teardownRelaySession -->
-<!-- source: internal/component/l2tp/reactor_dial.go -- handleDial, connectingTunnelToLocked -->
-<!-- source: internal/component/l2tp/cmd/outgoing_call.go -- handleOutgoingCall -->
 <h2 id="rejecting-a-malformed-sccrq">Rejecting a malformed SCCRQ</h2>
 <p>RFC 2661 Section 6.1 makes five AVPs mandatory in an SCCRQ: Message Type,
 Protocol Version, Host Name, Framing Capabilities and Assigned Tunnel ID. An
@@ -410,8 +379,6 @@ correct.</p>
 a fixed 256-slot table. A spoofed SCCRQ flood therefore allocates nothing and
 draws at most 256 replies per second from the whole reactor. A TunnelID=0
 datagram whose message type is not SCCRQ keeps its silent drop.</p>
-<!-- source: internal/component/l2tp/reactor.go -- answerRefusedSCCRQ, sendUnassociatedStopCCN -->
-<!-- source: internal/component/l2tp/tunnel_fsm.go -- parseSCCRQ -->
 <h2 id="cli-commands">CLI commands</h2>
 <h3 id="read-commands">Read commands</h3>
 <table>
@@ -472,7 +439,6 @@ datagram whose message type is not SCCRQ keeps its silent drop.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/l2tp/cmd/l2tp.go -->
 <p>A bare session ID is useful only when it identifies one original. If the ID
 occurs on several tunnels, add <code>tunnel-id</code>; if those coordinates also occur
 on several listeners, add the configured listener name or its bound IP:port.
@@ -482,14 +448,12 @@ Reads and clear capture one original before reading or acting. An optional
 reference; an ended original refuses instead of reading a same-label successor.
 Malformed or duplicate qualifiers refuse before selection. Tab completion
 offers the current listener names after <code>listener</code>.</p>
-<!-- source: internal/component/l2tp/cmd/session_read.go -- captureSessionRead, completeSessionRead -->
 <p>Session traffic reads the captured original PPP control. The interface name
 in the result is a label, never a second counter lookup. All byte, packet,
 error and drop keys remain present. Each unavailable diagnostic is <code>null</code>;
 a measured zero is numeric zero. Aggregate traffic keeps the original row's
 identity and an error when that original can no longer be read, while other
 current originals remain useful.</p>
-<!-- source: internal/component/l2tp/cmd/l2tp.go -- sessionTrafficRow, sessionTrafficAll -->
 <p><code>show l2tp config</code> reports the local requested <code>mru</code> (1500 when absent) and
 the effective <code>authentication-allow</code> list, including the method-dependent
 default when no list was written. It describes the policy for new sessions,
@@ -510,10 +474,6 @@ It is the transmit limit above, lowered to the RADIUS <code>Framed-MTU</code> wh
 Access-Accept carried one, so <code>mru</code> 1500 with <code>mtu</code> 1400 means the RADIUS
 profile set the interface. <code>mtu</code> is <code>null</code> until the session's network is up
 and after LCP goes down.</p>
-<!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPUp, handleLCPDown, handleSessionUp -->
-<!-- source: internal/component/l2tp/snapshot.go -- sessionSnapshot -->
-<!-- source: internal/component/l2tp/cmd/l2tp.go -- sessionJSON -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
 <h3 id="destructive-commands">Destructive commands</h3>
 <table>
 <thead>
@@ -568,8 +528,6 @@ an option: clear that subscriber by the session ID <code>show l2tp sessions</cod
 A successful answer carries <code>session-id</code>, <code>tunnel-id</code> and the <code>username</code> or
 <code>address</code> that selected the session. Tab after <code>user</code> offers the user names of
 live sessions, and tab after <code>address</code> their IPv4 addresses.</p>
-<!-- source: internal/component/l2tp/cmd/session_teardown_match.go -- teardownMatchedSession, completeSessionMatch -->
-<!-- source: internal/component/l2tp/session_match.go -- MatchSessions, CaptureMatchedSession -->
 <p>The <code>clear l2tp session id</code> command accepts optional keyword arguments:</p>
 <ul>
 <li><code>reason &lt;text...&gt;</code> -- free-text audit reason, recorded in the per-session event ring</li>
@@ -585,7 +543,6 @@ has a valid immutable reference. Copy that complete value for <code>expected-id<
 a numeric SID is not a substitute, and an absent reference is never invented.
 They include the original bound <code>listener</code> endpoint when available, alongside
 the local session and tunnel IDs, so the readable qualifiers can be copied.</p>
-<!-- source: internal/component/l2tp/cmd/l2tp.go -- sessionJSON -->
 <p>The listener inventory retains each original reactor's cached server name and
 bound endpoint, including closing reactors whose cleanup is still pending.
 <code>show l2tp listeners</code> includes <code>name</code> when the original has a configured key.
@@ -602,15 +559,11 @@ already closing its resources. Success requires confirmed physical release
 without a cleanup error. Cancellation ends that wait; an unfinished native
 operation or a failed Close remains a refusal, and a retry uses the retained
 original rather than a replacement with the same SID.</p>
-<!-- source: internal/component/l2tp/listener_inventory.go -- listenerSnapshotsLocked -->
-<!-- source: internal/component/l2tp/cmd/session_teardown.go -- sessionTeardownAmbiguity, sessionTeardownNotFound -->
-<!-- source: internal/component/l2tp/cmd/session_teardown_completion.go -- completeSessionTeardown -->
 <p>RFC 2661 S4.4.2 / S5.4.2 define the Result Codes and teardown
 semantics. Teardown of unknown IDs returns an error naming the ID.</p>
 <p>Destructive commands live under the <code>clear</code> verb (not a top-level <code>l2tp</code>
 noun) to match ze's CLI grammar. The <code>clear</code> prefix is denied in the
 built-in read-only authz profile.</p>
-<!-- source: internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang -->
 <h3 id="offline-dispatcher">Offline dispatcher</h3>
 <p><code>ze l2tp show ...</code> and the <code>ze l2tp tunnel|session {id &lt;id&gt;|all}</code> commands
 forward to the running daemon via SSH. Output is the same JSON the daemon
@@ -626,8 +579,6 @@ down, so no <code>teardown</code> token is needed.)
 running daemon.</p>
 <pre><code>echo c8020044... | ze l2tp decode --pretty
 </code></pre>
-<!-- source: internal/component/l2tp/cli/show.go -- offline forwarder -->
-<!-- source: internal/component/l2tp/cli/decode.go -- cmdDecode -->
 <h2 id="ppp-negotiation">PPP negotiation</h2>
 <p>When a session is established (ICRQ/ICRP/ICCN exchange), the subsystem
 creates kernel L2TP tunnel and session resources via Generic Netlink,
@@ -670,7 +621,6 @@ while no NCP is open. If an NCP opens within it, the session goes on.
 Otherwise a session that never came up ends with NAS Error, and one that
 was up sends an LCP Terminate-Request and ends with Idle Timeout.</li>
 </ol>
-<!-- source: internal/component/l2tp/ppp/ncp_bound.go -- armNoNCPBound, trackNoNCPBound, closeIdleLink -->
 <p>The PPP MRU counts the Information field, not the two-octet Protocol field.
 Ze's userspace buffers hold 1502 octets, and the kernel receive MRU stays at
 1500 even when a smaller MRU was requested. The outgoing IP interface MTU
@@ -684,21 +634,18 @@ so a <code>Framed-MTU</code> larger than the transmit limit leaves the limit in 
 (an Info line says so), and it never changes the MRU Ze requested in LCP.
 PPP control replies keep the LCP limit. A <code>Framed-MTU</code> below 1280 keeps
 IPv6CP from starting for that session, because Linux removes IPv6 from an
-interface below the IPv6 minimum.</p>
-<!-- source: internal/component/l2tp/ppp/framed_mtu.go -- interfaceMTU, framedMTUBelowIPv6 -->Code-Reject, Protocol-Reject and Echo-Reply use the same effective transmit
-<p>limit for their returned payloads; a larger receive buffer does not permit an
+interface below the IPv6 minimum.
+Code-Reject, Protocol-Reject and Echo-Reply use the same effective transmit
+limit for their returned payloads; a larger receive buffer does not permit an
 oversized reply.
 Set <code>l2tp mru</code> to the requested receive MRU (68..1500, default 1500), for
 example 1492 behind a PPPoE LAC. It does not cap receive buffers or describe
 the peer's receive MRU. <code>show l2tp config</code> reports the effective <code>mru</code> and
 <code>authentication-allow</code> policy, not negotiated session values.</p>
-<!-- source: internal/component/l2tp/ppp/frame.go -- MaxFrameLen, MaxFrameBufLen -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen, transmitMRU, writeCodeReject, sendProtocolReject, sendEchoReply -->
 <p>PPP descriptors use blocking <code>os.File</code> I/O rather than the runtime epoll path.
 Closing a session prevents new operations while an in-flight blocking syscall
 retains its descriptor reference. This keeps a late read or repeated close
 from using a descriptor number the process has since recycled.</p>
-<!-- source: internal/component/l2tp/ppp/kernel/frame_linux.go -- NewFDFile -->
 <p>Each session reads both descriptors, one long-lived reader for each. LCP,
 authentication and the first NCP negotiation all run on the channel, because
 Ze connects the channel to the unit (<code>PPPIOCCONNECT</code>) only once NCP is up.
@@ -714,23 +661,16 @@ error ends the session. After an LCP restart disconnects the channel, Linux
 still hands out the frames queued on the unit before the disconnect, and those
 belong to the NCP lifetime that ended. So before it connects again, the session
 discards everything the unit delivers until the reader reads EOF, and only then
-connects.</p>
-<!-- source: internal/component/l2tp/ppp/session_run.go -- run, readUnitFrames, wakeUnitReader, awaitUnitDrained -->
-<!-- source: internal/component/l2tp/ppp/ncp.go -- resetNCP -->
-<p>The PPP driver closes both the channel and unit on natural exit or explicit
+connects.
+The PPP driver closes both the channel and unit on natural exit or explicit
 stop. Shutdown, channel attachment and detachment, and post-NCP interface
 setup share a lock so an ioctl cannot use a recycled descriptor.</p>
-<!-- source: internal/component/l2tp/ppp/session_run.go -- closeFiles, afterLCPOpen -->
-<!-- source: internal/component/l2tp/ppp/ncp.go -- resetNCP -->
 <p>The L2TP kernel worker transfers the channel and unit to PPP only after the
 reactor confirms that the original session is still present. The transfer
 clears those descriptors from the worker; its teardown still closes the
 PPPoX transport. Bridged sessions and sessions without a PPP driver stay
 worker-owned. A cancelled delivery closes the claimed descriptors; an
 accepted queue item belongs to PPP even if rejected or drained during stop.</p>
-<!-- source: internal/component/l2tp/kernel_linux.go -- takePPPDescriptors -->
-<!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess -->
-<!-- source: internal/component/l2tp/ppp/manager.go -- dispatch, spawnSession -->
 <p>LCP accepts an Ack only when its Identifier and complete option bytes match
 the last request. Nak and Reject replies also need the matching Identifier;
 Reject options must be an unchanged, ordered subset of that request.
@@ -740,18 +680,13 @@ An LCP or NCP configuration response must fit the session transmit limit
 with all required options intact. If it cannot, Ze reports session failure
 and stops negotiation before an unsent response can advance its state.
 Echo packets carry zero until Magic-Number negotiation succeeds, then the
-local Magic-Number; received Echo packets must carry the peer's value.</p>
-<!-- source: internal/component/l2tp/ppp/lcp.go -- ValidateLCPReply -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- handleLCPPacket, sendConfigureRequest, transmitMagic -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- sendConfigureAck, sendConfigureNakOrReject -->
-<!-- source: internal/component/l2tp/ppp/ncp.go -- sendNCPConfigureAck, sendNCPConfigureNakOrReject -->
-<p>LCP enters Opened before authentication and NCP execute. If those phases
+local Magic-Number; received Echo packets must carry the peer's value.
+LCP enters Opened before authentication and NCP execute. If those phases
 receive an LCP restart or termination, they unwind into the new LCP state
 instead of restoring Opened. Periodic CHAP and MS-CHAPv2 authentication
 follow the same rule: the session loop resumes LCP negotiation or waits
 for the termination grace timer before notifying the transport to close.
 Echo and periodic authentication timers stop while LCP is outside Opened.</p>
-<!-- source: internal/component/l2tp/ppp/session_run.go -- run, applyTransition -->
 <p>Leaving LCP Opened ends the previous PAP decision and both NCP lifetimes.
 Ze disconnects an attached channel from its PPP unit before replacement
 authentication and NCP, so control frames return to the channel reader.
@@ -768,8 +703,6 @@ must match the Identifier of its latest transmitted request. An Ack must
 also match all request options exactly; Reject options must remain an
 unchanged, ordered subset. These checks prevent an old reply from completing
 the replacement negotiation or changing its addresses.</p>
-<!-- source: internal/component/l2tp/ppp/session_run.go -- performAction, handleFrame -->
-<!-- source: internal/component/l2tp/ppp/ncp.go -- runNCPPhase, resetNCP, validNCPReply -->
 <p>Ze answers each RFC 5072 Section 4.1 comparison outcome for the peer's
 Interface-Identifier option:</p>
 <table>
@@ -808,8 +741,6 @@ service, installs no route and publishes no IPv6 address for such a
 session: an all-zero identifier would make the peer's link-local address
 <code>fe80::</code>, which is not the subscriber's. The session stays up with IPv4
 alone, and the refusal is logged and counted (see Prometheus metrics).</p>
-<!-- source: internal/component/l2tp/ppp/ncp.go -- requestIPv6CPInterfaceID declined path, evalIPv6CPRequest, buildNakOrReject -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpenIPv6Service -->
 <p>Authentication and NCP have configurable timeouts. The Restart timer and the
 <code>max-terminate</code>, <code>max-configure</code> and <code>max-failure</code> counters are set under
 <code>lcp</code>, as described above. IPCP and IPv6CP each run their own Restart timer and
@@ -817,8 +748,6 @@ counter from the same Restart time, <code>max-configure</code> and <code>max-ter
 answer is sent again each Restart time, <code>max-configure</code> times in all, and that
 NCP then stops. A Terminate-Request from the peer leaves that NCP stopping for
 one Restart time.</p>
-<!-- source: internal/component/l2tp/ppp/ncp_restart.go -- armNCPRestartTimer, spendNCPRestartCount, handleNCPRestartTimeout -->
-<!-- source: internal/component/l2tp/pppconfig/lcp.go -- ParseLCP -->
 <p>Proxy LCP (RFC 2661 Section 4.4.5) is the LAC's record of the LCP it already
 negotiated with the subscriber, sent in ICCN as AVPs 26 to 28. The RFC lets an
 LNS use it to continue "without renegotiation of LCP", and notes that "the LNS
@@ -854,9 +783,6 @@ to the LNS, not set per LAC.</p>
     proxy-lcp renegotiate;
 }
 </code></pre>
-<!-- source: internal/component/l2tp/ppp/proxy.go -- admitProxyLCP, EvaluateProxyLCP -->
-<!-- source: internal/component/l2tp/ppp/auth.go -- acceptProxyPolicy -->
-<!-- source: internal/component/l2tp/config.go -- ParseProxyLCPPolicy -->
 <p>NCP enablement is controlled via the <code>ncp</code> container under <code>l2tp</code>:</p>
 <pre><code>l2tp {
     ncp {
@@ -872,7 +798,6 @@ again from the moment the last open NCP closes after the session came up; a
 peer that keeps one NCP negotiating cannot extend it. Expiry before the
 session came up ends it with NAS Error; expiry after it ends it with an LCP
 Terminate-Request and Idle Timeout.</p>
-<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- ncp container -->
 <h2 id="authentication">Authentication</h2>
 <p>Ze separates PPP authentication wire format from credential validation.
 The subsystem handles the PPP auth protocol (PAP/CHAP wire framing),
@@ -884,9 +809,6 @@ response on success and the structured error fields on failure, shortening
 only human-readable text. Cached PAP replies preserve their original outcome
 with an empty message. A required structured result that cannot fit fails
 visibly instead of sending a truncated authenticator or challenge field.</p>
-<!-- source: internal/component/l2tp/ppp/pap.go -- runPAPAuthPhase, reanswerPAP -->
-<!-- source: internal/component/l2tp/ppp/chap.go -- runCHAPAuthPhase -->
-<!-- source: internal/component/l2tp/ppp/mschapv2.go -- runMSCHAPv2AuthPhase, fitMSCHAPv2FailureMessage -->
 <p>By default, new sessions advertise <code>auth-method chap-md5</code> and
 <code>allow-no-auth false</code>. A peer's Configure-Nak can select only an untried
 permitted method. Ze offers every available CHAP variant before PAP, even if
@@ -903,7 +825,6 @@ peers or explicit no-auth deployments; <code>auth-method none</code> requires it
 offers CHAP-MD5 and a Nak toward PAP selects PAP next. An explicit PAP-only
 policy offers PAP directly. RFC 1334 Section 2 requires an implementation that
 includes CHAP to offer it before PAP.</p>
-<!-- source: internal/component/l2tp/ppp/auth.go -- initialAuthMethod -->
 <p><code>authentication { allow [ chap-md5 ms-chap-v2 ]; }</code> declares an ordered set
 of permitted methods. It must include <code>auth-method</code>, cannot contain <code>none</code>,
 and cannot accompany <code>auth-method none</code>. With no list, <code>chap-md5</code> permits
@@ -911,16 +832,12 @@ only CHAP-MD5, <code>ms-chap-v2</code> only MS-CHAPv2, <code>pap</code> permits 
 and <code>none</code> has an empty policy. Explicit ordering never makes PAP precede
 an available CHAP method. Configuration validation and reload refuse invalid
 lists rather than replacing malformed explicit input with a broader default.</p>
-<!-- source: internal/component/l2tp/ppp/auth_policy.go -- ResolveAuthAllow -->
 <p>The editor adds one allowed method per command. For example,
 <code>set l2tp authentication allow chap-md5</code>, followed by
 <code>set l2tp authentication allow pap</code>, permits both methods. A refusal prints
 the commands for its transport, retaining permitted methods before adding the
 peer's suggestion. Run them only if that additional method is intended;
 changing the peer to accept an already permitted method needs no policy edit.</p>
-<!-- source: internal/component/l2tp/ppp/auth.go -- refuseAuthMethod -->
-<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet -->
-<!-- source: internal/component/cli/editor_commands.go -- SetValue, setLeafListMember -->
 <p>Proxy LCP is subject to the same policy. A proxied method outside the permitted
 list, an unknown Auth-Protocol, or absent authentication when authentication is
 required causes Ze to run normal LCP instead. Ze also renegotiates if the LAC's
@@ -931,8 +848,6 @@ and the session's configured MRU, including when the peer omitted its option.
 A peer receive MRU of 1500 or 9000 can therefore remain admitted under a
 1492 local policy; authentication and IPCP still complete with a transmit
 MTU of 1492.</p>
-<!-- source: internal/component/l2tp/ppp/auth.go -- selectAuthFallback, refuseAuthMethod, acceptProxyPolicy -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
 <p>Ze also runs normal LCP when a proxied MRU or Magic-Number is malformed: the
 wrong width, listed twice, or a Magic-Number of zero.</p>
 <p>Ze never authenticates from the Proxy Authen AVPs. The Proxy Authen Name only
@@ -945,21 +860,12 @@ peer's Authenticate-Request. A peer that sends none, because the LAC already
 finished PAP with it, gets a new round of LCP from Ze and authenticates again,
 so such a session comes up about 6 seconds later than one that needs no new
 round.</p>
-<!-- source: internal/component/l2tp/session_fsm.go -- handleICCN -->
-<!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned -->
-<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- onSessionIPAssigned, buildAcctPacket -->
-<!-- source: internal/component/l2tp/ppp/proxy.go -- decodeProxyMRU, decodeProxyMagic -->
-<!-- source: internal/component/l2tp/ppp/pap.go -- proxyPAPRequestWait, runPAPAuthPhase, renegotiateProxiedLCP -->
 <p>IPv6CP is enabled by default, so the configured MRU must be at least 1280.
 For IPv4-only service, set <code>l2tp ncp enable-ipv6cp false</code> before using an
 MRU from 68 through 1279. Validation checks the effective combination at
 initial load and reload; a refused reload keeps the previous session policy.
 The shared PPP driver also rejects a directly supplied cap that is too small
 for its enabled protocols. The receive buffer capacity remains 1500.</p>
-<!-- source: internal/component/l2tp/config_policy.go -- validateMRUPolicy, validateMRUNCP -->
-<!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
-<!-- source: internal/component/l2tp/subsystem_reload.go -- extractFromProvider -->
-<!-- source: internal/component/l2tp/ppp/manager.go -- spawnSession -->
 <p>When an otherwise valid peer negotiates an MRU smaller than 1280, Ze does not
 start IPv6CP or allocate an IPv6 address. IPv4 can still establish using the
 peer's smaller limit. An IPv6-only session fails with an MRU diagnostic rather
@@ -968,10 +874,6 @@ the new directional MRUs support 1280: it starts from the configured MRU again,
 so a smaller value the peer Nakked in an earlier negotiation does not carry
 over. Peer MRUs smaller than 68 are Nakked to 68 instead of causing Ze to
 install an MTU larger than the agreed limit.</p>
-<!-- source: internal/component/l2tp/ppp/mru_policy.go -- ipv6MRUSupported -->
-<!-- source: internal/component/l2tp/ppp/ncp.go -- runNCPPhase, onNCPOpened -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- negPolicy, handleLCPPacket -->
-<!-- source: internal/component/l2tp/ppp/auth.go -- resetAuthNegotiation -->
 <p>Two auth handlers ship with ze. The slot holds one handler, and configuration
 decides its owner: <code>l2tp-auth-radius</code> claims it when a RADIUS server is
 configured, and <code>l2tp-auth-local</code> keeps it otherwise. Both transports resolve
@@ -980,7 +882,6 @@ switches subsequent requests to RADIUS; removing the <code>auth radius</code> bl
 returns them to the current local user table, including credentials changed
 while RADIUS owned the slot. An in-process RADIUS plugin restart preserves
 that local fallback.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig claims the slot -->
 <h3 id="l2tp-auth-local">l2tp-auth-local</h3>
 <p>Built-in static user list with PAP and CHAP-MD5 support.
 Configured under the <code>l2tp</code> config tree:</p>
@@ -1009,7 +910,6 @@ reporting the subscriber address as Framed-IP-Address</li>
 </ul>
 <p>Configure <code>l2tp-auth-radius</code> as an internal plugin. It refuses external startup
 because authentication and accounting require the engine's process-local state.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/register.go -- runPlugin -->
 <p>The RADIUS handler accepts explicit no-auth sessions without an Access-Request.
 RADIUS remains available for accounting.</p>
 <p>For sessions that require authentication, RFC 2865 Section 4.1 requires
@@ -1035,15 +935,12 @@ attribute is not that value: RFC 2548 Section 2.3.3 defines it as an Ident
 octet followed by the string <code>S=</code> and the response as 40 hexadecimal digits, so
 ze strips the Ident and decodes the digits rather than passing the attribute
 through.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/handler.go -- buildAuthAttrs, doRADIUS, extractMSCHAP2Success, decodeMSCHAP2Success -->
 <p>A login whose handling meets a Ze defect (a Go panic) is denied with
 <code>internal error</code>, and every other login is served as before. The panic is
 logged at ERROR with the tunnel and session and the stack, counted in
 <code>ze_task_panics_total{component="radius-auth",task="request"}</code>, and written as
 a crash record that <code>ze show crashes</code> lists. Any count above zero is a Ze defect
 to report with that record.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/handler.go -- doRADIUS -->
-<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- authRequestTask -->
 <p>Every Accounting-Request carries Acct-Status-Type, Acct-Session-Id, Service-Type
 (Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual), NAS-Port and
 Event-Timestamp. User-Name and Calling-Station-Id are added when the session has
@@ -1063,7 +960,6 @@ restart: 24 hex digits, the Unix seconds read when the first session after
 startup is accounted, then 64 random bits. On a box with no real-time clock that
 starts sessions before NTP answers, two boots can read the same second, and the
 random half still tells their ids apart.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- genSessionID, mintBootTag -->
 <p>PPP waits for address publication and the L2TP accounting callback to capture the
 initial raw interface counters before it enables forwarding. This includes a
 replacement network lifetime on the same PPP unit. Accounting-Start runs
@@ -1078,7 +974,6 @@ instant and the traffic counters) and hands the Stop to that task without
 waiting for the server. A silent accounting server therefore does not hold up
 the control traffic of other tunnels, and the Stop still reports when service
 ended, even when it leaves later.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- runAccounting, onSessionDown, acctSession.end, captureEnd, sendAcctPacket -->
 <p>A session sends all its records to the accounting servers and with the NAS
 identity that were configured when it started. A reload that changes the
 RADIUS servers or the NAS identity applies to the sessions that start after it;
@@ -1087,8 +982,6 @@ shutdown, and when the RADIUS configuration is removed, every live session gets
 a Stop with Admin Reboot. Ze waits at most 10 seconds in total for every Stop
 still owed, then gives up on the rest and logs each one with its
 Acct-Session-Id.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- setClient, acctEndpoint, stopDetached, awaitTasks -->
-<!-- source: internal/component/l2tp/plugins/authradius/register.go -- runPlugin -->
 <p>A record that no accounting server acknowledged is logged and is a
 <code>doctor-radius-accounting-unacknowledged</code> finding of the runtime doctor check
 <code>l2tp-radius-accounting</code>, one per session, named by its tunnel, session and
@@ -1096,8 +989,6 @@ Acct-Session-Id. The session stays up (RFC 2866). A later acknowledged record
 of the same session clears the finding; an unacknowledged Stop stays until the
 plugin stops. Restore the accounting server's reachability and shared key, then
 check with <code>show diagnostic doctor-radius-accounting-unacknowledged</code>.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/acct_health.go -- recordAccountingOutcome, checkAccountingHealth, acctHealthDeclaration -->
-<!-- source: internal/component/l2tp/plugins/authradius/register_acct_doctor.go -- codeRADIUSAccountingUnacknowledged -->
 <p>A Ze defect (a Go panic) met in a session's Start or Interim-Update ends those
 records only: the session stays up, every other session accounts as before, and
 the session's Stop record is still sent when it ends, because RFC 2866 Section 2
@@ -1105,8 +996,6 @@ ties the Stop to the end of service delivery. The panic is logged at ERROR with
 the tunnel and session and the stack, counted in
 <code>ze_task_panics_total{component="radius-auth",task="accounting"}</code>, and written
 as a crash record that <code>ze show crashes</code> lists.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- runAccounting, containAccounting -->
-<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- accountingTask -->
 <p>Event-Timestamp (type 55) is four octets of seconds since 1970-01-01 00:00 UTC,
 which RFC 2869 Section 5.3 defines. Calling-Station-Id (type 31) is the L2TP
 Calling Number AVP the peer sent, or the subscriber MAC address on the PPPoE
@@ -1141,7 +1030,6 @@ Error: RFC 1661 Section 4.3 calls that rejection "an unrecoverable error that
 terminates the connection." A CPE that Code-Rejects Echo-Request instead gets
 no further echo probe, so it is never ended for the echo replies it cannot
 send; its session lives on the tunnel's own liveness check.</p>
-<!-- source: internal/component/l2tp/ppp/session_run.go -- lcpCodeRejectEvent, protocolRejectEvent, stopRejectedCode, applyTransition -->
 <p>A subscriber hanging up reaches the record through the peer's Call-Disconnect-
 Notify. Ze reads that message's Result Code (RFC 2661 Section 4.4.2) and
 translates the two values RFC 2866 Section 5.10 also states: code 1, "Call
@@ -1163,8 +1051,6 @@ the RADIUS admin backend already does.</p>
 peer address the reactor put on <code>pppN</code>. RFC 2865 Section 5.8 makes the attribute
 four octets, so a session with no address yet, or one whose only assignment is
 IPv6, sends no attribute rather than a wrong one.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- buildAcctPacket -->
-<!-- source: internal/component/l2tp/plugins/authradius/nasidentity.go -- appendNASIdentity -->
 <h4 id="holding-an-attribute-back">Holding an attribute back</h4>
 <p>The four attributes above are sent by default, which is what a billing system
 usually wants. An operator whose server or billing pipeline does not want one of
@@ -1247,8 +1133,6 @@ reads "An Accounting-Request MUST contain either a NAS-IP-Address or a
 NAS-Identifier (or both)". Ze offers no numeric form for the same reason: a number accepts
 a line that suppresses a mandatory attribute and gives the operator no
 diagnostic either way.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/exclude.go -- attributeExclusions, parseAttributeExclusions -->
-<!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- attributes container -->
 <p>Three attributes an operator may look for are deliberately absent, because no
 runtime value exists for them: Framed-Interface-Id, Framed-IPv6-Prefix and
 Delegated-IPv6-Prefix.</p>
@@ -1279,8 +1163,6 @@ Interim-Update and Stop. A server that takes both kinds on one socket needs
 <code>accounting-port</code> set to the same value as <code>port</code>, because without it the
 accounting goes to 1813, where that server is not listening. The two ports share
 the entry's address, shared key and failover position.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree, serverPort -->
-<!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig -->
 <p>Ze signs every Access-Request with a Message-Authenticator, and by default it
 discards any answer to one that carries no Message-Authenticator: this closes
 BlastRADIUS (CVE-2024-3596), where an attacker forges an Access-Accept from an
@@ -1294,10 +1176,6 @@ warning naming the server and the exact <code>set</code> command that accepts it
 <code>doctor-radius-invalid</code>, with the command that sets it, and that server is not
 probed. The leaf never applies to accounting.
 <code>docs/config-reference.md</code> ("RADIUS answer signing") has both RADIUS leaves.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree -->
-<!-- source: internal/component/radius/client.go -- dispatchResponse, discardUnsignedResponse -->
-<!-- source: internal/component/l2tp/plugins/authradius/doctor.go -- checkRADIUSServers -->
-<!-- source: internal/component/l2tp/plugins/authradius/doctor.go -- udpServerReachable -->
 <p><code>nas-port-id-format</code> is the template for the NAS-Port-Id attribute (RFC 2869
 Section 5.17). An LNS has no physical port to number, so the operator composes
 one from <code>{nas-id}</code>, <code>{tunnel-id}</code> and <code>{session-id}</code>. Every other character is
@@ -1312,7 +1190,6 @@ value a RADIUS attribute can carry), one using <code>{nas-id}</code> with no
 the <code>nas-identifier</code> it expands is long. The last is a separate check because
 <code>{nas-id}</code> is nine characters that expand to a name the config does not bound.
 Unset sends no attribute.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/nasportid.go -- validateNASPortIDFormat, validateNASPortIDResolution -->
 <p><code>acct-interval</code> is the interim accounting cadence in seconds, and it has no
 default. RFC 2869 Section 2.1 states that a locally configured value on the NAS
 MUST override the value found in an Access-Accept. A leaf that is set therefore
@@ -1323,7 +1200,6 @@ seconds. A session runs at 300 seconds when neither side states an interval.</p>
 <p>The choice is which side owns the cadence. An operator who sized the interval
 for the NAS and the network sets the leaf. An operator who leaves it unset lets
 one server retime every session that server accepts.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- acctInterval -->
 <p><code>coa-port</code> enables the UDP Change of Authorization and Disconnect-Message
 listener. It has no default: leaving it unset keeps the listener off, so an
 upgrade cannot expose a new RADIUS endpoint unexpectedly. Port 3799 is the
@@ -1427,9 +1303,6 @@ After matching, the listener captures that same Birth and its original row.
 CoA reads that captured row; Disconnect waits for its captured teardown with
 Admin-Reset cause before acknowledging it. A stale match gets CoA-NAK 503 or
 Disconnect-NAK 504 without selecting a replacement.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- findSessions, oneSession, findSubscriberSession, coaSupportedAttrs, disconnectSupportedAttrs -->
-<!-- source: internal/component/l2tp/subscriber/registry.go -- LookupByAcctSessionID -->
-<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- currentSessionIDs, genSessionID -->
 <p>A CoA-Request prepares every requested control before changing either one.
 The listener then asks the shaper and class-of-service owners to apply through
 the command dispatcher and waits for their backend results before sending an
@@ -1454,9 +1327,6 @@ and <code>show l2tp shaper</code> as the next inspection step. Repair the backen
 the authenticated request. A successful retry for the same session clears the
 finding; session teardown and provider shutdown also clear it. Attribute refusals
 handled before application do not raise that runtime finding.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/coa_transaction.go -- confirmCoA -->
-<!-- source: internal/component/l2tp/plugins/authradius/coa_health.go -- checkCoAHealth, recordCoAHealth, subscribeCoAHealth -->
-<!-- source: internal/component/l2tp/plugins/shaper/rate_transaction.go -- prepareRate, applyRate, restoreRate -->
 <p>A Disconnect-Request carries identification attributes, plus the Reply-Message,
 Class and Acct-Terminate-Cause the RFC 5176 Section 3.6 table admits. Ze reads
 no Vendor-Specific attribute in one, so it answers a Disconnect-Request that
@@ -1477,7 +1347,6 @@ get each other's answers; a NAT that changes the source port between
 retransmissions defeats the detection. The cache holds each response for five
 minutes, the Event-Timestamp window, and only an authenticated request that
 earned a response enters it.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- replayKey, cachedReplay, rememberReplay, coaReplayWindow -->
 <p>A request whose handling meets a Ze defect (a Go panic) does not stop the
 listener. When the request had passed every authentication check, Ze answers it
 with a CoA-NAK or Disconnect-NAK carrying Error-Cause 506 (Resources
@@ -1487,8 +1356,6 @@ the next request. The panic is logged at ERROR with the sender's address and
 the stack, counted in <code>ze_task_panics_total{component="radius-coa",task="request"}</code>,
 and written as a crash record that <code>ze show crashes</code> lists. Any count above zero
 is a Ze defect to report with that record.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- coaListener.serveRequests -->
-<!-- source: internal/component/l2tp/plugins/authradius/panic_guard.go -- coaRequestTask -->
 <p>The response echoes the request's Proxy-State and State attributes unchanged,
 and Ze never reads their contents.</p>
 <p>RFC 5176 Section 3.4 makes the Message-Authenticator attribute optional, and Ze
@@ -1510,10 +1377,6 @@ Authenticator field and the Message-Authenticator value each replaced by sixteen
 octets of zero, and the Request Authenticator is computed afterwards, over the
 packet the finished Message-Authenticator is part of. A client that inverts the
 two is refused.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- coa-port -->
-<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- admitRequest, answerRequest, unsupportedAttr, unsupportedAttrValue, readCoAChange, applySubscriberCoA, oneSession -->
-<!-- source: internal/component/l2tp/plugins/authradius/register.go -- startCoAListener -->
-<!-- source: internal/component/radius/packet.go -- VerifyCoARequestAuth, VerifyCoAMessageAuthenticator -->
 <p>Authentication timing is controlled via the <code>authentication</code> container under <code>l2tp</code>:</p>
 <pre><code>l2tp {
     authentication {
@@ -1525,9 +1388,6 @@ two is refused.</p>
 <p>The <code>timeout</code> leaf (1-3600 seconds, default 30) bounds the PPP auth phase.
 The <code>reauth-interval</code> leaf (0 or 5-86400 seconds, default 0) enables periodic
 re-authentication when non-zero. Values 1-4 are rejected to prevent re-auth storms.</p>
-<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- authentication container -->
-<!-- source: internal/component/l2tp/plugins/authlocal/ -->
-<!-- source: internal/component/l2tp/plugins/authradius/ -->
 <h2 id="ip-address-pool">IP address pool</h2>
 <p>The <code>l2tp-pool</code> plugin provides bitmap-backed IPv4 address pools.
 Pools are registered via the handler registry and dispatched when
@@ -1537,8 +1397,6 @@ An explicit declaration uses <code>plugin { internal l2tp-pool { use l2tp-pool; 
 An external process cannot configure the daemon's address or prefix handlers,
 so the plugin refuses that mode before configuration. <code>ze doctor</code> reports it
 as <code>doctor-plugin-external-unsupported</code> and names the internal replacement.</p>
-<!-- source: internal/component/l2tp/plugins/pool/register.go -- init, runPlugin -->
-<!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalInProcess, externalInProcessRow -->
 <p>Configured under the <code>l2tp</code> config tree:</p>
 <pre><code>l2tp {
     pool {
@@ -1563,8 +1421,6 @@ when another pool supplies the gateway and DNS. An address another live
 subscriber holds is refused, including one whose range was removed by reload.
 A unique address outside all ranges remains usable without consuming a pool
 slot.</p>
-<!-- source: internal/component/l2tp/plugins/pool/register.go -- handle -->
-<!-- source: internal/component/l2tp/plugins/pool/radius.go -- reserveRADIUSAddressLocked -->
 <p>The two special values of RFC 2865 Section 5.8 name no address:
 <code>255.255.255.254</code> ("the NAS should select an address for the user") and
 <code>255.255.255.255</code> (the user selects) leave the choice to the pool, so the
@@ -1574,7 +1430,6 @@ response has no netmask field to apply.</p>
 <p>Ze does not read <code>Delegated-IPv6-Prefix</code> or <code>Framed-IPv6-Prefix</code> from an
 Access-Accept, so no RADIUS-supplied IPv6 prefix reaches a subscriber today.
 L2TP subscribers are IPv4-only.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractAuthMetadata -->
 <p>The IPCP DNS offered follows the pool's <code>dns-source</code> list. With none written,
 an Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server (RFC 2548,
 vendor 311 types 28 and 29) come first, then the pool's <code>dns-primary</code> and
@@ -1589,8 +1444,6 @@ RADIUS primary followed by the pool's primary.</p>
 <p>L2TP and PPPoE subscribers keep separate pool ownership even when their
 numeric session identifiers are equal. Their authorization profiles, cleanup
 and displayed usernames follow the same subscriber identity.</p>
-<!-- source: internal/component/l2tp/plugins/pool/register.go -- handle, onSessionDown, lookupSessionUsername -->
-<!-- source: internal/component/l2tp/session_metadata.go -- StoreSessionMetadata, ClearSessionMetadata -->
 <p>A committed pool edit replaces the running pools without disconnecting
 subscribers. Each live address and delegated prefix stays reserved wherever
 the new ranges contain it. An assignment outside every new range remains with
@@ -1599,30 +1452,23 @@ assignments. A later rollback restores the previous ranges and carries the
 assignments held at rollback time, including sessions admitted after apply.
 Existing subscribers keep the gateway and DNS that they negotiated. New
 sessions use the new values. An edit outside <code>l2tp pool</code> rebuilds no pool.</p>
-<!-- source: internal/component/l2tp/plugins/pool/reload.go -- configTransaction, installPoolConfiguration -->
 <p><code>show l2tp pool</code> keeps the default pool's fields at the top level. Its
 <code>named-pools</code> and <code>named-ipv6-pools</code> maps report each named pool's current range
 or block, capacity, allocated slots and available slots. They also appear when
 only named pools are configured. After reload, a carried assignment counts in
 each replacement pool whose slots it reserves.</p>
-<!-- source: internal/component/l2tp/plugins/pool/register.go -- showPool, showPoolSnapshot, poolShowResult -->
 <p>When an IPv6 delegation length changes, Ze reserves every new slot that
 overlaps a live delegated prefix. A larger new slot can cover several live
 delegations. That slot returns only after the last overlapping session ends.</p>
-<!-- source: internal/component/l2tp/plugins/pool/pool_v6.go -- carry, releaseOverlap -->
 <p>Each IPv4 range can hold 1 through 1,048,576 addresses. The range must exclude
 <code>0.0.0.0</code> and <code>255.255.255.255</code>. Both <code>dns-primary</code> and <code>dns-secondary</code> must
 be IPv4 when set; either can be absent. Ze checks these limits before building
 an allocation bitmap, at startup and during reload verification.</p>
-<!-- source: internal/component/l2tp/plugins/pool/config_validation.go -- ipv4PoolSizeMax, validateIPv4Description -->
 <p>The default and named IPv4 ranges must be disjoint. The default and named
 IPv6 blocks must also be disjoint, even when their delegation lengths differ.
 A refusal names both pools and their overlap, so the operator can correct the
 conflicting range or remove the extra pool. A refused reload keeps the running
 pools and subscriber assignments.</p>
-<!-- source: internal/component/l2tp/plugins/pool/config_validation.go -- validatePoolConfiguration, validatePoolIPv4Ranges, validatePoolIPv6Blocks -->
-<!-- source: internal/component/l2tp/plugins/pool/ -->
-<!-- source: internal/component/l2tp/plugins/authradius/extract_dns.go -- extractMSDNSServers -->
 <h2 id="traffic-shaping">Traffic shaping</h2>
 <p>The <code>l2tp-shaper</code> plugin applies TC (traffic control) rules on <code>pppN</code>
 interfaces. Session establishment uses the configured default rate.
@@ -1694,10 +1540,6 @@ raised to 68, the IPv4 minimum. A value of the wrong length, or outside 64 to
 seconds. It applies to a session whose deployment left <code>acct-interval</code> unset.
 RFC 2869 Section 2.1 gives a configured <code>acct-interval</code> precedence over it.
 RADIUS CoA rate updates do not tear down the session.</p>
-<!-- source: internal/component/l2tp/plugins/shaper/shaper.go -- applyTC, both directions -->
-<!-- source: internal/plugins/traffic/netlink/policer_linux.go -- the tc ingress policer -->
-<!-- source: internal/component/traffic/filterid_rate.go -- ParseFilterIDRate -->
-<!-- source: internal/component/l2tp/plugins/authradius/extract_mtu.go -- extractFramedMTU -->
 <h2 id="cqm-call-quality-metrics">CQM (Call Quality Metrics)</h2>
 <p>Ze provides Firebrick-style CQM monitoring for L2TP sessions. The
 Observer records per-session events and per-login sample rings:</p>
@@ -1730,9 +1572,6 @@ not divide a 100-second bucket or are longer than one bucket.
 Loss ratio appears only when the bucket has a positive expected echo count.
 An interval longer than one bucket leaves loss unavailable; a computed zero
 remains present in the echo state.</p>
-<!-- source: internal/component/l2tp/observer.go -->
-<!-- source: internal/component/l2tp/subsystem.go -- cqmEchoInterval -->
-<!-- source: internal/component/l2tp/cqm.go -->
 <p>Quality state belongs to the login's selected original connection. A newer IP
 assignment selects that connection; ending an older one cannot mark the newer
 one down. Repeated Down does not renew an ended login's retention. Reconnection
@@ -1742,9 +1581,6 @@ old phase contributor.</p>
 their matching history until cleanup finishes; they do not accept a new
 connection's events. Stop rejects even a callback copied before unsubscribe.
 The existing pending-cleanup refusal remains in force before replacement Start.</p>
-<!-- source: internal/component/l2tp/observer_events.go -- observeEvent -->
-<!-- source: internal/component/l2tp/subsystem.go -- Start, Stop -->
-<!-- source: internal/component/l2tp/session_retirement.go -- retireObserverLocked -->
 <h2 id="prometheus-metrics">Prometheus metrics</h2>
 <p>L2TP exposes metrics under the <code>ze_l2tp_*</code> and <code>ze_radius_*</code> namespaces.</p>
 <h3 id="aggregate-gauges">Aggregate gauges</h3>
@@ -1865,7 +1701,6 @@ The existing pending-cleanup refusal remains in force before replacement Start.<
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/l2tp/relay_metrics.go -- bindRelayMetrics, relayOutcome.label -->
 <h3 id="session-establishment-counter-labels-proxy-lcp">Session establishment counter (labels: proxy_lcp)</h3>
 <table>
 <thead>
@@ -1883,9 +1718,6 @@ The existing pending-cleanup refusal remains in force before replacement Start.<
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/l2tp/metrics.go -- bindL2TPMetrics, countSessionLCPOpened -->
-<!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPUp -->
-<!-- source: internal/component/l2tp/ppp/events.go -- ProxyLCPOutcome.String -->
 <h3 id="ppp-negotiation-counters-labels-reason">PPP negotiation counters (labels: reason)</h3>
 <table>
 <thead>
@@ -1939,7 +1771,6 @@ Auth-Protocol. The warning and final session-down reason name the peer's
 suggestion, the permitted methods, and the operator configuration to change.
 No Accounting-Stop exists before authentication; use this counter and the log
 to diagnose those refusals.</p>
-<!-- source: internal/component/l2tp/ppp/metrics.go -- initPPPMetrics, countAuthMethodRefusal -->
 <h3 id="reader-loop-error-counters">Reader-loop error counters</h3>
 <p>A receiver goroutine that cannot classify a socket read error retries it
 with a growing delay, capped at 250ms, instead of spinning. Each swallowed
@@ -2006,9 +1837,6 @@ it is PPPoE-specific.</p>
 </table>
 <p>Kernel interface stats are polled at <code>ze.l2tp.metrics.poll-interval</code>
 (default: 30s).</p>
-<!-- source: internal/component/l2tp/metrics.go -->
-<!-- source: internal/component/l2tp/plugins/authradius/metrics.go -->
-<!-- source: internal/component/l2tp/ppp/metrics.go -- initPPPMetrics, countIdentifierRefusal -->
 <h2 id="web-ui">Web UI</h2>
 <p>The web interface at <code>/l2tp</code> provides session management and CQM
 graphing. All endpoints require authentication (session cookie or
@@ -2064,7 +1892,6 @@ handler parses the link's <code>tunnel-id</code>, bound <code>listener</code> en
 <code>expected-id</code> once, then captures one original for snapshot and history.
 Malformed or duplicate filters refuse before reading any session. An ended
 original refuses instead of opening a replacement with the same numeric IDs.</p>
-<!-- source: internal/component/web/handler_l2tp_selector.go -- l2tpDetailSelector, l2tpSessionDetailURL -->
 <p>Chart colours are CSS custom properties (configurable via theme):</p>
 <ul>
 <li><code>--color-l2tp-established</code> (default: green #22c55e)</li>
@@ -2087,8 +1914,6 @@ monitoring ring when CQM is enabled and space remains. Command audit is
 separate; this optional timeline is not a durable action receipt. Detail reads
 capture one original session for both its snapshot and history. An ambiguous
 numeric ID is refused rather than combining different subscribers' data.</p>
-<!-- source: internal/component/web/handler_l2tp.go -->
-<!-- source: internal/component/web/assets/l2tp-chart.js -->
 <h2 id="kernel-integration">Kernel integration</h2>
 <p>Ze uses the Linux kernel's L2TP and PPP subsystems for the data plane.
 Control plane (L2TP control messages, PPP negotiation) runs entirely
@@ -2114,9 +1939,6 @@ Ze removes its IPCP address using the installed local/peer pair before replaceme
 Linux creates the peer's connected route when the address is added and removes that route
 when the address is deleted. PPP does not issue a separate route deletion for this
 kernel-owned route. The next IPCP negotiation can reuse the address on the retained unit.</p>
-<!-- source: internal/component/l2tp/ppp/ncp.go -- onNCPOpened, teardownNCPResources -->
-<!-- source: internal/plugins/iface/netlink/addr_primary_linux.go -- netlinkAddrRemover.List -->
-<!-- source: internal/component/l2tp/kernel_linux.go -->
 <h3 id="radius-framed-routes">RADIUS framed routes</h3>
 <p>Each IPv4 Framed-Route in the subscriber's Access-Accept is installed as a
 route through the session's PPP interface once that interface is up, after
@@ -2158,7 +1980,6 @@ operation of the protocol"). <code>ze doctor</code> reports the skip under
 <code>doctor-radius-framed-route-skipped</code>, naming the subscriber's user name, the
 attribute and the reason, at most once a minute per subscriber. Correct the
 subscriber's RADIUS profile, then let the subscriber reconnect.</p>
-<!-- source: internal/component/l2tp/plugins/authradius/extract.go -- appendFramedRoutes, reportFramedRouteSkipped -->
 <p>The routes are withdrawn before the peer address when the network lifetime
 ends, whether by an LCP reset, an IPCP renegotiation or session-down. A
 route whose withdrawal fails is retried with the session's other cleanup.
@@ -2170,12 +1991,6 @@ an interface when the interface goes, and a PPP interface goes when its
 last descriptor closes, which includes a daemon that stops or crashes. The
 IPv6 routes are withdrawn the same way, before the link-local addresses,
 when the IPv6 service stops.</p>
-<!-- source: internal/component/l2tp/ppp/framed_route.go -- newFramedRouteReceipt, installNCPFramedRoutesIPv4Locked, withdrawNCPFramedRoutesIPv4, checkFramedRoutesLimit, installFramedRoutes, removeFramedRoutes -->
-<!-- source: internal/component/l2tp/ppp/ncp.go -- onNCPOpened, reconcileNCPFamily, withdrawNCPFamilyLocked -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- activateNetwork, afterLCPOpenIPv6Service -->
-<!-- source: internal/component/l2tp/ppp/kernel/session.go -- RemoveRoute, routeConfirmedAbsent -->
-<!-- source: internal/plugins/iface/netlink/native_ppp_request_linux.go -- nativePPPRouteRequest -->
-<!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractFramedRoutes, parseFramedRoute -->
 <h2 id="redistribute">Redistribute</h2>
 <p>Ze registers <code>l2tp</code> as a redistribution source at subsystem Start.
 When IPCP assigns the peer an IPv4 address, the subscriber route observer
@@ -2197,14 +2012,10 @@ and session numbers, including on different listeners, keep separate address
 and framed routes. Removing one Birth leaves the other's routes available
 for replay. A Down for an unknown Birth removes nothing. Framed routes arrive
 from the original actor's captured authorization profile.</p>
-<!-- source: internal/component/l2tp/route_observer.go -- records, assign, withdraw, reemitAll -->
-<!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned -->
 <p>One route update accepts at most 64 RADIUS framed routes. An oversized update
 is refused before any route, contribution token or counter changes, including
 when that Birth already has accepted routes. The earlier record and other
 Births remain available for replay. Ze refuses the whole update.</p>
-<!-- source: internal/component/l2tp/route_observer.go -- assign -->
-<!-- source: internal/component/l2tp/events/events.go -- FramedRoutesMax -->
 <p>The refusal logs <code>doctor-l2tp-framed-route-limit</code> and retains an error event
 with the original Birth, numeric tunnel and session IDs, observed minimum
 route count, cause and next command. The runtime doctor reports that history.
@@ -2212,16 +2023,12 @@ Correct the affected subscriber's RADIUS profile to fit the limit. Before
 reconnecting that subscriber, inspect its current session and listener.
 The next command, <code>ze show l2tp sessions</code>, lists current numeric coordinates.
 It does not edit the RADIUS profile. Later updates do not erase the event.</p>
-<!-- source: internal/component/l2tp/route_source.go -- reportFramedRouteRefusal -->
-<!-- source: internal/component/doctor/checks_recent_events.go -- checkRecentEvents -->
 <p>Each record also retains a separate native redistribution contribution token.
 Add, replay and remove carry that same nonzero token, so equal prefixes from
 different original sessions remain independent. Tokens are allocated once per
 route lifetime and never recycled within the process. Exhaustion refuses a
 new contribution and raises an internal-defect doctor warning with a restart
 command; it does not reuse another session's token.</p>
-<!-- source: internal/component/l2tp/route_source.go -- routeSourceSequence, next, reportSourceRefusal -->
-<!-- source: internal/component/l2tp/route_observer.go -- routeRecord, assign, reemitAll -->
 <p>The redistribute orchestrator discovers L2TP as a producer at startup,
 subscribes to its events, and dispatches the prefixes to registered consumers
 (BGP) when a matching import rule is configured:</p>
@@ -2241,7 +2048,6 @@ redistribute {
 </code></pre>
 <p>Each peer's UPDATE carries <code>origin=incomplete</code>, an empty AS-path, and
 <code>NEXT_HOP</code> resolved to the peer's local session address.</p>
-<!-- source: internal/component/l2tp/route_observer.go -->
 <h2 id="reload-semantics">Reload semantics</h2>
 <p>SIGHUP triggers <code>Subsystem.Reload</code>. The implementation diff-applies
 each knob according to this policy:</p>
@@ -2365,11 +2171,6 @@ Plugin shutdown still retires its own accounting and joins its retirement
 workers before restart.
 These rules concern removal of the RADIUS provider while L2TP remains running;
 teardown of the L2TP subsystem itself ends its subscriber sessions.</p>
-<!-- source: internal/component/l2tp/plugins/authlocal/register.go -- runPlugin -->
-<!-- source: internal/component/l2tp/plugins/authradius/register.go -- runPlugin -->
-<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext, rollbackReload -->
-<!-- source: internal/component/plugin/server/reload_tx.go -- DeferReloadAcceptance -->
-<!-- source: internal/component/l2tp/subsystem_reload.go -->
 <h2 id="dead-peer-detection">Dead-peer detection</h2>
 <p>A HELLO is sent after <code>hello-interval</code> seconds of peer silence and is
 delivered reliably, so the peer's ZLB ACK proves the control channel is
@@ -2406,9 +2207,6 @@ detection and fall back to retransmit exhaustion alone. When
 <code>hello-retries x hello-interval</code> exceeds ~31s (e.g. the defaults
 <code>2 x 60s</code>), retransmit exhaustion fires first and the threshold has no
 effect; lower <code>hello-interval</code> to get faster detection.</p>
-<!-- source: internal/component/l2tp/reactor.go -- handleTick dead-peer check -->
-<!-- source: internal/component/l2tp/tunnel.go -- lastLiveness vs lastActivity -->
-<!-- source: internal/component/l2tp/reactor_setters.go -- reliableConfig, setMaxRetransmit -->
 <h2 id="environment-variables">Environment variables</h2>
 <p>Remaining <code>ze.l2tp.*</code> env vars (not promoted to YANG config):</p>
 <ul>
@@ -2423,8 +2221,6 @@ bypasses only the modprobe and still needs the data plane.</li>
 </ul>
 <p>PPP authentication and NCP settings are now YANG config leaves under
 <code>l2tp { authentication { ... } }</code> and <code>l2tp { ncp { ... } }</code>.</p>
-<!-- source: internal/component/l2tp/config.go -->
-<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -->
 <h2 id="architecture">Architecture</h2>
 <p>The subsystem uses a reactor pattern: a single reactor goroutine reads
 the shared UDP socket and dispatches to tunnel state machines. A
@@ -2451,8 +2247,6 @@ goroutine-per-tunnel.</p>
 <li><code>l2tp-pool</code> -- bitmap-backed IPv4 address pools</li>
 <li><code>l2tp-shaper</code> -- TC traffic shaping on pppN interfaces</li>
 </ul>
-<!-- source: internal/component/l2tp/reactor.go -->
-<!-- source: internal/component/l2tp/observer.go -->
 </div>
 </div>
             </section>
@@ -2502,7 +2296,7 @@ goroutine-per-tunnel.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

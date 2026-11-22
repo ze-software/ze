@@ -44,8 +44,6 @@
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-routing">
-<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- BMPPlugin -->
-<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- YANG config -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="bmp-bgp-monitoring-protocol">BMP (BGP Monitoring Protocol)</h1>
@@ -86,8 +84,6 @@ feeds from routers) and as a <strong>sender</strong> (streaming state to collect
 every added address before closing any removed address. If one bind fails,
 the commit is refused and the previous listeners and session limits stay in
 force. A sender change bounces the affected collector sessions.</p>
-<!-- source: internal/component/bgp/plugins/bmp/receiver.go -- applyReceiverConfig -->
-<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- registerCallbacks -->
 <p>A Peer Down
 carries the Data its reason code requires: RFC 7854 Section 4.9 draws the field
 as present for reasons 1, 2 and 3, so a session ze closed by NOTIFICATION
@@ -115,7 +111,6 @@ Configured under <code>environment</code> to follow ze's service listener patter
     }
 }
 </code></pre>
-<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- environment container -->
 <table>
 <thead>
 <tr>
@@ -157,7 +152,6 @@ Configured under <code>environment</code> to follow ze's service listener patter
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- environment container, route-action -->
 <p>Multiple listeners are supported (same pattern as SSH/web):</p>
 <pre><code>environment {
     bmp {
@@ -178,8 +172,6 @@ via the YANG <code>ze:listener</code> extension. The BMP receiver binds <code>::
 so <code>::</code> alone already accepts IPv4 collectors on its port; <code>::</code> beside
 <code>0.0.0.0</code> (or any IPv4 address) on one port is refused, because the IPv4
 bind could never succeed (see <code>docs/guide/configuration.md</code>, "Named Listeners").</p>
-<!-- source: internal/component/bgp/plugins/bmp/receiver.go -- bindReceiverListeners -->
-<!-- source: internal/component/config/listener.go -- dualStackPair -->
 <p>Receiver startup installs all requested listeners or returns a configuration
 error without leaving a partial set. An explicit external BMP process follows
 its <a href="../plugins/#when-a-plugin-fails">plugin failure policy</a>; its failure does
@@ -191,7 +183,6 @@ port, the replacement is refused and the old listener stays active. Resolve
 the bind conflict or remove the named server
 entry before committing again. The refusal names the endpoint and prints the
 exact repair command.</p>
-<!-- source: internal/component/bgp/plugins/bmp/receiver.go -- applyReceiverConfig, bindReceiverListeners -->
 <p>BMP uses unauthenticated, unencrypted TCP. Listener addresses and firewall rules
 should restrict access to the monitoring network. RFC 7854 Section 11 recommends
 IPsec tunnel protection where transport security is needed; BMP configuration
@@ -239,7 +230,6 @@ bgp {
 BMP before establishing that BGP session, because replay depends on observing
 the OPEN exchange and subsequent updates. Adding the attachment to an already
 established peer requires that BGP peer to reconnect before it can be monitored.</p>
-<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- sender container -->
 <table>
 <thead>
 <tr>
@@ -299,8 +289,6 @@ unavailable, before starting BMP sessions. The current external process has
 no transport for this feed. Replace that external instance with
 <code>plugin { internal bmp { use bgp-bmp; } }</code>. Offline configuration parsing
 checks syntax independently of this runtime capability.</p>
-<!-- source: internal/component/bgp/plugins/bmp/locrib_runtime.go -- validateLocRIBRuntimeConfig -->
-<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- BMPPlugin.registerCallbacks -->
 <h2 id="cli-commands">CLI Commands</h2>
 <table>
 <thead>
@@ -394,7 +382,6 @@ sessions continue. Ze logs it at ERROR with the router, the message type and
 the stack, counts it in <code>ze_task_panics_total{component="bmp",task="receive"}</code>,
 and writes a crash record that <code>ze show crashes</code> lists</li>
 </ul>
-<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- BMPPlugin.handleSession; internal/component/bgp/plugins/bmp/panic_guard.go -- bmpPanics -->
 <h3 id="sender-behavior">Sender Behavior</h3>
 <p>If a Loc-RIB update cannot be queued for a collector, Ze logs a warning with
 the collector and the original error, and continues sending to the other
@@ -402,8 +389,6 @@ collectors. It also retains the failure as an error event under
 <code>doctor-recent-events</code>. <code>show errors</code> and the daemon's <code>show doctor</code> expose
 that event even if the collector later reconnects. Run <code>ze show bmp collectors</code>
 to inspect the collector sessions.</p>
-<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- BMPPlugin.handleBestChange -->
-<!-- source: internal/component/doctor/checks_recent_events.go -- checkRecentEvents, recentEventsDiagnostic -->
 <ul>
 <li>Sends Initiation with the system identity on each connection</li>
 <li>Sends Peer Up with the cached sent and received OPEN messages for every established BGP peer, followed by its current route snapshot and per-family End-of-RIB</li>
@@ -461,7 +446,6 @@ Up, the Peer Down and the End-of-RIB marker each carry zero rather than a
 wall-clock read that would date every replayed route to the collector's
 connection</li>
 </ul>
-<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- locRIBPeerHeader, fabricateLocRIBOpen, ensureLocRIBPeerUp, sendLocRIBPeerDown -->
 <h4 id="system-identity">System Identity</h4>
 <p><code>sysName</code> uses <code>system.host</code>, or the operating-system hostname when that leaf is
 absent. <code>system.domain</code> qualifies an unqualified, nonempty name. An explicitly
@@ -473,7 +457,6 @@ no separate SNMP provider.</p>
 error prevents the Initiation from being sent and is logged. A system identity
 configuration change takes effect on the next collector connection; it does not
 interrupt existing sessions.</p>
-<!-- source: internal/component/bgp/plugins/bmp/system_identity.go -- readSystemIdentity -->
 <h4 id="a-config-change-bounces-the-peers-not-the-session">A Config Change Bounces the Peers, Not the Session</h4>
 <p>RFC 8671 Section 7.2 says a change that alters the behavior of an existing BMP
 session MUST bounce that session with a Peer Down and Peer Up sequence. Ze
@@ -529,13 +512,9 @@ keeps its session, even when you edit another collector beside it.</p>
 <p>A behavior change therefore replays each monitored peer's selected Adj-RIB
 snapshot after its Peer Down and Peer Up. A collector endpoint change starts a
 new TCP session and replays the state selected for that session.</p>
-<!-- source: internal/component/bgp/plugins/bmp/sender_config.go -- applySenderConfig, behaviorOf, syncSenders -->
-<!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- bounceMonitoredPeers -->
-<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- the four sender behavior leaves -->
 <p>A move in <code>statistics-timeout</code> also replaces the report timer: exactly one
 report stream is live per configuration, so a collector never reads two streams
 at two intervals. Setting it to 0 stops the reports and leaves the session up.</p>
-<!-- source: internal/component/bgp/plugins/bmp/statistics.go -- setStatisticsTimeout, statisticsLoop, sendStatisticsReports -->
 <p>The RFC 9069 Loc-RIB emulated peer gets no Statistics Report. RFC 9069
 Section 5.6 names the two stat types relevant to a Loc-RIB, 8 and 10, and both
 count routes in the Loc-RIB itself, which the BMP plugin does not hold.</p>
@@ -569,7 +548,6 @@ new withdrawal on the same collector session.</p>
 wire data and prefix keys. A storage or parsing failure closes collector sessions
 without sending a misleading End-of-RIB. The affected BGP peer must reconnect to
 rebuild its complete state before that peer can be replayed.</p>
-<!-- source: internal/component/bgp/plugins/bmp/bmp_replay.go -- cacheAdjUpdate, replayPeerLocked -->
 <p>A Loc-RIB End-of-RIB marker does not yet mean that the dump has finished. Each
 dump carries a correlation token, and <code>bgp-rib</code> takes the request as a plugin
 subscription. Delivery only queues that request, so it returns before <code>bgp-rib</code>
@@ -585,15 +563,9 @@ marker for that peer", so this order does not meet the RFC. The fix is
 <code>plan/release/fixes/spec-bmp-locrib-dump-end-of-rib-before-routes.md</code>. A replay
 that another subsystem asks for reaches every collector the same way, and it
 closes no family.</p>
-<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- emitReplayRequest, handleBestChange, closeDumpFamilies -->
-<!-- source: internal/component/bgp/plugins/rib/rib.go -- runRIBPlugin startup subscriptions -->
-<!-- source: internal/component/plugin/process/delivery.go -- Process.Deliver -->
 <p>Reconnection is not immediate: after a connection ends, ze waits out its
 reconnect interval before redialing, so a flapping collector cannot drive a
 dump loop.</p>
-<!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- primeSender -->
-<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- requestLocRIBDump, sendLocRIBEndOfRIB, closeDumpFamilies -->
-<!-- source: internal/component/bgp/plugins/bmp/sender.go -- run, onConnected -->
 <h4 id="a-slow-collector-cannot-stall-bgp">A Slow Collector Cannot Stall BGP</h4>
 <p>Nothing that produces a BMP message writes to the collector socket. Each
 message is copied into that collector's transmit queue and written by the
@@ -610,19 +582,12 @@ the session with a plain TCP close -- no Termination message, because the
 session is being abandoned rather than shut down. The collector's next connection gets
 a complete fresh session as described above. Messages are never silently
 dropped: either they are delivered, or the session that owed them is reset.</p>
-<!-- source: internal/component/bgp/plugins/bmp/txqueue.go -- txQueueLimitBytes, txQueue.push -->
-<!-- source: internal/component/bgp/plugins/bmp/sender_drain.go -- enqueueLocked, drainLoop -->
-<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- RFC 9069 Loc-RIB monitoring -->
-<!-- source: internal/component/bgp/plugins/bmp/header.go -- PeerTypeLocRIB (Peer Type 3) -->
-<!-- source: rfc/short/rfc9069.md -- RFC 9069 requirement summary -->
 <h4 id="shutdown">Shutdown</h4>
 <p>Stopping a collector session sends a Termination message with the required
 Reason TLV, code 0 (administrative closure), and then closes the TCP connection.
 If a socket write is already in flight to a
 collector that is not reading, ze gives it one second and then closes anyway
 rather than delaying the shutdown of the other collectors.</p>
-<!-- source: internal/component/bgp/plugins/bmp/sender.go -- stop, terminateAndClose -->
-<!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- handleSenderMirror, peerHeaderFromEvent -->
 <h3 id="checking-the-live-feed">Checking the Live Feed</h3>
 <p>The existing independent-collector scenario runs FRR as the BGP source and
 pmacct <code>pmbmpd</code> as the BMP collector:</p>
@@ -662,9 +627,6 @@ Termination with the two-byte administrative Reason 0 before TCP closes.</li>
 <p>For dual-stack or ADD-PATH peers, repeat with an empty negotiated family and
 with two path identifiers for one prefix. Each selected family must complete,
 and withdrawing one path must leave only the other in the reconnect snapshot.</p>
-<!-- source: test/interop/scenarios/bmp-statistics-pmacct/ze.conf -- peer attachment and collector -->
-<!-- source: test/interop/scenarios/bmp-statistics-pmacct/pmbmpd.conf -- independent message log -->
-<!-- source: internal/le/interoplab/bgp/check_extras.go -- scenarioStatisticsPMACCT -->
 <h2 id="looking-glass-integration">Looking Glass Integration</h2>
 <p>When the BMP receiver is enabled, monitored routes are stored in the BMP RIB
 (a separate protocol namespace). These routes are visible through <code>show bmp rib</code>
@@ -676,8 +638,6 @@ unprocessed Adj-RIB-In over a session with no authentication. Ze therefore
 never feeds those routes to best-path selection. Any other value, such as
 <code>redistribute</code>, is refused when the config loads or reloads, naming the leaf
 and the accepted value; delete the line or write <code>route-action monitor;</code>.</p>
-<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- route-action -->
-<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- processRouteMonitoring -->
 <h3 id="cli">CLI</h3>
 <table>
 <thead>
@@ -759,8 +719,6 @@ attribute set, ORIGIN or AS_PATH is refused and logged with the prefix and
 cause. A stored attribute change publishes a best change even when the
 selected peer, next hop and metrics remain the same.</li>
 </ul>
-<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- buildLocRIBUpdateBody, handleBestChange -->
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- RIBManager.checkRouteBestChange -->
 </div>
 </div>
             </section>
@@ -810,7 +768,7 @@ selected peer, next hop and metrics remain the same.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

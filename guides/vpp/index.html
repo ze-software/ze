@@ -70,18 +70,10 @@ per-node and system-wide Prometheus metrics.</p>
 <li><a href="#implementation-status">Implementation status</a></li>
 <li><a href="#references-and-further-reading">References and further reading</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/vpp/vpp.go -- VPPManager lifecycle -->
-<!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent installs, updates, withdraws -->
-<!-- source: internal/component/vpp/telemetry.go -- stats poller -->
 <p>The FIB plugin also programs MPLS label stacks on IP routes. The VPP-native
 interface backend is registered as <code>vpp</code>. The
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/fib/fib-depth-4-srv6.md#vpp-backend" target="_blank" rel="noopener">SRv6 path</a> creates a
 single-Service-SID encapsulation policy before installing prefix steering.</p>
-<!-- source: internal/plugins/fib/vpp/register.go -- runFibVPPPlugin backend construction -->
-<!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent, processMPLSChange -->
-<!-- source: internal/plugins/fib/vpp/mpls.go -- addMPLSRoute, delMPLSRoute -->
-<!-- source: internal/plugins/iface/vpp/register.go -- iface.RegisterBackend -->
-<!-- source: internal/plugins/fib/vpp/srv6.go -- acquirePolicy, addSRv6Steer -->
 <h2 id="why-vpp-is-in-ze">Why VPP is in Ze</h2>
 <p>Ze is a BGP daemon. BGP produces forwarding decisions; something else has
 to carry the packets. The default answer on Linux is the kernel route
@@ -97,14 +89,12 @@ VPP forwards at line rate: roughly 35 Mpps on a 4-core Xeon D-1518, with
 numbers like 18 Mpps per thread for MPLS and around 14 Mpps per thread
 for VXLAN. IPng Networks has run this stack in production on AS8298 for
 several years.</p>
-<!-- source: docs/research/vpp-deployment-reference.md -- IPng production performance table -->
 <p>Adding VPP to ze is not about replacing BGP. It gives ze a
 forwarding-plane answer for IXP route servers, production edge routers,
 and gokrazy appliances on small hardware such as an N100 mini-PC. The
 control plane stays in ze (BGP, RIB, config, CLI, web UI).
 The forwarding plane becomes VPP. The two talk through a small, typed
 interface (GoVPP over a Unix socket).</p>
-<!-- source: internal/component/vpp/conn.go -- Connect -->
 <h2 id="how-the-two-halves-fit-together">How the two halves fit together</h2>
 <pre><code>┌──────────────────────────────────────────────────────────┐
 │                          ze                              │
@@ -130,9 +120,6 @@ routes into VPP's FIB via the GoVPP binary API, so transit packets
 are forwarded by VPP at DPDK speed. Both plugins subscribe to the
 <code>(system-rib, best-change)</code> event on the EventBus and react
 independently.</p>
-<!-- source: internal/plugins/fib/vpp/register.go -- Dependencies: ["rib", "vpp"] -->
-<!-- source: internal/plugins/fib/vpp/fibvpp.go -- Subscribe to BestChangeBatch -->
-<!-- source: internal/plugins/fib/kernel/fibkernel.go -- parallel backend for the kernel -->
 <p>BGP sessions themselves still use Linux sockets. VPP's Linux Control
 Plane (LCP) plugin mirrors every VPP interface as a TAP device, so ze's
 BGP reactor <code>bind()</code>s and <code>connect()</code>s exactly as it does on a kernel
@@ -170,7 +157,6 @@ newline, or carriage return rather than refusing the input. So <code>netns my ns
 reach VPP as <code>my</code>, VPP would build <code>/var/run/netns/my</code>, that namespace would not
 exist, and LCP pair creation would fail at apply on a config ze had accepted.
 Config verify refuses the value instead.</p>
-<!-- source: internal/component/vpp/config.go -- validateNetns -->
 <p>A second check covers the plugin rather than the namespace. Enabling <code>vpp.lcp</code>
 makes ze write a <code>startup.conf</code> that loads <code>linux_cp_plugin.so</code>. A VPP built
 without it accepts the config and then fails the WHOLE apply at the binary-API
@@ -187,18 +173,11 @@ wedged VPP. A zero exit counts as an answer only when the output carries the
 <code>Plugin path is:</code> line VPP prints ahead of the plugin rows: empty or truncated
 output lists no plugin at all, so it is a WARNING too. None of those is evidence
 about which plugins VPP loaded.</p>
-<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO, vppctlPluginsHeader -->
-<!-- source: internal/core/diagnostic/codes.go -- doctor-vpp-lcp-plugin -->
-<!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- lcp container netns default "dataplane" -->
-<!-- source: internal/core/network/network.go -- RealListenerFactory.Listen binds via net.ListenConfig, no netns awareness -->
-<!-- source: internal/component/vpp/startupconf.go -- linux-cp section: b.kv("default netns", s.LCP.Netns) -->
-<!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPNetns, lcpNetnsIsRootMarker ("", host, root) -->
 <h2 id="what-ze-does-for-you">What ze does for you</h2>
 <p>When <code>vpp.enabled</code> is true, ze takes ownership of the whole VPP
 lifecycle. You do not run <code>systemd start vpp</code>; you do not edit
 <code>/etc/vpp/startup.conf</code>; you do not <code>dpdk-devbind</code> your NICs by hand.
 Ze does the following, in order, every time it starts or VPP crashes:</p>
-<!-- source: internal/component/vpp/vpp.go -- Run sequence and runOnce -->
 <table>
 <thead>
 <tr>
@@ -269,7 +248,6 @@ Ze does the following, in order, every time it starts or VPP crashes:</p>
 NIC unbind, original driver and override restoration) are part of ze's job, not
 the operator's. This matters on a gokrazy appliance where there is no
 systemd and ze is PID 1 for the data plane.</p>
-<!-- source: internal/plugins/init/main.go -- gokrazy PID-1 appliance lifecycle -->
 <p>Binding changes only the configured PCI device. Ze uses its <code>driver_override</code>
 and the driver's exact-address <code>bind</code> file, without adding a vendor/device-wide
 VFIO registration or rescanning the bus. Cleanup keeps the original state until
@@ -277,20 +255,16 @@ both driver and override restoration succeed. Retrying the same binder resumes
 from the observed native state, so a confirmed detach or driver bind is not
 repeated. These receipts belong to the running manager; they are not an on-disk
 recovery journal.</p>
-<!-- source: internal/component/vpp/dpdk.go -- bindPCIWithOps, restoreDPDKDevice, setDPDKOverride -->
 <p>Ze reads <code>driver_override_raw</code> when the kernel provides it. Only its absence
 permits the legacy getter; a legacy <code>(null)</code> is ambiguous and is refused before
 changing the NIC. Upgrade to a kernel that provides <code>driver_override_raw</code> before
 binding that NIC. Captured spaces, tabs and carriage returns are preserved;
 only the final framing newline is removed, and nonempty restoration writes
 gain no extra newline.</p>
-<!-- source: internal/component/vpp/dpdk.go -- readDriverOverrideAt, setDriverOverrideAt, readSysfsValue -->
 <p>The <code>vpp-dpdk</code> doctor check reads the same original-state prerequisite for each
 configured, present PCI device without binding it. Its diagnostic retains the
 failed native path and cause. A device already using VFIO remains borrowed and
 does not require an unused original override snapshot.</p>
-<!-- source: internal/component/vpp/doctor_dpdk_linux.go -- checkVPPDPDK, dpdkOriginalStateDiagnostic -->
-<!-- source: internal/component/vpp/dpdk.go -- readDPDKOriginalState -->
 <p>An ordinary requested child kill is clean only after the original command has
 been reaped with its expected exit status. A separate cleanup failure remains
 an error even when shutdown was requested. The manager returns that cause and
@@ -301,9 +275,6 @@ Configuration replacement keeps that joined manager until its original cleanup
 receipt confirms restoration. A failed bind rollback also retains the same
 binder. A later configuration retry first retries that exact cleanup; it cannot
 start a fresh manager while the original native cleanup is unresolved.</p>
-<!-- source: internal/component/vpp/vpp.go -- runWithOps, runOnce, waitVPPConnection -->
-<!-- source: internal/component/vpp/cleanup_outcome.go -- expectedVPPKill, managedChildCleanup -->
-<!-- source: internal/component/vpp/startup_lifecycle.go -- Install, stop -->
 <p>The generator targets upstream VPP v26.06 grammar. In particular, it writes
 <code>buffers { default data-size 2048 ... }</code>, <code>linux-nl { nl-rx-buffer-size 67108864 }</code>,
 and <code>memory { main-heap-size ... }</code>. The
@@ -312,7 +283,6 @@ maps every emitted directive to its release-pinned consumer. Grammar matching
 and unit tests are not proof of native startup: the installed VPP plugins,
 hugepage reservation, CPU affinity and device/namespace permissions must also
 support the selected configuration.</p>
-<!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf -->
 <p>Managed VPP consumes the startup file Ze generates. To select an AF_PACKET
 profile, set <code>vpp.plugins.dpdk false</code> with no DPDK interfaces, explicitly enable
 <code>vpp.plugins.af-packet</code>, and select <code>vpp.memory.hugepage-size default</code> when the
@@ -320,8 +290,6 @@ profile uses native base pages. uRPF remains enabled for configured IPv4 reverse
 path policy; the selected image must contain it. Omitted settings retain the
 existing DPDK-enabled, AF_PACKET-disabled, <code>2M</code> startup bytes. No unavailable
 plugin or failed hugepage allocation selects another configuration.</p>
-<!-- source: internal/component/vpp/managed_startup.go -- startupPluginChoice, VPPSettings.managedStartupPlugins -->
-<!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf, pageSize -->
 <p>An optional <code>vpp.startup-cli-file</code> names the original command file. After the
 retained API socket peer matches the supervised child's atomic process descriptor, the manager sends one
 synchronous native <code>exec &lt;path&gt;</code> request on that exact connector generation. Statistics activation
@@ -341,10 +309,6 @@ errors. It does not parse or rewrite the native command program. Empty files
 are permitted by the file preflight; native VPP still decides whether their
 command program can execute. External supervision owns its own startup and
 neither inspects nor executes this file. <code>doctor-vpp-startup-cli-file</code> reports the exact path and its repair.</p>
-<!-- source: internal/component/vpp/managed_startup.go -- validateStartupCLIPath, checkManagedStartupCLI, managedStartupCLIDoctorCheck -->
-<!-- source: internal/component/vpp/managed_startup_file_unix.go -- openStartupCLIFile -->
-<!-- source: internal/component/vpp/startup_cli.go -- ExecuteStartupCLI, VPPManager.activateManagedRuntime -->
-<!-- source: internal/component/vpp/vpp.go -- VPPManager.Run, VPPManager.runOnce -->
 <p>These controls do not create an AF_PACKET interface or its Linux Control Plane
 pair. The declared managed bootstrap must provide those before PPPoE accesses
 can prepare. The native acceptance scenario must observe the actual executable,
@@ -353,8 +317,6 @@ real API/statistics readiness and original connector/process identities. An exec
 wrapper that replaces the generated configuration, an external-mode run, or a
 unit rendering result cannot supply that managed-startup evidence. The complete
 restart, accounting, pool and productive fresh-session checks remain required.</p>
-<!-- source: internal/component/vpp/vpp.go -- VPPManager.runOnce -->
-<!-- source: internal/component/l2tp/plugins/pppoe-vpp/startup.go -- registerStartup, startupRequired -->
 <h2 id="running-against-an-externally-supervised-vpp">Running against an externally supervised VPP</h2>
 <p>Set <code>vpp.external true</code> when something other than ze owns the VPP
 process -- a systemd unit, a container sidecar, or the Python stub
@@ -364,7 +326,6 @@ no NIC unbind, no <code>exec vpp</code>, no NIC restoration writes on shutdown. 
 connects via GoVPP at step 7, opens statistics and optional telemetry at
 step 8, then emits lifecycle events and completes readiness at step 9.
 It blocks on context cancellation instead of <code>cmd.Wait</code> at step 10.</p>
-<!-- source: internal/component/vpp/vpp.go -- External branch in Run and runOnce -->
 <p>Typical configurations:</p>
 <pre><code>vpp {
   enabled  true;
@@ -383,7 +344,6 @@ supervisor starts VPP first, then ze with <code>external true</code>.</li>
 <li><strong>Functional tests:</strong> <code>./le test functional vpp</code> drives the compiled Go VPP
 stub instead of a real VPP. See <code>docs/functional-tests.md</code> for the harness.</li>
 </ul>
-<!-- source: internal/test/cli/cmd_vpp_stub.go -- runVPPStub -->
 <p>The real-VPP deployment action, <code>./le test deployment vpp</code>, stops each Ze
 daemon by signalling its exact command inside the container, not the host
 <code>docker exec</code> client. Each replacement must reach its own startup marker before
@@ -395,8 +355,6 @@ slow disk takes seconds. It waits up to two minutes after SIGTERM, then sends
 SIGKILL. A daemon that needed SIGKILL, or that is still running after it, fails
 the run with its command named, and no further daemon starts, since it may still
 own the store the next one would open.</p>
-<!-- source: internal/le/test/deployment/vppevidence.go -- startEvidenceDaemon, stopVPPProcess, vppDaemonStopWait -->
-<!-- source: internal/le/test/deployment/deployment.go -- running.stopAwaitingExit -->
 <p><code>vpp</code> and <code>vpp-iface</code> start their container through the lab Docker
 wrapper, which labels it with the run that owns it. Ctrl-C or SIGTERM ends the
 run and still removes the container. A scenario the interruption caught ends at
@@ -405,17 +363,12 @@ run did not finish probing. When the removal fails, the report's
 <code>container-removal-error</code> names the reason and the verb exits 1; run
 <code>./le test integration clean</code> to remove it. A run killed outright leaves a
 labeled container that the next lab start or that cleanup removes.</p>
-<!-- source: internal/le/test/deployment/actions.go -- signalRooted -->
-<!-- source: internal/le/test/deployment/deployment.go -- removeContainer -->
-<!-- source: internal/le/test/deployment/vppiface.go -- awaitFeature -->
 <h2 id="configuring-vpp">Configuring VPP</h2>
 <p>PPPoE access follows <code>interface backend</code>. When a VPP PPPoE provider is installed
 and access interfaces are configured, its registration selects
 <code>pppoe_plugin.so</code> and the <code>enable-pass-nd-and-dhcpv6</code> startup flag automatically.
 The candidate must enable both VPP and LCP; a missing provider or disabled
 prerequisite is refused before apply. No separate plugin toggle is required.</p>
-<!-- source: internal/component/l2tp/pppoe/backend_gate.go -- validateBackendGate -->
-<!-- source: internal/component/l2tp/plugins/pppoe-vpp/startup.go -- registerStartup, startupRequired -->
 <p>The <code>vpp { ... }</code> container lives in the main ze config. Minimal example:</p>
 <pre><code>vpp {
   enabled true;
@@ -466,7 +419,7 @@ defaults do not fit the workload.</p>
 <td><code>vpp.startup-cli-file</code></td>
 <td>absolute path</td>
 <td>unset</td>
-<td>Optional original VPP CLI file. After the retained API Unix peer matches the supervised child's atomic process descriptor, Ze waits for native command completion on that same API generation before statistics and service readiness. Failure kills and reaps that child before runOnce returns; the independent retained pidfd observer alone proves physical death. The generator omits asynchronous unix exec for this setting. Invalid paths and missing/unreadable or nonregular files are refused before child startup; the doctor names the original path and repair. External mode neither inspects nor executes it. <!-- source: internal/component/vpp/startup_cli.go -- ExecuteStartupCLI, VPPManager.activateManagedRuntime --> <!-- source: internal/component/vpp/managed_startup.go -- checkManagedStartupCLI, managedStartupCLIDoctorCheck --></td>
+<td>Optional original VPP CLI file. After the retained API Unix peer matches the supervised child's atomic process descriptor, Ze waits for native command completion on that same API generation before statistics and service readiness. Failure kills and reaps that child before runOnce returns; the independent retained pidfd observer alone proves physical death. The generator omits asynchronous unix exec for this setting. Invalid paths and missing/unreadable or nonregular files are refused before child startup; the doctor names the original path and repair. External mode neither inspects nor executes it.</td>
 </tr>
 <tr>
 <td><code>vpp.cpu.main-core</code></td>
@@ -478,19 +431,19 @@ defaults do not fit the workload.</p>
 <td><code>vpp.cpu.workers</code></td>
 <td>uint8</td>
 <td>auto</td>
-<td>Number of worker threads. Ze takes the cores from the kernel's isolated set (<code>/sys/devices/system/cpu/isolated</code>), lowest first, <code>main-core</code> excluded and any CPU no longer online excluded, and writes them as <code>corelist-workers</code>. On a host that isolated nothing, the list falls back to <code>main-core+1 .. main-core+workers</code> and <code>ze doctor</code> reports <code>doctor-vpp-cpu-isolation</code>. A count the host cannot satisfy is refused at commit. <!-- source: internal/component/vpp/cpuset.go -- resolveWorkerCores --></td>
+<td>Number of worker threads. Ze takes the cores from the kernel's isolated set (<code>/sys/devices/system/cpu/isolated</code>), lowest first, <code>main-core</code> excluded and any CPU no longer online excluded, and writes them as <code>corelist-workers</code>. On a host that isolated nothing, the list falls back to <code>main-core+1 .. main-core+workers</code> and <code>ze doctor</code> reports <code>doctor-vpp-cpu-isolation</code>. A count the host cannot satisfy is refused at commit.</td>
 </tr>
 <tr>
 <td><code>vpp.cpu.worker-cores</code></td>
 <td>CPU list</td>
 <td>unset</td>
-<td>Explicit worker cores in the kernel's <code>isolcpus</code> syntax (<code>2-4</code>, <code>2,4,6</code>). Names the cores instead of deriving them, and MUST NOT be set beside <code>workers</code>. A core off the host, a core that is also <code>main-core</code>, and a core listed twice are each refused at commit. <!-- source: internal/core/cpulist/cpulist.go -- Parse --></td>
+<td>Explicit worker cores in the kernel's <code>isolcpus</code> syntax (<code>2-4</code>, <code>2,4,6</code>). Names the cores instead of deriving them, and MUST NOT be set beside <code>workers</code>. A core off the host, a core that is also <code>main-core</code>, and a core listed twice are each refused at commit.</td>
 </tr>
 <tr>
 <td><code>vpp.cpu.poll-sleep</code></td>
 <td><code>Nms</code> (0ms–100ms)</td>
 <td>unset</td>
-<td>Fixed sleep between VPP main-loop polls, expressed in whole milliseconds (<code>ms</code> is the only accepted unit, e.g. <code>10ms</code>), emitted as <code>unix { poll-sleep-usec N }</code> (1ms = 1000µs). Omit for lowest latency (workers busy-poll at 100% CPU); set a non-zero value on shared or dev hosts to trade latency for idle CPU. An explicit <code>0ms</code> is emitted and equals VPP's default. <!-- source: internal/component/vpp/config.go -- parsePollSleepMs --></td>
+<td>Fixed sleep between VPP main-loop polls, expressed in whole milliseconds (<code>ms</code> is the only accepted unit, e.g. <code>10ms</code>), emitted as <code>unix { poll-sleep-usec N }</code> (1ms = 1000µs). Omit for lowest latency (workers busy-poll at 100% CPU); set a non-zero value on shared or dev hosts to trade latency for idle CPU. An explicit <code>0ms</code> is emitted and equals VPP's default.</td>
 </tr>
 <tr>
 <td><code>vpp.memory.main-heap</code></td>
@@ -502,7 +455,7 @@ defaults do not fit the workload.</p>
 <td><code>vpp.memory.hugepage-size</code></td>
 <td><code>2M</code>, <code>1G</code> or <code>default</code></td>
 <td><code>2M</code></td>
-<td><code>2M</code> emits <code>default-hugepage</code>; <code>1G</code> emits <code>1G</code>. Explicit <code>default</code> emits native base pages for buffers and statistics, without a hugepage reservation. The kernel determines the base-page size. Hugepage failure never changes this choice. <!-- source: internal/component/vpp/startupconf.go -- pageSize --></td>
+<td><code>2M</code> emits <code>default-hugepage</code>; <code>1G</code> emits <code>1G</code>. Explicit <code>default</code> emits native base pages for buffers and statistics, without a hugepage reservation. The kernel determines the base-page size. Hugepage failure never changes this choice.</td>
 </tr>
 <tr>
 <td><code>vpp.memory.buffers</code></td>
@@ -574,19 +527,19 @@ defaults do not fit the workload.</p>
 <td><code>vpp.plugins.dpdk</code></td>
 <td>boolean</td>
 <td><code>true</code></td>
-<td>Load DPDK. Explicit false is refused with configured DPDK interfaces. An absent installed plugin never changes this selection. <!-- source: internal/component/vpp/managed_startup.go -- startupPluginChoice, VPPSettings.managedStartupPlugins --></td>
+<td>Load DPDK. Explicit false is refused with configured DPDK interfaces. An absent installed plugin never changes this selection.</td>
 </tr>
 <tr>
 <td><code>vpp.plugins.af-packet</code></td>
 <td>boolean</td>
 <td><code>false</code></td>
-<td>Load AF_PACKET for an explicitly configured host-interface access path. It does not create interfaces or their LCP pairs. uRPF remains enabled independently. <!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf --></td>
+<td>Load AF_PACKET for an explicitly configured host-interface access path. It does not create interfaces or their LCP pairs. uRPF remains enabled independently.</td>
 </tr>
 <tr>
 <td><code>vpp.plugins.wireguard</code></td>
 <td>boolean</td>
 <td><code>false</code></td>
-<td>Load <code>wireguard_plugin.so</code> so the vpp interface backend can program WireGuard tunnels (<code>interface { backend vpp; wireguard ...; }</code>). <code>ze doctor</code> warns (<code>doctor-vpp-wireguard</code>) if a wireguard interface is configured under vpp with this off. <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above --> <!-- source: internal/component/vpp/config.go -- defaults and validation --> <!-- source: internal/plugins/iface/vpp/doctor.go -- doctor-vpp-lcp-netns, doctor-vpp-lcp-plugin, doctor-vpp-wireguard --></td>
+<td>Load <code>wireguard_plugin.so</code> so the vpp interface backend can program WireGuard tunnels (<code>interface { backend vpp; wireguard ...; }</code>). <code>ze doctor</code> warns (<code>doctor-vpp-wireguard</code>) if a wireguard interface is configured under vpp with this off.</td>
 </tr>
 </tbody>
 </table>
@@ -632,7 +585,7 @@ defaults do not fit the workload.</p>
 <td><code>fib.vpp.batch-interval-ms</code></td>
 <td>uint16</td>
 <td><code>10</code></td>
-<td>Max milliseconds to wait before dispatching a partial batch. <!-- source: internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang -- augments /fib:fib --></td>
+<td>Max milliseconds to wait before dispatching a partial batch.</td>
 </tr>
 </tbody>
 </table>
@@ -642,36 +595,26 @@ route and logs an ERROR naming the cause; the rest of ze keeps running.
 When VPP connects, the plugin opens its writer and asks the system RIB to
 replay every route. Until then <code>show fib vpp</code> answers the cause as an
 error, never an empty route list.</p>
-<!-- source: internal/plugins/fib/vpp/register.go -- Dependencies: ["rib", "vpp"] -->
-<!-- source: internal/plugins/fib/vpp/register.go -- openFibVPPWriter, answerShowFibVPP -->
 <h3 id="srv6-service-routes">SRv6 service routes</h3>
 <p>The received egress Service SID is the policy's segment. Ze allocates a separate
 local BSID for steering and shares the policy across prefixes using that SID.
 Replacement installs new steering before releasing the old policy; withdrawal
 releases a policy only after its final reference. This does not allocate egress
 Service SIDs or install remote endpoint behaviors.</p>
-<!-- source: internal/plugins/fib/vpp/srv6.go -- acquirePolicy, addSRv6Steer, delSRv6Steer, releasePolicy -->
 <p>Provide the IPv6 underlay route, encapsulation source, and required tables.
 <code>fib.vpp.table-id</code> selects the policy and outer IPv6 lookup table. A nonzero
 per-route table override selects destination steering, not the underlay table.
 The existing Service-SID resolvability check remains a prerequisite.</p>
-<!-- source: internal/plugins/fib/vpp/srv6.go -- processSRv6Change, acquirePolicy -->
-<!-- source: internal/component/sysrib/sysrib.go -- SID resolvability check -->
 <p>Ownership uses durable daemon keys under <code>meta/fib-vpp/srv6/</code>. Restore validates
 confirmed policy contents and live steering references before mutation.
 An unconfirmed creation found live fails closed with its BSID in the error;
 matching contents alone do not authorize adoption or deletion. Preserve that
 state for operator reconciliation. External writers must not race Ze's live
 ownership checks: VPP has no conditional steering replacement.</p>
-<!-- source: internal/plugins/fib/vpp/register.go -- srv6OwnershipKey -->
-<!-- source: internal/plugins/fib/vpp/srv6_state.go -- restore -->
-<!-- source: internal/plugins/fib/vpp/srv6.go -- checkSteeringOwner -->
 <p>The ownership namespace admits at most 4,096 keys in total, not 4,096 routes.
 Policy, steering, and temporary ordinary-route fallback records all count.
 A transition reserves its complete growth before the first state or hardware
 write; replay and withdrawal of existing keys remain possible at the limit.</p>
-<!-- source: internal/plugins/fib/vpp/srv6_fallback.go -- reserveState, checkpointSRv6Fallback -->
-<!-- source: pkg/plugin/rpc/state.go -- StateListMax -->
 <p>IP/SRv6 transitions retain durable planned and confirmed ordinary-route
 ownership by prefix and table. Restart restores confirmed cleanup ownership;
 an uncertain IP mutation fails closed for operator reconciliation. This is
@@ -679,9 +622,6 @@ installation history, not inspection of a hidden API-source route: VPP's dump
 can expose the winning SR steering source instead. Other writers must not
 replace Ze-owned ordinary API-source entries, even sequentially. Matching live
 routes are never adopted as proof of ownership.</p>
-<!-- source: internal/plugins/fib/vpp/srv6_fallback.go -- srv6Fallback, beginSRv6Fallback, finishSRv6Fallback -->
-<!-- source: internal/plugins/fib/vpp/srv6_state.go -- loadState -->
-<!-- source: internal/plugins/fib/vpp/srv6.go -- restoreSRv6 -->
 <p>Normal Ze restart can reuse confirmed live ownership. Managed-VPP reconnect
 retires the old consumer, restores ownership, and requests system-RIB replay.
 Replay is partial, not a snapshot: omitted owned live routes remain until
@@ -689,9 +629,6 @@ explicit withdrawal. External-VPP process restart does not emit the managed
 reconnect event. The <a href="../../architecture/testing/interop/#real-vpp-srv6-service-route-proof">real VPP proof</a>
 defines state, packet, and restart assertions; prepared code is not observed
 forwarding evidence.</p>
-<!-- source: internal/plugins/fib/vpp/register.go -- runFibVPPPlugin -->
-<!-- source: internal/plugins/fib/vpp/fibvpp.go -- run -->
-<!-- source: internal/component/vpp/vpp.go -- runOnce -->
 <h2 id="system-prerequisites">System prerequisites</h2>
 <p>VPP is not a user-space toy; DPDK needs real kernel cooperation. On a
 general-purpose host Ze cannot set kernel boot parameters, so you reserve
@@ -710,8 +647,6 @@ ten-second shutdown grace; cancellation or an error closes the owned group
 immediately. Host process-fixture tests establish that lifetime contract only:
 a hugepage reservation still needs the actual booted kernel's
 <code>show host kernel</code> and <code>show host memory</code> answers.</p>
-<!-- source: internal/le/test/qemu/hugepages.go -- Hugepages.Run -->
-<!-- source: internal/le/test/qemu/boot.go -- Hugepages.bootAndAssert, boot, ask, ssh -->
 <p>Before enabling a DPDK profile with hugepages:</p>
 <table>
 <thead>
@@ -723,7 +658,7 @@ a hugepage reservation still needs the actual booted kernel's
 <tbody>
 <tr>
 <td>Hugepages (approximately 6 GB for production 10G, 2 GB for lab)</td>
-<td>Appliance: <code>image.hugepages { page-size, count }</code> in <code>appliance.json</code>. Non-appliance host: <code>echo 3072 &gt; /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages</code> or via. <!-- source: internal/appliance/kernelargs.go -- hugepageKernelArgs -->. <span class="ev-src"><span class="ev-ref"><code>/etc/sysctl.d/</code></span></span></td>
+<td>Appliance: <code>image.hugepages { page-size, count }</code> in <code>appliance.json</code>. Non-appliance host: <code>echo 3072 &gt; /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages</code> or via. <span class="ev-src"><span class="ev-ref"><code>/etc/sysctl.d/</code></span></span></td>
 </tr>
 <tr>
 <td>IOMMU enabled</td>
@@ -731,7 +666,7 @@ a hugepage reservation still needs the actual booted kernel's
 </tr>
 <tr>
 <td>CPU isolation for VPP workers</td>
-<td>Appliance: <code>image.isolated-cpus</code> in <code>appliance.json</code>, which writes <code>isolcpus</code>, <code>nohz_full</code> and <code>rcu_nocbs</code> for those cores. Non-appliance host: the same three kernel cmdline arguments. Ze then draws its worker cores from that set, and <code>ze doctor</code> reports <code>doctor-vpp-cpu-isolation</code> when it cannot. <!-- source: internal/appliance/kernelargs.go -- isolatedCPUKernelArgs --></td>
+<td>Appliance: <code>image.isolated-cpus</code> in <code>appliance.json</code>, which writes <code>isolcpus</code>, <code>nohz_full</code> and <code>rcu_nocbs</code> for those cores. Non-appliance host: the same three kernel cmdline arguments. Ze then draws its worker cores from that set, and <code>ze doctor</code> reports <code>doctor-vpp-cpu-isolation</code> when it cannot.</td>
 </tr>
 <tr>
 <td>Netlink buffer for route injection</td>
@@ -739,7 +674,7 @@ a hugepage reservation still needs the actual booted kernel's
 </tr>
 <tr>
 <td>Minimum hardware</td>
-<td>4 CPU cores, 8 GB RAM, a DPDK-compatible NIC <!-- source: docs/research/vpp-deployment-reference.md -- system prerequisites table --></td>
+<td>4 CPU cores, 8 GB RAM, a DPDK-compatible NIC</td>
 </tr>
 </tbody>
 </table>
@@ -747,7 +682,6 @@ a hugepage reservation still needs the actual booted kernel's
 and E810 families, plus VirtIO for VMs. Mellanox ConnectX-5 and later use
 RDMA in a bifurcated driver mode; the current ze implementation is DPDK
 only and does not yet bind Mellanox NICs.</p>
-<!-- source: docs/research/vpp-deployment-reference.md -- NIC driver matrix -->
 <h2 id="observing-what-vpp-is-doing">Observing what VPP is doing</h2>
 <p>Two places expose VPP state through ze:</p>
 <ol>
@@ -755,19 +689,13 @@ only and does not yet bind Mellanox NICs.</p>
 counters (rx/tx packets, bytes, drops, errors), per-node clocks and
 vectors-per-call, and system-wide vector and input rates. Poll
 interval is configurable via <code>vpp.stats.poll-interval</code>.</li>
-</ol>
-<!-- source: internal/component/vpp/telemetry.go -- newVPPMetrics, poller.run -->
-<ol start="2">
 <li><strong>The <code>show fib vpp</code> command.</strong> Dumps the routes <code>fib-vpp</code> believes
 it has installed in VPP, as JSON <code>[{"prefix": ..., "next-hop": ...}, ...]</code>.
 Before the plugin has started, or while it has no VPP connection, it
 answers an error saying why instead.</li>
 </ol>
-<!-- source: internal/plugins/fib/vpp/fibvpp.go -- showInstalled -->
-<!-- source: internal/plugins/fib/vpp/register.go -- answerShowFibVPP -->
 <p>Direct VPP introspection (<code>vppctl show int</code>, <code>vppctl show ip fib</code>) is
 still available through the CLI socket ze writes to <code>/run/vpp/cli.sock</code>.</p>
-<!-- source: internal/component/vpp/startupconf.go -- unix cli-listen -->
 <h2 id="implementation-status">Implementation status</h2>
 <p>Configured interface names can differ from VPP's names: a VLAN named
 <code>qos0.100</code> may appear as <code>loop1.100</code> in VPP. Link and address reads resolve
@@ -776,7 +704,6 @@ writes, so a reload updates the existing VLAN. If that registered index
 cannot be read, the reload refuses instead of treating the VLAN as absent
 and creating it again. An unregistered name is looked up as an exact VPP
 interface name.</p>
-<!-- source: internal/plugins/iface/vpp/query.go -- detailsByName -->
 <p>The implementation status differs by subsystem:</p>
 <table>
 <thead>
@@ -790,12 +717,12 @@ interface name.</p>
 <tr>
 <td>vpp-3</td>
 <td>MPLS label stacks on IP routes</td>
-<td><code>processMPLSChange</code> dispatches labeled route installs and replacements to <code>addMPLSRoute</code>, and removals to <code>delMPLSRoute</code>. The GoVPP backend sends <code>IPRouteAddDel</code> with a label stack for installs, every label in uniform mode, so the label TTL is copied from the IP TTL. Transit swap and pop entries from LDP and RSVP-TE arrive as <code>(mpls-fib, entry)</code> events: fib-vpp creates MPLS table 0 and installs each entry as two <code>MplsRouteAddDel</code> routes, one per value of the S bit, never in <code>fib.vpp.table-id</code>. A pop imposes the Implicit NULL label; an egress pop with no next hop looks the packet up in IP table <code>fib.vpp.table-id</code> of its FEC's family. VPP has no per-route MTU, so an entry's path MTU is not installed and fib-vpp warns once. A push into a private table (an RSVP-TE facility-backup context) is refused, because VPP has no packet-mark context. <code>mpls { enable true; }</code> on a unit enables MPLS input on the VPP interface. <!-- source: internal/plugins/fib/vpp/fibvpp.go -- processMPLSChange --> <!-- source: internal/plugins/fib/vpp/mpls.go -- addMPLSRoute, delMPLSRoute, addLabelRoutes, labelPath --> <!-- source: internal/plugins/fib/vpp/mplsentry.go -- handleMPLSEntry --> <!-- source: internal/plugins/iface/vpp/mplsinput.go -- ReplaceMPLSInput --></td>
+<td><code>processMPLSChange</code> dispatches labeled route installs and replacements to <code>addMPLSRoute</code>, and removals to <code>delMPLSRoute</code>. The GoVPP backend sends <code>IPRouteAddDel</code> with a label stack for installs, every label in uniform mode, so the label TTL is copied from the IP TTL. Transit swap and pop entries from LDP and RSVP-TE arrive as <code>(mpls-fib, entry)</code> events: fib-vpp creates MPLS table 0 and installs each entry as two <code>MplsRouteAddDel</code> routes, one per value of the S bit, never in <code>fib.vpp.table-id</code>. A pop imposes the Implicit NULL label; an egress pop with no next hop looks the packet up in IP table <code>fib.vpp.table-id</code> of its FEC's family. VPP has no per-route MTU, so an entry's path MTU is not installed and fib-vpp warns once. A push into a private table (an RSVP-TE facility-backup context) is refused, because VPP has no packet-mark context. <code>mpls { enable true; }</code> on a unit enables MPLS input on the VPP interface.</td>
 </tr>
 <tr>
 <td>vpp-4</td>
 <td>VPP-native <code>iface.Backend</code>: managing interfaces directly via GoVPP instead of through the kernel</td>
-<td><strong>In tree.</strong> Backend registers as <code>"vpp"</code> and loads cleanly under <code>interface { backend vpp; }</code>. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (<code>ListInterfaces</code>, <code>GetInterface</code>, <code>GetMACAddress</code>, <code>SetMACAddress</code>), and monitor (<code>WantInterfaceEvents</code> -&gt; EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (<code>spec-followup-vpp-iface</code>, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping <code>linux_cp_plugin.so</code>/<code>linux_nl_plugin.so</code> (the <code>ligato/vpp-base</code> image does not). An interface apply that runs before the vpp handshake completes is deferred whole and performed when <code>EventConnected</code> fires (VPP backend). <!-- source: internal/component/iface/config_apply.go -- applyConfig, applyOwedConfig --> <!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip --> <!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN --> <!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API --> <!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del -->. <span class="ev-src"><span class="ev-ref"><code>internal/le/test/deployment.Answer</code></span><span class="ev-ref"><code>docs/features/interfaces.md</code></span></span></td>
+<td><strong>In tree.</strong> Backend registers as <code>"vpp"</code> and loads cleanly under <code>interface { backend vpp; }</code>. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (<code>ListInterfaces</code>, <code>GetInterface</code>, <code>GetMACAddress</code>, <code>SetMACAddress</code>), and monitor (<code>WantInterfaceEvents</code> -&gt; EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (<code>spec-followup-vpp-iface</code>, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping <code>linux_cp_plugin.so</code>/<code>linux_nl_plugin.so</code> (the <code>ligato/vpp-base</code> image does not). An interface apply that runs before the vpp handshake completes is deferred whole and performed when <code>EventConnected</code> fires (VPP backend). <span class="ev-src"><span class="ev-ref"><code>internal/le/test/deployment.Answer</code></span><span class="ev-ref"><code>docs/features/interfaces.md</code></span></span></td>
 </tr>
 <tr>
 <td>vpp-5</td>
@@ -805,7 +732,7 @@ interface name.</p>
 <tr>
 <td>(netns)</td>
 <td>Netns-aware BGP listening: BGP binds inside a named network namespace</td>
-<td><strong>Not in tree.</strong> <code>RealListenerFactory.Listen</code> binds via <code>net.ListenConfig</code> in whatever namespace the ze process runs in; nothing in the BGP reactor references a network namespace. So with the default <code>vpp.lcp.netns</code> of <code>dataplane</code>, BGP reaches an LCP TAP only if ze itself runs in that namespace (see "How the two halves fit together"). Specced, not implemented; <code>ze doctor</code> reports <code>doctor-vpp-lcp-netns</code> meanwhile. <!-- source: internal/core/network/network.go -- RealListenerFactory.Listen, no netns awareness --></td>
+<td><strong>Not in tree.</strong> <code>RealListenerFactory.Listen</code> binds via <code>net.ListenConfig</code> in whatever namespace the ze process runs in; nothing in the BGP reactor references a network namespace. So with the default <code>vpp.lcp.netns</code> of <code>dataplane</code>, BGP reaches an LCP TAP only if ze itself runs in that namespace (see "How the two halves fit together"). Specced, not implemented; <code>ze doctor</code> reports <code>doctor-vpp-lcp-netns</code> meanwhile.</td>
 </tr>
 </tbody>
 </table>
@@ -915,7 +842,7 @@ and converging sub-second on a full table.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

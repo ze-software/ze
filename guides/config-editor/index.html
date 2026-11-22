@@ -71,7 +71,6 @@
 <li><a href="#exit-codes">Exit Codes</a></li>
 <li><a href="#example-workflow">Example Workflow</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage; internal/component/cli/ -- editor model -->
 <h2 id="usage">Usage</h2>
 <pre><code class="language-bash">ze config edit                      # Edit default config
 ze config edit myconfig.conf        # Edit specific file
@@ -81,14 +80,11 @@ no daemon answers, the editor starts an ephemeral daemon and connects to it.
 Once connected, the local process holds no writable store handle. Terminal
 resizing and input travel over the SSH PTY, and the daemon persists drafts and
 command history.</p>
-<!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
 <p>Three more surfaces reach the same editor against a running daemon. An SSH
 session opens in configuration mode. The web interface gives each authenticated
 user an editor of their own. The console of <code>ze start --cli</code> opens at the
 operational prompt, where <code>configure</code> enters configuration mode. A <code>commit now</code>
 from any of the three reloads the daemon.</p>
-<!-- source: cmd/ze/hub/session_editor.go -- newSessionEditor, attachedConsoleEditor -->
-<!-- source: internal/component/cli/model_keys.go -- handleEnter, the configure arm -->
 <p>Command history is immediately available to Up/Down after Enter. A session-owned
 worker publishes detached whole snapshots without holding up input, timers or
 delivered command results. It keeps only the newest waiting snapshot for each
@@ -144,22 +140,6 @@ reconnecting or moving to another configuration context. Safe nonsecret values
 remain usable after reopening; an older relative record whose address was not
 stored is masked conservatively. Mode snapshots are detached, bounded by the
 configured entry count, and deduplicate consecutive displayed commands.</p>
-<!-- source: internal/component/cli/history.go -- Save, publish, Close -->
-<!-- source: internal/component/cli/history.go -- Load, Snapshot, Record -->
-<!-- source: internal/component/config/mask.go -- DisplayCommandAtPath, DisplayCommandWithSchema, RejectMaskedSecretLeaves -->
-<!-- source: internal/component/cli/editor_mask.go -- DisplayCommandAtPath -->
-<!-- source: internal/component/cli/model.go -- SetHistory, recordHistory -->
-<!-- source: internal/component/cli/model_render.go -- feedbackLine -->
-<!-- source: internal/component/cli/model.go -- Close, SetHistory -->
-<!-- source: internal/component/cli/client/main.go -- runInteractiveWithDispatch, runInteractiveWithProgram -->
-<!-- source: internal/component/config/cli/cmd_edit.go -- runEditorProgram, runEditorProgramWith, runBackupModel, runEditor -->
-<!-- source: internal/component/ssh/ssh.go -- Start, Stop, teaHandler, sessionCloseMiddleware -->
-<!-- source: internal/component/ssh/model_lifetime.go -- modelSessions, modelSession -->
-<!-- source: internal/component/ssh/listener_start.go -- registeredListener, serveListener -->
-<!-- source: internal/component/cli/testing/headless.go -- close -->
-<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
-<!-- source: cmd/ze/hub/infra_setup.go -- setupInfraHook -->
-<!-- source: cmd/ze/hub/ssh_infra.go -- sshServer -->
 <h3 id="who-may-change-the-configuration">Who may change the configuration</h3>
 <p>On a daemon with <code>system.authorization</code> configured, an SSH session, and
 <code>ze config edit</code> in session mode, checks every change against the user's
@@ -179,9 +159,6 @@ administrator adds an <code>allow</code> entry for that string, or for <code>con
 session on another stored configuration adds to it.</p>
 <p>The console of <code>ze start --cli</code>, and the file and backup modes of
 <code>ze config edit</code>, authenticate nobody and are not checked.</p>
-<!-- source: internal/component/cli/model_commands.go -- dispatchCommandWords -->
-<!-- source: internal/component/cli/config_permission.go -- ConfigPermission -->
-<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
 <h2 id="editor-commands">Editor Commands</h2>
 <p>In an SSH session, <code>load file</code> reads only a regular configuration file inside
 the daemon's configured configuration directories. Paths through symlinks are
@@ -194,13 +171,11 @@ in the browser. Local loose-file editors retain the local
 operator's filesystem permissions.
 Relative SSH import paths are resolved beside the active configuration; a
 stored configuration name uses the configured store directory as its base.</p>
-<!-- source: internal/component/cli/model_load_path.go -- loadFile -->
 <p>The graphical web editor's <strong>Import into candidate</strong> forms use the same load
 producer as these editor commands. A local file or pasted text can merge into
 or replace the root or selected subtree. Import stages changes for your account;
 review and commit them separately to publish them. A refused import leaves your
 candidate intact. See <a href="../web-interface/#collections-and-configuration-actions">Web interface</a>.</p>
-<!-- source: internal/component/web/graphical_import.go -- HandleGraphicalImport -->
 <table>
 <thead>
 <tr>
@@ -303,8 +278,6 @@ candidate intact. See <a href="../web-interface/#collections-and-configuration-a
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
-<!-- source: internal/component/cli/editor_help.go -- editorCommands, EditorHelpEntries -->
 <p>A schema flag takes no value: <code>set firewall table filter chain input term allow-bgp then accept</code> enables the presence action, and <code>set system conntrack accounting</code> enables an empty leaf. The same spelling works relative to an
 <code>edit</code> context. An ordinary leaf still requires its value, and a value after an
 empty flag is refused. Flags stay in the candidate until committed, including
@@ -313,10 +286,6 @@ also retain activate/deactivate state through save, reload and commit. If a
 presence flag also has configured children, activating or deactivating its path
 covers both forms together. Saving retains the flag, its children and their
 assignment records; a deactivated block cannot leave an active flag alias.</p>
-<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet -->
-<!-- source: internal/component/cli/editor_activation.go -- applyNodeActivation -->
-<!-- source: internal/component/cli/editor_commands.go -- DeactivatePath, ActivatePath, presenceFlagParent -->
-<!-- source: internal/component/cli/editor_draft.go -- applyToggleOp -->
 <p><code>top &lt;command&gt;</code> takes any command the editor accepts and runs it once with
 the position at the root, then leaves you where you were. Inside
 <code>edit bgp peer peer1</code>, <code>top set bgp router-id 192.0.2.9</code> sets the root path,
@@ -327,22 +296,16 @@ goes to <code>bgp</code>, as <code>edit bgp</code> typed at the root would. <cod
 without <code>top</code>. <code>top load terminal relative merge</code> pastes at the root. History
 keeps the line as you typed it, and completion after <code>top </code> offers what the
 root offers. This form runs in the SSH editor and <code>ze config edit</code>.</p>
-<!-- source: internal/component/cli/model_commands.go -- cmdTop, LineBehindTop -->
-<!-- source: internal/component/cli/model_keys.go -- handleEnter, finishPasteMode -->
 <p>Session discard removes only the current session's assignments and structural
 operations, even when several sessions share an account's change file. Browser
 discard includes preserved browser work reopened for that account; separate
 SSH edits remain pending.</p>
-<!-- source: internal/component/cli/editor_commit.go -- DiscardSessionPath -->
-<!-- source: internal/component/cli/editor_resume.go -- ResumeSession -->
 <p>In an editing session a bare <code>discard</code> is refused and names both forms above.
 Without an editing session, a bare
 <code>discard</code> drops every change, and <code>discard &lt;path&gt;</code> puts back the committed
 content at the path, or removes what the path holds when the committed
-config has nothing there.</p>
-<!-- source: internal/component/cli/editor_discard_path.go -- DiscardPath, restoreElement -->
-<!-- source: internal/component/config/tree_restore.go -- RestoreValue -->
-<p>The help overlay (<code>help</code>), Tab completion and <code>ze config edit --help</code> all read
+config has nothing there.
+The help overlay (<code>help</code>), Tab completion and <code>ze config edit --help</code> all read
 one command table, so their wording for a command is the same.</p>
 <p><code>commit</code> always takes a subcommand: a bare <code>commit</code>, a bare <code>force</code>, or an
 unknown word is refused with the list of subcommands, so a typo never applies a
@@ -355,8 +318,6 @@ With nothing pending, the SSH editor and the web terminal answer <code>commit no
 with "no changes to commit" and apply nothing, and <code>commit confirmed &lt;seconds&gt;</code>
 with "no changes to commit: no confirmed commit was opened", because a window
 over no change would revert nothing.</p>
-<!-- source: internal/component/cli/contract/commit.go -- NothingToCommit -->
-<!-- source: internal/component/cli/contract/commit.go -- ParseCommit, commitSubcommands -->
 <p>A commit that validation refuses says on the status line how many errors and
 warnings block it. When only warnings block it, that line names the forced
 form of what you typed (<code>commit now force</code>, or
@@ -392,35 +353,22 @@ lines with a literal pipe, and <code>show | match "|" | head 1</code> shows the 
 Printed fixes preserve these boundaries, including behind <code>top</code>, so a group
 named <code>"edge routers"</code> keeps its name when
 you type the proposed correction.</p>
-<!-- source: internal/component/cli/command_words.go -- ParseCommandWords, Tail, SplitPipe -->
-<!-- source: internal/component/cli/model_load.go -- ParsePipeFilters -->
-<!-- source: internal/component/config/list_key.go -- splitQuotedTokensMarked, readQuotedToken -->
 <p>A commit refused because of an API-supplied value keeps that value and your
 other pending changes. Apply the proposed correction and commit again. A
 session's stored candidate remains readable and editable even when one of its
 leaf values or leaf-list members is invalid; you do not need to discard your
 changes to repair it.</p>
-<!-- source: internal/component/cli/editor_draft.go -- readChangeFile, writeThroughSet -->
-<!-- source: internal/component/cli/fix_frame.go -- FrameFix, FramedSetRefusal -->
-<!-- source: internal/component/cli/model_render.go -- setError, feedbackLine -->
-<!-- source: internal/component/cli/validator.go -- ConfigValidationError.Text, refusalIssue, missingFieldIssue -->
-<!-- source: internal/component/cli/model_commands_commit.go -- CommitRefusal, commitValidationRefusal, WithSkippedWarnings, cmdCommitVerify -->
-<!-- source: internal/component/cli/contract/commit.go -- ForcedCommand -->
-<!-- source: internal/component/web/editor_commit_window.go -- runCommit, validateTransition -->
-<!-- source: internal/component/web/cli_terminal.go -- runWebCommit, terminalCommitOutput -->
 <p><code>show | errors</code> validates the current candidate with the same checks as commit,
 including errors that <code>force</code> cannot override. It lists those errors and any
 warnings in the viewport, with line numbers referring to the hierarchical
 configuration view. After a repair, run it again: the list reflects the candidate
 now, not the validation hints cached before your edit. It applies nothing and
 keeps pending changes.</p>
-<!-- source: internal/component/cli/model_commands_commit.go -- cmdErrors, formatIssueList -->
 <p><code>show | changes</code> keeps each setting's <code>inactive:</code> spelling in the candidate
 view, including a deactivated leaf whose value is unchanged. A change between
 active and inactive is still marked as a change in the gutter. Container and
 list-entry openings retain their activation markers too. <code>show confirmed</code>
 continues to display the last committed state until the candidate is committed.</p>
-<!-- source: internal/component/cli/diff_tree.go -- diffLeaf, diffMultiLeaf, diffBracketLeaf, diffValueOrArray, diffContainer, diffListEntry -->
 <p>The web interface's CLI page uses these same editor command producers without
 an SSH connection. <code>show | blame</code>, <code>show | changes</code>, <code>show | history</code>,
 <code>show | active</code>, <code>show | inactive</code> and <code>show | errors</code> retain their editor
@@ -430,7 +378,6 @@ preference controls: author, date, source and changes columns, all or no
 columns, and diagnostic hints or hiding. <code>insert</code>
 inserts an ordered leaf-list member with <code>first</code>, <code>last</code>, <code>before</code> or <code>after</code>;
 create a named list entry with <code>set</code>.</p>
-<!-- source: internal/component/cli/contract/editor_options.go -- EditorOptions -->
 <p>In operational mode (<code>ze&gt;</code>), <code>set cli format</code> shows your current output format
 and <code>set cli format json</code> changes it for your browser editing session. Tab
 offers the formats declared by the same schema as the SSH CLI. The preference
@@ -438,8 +385,6 @@ stays with your authenticated user when you switch modes; <code>run</code> uses 
 config mode too. An explicit format pipe such as <code>| yaml</code> takes precedence for
 that command. Other users keep their own preference or the configured default.
 In config mode, <code>set</code> continues to address the configuration schema.</p>
-<!-- source: internal/component/cli/session_format.go -- ExecuteSessionFormat, SessionFormatCompletions -->
-<!-- source: internal/component/web/cli_format.go -- sessionFormatCommand, executeTerminalOperationalForUser -->
 <p>To paste into the browser candidate, type <code>load terminal absolute merge</code>, or
 use <code>relative</code> and <code>replace</code> as in the terminal editor, then paste in the box
 and select <strong>Load candidate</strong>. For a file, type a <code>load file</code> command and choose
@@ -449,12 +394,9 @@ as a separate action. Commands run in their entered order, including navigation.
 <p>Display limits use only the rows or lines already available. Asking <code>tail</code>,
 <code>first</code> or <code>last</code> for more results keeps the available results without
 reserving memory for the requested count.</p>
-<!-- source: internal/component/cli/editor_transport.go -- ExecuteConfigCommand -->
-<!-- source: internal/component/web/editor.go -- ConfigCommand -->
 <p>Inline validation hints follow the highlighted configuration line; they never
 replace it. An invalid intermediate edit, such as copying a peer before changing
 its duplicate remote IP, therefore keeps the peer's configuration visible.</p>
-<!-- source: internal/component/cli/model_render.go -- highlightValidationIssues -->
 <p>In the SSH editor and the web terminal, <code>commit now</code> is refused when your
 change conflicts with another user's pending change (LIVE) or with a value
 committed since you made it (STALE). <code>commit now force</code> applies your change
@@ -478,13 +420,6 @@ example because a file could not be written, the answer says the commit applied
 and adds the warning "commit applied, but the changes it overrode were not
 discarded and stay pending for their owners", with the cause, so you know to
 tell them.</p>
-<!-- source: internal/component/cli/editor_commit_force.go -- CommitSessionForce, discardOverridden, overriddenNotDiscarded, PendingDiscardNotice, AckDiscardNotice, startDiscardNotice, discardNoticeLinesMax -->
-<!-- source: internal/component/web/window_notices.go -- WindowNotices.push, pushDiscardNotice -->
-<!-- source: internal/component/web/sse.go -- EventBroker.SendNotice -->
-<!-- source: internal/component/cli/editor_commit.go -- reloadSessionView -->
-<!-- source: internal/component/cli/model.go -- handleDraftPoll, draftPollInterval -->
-<!-- source: internal/component/web/editor.go -- EditorManager.commit -->
-<!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest -->
 <p>A STALE conflict on a leaf-list member names the change as you made it,
 <code>deactivate &lt;path&gt; &lt;member&gt;</code>, <code>activate &lt;path&gt; &lt;member&gt;</code> or
 <code>insert &lt;path&gt; &lt;member&gt; &lt;position&gt; [&lt;reference&gt;]</code>, and follows it with a
@@ -503,13 +438,6 @@ only when a contested leaf value is among the conflicts. A leaf you set or
 delete below an entry you renamed is judged against the committed value at
 the old name, so a rename followed by an edit commits with no conflict when
 nobody else committed.</p>
-<!-- source: internal/component/cli/editor_commit.go -- memberOpStaleConflict, memberOpFix, insertSummary, memberOpConflicts, structuralOpUnderDiscard, committedPathOf -->
-<!-- source: internal/component/cli/model_commands_commit.go -- commitConflictsText -->
-<!-- source: internal/component/web/cli_terminal.go -- runWebDiscard, formatCommitConflicts -->
-<!-- source: internal/component/web/editor.go -- EditorManager.DiscardPath -->
-<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
-<!-- source: internal/component/config/change_file.go -- PendingChange.Summary -->
-<!-- source: internal/component/config/confirm/confirm.go -- ErrPending -->
 <p>A newly created list entry is a pending change even when it contains no leaf
 values. <code>show | changes</code> lists it as <code>set &lt;entry path&gt;</code>. Loading a block such as
 an empty dummy interface or an interface-only static next hop preserves that
@@ -519,8 +447,6 @@ after it was saved to the draft or subsequently deleted without saving, unless
 another pending edit or the committed configuration still owns it. Newly
 materialized list-entry ancestors are removed too when nothing still owns them;
 existing ancestors are retained.</p>
-<!-- source: internal/component/cli/editor_draft.go -- writeThroughCreate -->
-<!-- source: internal/component/cli/editor_create_entry.go -- pruneDiscardedCreations -->
 <p>Saving an entry before renaming it does not leave a second, unowned copy at
 the old name. Copying an entry retains this session's pending leaf edits,
 including edits already saved to the draft, without copying another session's
@@ -534,17 +460,12 @@ the materialized entry without moving it back through its old name; another
 session's new entry at that old name is preserved. String keys containing spaces
 or <code>#</code> keep their boundaries through save, rename, copy, commit and discard,
 including leaf-list member toggles below those keys.</p>
-<!-- source: internal/component/cli/editor_create_entry.go -- planCreations, prepareDraftReplay, rebaseCreatedMetadata, pruneCreationMaterializations -->
-<!-- source: internal/component/config/meta.go -- SessionEntries -->
-<!-- source: internal/component/config/change_file.go -- structural operation codecs -->
 <p>If a pending creation's ownership path cannot be parsed or resolved against
 the schema, commit and discard report an error rather than treating it as
 unowned. A forced commit does not bypass that uncertainty. After an edit has
 already succeeded, an inconclusive overlap check is reported as
 <code>conflict check failed</code>, separately from a known conflict; the edit stays
 pending.</p>
-<!-- source: internal/component/cli/editor_draft.go -- liveOverlaps, detectConflicts -->
-<!-- source: internal/component/cli/model_commands_edit.go -- appendConflictStatus -->
 <p><code>commit now</code> reaches the same reload as <code>ze signal reload</code>. Which configuration
 changes stop a session, and in what order, is in
 <a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-reload.md#the-order-of-a-commit" target="_blank" rel="noopener">The order of a commit</a>.</p>
@@ -552,8 +473,6 @@ changes stop a session, and in what order, is in
 It is separate from the operational command operators published by
 <code>ze help command --json</code>, so names such as <code>blame</code>, <code>compare</code>, and <code>history</code>
 apply here without becoming operational pipe operators.</p>
-<!-- source: internal/component/cli/model_load.go -- dispatchWithPipe, ClassifyShowPipes -->
-<!-- source: internal/component/cli/completer.go -- showPipeFilters, completePipeFilter -->
 <h3 id="structural-operations-appear-in-the-diff">Structural operations appear in the diff</h3>
 <p><code>show | changes</code> and the default <code>show | compare</code> include the session's structural operations,
 not only its leaf values. A deleted list entry, a deleted container, a deleted
@@ -561,8 +480,6 @@ list, a <code>rename</code>, an <code>insert</code> at a position, and a <code>d
 recorded in the per-user change file rather than in the value tree. The tree
 store exposes those change files to both display surfaces, so the reviewed diff
 includes the operations that commit will apply.</p>
-<!-- source: internal/component/cli/editor.go -- listChangeFiles, readChangeFileContent -->
-<!-- source: internal/component/config/change_file.go -- StructuralOp and its seven types -->
 <p>In an active editing session, bare <code>show | compare</code> prints path-qualified
 pending changes, using the same masked renderer as the browser's graphical
 review. A changed leaf has separate removed and added rows, each naming its
@@ -571,11 +488,9 @@ The removed value comes from the current committed configuration; the review
 does not change the candidate or the original metadata used to detect conflicts.
 Renames, copies, creation and activation retain their recorded operation kinds.
 At an editing context, review includes only operations overlapping that path.</p>
-<!-- source: internal/component/cli/editor_pending_diff.go -- PendingReview, RenderPendingChanges -->
 <p>An explicit comparison target, an alternate <code>show</code> source or an explicit
 <code>format tree</code> or <code>format config</code> pipe selects the tree comparison described
 below. Without an active session, comparison also uses that tree view.</p>
-<!-- source: internal/component/cli/model_load.go -- cmdShowPipe, ClassifyShowPipes -->
 <p><code>show</code> follows the working configuration's recorded list-entry order.
 <code>show | compare saved</code> reports <code>(no saved draft)</code> when that baseline does not exist.
 An unchanged scoped comparison produces empty output. Tree comparisons can show
@@ -583,8 +498,6 @@ a modified leaf's replacement value with a <code>*</code> marker. The line compa
 for flat set commands keeps separate removed and added statements: matching
 indentation alone cannot prove that two flat statements address the same item,
 and must not hide a deleted setting when another setting changes.</p>
-<!-- source: internal/component/cli/model_commands_show.go -- Model.compareView -->
-<!-- source: internal/component/cli/diff.go -- detectModifications, diffRunHasFlatStatements -->
 <p>Tree comparison omits unchanged entries, except for the context retained within
 a reordered <code>ordered-by user</code> list. Reordering a plain list alone creates no
 change marker. For a list declared <code>ordered-by user</code> in YANG, order is part of
@@ -594,14 +507,10 @@ deleted entries appear after their original predecessor. Removed rows have no
 working line number, so they do not shift validation highlighting onto another
 entry. Bracket leaf-list rows keep their leaf name and indentation in every
 change state, so a surviving bracket statement maps to its working line.</p>
-<!-- source: internal/component/cli/diff_tree.go -- diffList, diffBracketLeaf, renderDiffLines -->
-<!-- source: internal/component/config/prune.go -- PruneUnchanged -->
 <p>An ordered leaf-list insertion may create its schema-validated parent. The
 parent creation and insertion are recorded together, so saving, reopening and
 committing preserve the dependency. A refused position or failed write leaves
 the candidate unchanged.</p>
-<!-- source: internal/component/cli/editor_leaflist.go -- Editor.writeThroughMemberOp -->
-<!-- source: internal/component/cli/editor_commands.go -- Editor.InsertLeafListValue -->
 <h3 id="secrets-are-masked-on-every-display-path">Secrets are masked on every display path</h3>
 <p>One predicate answers whether a leaf holds a secret, and every display path reads
 it. A leaf the schema marks <code>ze:sensitive</code> or <code>ze:bcrypt</code> is masked in the tree
@@ -619,9 +528,6 @@ clear, so the operator still reads which leaf was written.</p>
 the config file and run <code>ze secret decode '$9$...'</code>, or <code>ze secret decode -</code>
 to keep the value out of the shell history. A <code>ze:bcrypt</code> leaf holds a one-way
 hash, which no command can decode.</p>
-<!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath -->
-<!-- source: internal/component/config/infra/diff.go -- maskDiffSecrets -->
-<!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
 <h3 id="commands-run-one-at-a-time-in-order">Commands run one at a time, in order</h3>
 <p>The config commands of one session run serially, in the order the operator
 entered them. Pasting a block of <code>set</code> lines followed by <code>commit now</code> over SSH lands
@@ -636,8 +542,6 @@ accept or abort is never reported as another session's. When the session ends wi
 commands still queued, because the SSH client went away or the operator left,
 those commands are dropped unrun: a command that no operator will ever see the
 answer of does not change the draft.</p>
-<!-- source: internal/component/cli/model_commands.go -- dispatchQueue -->
-<!-- source: internal/component/cli/model.go -- handleDraftPoll -->
 <h2 id="other-config-subcommands">Other Config Subcommands</h2>
 <table>
 <thead>
@@ -693,7 +597,6 @@ answer of does not change the draft.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/cli/main.go -- subcommandHandlers, storageHandlers -->
 <p>Completion for caller-held configuration is also available through
 <code>show config supplied completion</code>. Its generated controls take configuration
 and editing input as separate file or paste inputs, with optional slash-separated
@@ -701,8 +604,6 @@ and editing input as separate file or paste inputs, with optional slash-separate
 one JSON object and pass its padded base64 as <code>content</code>. The same completion
 engine answers both forms. The standalone <code>--input</code> adapter treats <code>+</code> as a
 space; the supplied form preserves the literal editing input, including <code>+</code>.</p>
-<!-- source: internal/component/config/cli/cmd_completion.go -- completerForBytes -->
-<!-- source: internal/component/config/cli/config_supplied_utilities.go -- suppliedCompletion -->
 <p>Every <code>&lt;file&gt;</code> above accepts <code>-</code> for <strong>stdin</strong>. The read-modify commands
 <code>ze config set</code>, <code>ze config deactivate</code>, and <code>ze config activate</code> become
 pipeline stages when given <code>-</code>: they read the config from stdin, apply the
@@ -711,8 +612,6 @@ they compose (<code>ze config show - | ze config set - bgp session asn local 650
 <code>ze config edit -</code>, <code>ze config rollback &lt;N&gt; -</code>, and <code>ze config history -</code> are
 rejected with a clear error: an interactive editor needs a TTY, and rollback/history
 need on-disk revision history that a piped config does not have.</p>
-<!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig -->
-<!-- source: internal/component/cli/editor.go -- NewEditorFromContent, SetStdoutSink -->
 <p><code>validate</code>, <code>show</code>, and a diff between two explicit paths read those paths
 without opening a store. Equal filenames in different folders remain separate
 inputs. An offline <code>set</code> writes the supplied file and records its previous
@@ -722,11 +621,6 @@ and <code>rollback</code> require the folder's history and name <code>ze init</c
 An offline writer refuses while the daemon owns that store. Import, stored
 rename and indexed rollback instead send their operations to that store's
 owning daemon.</p>
-<!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig, noticeUnrecordedVersion -->
-<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs -->
-<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportThroughDaemon -->
-<!-- source: internal/component/config/cli/config_rename_daemon.go -- renameConfigThroughDaemon -->
-<!-- source: internal/component/config/cli/config_rollback_daemon.go -- rollbackConfigThroughDaemon -->
 <p>An offline <code>ze config set</code> refuses an invalid value or a new list key before
 it writes the file. It exits with code 2 and prints the
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals" target="_blank" rel="noopener">value refusal</a>
@@ -734,7 +628,6 @@ on stderr. The last line gives the corrected <code>set</code> command from the r
 including the words after a refused key. For example,
 <code>ze config set router.conf ospf redistribute bogus nssa-propagate true</code>
 ends with <code>fix: set ospf redistribute &lt;connected|static|kernel|bgp|isis&gt; nssa-propagate true</code>.</p>
-<!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
 <p><code>ze config import --dir &lt;folder&gt; &lt;file&gt;...</code> selects a destination independently
 of its input files. Without <code>--dir</code>, the destination follows <code>ze.config.dir</code>
 and then the default config folder. <code>--name</code> supplies the destination name for
@@ -768,14 +661,8 @@ offline.</p>
 daemon that then stopped is refused, as <code>ze config rollback</code> is: that daemon's
 next start reverts the commit, which would undo the import. The refusal names
 <code>ze start &lt;config&gt;</code>.</p>
-<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, cmdImportThroughDaemon, cmdImportNames, cmdImportExists, cmdImportConfirm -->
-<!-- source: internal/component/config/storage/daemonroute/daemonroute.go -- ConfigLine, Send, OverSSH, UnansweredRefusal -->
-<!-- source: internal/component/config/confirm/store.go -- WriteOutsideRecorded -->
-<!-- source: internal/component/config/storage/config_name.go -- PlainConfigName -->
-<!-- source: internal/component/config/storage/restore.go -- RestoreConfig -->
 <h2 id="editing-modes">Editing Modes</h2>
 <p>The selected source determines the editor's mode.</p>
-<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage, runEditor, runStoredEditor -->
 <p><strong>File mode</strong> (<code>ze config edit -f &lt;file&gt;</code>): the editor reads and writes the
 explicit loose file. It keeps its <code>.edit</code> recovery file alongside it, and
 records rollback versions in an existing store in the file's folder.
@@ -791,21 +678,16 @@ detection. The same store holds draft recovery and history for every surface.</p
 <p>The session CLI retains its shared saved-draft view, including other sessions'
 saved values and annotations. Commit still publishes only the committing
 session's changes. The browser instead keeps its candidate view isolated.</p>
-<!-- source: internal/component/cli/editor.go -- NewEditorWithStorage, NewIsolatedEditorWithStorage -->
-<!-- source: internal/component/cli/editor_view.go -- workingViewMetadata -->
 <p>The browser automatically resumes pending changes from your earlier web
 sessions. It keeps your SSH intent separate. Saving publishes your assignments
 into the shared draft while retaining your own live candidate; it does not
 import another session's draft values into your view or the candidate text
 used for validation.</p>
-<!-- source: internal/component/cli/editor_resume.go -- ResumeSession, workingSessionMetadata -->
-<!-- source: internal/component/cli/editor_draft.go -- SaveDraft -->
 <p>After a commit applies, cleanup can still fail. The warning names the cause.
 The configuration is already in use; do not repeat the commit. Keep the session
 files and use <code>show | changes all</code> to review the retained changes before repairing
 the reported failure. Avoid removing the shared change file: it can still hold
 another session's pending work.</p>
-<!-- source: internal/component/cli/editor_session_cleanup.go -- sessionCleanupWarning -->
 <p><strong>Backup mode</strong> (<code>ze config edit --backup &lt;artifact&gt; [config-name]</code>): the
 editor opens a config inside a backup artifact (a <code>.zefs</code> file that <code>ze data backup</code> or <code>request data backup</code> wrote) with no daemon. No SSH credentials are
 read, no daemon is probed or started, and <code>run</code> commands have nothing to reach.
@@ -826,7 +708,6 @@ Without a config name the editor uses the artifact's <code>&lt;instance&gt;.conf
 otherwise asks which <code>.conf</code> config to edit. Discovery includes active pointers,
 so opening an existing pointer-only default does not create a replacement
 mirror. The same discovery is used before attaching to a daemon editor.</p>
-<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditBackup, cmdEditWithStorage, doSelectConfig -->
 <p>For browser editing, open the separate
 <a href="../web-interface/#offline-backup-workspace">offline backup workspace</a>.
 Upload a <code>.zefs</code> artifact there, edit its selected configuration, and download
@@ -840,27 +721,18 @@ use the editor's validation and replacement operations when validation is needed
 To apply a selected configuration through the device's normal reload, use
 <code>request config artifact restore config artifact &lt;id&gt; name &lt;source-name&gt;</code>.
 Omitting <code>name</code> uses ordinary restore selection and refuses an ambiguous source.
-An optional <code>client &lt;client-name&gt;</code> selects a managed client this hub serves.</p>
-<!-- source: internal/component/config/cli/artifact_import.go -- artifactImport -->
-<!-- source: internal/component/config/cli/artifact_restore.go -- artifactRestoreConfig -->
-<p>The same page's <strong>Check or repair a data file</strong> form opens damaged or arbitrary
+An optional <code>client &lt;client-name&gt;</code> selects a managed client this hub serves.
+The same page's <strong>Check or repair a data file</strong> form opens damaged or arbitrary
 binary input for native integrity checks and a separate salvage download;
-it does not require the source to pass the editor's normal backup admission.</p>
-<!-- source: internal/component/web/backup_source.go -- uploadSource, source -->
-<p>The picker lists committed configurations. Saved drafts and per-account pending
+it does not require the source to pass the editor's normal backup admission.
+The picker lists committed configurations. Saved drafts and per-account pending
 changes stay in the artifact, and opening a configuration starts from its
 committed content. The downloaded artifact preserves those saved sessions.</p>
-<!-- source: internal/component/web/backup_workspace.go -- HandleBackupWorkspace -->
-<!-- source: internal/component/web/register_backup_workspace.go -- init -->
 <p>When the editor takes the config name from the store, it reads the store's
 instance name. If that key exists but cannot be read (a CRC mismatch, an I/O
 error), <code>ze config edit</code> exits with an error that names <code>ze doctor</code> and
 <code>ze init</code>, rather than opening <code>ze.conf</code>. With no store at all it uses
 <code>ze.conf</code>.</p>
-<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage -->
-<!-- source: internal/core/resolve/resolve.go -- DefaultConfig -->
-<!-- source: internal/component/config/cli/backup_flag.go -- openBackup, publishInBackup -->
-<!-- source: internal/component/cli/editor.go -- NewOfflineSessionEditor, SetOfflinePromotion -->
 <p><code>ze config show</code>, <code>diff</code>, <code>set</code> and <code>list</code> take the same <code>--backup &lt;artifact&gt;</code>
 flag and work on the configs inside it: <code>show</code> and <code>diff</code> read under a shared
 lock, <code>set</code> publishes the way an editor commit does, and <code>list</code> names only
@@ -873,25 +745,15 @@ pending candidate, its identity and saved draft bytes.</p>
 pointer refuses the operation instead of opening that mirror. Explicit saved
 sessions use the same committed version when they resume and commit; saved
 drafts and other accounts' changes stay separate.</p>
-<!-- source: internal/component/config/cli/cmd_show.go -- openBackupShowEditor -->
-<!-- source: internal/component/config/cli/cmd_diff.go -- readDiffSource -->
-<!-- source: internal/component/cli/editor.go -- NewEditorWithStorage -->
-<!-- source: internal/component/cli/editor_resume.go -- resumeSession -->
-<!-- source: internal/component/cli/editor_commit.go -- commitSessionCandidate -->
 <p>A stored editor's direct <code>Save</code> needs its owning publication callback when the
 configuration has an active version. Without that owner, it refuses before
 creating history or writing the mirror, and keeps the edit unsaved. Daemon
 sessions and backup sessions already supply their respective publication paths;
 explicit loose-file saves keep their filesystem behavior.</p>
-<!-- source: internal/component/cli/editor_commands.go -- Save -->
-<!-- source: internal/component/cli/editor_file.go -- checkSaveAuthority -->
-<!-- source: internal/component/cli/editor.go -- SetCommitWriter -->
 <p>When the daemon was started with an explicit file, every start reads that
 file, and daemon commits update it together with stored history. An external
 edit must be reconciled before a competing daemon commit can succeed. Bare
 <code>ze start</code> takes its active configuration from the store.</p>
-<!-- source: internal/component/cli/editor.go -- NewLooseFileEditor, NewEditorWithStorage -->
-<!-- source: internal/component/cli/editor_commands.go -- Save -->
 <p>In a session editor, <code>commit confirmed &lt;seconds&gt;</code> runs through the daemon's
 confirmed-commit window (see <a href="#commit-confirmed">Commit Confirmed</a>). A session
 editor of a configuration the daemon does not run has no such window, and
@@ -900,8 +762,6 @@ status header and viewport corrections as <code>commit now</code>. A valid candi
 refused with "commit confirmed needs a daemon that runs this configuration
 from its store"; <code>commit now</code> still works there. The web editor of
 <code>ze start --web-only</code> has no daemon and answers the same way.</p>
-<!-- source: internal/component/cli/commit_window.go -- errCommitConfirmedNeedsDaemon, WindowCommit.Run -->
-<!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest, commitValidationRefusal -->
 <p><code>insert</code> is supported in session mode: <code>InsertLeafListValue</code> routes through
 <code>writeThroughMemberOp</code>, and so do <code>deactivate</code> and <code>activate</code> when they name a
 leaf-list member rather than a leaf or a path. A deactivated member stays in
@@ -926,13 +786,6 @@ removed a member you deactivate, or the member an <code>insert</code> is placed 
 member your own session adds, by a <code>set</code> or by an earlier <code>insert</code>, is no
 conflict, and neither is a deactivated reference, which holds its place in the
 list.</p>
-<!-- source: internal/component/cli/editor_leaflist.go -- writeThroughDeleteMember, replaceSessionMembers, dropSessionMemberOps -->
-<!-- source: internal/component/cli/editor_commit.go -- appendStructuralOpConflict, memberOpConflicts, memberOpStaleConflict -->
-<!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue, storeLeaf, DeleteByPath -->
-<!-- source: internal/component/cli/editor_draft.go -- applyStructuralOpsAroundEntries, memberOpWaitsForEntries -->
-<!-- source: internal/component/config/serialize.go -- serializeBracketLeafList -->
-<!-- source: internal/component/config/tree.go -- SetLeafListMembers -->
-<!-- source: internal/component/cli/editor_leaflist.go -- writeThroughMemberOp -->
 <p><code>copy</code>, and <code>deactivate</code> or <code>activate</code> on a leaf or a path, are supported in
 session mode too. Each records one structural op in your change file
 (<code>copy-entry</code>, <code>deactivate-leaf</code>, <code>activate-leaf</code>, <code>deactivate-path</code>,
@@ -941,7 +794,6 @@ session mode too. Each records one structural op in your change file
 destination that is another existing entry is refused, so delete it first, and
 a destination equal to the entry's own key is refused with "new key must differ
 from current key".</p>
-<!-- source: internal/component/cli/editor_draft.go -- writeThroughCopy, writeThroughToggle, writeThroughStructuralOp, applyToggleOp -->
 <p><code>load</code> works in session mode and in file mode through one path. The input,
 from a file or pasted after <code>load terminal ...</code> and ended with Ctrl-D, is
 parsed against the schema first: at the root it may be hierarchical or <code>set</code>
@@ -974,7 +826,6 @@ list-reordering command.</p>
 <p>Entries created by typed <code>set</code> commands keep their creation order through draft
 save, commit and reload too. Session replay takes that order from the candidate
 tree, not from metadata map iteration or the session's timestamp.</p>
-<!-- source: internal/component/config/meta.go -- SessionEntriesOrdered -->
 <p>A load is all or nothing. A parse error, a refused entry, or a failed write of
 the change file leaves the candidate exactly as it was, and the error says
 <code>load refused, candidate unchanged</code>. In session mode the load holds the change
@@ -982,10 +833,6 @@ file's lock for its whole run, reads the change file and the committed
 configuration once, applies every difference in memory, and writes the change
 file once, at the end, so its cost grows with the size of the input rather than
 with its square.</p>
-<!-- source: internal/component/cli/model_load.go -- cmdLoadNew, applyLoad -->
-<!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace, load, loadStage, loadWholeLeafList -->
-<!-- source: internal/component/cli/editor_draft.go -- openChangeFile, writeChangeFile, readCommittedTree -->
-<!-- source: internal/component/config/parser.go -- ParseAt -->
 <p>Use file mode (<code>ze config edit -f</code>) for the blocked operations above.</p>
 <table>
 <thead>
@@ -1063,15 +910,10 @@ shows the type hint</li>
 <li>Inside a leaf-list's brackets, the next value: <code>set filters [ P </code> completes
 a second filter</li>
 </ul>
-<!-- source: internal/component/cli/completer.go -- valueCompletions, referenceCompletions, validateCompletions, listKeyCompletions, completeSetPath -->
-<!-- source: internal/component/config/yang/reference_instances.go -- ReferenceInstances -->
-<!-- source: internal/component/policy/reference_source.go -- filterReference -->
 <p>List keys and every other value read from the config come from your own
 candidate configuration, uncommitted edits included. In the web CLI each user
 completes from their own session, so another user's uncommitted entries never
 appear in your suggestions.</p>
-<!-- source: internal/component/cli/completer.go -- Complete -->
-<!-- source: internal/component/web/cli.go -- completeCLIInput -->
 <p><strong>A suggestion is never a constraint.</strong> A leaf that offers well-known values
 still accepts every value its YANG type admits, so an ASN outside the offered
 set is entered and committed with no warning.</p>
@@ -1080,22 +922,17 @@ shows the summary of the selected key, which the YANG <code>ze:help</code> state
 declares. Tab on the value of an enumeration key does the same for each value:
 the message line shows the <code>ze:help</code> that value declares, and a value that
 declares none shows an empty line rather than a placeholder.</p>
-<!-- source: internal/component/cli/model_render.go -- renderDropdownBox, warningText -->
-<!-- source: internal/component/cli/completer.go -- valueCompletions -->
 <p>Press <code>?</code> on a highlighted key to read its long explanation, in a box above the
 prompt. That text is the <code>description</code> statement the schema declares, and it
 is often a paragraph. The message line holds one row, so the box is the only place
 the paragraph fits. A key that declares no <code>description</code> says so on the message
 line, and its summary is not repeated in the box.</p>
-<!-- source: internal/component/cli/model_keys.go -- revealCandidateExplanation, revealDeclared -->
 <p>Tab on a complete config path reveals nothing more to read: <code>?</code> is the key that
 opens the explanation of a config key. Operational command help is reachable
 from configuration mode behind <code>run </code>, and the keys are in the
 <a href="../cli/#keys-that-reveal-help">CLI guide</a>.</p>
-<!-- source: internal/component/cli/model.go -- commandCompleterInput -->
 <h2 id="commit-confirmed">Commit Confirmed</h2>
 <p><code>commit confirmed &lt;seconds&gt;</code> writes the configuration and notifies the daemon, but starts a countdown timer. If <code>commit accept</code> is not issued before the timer expires, the configuration automatically reverts to the previous version. This prevents lockouts when making changes remotely -- if a bad config breaks connectivity, the auto-revert restores access.</p>
-<!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed, handleConfirmCountdown, rollbackConfirmed -->
 <table>
 <thead>
 <tr>
@@ -1135,9 +972,6 @@ The model retains a polled daemon rollback failure as a structured error as
 well as displaying its status. The error clears when the watch observes
 recovery, closure or a stopped window, even if shutdown interrupted watch
 initialization; reporting it does not close the daemon window.</p>
-<!-- source: internal/component/cli/model_timer.go -- tick -->
-<!-- source: internal/component/cli/model.go -- Update, Close -->
-<!-- source: internal/component/cli/model_commit_window.go -- Poll -->
 <p>Every write to the daemon's configuration (a commit from any editor, an
 accept, an abort, a gNMI Set, an API config session, a managed push) runs on
 the daemon's one commit-confirm worker. A Ze defect met during one write ends
@@ -1147,8 +981,6 @@ next write and keeps the open window's deadline. A <code>commit confirmed</code>
 apply met the defect still opens its window, so its deadline, or <code>commit abort</code>, reverts whatever part of it applied. The panic is counted in
 <code>ze_task_panics_total{component="config-confirm",task="write"}</code>
 (<a href="../monitoring/">Monitoring</a>, "Contained Panics").</p>
-<!-- source: internal/component/config/confirm/panic_guard.go -- Window.write, writeEndedByPanic -->
-<!-- source: internal/component/config/confirm/confirm.go -- Window.applyArmed -->
 <p>In an SSH session editor or the web editor of the daemon's own
 configuration, the daemon owns the window, not your session. Both editors
 commit through the same window code, so the rules below hold for a web user
@@ -1190,7 +1022,6 @@ rather than in a daemon. Inside that window, <code>commit now</code> and a plain
 <code>commit confirmed &lt;seconds&gt; force</code> takes the same nested form: the new changes
 apply, the countdown restarts at <code>&lt;seconds&gt;</code>, and an abort or a timeout restores
 the backup the first commit recorded.</p>
-<!-- source: internal/component/cli/model_commands_commit.go -- cmdCommitRequest, cmdCommitConfirmedNested -->
 <p>The open window is recorded in the store before the commit applies, so no
 commit is ever applied without its revert: a record that cannot be saved
 refuses the commit and applies nothing. If the daemon stops while the window
@@ -1210,9 +1041,6 @@ on the same line: the advice first, then the store's error.
 A commit whose apply met a Ze defect keeps the deadline it was
 given before the apply began, so a part-applied commit reverts no later than
 the countdown you asked for.</p>
-<!-- source: internal/component/config/confirm/confirm.go -- Window.applyArmed, ErrDeadlineNotRecorded -->
-<!-- source: internal/component/cli/model_commit_window.go -- cmdCommitConfirmedWindow -->
-<!-- source: internal/component/web/editor_commit_window.go -- runCommit -->
 <p>If the revert at the deadline fails, the window stays open and its record
 stays in the store. The daemon logs each failure and retries with a doubling
 wait, from one second up to one minute, eight attempts in all. Every SSH
@@ -1223,15 +1051,6 @@ succeeds. The owner may run <code>commit abort</code> to retry the revert at onc
 <code>commit accept</code> to keep the configuration and close the window. Once the
 retries are spent, the window waits for one of those two, or for a restart,
 which reverts from the record. The countdown never shows a negative number.</p>
-<!-- source: internal/component/config/confirm/confirm.go -- Window, Confirmed, RecoverOnStart -->
-<!-- source: internal/component/config/confirm/store.go -- StoreRecorder, WriteOutsideRecorded -->
-<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackImpl -->
-<!-- source: internal/component/cli/commit_window.go -- WindowCommit.Run -->
-<!-- source: internal/component/cli/model_commit_window.go -- cmdCommitWindowRequest, pollDaemonWindow, WindowWatch.Poll -->
-<!-- source: internal/component/web/window_notices.go -- WindowNotices -->
-<!-- source: internal/component/web/editor_commit_window.go -- runCommit -->
-<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
-<!-- source: cmd/ze/hub/confirm_window.go -- startConfirmWindow, recoverConfirmWindow -->
 <p>The revert restores the rollback revision the commit records, so <code>commit confirmed</code> needs config history. An editor without one, such as
 <code>ze config edit -f</code> on a file whose folder holds no store, refuses before it
 writes the file and names <code>ze init</code>; <code>commit now</code> still works there.</p>
@@ -1248,9 +1067,6 @@ current folder, even when <code>ZE_CONFIG_DIR</code> points at the daemon's stor
 The explicit path selects that store without creating another one. The
 live validator reads the same history as JSON and requires at least two
 stored revisions after the automatic rollback, before testing acceptance.</p>
-<!-- source: demos/terminal/topics/commit-confirmed/configure.tape -- live eight-second probation -->
-<!-- source: demos/terminal/topics/commit-confirmed/show.tape -- rollback, acceptance and history -->
-<!-- source: internal/le/site/terminaldemo/validate_commit_confirmed.go -- checkTopicCommitConfirmed -->
 <figure class="terminal-demo" data-terminal-demo="commit-confirmed">
   <div class="terminal-demo__intro">
     <div>
@@ -1346,8 +1162,6 @@ must succeed before this source is published as a recording.</code></pre>
 <p>Stored daemon history includes the active version, so its newest entry can
 be the configuration already in use. To undo a commit, select and review an
 earlier version rather than assuming the first entry is the previous state.</p>
-<!-- source: internal/component/config/storage/store.go -- ListVersions -->
-<!-- source: internal/component/config/storage/pointer.go -- WriteCandidateVersionWithGuard, promoteCandidateLocked -->
 <p>Shell rollback of a stored configuration publishes the selected revision as a
 new active version and keeps the previous active version as rollback. While a
 daemon owns that store, <code>ze config rollback &lt;N&gt; &lt;file&gt;</code> sends
@@ -1356,18 +1170,13 @@ stages and reloads its running source. It commits another stored name without
 reloading. An open confirmed commit, unfinished file publication or existing
 candidate refuses the operation. The shell reports success only after the
 owner confirms the requested name, revision and published version.</p>
-<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackThrough, rollbackStoredConfig -->
-<!-- source: internal/component/config/cli/config_rollback_daemon.go -- rollbackConfigThroughDaemon, configRollbackDaemonAnswer.selectedTime -->
-<!-- source: internal/component/config/storage/cli/data_rpc_rollback.go -- handleDataConfigRollback, rollbackDaemonConfig -->
 <p>A loose file still restores directly from its folder's history when no daemon
 owns that store.</p>
-<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackThrough -->
 <p>In a session editor, rollback restores the saved configuration to that
 session's candidate. Review the changes and commit them to publish and apply
 the restoration. A malformed saved configuration is refused without replacing
 the candidate or the committed configuration. Offline editors without a session
 retain their direct file restoration behavior.</p>
-<!-- source: internal/component/cli/editor.go -- rollback -->
 <h2 id="exit-codes">Exit Codes</h2>
 <table>
 <thead>
@@ -1391,7 +1200,6 @@ retain their direct file restoration behavior.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/cli/main.go -- exitOK, exitError -->
 <h2 id="example-workflow">Example Workflow</h2>
 <pre><code class="language-bash">ze config validate config.conf      # Pre-flight validation
 ze config edit config.conf          # Interactive editing
@@ -1448,7 +1256,7 @@ ze config archive prod config.conf # Archive to named destination
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

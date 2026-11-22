@@ -88,8 +88,6 @@ mechanisms. The filters come first, and
 references in a <code>filter {}</code> config block. Named filter instances are defined
 in the top-level <code>policy { }</code> block, which every protocol shares with policy
 routing's <code>policy route</code>.</p>
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter container -->
-<!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
 <h3 id="quick-start">Quick Start</h3>
 <pre><code>policy {
     loop-detection no-self-as {
@@ -124,8 +122,6 @@ bgp {
     }
 }
 </code></pre>
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
-<!-- source: internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang -- loop-detection type -->
 <h3 id="filter-types">Filter Types</h3>
 <p>Filter types are YANG lists under the top-level <code>policy</code> root, each marked with <code>ze:filter</code>.
 A list without the marker, such as policy routing's <code>route</code>, is not a filter
@@ -159,7 +155,6 @@ detection (RFC 4271 Section 9) and cluster-list loop detection (RFC 4456 Section
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/reactor/loopdetect/loop.go -- LoopIngress -->
 <h3 id="external-plugin-filters">External plugin filters</h3>
 <p>External plugins declare filters at startup using <code>&lt;plugin&gt;:&lt;filter&gt;</code> names.
 Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
@@ -172,8 +167,6 @@ Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
 <li>On each forwarded UPDATE, the engine runs the export chain per destination peer.</li>
 <li>Each filter responds accept, reject, or modify (the fields it changes).</li>
 </ol>
-<!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
-<!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
 <h3 id="deactivating-filters">Deactivating Filters</h3>
 <p>Default filters can be deactivated per-peer using the inline <code>inactive:</code> prefix:</p>
 <pre><code>bgp {
@@ -201,9 +194,6 @@ skipped at runtime.</p>
 <pre><code>deactivate bgp peer special filter import filters no-self-as
 activate bgp peer special filter import filters no-self-as
 </code></pre>
-<!-- source: internal/component/config/parser_list.go -- stripInactiveMemberPrefix (inline inactive: normalization) -->
-<!-- source: internal/component/policy/chain.go -- RefsFromMembers retains Inactive -->
-<!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChain skips policy.Ref.Inactive -->
 <h3 id="chain-order">Chain Order</h3>
 <p>Chains are cumulative across config levels:</p>
 <table>
@@ -238,8 +228,6 @@ An absent direction inherits its parent's policy without creating a new policy.
 With no configured policy at any level, operator policy stays absent: EBGP
 rejects at exhaustion under RFC 8212 Section 3, while IBGP accepts. Automatic
 and inactive references do not supply an operator policy.</p>
-<!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
-<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.Configured, Policy.AcceptsAtEnd -->
 <p>Use the <code>insert</code> command in the CLI editor to control position:</p>
 <pre><code>insert filter import filters reject-bogons before no-self-as
 insert filter import filters new-filter last
@@ -267,11 +255,9 @@ insert filter import filters new-filter last
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, rawOutcome, endFinal -->
 <p>Neither <code>accept</code> nor <code>modify</code> grants final acceptance. After the chain completes,
 <code>final accept;</code> permits the route and <code>final reject;</code> drops it. A raw payload
 rewrite stops later filters, but the final decision still applies.</p>
-<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, rawOutcome, endFinal -->
 <h3 id="conditioning-a-modifier-without-dropping-the-rest">Conditioning a modifier without dropping the rest</h3>
 <p>A chain is a pipe in which a reject DROPS the route, so a match filter placed
 before a modifier can only express "modify these and discard everything else".
@@ -309,8 +295,6 @@ bgp {
 <p>A definition with no <code>match</code> block applies to every route that reaches it. See
 <code>internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang</code> for the
 full leaf reference.</p>
-<!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond -->
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- evaluateModify -->
 <h3 id="filters-cannot-override-the-rfc-4271-egress-rules">Filters Cannot Override the RFC 4271 Egress Rules</h3>
 <p>Four Section 5 rules are asked after the export chain has run, so no filter can
 grant what the RFC refuses: LOCAL_PREF is removed toward an external peer
@@ -342,7 +326,6 @@ rather than forwarding it unmodified, and increments
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/policychain/chain.go -- Chain.failure -->
 <h3 id="writing-a-filter-plugin">Writing a Filter Plugin</h3>
 <p>A filter plugin is a normal ze plugin that includes <code>filters</code> in its stage 1
 <code>declare-registration</code>. See <a href="../plugins/">Plugin Guide</a> for general plugin
@@ -383,10 +366,6 @@ the filter types and the fields they read.</p>
 (<code>tag [ ... ]</code>), among its other conditions. The route tag is the value the
 source protocol attached to the route, for example the <code>tag</code> leaf of a static
 route.</p>
-<!-- source: internal/component/config/loader_redistribute.go -- importChain -->
-<!-- source: internal/plugins/redistribute/config.go -- compileRuleChains -->
-<!-- source: internal/plugins/redistribute/register_reference.go -- importFiltersPattern -->
-<!-- source: internal/plugins/redistribute/redistribute.go -- redistRoute -->
 <pre><code>policy {
     match redistribute-ospf-static {
         tag [ 4242 ];
@@ -414,8 +393,6 @@ destination that never held the route sees nothing.</p>
 When a source withdraws a route a destination holds, the withdrawal reaches
 that destination even if its rule would reject the withdrawal itself, for
 instance because the rules changed since the route was announced.</p>
-<!-- source: internal/plugins/redistribute/held.go -- removeReplacedRoute -->
-<!-- source: internal/plugins/static/inject.go -- applyRouteLocked -->
 <p>A withdrawal goes to the destination instance that accepted the route. When a
 destination protocol registers a new instance while the orchestrator keeps
 running, the new instance holds only what it is sent itself, and a route the
@@ -431,9 +408,6 @@ change of the <code>redistribute</code> rules withdraws it there again, and noth
 on a timer. Each unconfirmed withdrawal is logged and reported as
 <code>doctor-redistribute-withdrawal-unconfirmed</code>, with the source, its instance and
 table, and the destination; <code>ze show errors</code> lists it.</p>
-<!-- source: internal/plugins/redistribute/held.go -- retireEpisode, claimRemove, settleWithdrawal, withdrawClaim -->
-<!-- source: internal/plugins/redistribute/redistribute.go -- watchConsumers, withdrawAccepted -->
-<!-- source: internal/plugins/redistribute/withdrawal_diagnostic.go -- reportUnconfirmedWithdrawal -->
 <p>A reload that changes an import's <code>filters</code> or <code>final</code> judges the routes each
 destination already holds again, at once, rather than when each source next
 announces them: a route the new chain rejects is withdrawn, a route it now
@@ -450,9 +424,6 @@ rules return and the same reconciliation puts back what the apply changed. A
 route that was being dispatched while the reload applied is judged again under
 the new rules before the destination keeps it, and is withdrawn once if they
 reject it.</p>
-<!-- source: internal/plugins/redistribute/config.go -- reconcileConsumers -->
-<!-- source: internal/plugins/redistribute/held.go -- withdrawRejectedHeld, claimRejected, heldRoutes.beginAdd, heldRoutes.settleAdd -->
-<!-- source: internal/plugins/redistribute/redistribute.go -- replayConsumers, settleDispatchedAdd -->
 <h3 id="setting-the-metric">Setting the metric</h3>
 <p>A <code>modify</code> instance in the import chain can <code>set metric</code>. What the destination
 does with that metric depends on the protocol:</p>
@@ -494,10 +465,6 @@ redistributed metric the route's MED, and <code>redistribute &lt;source&gt; metr
 replaces it. Ze sends a MED only when a filter set one, the way BIRD sends a MED
 only when an export filter sets <code>bgp_med</code>, because a producer's own metric (an
 IGP cost, a static route's zero) is not a figure a BGP neighbour can compare.</p>
-<!-- source: internal/component/bgp/redistribute/consumer.go -- formatAnnounce -->
-<!-- source: internal/plugins/redistribute/redistribute.go -- dispatchEntryToConsumer, applySets -->
-<!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict -->
-<!-- source: internal/plugins/ospf/redistribute/export.go -- exportVerdict -->
 <pre><code>policy {
     modify redistribute-bgp-static {
         set { metric 50; }
@@ -548,12 +515,6 @@ flushed, a route it now accepts is advertised, and a changed set replaces what
 was advertised. A commit that fails after IS-IS or OSPF applied it takes the
 new chain back, and the routes are judged again by the chain of the config
 still running.</p>
-<!-- source: internal/plugins/isis/redistribute/export.go -- exportVerdict -->
-<!-- source: internal/plugins/isis/config_tx.go -- runtimeConfig -->
-<!-- source: internal/plugins/ospf/config_transaction.go -- ospfTransactionConfig -->
-<!-- source: internal/plugins/isis/redistribute/consumer.go -- Rejudge -->
-<!-- source: internal/plugins/ospf/redistribute/consumer.go -- Rejudge -->
-<!-- source: internal/plugins/isis/register.go -- init, MustRegisterRouteAttachment exportAttachment -->
 <p>That block is the whole configuration. It needs no <code>plugin</code> block and no
 <code>attach process</code> block. The orchestrator that dispatches the routes auto-loads
 because the <code>redistribute</code> root is present, and it installs the rules from that
@@ -561,10 +522,6 @@ root itself. It needs no <code>bgp</code> block either: a router that runs IS-IS
 without BGP redistributes static, connected and IGP routes between them. When a
 rule names BGP, BGP must be configured (below). The two peer bindings the rules
 depend on are derived from the rules (below).</p>
-<!-- source: internal/component/config/redistribute/yang/ze-redistribute-conf.yang -- redistribute container -->
-<!-- source: internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
-<!-- source: internal/plugins/redistribute/register.go -- StartAfter bgp, no hard dependency -->
-<!-- source: internal/plugins/redistribute/config.go -- ruleState -->
 <h3 id="sources-and-destinations">Sources and Destinations</h3>
 <p>A source is a name a component registers at startup, so which names this build
 accepts depends on which components it carries. No command prints the set. A
@@ -612,7 +569,7 @@ token first.</p>
 <tr>
 <td><code>ipsec</code></td>
 <td>the IKE engine</td>
-<td>every remote traffic selector of each established Child SA, one route per selector: a Child SA that negotiated an IPv4 pair and an IPv6 pair contributes both prefixes, and withdraws both when it goes. A Child SA rekey that changes the set withdraws only the prefixes it dropped and announces only the ones it added; a prefix kept across the rekey is not withdrawn and re-announced <!-- source: internal/component/ike/engine/redistribute.go -- emitRouteAdd, emitRouteRemove, rekeyTunnelRoutes --></td>
+<td>every remote traffic selector of each established Child SA, one route per selector: a Child SA that negotiated an IPv4 pair and an IPv6 pair contributes both prefixes, and withdraws both when it goes. A Child SA rekey that changes the set withdraws only the prefixes it dropped and announces only the ones it added; a prefix kept across the rekey is not withdrawn and re-announced</td>
 </tr>
 </tbody>
 </table>
@@ -624,11 +581,8 @@ to reach the Loc-RIB and redistribution. The same path serves internal and
 external connected plugins. The request does not start an absent provider:
 without one, connected has no initial address inventory and continues without
 waiting for a reply.</p>
-<!-- source: internal/component/iface/register.go -- runEngine, OnConfigure -->
-<!-- source: internal/plugins/connected/eventbus.go -- followInterfaceAddresses, handleEvent -->
 <p>When the internal connected plugin stops, it removes its paths from the
 Loc-RIB and preserves paths that other protocols hold for the same prefixes.</p>
-<!-- source: internal/plugins/connected/locrib.go -- withdrawLocalPaths, removePath -->
 <p>A live removal first drains accepted address changes and redistribution replays,
 then withdraws the connected prefixes from redistribution before acknowledging
 the removal. Later address events and replays cannot announce that stopped
@@ -636,15 +590,12 @@ observer's routes again. If publication fails, the observer tries to restore its
 current announcements and refuses removal. It reports any restoration failure
 too, retains its address inventory and continues accepting events, so a subsequent
 removal can retry.</p>
-<!-- source: internal/plugins/connected/lifecycle.go -- retire -->
 <p>If a connected-route replay fails, connected logs the failed prefix and raises
 an active "Event handler failed" warning through the daemon, in both plugin
 modes. The warning names the publication error and the log command to inspect
 it. A complete successful replay clears the warning, including when all
 addresses have since been removed. A refused warning update is returned as an
 event application error.</p>
-<!-- source: internal/plugins/connected/connected.go -- reemitAll -->
-<!-- source: internal/plugins/connected/eventbus.go -- followInterfaceAddresses, handleEvent -->
 <p><code>connected</code> never offers a prefix whose network address is loopback
 (127.0.0.0/8, ::1/128), link-local (169.254.0.0/16, fe80::/10), multicast
 (224.0.0.0/4) or in the zero network (0.0.0.0/8). The address <code>lo</code> carries
@@ -654,7 +605,6 @@ because the kernel holds its route, so <code>show rib</code> lists it; only the
 redistribution feed leaves it out. FRR's zebra refuses the same set on its
 redistribute path (<code>zebra_check_addr</code>), and BIRD's <code>direct</code> protocol skips any
 address of host or link scope.</p>
-<!-- source: internal/plugins/connected/connected.go -- redistributable, emitID -->
 <p>A destination is the name of a protocol that receives routes: <code>bgp</code>, <code>ospf</code>
 and <code>isis</code> today. Each protocol declares its destination when its package
 loads, with the config block it needs, so the config check knows <code>destination isis</code> needs an <code>isis { }</code> block before any plugin starts. The consumer that
@@ -673,17 +623,8 @@ peers, because the IGP gateway's interface scope does not carry across sessions.
 The peer's configured next-hop policy can override that default. A route with
 no gateway, such as a connected prefix, uses the session address. Each selected
 address must still meet the wire-format and negotiated-capability checks.</p>
-<!-- source: internal/component/bgp/redistribute/consumer.go -- formatAnnounce -->
-<!-- source: internal/component/bgp/reactor/peer.go -- defaultOriginationNextHop, resolveNextHop -->
 <p><strong>A protocol is never redistributed into itself.</strong> <code>destination isis { import isis }</code> parses and moves nothing, at every guard: the config evaluator, the
 dispatch fan-out and the replay all ask one predicate.</p>
-<!-- source: internal/component/config/redistribute/registry.go -- RegisterSource, LookupSource -->
-<!-- source: internal/component/config/redistribute/destination.go -- Destination, RegisterDestination -->
-<!-- source: internal/component/config/redistribute/consumer_factory.go -- ConsumerFactory -->
-<!-- source: internal/component/bgp/redistribute/register.go -- the BGP destination and consumer factory -->
-<!-- source: internal/plugins/isis/register.go -- registerISIS, the isis destination -->
-<!-- source: internal/plugins/ospf/register.go -- registerOSPF, the ospf destination -->
-<!-- source: internal/core/redistevents/registry.go -- WouldLoop, the one loop definition -->
 <h3 id="what-the-rules-wire-for-you">What the Rules Wire For You</h3>
 <p>A <code>redistribute</code> rule needs no <code>attach process</code> block. Ze derives the two it
 implies, and each one only when a rule implies it.</p>
@@ -716,8 +657,6 @@ a second binding for one process.</li>
 <li>A rule implies only its own binding. A router that only imports IS-IS into
 OSPF gains neither.</li>
 </ul>
-<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery, processNameFor -->
-<!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend -->
 <h3 id="startup-order-does-not-decide-the-outcome">Startup Order Does Not Decide the Outcome</h3>
 <p>A producer emits its routes once, when it has them. A destination protocol
 registers its consumer when its plugin starts. Nothing orders the two, so a
@@ -735,9 +674,6 @@ follows the replay.</p>
 <p>The same mechanism covers a BGP peer that establishes after an injection, where
 the replay reaches that one peer, and a reload of the import rules, where every
 consumer is replayed under the new rules.</p>
-<!-- source: internal/plugins/redistribute/replay.go -- onPeerUp, onConsumerRegistered, noteIncremental, removedSince -->
-<!-- source: internal/plugins/redistribute/redistribute.go -- watchConsumers -->
-<!-- source: internal/plugins/static/inject.go -- reemitAll -->
 <h3 id="when-redistribution-cannot-work">When Redistribution Cannot Work</h3>
 <p>The daemon REFUSES to start on a <code>redistribute</code> block it cannot turn into rules,
 and the error names what you typed:</p>
@@ -785,9 +721,6 @@ through the same door the daemon boots through, so the refusal is the whole
 report and no separate redistribution check exists.</p>
 <pre><code>ze doctor
 </code></pre>
-<!-- source: internal/component/config/loader_redistribute.go -- RefuseRedistributeRules, refuseUndeclaredDestination -->
-<!-- source: internal/component/config/redistribute/destination.go -- DestinationNames -->
-<!-- source: internal/component/doctor/doctor.go -- runChecks -->
 <h3 id="counters">Counters</h3>
 <table>
 <thead>
@@ -823,7 +756,6 @@ report and no separate redistribution check exists.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/redistribute/redistribute.go -- setMetricsRegistry -->
 <h3 id="bgp-delivery-failures">BGP delivery failures</h3>
 <p>If BGP cannot announce or withdraw a redistributed route, the log and the
 orchestrator's report bus record <code>doctor-bgp-redistribution</code>. <code>ze show errors</code>
@@ -837,8 +769,6 @@ confirm keeps the route's original admission at the BGP instance that
 accepted it, and the orchestrator also records
 <code>doctor-redistribute-withdrawal-unconfirmed</code>: the next removal of the route or
 reload of the rules withdraws it there again under the same admission.</p>
-<!-- source: internal/component/bgp/redistribute/consumer_diagnostic.go -- reportFailure -->
-<!-- source: internal/component/bgp/redistribute/register.go -- redistribution event-code ownership -->
 </div>
 </div>
             </section>
@@ -888,7 +818,7 @@ reload of the rules withdraws it there again under the same admission.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

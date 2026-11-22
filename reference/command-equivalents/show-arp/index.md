@@ -29,7 +29,7 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-### ARP and neighbor cache
+### IPv4 ARP table
 
 Category: Neighbors
 
@@ -49,4 +49,4 @@ No equivalent listed.
 
 ### VyOS
 - `show arp` (verified, vyos\-cli)
-  - Intent: ARP and neighbor cache
+  - Intent: IPv4 ARP table

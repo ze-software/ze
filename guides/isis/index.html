@@ -82,8 +82,6 @@ the logical name equals the kernel device, but an interface configured with an
 the name to its kernel device through the shared iface resolver. See
 <a href="../configuration-model/#logical-name-and-the-os-name-selector">Logical Name and the <code>os-name</code> Selector</a>.</p>
 </blockquote>
-<!-- source: internal/plugins/isis/circuits.go -- interfaceIPv4/interfaceIPv6LinkLocal via iface.Addresses -->
-<!-- source: internal/plugins/isis/transport/backend_linux.go -- resolveInterface via iface.Resolve -->
 <h2 id="routing-capabilities">Routing capabilities</h2>
 <p>The instance <code>level</code> limits every interface, including passive interfaces. With
 <code>level l2</code>, an interface whose <code>level</code> is omitted or set to <code>l1-l2</code> uses only L2.
@@ -91,8 +89,6 @@ On an <code>l1-l2</code> instance, an interface can select <code>l1</code> or <c
 with no level in common with the instance is refused at startup or commit. Set
 its <code>level</code> to <code>l1-l2</code> to use the instance's levels. <code>show isis interface</code> reports
 the effective level of each interface.</p>
-<!-- source: internal/plugins/isis/config.go -- EnabledCircuits, interfaceLevel, validateInterfaceLevels -->
-<!-- source: internal/plugins/isis/show.go -- interfaceSnapshot -->
 <p>IPv4 Protocols Supported (<code>0xCC</code>) is advertised on every circuit. Enabling
 IPv6 on any enabled interface, including a passive one, adds <code>0x8E</code> to every
 Hello and LSP fragment zero. A commit updates both advertisements even when no
@@ -125,10 +121,6 @@ modes and RFC 1195 manual-summary discard routes are not enabled features.</p>
 RSVP-TE follows configured explicit routes and bypasses; no CSPF or TE
 shortest-path consumer is enabled. This leaves the wire requirements for
 any advertised TE information unchanged.</p>
-<!-- source: internal/plugins/isis/config.go -- Config.Protocols -->
-<!-- source: internal/plugins/isis/spf_wiring.go -- ResolveNextHop, ResolveNextHopV6 -->
-<!-- source: internal/plugins/isis/lsdb/origination.go -- maxFragments, fragmentTLVs -->
-<!-- source: internal/plugins/isis/redistribute/source.go -- addEntry -->
 <h2 id="narrow-and-wide-metrics">Narrow and wide metrics</h2>
 <p><code>metric-style</code> picks the TLVs every LSP this router originates, its pseudo-node
 LSPs included, uses for its links and IPv4 prefixes:</p>
@@ -191,10 +183,6 @@ or lower, or set "isis metric-style wide" once every router in the domain suppor
 metric of 100 or an inter-level leak's sum, is advertised as 63 in TLV 128. IPv6
 prefixes stay in TLV 236 in every style. A commit that changes only
 <code>metric-style</code> re-originates every own LSP at once.</p>
-<!-- source: internal/plugins/isis/lsdb/origination.go -- fragmentTLVs -->
-<!-- source: internal/plugins/isis/lsdb/pseudonode.go -- pseudonodeFragments -->
-<!-- source: internal/plugins/isis/config.go -- validateMetricStyle, narrowMetricFits -->
-<!-- source: internal/plugins/isis/server.go -- applyMetricStyle -->
 <h2 id="the-dynamic-hostname">The dynamic hostname</h2>
 <p><code>hostname</code> names this router in the IS-IS network. Ze floods it in the Dynamic
 Hostname TLV 137, and a peer renders it wherever it would otherwise print a
@@ -250,9 +238,6 @@ ASCII form directly if that is the name you want advertised.</p>
 octets, and it is only filtered for display. RFC 5301 section 4 permits that.
 Rejecting a peer's LSP over its hostname would hand any neighbor a way to break
 this router.</p>
-<!-- source: internal/component/config/validators.go -- ISISHostnameValidator -->
-<!-- source: internal/plugins/isis/lsdb/encode.go -- hostnameTLV -->
-<!-- source: internal/plugins/isis/show.go -- sanitizeHostname -->
 <h2 id="changing-an-interface-parameter-on-a-running-router">Changing an interface parameter on a running router</h2>
 <p>A commit reaches the circuit that is already up. Ze does not wait for a link
 flap, a <code>disable</code>, or a restart.
@@ -296,8 +281,6 @@ Ze drains each old Hello sender before opening its replacement, so the new
 link cannot transmit the old identity.</p>
 <p>Removing an interface from the config, or setting <code>enabled false</code> or
 <code>passive true</code> on it, closes its circuit. Adding one opens a circuit.</p>
-<!-- source: internal/plugins/isis/server.go -- reconcile, circuitNeedsRebuild -->
-<!-- source: internal/plugins/isis/circuits.go -- applyCircuitParams -->
 <p>If another participant rejects a transaction after IS-IS applied its candidate,
 rollback restores the previous IS-IS config, circuits and export chain. This
 also restores circuits closed by removing the last NET. A raw-circuit failure
@@ -306,9 +289,6 @@ An added interface whose raw open failed stays disabled for later link events.
 If that repair fails too, the error reports lost running state and the engine
 attempts rollback, restarting the plugin when rollback fails. Run <code>ze doctor</code>
 to diagnose the raw-socket or interface problem named in the error.</p>
-<!-- source: internal/plugins/isis/register.go -- runISISPlugin -->
-<!-- source: internal/plugins/isis/server.go -- reconcile, openCircuit -->
-<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply, ConfigTx.Rollback -->
 <h2 id="broadcast-lans-dis-election-and-pseudo-nodes">Broadcast LANs: DIS election and pseudo-nodes</h2>
 <p>On a broadcast (Ethernet, multi-access) circuit, IS-IS does not form a full mesh
 of adjacencies. Instead one router per level is elected the <strong>Designated IS</strong>
@@ -501,8 +481,6 @@ needs on each peer.</p>
 current set. The static prefix therefore reaches the LSP whichever of the two
 plugins started first. See
 <a href="../redistribution/">Route Filters and Redistribution</a>, "Route Redistribution".</p>
-<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
-<!-- source: internal/plugins/redistribute/replay.go -- onConsumerRegistered -->
 <p><strong>Connected and passive interfaces.</strong> IS-IS also advertises its own enabled and
 <strong>passive</strong> interface prefixes as internal reachability in its LSPs. A passive
 interface forms no adjacency but its prefix is still advertised, so loopbacks and
@@ -663,10 +641,6 @@ purges the LSP ID and suspends it for <code>MaxAge</code> plus the zero-age life
 restarting from 1. Clause 7.3.16.1 requires that, and a claim that arrives during
 the suspension changes nothing. The control against a hostile claim is IS-IS
 authentication.</p>
-<!-- source: internal/plugins/isis/own_lsp_conflict.go -- reoriginateAboveClaim -->
-<!-- source: internal/plugins/isis/lsdb/lsdb.go -- ownConflictResult -->
-<!-- source: internal/plugins/isis/lsdb/origination.go -- RaiseSequenceFloor -->
-<!-- source: internal/plugins/isis/lsdb/snp.go -- the ack-only PSNP queue -->
 <p>The regeneration counts on <code>ze_isis_lsp_originations_total{level}</code>, which counts
 every own-LSP origination, refreshes and regenerations included.</p>
 <p>Every <code>show isis ...</code> command routes its JSON through the pipe machinery, so you
@@ -707,8 +681,6 @@ common with the instance. The diagnostic names the interface and the command
 that sets its <code>level</code> to <code>l1-l2</code> to use the instance's levels.
 The check reports this mismatch even when a partial configuration has no NET.</li>
 </ul>
-<!-- source: internal/plugins/isis/doctor.go -- checkISISConfigSanity -->
-<!-- source: internal/plugins/isis/transport/doctor.go -- raw-socket readiness check -->
 <p>While IS-IS runs, one more problem is reported as it happens rather than before
 the start:</p>
 <ul>
@@ -721,9 +693,7 @@ and the error; the next ones are quiet until a Hello goes out again.
 level or the interface is removed. Check the interface with
 <code>ze show isis interface</code>.</li>
 </ul>
-<!-- source: internal/plugins/isis/circuits.go -- helloSendWarn -->
 <p>Each code is explainable with <code>ze show diagnostic &lt;code&gt;</code>.</p>
-<!-- source: internal/plugins/isis/codes.go -- isisDiagnosticCodes -->
 </div>
 </div>
             </section>
@@ -773,7 +743,7 @@ level or the interface is removed. Check the interface with
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

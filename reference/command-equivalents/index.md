@@ -1,6 +1,6 @@
 # Command Equivalents
 
-623 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+624 live Ze commands. 47 have vendor CLI today. 99 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -11,37 +11,38 @@ These rows have at least one listed vendor command.
 | `clear interface counters all` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-counters-all/) |
 | `clear interface name counters` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-name-counters/) |
 | `request commit` | Daemon | - | - | - | `commit` | [details](request-commit/) |
-| `request halt` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-halt/) |
+| `request halt` | Daemon | - | - | - | `poweroff` | [details](request-halt/) |
 | `request peer refresh` | Daemon | `clear bgp neighbor <peer> soft-inbound` | `clear bgp ipv4 unicast <peer> soft in` | - | `reset bgp <peer> soft in` | [details](request-peer-refresh/) |
 | `request peer teardown` | Daemon | `clear bgp neighbor <peer>` | `clear bgp ipv4 unicast <peer>` | - | `reset bgp <peer>` | [details](request-peer-teardown/) |
-| `request reboot` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reboot/) |
-| `request reload` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reload/) |
-| `request shutdown` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-shutdown/) |
+| `request reboot` | Daemon | - | - | - | `reboot` | [details](request-reboot/) |
+| `request shutdown` | Daemon | - | - | - | `poweroff` | [details](request-shutdown/) |
 | `resolve dns a` | Read-only | - | - | - | `show dns` | [details](resolve-dns-a/) |
 | `resolve dns aaaa` | Read-only | - | - | - | `show dns` | [details](resolve-dns-aaaa/) |
 | `resolve dns ptr` | Read-only | - | - | - | `show dns` | [details](resolve-dns-ptr/) |
-| `resolve ping` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](resolve-ping/) |
-| `resolve traceroute` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](resolve-traceroute/) |
+| `resolve ping` | Read-only | - | - | `ping <target>` | `ping <target>` | [details](resolve-ping/) |
+| `resolve traceroute` | Read-only | - | - | - | `traceroute <target>` | [details](resolve-traceroute/) |
 | `show arp` | Read-only | - | - | - | `show arp` | [details](show-arp/) |
 | `show bgp` | Read-only | `show bgp summary` | `show bgp ipv4 unicast summary`<br>`show bgp summary` | `show router bgp summary` | `show bgp ipv4 summary`<br>`show ip bgp summary` | [details](show-bgp/) |
 | `show bgp peer rib` | Read-only | `show route advertising-protocol bgp <peer>`<br>`show route receive-protocol bgp <peer>` | - | - | - | [details](show-bgp-peer-rib/) |
 | `show bgp rib best` | Read-only | `show route <prefix> protocol bgp`<br>`show route protocol bgp` | `show bgp ipv4 unicast`<br>`show bgp ipv4 unicast <prefix>` | - | `show ip bgp <prefix>` | [details](show-bgp-rib-best/) |
-| `show config diff` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-diff/) |
-| `show config dump` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-dump/) |
-| `show config fmt` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-fmt/) |
-| `show config history` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-history/) |
+| `show bgp rpki` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki/) |
+| `show bgp rpki aspa` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-aspa/) |
+| `show bgp rpki cache` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-cache/) |
+| `show bgp rpki roa` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-roa/) |
+| `show bgp rpki status` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-status/) |
+| `show bgp rpki summary` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-summary/) |
+| `show config diff` | read-only, offline | - | - | - | `compare` | [details](show-config-diff/) |
+| `show config dump` | read-only, offline | - | - | - | `show configuration` | [details](show-config-dump/) |
 | `show dns cache list` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-list/) |
 | `show dns cache record` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-record/) |
 | `show dns cache stats` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-stats/) |
 | `show dns lookup` | Read-only | - | - | - | `show dns` | [details](show-dns-lookup/) |
-| `show doctor` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-doctor/) |
 | `show errors` | Read-only | - | - | - | `show log` | [details](show-errors/) |
-| `show health` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-health/) |
 | `show interface brief` | Read-only | - | - | - | `show interfaces` | [details](show-interface-brief/) |
 | `show interface name detail` | Read-only | - | - | - | `show interfaces <name>` | [details](show-interface-name-detail/) |
 | `show log recent` | Read-only | - | - | - | `show log` | [details](show-log-recent/) |
-| `show neighbor` | Read-only | - | - | - | `show arp` | [details](show-neighbor/) |
-| `show ping` | read-only, offline | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](show-ping/) |
+| `show neighbor` | Read-only | - | - | - | `show ipv6 neighbors` | [details](show-neighbor/) |
+| `show ping` | read-only, offline | - | - | `ping <target>` | `ping <target>` | [details](show-ping/) |
 | `show route` | Read-only | `show route` | - | - | `show ip route` | [details](show-route/) |
 | `show route lookup` | Read-only | `show route <prefix>` | - | - | `show ip route <prefix>` | [details](show-route-lookup/) |
 | `show system cpu` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-system-cpu/) |
@@ -50,7 +51,7 @@ These rows have at least one listed vendor command.
 | `show system ntp` | Read-only | - | - | - | `show date`<br>`show ntp` | [details](show-system-ntp/) |
 | `show system ntp peers` | Read-only | - | - | - | `show date`<br>`show ntp` | [details](show-system-ntp-peers/) |
 | `show system platform` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-system-platform/) |
-| `show traceroute` | read-only, offline | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](show-traceroute/) |
+| `show traceroute` | read-only, offline | - | - | - | `traceroute <target>` | [details](show-traceroute/) |
 | `show uptime` | Read-only | - | - | - | `show system uptime` | [details](show-uptime/) |
 | `show version` | read-only, offline | - | - | - | `show system uptime` | [details](show-version/) |
 | `show warnings` | Read-only | - | - | - | `show log` | [details](show-warnings/) |
@@ -271,7 +272,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request fleet disable` | daemon, offline | - | - | - | - | [details](request-fleet-disable/) |
 | `request fleet divergence name revert` | daemon, offline | - | - | - | - | [details](request-fleet-divergence-name-revert/) |
 | `request fleet enable` | daemon, offline | - | - | - | - | [details](request-fleet-enable/) |
-| `request halt` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-halt/) |
+| `request halt` | Daemon | - | - | - | `poweroff` | [details](request-halt/) |
 | `request interface down` | Daemon | - | - | - | - | [details](request-interface-down/) |
 | `request interface mac` | Daemon | - | - | - | - | [details](request-interface-mac/) |
 | `request interface migrate` | Daemon | - | - | - | - | [details](request-interface-migrate/) |
@@ -295,10 +296,10 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request peer teardown` | Daemon | `clear bgp neighbor <peer>` | `clear bgp ipv4 unicast <peer>` | - | `reset bgp <peer>` | [details](request-peer-teardown/) |
 | `request plugin restart` | Daemon | - | - | - | - | [details](request-plugin-restart/) |
 | `request quiesce` | Daemon | - | - | - | - | [details](request-quiesce/) |
-| `request reboot` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reboot/) |
-| `request reload` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reload/) |
+| `request reboot` | Daemon | - | - | - | `reboot` | [details](request-reboot/) |
+| `request reload` | Daemon | - | - | - | - | [details](request-reload/) |
 | `request restart` | Daemon | - | - | - | - | [details](request-restart/) |
-| `request shutdown` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-shutdown/) |
+| `request shutdown` | Daemon | - | - | - | `poweroff` | [details](request-shutdown/) |
 | `request subscribe` | Daemon | - | - | - | - | [details](request-subscribe/) |
 | `request support archive` | daemon, offline | - | - | - | - | [details](request-support-archive/) |
 | `request system storage grow` | Daemon | - | - | - | - | [details](request-system-storage-grow/) |
@@ -318,8 +319,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `resolve irr prefix` | Read-only | - | - | - | - | [details](resolve-irr-prefix/) |
 | `resolve peeringdb as-set` | Read-only | - | - | - | - | [details](resolve-peeringdb-as-set/) |
 | `resolve peeringdb max-prefix` | Read-only | - | - | - | - | [details](resolve-peeringdb-max-prefix/) |
-| `resolve ping` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](resolve-ping/) |
-| `resolve traceroute` | Read-only | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](resolve-traceroute/) |
+| `resolve ping` | Read-only | - | - | `ping <target>` | `ping <target>` | [details](resolve-ping/) |
+| `resolve traceroute` | Read-only | - | - | - | `traceroute <target>` | [details](resolve-traceroute/) |
 
 ### send
 
@@ -392,12 +393,12 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show bgp rib protocol` | Read-only | - | - | - | - | [details](show-bgp-rib-protocol/) |
 | `show bgp rib rpf` | Read-only | - | - | - | - | [details](show-bgp-rib-rpf/) |
 | `show bgp rib status` | Read-only | - | - | - | - | [details](show-bgp-rib-status/) |
-| `show bgp rpki` | Read-only | - | - | - | - | [details](show-bgp-rpki/) |
-| `show bgp rpki aspa` | Read-only | - | - | - | - | [details](show-bgp-rpki-aspa/) |
-| `show bgp rpki cache` | Read-only | - | - | - | - | [details](show-bgp-rpki-cache/) |
-| `show bgp rpki roa` | Read-only | - | - | - | - | [details](show-bgp-rpki-roa/) |
-| `show bgp rpki status` | Read-only | - | - | - | - | [details](show-bgp-rpki-status/) |
-| `show bgp rpki summary` | Read-only | - | - | - | - | [details](show-bgp-rpki-summary/) |
+| `show bgp rpki` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki/) |
+| `show bgp rpki aspa` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-aspa/) |
+| `show bgp rpki cache` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-cache/) |
+| `show bgp rpki roa` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-roa/) |
+| `show bgp rpki status` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-status/) |
+| `show bgp rpki summary` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-summary/) |
 | `show bgp rs peers` | Read-only | - | - | - | - | [details](show-bgp-rs-peers/) |
 | `show bgp rs status` | Read-only | - | - | - | - | [details](show-bgp-rs-status/) |
 | `show bgp update-delay` | Read-only | - | - | - | - | [details](show-bgp-update-delay/) |
@@ -427,13 +428,13 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show config artifact transfer read` | Read-only | - | - | - | - | [details](show-config-artifact-transfer-read/) |
 | `show config cat` | read-only, offline | - | - | - | - | [details](show-config-cat/) |
 | `show config deactivate` | read-only, offline | - | - | - | - | [details](show-config-deactivate/) |
-| `show config diff` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-diff/) |
-| `show config dump` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-dump/) |
+| `show config diff` | read-only, offline | - | - | - | `compare` | [details](show-config-diff/) |
+| `show config dump` | read-only, offline | - | - | - | `show configuration` | [details](show-config-dump/) |
 | `show config environment-validation` | read-only, offline | - | - | - | - | [details](show-config-environment-validation/) |
 | `show config fix-plan` | read-only, offline | - | - | - | - | [details](show-config-fix-plan/) |
-| `show config fmt` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-fmt/) |
+| `show config fmt` | read-only, offline | - | - | - | - | [details](show-config-fmt/) |
 | `show config graph` | read-only, offline | - | - | - | - | [details](show-config-graph/) |
-| `show config history` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-history/) |
+| `show config history` | read-only, offline | - | - | - | - | [details](show-config-history/) |
 | `show config list` | read-only, offline | - | - | - | - | [details](show-config-list/) |
 | `show config migrate` | read-only, offline | - | - | - | - | [details](show-config-migrate/) |
 | `show config replace` | read-only, offline | - | - | - | - | [details](show-config-replace/) |
@@ -476,7 +477,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show dns cache stats` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-stats/) |
 | `show dns lookup` | Read-only | - | - | - | `show dns` | [details](show-dns-lookup/) |
 | `show dns resolver` | Read-only | - | - | - | - | [details](show-dns-resolver/) |
-| `show doctor` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-doctor/) |
+| `show doctor` | Read-only | - | - | - | - | [details](show-doctor/) |
 | `show ecmp-groups` | Read-only | - | - | - | - | [details](show-ecmp-groups/) |
 | `show env get` | read-only, offline | - | - | - | - | [details](show-env-get/) |
 | `show env list` | read-only, offline | - | - | - | - | [details](show-env-list/) |
@@ -503,7 +504,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show flow recent` | Read-only | - | - | - | - | [details](show-flow-recent/) |
 | `show geodns` | Read-only | - | - | - | - | [details](show-geodns/) |
 | `show gnmi` | Read-only | - | - | - | - | [details](show-gnmi/) |
-| `show health` | Read-only | - | - | - | `show hardware cpu`<br>`show system memory` | [details](show-health/) |
+| `show health` | Read-only | - | - | - | - | [details](show-health/) |
 | `show host` | Read-only | - | - | - | - | [details](show-host/) |
 | `show host all` | Read-only | - | - | - | - | [details](show-host-all/) |
 | `show host cpu` | Read-only | - | - | - | - | [details](show-host-cpu/) |
@@ -514,6 +515,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show host platform` | Read-only | - | - | - | - | [details](show-host-platform/) |
 | `show host storage` | Read-only | - | - | - | - | [details](show-host-storage/) |
 | `show host thermal` | Read-only | - | - | - | - | [details](show-host-thermal/) |
+| `show host trend` | Read-only | - | - | - | - | [details](show-host-trend/) |
 | `show interface` | read-only, offline | - | - | - | - | [details](show-interface/) |
 | `show interface brief` | Read-only | - | - | - | `show interfaces` | [details](show-interface-brief/) |
 | `show interface delegated-prefix` | Read-only | - | - | - | - | [details](show-interface-delegated-prefix/) |
@@ -564,7 +566,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show metrics values` | Read-only | - | - | - | - | [details](show-metrics-values/) |
 | `show mpls forwarding` | Read-only | - | - | - | - | [details](show-mpls-forwarding/) |
 | `show mtu` | Read-only | - | - | - | - | [details](show-mtu/) |
-| `show neighbor` | Read-only | - | - | - | `show arp` | [details](show-neighbor/) |
+| `show neighbor` | Read-only | - | - | - | `show ipv6 neighbors` | [details](show-neighbor/) |
 | `show nexthop-table` | Read-only | - | - | - | - | [details](show-nexthop-table/) |
 | `show ospf` | Read-only | - | - | - | - | [details](show-ospf/) |
 | `show ospf border-routers` | Read-only | - | - | - | - | [details](show-ospf-border-routers/) |
@@ -616,7 +618,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show ospf spf detail` | Read-only | - | - | - | - | [details](show-ospf-spf-detail/) |
 | `show ospf te-database` | Read-only | - | - | - | - | [details](show-ospf-te-database/) |
 | `show ospf virtual-links` | Read-only | - | - | - | - | [details](show-ospf-virtual-links/) |
-| `show ping` | read-only, offline | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](show-ping/) |
+| `show ping` | read-only, offline | - | - | `ping <target>` | `ping <target>` | [details](show-ping/) |
 | `show pki certificate name` | Read-only | - | - | - | - | [details](show-pki-certificate-name/) |
 | `show pki certificate name bundle pem` | Read-only | - | - | - | - | [details](show-pki-certificate-name-bundle-pem/) |
 | `show pki certificate name fingerprint` | Read-only | - | - | - | - | [details](show-pki-certificate-name-fingerprint/) |
@@ -689,7 +691,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show tcp-check` | Read-only | - | - | - | - | [details](show-tcp-check/) |
 | `show thanks licence` | Read-only | - | - | - | - | [details](show-thanks-licence/) |
 | `show thanks list` | Read-only | - | - | - | - | [details](show-thanks-list/) |
-| `show traceroute` | read-only, offline | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](show-traceroute/) |
+| `show traceroute` | read-only, offline | - | - | - | `traceroute <target>` | [details](show-traceroute/) |
 | `show traffic control` | Read-only | - | - | - | - | [details](show-traffic-control/) |
 | `show traffic feature` | Read-only | - | - | - | - | [details](show-traffic-feature/) |
 | `show traffic stat` | Read-only | - | - | - | - | [details](show-traffic-stat/) |
@@ -767,5 +769,5 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 
 | Intent | Junos MX | IOS XR | SR OS | VyOS | Notes |
 | --- | --- | --- | --- | --- | --- |
-| LLDP neighbor discovery | - | - | - | - | No Ze LLDP subsystem is present in the live command catalog. |
-| NAT translations and pools | - | - | - | - | No Ze NAT command is present in the live command catalog. |
+| LLDP neighbor discovery | `show lldp neighbors` | `show lldp neighbors` | - | `show lldp neighbors` | No Ze LLDP subsystem is present in the live command catalog. |
+| NAT translations and pools | - | - | - | `show nat source translations` | No dedicated Ze NAT translation inspection command is present in the live command catalog; NAT rules live in firewall chains. |

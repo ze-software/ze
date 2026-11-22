@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 
 ## Figures
 
-- **MUST bar**: Ze verified 17, Tests awaiting verification 17, Not built 103
-- **Overview bar**: Ze MUST verified 17, SHOULD verified 6, Not owed 5, Tests awaiting verification 17, Not assessed 72, Not built 105
+- **MUST bar**: Ze verified 34, Tests awaiting verification 4, Not built 99
+- **Overview bar**: Ze MUST verified 34, SHOULD verified 6, Not owed 5, Tests awaiting verification 4, Not assessed 72, Not built 101
 
 | Figure | Rows |
 |---|---|
@@ -20,13 +20,13 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 | Mandatory requirements complete | not complete |
 | MUST rows | 142 |
 | MUST rows kept (the MUST bar) | 137 |
-| Ze verified | 17 |
+| Ze verified | 34 |
 | OS verified | 0 |
-| Tests awaiting verification | 17 |
+| Tests awaiting verification | 4 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 103 |
+| Not built | 99 |
 | MUST rows not owed | 5 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -81,7 +81,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | Ze verified 12, Tests awaiting verification 17, Not built 27 | Ze MUST verified 12, SHOULD verified 6, Not owed 3, Tests awaiting verification 17, Not assessed 19, Not built 29 |
+| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | Ze verified 29, Tests awaiting verification 4, Not built 23 | Ze MUST verified 29, SHOULD verified 6, Not owed 3, Tests awaiting verification 4, Not assessed 19, Not built 25 |
 
 ### Level 10
 

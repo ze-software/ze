@@ -151,9 +151,6 @@ The system RIB consumes that selection inside the daemon or in a subprocess.
 An internal instance reads the authority directly. An external instance holds
 a read-only selected projection and runs the same recursive resolver and
 forwarding worker. Candidate commands query the daemon's full candidate state.</p>
-<!-- source: internal/component/sysrib/route_view_client.go -- openRouteViewMonitoredClient -->
-<!-- source: internal/component/sysrib/route_view_worker.go -- consume -->
-<!-- source: internal/component/sysrib/route_view_worker_operations.go -- candidates -->
 <p>The daemon acknowledges distance changes after authoritative reselection. It
 also fences forwarding output by process generation and consumed cursor.
 Reset or process loss withdraws only that session's outstanding output. A
@@ -161,9 +158,6 @@ replacement waits for cleanup, then reconstructs its view before publishing.
 The <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/rib/unified-locrib.md#authoritative-selected-views" target="_blank" rel="noopener">unified Loc-RIB</a>
 and <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md#system-routing-views" target="_blank" rel="noopener">process protocol</a> specify
 the ordering and retention bounds.</p>
-<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
-<!-- source: internal/component/sysrib/route_view.go -- open, cleanupLocked -->
-<!-- source: internal/component/sysrib/route_view_output.go -- publish, withdraw -->
 <h2 id="build-personalities">Build personalities</h2>
 <p>The repository builds <code>ze</code> and <code>le</code> from the one <code>cmd/ze</code> codebase. The root
 <code>./ze</code> launcher executes the cached <code>bin/ze</code> personality and builds it only
@@ -189,24 +183,18 @@ same tags and toolchain pin as the shared build, and rebuilds it on every call;
 <code>registry.LookupRoot(binaryName())</code>, so the session name goes on the directory.
 The launcher carries the name into the process, and <code>refuseWrongBuildName</code>
 refuses to answer when the running binary is a different build.</p>
-<!-- source: le -- choose_build, start_candidate, set_aside, session_name -->
-<!-- source: cmd/ze/le_build_name.go -- refuseWrongBuildName -->
 <p>The same selection lets <code>le</code> run inside a container. The perf runner
 cross-builds <code>le</code> for linux with <code>CGO_ENABLED=0</code> and the tags of the launcher's
 build, and mounts it at <code>/usr/local/bin/le</code> in the sender container, where
 <code>le perf send</code> measures the DUT. The file is named <code>le</code>, so it selects root
 <code>le</code>. The container starts with no launcher environment, so
 <code>ZE_LE_BUILD_NAME</code> is unset and <code>refuseWrongBuildName</code> answers 0.</p>
-<!-- source: internal/test/perfrunner/run.go -- buildLinuxBinary -->
-<!-- source: internal/test/perfrunner/run.go -- runPerf -->
 <p>A Go test process is a new fixture boundary, not a continuation of the named
 le build. Native test environments remove every spelling of the outer build
 name and checkout root. Fixture binaries receive their own explicit environment;
 functional suite binaries likewise drop the outer build name but retain their
 selected checkout. These boundaries do not change <code>refuseWrongBuildName</code>: an
 explicit wrong identity still refuses the child.</p>
-<!-- source: internal/le/go/toolchain/gotoolchain.go -- Environment -->
-<!-- source: internal/le/test/functional/binaries.go -- BinarySet.Environment -->
 <h3 id="a-role-taken-before-command-dispatch">A role taken before command dispatch</h3>
 <p>A <code>ze</code> process is not always answering a command line. Two roles replace it,
 and <code>dispatchMain</code> selects each from the environment before crash logging,
@@ -248,21 +236,15 @@ environment key, and the container plugin registers that key
 (<code>docs/architecture/container/runtime.md</code>, "The init role"). The seed role
 stays a leaf of its own, because its contract checks arguments and inherited
 descriptors that an early role has none of.</p>
-<!-- source: cmd/ze/dispatch.go -- dispatchMain -->
-<!-- source: internal/core/earlyrole/earlyrole.go -- Register, Dispatch -->
-<!-- source: internal/plugins/container/register_initrole_linux.go -- libraryInitKey, runInitRole -->
 <h3 id="composition-roots">Composition roots</h3>
 <p>Both personalities use the command registry and pipe engine. Their composition
 roots remain separate: a normal <code>ze</code> build imports no <code>internal/le</code> package,
 while the non-default <code>ze_le</code> build companion imports <code>internal/le/register.go</code>
 and exposes its inventory under <code>ze le</code>. Shipped builds do not enable <code>ze_le</code>.</p>
-<!-- source: cmd/ze/ze_le_register.go -->
-<!-- source: internal/le/le/root/dispatch.go -- Dispatch -->
 <p>Root help combines registered root commands with the YANG command tree. Each
 top-level name appears once: a registered root keeps its declared section and
 summary, and YANG verbs without a root declaration appear under Operations
 with their generated summaries.</p>
-<!-- source: cmd/ze/ze_core_usage.go -- zeUsage -->
 <hr>
 <h2 id="overview">Overview</h2>
 <p>Ze supports two operating modes:</p>
@@ -289,7 +271,6 @@ with their generated summaries.</p>
 </table>
 <p><strong>This document describes Hub mode.</strong></p>
 <p>In hub mode, Ze runs as a <strong>hub process</strong> (<code>ze</code>) that orchestrates separate <strong>plugin processes</strong> communicating via pipes. This architecture enables:</p>
-<!-- source: internal/component/plugin/server/ -- plugin server orchestration -->
 <ul>
 <li>Language freedom (plugins can be Go, Python, Rust, etc.)</li>
 <li>Crash isolation (BGP crash doesn't kill RIB)</li>
@@ -651,7 +632,6 @@ ready. The RPC of each stage, its input and its answer are in
 An earlier text-line form of these stages (<code>declare schema ...</code>,
 <code>config verify</code>, <code>config done</code>, <code>capability hex ...</code>, <code>registry cmd ...</code>,
 <code>ready</code>) is retired, and the daemon reads none of it.</p>
-<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput -->
 <hr>
 <h2 id="config-notification-to-plugins">Config Notification to Plugins</h2>
 <p>A plugin receives only the config roots it declares. At start they arrive in
@@ -679,7 +659,6 @@ checks</li>
 (<code>docs/plugin-development/schema.md</code>). A compiled-in plugin sends none: its
 yang package embeds its modules and registers them from <code>init()</code>
 (<code>docs/architecture/config/yang-config-design.md</code>, "Module Loading").</p>
-<!-- source: pkg/plugin/rpc/types.go -- SchemaDecl -->
 <h3 id="existing-yang-modules">Existing YANG Modules</h3>
 <table>
 <thead>
@@ -703,7 +682,7 @@ yang package embeds its modules and registers them from <code>init()</code>
 <tr>
 <td><code>ze-plugin-conf</code></td>
 <td><span class="ev-src"><span class="ev-ref"><code>internal/component/plugin/yang/</code></span></span></td>
-<td><code>container plugin</code> for process declarations <!-- source: internal/component/bgp/yang/ -- BGP YANG schemas --> <!-- source: internal/component/plugin/yang/ -- plugin YANG schemas --></td>
+<td><code>container plugin</code> for process declarations</td>
 </tr>
 <tr>
 <td><code>ze-rib</code></td>
@@ -883,15 +862,13 @@ yang package embeds its modules and registers them from <code>init()</code>
 </table>
 <p>When <code>ze.user</code> is not set, no privilege dropping occurs.</p>
 <p>Implementation: <code>internal/core/privilege/</code> -- calls <code>setgid</code> then <code>setuid</code> after <code>reactor.Start()</code> binds port 179.</p>
-<!-- source: internal/core/privilege/ -- privilege dropping -->
 <h3 id="capabilities-without-root">Capabilities without root</h3>
 <p><code>privilege.DaemonCapabilities</code> is the one declaration of the capabilities a
 non-root daemon runs with: <code>CAP_NET_ADMIN</code>, <code>CAP_NET_RAW</code>, <code>CAP_NET_BIND_SERVICE</code>
 and <code>CAP_BPF</code>, each with its kernel bit and what Ze needs it for. The systemd unit
-grants exactly that set, ambient and bounding alike; when <code>CheckPrivileges</code>
-reports one a non-root daemon lacks, the hub logs one warning at start under
-<code>doctor-daemon-capability-missing</code>, and the <code>daemon-capabilities</code> runtime check
-reports the same in <code>show doctor</code>; the per-test netns mode of
+grants exactly that set, ambient and bounding alike; <code>CheckPrivileges</code> takes
+the generic inventory of the ones this process lacks, reading the effective set
+of a root process like any other; the per-test netns mode of
 <code>./le test qemu all</code> runs ze with the same set (<code>netnsDaemonCapBits</code>); and a unit
 capability test (<code>unit_capabilities_integration_linux_test.go</code> in the package
 that owns the program, for traffic-usage, the IPsec ESP form fast path and the
@@ -900,19 +877,66 @@ process holding exactly it, which is how the verifier's unprivileged rules are
 proven. Each kernel bit is written out, because
 <code>golang.org/x/sys/unix</code> declares the <code>CAP_</code> constants on Linux alone, and
 <code>TestDaemonCapabilityBitsAreTheKernels</code> compares it with that constant.</p>
-<!-- source: internal/core/privilege/capabilities.go -- DaemonCapabilities -->
-<!-- source: internal/core/privilege/check_linux.go -- CheckPrivileges, effectiveCapabilities -->
-<!-- source: cmd/ze/hub/main.go -- warnDaemonPrivileges -->
-<!-- source: internal/component/doctor/checks_daemon_capabilities.go -- daemonCapabilitiesCheck, checkDaemonCapabilities -->
-<!-- source: internal/plugins/systemd/unit.go -- writeCapabilities -->
-<!-- source: internal/test/runner/caps.go -- netnsDaemonCapBits, daemonCapBits -->
+<p>A missing capability is not a problem by itself, because the inventory is taken
+before the config is read and a config that uses nothing the capability serves
+runs without it: an interfaces-and-SSH config starts with <code>CAP_NET_ADMIN</code> alone.
+So the inventory is information. The hub logs it at debug at start
+(<code>logDaemonCapabilities</code>), with no doctor code and no remedy, and the
+<code>daemon-capabilities</code> runtime check shows it in <code>show doctor</code> as an <code>info</code> row
+under <code>doctor-daemon-capability-missing</code> that never makes the box not ready
+(<code>docs/architecture/doctor-and-health-checks.md</code>, "Three severities"). A process
+whose set cannot be read is logged and shown as one whose capabilities Ze cannot
+determine. Each configured feature that needs a capability checks for it at
+start and reload, or when an on-demand operation is invoked, and reports its own
+impact under its own code.</p>
+<p>Every site that reports a missing capability takes its remedy from
+<code>privilege.CapabilityRemedy</code>, so the operator reads one wording everywhere. The
+remedy depends on <code>privilege.DaemonServiceMembership</code>, read from the cgroup v2
+line of <code>/proc/self/cgroup</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Membership</th>
+<th>When</th>
+<th>Remedy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze.service</code></td>
+<td>the cgroup path's last element is <code>privilege.ServiceUnit</code>, the unit the installer writes</td>
+<td><code>DaemonCapabilitiesFix</code> (<code>sudo systemctl stop ze &amp;&amp; sudo ze install systemd --force --start</code>) when the unit's set holds every capability named; a <code>sudo systemctl edit ze</code> drop-in for one outside it</td>
+</tr>
+<tr>
+<td>other</td>
+<td>the path was read and names another unit, a session, a container root</td>
+<td>restart ze as root, or holding the capabilities named: ambient capabilities from whatever starts ze, or <code>setcap</code> on the binary</td>
+</tr>
+<tr>
+<td>unknown</td>
+<td class="cell-no">✕</td>
+<td>the same as other, after saying Ze could not tell whether it runs under <code>ze.service</code>, and why</td>
+</tr>
+</tbody>
+</table>
+<p>A systemd command is offered only when Ze establishes that the process runs
+under <code>ze.service</code>: for any other process the unit is not what started it, and
+reinstalling it changes nothing. The same membership gate governs every other
+fix that mentions <code>systemctl</code> through <code>privilege.ServiceRemedy</code> (choosing
+between a <code>ze.service</code> command and a non-systemd remedy) and
+<code>privilege.RestartRemedy</code> (returning <code>sudo systemctl restart ze</code> under
+<code>ze.service</code>, and otherwise explaining that no single command restarts an
+unsupervised daemon and naming <code>ze signal stop</code> followed by starting <code>ze</code>
+again).</p>
+<!-- test: internal/core/privilege/membership_test.go TestMembershipFromCgroup -->
+<!-- test: internal/core/privilege/membership_test.go TestCapabilityRemedy -->
+<!-- test: internal/core/privilege/membership_test.go TestServiceRemedy -->
+<!-- test: internal/core/privilege/membership_test.go TestRestartRemedy -->
+<!-- test: cmd/ze/hub/capabilities_log_test.go TestLogDaemonCapabilitiesNeverWarns -->
 <h3 id="plugin-tls-transport">Plugin TLS Transport</h3>
 <p>External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via <code>plugin { hub { server &lt;name&gt; { ip ...; port ...; secret ...; } } }</code>), forks child processes with <code>ZE_PLUGIN_HUB_HOST</code>/<code>ZE_PLUGIN_HUB_PORT</code>/<code>ZE_PLUGIN_HUB_TOKEN</code>/<code>ZE_PLUGIN_CA_PEM</code> env vars, and waits for authenticated connect-back. <code>ZE_PLUGIN_CA_PEM</code> carries the certificate authority root that issued the listener's certificate, and the SDK validates the chain against it and nothing else; the full contract is in <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md" target="_blank" rel="noopener">Process Protocol</a>. Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.</p>
-<!-- source: internal/component/plugin/acceptor.go -- hub TLS listener -->
-<!-- source: pkg/plugin/rpc/ -- MuxConn for concurrent RPCs -->
 <h3 id="plugin-process-isolation">Plugin Process Isolation</h3>
 <p>Each external plugin runs in its own process group (<code>Setpgid</code>) for clean signal handling and inherits the daemon's (already-dropped) uid/gid. All plugins run as the same unprivileged user.</p>
-<!-- source: internal/component/plugin/process/ -- process isolation -->
 <hr>
 <h2 id="example-session">Example Session</h2>
 <pre><code class="language-bash"># Start Ze
@@ -960,7 +984,7 @@ $ kill -TERM $(pgrep -f "ze start config.conf")
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/hub-architecture.md" target="_blank" rel="noopener">Hub Architecture</a> - Hub mode internal design details</li>
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md" target="_blank" rel="noopener">Process Protocol</a> - 5-stage protocol specification</li>
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md" target="_blank" rel="noopener">YANG Config Design</a> - Schema design</li>
-<li>Config Dispatch - mode selection by config content (completed). This was summary 189, retired on 2026-08-01 and not carried into <a href="https://github.com/ze-software/ze/blob/main/docs/../plan/learned/DESIGN-HISTORY.md" target="_blank" rel="noopener">Design History</a>, whose header gives the git-recovery route</li>
+<li>Config Dispatch - mode selection by config content (completed). This was summary 189, retired on 2026-08-01 and not carried into <a href="https://github.com/ze-software/ze/blob/main/plan/learned/DESIGN-HISTORY.md" target="_blank" rel="noopener">Design History</a>, whose header gives the git-recovery route</li>
 </ul>
 <hr>
 <p><strong>Last Updated:</strong> 2026-01-30</p>
@@ -977,7 +1001,7 @@ $ kill -TERM $(pgrep -f "ze start config.conf")
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

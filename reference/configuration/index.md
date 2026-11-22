@@ -586,7 +586,7 @@ A peer inherits from its group defaults. A group inherits from this global level
         - **max-batch-size** `int32`: Maximum number of route changes in one flush cycle.
           0 means no limit, so Ze flushes every pending change at once. A limit reduces the CPU cost of one cycle, and raises the convergence latency.
     - **role** `container`: RFC 9234 BGP Role configuration
-      The container turns on the role rules for this peer. A peer with no role container sends no Role capability, and Ze accepts whatever role the peer declares.
+      The container turns on the role rules for this peer. A peer with no role container sends no Role capability, and Ze accepts whatever role the peer declares. RFC 9234 Section 6: Roles MUST NOT be configured on an eBGP session with a Complex peering relationship; omit the role container on a Complex peering session or segregate it into multiple eBGP sessions with normal relationships.
       - **export** `export-token[]`: Controls which destination peer roles may receive routes from this peer
         An empty list filters nothing, and the ingress and egress rules of RFC 9234 Section 5 still run. default expands to the set RFC 9234 Section 5 gives the local role. provider sends to customer and rs-client. customer sends to provider, rs and peer. rs sends to rs-client, rs-client sends to rs and provider, and peer sends to customer and rs-client. unknown matches a peer that sent no Role capability, and a peer whose OPEN Ze never recorded.
         - `customer`: RFC 9234: Customer (3)
@@ -925,7 +925,7 @@ A peer inherits from its group defaults. A group inherits from this global level
       - **max-batch-size** `int32`: Maximum number of route changes in one flush cycle.
         0 means no limit, so Ze flushes every pending change at once. A limit reduces the CPU cost of one cycle, and raises the convergence latency.
   - **role** `container`: RFC 9234 BGP Role configuration
-    The container turns on the role rules for this peer. A peer with no role container sends no Role capability, and Ze accepts whatever role the peer declares.
+    The container turns on the role rules for this peer. A peer with no role container sends no Role capability, and Ze accepts whatever role the peer declares. RFC 9234 Section 6: Roles MUST NOT be configured on an eBGP session with a Complex peering relationship; omit the role container on a Complex peering session or segregate it into multiple eBGP sessions with normal relationships.
     - **export** `export-token[]`: Controls which destination peer roles may receive routes from this peer
       An empty list filters nothing, and the ingress and egress rules of RFC 9234 Section 5 still run. default expands to the set RFC 9234 Section 5 gives the local role. provider sends to customer and rs-client. customer sends to provider, rs and peer. rs sends to rs-client, rs-client sends to rs and provider, and peer sends to customer and rs-client. unknown matches a peer that sent no Role capability, and a peer whose OPEN Ze never recorded.
       - `customer`: RFC 9234: Customer (3)
@@ -1471,7 +1471,7 @@ A peer inherits from its group defaults. A group inherits from this global level
       - **max-batch-size** `int32`: Maximum number of route changes in one flush cycle.
         0 means no limit, so Ze flushes every pending change at once. A limit reduces the CPU cost of one cycle, and raises the convergence latency.
   - **role** `container`: RFC 9234 BGP Role configuration
-    The container turns on the role rules for this peer. A peer with no role container sends no Role capability, and Ze accepts whatever role the peer declares.
+    The container turns on the role rules for this peer. A peer with no role container sends no Role capability, and Ze accepts whatever role the peer declares. RFC 9234 Section 6: Roles MUST NOT be configured on an eBGP session with a Complex peering relationship; omit the role container on a Complex peering session or segregate it into multiple eBGP sessions with normal relationships.
     - **export** `export-token[]`: Controls which destination peer roles may receive routes from this peer
       An empty list filters nothing, and the ingress and egress rules of RFC 9234 Section 5 still run. default expands to the set RFC 9234 Section 5 gives the local role. provider sends to customer and rs-client. customer sends to provider, rs and peer. rs sends to rs-client, rs-client sends to rs and provider, and peer sends to customer and rs-client. unknown matches a peer that sent no Role capability, and a peer whose OPEN Ze never recorded.
       - `customer`: RFC 9234: Customer (3)
@@ -2451,7 +2451,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **identity <name>** `list`: Per-identity bearer entries, for auth-mode=bearer-list.
     The token of each entry grants access to the named principal. Authentication runs on every request, so the name and the scopes of the matching entry ride that one authenticated request. Changing an identity, its token or its scopes requires a daemon restart.
     - **scope** `string[]`: Scopes Ze carries on a request this identity authenticates.
-      This leaf-list is optional. An empty leaf-list carries no scope.
+      This leaf-list is optional. When non-empty, Ze enforces the identity's scopes on tools/call: mcp.read authorizes read-only tools and commands, mcp.write authorizes mutating tools and commands, and mcp.admin authorizes both. Insufficient scope returns HTTP 403. An empty leaf-list imposes no scope restriction.
     - **token** `string`: Bearer token value of this identity.
       Ze compares the token in constant time, so the duration of a comparison tells an attacker nothing about the value.
   - **oauth** `container`: OAuth 2.1 resource-server settings, for auth-mode=oauth.
@@ -2469,11 +2469,11 @@ The api-server container under it is the shared parent of the REST and gRPC tran
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
   - **tls** `container`: TLS certificate that serves the MCP endpoint over HTTPS.
-    This container is required when auth-mode is oauth and a listen endpoint is not a loopback address. ze config verify rejects a config that leaves the cert leaf empty in that case, and one that sets cert without key.
+    This container is required when auth-mode is bearer, bearer-list, or oauth and a listen endpoint is not a loopback address. ze config verify rejects a config that leaves cert or key empty in that case, and one that sets cert without key.
     - **cert** `string`: Path to PEM-encoded certificate file (or a chain).
       Ze serves the endpoint over HTTPS when cert and key are both set, and over HTTP when both are absent. A partial pair is rejected. Ze reads the pair at start and accepts TLS 1.2 as its lowest version. Changing the pair requires a restart. A pair that fails to load stops the MCP server, and Ze prints the reason. ze doctor reads the file and reports it missing, or near its expiry date.
     - **key** `string`: Path to PEM-encoded private-key file.
-      Ze refuses a key file that group or other can read, and refuses a symbolic link, when it runs as a user other than root. The MCP server does not start in that case. Under root Ze reads the file whatever its mode, because root reads every file anyway.
+      Ze refuses a key file that grants any permission to group or other, and refuses a symbolic link or non-regular file, for every user including root. The MCP server does not start in that case.
   - **token** `string`: Bearer token for auth-mode=bearer.
     When this leaf is set and no auth-mode leaf is present, Ze infers auth-mode 'bearer'. Leave this leaf empty for bearer-list mode and for oauth mode.
 - **mtu** `container`: Settings of the path MTU diagnostic.
@@ -6474,21 +6474,21 @@ Each filter type is a list that its plugin adds through an augment and marks ze:
       The default accepts every length inside the entry, so an entry with no le and no ge matches the prefix and everything under it. Ze refuses a value greater than the family maximum rather than letting the entry match nothing.
 - **reject-asn <name>** `list`: Named list of ASNs rejected by their position in the AS_PATH.
   Every ASN written under the list is looked for in the AS_PATH of the route. The keyword it sits under decides which positions reject it. The list is an unordered reject set, so any keyword that matches rejects the route and no keyword wins over another. Ze reads the positions first and the patterns after them.
-  - **anywhere** `asn[]`: Reject these ASNs at any position: direct, transit and origin together.
+  - **anywhere** `asn-filter[]`: Reject these ASNs at any position: direct, transit and origin together.
     The keyword is the union of the other three, so it rejects the ASN wherever it sits. The reject log line still names which of the three caught the route.
-  - **direct** `asn[]`: Reject these ASNs where they are the peer we are talking to, prepends collapsed.
+  - **direct** `asn-filter[]`: Reject these ASNs where they are the peer we are talking to, prepends collapsed.
     The position is the leading run of tokens equal to the ASN of the sending peer, so four prepends are one direct position. On export no ASN is direct, because the filter input carries the destination peer rather than the sender. A path that starts with another ASN is a leak, and direct does not catch it.
-  - **indirect** `asn[]`: Reject these ASNs anywhere they are NOT the peer we are talking to.
+  - **indirect** `asn-filter[]`: Reject these ASNs anywhere they are NOT the peer we are talking to.
     The keyword covers transit and origin together. It is the leaf an operator writes for RFC 7454 Section 9. The route reached you through the ASN, and a direct session with that ASN is still fine. On export the sender is unknown, so indirect covers the whole path.
   - **nth <index>** `list`: Reject the listed ASNs at one collapsed position of the AS_PATH.
     Ze counts the positions from us, and 1 is the ASN we are talking to. A run of consecutive identical ASNs counts once, so a peer cannot move your rule by a prepend. The keyword cuts across the other five, because an ASN at position 2 CAN also be transit.
-    - **asn** `asn[]`: The ASNs this position rejects.
+    - **asn** `asn-filter[]`: The ASNs this position rejects.
       The completion of the leaf offers a curated table of transit-free networks, and that table constrains nothing. Every ASN the type admits stays valid, and an ASN the table never held is accepted with no warning. show bgp reject-asn known transit-free prints the table.
-  - **origin** `asn[]`: Reject these ASNs where they are the last ASN of the AS_PATH.
+  - **origin** `asn-filter[]`: Reject these ASNs where they are the last ASN of the AS_PATH.
     The last ASN of the path announced the route. The leading run of the sender wins over that last position, so a lone ASN sent by the peer that owns it is direct rather than the origin.
   - **regex** `string[]`: Go RE2 patterns matched against the whole space-separated AS_PATH string.
     No position applies to a pattern. Ze matches it against the flat path, so a pattern reaches an ASN inside an AS_SET and meets no bracket. The 512-character bound is the bound bgp-filter-aspath applies to a regex. Ze reads the patterns only when no position matched.
-  - **transit** `asn[]`: Reject these ASNs where they sit past the peer and are not the last ASN of the AS_PATH.
+  - **transit** `asn-filter[]`: Reject these ASNs where they sit past the peer and are not the last ASN of the AS_PATH.
     A token is transit when it sits neither inside the leading run of the sender nor at the end of the path. Ze gives every token exactly one of direct, transit and origin.
 - **remove-private-as <name>** `list`: Named action filter that removes RFC 6996 Private Use ASNs.
   Ze rewrites AS_PATH and AS4_PATH, and the filter runs on an import chain and on an export chain. A path that carries no Private Use ASN passes through unchanged.

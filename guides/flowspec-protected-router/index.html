@@ -64,12 +64,6 @@
 <li><a href="#7-common-rollback">7. Common rollback</a></li>
 </ol></details></nav><div class="doc-body">
 <p>The example enables the nft firewall backend, starts the <code>flowspec-firewall</code> bridge plugin, accepts FlowSpec from an iBGP route reflector, and adds a conservative control-plane policing rule for TCP/179.</p>
-<!-- source: internal/plugins/flowspec-firewall/register.go -- plugin name and firewall dependency -->
-<!-- source: internal/plugins/flowspec-firewall/engine.go -- FlowSpec event subscriptions and firewall apply -->
-<!-- source: internal/plugins/flowspec-firewall/state.go -- generated nft table and chain names -->
-<!-- source: internal/plugins/copp/yang/ze-copp-conf.yang -- control-plane-protection bgp -->
-<!-- source: internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang -- ddos flowspec config -->
-<!-- source: docs/guide/firewall.md -- nft firewall backend -->
 <h2 id="1-start-from-an-installed-ze-node">1. Start from an installed Ze node</h2>
 <p>Follow <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a> through the systemd step. This page assumes <code>/usr/local/bin/ze</code>, <code>/etc/ze</code>, and active config name <code>edge-01.conf</code>.</p>
 <p>Example topology:</p>
@@ -221,8 +215,6 @@ A compensating Configure after failed removal preserves that live subscription
 and selection; it does not repeat the startup sweep. Initialization is complete
 only after replay succeeds. A failed initial replay removes its partial rules
 and subscription instead of treating that partial view as configured.</p>
-<!-- source: internal/plugins/flowspec-firewall/engine.go -- clearStaleRules, removeRules and runEngine -->
-<!-- source: internal/plugins/flowspec-firewall/selected.go -- handleSelected -->
 <p>Enabling a FlowSpec family derives a <code>bgp-rib</code> receive binding for every BGP
 peer, including unicast-only peers and dynamic group templates. An explicit
 binding must grant <code>update-received</code> and <code>state</code>; a narrower binding is refused
@@ -243,9 +235,6 @@ bindings use that same resolved declaration.</p>
 <p>Replay admission identifies FlowSpec from each configured family's registered
 SAFI, including VPN FlowSpec, rather than from a fixed list of family names.
 A configured name absent from the registry is refused.</p>
-<!-- source: internal/component/bgp/config/flowspec_binding.go -- hasFlowSpecFamily -->
-<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
-<!-- source: internal/component/bgp/config/flowspec_binding.go -- requireRIBDelivery -->
 <h2 id="3-check-the-firewall-backend">3. Check the firewall backend</h2>
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
 /usr/local/bin/ze cli -c "show bgp peer list"
@@ -286,8 +275,6 @@ can be enforced; SCTP combined with a port component matches no packet and is
 refused. ICMP type components select ICMPv4 or ICMPv6 according to the NLRI
 family. TCP flag bitmasks are enforced when one masked equality expresses the
 whole predicate; unsupported alternatives are refused rather than truncated.</p>
-<!-- source: internal/plugins/flowspec-firewall/transport.go -- transportProtocols and tcpFlagsMatch -->
-<!-- source: internal/plugins/flowspec-firewall/translate.go -- componentToMatch -->
 <p>A refused route is logged with the protocol number and the route key, and
 counted in <code>ze_flowspec_rules_refused_total</code>. It installs nothing. Ze does not
 install the same rule with the protocol condition removed: that rule would drop
@@ -295,7 +282,6 @@ more traffic than the peer asked it to drop.</p>
 <p>A bridge refusal prevents local firewall installation. The route remains
 available to BGP policy and propagation. Other enforceable FlowSpec rules and
 the rulesets of other firewall owners continue to reach the kernel.</p>
-<!-- source: internal/plugins/flowspec-firewall/translate.go -- protocolMatches -->
 <h3 id="traffic-filtering-actions">Traffic filtering actions</h3>
 <p>Ze performs traffic-rate-bytes, traffic-rate-packets, traffic-marking and
 traffic-action. The Terminal Action bit has the RFC's counterintuitive meaning:
@@ -315,7 +301,6 @@ the preceding RIB authorization decision.</p>
 <p>That test needs unprivileged user namespaces and nftables kernel support, not
 host root. Its presence, a build, or a capability skip is not packet-enforcement
 evidence; acceptance requires an observed non-skipped run on the runtime kernel.</p>
-<!-- source: internal/plugins/flowspec-firewall/rfc8955_packet_zero_integration_linux_test.go -- TestSelectedFlowSpecZeroPacketRateKernel -->
 <p>The separate <code>TestSelectedFlowSpecKernelPacketSemantics</code> retains its privileged
 network-namespace setup and <code>integration</code> tag. Its DSCP marking uses nftables
 payload writes. Linux 7.3's
@@ -323,8 +308,6 @@ payload writes. Linux 7.3's
 rejects those writes with <code>EPERM</code> unless the network namespace belongs to the
 initial user namespace. Capabilities inside a new user namespace cannot satisfy
 that check; the zero-rate test does not perform a payload write.</p>
-<!-- source: internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go -- TestSelectedFlowSpecKernelPacketSemantics -->
-<!-- source: internal/plugins/firewall/nft/lower_linux.go -- setDSCPv4, setDSCPv6 -->
 <p>Rules are ordered by their NLRI components, not by receipt time or peer name.
 Each matching rule is sampled and rate-limited once even when both its source-
 and destination-port alternatives match. The limiter drops excess traffic;
@@ -340,20 +323,16 @@ the first rule retains its mark but prevents that later sampling action.</p>
 <p>When one route carries several limits in the same unit, the lowest rate wins.
 A route asking for both byte and packet limits is refused because the bridge
 has one limiter per rule and cannot enforce both dimensions together.</p>
-<!-- source: internal/plugins/flowspec-firewall/state.go -- buildTable -->
-<!-- source: internal/plugins/flowspec-firewall/rule_chains.go -- ruleChains and markingTerms -->
 <p>Known rt-redirect, redirect-to-nexthop and copy-to-nexthop actions remain
 unperformable by this bridge. This includes IPv6 next hops carried in the
 20-octet IPv6 extended-community attribute, not just ordinary eight-octet
 communities. Unknown generic transitive communities have no local packet
 action. They remain available to BGP policy and propagation.</p>
-<!-- source: internal/plugins/flowspec-firewall/selected.go -- handleSelected -->
 <p>RFC 8955 Section 7.4 gives rt-redirect three encodings: a two-octet AS, an IPv4
 address and a four-octet AS. RFC 8956 Section 6.1 adds the IPv6-address-specific
 route-target redirect with the complete type value <code>0x000d</code> in attribute 25.
 Ze recognizes and refuses all four; the IPv6 route-target form is distinct
 from the subtype <code>0x0c</code> redirect-to-next-hop action.</p>
-<!-- source: internal/plugins/flowspec-firewall/translate.go -- unperformableAction -->
 <p>A route carrying one of those is REFUSED as a whole, logged with the community
 that caused the refusal, and counted in <code>ze_flowspec_rules_refused_total</code> under
 the reason <code>unsupported-action</code>. Ze does not install the part of the route it
@@ -366,7 +345,6 @@ The choice is to refuse, because the alternative installs a rule ending in
 accept: a route asking ze to rate-limit AND redirect would then send the
 traffic to its original destination while the peer was told the route was
 accepted.</p>
-<!-- source: internal/plugins/flowspec-firewall/translate.go -- unperformableAction -->
 <h2 id="4-test-with-a-safe-flowspec-rule">4. Test with a safe FlowSpec rule</h2>
 <p>The bridge only programs nftables from FlowSpec that <code>edge-01</code> <em>receives</em>, so the rule must be announced from a peer toward <code>edge-01</code>, not injected on <code>edge-01</code> itself. Use a lab prefix first. The example below drops TCP traffic to <code>10.0.0.0/8</code> port 80.</p>
 <p>The source must already announce eligible unicast reachability covering
@@ -515,7 +493,7 @@ the configuration, import it, and reload.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

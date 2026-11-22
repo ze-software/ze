@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 2 | of 11 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 11 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 11 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 4 | 4 of 20 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 18 | 18 of 20 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -80,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 20 |
 | Tests linked to requirements | 20 |
 | Recorded audit verdicts | 7 |
-| Fault test records | 4 |
+| Fault test records | 18 |
 | Summary | `rfc/short/rfc8671.md` |
 | Requirement table | `rfc/requirements/rfc8671.md` |
 | RFC text | `rfc/full/rfc8671.txt` |
@@ -93,9 +93,9 @@ Included in automatic checks: Support for Adj-RIB-Out in BMP: three MUSTs over t
 
 **Area:** BMP Adj-RIB-Out
 
-**Test verification:** 2 of 11 MUST proven
+**Test verification:** 9 of 11 MUST proven
 
-**Evidence:** unit 2
+**Evidence:** unit 9
 
 **Unmet:** RFC8671-5.2-1, RFC8671-5.2-2
 
@@ -119,8 +119,8 @@ Included in automatic checks: Support for Adj-RIB-Out in BMP: three MUSTs over t
 
 ## Figures
 
-- **MUST bar**: Ze verified 2, Tests awaiting verification 7, Not built 2
-- **Overview bar**: Ze MUST verified 2, Tests awaiting verification 7, Not assessed 1, Not built 2
+- **MUST bar**: Ze verified 9, Not built 2
+- **Overview bar**: Ze MUST verified 9, Not assessed 1, Not built 2
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: Support for Adj-RIB-Out in BMP: three MUSTs over t
 | Mandatory requirements complete | not complete |
 | MUST rows | 11 |
 | MUST rows kept (the MUST bar) | 11 |
-| Ze verified | 2 |
+| Ze verified | 9 |
 | OS verified | 0 |
-| Tests awaiting verification | 7 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -193,8 +193,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-r
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8671OFlagBit4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L222) | unit/verify | not verified |
-| positive | [`TestRFC8671OFlagBit4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L219) | unit/verify | not verified |
+| negative | [`TestRFC8671OFlagBit4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L222) | unit/verify | revert, verified |
+| positive | [`TestRFC8671OFlagBit4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L219) | unit/verify | revert, verified |
 
 ### [`RFC8671-x-2`](#rfc8671-x-2)
 
@@ -204,8 +204,8 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestPeerHeaderFromEventAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L81) | unit/verify | not verified |
-| positive | [`TestPeerHeaderFromEventAdjRIBOut`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L58) | unit/verify | not verified |
+| negative | [`TestPeerHeaderFromEventAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L81) | unit/verify | revert, verified |
+| positive | [`TestPeerHeaderFromEventAdjRIBOut`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L58) | unit/verify | revert, verified |
 
 ### [`RFC8671-x-3`](#rfc8671-x-3)
 
@@ -227,8 +227,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-r
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8671ReservedPeerFlagsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L108) | unit/verify | not verified |
-| positive | [`TestRFC8671ReservedPeerFlagsTransmittedAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L66) | unit/verify | not verified |
+| negative | [`TestRFC8671ReservedPeerFlagsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L108) | unit/verify | revert, verified |
+| positive | [`TestRFC8671ReservedPeerFlagsTransmittedAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L66) | unit/verify | revert, verified |
 
 ### [`RFC8671-5.1-1`](#rfc8671-5.1-1)
 
@@ -239,8 +239,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8671AdjRIBOutConveysNoUntransmittedUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L229) | unit/verify | not verified |
-| negative | [`TestRFC8671PostPolicyConveysUnknownAttributeUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L194) | unit/verify | not verified |
-| positive | [`TestRFC8671PostPolicyConveysTransmittedBytes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L164) | unit/verify | not verified |
+| negative | [`TestRFC8671PostPolicyConveysUnknownAttributeUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L194) | unit/verify | revert, verified |
+| positive | [`TestRFC8671PostPolicyConveysTransmittedBytes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L164) | unit/verify | revert, verified |
 
 ### [`RFC8671-5.2-1`](#rfc8671-5.2-1)
 
@@ -266,8 +266,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-r
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8671OFlagClearOnAdjRIBInMessages`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L306) | unit/verify | not verified |
-| positive | [`TestRFC8671OFlagSetOnAdjRIBOutMessages`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L268) | unit/verify | not verified |
+| negative | [`TestRFC8671OFlagClearOnAdjRIBInMessages`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L306) | unit/verify | revert, verified |
+| positive | [`TestRFC8671OFlagSetOnAdjRIBOutMessages`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L268) | unit/verify | revert, verified |
 
 ### [`RFC8671-6.2-1`](#rfc8671-6.2-1)
 
@@ -287,8 +287,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8671AdminLabelReversedOrderPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L476) | unit/verify | not verified |
-| positive | [`TestRFC8671AdminLabelOrderPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L459) | unit/verify | not verified |
+| negative | [`TestRFC8671AdminLabelReversedOrderPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L476) | unit/verify | revert, verified |
+| positive | [`TestRFC8671AdminLabelOrderPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L459) | unit/verify | revert, verified |
 
 ### [`RFC8671-7.2-1`](#rfc8671-7.2-1)
 
@@ -299,8 +299,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-r
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8671RemovingEveryCollectorBouncesTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L1022) | unit/verify | not verified |
-| negative | [`TestRFC8671UnrelatedBGPChangeBouncesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L967) | unit/verify | not verified |
-| positive | [`TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L848) | unit/verify | not verified |
+| negative | [`TestRFC8671UnrelatedBGPChangeBouncesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L967) | unit/verify | revert, verified |
+| positive | [`TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L848) | unit/verify | revert, verified |
 
 ## Requirement list review
 

@@ -59,11 +59,6 @@
 <li><a href="#6-operations">6. Operations</a></li>
 </ol></details></nav><div class="doc-body">
 <p>The example is a single AS with one Ze route reflector, one upstream FlowSpec receiver, and two edge clients. It enables the <code>bgp-rr</code> runtime plugin, negotiates <code>ipv4/flow</code>, marks the edge peers as route-reflector clients, and binds the peers to the reflector plugin.</p>
-<!-- source: internal/component/bgp/plugins/rr/register.go -- bgp-rr plugin name and dependency -->
-<!-- source: internal/component/bgp/plugins/rr/rr.go -- subscriptions and forwarding behavior -->
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- route-reflector-client, cluster-id, next-hop, family -->
-<!-- source: internal/component/config/loader.go -- plugin internal use syntax -->
-<!-- source: internal/component/bgp/config/plugins.go -- peer process binding validation -->
 <h2 id="1-start-from-an-installed-ze-node">1. Start from an installed Ze node</h2>
 <p>Follow <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a> through the systemd step. Keep the same active file name, <code>edge-01.conf</code>, or replace it in the commands below.</p>
 <p>This page uses these addresses:</p>
@@ -316,7 +311,7 @@ address-family ipv4 flowspec
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

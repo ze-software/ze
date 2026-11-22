@@ -44,8 +44,6 @@
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-secure">
-<!-- source: internal/component/mcp/yang/ze-mcp-conf.yang -- bind-remote, auth-mode, oauth, tls -->
-<!-- source: internal/component/config/loader_extract.go -- MCPListenConfig.Validate -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="mcp-remote-access">MCP Remote Access</h1>
@@ -339,6 +337,14 @@ per-identity tokens:</p>
 <td><code>bind-remote requires auth-mode != none</code></td>
 </tr>
 <tr>
+<td><code>auth-mode bearer</code> + non-loopback listener without TLS</td>
+<td><code>auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners</code></td>
+</tr>
+<tr>
+<td><code>auth-mode bearer-list</code> + non-loopback listener without TLS</td>
+<td><code>auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners</code></td>
+</tr>
+<tr>
 <td><code>auth-mode oauth</code> without <code>oauth.authorization-server</code></td>
 <td><code>auth-mode=oauth requires oauth.authorization-server</code></td>
 </tr>
@@ -368,8 +374,10 @@ per-identity tokens:</p>
 </tr>
 </tbody>
 </table>
-<p>These checks run before MCP starts. A remote OAuth listener cannot silently
-fall back to plaintext, and a partial TLS configuration is never ignored.</p>
+<p>These checks run before MCP starts, and live address migration (<code>Reconfigure</code>)
+refuses to move a plaintext <code>bearer</code>, <code>bearer-list</code>, or <code>oauth</code> listener off
+loopback. A remote authenticated listener cannot silently fall back to
+plaintext, and a partial TLS configuration is never ignored.</p>
 <h2 id="security-notes">Security Notes</h2>
 <ul>
 <li>With <code>bind-remote false</code> (default), every server entry is force-rewritten
@@ -442,7 +450,7 @@ spray cannot trigger a JWKS-fetch flood against the AS.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

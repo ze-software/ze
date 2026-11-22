@@ -58,13 +58,6 @@
 <li><a href="#linux-behavior">Linux behavior</a></li>
 <li><a href="#failure-reading">Failure reading</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: ../main/docs/architecture/testing/ci-format.md -- format reference -->
-<!-- source: ../main/internal/test/runner/record_parse.go -- parser -->
-<!-- source: ../main/internal/test/runner/runner_exec.go -- process orchestration -->
-<!-- source: ../main/internal/test/runner/runner_validate.go -- expectations -->
-<!-- source: ../main/internal/test/peer/peer.go -- BGP test peer -->
-<!-- source: ../main/internal/test/cli/ci_runner.go -- shared suite runner -->
-<!-- source: ../main/internal/test/cli/cmd_bgp.go -- BGP suite routing -->
 <p>A <code>.ci</code> file is an executable transcript. The runner reads key-value directives, creates a temporary workspace, writes embedded files, allocates ports, starts foreground and background commands, waits for readiness, and checks the observable result. That makes the test close to the debugging session a developer would run by hand, and repeatable enough to run automatically during verification.</p>
 <h2 id="where-it-belongs">Where it belongs</h2>
 <table>
@@ -158,7 +151,7 @@ ze.log.bgp.reactor.peer=debug ./le test bgp plugin 42 -v
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

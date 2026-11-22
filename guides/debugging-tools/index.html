@@ -137,7 +137,6 @@
 <hr>
 <h2 id="1-config-dump-command">1. Config Dump Command</h2>
 <p><strong>Location:</strong> <code>internal/component/config/cli/cmd_dump.go</code></p>
-<!-- source: internal/component/config/cli/cmd_dump.go -- config dump command -->
 <p>Parses a config file and displays the interpreted values. Useful for verifying that config parsing works correctly.</p>
 <h3 id="usage">Usage</h3>
 <pre><code class="language-bash"># Human-readable output
@@ -170,8 +169,6 @@ peer 10.0.0.1:
 </ul>
 <hr>
 <h2 id="2-bgp-message-decoder">2. BGP Message Decoder</h2>
-<!-- source: internal/test/runner/decode.go -- BGP message decoding -->
-<!-- source: internal/test/runner/decoding.go -- decoding helpers -->
 <p>Decodes raw BGP messages (hex) into human-readable format. Used automatically by functional tests and available via <code>--decode</code> flag.</p>
 <h3 id="usage_1">Usage</h3>
 <pre><code class="language-bash"># In ze-peer, show decoded messages
@@ -234,8 +231,6 @@ le test peer --decode --sink --port 1790
 </table>
 <hr>
 <h2 id="3-test-failure-diff">3. Test Failure Diff</h2>
-<!-- source: internal/test/peer/peer.go -- test peer with message validation -->
-<!-- source: internal/test/runner/diff.go -- test failure diff -->
 <p>When a functional test fails with "message mismatch", the output now includes a decoded diff showing exactly what differed.</p>
 <h3 id="example-output_2">Example Output</h3>
 <pre><code>failed: message mismatch
@@ -264,7 +259,6 @@ Differences:
 </ul>
 <hr>
 <h2 id="4-per-subsystem-logging-zelog">4. Per-Subsystem Logging (ze.log.*)</h2>
-<!-- source: internal/core/slogutil/slogutil.go -- Logger() function and hierarchical subsystem logging -->
 <p>Environment variables that enable structured logging at key points in the pipeline.</p>
 <h3 id="usage_2">Usage</h3>
 <pre><code class="language-bash"># Enable all subsystems at debug level
@@ -343,12 +337,8 @@ time=2024-01-15T13:53:41.184Z level=DEBUG msg="route sent" subsystem=bgp.routes 
 <li><code>internal/component/bgp/reactor/session.go</code>: RFC 7606 handling (sessionLogger)</li>
 <li><code>internal/component/bgp/reactor/reactor.go</code>: Reload, route operations (reactorLogger, routesLogger)</li>
 </ul>
-<!-- source: internal/component/bgp/reactor/peer.go -- peerLogger, routesLogger -->
-<!-- source: internal/component/bgp/reactor/session.go -- sessionLogger -->
-<!-- source: internal/component/bgp/reactor/reactor.go -- reactorLogger -->
 <hr>
 <h2 id="5-parser-warnings">5. Parser Warnings</h2>
-<!-- source: internal/component/config/parser.go -- Parser.Warnings() -->
 <p>The parser now collects warnings for potentially problematic patterns, accessible via <code>Parser.Warnings()</code>.</p>
 <h3 id="warning-types">Warning Types</h3>
 <table>
@@ -389,8 +379,6 @@ ze set debug active name deep-trace                    # Apply a saved profile a
 </code></pre>
 <p><code>show debug profile name &lt;name&gt;</code> reads from <code>debug.zefs</code> (works offline). <code>show debug</code>
 queries the running daemon's actual slogutil state (requires daemon).</p>
-<!-- source: internal/plugins/debug/debug.go -- runSetModule, runDeleteModule -->
-<!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
 <hr>
 <h2 id="debugging-workflow">Debugging Workflow</h2>
 <h3 id="1-config-issues">1. Config Issues</h3>
@@ -464,9 +452,6 @@ a stalled process, a full input queue). The budget of a route write is
 has a third of the hold time, between 10s and 30s. Raise
 <code>ze.fwd.write.deadline</code> only for a peer that is known to be slow and healthy:
 a longer budget keeps a dead session up for longer.</p>
-<!-- source: internal/component/bgp/reactor/session_write_budget.go -- recordWriteFailure, reportWriteBudgetExpiry, writeBudgetExpiryFix -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- lastErrorString, closedWithoutNotification -->
-<!-- source: internal/core/diagnostic/codes.go -- CodeDoctorBGPPeerNotReading -->
 <h3 id="4-test-failures">4. Test Failures</h3>
 <pre><code class="language-bash"># Run single test
 le test bgp encode 1
@@ -488,7 +473,6 @@ le test bgp encode --client 1
 <li>Client connects, sends configured messages, exits when server disconnects</li>
 </ul>
 <p>Press Ctrl+C in the client terminal once the server has finished validating: the runner sends SIGTERM to ze for a graceful shutdown.</p>
-<!-- source: internal/test/cli/cmd_bgp.go -- zeTestRunClientOnly, clientCmd.Cancel -->
 <p><strong>Use <code>--port</code> to avoid conflicts:</strong></p>
 <pre><code class="language-bash">le test bgp encode --server 1 --port 11790
 le test bgp encode --client 1 --port 11790
@@ -559,11 +543,6 @@ myLogger.Warn("unexpected state", "state", state, "expected", expected)
 </tr>
 </tbody>
 </table>
-<!-- source: internal/core/slogutil/slogutil.go -- logging infrastructure -->
-<!-- source: internal/test/peer/peer.go -- test peer -->
-<!-- source: internal/test/runner/decode.go -- BGP message decoder -->
-<!-- source: internal/component/config/cli/cmd_dump.go -- config-dump command -->
-<!-- source: internal/test/cli/cmd_peer.go -- le test peer subcommand -->
 </div>
 </div>
             </section>
@@ -613,7 +592,7 @@ myLogger.Warn("unexpected state", "state", state, "expected", expected)
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

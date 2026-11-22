@@ -76,7 +76,6 @@
 <li><a href="#interaction-with-route-reflection">Interaction with Route Reflection</a></li>
 </ol></details></nav><div class="doc-body">
 <p>PATHS-LIMIT (draft-abraitis-idr-addpath-paths-limit-04) lets a receiver request a maximum number of paths per prefix per family. Ze enforces the peer's negotiated limit on outbound routes, sending the paths <code>bgp-rib</code> ranks best, and enforces its own advertised limit on the routes it receives.</p>
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path capability config -->
 <h2 id="configuration">Configuration</h2>
 <p>All ADD-PATH and PATHS-LIMIT config lives under <code>session &gt; capability &gt; add-path</code>.</p>
 <h3 id="default-direction-and-limit">Default Direction and Limit</h3>
@@ -108,7 +107,6 @@
 }
 </code></pre>
 <p>A family entry can carry no block at all. <code>family { ipv4/unicast; }</code> takes the container direction and the container <code>receive</code> limit. A bare entry adds no family when the container states no direction.</p>
-<!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseAddPathFromTree -->
 <h3 id="full-example">Full Example</h3>
 <pre><code>bgp {
     router-id 192.0.2.1;
@@ -184,7 +182,6 @@
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path direction/mode config -->
 <h2 id="paths-limit">PATHS-LIMIT</h2>
 <p>The <code>limit { receive N; }</code> setting advertises a PATHS-LIMIT capability (code 76) for the family. The value (1-65535) requests the maximum number of paths per prefix Ze wants to receive.</p>
 <p>The scalar spelling <code>limit 10;</code> was removed. Ze refuses a config that still carries it, and the error names the line to write instead: <code>limit { receive VALUE; }</code>.</p>
@@ -219,8 +216,6 @@
 </tr>
 </tbody>
 </table>
-<!-- source: internal/core/bgp/capability/capability.go -- PathsLimit struct -->
-<!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseAddPathFromTree -->
 <p>The peer's nonzero limit applies only when Ze negotiates ADD-PATH send for that family. Ze's local limit applies only to negotiated ADD-PATH receive. An absent limit or an unnegotiated ADD-PATH direction imposes no PATHS-LIMIT restriction.</p>
 <h3 id="inbound-enforcement">Inbound Enforcement</h3>
 <p>The <code>receive</code> limit Ze advertises is also the ceiling it applies to the paths it accepts. A peer that ignores capability 76 (BIRD has no support for it) cannot grow Ze's Adj-RIB-In past the number Ze asked for. Ze counts distinct path IDs for each AFI/SAFI and prefix on the session, with the same route identity as outbound enforcement.</p>
@@ -266,12 +261,9 @@
 <p>Selection is by arrival order: the first paths admitted keep their slots, and a better path that arrives later is dropped until a withdrawal frees a slot. Ze does not hold a dropped path for later; the peer must announce it again.</p>
 <p>Each refused path increments <code>ze_bgp_paths_limit_refused_total{peer,family}</code>. The first refusal for a route logs one warning naming the peer, family, limit, route and path ID; further refusals for that route are counted but not logged until the peer withdraws a refused path. Ze tracks at most one refused path ID per route beyond the limit, so a peer cannot decide how much memory this costs.</p>
 <p>A limit configured on a family whose ADD-PATH direction does not include receive is neither advertised nor enforced.</p>
-<!-- source: internal/component/bgp/reactor/session_paths_limit_recv.go -- receiveCeiling, settleReceiveCeiling, reportPathsLimitRefusals -->
-<!-- source: internal/component/bgp/reactor/session_read.go -- processValidatedMessage -->
 <h3 id="outbound-enforcement">Outbound Enforcement</h3>
 <p>Ze counts distinct advertised path IDs for each AFI/SAFI and prefix on the destination connection. The count persists across UPDATE messages and batches. All normal send and forwarding paths share this count, including route-server fast-path forwarding.</p>
 <p>The count uses each family's route identity, not its forwarding fields. Labels do not create a new labeled IP prefix; VPN route distinguishers do. EVPN, VPLS, and MUP omit their non-key forwarding fields. Insignificant prefix padding cannot create another slot.</p>
-<!-- source: internal/core/bgp/nlri/nlrisplit/prefix_key.go -- PrefixKeyFunc; internal/core/bgp/nlri/nlrisplit/register.go -- family key registration -->
 <table>
 <thead>
 <tr>
@@ -336,15 +328,9 @@
 </table>
 <p>Withdrawals always go before the announcements that replace them, so the peer never holds more paths than its limit, not even for one UPDATE.</p>
 <p>The election needs <code>bgp-rib</code> loaded and attached to every source peer with <code>receive [ update-received ]</code>, which a route server or route reflector configuration already has. Without a RIB that can rank the paths, the first paths to arrive keep their slots, each contested prefix increments <code>ze_bgp_paths_limit_election_failed_total{peer,family}</code>, and the session logs one warning per family naming the fix.</p>
-<!-- source: internal/component/bgp/reactor/session_paths_limit_elect.go -- owePathsLimitElections, planPathsLimitElection, queuePathsLimitElection, pathsLimitElectionFailed -->
-<!-- source: internal/component/bgp/reactor/recovery_owed.go -- decide -->
 <p>A family Ze holds no NLRI decoder for cannot be counted path by path, so Ze never advertises a receive limit for it. A <code>limit { receive N; }</code> that would reach such a family, on the family entry or through the add-path container, is refused when the config loads, with an error naming the family and the fix: remove the receive limit for that family, set its add-path direction to <code>send</code>, or load the plugin that decodes it. A send limit the peer advertises for such a family is negotiated but not enforced, and the session logs one warning naming the family when it reaches Established.</p>
-<!-- source: internal/component/bgp/reactor/session_paths_limit.go -- pathsLimitEnforceable, newPathsLimitAdmission, warnPathsLimitUnenforced -->
-<!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseAddPathFromTree -->
 <p>Named transactions retain separate path IDs for one prefix. They emit routes in deterministic identity order, with ascending path IDs for the same prefix. A lower ID does not displace a path admitted earlier on the connection.</p>
 <p>The deliberate <code>send ... raw message</code> diagnostic command sends exact bytes outside normal route admission. PATHS-LIMIT does not filter this command.</p>
-<!-- source: internal/component/bgp/reactor/session_paths_limit.go -- pathsLimitAdmission, pathsLimitFamily, admitPath, filter -->
-<!-- source: internal/component/bgp/transaction/commit_manager.go -- path-aware transaction identity and ordering -->
 <h2 id="how-it-works">How It Works</h2>
 <p>When ADD-PATH is negotiated, each NLRI is prefixed with a 4-byte Path Identifier. This allows the same prefix (e.g., <code>10.0.0.0/24</code>) to appear multiple times with different path IDs, each carrying different attributes.</p>
 <h3 id="wire-format">Wire Format</h3>
@@ -356,7 +342,6 @@
 </code></pre>
 <h3 id="encoding-context">Encoding Context</h3>
 <p>Peers that negotiate the same ADD-PATH modes share an encoding context (<code>ContextID</code>). The route server can forward wire bytes unchanged between peers with matching contexts, avoiding re-encoding.</p>
-<!-- source: internal/component/bgp/reactor/session.go -- ContextID; internal/component/bgp/reactor/reactor_api_forward.go -- zero-copy forwarding -->
 <h3 id="route-withdrawal">Route Withdrawal</h3>
 <p>In an ADD-PATH direction, a withdrawal includes the same path ID used in the announcement. Withdrawing one ID leaves the other paths for that prefix in place. Path ID zero is a valid identifier, not an instruction to withdraw every path.</p>
 <h3 id="ze-generates-its-own-path-identifiers">Ze Generates Its Own Path Identifiers</h3>
@@ -393,11 +378,8 @@
 </tbody>
 </table>
 <p>Regeneration runs whenever either side of the forward frames identifiers. A session where neither side negotiated ADD-PATH keeps its zero-copy forward.</p>
-<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs, fwdRegenerateRawPathIDs, fwdReleaseWithdrawnPathIDs -->
-<!-- source: internal/component/bgp/reactor/forward_body.go -- fwdReencodeNLRIs -->
 <h2 id="interaction-with-route-reflection">Interaction with Route Reflection</h2>
 <p>ADD-PATH fits the route server plugin (<code>bgp-rs</code>). Without ADD-PATH, the route server can only forward one path per prefix to each peer. With ADD-PATH, it forwards received paths within each destination's negotiated PATHS-LIMIT. Downstream routers make their own best-path decisions.</p>
-<!-- source: internal/component/bgp/plugins/rs/ -- route server ADD-PATH forwarding -->
 </div>
 </div>
             </section>
@@ -447,7 +429,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

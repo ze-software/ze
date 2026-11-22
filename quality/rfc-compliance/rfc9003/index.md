@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 4 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 4 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 4 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 2 | 2 of 10 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 8 | 8 of 10 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 10 |
 | Tests linked to requirements | 10 |
 | Recorded audit verdicts | 2 |
-| Fault test records | 2 |
+| Fault test records | 8 |
 | Summary | `rfc/short/rfc9003.md` |
 | Requirement table | `rfc/requirements/rfc9003.md` |
 | RFC text | `rfc/full/rfc9003.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: Extended BGP Administrative Shutdown Communication
 
 **Area:** Administrative Shutdown Communication update
 
-**Test verification:** 1 of 4 MUST proven
+**Test verification:** 4 of 4 MUST proven
 
-**Evidence:** unit 1
+**Evidence:** unit 4
 
 **Unmet:** -
 
@@ -110,19 +110,19 @@ Included in automatic checks: Extended BGP Administrative Shutdown Communication
 
 ## Figures
 
-- **MUST bar**: Ze verified 1, Tests awaiting verification 3
-- **Overview bar**: Ze MUST verified 1, Tests awaiting verification 3, Not assessed 7
+- **MUST bar**: Ze verified 4
+- **Overview bar**: Ze MUST verified 4, Not assessed 7
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 4 |
 | MUST rows kept (the MUST bar) | 4 |
-| Ze verified | 1 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -180,8 +180,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L448) | unit/verify | not verified |
-| positive | [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L430) | unit/verify | not verified |
+| negative | [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L448) | unit/verify | revert, verified |
+| positive | [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L430) | unit/verify | revert, verified |
 
 ### [`RFC9003-2-2`](#rfc9003-2-2)
 
@@ -191,8 +191,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L469) | unit/verify | not verified |
-| positive | [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L467) | unit/verify | not verified |
+| negative | [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L469) | unit/verify | revert, verified |
+| positive | [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L467) | unit/verify | revert, verified |
 
 ### [`RFC9003-2-3`](#rfc9003-2-3)
 
@@ -215,8 +215,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-r
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L432) | unit/verify | not verified |
-| positive | [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L450) | unit/verify | not verified |
+| negative | [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L432) | unit/verify | revert, verified |
+| positive | [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L450) | unit/verify | revert, verified |
 
 ## Requirement list review
 

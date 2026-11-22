@@ -29,9 +29,11 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-### Reload\, reboot\, halt\, or shut down
+### Reload configuration without rebooting
 
 Category: Lifecycle
+
+Reapplies the active configuration in place without rebooting or powering off the system\.
 
 ## Vendor equivalents
 
@@ -48,7 +50,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `poweroff` (verified, vyos\-cli)
-  - Intent: Reload\, reboot\, halt\, or shut down
-- `reboot` (verified, vyos\-cli)
-  - Intent: Reload\, reboot\, halt\, or shut down
+
+No equivalent listed.

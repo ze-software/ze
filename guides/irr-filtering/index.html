@@ -67,8 +67,6 @@
 <li><a href="#troubleshooting">Troubleshooting</a></li>
 </ol></details></nav><div class="doc-body">
 <p>Use this for a customer or peer that should only announce prefixes registered to its network. It replaces a separate <code>bgpq4</code> job and static prefix-list deployment.</p>
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- IRR resolution, refresh, and filter decisions -->
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleConfigure, the in-memory prefix store -->
 <h2 id="complete-example">Complete example</h2>
 <p>This example accepts registered routes from customer AS 65001. Replace the addresses, ASN, and <code>AS-CUSTOMER</code> with values for your network.</p>
 <pre><code>plugin {
@@ -140,12 +138,9 @@ bgp {
     }
 }
 </code></pre>
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <p>The two plugin blocks load the filter and Adj-RIB-In. The Adj-RIB-In plugin is not required to make the filter decision, but it provides <code>show bgp adj-rib-in</code> so you can verify which routes passed.</p>
 <p>The suffix in <code>bgp-filter-irr:65001</code> is the peer's remote ASN. It selects the dynamic list associated with AS 65001. Use the corresponding ASN in each peer's filter reference. Prefixes that do not match that list are rejected by the implicit deny.</p>
 <p>No <code>attach process bgp-filter-irr</code> block is needed. A filter reference invokes the plugin directly through the BGP import filter chain.</p>
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- named import filter execution -->
-<!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- peer AS-SET configuration -->
 <h2 id="add-it-to-an-existing-stored-configuration">Add it to an existing stored configuration</h2>
 <p>If the stored <code>ze.conf</code> already contains the BGP peer but no IRR filter, stop Ze and add these settings to the stored configuration. An offline <code>ze config set</code> writes the file path it is given and never resolves a stored name, so the stored configuration travels through stdin: <code>ze config cat</code> reads it, one <code>ze config set -</code> stage applies each setting, and <code>ze config import</code> stores the result as a new version.</p>
 <pre><code class="language-console">$ sudo systemctl stop ze.service
@@ -160,16 +155,10 @@ $ ze config cat ze.conf |
 $ sudo systemctl start ze.service
 </code></pre>
 <p>The import replaces the stored <code>ze.conf</code> only because <code>--yes</code> confirms it; the previous version stays available to <code>ze config rollback</code>. Nothing here contacts the daemon, which is stopped anyway. Starting Ze loads the plugin; the <code>irr</code> plugin fetches the AS-SET in the background the first time and stores it. An UPDATE that arrives before the list is rejected at once and kept for another evaluation, as <a href="#after-a-restart">After a restart</a> describes. Replace <code>ze.conf</code>, <code>customer-a</code>, <code>AS-CUSTOMER</code>, and <code>65001</code> with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.</p>
-<!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig -->
-<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
 <p>Run <code>ze config cat ze.conf</code> before and after these commands to review the stored changes. This offline workflow is separate from the live SSH workflow in the demonstration below.</p>
-<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
 <h2 id="choose-the-as-set">Choose the AS-SET</h2>
 <p>Set <code>session { irr { as-set AS-CUSTOMER; } }</code> when you know the correct AS-SET. This is the most predictable production configuration.</p>
 <p>Tab completes the name. On the peer's <code>session irr as-set</code>, on the firewall's AS-SET leaves, and after <code>update irr as-set</code> and <code>clear irr as-set</code>, Ze offers every AS-SET the <code>irr</code> plugin knows: each name a consumer references and each name it has stored, in upper case, marked "AS-SET with a stored IRR dataset" or "AS-SET a consumer references, nothing stored yet". The suggestion refuses nothing, so an AS-SET nothing references yet stays valid: writing it is how you ask for it.</p>
-<!-- source: internal/plugins/irr/completion.go -- knownASSets -->
-<!-- source: internal/plugins/irr/register_completion.go -- asSetHelp -->
-<!-- source: internal/plugins/irr/register_commands.go -- completeASSetArgument -->
 <p>If you omit <code>as-set</code>, Ze queries PeeringDB with the remote ASN. It uses the registered <code>irr_as_set</code> value when one exists, then falls back to the origin object <code>AS&lt;number&gt;</code> if PeeringDB does not return an AS-SET.</p>
 <p>For a peer that must bypass this policy, set:</p>
 <pre><code>session {
@@ -192,11 +181,6 @@ same set without asking PeeringDB, and asks PeeringDB again when the set is due
 for a refresh; if PeeringDB does not answer, the stored set is kept. Where and
 when the <code>irr</code> plugin fetches is <code>system irr</code> and <code>system peeringdb url</code>
 (<a href="../command-reference/">command reference</a>, "show, update and clear irr").</p>
-<!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- newIRRConfigTx -->
-<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply -->
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleConfigure -->
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR -->
-<!-- source: internal/plugins/irr/irr.go -- clearResolverCache -->
 <h2 id="verify-before-carrying-traffic">Verify before carrying traffic</h2>
 <p>After committing the configuration and establishing the BGP session, check the generated list:</p>
 <pre><code class="language-console">$ ze cli -c 'show bgp irr | no-more'
@@ -217,12 +201,15 @@ $ ze cli -c 'update irr as-set AS-CUSTOMER'
 </code></pre>
 <p>A refresh that returns prefixes is stored by the <code>irr</code> plugin, and the filter replaces the list it enforces atomically when it reads the stored copy (see "After a restart" below). Three other outcomes keep the last known good list instead, and each records the reason in <code>show bgp irr</code>:</p>
 <ul>
-<li>The refresh failed: the server was unreachable, refused the query, or sent a truncated reply.</li>
-<li>The refresh returned more than 500000 prefixes across both families. The BGP filter refuses the list whole rather than cutting it, because a cut kept the IPv4 half and lost IPv6; the error gives the IPv4 and IPv6 counts. Narrow the AS-SET.</li>
-</ul>
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- prefixListFromIRR -->
-<ul>
-<li>The refresh succeeded and returned no prefixes at all. Ze treats "I have nothing" the same as a failure, because an empty allow-list rejects every route the peer sends. A server that answers <code>D</code> (key not found), answers with no records, or reports an error can therefore not empty a live list.</li>
+<li>
+<p>The refresh failed: the server was unreachable, refused the query, or sent a truncated reply.</p>
+</li>
+<li>
+<p>The refresh returned more than 500000 prefixes across both families. The BGP filter refuses the list whole rather than cutting it, because a cut kept the IPv4 half and lost IPv6; the error gives the IPv4 and IPv6 counts. Narrow the AS-SET.</p>
+</li>
+<li>
+<p>The refresh succeeded and returned no prefixes at all. Ze treats "I have nothing" the same as a failure, because an empty allow-list rejects every route the peer sends. A server that answers <code>D</code> (key not found), answers with no records, or reports an error can therefore not empty a live list.</p>
+</li>
 </ul>
 <p>The prefixes an empty answer left in place are still enforced. <code>show bgp irr</code> and <code>show firewall irr</code> mark the entry <code>stale</code> and give the age of the data, so enforcing data nobody has confirmed is visible rather than silent.</p>
 <p>The two address families are kept separately. Ze queries IPv4 and IPv6 with two commands, and a server that returns prefixes for one and nothing for the other keeps the last known good list of the family that returned nothing. The entry is marked <code>stale</code> and reports the age of the older list. This matters most for an interface binding, where the rules accept the registered prefixes of each family and drop the rest: a family whose list was emptied would have every packet dropped.</p>
@@ -235,8 +222,6 @@ $ ze cli -c 'clear irr asn 65001'
 <p>The prefix-lists survive a restart. The <code>irr</code> plugin fetches every AS-SET a filter enforces, stores each list in Ze's state store, and the BGP filter reads the stored lists when it starts. A restarted Ze sends no IRR or PeeringDB query at start for a set that is stored: <code>show bgp irr</code> reports the same AS-SETs, counts, <code>generation</code> and <code>refreshed-at</code> as before the restart, and an UPDATE is judged against the stored list at once. A refresh happens only when <code>system irr refresh-interval</code> says it is due, counted from the last time the server answered (<code>show irr</code> gives the next refresh), or when you run <code>update irr all</code>, <code>update irr as-set &lt;name&gt;</code> or <code>update irr asn &lt;asn&gt;</code>. When the IRR server cannot be reached, the stored list stays enforced.</p>
 <p>A configuration reload keeps the lists already enforced, except for an ASN whose AS-SET changed, which starts from no list until the new set's stored list is read. A set that is not stored yet, on the first start or after a commit that names a new one, is fetched by the <code>irr</code> plugin at once. Until it arrives, an UPDATE from its peer has its announced routes rejected at once, with no wait, and they are kept for another evaluation; its withdrawals still apply. <code>show bgp irr</code> reports the ASN <code>pending</code> meanwhile. When the list arrives, the filter asks the peer for them again by ROUTE-REFRESH, as described in the next section, so the peer needs Route Refresh negotiated and the <code>refresh</code> permission. A peer without them keeps those routes rejected until it sends them again.</p>
 <p><code>clear irr as-set &lt;name&gt;</code> removes the stored list: the filter then rejects and holds that set's announcements, as for a set not stored yet, until <code>update irr as-set &lt;name&gt;</code> stores it again. A stored list the filter cannot read, for example one that failed its integrity check, is reported by <code>ze show doctor</code> under <code>doctor-bgp-irr-stored-copy-unreadable</code>, and the filter keeps the list it read before.</p>
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleFilterUpdate, handleConfigure, apply -->
-<!-- source: internal/component/bgp/plugins/filter_irr/stored.go -- storeReader -->
 <p>At first enrollment, do not place the session into service until <code>show bgp irr</code> reports <code>status: ok</code>. A peer without loaded prefix data has no list from which to make a useful allow decision.</p>
 <h3 id="a-rejected-route-is-evaluated-again-when-the-list-changes">A rejected route is evaluated again when the list changes</h3>
 <p>A route rejected because its ASN had no list yet, or because the list did not hold it, is kept for another evaluation. When a list arrives or a refresh changes it, the filter checks what it kept, and for each peer with a route the new list authorizes it sends a ROUTE-REFRESH for that family. The peer sends its routes again and the filter decides them against the new list. The filter itself never fetches: a fetch that failed is retried every minute by the <code>irr</code> plugin, and the list it then stores reaches the filter.</p>
@@ -250,20 +235,10 @@ attach process bgp-filter-irr {
 </code></pre>
 <p>A <code>send</code> list on the peer replaces the group's, so a peer that states its own <code>send</code> list for the filter needs <code>refresh</code> in that list. Without either piece, the route stays rejected until the peer sends it again, and the filter logs one warning for the peer that names the missing piece. When a configuration is applied, the filter also logs one warning for each IRR-filtered peer that lacks the permission, and one for each to which Ze does not advertise Route Refresh. If the ROUTE-REFRESH fails for another reason, for example a timeout, the filter asks again on its next pass. At most 100 000 rejected prefixes are kept; past that a rejected prefix is evaluated again only when its peer sends it again, and the filter logs one warning. A withdrawal, an accepted announcement and a session that goes down each drop what was kept for that route or peer.</p>
 <p>An UPDATE that announces some routes the list authorizes and some it does not keeps the authorized ones and drops the rest, in the IPv4 NLRI field and in a multiprotocol block of IPv4 or IPv6 unicast, multicast or labeled unicast alike. An UPDATE that withdraws routes keeps its withdrawals even when the filter rejects every route it announces, and even before the ASN has a list. The exception is a rejected route in a multiprotocol block of another family, a FlowSpec rule for example, which Ze cannot remove from the UPDATE: that UPDATE is rejected whole, its authorized routes and its withdrawals included. The filter then asks the peer for the authorized routes again every minute, and the peer answers with the same UPDATE, so those routes stay rejected until the peer stops announcing the refused one.</p>
-<!-- source: internal/component/bgp/plugins/filter_irr/readmit.go -- readmitter, heldPrefixMax, readmitInterval -->
-<!-- source: internal/component/bgp/plugins/filter_irr/command.go -- show, check, and manual refresh commands -->
-<!-- source: internal/component/resolve/irr/store/store.go -- atomic refresh, last-known-good, and the firewall plugin's persistence -->
-<!-- source: internal/component/resolve/irr/client.go -- RPSL reply classification (parseReply) -->
-<!-- source: internal/component/firewall/plugins/irr/command.go -- firewall show and clear commands -->
 <h2 id="local-demonstration">Local demonstration</h2>
 <p>The demonstration starts Ze with a customer peer but no IRR policy. It loads the server, AS-SET and import filter sections into one SSH candidate, compares them, then commits. The IRR service is a deterministic local test server, not a public registry. Its <code>AS-TEST</code> object contains <code>10.0.0.0/24</code> but not <code>192.168.0.0/24</code>.</p>
-<!-- source: demos/terminal/topics/irr/configure.tape -- sectioned live configuration -->
-<!-- source: internal/test/mock/irr/irr.go -- irrResponses -->
 <p>The customer announces both routes and two control prefixes. The check commands explain decisions; they do not prove an UPDATE arrived. Before each reannouncement, the lab waits for the previous customer session to depart and its Adj-RIB-In to clear. It puts the current policy's accepted control last in the fixture's actual send order: <code>10.0.1.0/24</code> for <code>AS-TEST</code>, or <code>192.0.2.0/24</code> for <code>AS-V4ONLY</code>. Seeing that control in Adj-RIB-In proves the earlier announcements were processed. The outside prefix and the other policy's control must be absent.</p>
 <p>The failure changes the peer to <code>AS-V4ONLY</code>, which lacks the customer prefix. After the new session's final control arrives, <code>10.0.0.0/24</code> must be absent. The repair restores <code>AS-TEST</code> through SSH, refreshes it with <code>update irr as-set AS-TEST</code>, then announces again and checks the customer route and its final control. Customer establishment has a separate deadline covering Ze's existing maximum 60-second reconnect backoff plus handshake time; policy convergence still uses its shorter bound. Ze stays running throughout.</p>
-<!-- source: demos/terminal/topics/irr/show.tape -- failure, diagnosis and live repair -->
-<!-- source: internal/le/site/terminaldemo/scenarios_routing.go -- checkTopicIRR, requireIRRState -->
-<!-- source: internal/le/site/terminaldemo/validate_policy_evidence.go -- orderIRRAnnouncements, requireIRRCustomerCleared, awaitIRRCustomer, requireIRRRoutes -->
 <figure class="terminal-demo" data-terminal-demo="irr-filter">
   <div class="terminal-demo__intro">
     <div>
@@ -476,7 +451,7 @@ must succeed before this source is published as a recording.</code></pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 19:29 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

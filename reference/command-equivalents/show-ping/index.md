@@ -35,7 +35,7 @@ Sends ICMP echo requests to \<dest\> \(IP or hostname\)\. Default count is 5\. T
 
 ## Mapping intents
 
-### Ping and traceroute diagnostics
+### Ping reachability check
 
 Category: Diagnostics
 
@@ -51,10 +51,8 @@ No equivalent listed.
 
 ### SR OS
 - `ping <target>` (verified, nokia\-mdcli)
-  - Intent: Ping and traceroute diagnostics
+  - Intent: Ping reachability check
 
 ### VyOS
 - `ping <target>` (verified, vyos\-cli)
-  - Intent: Ping and traceroute diagnostics
-- `traceroute <target>` (verified, vyos\-cli)
-  - Intent: Ping and traceroute diagnostics
+  - Intent: Ping reachability check

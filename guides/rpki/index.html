@@ -101,7 +101,6 @@ received prefix.</p>
 <li><a href="#driving-complete-mock-rtr-sets">Driving complete mock RTR sets</a></li>
 </ol></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/bgp/plugins/rpki/rpki_config.go -- parseRPKIConfig; internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions; internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration -->
 <p>An UPDATE must name the negotiated peer AS before RPKI validates its routes.
 The JSON handler refuses an unknown or malformed peer AS before it records
 routes or emits validation results. It counts each refused UPDATE in
@@ -109,7 +108,6 @@ routes or emits validation results. It counts each refused UPDATE in
 <code>malformed-peer-as</code>. These refusals do not contribute per-prefix validation
 outcomes. A session-down event still removes retained routes when its peer AS
 is unknown.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handleEvent, SetMetricsRegistry -->
 <h2 id="configuration">Configuration</h2>
 <p>Add the <code>bgp-rpki</code> and <code>bgp-adj-rib-in</code> plugins, then configure one or more RTR cache servers under <code>bgp { rpki { ... } }</code>.</p>
 <pre><code>plugin {
@@ -173,8 +171,6 @@ initializes the client at version 1 before it rejects Ze's version-2 query.
 This cache setting leaves Ze's version negotiation unchanged. StayRTR fixed
 the reply upstream in pull request 167, after v0.6.4: a release that includes
 it needs neither flag. Run v0.6.4 with both flags, or a later release.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- newRTRSession, handlePDU -->
-<!-- source: test/interop/Dockerfile.stayrtr -- pinned v1 cache configuration -->
 <h3 id="trusted-rtr-transport">Trusted RTR Transport</h3>
 <p>Choose TLS unless the cache is on a trusted, controlled network. Unprotected TCP
 requires an explicit <code>trusted-network true</code>; that setting records the operator's
@@ -219,7 +215,6 @@ unchanged. Transport changes retain the last complete payload set only until
 its existing expiration deadline.
 Reload replaces only roots named in the delivery. An omitted <code>bgp</code> or <code>pki</code>
 root keeps its committed value; an explicitly removed root does not.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rtr_tls.go -- buildRTRTLSConfig, startTLS; internal/component/bgp/plugins/rpki/rpki_config_verify.go -- parseRPKISections; internal/component/bgp/plugins/rpki/rpki_reload.go -- replaceConfig -->
 <h3 id="config-reference">Config Reference</h3>
 <table>
 <thead>
@@ -311,11 +306,7 @@ root keeps its committed value; an explicitly removed root does not.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- global rpki leaves -->
 <p>Multiple cache servers are supported for redundancy. Ze tries them in preference order (a lower value is preferred; equal values keep their configuration order) and uses the most preferred server that answers. Ze holds one server's data at a time, never the union of several. A completed full synchronization atomically replaces the previous server's data; partial transfers do not replace the working set. While the new server's load is still arriving, validation answers from the previous server's set, unchanged: nothing in that load, withdrawals included, reaches the working set before its End of Data, and an update the previous server sends afterwards no longer touches the data in use. "RTR Poll Timing" below covers Cache Reset and the return to a more-preferred server.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- RTRSession.handlePDU, RTRSession.startFullSync -->
-<!-- source: internal/component/bgp/plugins/rpki/rpki_config.go -- parseRPKIConfig, sortCachesByPreference -->
-<!-- source: internal/component/bgp/plugins/rpki/yang/ -- ze-rpki YANG schema -->
 <h4 id="per-peer-and-per-group-actions">Per-peer and per-group actions</h4>
 <p>The <code>action</code> block (both the origin <code>action</code> and the ASPA <code>action</code>) can also be set under a
 <code>peer</code> or a <code>group</code>, overriding the global <code>rpki / action</code> for routes learned from that peer.
@@ -354,7 +345,6 @@ completed synchronization for a configured session whose payload set is still
 current and unexpired. After a transport change, those sessions can be unsynced
 while Ze still uses the previous generation's unexpired data. The summary's
 <code>validation-enabled</code> reports whether validation has a usable payload set.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand, validationEnabled -->
 <h4 id="blackhole-exemption">Blackhole exemption</h4>
 <table>
 <thead>
@@ -413,14 +403,12 @@ gets it for <code>65001:666</code>. On a session that names no community the lea
 nothing: it would accept a route it would have rejected and discard nothing. See
 <a href="../configuration-model/#blackhole-honoring-rfc-7999">Blackhole Honoring</a> for the
 <code>blackhole</code> container itself.</p>
-<!-- source: internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- blackhole-exempt; internal/component/bgp/plugins/rpki/blackhole.go -- invalidByLengthOnly, carriesAgreedBlackhole -->
 <p>Cache updates also reconsider this exemption when the origin state remains
 Invalid. Replacing a length-only authorization with one for a different origin
 makes the retained route ineligible; restoring the correct origin can admit it
 again without another UPDATE.</p>
 <h3 id="plugin-bindings">Plugin Bindings</h3>
 <p>Bind the rpki plugin with <code>attach process rpki { receive [ update-received state ]; }</code>. UPDATEs supply the received routes; state events remove a disconnected peer's tracked paths. Bind adj-rib-in with <code>attach process adj-rib-in { receive [ update-received state ]; }</code> too: it owns the validation gate and retained received routes.</p>
-<!-- source: internal/component/bgp/plugins/rpki/register.go -- Dependencies: bgp-adj-rib-in -->
 <p>Both bindings grant no send type and do not receive the OPEN, so adding them to
 a peer whose session is already up does not reset that session. A commit or
 reload that attaches them tells each newly attached process the session is up,
@@ -429,7 +417,6 @@ negotiated family, so the routes the peer announced before the change are
 validated too. A peer that did not advertise Route Refresh and has already
 announced routes cannot be asked again, so that peer is restarted (Cease
 subcode 6) instead. The full rule is in <a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-reload.md" target="_blank" rel="noopener">Config Reload</a>.</p>
-<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- receiveOnly, feedCatchUp -->
 <h2 id="how-it-works">How It Works</h2>
 <h3 id="validation-states">Validation States</h3>
 <p>Each received route gets one of three states (RFC 6811):</p>
@@ -459,12 +446,10 @@ subcode 6) instead. The full rule is in <a href="https://github.com/ze-software/
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/rpki/validate.go -- Validate; internal/component/bgp/plugins/rpki/rpki_config.go -- parseRPKIConfig -->
 <p>A prefix ze cannot parse gets Invalid and a warning, never NotFound. NotFound
 states that the VRP set was consulted and covers nothing, and the default
 <code>not-found accept</code> action accepts a route on that reading. A prefix that was
 never validated fails closed instead.</p>
-<!-- source: internal/component/bgp/plugins/rpki/validate.go -- Validate -->
 <h3 id="validation-flow">Validation Flow</h3>
 <ol>
 <li>Ze connects to configured RTR cache servers and downloads VRPs</li>
@@ -477,7 +462,6 @@ never validated fails closed instead.</p>
 <h3 id="fail-open-safety">Fail-Open Safety</h3>
 <p>If the rpki plugin does not respond within <code>validation-timeout</code> seconds (default: 30), pending routes are automatically promoted to installed. This prevents route black-holing if the RPKI infrastructure is unavailable.</p>
 <p>If all RTR cache servers disconnect or fail authentication, the last complete VRP and ASPA sets remain usable only until the Expire Interval from their last completed End of Data. Expiry clears both sets and triggers re-validation. Partial responses, reconnects, and credential changes do not extend that deadline.</p>
-<!-- source: internal/component/bgp/plugins/rpki/ -- RPKI validation logic, RTR client, fail-open -->
 <h3 id="re-validation-on-vrp-change">Re-validation on VRP Change</h3>
 <p>When the VRP set changes, Ze re-validates every tracked route and applies the
 current action (RFC 6811 Section 4). A rejection marks the received route
@@ -494,9 +478,6 @@ remain available to ROA/ASPA cache changes until the original GR lifetime is
 purged; a duplicate old DOWN cannot erase them or a fresh connection. Terminal
 Peer removal removes only that original owner's entries. An unowned observation stays separate and
 cannot acquire a received route's authority.</p>
-<!-- source: internal/component/bgp/plugins/rpki/aspa_tracker.go -- rpkiSource, routeKey, removePeer, removeOwner -->
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handlePeerDown, buildDecisions -->
-<!-- source: internal/component/bgp/plugins/rpki/rpki_reload.go -- configRouteSnapshot, revalidateConfigSnapshot -->
 <p>RPKI events also report cache availability changes. A route received before a
 nonempty ROA load initially reports <code>unavailable</code>; synchronization publishes its
 current origin and ASPA verdicts even if both verdicts are unchanged. Cache
@@ -518,7 +499,6 @@ routes validate NotFound against an empty VRP set, and the default
 <code>not-found accept</code> installs them. Re-validation after the sync applies the
 configured action to the new state. Origin validation makes an Invalid route
 ineligible only when its effective action is <code>reject</code>.</p>
-<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation.go -- applyToInstalled; internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions -->
 <h3 id="rtr-poll-timing">RTR Poll Timing</h3>
 <p>The Refresh Interval from End of Data controls the next successful-cache poll;
 the Retry Interval controls attempts after a failed query, including a cache
@@ -526,7 +506,6 @@ that has never answered. The Expire Interval is a separate data lease starting
 at End of Data. Its timer runs independently of blocked network reads and
 route re-validation. A successful End of Data renews the lease; expiration
 invalidates the serial base, so the next query requests a complete reset.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- pollDelay; internal/component/bgp/plugins/rpki/rtr_expire.go -- prepareQuery, rtrDataLease -->
 <p>A cache answering No Data Available ends the current attempt. Ze tries the next
 cache in preference order; if none answers, it retries with Reset Queries after
 the Retry Interval. It does not wait for the cache to close its connection.</p>
@@ -549,7 +528,6 @@ interop lab's StayRTR is started with <code>-rtr.refresh 10</code> and sends 10 
 StayRTR's default is 3600), passes over such a cache and moves to the next one in
 preference order. When no cache answers, the next round runs when the first
 of them may be asked again.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- cacheGroup.Run, cacheGroup.poll, cacheGroup.probe, cacheGroup.load -->
 <p>A Ze defect a cache's PDU reaches ends that one sync and nothing else. Ze logs
 it at ERROR with the cache, the PDU type in flight and the stack, counts it in
 <code>ze_task_panics_total{component="rpki",task="rtr-read"}</code>, and writes a crash
@@ -559,7 +537,6 @@ code 1, Internal Error, and no encapsulated PDU (RFC 8210 Sections 5.11 and
 closes and the attempt counts as a failed query: the next cache in preference
 order takes the load, and this cache is asked again after its Retry Interval.
 The validation data stays as the last completed sync left it.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- RTRSession.readLoop, RTRSession.applyEndOfData; internal/component/bgp/plugins/rpki/panic_guard.go -- reportInternalError -->
 <h3 id="as-path-edge-cases">AS_PATH Edge Cases</h3>
 <table>
 <thead>
@@ -632,12 +609,10 @@ The validation data stays as the last completed sync left it.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handleCommand, overviewCommand, statusCommand, cacheCommand, roaCommand, summaryCommand, aspaCommand, validateCommand -->
 <p><code>show bgp rpki aspa &lt;customer-asn&gt;</code> answers its one result under <code>entries</code>, in
 the same row shape the no-argument spelling writes, so <code>| count</code> and <code>| display</code>
 act on either. <code>found</code> stays beside the rows: it separates a customer with no
 ASPA record from an empty cache, which the row count alone cannot say.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- aspaCommand -->
 <p><code>show bgp rpki</code> answers the counters and the cache server rows as siblings, so
 <code>show bgp rpki | summary</code> cuts it down to the counters alone. That name is a pipe
 alias the plugin declares over its own command, and it answers the same record
@@ -648,13 +623,11 @@ alias the plugin declares over its own command, and it answers the same record
 set is available, including an authenticated empty set. It remains true while
 that set is retained across a transport change, and becomes false on expiration
 or when RPKI is disabled. It is not a claim that every prefix has a covering ROA.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- summaryFieldNames, summaryAliasExpansion, appendSummaryFields -->
 <p>A plugin's pipe alias lives in the daemon's registry. <code>ze cli</code> with no command
 argument expands the chain in the client process instead, so <code>| summary</code> comes
 back there as <code>pipe error: unknown pipe operator: summary</code>. Use
 <code>ze cli -c "..."</code> as above, or the interactive session a plain ssh client
 reaches. <code>show bgp rpki summary</code> works in every client.</p>
-<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
 <p>Example:</p>
 <pre><code>$ ze cli -c "show bgp rpki status | json compact"
 {"running":true,"vrp-count-ipv4":3,"vrp-count-ipv6":0,"sessions":1,"sessions-synced":1,"synced":true,"aspa-enabled":false,"aspa-records":0,"cache-servers":[{"address":"192.0.2.1","port":3323,"state":"idle","synced":true,"version":2}],"actions":{"invalid":"reject","not-found":"accept","aspa-invalid":"reject","aspa-unknown":"accept"},"peer-actions":[]}
@@ -669,7 +642,6 @@ even though none of the new sessions has synchronized. See <code>validation-enab
 in the summary for data availability. <code>state</code> is the RTR connection state,
 which returns to <code>idle</code>
 between polls even after a successful sync.</p>
-<!-- source: internal/component/bgp/plugins/rpki/ -- RPKI CLI commands (status, cache, roa, summary) -->
 <h2 id="rpki-validation-events">RPKI Validation Events</h2>
 <p>When the rpki plugin is loaded, it emits validation events that other plugins can subscribe to. A plugin subscribing to <code>rpki direction received</code> receives a JSON event for each validated UPDATE:</p>
 <pre><code class="language-json">{
@@ -687,7 +659,6 @@ between polls even after a successful sync.</p>
 }
 </code></pre>
 <p>When the ROA cache is empty: <code>"rpki": {"status": "unavailable"}</code>.</p>
-<!-- source: internal/component/bgp/plugins/rpki/ -- RPKI event emission -->
 <h2 id="merged-events-bgp-rpki-decorator">Merged Events (bgp-rpki-decorator)</h2>
 <p>Instead of receiving separate UPDATE and rpki events, you can use the <code>bgp-rpki-decorator</code> plugin to get a single <code>update-rpki</code> event containing both the UPDATE data and the RPKI validation state:</p>
 <pre><code>plugin {
@@ -725,11 +696,9 @@ bgp {
 }
 </code></pre>
 <p>If the RPKI validation does not arrive within the timeout (2 seconds), the event is emitted without the <code>rpki</code> section (graceful degradation).</p>
-<!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator registration -->
 <h2 id="aspa-path-verification">ASPA Path Verification</h2>
 <p>ASPA (Autonomous System Provider Authorization) checks AS paths against published provider authorizations. Ze uses the RTR v2 wire format from draft-ietf-sidrops-8210bis-27 Section 5.12 and the verification procedures from draft-ietf-sidrops-aspa-verification-28 Section 5. RFC 9582 specifies the ROA profile, not RTR v2.</p>
 <p>Verification runs on IPv4 unicast and IPv6 unicast routes only, as draft-ietf-sidrops-aspa-verification Section 6.2 requires. A route of any other address family carries no ASPA state, is not tracked for re-validation, and no ASPA action excludes it.</p>
-<!-- source: internal/component/bgp/plugins/rpki/aspa_verify.go -- aspaAppliesTo -->
 <p>ASPA is opt-in. Enable it under <code>rpki / aspa / validation</code> and configure <code>role / import</code> on each participating peer or group. Once enabled, the default policy keeps Invalid routes in the Adj-RIB-In but excludes them from route selection and advertisement. Valid and Unknown routes are accepted unless another configured policy rejects them.</p>
 <h3 id="configuration_1">Configuration</h3>
 <pre><code>bgp {
@@ -923,7 +892,6 @@ preferred cache, so the outage follows what the test observed rather than a
 clock. Creating the release file ends the outage, and the router fails back to
 the preferred cache at its Retry Interval. Each file is waited for at most 30
 seconds. <code>le mock rtr help</code> prints every flag.</p>
-<!-- source: internal/test/mock/rtr/rtr.go -- Run, rtrMockOutage -->
 <h2 id="testing-rpki-locally">Testing RPKI Locally</h2>
 <p>The <code>le mock rpki</code> command starts a deterministic mock RTR server that auto-generates VRPs based on the first octet of each /8 prefix:</p>
 <pre><code>le mock rpki --port 3323
@@ -933,7 +901,6 @@ advertises two-second refresh and one-second retry intervals. Defaults remain
 3600 and 600 seconds. Refresh accepts 1 through 86400, and retry accepts
 1 through 7200. Expiration is the larger of 7200 seconds or one second beyond
 either requested timer, as required by <a href="https://www.rfc-editor.org/rfc/rfc8210#section-6" target="_blank" rel="noopener">RFC 8210, Section 6</a>.</p>
-<!-- source: internal/test/mock/rpki/rpki.go -- Run, newRPKITimers -->
 <p>Validation states are predictable (for routes from AS 65001 with default flags):</p>
 <table>
 <thead>
@@ -972,8 +939,6 @@ binding is present until the live commit. The validator checks all three
 retained routes and their validation states. It also requires exactly one
 connection in the external transit fixture's log, which a replaced Ze peer
 cannot reset. The wrong-origin VRP explains why the Invalid route is ineligible.</p>
-<!-- source: demos/terminal/topics/rpki/configure.tape -- live sections -->
-<!-- source: internal/le/site/terminaldemo/scenarios_routing.go -- checkTopicRPKI, requireRPKITransit -->
 <p>The outage captures a pre-stop log boundary, then stops only the local RTR
 service. Ze polls and closes its RTR transport, so <code>idle</code> alone does not prove
 failure. A warning newer than that boundary diagnoses this outage, beside
@@ -982,9 +947,6 @@ After restart, the validator requires <code>rtr: sync complete</code> newer than
 outage's recorded failed poll, not merely unchanged cached data or an old
 failure/recovery pair. Equal whole-second log timestamps do not prove order;
 the check waits for a strictly newer event.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- cacheGroup.poll, syncOnce, Snapshot -->
-<!-- source: demos/terminal/topics/rpki/show.tape -- cache outage and recovery -->
-<!-- source: internal/le/site/terminaldemo/validate_policy_evidence.go -- beginRPKIOutage, rpkiCycleEvent, checkTransitConnectionLog -->
 <figure class="terminal-demo" data-terminal-demo="rpki">
   <div class="terminal-demo__intro">
     <div>
@@ -1085,7 +1047,6 @@ must succeed before this source is published as a recording.</code></pre>
 </figure>
 <h2 id="without-rpki">Without RPKI</h2>
 <p>When the rpki plugin is not loaded, routes flow directly into Adj-RIB-In without an RPKI pending state or validation delay. The plugin enables the validation gate when startup or a configuration change adds a cache server. Removing the last cache server disables the gate and releases retained routes from RPKI policy.</p>
-<!-- source: internal/component/bgp/plugins/adj_rib_in/ -- adj-rib-in validation gate -->
 <h2 id="troubleshooting">Troubleshooting</h2>
 <table>
 <thead>
@@ -1137,9 +1098,6 @@ rather than applying decisions to a daemon-local store.</p>
 admission. It refuses a removed, stopped or terminally failed owner, and must
 settle older owed validation publication before it can acknowledge zero new
 decisions. Empty input does not bypass that lifecycle boundary.</p>
-<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_commands.go -- batchValidateCommand -->
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- dispatchBatch, handlePeerDown -->
-<!-- source: internal/component/bgp/plugins/rpki/retained_validation.go -- validationSourceAdmitted, handleRetainedValidationEvent -->
 <h3 id="driving-complete-mock-rtr-sets">Driving complete mock RTR sets</h3>
 <p>For tests which change ROAs while a BGP source is down, <code>le mock rtr --vrp-file retained-vrps.txt --refresh 1 --retry 1</code> reads a complete current
 snapshot. Its first line is a nonzero uint32 serial; each later line uses
@@ -1151,14 +1109,12 @@ cannot read a partial write.</p>
 A malformed declared length closes that connection before reading a body or
 answering a query; a complete Serial Query carrying zero remains valid.
 Fixed mode keeps its whole-set responder for both normal query forms.</p>
-<!-- source: internal/test/mock/rtr/rtr.go -- rtrMockHandleConn -->
 <p>An unchanged Serial Query receives an empty delta. A changed serial receives
 Cache Reset, followed by the complete current set when the router sends Reset
 Query. This removes obsolete VRPs without keeping a second snapshot history.
 <code>--sync-release</code> still gates the first reply. Refresh and retry are the real
 protocol timers; the observer waits for <code>show bgp rpki cache</code> to publish the
 requested serial and checks the resulting received-route and socket state.</p>
-<!-- source: internal/test/mock/rtr/current_vrps.go -- rtrMockReadVRPs, rtrMockFileQuery -->
 </div>
 </div>
             </section>
@@ -1208,7 +1164,7 @@ requested serial and checks the resulting received-route and socket state.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

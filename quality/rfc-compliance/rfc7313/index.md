@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 2 | of 11 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 11 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 11 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 11 | 11 of 31 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 12 | 12 of 31 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -80,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 31 |
 | Tests linked to requirements | 31 |
 | Recorded audit verdicts | 5 |
-| Fault test records | 11 |
+| Fault test records | 12 |
 | Summary | `rfc/short/rfc7313.md` |
 | Requirement table | `rfc/requirements/rfc7313.md` |
 | RFC text | `rfc/full/rfc7313.txt` |
@@ -93,9 +93,9 @@ Included in automatic checks: Enhanced Route Refresh Capability for BGP-4: eleve
 
 **Area:** Enhanced Route Refresh
 
-**Test verification:** 5 of 11 MUST proven
+**Test verification:** 6 of 11 MUST proven
 
-**Evidence:** unit 5
+**Evidence:** unit 6
 
 **Unmet:** RFC7313-4-13, RFC7313-4-4, RFC7313-4-5, RFC7313-4-6, RFC7313-4-7
 
@@ -119,8 +119,8 @@ Included in automatic checks: Enhanced Route Refresh Capability for BGP-4: eleve
 
 ## Figures
 
-- **MUST bar**: Ze verified 5, Tests awaiting verification 1, Not built 5
-- **Overview bar**: Ze MUST verified 5, Tests awaiting verification 1, Not assessed 6, Not built 5
+- **MUST bar**: Ze verified 6, Not built 5
+- **Overview bar**: Ze MUST verified 6, Not assessed 6, Not built 5
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: Enhanced Route Refresh Capability for BGP-4: eleve
 | Mandatory requirements complete | not complete |
 | MUST rows | 11 |
 | MUST rows kept (the MUST bar) | 11 |
-| Ze verified | 5 |
+| Ze verified | 6 |
 | OS verified | 0 |
-| Tests awaiting verification | 1 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -284,7 +284,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRouteRefreshBadLengthByMessageSubtype`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L206) | unit/verify | not verified |
+| positive | [`TestRouteRefreshBadLengthByMessageSubtype`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L206) | unit/verify | revert, verified |
 | positive | [`TestRouteRefreshInvalidLengthNotDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2384) | unit/verify | not verified |
 
 ### [`RFC7313-5-3`](#rfc7313-5-3)

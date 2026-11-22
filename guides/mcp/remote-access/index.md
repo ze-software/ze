@@ -300,6 +300,8 @@ environment {
 | Configuration | Rejection |
 |---------------|-----------|
 | `bind-remote true` + `auth-mode none` | `bind-remote requires auth-mode != none` |
+| `auth-mode bearer` + non-loopback listener without TLS | `auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners` |
+| `auth-mode bearer-list` + non-loopback listener without TLS | `auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners` |
 | `auth-mode oauth` without `oauth.authorization-server` | `auth-mode=oauth requires oauth.authorization-server` |
 | `auth-mode oauth` without `oauth.audience` | `auth-mode=oauth requires oauth.audience` |
 | `auth-mode oauth` + non-loopback listener without TLS | `auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners` |
@@ -308,8 +310,10 @@ environment {
 | Issuer with a query, including an empty `?` | Invalid OAuth issuer |
 | Only one of `tls.cert` and `tls.key`, in any auth mode | Both TLS paths required |
 
-These checks run before MCP starts. A remote OAuth listener cannot silently
-fall back to plaintext, and a partial TLS configuration is never ignored.
+These checks run before MCP starts, and live address migration (`Reconfigure`)
+refuses to move a plaintext `bearer`, `bearer-list`, or `oauth` listener off
+loopback. A remote authenticated listener cannot silently fall back to
+plaintext, and a partial TLS configuration is never ignored.
 
 ## Security Notes
 

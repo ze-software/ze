@@ -16,7 +16,7 @@ Recent work
 
 2026-10-25 – 2026-11-09 (16 days)
 
-eBGP now rejects by default, routing policy is one shared tree for every protocol, RADIUS answers must be…
+RFC 8212 eBGP default-reject, shared multi-protocol policy, signed RADIUS answers and home FTTP CPE support.
 
  [Read the latest update](https://ze-software.net/project/changes/2026-10-25/)
 

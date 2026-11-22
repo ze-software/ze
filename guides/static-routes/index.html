@@ -109,14 +109,11 @@ routes. Named-table routes bypass the Loc-RIB and go directly to their
 configured backend, so neither import attachment filters them. Use a
 main-table route when it must participate in Loc-RIB policy or compete with
 another protocol.</p>
-<!-- source: internal/plugins/static/locrib.go -- inMainTable, applyProgrammed -->
 <p>Reserved table IDs (0, 253-255) are rejected. A 32-bit build additionally
 rejects a table ID or route metric above 2147483647, because the netlink
 bindings carry both in a machine int and would otherwise install the route in
 the main table at the kernel's default metric without reporting anything.
 Ze's released targets are 64-bit, where the full uint32 range is available.</p>
-<!-- source: internal/core/routingtable/registry.go — validateTableID, maxEncodableTableID -->
-<!-- source: internal/plugins/static/config.go — validateRouteMetric, maxNetlinkInt -->
 <h3 id="interface-only-next-hops">Interface-only next-hops</h3>
 <p>For point-to-point links (PPPoE, GRE tunnels) where the next-hop is
 the interface itself:</p>
@@ -241,9 +238,6 @@ They also refuse a <code>bfd-profile</code> that names no profile under
 those names), and one whose profile sets <code>passive</code>, because RFC 5881 §3
 requires both ends of a single-hop session to be Active. The passive error
 names the route and the next-hop.</p>
-<!-- source: internal/plugins/static/register.go — checkBFDProfiles -->
-<!-- source: internal/component/bfd/api/profile_check.go — CheckProfile -->
-<!-- source: internal/component/bfd/api/profile_reference.go — profileReference -->
 <h3 id="blackhole-and-reject">Blackhole and reject</h3>
 <p>Blackhole silently discards matching packets. Reject discards and sends
 an ICMP unreachable reply.</p>
@@ -301,16 +295,12 @@ writes the tag into the External Route Tag of the AS-external LSA (RFC 2328
 Appendix A.4.5), unless a <code>modify</code> instance on the <code>ospf filter export</code> chain
 sets another tag with <code>set tag</code>.
 <a href="../ospf/">OSPF redistribution</a> shows the chain.</p>
-<!-- source: internal/plugins/static/inject.go -- emitRouteChangeID -->
 <p>The tag also rides on the path the route installs in the Loc-RIB, so a
 <code>static filter import</code> or <code>rib filter import</code> chain can match it: a <code>match</code>
 instance with <code>action reject; tag [ 4242 ];</code> hides every static route tagged
 4242 and leaves the others selected. A route with no <code>tag</code> leaf carries no
 tag, so it never meets a <code>tag</code> condition; <code>tag 0</code> is a real tag.
 <a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md" target="_blank" rel="noopener">Route Policy at the Loc-RIB</a> covers the chains.</p>
-<!-- source: internal/plugins/static/locrib.go -- staticPath -->
-<!-- source: internal/plugins/static/config.go -- parseRoute -->
-<!-- source: internal/plugins/ospf/redistribute/export.go -- exportVerdict -->
 <h2 id="cli">CLI</h2>
 <pre><code>ze&gt; show static
 </code></pre>
@@ -354,8 +344,6 @@ up each time it ranks, so a commit or reload that changes only the distance
 re-ranks the routes already installed, and the kernel moves to the new winner.
 The number applies to main-table routes: a named-table route has nothing to be
 ranked against.</p>
-<!-- source: internal/core/rib/locrib/distance.go -- resolvedDistance, Reselect -->
-<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
 <p>One route can carry its own distance, which wins over <code>static N</code> for that route
 alone:</p>
 <pre><code>static {
@@ -369,8 +357,6 @@ alone:</p>
 </code></pre>
 <p>A reload that changes <code>rib { distance { static } }</code> leaves such a route at its
 own number.</p>
-<!-- source: internal/plugins/static/config.go -- parseRouteDistance -->
-<!-- source: internal/plugins/static/locrib.go -- staticPath -->
 <p><code>show rib</code> reports the winner per prefix with the protocol that holds it.</p>
 <h2 id="redistribute">Redistribute</h2>
 <p>Static routes register as protocol "static" in the redistribute
@@ -434,7 +420,7 @@ import it into BGP or OSPF, and the more specific routes keep forwarding.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

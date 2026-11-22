@@ -164,7 +164,6 @@ interfaces). Without a reachable flow source-ipv4 the detector still fires but e
 generic signal with no target, and the local responder cannot install a targeted
 rule. The coarse rule matches the destination prefix; characterization (below)
 then narrows it in place to the attack's protocol, ports, and TCP flags.</p>
-<!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeTarget fills the victim DstPrefix from traffic-usage -->
 <p>The flow sources are the <code>traffic-usage</code> plugin (build tag <code>ze_trafficusage</code>)
 and <code>flow-export</code> (<code>ze_flowexport</code>). A build that carries neither refuses
 <code>ddos detect enabled true</code> at <code>ze config validate</code>, at commit, at daemon start
@@ -178,9 +177,6 @@ configure does not run.
 <p><code>ddos flowspec response-level enforce</code> announces through the BGP subsystem, so a
 build without <code>ze_bgp</code> refuses it the same way, naming <code>ze_bgp</code>;
 <code>response-level alert</code> announces nothing and is accepted in every build.</p>
-<!-- source: internal/plugins/ddos/detect/register.go -- ConfigNeeds -->
-<!-- source: internal/plugins/anomaly/detect/register.go -- ConfigNeeds -->
-<!-- source: internal/plugins/ddos/flowspec/register.go -- ConfigNeeds, bgpPlugin -->
 <p>The drop rule is removed automatically when the attack stops (the detector
 observes RxPps falling below threshold, which works because nftables drops occur
 after the kernel NIC RX counter), when it reaches <code>max-mitigation-duration</code>, and
@@ -204,7 +200,6 @@ on-box conntrack signal): coarse destination-prefix drop.</li>
 IPv4-only <code>traffic-usage</code> map) are resolved from the ring. Characterization runs
 off the detection hot path with a bounded timeout and degrades to the coarse
 target when no flow source-ipv4 is reachable.</p>
-<!-- source: internal/plugins/ddos/detect/characterize.go -- classifyFlows: family + narrowest VectorTuple from the recent-flow ring -->
 <p><strong>Characterization refreshes the ring on demand.</strong> The recent-flow ring is
 normally refreshed only at each conntrack dump (every <code>flow-export</code>
 <code>active-timeout</code> seconds, default 60s). To avoid classifying against a pre-attack
@@ -217,23 +212,16 @@ budget, ddos local keeps the coarse destination drop it installed on the fast
 signal (still protective, just not narrowed). ddos-flowspec has no such
 fallback: see "When characterization does not happen" below. Lowering <code>active-timeout</code> is no longer required
 for responsive characterization (it still governs NetFlow/IPFIX export cadence).</p>
-<!-- source: internal/plugins/flowexport/register.go -- AttackDetected subscription forces conntrackWorker.Refresh -->
-<!-- source: internal/plugins/ddos/detect/characterize.go -- awaitClassifiableFlows polls the ring within characterize-timeout -->
 <p>Inspect the ring directly:</p>
 <pre><code>show flow recent                     # all recent conntrack flows (bounded to recent-flow-ring)
 show flow recent dst 203.0.113.42    # flows to a destination prefix or address
 </code></pre>
-<!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowRecent -->
 <p>Each signal carries a graded <strong>severity</strong> from the peak-to-threshold ratio:
 <code>medium</code> (&gt;=1x), <code>high</code> (&gt;=2x), <code>critical</code> (&gt;=5x). The FlowSpec responder can use
 <code>critical</code> to engage an immediate blackhole (below). The severity is graded once,
 when the detector triggers, from the highest rate seen above the threshold up to
 that moment. It is not revised while the attack continues: the <code>AttackOngoing</code>
 events that follow carry the current rates and no severity.</p>
-<!-- source: internal/core/ddosevent/event.go -- GradeSeverity -->
-<!-- source: internal/plugins/ddos/detect/detector.go -- applyTick (peakRxPps), onAttackStart (one grade at trigger) -->
-<!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeAndEmit calls GradeSeverity -->
-<!-- source: internal/core/ddosevent/event.go -- AttackOngoing has no severity -->
 <h3 id="upstream-flowspec-mitigation">Upstream FlowSpec mitigation</h3>
 <pre><code>ddos {
     detect {
@@ -263,7 +251,6 @@ traffic-rate of <code>rate-limit-bytes</code> bytes/sec (preserving legitimate t
 that rate), while <code>discard</code> drops the whole characterized flow. A <code>rate-limit-bytes</code>
 of <code>0</code> is valid and is equivalent to <code>discard</code>; <code>action rate-limit</code> without a
 <code>rate-limit-bytes</code> is a configuration error (no rate is fabricated).</p>
-<!-- source: internal/plugins/ddos/flowspec/config.go -- Validate: action mandatory; rate-limit requires rate-limit-bytes; 0 == discard -->
 <!-- source: internal/plugins/ddos/flowspec/responder.go -- renderFlowspecCommand emits update text extended-community [rate-limit:<bps>] mp <fam> add <components> -->
 <p><strong>Blackhole fallback.</strong> With <code>blackhole-fallback true</code>, a <code>critical</code>-severity
 attack (peak &gt;= 5x threshold) engages an immediate upstream <code>discard</code> on the fast
@@ -272,8 +259,6 @@ filtering cannot hold the flood. Because the grade is fixed when the detector
 triggers, an attack that triggers below five times the threshold and then grows
 is not treated as <code>critical</code>, and blackhole-fallback does not fire for it. With
 characterization enabled, the characterized announcement still follows.</p>
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- onCharacterized announces; onDetected blackholes only on critical + policy; onOngoing feeds only probeTick -->
-<!-- source: internal/plugins/ddos/detect/detector.go -- onAttackStart -->
 <p><strong>When characterization does not happen.</strong> ddos-flowspec announces on the fast
 signal only when <code>blackhole-fallback</code> is <code>true</code> and the attack is <code>critical</code>.
 Every other detection waits for the characterized event. With
@@ -287,16 +272,12 @@ attacks below <code>critical</code>, keep <code>characterize-enable true</code> 
 configured. ddos local does not wait: it installs its coarse drop on the fast
 signal, so it still protects a victim it covers when characterization does not
 happen.</p>
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- onDetected, onCharacterized -->
-<!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeFromFlows returns on !CharacterizeEnable and on no flows (incFallback) -->
-<!-- source: internal/plugins/ddos/local/responder.go -- onDetected applies the coarse drop -->
 <p><strong>A detection while the plugin starts.</strong> ddos-flowspec acts on detections only
 after its start has withdrawn any rule a previous run left recorded. A
 detection that fires before that, during the plugin's startup handshake, is not
 seen. The detector reports each attack once, so that attack is announced only
 if its characterized event arrives after the start, or once the attack clears
 and triggers again.</p>
-<!-- source: internal/plugins/ddos/flowspec/register.go -- runEngine: OnStarted withdraws the recorded rule, then subscribes -->
 <p><strong>Clearing under FlowSpec mitigation:</strong> once the upstream drops the attack
 traffic, Ze's local sensors go blind (the traffic never arrives). The responder
 uses a <em>leak-probe</em>: after the hold-down period, it periodically narrows the
@@ -308,7 +289,6 @@ attack is over and the rule is withdrawn.</p>
 measured behind the filter, so the probe compares a real observation against
 <code>probe-rate</code> rather than a synthetic tick. The responder ignores the detector's
 clear while it mitigates, because the probe holds the trustworthy signal.</p>
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- onOngoing feeds probeTick with AttackOngoing.CurrentBps -->
 <p><strong>Withdraw paths.</strong> A FlowSpec announce is withdrawn when any of these happens:</p>
 <table>
 <thead>
@@ -342,8 +322,6 @@ installed. The reclassification case is real rather than theoretical, because
 characterization re-derives direction from the narrowed victim: a /24 that looked
 remote can narrow to a box-owned /32 after the blackhole fallback is already
 announced.</p>
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- onCharacterized, enforceMaxDuration -->
-<!-- source: internal/plugins/ddos/detect/characterize.go -- direction re-classified from the narrowed victim -->
 <h3 id="flowtriq-cloud-reporting">Flowtriq cloud reporting</h3>
 <pre><code>ddos {
     flowtriq {
@@ -480,7 +458,6 @@ one-second flood inside a 10-second interval still reaches the threshold.
 <code>confirm-duration</code>, <code>clear-consecutive-checks</code> and <code>baseline-window</code> all count
 evaluations, so raising <code>check-interval</code> multiplies their wall-clock meaning by
 the same factor. <code>startup-grace</code> counts feed samples and stays in seconds.</p>
-<!-- source: internal/plugins/ddos/detect/detector.go -- tick, intervalPeak -->
 <p><strong>How the threshold works:</strong></p>
 <pre><code>threshold = max(baseline_p99 * threshold-multiplier, absolute-floor)
 </code></pre>
@@ -508,13 +485,10 @@ A full restored bandwidth window arms the BPS trigger at the first evaluation.
 A valid partial snapshot can restore with 50 samples (or the window size when
 smaller), but BPS stays unarmed until the window is full. Missing, malformed, or
 incompatible state starts cold. PPS always has its absolute-floor threshold.</p>
-<!-- source: internal/plugins/ddos/detect/persist.go -- saveBaselines, loadBaselines -->
-<!-- source: internal/plugins/ddos/detect/baseline.go -- restore, Ready, Threshold -->
 <p><strong>Incident confidence:</strong> on characterization the detector computes a 0-100
 confidence from the peak/threshold ratio, family specificity, and source spread.
 It is stored on the incident (shown in <code>show ddos incidents</code>), reported to the
 Flowtriq dashboard, and can gate the responders (see <code>confidence-min</code> below).</p>
-<!-- source: internal/core/ddosevent/event.go -- GradeConfidence; set in internal/plugins/ddos/detect/characterize.go -->
 <p>Confidence is computed at attack start (ze characterizes once, early), so attack
 duration is not a factor.</p>
 <h3 id="ddos-local-local-responder">ddos local (local responder)</h3>
@@ -702,7 +676,6 @@ governs how detected attacks are handled. It replaces the old per-responder
 with <code>unknown field ... allowlist</code>). The detector is the single enforcement point and
 encodes the decision on the emitted event, so every responder honors one policy
 without duplicating it.</p>
-<!-- source: internal/plugins/ddos/detect/policy.go -- Policy.evaluate; characterize.go sets SuppressMitigation on the event -->
 <p>Each <code>rule</code> is keyed by a prefix and carries:</p>
 <table>
 <thead>
@@ -763,7 +736,6 @@ INPUT-hook drop for local victims, flowspec announces upstream for remote victim
 and the local responder additionally installs a FORWARD-hook drop for remote victims
 only when <code>ddos local forward-mitigation</code> is enabled. An unresolved victim is treated
 as remote (a local INPUT drop cannot protect an address the box does not own).</p>
-<!-- source: internal/component/iface/dispatch.go -- AddressIsLocal; detector.go classifyDirection; local/responder.go hookForDirection -->
 <h3 id="local-mode-clear-signal">Local mode clear signal</h3>
 <p>Local-mode clear works because nftables drops occur <em>after</em> the kernel NIC RX
 counter increments. The detector's RxPps signal continues to reflect the
@@ -809,8 +781,6 @@ the new config, and what happens to the rule depends on what the commit says.</p
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/ddos/local/responder.go -- enforceMaxDuration, adoptMitigation, withdrawMitigation; internal/plugins/ddos/local/register.go -- startMaxDurationWorker, replaceResponder, stopResponder -->
-<!-- source: internal/component/plugin/server/reload.go -- rootHasChanges -->
 <p><strong>A daemon stop makes no promise about the drop.</strong> ddos local does try to
 withdraw the rule as it exits. That withdrawal covers a stop that delivers no
 config, such as a plugin crash, while the daemon and the firewall engine both
@@ -825,17 +795,12 @@ response, and a reboot is one way an operator clears state. The plugin sweeps
 <code>ze_ddos-local</code> at its initial configure callback, after the firewall dependency
 has selected its configured backend and before a responder subscribes to events.
 Reload uses the verify/apply callbacks and does not repeat this sweep.</p>
-<!-- source: internal/plugins/ddos/local/register.go -- runEngine, clearStaleDropRule -->
-<!-- source: internal/component/plugin/server/startup.go -- runPluginPhase -->
-<!-- source: internal/component/firewall/engine.go -- runEngine -->
 <p>On nft, the sweep first claims the name to reach a table this backend instance
 did not install, then withdraws the empty table. Other owners keep their desired
 rules. Cleanup is best-effort: a failure logs
 <code>could not clear a drop rule left by a previous process</code>, with the failed stage
 in <code>error</code>. A failed final reconcile can leave only an empty table after the
 first reconcile removed the drop. Detection and reporting continue.</p>
-<!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule, runEngine -->
-<!-- source: internal/plugins/firewall/nft/backend_linux.go -- shouldDeleteTable -->
 <p>Protection after a restart depends on fresh detection. The timing below assumes
 an uninterrupted one-second rate feed and the default <code>check-interval</code> of 1.</p>
 <table>
@@ -864,18 +829,12 @@ an uninterrupted one-second rate feed and the default <code>check-interval</code
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/ddos/detect/detector.go -- applyTick, the startup-grace escape -->
-<!-- source: internal/plugins/ddos/detect/persist.go -- saveBaselines, loadBaselines -->
-<!-- source: internal/plugins/ddos/detect/baseline.go -- Threshold, Ready, restore -->
 <p>The cold BPS estimate is about 390 seconds plus confirmation because readiness
 is read before the final sample is admitted. At default settings, an attack
 first above threshold on evaluation 391 confirms on evaluation 393. Attack-marked
 samples are normally excluded, so a sustained PPS attack can extend BPS warm-up.
 Larger <code>check-interval</code> values multiply the sample and confirmation periods,
 while startup grace remains in feed seconds.</p>
-<!-- source: internal/plugins/ddos/detect/detector.go -- tick, applyTick -->
-<!-- source: internal/plugins/ddos/detect/baseline.go -- Add, admit -->
-<!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule -->
 <p><strong>Going back to <code>enforce</code>.</strong> A commit of <code>response-level alert</code> removes the rule,
 and a commit of <code>enforce</code> after it does NOT put the rule back for the attack that
 is already running. The detector signals an attack once for each generation, so
@@ -925,8 +884,6 @@ one no operator can lift.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/ddos/flowspec/register.go -- replaceResponder; internal/plugins/ddos/flowspec/responder.go -- adoptAnnouncement, withdrawForConfig, enforceMaxDuration -->
-<!-- source: internal/component/plugin/server/reload.go -- rootHasChanges -->
 <p><strong>What each end of the plugin does to a live FlowSpec announcement.</strong> A commit
 is not the only way the plugin ends. Where the plugin can still reach the BGP
 engine, it withdraws the rule on its way out. Where it cannot, the rule stays
@@ -936,8 +893,6 @@ block), it refuses its configuration stage with <code>ddos-flowspec: event bus n
 fails and it never runs. In the daemon it cannot reach the engine on its way out
 on any end other than the <code>bye</code>: the plugin's calls are refused once its run
 ends.</p>
-<!-- source: internal/plugins/ddos/flowspec/register.go -- loadBus, OnConfigure -->
-<!-- source: internal/component/plugin/server/startup.go -- RecordStopped(StopHandshakeFailed) after rollbackStartupProcess -->
 <table>
 <thead>
 <tr>
@@ -964,17 +919,6 @@ ends.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/ddos/flowspec/register.go -- stopResponder, closedTransportMessage, unrecordedExitMessage, removedExitMessage, exitKind, exitWithdrawBudget, runEngine (the deferred exit calls stopResponder with its exitKind; OnBye passes exitRemoved), transportClosed -->
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- announce and adoptAnnouncement set recorded, endAnnouncement clears it; withdrawalCommand -->
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop returns the send error of a callback answer, so Run fails -->
-<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.closedErr wraps the reader's terminal error (io.EOF when the engine closed its end) -->
-<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run: its deferred bridge.CloseCallbacks closes dispatch before the plugin's deferred exit runs -->
-<!-- source: internal/component/plugin/server/failure_policy.go -- applyFailurePolicy: no declared policy records the plugin stopped -->
-<!-- source: internal/component/plugin/process/stopped.go -- RecordStopped raises doctor-plugin-stopped with RestartCommand -->
-<!-- source: internal/component/plugin/process/manager.go -- ProcessManager.Stop closes each plugin's connection -->
-<!-- source: internal/component/plugin/process/process.go -- Process.Stop: StopDispatch, then CloseCallbacks, then closeConns -->
-<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.DispatchRPC refuses through beginDispatch with ErrBridgeClosed -->
-<!-- source: pkg/plugin/sdk/signal.go -- SignalContext under HostOwnsSignals -->
 <p><strong>The live-announcement record.</strong> Each announcement is recorded in the runtime
 state key <code>meta/ddos-flowspec/announcement</code> before the plugin goes on, and every
 withdrawal the BGP engine accepts removes the record. A withdrawal the engine
@@ -1002,14 +946,12 @@ before any BGP session is established. It then reaches no peer, and that is
 correct, because a session that comes up later never held the rule. When the
 withdrawal fails, the rule stays recorded, and the WARN line names the error
 and, under <code>fix</code>, the plugin restart that tries again.</p>
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- announce, withdrawThrough, withdrawRecordedAnnouncement, readRecordedAnnouncement, withdrawRecordedRule, encodeAnnouncementRecord -->
 <p>One record holds one rule. So when a rule is still recorded because its
 withdrawal failed, a new announcement first withdraws that rule, and only then
 announces and records its own. When that withdrawal fails again, nothing new is
 announced: the plugin logs <code>not announcing, because an earlier FlowSpec rule is still recorded</code> at WARN, and the next attack event tries both again. A record of
 the same rule that is about to be announced is not withdrawn first, because the
 announcement replaces it at the peers.</p>
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- announce, withdrawEarlierRecord -->
 <p><code>ze doctor</code> reports a recorded rule that no running responder holds, under
 <code>doctor-ddos-flowspec-orphan-announcement</code>. It names the victim and says why the
 rule may still be at the peers. A record beside the live announcement of a
@@ -1081,11 +1023,6 @@ is refused the record's store key, which is granted to the name
 its own check does not judge it. The configuration doctor reads on the daemon
 route is the saved file, never the running one, which is why the daemon's
 report points at <code>ze show config running</code>.</p>
-<!-- source: internal/plugins/ddos/flowspec/doctor.go -- orphanRuntimeCheckDecl, orphanRecordCheck, checkOrphanRecord, stoppedRecordCheck, judgeStoppedRecord, stoppedRunReport, judgedTree, unrunReport, unavailableStoreFindings, unrunUndecidedDiagnostic, noConfigurationUnrunDiagnostic, unrunCases, runningConfigCommand, pluginRunFromSnapshot, stoppedOrphanReport, unknownRunOrphanReport, ruleFindings, unownedOrphanDiagnostic, unconfiguredOrphanDiagnostic, recordRemoval, recordRemovalCommand -->
-<!-- source: internal/component/doctor/local_route.go -- runtimeNotChecked -->
-<!-- source: internal/component/plugin/server/dispatch_state.go -- PluginKeyAllowed on the process name -->
-<!-- source: internal/component/plugin/server/doctor_snapshot.go -- PluginDoctorSnapshot -->
-<!-- source: internal/component/plugin/process/stopped.go -- RestartCommand -->
 <p>A record that does not decode is reported as corrupt and is never sent to the
 peers, and no start of the plugin withdraws anything from it, so a restart does
 not clear it. Its fix is <code>ze data cat meta/ddos-flowspec/announcement</code>, which
@@ -1108,9 +1045,6 @@ check says nothing about the store: the plugin writes the record only through
 the store the daemon publishes, so no process of that daemon can have written
 one, and the doctor run reports a store it could not open on its own
 <code>doctor-storage-unavailable</code> row.</p>
-<!-- source: internal/plugins/ddos/flowspec/doctor.go -- corruptRecordDiagnostic, recordReadCommand, recordRemovalCommand, manualWithdrawalCommand, checkOrphanRecord, storedRecordReading, unavailableStoreFindings -->
-<!-- source: internal/component/doctor/doctor.go -- resolveStorageWithDiag -->
-<!-- source: internal/plugins/ddos/flowspec/responder.go -- withdrawEarlierRecord, classifyRecord, recordReading -->
 <h3 id="vpp-dataplane">VPP dataplane</h3>
 <p>Detection works on both the Linux netlink dataplane and the VPP DPDK dataplane.
 The VPP iface backend populates <code>InterfaceInfo.Stats</code> from VPP's stats segment,
@@ -1129,9 +1063,7 @@ addresses, peak pps/bps, start/end time, and whether it is still active. The
 ring is bounded by <code>incident-ring-size</code> and fed by the detector's
 <code>AttackDetected</code> / <code>AttackCleared</code> events. The clear names the victim the
 detection named, so it closes that incident as soon as the attack ends; only
-an incident whose clear never comes waits for <code>stale-incident-timeout</code>.
-<!-- source: internal/plugins/ddos/detect/detector.go -- emitCleared -->
-</li>
+an incident whose clear never comes waits for <code>stale-incident-timeout</code>.</li>
 <li><code>show ddos local</code> (<code>ddos-local</code>): whether an on-host nft drop is installed and
 the target vector it covers.</li>
 <li><code>show ddos flowspec</code> (<code>ddos-flowspec</code>): whether an upstream FlowSpec rule is
@@ -1141,9 +1073,6 @@ announced, its target vector, and whether the leak-probe is running.</li>
 writer publishes under its own lock, so neither command waits on a netlink
 reconcile or on an RPC round trip to the BGP engine. A status command answers
 while mitigation is being applied.</p>
-<!-- source: internal/plugins/ddos/observe/show.go -- handleShowDdos, handleShowDdosIncidents -->
-<!-- source: internal/plugins/ddos/local/show.go -- handleShowDdosLocal -->
-<!-- source: internal/plugins/ddos/flowspec/show.go -- handleShowDdosFlowspec -->
 <h3 id="flow-source-and-observability">Flow source and observability</h3>
 <p>Characterization needs an on-box flow source: <code>traffic usage</code> (<code>track-ip</code>) for the
 fast IPv4 target and/or <code>flow-export</code> (<code>conntrack</code>) for the classifier (proto,
@@ -1152,7 +1081,6 @@ configured, <code>ze doctor</code> reports <code>doctor-ddos-detect-no-flow-sour
 then degrades to a coarse generic-flood drop, and ddos-flowspec announces only a
 <code>critical</code> attack under <code>blackhole-fallback</code> (see "When characterization does
 not happen").</p>
-<!-- source: internal/plugins/ddos/detect/doctor.go -- checkFlowSource -->
 <p>Detection itself does not read the flow sources. Its input is the per-interface
 receive rate from the trafficstat rate feed. A rate feed that delivers nothing, or reports zero
 traffic, fills the baseline with zeros. The baseline then reads as ready, the
@@ -1189,15 +1117,12 @@ when traffic returns. The warning names which case it saw:</p>
 </table>
 <p>The warning clears on the first sample with traffic. <code>ddos detect enabled false</code>
 silences it, because a disabled detector subscribes to no feed.</p>
-<!-- source: internal/plugins/ddos/detect/blind.go -- observeFeed, rateFeedFinding, blindMessage -->
-<!-- source: internal/plugins/ddos/detect/doctor.go -- checkRateFeed -->
 <p>Prometheus metrics:</p>
 <ul>
 <li><code>ze_ddos_detect_characterize_total{family}</code> -- characterization outcomes per family.</li>
 <li><code>ze_ddos_detect_characterize_fallback_total</code> -- characterizations with no usable flow data.</li>
 <li><code>ze_flowexport_recent_ring_drops</code> -- recent-flow ring entries overwritten before being read.</li>
 </ul>
-<!-- source: internal/plugins/ddos/detect/metrics.go -- ze_ddos_detect_characterize_* -->
 </div>
 </div>
             </section>
@@ -1247,7 +1172,7 @@ silences it, because a disabled detector subscribes to no feed.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -8,13 +8,13 @@
   "must": {
     "total": 5,
     "kept": 5,
-    "ze-proven": 2,
+    "ze-proven": 3,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 3,
+    "not-built": 2,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -31,10 +31,9 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 2
+    "unit": 3
   },
   "unmet": [
-    "RFC4360-6-1",
     "RFC4360-7-1",
     "RFC4360-7-2"
   ]

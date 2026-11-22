@@ -6,10 +6,10 @@ The interactive graph is available on the [RFC map page](./).
 
 ## Recorded inputs
 
-RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: `006886540d1e95de1fa04b2258730f6a554eb627`. These inputs do not certify one release candidate.
+RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: `827c73e9e131702d2815e3fd46ad302cb2db5ea3`. These inputs do not certify one release candidate.
 
-- RFC requirement ledger: `data/rfc-requirements.json`, SHA-256 `2c6e6d77d7de467f8d36cc29ca7ce638d86a9bc7b056a80b0ec9a7f58fc860bc`
-- Committed spec roadmap: `data/release-roadmap.json`, SHA-256 `a5e43576f4978e2de4bf3504e6fba79e85cbfdc2c8e14374c8877bb22448dfe7`, revision `006886540d1e95de1fa04b2258730f6a554eb627`
+- RFC requirement ledger: `data/rfc-requirements.json`, SHA-256 `f76cdd4edfafcd9fa5e3f9de6e74d5ccf0b3e3eb6c984fe66ad92e235c73cba7`
+- Committed spec roadmap: `data/release-roadmap.json`, SHA-256 `1b40e95f7067da583c63a55ba71340582678ff47e85f25c4bb4d9db6229f63bc`, revision `827c73e9e131702d2815e3fd46ad302cb2db5ea3`
 - Proposed release layers: `website/data/rfc-release-layers.json`, SHA-256 `4718bc1578afc15183efee2fcbadd9f52ed5434b4fb57eeb61b980dbd928ac68`
 
 ## Proposed release layers
@@ -127,6 +127,7 @@ RFC evidence revision and age are unknown where the recorded input supplies neit
 - rfc8032 (no recorded summary)
 - rfc8439 (no recorded summary)
 - draft-mangin-netcapstring-00 (no recorded summary)
+- iso-iec-10589 (no recorded summary)
 - rfc952 (no recorded summary)
 - [rfc1570](../rfc-compliance/rfc1570/) — PPP LCP Extensions
 - rfc1662 (no recorded summary)

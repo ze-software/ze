@@ -80,7 +80,6 @@
 </code></pre>
 <p><code>./le chaos run &lt;options&gt;</code> runs the chaos orchestrator. A help word after <code>./le chaos run</code> reaches the orchestrator, which
 prints its own option list.</p>
-<!-- source: internal/le/chaos/run/run.go -- Answer -->
 <h2 id="flags">Flags</h2>
 <table>
 <thead>
@@ -103,9 +102,6 @@ prints its own option list.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: cmd/ze/ze_core_dispatch.go -- chaosSeed, chaosRate global flags -->
-<!-- source: internal/component/bgp/config/loader.go -- injectChaos -->
-<!-- source: internal/component/bgp/config/loader_create.go -- chaosRateFromEnv, ze.bgp.chaos.seed/rate -->
 <h2 id="chaos-tool">Chaos Tool</h2>
 <p>The chaos tool, <code>./le chaos run</code>, is a chaos simulator that runs multiple BGP peers against a ze route server, validates route propagation, and injects faults.</p>
 <p><img src="img/chaos-dashboard.png" alt="chaos dashboard"></p>
@@ -119,7 +115,6 @@ prints its own option list.</p>
 <p>Fork mode runs the ze daemon that <code>--binary</code> names, else the <code>ze</code> on PATH. It
 refuses when neither names a program, and it refuses a path that is the running
 <code>le</code> itself, because <code>le</code> is not a ze daemon.</p>
-<!-- source: internal/chaos/orchestrator/fork.go -- resolveZeDaemon -->
 <pre><code class="language-bash"># Pipeline mode: config on stdout, diagnostics on stderr
 ./le chaos run --pipe --seed 42 --peers 8 --duration 60s | ./bin/ze -
 
@@ -150,8 +145,6 @@ NOTIFICATION. A caller that hands the simulator a connection it opened itself
 gets the retry only when it also gives the address to dial. In a run with
 chaos enabled the orchestrator then starts the peer again after 2 seconds, as
 it does after any disconnect.</p>
-<!-- source: internal/chaos/peer/simulator_connect.go -- establishSession -->
-<!-- source: internal/chaos/orchestrator/scheduler.go -- runPeerLoop -->
 <h3 id="multi-daemon-testing-frr-bird">Multi-Daemon Testing (FRR, BIRD)</h3>
 <p>./le chaos run can generate configs for and fork FRR (bgpd) or BIRD, so the same
 chaos scenario runs against different BGP implementations.</p>
@@ -183,7 +176,6 @@ done
 functional suite binds), so the loop above is needed only for a run with more
 than five peers. <code>./le setup check</code> reports which addresses are missing.
 Neither route survives a reboot; re-run <code>./le setup install</code> after one.</p>
-<!-- source: internal/le/setup/actions.go -- Answer -->
 <h4 id="running-via-docker">Running via Docker</h4>
 <p>When FRR or BIRD is not installed locally, use Docker. The <code>--network host</code>
 flag shares the host network so <code>le chaos run</code> simulators can connect directly
@@ -222,7 +214,6 @@ docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
   --entrypoint sh bird-interop:latest \
   -c 'bird -p -c /etc/bird.conf'
 </code></pre>
-<!-- source: internal/chaos/orchestrator/cli.go -- --application, --binary flags; internal/chaos/scenario/config_frr.go, config_bird.go -->
 <h3 id="event-logging-and-replay">Event Logging and Replay</h3>
 <pre><code class="language-bash"># Record events
 ./le chaos run --pipe --event-log run.ndjson --seed 42 | ./bin/ze -
@@ -233,7 +224,6 @@ docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
 # Shrink to minimal reproduction
 ./le chaos run --shrink run.ndjson
 </code></pre>
-<!-- source: internal/chaos/orchestrator/subcommand.go -- event logging, replay, shrink modes -->
 <h3 id="property-validation">Property Validation</h3>
 <pre><code class="language-bash">./le chaos run --pipe --properties all --convergence-deadline 5s | ./bin/ze -
 ./le chaos run --properties list    # Show available properties
@@ -288,9 +278,6 @@ by hand in which one border router keeps the next hop its neighbour sent.</p>
 <p><code>./le chaos run</code> does not take a topology: it starts from <code>--seed</code> and
 <code>--peers</code>. The design is in
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/chaos-web-dashboard.md#simulated-network-topology" target="_blank" rel="noopener">the chaos architecture page</a>.</p>
-<!-- source: internal/chaos/scenario/generator.go -- GenerateFromTopology -->
-<!-- source: internal/chaos/peer/sender.go -- BuildAnnouncement -->
-<!-- source: internal/test/fixture/lg_simulated_network.go -- lgSimulatedNetworkFixture -->
 <h2 id="fault-types">Fault Types</h2>
 <table>
 <thead>
@@ -329,7 +316,6 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 </code></pre>
 <p>Seed <code>0</code> disables chaos entirely (zero overhead). Seed <code>-1</code> uses the current time (non-reproducible).</p>
-<!-- source: cmd/ze/main.go -- chaosSeed handling -->
 <h2 id="native-commands">Native Commands</h2>
 <table>
 <thead>
@@ -360,7 +346,6 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 <li><strong>Debugging:</strong> Reproduce intermittent failures with a fixed seed</li>
 <li><strong>Benchmarking:</strong> Measure convergence time under fault conditions</li>
 </ul>
-<!-- source: internal/chaos/orchestrator/cli.go -- the chaos tool; test/ -- chaos functional tests -->
 </div>
 </div>
             </section>
@@ -410,7 +395,7 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

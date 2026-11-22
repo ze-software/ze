@@ -86,7 +86,6 @@
 <li><a href="#automatic-source-lifecycle-arguments">Automatic source lifecycle arguments</a></li>
 </ol></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr registration, RFCs 4724/9494 -->
 <h2 id="configuration">Configuration</h2>
 <pre><code>plugin {
     internal gr {
@@ -143,7 +142,6 @@ bgp {
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/gr/yang/ -- ze-graceful-restart YANG schema -->
 <h2 id="how-it-works">How It Works</h2>
 <h3 id="what-ze-advertises">What Ze Advertises</h3>
 <p>The code-64 capability Ze sends carries the Restart Time, then one
@@ -214,10 +212,6 @@ then the Receiving Speaker MUST immediately remove all the stale routes from the
 peer that it is retaining for that address family". So a peer holds Ze's routes
 while the session is down either way, and a clear bit makes it drop them at
 re-establishment rather than waiting for Ze to re-advertise.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr_capability.go -- parseGRCapValue, extractGRCapabilities -->
-<!-- source: internal/component/bgp/reactor/peer_gr_flags.go -- restartFlagsFor -->
-<!-- source: internal/component/bgp/grmarker/grmarker.go -- SetRBit, SetFBit -->
-<!-- source: internal/plugins/fib/kernel/register.go -- preservesForwardingState -->
 <h3 id="normal-session">Normal Session</h3>
 <ol>
 <li>Peer session establishes, GR capability negotiated in OPEN</li>
@@ -258,8 +252,6 @@ cycle. There is no completed-source ledger. Cleanup joins captured selected
 output and original lease releases before answering; a refused join reports the
 unfinished work. The public peer-wide commands below retain their operator
 scope.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_source_commands.go -- ribSourceCommands, retainPhysicalSourceCommand, markPhysicalSourceCommand -->
-<!-- source: internal/component/bgp/plugins/rib/rib_source_mutation.go -- removePhysicalSource, expirePhysicalSource -->
 <p>Likewise, <code>request bgp rib mark-stale &lt;peer&gt; &lt;restart-time&gt; [level [family]]</code>
 remains peer-wide when the family is omitted. GR supplies the particular
 family when raising routes to LLGR level 2, so entering LLGR for one family
@@ -270,15 +262,11 @@ does not raise another family's level.</p>
 stale marking finish. That processing time counts toward the restart deadline.
 A zero Restart Time therefore releases routes before the DOWN handler returns,
 rather than leaving an observable GR retention window.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred, startRestartTimer, handleTimerExpired -->
-<!-- source: internal/component/bgp/plugins/gr/gr.go -- handleStructuredState, handleStateEvent, onTimerExpired, releaseRoutes -->
 <h3 id="fail-safe">Fail-Safe</h3>
 <p>For a nonzero Restart Time, the RIB also starts a safety timer at
 <code>restart-time + 5s</code>. This margin belongs to the safety timer, not the GR
 plugin's restart deadline. A zero Restart Time arms no RIB safety timer:
 the GR plugin releases routes immediately or enters the negotiated LLGR period.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- markStaleCommand, grTimerMargin -->
-<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred, startRestartTimer -->
 <h2 id="plugin-bindings">Plugin Bindings</h2>
 <p>The GR plugin requires:</p>
 <ul>
@@ -286,7 +274,6 @@ the GR plugin releases routes immediately or enters the negotiated LLGR period.<
 <li>The RIB plugin must also be loaded with <code>receive [ update state refresh ]</code> and <code>send [ update ]</code></li>
 </ul>
 <p>The GR plugin depends on <code>bgp-rib</code> (declared in its registration). The engine ensures bgp-rib starts first.</p>
-<!-- source: internal/component/bgp/plugins/gr/register.go -- Dependencies: bgp-rib -->
 <p>GR and LLGR capability values in normalized JSON OPEN events contain only the
 payload bytes, encoded as lowercase hex. The capability code and length are
 not part of <code>value</code>. JSON and structured OPEN events give the GR plugin the
@@ -294,9 +281,6 @@ same received restart times and native address families. Sent OPEN events
 identify the same locally advertised LLGR families on both paths.
 For example, GR value <code>000300010180</code> means three seconds and
 <code>ipv4/unicast</code>, with forwarding preserved.</p>
-<!-- source: internal/component/bgp/format/decode.go -- formatCapability -->
-<!-- source: internal/component/bgp/plugins/gr/gr.go -- handleOpenEvent, extractGRCaps -->
-<!-- source: internal/component/bgp/plugins/gr/gr_llgr_exchange.go -- handleSentOpenEvent, addSentLLGRFamilies -->
 <h3 id="running-bgp-gr-in-a-child-process">Running bgp-gr in a child process</h3>
 <p>The examples on this page load the plugin with <code>internal &lt;name&gt; { use bgp-gr; }</code>.
 <code>external &lt;name&gt; { run "ze plugin bgp-gr"; }</code> runs the same engine in a child
@@ -306,11 +290,6 @@ filter lists (see "Long-Lived Stale Routes in the Filter Lists" below), and
 the families it retains for a departed peer reach <code>bgp-rr</code> and <code>bgp-rs</code> as the
 <code>bgp-gr/retention</code> event (described below). Both work over the plugin
 connection, so neither needs the daemon's memory.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr.go -- runGRPlugin -->
-<!-- source: test/plugin/llgr-transition-forked.ci -- the LLGR lifecycle with bgp-gr forked -->
-<!-- source: test/plugin/llgr-readvertise-forked.ci -- the stale readvertise with bgp-gr forked -->
-<!-- source: test/plugin/llgr-import-no-llgr-forked.ci -- import NO_LLGR with bgp-gr forked -->
-<!-- source: internal/component/bgp/plugins/gr/gr_filter.go -- evaluateGRFilter, grInsertions -->
 <p>The route server and reflector decide which families to retain from <code>bgp-gr</code>'s
 bus verdict for that DOWN, not an in-process query. After draining that source's
 forwarding worker, the route server withdraws only the other families. The
@@ -358,20 +337,6 @@ boundary, so <code>bgp-gr</code>, <code>bgp-rs</code> and <code>bgp-rr</code> ma
 <code>bgp-rr</code> or <code>bgp-rs</code> reaches it forked as well, under the implementation its
 <code>run</code> line names, so <code>bgp-gr</code>'s verdict still precedes their DOWN. Use internal
 <code>bgp-rib</code> for the coordinated lifecycle described here.</p>
-<!-- source: internal/component/bgp/retention/retention.go -- Event, Verdict, Ledger -->
-<!-- source: internal/component/bgp/plugins/gr/gr.go -- emitRetention -->
-<!-- source: internal/component/plugin/process/delivery.go -- deliverMixedBatch -->
-<!-- source: internal/component/bgp/plugins/rr/rr.go -- runRouteReflector, stopDepartures -->
-<!-- source: internal/component/bgp/server/events.go -- sortByReverseDependencyTier -->
-<!-- source: internal/component/bgp/plugins/rs/server.go -- RunRouteServer -->
-<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateDown, enqueueDeparture, stopDepartures -->
-<!-- source: internal/component/bgp/plugins/rr/rr.go -- handleStateDown, enqueueDeparture -->
-<!-- source: internal/core/syncutil/coalescer.go -- Coalescer, Enqueue, Stop -->
-<!-- source: internal/component/bgp/plugins/gr/register.go -- init (OptionalDependencies bgp-rs, StartAfter bgp-rr) -->
-<!-- source: test/plugin/addpath-departure-rr-gr-retained.ci -- a retained family is not withdrawn by the reflector -->
-<!-- source: test/plugin/addpath-departure-rr-gr-retained-forked.ci -- the same with bgp-rr and bgp-gr forked -->
-<!-- source: test/plugin/addpath-departure-rr-gr-notification-forked.ci -- a DOWN after a NOTIFICATION retains nothing, forked -->
-<!-- source: test/plugin/addpath-departure-rr-gr-expiry.ci -- at Restart Time expiry the reflected paths are withdrawn under ze's identifiers -->
 <h2 id="cli">CLI</h2>
 <pre><code> $ ze cli -c "show bgp rib | received"
 # Shows routes with stale flag when applicable
@@ -410,12 +375,7 @@ boundary, so <code>bgp-gr</code>, <code>bgp-rs</code> and <code>bgp-rr</code> ma
 <code>graceful-restart family</code> container selects code-64 tuples only; it does not
 select LLGR families or assign different LLST values to them. Received code-71
 tuples can still carry different times, and Ze tracks those timers by family.</p>
-<!-- source: internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang -- graceful-restart-config -->
 <p>LLGR is only active for a family when both OPENs of the session list it in their LLGR capability. A peer that advertises LLGR for a family Ze did not advertise it for gets the base GR treatment for that family: its routes are kept for the Restart Time and no longer (RFC 9494 Section 5 requires configuration per AFI/SAFI before the procedures run). LLGR also requires the GR capability (code 64) in the same OPEN: LLGR without GR is ignored, as RFC 9494 Section 4.5 requires.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr_llgr_exchange.go -- exchangedLLGRLocked -->
-<!-- source: internal/component/bgp/plugins/gr/gr_llgr.go -- extractLLGRCapabilities -->
-<!-- source: internal/component/bgp/plugins/gr/gr.go -- forgetGRCapability -->
-<!-- source: internal/component/bgp/plugins/gr/register.go -- CapabilityCodes: 64, 71 -->
 <h3 id="how-it-works_1">How It Works</h3>
 <ol>
 <li><strong>GR period expires</strong> -- peer has not reconnected within <code>restart-time</code> seconds</li>
@@ -431,7 +391,6 @@ tuples can still carry different times, and Ze tracks those timers by family.</p
 <li><strong>LLST timer expires</strong> -- stale routes for that family are purged</li>
 <li><strong>Peer reconnects during LLGR</strong> -- standard RFC 4724 procedures apply; families with F-bit=0 or missing from the new OPEN are purged. A family whose LLGR period has begun must also pass the new LLGR Capability: if that capability clears the family's F bit, omits the family, or is absent, the family's stale routes are purged at once, whatever the GR Capability says (RFC 9494 Section 4.2). A family still in its conventional GR period is judged by the GR Capability alone. A configuration with a Restart Time of zero therefore keeps its stale routes across a reconnect only when the new GR Capability also lists the family with its F bit set</li>
 </ol>
-<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionReestablished, reconnectKeepsFamily -->
 <p>The LLST expiry uses the time in the <strong>remote peer's received OPEN</strong>, not the
 <code>long-lived-stale-time</code> Ze advertises from its local configuration. Different
 peers can therefore expire at different times even when their local
@@ -446,14 +405,11 @@ originally advertised them together. Cleanup still carries the old destination
 advertisement's receipt, so it cannot remove a newer advertisement from the same
 source or another source. Received-state deletion alone is not proof of delivery
 to the destination; the final wire checks remain separate.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- purgeStaleCommand, autoExpireStale -->
-<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- withdrawRemovedSentLocked, sentReceivedOwner -->
 <p>Each family's LLST deadline is the original GR deadline plus that family's
 received Long-Lived Stale Time. Time spent dispatching the DOWN commands does
 not extend either period. After retention and stale marking finish, Ze removes
 families whose deadlines already elapsed. Other families enter LLGR only for
 the time that remains. This also applies when Restart Time is zero.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred, enterLLGRLocked -->
 <p>The timer fixture <code>llgr-peer-stale-time-drives-timer.ci</code> gives the source a
 3-second LLST and a control peer 60 seconds, against Ze's local 3600. Its
 receiver acknowledges the control's initial route and LLGR_STALE advertisement
@@ -467,13 +423,9 @@ the observer's release markers. Destination acknowledgments fence the real
 TCP closes, the stale phase, and both short-LLST expiry withdrawals. The
 control remains in the received RIB and is forbidden from being withdrawn
 on the receiver's wire.</p>
-<!-- source: internal/test/fixture/plugin_fixture_llgr_lifecycle.go -- llgrLifecycle -->
-<!-- source: internal/component/bgp/plugins/gr/gr.go -- wireStateCallbacks -->
-<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- outboundResend -->
 <p>A peer selector given to bgp-rib by name matches the configured name the
 session's state events carried (<code>selectsPeer</code>), since bgp-rib keys sessions by
 address. A session whose events named it nothing is selected by no name.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_peer_name.go -- selectsPeer -->
 <p>The received-route EOR scenario uses a different release prefix for each phase.
 The initial readiness and DOWN-release markers replay when the source
 reconnects; neither releases its EOR. Only after the observer sees the refreshed
@@ -482,7 +434,6 @@ the distinct EOR-release marker. The receiver then acknowledges the
 unrefreshed route's withdrawal before the scenario can finish. Its ACK routes
 are not reflected to the strict source: that source grants RIB marker replay,
 but no route-server or Adj-RIB-In replay output.</p>
-<!-- source: internal/test/fixture/plugin_fixture_llgr_lifecycle.go -- llgrLifecycle eor scenario -->
 <p>The NO_LLGR decision uses the imported route, so a <code>modify</code> import policy that
 adds <code>65535:7</code> also excludes that route from LLGR retention. A route without the
 community remains eligible for the LLGR period.</p>
@@ -500,7 +451,6 @@ sent labeled routes keep their wire labels. Received generation and route
 identity establish ownership; inbound and outbound ADD-PATH identifiers are
 not assumed equal. Replay feedback cannot recreate deleted ownership or replace
 the current locally decorated attributes.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_sent_lifecycle.go -- withdrawRemovedSentLocked, attachSentSourceCommunityLocked, attachSentCommunity -->
 <p>State and End-of-RIB events run in reverse implementation-dependency order:
 <code>bgp-gr</code> precedes <code>bgp-rib</code>, including when either is loaded under an operator
 alias such as <code>gr</code> or <code>rib</code>. This lets GR request retention before the RIB
@@ -526,13 +476,6 @@ a retained sibling can still hold it after another path is removed. A failed
 application or replay join is reported as unfinished work and cannot authorize
 the final purge's success. NO_LLGR matches the effective accepted received
 attributes, including a community added by the import policy.</p>
-<!-- source: internal/component/bgp/plugins/gr/validation_cleanup.go -- prepareValidationCleanup -->
-<!-- source: internal/component/bgp/plugins/adj_rib_in/retained_validation.go -- handleRetainedValidationEvent, cleanupValidationConnectionLocked -->
-<!-- source: internal/component/plugin/server/emit_event_applied.go -- emitEventApplied -->
-<!-- source: internal/component/bgp/plugins/gr/register.go -- grDependencies, grOptionalDependencies, grStartAfter -->
-<!-- source: internal/component/bgp/server/events.go -- sortByReverseDependencyTier -->
-<!-- source: internal/component/bgp/plugins/gr/gr.go -- handleStructuredState -->
-<!-- source: internal/component/bgp/plugins/rib/rib.go -- commandDecls declares the LLGR community mutation commands -->
 <h3 id="stale-levels">Stale Levels</h3>
 <p>Ze uses a graduated stale level system for route prioritization:</p>
 <table>
@@ -575,7 +518,6 @@ itself: withdrawn toward an EBGP neighbor without LLGR, sent with NO_EXPORT and
 LOCAL_PREF 0 toward an IBGP one. That holds on every path that advertises it,
 listed under "Readvertising a Stale Route" below. The <code>show bgp rib</code> stale
 level still shows only the retention mark.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr_ingress.go -- LLGRIngressFilter, llgrStaleFromSource -->
 <h3 id="long-lived-stale-routes-in-the-filter-lists">Long-Lived Stale Routes in the Filter Lists</h3>
 <p>Both LLGR decisions are members of the peers' filter lists, which <code>bgp-gr</code>
 inserts itself. On every peer whose <code>long-lived-stale-time</code> is set, the leaf
@@ -600,9 +542,6 @@ or a replacement connection of that owner, cannot borrow an old OPEN capability.
 owner information means no capability was recorded. Missing internal-session
 classification rejects a governed route; it does not infer one from ASNs.
 The ordinary fresh-route fast path needs neither fact.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr_filter.go -- grFilterDecls, grInsertions, evaluateLLGRIngress, evaluateLLGREgress -->
-<!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- receivedLLGRStaleFromMeta -->
-<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- extractCandidate -->
 <h3 id="readvertising-a-stale-route">Readvertising a Stale Route</h3>
 <p>RFC 9494 Section 4.3 governs a route at the LLGR stale level (2), whether Ze marked it or it arrived with LLGR_STALE, that ze forwards on to a neighbor from which the LLGR Capability was not received. The stale level on the ROUTE decides, not the restart state, so a route raised to level 2 by <code>request bgp rib mark-stale</code> takes the same treatment as one raised by a peer's LLGR period.</p>
 <table>
@@ -641,13 +580,10 @@ requests. Replacing a destination refuses its remaining old-session output.
 The command reports refreshed and refused destination counts and returns an
 error if any captured operation remains unresolved. It sends no initial
 readiness report for this same-session replay.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_resend_excluding_owner.go -- capture, resend, resendExcludedSent -->
 <p>Adding NO_EXPORT to a received COMMUNITY preserves its Partial bit, along with
 the retained community values. The community rebuild uses an Extended Length
 header for both complete and partial attributes.</p>
-<!-- source: internal/component/bgp/plugins/filter_community/handler.go -- emitCommunity -->
 <p>The filter fails closed. When it cannot read the peer capability state, it answers "LLGR was not received" for every destination. It raises one warning per process and then withdraws or depreferences. An unread state used to accept, which put a long-lived stale route into a neighbor that never agreed to hold one.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter, egressState -->
 <p>Only a route at the LLGR stale level takes this treatment: one Ze marked LLGR
 stale, or one received with LLGR_STALE as described above. A route in its
 conventional GR period (stale level 1) carries no LLGR_STALE, so it is
@@ -681,10 +617,6 @@ the received LLGR_STALE fact its own way:</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- advertisedStaleLevel -->
-<!-- source: internal/component/bgp/plugins/rib/sent_owner.go -- sentSourceState, replayStaleLevel -->
-<!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go -- AdvertisedStaleLevel -->
-<!-- source: internal/component/bgp/reactor/reactor_api_relay.go -- buildRelayUpdate, resolveRelaySource -->
 <p>The state lives in the plugin's own process, beside the filter that reads it, so <code>run "ze plugin bgp-gr"</code> behaves the same way. See <a href="#running-bgp-gr-in-a-child-process">Running bgp-gr in a child process</a>.</p>
 <h3 id="original-source-ownership">Original source ownership</h3>
 <p>Automatic GR actions use the original engine peer owner and physical
@@ -705,20 +637,13 @@ retained connection. It can carry connection zero when no current Session
 exists. GR handles this terminal owner separately, before physical-source
 validation. The forwarding ledger's <code>End</code> closes that owner's lifetime; zero
 is never accepted as a wildcard for a transport DOWN or a lifecycle command.</p>
-<!-- source: pkg/plugin/rpc/enums.go -- ReasonPeerRemoved -->
-<!-- source: internal/component/bgp/plugins/gr/gr_source.go -- newGRSource, grJSONSource -->
-<!-- source: internal/component/bgp/plugins/gr/gr.go -- dispatchSource, emitRetention -->
-<!-- source: internal/component/bgp/retention/retention.go -- Verdict, Ledger -->
 <p>An LLGR callback checks that its captured state still owns the family's timer.
 A reconnect cancels queued callbacks and deferred entry completions, even when
 some old families remain retained. An LLGR entry that has begun a blocking RIB
 RPC rechecks its timer before it sends the next mutation. An already-dispatched
 original cleanup remains scoped to its original physical connection.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- handleLLSTExpired -->
 <h3 id="special-case-skip-gr">Special Case: Skip GR</h3>
 <p>If <code>restart-time</code> is 0 but <code>long-lived-stale-time</code> is nonzero, the GR period is skipped entirely. On session drop, LLGR begins immediately, after the routes are retained and marked stale: the LLGR steps above run last, so the routes they mark LLGR-stale are the retained ones. When both times are 0 the peer's routes are released at once, as in base BGP.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred -->
-<!-- source: internal/component/bgp/plugins/gr/gr.go -- handleStructuredState, handleStateEvent -->
 <p>A family can also skip GR when the received code-64 capability omits it.
 RFC 9494 Section 4.2: "If the Graceful Restart Capability that was received
 does not list all AFIs/SAFIs supported by the session, then the GR Restart Time
@@ -733,8 +658,6 @@ family still in GR. Conventional expiry is armed after retention and stale
 marking, before the immediate family's readvertisement callbacks run, so a
 blocked readvertisement cannot extend its sibling's GR or LLST period.
 A family omitted from GR with zero or unexchanged LLST is not retained.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred, enterLLGRLocked, handleLLSTExpired -->
-<!-- source: internal/component/bgp/plugins/gr/gr.go -- retainPeerFamilies -->
 <p>Before 2026-10-02 the immediate LLGR entry ran first, and the session-down purge that follows it deleted every route it had just marked, so a peer advertising <code>restart-time 0</code> lost all its routes on a TCP failure.</p>
 <table>
 <thead>
@@ -789,7 +712,6 @@ A family omitted from GR with zero or unexchanged LLST is not retained.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/gr/register.go -- CommunityLLGRStale, CommunityNoLLGR -->
 <h3 id="cli_1">CLI</h3>
 <p>Decode LLGR capability from hex:</p>
 <pre><code>$ ze plugin bgp-gr --capa 00010180000e10
@@ -797,7 +719,6 @@ A family omitted from GR with zero or unexchanged LLST is not retained.</p>
 <p>Shows per-family LLST values and F-bit flags.</p>
 <h2 id="without-graceful-restart">Without Graceful Restart</h2>
 <p>When GR is not configured or the peer does not advertise the GR capability, routes are withdrawn immediately on session down. No stale state, no restart timer.</p>
-<!-- source: internal/component/bgp/plugins/gr/ -- GR plugin implementation -->
 <h3 id="automatic-source-lifecycle-arguments">Automatic source lifecycle arguments</h3>
 <p>Automatic GR requests use <code>request bgp rib source &lt;operation&gt; owner &lt;id&gt; connection &lt;id&gt;</code>. The connection remains the original physical source even
 after reconnect. Retention appends <code>on-down families &lt;afi/safi&gt; ...</code>; the
@@ -808,8 +729,6 @@ for LLGR, <code>stale-level 2 family &lt;afi/safi&gt;</code>. Family purges appe
 The operator commands outside <code>source</code> use peer selectors. The captured owner
 and connection limit which routes cleanup can affect and grant no permission
 to receive, select, or send a route.</p>
-<!-- source: internal/component/bgp/plugins/gr/gr.go -- dispatchSource, retainPeerFamilies, wireStateCallbacks -->
-<!-- source: internal/component/bgp/plugins/rib/rib_source_commands.go -- parseRIBPhysicalSource, retainPhysicalSourceCommand, markPhysicalSourceCommand, parsePhysicalSourceCommunity -->
 <p>The passive validation owners also consume original source removal.
 <code>removed</code> (<code>rpc.ReasonPeerRemoved</code>) ends the logical owner's entire retained population, whereas a
 physical DOWN still names one exact connection. RPKI checks queued validation
@@ -818,8 +737,6 @@ joins already dispatched decisions before acknowledging cleanup. Adj-RIB-In
 accepts retained-route revalidation without permitting an absent source to
 recreate early decisions. <code>retention.Ledger.Active</code> reads only an admitted
 current lifetime and creates no record.</p>
-<!-- source: pkg/plugin/rpc/enums.go -- ReasonPeerRemoved -->
-<!-- source: internal/component/bgp/retention/retention.go -- Ledger, Active -->
 </div>
 </div>
             </section>
@@ -869,7 +786,7 @@ current lifetime and creates no record.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

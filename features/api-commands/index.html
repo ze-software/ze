@@ -111,7 +111,6 @@
 </tbody>
 </table>
 <p>Peer selector supports: <code>*</code> (all), exact IP, peer name, ASN (<code>as65001</code>), glob patterns (<code>192.168.*.*</code>), exclusion (<code>!addr</code>, <code>!as65001</code>). Tab completion for peer selectors in <code>ze show</code> and <code>ze cli</code> when daemon is running.</p>
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer management RPC handlers -->
 <h3 id="route-updates">Route Updates</h3>
 <table>
 <thead>
@@ -133,8 +132,6 @@
 </table>
 <p>Text attribute syntax: <code>origin set igp</code>, <code>nhop set 1.1.1.1</code>, <code>local-preference set 100</code>, <code>med set 50</code>, <code>as-path set [65000 65001]</code>, <code>community set [no-export]</code>, <code>large-community set [65000:1:1]</code>.</p>
 <p>NLRI operations: <code>add</code>, <code>del</code>, <code>eor</code> per address family.</p>
-<!-- source: internal/component/bgp/plugins/cmd/update/update_text_test.go -- text update parsing -->
-<!-- source: internal/core/bgp/attribute/builder_parse.go -- text attribute parsing -->
 <h3 id="rib-operations">RIB Operations</h3>
 <table>
 <thead>
@@ -171,8 +168,6 @@
 </tbody>
 </table>
 <p>Inject attributes: <code>origin &lt;igp|egp|incomplete&gt;</code>, <code>nhop|nexthop &lt;ip&gt;</code>, <code>aspath &lt;asn,asn,...&gt;</code>, <code>localpref &lt;n&gt;</code>, <code>med &lt;n&gt;</code>. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast).</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
-<!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB command handlers -->
 <h3 id="cache-management">Cache Management</h3>
 <table>
 <thead>
@@ -263,7 +258,6 @@
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/cmd/commit/commit.go -- commit workflow handlers -->
 <h3 id="raw-introspection">Raw &amp; Introspection</h3>
 <table>
 <thead>
@@ -295,7 +289,6 @@
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw BGP message handler -->
 </div>
 </div>
             </section>
@@ -333,7 +326,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

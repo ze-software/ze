@@ -61,8 +61,6 @@ the operator chooses one via the <code>backend</code> leaf.</p>
 <li><a href="#vpp-backend-operational-notes">VPP Backend: Operational Notes</a></li>
 <li><a href="#failure-modes">Failure Modes</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/traffic/register.go -- reactor wiring -->
-<!-- source: internal/component/traffic/backend.go -- Backend interface, RegisterBackend, RegisterVerifier -->
 <h2 id="backends">Backends</h2>
 <table>
 <thead>
@@ -115,8 +113,6 @@ before anything is applied:</p>
 </code></pre>
 <p>Before this check the config passed validation and failed at apply, with
 <code>unknown backend "vpp"</code> and no build tag named.</p>
-<!-- source: internal/component/traffic/register.go -- vppPlugin, backendVPP, ConfigNeeds -->
-<!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders -->
 <p>An interface entry with no <code>qdisc</code> block attaches no root discipline. Once a
 <code>qdisc</code> block is present, its <code>type</code> is required, and a config that omits it is
 refused naming <code>traffic/control/interface[&lt;name&gt;]/qdisc/type</code>.</p>
@@ -126,8 +122,6 @@ must name a class of the same qdisc: the leaf is a YANG leafref to
 when it is validated or committed, with a message naming the missing class and
 the classes that exist. A <code>default-class</code> naming no class used to be accepted,
 and the netlink backend then ignored it in silence.</p>
-<!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- YANG schema -->
-<!-- source: internal/component/traffic/config.go -- parseInterfaceQoS -->
 <h2 id="tc-backend-tbf-root-rate">tc Backend: TBF Root Rate</h2>
 <p>TBF is classless on Linux. Its rate belongs to the root qdisc, not to an
 invented class:</p>
@@ -161,23 +155,14 @@ again before dynamic subscriber apply changes the kernel.</p>
 <p>The VPP class-policer syntax below is unchanged. VPP refuses the root <code>rate</code>
 leaf at verification and apply; it never ignores it or combines it with a
 class rate.</p>
-<!-- source: internal/plugins/traffic/netlink/translate_linux.go -- translateQdisc, translateClass, burstTicks -->
-<!-- source: internal/plugins/traffic/netlink/verify_linux.go -- verifyDesired -->
-<!-- source: internal/plugins/traffic/netlink/backend_linux.go -- ListQdiscs -->
-<!-- source: internal/component/traffic/cmd/show.go -- FormatQoS -->
-<!-- source: internal/component/traffic/cmd/traffic.go -- handleShowTraffic -->
 <h2 id="tc-backend-original-qdisc-snapshot">tc Backend: Original Qdisc Snapshot</h2>
 <p>Before installing its own root qdisc, the tc backend snapshots the interface's existing one so the interface can be restored exactly. A qdisc whose parameters this backend cannot reproduce is refused rather than approximated, and the apply fails naming it (<code>protocol.md</code>).</p>
 <p><code>noqueue</code> is snapshotted and restored. It is the default root on every virtual interface (veth, dummy, bridge, and anything else the kernel gives no real queue), so it is the state a QoS config is most often applied <em>from</em>. It carries no reconstructable parameters, but it is the <em>absence</em> of a discipline, so it is exactly restorable: the restore deletes whatever root Ze installed rather than replacing it, which returns the interface to <code>noqueue</code>. Adding a qdisc named <code>noqueue</code> is not the inverse operation, and a snapshot restored by deletion fails closed if a caller routes it down the replace path.</p>
 <p>Other <code>GenericQdisc</code> types (<code>mq</code>, <code>clsact</code>, ...) stay rejected: those carry state this backend cannot reproduce.</p>
-<!-- source: internal/plugins/traffic/netlink/snapshot_linux.go -- newQdiscSnapshot, tcQdiscSnapshot.restoredByDelete -->
 <p><code>clsact</code> and <code>ingress</code> are not configurable on any backend. Neither is a root discipline: they attach at the ingress hook, they carry no classes, and that hook belongs to port mirroring and to flow sampling, which install <code>clsact</code> at <code>ffff:0</code> themselves. The <code>qdisc-type</code> enumeration offers neither, so a config naming one is refused when it is validated. Ze still names both when it reads an interface that already carries one.</p>
-<!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- qdisc-type -->
-<!-- source: internal/plugins/iface/netlink/mirror_linux.go -- clsactQdisc -->
 <h2 id="tc-backend-filter-priorities">tc Backend: Filter Priorities</h2>
 <p>The kernel keeps exactly one <code>tcf_proto</code> per (parent, priority), and that instance carries a single link-layer protocol (<code>tcf_chain_tp_find</code>, <code>net/sched/cls_api.c</code>). A second filter at the same priority with a different protocol is rejected with <code>EINVAL</code>.</p>
 <p>Ze therefore allocates one priority per link-layer protocol: the IPv4 (<code>ETH_P_IP</code>) and IPv6 (<code>ETH_P_IPV6</code>) halves of a DSCP or protocol match get distinct priorities, as does a mark filter (<code>ETH_P_ALL</code>). With a shared priority the qdisc and class were created, the IPv4 filter was accepted, and the IPv6 filter at the same priority was refused.</p>
-<!-- source: internal/plugins/traffic/netlink/translate_linux.go -- u32FilterPair, FilterMark -->
 <h2 id="vpp-backend-compatibility-matrix">VPP Backend: Compatibility Matrix</h2>
 <p>The VPP backend rejects qdisc and filter types that cannot be represented
 faithfully in VPP. Rejection fires at <code>ze config commit</code> (daemon config-verify)
@@ -278,22 +263,18 @@ record/map/mark pipeline cannot police, so it is not the mechanism here.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/traffic/vpp/verify.go -- verifyFilter, errFilterMarkNotSupportedByBackend -->
 <p>Rate limiting without filters is still useful for single-rate use:
 one HTB or TBF class with rate/ceil values becomes one VPP policer
 on interface egress that enforces the operator's rate. Multi-class steering is
 supported when EVERY class on the interface carries a <code>protocol</code> or <code>dscp</code>
 filter: the classes then share chained classify tables and each gets its own
 policer. A multi-class config with one unfiltered class is rejected.</p>
-<!-- source: internal/plugins/traffic/vpp/verify.go -- verifyInterface, the multi-class steering rule -->
 <p>Policer name length: the backend composes a VPP policer name as
 <code>ze/&lt;iface&gt;/&lt;class&gt;</code> and VPP caps names at 64 bytes. If that compound
 exceeds 64 bytes, the verifier rejects the commit with a message naming
 the full name and the limit so the operator can shorten the class or
 interface name. No silent truncation -- two distinct classes must never
 produce the same stored policer name.</p>
-<!-- source: internal/plugins/traffic/vpp/verify.go -- rejection matrix -->
-<!-- source: internal/plugins/traffic/vpp/translate.go -- parameter translation -->
 <h2 id="vpp-backend-operational-notes">VPP Backend: Operational Notes</h2>
 <ul>
 <li><strong>VPP must be running when traffic-control config applies.</strong> If VPP is not
@@ -340,9 +321,6 @@ touches many interfaces can run to request count times the deadline.</li>
 the bound. The firewall backend publishes the same knob under
 <code>ze.firewall.vpp.reply-timeout</code> (<code>docs/guide/firewall.md</code>), with the same
 default and range.</p>
-<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- Apply, WaitConnected, reconcileRemovals -->
-<!-- source: internal/plugins/traffic/vpp/timeout_linux.go -- vppReplyTimeout, newGovppOps -->
-<!-- source: internal/component/vpp/conn.go -- Connector.WaitConnected -->
 <h2 id="failure-modes">Failure Modes</h2>
 <table>
 <thead>
@@ -424,7 +402,7 @@ default and range.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -101,10 +101,6 @@ the nft backend lowers them to nftables kernel expressions.</p>
 <li><a href="#cli">CLI</a></li>
 <li><a href="#lifecycle">Lifecycle</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/firewall/model.go -- Match and Action type definitions -->
-<!-- source: internal/component/firewall/config.go -- parseFromBlock, parseThenBlock -->
-<!-- source: internal/component/firewall/engine.go -- runEngine, OnConfigure, OnConfigApply -->
-<!-- source: internal/plugins/firewall/nft/lower_linux.go -- nftables expression lowering -->
 <h2 id="backend">Backend</h2>
 <table>
 <thead>
@@ -126,7 +122,7 @@ the nft backend lowers them to nftables kernel expressions.</p>
 <td><code>vpp</code></td>
 <td>Linux with VPP</td>
 <td class="cell-no">✕</td>
-<td>GoVPP ACL classify pipeline and NAT44-ED <!-- source: internal/plugins/firewall/nft/register.go -- RegisterBackend("nft") --> <!-- source: internal/plugins/firewall/vpp/register.go -- RegisterBackend("vpp") --></td>
+<td>GoVPP ACL classify pipeline and NAT44-ED</td>
 </tr>
 </tbody>
 </table>
@@ -141,8 +137,6 @@ still starts after VPP when a <code>vpp {}</code> block runs it. In a build with
 <code>ze_vpp</code>, <code>ze config validate</code>, a commit and daemon boot all refuse
 <code>firewall backend vpp</code> before anything is applied, naming the leaf and the
 <code>ze_vpp</code> tag, where the config used to pass validation and fail at apply.</p>
-<!-- source: internal/component/firewall/register.go -- vppPlugin, backendVPP, ConfigNeeds -->
-<!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders -->
 <h3 id="clean-shutdown-teardown">Clean-shutdown teardown</h3>
 <p><code>flush-on-shutdown</code> controls whether stopping the <code>ze</code> process removes ze-owned
 tables from the kernel. It defaults to <code>true</code>: an orderly stop (SIGTERM, e.g.
@@ -207,9 +201,6 @@ the latency histogram's last finite bucket is also derived from.</p>
 is 0, which govpp documents as disabling the timeout, and <code>Channel.ReceiveReply</code>
 has no context arm, so a wedged VPP held the process-wide reconcile lock
 indefinitely.</p>
-<!-- source: internal/plugins/firewall/nft/deadline_linux.go -- netlinkTimeout, withNetlinkDeadline -->
-<!-- source: internal/plugins/firewall/vpp/timeout_linux.go -- vppReplyTimeout, newGovppOps -->
-<!-- source: internal/component/firewall/backend.go -- MaxBackendDeadline, ErrKernelTimeout -->
 <p>When the deadline expires the apply fails, and ze logs an error saying the
 dataplane did not answer within the backend deadline and its ruleset is now behind
 the registry. That log sits outside the metrics path, so it is written whether or
@@ -256,9 +247,6 @@ result value, so they cannot drift apart. A backend that panics is recorded as
 <p>A refused FlowSpec route is otherwise invisible: it is never registered, so no
 reconcile fails and <code>show firewall</code> has nothing to render. The peer believes ze
 filters the traffic and ze does not, which is what the counter reports.</p>
-<!-- source: internal/component/firewall/metrics.go -- observeApply, applyDurationBuckets -->
-<!-- source: internal/plugins/flowspec-firewall/metrics.go -- countRuleRefused -->
-<!-- source: internal/component/firewall/registry.go -- ApplyAll -->
 <h2 id="tables-and-chains">Tables and Chains</h2>
 <p>Ze owns all tables whose kernel name starts with <code>ze_</code>. A table contains one or
 more chains; a base chain has a type, hook, priority, and default policy.</p>
@@ -335,13 +323,9 @@ the range never judges it by the range's floor. The accept ends only the
 sources share is judged only by the one the listener picks: a static peer
 before a group range of the same address, and the first of two groups whose
 ranges are the same prefix.</p>
-<!-- source: internal/component/gtsm/gtsm.go -- claimTerm, narrowestFirst -->
-<!-- source: internal/component/bgp/reactor/gtsm.go -- gtsmRanges -->
 <p>Every term carries a packet counter (the nft backend adds one to each rule),
 so <code>show firewall ruleset gtsm</code> shows how many below-floor SYNs each
 <code>dangerous-...-listen</code> term dropped.</p>
-<!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules -->
-<!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset -->
 <p>The ICMP terms name the session by the header the error quotes (the peer as
 the quoted destination, and the BGP port), whoever sent the error. They
 therefore read the quoted header as a raw payload compare
@@ -349,7 +333,6 @@ therefore read the quoted header as a raw payload compare
 <code>show firewall ruleset gtsm</code> lists the table, and removing the peer's <code>ttl</code>
 block removes its terms; the table goes with the last GTSM peer. The full list of table owners is in
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/firewall/table-ownership-and-shutdown-flush.md" target="_blank" rel="noopener">table ownership</a>.</p>
-<!-- source: internal/component/gtsm/gtsm.go -- FilterTables, peerTerms -->
 <h3 id="table-families">Table Families</h3>
 <p><code>inet</code> (dual-stack), <code>ip</code>, <code>ip6</code>, <code>arp</code>, <code>bridge</code>, <code>netdev</code>.</p>
 <p>A table of family <code>arp</code> sees the ARP header where the other families see the
@@ -360,7 +343,6 @@ it is refused there at verify: <code>source-address</code>, <code>destination-ad
 domain-group leaves. The error names the leaf and says "family arp carries no
 IP header"; move the term to a table of family <code>ip</code>, <code>ip6</code> or <code>inet</code>.
 <code>icmp-type</code>, <code>icmpv6-type</code> and <code>dscp</code> keep their own family refusals.</p>
-<!-- source: internal/component/firewall/validate.go -- validateMatch, ipHeaderMatchLeaf -->
 <p>A table name a feature installs is reserved for that feature, in every
 family, whether or not the feature is configured. A table of yours whose
 kernel name (<code>ze_</code> + its name) is one of them, such as <code>vrrp</code>,
@@ -371,7 +353,6 @@ features your build includes, because a feature compiled out of the build
 reserves nothing. The reserved names are listed in
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/firewall/table-ownership-and-shutdown-flush.md" target="_blank" rel="noopener">table ownership</a>,
 Rule 2.</p>
-<!-- source: internal/component/firewall/reservation.go -- refuseReservedTableNames -->
 <h3 id="chain-types">Chain Types</h3>
 <p><code>filter</code>, <code>nat</code>, <code>route</code>.</p>
 <h3 id="hooks">Hooks</h3>
@@ -468,7 +449,6 @@ Rule 2.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/firewall/config.go -- parseFromBlock -->
 <p><code>destination-local</code> matches a packet addressed to the router itself: its
 destination is an address the kernel holds on one of the router's interfaces
 when the packet is seen, so an address added later, such as one a DHCP client
@@ -504,21 +484,14 @@ family <code>ip</code> or <code>ip6</code>, and verify refuses it in <code>inet<
 with the <code>ip</code> and <code>ip6</code> ones, so a dual-stack port is published by one term in
 an <code>ip</code> table and one in an <code>ip6</code> table. The <code>vpp</code> backend refuses it at commit, because a VPP ACL has no
 lookup of the router's own addresses.</p>
-<!-- source: internal/component/firewall/config.go -- parseFromBlock -->
-<!-- source: internal/component/firewall/validate.go -- validateMatch -->
-<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerDestinationLocalMatch -->
-<!-- source: internal/plugins/firewall/vpp/verify.go -- verifyMatch -->
 <p>Literal source and destination prefixes must use the network address. For
 example, <code>source-address 10.10.10.1/30</code> is refused because it matches the network
 <code>10.10.10.0/30</code>. The error identifies the term and gives the corrected statement,
 <code>source-address 10.10.10.0/30</code>. The same rule applies to IPv6. To match one host,
 use <code>/32</code> for IPv4 or <code>/128</code> for IPv6. Named-set references such as
 <code>source-address @trusted-hosts</code> keep their existing behavior.</p>
-<!-- source: internal/component/firewall/config.go -- parseAddressMatch -->
 <p>Offline validation, startup and configuration verify apply this check before
 the firewall changes. A refused reload keeps the active configuration and rules.</p>
-<!-- source: internal/component/firewall/config.go -- parseAddressMatch -->
-<!-- source: internal/component/firewall/engine.go -- VerifyConfig, parseConfigSections, runEngine -->
 <h3 id="protocol-names">Protocol names</h3>
 <p><code>protocol</code> takes one of ten names. The set is the same everywhere a protocol is
 matched: the firewall config, policy routes, DDoS mitigation terms and FlowSpec
@@ -595,16 +568,11 @@ not install, <code>ip rule</code> entries that select on <code>ipproto esp</code
 other programs: <a href="../ipsec/#both-esp-wire-forms">Both ESP wire forms</a> lists each,
 with its fix. That list holds the limits known today, not every kind of filter
 a Linux host can run.</p>
-<!-- source: internal/component/ike/dataplane/espform_firewall_linux.go -- espFormFirewallBlocks, espFormBaseChains -->
-<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- publishFirewall -->
-<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormFirewallBlocked -->
-<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathIPv4 -->
 <p>A protocol outside this set is refused where it enters. The config editor
 refuses it at commit; a FlowSpec route that names one is refused at translation,
 counted, and logged with the protocol number and the route key. Ze does not
 enforce a version of the rule with the protocol condition removed, because that
 rule is wider than the one that was asked for.</p>
-<!-- source: internal/component/firewall/protocol.go -- ianaProtocolNumbers, ProtocolName -->
 <h3 id="icmp-type-names">ICMP Type Names</h3>
 <p>Symbolic names for <code>icmp-type</code>: <code>echo-reply</code>, <code>destination-unreachable</code>,
 <code>source-quench</code>, <code>redirect</code>, <code>echo-request</code>, <code>router-advertisement</code>,
@@ -629,8 +597,6 @@ rule. Do not write <code>ppp*</code> for the client: the kernel names <code>pppN
 subscriber sessions of an L2TP LNS or a PPPoE access concentrator, which have
 no configured name. On such a box, <code>ppp*</code> matches the subscribers and never the
 client.</p>
-<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup -->
-<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerIfaceMatch -->
 <h2 id="action-types-then-block">Action Types (then block)</h2>
 <table>
 <thead>
@@ -759,7 +725,6 @@ what VyOS writes for <code>adjust-mss clamp-mss-to-pmtu</code> on an interface.<
 <code>masquerade</code> on a CPE converted from VyOS: a SYN offering 1460 arrives at the
 server with 1400, one offering 1300 arrives unchanged, and the server sees the
 CPE's WAN address as the source.</p>
-<!-- source: internal/le/interoplab/topology/check_lan.go -- checkLANServices, checkMasquerade -->
 <p>Both forms are clamps. An MSS already at or below the bound is left alone,
 because the kernel skips a two-byte MSS write that would raise the value, and a
 SYN without the option is not changed. A term carries one of the two, never
@@ -794,8 +759,6 @@ IPv6:</p>
     }
 }
 </code></pre>
-<!-- source: internal/component/firewall/validate.go -- validateClampTCPMSSToPMTU -->
-<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerClampTCPMSSToPMTU -->
 <h3 id="nat-rule-placement-in-nftables">NAT rule placement in nftables</h3>
 <p><code>ze config validate</code> checks NAT placement before the nft backend installs the
 rules. NAT base chains use family <code>ip</code>, <code>ip6</code> or <code>inet</code>, a priority greater
@@ -830,7 +793,6 @@ from either family, and that rule translates only that family.</p>
 <p>If a term fails validation, the error identifies its table, chain and term.
 For a regular chain it names the offending base chain when an entry path
 caused the refusal.</p>
-<!-- source: internal/component/firewall/validate_nft_nat.go -- validateNftNATBaseChain, validateNftNATPlacement, nftNATIncompatibleBase -->
 <h3 id="nat-exclude">NAT Exclude</h3>
 <p>In a NAT chain, <code>exclude</code> emits a Return verdict so matched traffic skips
 the NAT translation. This replaces the VyOS <code>nat destination rule N exclude</code>
@@ -898,8 +860,6 @@ pattern.</p>
 }
 </code></pre>
 <h2 id="control-plane-protection-copp">Control-plane protection (CoPP)</h2>
-<!-- source: internal/plugins/copp/translate.go -- translatePolicy -->
-<!-- source: internal/plugins/copp/yang/ze-copp-conf.yang -- control-plane-protection bgp -->
 <p><code>control-plane-protection bgp</code> builds its own table, <code>inet ze_copp</code>, beside
 the firewall component's tables. It is an access list on TCP to the protected
 ports (179 unless <code>protected-port</code> says otherwise), as RFC 7454 Section 4
@@ -949,16 +909,12 @@ Design: <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/t
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/copp/config.go -- parseRateLimit -->
-<!-- source: internal/plugins/copp/translate.go -- trustedTermName -->
 <h2 id="global-options">Global Options</h2>
 <p>The <code>global-options</code> container provides keyword toggles for common network
 security defaults. Each keyword maps to a kernel sysctl. At
 config apply time, the firewall component emits these as sysctl defaults via
 EventBus. Explicit <code>sysctl { setting { ... } }</code> entries always override
 global-options (three-layer priority: config &gt; transient &gt; default).</p>
-<!-- source: internal/component/firewall/config.go -- ExtractGlobalOptions, globalOptionDefs -->
-<!-- source: internal/component/firewall/engine.go -- emitGlobalOptionsSysctlDefaults -->
 <pre><code>firewall {
     backend nft;
     global-options {
@@ -1038,7 +994,6 @@ global-options (three-layer priority: config &gt; transient &gt; default).</p>
 <p>Note: <code>all-ping</code> and <code>broadcast-ping</code> have inverted semantics because the
 underlying sysctl controls "ignore" behavior.</p>
 <h2 id="irr-prefix-list-filtering">IRR Prefix-List Filtering</h2>
-<!-- source: internal/component/firewall/plugins/irr/irr.go -- firewall-irr plugin entry point -->
 <p>Firewall rules can match traffic by ASN or AS-SET using IRR-resolved prefix
 lists. The <code>firewall-irr</code> plugin fetches nothing. The <code>irr</code> plugin fetches,
 schedules and stores every list a consumer enforces, under the settings of
@@ -1175,10 +1130,7 @@ read, apply or save.</li>
 is the age of the oldest stored data.</p>
 <p>Prefixes are removed only on purpose: <code>clear irr asn &lt;N&gt;</code> and <code>clear irr as-set &lt;name&gt;</code> remove the stored copy, and the firewall drops the list on the notice.
 Use them when an AS-SET is deregistered upstream.</p>
-<!-- source: internal/component/firewall/plugins/irr/stored.go -- storeReader -->
-<!-- source: internal/component/firewall/plugins/irr/doctor.go -- checkIRRDataFreshness, answerDoctorCheck -->
 <h3 id="per-interface-source-validation">Per-Interface Source Validation</h3>
-<!-- source: internal/component/firewall/plugins/irr/sets.go -- buildIfaceTables -->
 <p>Bind an AS-SET to a customer-facing interface. Packets arriving on that
 interface with source addresses not in the AS-SET's IRR-resolved prefixes
 are dropped (ingress source validation, BCP 38).</p>
@@ -1208,7 +1160,6 @@ stays and the drop term does not become the only rule for that family.</p>
 has no cached prefix data. Removing an interface binding removes its filter
 on the next apply.</p>
 <h2 id="dns-sourced-address-groups">DNS-Sourced Address Groups</h2>
-<!-- source: internal/component/firewall/plugins/domain/domain.go -- firewall-domain plugin entry point -->
 <p>A domain group holds one or more DNS names, and its nftables set holds the
 addresses those names resolve to. The <code>firewall-domain</code> plugin asks the daemon's
 resolver for each name, programs the answers, and asks again when that answer
@@ -1397,10 +1348,6 @@ state: <code>ze_firewall_domain_group_addresses_cached</code>,
 <code>changed</code>, <code>nxdomain</code>, <code>error</code>, <code>panic</code>),
 <code>ze_firewall_domain_group_last_refresh_timestamp</code>, which moves only when a
 refresh changed the addresses, and <code>ze_firewall_domain_group_data_age_seconds</code>.</p>
-<!-- source: internal/component/firewall/plugins/domain/schedule.go -- per-name, per-family TTL schedule -->
-<!-- source: internal/component/firewall/plugins/domain/changelog.go -- the bounded JSON-lines change log -->
-<!-- source: internal/component/firewall/plugins/domain/doctor.go -- checkDomainGroupData -->
-<!-- source: internal/component/firewall/plugins/domain/doctor.go -- unsavedAnswerFindings -->
 <h2 id="cli">CLI</h2>
 <table>
 <thead>
@@ -1521,7 +1468,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

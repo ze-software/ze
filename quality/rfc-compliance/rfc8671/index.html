@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 11 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 11 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 11 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>4</strong><b>4 of 20 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>18</strong><b>18 of 20 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -259,7 +259,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>7</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>4</td>
+<td>18</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8671.md</code></td>
@@ -279,8 +279,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> BMP Adj-RIB-Out</p>
-<p><strong>Test verification:</strong> 2 of 11 MUST proven</p>
-<p><strong>Evidence:</strong> unit 2</p>
+<p><strong>Test verification:</strong> 9 of 11 MUST proven</p>
+<p><strong>Evidence:</strong> unit 9</p>
 <p><strong>Unmet:</strong> RFC8671-5.2-1, RFC8671-5.2-2</p>
 
 </section>
@@ -326,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8671:must">Ze verified 2, Tests awaiting verification 7, Not built 2</div>
+<div data-ze-rfc-bar="rfc8671:must">Ze verified 9, Not built 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8671:overview">Ze MUST verified 2, Tests awaiting verification 7, Not assessed 1, Not built 2</div>
+<div data-ze-rfc-bar="rfc8671:overview">Ze MUST verified 9, Not assessed 1, Not built 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -349,13 +349,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8671:must.kept">11</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc8671:must.ze-proven">2</span></td>
+<td><span data-ze-rfc="rfc8671:must.ze-proven">9</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8671:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc8671:must.proof-pending">7</span></td>
+<td><span data-ze-rfc="rfc8671:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc8671:must.os-gap">0</span></td>
@@ -573,12 +573,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L222" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestRFC8671OFlagBit4</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L219" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestRFC8671OFlagBit4</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -593,12 +593,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L81" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBIn</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L58" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBOut</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -638,12 +638,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L108" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671ReservedPeerFlagsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L66" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671ReservedPeerFlagsTransmittedAsZero</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -663,12 +663,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L194" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671PostPolicyConveysUnknownAttributeUnchanged</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L164" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671PostPolicyConveysTransmittedBytes</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -691,12 +691,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L306" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671OFlagClearOnAdjRIBInMessages</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L268" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671OFlagSetOnAdjRIBOutMessages</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -726,12 +726,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L476" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671AdminLabelReversedOrderPreserved</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L459" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671AdminLabelOrderPreserved</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -751,12 +751,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L967" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671UnrelatedBGPChangeBouncesNothing</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L848" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -993,7 +993,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -110,7 +110,6 @@
 </ol></li>
 </ol></details></nav><div class="doc-body">
 <p>Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.</p>
-<!-- source: gokrazy/ze/config.json -- Packages, KernelPackage, Environment -->
 <h2 id="prepare-the-build-host-command">Prepare the build-host command</h2>
 <p>Work from the Ze source checkout with Go and Git installed. Build the native
 host driver and select the patched Go environment before the image commands:</p>
@@ -123,10 +122,6 @@ the appliance and PXE provisioning commands. The ordinary <code>./ze</code> laun
 the Linux daemon; it does not carry <code>appliance</code>. Build kernels and cold-cache
 images on a host matching the image architecture. Binaries can be cross-built,
 but selecting another <code>image.arch</code> does not make a foreign kernel build possible.</p>
-<!-- source: internal/le/build/hostdriver/hostdriver.go -- Answer, RuntimeKernelBuild -->
-<!-- source: internal/le/build/compile/build.go -- HostTags, HostBinary, hostPlan -->
-<!-- source: internal/appliance/cmd_build.go -- requirePatchedTree, buildOne -->
-<!-- source: internal/appliance/runtimekernel.go -- ImageRuntimeKernelTree -->
 <h2 id="whats-in-the-image">What's in the image</h2>
 <table>
 <thead>
@@ -175,15 +170,11 @@ available, the builder also checks ext4 structure; otherwise it warns and skips
 that check. The native
 builder resolves each tool independently from the Homebrew keg, standard sbin
 directories, and <code>PATH</code>.</p>
-<!-- source: internal/appliance/cmd_build.go -- ResolveE2FSTool -->
-<!-- source: internal/appliance/diskverify.go -- verifyE2fsck -->
 <p>For appliance ISO creation, install <code>grub-mkstandalone</code> (or <code>grub2-mkstandalone</code>)
 with the GRUB EFI modules for the target (<code>x86_64-efi</code> or <code>arm64-efi</code>), plus
 <code>xorriso</code>. <code>./ze-host appliance iso</code> checks those tools and modules before it
 stages an ISO. On macOS, build the ISO on a Linux host: see
 <a href="#iso-prerequisites">ISO prerequisites</a>.</p>
-<!-- source: internal/appliance/cmd_iso.go -- resolveISOBuilder, checkISOPrerequisites -->
-<!-- source: internal/appliance/iso_modules.go -- checkISOGRUBModules -->
 <p>The vendored gokrazy command (<code>github.com/gokrazy/tools/gok</code>) runs in process.
 <code>./ze-host appliance build</code> calls it directly. A developer runs it with
 <code>./le build gokrazy &lt;gok args&gt;</code>, which uses the checked-in module cache, forbids
@@ -197,14 +188,11 @@ set to the tree, <code>GOTOOLCHAIN=local</code>, and <code>$GOROOT/bin/go</code>
 refusal ends with the command line that sets all three:</p>
 <pre><code>GOROOT="$(./le go stdpatch goroot)" &amp;&amp; export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH" &amp;&amp; ./ze-host appliance build &lt;name&gt;
 </code></pre>
-<!-- source: internal/appliance/cmd_build.go -- runGokInProcess -->
-<!-- source: internal/le/build/gokrazy/gokrazy.go -- Run -->
 <h2 id="first-time-setup">First-time setup</h2>
 <p>Initialize the named appliance before its first build:</p>
 <pre><code class="language-bash">./ze-host appliance init edge-01
 </code></pre>
 <p>The build resolves pinned system packages through the Go module graph.</p>
-<!-- source: gokrazy/ze/builddir/github.com/gokrazy/gokrazy/go.mod -- pinned gokrazy version -->
 <h2 id="runtime-kernel-requirements">Runtime Kernel Requirements</h2>
 <p>The runtime kernel is pinned by two manifests, <code>gokrazy/kernel/kernel.require</code>
 and <code>gokrazy/kernel/runtime.require</code>. Each is
@@ -213,8 +201,6 @@ accepts <code>=y</code> alone. A Kconfig answer of <code>m</code> therefore fail
 shipping an appliance where a feature Ze accepts in config cannot work. Runtime
 images also package the matching module tree; a module from a stock distribution
 is not a substitute for that kernel's modules.</p>
-<!-- source: internal/appliance/kernelbuilder/worker.go -- copyRuntimeOutputs -->
-<!-- source: internal/appliance/instance/kernelpkg.go -- assembleKernelPackage -->
 <p>Each symbol has a producer in Ze rather than a test that wanted it.</p>
 <table>
 <thead>
@@ -269,9 +255,6 @@ is not a substitute for that kernel's modules.</p>
 </table>
 <p><code>CONFIG_NET_UDP_TUNNEL</code> and <code>CONFIG_TUN</code> are <code>=y</code> in the config fragment and
 are not pinned in a manifest.</p>
-<!-- source: gokrazy/kernel/runtime.require -- runtime requirements -->
-<!-- source: gokrazy/kernel/kernel.require -- base requirements -->
-<!-- source: internal/appliance/kernelbuilder/worker.go -- enforceRequiredSymbols -->
 <h2 id="hardware-drivers">Hardware drivers</h2>
 <p>The appliance kernel holds some drivers in the kernel itself and loads the
 others from the image when the device is present.</p>
@@ -308,7 +291,6 @@ others from the image when the device is present.</p>
 </table>
 <p>A networking feature never waits for a driver to load. A virtual machine loads
 no driver for hardware it does not have.</p>
-<!-- source: gokrazy/kernel/runtime.config -- CONFIG_VIRTIO_NET, CONFIG_BLK_DEV_NVME, CONFIG_E1000E, CONFIG_CFG80211, CONFIG_SND_HDA_INTEL, CONFIG_DRM_I915, CONFIG_SENSORS_K10TEMP -->
 <p><strong>The load happens one time, when Ze starts.</strong> Ze reads which devices are
 present, loads the driver of each one, and only then lists the interfaces. Ze
 does not watch for new devices after that:</p>
@@ -320,10 +302,6 @@ for firmware) can appear after Ze has listed the interfaces. Ze sees the new
 interface, but applies the configuration you wrote for it only at the next
 commit.</li>
 </ul>
-<!-- source: internal/plugins/coldplug/coldplug.go -- coldplug -->
-<!-- source: internal/plugins/coldplug/register_linux.go -- coldplugOnAppliance -->
-<!-- source: cmd/ze/startprep/startprep.go -- Register, Run -->
-<!-- source: internal/component/iface/config_apply.go -- applyConfigPass, the skip of an absent ethernet entry -->
 <p><strong>When a driver does not load, the appliance still starts.</strong> Only the device
 that needs the driver is missing. Ze writes one warning in its log for each
 problem. Every warning has <code>code=doctor-module-missing</code>, a <code>fix</code> field with the
@@ -367,15 +345,10 @@ the module:</p>
 <pre><code class="language-bash">./ze-host appliance build &lt;name&gt;
 ./ze-host appliance push &lt;name&gt;
 </code></pre>
-<!-- source: internal/plugins/coldplug/coldplug.go -- coldplug, planner.add, runPlan, fixKernelLog, fixRebuild, fixUncompressed -->
-<!-- source: internal/plugins/host-cmd/yang/ze-host-cmd.yang -- show system kernel-log, leaf level -->
-<!-- source: internal/appliance/register.go -- the appliance root command -->
 <p><strong>A <code>ze</code> installed on a distribution Linux loads no driver.</strong> Only the appliance
 image carries this step, and it runs only where the image sets
 <code>ze.gokrazy.enabled</code>. On a distribution, the distribution loads the drivers with
 its own tools, normally udev.</p>
-<!-- source: cmd/ze/setup_features_appliance.go -- the coldplug blank import, under ze_appliance -->
-<!-- source: internal/plugins/coldplug/register_linux.go -- applianceKey, coldplugOnAppliance -->
 <p>The design is in
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/appliance/kernel-profiles.md" target="_blank" rel="noopener">Hardware kernel profiles</a>,
 "Built in or loadable" and "Loading driver modules on the device".</p>
@@ -385,28 +358,18 @@ kernel and base, on the host's native architecture. It uses the shared
 Docker lab transport: KVM on Linux or HVF on macOS, never a stock guest or
 foreign-architecture emulation. This is a manual kernel test, not a check
 of the default appliance image's packaged config.</p>
-<!-- source: internal/le/test/qemu/vpnproof.go -- runVPNKernelHere -->
-<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab -->
 <p>The action runs AES-GCM, AES-CBC/SHA256, ChaCha20-Poly1305, 3DES/SHA1 and
 NULL/SHA256 against strongSwan. The IPsec checks require installed SAs and
 received tunnel traffic. A separate pair of Linux WireGuard peers must
 complete a handshake and pass a ping, with received bytes at both ends.</p>
-<!-- source: internal/le/test/deployment/vpnproof.go -- runVPNKernelAt -->
-<!-- source: internal/le/interoplab/ipsec/vpnproof.go -- checkESPKernel -->
-<!-- source: internal/le/interoplab/ipsec/helpers.go -- verifyESPDirectionsToward -->
-<!-- source: internal/le/test/deployment/wireguardproof.go -- checkWireGuardProof -->
 <p>Before services start, the disposable guest disables module loading,
 refuses any preloaded module, and removes its <code>/sbin/modprobe</code> helper.
 The shipped image and any existing Docker host are unchanged. The host
 checks the emitted kernel config against both requirement manifests;
 the WireGuard step checks the guest root again, not the container root.</p>
-<!-- source: internal/le/test/qemu/vpnproof.go -- vpnGuestPreparation, vpnKernelConfig -->
-<!-- source: internal/le/test/qemu/dockerlab.go -- dockerLabGuest.cidataFiles -->
-<!-- source: internal/le/test/deployment/wireguardproof.go -- checkWireGuardProof -->
 <p>The WireGuard step proves kernel traffic, not Ze's configuration-commit
 path. An amd64 run does not replace the required arm64/HVF run, and no
 result is implied by the command's presence.</p>
-<!-- source: internal/le/test/deployment/vpnproof.go -- vpnKernelReport -->
 <h2 id="l2tp-kernel-support">L2TP Kernel Support</h2>
 <p>Ze's L2TP LNS path needs kernel PPPoL2TP support in the appliance runtime
 kernel: <code>CONFIG_PPP</code>, <code>CONFIG_PPPOL2TP</code>, <code>CONFIG_L2TP</code>, and
@@ -433,25 +396,17 @@ image's architecture themselves: from the cache when an entry is there, else by
 building it, so these commands only fill the cache ahead of a build. A cold
 cache also builds the kernel before the image. It needs network access to
 kernel.org and Docker or QEMU on a host of the image's architecture.</p>
-<!-- source: internal/le/build/gokrazy/gokrazy.go -- prepareArgs -->
-<!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 <p><code>image.kernel-profile</code> selects the installer kernel. Appliance images use the
 shared <code>runtime</code> profile for their architecture. The installer <code>qemu</code> fragment
 requests virtio drivers and is merged onto Linux <code>defconfig</code>, which can enable
 additional drivers. The emitted kernel configuration records the complete
 driver selection.</p>
-<!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
-<!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
-<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 <p><code>./ze-host appliance kernel --target runtime</code> calls the Go driver in
 <code>internal/appliance/kernelbuilder</code>. The driver reads
 <code>internal/appliance/kernel.version</code>, selects Docker or QEMU, resolves the
 tracked config fragments and <code>.require</code> manifests, and writes the runtime
 kernel tree. The Go worker enforces every required symbol before the artifact
 can be used.</p>
-<!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
-<!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
-<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 <p>On a Linux runner with QEMU, <code>xl2tpd</code>, <code>pppd</code>, <code>/dev/ppp</code>, and PPPoL2TP kernel
 support, the deployment test target builds an L2TP-enabled appliance image and
 drives a real LAC against it:</p>
@@ -465,9 +420,6 @@ was already built with the L2TP test template, the test runtime environment,
 and an L2TP-capable kernel: skip-build bypasses the test's check of the
 runtime kernel cache, and an image whose kernel lacks PPPoL2TP crash-loops at
 first boot instead of serving.</p>
-<!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
-<!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
-<!-- source: internal/le/test/deployment/actions.go -- Answer -->
 <h2 id="build-an-image">Build an image</h2>
 <p>Build the appliance initialized above. If starting here, first run
 <code>./ze-host appliance init edge-01</code> once:</p>
@@ -481,13 +433,10 @@ building continues to produce the same blob format.</p>
 <pre><code class="language-bash">./ze-host appliance show edge-01
 ./ze-host appliance config edge-01 --merged
 </code></pre>
-<!-- source: internal/appliance/main.go -- applianceCommands -->
-<!-- source: internal/appliance/cmd_build.go -- runBuild, buildOne -->
 <h2 id="test-in-qemu">Test in QEMU</h2>
 <pre><code class="language-bash">./ze-host appliance run edge-01
 </code></pre>
 <p>The command boots the named image in QEMU. Quit QEMU with <strong>Ctrl-A X</strong>.</p>
-<!-- source: internal/appliance/cmd_run.go -- runRun -->
 <h3 id="the-gokrazy-management-ui">The gokrazy management UI</h3>
 <p>Ze's authenticated web UI shows the gokrazy management UI at <code>/gokrazy/</code>. The
 proxy reads gokrazy's password from its standard password-file locations and
@@ -560,11 +509,6 @@ what <code>request shutdown</code> does there, so that one command grants both p
 A refusal names the Ze command the page needs,
 so an administrator knows which entry to allow (see
 <a href="../authorization/">authorization.md</a>).</p>
-<!-- source: internal/component/gokrazy/gate.go -- forwardedPages, refusedPages, pageFor -->
-<!-- source: internal/component/gokrazy/gokrazy.go -- handlerWithAuth -->
-<!-- source: internal/component/web/register_gokrazy.go -- /gokrazy route -->
-<!-- source: internal/component/web/rbac.go -- authorizeRequest -->
-<!-- source: internal/core/gokrazyutil/gokrazyutil.go -- ReadPassword -->
 <h2 id="deploy-to-hardware">Deploy to hardware</h2>
 <p>Write the image to a USB drive or internal disk on your N100 machine:</p>
 <p>Use the exact <code>.img</code> path printed by the named build's <code>image ready:</code> line.
@@ -572,8 +516,6 @@ Named builds write into the selected appliance directory, normally
 <code>~/.config/ze/appliances/edge-01/</code>; <code>tmp/gokrazy/ze.img</code> belongs to other build
 and test workflows. Set <code>ZE_IMAGE</code> to the named image you just built, verify
 its accompanying <code>.sha256</code> file, and identify the target device before writing.</p>
-<!-- source: internal/appliance/cmd_build.go -- buildOne -->
-<!-- source: internal/appliance/resolve.go -- ResolveDir, AppliancePath -->
 <pre><code class="language-bash">ZE_IMAGE='/absolute/path/from-image-ready/ze-YYYYMMDD-HHMMSS.img'
 
 # Linux
@@ -594,7 +536,6 @@ before granting shell access. If the store is missing or unreadable, or the
 credentials cannot be read, the login is refused with the error named. When
 <code>admin-enabled: false</code> is set in the appliance config, the serial console denies
 the built-in admin (fail-closed) and prints "local admin login disabled".</p>
-<!-- source: cmd/ze/login.go -- loginMain, fail-closed store and credential reads, admin-disabled check -->
 <h2 id="configuration">Configuration</h2>
 <h3 id="seed-config">Seed config</h3>
 <p>The initial Ze config is stored as the seed template in
@@ -602,8 +543,6 @@ the built-in admin (fail-closed) and prints "local admin login disabled".</p>
 per-appliance overlay exists. The seed database holds no active config that can
 shadow the template, so the appliance builds its effective config on first
 boot.</p>
-<!-- source: gokrazy/ze/ze.conf -- seed template -->
-<!-- source: internal/appliance/cmd_assemble.go -- resolveSeedConfig -->
 <pre><code class="language-bash">set environment log level info
 set environment web enabled true
 set environment web server default ip 0.0.0.0
@@ -623,7 +562,6 @@ updates. The daemon owns the store for its lifetime; offline maintenance must
 run as the store owner after the daemon stops.</p>
 <h3 id="environment-variables">Environment variables</h3>
 <p>Ze's environment is set in <code>gokrazy/ze/config.json</code> under <code>PackageConfig</code>:</p>
-<!-- source: gokrazy/ze/config.json -- Environment array -->
 <table>
 <thead>
 <tr>
@@ -715,10 +653,6 @@ take the RAM, and expose nothing to read the record back from.</p>
 <code>/perm</code>, so a record survives the update that follows a crash. Records share the
 <code>ze.crash.keep</code> retention count with Go panic reports, so a panic loop cannot
 fill <code>/perm</code>.</p>
-<!-- source: internal/appliance/kernelargs.go -- crashDumpKernelArgs, the cmdline tokens -->
-<!-- source: internal/appliance/kernelreq.go -- the pstore floor and the reserve_mem kernel floor -->
-<!-- source: internal/core/crashlog/kernel_linux.go -- the pstore reader the harvest reads through -->
-<!-- source: gokrazy/kernel/runtime.require -- CONFIG_PSTORE, CONFIG_PSTORE_RAM -->
 <h2 id="updating">Updating</h2>
 <p>Push a rebuilt image to the running appliance over authenticated HTTPS:</p>
 <pre><code class="language-bash">./ze-host appliance build &lt;name&gt;
@@ -730,13 +664,10 @@ the device's disk identities and persistent configuration. <code>--testboot</cod
 gokrazy for a temporary boot of the new root, with the previous root selected
 for a subsequent reboot. It does not verify routing health. Use <code>--no-reboot</code>
 to schedule the restart separately.</p>
-<!-- source: internal/appliance/cmd_push.go -- runPush, doPushUpdater -->
-<!-- source: internal/appliance/push_image.go -- readPushImage -->
 <p>The two root slots protect the previous root filesystem. The boot filesystem
 is shared, so keep installer media and a configuration/secret backup for an
 interrupted boot write. A partition-layout change requires reinstalling the
 disk image rather than an OTA push.</p>
-<!-- source: internal/appliance/push_image.go -- bounded boot/root/MBR payloads -->
 <p>Before the update, record the running version and archive the active configuration
 using the <a href="../lifecycle/">lifecycle guide</a>. Keep the named appliance's secrets and
 the previous image. After reboot, query the appliance through its SSH management
@@ -744,34 +675,24 @@ endpoint, using its provisioned address, SSH port and credentials:</p>
 <pre><code class="language-bash">ssh -p &lt;ssh-port&gt; &lt;username&gt;@&lt;device-address&gt; "show version --extended"
 ssh -p &lt;ssh-port&gt; &lt;username&gt;@&lt;device-address&gt; "show doctor"
 </code></pre>
-<!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
-<!-- source: internal/component/cmd/show/show.go -- handleShowVersion -->
-<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor -->
 <p>Compare the returned version with the selected image, then verify the hostname,
 committed configuration, peers and routes. A completed upload alone does not
 establish that the new runtime is reachable or routing correctly.</p>
-<!-- source: internal/appliance/cmd_push.go -- pushOne, doPushUpdater -->
-<!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA -->
 <p>For a <code>--testboot</code> update, a subsequent reboot selects the previous root slot.
 Check the version and retained configuration again after recovery. Ordinary
 <code>push</code> selects the new root persistently. Both modes leave the persistent store
 in place; a root-slot recovery does not undo configuration edits. The
 <a href="../ze-install/#choose-a-deployment-path">installation guide</a> states the architecture
 and deployment checks completed so far.</p>
-<!-- source: internal/appliance/cmd_push.go -- doPushUpdater -->
-<!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA -->
 <h2 id="removing-an-appliance">Removing an appliance</h2>
 <p>Before retiring an appliance, back up its live store using the
 <a href="../operations/#offline-data-access">Operations guide</a> and keep the backup outside
 the disk you will remove. Also <a href="#disaster-recovery-exportimport">export the named appliance directory</a>
 to retain its build configuration and secrets. Appliance exports exclude disk
 images and ZeFS databases, so keep the live-store backup separately.</p>
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup -->
-<!-- source: internal/appliance/cmd_export.go -- exportAppliance, tarApplianceInto, shouldExcludeFromExport -->
 <p>Use the <a href="../lifecycle/#choose-the-right-action">graceful stop procedure</a>, then
 power off the VM or physical device. Wait for shutdown to finish before removing
 its storage.</p>
-<!-- source: cmd/ze/hub/drain.go -- runStopDrain -->
 <p>For a VM, remove its definition through the hypervisor and explicitly choose
 whether to retain or delete the associated disks. The QEMU command uses the
 selected <code>.img</code> file as its writable disk; retaining that file keeps the device's
@@ -779,19 +700,13 @@ stored state. For dedicated hardware, boot the replacement system's installer
 and identify the appliance disk before overwriting it. Follow the storage
 device's erasure procedure before disposing of it or transferring it to another
 owner.</p>
-<!-- source: internal/appliance/cmd_run.go -- buildQEMUCommand -->
 <p>Retained disks, appliance directories, seeded images and installer ISOs contain
 configuration and authentication material. Protect any copies kept for recovery,
 and revoke credentials that should no longer grant access after retirement.</p>
-<!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS -->
-<!-- source: internal/appliance/cmd_build.go -- injectZeFS -->
-<!-- source: internal/appliance/cmd_iso.go -- stageISO -->
 <h2 id="architecture-notes">Architecture notes</h2>
 <h3 id="internal-plugins-only">Internal plugins only</h3>
 <p>Gokrazy has no shell and no PATH. Ze's external plugin mechanism (which uses <code>/bin/sh -c</code> to fork processes) does not work. All Ze plugins (bgp-rib, bgp-gr, bgp-adj-rib-in, etc.) are compiled into the ze binary as internal plugins and run as goroutines. This is the default and covers all standard BGP functionality.</p>
-<!-- source: internal/component/plugin/process/process.go -- startExternal uses /bin/sh -->
 <p>A config that names an <code>external</code> plugin anyway is reported: <code>ze doctor</code> raises <code>doctor-plugin-shell-missing</code>, naming the absent shell and the plugins that depend on it, and a start that reaches the fork names the shell rather than the plugin.</p>
-<!-- source: internal/component/plugin/doctor/check_shell.go -- diagnosePluginShell -->
 <h3 id="process-supervision">Process supervision</h3>
 <p>Gokrazy's init restarts Ze if it exits with a non-zero status (except 125, which means "don't restart"). Ze handles SIGTERM for graceful shutdown. Logs (stdout/stderr) are captured in ring buffers visible through the gokrazy web UI.</p>
 <h3 id="persistent-storage">Persistent storage</h3>
@@ -831,12 +746,9 @@ first copies the instance it names (<code>gokrazy/ze</code> for the appliance,
 under the project <code>tmp/</code>, including the whole <code>builddir</code>, rewriting each filesystem-path <code>replace</code> to an
 absolute path so it still resolves from the new depth. gok is then pointed at the
 copy, and the copy is deleted afterwards.</p>
-<!-- source: internal/appliance/instance/prepare.go -- Prepare, copyBuildDir, absolutizeReplaces -->
 <p><code>./ze-host appliance build</code> prepares an isolated copy through
 <code>resolveBuildParentDir</code>. A build leaves the working tree unchanged, and two
 builds in one checkout use separate prepared instances.</p>
-<!-- source: internal/appliance/kernelargs.go -- resolveBuildParentDir -->
-<!-- source: internal/appliance/instance/prepare.go -- Prepare -->
 <p>The image boots ze's own runtime kernel and no other. <code>config.json</code> names
 <code>ze.invalid/kernel</code> as its <code>KernelPackage</code>, a path under a reserved domain that
 never resolves on its own. Each build resolves the runtime kernel for the image's
@@ -848,16 +760,12 @@ root partition UUID before it appends the instance's extra kernel arguments. It
 also carries an empty <code>config.txt</code>, the Raspberry Pi bootloader file gokrazy
 reads from every kernel package and no ze target uses. Preparation with no resolved kernel is refused,
 so <code>gok</code> never fetches a kernel. No setting selects another kernel package.</p>
-<!-- source: internal/le/build/gokrazy/gokrazy.go -- prepareArgs -->
-<!-- source: internal/appliance/instance/prepare.go -- Prepare, replaceKernel -->
-<!-- source: internal/appliance/instance/kernelpkg.go -- assembleKernelPackage, KernelModule -->
 <h2 id="build-host-command">Build-host command</h2>
 <p>Appliance build commands (<code>./ze-host appliance</code>) and PXE provisioning
 (<code>./ze-host install remote</code>) use the native driver prepared at the beginning
 of this guide. Rebuild it after changing the source:</p>
 <pre><code class="language-bash">./le build host-driver
 </code></pre>
-<!-- source: internal/le/build/compile/build.go -- Host, HostTags, HostBinary -->
 <h2 id="building-and-installing-an-appliance-end-to-end">Building and installing an appliance (end to end)</h2>
 <h3 id="from-a-json-config-recommended">From a JSON config (recommended)</h3>
 <p>The running appliance's kernel host name comes from <code>system host</code> in its Ze
@@ -865,8 +773,6 @@ config, which Ze applies at start and on every reload. <code>identity.hostname</
 <code>appliance.json</code> names the image's CA certificate and listings, and the image
 boots as <code>ze</code> until Ze applies <code>system host</code>; with <code>system host</code> unset it stays
 <code>ze</code> (see <code>docs/guide/configuration.md</code>, "System Host Name").</p>
-<!-- source: cmd/ze/hub/main_system_hostname.go -- applyKernelHostname, applyKernelHostnameFromMap -->
-<!-- source: gokrazy/ze/config.json -- Hostname -->
 <p>Write an appliance config file (arch, kernel profile, credentials, networking):</p>
 <pre><code class="language-json">{
     "credentials": { "username": "exa", "admin-enabled": true },
@@ -883,9 +789,6 @@ plain OpenSSH public-key lines, before initializing the named appliance. These k
 log in as <code>credentials.username</code>; password recovery remains available. Supply
 unrestricted recovery public keys: assembly refuses SSH certificates and
 <code>authorized_keys</code> options such as <code>from=</code> or <code>command=</code> because Ze cannot enforce them.</p>
-<!-- source: internal/appliance/cmd_init.go -- runInit -->
-<!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS -->
-<!-- source: internal/core/authorizedkeys/authorizedkeys.go -- Parse -->
 <h4 id="reserving-hugepages-for-vpp">Reserving hugepages for VPP</h4>
 <p>When the appliance runs VPP, reserve hugepages at boot by adding <code>image.hugepages</code>
 to the config. <code>./ze-host appliance build</code> bakes <code>default_hugepagesz</code>/<code>hugepagesz</code>/<code>hugepages</code>
@@ -906,7 +809,6 @@ page count is <code>size / page-size</code> (so <code>size</code> must be a whol
 <code>page-size</code>). The reservation is bounded to 512 GiB and, when <code>memory</code> is set, to
 50% of it. 1gb pages need CPU <code>pdpe1gb</code> support and <code>CONFIG_HUGETLBFS</code> in the
 kernel profile (both surfaced by <code>./ze-host doctor</code>).</p>
-<!-- source: internal/appliance/config.go -- ImageConfig.Hugepages, validateImageMemory -->
 <p>Build the full ISO through the structured appliance actions:</p>
 <pre><code class="language-bash">./ze-host appliance init --config prod.json prod
 ./ze-host appliance kernel prod
@@ -949,9 +851,6 @@ rebuilding their matching inputs. See "ISO prerequisites" below for details.</p>
 <p>The <code>./ze-host appliance</code> command provides structured appliance management. Each
 appliance has its own directory with a JSON config, secrets that are optionally
 encrypted at rest, and a TLS certificate.</p>
-<!-- source: internal/appliance/resolve.go -- ResolveDir, ConfigPath, SecretsDir -->
-<!-- source: internal/appliance/cmd_init.go -- runInit, WriteSecret -->
-<!-- source: internal/appliance/crypto.go -- WriteSecret, Encrypt -->
 <h3 id="quick-start">Quick start</h3>
 <pre><code class="language-bash">./ze-host appliance init lab                  # interactive wizard
 ./ze-host appliance build lab                 # full image
@@ -982,8 +881,6 @@ encrypted at rest, and a TLS certificate.</p>
 </code></pre>
 <h3 id="encryption">Encryption</h3>
 <p>Secrets are encrypted at rest with Argon2id + XChaCha20-Poly1305 when an encryption passphrase is set during <code>./ze-host appliance init</code>. The passphrase is never stored on disk. For fleet operations, <code>./ze-host appliance unlock</code> starts a passphrase agent (like ssh-agent) that holds the derived key in memory.</p>
-<!-- source: internal/appliance/crypto.go -- Encrypt, WriteSecret, ResolvePassphrase -->
-<!-- source: internal/appliance/agent.go -- passphrase agent -->
 <pre><code class="language-bash">./ze-host appliance unlock                    # start agent
 ./ze-host appliance unlock --duration 15m     # auto-expire after 15 minutes
 ./ze-host appliance unlock --stop             # stop agent
@@ -1010,8 +907,6 @@ already held. Both files are written through a temp file and a rename, so an
 interrupted run leaves neither file truncated. When the key write fails after
 the certificate write, the command puts the previous certificate back and
 reports the restore. <code>./ze-host appliance init</code> validates and writes the same way.</p>
-<!-- source: internal/appliance/cmd_cert.go -- validateTLSPair, writeTLSPair -->
-<!-- source: internal/appliance/cmd_init.go -- writeTLSSecrets -->
 <p>A <code>ze</code> older than this validation could store a certificate and a key that do
 not load as a pair. On such an appliance the web listener does not start. Run
 <code>ze doctor</code> to find it: the stored pair is reported as <code>doctor-tls-invalid</code>,
@@ -1020,7 +915,6 @@ On an appliance that holds no store yet, <code>ze doctor</code> does not report 
 at all: it prints <code>doctor-storage-unavailable</code> as a WARNING for the folder and
 one more for each feature that needs the store (<code>web TLS pair: refused, this doctor run resolved no storage</code>), and exits 0. A store it cannot read is an
 ERROR.</p>
-<!-- source: internal/component/web/doctor_material.go -- checkWebTLSPair -->
 <h3 id="config-layering">Config layering</h3>
 <p>Set <code>config-base</code> in <code>appliance.json</code> to share a base config across appliances:</p>
 <pre><code class="language-json">{
@@ -1028,7 +922,6 @@ ERROR.</p>
 }
 </code></pre>
 <p>The base config is read first, then per-appliance <code>ze.conf</code> is appended. Later <code>set</code> commands override earlier ones; <code>delete</code> commands remove settings from the base.</p>
-<!-- source: internal/appliance/cmd_assemble.go -- resolveSeedConfig -->
 <h3 id="commands-reference">Commands reference</h3>
 <table>
 <thead>
@@ -1155,7 +1048,6 @@ which the ISO build does not search: it looks for <code>&lt;target&gt;/modinfo.s
 prefix of the builder, <code>/usr</code>, <code>/usr/local</code> and <code>/opt/homebrew</code>. Build the ISO
 on a Linux host, or pass <code>--builder</code> a <code>grub-mkstandalone</code> from a GRUB
 installation that has the target's modules in one of those places.</p>
-<!-- source: internal/appliance/iso_modules.go -- checkISOGRUBModules -->
 <p>The <code>kernel</code> and <code>initrd</code>
 commands handle downloading or building these
 artifacts automatically:</p>
@@ -1171,31 +1063,23 @@ artifacts automatically:</p>
 same executable check as a build, even when matching EFI modules are present.
 If that check fails, use the printed repair to select a complete GRUB
 installation for the same appliance and directory.</p>
-<!-- source: internal/appliance/cmd_iso.go -- resolveISOGRUBBuilder, checkISOPrerequisites, resolveISOBuilder -->
 <p>The installer searches optical media as well as removable block media for its
 matching ISO. Optical devices remain excluded from installation targets. On
 completion it powers off; remove the installer media before booting the target
 disk.</p>
-<!-- source: internal/appliance/cmd_iso.go -- runIso, checkISOPrerequisites -->
-<!-- source: internal/appliance/iso_modules.go -- checkISOGRUBModules -->
-<!-- source: internal/install/disk/iso.go -- findISOMedia, isISOMediaDisk -->
 <p><code>./ze-host appliance kernel</code> defaults to the installer target. <code>--target runtime</code>
 builds the gokrazy runtime kernel tree and enforces the runtime requirement
 floor. The installer target tries the cache, then an optional configured
 artifact URL, then the local Go driver. The driver selects Docker when
 available and otherwise QEMU; <code>--builder docker</code> and <code>--builder qemu</code> force one
 backend. Resolved artifacts are cached under <code>$XDG_CACHE_HOME/ze/</code>.</p>
-<!-- source: internal/appliance/cmd_kernel.go -- runKernel, kernelTargetFor -->
-<!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
 <p><code>./ze-host appliance initrd</code> uses the same cache, optional configured URL, then local
 build pattern for the initrd artifact. The download URL has no built-in release
 server default; set <code>ze.appliance.kernel.url</code> or <code>ze.appliance.initrd.url</code> to use
 prebuilt artifacts.</p>
-<!-- source: internal/appliance/cmd_initrd.go -- resolveInitrd -->
 <p><code>./ze-host doctor</code> includes checks for kernel, initrd, grub, xorriso, and e2fsprogs
 availability, reporting warnings with actionable hints when prerequisites are
 missing.</p>
-<!-- source: internal/appliance/doctor_checks.go -- applianceDoctorChecks -->
 <h3 id="iso-installer-media">ISO installer media</h3>
 <p>Create an installer ISO from an image already produced by <code>./ze-host appliance build</code>. By default the command selects the latest <code>ze-*.img</code> in the appliance
 directory, verifies its <code>.sha256</code> sidecar, and writes <code>ze-*.iso</code> next to the
@@ -1209,8 +1093,6 @@ Pass <code>--kernel</code> to select a specific installer kernel.</p>
 <p>The kernel cache key includes target, architecture, profile, config, and
 version. Repeating the same request reuses the verified artifact; a different
 request gets a separate cache entry.</p>
-<!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
-<!-- source: internal/appliance/cmd_iso.go -- runIso, resolveISOInput, readRequiredImageChecksum -->
 <pre><code>./ze-host appliance build lab
 ./ze-host appliance kernel --builder docker --profile hardware lab
 ./ze-host appliance iso lab
@@ -1226,9 +1108,6 @@ credentials, fetch a separate ZeFS database, or mutate <code>/perm</code> after 
 disk image. The installed disk receives the selected image bytes, including the
 <code>/perm/ze/database.zefs</code> and <code>/perm/ze/build.json</code> manifest that <code>build</code> already
 injected.</p>
-<!-- source: internal/appliance/cmd_iso.go -- stageISO -->
-<!-- source: internal/install/disk/run.go -- runISO -->
-<!-- source: internal/appliance/cmd_build.go -- injectZeFS -->
 <p>The ISO boot path accepts an optional explicit target disk. If no target is set,
 the installer writes only when exactly one non-removable candidate disk remains
 after excluding the ISO source media. The initrd also matches the booted ISO by
@@ -1236,25 +1115,19 @@ a builder-generated <code>ze.media-id</code> token before it trusts a mounted in
 volume, so identical image filenames on multiple attached installer media do not
 confuse the source selection. With multiple fixed disks, pass a whole disk path
 such as <code>/dev/vda</code> at ISO creation time:</p>
-<!-- source: internal/install/disk/detect.go -- findTargetDisk; internal/install/disk/iso.go -- media-id match -->
 <pre><code>./ze-host appliance iso --target /dev/vda lab
 </code></pre>
 <p>After the installer writes the disk in ISO mode, it powers off instead of
 rebooting. Remove the installer media, then power the target back on so the
 firmware boots from the written disk.</p>
-<!-- source: internal/install/disk/run.go -- runISO -->
 <p>The ISO contains the full provisioned appliance image, including the embedded
 ZeFS database. Handle the ISO with the same care as the <code>.img</code> file.</p>
-<!-- source: internal/appliance/cmd_iso.go -- stageISO -->
 <p><strong>USB write method:</strong> the ISO can be written with <code>dd</code>, Etcher, or Rufus in DD
 mode. Ventoy is also supported when the installer kernel includes loop device
 and FAT/exFAT filesystem support (the <code>hardware</code> kernel profile has this). The
 initrd detects the ISO file on the Ventoy data partition, loop-mounts it, and
 proceeds with the installation. When using the <code>qemu</code> kernel profile, Ventoy
 is not supported.</p>
-<!-- source: internal/install/disk/run.go -- runISO Ventoy fallback -->
-<!-- source: internal/install/disk/iso.go -- tryVentoyISO -->
-<!-- source: tools/installer-kernel/hardware.config -- Ventoy-capable profile -->
 <h3 id="remote-operations-push-config-push">Remote operations (push, config-push)</h3>
 <p>Push a built image to a running gokrazy device via its HTTPS update endpoint:</p>
 <pre><code>./ze-host appliance push lab
@@ -1263,12 +1136,10 @@ is not supported.</p>
 ./ze-host appliance push --all --parallel 4
 </code></pre>
 <p>Push uses the update token (from <code>secrets/update.token</code>) for HTTP basic auth, and verifies the device TLS certificate against the stored <code>cert.pem</code>. That file holds the device certificate and the appliance CA root that issued it, so the anchor is the ISSUER: a certificate reissued with <code>./ze-host appliance replace-cert</code> still verifies, and the device does not have to be pushed again first. No system CA pool is consulted.</p>
-<!-- source: internal/appliance/cmd_push.go -- loadDeviceTLS, authTransport -->
 <p>When <code>--image</code> is set, the file name must resolve to a regular file inside the
 appliance directory. Path traversal and symlinks escaping that directory are
 rejected after the local update token is read, but before TLS setup or any
 network request starts.</p>
-<!-- source: internal/appliance/cmd_push.go -- resolveImagePath -->
 <p>Preview the effective configuration (base + overlay merged) without building:</p>
 <pre><code>./ze-host appliance config lab --merged
 </code></pre>
@@ -1283,21 +1154,16 @@ network request starts.</p>
 The command authenticates through the operator's <code>ssh-agent</code> and verifies the device
 against <code>~/.ssh/known_hosts</code>. Verify the device fingerprint through a trusted
 channel before adding its key. A missing or changed key refuses the connection.</p>
-<!-- source: internal/appliance/cmd_config_push.go -- configPushOne -->
-<!-- source: internal/appliance/cmd_config_push.go -- sshExecReal, applianceHostKeyCallback -->
 <p>The authenticated account needs configuration commit permission. The daemon
 receives the complete replacement, validates it, and applies it through its normal
 configuration transaction. A successful push updates both the running configuration
 and its selected persistent source. The replacement must retain the device's
 credentials and required management listeners. Configuration text can contain
 secrets, so protect merged output and any retained copy.</p>
-<!-- source: cmd/ze/hub/config_upload_ssh.go -- registerSSHConfigUpload -->
-<!-- source: cmd/ze/hub/config_upload.go -- configMutationOwner.Upload, configMutationRuntime.commit -->
 <p>A push succeeds only after the daemon returns its acceptance receipt and a zero
 SSH exit status. If the connection ends without that receipt, the outcome is
 uncertain. Inspect the live configuration through a fresh authenticated connection
 before retrying. The error prints the SSH command for that check.</p>
-<!-- source: internal/appliance/cmd_config_push.go -- sshExecReal, uncertainConfigUpload, configUploadVerifyCommand -->
 <p>Developers can run <code>./le test qemu appliance-config</code> to check this command
 against a newly built native appliance. It uses an owned SSH agent and a host
 key verified from the stopped disk, checks live publication and retained
@@ -1306,7 +1172,6 @@ host-pin refusals. It requires native KVM or HVF and builds its own image;
 unset <code>ZE_INSTALL_IMAGE</code>. Use <code>ZE_INSTALL_KEEP=1</code> to retain its disk and serial
 logs. This action proves configuration publication on a raw image; use the
 installer actions for ISO installation evidence.</p>
-<!-- source: internal/le/test/qemu/install_config_push.go -- executeApplianceConfigPush -->
 <h3 id="device-side-config-behavior">Device-side config behavior</h3>
 <p>At boot, unmanaged devices resolve the stored configuration through its active
 version pointer. The legacy active entry is a fallback only when that pointer
@@ -1314,21 +1179,14 @@ is absent. An unresolved pointer fails rather than selecting the legacy entry.
 If the legacy entry is missing, startup creates one from the seed template and
 interface discovery, or from discovery alone. The stored instance name selects the
 configuration name, with <code>ze.conf</code> as the default.</p>
-<!-- source: cmd/ze/ze_core_start.go -- cmdStart, bootstrapConfigFromTemplate, bootstrapFromDiscovery -->
-<!-- source: internal/component/config/storage/source.go -- ReadConfigSource -->
-<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig -->
-<!-- source: internal/core/resolve/resolve.go -- DefaultConfig -->
 <p>The separate boot inbox <code>/perm/ze/config-pushed.conf</code> validates its contents and
 writes the legacy active entry. Invalid contents cause deletion of that inbox
 file. The startup hash records this legacy entry in <code>meta/config/active-hash</code>
 inside the live store. It does not establish the current canonical version.
 Use authenticated <code>show config running</code> to inspect the running configuration.</p>
-<!-- source: cmd/ze/pushed_config.go -- checkPushedConfig, writeConfigActiveHash -->
-<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig -->
 <p><strong>Last-known-good hash:</strong> at build time, <code>./ze-host appliance build</code> writes the SHA-256
 of the assembled seed config to <code>meta/config/last-known-good</code> in the seed blob.
 First boot imports this build-time integrity baseline into the live tree.</p>
-<!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS last-known-good -->
 <p><strong>Boot-time pushed-file monitor:</strong> When a pushed config file is consumed at
 boot, the monitor watches BGP peer close events for 30 seconds. A close event
 writes the previous config back into the legacy active entry, falling back to
@@ -1336,7 +1194,6 @@ the seed if necessary. This store write neither promotes the active pointer nor
 reloads the running daemon. Completing the window records that entry's hash in
 <code>meta/config/last-known-good-pushed</code>. Live <code>config-push</code> has no automatic
 health-window rollback.</p>
-<!-- source: cmd/ze/health_revert.go -- HealthRevert.Start, HealthRevert.revert, HealthRevert.onHealthy -->
 <h3 id="batch-init">Batch init</h3>
 <p>Initialize multiple appliances from a JSON manifest:</p>
 <pre><code>./ze-host appliance init --batch manifest.json
@@ -1350,7 +1207,6 @@ health-window rollback.</p>
 <p>Use <code>"password": "generate"</code> for per-device random passwords (printed to stdout once, never stored in plaintext). When an encryption passphrase is set, each encrypted secret write receives a fresh random salt and nonce.</p>
 <h3 id="disaster-recovery-exportimport">Disaster recovery (export/import)</h3>
 <p>Export creates an encrypted archive of an appliance directory for offsite backup or bastion migration. Archives include config, secrets, and build metadata, but exclude images and ZeFS databases (both are rebuildable).</p>
-<!-- source: internal/appliance/cmd_export.go -- tarApplianceInto, shouldExcludeFromExport -->
 <p>Export a single appliance:</p>
 <pre><code>./ze-host appliance export lab
 # creates lab.ze.enc in the current directory
@@ -1366,8 +1222,6 @@ health-window rollback.</p>
 <pre><code>./ze-host appliance import lab.ze.enc --dir /path/to/new/bastion
 </code></pre>
 <p>Archives are always encrypted using the same Argon2id + XChaCha20-Poly1305 scheme as secrets at rest. The archive passphrase can differ when provided separately from the secrets passphrase. <code>import --force</code> overwrites files present in the archive, but it does not delete extra files already present in existing appliance directories.</p>
-<!-- source: internal/appliance/crypto.go -- Encrypt, Decrypt -->
-<!-- source: internal/appliance/cmd_import.go -- importArchive, extractTar -->
 </div>
 </div>
             </section>
@@ -1417,7 +1271,7 @@ health-window rollback.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -59,10 +59,6 @@
 <li><a href="#6-operations">6. Operations</a></li>
 </ol></details></nav><div class="doc-body">
 <p>The service is read-only, and open by default because a looking glass is a public surface. Put it on an address where that is acceptable, or publish it through a reverse proxy that provides the access control you need. To gate it yourself, set <code>environment looking-glass token &lt;secret&gt;</code>: every <code>/api/</code> and <code>/lg/</code> route then needs <code>Authorization: Bearer &lt;secret&gt;</code>, and a request without it gets <code>401</code>.</p>
-<!-- source: internal/component/lg/yang/ze-lg-conf.yang -- environment looking-glass config -->
-<!-- source: internal/component/lg/server.go -- looking glass HTTP routes -->
-<!-- source: docs/features/looking-glass.md -- feature behavior and public read-only note -->
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP peer family config -->
 <h2 id="1-start-from-an-installed-ze-node">1. Start from an installed Ze node</h2>
 <p>Follow <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a> through the systemd step. This page assumes <code>/usr/local/bin/ze</code>, <code>/etc/ze</code>, and active config name <code>edge-01.conf</code>.</p>
 <p>Example topology:</p>
@@ -172,7 +168,6 @@ address and lists every route whose prefix contains it, the most specific
 first for each peer, so a <code>10.0.0.0/24</code> route comes before a <code>10.0.0.0/8</code> route
 and a default route comes last. The search page and the graph read their
 prefix field the same way.</p>
-<!-- source: internal/component/lg/prefix_lookup.go -- parsePrefixLookup -->
 <p>The search page's AS path field takes AS numbers separated by spaces, as a
 router prints them. <code>65001 65002</code> lists the routes whose path holds 65001
 directly followed by 65002, anywhere in the path. <code>^65001</code> lists the routes
@@ -181,7 +176,6 @@ whose path starts with 65001. <code>65001$</code> lists the routes whose path en
 path is exactly those two AS numbers. The <code>$</code> goes directly after the last AS
 number. The page refuses any other pattern character, such as <code>|</code>, and says
 which form the field takes.</p>
-<!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern -->
 <h2 id="4-birdwatcher-compatible-api-paths">4. Birdwatcher-compatible API paths</h2>
 <p>The looking glass exposes birdwatcher-style read-only endpoints under <code>/api/looking-glass/</code>.</p>
 <table>
@@ -255,15 +249,12 @@ counts came from a real source, and <code>false</code> when they are placeholder
 no source when the <code>bgp-rib</code> plugin is not loaded, and none for a BMP-monitored
 peer. Do not read <code>0</code> as "this peer sent no routes" until this field says
 <code>true</code>.</p>
-<!-- source: internal/component/lg/handler_api.go -- transformProtocols, routeCountsAvailable -->
 <p>Each protocol's id is the session's configured name, or its address when it
 has none. The per-protocol routes and count endpoints accept that id or the
 session's address and query the RIB by address. An id that matches no session
 answers 404, <code>no BGP session is named "&lt;id&gt;"</code>, pointing at
 <code>GET /api/looking-glass/protocols/bgp</code> for the names; a session the engine
 lists with no address answers 502.</p>
-<!-- source: internal/component/lg/handler_api.go -- protocolSession, protocolID -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- route counts and peer history -->
 <p>The normative statement of this behavior is
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/birdwatcher-compat.md" target="_blank" rel="noopener">Birdwatcher compatibility</a>,
 Sections 7.2 and 7.3.</p>
@@ -360,7 +351,7 @@ journalctl -u ze.service -n 100 --no-pager
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

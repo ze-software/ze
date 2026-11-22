@@ -10,7 +10,7 @@ Hardware inventory for this box\.
 - Wire method: `ze-host:show-all`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
-- Subcommands: `all`, `cpu`, `dmi`, `kernel`, `memory`, `nic`, `platform`, `storage`, `thermal`
+- Subcommands: `all`, `cpu`, `dmi`, `kernel`, `memory`, `nic`, `platform`, `storage`, `thermal`, `trend`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
@@ -21,7 +21,7 @@ Hardware inventory for this box\.
 - Command pipes: none
 - Pipe aliases: none
 
-Sections\: cpu\, nic\, dmi\, memory\, thermal\, storage\, kernel\, platform\. Use a subcommand for one section\, or \'show host all\' for everything\. The bare \'show host\' is an alias of \'show host all\'\.
+Sections\: cpu\, nic\, dmi\, memory\, thermal\, storage\, kernel\, platform\. Use a subcommand for one section\, or \'show host all\' for everything\. The bare \'show host\' is an alias of \'show host all\'\. \'show host trend\' lists the host resources the daemon watches for growth that ends in exhaustion\.
 
 ## Arguments
 

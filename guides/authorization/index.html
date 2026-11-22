@@ -132,8 +132,6 @@ You do not choose which section a command falls into.</p>
 so a verb whose role changes there changes the section its commands land in.
 The five noun-first roots predate the verb-first grammar and are the only names
 this decision holds of its own.</p>
-<!-- source: internal/component/command/verbs.go -- Verbs, verbRole, IsReadOnlyVerb -->
-<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, legacyReadRoots -->
 <h3 id="entries">Entries</h3>
 <p>Each section contains an ordered list of numbered entries. Each entry
 has:</p>
@@ -194,8 +192,6 @@ does any other error while the chain is built.</p>
 <p>Where EVERY backend failed there is no chain, and then <strong>every command is
 refused.</strong> Nothing was installed to consult, and no session exists to ask: ssh
 is not started either, because nothing can authenticate.</p>
-<!-- source: internal/component/aaa/types.go -- backendRegistry.Build -->
-<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthorizer -->
 <h2 id="matching-rules">Matching rules</h2>
 <h3 id="prefix-matching-default">Prefix matching (default)</h3>
 <p>When <code>regex</code> is absent or <code>false</code>, the <code>match</code> string is compared as a
@@ -275,15 +271,12 @@ the authorization string is <code>"peer show routes"</code>, not
 authorization string is exactly what the user typed: <code>show bgp peer list</code>,
 <code>clear counters</code>, etc. Configuration mode is different, and the next section
 covers it.</p>
-<!-- source: internal/component/plugin/server/command.go -- isAuthorized -->
 <p><strong>Every command now starts with its verb, so profile entries must too.</strong> The bare
 forms that once worked without a verb (<code>bgp summary</code>, <code>system memory</code>, <code>daemon reload</code>) were removed from the command tree. Prefix matching is anchored at the
 start of the typed string, so an entry whose <code>match</code> is <code>bgp</code> no longer covers
 <code>show bgp</code>. Review any denylist entry keyed on a bare form: it silently
 stops covering the command it was written for. Write <code>show bgp</code>, <code>show system</code>,
 and <code>request reload</code> instead.</p>
-<!-- source: internal/component/cli/client/verb_tree.go -- BuildVerbCommandTree, verbContextPath -->
-<!-- source: internal/plugins/signal/main.go -- Commands table ExecCommand column -->
 <h3 id="configuration-mode">Configuration mode</h3>
 <p>A configuration change is never authorized by what the user typed. Each
 change is authorized by a permission string from a fixed table, judged in the
@@ -332,7 +325,6 @@ governs a change on every surface.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/cli/config_permission.go -- ConfigPermission -->
 <p><code>configure</code> is never authorized: it only switches the CLI into configuration
 mode, and an entry that matches <code>configure</code> matches nothing Ze checks.
 Navigation and display (<code>edit</code>, <code>up</code>, <code>top</code>, <code>show</code>, <code>who</code>, <code>option</code>, <code>help</code>)
@@ -342,7 +334,6 @@ is judged as the command it runs, so <code>top set ...</code> needs <code>config
 one of these permission strings, such as a misspelled <code>confg set</code>. An entry
 <code>config</code>, <code>config commit</code> or <code>config commit client-edge.conf</code> is known and
 logs nothing.</p>
-<!-- source: internal/component/config/infra/authz.go -- unknownMatchEntries, matchesConfigPermission -->
 <p>An SSH session that edits another stored configuration than the daemon's own,
 such as a hub editing a client's configuration with <code>ze config edit client-edge.conf</code>, adds the configuration's name to the string:
 <code>config commit client-edge.conf</code>. Prefix matching keeps an entry <code>config</code> or
@@ -357,7 +348,6 @@ edit <code>client-edge.conf</code>, but refuses a commit of <code>client-edge.co
     }
 }
 </code></pre>
-<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
 <p>A refused change prints <code>command restricted by access control:</code> followed by
 the permission string, then <code>ask an administrator for a profile whose edit section allows &lt;permission&gt;</code>. Nothing changes:
 not the candidate, not the stored configuration, not the running one.</p>
@@ -367,8 +357,6 @@ The console of <code>ze start --cli</code>, and <code>ze config edit</code> in f
 backup mode (<code>--backup</code>), authenticate nobody and keep every verb.
 <code>ze config edit</code> in session mode connects to the daemon over SSH, so it is
 authorized like any SSH session.</p>
-<!-- source: cmd/ze/hub/service_ssh.go -- sshSessionPolicy -->
-<!-- source: internal/component/config/cli/cmd_edit.go -- runStoredEditor, runBackupModel -->
 <h3 id="web-pages-that-a-command-grants">Web pages that a command grants</h3>
 <p>Some web pages act on the device without running a command. They are
 judged by the Ze command that does the same thing, in the section that
@@ -376,7 +364,6 @@ command lands in. The gokrazy management UI at <code>/gokrazy/</code> is one: it
 handlers need <code>update system firmware apply</code> and its reboot handler
 <code>request reboot</code>, both judged in <code>edit</code>. The table of every page is in
 <a href="../appliance/">appliance.md</a>, "The gokrazy management UI".</p>
-<!-- source: internal/component/gokrazy/gate.go -- forwardedPages -->
 <h2 id="configuration">Configuration</h2>
 <h3 id="defining-profiles">Defining profiles</h3>
 <p>Profiles are defined under <code>system &gt; authorization</code>:</p>
@@ -480,8 +467,6 @@ not a read verb, so the store maintenance commands <code>delete data key</code>,
 too, before their handler runs, while <code>show data check</code> is allowed. Every
 configuration-mode change is refused too, because its permission string is
 judged in <code>edit</code>; browsing the configuration is not.</p>
-<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath -->
-<!-- source: internal/test/fixture/storage_live_authz_fixture.go -- storageLiveAuthzReadOnly -->
 <table>
 <thead>
 <tr>
@@ -748,10 +733,6 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/authz/authz.go -- Entry.matches, Section.evaluate -->
-<!-- source: internal/component/authz/register.go -- StoreAuthorizer -->
-<!-- source: internal/component/aaa/command_args.go -- CanonicalCommand -->
-<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, isAuthorized -->
 </div>
 </div>
             </section>
@@ -801,7 +782,7 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -57,12 +57,6 @@
 <li><a href="#gomu-checks-assertion-strength">gomu checks assertion strength</a></li>
 <li><a href="#choosing-the-test">Choosing the test</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: ../main/internal/le/testunit/actions.go -- unit test actions -->
-<!-- source: ../main/internal/le/fuzz/actions.go -- fuzz actions -->
-<!-- source: ../main/.gomuignore -- gomu exclusions -->
-<!-- source: ../main/internal/le/mutation/actions.go -- mutation report actions -->
-<!-- source: ../main/internal/le/mutation/combine.go -- mutation report combination -->
-<!-- source: ../main/internal/le/mutation/history.go -- mutation history -->
 <h2 id="the-local-test-loop">The local test loop</h2>
 <p>Start with a normal Go test. It names the behavior and fixes the expected result. If the input space is too large for a few named cases, add a fuzz target for the same behavior. If the code is covered but the assertion may still be weak, run gomu and see whether a deliberate code change survives.</p>
 <table>
@@ -161,7 +155,7 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

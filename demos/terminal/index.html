@@ -64,7 +64,6 @@
 <li><a href="#rpki-validation-enforcement">RPKI validation enforcement</a></li>
 <li><a href="#live-irr-filtering-and-as-set-diagnosis">Live IRR filtering and AS-SET diagnosis</a></li>
 <li><a href="#route-installation-from-bgp-rib-to-linux-fib">Route installation from BGP RIB to Linux FIB</a></li>
-<li><a href="#live-warnings-and-retained-errors">Live warnings and retained errors</a></li>
 <li><a href="#configuration-views-and-formatter-pipes">Configuration views and formatter pipes</a></li>
 <li><a href="#bfd-triggered-bgp-failover">BFD-triggered BGP failover</a></li>
 <li><a href="#ospf-adjacency-and-learned-route">OSPF adjacency and learned route</a></li>
@@ -78,7 +77,6 @@
 text, so you can copy a command. The browser demonstration uses a WebP screenshot
 and a transcript, not encoded video. The recordings use no public service, and
 the terminal player is served from this site.</p>
-<!-- source: internal/le/site/demo.go -- demoKindAssets, renderDemoHTML -->
 <p>Each demo also appears beside the documentation for the feature it exercises. The transcript below each player provides the same command sequence without replaying the recording.</p>
 <h2 id="continuous-live-configuration-showcase">Continuous live configuration showcase</h2>
 <p>One independently recorded session starts with ExaBGP migration and the live BGP
@@ -86,8 +84,6 @@ dashboard. The migration preserves the neighbor's identity, local and remote
 AS numbers, and configured hold time. The session then loads, proves, diagnoses
 and repairs eight features on the same running Ze daemon. Each topic below uses
 the same configuration and demonstration fragments as this continuous recording.</p>
-<!-- source: demos/terminal/showcase/demo.tape -- authored chapter order -->
-<!-- source: internal/le/site/terminaldemo/validate_showcase_topics.go -- validateShowcase -->
 <figure class="terminal-demo" data-terminal-demo="showcase">
   <div class="terminal-demo__intro">
     <div>
@@ -942,14 +938,15 @@ $ ip -details route show exact 198.51.100.0/24
 The route enters Ze&#39;s BGP RIB, wins best-path selection, reaches the protocol-independent system RIB, and is programmed into Linux with Ze&#39;s route protocol ID. The validator withdraws it and confirms kernel removal.</code></pre>
   </details>
 </figure>
-<h2 id="live-warnings-and-retained-errors">Live warnings and retained errors</h2>
-<!-- The health-reports demo is not embedded while its recording is wrong. Its
+<!-- ## Live warnings and retained errors
+
+     The health-reports demo is not embedded while its recording is wrong. Its
      tape drives an SSH session whose commands the CLI answers with a completion
      listing rather than a result, so the recording holds the intro card, a
      config box and the recap, and none of the output this gallery describes.
-     Restore this marker when the recording shows the session again.
-     Recorded in plan/journal/green-that-could-not-have-been-red.md -->
-<!-- terminal-demo-disabled: health-reports -->
+     Restore this heading and marker when the recording shows the session again.
+     Recorded in plan/journal/green-that-could-not-have-been-red.md
+     terminal-demo-disabled: health-reports -->
 <h2 id="configuration-views-and-formatter-pipes">Configuration views and formatter pipes</h2>
 <figure class="terminal-demo" data-terminal-demo="config-views">
   <div class="terminal-demo__intro">
@@ -1575,7 +1572,7 @@ No reporting helper creates the displayed relationships. The command filters Ze&
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

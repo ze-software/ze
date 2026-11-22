@@ -93,9 +93,6 @@ device.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/tacacs/authenticator.go -- TacacsAuthenticator.Authenticate -->
-<!-- source: internal/component/tacacs/accounting.go -- TacacsAccountant.CommandStart/Stop -->
-<!-- source: internal/component/tacacs/authorizer.go -- TacacsAuthorizer.Authorize -->
 <h2 id="minimal-config">Minimal config</h2>
 <pre><code>system {
     authentication {
@@ -179,7 +176,6 @@ device.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs -->
 <p>Enabling authorization or accounting requires at least one server. A selected
 capability with no destination is refused at build, rather than silently omitted.</p>
 <p>The key is not optional. RFC 8907 Section 4.5 builds the obfuscation pad from
@@ -227,11 +223,6 @@ encodes on the way out, so a dump round-trips and the key stays hidden.</p>
 access protection. Diagnostic strings, structured logs and JSON configuration
 rendering redact the extracted shared key. <code>ze doctor</code> warns when a key has fewer
 than sixteen characters; keys of thirty-two characters or longer are supported.</p>
-<!-- source: internal/component/tacacs/register.go -- tacacsBackend.Build -->
-<!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
-<!-- source: cmd/ze/hub/main.go -- the boot warning, noBGPAAAWiring -->
-<!-- source: internal/component/ssh/ssh.go -- the LocalAuthenticator fallback -->
-<!-- source: internal/component/tacacs/packet.go -- MarshalInto, ErrNoSharedSecret -->
 <h2 id="authentication-flow">Authentication flow</h2>
 <ol>
 <li>An SSH client, or a web login (form or HTTP Basic auth), supplies a
@@ -308,9 +299,6 @@ fix: set system authentication tacacs server 192.0.2.1 key &lt;the server's shar
 tac_plus-ng: a PAP login and its priv-lvl mapping, a wrong password, a wrong
 shared secret, command authorization in both directions, and an accounting
 START.</p>
-<!-- source: internal/component/tacacs/tacplusng_docker_test.go -- TestTacPlusNGInterop -->
-<!-- source: internal/component/tacacs/reply.go -- validateReplyBody, ErrBadSecret -->
-<!-- source: internal/component/tacacs/client.go -- sendToServers, allServersFailed, serverFailure -->
 <p>The web login fallback follows the same terminal-rejection rule for ordinary
 local accounts. The separate ZeFS super-admin remains a recovery path through
 its reserved local profile; assigning a normal <code>admin</code> profile does not grant
@@ -327,9 +315,6 @@ Configure server policy for these wire names; a human lookalike cannot acquire
 the internal caller's identity. The wire username limit is 255 bytes, so either
 encoded form accepts at most 186 input bytes. Longer names are refused rather
 than hashed or truncated.</p>
-<!-- source: internal/component/tacacs/text.go -- prepareWireUsername -->
-<!-- source: internal/component/aaa/aaa.go -- ChainAuthenticator, ErrAuthRejected -->
-<!-- source: internal/component/tacacs/authenticator.go -- handlePass, AuthenStatusFail handling -->
 <h2 id="privilege-level-mapping">Privilege level mapping</h2>
 <p>TACACS+ servers return numeric <code>priv-lvl</code> values from zero through fifteen in the
 shell-session AUTHOR response. Ze maps each value to locally defined
@@ -399,11 +384,6 @@ intent for that name, so it is not widened or narrowed by how the user logged in
 <p>Verify the mapping with a command the profile denies, not with one Ze does not
 have. A command that does not exist reports <code>unknown command</code> and exits non-zero
 for everyone, so it passes whatever the mapping says and proves nothing.</p>
-<!-- source: internal/component/aaa/login_profiles.go -- login-resolved profiles reaching authorization -->
-<!-- source: internal/component/authz/authz.go -- Store.Authorize, config assignment precedence -->
-<!-- source: test/plugin/tacacs-readonly.ci -- priv-lvl 1 allowed a read, refused a write -->
-<!-- source: test/plugin/tacacs-author.ci -- per-command AUTHOR REQUEST, FAIL blocks the command -->
-<!-- source: internal/component/tacacs/authorizer.go -- per-command authorization when `authorization true` -->
 <p>Setting <code>authorization true</code> moves the per-command decision to the TACACS+ server
 itself: Ze sends an AUTHOR REQUEST per command, and the profiles above apply only
 as the fallback when the server is unreachable, unless <code>strict-fallback true</code>
@@ -415,7 +395,6 @@ A server cannot approve one command while replacing its arguments with another.
 Unknown mandatory attributes, session ACLs or timers Ze cannot enforce, and
 per-command privilege changes deny authorization. Unsupported optional attributes
 may be ignored.</p>
-<!-- source: internal/component/tacacs/authenticator.go -- handlePass priv-lvl lookup -->
 <h2 id="accounting">Accounting</h2>
 <p>When <code>accounting true</code> is set, each command entering dispatch or the API/SSH
 streaming path emits a paired record set:</p>
@@ -452,7 +431,6 @@ and <code>ze-command-sha256=&lt;digest&gt;</code> before <code>service</code> an
 redacted argument sequence, not the secret values; it and the task ID match
 between START and STOP. This preserves evidence that the command was entered
 without silently losing the record or altering execution.</p>
-<!-- source: internal/component/tacacs/command_text.go -- accountingArguments -->
 <p>Records pass through a bounded queue to one background worker. A full queue waits
 for capacity, and shutdown drains accepted records. Network failures are logged
 and never refuse command execution. Requests after the accountant has stopped
@@ -465,8 +443,6 @@ Task identifiers remain unique across those overlapping generations.</p>
 </code></pre>
 <p>The response includes <code>dropped-records</code>, the count of records refused after
 shutdown. Delivery failures at the network or server are logged separately.</p>
-<!-- source: internal/component/plugin/server/command.go -- Dispatcher accountant hook -->
-<!-- source: internal/component/tacacs/accounting.go -- worker, processOne, enqueue -->
 <h2 id="verification">Verification</h2>
 <p>The <code>.ci</code> tests in <code>test/plugin/</code> cover the main behaviours:</p>
 <table>
@@ -527,7 +503,6 @@ satisfying backend on every login, e.g.:</p>
 <p><code>source=tacacs</code> confirms the chain consulted TACACS+ and returned PASS.
 <code>source=local</code> means TACACS+ was unreachable (or unconfigured) and the
 local bcrypt user accepted the credentials.</p>
-<!-- source: internal/test/mock/tacacs/tacacs.go -- le mock tacacs for .ci tests -->
 <h2 id="operational-notes">Operational notes</h2>
 <ul>
 <li><strong>Shared secrets</strong> are sensitive data. <code>$9$</code> values are obfuscated, not
@@ -600,7 +575,7 @@ Local summary: <code>rfc/short/rfc8907.md</code>.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

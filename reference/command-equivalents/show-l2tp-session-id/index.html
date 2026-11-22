@@ -68,14 +68,14 @@
 <h3>Description</h3><p>Capture one original by session ID, with tunnel-id and listener<br>qualifiers when the ID is shared. Returns its PPP state and assigned addresses.</p>
 <h3>Arguments</h3>
 <table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>id</code></td><td>uint</td><td>yes</td><td>any value of this type</td><td>Local session ID.</td><td>The decimal local session ID from the show l2tp session table. Zero is
+<tr><td><code>id</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Local session ID.</td><td>The decimal local session ID from the show l2tp session table. Zero is
 refused because RFC 2661 reserves it, and an unknown ID is refused with &#39;no session with
 local-sid&#39;.</td></tr>
 <tr><td><code>expected-id</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Require the displayed immutable session reference.</td><td>Require the displayed immutable original reference. An ended
 original refuses instead of selecting a replacement with the same numeric IDs.</td></tr>
 <tr><td><code>listener</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Configured listener name or bound IP:port.</td><td>Configured listener name or bound IP:port from the listener inventory.
 Equal session and tunnel IDs on different listeners require this qualifier.</td></tr>
-<tr><td><code>tunnel-id</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Original local tunnel ID.</td><td>Restrict selection to the local tunnel carrying the original session.
+<tr><td><code>tunnel-id</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Original local tunnel ID.</td><td>Restrict selection to the local tunnel carrying the original session.
 A session ID shared by several tunnels requires this qualifier.</td></tr>
 </tbody></table>
 </article>
@@ -104,11 +104,11 @@ A session ID shared by several tunnels requires this qualifier.</td></tr>
                     </a>
                     <a class="page-sidebar-link" href="../../../reference/cli/">
                         <span class="page-sidebar-link-label">CLI reference</span>
-                        <small>Open the generated Ze command catalogue.</small>
+                        <small>Open the generated Ze command catalog.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../features/cli-commands/">
                         <span class="page-sidebar-link-label">CLI commands</span>
-                        <small>Understand CLI behaviour and design.</small>
+                        <small>Understand CLI behavior and design.</small>
                     </a>
                 </section>
                 <section class="page-sidebar-group">
@@ -142,7 +142,7 @@ A session ID shared by several tunnels requires this qualifier.</td></tr>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

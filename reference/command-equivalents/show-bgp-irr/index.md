@@ -29,11 +29,7 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-### RPKI cache and validation session state
-
-Category: BGP
-
-Current Ze commands are IRR\-focused\. RPKI\-specific show paths can be added to this entry when present in the live command catalog\.
+No vendor equivalent has been curated yet for this Ze command.
 
 ## Vendor equivalents
 

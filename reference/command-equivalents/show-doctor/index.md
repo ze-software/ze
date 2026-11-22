@@ -32,9 +32,11 @@ Verifies runtime dependencies\: required files\, sockets\, ports\, and kernel mo
 
 ## Mapping intents
 
-### CPU\, memory\, platform\, and host health
+### Subsystem health and doctor diagnostics
 
 Category: System
+
+Ze\'s doctor and health registry aggregate subsystem checks and repair commands directly in the CLI\.
 
 ## Vendor equivalents
 
@@ -51,7 +53,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `show hardware cpu` (verified, vyos\-cli)
-  - Intent: CPU\, memory\, platform\, and host health
-- `show system memory` (verified, vyos\-cli)
-  - Intent: CPU\, memory\, platform\, and host health
+
+No equivalent listed.

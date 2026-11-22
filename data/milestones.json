@@ -48,7 +48,7 @@
       "title": "SSH CLI, TCP-MD5, and RBAC",
       "category": "secure",
       "blog": "2026-03-09",
-      "blurb": "An SSH server becomes the primary way to reach the CLI, alongside TCP-MD5 session authentication (RFC 2385) and end-to-end RBAC authorisation."
+      "blurb": "An SSH server becomes the primary way to reach the CLI, alongside TCP-MD5 session authentication (RFC 2385) and end-to-end RBAC authorization."
     },
     {
       "date": "2026-03-16",
@@ -167,7 +167,7 @@
       "title": "RFC compliance gate",
       "category": "platform",
       "blog": "2026-07-13",
-      "blurb": "Every RFC Ze implements is enrolled requirement by requirement, and a requirement counts as met only when a test names it and fails when the behaviour is taken out. Gaps are published on the RFC status page instead of being inferred from test coverage."
+      "blurb": "Every RFC Ze implements is enrolled requirement by requirement, and a requirement counts as met only when a test names it and fails when the behavior is taken out. Gaps are published on the RFC status page instead of being inferred from test coverage."
     },
     {
       "date": "2026-07-20",

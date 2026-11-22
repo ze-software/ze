@@ -59,13 +59,13 @@
 <div><dt>Wire method</dt><dd><code>ze-host:show-all</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
-<div><dt>Subcommands</dt><dd><code>all</code> <code>cpu</code> <code>dmi</code> <code>kernel</code> <code>memory</code> <code>nic</code> <code>platform</code> <code>storage</code> <code>thermal</code></dd></div>
+<div><dt>Subcommands</dt><dd><code>all</code> <code>cpu</code> <code>dmi</code> <code>kernel</code> <code>memory</code> <code>nic</code> <code>platform</code> <code>storage</code> <code>thermal</code> <code>trend</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
 <div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
-<h3>Description</h3><p>Sections: cpu, nic, dmi, memory, thermal, storage, kernel, platform. Use a<br>subcommand for one section, or &#39;show host all&#39; for everything. The bare &#39;show<br>host&#39; is an alias of &#39;show host all&#39;.</p>
+<h3>Description</h3><p>Sections: cpu, nic, dmi, memory, thermal, storage, kernel, platform. Use a<br>subcommand for one section, or &#39;show host all&#39; for everything. The bare &#39;show<br>host&#39; is an alias of &#39;show host all&#39;. &#39;show host trend&#39; lists the host<br>resources the daemon watches for growth that ends in exhaustion.</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
@@ -94,11 +94,11 @@
                     </a>
                     <a class="page-sidebar-link" href="../../../reference/cli/">
                         <span class="page-sidebar-link-label">CLI reference</span>
-                        <small>Open the generated Ze command catalogue.</small>
+                        <small>Open the generated Ze command catalog.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../features/cli-commands/">
                         <span class="page-sidebar-link-label">CLI commands</span>
-                        <small>Understand CLI behaviour and design.</small>
+                        <small>Understand CLI behavior and design.</small>
                     </a>
                 </section>
                 <section class="page-sidebar-group">
@@ -132,7 +132,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

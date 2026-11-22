@@ -77,7 +77,6 @@
 <li><a href="#commit-workflow">Commit Workflow</a></li>
 <li><a href="#from-plugins">From Plugins</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/bgp/plugins/cmd/update/ -- update text/hex/b64 command parsing -->
 <h2 id="injecting-into-the-local-rib">Injecting into the Local RIB</h2>
 <p><code>request bgp rib inject</code> inserts a synthetic candidate into Ze's BGP RIB without
 requiring a live BGP session. If the route wins best-path selection, it continues
@@ -98,9 +97,6 @@ ze cli -c "show rib"
 </code></pre>
 <p>The <code>bgp-rib</code> and <code>rib</code> plugins provide best-path and system-RIB selection.
 On Linux, the <code>fib-kernel</code> plugin programs selected routes through netlink.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
-<!-- source: internal/component/sysrib/sysrib.go -- system RIB arbitration -->
-<!-- source: internal/plugins/fib/kernel/fibkernel.go -- Linux FIB programming -->
 <h3 id="ipv6-next-hops-and-extended-next-hop">IPv6 next hops and extended next hop</h3>
 <p>An injected IPv6 route carries its IPv6 next hop in MP_REACH_NLRI. An injected
 IPv4 unicast route can also use an IPv6 next hop when the destination peer
@@ -115,10 +111,6 @@ next hop when selecting and forwarding it. <code>show bgp rib best</code> and
 renderer falls back to the stored MP_REACH_NLRI whenever the legacy IPv4-only
 NEXT_HOP attribute (type 3) is absent, which is the case for every IPv6 next
 hop, native or extended.</p>
-<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute MP_REACH emission -->
-<!-- source: internal/component/bgp/plugins/rib/rib_attr_format.go -- enrichRouteMapFromEntry MP_REACH next-hop fallback -->
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- extractMPNextHopAddr -->
-<!-- source: internal/component/bgp/rib/commit.go -- extended next-hop encoding -->
 <figure class="terminal-demo" data-terminal-demo="rib-fib">
   <div class="terminal-demo__intro">
     <div>
@@ -318,7 +310,6 @@ The route enters Ze&#39;s BGP RIB, wins best-path selection, reaches the protoco
 </table>
 <p>Underscore variants (e.g., <code>no_export</code>, <code>graceful_shutdown</code>) and the shorthand
 <code>gshut</code> are also accepted. Tab completion in the config editor suggests all names.</p>
-<!-- source: internal/core/bgp/attribute/text.go -- wellKnownCommunityNames map -->
 <h3 id="colon-less-flowspec-actions">Colon-Less FlowSpec Actions</h3>
 <p>Most extended communities carry their value after a colon, so <code>extended-community</code>
 splits on the first one. Three FlowSpec traffic actions (RFC 8955 Section 7) carry
@@ -358,7 +349,6 @@ in <code>update text</code> and in config alike, from one keyword table both par
 <p><code>copy-to-nexthop</code> and <code>redirect-to-nexthop-draft</code> differ in one bit of the last
 octet, which is the copy semantic. An unknown keyword is refused with an error
 naming the keywords Ze accepts, derived from the table.</p>
-<!-- source: internal/core/bgp/attribute/flowspec_action.go -- FlowSpecActionKeyword, FlowSpecActionKeywords -->
 <h3 id="one-encoder-per-flowspec-action">One Encoder Per FlowSpec Action</h3>
 <p>The actions that DO carry a value -- traffic-rate, traffic-action,
 traffic-marking, rt-redirect and redirect-to-IP -- are built in one place as
@@ -367,7 +357,6 @@ constructors, so the three surfaces accept the same values and put the same
 octets on the wire. Three copies of this vocabulary disagreed before: one wrote
 an out-of-range DSCP into the reserved bits, one dropped a zero-valued action,
 and one refused a 4-octet AS in a redirect the others encoded.</p>
-<!-- source: internal/core/bgp/attribute/flowspec_encode.go -- FlowSpecTrafficRate, FlowSpecTrafficAction, FlowSpecTrafficMarking, FlowSpecRedirect -->
 <h3 id="next-hop-self">Next-Hop Self</h3>
 <p><code>nhop self</code> resolves to the local address of each destination peer at wire time.</p>
 <h3 id="a-link-local-next-hop-needs-the-capability">A Link-Local Next Hop Needs the Capability</h3>
@@ -384,8 +373,6 @@ hop is left: "the BGP route MUST not be advertised to its peer". Enable it with
 <code>session link-local &lt;fe80::...&gt;</code> on the peer or the group: ze refuses the
 capability without that address, at commit and at startup, because the draft
 requires a directly connected route's next hop to include ze's own Link-Local.</p>
-<!-- source: internal/component/bgp/plugins/llnh/llnh.go -- refuseLinkLocalCapabilityWithoutAddress -->
-<!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, linkLocalOnlyNextHopPermitted -->
 <h3 id="a-peer-never-receives-its-own-address-as-next-hop">A Peer Never Receives Its Own Address as Next Hop</h3>
 <p>RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT be
 advertised to a peer using an address of that peer as NEXT_HOP." Ze asks that
@@ -400,7 +387,6 @@ withheld peer instead, together with the withdrawals in the same UPDATE, so the
 peer drops any earlier copy.</p>
 <p>The same question is asked of a relayed route, where the address arrives as the
 third-party next hop Section 5.1.3 case 2 permits.</p>
-<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- originatedNextHopIsPeerOwn, egressNextHopIsPeerOwn -->
 <h3 id="a-default-route-ze-cannot-build">A Default Route Ze Cannot Build</h3>
 <p><code>default-originate</code> sends <code>0.0.0.0/0</code> or <code>::/0</code> with the session's local address
 as next hop. An IPv4 default route whose only local address is IPv6, on a session
@@ -411,7 +397,6 @@ carries NLRI. Ze then sends nothing for that family and logs a warning,
 family, the next hop and the error. The line is limited to one per second for
 each peer; <code>suppressed-since-last</code> counts the refusals the limit swallowed.
 Give the peer an IPv4 <code>local ip</code>, or negotiate Extended Next Hop.</p>
-<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendDefaultOriginateRoutes, warnDefaultOriginateRefused -->
 <h3 id="a-withdrawal-needs-a-session-that-advertised-something">A Withdrawal Needs a Session That Advertised Something</h3>
 <p>RFC 4271 Section 4.3 identifies a withdrawn route "in the context of the BGP
 speaker - BGP speaker connection to which it has been previously advertised", so
@@ -462,7 +447,6 @@ mp ipv6/unicast add 2001:db8::/32
 <p><code>nhop set</code> is separate from <code>attr set</code>: the attribute block's NEXT_HOP does not
 set the announce command's next-hop policy. Supply <code>nhop set</code> for a family that
 needs a next hop, even when the raw block already includes it.</p>
-<!-- source: internal/component/bgp/plugins/cmd/update/update_wire.go -- ParseUpdateWire -->
 <h2 id="base64-format">Base64 Format</h2>
 <p>Compact encoding for scripts:</p>
 <pre><code class="language-bash">ze cli -c "send bgp upstream1 update b64 \
@@ -508,7 +492,6 @@ needs a next hop, even when the raw block already includes it.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw message injection -->
 <p>The separate <code>send bgp &lt;selector&gt; raw &lt;hex|b64&gt; &lt;data&gt; [type &lt;type&gt;]</code> diagnostic
 command also obeys export-final admission. Both full-packet and UPDATE-body
 forms suppress announcements when an EBGP destination has no export policy;
@@ -519,7 +502,6 @@ packets are unaffected. Opaque diagnostics, including uncertain framing or
 trailing packets, require an accepting export final; otherwise no bytes are sent.
 With acceptance, raw AS_SET testing and opaque flush-then-retire behavior remain
 unchanged. A successful raw command response does not prove policy admitted bytes.</p>
-<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody, SendRawMessage, finishRawWrite, rawControlPacket -->
 <h2 id="commit-workflow">Commit Workflow</h2>
 <p>A named commit collects WITHDRAWALS and sends them together:</p>
 <pre><code class="language-bash">ze cli -c "request commit start my-batch"
@@ -537,7 +519,6 @@ entry saying why, and makes the command answer <code>error</code> naming it, bec
 rail drops the work for a peer whose session is not established:</p>
 <pre><code class="language-bash">ze cli -c "request commit end my-batch | table"
 </code></pre>
-<!-- source: internal/component/bgp/plugins/cmd/commit/ -- commit command RPCs; internal/component/bgp/transaction/ -- commit manager -->
 <h2 id="from-plugins">From Plugins</h2>
 <p>External plugins send the same newline-framed YANG RPC command over the plugin
 hub. The wire protocol is language-independent; the repository no longer
@@ -545,7 +526,6 @@ ships a Python launcher or helper.</p>
 <p>Go plugins use the SDK method:</p>
 <pre><code class="language-go">p.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri add 10.0.0.0/24")
 </code></pre>
-<!-- source: pkg/plugin/sdk/sdk.go -- Plugin -->
 </div>
 </div>
             </section>
@@ -595,7 +575,7 @@ ships a Python launcher or helper.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

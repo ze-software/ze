@@ -133,6 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 9 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 9 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>19</strong><b>19 of 26 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>9</strong><b>of 9 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -205,7 +206,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
 </tr>
 <tr><td>Mandatory requirements (MUST level)</td>
@@ -256,7 +257,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>26</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>8</td>
+<td>9</td>
 </tr>
 <tr><td>Fault test records</td>
 <td>19</td>
@@ -774,7 +775,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 </div>
 <h3><a href="#rfc5492-4-3"><code>RFC5492-4-3</code></a></h3>
 <p>Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability. (§4)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p><strong>Audit verdict:</strong> not-applicable (the requirement has no reachable code path in Ze), fresh. Independent audit (2026-11-22) against rfc/full/rfc5492.txt Section 4, rfc/short/rfc5492.md, and rfc/extraction/rfc5492.json (site 4:2). The row&#39;s verbatim text, [MUST] level, Ze roles (&#39;BGP speaker&#39;), and {not-applicable} annotation accurately reflect a document-author obligation. Speaker runtime obligations for multiple capability instances and parameters remain covered by RFC5492-4-1 and RFC5492-4-2, and per-capability semantics belong to each capability&#39;s own RFC. No tests tag RFC5492-4-3.</p>
 <p>No test carries RFC5492-4-3, so there is no linked test.</p>
 <h3><a href="#rfc5492-3-3"><code>RFC5492-3-3</code></a></h3>
 <p>the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker. (§3)</p>
@@ -1015,7 +1016,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

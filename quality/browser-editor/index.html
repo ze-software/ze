@@ -61,15 +61,6 @@
 </ol></li>
 <li><a href="#failure-reading">Failure reading</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: ../main/docs/architecture/testing/runner-architecture.md -- web runner architecture -->
-<!-- source: ../main/internal/component/web/testing/parser.go -- web parser -->
-<!-- source: ../main/internal/component/web/testing/runner.go -- web runner -->
-<!-- source: ../main/internal/component/web/testing/expect.go -- web expectations -->
-<!-- source: ../main/internal/test/cli/cmd_web.go -- web test CLI -->
-<!-- source: ../main/internal/component/cli/testing/parser.go -- editor parser -->
-<!-- source: ../main/internal/component/cli/testing/expect.go -- editor expectations -->
-<!-- source: ../main/internal/test/cli/cmd_editor.go -- editor test CLI -->
-<p>There is no <code>.wt</code> parser in the current tree. Web tests use <code>.wb</code>; editor tests use <code>.et</code>.</p>
 <h2 id="browser-tests">Browser tests</h2>
 <p>A <code>.wb</code> file is a short browser script. The runner starts Ze, opens an isolated <code>agent-browser</code> session, runs actions, waits for browser activity to settle, and evaluates expectations against the rendered page. The point is to test the behavior after templates, HTMX, handlers, and client-visible state have all interacted.</p>
 <p>Use <code>.wb</code> when navigation, form behavior, HTMX replacement, visible copy, page title, URL, or accessibility-visible elements are the contract. Use a Go unit test for pure handler logic and use <code>.ci</code> for simple HTTP status checks.</p>
@@ -158,7 +149,7 @@ ZE_TEST_KEEP_TMP=1 ./le test editor completion-basic -v
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

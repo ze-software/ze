@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 5 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 5 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 5 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 6 | 6 of 15 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 9 | 9 of 15 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 | Audit verdicts | 5 | of 5 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -74,7 +74,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 15 |
 | Tests linked to requirements | 15 |
 | Recorded audit verdicts | 5 |
-| Fault test records | 6 |
+| Fault test records | 9 |
 | Summary | `rfc/short/rfc8203.md` |
 | Requirement table | `rfc/requirements/rfc8203.md` |
 | RFC text | `rfc/full/rfc8203.txt` |
@@ -87,9 +87,9 @@ Included in automatic checks: Administrative Shutdown Communication: five MUST-l
 
 **Area:** Administrative Shutdown Communication
 
-**Test verification:** 3 of 5 MUST proven
+**Test verification:** 5 of 5 MUST proven
 
-**Evidence:** unit 3
+**Evidence:** unit 5
 
 **Unmet:** -
 
@@ -113,19 +113,19 @@ Included in automatic checks: Administrative Shutdown Communication: five MUST-l
 
 ## Figures
 
-- **MUST bar**: Ze verified 3, Tests awaiting verification 2
-- **Overview bar**: Ze MUST verified 3, Tests awaiting verification 2, Not assessed 4
+- **MUST bar**: Ze verified 5
+- **Overview bar**: Ze MUST verified 5, Not assessed 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 5 |
 | MUST rows kept (the MUST bar) | 5 |
-| Ze verified | 3 |
+| Ze verified | 5 |
 | OS verified | 0 |
-| Tests awaiting verification | 2 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -194,7 +194,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8203LengthCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L414) | unit/verify | not verified |
+| positive | [`TestRFC8203LengthCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L414) | unit/verify | revert, verified |
 
 ### [`RFC8203-2-3`](#rfc8203-2-3)
 
@@ -230,8 +230,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L428) | unit/verify | not verified |
-| positive | [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L446) | unit/verify | not verified |
+| negative | [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L428) | unit/verify | revert, verified |
+| positive | [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L446) | unit/verify | revert, verified |
 
 ## Requirement list review
 

@@ -2,9 +2,9 @@
 
 > Ze is an open-source configuration and protocol engine. The network operating system built on it speaks BGP, manages Linux interfaces, programs the FIB, and serves the same YANG-modeled configuration through CLI, SSH, web, API, and MCP. Its core holds the supervisor, message bus, config provider, and plugin manager; protocols and services arrive as subsystems or plugins.
 
-Pre-release: no tagged versions yet, built continuously from the main branch. AGPLv3 open source. See the ExaBGP [migration path](use-cases/exabgp-migration/index.md).
+Pre-release: no tagged versions yet, built continuously from the main branch. AGPLv3 open source. See the ExaBGP [migration path](https://ze-software.net/use-cases/exabgp-migration/index.md).
 
-This file collects information for AI tools in one place. It describes the product and lists the website pages, so common questions should not require fetching many separate pages. Page links still point at Markdown `index.md` files first, with rendered web URLs beside them for humans.
+This file collects information for AI tools in one place. It describes the product and lists the website pages, so common questions should not require fetching many separate pages. Page links still point at Markdown `index.md` files first, with rendered web URLs beside them for humans. Full combined Markdown archive: [llms-full.txt](https://ze-software.net/llms-full.txt); XML sitemap: [sitemap.xml](https://ze-software.net/sitemap.xml).
 
 ## Product snapshot
 
@@ -14,16 +14,16 @@ This file collects information for AI tools in one place. It describes the produ
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 623 CLI commands, 39 config sections, 98 plugin registrations, 66 direct Go dependencies, 46 update reports.
-- Test evidence counts: 52,900+ unit tests, 120+ fuzz targets, 3,100+ end-to-end transcript steps, 420+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
+- Current generated counts: 52 shipped or experimental feature cards, 624 CLI commands, 39 config sections, 98 plugin registrations, 66 direct Go dependencies, 46 update reports.
+- Test evidence counts: 53,100+ unit tests, 120+ fuzz targets, 3,200+ end-to-end transcript steps, 420+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
 - Plans for the release and later improvements (a plan does not mean a feature is ready): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-11-21.
+- Generated date: 2026-11-22.
 
 ## Quality and verification model
 
 Ze tests behavior at several levels because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 52,900+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 53,100+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 120+ fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
@@ -55,31 +55,31 @@ These features have code, but still need production testing or have unfinished p
 - Web Workbench [operate, experimental]: chips: HTMX, SSE; Configuration tree defined by YANG schemas; Same command syntax in browser and CLI; Live updates via SSE; link: https://ze-software.net/features/web-interface/index.md
 - Looking Glass [operate, experimental]: chips: Routes, Topology, Birdwatcher; Peer and route viewer; Topology graph; SSE streaming for live state; link: https://ze-software.net/features/looking-glass/index.md
 - Development Activity [observe, experimental]: chips: Heatmap, Rebuilt each publish; A year of commits and added lines, at a glance; Built from git history each time; Current Go code composition; link: https://ze-software.net/project/activity/index.md
-- Tech-Support Bundle [observe, experimental]: chips: Offline, JSON; 20 modules written in Go, without external commands; Structured JSON per module; Privacy-by-default, gokrazy-safe; link: https://ze-software.net/features/index.md
+- Tech-Support Bundle [observe, experimental]: chips: Offline, JSON; 20 modules written in Go, without external commands; Structured JSON per module; Privacy-by-default, gokrazy-safe; link: https://ze-software.net/guides/production-diagnostics/index.md
 - Audit Trail [secure, experimental]: chips: Commits, Auth; Config commit, discard, and reload; Failed auth on every interface; Filter by action, actor, and time; link: https://ze-software.net/guides/audit/index.md
-- PKI Store [secure, experimental]: chips: X.509, TLS; YANG-modelled certificate management; Chain validation, expiry checks; Shared by IPsec, TLS, mutual auth; Local CA issues 24-hour certs to Ze's components; link: https://ze-software.net/features/index.md
-- IPsec VPN [services, experimental]: chips: IKEv2, X.509, EAP; Full IKEv2 engine, rekeying, DPD; NAT-T, keepalive, XFRM interfaces; EAP-MSCHAPv2, EAP-TLS, road warrior; CRL and OCSP revocation checks on EAP-TLS; link: https://ze-software.net/features/index.md
+- PKI Store [secure, experimental]: chips: X.509, TLS; YANG-modelled certificate management; Chain validation, expiry checks; Shared by IPsec, TLS, mutual auth; Local CA issues 24-hour certs to Ze's components; link: https://ze-software.net/reference/feature-status/index.md
+- IPsec VPN [services, experimental]: chips: IKEv2, X.509, EAP; Full IKEv2 engine, rekeying, DPD; NAT-T, keepalive, XFRM interfaces; EAP-MSCHAPv2, EAP-TLS, road warrior; CRL and OCSP revocation checks on EAP-TLS; link: https://ze-software.net/guides/ipsec/index.md
 - L2TPv2 BNG [services, experimental]: chips: PPP, RADIUS, CQM; RFC 2661 LNS and LAC with PPP; RADIUS auth, accounting, CoA; CQM monitoring, shaping, web UI; link: https://ze-software.net/guides/l2tp/index.md
 - PPPoE Access [services, experimental]: chips: RFC 2516, PPP; Access concentrator with PPPoE discovery; Shared PPP driver with L2TP; PAP, CHAP-MD5, and MS-CHAPv2 authentication; link: https://ze-software.net/guides/pppoe/index.md
 - Interface Management [services, experimental]: chips: Netlink, DHCP; Ethernet, VLAN, bridge, WireGuard; 8 tunnel kinds, DHCP client; NTP sync, offload tuning, mirroring; Built-in IPv6 Router Advertisements, an alternative to radvd; link: https://ze-software.net/features/interfaces/index.md
 - Firewall [services, experimental]: chips: nftables, NAT; 15 match types, 19 actions; SNAT, DNAT, masquerade; FlowSpec-to-firewall bridge; DNS-sourced address groups, TTL-tracked; link: https://ze-software.net/guides/firewall/index.md
 - VPP Data Plane [services, experimental]: chips: DPDK, GoVPP; FIB programming via GoVPP; MPLS label operations; Per-interface Prometheus metrics; link: https://ze-software.net/guides/vpp/index.md
-- MPLS / LDP / RSVP-TE [routing, experimental]: chips: Labels, Signaling; Kernel MPLS FIB, push/swap/pop; LDP discovery and sessions; RSVP-TE ERO, bandwidth admission; link: https://ze-software.net/features/index.md
+- MPLS / LDP / RSVP-TE [routing, experimental]: chips: Labels, Signaling; Kernel MPLS FIB, push/swap/pop; LDP discovery and sessions; RSVP-TE ERO, bandwidth admission; link: https://ze-software.net/guides/mpls/index.md
 - OSPFv2 / OSPFv3 [routing, experimental]: chips: RFC 2328, RFC 5340, ECMP; One ospf engine, IPv4 and IPv6 address families; SPF/ABR, NSSA, virtual links, NBMA/P2MP; Redistribution, SR, BFD, graceful restart; Interface cost priced from link speed; link: https://ze-software.net/guides/ospf/index.md
 - IS-IS [routing, experimental]: chips: ISO 10589, Dual-stack; L1/L2 link-state IGP over Layer 2; RFC 5304/5310 authentication, key chains; Dual-stack IPv6, redistributes with BGP; link: https://ze-software.net/guides/isis/index.md
 - VRRP [routing, experimental]: chips: RFC 9568, RFC 3768, Virtual MAC; First-hop gateway redundancy, IPv4 and IPv6; Per-group virtual-MAC macvlan for L2 failover; Tested with keepalived; can be excluded at build time; Interface tracking, accept-mode; link: https://ze-software.net/guides/vrrp/index.md
 - Flow Export [observe, experimental]: chips: sFlow, NetFlow, IPFIX; sFlow v5, NetFlow v9, IPFIX; Packet sampling, conntrack flows; BGP next-hop enrichment; link: https://ze-software.net/guides/flow-export/index.md
 - DDoS and Anomaly Detection [secure, experimental]: chips: DDoS, Anomaly, FlowSpec; Volumetric and behavioral detection; Bounded incident history with durations; Local and upstream auto-mitigation; link: https://ze-software.net/guides/anomaly/index.md
 - ISO and PXE Install [platform, experimental]: chips: PXE, ISO; PXE bare-metal provisioning; Current amd64 installation ISO under 150 MB; Local systemd install and uninstall; link: https://ze-software.net/guides/ze-install/index.md
-- Kernel Tunables [platform, experimental]: chips: Sysctl, Profiles; Three-layer precedence; Named profiles (DSR, router, hardened); Originals restored on stop; link: https://ze-software.net/features/index.md
+- Kernel Tunables [platform, experimental]: chips: Sysctl, Profiles; Three-layer precedence; Named profiles (DSR, router, hardened); Originals restored on stop; link: https://ze-software.net/reference/plugins/sysctl/index.md
 - AS112 Anycast DNS [services, experimental]: chips: AS112, Anycast; Authoritative sink zones on four fixed anycast addresses (RFC 7534/7535); BGP announcements controlled by DNS health checks; Anycast addresses added to lo automatically; link: https://ze-software.net/guides/as112/index.md
-- Segment Routing [routing, experimental]: chips: SAFI 73, SRv6; SR-Policy NLRI (RFC 9830), SAFI 73; MPLS and SRv6 binding SID, tunnel encap; ExaBGP bridge for SR-Policy migration; link: https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy
+- Segment Routing [routing, experimental]: chips: SAFI 73, SRv6; SR-Policy NLRI (RFC 9830), SAFI 73; MPLS and SRv6 binding SID, tunnel encap; ExaBGP bridge for SR-Policy migration; link: https://ze-software.net/features/srv6/index.md
 - Fleet Management [automate, experimental]: chips: Managed config, TLS hub; Per-client configuration and pinned hub certificate; Cached config with reconnect and heartbeat; Version hashing and two-phase fetch; link: https://ze-software.net/guides/fleet-config/index.md
 - IRR Route Filtering [secure, experimental]: chips: IRR, as-set; Prefix-lists from IRR data, live in the engine; Sourced from PeeringDB and RADB; Opt-in per peer, group or global filter chain; link: https://ze-software.net/guides/irr-filtering/index.md
 - AI Tool Interfaces [automate, experimental]: chips: MCP, Generated, AI tools; MCP exposes CLI/API commands; AI tools read structured output; Plugins expose discoverable tools; link: https://ze-software.net/features/ai-first/index.md
 - SSH CLI [operate, experimental]: chips: Built-in SSH, RBAC; Manage Ze without OS shell accounts; Profiles, audit, and accounting; commit, rollback, diff, completion; link: https://ze-software.net/features/cli-commands/index.md
 - YANG Configuration [operate, experimental]: chips: YANG, ExaBGP; Schema-driven validation; One model feeds every surface; Plugin defined config and commands; link: https://ze-software.net/features/bgp-configuration/index.md
-- System Readiness [operate, experimental]: chips: ze doctor, ze show diagnostic; Offline pre-start checks; Health, warnings, and errors; Structured remediation with `ze show diagnostic`; link: https://ze-software.net/guides/production-diagnostics/index.md
+- System Readiness [operate, experimental]: chips: ze doctor, ze show diagnostic; Offline pre-start checks; Health, warnings, and errors; Structured remediation with `ze show diagnostic`; link: https://ze-software.net/guides/system-readiness/index.md
 - Native BGP Engine [routing, experimental]: chips: BGP, IPv4/IPv6, FlowSpec; Full implementation in Go; Lazy parsing, buffer-first encoding; Negotiated capabilities; link: https://ze-software.net/features/bgp-protocol/index.md
 - Static Routes [routing, experimental]: chips: ECMP, BFD, PBR; Named tables, policy routing; BFD-tracked failover; Multi-path ECMP groups; link: https://ze-software.net/guides/static-routes/index.md
 - BFD [routing, experimental]: chips: RFC 5880, Auth; Single-hop and multi-hop; GTSM, jitter, BGP integration; SHA1/MD5 auth, echo mode; Strict mode holds a BGP peer down until BFD is up; link: https://ze-software.net/features/bgp-protocol/index.md
@@ -87,20 +87,20 @@ These features have code, but still need production testing or have unfinished p
 - DNS Resolver [services, experimental]: chips: Cache, Pipes; Built-in cached resolver; | resolve and | origin pipe operators; No external daemon needed; link: https://ze-software.net/features/dns-resolver/index.md
 - Plugin System [automate, experimental]: chips: ExaBGP, RPKI, Policy; Plugins add commands, RPCs, events; Plugin configuration appears in the CLI and web editor; Independent plugins can be combined; Each plugin declares what its failure means; link: https://ze-software.net/reference/plugins/index.md
 - Programmable [automate, experimental]: chips: REST, gRPC, gNMI; REST API, gRPC, gNMI; Shared engine for identical output; Automate from any language; link: https://ze-software.net/features/api-commands/index.md
-- AI-First Design [automate, experimental]: chips: Self-describing, Skills; Self-describing command catalogue from the live binary; Every command is available to automation; Structured diagnostics and repair plans; `ze create agent skill` sets up Claude Code and Codex; link: https://ze-software.net/features/ai-first/index.md
+- AI-First Design [automate, experimental]: chips: Self-describing, Skills; Self-describing command catalog from the live binary; Every command is available to automation; Structured diagnostics and repair plans; `ze create agent skill` sets up Claude Code and Codex; link: https://ze-software.net/features/ai-first/index.md
 - MCP Integration [automate, experimental]: chips: MCP, OAuth 2.1; Streamable HTTP transport, OAuth 2.1 resource server; Server requests for user input, tool calls tracked as tasks; MCP Apps UI with embedded panels; link: https://ze-software.net/features/mcp-integration/index.md
 - ExaBGP Compatibility [automate, experimental]: chips: Migration, Bridge; Automatic config migration; Plugin bridge for existing workflows; Migration path for existing scripts; link: https://ze-software.net/features/exabgp-compatibility/index.md
 - Evidence Over Claims [observe, experimental]: chips: Fuzz, Interop, Docker; Unit, functional, fuzz, chaos; Performance benchmarks; Interop vs FRR, BIRD, GoBGP; link: https://ze-software.net/features/interoperability-testing/index.md
 - Prometheus Telemetry [observe, experimental]: chips: Netdata, Prometheus; Prometheus metrics from /proc and /sys; Netdata metric names and labels; Built for existing Grafana dashboards; link: https://ze-software.net/guides/monitoring/index.md
-- Health Registry [observe, experimental]: chips: HTTP, 503; /health HTTP endpoint; Per-component status checks; BGP, FIB, IPsec, L2TP, VPP; link: https://ze-software.net/features/index.md
-- Host Inventory [observe, experimental]: chips: CPU, NIC, SMART; CPU, NIC, DMI, memory, thermal; SMART disk health and self-tests; JSON output for pipelines; link: https://ze-software.net/features/index.md
-- Crash Capture [observe, experimental]: chips: Panic, Syslog; Automatic panic stack traces; Last 64 diagnostic entries saved with each crash; show crashes CLI command; link: https://ze-software.net/features/index.md
+- Health Registry [observe, experimental]: chips: HTTP, 503; /health HTTP endpoint; Per-component status checks; BGP, FIB, IPsec, L2TP, VPP; link: https://ze-software.net/guides/system-readiness/index.md
+- Host Inventory [observe, experimental]: chips: CPU, NIC, SMART; CPU, NIC, DMI, memory, thermal; SMART disk health and self-tests; JSON output for pipelines; link: https://ze-software.net/reference/feature-status/index.md
+- Crash Capture [observe, experimental]: chips: Panic, Syslog; Automatic panic stack traces; Last 64 diagnostic entries saved with each crash; show crashes CLI command; link: https://ze-software.net/reference/plugins/crashes/index.md
 - Production Diagnostics [observe, experimental]: chips: CLI, MCP; Built-in tools replacing ss, dmesg, lsof; tcpdump, traceroute, ping, mtr; All exposed via MCP for AI debugging; link: https://ze-software.net/guides/production-diagnostics/index.md
 - Secure by Default [secure, experimental]: chips: SSH, RBAC, RPKI, ASPA; SSH access to the CLI; RPKI route origin validation; No other daemons needed; link: https://ze-software.net/reference/plugins/index.md
 - TACACS+ AAA [secure, experimental]: chips: RFC 8907, Accounting; SSH login via TACACS+; Command accounting START/STOP; Server failover, local fallback; link: https://ze-software.net/guides/tacacs/index.md
 - Minimal Appliance Mode [platform, experimental]: chips: Appliance, Server; Kernel, init, Ze runtime; No package manager or general shell; ISO/PXE bare-metal install; Linux server with systemd; link: https://ze-software.net/guides/appliance/index.md
 - Runs Itself [platform, experimental]: chips: Update, Systemd; Binary self-update; Built-in readiness checks; No orchestrator needed; link: https://ze-software.net/features/introspection/index.md
-- Docker Support [platform, experimental]: chips: Daemon only, Scratch, Compose; Static binary on scratch base; Compose support included; Optional build tags; link: https://ze-software.net/features/index.md
+- Docker Support [platform, experimental]: chips: Daemon only, Scratch, Compose; Static binary on scratch base; Compose support included; Optional build tags; link: https://ze-software.net/guides/docker/index.md
 - Choose Features at Build Time [platform, experimental]: chips: 36 subsystems, Default on; Exclude whole subsystems from the binary, including BGP; Smaller binary with less exposed code; Reject configuration for features absent from the build; link: https://ze-software.net/guides/quickstart/index.md
 
 ## Configuration model roots
@@ -252,7 +252,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 200 daemon, 16 daemon, offline, 5 offline, 332 read-only, 70 read-only, offline.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 200 daemon, 16 daemon, offline, 5 offline, 333 read-only, 70 read-only, offline.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` groups operators as `always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of the contract. An operator absent from those groups is refused by name.
 
 ### `clear` commands (37)
@@ -505,7 +505,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `set sysctl` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `set sysctl <key> <value>`): Set a transient sysctl value
 - `set system file-descriptors` (daemon; wire ze-host:set-system-file-descriptors; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args limit:union; usage `set system file-descriptors [limit <limit|max>]`): Raise the file descriptor limit for the daemon process\.
 
-### `show` commands (364)
+### `show` commands (365)
 - `show aaa accounting` (read-only; wire ze-aaa:show-accounting; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show aaa accounting`): Show AAA accounting counters and any dropped records\.
 - `show agent context` (read-only, offline; wire ze-skills:show-agent-context; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show agent context`): Show what an agent session is told about this Ze\.
 - `show agent skill` (read-only, offline; wire ze-skills:show-agent-skill; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args agent:enum; usage `show agent <claude|codex|opencode|pi> skill`): Show whether the ze skill is set up for each agent harness\.
@@ -670,6 +670,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show host platform` (read-only; wire ze-host:show-platform; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show host platform`): Show platform capabilities and constraints\.
 - `show host storage` (read-only; wire ze-host:show-storage; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show host storage`): Show storage devices attached to this box\.
 - `show host thermal` (read-only; wire ze-host:show-thermal; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show host thermal`): Show temperature sensors and thermal throttle events\.
+- `show host trend` (read-only; wire ze-host:show-trend; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show host trend`): Show host resources heading for exhaustion\.
 - `show interface` (read-only, offline; wire ze-iface:show-interface; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show interface`): Show network interfaces on this box\.
 - `show interface brief` (read-only; wire ze-iface:show-interface-brief; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show interface brief`): One\-line summary per interface\: name\, state\, IP\, and MTU\.
 - `show interface delegated-prefix` (read-only; wire ze-iface:show-interface-delegated-prefix; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show interface delegated-prefix`): Show the \/64 each LAN unit takes from a delegated prefix\, and its source\.
@@ -697,13 +698,13 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show l2tp listeners` (read-only; wire ze-l2tp:listeners; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show l2tp listeners`): Show which UDP sockets are listening for L2TP\.
 - `show l2tp observer` (read-only; wire ze-l2tp:observer; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show l2tp observer`): Show recent events for a session \(debug aid\)\.
 - `show l2tp observer all` (read-only; wire ze-l2tp:observer; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show l2tp observer all`): Summarize all current event rings\.
-- `show l2tp observer id` (read-only; wire ze-l2tp:observer; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:uint, expected-id:string, listener:string, tunnel-id:uint; usage `show l2tp observer id <id> [expected-id <expected-id>] [listener <listener>] [tunnel-id <tunnel-id>]`): Select one original session\'s event history\.
+- `show l2tp observer id` (read-only; wire ze-l2tp:observer; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:string, expected-id:string, listener:string, tunnel-id:string; usage `show l2tp observer id <id> [expected-id <expected-id>] [listener <listener>] [tunnel-id <tunnel-id>]`): Select one original session\'s event history\.
 - `show l2tp pool` (read-only; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show l2tp pool`): Show the IPv4 and IPv6 subscriber address pools and what each has allocated\.
 - `show l2tp reliable` (read-only; wire ze-l2tp:reliable; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show l2tp reliable`): Show the reliable transport window for a tunnel\.
-- `show l2tp session history id` (read-only; wire ze-l2tp:session-history; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:uint, expected-id:string, listener:string, tunnel-id:uint; usage `show l2tp session history id <id> [expected-id <expected-id>] [listener <listener>] [tunnel-id <tunnel-id>]`): Select one original session\'s transitions\.
-- `show l2tp session id` (read-only; wire ze-l2tp:session; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:uint, expected-id:string, listener:string, tunnel-id:uint; usage `show l2tp session id <id> [expected-id <expected-id>] [listener <listener>] [tunnel-id <tunnel-id>]`): Show full detail for one L2TP session\.
+- `show l2tp session history id` (read-only; wire ze-l2tp:session-history; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:string, expected-id:string, listener:string, tunnel-id:string; usage `show l2tp session history id <id> [expected-id <expected-id>] [listener <listener>] [tunnel-id <tunnel-id>]`): Select one original session\'s transitions\.
+- `show l2tp session id` (read-only; wire ze-l2tp:session; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:string, expected-id:string, listener:string, tunnel-id:string; usage `show l2tp session id <id> [expected-id <expected-id>] [listener <listener>] [tunnel-id <tunnel-id>]`): Show full detail for one L2TP session\.
 - `show l2tp session traffic` (read-only; wire ze-l2tp:session-traffic; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show l2tp session traffic`): Show traffic counters for a subscriber\'s PPP interface\.
-- `show l2tp session traffic id` (read-only; wire ze-l2tp:session-traffic; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:uint, expected-id:string, listener:string, tunnel-id:uint; usage `show l2tp session traffic id <id> [expected-id <expected-id>] [listener <listener>] [tunnel-id <tunnel-id>]`): Select one original session\'s traffic counters\.
+- `show l2tp session traffic id` (read-only; wire ze-l2tp:session-traffic; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:string, expected-id:string, listener:string, tunnel-id:string; usage `show l2tp session traffic id <id> [expected-id <expected-id>] [listener <listener>] [tunnel-id <tunnel-id>]`): Select one original session\'s traffic counters\.
 - `show l2tp sessions` (read-only; wire ze-l2tp:sessions; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show l2tp sessions`): List all active L2TP sessions\.
 - `show l2tp shaper` (read-only; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show l2tp shaper`): Show each shaped subscriber session with its download and upload rate\.
 - `show l2tp statistics` (read-only; wire ze-l2tp:statistics; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show l2tp statistics`): Show aggregate L2TP protocol counters\.
@@ -913,7 +914,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 ## Vendor command equivalents
 
 Curated vendor command equivalents joined with the live Ze command catalog generated from ze help command --json. Ze paths are exact join keys; vendor commands are migration hints with provenance and confidence.
-Updated: 2026-07-04.
+Updated: 2026-11-22.
 Vendors: Junos MX (object-rooted), IOS XR (family-rooted-for-routing), SR OS (instance-rooted), VyOS (family-rooted-for-routing).
 
 - BGP: BGP session summary. Ze: `show bgp`. Junos MX: `show bgp summary` (operational, verified). IOS XR: `show bgp summary` (operational, verified); `show bgp ipv4 unicast summary` (operational, verified). SR OS: `show router bgp summary` (operational, verified). VyOS: `show bgp ipv4 summary` (operational, verified); `show ip bgp summary` (operational, legacy).
@@ -929,7 +930,7 @@ Vendors: Junos MX (object-rooted), IOS XR (family-rooted-for-routing), SR OS (in
 - BGP: Pause or resume a BGP peer without deleting configuration. Ze: `request peer pause`, `request peer resume`.
 - BGP: Stream live BGP events or updates. Ze: `monitor bgp`.
 - BGP: BMP collector, peer, and session visibility. Ze: `show bmp sessions`, `show bmp peers`, `show bmp collectors`, `show bmp rib`.
-- BGP: RPKI cache and validation session state. Ze: `show bgp irr`, `show bgp irr check`, `show bgp irr prefix`.
+- BGP: RPKI cache and validation session state. Ze: `show bgp rpki`, `show bgp rpki status`, `show bgp rpki summary`, `show bgp rpki cache`, `show bgp rpki roa`, `show bgp rpki aspa`. Junos MX: `show validation session` (operational, verified). IOS XR: `show bgp rpki server summary` (operational, verified). VyOS: `show rpki cache-connection` (operational, verified).
 - Routing: Routing table. Ze: `show route`. Junos MX: `show route` (operational, verified). VyOS: `show ip route` (operational, verified).
 - Routing: Route lookup for a prefix or address. Ze: `show route lookup`. Junos MX: `show route <prefix>` (operational, verified). VyOS: `show ip route <prefix>` (operational, verified).
 - Routing: Static route configuration or state. Ze: `show static`.
@@ -937,7 +938,8 @@ Vendors: Junos MX (object-rooted), IOS XR (family-rooted-for-routing), SR OS (in
 - Interfaces: Detailed interface state. Ze: `show interface name detail`. VyOS: `show interfaces <name>` (operational, verified).
 - Interfaces: Interface counters and error counters. Ze: `show interface name counters`, `show interface errors`.
 - Interfaces: Clear interface counters. Ze: `clear interface counters all`, `clear interface name counters`. VyOS: `clear interfaces ethernet <name> counters` (operational, verified).
-- Neighbors: ARP and neighbor cache. Ze: `show arp`, `show neighbor`. VyOS: `show arp` (operational, verified).
+- Neighbors: IPv4 ARP table. Ze: `show arp`. VyOS: `show arp` (operational, verified).
+- Neighbors: IPv6 neighbor discovery cache. Ze: `show neighbor`. VyOS: `show ipv6 neighbors` (operational, verified).
 - Firewall: Firewall ruleset and counters. Ze: `show firewall ruleset`.
 - Firewall: Firewall address, network, and port groups. Ze: `show firewall group`.
 - Firewall: Policy-based routing rules. Ze: `show policy routes`.
@@ -952,18 +954,23 @@ Vendors: Junos MX (object-rooted), IOS XR (family-rooted-for-routing), SR OS (in
 - Routing protocols: MPLS, LDP, and RSVP-TE state. Ze: `show ldp neighbor`, `show ldp binding`, `show mpls forwarding`, `show rsvp-te lsp`, `show rsvp-te tunnel`.
 - Routing protocols: BFD session state. Ze: `show bfd sessions`, `show bfd session address`.
 - System: Software version and uptime. Ze: `show version`, `show uptime`. VyOS: `show system uptime` (operational, verified).
-- System: CPU, memory, platform, and host health. Ze: `show system cpu`, `show system memory`, `show system platform`, `show health`, `show doctor`. VyOS: `show hardware cpu` (operational, verified); `show system memory` (operational, verified).
+- System: CPU and memory usage. Ze: `show system cpu`, `show system memory`, `show system platform`. VyOS: `show hardware cpu` (operational, verified); `show system memory` (operational, verified).
+- System: Subsystem health and doctor diagnostics. Ze: `show health`, `show doctor`.
 - System: System time and NTP state. Ze: `show system date`, `show system ntp`, `show system ntp peers`. VyOS: `show date` (operational, verified); `show ntp` (operational, verified).
 - Operations: Logs, warnings, and errors. Ze: `show log recent`, `show warnings`, `show errors`. VyOS: `show log` (operational, verified).
 - Operations: Metrics inventory and values. Ze: `show metrics list`, `show metrics values`, `show metrics name`.
-- Diagnostics: Ping and traceroute diagnostics. Ze: `show ping`, `show traceroute`, `resolve ping`, `resolve traceroute`. SR OS: `ping <target>` (operational, verified). VyOS: `ping <target>` (operational, verified); `traceroute <target>` (operational, verified).
+- Diagnostics: Ping reachability check. Ze: `show ping`, `resolve ping`. SR OS: `ping <target>` (operational, verified). VyOS: `ping <target>` (operational, verified).
+- Diagnostics: Traceroute path diagnostic. Ze: `show traceroute`, `resolve traceroute`. VyOS: `traceroute <target>` (operational, verified).
 - Diagnostics: DNS lookup and cache inspection. Ze: `show dns cache list`, `show dns cache record`, `show dns cache stats`, `show dns lookup`, `resolve dns a`, `resolve dns aaaa`, `resolve dns ptr`. VyOS: `show dns` (operational, verified).
-- Configuration: Show running, candidate, and diffed configuration. Ze: `show config dump`, `show config diff`, `show config history`, `show config fmt`. VyOS: `show configuration` (operational, verified); `compare` (configuration, verified).
+- Configuration: Show running configuration. Ze: `show config dump`. VyOS: `show configuration` (operational, verified).
+- Configuration: Compare candidate and running configuration. Ze: `show config diff`. VyOS: `compare` (configuration, verified).
 - Configuration: Validate and commit configuration. Ze: `request commit`. VyOS: `commit` (configuration, verified).
-- Lifecycle: Reload, reboot, halt, or shut down. Ze: `request reload`, `request reboot`, `request halt`, `request shutdown`. VyOS: `reboot` (operational, verified); `poweroff` (operational, verified).
+- Lifecycle: Reload configuration without rebooting. Ze: `request reload`.
+- Lifecycle: Reboot the system. Ze: `request reboot`. VyOS: `reboot` (operational, verified).
+- Lifecycle: Halt or power off the system. Ze: `request halt`, `request shutdown`. VyOS: `poweroff` (operational, verified).
 - Security: Certificate inventory. Ze: `show pki certificates`, `show pki certificate name`.
-- Vendor-only gaps: LLDP neighbor discovery. Ze: .
-- Vendor-only gaps: NAT translations and pools. Ze: .
+- Vendor-only gaps: LLDP neighbor discovery. Ze: . Junos MX: `show lldp neighbors` (operational, verified). IOS XR: `show lldp neighbors` (operational, verified). VyOS: `show lldp neighbors` (operational, verified).
+- Vendor-only gaps: NAT translations and pools. Ze: . VyOS: `show nat source translations` (operational, verified).
 
 ## Dependency rationale
 
@@ -1173,7 +1180,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Why Ze / Why Not Ze](https://ze-software.net/project/why-ze/index.md): Ze is a network operating system (NOS) with programmable routing. It combines its own BGP engine with Linux networking and network services, managed through one configuration and plugin engine. You can use it as a route... (web: https://ze-software.net/project/why-ze/)
 - [Use Cases](https://ze-software.net/use-cases/index.md): Use these pages when you want Ze to play a concrete role in a network. (web: https://ze-software.net/use-cases/)
 - [AS112 anycast DNS inside a network](https://ze-software.net/use-cases/as112/index.md): Run Ze as the AS112 sink for RFC 1918 and link-local reverse DNS, then learn the four AS112 covering prefixes from Ze over BGP. (web: https://ze-software.net/use-cases/as112/)
-- [ExaBGP Migration](https://ze-software.net/use-cases/exabgp-migration/index.md): Ze provides tools for converting ExaBGP configurations and running existing ExaBGP plugins with ze as the BGP engine. (web: https://ze-software.net/use-cases/exabgp-migration/)
+- [ExaBGP Migration](https://ze-software.net/use-cases/exabgp-migration/index.md): Ze provides tools for converting ExaBGP configurations and running existing ExaBGP plugins with Ze as the BGP engine. (web: https://ze-software.net/use-cases/exabgp-migration/)
 - [BGP performance testing with Ze](https://ze-software.net/use-cases/bgp-performance/index.md): A route-server performance test is simple in outline: create a route source, connect it to a device under test, watch a monitor peer, and publish how many routes arrived and how long convergence took. (web: https://ze-software.net/use-cases/bgp-performance/)
 - [Route Server at an IXP](https://ze-software.net/use-cases/route-server/index.md): Use Ze as an RFC 7947 route server when each member should maintain one eBGP session and receive eligible routes from the other members without next-hop rewriting. (web: https://ze-software.net/use-cases/route-server/)
 - [Transit Edge with RPKI](https://ze-software.net/use-cases/transit-edge-rpki/index.md): This example uses Ze at an Internet edge with two transit sessions, origin validation, explicit import policy, and local preference to select the preferred transit and its backup. (web: https://ze-software.net/use-cases/transit-edge-rpki/)
@@ -1188,7 +1195,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ## Start
 
 ### Install
-- [Install Ze](https://ze-software.net/guides/ze-install/index.md): One command installs Ze: sudo ze install. Compare Linux, Docker, VM and lab (web: https://ze-software.net/guides/ze-install/)
+- [Install Ze](https://ze-software.net/guides/ze-install/index.md): Build from source and install with sudo ./ze install, or compare Linux, Docker, VM and lab (web: https://ze-software.net/guides/ze-install/)
 - [Quickstart](https://ze-software.net/guides/quickstart/index.md): Two local BGP peers and a received route (web: https://ze-software.net/guides/quickstart/)
 - [Build and install on Linux](https://ze-software.net/guides/ubuntu-build-install/index.md): Build Ze, then install, upgrade or remove it with its own CLI (web: https://ze-software.net/guides/ubuntu-build-install/)
 - [Docker](https://ze-software.net/guides/docker/index.md): Keep configuration and login across container recreation (web: https://ze-software.net/guides/docker/)
@@ -1217,7 +1224,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ## Docs
 
 ### Operate
-- [Documentation](https://ze-software.net/docs/index.md): All docs, organised by what you want to do (web: https://ze-software.net/docs/)
+- [Documentation](https://ze-software.net/docs/index.md): All docs, organized by what you want to do (web: https://ze-software.net/docs/)
 - [Production diagnostics](https://ze-software.net/guides/production-diagnostics/index.md): Start from symptoms and debug safely (web: https://ze-software.net/guides/production-diagnostics/)
 - [Monitoring](https://ze-software.net/guides/monitoring/index.md): Metrics, health, and operational visibility (web: https://ze-software.net/guides/monitoring/)
 - [Lifecycle and rollback](https://ze-software.net/guides/lifecycle/index.md): Start, reload, update, recover, and verify (web: https://ze-software.net/guides/lifecycle/)
@@ -1235,7 +1242,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Use cases](https://ze-software.net/use-cases/index.md): Complete examples for real network roles (web: https://ze-software.net/use-cases/)
 - [IXP route server](https://ze-software.net/use-cases/route-server/index.md): Member policy, RPKI validation, and replay (web: https://ze-software.net/use-cases/route-server/)
 - [Transit edge with RPKI](https://ze-software.net/use-cases/transit-edge-rpki/index.md): Dual-transit policy and tested failover (web: https://ze-software.net/use-cases/transit-edge-rpki/)
-- [FlowSpec injection](https://ze-software.net/use-cases/flowspec-injection/index.md): Authorised, atomic, reversible mitigation routes (web: https://ze-software.net/use-cases/flowspec-injection/)
+- [FlowSpec injection](https://ze-software.net/use-cases/flowspec-injection/index.md): Authorized, atomic, reversible mitigation routes (web: https://ze-software.net/use-cases/flowspec-injection/)
 - [ExaBGP migration](https://ze-software.net/use-cases/exabgp-migration/index.md): Migrate process scripts to Ze (web: https://ze-software.net/use-cases/exabgp-migration/)
 - [Completion by use case](https://ze-software.net/quality/rfc-compliance/profiles/index.md): RFC requirements proven for each use case (web: https://ze-software.net/quality/rfc-compliance/profiles/)
 ### Labs and demonstrations
@@ -1251,9 +1258,9 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ### Live system
 - [Reference index](https://ze-software.net/reference/index.md): Commands, configuration, plugins, standards, and feature status (web: https://ze-software.net/reference/)
-- [CLI reference](https://ze-software.net/reference/cli/index.md): 623 commands, generated from Ze's live binary (web: https://ze-software.net/reference/cli/)
+- [CLI reference](https://ze-software.net/reference/cli/index.md): 624 commands, generated from Ze's live binary (web: https://ze-software.net/reference/cli/)
 - [Configuration reference](https://ze-software.net/reference/configuration/index.md): 39 sections, generated from Ze's YANG schemas (web: https://ze-software.net/reference/configuration/)
-- [Plugin catalogue](https://ze-software.net/reference/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/reference/plugins/)
+- [Plugin catalog](https://ze-software.net/reference/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/reference/plugins/)
 ### Standards and lookup
 - [RFC status](https://ze-software.net/reference/rfcs/index.md): Implemented RFCs, partial support, and known gaps (web: https://ze-software.net/reference/rfcs/)
 - [Command equivalents](https://ze-software.net/reference/command-equivalents/index.md): Search Ze commands across Junos MX, IOS XR, SR OS, and VyOS (web: https://ze-software.net/reference/command-equivalents/)
@@ -1265,13 +1272,13 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ### Progress and history
 - [Project overview](https://ze-software.net/project/index.md): Progress, history, talks, and contribution paths (web: https://ze-software.net/project/)
 - [Activity](https://ze-software.net/project/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/project/activity/)
-- [Milestone](https://ze-software.net/project/milestones/index.md): Landmark features, newest to oldest (web: https://ze-software.net/project/milestones/)
+- [Milestones](https://ze-software.net/project/milestones/index.md): Landmark features, newest to oldest (web: https://ze-software.net/project/milestones/)
 - [Changes](https://ze-software.net/project/changes/index.md): 46 update reports, what shipped (web: https://ze-software.net/project/changes/)
-- [Project History](https://ze-software.net/project/history/index.md): How ExaBGP's programmable model grew into Ze (web: https://ze-software.net/project/history/)
+- [Project history](https://ze-software.net/project/history/index.md): How ExaBGP's programmable model grew into Ze (web: https://ze-software.net/project/history/)
 - [Roadmap](https://ze-software.net/project/roadmap/index.md): Planned changes and remaining release work, awaiting prioritization (web: https://ze-software.net/project/roadmap/)
 ### Community and notes
 - [FAQ](https://ze-software.net/faq/index.md): Common questions before trying Ze (web: https://ze-software.net/faq/)
-- [Blog](https://ze-software.net/blog/index.md): Project notes and release stories (web: https://ze-software.net/blog/)
+- [Blog](https://ze-software.net/blog/index.md): Engineering essays on architecture, testing, and AI-assisted development (web: https://ze-software.net/blog/)
 - [Talks](https://ze-software.net/talks/index.md): Talk slides and conference material (web: https://ze-software.net/talks/)
 - [Contribute](https://ze-software.net/contribute/index.md): How to send code, reports, and interop results (web: https://ze-software.net/contribute/)
 - [Contributor testing](https://ze-software.net/contribute/testing/index.md): How to choose and run the right test layer (web: https://ze-software.net/contribute/testing/)

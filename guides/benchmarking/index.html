@@ -81,11 +81,9 @@ including Ze.</p>
 <li><a href="#before-you-report-a-number">Before you report a number</a></li>
 </ol></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
 <p><code>le perf send</code> runs one benchmark against a DUT, <code>le perf compare</code> compares
 result files, and <code>le perf track</code> follows the history. Every word after the verb reaches the program
 unchanged, and the program's exit code is le's.</p>
-<!-- source: internal/le/perf/actions.go -- programVerbs -->
 <h2 id="architecture">Architecture</h2>
 <pre><code>                  +-----------+
   le perf send    |           |         le perf send
@@ -97,8 +95,6 @@ unchanged, and the program's exit code is le's.</p>
 receiver measures when those routes arrive. Both sessions are managed by
 <code>le perf send</code> in a single process. Timing starts when the sender writes the first
 UPDATE and stops when the receiver has collected all expected prefixes.</p>
-<!-- source: internal/perf/sender.go -- sender UPDATE construction -->
-<!-- source: internal/perf/receiver.go -- receiver prefix extraction -->
 <h2 id="quick-start">Quick Start</h2>
 <p>Run a benchmark against Ze on localhost:</p>
 <pre><code class="language-bash"># Start ze with a config that accepts peers from 127.0.0.1 and 127.0.0.2
@@ -141,13 +137,11 @@ ze start test-config.conf &amp;
 </tr>
 </tbody>
 </table>
-<!-- source: internal/perf/cli/cmd_run.go -- family and force-mp validation -->
 <h3 id="multi-iteration">Multi-Iteration</h3>
 <p>By default, <code>le perf send</code> executes 5 iterations with 1 warmup run. The warmup
 run is discarded, and outliers beyond 2 standard deviations from the median
 convergence time are removed (minimum 3 iterations kept). Final results report
 median and standard deviation across the kept iterations.</p>
-<!-- source: internal/perf/metrics.go -- RemoveOutliers and Aggregate -->
 <table>
 <thead>
 <tr>
@@ -226,8 +220,6 @@ it accepts the session or the wait runs out; timing starts only once the
 session is up, so the wait is not measured. With the default <code>0</code>, the run
 fails at the first connection the DUT closes before its OPEN, and the error
 names the flag. <code>./le perf run</code> passes <code>--reconnect-wait 10m</code>.</p>
-<!-- source: internal/perf/benchmark.go -- dialSession -->
-<!-- source: internal/test/perfrunner/run.go -- Runner.runPerf -->
 <h2 id="cross-implementation-comparison">Cross-Implementation Comparison</h2>
 <h3 id="automated-docker-runner">Automated Docker Runner</h3>
 <p>The included test runner benchmarks all eight supported implementations in Docker:</p>
@@ -297,9 +289,6 @@ architecture, then checks that kernel with it and refuses one that lacks any
 feature Ze enrolls, naming each. The check and its
 routes are in <code>docs/architecture/testing/interop.md</code>, "The Docker host kernel
 check".</p>
-<!-- source: internal/test/perfrunner/run.go -- native Docker benchmark runner -->
-<!-- source: internal/le/perf/bench.go -- Bench.Run -->
-<!-- source: test/interop/Dockerfile.rustbgpd -- rustbgpd Docker image -->
 <pre><code class="language-bash"># Build every DUT image, measure every DUT, and record the run.
 ./le perf run
 
@@ -317,8 +306,6 @@ DUT_ROUTES=10000 DUT_REPEAT=5 ./le perf run step test dut ze
 # The release evidence gate: measure ze, append the result, fail on a regression.
 ./le perf record evidence
 </code></pre>
-<!-- source: internal/le/perf/actions.go -- runParameters -->
-<!-- source: internal/le/perf/bench.go -- Bench -->
 <p>A run with no <code>step</code> keyword builds the images and measures. <code>step build</code>
 records nothing, because it measured nothing. Any other <code>step</code> value exits 2
 and names the value. A run that measured and passed records the commit, so the
@@ -358,17 +345,12 @@ when both passes of ze are complete the comparison shows both, one row each
 (see "Passes" below).</p>
 <p><code>NO_BUILD=1</code> with <code>step build</code> is refused: the run would build nothing, so it
 names <code>NO_BUILD</code> as the reason, prints the <code>env -u NO_BUILD ./le perf run step build</code> command that unsets it, and exits 1 without claiming any image was built.</p>
-<!-- source: internal/test/perfrunner/run.go -- Runner.buildImages, Runner.buildCommand, Execute, Runner.measure, Runner.measureDUT, Runner.judgeResult, readShortfall, Runner.summarize, measurement.failedRun -->
-<!-- source: internal/perf/result.go -- Result.Shortfall -->
-<!-- source: internal/le/perf/bench.go -- Bench.Run -->
 <p>The runner builds no host benchmark program. It cross-builds <code>le</code> for linux
 with <code>CGO_ENABLED=0</code> into <code>tmp/perf-run/linux-&lt;arch&gt;/le</code>, and prints how long
 that build took. It mounts the file at <code>/usr/local/bin/le</code> in the sender
 container, which runs <code>le perf send</code>. The <code>le</code> that started the run renders
 the report as <code>le perf compare</code>. The terminal-demo recorder container runs a
 linux <code>le</code> built by the same recipe (<code>docs/contributing/gh-pages.md</code>).</p>
-<!-- source: internal/test/perfrunner/run.go -- Execute -->
-<!-- source: internal/le/linuxle/linuxle.go -- Tags -->
 <p>Every container, network and image tag the run creates carries the lab's
 owner labels. Ctrl-C (SIGINT) or SIGTERM stops the run, and the run still
 removes the DUT, the sender and the network before it exits 1. A removal that
@@ -376,8 +358,6 @@ fails is printed on stderr with the resource's name, and the run exits 1; a
 run that died before its removals (SIGKILL, a crash) leaves resources that
 <code>./le test integration clean</code>, or the next lab start, removes. The DUT
 images themselves are kept, so the next <code>step test</code> finds them.</p>
-<!-- source: internal/test/perfrunner/run.go -- Runner.removeContainer, Runner.cleanup -->
-<!-- source: internal/le/perf/actions.go -- signalRooted -->
 <p>Results are written to <code>test/perf/results/</code> as JSON files. An HTML comparison report is generated automatically.</p>
 <h3 id="passes">Passes</h3>
 <p>Every result records the pass it measured in its <code>pass</code> field:</p>
@@ -416,11 +396,6 @@ result that records one. A <code>pass</code> value that is not one of the two ab
 refused: <code>le perf compare</code> prints the file name, the value and the accepted
 values, and exits 1. The doc snapshot's DUT setup section lists a DUT once,
 however many passes it has.</p>
-<!-- source: internal/perf/result.go -- Pass, PassFor, Pass.UnmarshalText -->
-<!-- source: internal/perf/benchmark.go -- RunBenchmark -->
-<!-- source: internal/perf/report/markdown.go -- comparisonKey, latestComparisonResults -->
-<!-- source: internal/perf/report/html.go -- barLabel -->
-<!-- source: internal/test/perfrunner/run.go -- Runner.runPerf, Runner.measureDUT -->
 <p>Each Ze pass records <code>dut-version</code> as <code>sha256:&lt;digest&gt;</code> of
 <code>/usr/local/bin/ze</code> in the running DUT container. The runner reads that binary
 before starting the pass and refuses a missing or malformed identity. This
@@ -429,9 +404,6 @@ it is not a claim that the binary equals the checkout's current HEAD. Other
 DUTs keep their existing version behavior. The first genuine entry recorded by
 <code>le perf record evidence</code> establishes a baseline: without an earlier entry,
 <code>le perf track --check</code> has no before-and-after comparison to make.</p>
-<!-- source: internal/test/perfrunner/run.go -- Runner.zeBinaryVersion, Runner.runPerf -->
-<!-- source: internal/le/perf/bench.go -- Bench.EvidenceRecord -->
-<!-- source: internal/perf/regression.go -- CheckHistory -->
 <h3 id="manual-reports">Manual Reports</h3>
 <p>After running benchmarks, generate reports from the result files:</p>
 <pre><code class="language-bash"># Markdown report (default)
@@ -453,9 +425,6 @@ already written cannot be rolled back; shell redirection can truncate its target
 before the command starts. The automated runner publishes its HTML report and
 doc snapshot by replacing each destination only after successful generation;
 failure retains that file's old bytes, not a transaction across all artifacts.</p>
-<!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
-<!-- source: internal/perf/report/markdown.go -- Markdown report generation -->
-<!-- source: internal/perf/report/html.go -- HTML report generation -->
 <p>For the full flag reference, see <a href="../command-reference/#le-perf-compare">le perf compare</a>.</p>
 <h2 id="filter-throughput">Filter throughput</h2>
 <p><code>./le perf filter</code> is the throughput harness of the route filter paths. It
@@ -505,27 +474,22 @@ reports <code>ns/route</code>, <code>B/route</code> and <code>allocs/route</code
 on the owner's Mac alone, whose hardware is known. The bare form is the check
 an agent runs: it fails when a package no longer builds its benchmarks or a
 benchmark the harness names was renamed.</p>
-<!-- source: internal/le/perf/filter.go -- filterBenches, filterHere, measureFilters, listFilters -->
 <h2 id="tracking-performance-over-time">Tracking Performance Over Time</h2>
 <h3 id="ndjson-history">NDJSON History</h3>
 <p>Each <code>le perf send --json</code> invocation produces a single JSON object. Append
 results to an NDJSON (newline-delimited JSON) file to build a history:</p>
 <pre><code class="language-bash">./le perf send --dut-addr 127.0.0.1 --dut-asn 65000 --json &gt;&gt; history.ndjson
 </code></pre>
-<!-- source: internal/perf/result.go -- ReadNDJSON and WriteNDJSON -->
 <h3 id="trend-reports">Trend Reports</h3>
 <p>Generate a trend report from a history file:</p>
 <pre><code class="language-bash">./le perf track history.ndjson
 ./le perf track --html history.ndjson &gt; trend.html
 </code></pre>
-<!-- source: internal/perf/cli/cmd_track.go -- track subcommand -->
-<!-- source: internal/perf/report/trend.go -- trend report generation -->
 <h3 id="regression-detection">Regression Detection</h3>
 <p>Use <code>--check</code> in CI to detect performance regressions. The tool compares the
 most recent entry against the previous one using stddev-aware thresholds:</p>
 <pre><code class="language-bash">./le perf track --check history.ndjson
 </code></pre>
-<!-- source: internal/perf/regression.go -- CheckRegression and CheckHistory -->
 <p>Exit code 0 means no regression. Exit code 1 means a regression was detected.</p>
 <p>Regressions are flagged when a metric exceeds its threshold percentage AND the
 delta exceeds the combined standard deviation of the two measurements. This
@@ -562,7 +526,6 @@ prevents false positives from noisy measurements.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/perf/regression.go -- DefaultThresholds -->
 <p>Custom thresholds:</p>
 <pre><code class="language-bash">./le perf track --check --threshold-convergence 15 --threshold-throughput 10 --threshold-p99 25 history.ndjson
 </code></pre>
@@ -576,7 +539,6 @@ the command, including <code>--check</code>, even when it lies outside that wind
 <h2 id="understanding-results">Understanding Results</h2>
 <h3 id="json-output-fields">JSON Output Fields</h3>
 <p>The JSON result object contains these key fields:</p>
-<!-- source: internal/perf/result.go -- Result struct -->
 <table>
 <thead>
 <tr>
@@ -687,16 +649,12 @@ to the median suggests noisy measurements. Increase <code>--repeat</code> and
 <code>--iter-delay</code> for more stable results.</p>
 <p><strong>Throughput</strong> shows sustained forwarding rate. The average is computed over the
 full convergence window. The peak shows the maximum 1-second burst rate.</p>
-<!-- source: internal/perf/metrics.go -- CalculateThroughput -->
 <p><strong>Latency percentiles</strong> show per-route propagation time distribution. P50 is
 the typical latency, P99 captures tail latency, and max shows the worst case.</p>
-<!-- source: internal/perf/metrics.go -- CalculateLatencies -->
 <p><strong>Routes lost</strong> should always be zero. Any loss indicates the DUT dropped
 routes: <code>le perf send</code> then exits 1 (in <code>--json</code> mode it exits 0 once the
 result file is written, and the file carries the loss), <code>./le perf run</code>
 fails the DUT, and the regression checker always flags it.</p>
-<!-- source: internal/perf/result.go -- Result.Shortfall -->
-<!-- source: internal/perf/cli/cmd_run.go -- cmdRun -->
 <h3 id="before-you-report-a-number">Before you report a number</h3>
 <p><code>le perf send</code> already discards the warmup run, drops outliers and reports a
 median with its standard deviation. That makes one run repeatable. It does
@@ -780,7 +738,7 @@ result inconclusive and say which answer is missing.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

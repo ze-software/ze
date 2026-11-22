@@ -76,7 +76,10 @@
 <li><a href="#feature-inventory">Feature inventory</a></li>
 <li><a href="#gaps-and-unclear-items">Gaps and unclear items</a></li>
 </ol></li>
-<li><a href="#evidence-appendix-interfaces-l2-l3-and-dataplane">Evidence appendix: interfaces, L2, L3, and dataplane</a></li>
+<li><a href="#evidence-appendix-interfaces-l2-l3-and-dataplane">Evidence appendix: interfaces, L2, L3, and dataplane</a>
+<ol>
+<li><a href="#architecture-summary">Architecture summary</a></li>
+</ol></li>
 <li><a href="#evidence-appendix-security-firewall-nat-vpn-and-aaa">Evidence appendix: security, firewall, NAT, VPN, and AAA</a>
 <ol>
 <li><a href="#feature-inventory_1">Feature inventory</a></li>
@@ -110,7 +113,7 @@
 </ol></li>
 </ol></details></nav><div class="doc-body">
 <blockquote>
-<p><strong>Scope and evidence:</strong> this page summarises the local research artefact produced from the checked-out Ze, VyOS <code>vyos-1x</code>, and freeRtr sources. Runtime protocol daemons external to <code>vyos-1x</code> are intentionally labelled that way, and VyOS rows may cite FRR or other integrated projects when those projects own the runtime behaviour. <code>Not found</code> means not found in the inspected source roots after targeted searches, not a universal upstream absence claim. The inline code paths link to upstream source where the site can map them.</p>
+<p><strong>Scope and evidence:</strong> this page summarizes the local research artifact produced from the checked-out Ze, VyOS <code>vyos-1x</code>, and freeRtr sources. Runtime protocol daemons external to <code>vyos-1x</code> are intentionally labeled that way, and VyOS rows may cite FRR or other integrated projects when those projects own the runtime behavior. <code>Not found</code> means not found in the inspected source roots after targeted searches, not a universal upstream absence claim. The inline code paths link to upstream source where the site can map them.</p>
 </blockquote>
 <div class="compare-tools" data-compare-filter>
   <label class="compare-field">Find in this page
@@ -142,7 +145,7 @@
 </tr>
 <tr>
 <td><code>Unclear</code></td>
-<td>Related source evidence exists, but the exact feature or behaviour was not traced to a producer.</td>
+<td>Related source evidence exists, but the exact feature or behavior was not traced to a producer.</td>
 </tr>
 <tr>
 <td class="cell-no">✕</td>
@@ -1787,7 +1790,7 @@ about non-BGP router OS breadth.</p>
 </ul>
 <h3 id="freertr">freeRtr</h3>
 <ul>
-<li>freeRtr has the broadest router-native protocol and service catalogue in inspected source: many routing protocols, tunnels, LSP mechanisms, crypto/VPNs, services, NETCONF, Java-based CLI/config, test topology corpus, and optional native/P4/XDP dataplanes.</li>
+<li>freeRtr has the broadest router-native protocol and service catalog in inspected source: many routing protocols, tunnels, LSP mechanisms, crypto/VPNs, services, NETCONF, Java-based CLI/config, test topology corpus, and optional native/P4/XDP dataplanes.</li>
 <li>Feature evidence is concentrated in large Java registries and config/runtime classes. That gives huge breadth but less small-file discoverability than Ze or VyOS.</li>
 <li>Best fit from this evidence: all-in-one router process and protocol laboratory with exceptional feature breadth and multiple dataplane export paths.</li>
 </ul>
@@ -1819,6 +1822,8 @@ about non-BGP router OS breadth.</p>
 </tbody>
 </table>
 <h2 id="evidence-appendix-routing-and-control-plane">Evidence appendix: routing and control plane</h2>
+<details>
+<summary>Show evidence tables and source citations</summary>
 <h3 id="feature-inventory">Feature inventory</h3>
 <table>
 <thead>
@@ -2119,15 +2124,41 @@ about non-BGP router OS breadth.</p>
 <li>freeRtr IS-IS L1/L2 route leaking: Present via the <code>inter-level</code> command "advertise inter-level routes" (<code>src/org/freertr/rtr/rtrIsis.java:1344</code>, parser <code>:1940-1941</code>) with <code>interLevels</code> handling (<code>src/org/freertr/rtr/rtrIsisLevel.java:108</code>, <code>:277</code>, <code>:774</code>) and RFC 2966 up/down-bit processing in LSP parse (<code>src/org/freertr/rtr/rtrIsis.java:688</code>, <code>:708</code>, <code>:818</code>); the <code>cfg/rout-isis017.tst</code> inter-level test corroborates it.</li>
 <li>freeRtr graceful restart: BGP defaults show graceful restart and long-lived graceful (<code>src/org/freertr/cfg/cfgRtr.java:377-378</code>), and the capability encode with restart/long-lived timers is source-visible (<code>src/org/freertr/rtr/rtrBgpSpeak.java:211-216</code>, <code>:984</code>, <code>:995</code>).</li>
 </ul>
+</details>
 <h2 id="evidence-appendix-interfaces-l2-l3-and-dataplane">Evidence appendix: interfaces, L2, L3, and dataplane</h2>
-<p>Architecture notes for the final comparison:</p>
-<ul>
-<li>Ze uses a typed Go interface backend abstraction. The iface component parses config into typed entries, then dispatches lifecycle, addressing, routes, link state, tunnels, VLANs, bridge operations, MAC, MTU and route queries through the active Backend. <code>netlink</code> is the default backend, <code>vpp</code> is also registered, and OnConfigure loads the configured backend. Some interface leaves and kinds are still explicitly Linux/netlink-gated, including DHCP client, mirror, veth, bridge, tunnel, WireGuard, XFRM and PPPoE, so Ze is narrower than VyOS/freeRtr in appliance breadth, but its interface control plane is not netlink-only.</li>
-<li>VyOS is schema-first around interface-definitions XML and Python conf_mode owners. Feature breadth is high in the inspected source: many discrete interface kinds are first-class CLI nodes, with includes for common addressing, DHCP, VRF, MTU, IPv6 ND, mirror, VLAN, QoS and containers. VPP has parallel interface definitions for selected kinds.</li>
-<li>freeRtr centralizes a very large router-native interface model in cfgIfc.java and related cfg classes, with broad protocol handlers and custom dataplane backends. It exposes many interface and tunnel functions through cfgIfc commands, VPDN types, service daemons and native/P4/XDP dataplane code. It is broad and router-specific, but feature evidence often lives in large Java configuration classes rather than small per-feature files.</li>
-<li>Paths likely worth citing in the final comparison are the files listed above, especially Ze <code>backend.go</code>, <code>register.go</code>, netlink and VPP backend registrations, <code>ifacevpp.go</code>, VyOS <code>interface-definitions/interfaces_*.xml.in</code> and <code>include/interface/vif-s.xml.i</code>, and freeRtr <code>cfgIfc.java</code>, <code>cfgVpdn.java</code>, <code>cfgInit.java</code>, <code>misc/native/p4emu_*.h</code> and <code>p4xdp_*.c</code>.</li>
-</ul>
+<details>
+<summary>Show evidence tables and source citations</summary>
+<h3 id="architecture-summary">Architecture summary</h3>
+<table>
+<thead>
+<tr>
+<th>Project</th>
+<th>Interface &amp; dataplane architecture</th>
+<th>Representative source files</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ze</td>
+<td>Typed Go interface backend abstraction. The <code>iface</code> component parses configuration into typed entries and dispatches lifecycle, addressing, routes, link state, tunnels, VLANs, bridge operations, MAC, MTU, and route queries through the active <code>Backend</code> (<code>netlink</code> default, <code>vpp</code> also registered). Some interface kinds and leaves remain Linux/netlink-gated (DHCP client, mirror, veth, bridge, tunnel, WireGuard, XFRM, and PPPoE).</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/iface/backend.go</code></span><span class="ev-ref"><code>internal/component/iface/register.go</code></span><span class="ev-ref"><code>internal/plugins/iface/vpp/ifacevpp.go</code></span></span></td>
+</tr>
+<tr>
+<td><span class="concept-software">VyOS</span></td>
+<td>Schema-first around interface-definitions XML and Python <code>conf_mode</code> owners. Discrete interface kinds are first-class CLI nodes with shared includes for addressing, DHCP, VRF, MTU, IPv6 ND, mirror, VLAN, QoS, and containers, plus parallel VPP definitions for selected kinds.</td>
+<td><span class="ev-src"><span class="ev-ref"><code>interface-definitions/interfaces_*.xml.in</code></span><span class="ev-ref"><code>interface-definitions/include/interface/vif-s.xml.i</code></span></span></td>
+</tr>
+<tr>
+<td><span class="concept-software">freeRtr</span></td>
+<td>Centralizes a broad router-native interface model in <code>cfgIfc.java</code> and related configuration classes, with protocol handlers, VPDN types, service daemons, and native/P4/XDP dataplane backends.</td>
+<td><span class="ev-src"><span class="ev-ref"><code>src/org/freertr/cfg/cfgIfc.java</code></span><span class="ev-ref"><code>src/org/freertr/cfg/cfgVpdn.java</code></span><span class="ev-ref"><code>src/org/freertr/cfg/cfgInit.java</code></span><span class="ev-ref"><code>misc/native/p4emu_*.h</code></span><span class="ev-ref"><code>misc/native/p4xdp_*.c</code></span></span></td>
+</tr>
+</tbody>
+</table>
+</details>
 <h2 id="evidence-appendix-security-firewall-nat-vpn-and-aaa">Evidence appendix: security, firewall, NAT, VPN, and AAA</h2>
+<details>
+<summary>Show evidence tables and source citations</summary>
 <h3 id="feature-inventory_1">Feature inventory</h3>
 <table>
 <thead>
@@ -2349,7 +2380,10 @@ about non-BGP router OS breadth.</p>
 <li><strong>freeRtr L2TP/IPsec coupling</strong>: L2TPv2/v3 and IPsec exist separately. An explicit L2TP/IPsec remote-access profile was not found.</li>
 <li><strong>CoPP</strong>: explicit control-plane policing as a named feature was not found in Ze, VyOS, or freeRtr inspected sources. Related controls exist, such as sysctls, SSH dynamic protection, service filters, rate limits, and source validation.</li>
 </ol>
+</details>
 <h2 id="evidence-appendix-network-services-and-operations">Evidence appendix: network services and operations</h2>
+<details>
+<summary>Show evidence tables and source citations</summary>
 <h3 id="feature-inventory_2">Feature inventory</h3>
 <table>
 <thead>
@@ -2609,7 +2643,10 @@ about non-BGP router OS breadth.</p>
 <li>freeRtr captive portal and dedicated support bundle: not found in inspected sources.</li>
 <li>freeRtr NAT helpers: NAT config and protocol services found, but explicit ALG/helper inventory was not found in inspected sources.</li>
 </ul>
+</details>
 <h2 id="evidence-appendix-management-automation-ui-and-api">Evidence appendix: management, automation, UI, and API</h2>
+<details>
+<summary>Show evidence tables and source citations</summary>
 <h3 id="feature-inventory_3">Feature inventory</h3>
 <table>
 <thead>
@@ -2853,7 +2890,10 @@ about non-BGP router OS breadth.</p>
 <li><strong>freeRtr external plugin SDK:</strong> scripts, schedulers, aliases, VDCs, processes, and HTTP script/API hooks exist, but a standalone external plugin SDK/API comparable to Ze was not found in inspected sources.</li>
 <li><strong>freeRtr HTMX/MCP/gNMI:</strong> not found in inspected sources.</li>
 </ul>
+</details>
 <h2 id="evidence-appendix-platform-packaging-and-appliance">Evidence appendix: platform, packaging, and appliance</h2>
+<details>
+<summary>Show evidence tables and source citations</summary>
 <h3 id="feature-inventory_4">Feature inventory</h3>
 <table>
 <thead>
@@ -3172,7 +3212,10 @@ about non-BGP router OS breadth.</p>
 </tr>
 </tbody>
 </table>
+</details>
 <h2 id="evidence-appendix-observability-diagnostics-and-testing">Evidence appendix: observability, diagnostics, and testing</h2>
+<details>
+<summary>Show evidence tables and source citations</summary>
 <h3 id="feature-inventory_5">Feature inventory</h3>
 <table>
 <thead>
@@ -3361,7 +3404,10 @@ about non-BGP router OS breadth.</p>
 <li>freeRtr test inventory size: 27 <code>src/t*.sh</code> selftest/topology scripts and 4426 <code>cfg/*.tst</code> config tests, plus generated <code>rtr*.csv/html/ftr</code> files.</li>
 <li>VyOS topology/interop scope: QEMU ISO smoketests and VPP jobs are visible in <code>vyos-1x</code>, but broader topology/interop harnesses may live in <code>vyos-build</code>, not in this source root.</li>
 </ul>
+</details>
 <h2 id="evidence-appendix-architecture-extensibility-and-implementation-model">Evidence appendix: architecture, extensibility, and implementation model</h2>
+<details>
+<summary>Show evidence tables and source citations</summary>
 <h3 id="feature-inventory_6">Feature inventory</h3>
 <table>
 <thead>
@@ -3550,6 +3596,7 @@ about non-BGP router OS breadth.</p>
 <li>Ze full generated-protobuf outputs: proto schema is at <code>api/proto/ze.proto:1-40</code> (defines <code>ZeService</code> and <code>ZeConfigService</code>); generated <code>.pb.go</code> outputs are out of scope here.</li>
 <li>Runtime behavior of VyOS configd itself is only indirectly evidenced here through generated include JSON and guards such as <code>is_systemd_service_running('vyos-configd.service')</code> in <code>protocols_bgp.py:596-601</code>; the configd daemon implementation itself is out of scope here.</li>
 </ul>
+</details>
 </div>
 </div>
             </section>
@@ -3625,7 +3672,7 @@ about non-BGP router OS breadth.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 21 November 2026 00:08 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

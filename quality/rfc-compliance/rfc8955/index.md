@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 21 | of 29 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 22 | of 29 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 5 | of 29 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 29 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 66 | 66 of 108 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Declared gap or no test | 0 | of 29 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 91 | 91 of 110 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -22,7 +23,6 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Partial test coverage | 1 | of 29 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Declared gap or no test | 1 | of 29 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 | Audit verdicts | 30 | of 29 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 6 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -56,7 +56,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
 | Partial test coverage | bad | green at zero, RED above it: testing one clause does not verify the whole requirement |
-| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -74,14 +74,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 49 |
 | Mandatory requirements (MUST level) | 29 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 1 |
+| Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 108 |
-| Tests linked to requirements | 108 |
+| Test tags | 110 |
+| Tests linked to requirements | 110 |
 | Recorded audit verdicts | 30 |
-| Fault test records | 67 |
+| Fault test records | 91 |
 | Summary | `rfc/short/rfc8955.md` |
 | Requirement table | `rfc/requirements/rfc8955.md` |
 | RFC text | `rfc/full/rfc8955.txt` |
@@ -94,19 +94,19 @@ Included in automatic checks: Dissemination of Flow Specification Rules
 
 **Area:** IPv4 FlowSpec
 
-**Test verification:** 14 of 29 MUST proven
+**Test verification:** 27 of 29 MUST proven
 
-**Evidence:** unit 14
+**Evidence:** functional 2, unit 25
 
-**Unmet:** RFC8955-12-2, RFC8955-4-3
+**Unmet:** RFC8955-4-3
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 21 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 8 | one part of the mandatory requirements |
+| Positive and negative tests | 22 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 7 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 1 | also counted in one of the groups above |
@@ -114,16 +114,16 @@ Included in automatic checks: Dissemination of Flow Specification Rules
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **29** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (21):** [`RFC8955-4-1`](#rfc8955-4-1), [`RFC8955-4-4`](#rfc8955-4-4), [`RFC8955-4.2-1`](#rfc8955-4.2-1), [`RFC8955-4.2-2`](#rfc8955-4.2-2), [`RFC8955-4.2.1.1-2`](#rfc8955-4.2.1.1-2), [`RFC8955-4.2.1.1-3`](#rfc8955-4.2.1.1-3), [`RFC8955-4.2.1.2-1`](#rfc8955-4.2.1.2-1), [`RFC8955-4.2.2.12-2`](#rfc8955-4.2.2.12-2), [`RFC8955-6-1`](#rfc8955-6-1), [`RFC8955-6-3`](#rfc8955-6-3), [`RFC8955-7.1-1`](#rfc8955-7.1-1), [`RFC8955-7.1-2`](#rfc8955-7.1-2), [`RFC8955-7.3-1`](#rfc8955-7.3-1), [`RFC8955-7.5-1`](#rfc8955-7.5-1), [`RFC8955-5.1-1`](#rfc8955-5.1-1), [`RFC8955-5.1-2`](#rfc8955-5.1-2), [`RFC8955-8-1`](#rfc8955-8-1), [`RFC8955-8-2`](#rfc8955-8-2), [`RFC8955-3-1`](#rfc8955-3-1), [`RFC8955-6-5`](#rfc8955-6-5), [`RFC8955-7.3-2`](#rfc8955-7.3-2)
+**Positive and negative tests (22):** [`RFC8955-4-1`](#rfc8955-4-1), [`RFC8955-4-4`](#rfc8955-4-4), [`RFC8955-4.2-1`](#rfc8955-4.2-1), [`RFC8955-4.2-2`](#rfc8955-4.2-2), [`RFC8955-4.2.1.1-2`](#rfc8955-4.2.1.1-2), [`RFC8955-4.2.1.1-3`](#rfc8955-4.2.1.1-3), [`RFC8955-4.2.1.2-1`](#rfc8955-4.2.1.2-1), [`RFC8955-4.2.2.12-2`](#rfc8955-4.2.2.12-2), [`RFC8955-6-1`](#rfc8955-6-1), [`RFC8955-6-3`](#rfc8955-6-3), [`RFC8955-7.1-1`](#rfc8955-7.1-1), [`RFC8955-7.1-2`](#rfc8955-7.1-2), [`RFC8955-7.3-1`](#rfc8955-7.3-1), [`RFC8955-7.5-1`](#rfc8955-7.5-1), [`RFC8955-5.1-1`](#rfc8955-5.1-1), [`RFC8955-5.1-2`](#rfc8955-5.1-2), [`RFC8955-8-1`](#rfc8955-8-1), [`RFC8955-8-2`](#rfc8955-8-2), [`RFC8955-3-1`](#rfc8955-3-1), [`RFC8955-6-5`](#rfc8955-6-5), [`RFC8955-7.3-2`](#rfc8955-7.3-2), [`RFC8955-12-2`](#rfc8955-12-2)
 
-**Annotated (including scoped evidence) (8):** [`RFC8955-4-2`](#rfc8955-4-2), [`RFC8955-4-3`](#rfc8955-4-3), [`RFC8955-4.2.1.1-1`](#rfc8955-4.2.1.1-1), [`RFC8955-4.2.2.9-1`](#rfc8955-4.2.2.9-1), [`RFC8955-4.2.2.11-1`](#rfc8955-4.2.2.11-1), [`RFC8955-4.2.2.12-1`](#rfc8955-4.2.2.12-1), [`RFC8955-12-1`](#rfc8955-12-1), [`RFC8955-12-2`](#rfc8955-12-2)
+**Annotated (including scoped evidence) (7):** [`RFC8955-4-2`](#rfc8955-4-2), [`RFC8955-4-3`](#rfc8955-4-3), [`RFC8955-4.2.1.1-1`](#rfc8955-4.2.1.1-1), [`RFC8955-4.2.2.9-1`](#rfc8955-4.2.2.9-1), [`RFC8955-4.2.2.11-1`](#rfc8955-4.2.2.11-1), [`RFC8955-4.2.2.12-1`](#rfc8955-4.2.2.12-1), [`RFC8955-12-1`](#rfc8955-12-1)
 
 **Partial test coverage (subset of annotated; zero whole-requirement credit) (1):** [`RFC8955-4-3`](#rfc8955-4-3)
 
 ## Figures
 
-- **MUST bar**: Ze verified 14, Tests awaiting verification 12, Not built 2
-- **Overview bar**: Ze MUST verified 14, SHOULD verified 6, Not owed 1, Tests awaiting verification 12, Not assessed 14, Not built 2
+- **MUST bar**: Ze verified 27, Not built 1
+- **Overview bar**: Ze MUST verified 27, SHOULD verified 6, Not owed 1, Not assessed 14, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -132,13 +132,13 @@ Included in automatic checks: Dissemination of Flow Specification Rules
 | Mandatory requirements complete | not complete |
 | MUST rows | 29 |
 | MUST rows kept (the MUST bar) | 28 |
-| Ze verified | 14 |
+| Ze verified | 27 |
 | OS verified | 0 |
-| Tests awaiting verification | 12 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 2 |
+| Not built | 1 |
 | MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -192,7 +192,7 @@ Source: [data/rfc/rfc8955.json](../../../data/rfc/rfc8955.json).
 | `RFC8955-3-1` | Standard BGP policy mechanisms, such as UPDATE filtering by NLRI prefix as well as community matching, must apply to the Flow specification defined NLRI-type. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestPrefixPolicyFiltersFlowSpecDestination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go#L13). **positive:** `unit/verify` [`TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go#L14). **negative:** `unit/verify` [`TestPrefixPolicyFiltersFlowSpecDestination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go#L14). **negative:** `unit/verify` [`TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go#L32) |
 | `RFC8955-6-5` | Although the forwarding attributes of two routes for the same Flow Specification prefix may be the same, BGP is still required to perform its path selection algorithm in order to select the correct set of attributes to advertise. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L79). **negative:** `unit/verify` [`TestRFC8955FlowSpecLosingPathIsNeverPublished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L162) |
 | `RFC8955-7.3-2` | The use of the Terminal Action (bit 47) may result in more than one Flow Specification matching a particular traffic flow. All the Traffic Filtering Actions from these Flow Specifications shall be collected and applied. (§7.3) | MUST | 7.3 | **positive:** `unit/verify` [`TestSelectedFlowSpecKernelPacketSemantics`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L30). **negative:** `unit/verify` [`TestSelectedFlowSpecKernelPacketSemantics`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go#L31) |
-| `RFC8955-12-2` | For a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty. (§12) | MUST | 12 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized meets it, since it always requires a valid destination and covering unicast reachability and no configuration enables the empty-origin relaxation; no test asserts it |
+| `RFC8955-12-2` | For a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty. (§12) | MUST | 12 | **positive:** `unit/verify` [`TestRFC8955EmptyOriginRelaxationRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_no_empty_origin_relaxation_test.go#L32). **negative:** `unit/verify` [`TestRFC8955EmptyOriginRelaxationRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_no_empty_origin_relaxation_test.go#L35) |
 | `RFC8955-4.2.2.3-1` | Type 3 component values SHOULD be encoded as single octet (numeric_op len=00). (§4.2.2.3) | SHOULD | 4.2.2.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-4.2.2.4-1` | Type 4 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.4) | SHOULD | 4.2.2.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-4.2.2.5-1` | Type 5 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.5) | SHOULD | 4.2.2.5 | **positive:** `unit/verify` [`TestFlowSpecPreferredNumericEmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go#L31). **positive:** `unit/verify` [`TestFlowSpecPreferredNumericForwarding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_width_wire_test.go#L25). **negative:** no negative test. **{single-polarity}:** numericComponent.writeToAFI unconditionally chooses a width from the destination-port value, emitting one or two octets for values through 65535; this emission recommendation has no rejecting input branch, and legal wider reception is a separate compatibility control, not negative emission evidence (internal/core/bgp/nlri/flowspec/types_numeric.go). Choosing the shortest of the permitted widths is Ze policy. |
@@ -220,7 +220,6 @@ Source: [data/rfc/rfc8955.json](../../../data/rfc/rfc8955.json).
 |---|---|---|
 | [`RFC8955-4-3`](#rfc8955-4-3) Length of the Next-Hop Network Address MUST be set to 0 (§4) | {partial}, Partial test coverage | tested "MUST be set to 0"; gap "Length of the Next-Hop Network Address"; internal/component/bgp/message/update_build_plugin.go::MPReachCarriesNextHop is the boundary: Tested covers every FlowSpec advertisement that carries no redirect-to-IP-next-hop (0x0800) community, which every rail encodes with a zero-length next hop. The gap is a route carrying the 0x0800 community: MPReachCarriesNextHop returns true for it, so its MP_REACH_NLRI carries the redirect address as the next hop with a non-zero length, an owner-approved deviation of 2026-10-20/21 for draft-simpson-idr-flowspec-redirect-02 Section 3 and ExaBGP compatibility, never counted conformant. internal/component/bgp/reactor/peer_forward_facts.go::precomputeRedirectNextHop is the second producer of the same deviation, on the forward rails: a received route carrying the 0x0800 community and a 4- or 16-octet next hop leaves with that address kept or reset per destination (applyRedirectNextHop), and with length 0 only where the action does not leave with it |
 | [`RFC8955-12-1`](#rfc8955-12-1) Specifications relaxing the validation restrictions MUST contain security considerations that provide details on the required additional filtering. (§12) | no test | no test carries this requirement id; annotated {not-applicable}: "Specifications relaxing the validation restrictions MUST contain security considerations that provide details on the required additional filtering."; binds specifications relaxing the validation restrictions; ze writes no specification: it is a BGP speaker that applies the RFC 8955 and RFC 9117 validation as written (internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized) |
-| [`RFC8955-12-2`](#rfc8955-12-2) For a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty. (§12) | {gap}, no test | gap in proof: internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized meets it, since it always requires a valid destination and covering unicast reachability and no configuration enables the empty-origin relaxation; no test asserts it |
 
 ## Test status
 
@@ -246,7 +245,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestIPv4FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L904) | unit/verify | not verified |
+| positive | [`TestIPv4FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L904) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L648) | unit/verify | not verified |
 
 ### [`RFC8955-4-3`](#rfc8955-4-3)
@@ -290,9 +289,9 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestAddComponentRefusesASecondPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1388) | unit/verify | not verified |
-| negative | [`TestParseFlowSpecRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1308) | unit/verify | not verified |
+| negative | [`TestParseFlowSpecRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1308) | unit/verify | revert, verified |
 | negative | [`TestParseFlowSpecVPNRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1368) | unit/verify | not verified |
-| positive | [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1229) | unit/verify | not verified |
+| positive | [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1229) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecJoinsRepeatedTypeIntoOneComponent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1271) | unit/verify | not verified |
 
 ### [`RFC8955-4.2-2`](#rfc8955-4.2-2)
@@ -303,8 +302,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseFlowSpecRefusesDescendingComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1336) | unit/verify | not verified |
-| positive | [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1230) | unit/verify | not verified |
+| negative | [`TestParseFlowSpecRefusesDescendingComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1336) | unit/verify | revert, verified |
+| positive | [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1230) | unit/verify | revert, verified |
 
 ### [`RFC8955-4.2.1.1-1`](#rfc8955-4.2.1.1-1)
 
@@ -314,7 +313,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8955FirstOperatorAndBitEncodedUnset`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1541) | unit/verify | not verified |
+| positive | [`TestRFC8955FirstOperatorAndBitEncodedUnset`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1541) | unit/verify | revert, verified |
 
 ### [`RFC8955-4.2.1.1-2`](#rfc8955-4.2.1.1-2)
 
@@ -324,7 +323,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1576) | unit/verify | not verified |
+| negative | [`TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1576) | unit/verify | revert, verified |
 | positive | [`TestRFC8955TextLeadingAndEncodedUnset`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go#L36) | unit/verify | revert, verified |
 | positive | [`TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1572) | unit/verify | not verified |
 
@@ -347,8 +346,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1610) | unit/verify | not verified |
-| positive | [`TestFlowSpecBitmaskOperatorReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1449) | unit/verify | not verified |
+| negative | [`TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1610) | unit/verify | revert, verified |
+| positive | [`TestFlowSpecBitmaskOperatorReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1449) | unit/verify | revert, verified |
 
 ### [`RFC8955-4.2.2.9-1`](#rfc8955-4.2.2.9-1)
 
@@ -368,7 +367,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8955DSCPValueSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1698) | unit/verify | not verified |
+| positive | [`TestRFC8955DSCPValueSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1698) | unit/verify | revert, verified |
 
 ### [`RFC8955-4.2.2.12-1`](#rfc8955-4.2.2.12-1)
 
@@ -378,7 +377,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8955FragmentBitmaskSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1726) | unit/verify | not verified |
+| positive | [`TestRFC8955FragmentBitmaskSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1726) | unit/verify | revert, verified |
 
 ### [`RFC8955-4.2.2.12-2`](#rfc8955-4.2.2.12-2)
 
@@ -388,7 +387,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8955FragmentReservedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1643) | unit/verify | not verified |
+| negative | [`TestRFC8955FragmentReservedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1643) | unit/verify | revert, verified |
 | positive | [`TestRFC8955TextFragmentIPv4ReservedBitsCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go#L74) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecFragmentReservedHighNibbleZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1477) | unit/verify | not verified |
 
@@ -417,8 +416,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFlowSpecUnicastLifecycleRevalidatesRetainedRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L308) | unit/verify | not verified |
-| positive | [`TestFlowSpecUnicastLifecycleRevalidatesRetainedRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L307) | unit/verify | not verified |
+| negative | [`TestFlowSpecUnicastLifecycleRevalidatesRetainedRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L308) | unit/verify | revert, verified |
+| positive | [`TestFlowSpecUnicastLifecycleRevalidatesRetainedRule`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L307) | unit/verify | revert, verified |
 
 ### [`RFC8955-7.1-1`](#rfc8955-7.1-1)
 
@@ -428,8 +427,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. posi
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseExtendedCommunitiesTrafficRatePackets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/route/rfc8955_route_parse_test.go#L1240) | unit/verify | not verified |
-| positive | [`TestParseExtendedCommunitiesTrafficRatePackets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/route/rfc8955_route_parse_test.go#L1239) | unit/verify | not verified |
+| negative | [`TestParseExtendedCommunitiesTrafficRatePackets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/route/rfc8955_route_parse_test.go#L1240) | unit/verify | revert, verified |
+| positive | [`TestParseExtendedCommunitiesTrafficRatePackets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/route/rfc8955_route_parse_test.go#L1239) | unit/verify | revert, verified |
 
 ### [`RFC8955-7.1-2`](#rfc8955-7.1-2)
 
@@ -439,8 +438,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. posi
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8955TrafficRateNegativeDecodesAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/rfc8955_decode_test.go#L1474) | unit/verify | not verified |
-| positive | [`TestRFC8955TrafficRateNegativeDecodesAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/rfc8955_decode_test.go#L1466) | unit/verify | not verified |
+| negative | [`TestRFC8955TrafficRateNegativeDecodesAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/rfc8955_decode_test.go#L1474) | unit/verify | revert, verified |
+| positive | [`TestRFC8955TrafficRateNegativeDecodesAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/rfc8955_decode_test.go#L1466) | unit/verify | revert, verified |
 
 ### [`RFC8955-7.3-1`](#rfc8955-7.3-1)
 
@@ -450,10 +449,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. enco
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/rfc8955_decode_test.go#L1518) | unit/verify | not verified |
+| negative | [`TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/rfc8955_decode_test.go#L1518) | unit/verify | revert, verified |
 | negative | [`TestRFC8955TrafficActionBitsDecoded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go#L257) | unit/verify | not verified |
 | negative | [`community-attributes-json.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L17) | functional/verify | not verified |
-| positive | [`TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/rfc8955_decode_test.go#L1511) | unit/verify | not verified |
+| positive | [`TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/rfc8955_decode_test.go#L1511) | unit/verify | revert, verified |
 | positive | [`TestRFC8955TrafficActionUnusedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L209) | unit/verify | not verified |
 | positive | [`TestRFC8955TrafficActionBitsDecoded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go#L243) | unit/verify | not verified |
 | positive | [`community-attributes-json.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L16) | functional/verify | not verified |
@@ -466,11 +465,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. enco
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseExtendedCommunityMarkDSCPBound`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8955_routeattr_flowspec_test.go#L56) | unit/verify | not verified |
+| negative | [`TestParseExtendedCommunityMarkDSCPBound`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8955_routeattr_flowspec_test.go#L56) | unit/verify | revert, verified |
 | negative | [`TestEncodeRouteMarkKeepsReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go#L92) | unit/verify | not verified |
 | negative | [`TestRFC8955TrafficMarkingReservedBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go#L216) | unit/verify | not verified |
 | negative | [`community-attributes-json.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L15) | functional/verify | not verified |
-| positive | [`TestParseExtendedCommunityMarkDSCPBound`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8955_routeattr_flowspec_test.go#L34) | unit/verify | not verified |
+| positive | [`TestParseExtendedCommunityMarkDSCPBound`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8955_routeattr_flowspec_test.go#L34) | unit/verify | revert, verified |
 | positive | [`TestEncodeRouteEmitsZeroValuedActions`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go#L53) | unit/verify | not verified |
 | positive | [`TestEncodeRouteMarkKeepsReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go#L86) | unit/verify | not verified |
 | positive | [`TestRFC8955TrafficMarkingReservedBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go#L209) | unit/verify | not verified |
@@ -551,7 +550,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8955FlowSpecLosingPathIsNeverPublished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L162) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC8955FlowSpecLosingPathIsNeverPublished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L162) | unit/verify | revert, verified |
 | positive | [`TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L79) | unit/verify | revert, verified |
 
 ### [`RFC8955-7.3-2`](#rfc8955-7.3-2)
@@ -571,7 +570,10 @@ For a network to utilize this relaxation, the BGP policies must support addition
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8955-12-2, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC8955EmptyOriginRelaxationRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_no_empty_origin_relaxation_test.go#L35) | unit/verify | revert, verified |
+| positive | [`TestRFC8955EmptyOriginRelaxationRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_no_empty_origin_relaxation_test.go#L32) | unit/verify | revert, verified |
 
 ### [`RFC8955-4.2.2.5-1`](#rfc8955-4.2.2.5-1)
 

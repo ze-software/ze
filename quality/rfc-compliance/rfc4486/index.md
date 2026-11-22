@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 1 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 1 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 1 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 0 | 0 of 4 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 2 | 2 of 4 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 4 |
 | Tests linked to requirements | 4 |
 | Recorded audit verdicts | 0 |
-| Fault test records | 0 |
+| Fault test records | 2 |
 | Summary | `rfc/short/rfc4486.md` |
 | Requirement table | `rfc/requirements/rfc4486.md` |
 | RFC text | `rfc/full/rfc4486.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: Subcodes for BGP Cease NOTIFICATION Message: one M
 
 **Area:** BGP Cease subcodes and prefix maximum
 
-**Test verification:** 0 of 1 MUST proven
+**Test verification:** 1 of 1 MUST proven
 
-**Evidence:** -
+**Evidence:** functional 1
 
 **Unmet:** -
 
@@ -110,19 +110,19 @@ Included in automatic checks: Subcodes for BGP Cease NOTIFICATION Message: one M
 
 ## Figures
 
-- **MUST bar**: Tests awaiting verification 1
-- **Overview bar**: Tests awaiting verification 2, Not assessed 9
+- **MUST bar**: Ze verified 1
+- **Overview bar**: Ze MUST verified 1, Tests awaiting verification 1, Not assessed 9
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 1 |
 | MUST rows kept (the MUST bar) | 1 |
-| Ze verified | 0 |
+| Ze verified | 1 |
 | OS verified | 0 |
-| Tests awaiting verification | 1 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -180,8 +180,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestPrefixWarningThreshold`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_prefix_test.go#L89) | unit/verify | not verified |
-| positive | [`TestPrefixExceedTeardown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_prefix_test.go#L114) | unit/verify | not verified |
+| negative | [`TestPrefixWarningThreshold`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_prefix_test.go#L89) | unit/verify | revert, verified |
+| positive | [`TestPrefixExceedTeardown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_prefix_test.go#L114) | unit/verify | revert, verified |
 | positive | [`prefix-maximum-enforce.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefix-maximum-enforce.ci#L6) | functional/verify | not verified |
 
 ### [`RFC4486-4-10`](#rfc4486-4-10)

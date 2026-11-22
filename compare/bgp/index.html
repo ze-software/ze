@@ -851,8 +851,6 @@ bounds), AS-path regex filtering, community presence matching
 (standard/large/extended), route attribute modification (local-preference, MED,
 origin, next-hop, AS-path prepend), community tag/strip, and RFC 9234 role
 enforcement.</p>
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
 <table>
 <thead>
 <tr>
@@ -2327,7 +2325,7 @@ validates 2000 concurrent L2TP sessions across 10 tunnels without requiring
 root, kernel modules, or Docker.</p>
 <h2 id="where-ze-is-behind-today">Where Ze is behind today</h2>
 <p>The detail tables above are useful. The gaps also need to be visible without
-reading thirteen tables.</p>
+reading ten tables.</p>
 <ul>
 <li><strong>OSPF as PE/CE (RFC 4577) is absent.</strong> No DN-bit originator, no VRF, and no sham link. FRR has none of it either; BIRD has the DN bit alone.</li>
 <li><strong>OSPFv3 Extended LSAs (RFC 8362) are partial.</strong> Ze builds 3 of the 7 LSA types. They carry the U-bit and their assigned scope since 2026-09-17, so a router that does not understand them floods them on. Neither FRR nor BIRD implements RFC 8362 at all.</li>
@@ -2400,8 +2398,8 @@ has been actively developed since 2012 with 4000+ functional test cases. It
 has no programmatic API, YANG model, or structured logging.</p>
 <h2 id="faq">FAQ</h2>
 <p><strong>Ze is pre-release. Why trust it yet?</strong></p>
-<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">52,900+</span> Go test functions,
-<span data-ze-stat="tests.e2e_display">3,100+</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">120+</span> fuzz targets, and
+<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">53,100+</span> Go test functions,
+<span data-ze-stat="tests.e2e_display">3,200+</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">120+</span> fuzz targets, and
 <span data-ze-stat="interop.target_display">13</span> test images in the main shared suite’s recorded set.
 That set covers routing and network services; other labs and tools use additional
 images, including pmacct. That evidence can be checked. It is not a promise. Ze
@@ -2453,7 +2451,7 @@ embeddable library mode. The full-router comparison belongs on the
                     </a>
                     <a class="page-sidebar-link" href="../../labs/bgp-interop/">
                         <span class="page-sidebar-link-label">BGP interop lab</span>
-                        <small>Use when checking behaviour against real peers.</small>
+                        <small>Use when checking behavior against real peers.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../use-cases/exabgp-migration/">
                         <span class="page-sidebar-link-label">ExaBGP migration</span>
@@ -2515,7 +2513,7 @@ embeddable library mode. The full-router comparison belongs on the
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 21 November 2026 00:14 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

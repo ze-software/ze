@@ -110,19 +110,15 @@ way; they differ only in how they reach Ze (<code>docs/architecture/plugin/plugi
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/yang/join_command.go -- refuseCommandConflicts, refuseRPCLinks -->
-<!-- source: internal/component/plugin/server/startup.go -- the Stage 1 commands registered for the process -->
 <p>Each command alias publishes its own typed CLI leaves. A command whose CLI
 leaf is named <code>id</code> publishes <code>id</code>, even when its named RPC uses <code>session-id</code>.
 The RPC input remains the fallback for a path without typed CLI leaves.
 An <code>empty</code> leaf is a presence-only flag: structured <code>false</code> omits it.
 A <code>boolean</code> leaf carries its explicit <code>true</code> or <code>false</code> value instead.</p>
-<!-- source: cmd/ze/hub/command_meta.go -- buildParamMeta -->
-<!-- source: internal/component/command/invocation_flags.go -- NormalizeInvocationFlags -->
 <h2 id="defining-a-command-in-yang">Defining a Command in YANG</h2>
 <p>This is the command module of the example plugin
-(<a href="https://github.com/ze-software/ze/blob/main/docs/../examples/plugin/python/acme_monitor.py" target="_blank" rel="noopener"><code>examples/plugin/python/acme_monitor.py</code></a>,
-and its Go twin <a href="https://github.com/ze-software/ze/blob/main/docs/../examples/plugin/go/main.go" target="_blank" rel="noopener"><code>examples/plugin/go/main.go</code></a>).
+(<a href="https://github.com/ze-software/ze/blob/main/examples/plugin/python/acme_monitor.py" target="_blank" rel="noopener"><code>examples/plugin/python/acme_monitor.py</code></a>,
+and its Go twin <a href="https://github.com/ze-software/ze/blob/main/examples/plugin/go/main.go" target="_blank" rel="noopener"><code>examples/plugin/go/main.go</code></a>).
 It defines <code>show acme-monitor status</code> and <code>show acme-monitor target &lt;name&gt;</code>:</p>
 <pre><code class="language-yang">module acme-monitor-cmd {
     namespace "urn:acme:monitor:cmd";
@@ -180,7 +176,6 @@ It defines <code>show acme-monitor status</code> and <code>show acme-monitor tar
     }
 }
 </code></pre>
-<!-- source: internal/test/externalyang/externalyang.go -- commandsText, apiText -->
 <p>How Ze reads the module:</p>
 <ul>
 <li><strong>The name ends in <code>-cmd</code>.</strong> Ze takes commands only from a module with that
@@ -206,9 +201,6 @@ command's parameters</strong>, in a module your plugin brings. Ze publishes the
 command with the parameters of that rpc. Give the input the same leaves as
 the command container, with the same types.</li>
 </ul>
-<!-- source: internal/component/config/yang/join.go -- refuseIdleModules, idleModuleRefusal -->
-<!-- source: internal/component/config/yang/join_command.go -- claimCommand, refuseRPCLinks -->
-<!-- source: internal/component/config/yang/rpc_publish.go -- PublishedRPCs -->
 <p>Your plugin sends every module in its Stage 1 <code>schemas</code> list, one entry for
 each, beside its config module (<a href="../schema/">schema.md</a>, "Registering a
 Schema"). In Python, call <code>plugin.schema()</code> once for each module.</p>
@@ -233,9 +225,6 @@ command reaches in its <code>command-nodes-served</code> row, before the plugin 
 started (<a href="../testing/">testing.md</a>).</p>
 <p>A declared command with no <code>ze:command</code> node of its own is accepted, as it is
 for a plugin compiled into <code>ze</code>.</p>
-<!-- source: internal/component/plugin/server/stage1_commands.go -- refuseUnservedCommandNodes, commandServed, unservedCommandRefusal -->
-<!-- source: internal/component/plugin/server/command.go -- Dispatcher.dispatchPlugin, longestReach, ErrUnknownCommand -->
-<!-- source: internal/component/plugin/server/command_registry.go -- commandNameRefusal -->
 <p>In Go:</p>
 <pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
     switch command {
@@ -264,9 +253,6 @@ err := p.Run(ctx, &amp;sdk.Registration{
     },
 })
 </code></pre>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
-<!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, CommandDecl, SchemaDecl -->
-<!-- source: examples/plugin/go/main.go -- declaration, monitor.command -->
 <p>In Python, one decorator both lists the command at Stage 1 and serves it:</p>
 <pre><code class="language-python">@plugin.command("show acme-monitor target")
 def target(args):
@@ -275,7 +261,6 @@ def target(args):
         raise CommandError("acme-monitor has no target %s" % name, fix="show acme-monitor status")
     return {"target": name, "interval": _interval_text()}
 </code></pre>
-<!-- source: examples/plugin/python/ze_plugin.py -- Plugin.command, CommandError -->
 <p>The handler gets the values in <code>args</code>, as the operator typed them, and only
 after Ze accepted them. It does not check the type again, and it writes no
 usage message: Ze refuses a bad line before the handler runs. It still answers
@@ -299,20 +284,16 @@ with the whole command as its correction:</p>
 This command needs name: The target name, from 1 to 16 characters.
 fix: show acme-monitor target name &lt;name&gt;
 </code></pre>
-<!-- source: test/plugin/external-yang-command-argument.ci -- the refusals and the value the plugin receives -->
 <p>MCP, REST and gRPC list the command with the parameters of the rpc its
 <code>ze:rpc</code> names, and send it to the same dispatcher, so the same check runs
 before your plugin is asked. Each parameter carries the leaf's <code>ze:help</code> as
 its summary, its <code>description</code>, and whether it is mandatory, as a compiled-in
 command's parameters do; the leaf's length or range is not published.</p>
-<!-- source: internal/component/config/yang/join_command.go -- refuseRPCLinks, the publication rule -->
-<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta, the parameters of a command only a plugin serves -->
 <p><code>ze show acme-monitor target web.example.net</code> typed in the shell, with no <code>cli -c</code>, asks
 the running Ze and gets the answer <code>ze cli -c</code> gives. With no Ze running it is
 reported as not available, with the fix <code>ze start</code>
 (<a href="../../../architecture/api/commands/#a-path-the-ze-binary-does-not-hold-an-external-plugins-command">commands.md</a>,
 "A path the <code>ze</code> binary does not hold").</p>
-<!-- source: cmd/ze/internal/cmdutil/unheld.go -- unheldRoute.answer, refuseNotAvailable -->
 <h2 id="refusals-at-startup">Refusals at Startup</h2>
 <p>Ze judges your modules when <code>ze start</code> runs your plugin, before it parses the
 config, by the rules the modules compiled into <code>ze</code> obey. A refusal stops the
@@ -349,8 +330,6 @@ first line of each refusal:</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/yang/join_command.go -- claimCommand, refuseRPCLinks -->
-<!-- source: internal/component/config/yang/join.go -- idleModuleRefusal -->
 <h2 id="at-restart">At Restart</h2>
 <p>Your modules change only when <code>ze</code> restarts. When Ze starts your plugin again
 (<code>request plugin restart &lt;name&gt;</code>, or <code>failure-policy restart</code> after it ended),
@@ -358,11 +337,8 @@ the plugin MUST declare the same modules, each with the same name, namespace
 and text. A changed command module is refused like a changed config module:
 Ze does not run the plugin, and raises <code>doctor-plugin-schema-changed</code>, whose
 fix is the restart of <code>ze</code> (<a href="../schema/">schema.md</a>, "What works today").</p>
-<!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema, schemaDifference -->
 <h2 id="wire-format">Wire Format</h2>
 <p>Commands are delivered to the plugin as <code>execute-command</code> RPCs over the MuxConn connection. The wire format uses <code>#&lt;id&gt; &lt;verb&gt; [&lt;json&gt;]</code> framing.</p>
-<!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
-<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 <h3 id="request-engine-to-plugin">Request (engine to plugin)</h3>
 <pre><code>#17 ze-plugin-callback:execute-command {"serial":"abc123","command":"show my-plugin status","args":[],"peer":""}
 </code></pre>
@@ -457,20 +433,15 @@ line's field count never varies.</p>
 |   +------------- kind end: the terminator, always the last line
 +----------------- correlation id 17
 </code></pre>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
-<!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
 <p>The engine reads that sequence back into one <code>ExecuteCommandOutput</code>: the record
 is its <code>data</code>, and its <code>status</code> is derived from the terminator, which is the one
 line an answer states an outcome on. A handler that returns status <code>warning</code>
 has its terminator spelled <code>wrn</code>, and the engine reads <code>warning</code> back.</p>
-<!-- source: internal/component/plugin/ipc/rpc.go -- ExecuteCommandValue -->
-<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
 <h3 id="error-response-plugin-to-engine">Error Response (plugin to engine)</h3>
 <pre><code>#17 error {"message":"execute-command not supported"}
 </code></pre>
 <h2 id="return-values">Return Values</h2>
 <p>The <code>OnExecuteCommand</code> handler returns three values: <code>(status string, data any, err error)</code>.</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand, executeCommandOutput -->
 <h3 id="success-with-data">Success with Data</h3>
 <pre><code class="language-go">return "done", map[string]any{
     "count": 42,
@@ -485,7 +456,6 @@ and the terminator counts one record, no rejection and no message.</p>
 #17 row 30:{"count":42,"items":["a","b"]}
 #17 end 1 0 0:
 </code></pre>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandOutput, executeCommandAnswer -->
 <h3 id="success-without-data">Success without Data</h3>
 <pre><code class="language-go">return "done", nil, nil
 </code></pre>
@@ -495,7 +465,6 @@ Nothing is not the same answer as an empty collection:</p>
 <pre><code>#17 top doc 0: 0:
 #17 end 0 0 0:
 </code></pre>
-<!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer, writeDocumentLines -->
 <h3 id="success-with-rows">Success with Rows</h3>
 <p>A command that walks a large collection returns an <code>sdk.Records</code> rather than a
 built value. The SDK writes one line for each row, so neither the plugin nor the
@@ -527,9 +496,6 @@ JSON the command answered with before it produced rows at all. The encoder
 decides that from the walk, and the handler states nothing about the wire. That
 document is one line as well, so rows that each fit and collapse into something
 no line can carry earn the same rejected row, and the head then states <code>map</code>.</p>
-<!-- source: pkg/plugin/records.go -- Row, Record, Records, Records.WriteAnswer -->
-<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
-<!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey -->
 <h3 id="handler-error">Handler Error</h3>
 <p>If the handler returns a non-nil error, the SDK sends an error response:</p>
 <pre><code class="language-go">return "", nil, fmt.Errorf("operation failed: database timeout")
@@ -538,10 +504,8 @@ no line can carry earn the same rejected row, and the head then states <code>map
 <p>Response:</p>
 <pre><code>#17 error {"message":"operation failed: database timeout"}
 </code></pre>
-<!-- source: pkg/plugin/rpc/message.go -- FormatError, NewErrorPayload -->
 <h2 id="executecommandinput-fields">ExecuteCommandInput Fields</h2>
 <p>The engine sends these fields in the <code>execute-command</code> RPC:</p>
-<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput -->
 <table>
 <thead>
 <tr>
@@ -620,7 +584,6 @@ no line can carry earn the same rejected row, and the head then states <code>map
 <p>Each entry of the Stage 1 <code>commands</code> list has these fields. For a command
 your <code>-cmd</code> module defines, <code>Name</code> is all it needs: the module carries the
 help and the arguments.</p>
-<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
 <table>
 <thead>
 <tr>
@@ -692,7 +655,6 @@ this same protocol.</p>
 <p>Declare a shape and the CLI publishes the pipe operators your command supports,
 and refuses the others BY NAME before your handler runs. Declare nothing and the
 CLI waits for the answer, then refuses from what it has in hand.</p>
-<!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 <table>
 <thead>
 <tr>
@@ -740,15 +702,10 @@ branch truthfully. Make both branches answer rows.</p>
 <p><code>AddressFields</code> is an admission gate. It decides whether <code>| resolve</code> and
 <code>| origin</code> run at all. It does not decide which values they decorate: both walk
 every key of the answer and decorate each string that parses as an address.</p>
-<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
-<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls -->
-<!-- source: internal/component/command/pipe_resolve.go -- resolveJSON -->
-<!-- source: internal/component/command/pipe_origin.go -- originJSON -->
 <h2 id="naming-a-pipe-alias-for-your-command">Naming a Pipe Alias for Your Command</h2>
 <p>A pipe alias is the word an operator types after the pipe character, standing
 for an operator chain they would otherwise type in full. Declare one in the
 <code>Pipes</code> list of the same <code>Registration</code>:</p>
-<!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl, Registration -->
 <pre><code class="language-go">err := p.Run(ctx, &amp;sdk.Registration{
     Commands: []sdk.CommandDecl{
         {Name: "show my-plugin status", ShortHelp: "Show current status"},
@@ -804,7 +761,6 @@ for an operator chain they would otherwise type in full. Declare one in the
 </tbody>
 </table>
 <p>Three rules decide whether your command CAN have an alias.</p>
-<!-- source: internal/component/command/alias.go -- RegisterPluginAliases, checkAlias -->
 <ul>
 <li><strong>The pipe layer selects. It does not compute.</strong> <code>display</code> keeps named keys and
 drops the rest, and no operator renames a key, adds two numbers, or counts
@@ -824,7 +780,6 @@ interactive session <code>ze cli</code> or a plain ssh client opens, and for a p
 <code>ze config edit</code> reads its chain in the client process, where your alias is
 not registered, so it answers <code>pipe error: unknown pipe operator: totals</code>
 there.</p>
-<!-- source: internal/component/config/cli/cmd_edit.go -- sshCommandExecutor -->
 <h2 id="declaring-a-pipe-operation-for-your-command">Declaring a Pipe Operation for Your Command</h2>
 <p>A pipe operation is a word after the pipe character that your handler runs
 itself, before the answer exists: a selection the daemon should not compute by
@@ -853,9 +808,6 @@ object holding an integer <code>count</code>, <code>first N</code> and <code>las
 rows, the others your rows. A format, <code>no-more</code>, <code>save</code> or <code>log</code> cannot be
 declared. <code>show command help "&lt;command&gt;"</code> lists each operation with <code>source</code>
 <code>command</code> or <code>override</code>.</p>
-<!-- source: pkg/plugin/rpc/types.go -- PipeDecl, PipeOperation, ExecuteCommandInput -->
-<!-- source: internal/component/command/pipe_filter_plugin.go -- RegisterPluginPipeFilters -->
-<!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain, CheckOverrideAnswer -->
 <h2 id="complex-responses">Complex Responses</h2>
 <p>Return structured JSON data for API consumers:</p>
 <pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
@@ -876,12 +828,9 @@ declared. <code>show command help "&lt;command&gt;"</code> lists each operation 
     return "error", map[string]string{"error": "unknown command"}, nil
 })
 </code></pre>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
-<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
 <p>Note: JSON keys use kebab-case per ze conventions (<code>"latency-ms"</code>, not <code>"latency_ms"</code>).</p>
 <h2 id="dispatching-commands-to-other-plugins">Dispatching Commands to Other Plugins</h2>
 <p>Plugins can invoke commands on other plugins through the engine's command dispatcher:</p>
-<!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchCommand -->
 <pre><code class="language-go">p.OnStarted(func(ctx context.Context) error {
     status, data, err := p.DispatchCommand(ctx, "rib show-in ipv4/unicast")
     if err != nil {
@@ -892,13 +841,11 @@ declared. <code>show command help "&lt;command&gt;"</code> lists each operation 
 })
 </code></pre>
 <p>The engine routes the command by longest-match registry lookup and returns the full <code>{status, data}</code> response from the target handler.</p>
-<!-- source: pkg/plugin/rpc/types.go -- DispatchCommandInput, DispatchCommandOutput -->
 <p>Use <code>DispatchCommandResult</code> or <code>DispatchCommandArgsResult</code> to retain warning
 lines and the optional original <code>RecordAnswer</code> counts. A partial or failed
 record answer returns a Go error and keeps its completed data and refused
 records in <code>result.Data</code>. Check that data even when the command failed. Counts
 come from the original terminator, rather than from the document's keys.</p>
-<!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchResult, DispatchCommandResult, DispatchCommandArgsResult -->
 <h2 id="help-text">Help Text</h2>
 <p>Write the help in the <code>-cmd</code> module: <code>ze:help</code> for the one-line summary and
 <code>description</code> for the longer text, on each command container and each
@@ -909,9 +856,6 @@ Stage 1 entry are the help of a command no module defines. Where the module
 and the Stage 1 entry both give a text, every surface shows the module's: the
 session menu and its explanation, <code>system command help</code>, and the MCP, REST and
 gRPC command lists. A text the module leaves empty is filled from the entry.</p>
-<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
-<!-- source: internal/component/plugin/server/doctor_delivery.go -- commandModelHelp.texts -->
-<!-- source: internal/test/externalyang/externalyang.go -- commandsText -->
 </div>
 </div>
             </section>
@@ -925,7 +869,7 @@ gRPC command lists. A text the module leaves empty is filled from the entry.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

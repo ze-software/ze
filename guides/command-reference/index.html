@@ -81,6 +81,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#update-fleet-divergence-name-adopt">update fleet divergence name adopt</a></li>
 <li><a href="#request-fleet-divergence-name-revert">request fleet divergence name revert</a></li>
 <li><a href="#show-host">show host</a></li>
+<li><a href="#show-host-trend">show host trend</a></li>
 <li><a href="#show-storage-smart">show storage smart</a></li>
 <li><a href="#ze-request-support-archive">ze request support archive</a></li>
 <li><a href="#ze-thanks-ze-thanks-licence">ze thanks / ze thanks licence</a></li>
@@ -213,22 +214,18 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#ai-integration-flags">AI Integration Flags</a></li>
 </ol></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: cmd/ze/main.go -- main dispatch -->
 <p>This page explains the command model. For a live list of every command, run
 <code>ze help command</code>. <code>./le cli catalog update file &lt;destination&gt;</code> writes the
 Markdown catalog from the same live registries.</p>
 <p><code>ze help</code> lists each top-level command name once. A command registered as a
 root keeps its owner's section and summary when the YANG tree also declares
 that name. Other YANG verbs appear under Operations.</p>
-<!-- source: cmd/ze/ze_core_usage.go -- zeUsage -->
 <p>For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
 Nokia SR OS, and VyOS), use the website's
 <a href="https://ze-software.net/reference/command-equivalents/">Command Equivalents</a> page.
 The native renderer joins the live command registry with the curated vendor
 mapping in <code>website/data/command-equivalents.json</code>, so a new Ze command appears
 as unmapped until its vendor equivalents are added.</p>
-<!-- source: internal/le/site/equivalents.go -- renderCommandEquivalents -->
-<!-- source: website/data/command-equivalents.json -- vendor mapping -->
 <h2 id="conventions">Conventions</h2>
 <p>Every command that takes a <strong>filename argument</strong> accepts <code>-</code> as an alias for
 <strong>stdin</strong> when reading and <strong>stdout</strong> when writing, so configs and data stream
@@ -243,15 +240,12 @@ error rather than reading empty. A file literally named <code>-</code> is addres
 <code>./-</code>. Interactive/history-dependent editor commands (<code>ze config edit</code>,
 <code>ze config rollback</code>, <code>ze config history</code>) reject <code>-</code> because they need a TTY or
 on-disk revision history that a pipe does not have.</p>
-<!-- source: internal/core/cliio/cliio.go -- ReadFile/OpenReader/Create/WriteFile, ErrStdinClaimed -->
 <p>When the input is on another machine, the daemon can inspect supplied bytes
 without reading a caller-named path. Use <code>show config supplied dump</code>,
 <code>validation</code>, <code>fmt</code>, <code>graph</code>, <code>migrate</code>, <code>fix-plan</code> or <code>source</code> with <code>content &lt;base64&gt;</code> and an optional
 <code>name &lt;filename&gt;</code> diagnostic label. Dump also accepts <code>strip-private</code>; fmt
 accepts <code>check</code> or <code>diff</code>. These read-only commands use the same producers as
 the file commands and do not stage or apply configuration.</p>
-<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
-<!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler -->
 <p>Supplied <code>migrate</code> accepts <code>format set|hierarchical</code>; <code>fix-plan</code> returns repair
 candidates without applying them. Supplied <code>source</code> accepts an optional quoted
 <code>path</code>, such as <code>path "bgp peer edge"</code>, and shows the masked source subtree
@@ -260,8 +254,6 @@ under <code>show config &lt;operation&gt; file &lt;path&gt;</code>; remote filen
 the daemon's configuration directories. Supplied input is at most 195,840
 decoded bytes, and produced remote text is at most 8 MiB; larger conversions
 remain available through the local command on the host holding the file.</p>
-<!-- source: internal/component/config/cli/config_supplied_tools.go -- fileToolAnswer, suppliedMigrate, suppliedFixPlan, sourceBytesAnswer -->
-<!-- source: internal/component/config/cli/config_supplied.go -- suppliedAnswer -->
 <p>Daemon-host file commands that return complete configuration bytes or resolved
 values require edit authorization: <code>show config dump</code>, <code>fmt</code>, <code>migrate</code>, <code>set</code>,
 <code>activate</code>, <code>deactivate</code> and <code>replace</code>. They can return credentials, including
@@ -270,15 +262,11 @@ when the requested form is a preview or strips private values. Caller-supplied
 forms remain read-authorized because their input belongs to the caller.
 <code>show config source</code> provides the read-authorized, masked view of a host file;
 an unparseable host file is refused because its secrets cannot be masked.</p>
-<!-- source: internal/component/config/cli/register.go -- init, registerSuppliedCommands -->
 <p><code>show config supplied diff content &lt;base64&gt;</code> compares one encoded JSON object
 with <code>before</code> and <code>after</code> fields containing the two native configuration
 strings. Encode the whole object once. The combined object, or one ordinary
 source, is limited to 195,840 bytes before base64 encoding. The encoded
 content is masked in command records.</p>
-<!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- supplied-content, show config supplied diff -->
-<!-- source: internal/component/config/cli/config_supplied.go -- suppliedPair -->
-<!-- source: internal/core/redact/redact.go -- Command -->
 <p>To change a detached source without changing the router, use <code>show config supplied set</code>, <code>activate</code>, <code>deactivate</code> or <code>replace</code>. Encode one JSON object
 containing <code>before</code> and <code>after</code> strings as <code>content</code>. For the editing verbs,
 <code>before</code> is the source configuration and <code>after</code> is one matching command, for
@@ -289,8 +277,6 @@ validation warnings remain visible with either result. Invalid values,
 paths, replacement configurations and multiple commands are refused without
 changing a file or the live candidate. The registered browser forms accept
 the two inputs directly and compose the encoded request.</p>
-<!-- source: internal/component/config/cli/config_detached.go -- detachedStatement, detachedMutationAnswer, detachedReplaceAnswer, detachedEditorAnswer -->
-<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
 <p>MRT analysis (<code>le mrt show</code>, <code>density</code>, and content filters) derives mixed-family
 ADD-PATH decoding from both actual directional OPEN messages in the same input.
 Missing or ambiguous negotiation is an explicit decoding error, not a successful
@@ -301,8 +287,6 @@ messages remain safe to replay even under an ADD-PATH MRT subtype.
 An empty MP family still counts when deciding whether a mixed UPDATE needs
 both OPENs. BGP4MP replay also refuses trailing bytes beyond the declared BGP
 length and structurally truncated attributes, even with complete OPEN context.</p>
-<!-- source: internal/mrt/context.go — SessionContexts, BGPMessage.updateContext -->
-<!-- source: internal/analyze/replay_context.go — checkReplayUpdate -->
 <h2 id="shell-commands">Shell Commands</h2>
 <p>Run directly from the terminal. No daemon required (except <code>ze signal</code>, <code>ze status</code>,
 <code>ze cli</code>, and daemon-targeted <code>ze show</code> subcommands).
@@ -318,19 +302,16 @@ plugin: when the stored config declares an external plugin, the command is
 reported as not available, naming the plugin, why no ze answered, and the fix
 (<code>ze start</code> when none runs); otherwise it is an unknown command. Help and shell
 completion of such a command need the running ze: use <code>ze cli</code>.</p>
-<!-- source: cmd/ze/internal/cmdutil/unheld.go -- unheldRoute.answer -->
 <h3 id="ze">ze</h3>
 <p>Start the daemon or access subcommands. When invoked with no arguments in an
 interactive terminal, shows a navigable menu of all commands grouped by section.
 When piped or scripted (stdin is not a TTY), prints static help and exits 1.</p>
-<!-- source: cmd/ze/tui_menu.go -- runTUILauncher, buildTopLevel -->
 <pre><code>ze                               # Interactive command menu (TTY only)
 ze start &lt;config-file&gt;           # Start daemon from a config file (keyword-first)
 ze start                         # Start from the stored active config
 ze -                             # Start daemon reading config from stdin
 </code></pre>
 <!-- source: cmd/ze/ze_core_start.go -- cmdStart, startConfigPath (ze start <config-file>) -->
-<!-- source: cmd/ze/ze_core_dispatch.go -- zeDispatch (- stdin sentinel; no free-form config-path sink) -->
 <p><code>ze start &lt;config-file&gt;</code> reads that file on every start. It creates <code>database/</code>
 beside the file only when neither a tree nor a legacy blob exists. Daemon commits
 update that file and stored history. An external edit causes a commit conflict.
@@ -439,7 +420,7 @@ Press Escape to move back through the menu and return to the shell.</code></pre>
 </tr>
 <tr>
 <td><code>--no-color</code></td>
-<td>Disable colored output (also: <code>NO_COLOR</code> env var, <code>TERM=dumb</code>) <!-- source: cmd/ze/main.go -- global flag parsing --></td>
+<td>Disable colored output (also: <code>NO_COLOR</code> env var, <code>TERM=dumb</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -478,9 +459,6 @@ missing global local AS never reaches the summary: validation refuses it first.<
   - edge-b 192.0.2.2 AS64501 group edge (connect disabled)
   - bare-a: incomplete, the daemon does not start it: missing required session &gt; asn &gt; remote
 </code></pre>
-<!-- source: internal/component/config/cli/cmd_validate.go -- buildValidationSummary, peerSummaryLine -->
-<!-- source: internal/component/bgp/config/register.go -- peerSummariesFromTree -->
-<!-- source: internal/component/bgp/reactor/config.go -- PeersAndSkippedFromTree -->
 <p>Exit codes: 0 = valid, 1 = invalid, 2 = file not found.</p>
 <p>A value the schema does not accept (outside an enumeration, a range, a length
 or a format, a list key included) is refused with the line, the setting's full
@@ -496,15 +474,12 @@ each such refusal is one diagnostic whose <code>code</code> names its kind
 (<code>config-yang-enum</code>, <code>config-yang-range</code>, <code>config-yang-length</code>,
 <code>config-yang-pattern</code>) and whose <code>fix</code> holds the fix line. Every kind, with
 examples: <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals" target="_blank" rel="noopener">Value refusals</a>.</p>
-<!-- source: internal/component/config/cli/cmd_validate.go -- refusalDiagnostic, yangErrorCode -->
 <p>Validation includes the commit-time backend capability gate: a config whose
 active <code>backend</code> leaf does not implement a feature it uses (e.g. <code>backend vpp</code>
 with a <code>bridge</code>, <code>tunnel</code>, <code>wireguard</code>, <code>veth</code>, or <code>mirror</code> entry) is
 rejected with one error per offending YANG path, matching the diagnostic
 the running daemon produces on reload. See
 <a href="../configuration-model/#backend-capability-errors">Backend Capability Errors</a>.</p>
-<!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate, backend-gate loop -->
-<!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures -->
 <p>Some refusals are about the machine running the command, not about the file.
 Each carries a code of its own, so a config written for a router and
 validated on a workstation is not mistaken for a broken one; the same file
@@ -532,9 +507,6 @@ validates on the host it is written for:</p>
 </tbody>
 </table>
 <p><code>ze show diagnostic &lt;code&gt;</code> explains each one.</p>
-<!-- source: internal/component/config/os_restricted.go -- NodeOfAnotherOSError -->
-<!-- source: internal/core/diagnostic/host_verdict.go -- HostVerdict, IsHostVerdict -->
-<!-- source: internal/core/diagnostic/codes.go -- CodeConfigNodeOtherOS, CodeConfigHostBackend -->
 <p>Validation warns, and still exits 0, for every EBGP peer direction that has no
 explicit import or export policy. RFC 8212 Section 3 closes that direction: Ze
 uses none of the routes the peer sends, or sends it none, so the session comes
@@ -553,12 +525,8 @@ peers, while local announcements remain permitted. This warning uses
 <code>doctor-bgp-learned-export-no-policy</code> and names the editor command that adds the
 policy. An eligible explicit role, an internal peer without an ordinary owner,
 and a configured accepting or rejecting export policy raise no internal absence.</p>
-<!-- source: internal/component/bgp/reactor/policy_absence.go -- PolicyAbsences -->
-<!-- source: internal/component/config/cli/cmd_validate.go -- addRFC8212Warning -->
 <p>A dynamic group with no remote AS is judged only when each member's OPEN says
 whether it is EBGP. Its configuration alone cannot determine that session type.</p>
-<!-- source: internal/component/bgp/config/register.go -- policyAbsencesFromTree -->
-<!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- RFC8212Absences -->
 <h3 id="ze-config">ze config</h3>
 <p>Configuration management.</p>
 <p><strong>Editing:</strong></p>
@@ -580,7 +548,6 @@ moves you keeps its move, so <code>top edit bgp</code> goes to <code>bgp</code>.
 editor prints inside an <code>edit</code> context reads <code>top set &lt;full path&gt; ...</code>, which
 is exact from any position. The editor commands are in
 <a href="../config-editor/#editor-commands">Configuration Editor</a>.</p>
-<!-- source: internal/component/cli/model_commands.go -- cmdTop, LineBehindTop -->
 <p><strong>Storage:</strong></p>
 <pre><code>ze config import &lt;file&gt;...       # Import files into the database
 ze config import --name &lt;n&gt; &lt;file&gt;  # Import under a different name
@@ -601,8 +568,6 @@ bytes stops it before anything is sent. With ze stopped, an import into a
 config whose confirmed commit a stopped daemon left open is refused, naming
 <code>ze start &lt;config&gt;</code>. <a href="../config-editor/">Configuration Editor</a> gives the whole
 contract.</p>
-<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage, cmdImportThroughDaemon -->
-<!-- source: internal/component/config/storage/daemonroute/daemonroute.go -- ConfigLine, Send -->
 <p><strong>Inspection:</strong></p>
 <pre><code>ze config validate &lt;file&gt;        # Validate configuration file
 ze config show &lt;file&gt; [path...]  # Show the config tree at a path (one-shot)
@@ -620,7 +585,6 @@ from its group shows on the peer, at <code>peer/&lt;name&gt;/...</code>), every 
 written (<code>~ plugin/hub/client/edge-01/host: 10.0.0.1 -&gt; 10.0.0.2</code>), and the
 order of every <code>ordered-by user</code> list. A changed secret is listed with
 <code>/* SECRET-DATA */</code> on both sides.</p>
-<!-- source: internal/component/config/infra/diff.go -- DiffConfigs -->
 <p>For a config that declares an external plugin, <code>validate</code>, <code>dump</code>, <code>diff</code>,
 <code>fmt</code> and <code>graph</code> ask the running Ze first, since only it holds that plugin's
 schema, and print its answer as a local one; <code>--user &lt;name&gt;</code> names the account
@@ -640,9 +604,6 @@ as <code>ze config validate --pending &lt;file&gt;</code> does locally. The daem
 the draft itself stays inside the allowed directories before reading it.
 <code>show config history file &lt;file&gt;</code> lists the selected file's stored revisions;
 the positional file spelling also remains available.</p>
-<!-- source: internal/component/config/cli/config_validation_source.go -- readValidationSource -->
-<!-- source: internal/component/config/cli/config_data.go -- dataValidate, dataHistory -->
-<!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- show config validation pending, show config history file -->
 <p><code>ze config rename &lt;old-name&gt; &lt;new-name&gt;</code> moves the complete stored configuration,
 including its versions, pointers and saved editor work. If a daemon owns the
 store, it sends <code>request data config rename old &lt;name&gt; new &lt;name&gt;</code> to that
@@ -650,21 +611,16 @@ daemon. The daemon refuses its running configuration and configured managed
 client identities. Destination collisions and unfinished publication intents
 also refuse the operation. A successful daemon answer must identify both
 requested names before the local tool reports success.</p>
-<!-- source: internal/component/config/storage/rename_config.go -- RenameConfig -->
-<!-- source: internal/component/config/storage/cli/data_rpc_rename.go -- handleDataConfigRename -->
-<!-- source: internal/component/config/cli/config_rename_daemon.go -- renameConfigThroughDaemon -->
 <p><code>--backup &lt;artifact&gt;</code> points <code>edit</code>, <code>show</code>, <code>diff</code>, <code>set</code> and <code>list</code> at the
 configs inside a backup artifact instead of the live store, with no daemon. A
 commit or a <code>set</code> publishes a new version and its pointers into the artifact,
 and the artifact's lock refuses a second writer. <code>--backup</code> with <code>-f</code> is
 refused. See "Backup mode" in <code>docs/guide/config-editor.md</code>.</p>
-<!-- source: internal/component/config/cli/backup_flag.go -- openBackup -->
 <p><code>show</code> is the one-shot, non-interactive way to inspect a config subtree:
 <code>ze config show ze.conf bgp peer edge1</code> prints only that subtree (list entries
 are addressed by key). With no path it prints the whole parsed tree; <code>--json</code>
 emits the subtree as a JSON object. Shell completion for the path tokens is
 served by the <code>ze config completion</code> engine (<code>ze completion bash|zsh|fish</code>).</p>
-<!-- source: internal/component/config/cli/cmd_show.go -- cmdShow, showConfig, openShowEditor -->
 <p><strong>Shell completion (<code>--family</code>, config sections):</strong></p>
 <pre><code>ze completion flags &lt;command path&gt;   # Flags a subcommand accepts (registry inventory)
 ze completion families               # Address families (completes --family &lt;TAB&gt;)
@@ -674,8 +630,6 @@ subcommand flag names from the registry inventory and <code>--family</code> valu
 address-family registry. Each record is the candidate, a tab, the summary, a
 newline. A summary carrying a tab or a newline is folded to single spaces, so
 one candidate never reads as two.</p>
-<!-- source: internal/component/command/registry/flags.go -- RegisterCommandFlags, CommandFlags -->
-<!-- source: internal/plugins/completion/flags.go -- writeFlags, writeFamilies -->
 <p><strong>History:</strong></p>
 <pre><code>ze config history &lt;file&gt;         # List rollback revisions
 ze config rollback &lt;N&gt; &lt;file&gt;    # Restore revision N
@@ -687,13 +641,9 @@ and retains the previous active version as rollback. If a daemon owns the store,
 the local command sends <code>request data config rollback name &lt;name&gt; revision &lt;N&gt;</code>
 to that owner and requires a complete matching response before reporting
 success.</p>
-<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackThrough, rollbackStoredConfig -->
-<!-- source: internal/component/config/cli/config_rollback_daemon.go -- rollbackConfigThroughDaemon, configRollbackDaemonAnswer.selectedTime -->
 <p>The daemon stages and reloads its running source. Other stored names
 commit without a reload. A loose file restores directly from its folder's
 history when that store has no daemon owner.</p>
-<!-- source: internal/component/config/cli/cmd_rollback.go -- cmdRollbackThrough, rollbackStoredConfig -->
-<!-- source: internal/component/config/storage/cli/data_rpc_rollback.go -- handleDataConfigRollback, rollbackDaemonConfig -->
 <p><strong>Form conversion:</strong></p>
 <pre><code>ze config migrate &lt;file&gt;                        # Rewrite in the set form
 ze config migrate format hierarchical &lt;file&gt;    # Rewrite as nested blocks
@@ -701,7 +651,6 @@ ze config migrate format hierarchical &lt;file&gt;    # Rewrite as nested blocks
 <p><code>ze config migrate</code> reads a current config in either form; it does not rewrite
 an older pre-release syntax. An ExaBGP config is converted by
 <code>ze exabgp migrate</code> (below).</p>
-<!-- source: internal/component/config/cli/main.go -- subcommandHandlers, storageHandlers -->
 <table>
 <thead>
 <tr>
@@ -731,8 +680,6 @@ reversible <code>$9$</code> form, and every display path masks it. <code>ze secr
 gives the operator the actual key from a config. It works offline, reads no
 config. The daemon forms below convert caller-supplied values with the same
 codecs.</p>
-<!-- source: internal/component/config/cli/cmd_secret.go -- runSecret -->
-<!-- source: internal/component/config/cli/register_supplied_utilities.go -- init -->
 <pre><code>ze secret decode '$9$...'        # Print the plaintext behind a $9$ value
 ze secret decode -               # Read the $9$ value from stdin
 ze secret encode '&lt;plaintext&gt;'   # Print a $9$ value for a plaintext
@@ -757,8 +704,6 @@ the operand as padded base64. Literal bytes are preserved unless
 the standalone stdin form drops. The answer has the same final newline as the
 standalone command. Supplied operands are masked in command records; decoded
 plaintext is deliberately returned to the requesting caller.</p>
-<!-- source: internal/component/config/cli/register_supplied_utilities.go -- init -->
-<!-- source: internal/component/config/cli/config_supplied_utilities.go -- suppliedSecret -->
 <table>
 <thead>
 <tr>
@@ -781,7 +726,6 @@ plaintext is deliberately returned to the requesting caller.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/cli/cmd_secret.go -- runSecret, decodeSecret, encodeSecret -->
 <h3 id="request-restart">request restart</h3>
 <p><code>ze request restart</code> restarts the daemon in place through the same dispatcher
 as SSH and the browser CLI. It requires permission to run <code>request restart</code>.
@@ -792,9 +736,6 @@ uses exit 75 after teardown. The generated systemd unit and gokrazy's normal
 supervision loop start the next process; a foreground caller must start it
 again itself. The command
 does not reboot the host and takes no arguments.</p>
-<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request restart -->
-<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart -->
-<!-- source: cmd/ze/hub/infra_setup.go -- infraSetup -->
 <h3 id="ze-signal">ze signal</h3>
 <p>Send commands to the running daemon via SSH.</p>
 <pre><code>ze signal reload                 # Reload configuration
@@ -826,7 +767,6 @@ ze signal quit                   # Immediate exit + goroutine dump (halt)
 Reload is transactional: the daemon stages the new config as a candidate version,
 runs verification and apply, then promotes the candidate to active only after the
 runtime accepts it.</p>
-<!-- source: internal/plugins/signal/main.go -- Commands registry, ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
 <h3 id="ze-status">ze status</h3>
 <p>Check if the daemon is running.</p>
 <pre><code>ze status
@@ -850,7 +790,6 @@ runtime accepts it.</p>
 </tbody>
 </table>
 <p>Exit codes: 0 = running, 1 = not running.</p>
-<!-- source: internal/plugins/signal/main.go -- RunStatus -->
 <h3 id="ze-bgp">ze bgp</h3>
 <p>BGP protocol tools (offline, no daemon needed).</p>
 <pre><code>ze bgp decode &lt;hex&gt;              # Decode one BGP message from hex
@@ -950,11 +889,6 @@ goroutine and <code>ze-&lt;name&gt;</code> calls it in-process; a name no regist
 decodes under is refused, with the names that do. <code>--plugin /path/to/program</code>
 runs a third-party program that answers the same <code>decode capability &lt;code&gt; &lt;hex&gt;</code> and <code>decode nlri &lt;family&gt; &lt;hex&gt;</code> requests on standard input. Only the
 local <code>ze</code> process runs a program path, so the <code>plugin</code> keyword takes a name.</p>
-<!-- source: internal/component/bgp/cli/decode_answer.go -- answerDecode, applyDecodeLeaves -->
-<!-- source: internal/component/command/route.go -- Route, CallerLocal -->
-<!-- source: internal/component/bgp/cli/decode_plugin.go -- parseDecodePlugin, decodePlugins -->
-<!-- source: internal/component/bgp/cli/encode.go -- answerEncode, applyEncodeLeaves -->
-<!-- source: internal/component/bgp/cli/yang/ze-bgp-tools-cmd.yang -- decode, encode -->
 <p>The <code>pcap</code> keyword precedes the path, so the first word after <code>decode</code> is always
 a keyword or a hex payload and never an ambiguous file name. A capture may be
 one <code>show capture-raw dump bgp pcap</code> wrote or one from tcpdump: the reader takes
@@ -1032,14 +966,13 @@ across, and a capture with no BGP in it exits non-zero naming what it examined.<
 </tr>
 <tr>
 <td><code>--asn4</code></td>
-<td>4-byte ASN (default: true) <!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode_answer.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode --></td>
+<td>4-byte ASN (default: true)</td>
 </tr>
 </tbody>
 </table>
 <p>An IPv4 unicast route needs an IPv4 <code>next-hop</code>. <code>encode</code> refuses any other
 next hop, and exits 1 with an error that names the requirement, rather than
 print an UPDATE whose NLRI has no NEXT_HOP attribute.</p>
-<!-- source: internal/component/bgp/message/update_build.go -- checkUnicastNextHop -->
 <h3 id="ze-show-warnings-ze-show-errors">ze show warnings / ze show errors</h3>
 <p>Operational report bus. A single place for Ze subsystems to surface
 operator-visible issues. Warnings are state-based (a condition is currently
@@ -1109,7 +1042,6 @@ ze show errors source l2tp count 5     # last 5 errors from l2tp
 </tr>
 </tbody>
 </table>
-<!-- source: internal/core/report/report.go -- Issue struct -->
 <p><strong>Day-one BGP vocabulary</strong> (raised by the BGP reactor):</p>
 <table>
 <thead>
@@ -1165,8 +1097,6 @@ ze show errors source l2tp count 5     # last 5 errors from l2tp
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/reactor/session_prefix.go -- report code constants and helper functions -->
-<!-- source: internal/component/bgp/reactor/peer_stats.go -- incrNotificationSent, incrNotificationReceived -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- raiseSessionDropped at FSM Established->Idle transition -->
 <p><strong>Capacity limits</strong> (configurable via env vars):</p>
 <table>
@@ -1196,11 +1126,9 @@ ze show errors source l2tp count 5     # last 5 errors from l2tp
 <p>Over-limit raise calls are silently rejected and logged at debug level.
 Field length limits (Source 64, Code 64, Subject 256, Message 1024, Detail 16 keys)
 prevent any producer from pushing multi-megabyte entries.</p>
-<!-- source: internal/core/report/report.go -- validFields, maxWarningCap, maxErrorCap -->
 <p><strong>Login banner integration</strong>: the Ze CLI login banner reads from the same bus,
 filtered by source <code>bgp</code>. One active warning shows the detail line; multiple
 warnings collapse to a count line pointing at <code>show warnings</code>.</p>
-<!-- source: internal/component/bgp/config/loader.go -- collectPrefixWarnings -->
 <h3 id="ze-show-audit-ze-show-aaa-accounting">ze show audit / ze show aaa accounting</h3>
 <p>Audit and accounting visibility for operator actions.</p>
 <pre><code>ze show audit
@@ -1215,8 +1143,6 @@ Filters are optional and can be combined. Time filters use RFC 3339.</p>
 <p><code>show aaa accounting</code> currently reports TACACS+ accounting queue drops:
 <code>dropped-records</code> is the number of START/STOP accounting records that could not
 be queued because the worker was stopped or the queue was full.</p>
-<!-- source: internal/component/cmd/show/audit.go -- handleShowAudit -->
-<!-- source: internal/component/aaa/cmd/show.go -- handleShowAAAAccounting -->
 <h3 id="ze-show-system">ze show system</h3>
 <p>Daemon process introspection for the running ze process. <code>show runtime memory</code> is the Go allocator view; <code>show system memory</code> (below) is the
 OS view. Available via daemon SSH (online RPC); YANG registration only.</p>
@@ -1268,27 +1194,20 @@ still permits the date answer, without synchronization metadata. The daemon
 uses its accepted configuration to distinguish that inactive client from an
 enabled client whose state cannot be read. An enabled client reports its
 published synchronization state, including <code>false</code> and a zero offset.</p>
-<!-- source: internal/component/plugin/registry/registry.go -- GetNTPSyncInfo -->
-<!-- source: internal/plugins/ntp/register.go -- ntpSyncInfo -->
 <p>The NTP status, peers and date metadata come from the running NTP process,
 whether it runs inside the daemon or as an external plugin. An active client
 with no published snapshot, a disabled worker that disagrees with the accepted
 configuration, a failed command connection or a malformed reply is refused.
 The initial unsynchronized snapshot can carry a zero offset before any server
 exchange; it does not claim a successful synchronization.</p>
-<!-- source: internal/plugins/ntp/register_commands.go -- forwardNTPCommand, executeNTPCommand -->
-<!-- source: internal/plugins/ntp/register.go -- ntpReplyEnabled, ntpActiveMetadata, handleShowSystemNTP, handleShowSystemNTPPeers -->
-<!-- source: internal/plugins/ntp/ntp.go -- syncWorker.run, syncWorker.publishState -->
 <p>If the final write of the last-known time fails, the NTP plugin exits with an
 error that retains the storage cause and asks for write access to be restored.
 It stops its worker and releases its subscriptions before returning, including
 when startup fails after configuration.</p>
-<!-- source: internal/plugins/ntp/register.go -- runNTPPlugin, finishNTPWorker -->
 <p>The <code>hardware</code> subobject under <code>memory</code> and <code>cpu</code> mirrors the data
 returned by <code>show host memory</code> / <code>show host cpu</code>. Both paths are
 correct; pick <code>show system *</code> when you want runtime-first with hardware
 as context, <code>show host *</code> when you want hardware-first.</p>
-<!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->
 <h3 id="show-plugin-list">show plugin list</h3>
 <p>The plugins compiled into this binary, and what each one's own <code>init()</code>
 recorded when it set itself up. Answered in the operator's own process from the
@@ -1385,8 +1304,6 @@ record written once, before <code>main()</code>, which is why it can answer for 
 that failed before it had anything to probe.</p>
 <p><code>| resolve</code> and <code>| origin</code> are refused by name: no field of this answer holds an
 IP address.</p>
-<!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows, show plugin list registration -->
-<!-- source: internal/component/plugin/registry/setup.go -- SetupResults, the outcome each row carries -->
 <h3 id="show-plugin-declarations">show plugin declarations</h3>
 <p>What each plugin declares: the commands it serves and the pipe aliases it puts
 on them. <code>show plugin list</code> answers which plugins the binary carries; this
@@ -1516,11 +1433,6 @@ binary, and its reason says to run the command from <code>ze</code>.</p>
 <code>ze.plugin.query.timeout</code> sets it. Zero or less is refused rather than read as
 "wait no time". A plugin that runs out of it is stopped with everything it
 started.</p>
-<!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, configuredDeclarationRow, unavailableDeclarationRow, queriedDeclarationRow -->
-<!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
-<!-- source: internal/component/config/declared_schemas.go -- DeclaredSchemas.Offline -->
-<!-- source: internal/component/plugin/register.go -- the two show plugin declarations registrations -->
-<!-- source: internal/component/plugin/declaration_judge.go -- JudgeDeclaration, ErrNoDeclarationJudge -->
 <h3 id="show-plugin-conformance-run">show plugin conformance run</h3>
 <p>Checks that a program behaves as a Ze plugin. The command starts the program in
 declare mode and judges what it wrote, with the checks the daemon applies at
@@ -1592,8 +1504,6 @@ full conformance. Each check is described in
 web UI, REST, gRPC, MCP) it starts nothing: the daemon starts no program that a
 remote caller names, and it answers a refusal that gives the command to run in
 your own shell.</p>
-<!-- source: internal/component/plugin/conformance/register.go -- dataConformance, refuseRemoteCaller, init -->
-<!-- source: internal/component/plugin/conformance/conformance.go -- Run, Row, ExitConforms, ExitViolation, ExitNoRun -->
 <h3 id="request-container-restart">request container restart</h3>
 <p>Stops the named container, then starts it again. The command exists in a build
 with the <code>ze_container</code> tag and runs in the daemon, in the <code>container</code> plugin.</p>
@@ -1646,10 +1556,6 @@ refused. The command answers one of these refusals:</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/container/container.go -- handleCommand, commandDecls -->
-<!-- source: internal/plugins/container/supervise.go -- supervisor.restart, supervisor.stopThenStart, unknownInstance, noImageStore, noRuntime -->
-<!-- source: internal/plugins/container/library_linux.go -- createFailed -->
-<!-- source: internal/plugins/container/yang/ze-container-cmd.yang -- YANG schema -->
 <h3 id="request-plugin-restart">request plugin restart</h3>
 <p>Restarts a configured plugin without restarting ze, whether it runs or not.
 A plugin can stop for good on several paths: its failure policy left it
@@ -1741,13 +1647,6 @@ cleanup. Each is marked <code>configured plugin, running: the restart stops it f
 <code>configured plugin, not running</code>. The candidates are asked of the running
 daemon at each Tab, so the marks follow the plugin's state. Shell completion
 (<code>ze completion</code>) has no daemon to ask and offers no plugin names.</p>
-<!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal, pluginRestartFailure, removalPendingFor, completePluginRestart -->
-<!-- source: internal/component/plugin/server/reload_tx.go -- restartPlugin, restartPluginProcess -->
-<!-- source: internal/component/plugin/server/restart.go -- restartCleanupGrace, awaitReplacedCleanup, lateCleanupRecord -->
-<!-- source: internal/component/plugin/server/startup.go -- runPluginPhaseWithin -->
-<!-- source: internal/component/plugin/doctor/checks_runtime.go -- pluginStoppedRow -->
-<!-- source: internal/component/plugin/process/stopped.go -- Reenable, RestartCommand -->
-<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request plugin restart -->
 <h3 id="request-fleet-disable">request fleet disable</h3>
 <p>Takes this device out of the fleet its hub manages. It takes no argument.</p>
 <pre><code>ze request fleet disable
@@ -1787,9 +1686,6 @@ same line is sent to that daemon.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/managed/cmd_fleet.go -- disableOnDaemon, disableStopped, changeFleetLocal, fleetChange -->
-<!-- source: internal/component/managed/register.go -- request fleet disable registration -->
-<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container disable -->
 <h3 id="request-fleet-enable">request fleet enable</h3>
 <p>Puts this device back in the fleet. It takes no argument.</p>
 <pre><code>ze request fleet enable
@@ -1832,9 +1728,6 @@ device's configuration on the hub, then provision the device again:</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/managed/cmd_fleet.go -- enableOnDaemon, enableStopped, requireDeclaredHub, noDeclaredHub -->
-<!-- source: internal/component/managed/register.go -- request fleet enable registration -->
-<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container enable -->
 <h3 id="show-fleet-status">show fleet status</h3>
 <p>Where this device stands with the hub that manages its configuration.
 Read-only. It takes no argument.</p>
@@ -1919,7 +1812,6 @@ two you are reading.</p>
 one of the keys above cannot be read: <code>ze show data check</code> says why. It also
 refuses when the <code>plugin</code> block of the configuration cannot be read, and names
 <code>ze config validate</code>.</p>
-<!-- source: internal/component/managed/cmd_fleet.go -- fleetStatus, answerFleetStatusWith, readFleetStatus, decodeDaemonFleetStatus, daemonClientReport, hubAnswerOf, heldByHubWord, revertOfferedWord -->
 <h3 id="show-fleet-divergence-list">show fleet divergence list</h3>
 <p>On a hub: every managed client whose held configuration the hub keeps. A
 managed client that holds, because its own configuration was changed on the
@@ -1976,9 +1868,6 @@ running or stopped. Only the running hub knows which clients its server
 serves, so <code>ze show fleet divergence list</code> asks a running hub first and shows
 its answer. With no hub running, <code>declared</code> is read from the server blocks of
 the hub's stored configuration: the clients the next <code>ze start</code> serves.</p>
-<!-- source: internal/component/managed/cmd_divergence_show.go -- answerDivergenceListWith, readDivergenceList, divergenceRowOf, storedServedClients, daemonServedClients, daemonDivergenceList -->
-<!-- source: internal/component/managed/register.go -- show fleet divergence list registration -->
-<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container list -->
 <h3 id="show-fleet-divergence-name">show fleet divergence name</h3>
 <p>On a hub: what differs between the configuration the hub serves a managed
 client and the one the client holds. It takes the client's name.</p>
@@ -2032,9 +1921,6 @@ names the word; <code>update ... adopt</code> and <code>request ... revert</code
 do not declare the same way.</p>
 <p>In the interactive CLI, Tab after <code>name</code> offers the clients whose copy the
 running hub keeps.</p>
-<!-- source: internal/component/managed/cmd_divergence_show.go -- answerDivergenceShowWith, divergenceClientArg, readDivergenceDetail, divergenceDiff, divergenceParseRefusal, divergenceChanges, completeDivergenceClients, handleDivergenceShow -->
-<!-- source: internal/component/managed/register.go -- show fleet divergence name registration, ze-managed:fleet-divergence-show -->
-<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container divergence -->
 <h3 id="update-fleet-divergence-name-adopt">update fleet divergence name adopt</h3>
 <p>On a hub: make the copy the hub keeps of a holding client's configuration
 the configuration the hub serves that client, so the client stops holding.
@@ -2077,8 +1963,6 @@ to <code>client-&lt;name&gt;.conf</code> is staged (the fix is
 sends the line to it. With the hub stopped it is refused, fix <code>ze start</code>:
 only the running hub records the audit action <code>fleet-divergence-adopt</code>, so an
 adopt is taken only there. <code>update</code> needs the edit permission.</p>
-<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceAdopt, updateDivergenceAdoptLocal, adoptLocal, adoptThroughDaemon, adoptHeld, adoptHeldLocked -->
-<!-- source: internal/component/managed/register.go -- ze-managed:fleet-divergence-adopt, update fleet divergence name adopt registration -->
 <!-- test: internal/component/managed/cmd_divergence_adopt_test.go TestAdoptServesHeldBytes, TestAdoptRefusesStaleHash, TestAdoptRefusesUndeclaredClient, TestAdoptRefusesStagedCandidate, TestAdoptLocalOnStoppedHubRefused -->
 <h3 id="request-fleet-divergence-name-revert">request fleet divergence name revert</h3>
 <p>On a hub: decide that a holding client drops the configuration it runs and
@@ -2127,16 +2011,8 @@ it; with the hub stopped it is refused with <code>ze start</code> as the fix, be
 only the running hub records the decision in its audit log and offers it.
 <code>request</code> needs the edit permission, and the hub records the audit action
 <code>fleet-divergence-revert</code>.</p>
-<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceRevert, requestDivergenceRevertLocal, revertLocal, revertThroughDaemon, revertHeld, revertHeldLocked -->
-<!-- source: internal/component/plugin/server/managed.go -- HandleConfigFetch -->
-<!-- source: internal/component/managed/register.go -- ze-managed:fleet-divergence-revert, request fleet divergence name revert registration -->
 <!-- test: internal/component/managed/cmd_divergence_revert_test.go TestRevertStoresDecisionAndNotifies, TestRevertRefusesStaleHash, TestRevertRefusesHubWrittenSinceShow, TestRevertThroughDaemonSendsBothHashes, TestRevertRefusesUndeclaredClient, TestRevertLocalOnStoppedHubRefused, TestShowDivergenceReportsVoidDecision -->
 <!-- test: internal/component/managed/cmd_fleet_test.go TestFleetStatusHeldFields -->
-<!-- source: internal/component/managed/baseline.go -- ManagedFlag, ActiveVersion, BaselineVersion -->
-<!-- source: internal/component/config/storage/freeze.go -- refuseFrozenConfigLocked -->
-<!-- source: cmd/ze/hub/managed_owner.go -- state -->
-<!-- source: internal/component/managed/register.go -- show fleet status registration -->
-<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container fleet -->
 <h3 id="show-host">show host</h3>
 <p>Host hardware inventory. Read-only. Walks sysfs/procfs (and issues best-effort
 <code>ethtool</code> ioctls for NIC firmware/rings) to produce a structured JSON description
@@ -2203,9 +2079,6 @@ The complete memory capacity, availability, cache, swap, and ECC inventory is di
 The commands work without a running Ze daemon. Every field returned by `ze show host` remains visible and machine-readable.</code></pre>
   </details>
 </figure>
-<!-- source: internal/plugins/host-cmd/cmd/show_host.go -- online `show host *` RPCs -->
-<!-- source: internal/plugins/host/host.go -- RunShow offline fallback (command.MustRegisterOfflineFallback in register.go) -->
-<!-- source: internal/component/host/inventory.go -- Inventory struct and types -->
 <p>Online (daemon) and offline (fallback) paths share the same detection library, so
 the JSON shapes are identical either way.</p>
 <p><code>ze request system storage grow</code> is the command that grows the persistent
@@ -2213,9 +2086,6 @@ storage of an appliance to the size of its disk. The daemon serves it on every
 command surface. Its work is not written yet: today it answers a refusal and
 changes no disk. On a system that does not run Linux the refusal says the
 system is not a Ze appliance.</p>
-<!-- source: internal/plugins/host-cmd/yang/ze-host-request-cmd.yang -- request system storage grow -->
-<!-- source: internal/plugins/host-cmd/cmd/storage_grow_linux.go -- handleStorageGrow -->
-<!-- source: internal/plugins/host-cmd/cmd/storage_grow_other.go -- handleStorageGrow -->
 <p><strong>Sections:</strong></p>
 <table>
 <thead>
@@ -2266,12 +2136,83 @@ new virtual drivers (wireguard, ipvlan, etc.) are filtered uniformly.</p>
 <p><strong>Platform</strong>: Linux only. Darwin and other platforms return
 <code>ErrUnsupported</code> per section; <code>ze show host</code> reports "unsupported on this
 platform" so scripts can probe gracefully.</p>
+<h3 id="show-host-trend">show host trend</h3>
+<p>Lists the host resources the daemon watches for growth that ends in
+exhaustion. The daemon's trend monitor samples each resource with a built-in
+rule and warns on the report bus when one is heading for exhaustion; this
+command shows every rule, whether or not it warns. Read-only, and served by the
+daemon on every command surface. The first version has one rule,
+<code>kernel-memory</code>: the kernel memory that cannot be reclaimed (<code>SUnreclaim</code>),
+against a limit of that level plus <code>MemAvailable</code>.</p>
+<pre><code>ze show host trend                 # Every rule, JSON
+ze show host trend | yaml          # The same answer as YAML
+</code></pre>
+<p>The answer is one object per rule under <code>rules</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Present</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>always</td>
+<td>The rule, for example <code>kernel-memory</code></td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td>always</td>
+<td><code>not-present</code> (the resource does not exist on this box), <code>warming-up</code> (not observed long enough to judge), <code>quiet</code>, <code>confirming</code> (growth seen, not yet confirmed), <code>active</code> (the warning stands) or <code>unreadable</code></td>
+</tr>
+<tr>
+<td><code>unit</code></td>
+<td>always</td>
+<td>What <code>level</code>, <code>limit</code> and <code>growth</code> count: <code>bytes</code></td>
+</tr>
+<tr>
+<td><code>observed-seconds</code></td>
+<td>always</td>
+<td>How long the rule has watched the resource without a gap, counted in closed buckets (hours, for <code>kernel-memory</code>)</td>
+</tr>
+<tr>
+<td><code>level</code>, <code>limit</code></td>
+<td>when the latest sample read the resource</td>
+<td>The current level and the level at which the resource runs out</td>
+</tr>
+<tr>
+<td><code>growth</code>, <code>growth-window-seconds</code></td>
+<td>when the latest judgment measured a rise</td>
+<td>How much the level rose, and over which window</td>
+</tr>
+<tr>
+<td><code>exhaustion-seconds</code></td>
+<td>when a projection exists</td>
+<td>How long until the growth reaches the limit at its current rate</td>
+</tr>
+<tr>
+<td><code>warning</code></td>
+<td>when <code>state</code> is <code>active</code></td>
+<td>The warning's message, the one <code>show warnings</code> shows</td>
+</tr>
+<tr>
+<td><code>failure-source</code>, <code>failure-cause</code></td>
+<td>when <code>state</code> is <code>unreadable</code></td>
+<td>What could not be read, and why</td>
+</tr>
+</tbody>
+</table>
+<p>A figure the rule does not have is absent, never <code>0</code>: a rule still warming up
+shows its observed duration and no projection. When the trend monitor is not
+running the command refuses, says why that matters, and names the fix,
+<code>ze signal restart</code>; it never answers an empty list. With no daemon reachable
+it says the daemon is needed, because the history lives in the daemon.</p>
 <h3 id="show-storage-smart">show storage smart</h3>
 <p>Online RPC (requires running daemon with <code>storage { smart { enabled true } }</code> config):</p>
 <pre><code>show storage smart                 # Per-device SMART health status
 </code></pre>
-<!-- source: internal/component/storage/show.go -- handleShowStorageSmart -->
-<!-- source: internal/component/storage/manager.go -- Manager.Status -->
 <p>Returns a JSON array of per-device objects:</p>
 <table>
 <thead>
@@ -2359,9 +2300,6 @@ the local command on the router.</p>
 <pre><code>ze cli -c "request support archive module version,doctor reason 'BGP flap'"
 ze cli -c "show data cat support/archive/ze-support-router1-20261102-101500.tar.gz"
 </code></pre>
-<!-- source: internal/component/support/support.go -- Run, Answer, storeAnswer, collect, SupportManifest -->
-<!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
-<!-- source: internal/component/support/modules.go -- moduleRegistry, ModuleNames, ModuleList -->
 <h3 id="ze-thanks-ze-thanks-licence">ze thanks / ze thanks licence</h3>
 <p>Ze is built on other people's work. <code>ze thanks</code> lists every third-party work
 compiled into this binary: one row per work, under the group headings of the
@@ -2410,9 +2348,6 @@ github.com/miekg/dns v1.1.73, LICENSE
 </code></pre>
 <p>A work whose files state no copyright holder reads
 <code>Copyright: no copyright holder stated</code>.</p>
-<!-- source: internal/plugins/thanks/register.go -- the two registrations, their daemon paths and the name operation -->
-<!-- source: internal/plugins/thanks/thanks.go -- listHandler, licenceHandler, withUnrecorded, creditsRefusal -->
-<!-- source: internal/core/credits/credits.go -- carried, document, writeWorkHeader -->
 <h3 id="ze-interface">ze interface</h3>
 <p>OS network interface management (standalone, no daemon needed for most commands).
 Show uses the verb syntax: <code>ze show interface</code>.</p>
@@ -2447,7 +2382,6 @@ ze interface migrate from .. to .. address ..  # Make-before-break migration (re
 configured name, and the NIC's permanent/factory MAC (<code>Perm MAC</code>) alongside the
 operational MAC, so overriding an interface's MAC does not hide the device's
 stable hardware identity.</p>
-<!-- source: internal/component/iface/cli/show.go -- showOne / formatInterfaceDetail -->
 <p><strong>Every subcommand above goes to the daemon; only the bare <code>ze show interface</code>
 and <code>ze show interface &lt;name&gt;</code> are served in-process.</strong> <code>show interface</code> is a
 local handler registered at two words
@@ -2487,10 +2421,7 @@ omitted before the first poll). The answer is rendered in the format
 <code>environment cli format default</code> names, whose registered value is <code>text</code>. The
 full pipe operator set applies.
 See the <a href="../flow-export/">Flow Export guide</a>.</p>
-<!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-flowexport:show-flow-export -->
-<!-- source: internal/plugins/flowexport/exporter.go -- newExporter, exporter.status -->
 <h3 id="show-traffic-stat">show traffic stat</h3>
-<!-- source: internal/component/trafficstat/cmd/traffic.go -- handleShowTraffic -->
 <p>Aggregated traffic snapshot from the trafficstat service: per-interface rates,
 top-N source/dest IPs, top ports (with service names from the portname table),
 protocol mix (TCP/UDP/...), severity tier, and 60s history. Returns a degraded
@@ -2500,7 +2431,6 @@ is active.</p>
 show traffic stat name &lt;interface&gt;    # One interface by name
 </code></pre>
 <h3 id="monitor-traffic-stat">monitor traffic stat</h3>
-<!-- source: internal/component/trafficstat/cmd/render.go -- createTrafficMonitorSession -->
 <p>Full-screen live traffic monitor. Renders per-interface rates, top talkers,
 top ports with service names and amplification labels, protocol mix percentages,
 severity badge, and a sparkline history. Esc/q to quit.</p>
@@ -2508,7 +2438,6 @@ severity badge, and a sparkline history. Esc/q to quit.</p>
 monitor traffic stat name &lt;interface&gt; # One interface by name
 </code></pre>
 <h3 id="show-traffic-feature">show traffic feature</h3>
-<!-- source: internal/component/trafficfeature/cmd/traffic_feature.go -- handleShowTrafficFeature, ze-trafficfeature:show-traffic-feature -->
 <p>Neutral per-source traffic feature signals (facts, not verdicts): fan-out
 (distinct destinations), out/in byte ratio (exfiltration), destination-port
 entropy, new-peer, rare-port/proto, and coarse beaconing. Returns
@@ -2519,7 +2448,6 @@ one source.</p>
 show traffic feature name &lt;address&gt;   # One source by address
 </code></pre>
 <h3 id="show-anomaly-detect">show anomaly detect</h3>
-<!-- source: internal/plugins/anomaly/detect/show.go -- handleShowAnomaly, ze-anomaly:show-anomaly -->
 <p>Recent behavioral anomaly incidents from the report-only <code>anomaly-detect</code> plugin.
 Returns <code>{"enabled": bool, "incidents": [{entity, cohort, score, severity, at, fired-features: [{name, z}]}]}</code>; the ring is empty until an entity's
 correlated deviation confirms. The detector reports only; the <code>anomaly/shape</code>
@@ -2527,7 +2455,6 @@ responder acts on these incidents.</p>
 <pre><code>show anomaly detect                   # Recent anomaly incidents
 </code></pre>
 <h3 id="show-anomaly-observe">show anomaly observe</h3>
-<!-- source: internal/plugins/anomaly/observe/show.go -- handleShowAnomalyObserve, ze-anomaly:show-observe -->
 <p>The incident lifecycle held by the <code>anomaly-observe</code> plugin, newest first. Returns
 <code>{"enabled": bool, "active-count": N, "incidents": [{id, interface, entity, cohort, fired-features: [{name, z}], score, severity, start-time, end-time, active}]}</code>.
 A finalized incident stays in the list and carries its <code>end-time</code>. So this
@@ -2538,7 +2465,6 @@ event is finalized after <code>stale-incident-timeout</code>.</p>
 <pre><code>show anomaly observe                  # Incident lifecycle, newest first
 </code></pre>
 <h3 id="show-anomaly-shape">show anomaly shape</h3>
-<!-- source: internal/plugins/anomaly/shape/show.go -- handleShowAnomalyShape, ze-anomaly:show-shape -->
 <p>Status of the shadow-first anomaly responder. Returns <code>{"enabled": bool, "mode": "shadow"|"armed", "action": "limit"|"drop", "kill-switch": bool, "armed-count": N, "armed": [source, ...]}</code>. In shadow mode (default) nothing is installed; armed
 sources carry a live rate-limit with a timed auto-revert.</p>
 <pre><code>show anomaly shape                    # Responder mode + armed sources
@@ -2555,7 +2481,6 @@ when <code>track-ip</code> is enabled) <code>ingress-ips</code> and <code>egress
 rendered in the format <code>environment cli format default</code> names, whose registered
 value is <code>text</code>. The full pipe operator set applies. See the
 <a href="../traffic-usage/">Traffic Usage guide</a>.</p>
-<!-- source: internal/plugins/trafficusage/show.go -- handleShowTrafficUsage, ze-trafficusage:show-traffic-usage -->
 <h3 id="show-route-show-neighbor">show route / show neighbor</h3>
 <p>Kernel routing and neighbor tables. These commands are object-rooted (no
 <code>ip</code> namespace); they dispatch through the iface backend; on the netlink
@@ -2624,21 +2549,6 @@ narrows the answer to that instance:</p>
 is refused with the running ones named; <strong><code>show ospf ipv6 instance</code></strong> lists them.
 <strong><code>debug ipv6 ospf inject lsa</code></strong> takes the same keyword to choose which instance's LSDB
 receives the LSA, and without it injects into the IPv6-unicast instance. Until <code>debug ospf inject enable</code> arms injection, the command is refused whatever family it names.</p>
-<!-- source: internal/plugins/ospf/yang/ze-ospf-cmd.yang -- grouping ospfv3-address-family, container route -->
-<!-- source: internal/plugins/ospf/cmd_show.go -- afViewForwarder, addressFamilyArgs -->
-<!-- source: internal/plugins/ospf/debug_wiring.go -- v3Views, v3SegmentRoutingView -->
-<!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
-<!-- source: internal/plugins/ospf/te_show.go -- teDatabaseSnapshot, teDecodeOpaqueLSA -->
-<!-- source: internal/plugins/ospf/ri_show.go -- routerInformationView, v3RouterInformationView, riDatabaseSnapshot, decodeRIBody -->
-<!-- source: internal/plugins/ospf/inject_v3.go -- debugInjectIntoAF, splitInjectAddressFamily -->
-<!-- source: internal/plugins/ospf/show_database.go -- dbSubviewType opaque-link/opaque-area/opaque-as -->
-<!-- source: internal/plugins/ospf/spf/route.go -- RouteSnapshotEntry -->
-<!-- source: internal/plugins/ospf/spf/interarea.go -- BorderRouterSnapshotEntry -->
-<!-- source: internal/plugins/ospf/spf/computer.go -- spfSnapshotEntry and BorderRouterSnapshot -->
-<!-- source: internal/component/iface/cmd/show_neighbor.go -- handleShowNeighbor, handleShowArp -->
-<!-- source: internal/component/iface/cmd/show_route.go -- handleShowRoute -->
-<!-- source: internal/plugins/iface/netlink/neighbor_linux.go -- ListNeighbors -->
-<!-- source: internal/plugins/iface/netlink/route_linux.go -- ListKernelRoutes -->
 <h3 id="show-mpls">show mpls</h3>
 <p>MPLS label-switching forwarding table, read directly from the kernel
 AF_MPLS routing table (the authoritative dataplane state, like <code>show ip route</code> for IP).</p>
@@ -2655,10 +2565,6 @@ same format on both. When the table cannot be read, the command fails and
 says why. That happens on a non-Linux host (the error names the OS), when VPP
 is unreachable, or when the build has no reader for the selected data plane.
 The command never answers an empty table in place of a table it could not read.</p>
-<!-- source: internal/component/mpls/show_forwarding.go -- handleShowMPLSForwarding -->
-<!-- source: internal/plugins/fib/vpp/mplsforwarding.go -- readMPLSForwarding -->
-<!-- source: internal/component/mpls/forwarding_linux.go -- dumpMPLSRoutes -->
-<!-- source: internal/component/mpls/forwarding_other.go -- dumpMPLSRoutes -->
 <h3 id="show-rsvp-te">show rsvp-te</h3>
 <p>RSVP-TE (RFC 3209) LSP, admission, and RFC 4090 fast-reroute state, reported as
 JSON by the rsvp-te component.</p>
@@ -2671,8 +2577,6 @@ ze show rsvp-te fast-reroute    # RFC 4090 protection: bypass LSPs and protected
 transit LSP with its armed bypass, the protection <code>mode</code> (<code>facility</code>), whether
 <code>node-protection</code> is requested, and whether local protection is <code>available</code> and
 <code>in-use</code>. <code>show rsvp-te lsp</code> is an alias for <code>show rsvp-te session</code>.</p>
-<!-- source: internal/plugins/rsvpte/cmd_show.go -- show rsvp-te RPC proxies -->
-<!-- source: internal/plugins/rsvpte/show_data.go -- show rsvp-te data builders -->
 <h3 id="show-isis">show isis</h3>
 <p>IS-IS link-state IGP state, read from the running IS-IS engine. Each command
 is a thin proxy to a fixed engine command; the output routes through the pipe
@@ -2689,9 +2593,6 @@ ze show isis spf-log                    # Recent SPF runs: timestamp, level, tri
 </code></pre>
 <p>The neighbour and database views are also available in the web UI at <code>/isis</code>
 and <code>/isis/database</code>, with live updates over SSE.</p>
-<!-- source: internal/plugins/isis/cmd_show.go -- ze-isis:show-* RPC proxies -->
-<!-- source: internal/plugins/isis/show.go -- hostname/interface/spf-log render -->
-<!-- source: internal/plugins/isis/yang/ze-isis-cmd.yang -- show/clear command tree -->
 <h3 id="clear-isis">clear isis</h3>
 <p>Runtime actions that reset IS-IS operational state without changing the
 configuration.</p>
@@ -2705,8 +2606,6 @@ by <code>show isis spf-log</code>; the monotonic Prometheus series are process c
 are not reset (resetting them mid-process breaks <code>rate()</code>). The bare
 <code>clear isis adjacency</code> is refused and names the <code>all</code> form: a prefix typed by
 mistake never tears down every adjacency.</p>
-<!-- source: internal/plugins/isis/cmd_show.go -- ze-isis:clear-* RPC proxies -->
-<!-- source: internal/plugins/isis/show.go -- clearAdjacencies/clearCounters -->
 <h3 id="is-is-offline-tools">IS-IS (Offline Tools)</h3>
 <p>IS-IS protocol tools that run without a daemon, mirroring <code>ze bgp decode</code>.</p>
 <table>
@@ -2740,8 +2639,6 @@ ze isis decode --pretty capture.hex
 </code></pre>
 <p>Exit code is 0 on a successful parse, 1 on unreadable input, oversized input, or
 a malformed PDU; stderr carries the reason.</p>
-<!-- source: internal/plugins/isis/cli/decode.go -- cmdDecode, toWire -->
-<!-- source: internal/plugins/isis/cli/register.go -- isis root namespace, decode member -->
 <h3 id="ospf-offline-tools">OSPF (Offline Tools)</h3>
 <p><code>ze ospf decode [--pretty] [--opaque | --v3] [&lt;path&gt; | -]</code> reads an OSPFv2
 packet from a file or stdin and emits JSON without a daemon. Use <code>--opaque</code>
@@ -2755,8 +2652,6 @@ decode exits 0. A file literally named <code>-</code> is addressed as <code>./-<
 ze ospf decode --opaque opaque-lsa.hex
 cat router-lsa.hex | ze ospf decode --v3 -
 </code></pre>
-<!-- source: internal/plugins/ospf/cli/decode.go -- cmdDecode, readWire -->
-<!-- source: internal/plugins/ospf/cli/run.go -- usage -->
 <h3 id="show-pki">show pki</h3>
 <p>PKI certificate store introspection. Shows certificates loaded from
 the <code>pki {}</code> config section.</p>
@@ -2790,8 +2685,6 @@ and it has no name. Give the PEM to each node that must trust this one,
 in that node's <code>pki { ca &lt;name&gt; { certificate &lt;base64&gt; } }</code> block. The
 client then validates the ISSUER, so it keeps working when this node
 issues itself a new leaf.</p>
-<!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate, handleShowPKICertificatePEM, handleShowPKICertificateBundlePEM, handleShowPKICertificateFingerprint, handleShowPKILocalCAPEM -->
-<!-- source: internal/component/pki/ca.go -- LoadOrGenerateRoot, Root.CertificatePEM -->
 <h3 id="show-firewall">show firewall</h3>
 <p>Firewall (nftables) introspection. Requires the <code>firewall { ... }</code>
 section in config so the firewall plugin loads and applies a backend;
@@ -2814,9 +2707,6 @@ the kernel -- groups (nftables named sets) are part of the desired
 state the operator typed into config. Calling with no argument returns
 <code>{ name, tables[], members }</code> per group; a positional name returns the
 raw elements.</p>
-<!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset, handleShowFirewallGroup -->
-<!-- source: internal/component/firewall/engine.go -- runEngine; OnConfigApply stores LastApplied -->
-<!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules (UserData + auto Counter), readRuleCounter -->
 <h3 id="show-update-and-clear-irr">show, update and clear irr</h3>
 <p>The IRR datasets the <code>irr</code> plugin fetches, schedules and stores for every IRR
 consumer. One stored dataset serves every consumer that names its AS-SET, and a
@@ -2843,7 +2733,6 @@ no prefix keeps the stored list and marks it <code>stale</code>.</p>
 <code>consumers</code> whose configuration still references it. Those consumers stop
 enforcing it, and it is not fetched again until <code>update irr</code> runs or a commit
 newly names it.</p>
-<!-- source: internal/plugins/irr/command.go -- handleCommand, showIRR, updateASSet, updateASN, updateAll, clearASSet, clearASN, rowOf -->
 <h3 id="show-firewall-irr">show firewall irr</h3>
 <p>The IRR lists firewall rules and interface bindings enforce. Provided by the
 <code>firewall-irr</code> plugin, which fetches nothing: <code>update irr</code> and <code>clear irr</code>
@@ -2861,7 +2750,6 @@ before stays enforced), and <code>missing</code> when nothing is stored. An enfo
 entry carries <code>as-set</code>, <code>server</code>, <code>generation</code>, <code>ipv4-count</code>, <code>ipv6-count</code>,
 <code>checked-at</code>, <code>refreshed-at</code> and <code>data-age-seconds</code>, and a stale one
 <code>stale-since</code>.</p>
-<!-- source: internal/component/firewall/plugins/irr/command.go -- handleCommand, showIRR, writeShowEntry, showIRRPrefix -->
 <h3 id="show-update-and-clear-firewall-domain-group">show, update and clear firewall domain-group</h3>
 <p>DNS-resolved addresses behind firewall rules that name a domain group. Provided
 by the <code>firewall-domain</code> plugin.</p>
@@ -2886,15 +2774,12 @@ did resolve beside what did not.</p>
 them from memory and from ZeFS and re-applies the tables. Use it when a name is
 gone upstream for good: only an NXDOMAIN removes addresses on its own, and a
 failing server never does.</p>
-<!-- source: internal/component/firewall/plugins/domain/command.go -- handleCommand, showDomainGroup, updateDomainGroup, clearDomainGroup -->
-<!-- source: internal/component/firewall/plugins/domain/domain.go -- resolveAndRecord, the four outcomes -->
 <h3 id="show-system-uptime">show system uptime</h3>
 <pre><code>ze show system uptime        # Daemon start time and uptime duration
 </code></pre>
 <p>Returns <code>start-time</code> (RFC3339) and <code>uptime</code> (truncated to seconds).
 Returns an error when the daemon is not running (context is nil or the
 reactor is absent).</p>
-<!-- source: internal/component/cmd/show/show.go -- handleShowUptime -->
 <h3 id="show-system-sockets">show system sockets</h3>
 <pre><code>ze show system sockets                          # All TCP and UDP sockets
 ze show system sockets tcp                      # TCP only
@@ -2903,7 +2788,6 @@ ze show system sockets tcp port 179             # Filter by port
 </code></pre>
 <p>Returns JSON array of sockets with protocol, local-addr, local-port,
 remote-addr, remote-port, state, tx-queue, rx-queue. Linux only.</p>
-<!-- source: internal/component/cmd/show/sockets_linux.go -- handleShowSystemSockets -->
 <h3 id="show-system-kernel-log">show system kernel-log</h3>
 <pre><code>ze show system kernel-log                       # Last 50 entries
 ze show system kernel-log count 20              # Last 20 entries
@@ -2912,7 +2796,6 @@ ze show system kernel-log level err count 10    # Combined
 </code></pre>
 <p>Reads /dev/kmsg. Returns entries with level, sequence, timestamp-us, message.
 Levels: emerg, alert, crit, err, warning, notice, info, debug. Linux only.</p>
-<!-- source: internal/plugins/host-cmd/cmd/show_kernel_log_linux.go -- handleShowSystemKernelLog -->
 <h3 id="show-system-goroutines">show system goroutines</h3>
 <pre><code>ze show system goroutines summary    # Count by state
 ze show system goroutines blocked    # Only waiting goroutines
@@ -2920,14 +2803,12 @@ ze show system goroutines full       # Full stack dump
 </code></pre>
 <p>The <code>full</code> mode uses singleflight deduplication: concurrent requests share
 a single 16 MB allocation.</p>
-<!-- source: internal/component/cmd/show/goroutines.go -- handleShowSystemGoroutines -->
 <h3 id="show-tcp-check">show tcp-check</h3>
 <pre><code>ze show tcp-check &lt;host&gt; &lt;port&gt;                    # Basic connectivity test
 ze show tcp-check &lt;host&gt; &lt;port&gt; timeout 3s         # Custom timeout (1s-30s)
 ze show tcp-check &lt;host&gt; &lt;port&gt; source 10.0.0.1    # Bind source IP
 </code></pre>
 <p>Returns result (connected/refused/timeout) and latency-ms.</p>
-<!-- source: internal/plugins/diag/cmd/tcp_check.go -- HandleTCPCheck -->
 <h3 id="show-mtu">show mtu</h3>
 <pre><code>ze show mtu                          # Measure every IPsec peer and the reference address
 ze show mtu host 192.0.2.1           # Measure one address instead of the peers
@@ -2973,8 +2854,6 @@ padded exchange asked at 1400 left at the 1388 grid point and confirmed it):</p>
   "commands": ["set interface xfrm xa mtu 1314", "set interface xfrm xb mtu 1314", "set interface veth sr0 mtu 1400"]
 }
 </code></pre>
-<!-- source: internal/component/mtu/cmd/mtu.go -- handleShowMTU -->
-<!-- source: internal/component/mtu/cmd/run.go -- runMTU -->
 <h3 id="show-traceroute">show traceroute</h3>
 <pre><code>ze show traceroute 8.8.8.8                        # Trace path to target
 ze show traceroute 8.8.8.8 max-hops 10            # Limit to 10 hops (1-64)
@@ -2991,7 +2870,6 @@ ze show traceroute example.com                     # Hostname (resolved to IP)
 and the trace ends at that hop. Requires CAP_NET_RAW: the kernel delivers
 Time Exceeded to a raw ICMP socket only, so without the capability the
 command refuses to run and names it.</p>
-<!-- source: internal/component/traceroute/cmd/traceroute.go -- handleTraceroute -->
 <h3 id="monitor-traceroute">monitor traceroute</h3>
 <pre><code>monitor traceroute 8.8.8.8                          # Live mtr-style path trace (alt screen)
 monitor traceroute 8.8.8.8 max-hops 10              # Limit to 10 hops (1-64, default 16)
@@ -3008,7 +2886,6 @@ complete trace. Esc/q/Ctrl-C to stop; last snapshot copied to scrollback.</p>
 <code>| resolve</code> (adds reverse DNS hostnames) or <code>| origin</code> (adds ASN name
 or AS number from Team Cymru).</p>
 <p>Requires CAP_NET_RAW, as <code>show traceroute</code> does.</p>
-<!-- source: internal/component/cli/model_traceroute.go -- traceroute monitor model -->
 <h3 id="monitor-ping">monitor ping</h3>
 <pre><code>monitor ping 8.8.8.8                                # Live ping (alt screen, 1s interval)
 monitor ping 8.8.8.8 interval 500ms                 # Custom interval (100ms-30s)
@@ -3022,7 +2899,6 @@ Loss%, Last, Min, Avg, Max, StDev. Esc/q/Ctrl-C to stop.</p>
 <p>Default interval: 1s. Default timeout: 5s.</p>
 <p>Runs with CAP_NET_RAW, or without it when the daemon's group is inside
 <code>net.ipv4.ping_group_range</code> (see "ping / traceroute").</p>
-<!-- source: internal/component/cli/model_ping.go -- ping monitor model -->
 <h3 id="show-capture-interface">show capture interface</h3>
 <pre><code>ze show capture interface eth0                                  # Capture 100 packets, pcap output
 ze show capture interface eth0 count 10                         # Capture 10 packets
@@ -3038,14 +2914,12 @@ ze show capture interface eth0 udp port 53 count 5 format text  # DNS traffic, t
 packet: <code>TIMESTAMP PROTO SRC:PORT -&gt; DST:PORT FLAGS LEN HEX</code>. Limits: count
 1-10000, duration 1s-60s, snap-len 64-65535. One active capture per interface.
 Linux only (requires CAP_NET_RAW). Pure Go, no libpcap/cgo dependency.</p>
-<!-- source: internal/plugins/diag/cmd/capture_interface_linux.go -- HandleCaptureInterface -->
 <h3 id="show-system-file-descriptors">show system file-descriptors</h3>
 <pre><code>ze show system file-descriptors summary    # Counts by type + limits
 ze show system file-descriptors detail     # Full FD list with targets
 </code></pre>
 <p>Returns total, by-type (socket/pipe/file/anon_inode), soft-limit, hard-limit.
 Linux only.</p>
-<!-- source: internal/component/cmd/show/fd_linux.go -- handleShowSystemFD -->
 <h3 id="show-dns-lookup">show dns lookup</h3>
 <pre><code>ze show dns lookup example.com                 # A record (default)
 ze show dns lookup example.com type AAAA       # AAAA record
@@ -3053,7 +2927,6 @@ ze show dns lookup example.com type MX         # MX record
 </code></pre>
 <p>Returns structured JSON with name, type, records, count, query-time-ms.
 Supported types: A, AAAA, MX, NS, TXT, CNAME, PTR.</p>
-<!-- source: internal/component/resolve/cmd/show_dns.go -- handleDNSLookup -->
 <h3 id="show-dns-cache-stats-list-record">show dns cache stats / list / record</h3>
 <pre><code>ze show dns cache stats               # Cache hit/miss/eviction counters + hit-rate/miss-rate
 ze show dns cache list                # List all non-expired cached entries (sorted by TTL ascending)
@@ -3062,7 +2935,6 @@ ze show dns cache record example.com  # Show cached entries for a specific name
 <p><code>stats</code> returns entries, capacity, hits, misses, evictions, expired, hit-rate, miss-rate.
 <code>list</code> returns each entry with name, type, records, and ttl-seconds.
 <code>record &lt;name&gt;</code> filters cached entries by name (all types for that name).</p>
-<!-- source: internal/component/resolve/cmd/show_dns.go -- handleDNSCacheStats, handleDNSCacheList, handleDNSCacheRecord -->
 <h3 id="clear-dns-cache-all-stats-record">clear dns cache all / stats / record</h3>
 <p><code>clear dns cache</code> alone is refused and lists these forms: flushing everything
 needs the word <code>all</code>.</p>
@@ -3071,7 +2943,6 @@ clear dns cache stats                               # Zero counters without remo
 clear dns cache record example.com                  # Delete all entries matching name (all types)
 clear dns cache record example.com type AAAA        # Delete a single entry by name and type
 </code></pre>
-<!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache, handleClearDNSCacheStats, handleClearDNSCacheRecord -->
 <h3 id="show-dns-resolver-clear-dns-resolver-cache-all">show dns resolver / clear dns resolver cache all</h3>
 <p>The LAN DNS resolver (<code>service dns-resolver</code>, <a href="https://github.com/ze-software/ze/blob/main/docs/guide/dns-resolver.md" target="_blank" rel="noopener">guide</a>), which
 answers the hosts behind Ze. It is separate from the <code>show dns</code> and
@@ -3084,8 +2955,6 @@ ze clear dns resolver cache all        # Empty the answer and the negative cache
 and lists <code>all</code>, the word emptying needs. <code>show dns resolver</code> answers <code>running false</code> while the
 plugin is not running, and <code>clear dns resolver cache all</code> answers an error that
 names the config to commit.</p>
-<!-- source: internal/plugins/dnsresolver/show.go -- handleShowDNSResolver, handleClearDNSResolverCache -->
-<!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang -- show and clear command tree -->
 <h3 id="clear-peeringdb-cache-clear-irr-cache-clear-cymru-cache">clear peeringdb cache / clear irr cache / clear cymru cache</h3>
 <p>Each owner of a resolver client clears the client it uses now. The hub clears
 the one <code>resolve peeringdb</code>, <code>resolve irr</code> or <code>resolve cymru</code> uses, and every
@@ -3110,8 +2979,6 @@ stores are not a cache and stay: <code>clear irr as-set</code> removes one.</p>
 <pre><code>clear irr cache all | json
 {"action":"clear-all","removed":3,"owners":[{"owner":"hub","removed":0},{"owner":"irr","removed":3}]}
 </code></pre>
-<!-- source: internal/component/resolve/cmd/clear_caches.go -- handleClearPeeringDBCacheAll, handleClearPeeringDBCacheASN, handleClearIRRCacheAll, handleClearIRRCacheASSet, handleClearCymruCacheAll, handleClearCymruCacheAddress, clearAnswer -->
-<!-- source: internal/component/resolve/irr/store/clear.go -- ClearResolverCache -->
 <h3 id="show-resolve-rir">show resolve rir</h3>
 <pre><code>ze show resolve rir 15169                      # Which registry holds AS15169
 ze show resolve rir 15169 | json               # The same answer as structured data
@@ -3120,7 +2987,6 @@ ze show resolve rir 15169 | json               # The same answer as structured d
 shipped delegation table, or the copy <code>update resolve rir</code> stored when that copy
 is newer, so it answers with no network. An AS number in no delegated range and
 a table that cannot be read are two different answers, and both are errors.</p>
-<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRASN -->
 <h3 id="update-resolve-rir">update resolve rir</h3>
 <pre><code>update resolve rir                             # Refresh the RIR delegation table
 </code></pre>
@@ -3136,8 +3002,6 @@ a URL for that registry. A mirror is read over HTTPS, or over plain HTTP when it
 is the host itself. The sources are read when the command runs, so one committed
 after the daemon started needs no restart, and the stored table's <code>Source:</code> lines
 name the URLs that run actually read.</p>
-<!-- source: internal/component/resolve/cmd/rir.go -- handleRIRRefresh, configuredDelegationSources -->
-<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
 <h3 id="show-vpn-ipsec-dataplane">show vpn ipsec dataplane</h3>
 <pre><code>show vpn ipsec dataplane sa                  # The Security Association Database the kernel holds
 show vpn ipsec dataplane sa spi &lt;spi&gt;        # Matching SAs, by SPI (1-4294967295)
@@ -3150,7 +3014,6 @@ flush, or a policy a rekey stranded becomes visible.</p>
 <p><code>show vpn ipsec sa</code> lists, under <code>virtual-ip</code>, the inner addresses an IKE SA
 leased its peer from a <code>remote-access</code> pool (RFC 7296 Section 2.19), and an
 empty list for a peer bound to no <code>virtual-ip-pool</code>.</p>
-<!-- source: internal/component/ike/cmd/show_ipsec.go -- virtualIPText -->
 <p><code>sa</code> lists each installed ESP SA with its SPI, addresses, if_id, mode, reqid,
 encryption and integrity algorithm names, replay window, byte and packet
 counters, and the add and use timestamps. It never renders key material.
@@ -3167,8 +3030,6 @@ and the kernel dump come from one observation, taken under a generation check.
 A failed observation, an install or a removal running across the read, and a
 Child SA whose removal has started each return an error rather than a clean
 result.</p>
-<!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneDrift -->
-<!-- source: internal/component/ike/engine/health_drift.go -- ObserveDataplane, driftingPeersFrom -->
 <p>A backend that cannot enumerate the dataplane, VPP and the noop backend among
 them, reports that it cannot rather than rendering an empty table. So does a
 process without CAP_NET_ADMIN, and so does a daemon that loaded no dataplane
@@ -3176,8 +3037,6 @@ backend at all. An empty table would answer "nothing is installed" to a question
 nobody asked the kernel.</p>
 <p>RFC 4303 Section 2.1 reserves SPI 0, so the <code>spi</code> selector refuses it rather
 than reading it as "every SPI".</p>
-<!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, handleShowVPNIPsecDataplanePolicy, handleShowVPNIPsecDataplaneDrift -->
-<!-- source: internal/component/ike/yang/ze-ipsec-cmd.yang -- show/vpn/ipsec/dataplane -->
 <h3 id="clear-vpn-ipsec-sa">clear vpn ipsec sa</h3>
 <pre><code>clear vpn ipsec sa all                      # Terminate all IPsec SAs
 clear vpn ipsec sa peer &lt;name&gt;              # Terminate SAs for one peer (1-255 chars)
@@ -3190,7 +3049,6 @@ terminates every SA. Peers configured with <code>connection-type initiate</code>
 automatically; <code>respond</code>-only peers wait for the remote side.</p>
 <p>Peer name must be 1-255 characters. A missing name after <code>peer</code>
 returns an error. An unknown peer name returns "peer not found".</p>
-<!-- source: internal/component/ike/cmd/ipsec.go -- handleClearIPsecSAAll -->
 <h3 id="show-system-profile">show system profile</h3>
 <pre><code>ze show system profile heap                     # Heap profile
 ze show system profile cpu duration 10s         # CPU profile (1s-60s)
@@ -3199,13 +3057,11 @@ ze show system profile allocs                   # Allocation profile
 </code></pre>
 <p>Returns base64-encoded pprof data. CPU profiling is mutex-protected:
 concurrent requests return an error.</p>
-<!-- source: internal/component/cmd/show/profile.go -- handleShowSystemProfile -->
 <h3 id="show-system-memory">show system memory</h3>
 <pre><code>ze show system memory        # OS process memory (VmRSS/VmSize) from /proc/self/status
 </code></pre>
 <p>Returns vm-rss-kb, vm-size-kb, vm-swap-kb, vm-peak-kb, vm-data-kb,
 vm-stack-kb, threads. Linux only.</p>
-<!-- source: internal/component/cmd/show/memory_map_linux.go -- handleShowSystemMemoryMap -->
 <h3 id="show-system-update">show system update</h3>
 <pre><code>ze show system update           # Firmware update status
 ze show system update | json    # Machine-readable output
@@ -3215,7 +3071,6 @@ download-status, download-sha256, staged-version, staged-path, restart, server-p
 <p>Status values: "up to date", "update available", "downloading", "verifying", "staged",
 "paused by server", "waiting for maintenance window", "waiting for spread",
 "check failed", "not configured", "error: ...".</p>
-<!-- source: internal/plugins/update-cmd/cmd/show.go -- handleShowSystemUpdate -->
 <h3 id="show-system-update-history">show system update history</h3>
 <pre><code>ze show system update history           # Last 20 update events
 ze show system update history | table   # Tabular view
@@ -3225,7 +3080,6 @@ Result values: "success", "failed-download", "failed-checksum", "failed-stage",
 "blocked-minimum-version", "paused".</p>
 <p>History is persisted to <code>ze-update-history.json</code> in the binary's directory and
 survives restarts.</p>
-<!-- source: internal/plugins/update-cmd/cmd/show.go -- handleShowSystemUpdateHistory -->
 <h3 id="update-system-firmware">update system firmware</h3>
 <pre><code>ze update system firmware check       # Immediate version check (bypass interval timer)
 ze update system firmware download    # Download now (bypass spread, maintenance window)
@@ -3240,7 +3094,6 @@ rollout, not manual intervention). Both check minimum-version and warn when
 sha256 is absent from the manifest.</p>
 <p><code>rollback</code> renames the <code>.prev</code> backup to the target binary and restarts. After
 rollback, <code>.prev</code> no longer exists and the new version is gone from disk.</p>
-<!-- source: internal/plugins/update-cmd/cmd/firmware.go -- firmware CLI handlers -->
 <h3 id="update-serve">update serve</h3>
 <pre><code>ze update serve --listen :8080           # Foreground server in this process (SIGUSR1 toggles pause)
 ze cli -c "update serve"                 # The daemon's server status: running, listen address, paused
@@ -3255,8 +3108,6 @@ the daemon's one server and reach it from every surface; a second <code>start</c
 refused until <code>stop</code>. A signal sent to the daemon reaches the daemon, so <code>pause</code>
 replaces <code>SIGUSR1</code> there. The <code>update-paused</code> file beside the binary pauses
 either form. See <a href="../self-update/">self-update</a>.</p>
-<!-- source: internal/plugins/update-cmd/cmd/serve.go -- runUpdateServe -->
-<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner start, stop, pause -->
 <h3 id="show-bgp">show bgp</h3>
 <pre><code>ze show bgp                          # Every configured peer
 ze show bgp ipv4                     # Expanded to ipv4/unicast
@@ -3305,9 +3156,6 @@ counters:</p>
 the session stays up.</p>
 <p>Until 2026-11 <code>description</code> held the group name and the row had no <code>group</code>
 key. A script that read the group from <code>description</code> reads <code>group</code> now.</p>
-<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
-<!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings -->
-<!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- hotSwappableSettings -->
 <p>A family argument adds <code>family</code> and <code>peers-in-family</code> beside them. Two aliases
 name the halves, so an operator asks for one half and names no field:</p>
 <pre><code>ze show bgp | peers      # the peer rows alone, as a table
@@ -3325,23 +3173,16 @@ under <code>show bgp</code> supplies an empty floor: <code>show bgp peer</code> 
 <code>show bgp peer 192.0.2.1 detail</code>, including selector spellings and newly
 registered branches. So no child command under <code>show bgp</code> inherits the parent's
 <code>| summary</code> or <code>| peers</code>.</p>
-<!-- source: internal/component/command/column_order.go -- RegisterChildBoundary, lookupPath -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- init, registerAliases -->
 <p>A single accepted family token remains an argument of <code>show bgp</code>, so
 <code>show bgp ipv4 | peers</code> keeps the summary's aliases, columns, shape and address
 fields. The boundary uses the same family predicate as the overview handler;
 a token after the family still meets the child floor. A child's own declaration
 on an equal or longer path takes precedence.</p>
-<!-- source: internal/component/command/column_order.go -- lookupPath -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- init -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpOverview, isFamilyArg -->
 <p>That empty floor is not a claim about a child's answer. A command on the branch
 root or deeper declares its own order and keeps it. Twenty
 commands under <code>show bgp</code> declare one, and each of the twenty also declares
 whether its answer holds rows. <code>ze help command "&lt;path&gt;" --json</code> answers what one
 of them declares.</p>
-<!-- source: internal/component/command/column_order.go -- declarationRegistry.declare -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerColumns, registerShapes -->
 <p><code>show bgp rpki</code> declares an alias of its own on that same branch root, so
 <code>show bgp rpki | summary</code> answers the RPKI counters and not the peer aggregates.</p>
 <p>That bare command answers the seven validation counters and one row for each
@@ -3351,19 +3192,11 @@ every reader that links the composition root sees, so <code>ze help command --js
 and <code>./le cli list</code> both list <code>summary</code> on the command. Each row carries the
 command's summary under <code>description</code> and its long explanation under
 <code>description</code>. The full RPKI command list is in <code>docs/guide/rpki.md</code>.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
-<!-- source: internal/plugins/help/help_command.go -- appendPluginCommands -->
-<!-- source: internal/le/cli/list/commandlist.go -- Collect -->
-<!-- source: internal/le/cli/list/report.go -- joinAliases -->
-<!-- source: internal/plugins/help/help_command.go -- collectCommands, pipeOperationsFor -->
 <p><code>show bgp summary</code> was a second spelling of this command until 2026-08. It is
 removed, not aliased, so it answers an unknown-command error. <code>show bgp</code> gives
 the ordered table, and <code>show bgp | summary</code> gives the aggregate fields that
 <code>show bgp summary | summary</code> gave. An authorization entry keyed on the literal
 <code>show bgp summary</code> matches nothing after the removal; key it on <code>show bgp</code>.</p>
-<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd; internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary, handleBgpOverview -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases, registerColumns -->
-<!-- source: internal/component/command/column_order.go -- ColumnsForCommand, commandMatchesPrefix -->
 <h3 id="ping-traceroute">ping / traceroute</h3>
 <p><code>show ping</code> and <code>show traceroute</code> use Ze's internal ICMP engine and work without
 the daemon running (registered as local handlers). <code>monitor ping</code> and <code>monitor traceroute</code> also work offline, streaming results until Ctrl-C. Through the
@@ -3419,10 +3252,6 @@ work on both. Traceroute needs the raw socket and refuses to run without it.
 <code>ze doctor</code> reports the state before the first probe: <code>doctor-icmp-probe</code>
 when neither socket opens, naming which of the two fixes applies, and
 <code>doctor-icmp-probe-unprivileged</code> when ping runs on the fallback.</p>
-<!-- source: internal/component/ping/cmd/register.go -- showPingLocal -->
-<!-- source: internal/component/ping/cmd/ping.go -- parsePingArgs -->
-<!-- source: internal/component/ping/yang/ze-ping-cmd.yang -- show/ping size leaf -->
-<!-- source: internal/component/traceroute/cmd/register.go -- showTracerouteLocal -->
 <h3 id="show-crashes">show crashes</h3>
 <pre><code>ze show crashes              # List crash reports with size, kind and readiness (JSON)
 ze show crashes latest       # Display the most recent crash report
@@ -3485,18 +3314,9 @@ boot argument, so a commit looks like it took effect and changes nothing until
 the box reboots into an image built with <code>image.crash-dump</code>. Reporting one field
 would hide exactly that gap. See <code>docs/guide/appliance.md</code> for the reservation
 and <code>docs/guide/configuration.md</code> for the config leaves.</p>
-<!-- source: internal/plugins/crashes/readiness.go -- Readiness, the one answer every surface reads -->
-<!-- source: internal/core/crashlog/kernel.go -- CrashReadiness, configured versus armed -->
-<!-- source: internal/core/crashlog/list.go -- CrashKind, CrashListFields -->
 <p>Three <code>ze doctor</code> checks report the same facts with stable diagnostic codes:
 <code>doctor-crash-capture-unarmed</code>, <code>doctor-crash-capture-pstore</code> and
 <code>doctor-crash-directory-unwritable</code>.</p>
-<!-- source: internal/plugins/crashes/doctor.go -- the three checks -->
-<!-- source: internal/plugins/crashes/register.go -- their registration -->
-<!-- source: internal/plugins/crashes/cmd/register.go -- online show crashes RPC -->
-<!-- source: internal/plugins/crashes/register.go -- offline fallback (command.MustRegisterOfflineFallback) -->
-<!-- source: internal/plugins/crashes/cmd/show.go -- show crashes command -->
-<!-- source: internal/plugins/crashes/crashes.go -- crash storage commands -->
 <h3 id="clear-interface-counters">clear interface counters</h3>
 <pre><code>ze clear interface counters all            # Reset counters on every managed interface
 ze clear interface name &lt;name&gt; counters    # Reset counters on one interface
@@ -3519,9 +3339,6 @@ its baseline (interface bounce, driver reload, delete+recreate), ze
 treats it as a kernel-level reset, drops the baseline, and returns
 the raw value. Subsequent reads resume from the kernel's new zero
 without underflow.</p>
-<!-- source: internal/component/iface/cmd/clear.go -- handleClearInterfaceCounters -->
-<!-- source: internal/component/iface/counters.go -- baselineStore, applyBaseline (wrap rebases) -->
-<!-- source: internal/component/iface/dispatch.go -- ResetCounters, GetStats/ListInterfaces/GetInterface apply baseline -->
 <p><strong>migrate grammar (dispatched to the running daemon over SSH as
 <code>request interface migrate</code>):</strong></p>
 <pre><code>ze interface migrate [--user &lt;name&gt;] from &lt;iface&gt;.&lt;unit&gt; to &lt;iface&gt;.&lt;unit&gt; address &lt;cidr&gt; [create &lt;type&gt;] [timeout &lt;duration&gt;]
@@ -3559,7 +3376,6 @@ without underflow.</p>
 <p>These five are grammar the daemon reads, not client flags: the daemon refuses a
 flag-shaped token before any handler runs. <code>--user</code> is the one flag this command
 interprets itself, and it comes before the first keyword.</p>
-<!-- source: internal/component/iface/cli/main.go -- Run; internal/component/iface/cli/show.go -- cmdShow; internal/component/iface/cli/migrate.go -- cmdMigrate -->
 <h3 id="ze-exabgp">ze exabgp</h3>
 <p>ExaBGP compatibility tools.</p>
 <pre><code>ze exabgp plugin &lt;cmd&gt; [args]    # Run ExaBGP plugin with ze
@@ -3572,8 +3388,6 @@ controls discover both registrations. Names are diagnostic labels, never
 daemon filenames. Config dry-run returns diagnostics without converted text;
 environment dry-run preserves the local warning and still returns converted
 text. Neither command stages or applies the result.</p>
-<!-- source: internal/plugins/exabgp/register_migration.go -- init -->
-<!-- source: internal/plugins/exabgp/migration_bytes.go -- migrationConfigBytes, migrationEnvironmentBytes -->
 <table>
 <thead>
 <tr>
@@ -3618,8 +3432,6 @@ text. Neither command stages or applies the result.</p>
 <p>When launched by ze's process manager (as an external plugin), the bridge detects
 <code>ZE_PLUGIN_HUB_TOKEN</code> and automatically uses TLS connect-back with the SDK.
 In standalone mode (no env var), it uses stdin/stdout with inline MuxConn framing.</p>
-<!-- source: internal/plugins/exabgp/main.go -- Run, cmdPlugin, cmdMigrate -->
-<!-- source: internal/plugins/exabgp/main_sdk.go -- runSDKMode TLS connect-back -->
 <h3 id="ze-schema">ze schema</h3>
 <p>Schema discovery.</p>
 <pre><code>ze schema list                   # List registered schemas
@@ -3635,7 +3447,6 @@ one payload:</p>
 <pre><code>ze cli -c "show schema list | json"
 ze cli -c "show schema methods | match peer"
 </code></pre>
-<!-- source: internal/component/config/yang/cli/main.go -- Run -->
 <p><code>ze schema show &lt;module&gt;</code> is a local command only: a running Ze serves the
 other five as <code>show schema ...</code> and has no <code>show schema show</code>.</p>
 <p><code>ze schema</code> starts no program. A <code>--plugin</code> that names an external program
@@ -3645,7 +3456,6 @@ available with no running Ze. The running Ze holds the module that plugin
 declared when it started. Open a session with <code>ze cli</code> and type
 <code>show schema list</code> to see the module listed, or <code>show yang tree config</code> to see
 its nodes. An empty <code>--plugin</code> value is refused with exit 1.</p>
-<!-- source: internal/component/config/schema/cli/main.go -- externalNotShown, emptyPluginSpecRefusal, buildSchemaRegistry -->
 <h3 id="ze-yang">ze yang</h3>
 <p>YANG analysis.</p>
 <pre><code>ze yang completion               # Detect prefix collisions
@@ -3684,7 +3494,6 @@ refuses a flag: <code>show yang tree commands</code>, <code>show yang tree confi
 <code>show yang doc command &lt;words&gt;</code>. Giving a keyword and its flag together is
 refused. The tree and the collision report are registered answers, so the pipe
 layer renders them: <code>ze cli -c "show yang tree config | json"</code>.</p>
-<!-- source: internal/component/config/yang/cli/main.go -- Run -->
 <h3 id="ze-appliance-kernel">ze appliance kernel</h3>
 <p>The build-host binary builds or resolves Ze's installer or runtime kernel.
 Builds run only on a host of the target architecture.</p>
@@ -3695,7 +3504,6 @@ Omitting it keeps the builder's CPU-count default. Zero, negative and malformed
 values are refused before building. This scheduling option does not change the
 kernel cache key or the existing two-hour build limit; a warm cache still skips
 compilation. See <a href="../appliance/">the appliance guide</a> for the build-host setup.</p>
-<!-- source: internal/appliance/cmd_kernel.go -- runKernel, defaultKernelBuild -->
 <h3 id="ze-init">ze init</h3>
 <p>Initialize <code>database/</code> in <code>ze.config.dir</code>, or the default config directory.
 The populated tree becomes visible only after credentials and initial config
@@ -3766,8 +3574,6 @@ Normal initialization discovers interfaces and stores their initial config.</p>
 <p><code>--web-cert</code> and <code>--web-cert-name</code> consume text values in shell completion.
 After the value, completion offers the other <code>init</code> flags. Both separate values
 and <code>--web-cert=&lt;address&gt;</code> forms retain that flag inventory.</p>
-<!-- source: internal/plugins/init/register.go -- init -->
-<!-- source: internal/plugins/completion/flags.go -- flagContext, writeFlags -->
 <p>Every <code>--from</code> source is checked whole (<code>zefs.Check</code>) before a key is written.
 A digest mismatch, a body that is not a blob, or a corrupt entry imports
 nothing, and the error names the reason or the key. Any other scheme is refused
@@ -3779,10 +3585,6 @@ stays and the error names it, because the recovery command
 <code>ze init --from &lt;copy&gt;</code> reads it.</p>
 <p>Replacement refuses a live store owner, regardless of the selected SSH target.
 Run maintenance as the store owner, including when you have root access.</p>
-<!-- source: internal/plugins/init/main.go -- Run, runInit, runImport, runFetchImport, defaultHost, defaultPort -->
-<!-- source: internal/core/fetch/scheme.go -- Resolve, Schemes -->
-<!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
-<!-- source: internal/component/iface/emit.go -- EmitConfig -->
 <h3 id="ze-install">ze install</h3>
 <p>Install ze binary, systemd service, or provision remote devices.</p>
 <pre><code>ze install local                     # copy binary and create config directory
@@ -3849,8 +3651,6 @@ Later store maintenance runs as <code>ze</code>, not root.</p>
 <code>CAP_NET_ADMIN</code>, <code>CAP_NET_RAW</code>, <code>CAP_NET_BIND_SERVICE</code>, and <code>CAP_BPF</code> (for the
 eBPF programs of the IPsec ESP form fast path, the IPsec application override
 guard and traffic-usage).</p>
-<!-- source: internal/plugins/systemd/cmd_install.go -- cmdInstall, chownConfig -->
-<!-- source: internal/component/config/storage/ownership.go -- TransferOwnership -->
 <p>The daemon socket is <code>/run/ze/ze.socket</code> under this unit. Configure
 <code>daemon { socket "/run/ze/ze.socket"; }</code> or run operator commands with
 <code>XDG_RUNTIME_DIR=/run/ze</code> so local CLI commands connect to the same socket.</p>
@@ -3893,11 +3693,6 @@ guard and traffic-usage).</p>
 forks <code>ze -</code> to start DHCP+PXE, TFTP, and HTTP servers for PXE-booting
 target machines with a gokrazy image. The DHCP pool range scales with
 subnet size. Requires root on Linux.</p>
-<!-- source: cmd/ze/install/dispatch.go -- dispatch -->
-<!-- source: internal/plugins/local/ -- binary copy -->
-<!-- source: internal/plugins/systemd/ -- unit file -->
-<!-- source: internal/plugins/provision/ -- PXE provisioning -->
-<!-- source: internal/plugins/systemd/ -- shared service runtime -->
 <h3 id="ze-uninstall">ze uninstall</h3>
 <p>Remove ze binary or systemd service.</p>
 <pre><code>sudo ze uninstall systemd            # stop, disable, and remove the unit
@@ -3905,9 +3700,6 @@ sudo ze uninstall systemd --purge    # also remove the ze user and group
 ze uninstall local                   # remove binary
 ze uninstall local --purge           # also remove config directory and database
 </code></pre>
-<!-- source: cmd/ze/uninstall/dispatch.go -- dispatch -->
-<!-- source: internal/plugins/local/ -- binary removal -->
-<!-- source: internal/plugins/systemd/ -- unit removal -->
 <h3 id="ze-passwd">ze passwd</h3>
 <p>Bcrypt-hash a plaintext password for use in <code>system.authentication.user.password</code>.
 Reads from stdin (piped, single line) or interactive TTY (prompts twice for
@@ -3920,7 +3712,6 @@ shell substitution into <code>ze config set ... password "$(echo s | ze passwd)"
 <p>A weak password draws <code>warning: weak password (&lt;reason&gt;)</code> on stderr. The hash
 still goes to stdout and the exit code stays 0, so a pipeline is unaffected. See
 <a href="../authentication/">authentication</a> for the policy.</p>
-<!-- source: internal/plugins/passwd/main.go -- runImpl -->
 <h3 id="user-u-flag-all-client-clis">--user / -u flag (all client CLIs)</h3>
 <p><code>ze cli</code>, <code>ze bgp plugin cli</code>, <code>ze signal</code>, <code>ze config set</code>, <code>ze config edit</code>,
 and <code>ze interface migrate</code> accept <code>--user &lt;name&gt;</code> (long) and <code>-u &lt;name&gt;</code>
@@ -3963,10 +3754,7 @@ With no username from flag or env and no readable store, the CLI fails and names
 exists but is unsafe (a <code>database</code> that is not a directory, a loose mode) is not
 "unreadable": the CLI refuses with the path and the repair, because that is a
 defect to fix, not a lack of access.</p>
-<!-- source: internal/component/cli/sshclient/client.go -- readCredentials, openStoreIfReadable -->
 <p>See <a href="../authentication/">authentication.md</a> for the full multi-user workflow.</p>
-<!-- source: internal/component/cli/sshclient/client.go -- ReadCredentialsWithFlags -->
-<!-- source: docs/guide/authentication.md -- Logging in as a YANG user -->
 <h3 id="ze-start-web">ze start --web</h3>
 <p>Add the HTTPS web interface alongside the BGP daemon. The web server runs on a
 separate port and provides configuration viewing, editing, and admin commands.</p>
@@ -4004,8 +3792,6 @@ ze start --web 8443 --mcp 9718                   # Both web and MCP
 <p>The web server uses a self-signed ECDSA P-256 certificate (persisted in zefs) with SANs
 for localhost, 127.0.0.1, ::1, and the listen address.</p>
 <p>See <a href="../web-interface/">Web Interface Guide</a> for full usage documentation.</p>
-<!-- source: cmd/ze/ze_core_start.go -- cmdStart, flagStartWeb, flagStartWebOnly, flagStartInsecureWeb, flagStartMCP -->
-<!-- source: cmd/ze/hub/main.go -- RunWebOnly, resolveWebListeners -->
 <h3 id="debug-set-delete-show-clear">debug (set / delete / show / clear)</h3>
 <p>Granular debug edited as persistent state in <code>debug.zefs</code>. Verb-first grammar
 (<code>set</code>/<code>delete</code>/<code>show</code>/<code>clear</code>), matching VyOS syslog-level configuration: enabling
@@ -4035,8 +3821,6 @@ Each of these commands is a node in the YANG command tree (<code>ze-debug-cmd</c
 <code>show diagnostic</code>, <code>show skills</code>, <code>show skill</code>, <code>request support archive</code>, <code>show config validation</code>, <code>show config graph</code> and
 <code>request wireguard keypair</code>, and <code>./le doc yang-contract command-contract</code>
 fails on a local command it finds with no node.</p>
-<!-- source: internal/plugins/debug/yang/ze-debug-cmd.yang -- set/delete/clear debug, show debug profile -->
-<!-- source: internal/le/doc/yangcontract/contract.go -- Validate, OrphanLocalHandlers -->
 <p><code>show debug profile name &lt;name&gt;</code> reads a stored profile (offline). To see the daemon's
 actual live state, use <code>show debug</code> (YANG-dispatched RPC, requires a running daemon).</p>
 <p>These debug commands, and <code>show diagnostic</code>, <code>show skills</code>, <code>show skill</code> and
@@ -4045,14 +3829,6 @@ prints the same text as before, and <code>ze cli -c "&lt;command&gt; | json"</co
 pipe) applies the operator to the answer's fields: <code>show debug profile name default | json</code>
 gives one <code>module</code>, <code>level</code>, <code>flags</code>, <code>scopes</code> object per row. <code>--json</code> on
 <code>show diagnostic</code> and <code>show skill(s)</code> stays a local spelling of the same output.</p>
-<!-- source: internal/plugins/debug/show.go -- debugModulesAnswer, drawDebugModules -->
-<!-- source: internal/plugins/explain/main.go -- Run, render, drawText -->
-<!-- source: internal/plugins/skills/main.go -- showSkills, showSkill, render -->
-<!-- source: internal/plugins/diag/diag.go -- runWgKeypair, drawWgKeypair -->
-<!-- source: internal/plugins/debug/debug.go -- runSetModule, runDeleteModule, applyProfile -->
-<!-- source: internal/plugins/debug/register.go -- set/delete/show/clear debug registrations -->
-<!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
-<!-- source: internal/component/debug/yang/register.go -- RegisterModule, ValidateFlag -->
 <h3 id="create-agent-skill">create agent skill</h3>
 <pre><code>ze create agent skill [agent &lt;claude|codex|opencode|pi&gt;]
 </code></pre>
@@ -4117,10 +3893,6 @@ stub's default path relative to the home directory with the state
 <code>not-inspected</code>, and for create and show the stub to place, whose body tells
 the agent to ask the Ze system it is connected to for <code>show skill ze</code>. The
 answer carries no hook.</p>
-<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, localRun, remoteAnswer, exitCode -->
-<!-- source: internal/plugins/skills/agent_stub.go -- findStub, createStub, inspectStub, removeStub -->
-<!-- source: internal/plugins/skills/agent_hook.go -- hookCommand, createHook, inspectHook, deleteHook, readLayout, withoutGroup -->
-<!-- source: internal/plugins/skills/yang/ze-skills-cmd.yang -- leaf agent -->
 <h3 id="show-agent-context">show agent context</h3>
 <pre><code>ze show agent context
 </code></pre>
@@ -4137,7 +3909,6 @@ installs runs, and it never fails a session.</p>
 version, a line saying the caller reached the daemon, and the guide. It
 carries no directory and dials nothing, so a read-only caller does not learn
 where the daemon keeps its config.</p>
-<!-- source: internal/plugins/skills/agent_context.go -- showAgentContextLocal, handleShowAgentContext, daemonState, configDirectory, drawAgentContext -->
 <h3 id="ze-pipe">ze pipe</h3>
 <p>Apply pipe formatting to stdin. Offline commands that print text rather than answer data do not pass
 through the YANG-dispatched pipe infrastructure. <code>ze pipe</code> provides the same
@@ -4158,7 +3929,6 @@ operators as a standalone filter.</p>
 <p>Format operators (json, yaml, table, text, ndjson) expect JSON input. Filter
 operators (match, count, first, last, display) work on both JSON and plain text.
 <code>resolve</code> adds a <code>&lt;key&gt;-name</code> sibling field for each IP address value in JSON.</p>
-<!-- source: cmd/ze/ze_core_pipe.go -- runPipe -->
 <h3 id="ze-data">ze data</h3>
 <p>Inspect a live tree read-only, or modify a tree or explicit blob artifact offline.
 Mutations refuse an active writer, except <code>rm</code>, which sends its removal to the
@@ -4181,17 +3951,12 @@ ze data encode [--crc|--header] [--cap N] &lt;string|-&gt;
 command. <code>show data registered pattern &lt;exact-pattern&gt;</code> selects one registered
 key description; an unknown pattern is a refusal on both routes, rather than
 an empty success. Omitting either selector retains the complete inventory.</p>
-<!-- source: internal/component/config/storage/cli/storage_data.go -- dataList, dataRegistered -->
-<!-- source: internal/component/config/storage/cli/registered.go -- registeredAnswer -->
-<!-- source: internal/plugins/config-storage/yang/ze-storage-cli-cmd.yang -- show data list, show data registered -->
 <p><code>show data encode content &lt;base64&gt; [part full|header|crc] [capacity &lt;bytes&gt;]</code>
 uses the local encoder and returns its exact frame, header or CRC bytes.
 <code>part</code> defaults to <code>full</code>; capacity defaults to input length plus ten percent.
 The declared capacity must hold the input and is at most 8,388,480 bytes, so
 the frame fits one daemon answer. The registered input descriptor supplies a
 native browser file/paste control; no live store is opened or changed.</p>
-<!-- source: internal/component/config/storage/cli/encode.go -- dataEncode, encodeNetcap, netcapCapacityMax -->
-<!-- source: internal/plugins/config-storage/yang/ze-storage-cli-cmd.yang -- show data encode -->
 <p><code>--path &lt;store&gt;</code> selects the exact tree directory or <code>.zefs</code> artifact.
 Without it, commands use <code>database/</code> under the configured directory.
 Data commands never initialize a missing live store.</p>
@@ -4266,9 +4031,6 @@ operator runs the same through the daemon, below: <code>show data check</code> a
 the rows <code>check</code> prints, and <code>request data repair path &lt;file&gt;</code> writes the
 salvage on the daemon's host. Installing a repaired store in place of the live
 one needs ze stopped.</p>
-<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, printVerdict, integrityVerdict, reportVerdict, cmdRepair, printRepair, salvageHistory -->
-<!-- source: internal/component/config/storage/cli/repair_verdict.go -- newRepairVerdict, repairVerdict.printHistory, repairVerdict.exitCode -->
-<!-- source: internal/component/config/storage/history_check.go -- CheckHistory, RepairHistory -->
 <p><code>backup</code> copies every key of the store, at any depth and in any namespace, to
 one new blob artifact under one write lock, so a commit is in the backup whole
 or not at all. The artifact is exact-fit unless <code>spare &lt;n&gt;</code> names a percentage
@@ -4294,7 +4056,6 @@ while a daemon owns the store it names the live route, <code>request data restor
 device's config refuses it with that window's refusal, naming
 <code>ze start &lt;config&gt;</code>, because that daemon's next start reverts the commit and
 would undo the restore.</p>
-<!-- source: internal/component/config/storage/cli/cmd_restore.go -- restoreConfig -->
 <p><code>ze data restore &lt;file&gt; full</code> replaces the whole live tree with every key of the
 artifact, history, credentials and identity included. The previous tree moves to
 <code>database.replaced-&lt;stamp&gt;</code>, and an unrelated <code>database.zefs</code> beside it moves to
@@ -4322,8 +4083,6 @@ its refusals are the ones <code>delete data key</code> gives below. When no daem
 answers, <code>rm</code> keeps the store's refusal, says why the daemon did not answer (no
 listener at its address, no credentials to log in, or no answer) and names the
 command that fixes that, and exits <code>2</code>. With ze stopped, <code>rm</code> removes any key.</p>
-<!-- source: internal/component/config/storage/cli/main.go -- cmdRm, removeKeys, removeKeysThroughDaemon -->
-<!-- source: internal/component/config/storage/daemonroute/daemonroute.go -- Send, OverSSH, UnansweredRefusal -->
 <p><code>write</code> writes the bytes of a file, or of stdin for <code>-</code>, into one key, creating
 it or replacing it, and prints <code>wrote &lt;key&gt; (&lt;n&gt; bytes) into &lt;store&gt;</code>. While a
 daemon owns the store, <code>write</code> sends the bytes to that daemon as
@@ -4337,7 +4096,6 @@ size. An empty file is the one input the two routes answer differently. While a
 daemon owns the store it is refused before anything connects: the daemon
 command takes no empty content, because a key is taken out with
 <code>delete data key</code>, never emptied. With ze stopped it writes an empty key.</p>
-<!-- source: internal/component/config/storage/cli/main.go -- cmdWrite, writeKey, writeKeyThroughDaemon -->
 <p><code>import</code> lands each file in the config named by its file name, under the key
 <code>file/active/&lt;basename&gt;</code>, and prints <code>imported &lt;key&gt; (&lt;n&gt; bytes)</code> per file and
 <code>&lt;n&gt; files imported into &lt;store&gt;</code>. Stdin (<code>-</code>) is refused on both routes,
@@ -4359,8 +4117,6 @@ with that window's refusal, naming <code>ze start &lt;config&gt;</code>, because
 next start reverts the commit and would undo the import.
 An unfinished file-commit record also refuses an offline import before its
 active bytes or history change. Recover that publication before importing again.</p>
-<!-- source: internal/component/config/storage/cli/main.go -- cmdImport, importConfigs, ImportConfig, importConfigsThroughDaemon -->
-<!-- source: internal/component/config/confirm/store.go -- WriteOutsideRecorded -->
 <p>The daemon answers these store commands on every surface (SSH, REST, gRPC,
 MCP, the web), acting on the store it owns. The <code>request data</code> commands read
 or write a file on the daemon's own host:</p>
@@ -4384,9 +4140,6 @@ reload. An unserved managed client, ambiguous source, pending candidate, open
 confirmed-commit window or missing reload owner refuses the affected restore.
 Both commands require edit authorization and retain their source unchanged.
 Abort completed source transfers after use and delete artifacts when finished.</p>
-<!-- source: internal/component/config/cli/artifact_import.go -- artifactImport -->
-<!-- source: internal/component/config/cli/artifact_restore.go -- artifactRestoreConfig -->
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- RestoreConfigFromSource -->
 <p><code>request data repair path &lt;absolute-output&gt;</code> writes the salvage <code>ze data repair --output</code> writes, from the store the daemon owns, while it runs. The
 daemon holds its own writes for the walk, so a key it would write or remove
 meanwhile waits, and the copy is one moment of the store. The history of the
@@ -4403,15 +4156,10 @@ path, a <code>..</code> element, a symlink, an existing path, a name the store o
 its folder and a path inside the live tree are refused, each naming the rule.
 The live store is not changed; check the copy with
 <code>ze data --path &lt;output&gt; check</code>. The built-in read-only profile is denied it.</p>
-<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- handleDataRepair, repairAnswer -->
-<!-- source: internal/component/config/storage/cli/repair_verdict.go -- newRepairVerdict, exitCode -->
-<!-- source: internal/component/config/storage/salvage.go -- HoldWrites, Salvage -->
 <p>If the complete repair report exceeds the 8 MiB response limit, the command
 fails with its path, counts, <code>salvage-written: true</code> and <code>details-omitted: true</code>.
 The saved salvage remains available. The answer names the command that checks
 it, instead of presenting a partial list as the complete report.</p>
-<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- repairDetailsTooLarge, repairReportRefusalWithFix -->
-<!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
 <p><code>show data check</code> answers the store's integrity verdict: <code>entries</code>,
 <code>corrupt-entries</code>, <code>vanished-entries</code>, <code>history-checked</code> and one <code>findings</code> row
 (<code>severity</code>, <code>check</code>, <code>kind</code>, <code>key</code>, <code>detail</code>) per corrupt entry, per key
@@ -4422,7 +4170,6 @@ answer an error.
 process over the store <code>--path</code> or the configured directory names; every
 other surface asks the daemon, which checks its own store with its writes held
 for the walk.</p>
-<!-- source: internal/component/config/storage/cli/storage_data.go -- dataCheck, answer -->
 <p><code>delete data key &lt;key&gt;</code> removes one runtime-state key while ze runs: a key
 under <code>meta/</code> outside <code>meta/config/</code>. It answers <code>key</code>. A configuration key
 (under <code>file/</code> or <code>meta/config/</code>, or outside both) is refused before the store
@@ -4440,7 +4187,6 @@ HTTPS credentials, so removing one of them can lock you out:
 <code>meta/auth/local/...</code> holds the local administrator's name, password hash and
 SSH public keys, <code>meta/ssh/...</code> the SSH login the CLI uses, and <code>meta/web/cert</code>
 and <code>meta/web/key</code> the HTTPS certificate and private key.</p>
-<!-- source: pkg/zefs/keys.go -- KeySSHUsername, KeySSHPassword, KeyLocalAdminUsername, KeyLocalAdminPassword, KeyLocalAdminAuthorizedKeys, KeyWebCert, KeyWebKey -->
 <p><code>update data key &lt;key&gt; content &lt;base64&gt;</code> writes one runtime-state key while ze
 runs, creating it or replacing it with the bytes <code>content</code> decodes to, and
 answers <code>key</code> and <code>bytes</code>. <code>content</code> is base64 (RFC 4648 Section 4, with <code>=</code>
@@ -4455,9 +4201,6 @@ SSH exec log and the session transcript record the command with
 <code>&lt;redacted&gt;</code> in place of the content. The built-in read-only profile is denied
 the command. The credential keys named above can be restored this way from a
 copy, without stopping ze.</p>
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyUpdate, configurationKeyError, runningOwnerError -->
-<!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data key, the content leaf -->
-<!-- source: internal/component/command/argvalidate.go -- outsideEveryLength -->
 <p><code>update data config name &lt;name&gt; content &lt;base64&gt;</code> imports one config while ze
 runs and answers <code>name</code>, <code>version</code> and <code>bytes</code>. <code>name</code> is a file name with no
 directory; a path, <code>.</code> and <code>..</code> are refused. For the daemon's own config, the
@@ -4479,8 +4222,6 @@ on the daemon's host with <code>request data restore path &lt;file&gt; config</c
 records hold <code>&lt;redacted&gt;</code> in place of the content, and the audit log records
 the import under <code>data-config-import</code>. The built-in read-only profile is
 denied the command.</p>
-<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- handleDataConfigUpdate, importDaemonConfig, daemonConfigImportRefusal, importOtherConfig, unservedClientRefusal -->
-<!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data config, the content leaf -->
 <p>Both refuse a relative path, a <code>..</code> element and a symlink, each naming the
 rule. <code>backup</code> walks the daemon's own store under its write lock and answers
 <code>path</code>, <code>keys</code> and <code>bytes</code>. <code>force</code> replaces an existing file and never lifts
@@ -4498,20 +4239,11 @@ source selection is the same, with <code>client-&lt;name&gt;.conf</code> in plac
 device's name. A daemon that serves no managed client refuses, and so does a
 hub with no <code>client &lt;name&gt;</code> entry under <code>plugin hub server</code>. The answer also
 carries <code>client</code>.</p>
-<!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
-<!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestore, parseRestoreArgs -->
-<!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup, handleDataRestore, restoreConfigFromSource, handleDataKeyDelete, configurationKeyError, removeKeyError -->
-<!-- source: internal/component/config/storage/store.go -- RuntimeKey -->
-<!-- source: internal/component/config/storage/cli/cmd_backup.go -- cmdBackup, daemonAddress -->
-<!-- source: internal/component/config/storage/backup.go -- Backup, storeOwnedName -->
-<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, cmdEncode -->
 <h3 id="ze-plugin">ze plugin</h3>
 <p>Plugin management.</p>
 <pre><code>ze plugin &lt;name&gt; [args]          # Run plugin CLI handler
 ze plugin test                   # Test plugin schema/config
 </code></pre>
-<!-- source: internal/component/plugin/cli/main.go -- Run -->
 <h3 id="ze-completion">ze completion</h3>
 <p>Generate shell completion scripts for bash, zsh, fish, and nushell. The scripts provide tab completion for subcommands, flags, plugin names, YANG schema modules, <code>show</code>/<code>run</code> command trees, and argument values (address families, log levels).</p>
 <pre><code>ze completion bash
@@ -4552,7 +4284,6 @@ ze completion nushell
 </tbody>
 </table>
 <p>Shell completion is registered by command name (<code>ze</code>), not by path. If using a local build (<code>./bin/ze</code>), ensure the binary is reachable as <code>ze</code> in your PATH for completion to activate.</p>
-<!-- source: internal/plugins/completion/main.go -- Run -->
 <h3 id="ze-env">ze env</h3>
 <p>Environment variable management.</p>
 <pre><code>ze env registered                # List all registered env vars + log subsystems
@@ -4576,8 +4307,6 @@ ze env get ze.log.bgp.reactor    # Inspect a concrete log-subsystem key
 </tbody>
 </table>
 <p>Shell completion offers env keys after <code>ze env get</code> and <code>ze env registered</code> via <code>ze completion words env</code>. Concrete <code>ze.log.&lt;subsystem&gt;</code> keys that appear in <code>ze env list</code> are completable and inspectable.</p>
-<!-- source: internal/plugins/env/env.go -- Run -->
-<!-- source: internal/core/envcatalog/catalog.go -- VisibleEntries -->
 <h3 id="ze-resolve">ze resolve</h3>
 <p>Query DNS, Team Cymru, PeeringDB, and IRR resolution services. Offline tool -- no running daemon required.</p>
 <pre><code>ze resolve dns a example.com                           # IPv4 address records
@@ -4613,16 +4342,14 @@ ze resolve rir 15169                                   # Which registry holds an
 <tr>
 <td><code>--url &lt;url&gt;</code></td>
 <td>peeringdb</td>
-<td>Override PeeringDB API base URL <!-- source: internal/component/resolve/cli/main.go -- Run --></td>
+<td>Override PeeringDB API base URL</td>
 </tr>
 </tbody>
 </table>
 <h3 id="le-perf">le perf</h3>
 <p>BGP propagation latency benchmark tool, run by the development tool <code>le</code>.</p>
-<!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
 <p><code>le perf send</code> runs one benchmark against a DUT, <code>le perf compare</code> compares
 result files, and <code>le perf track</code> follows the history.</p>
-<!-- source: internal/le/perf/actions.go -- programVerbs -->
 <pre><code>./le perf &lt;command&gt; [flags]
 </code></pre>
 <table>
@@ -4651,7 +4378,6 @@ result files, and <code>le perf track</code> follows the history.</p>
 <p>Run a BGP propagation benchmark against a device under test (DUT). Establishes
 sender and receiver sessions with the DUT, injects routes from the sender, and
 measures how quickly they propagate through to the receiver.</p>
-<!-- source: internal/perf/cli/cmd_run.go -- run subcommand -->
 <pre><code>./le perf send --dut-addr 172.31.0.2 --dut-asn 65000
 ./le perf send --dut-addr 172.31.0.5 --dut-asn 65000 --dut-name gobgp --routes 10000 --json
 ./le perf send --dut-addr 172.31.0.2 --dut-asn 65000 --family ipv6/unicast
@@ -4880,11 +4606,9 @@ measures how quickly they propagate through to the receiver.</p>
 </table>
 <p>Every result JSON carries a <code>pass</code> field naming the pass it measured,
 <code>live-forwarding</code> or <code>rib-propagation</code> (<a href="../benchmarking/#passes">Passes</a>).</p>
-<!-- source: internal/perf/result.go -- Pass -->
 <p>Exit codes: 0 = success, 1 = error (missing flags, validation failure, benchmark failure).</p>
 <h4 id="le-perf-compare">le perf compare</h4>
 <p>Generate a comparison report from one or more result JSON files.</p>
-<!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
 <pre><code>./le perf compare result-ze.json result-gobgp.json
 ./le perf compare --html result-ze.json result-gobgp.json &gt; report.html
 </code></pre>
@@ -4933,10 +4657,8 @@ explicit zero is valid. Older lossy duplicates are not silently discarded.
 There is no JSON comparison format: raw result JSON remains diagnostic evidence,
 including loss. Stdout write errors fail the command without rolling back bytes
 already written; shell redirection itself may truncate a destination first.</p>
-<!-- source: internal/perf/report/markdown.go -- latestComparisonResults -->
 <h4 id="le-perf-track">le perf track</h4>
 <p>Track performance history and detect regressions from an NDJSON file.</p>
-<!-- source: internal/perf/cli/cmd_track.go -- track subcommand -->
 <pre><code>./le perf track history.ndjson
 ./le perf track --check history.ndjson
 ./le perf track --html history.ndjson &gt; trend.html
@@ -4996,7 +4718,6 @@ already written; shell redirection itself may truncate a destination first.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/perf/regression.go -- regression detection thresholds -->
 <p>Exit codes: 0 = no regression (or report mode), 1 = regression detected or error.</p>
 <p>Every history row is validated before <code>--last</code> filters the window, including in
 <code>--check</code> mode. Nonzero loss or missing/null convergence anywhere in the input
@@ -5036,8 +4757,6 @@ calls the same producer, so the answer is the one <code>ze &lt;verb&gt;</code> p
 <code>--format &lt;format&gt;</code>. The flag has no default of its own. A command that names no
 format is rendered in the configured default, the <code>environment cli format default</code> leaf. A format pipe inside the command wins over the flag, so
 <code>ze cli -c "show bgp peer list | json compact"</code> prints JSON.</p>
-<!-- source: internal/component/cli/client/main.go -- Run, commandWithFormat -->
-<!-- source: internal/component/command/pipe.go -- HasFormatPipe -->
 <h3 id="peer-selector">Peer Selector</h3>
 <p>Many commands take a <code>peer &lt;selector&gt;</code> argument:</p>
 <table>
@@ -5082,7 +4801,7 @@ format is rendered in the configured default, the <code>environment cli format d
 <tr>
 <td>ASN exclusion</td>
 <td><code>peer !as65001</code></td>
-<td>All except peers with this ASN <!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel; internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handler --></td>
+<td>All except peers with this ASN</td>
 </tr>
 </tbody>
 </table>
@@ -5099,7 +4818,7 @@ format is rendered in the configured default, the <code>environment cli format d
 <tr>
 <td><code>show bgp peer list</code></td>
 <td>read-only</td>
-<td>List all peers (IP, ASN, state, uptime). A dynamic peer whose OPEN has not arrived has no AS yet, so its row carries no <code>remote-as</code> rather than AS 0; <code>show bgp</code>, <code>show bgp peer &lt;sel&gt; detail</code> and the <code>as</code> of <code>show bgp health</code> do the same <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- setRemoteAS; internal/component/bgp/plugins/cmd/peer/health.go -- handleShowBGPHealth --></td>
+<td>List all peers (IP, ASN, state, uptime). A dynamic peer whose OPEN has not arrived has no AS yet, so its row carries no <code>remote-as</code> rather than AS 0; <code>show bgp</code>, <code>show bgp peer &lt;sel&gt; detail</code> and the <code>as</code> of <code>show bgp health</code> do the same</td>
 </tr>
 <tr>
 <td><code>show bgp peer &lt;sel&gt; detail</code></td>
@@ -5129,7 +4848,7 @@ format is rendered in the configured default, the <code>environment cli format d
 <tr>
 <td><code>show bgp update-delay</code></td>
 <td>read-only</td>
-<td>The startup convergence hold: whether this speaker is withholding its first advertisement, which condition ended a hold that has finished (<code>converged</code>, <code>establish-wait</code>, <code>max-delay</code>), and how many of the expected peers have converged. Read it when a speaker has come up and advertised nothing: it separates a working hold from a wedged daemon <!-- source: internal/component/bgp/plugins/cmd/peer/update_delay.go -- handleBgpUpdateDelay --></td>
+<td>The startup convergence hold: whether this speaker is withholding its first advertisement, which condition ended a hold that has finished (<code>converged</code>, <code>establish-wait</code>, <code>max-delay</code>), and how many of the expected peers have converged. Read it when a speaker has come up and advertised nothing: it separates a working hold from a wedged daemon</td>
 </tr>
 <tr>
 <td><code>show bgp &lt;afi/safi&gt;</code></td>
@@ -5154,27 +4873,27 @@ format is rendered in the configured default, the <code>environment cli format d
 <tr>
 <td><code>request peer &lt;sel&gt; notify &lt;code&gt; &lt;subcode&gt; [&lt;text&gt;]</code></td>
 <td>write</td>
-<td>Close one peer's session with a NOTIFICATION of exactly that error code and subcode (each 0 to 255, assigned or not). The text, as UTF-8, is the RFC 9003 Shutdown Communication under Cease 2 and 4 and the Data field under every other pair; no text sends no Data. A text that does not fit is refused and the session stays up: more than 128 octets under Cease 2 and 4 (RFC 9003 Section 3, as Ze cannot know the peer takes 255), more than 4075 octets otherwise, or text that is not valid UTF-8. Every word after the subcode is the text, so a text can hold the words <code>code</code>, <code>subcode</code>, <code>text</code> or <code>hex</code>; a text whose first word is <code>text</code> or <code>hex</code> is typed after the keyword <code>text</code>. The keyword form <code>notify code &lt;code&gt; subcode &lt;subcode&gt; [text &lt;text&gt; | hex &lt;octets&gt;]</code> is the same command, and the one MCP and the web form send. One specific peer only <!-- source: internal/component/bgp/plugins/cmd/peer/notify.go -- handlePeerNotify; internal/component/bgp/message/notification.go -- BuildTeardownData --></td>
+<td>Close one peer's session with a NOTIFICATION of exactly that error code and subcode (each 0 to 255, assigned or not). The text, as UTF-8, is the RFC 9003 Shutdown Communication under Cease 2 and 4 and the Data field under every other pair; no text sends no Data. A text that does not fit is refused and the session stays up: more than 128 octets under Cease 2 and 4 (RFC 9003 Section 3, as Ze cannot know the peer takes 255), more than 4075 octets otherwise, or text that is not valid UTF-8. Every word after the subcode is the text, so a text can hold the words <code>code</code>, <code>subcode</code>, <code>text</code> or <code>hex</code>; a text whose first word is <code>text</code> or <code>hex</code> is typed after the keyword <code>text</code>. The keyword form <code>notify code &lt;code&gt; subcode &lt;subcode&gt; [text &lt;text&gt; | hex &lt;octets&gt;]</code> is the same command, and the one MCP and the web form send. One specific peer only</td>
 </tr>
 <tr>
 <td><code>request peer &lt;sel&gt; notify &lt;code&gt; &lt;subcode&gt; hex &lt;octets&gt;</code></td>
 <td>write</td>
-<td>The same, with the Data field given verbatim as one word of hexadecimal digits, two per octet (<code>request peer 192.0.2.1 notify 6 2 hex 0474657374</code>). Ze sends the octets as they are, with no encoding and no check of their content, so the form can test how a peer handles a malformed Data field. More than 4075 octets (8150 digits), an odd number of digits, or a character other than 0-9, a-f or A-F is refused and the session stays up. The ExaBGP bridge sends this form for <code>teardown</code> <!-- source: internal/component/bgp/plugins/cmd/peer/notify.go -- notifyData --></td>
+<td>The same, with the Data field given verbatim as one word of hexadecimal digits, two per octet (<code>request peer 192.0.2.1 notify 6 2 hex 0474657374</code>). Ze sends the octets as they are, with no encoding and no check of their content, so the form can test how a peer handles a malformed Data field. More than 4075 octets (8150 digits), an odd number of digits, or a character other than 0-9, a-f or A-F is refused and the session stays up. The ExaBGP bridge sends this form for <code>teardown</code></td>
 </tr>
 <tr>
 <td><code>request peer &lt;sel&gt; disable [&lt;message&gt;]</code></td>
 <td>write</td>
-<td>Hold the peer administratively down: a running session closes with Cease subcode 2 (Administrative Shutdown) carrying the words after <code>disable</code> as the RFC 9003 Shutdown Communication, and ze opens no session and answers an inbound connection with Cease subcode 5 until <code>enable</code>. It overrides the config <code>shutdown</code> container until a commit adds or removes that container <!-- source: internal/component/bgp/plugins/cmd/peer/admin.go -- disable handler; internal/component/bgp/reactor/peer_admin.go -- Peer.Disable --></td>
+<td>Hold the peer administratively down: a running session closes with Cease subcode 2 (Administrative Shutdown) carrying the words after <code>disable</code> as the RFC 9003 Shutdown Communication, and ze opens no session and answers an inbound connection with Cease subcode 5 until <code>enable</code>. It overrides the config <code>shutdown</code> container until a commit adds or removes that container</td>
 </tr>
 <tr>
 <td><code>request peer &lt;sel&gt; enable</code></td>
 <td>write</td>
-<td>Release the hold of <code>disable</code> or of the config <code>shutdown</code> container; the peer connects straight away. Takes no argument <!-- source: internal/component/bgp/reactor/peer_admin.go -- Peer.Enable --></td>
+<td>Release the hold of <code>disable</code> or of the config <code>shutdown</code> container; the peer connects straight away. Takes no argument</td>
 </tr>
 <tr>
 <td><code>request peer &lt;sel&gt; flush</code></td>
 <td>write</td>
-<td>Block until all queued updates for peer are on the wire <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang --></td>
+<td>Block until all queued updates for peer are on the wire</td>
 </tr>
 </tbody>
 </table>
@@ -5191,17 +4910,14 @@ Ze announces to that peer for each prefix. The <code>receive</code> map holds th
 advertised, which is what Ze asked the peer for. A family with ADD-PATH and no
 limit is in neither map, because no limit is not a limit of zero. The same
 object appears under <code>capabilities</code> on <code>show bgp peer &lt;sel&gt; detail</code>.</p>
-<!-- source: internal/component/bgp/plugins/cmd/peer/fields.go -- addPathsLimitFields -->
 <p>Until 2026-08 each command answered a bare object for one matched peer and an
 array for several. <code>show bgp peer * statistics | count</code> therefore answered on a
 router with three peers, and was refused on a router with one. A script that
 reads the single-peer form must now read the first element of <code>peers</code>.</p>
-<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpPeerCapabilities, handleBgpPeerStatistics -->
 <p>Peer rows come in ascending order of peer address and port. This holds for every
 command that reads the reactor's peer table, <code>show bgp</code>, <code>show bgp health</code> and
 these two included. The order was the Go map order until 2026-08, so <code>| first 1</code>
 answered a different peer on each call.</p>
-<!-- source: internal/component/bgp/reactor/reactor_api.go -- reactorAPIAdapter.Peers -->
 <h3 id="policy-test-dry-run">Policy Test (Dry-Run)</h3>
 <table>
 <thead>
@@ -5254,21 +4970,17 @@ changes. For a known EBGP session, an absent direction has a rejecting final.
 <code>final-source: rfc8212</code> marks the RFC 8212 default reject on an EBGP direction
 with no policy, and <code>undetermined</code> an absent direction whose session type is not
 known yet.</p>
-<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 <p>The chain <code>show policy chain</code> and <code>show policy test</code> read is the peer's
 effective chain, so it carries the members a plugin inserted as well as the
 ones the operator named: on a peer with an RFC 9234 role, the upstream check
 <code>bgp-role:upstream-asn</code> appears in the import chain of a <code>provider</code>, <code>peer</code> or
 <code>rs</code> session and in the export chain of a <code>peer</code> or <code>rs-client</code> session
 (<a href="../bgp-role/">BGP roles</a>, "The Upstream Check a Role Inserts").</p>
-<!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- toPolicyChain -->
-<!-- source: internal/component/bgp/config/filter_insertion.go -- insertForPeer -->
 <p><code>text-before</code> and <code>text-after</code> name every attribute the UPDATE carries. Five of
 those names first appeared on 2026-09-04: <code>origin</code>, <code>med</code>, <code>local-preference</code>,
 <code>atomic-aggregate</code> and <code>cluster-list</code>. The renderer named a Go type no parser
 built for each of them, so the dry-run output was silent about all five.</p>
 <p>This command does not forward routes, update the RIB, populate cache, or mutate peer state.</p>
-<!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- handleShowPolicyTest -->
 <h3 id="set-commands">Set Commands</h3>
 <table>
 <thead>
@@ -5378,10 +5090,6 @@ built for each of them, so the dry-run output was silent about all five.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/setparser_inline.go -- ParseInlineArgs YANG-driven parser -->
-<!-- source: internal/component/config/setparser.go -- parseSet structural-only commands -->
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- grouping peer-fields, the source of every key in this table -->
-<!-- source: internal/component/plugin/types_bgp.go -- AddDynamicPeer, which takes the parsed peer-fields tree -->
 <h3 id="create-commands">Create Commands</h3>
 <table>
 <thead>
@@ -5395,7 +5103,7 @@ built for each of them, so the dry-run output was silent about all five.</p>
 <tr>
 <td><code>create bgp peer &lt;address&gt; asn &lt;asn&gt; [...]</code></td>
 <td>write</td>
-<td>Add a peer to the running daemon <!-- source: internal/component/bgp/plugins/cmd/peer/create.go -- handleBgpPeerCreate --></td>
+<td>Add a peer to the running daemon</td>
 </tr>
 </tbody>
 </table>
@@ -5412,11 +5120,9 @@ session and its routes; one that declares it, by its name or its address, makes
 it a configured peer from then on. <code>delete bgp peer</code> is how it leaves: it takes
 the peer out of the running daemon and out of the running configuration, and
 leaves the file on disk alone.</p>
-<!-- source: internal/component/bgp/reactor/reactor_api.go -- ReloadRunning, SetConfigTree -->
 <p><code>update bgp config</code> is what makes either change permanent. It writes the running
 peer set into the file: a peer created here is added to it, and a peer the file
 declares that <code>delete bgp peer</code> removed is taken out of it.</p>
-<!-- source: internal/component/bgp/plugins/cmd/peer/save.go -- handleBgpPeerSave -->
 <h3 id="del-commands">Del Commands</h3>
 <table>
 <thead>
@@ -5430,7 +5136,7 @@ declares that <code>delete bgp peer</code> removed is taken out of it.</p>
 <tr>
 <td><code>delete bgp peer &lt;sel&gt;</code></td>
 <td>write</td>
-<td>Remove peer <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handleBgpPeerDelete --></td>
+<td>Remove peer</td>
 </tr>
 </tbody>
 </table>
@@ -5447,7 +5153,6 @@ withdrawals and EOR, and removes announcements from mixed UPDATEs. Opaque bytes
 that cannot be proved safe, including a control packet followed by an UPDATE,
 are suppressed when export rejects. A complete, recognized non-UPDATE control
 packet is unaffected. Raw AS_SET diagnostics remain available when export accepts.</p>
-<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody, SendRawMessage, rawControlPacket -->
 <p>On-demand origination, tracked by tag so a later withdraw can name it:</p>
 <pre><code>send bgp &lt;sel&gt; unicast &lt;prefix&gt; [next-hop &lt;address&gt;] [community &lt;value&gt; ...] [tag &lt;key&gt; &lt;value&gt;] [for &lt;duration&gt;]
 send bgp &lt;sel&gt; blackhole &lt;prefix&gt; [tag &lt;key&gt; &lt;value&gt;] [for &lt;duration&gt;]
@@ -5459,8 +5164,6 @@ send bgp &lt;sel&gt; withdraw all
 <p>A flowspec rule takes exactly one action, and <code>ze send bgp flowspec help</code> lists
 the seventeen match components. A word that no option claims is refused and
 names that word, so <code>discard rate-limit 500</code> announces nothing.</p>
-<!-- source: internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang -- announce-forms, withdraw-forms -->
-<!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- parseTrailingOpts -->
 <p>Text format attributes:</p>
 <table>
 <thead>
@@ -5507,7 +5210,6 @@ names that word, so <code>discard rate-limit 500</code> announces nothing.</p>
 <p>NLRI operations: <code>nlri add &lt;prefixes&gt;</code>, <code>nlri del &lt;prefixes&gt;</code> and <code>nlri eor</code> for IPv4
 unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;family&gt; del &lt;prefixes&gt;</code> and
 <code>mp &lt;family&gt; eor</code> for every other family.</p>
-<!-- source: internal/component/bgp/plugins/cmd/update/ -- update text/hex/b64 parsing; internal/component/bgp/plugins/cmd/raw/ -- raw message injection -->
 <h3 id="rib-commands">RIB Commands</h3>
 <table>
 <thead>
@@ -5531,7 +5233,7 @@ unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;famil
 <tr>
 <td><code>show bgp rib | received</code></td>
 <td>read-only</td>
-<td>Stream received routes only. Each row carries <code>age</code>, the whole seconds since the route's stored attributes last changed: an equal re-announcement keeps it growing, and a daemon restart starts every route again <!-- source: internal/component/bgp/plugins/rib/rib_route_age.go -- writeRouteAge --></td>
+<td>Stream received routes only. Each row carries <code>age</code>, the whole seconds since the route's stored attributes last changed: an equal re-announcement keeps it growing, and a daemon restart starts every route again</td>
 </tr>
 <tr>
 <td><code>show bgp rib | advertised</code></td>
@@ -5546,17 +5248,17 @@ unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;famil
 <tr>
 <td><code>show bgp rib | received | covering &lt;address&gt;</code></td>
 <td>read-only</td>
-<td>Stream the received routes whose prefix contains the address, most specific first within each peer; refused on advertised routes and on <code>show bgp rib best</code> <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, refuseCoveringScope, coveringOnBestRefusal --></td>
+<td>Stream the received routes whose prefix contains the address, most specific first within each peer; refused on advertised routes and on <code>show bgp rib best</code></td>
 </tr>
 <tr>
 <td><code>show bgp rib | received | exact &lt;prefix&gt;</code></td>
 <td>read-only</td>
-<td>Stream the received routes of exactly that prefix, every ADD-PATH path of it, for example <code>show bgp rib | received | exact 10.0.0.0/8</code>; <code>prefix</code> is a text filter that also matches longer prefixes sharing its leading text. Refused on advertised routes, on <code>show bgp rib best</code>, and beside <code>covering</code> <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseExactPrefix, refuseExactScope, exactOnBestRefusal, walkConflictRefusal --></td>
+<td>Stream the received routes of exactly that prefix, every ADD-PATH path of it, for example <code>show bgp rib | received | exact 10.0.0.0/8</code>; <code>prefix</code> is a text filter that also matches longer prefixes sharing its leading text. Refused on advertised routes, on <code>show bgp rib best</code>, and beside <code>covering</code></td>
 </tr>
 <tr>
 <td><code>show bgp rib | path &lt;pattern&gt;</code></td>
 <td>read-only</td>
-<td>Stream the routes whose AS path matches the pattern: AS numbers joined by commas, matched as a run anywhere in the path. <code>^</code> first ties the run to the start of the path and <code>$</code> last ties it to the end, so <code>path 65001$</code> lists the routes AS 65001 originates and <code>path ^65010,65001$</code> lists the routes whose path is exactly those two AS numbers. A <code>$</code> anywhere but directly after the last AS number is refused. <code>show bgp rib best</code> takes the same filter <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePathPattern, pathPattern.matches --></td>
+<td>Stream the routes whose AS path matches the pattern: AS numbers joined by commas, matched as a run anywhere in the path. <code>^</code> first ties the run to the start of the path and <code>$</code> last ties it to the end, so <code>path 65001$</code> lists the routes AS 65001 originates and <code>path ^65010,65001$</code> lists the routes whose path is exactly those two AS numbers. A <code>$</code> anywhere but directly after the last AS number is refused. <code>show bgp rib best</code> takes the same filter</td>
 </tr>
 <tr>
 <td><code>show bgp rib best</code></td>
@@ -5581,7 +5283,7 @@ unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;famil
 <tr>
 <td><code>clear bgp rib out-excluding-owner owner &lt;id&gt; [family &lt;family&gt;]</code></td>
 <td>write</td>
-<td>Replay to live destinations except one nonzero unsigned 64-bit configured owner. Same-address owners remain separate. Ordinary destinations use selected routes; auxiliary destinations use retained SENT attributes. Completion waits for the captured session's output; a replaced or unresolved destination is refused. Returns refreshed and refused destination counts. <!-- source: internal/component/bgp/plugins/rib/rib_resend_excluding_owner.go -- parseOwnerExcludedResend, resend --></td>
+<td>Replay to live destinations except one nonzero unsigned 64-bit configured owner. Same-address owners remain separate. Ordinary destinations use selected routes; auxiliary destinations use retained SENT attributes. Completion waits for the captured session's output; a replaced or unresolved destination is refused. Returns refreshed and refused destination counts.</td>
 </tr>
 <tr>
 <td><code>request bgp rib source retain-routes owner &lt;id&gt; connection &lt;id&gt; on-down families &lt;afi/safi&gt;...</code></td>
@@ -5626,12 +5328,12 @@ unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;famil
 <tr>
 <td><code>show bgp rib rpf &lt;family&gt; &lt;source-addr&gt;</code></td>
 <td>read</td>
-<td>RPF lookup: longest-prefix-match against Loc-RIB for CIDR families <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin --></td>
+<td>RPF lookup: longest-prefix-match against Loc-RIB for CIDR families</td>
 </tr>
 <tr>
 <td><code>show rib candidates [prefix &lt;prefix&gt;]</code></td>
 <td>read-only</td>
-<td>Every Loc-RIB path each protocol offered, selected, standing by or hidden by an import chain, with <code>hidden-by</code> and <code>chain</code> on a hidden path ("Seeing the hidden paths") <!-- source: internal/component/sysrib/route_view_candidates.go -- readCandidates -->. <span class="ev-src"><span class="ev-ref"><code>docs/guide/route-policy.md</code></span></span></td>
+<td>Every Loc-RIB path each protocol offered, selected, standing by or hidden by an import chain, with <code>hidden-by</code> and <code>chain</code> on a hidden path ("Seeing the hidden paths"). <span class="ev-src"><span class="ev-ref"><code>docs/guide/route-policy.md</code></span></span></td>
 </tr>
 </tbody>
 </table>
@@ -5640,9 +5342,6 @@ and <code>show ecmp-groups</code> in either internal or external placement. Cand
 queries read the daemon's full Loc-RIB. The other commands read the selected
 worker's route cache, recursive next hops and equal-cost groups. An unavailable
 authority returns an error, rather than an empty candidate table.</p>
-<!-- source: internal/component/sysrib/register.go -- routeViewCommandHandler -->
-<!-- source: internal/component/sysrib/route_view_worker_operations.go -- candidates, enqueue, stoppedError -->
-<!-- source: internal/component/sysrib/route_view.go -- open -->
 <h3 id="irr-filter-commands">IRR Filter Commands</h3>
 <table>
 <thead>
@@ -5666,17 +5365,17 @@ authority returns an error, rather than an empty candidate table.</p>
 <tr>
 <td><code>show bgp irr check &lt;peer&gt; &lt;prefix&gt;</code></td>
 <td>read-only</td>
-<td>Test whether a prefix would be accepted by the IRR filter. The IRR fetch commands are the <code>irr</code> plugin's (<code>update irr ...</code>, "show, update and clear irr") <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck --></td>
+<td>Test whether a prefix would be accepted by the IRR filter. The IRR fetch commands are the <code>irr</code> plugin's (<code>update irr ...</code>, "show, update and clear irr")</td>
 </tr>
 <tr>
 <td><code>update bgp peer &lt;sel&gt; prefix</code></td>
 <td>write</td>
-<td>Refresh max-prefix limits from PeeringDB (saves to draft; run <code>config commit</code> to apply) <!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- handleBgpPeerPrefixUpdate --></td>
+<td>Refresh max-prefix limits from PeeringDB (saves to draft; run <code>config commit</code> to apply)</td>
 </tr>
 <tr>
 <td><code>update bgp config</code></td>
 <td>write</td>
-<td>Write the running peer set to the configuration file: a peer <code>create bgp peer</code> built is added, and a peer <code>delete bgp peer</code> removed is taken out. Takes no selector <!-- source: internal/component/bgp/plugins/cmd/peer/save.go -- handleBgpPeerSave --></td>
+<td>Write the running peer set to the configuration file: a peer <code>create bgp peer</code> built is added, and a peer <code>delete bgp peer</code> removed is taken out. Takes no selector</td>
 </tr>
 </tbody>
 </table>
@@ -5703,7 +5402,7 @@ authority returns an error, rather than an empty candidate table.</p>
 <tr>
 <td><code>show bgp reject-asn known transit-free</code></td>
 <td>read-only</td>
-<td>Print the well-known transit-free ASNs as an <code>indirect [ ... ];</code> block to paste inside a <code>reject-asn</code> list, with the sources and the curated date as comments <!-- source: internal/component/bgp/plugins/filter_path_asn/command.go -- handleCommand, showRejectASN, showRejectASNName, showKnownTransitFree --></td>
+<td>Print the well-known transit-free ASNs as an <code>indirect [ ... ];</code> block to paste inside a <code>reject-asn</code> list, with the sources and the curated date as comments</td>
 </tr>
 </tbody>
 </table>
@@ -5713,7 +5412,6 @@ that ASN, and an invented network name would be an input to it.</p>
 <p>Ze acts on no ASN it was not configured with, so <code>known transit-free</code> is how the
 well-known set reaches a config. After the paste the config holds the numbers,
 and a later change to the curated table cannot alter what that config does.</p>
-<!-- source: internal/component/bgp/plugins/filter_path_asn/curated.go -- curatedTransitFree, curatedAnnotation -->
 <h3 id="healthcheck-commands">Healthcheck Commands</h3>
 <table>
 <thead>
@@ -5737,7 +5435,7 @@ and a later change to the curated table cannot alter what that config does.</p>
 <tr>
 <td><code>clear bgp healthcheck &lt;name&gt;</code></td>
 <td>write</td>
-<td>Withdraw route, reset FSM to INIT, and re-check once the old probe's exit has finished: its withdraw command returned, whether it succeeded, failed or timed out after 5 s, and its IPs were removed. A withdraw that failed or timed out leaves the route announced while the probe re-checks. The reply can return before the withdraw has run. Error if DISABLED. <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow, handleReset --></td>
+<td>Withdraw route, reset FSM to INIT, and re-check once the old probe's exit has finished: its withdraw command returned, whether it succeeded, failed or timed out after 5 s, and its IPs were removed. A withdraw that failed or timed out leaves the route announced while the probe re-checks. The reply can return before the withdraw has run. Error if DISABLED.</td>
 </tr>
 </tbody>
 </table>
@@ -5745,7 +5443,6 @@ and a later change to the curated table cannot alter what that config does.</p>
 either. The two answers carry different field sets on purpose. Each row
 therefore carries its own keys, no column order fits both, and the command
 declares <code>map</code> rather than <code>tab</code>. <code>| fill</code> is refused by name.</p>
-<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- commandDecls -->
 <h3 id="bmp-rfc-7854">BMP (RFC 7854)</h3>
 <table>
 <thead>
@@ -5774,7 +5471,7 @@ declares <code>map</code> rather than <code>tab</code>. <code>| fill</code> is r
 <tr>
 <td><code>show bmp rib</code></td>
 <td>read-only</td>
-<td>Show BMP-monitored routes <!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy --></td>
+<td>Show BMP-monitored routes</td>
 </tr>
 </tbody>
 </table>
@@ -5829,7 +5526,6 @@ declares <code>map</code> rather than <code>tab</code>. <code>| fill</code> is r
 <code>eor</code>, <code>rollback</code>, <code>show</code>, <code>withdraw</code>). The old grammar <code>commit &lt;name&gt; &lt;action&gt;</code>
 is accepted with a deprecation warning but does not work when the name equals
 a keyword.</p>
-<!-- source: internal/component/bgp/plugins/cmd/commit/ -- commit command RPCs -->
 <h3 id="cache-commands">Cache Commands</h3>
 <table>
 <thead>
@@ -5868,7 +5564,6 @@ a keyword.</p>
 </tbody>
 </table>
 <p>Batch operations: <code>send bgp &lt;selector&gt; cached &lt;id1&gt;,&lt;id2&gt;</code>.</p>
-<!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- module ze-cli-cache-cmd -->
 <h3 id="static-routes">Static Routes</h3>
 <table>
 <thead>
@@ -5887,7 +5582,6 @@ a keyword.</p>
 </tbody>
 </table>
 <p>The static route plugin programs routes directly to the kernel (netlink multipath) or VPP. It auto-loads when the config contains a <code>static { }</code> section. See <a href="../static-routes/">Static Routes Guide</a>.</p>
-<!-- source: internal/plugins/static/cmd_show.go -- ForwardToPlugin proxy -->
 <h3 id="sysctl-kernel-tunables">Sysctl (Kernel Tunables)</h3>
 <table>
 <thead>
@@ -5934,8 +5628,6 @@ a keyword.</p>
 <p>Config example: <code>sysctl { setting net.ipv4.conf.all.forwarding { value 1; } }</code></p>
 <p>Named profiles group co-dependent tunables for common use cases. Apply them per interface unit: <code>sysctl-profile [ dsr hardened ]</code>. Built-in profiles: <code>dsr</code>, <code>router</code>, <code>hardened</code>, <code>multihomed</code>, <code>proxy</code>. User-defined profiles declared in <code>sysctl { profile &lt;name&gt; { ... } }</code>.</p>
 <p>When fib-kernel is loaded, it automatically enables IPv4 and IPv6 forwarding as defaults.</p>
-<!-- source: internal/component/sysctl/register.go -- OnExecuteCommand, CommandDecl -->
-<!-- source: internal/core/sysctl/profiles.go -- ProfileDef, builtinProfiles -->
 <h3 id="l2tpv2-operational">L2TPv2 (Operational)</h3>
 <table>
 <thead>
@@ -6093,10 +5785,6 @@ logical removal alone does not report success.</p>
 <code>tunnel-id</code>, so equal numeric session IDs remain distinguishable. A detail
 history read uses its captured original rather than looking the ID up again.
 The existing bare and <code>all</code> observer summary forms remain available.</p>
-<!-- source: internal/component/l2tp/cmd/l2tp.go -- handleObserver -->
-<!-- source: internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang -->
-<!-- source: internal/component/l2tp/cmd/l2tp.go -- handleSessionTeardown, parseKeywordArgs, sessionJSON -->
-<!-- source: internal/component/l2tp/iccn_proxy.go -- proxyAuthReasonNoSharedSecret, proxyAuthReasonNoAuth, proxyAuthReasonTooLarge -->
 <h3 id="pppoe-commands">PPPoE Commands</h3>
 <table>
 <thead>
@@ -6134,8 +5822,6 @@ The existing bare and <code>all</code> observer summary forms remain available.<
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/l2tp/pppoe/cmd/yang/ze-pppoe-cmd.yang -->
-<!-- source: internal/component/l2tp/pppoe/cmd/pppoe.go -- RPC handlers -->
 <h3 id="l2tpv2-web-ui">L2TPv2 Web UI</h3>
 <p>The web interface at <code>/l2tp</code> provides session management and CQM graphing.</p>
 <table>
@@ -6182,7 +5868,6 @@ The existing bare and <code>all</code> observer summary forms remain available.<
 <p>Disconnect is gated by authz: the <code>clear</code> prefix is denied in the built-in read-only profile.
 The CQM chart uses vendored uPlot rendered client-side with CSS color variables
 (<code>--color-l2tp-established</code>, <code>--color-l2tp-negotiating</code>, <code>--color-l2tp-down</code>).</p>
-<!-- source: internal/component/web/handler_l2tp.go -->
 <h3 id="l2tpv2-offline-tools">L2TPv2 (Offline Tools)</h3>
 <table>
 <thead>
@@ -6210,7 +5895,6 @@ array. Each AVP carries its vendor, numeric type, RFC 2661 catalog name
 </code></pre>
 <p>Exit code is 0 on successful parse, 1 on invalid hex, truncated header, or
 malformed AVPs; stderr carries the reason.</p>
-<!-- source: internal/component/l2tp/cli/decode.go -- cmdDecode, avpName -->
 <h3 id="event-monitoring">Event Monitoring</h3>
 <pre><code>monitor event [include|exclude &lt;types&gt;] [peer &lt;sel&gt;] [direction &lt;dir&gt;]
 </code></pre>
@@ -6242,7 +5926,6 @@ malformed AVPs; stderr carries the reason.</p>
 </table>
 <p>The <code>include</code> and <code>exclude</code> filters are mutually exclusive.</p>
 <p>Streaming command: use in interactive <code>ze cli</code> or via SSH. <code>monitor bgp</code> (no <code>event</code>) is a separate command: the live peer dashboard, documented in the <a href="../monitoring/">Monitoring guide</a>.</p>
-<!-- source: internal/plugins/meta/yang/ze-command-monitor-cmd.yang -- module ze-command-monitor-cmd; internal/component/bgp/plugins/cmd/monitor/yang/ze-monitor-cmd.yang -- module ze-monitor-cmd; internal/component/plugin/server/event_monitor.go -- ParseEventMonitorArgs -->
 <h3 id="netlink-monitoring">Netlink Monitoring</h3>
 <pre><code>monitor system netlink [route|link|address|all]
 </code></pre>
@@ -6274,14 +5957,12 @@ malformed AVPs; stderr carries the reason.</p>
 </tbody>
 </table>
 <p>Streaming command: use in interactive <code>ze cli</code> or via SSH. Press Esc to stop.</p>
-<!-- source: internal/component/iface/cmd/monitor_netlink_linux.go -- streamNetlinkMonitor -->
 <h3 id="interface-rate-monitoring">Interface Rate Monitoring</h3>
 <pre><code>monitor interface rate [&lt;name&gt;]
 </code></pre>
 <p>Stream per-second interface rate data as JSON lines (one line per tick, 1s interval). Without a name, streams all interfaces sorted by name. With a name, streams only that interface.</p>
 <p>Each JSON line contains: <code>name</code>, <code>rx-bps</code>, <code>tx-bps</code>, <code>rx-pps</code>, <code>tx-pps</code>, and the raw kernel <code>stats</code> snapshot (8 counters). Rate values are computed from raw kernel counter deltas; counter wraps produce 0 rather than negative spikes.</p>
 <p>Streaming command: use in interactive <code>ze cli</code> or via SSH. Press Esc to stop.</p>
-<!-- source: internal/component/iface/cmd/interface_rate.go -- streamInterfaceRate -->
 <h3 id="metrics">Metrics</h3>
 <table>
 <thead>
@@ -6305,7 +5986,7 @@ malformed AVPs; stderr carries the reason.</p>
 <tr>
 <td><code>show metrics pool</code></td>
 <td>read-only</td>
-<td>Per-attribute-pool occupancy, dedup rates, and aggregate totals (13 BGP pools) <!-- source: internal/component/cmd/metrics/ -- show metrics values/list/pool RPCs --></td>
+<td>Per-attribute-pool occupancy, dedup rates, and aggregate totals (13 BGP pools)</td>
 </tr>
 </tbody>
 </table>
@@ -6337,7 +6018,6 @@ malformed AVPs; stderr carries the reason.</p>
 </tbody>
 </table>
 <p>Levels: debug, info, warn, err, disabled.</p>
-<!-- source: internal/plugins/log/cmd/handlers.go -- show log levels/recent, request log level RPCs; internal/core/slogutil/slogutil.go -- level definitions -->
 <h3 id="debug-live-state">Debug (live state)</h3>
 <table>
 <thead>
@@ -6358,7 +6038,6 @@ malformed AVPs; stderr carries the reason.</p>
 <p>Unlike <code>show debug profile name &lt;name&gt;</code> (offline, reads a stored profile from debug.zefs),
 <code>show debug</code> queries the daemon's actual runtime slogutil state. Use this to verify what is
 active after enabling debug or applying a profile.</p>
-<!-- source: internal/plugins/debug/cmd/handlers.go -- show debug RPC -->
 <h3 id="plugin-configuration-from-plugin-context">Plugin Configuration (from plugin context)</h3>
 <table>
 <thead>
@@ -6382,7 +6061,7 @@ active after enabling debug or applying a profile.</p>
 <tr>
 <td><code>bgp plugin ack &lt;sync|async&gt;</code></td>
 <td>write</td>
-<td>Set ACK timing <!-- source: internal/component/cmd/subscribe/ -- subscribe/unsubscribe RPCs --></td>
+<td>Set ACK timing</td>
 </tr>
 </tbody>
 </table>
@@ -6419,37 +6098,37 @@ active after enabling debug or applying a profile.</p>
 <tr>
 <td><code>show command reference [cli] [api] [mcp] [dispatch] [all]</code></td>
 <td>read-only</td>
-<td>The agent reference built from this binary's registries: the daemon form of <code>ze help ai</code> <!-- source: internal/plugins/help/yang/ze-help-cmd.yang -- module ze-help-cmd --></td>
+<td>The agent reference built from this binary's registries: the daemon form of <code>ze help ai</code></td>
 </tr>
 <tr>
 <td><code>show doctor [config &lt;file&gt;] [kernel-capabilities]</code></td>
 <td>read-only</td>
-<td>The readiness checks, with the daemon's plugin checks: the daemon form of <code>ze doctor</code> <!-- source: internal/component/doctor/yang/ze-doctor-cmd.yang -- container doctor --></td>
+<td>The readiness checks, with the daemon's plugin checks: the daemon form of <code>ze doctor</code></td>
 </tr>
 <tr>
 <td><code>request fleet disable</code></td>
 <td>write</td>
-<td>Leave the fleet: store the managed flag as false, end the hub connection and answer once it has ended. Needs no hub and no connection <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container disable --></td>
+<td>Leave the fleet: store the managed flag as false, end the hub connection and answer once it has ended. Needs no hub and no connection</td>
 </tr>
 <tr>
 <td><code>request fleet enable</code></td>
 <td>write</td>
-<td>Rejoin the fleet: store the managed flag as true and start the hub client with no restart, or, in a daemon that started unmanaged, at the next <code>ze start</code>. Refused while the configuration names no hub <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container enable --></td>
+<td>Rejoin the fleet: store the managed flag as true and start the hub client with no restart, or, in a daemon that started unmanaged, at the next <code>ze start</code>. Refused while the configuration names no hub</td>
 </tr>
 <tr>
 <td><code>show fleet status</code></td>
 <td>read-only</td>
-<td>Whether this device follows a hub, the hub its configuration declares, and its baseline and active hashes: the same answer <code>ze show fleet status</code> gives <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container fleet --></td>
+<td>Whether this device follows a hub, the hub its configuration declares, and its baseline and active hashes: the same answer <code>ze show fleet status</code> gives</td>
 </tr>
 <tr>
 <td><code>show event list</code></td>
 <td>read-only</td>
-<td>List available event types <!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd --></td>
+<td>List available event types</td>
 </tr>
 <tr>
 <td><code>show event delivery</code></td>
 <td>read-only</td>
-<td>Show which peers feed which attached processes <!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- container delivery --></td>
+<td>Show which peers feed which attached processes</td>
 </tr>
 </tbody>
 </table>
@@ -6546,7 +6225,7 @@ active after enabling debug or applying a profile.</p>
 </tr>
 <tr>
 <td>Tab completion</td>
-<td>Contextual command/argument completion <!-- source: internal/component/cli/client/main.go -- pipe operators, interactive model --> <!-- source: internal/component/command/pipe.go -- pipe operator definitions --> <!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat --></td>
+<td>Contextual command/argument completion</td>
 </tr>
 <tr>
 <td>Command help at the prompt</td>
@@ -6561,8 +6240,6 @@ itself are registered in that process, so an alias a PLUGIN declares, such as
 <code>pipe error: unknown pipe operator: summary</code>. It resolves over
 <code>ze cli -c "&lt;command&gt;"</code> and in the interactive session a plain ssh client
 reaches, where the daemon expands the chain.</p>
-<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
-<!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <hr>
 <h2 id="signal-handling">Signal Handling</h2>
 <p>The daemon handles these Unix signals directly:</p>
@@ -6584,14 +6261,13 @@ reaches, where the daemon expands the chain.</p>
 </tr>
 <tr>
 <td><code>SIGUSR1</code></td>
-<td>Dump status to stderr <!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler, SIGTERM/SIGINT/SIGHUP/SIGUSR1 --></td>
+<td>Dump status to stderr</td>
 </tr>
 </tbody>
 </table>
 <h2 id="le-chaos-run">le chaos run</h2>
 <p>Chaos monkey for testing Ze BGP route server propagation. Run it as
 <code>./le chaos run &lt;flags&gt;</code>, which takes every flag below.</p>
-<!-- source: internal/le/chaos/run/run.go -- Answer -->
 <h3 id="ai-integration-flags">AI Integration Flags</h3>
 <table>
 <thead>
@@ -6619,7 +6295,6 @@ reaches, where the daemon expands the chain.</p>
 ./le chaos run --ze-mcp 9718 --peers 4             # Inject MCP into Ze config
 ./le chaos run --ai-help                           # Print tool schemas
 </code></pre>
-<!-- source: internal/chaos/orchestrator/cli.go -- CLI flags -->
 </div>
 </div>
             </section>
@@ -6669,7 +6344,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

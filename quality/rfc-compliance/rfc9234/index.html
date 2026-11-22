@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9234 requirements and tests - Ze</title>
-        <meta name="description" content="RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages. 19 mandatory requirements included in automatic checks, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages. 19 mandatory requirements included in automatic checks, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9234 requirements and tests - Ze" />
-        <meta property="og:description" content="RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages. 19 mandatory requirements included in automatic checks, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages. 19 mandatory requirements included in automatic checks, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9234 requirements and tests - Ze" />
-        <meta name="twitter:description" content="RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages. 19 mandatory requirements included in automatic checks, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 9234: Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages. 19 mandatory requirements included in automatic checks, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -128,16 +128,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>14</strong><b>of 19 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>15</strong><b>of 19 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 19 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 19 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 19 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>37</strong><b>37 of 71 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>47</strong><b>47 of 73 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>3</strong><b>of 19 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>2</strong><b>of 19 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 <article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>17</strong><b>of 19 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -239,7 +239,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>3</td>
+<td>2</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -251,16 +251,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>76</td>
+<td>78</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>71</td>
+<td>73</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>17</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>37</td>
+<td>47</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9234.md</code></td>
@@ -276,13 +276,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Automatic checks</h2>
-<p>Included in automatic checks: BGP Open Policy / Roles + Only-To-Customer OTC attribute (RFC 9234): role plugin. 13 MET (Role capability advertise, Table-2 pair correspondence + code-2/subcode-11 Role Mismatch, OTC ingress leak rules for Customer/RS-Client/Peer, ingress/egress stamping, no-propagate-upstream, preserve-unchanged, unicast-only, Gao-Rexford prohibition, malformed-OTC treat-as-withdraw) + 3 single-polarity positive (one Role capability per peer, egress stamp uses internet-facing local AS, OTC procedures non-overridable) + 3 gaps (no AS Confederation for 5-7 and 5-8, no refusal of a role on a Complex peering for 6-1)</p>
+<p>Included in automatic checks: BGP Open Policy / Roles + Only-To-Customer OTC attribute (RFC 9234): role plugin. 14 MET (Role capability advertise, Table-2 pair correspondence + code-2/subcode-11 Role Mismatch, OTC ingress leak rules for Customer/RS-Client/Peer, ingress/egress stamping, no-propagate-upstream, preserve-unchanged, unicast-only, Gao-Rexford prohibition, malformed-OTC treat-as-withdraw, Complex peering operator guidance and roleless session handling) + 3 single-polarity positive (one Role capability per peer, egress stamp uses internet-facing local AS, OTC procedures non-overridable) + 2 gaps (no AS Confederation for 5-7 and 5-8)</p>
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> BGP Role and OTC</p>
-<p><strong>Test verification:</strong> 12 of 19 MUST proven</p>
-<p><strong>Evidence:</strong> interop 1, functional 5, unit 6</p>
-<p><strong>Unmet:</strong> RFC9234-5-7, RFC9234-5-8, RFC9234-6-1</p>
+<p><strong>Test verification:</strong> 17 of 19 MUST proven</p>
+<p><strong>Evidence:</strong> interop 1, functional 5, unit 11</p>
+<p><strong>Unmet:</strong> RFC9234-5-7, RFC9234-5-8</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -291,11 +291,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>14</strong></td>
+<td><strong>15</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>5</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Only a positive or negative test</td>
@@ -322,14 +322,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (14):</strong> <a href="#rfc9234-4.1-1"><code>RFC9234-4.1-1</code></a>, <a href="#rfc9234-4.2-1"><code>RFC9234-4.2-1</code></a>, <a href="#rfc9234-4.2-2"><code>RFC9234-4.2-2</code></a>, <a href="#rfc9234-4.2-3"><code>RFC9234-4.2-3</code></a>, <a href="#rfc9234-5-1"><code>RFC9234-5-1</code></a>, <a href="#rfc9234-5-2"><code>RFC9234-5-2</code></a>, <a href="#rfc9234-5-3"><code>RFC9234-5-3</code></a>, <a href="#rfc9234-5-4"><code>RFC9234-5-4</code></a>, <a href="#rfc9234-5-5"><code>RFC9234-5-5</code></a>, <a href="#rfc9234-5-6"><code>RFC9234-5-6</code></a>, <a href="#rfc9234-5-9"><code>RFC9234-5-9</code></a>, <a href="#rfc9234-5-10"><code>RFC9234-5-10</code></a>, <a href="#rfc9234-3.1-1"><code>RFC9234-3.1-1</code></a>, <a href="#rfc9234-5-12"><code>RFC9234-5-12</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (5):</strong> <a href="#rfc9234-4.1-2"><code>RFC9234-4.1-2</code></a>, <a href="#rfc9234-5-7"><code>RFC9234-5-7</code></a>, <a href="#rfc9234-5-8"><code>RFC9234-5-8</code></a>, <a href="#rfc9234-5-11"><code>RFC9234-5-11</code></a>, <a href="#rfc9234-6-1"><code>RFC9234-6-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (15):</strong> <a href="#rfc9234-4.1-1"><code>RFC9234-4.1-1</code></a>, <a href="#rfc9234-4.2-1"><code>RFC9234-4.2-1</code></a>, <a href="#rfc9234-4.2-2"><code>RFC9234-4.2-2</code></a>, <a href="#rfc9234-4.2-3"><code>RFC9234-4.2-3</code></a>, <a href="#rfc9234-5-1"><code>RFC9234-5-1</code></a>, <a href="#rfc9234-5-2"><code>RFC9234-5-2</code></a>, <a href="#rfc9234-5-3"><code>RFC9234-5-3</code></a>, <a href="#rfc9234-5-4"><code>RFC9234-5-4</code></a>, <a href="#rfc9234-5-5"><code>RFC9234-5-5</code></a>, <a href="#rfc9234-5-6"><code>RFC9234-5-6</code></a>, <a href="#rfc9234-5-9"><code>RFC9234-5-9</code></a>, <a href="#rfc9234-5-10"><code>RFC9234-5-10</code></a>, <a href="#rfc9234-6-1"><code>RFC9234-6-1</code></a>, <a href="#rfc9234-3.1-1"><code>RFC9234-3.1-1</code></a>, <a href="#rfc9234-5-12"><code>RFC9234-5-12</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (4):</strong> <a href="#rfc9234-4.1-2"><code>RFC9234-4.1-2</code></a>, <a href="#rfc9234-5-7"><code>RFC9234-5-7</code></a>, <a href="#rfc9234-5-8"><code>RFC9234-5-8</code></a>, <a href="#rfc9234-5-11"><code>RFC9234-5-11</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc9234:must">Ze verified 12, Tests awaiting verification 4, Not built 3</div>
+<div data-ze-rfc-bar="rfc9234:must">Ze verified 17, Not built 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc9234:overview">Ze MUST verified 12, SHOULD verified 1, Tests awaiting verification 4, Not assessed 4, Not built 3</div>
+<div data-ze-rfc-bar="rfc9234:overview">Ze MUST verified 17, SHOULD verified 1, Not assessed 4, Not built 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -350,13 +350,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc9234:must.kept">19</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc9234:must.ze-proven">12</span></td>
+<td><span data-ze-rfc="rfc9234:must.ze-proven">17</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc9234:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc9234:must.proof-pending">4</span></td>
+<td><span data-ze-rfc="rfc9234:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc9234:must.os-gap">0</span></td>
@@ -368,7 +368,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc9234:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc9234:must.not-built">3</span></td>
+<td><span data-ze-rfc="rfc9234:must.not-built">2</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc9234:must.not-owed">0</span></td>
@@ -611,9 +611,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>6 - Additional Considerations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9234-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> this MUST binds the operator&#39;s configuration, and ze cannot know whether a peering relationship is Complex (internal/component/bgp/plugins/role/config.go::parseRoleContainer reads one role per peer). What is owed is operator documentation stating that a role must not be configured on a Complex eBGP session, and no test asserts that the documentation carries it</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_complex_peering_test.go#L34" title="internal/component/bgp/plugins/role/rfc9234_complex_peering_test.go" target="_blank" rel="noopener"><code>TestRFC9234ComplexPeeringGuidanceAndRolelessSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_complex_peering_test.go#L38" title="internal/component/bgp/plugins/role/rfc9234_complex_peering_test.go" target="_blank" rel="noopener"><code>TestRFC9234ComplexPeeringGuidanceAndRolelessSession</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-3.1-1">RFC9234-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Customer: MAY propagate any route learned from a Customer, or that is locally originated, to a Provider. All other routes MUST NOT be propagated. Route Server (RS): MAY propagate any available route to a Route Server Client (RS-Client). Route Server Client (RS-Client): MAY propagate any route learned from a Customer, or that is locally originated, to an RS. All other routes MUST NOT be propagated. Peer: MAY propagate any route learned from a Customer, or that is locally originated, to a Peer. All other routes MUST NOT be propagated. (§3.1)</span></td></tr>
 <tr><td></td>
@@ -701,10 +701,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>ze implements no AS Confederation and no owner decision declines it: with no member-AS or confederation-identifier configuration, internal/component/bgp/plugins/role/otc.go has no confederation egress boundary at which to strip a Member-AS OTC value</td>
 </tr>
-<tr><td><a href="#rfc9234-6-1"><code>RFC9234-6-1</code></a> Roles MUST NOT be configured on an eBGP session with a Complex peering relationship. (S6)</td>
-<td>{gap}, no test</td>
-<td>this MUST binds the operator&#39;s configuration, and ze cannot know whether a peering relationship is Complex (internal/component/bgp/plugins/role/config.go::parseRoleContainer reads one role per peer). What is owed is operator documentation stating that a role must not be configured on a Complex eBGP session, and no test asserts that the documentation carries it</td>
-</tr>
 </tbody>
 </table>
 </div>
@@ -771,12 +767,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L65" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_InvalidPairs</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_validate_test.go#L21" title="internal/component/bgp/plugins/role/rfc9234_validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_ValidPairs</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -871,7 +867,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L257" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go#L81" title="internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go" target="_blank" rel="noopener"><code>TestOTCIngressGateRunsForADynamicGroupMember</code></a></td>
@@ -881,7 +877,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L247" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -896,12 +892,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L408" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L417" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -916,7 +912,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L242" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestCheckOTCIngress</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2006" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressNoStampOnMPUnreachOnly</code></a></td>
@@ -931,7 +927,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L395" title="internal/component/bgp/plugins/role/rfc9234_otc_test.go" target="_blank" rel="noopener"><code>TestOTCIngressFilter</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1157,7 +1153,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc9234-6-1"><code>RFC9234-6-1</code></a></h3>
 <p>Roles MUST NOT be configured on an eBGP session with a Complex peering relationship. (S6)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC9234-6-1, so there is no linked test.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_complex_peering_test.go#L38" title="internal/component/bgp/plugins/role/rfc9234_complex_peering_test.go" target="_blank" rel="noopener"><code>TestRFC9234ComplexPeeringGuidanceAndRolelessSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_complex_peering_test.go#L34" title="internal/component/bgp/plugins/role/rfc9234_complex_peering_test.go" target="_blank" rel="noopener"><code>TestRFC9234ComplexPeeringGuidanceAndRolelessSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9234-3.1-1"><code>RFC9234-3.1-1</code></a></h3>
 <p>Customer: MAY propagate any route learned from a Customer, or that is locally originated, to a Provider. All other routes MUST NOT be propagated. Route Server (RS): MAY propagate any available route to a Route Server Client (RS-Client). Route Server Client (RS-Client): MAY propagate any route learned from a Customer, or that is locally originated, to an RS. All other routes MUST NOT be propagated. Peer: MAY propagate any route learned from a Customer, or that is locally originated, to a Peer. All other routes MUST NOT be propagated. (§3.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against full RFC 9234 Sections 3.1, 4.2 and 5. TestOTCEgressFilter exercises exact suppression of non-Customer-learned routes toward Provider, Peer and RS and exact acceptance controls toward Customer/RS-Client and for Customer-learned transit. Its no-OTC inputs and config-less source cases isolate source-role suppression from the wire OTC gate and source export-set gate; TestOTCEgressSuppressProviderLearnedWithoutMeta additionally proves the configured source-role fallback without metadata. The destination local role additions make each RFC destination gate applicable under Section 4.2, complementary to the previously supplied remote role, without changing payloads or assertions. The Customer/local-origin and RS forwarding sentences are MAY permissions, not unconditional forwarding requirements that override operator policy. OTCEgressFilter and resolveSrcRole implement the asserted scope. Existing positive/negative TestOTCEgressFilter discrimination records require renewal for the changed unit/producer. This is source judgment, not a claim that corrected tests or producer-break proofs have run.</p>
@@ -1443,7 +1455,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

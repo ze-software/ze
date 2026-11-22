@@ -44,8 +44,6 @@
 
         <main id="top" tabindex="-1">
             <section class="md-content reveal cat-platform">
-<!-- source: internal/le/setup/actions.go -- Answer -->
-<!-- source: internal/le/setup/actions.go -- Answer -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="developer-setup">Developer Setup</h1>
@@ -97,7 +95,6 @@ reports each as <code>[pending  ] &lt;tool&gt; (in /root/go/bin, which is not on
 and prints once the exact <code>export PATH=...</code> line for that directory and the
 profile to keep it in. <code>check</code> reports the same rows the same way: a tool no
 shell can run is never counted present.</p>
-<!-- source: internal/le/setup/gobin.go -- goBinDir, goToolOffPath -->
 <p>This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
 missing tools, vendors Go dependencies, and reports what it did.</p>
 <p><code>le</code> is the native development-tool personality built from <code>cmd/ze</code>. The root
@@ -127,8 +124,6 @@ Nothing is deleted: a peer executing that build keeps its file.
 <code>./le help</code> lists <code>rollback</code> and Tab completes it; run it as <code>./le rollback</code>,
 because only the launcher moves a build.
 <code>./le --update</code> is gone and says so with exit 2.</p>
-<!-- source: le -- choose_build, start_candidate, head_rejected, set_aside, the rollback action -->
-<!-- source: internal/le/rollback/rollback.go -- Answer -->
 <p>Do not delete <code>bin/le</code> or anything in <code>bin/builds/</code>. Several sessions share one
 checkout and one of them can be executing that file right now. When you need
 le to carry your own uncommitted edits, ask for a build of your own instead:</p>
@@ -142,7 +137,6 @@ yourself. The build lands in <code>bin/le-&lt;name&gt;/le</code>, which <code>bi
 of git, and it is rebuilt from the working tree on every call, so the toolchain
 decides what to recompile and the binary carries your edits. The shared builds
 are never written and never wait for a peer.</p>
-<!-- source: le -- the --name option, session_name -->
 <p>A name accepts letters, digits, dot, underscore and hyphen. A name carrying <code>/</code>
 or <code>..</code> is refused with a message and exit 2, never repaired into something safe.</p>
 <p>The launcher exports the name to the process it runs and to that process's
@@ -152,7 +146,6 @@ refuses to answer and reports both names:</p>
 <pre><code>le: --name asked for 'mywork' and this process is 'le' (/home/you/ze/bin/builds/20261025T114143Z-00b9273a2a/le).
     Reach the named build through ./le --name mywork, never through a hardcoded binary path.
 </code></pre>
-<!-- source: cmd/ze/le_build_name.go -- refuseWrongBuildName -->
 <h2 id="check-mode">Check Mode</h2>
 <p>Probe the current host without installing anything:</p>
 <pre><code class="language-bash">./le setup check
@@ -172,8 +165,6 @@ and the plugin is not, <code>./le setup check</code> reports the plugin as a pen
 and names the command that installs it. On a host without Claude Code the row
 is skipped with the reason "Claude Code is not installed", because there is no
 LSP tool to refuse anything and no session to run the slash command in.</p>
-<!-- source: internal/le/setup/editor.go -- claudeCodePresent -->
-<!-- source: internal/le/setup/setup.go -- visitLspPlugin -->
 <table>
 <thead>
 <tr>
@@ -208,8 +199,6 @@ starting the linter) or outside a checkout it holds nothing and replaces
 itself, as for any other program. The main thread's post-edit lint goes past
 the shim on purpose and takes no slot
 (<code>docs/contributing/running-commands.md</code>, "Waiting for another session's job").</p>
-<!-- source: internal/le/job/tool.go -- HoldTool -->
-<!-- source: internal/le/exec/exec.go -- holdHeavy, Program -->
 <table>
 <thead>
 <tr>
@@ -247,8 +236,6 @@ executable file, or is a shim <code>./le setup</code> wrote, because a shim hand
 <code>le exec</code> would start it again in a loop; each refusal names the path and
 <code>./le setup</code>. Warm, <code>./le exec /usr/bin/true</code> takes about 50 ms on an Apple
 silicon Mac.</p>
-<!-- source: internal/le/exec/exec.go -- programEnvironment, resolve, ShimMarker -->
-<!-- source: internal/le/go/stdpatch/gen/caller.go -- CallerEnvironment -->
 <h3 id="tool-shims-path-and-the-go-cache-setting">Tool shims, PATH and the Go cache setting</h3>
 <p><code>./le setup install</code> writes a shim for <code>gopls</code>, <code>golangci-lint</code> and
 <code>staticcheck</code>, the tool rows marked <code>Shim</code> in the setup table, into the shim
@@ -339,9 +326,6 @@ fails with the reason and prints the exact <code>go env -w</code> command.</p>
 <code>le exec</code> sets them. The <code>gopls-answers</code> row names the gopls the caller's PATH
 reaches and whether it is the shim; a gopls started by absolute path, or one ahead of
 the shim directory, keeps its default cache.</p>
-<!-- source: internal/le/setup/shims.go -- callerPath, chooseShimDir, shimDirRefusal, visitShim, strayShims, shimScript, realTool, visitShimDir, notePathLines, visitGoCacheSetting -->
-<!-- source: internal/le/setup/tools.go -- Tool.Shim -->
-<!-- source: internal/le/setup/servers.go -- goplsAnswerer -->
 <h2 id="what-it-installs">What It Installs</h2>
 <h3 id="build-and-lint">Build and Lint</h3>
 <table>
@@ -395,15 +379,12 @@ pinned release: its exhaustive analyzer checks enum switches through type
 aliases as well as directly named types. An existing <code>golangci-lint</code> on PATH is
 only presence-probed by setup, so changing the pin alone does not replace that
 binary.</p>
-<!-- source: internal/le/setup/tools.go -- GolangCIVersion, golangciTarget -->
-<!-- source: internal/le/setup/probes.go -- Setup.Probe -->
 <p>Regenerate the checked-in protobuf Go files after you change
 <code>api/proto/ze.proto</code> or the module path:</p>
 <pre><code class="language-bash">./le setup proto
 </code></pre>
 <p>The action builds both protoc plugins from the vendored module versions, runs
 <code>protoc</code>, and applies explicit <code>json_name</code> options to Go struct tags.</p>
-<!-- source: internal/le/setup/proto_generate.go -- protoGenerator.run -->
 <p>Run the installed checker through the repository gate:</p>
 <pre><code class="language-bash">./le go staticcheck check
 </code></pre>
@@ -562,14 +543,9 @@ Docker's <code>docker-ce</code> when dpkg reports it <code>install ok installed<
 The lab's BuildKit refusal names <code>./le setup install</code> as its fix.
 With no docker CLI the step is <code>skipped</code>.</li>
 </ul>
-<!-- source: internal/le/setup/buildx.go -- visitBuildx, addPluginDir, DockerConfigPath, BuildKitSetupCommand -->
 <p><code>docs/architecture/testing/qemu-integration.md</code>, "Docker labs in the Ze-kernel
 guest", is the guest path; the scheduled nightly runs the same path on amd64
 under KVM (<code>docs/architecture/testing/ci-workflows.md</code>).</p>
-<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab -->
-<!-- source: internal/le/setup/docker/kernel/dockerkernel.go -- runDockerKernelCheck, runDockerKernelInstall -->
-<!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->
-<!-- source: internal/le/setup/actions.go -- Answer -->
 <h3 id="linux">Linux</h3>
 <p><code>./le setup install</code> installs the apt packages itself, the same way it installs the
 Homebrew ones on macOS. Each command is echoed before it runs. It takes
@@ -604,8 +580,6 @@ prompt cannot stop the run.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/le/setup/actions.go -- Answer -->
-<!-- source: internal/le/setup/actions.go -- Answer -->
 <p><strong>GRUB follows your host architecture.</strong> Debian packages one module set per
 architecture: an amd64 host takes <code>grub-efi-amd64-bin</code>, an arm64 host takes
 <code>grub-efi-arm64-bin</code>. Asking an arm64 host for the amd64 package installs
@@ -613,8 +587,6 @@ nothing at all, <code>grub-mkstandalone</code> included. <code>ze appliance iso<
 target from the architecture of the image it packs, so building an ISO for the
 OTHER architecture needs that architecture's set too, through
 <code>dpkg --add-architecture</code>.</p>
-<!-- source: internal/le/setup/actions.go -- Answer -->
-<!-- source: internal/appliance/cmd_iso.go -- isoGRUBTarget -->
 <p><strong>Unprivileged user namespaces.</strong> Ubuntu 23.10+ ships
 <code>kernel.apparmor_restrict_unprivileged_userns=1</code>, which blocks the sandbox
 Chrome relies on and makes the <code>agent-browser</code> web functional tests fail to
@@ -638,7 +610,6 @@ emulation: it refuses to start with <code>Could not access KVM kernel module: Pe
 checks this as <code>kvm-access</code> and, in install mode, runs:</p>
 <pre><code class="language-bash">sudo usermod -aG kvm $USER
 </code></pre>
-<!-- source: internal/le/setup/actions.go -- Answer -->
 <p>Group membership is fixed at login, so an existing shell keeps the old groups
 even after the command succeeds. Log out and back in, or run one command with
 the new group:</p>
@@ -650,7 +621,6 @@ when the group is not granted at all. A host with no <code>/dev/kvm</code> (no h
 virtualisation, or a VM without nested virt) reports <code>n/a</code>: QEMU runs under
 <code>tcg</code> there, only slower. macOS has no <code>/dev/kvm</code> and needs no group; the
 native QEMU actions select the Apple hypervisor (<code>hvf</code>) by platform.</p>
-<!-- source: internal/le/test/qemu/actions.go -- Answer -->
 <p><strong>PPP device access.</strong> The L2TP and PPPoE tests open <code>/dev/ppp</code> to drive the
 kernel PPP channel. They run as you, in a user namespace of their own
 (<code>userns.Enter</code>), where root holds the <code>CAP_NET_ADMIN</code> the PPP ioctls need,
@@ -687,9 +657,6 @@ loads <code>ppp_generic</code> and a check changes nothing. When root is out of 
 install prints the commands above with <code>sudo</code> instead of running them. macOS
 reports the step <code>skipped</code>: it has no <code>/dev/ppp</code>, and the PPP tests run in the
 Linux VM.</p>
-<!-- source: internal/le/setup/ppp.go -- visitPpp, pppSteps, pppProbe, pppRuleBody -->
-<!-- source: internal/component/l2tp/pppoeclient/unit_reservation_integration_linux_test.go -- TestPADTRetainsUnitUntilOwnerCleanup -->
-<!-- source: internal/test/userns/userns_linux.go -- childFailure -->
 <p><strong>Kernel features.</strong> A test that needs a kernel feature runs on Ze's kernel,
 which carries it. The nftables flowtable test needs <code>NF_FLOW_TABLE</code>,
 <code>NF_FLOW_TABLE_INET</code> and <code>NFT_FLOW_OFFLOAD</code>, and the tc ingress policer tests
@@ -703,9 +670,6 @@ kernel (on a Linux host, <code>./le setup docker kernel install</code>, then reb
 for a module that is built but not loaded, <code>sudo modprobe &lt;module&gt;</code>. The
 options are read from <code>/proc/config.gz</code>, else <code>/boot/config-&lt;release&gt;</code>, and the
 loaded modules from <code>/proc/modules</code>. Setup does not load these modules.</p>
-<!-- source: internal/test/kernelfeature/kernelfeature.go -- Features, Explain, Read -->
-<!-- source: internal/plugins/firewall/nft/integration_linux_test.go -- TestApplyAcceptsAFlowOffloadToATableFlowtable -->
-<!-- source: internal/plugins/traffic/netlink/integration_linux_test.go -- TestNetlinkIntegration_IngressPolicerReachesTheKernel -->
 <p><strong>Loopback addresses.</strong> The functional fixtures give each end of a BGP session
 its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as
 NEXT_HOP, so a session whose two ends share one address has every originated
@@ -726,7 +690,6 @@ sudo ip -6 addr add fd00::2/128 dev lo         # Linux
 sudo ip -6 addr add fd00::3/127 dev lo
 sudo ip -6 addr add fe80::1/128 dev lo
 </code></pre>
-<!-- source: internal/le/setup/actions.go -- Answer -->
 <p>Presence requires a successful socket bind. IPv6 additionally requires the
 address on <code>lo</code> (<code>lo0</code> on macOS), and the unique-local pair at its exact
 prefix; an address elsewhere, or <code>fd00::3/128</code>, does not establish this
@@ -744,8 +707,6 @@ builds or runs anything, and refuses to start when an address is missing. The
 refusal names each missing address and the commands above that add it
 (<code>FunctionalHostPreflight</code>). The runners' own per-test probes stay, and check
 bindability only.</p>
-<!-- source: internal/le/setup/system.go -- FunctionalHostPreflight -->
-<!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
 <p>These additions do not survive a reboot. Re-run <code>./le setup install</code> after one;
 <code>./le setup check</code> says when it is needed. The merge gate adds the same IPv6
 addresses and prefix in <code>.github/workflows/verify.yml</code>.</p>
@@ -787,7 +748,7 @@ preventing the lists from drifting apart.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

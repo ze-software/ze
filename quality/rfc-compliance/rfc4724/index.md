@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 16 | of 26 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 17 | of 26 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 1 | of 26 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 26 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 26 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 42 | 42 of 76 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 51 | 51 of 78 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -22,7 +22,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Declared gap or no test | 9 | of 26 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 8 | of 26 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -73,39 +73,39 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 31 |
 | Mandatory requirements (MUST level) | 26 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 9 |
+| Declared gaps | 8 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 76 |
-| Tests linked to requirements | 76 |
+| Test tags | 78 |
+| Tests linked to requirements | 78 |
 | Recorded audit verdicts | 17 |
-| Fault test records | 42 |
+| Fault test records | 51 |
 | Summary | `rfc/short/rfc4724.md` |
 | Requirement table | `rfc/requirements/rfc4724.md` |
 | RFC text | `rfc/full/rfc4724.txt` |
 
 ## Automatic checks
 
-Included in automatic checks: Graceful Restart Mechanism for BGP (RFC 4724): 16 MET (GR capability advertise + last-instance negotiate, Restart-State/Forwarding-State bit encoding, End-of-RIB send + detect, mark-stale on non-NOTIFICATION drop, stale deletion on consecutive restart / Restart-Time expiry / F-bit-clear / no-GR-cap re-establish, GR-stale level-1 competes normally in best-path) + 1 single-polarity positive + 9 gap (GR-capability collision-detection override and related receiving-speaker obligations, and the no-wait-for-End-of-RIB rule ze meets with no test)
+Included in automatic checks: Graceful Restart Mechanism for BGP (RFC 4724): 17 MET (GR capability advertise + last-instance negotiate, Restart-State/Forwarding-State bit encoding, no-wait-for-End-of-RIB on peer R-bit, End-of-RIB send + detect, mark-stale on non-NOTIFICATION drop, stale deletion on consecutive restart / Restart-Time expiry / F-bit-clear / no-GR-cap re-establish, GR-stale level-1 competes normally in best-path) + 1 single-polarity positive + 8 gap (GR-capability collision-detection override and related restarting/receiving-speaker obligations)
 
 ## Published support status
 
 **Area:** Graceful Restart
 
-**Test verification:** 14 of 26 MUST proven
+**Test verification:** 18 of 26 MUST proven
 
-**Evidence:** interop 1, unit 13
+**Evidence:** interop 1, unit 17
 
-**Unmet:** RFC4724-3-5, RFC4724-4.1-1, RFC4724-4.1-2, RFC4724-4.1-3, RFC4724-4.1-5, RFC4724-4.1-6, RFC4724-4.1-8, RFC4724-4.2-1, RFC4724-4.2-2
+**Unmet:** RFC4724-4.1-1, RFC4724-4.1-2, RFC4724-4.1-3, RFC4724-4.1-5, RFC4724-4.1-6, RFC4724-4.1-8, RFC4724-4.2-1, RFC4724-4.2-2
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 16 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 10 | one part of the mandatory requirements |
+| Positive and negative tests | 17 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 9 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -113,14 +113,14 @@ Included in automatic checks: Graceful Restart Mechanism for BGP (RFC 4724): 16 
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **26** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (16):** [`RFC4724-3-2`](#rfc4724-3-2), [`RFC4724-3-3`](#rfc4724-3-3), [`RFC4724-3-4`](#rfc4724-3-4), [`RFC4724-4-1`](#rfc4724-4-1), [`RFC4724-4-2`](#rfc4724-4-2), [`RFC4724-4.1-4`](#rfc4724-4.1-4), [`RFC4724-4.1-7`](#rfc4724-4.1-7), [`RFC4724-4.2-3`](#rfc4724-4.2-3), [`RFC4724-4.2-4`](#rfc4724-4.2-4), [`RFC4724-4.2-5`](#rfc4724-4.2-5), [`RFC4724-4.2-6`](#rfc4724-4.2-6), [`RFC4724-4.2-7`](#rfc4724-4.2-7), [`RFC4724-4.2-8`](#rfc4724-4.2-8), [`RFC4724-4.2-9`](#rfc4724-4.2-9), [`RFC4724-4.2-10`](#rfc4724-4.2-10), [`RFC4724-4.2-11`](#rfc4724-4.2-11)
+**Positive and negative tests (17):** [`RFC4724-3-2`](#rfc4724-3-2), [`RFC4724-3-3`](#rfc4724-3-3), [`RFC4724-3-4`](#rfc4724-3-4), [`RFC4724-3-5`](#rfc4724-3-5), [`RFC4724-4-1`](#rfc4724-4-1), [`RFC4724-4-2`](#rfc4724-4-2), [`RFC4724-4.1-4`](#rfc4724-4.1-4), [`RFC4724-4.1-7`](#rfc4724-4.1-7), [`RFC4724-4.2-3`](#rfc4724-4.2-3), [`RFC4724-4.2-4`](#rfc4724-4.2-4), [`RFC4724-4.2-5`](#rfc4724-4.2-5), [`RFC4724-4.2-6`](#rfc4724-4.2-6), [`RFC4724-4.2-7`](#rfc4724-4.2-7), [`RFC4724-4.2-8`](#rfc4724-4.2-8), [`RFC4724-4.2-9`](#rfc4724-4.2-9), [`RFC4724-4.2-10`](#rfc4724-4.2-10), [`RFC4724-4.2-11`](#rfc4724-4.2-11)
 
-**Annotated (including scoped evidence) (10):** [`RFC4724-3-1`](#rfc4724-3-1), [`RFC4724-3-5`](#rfc4724-3-5), [`RFC4724-4.1-1`](#rfc4724-4.1-1), [`RFC4724-4.1-2`](#rfc4724-4.1-2), [`RFC4724-4.1-3`](#rfc4724-4.1-3), [`RFC4724-4.1-5`](#rfc4724-4.1-5), [`RFC4724-4.1-6`](#rfc4724-4.1-6), [`RFC4724-4.1-8`](#rfc4724-4.1-8), [`RFC4724-4.2-1`](#rfc4724-4.2-1), [`RFC4724-4.2-2`](#rfc4724-4.2-2)
+**Annotated (including scoped evidence) (9):** [`RFC4724-3-1`](#rfc4724-3-1), [`RFC4724-4.1-1`](#rfc4724-4.1-1), [`RFC4724-4.1-2`](#rfc4724-4.1-2), [`RFC4724-4.1-3`](#rfc4724-4.1-3), [`RFC4724-4.1-5`](#rfc4724-4.1-5), [`RFC4724-4.1-6`](#rfc4724-4.1-6), [`RFC4724-4.1-8`](#rfc4724-4.1-8), [`RFC4724-4.2-1`](#rfc4724-4.2-1), [`RFC4724-4.2-2`](#rfc4724-4.2-2)
 
 ## Figures
 
-- **MUST bar**: Ze verified 14, Tests awaiting verification 3, Not built 9
-- **Overview bar**: Ze MUST verified 14, SHOULD verified 1, Tests awaiting verification 3, Not assessed 4, Not built 9
+- **MUST bar**: Ze verified 18, Not built 8
+- **Overview bar**: Ze MUST verified 18, SHOULD verified 1, Not assessed 4, Not built 8
 
 | Figure | Rows |
 |---|---|
@@ -129,13 +129,13 @@ Included in automatic checks: Graceful Restart Mechanism for BGP (RFC 4724): 16 
 | Mandatory requirements complete | not complete |
 | MUST rows | 26 |
 | MUST rows kept (the MUST bar) | 26 |
-| Ze verified | 14 |
+| Ze verified | 18 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 9 |
+| Not built | 8 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -165,7 +165,7 @@ Source: [data/rfc/rfc4724.json](../../../data/rfc/rfc4724.json).
 | `RFC4724-3-2` | The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestGracefulRestartEncodeReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L478). **positive:** `unit/verify` [`TestRFC4724ReceiverIgnoresReservedRestartFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L53). **negative:** `unit/verify` [`TestGracefulRestartEncodeReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L489). **negative:** `unit/verify` [`TestRFC4724ReceiverIgnoresReservedRestartFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L54) |
 | `RFC4724-3-3` | The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestGracefulRestartEncodeReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L484). **positive:** `unit/verify` [`TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L73). **negative:** `unit/verify` [`TestGracefulRestartEncodeReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L498). **negative:** `unit/verify` [`TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc4724_reserved_bits_test.go#L74) |
 | `RFC4724-3-4` | If more than one instance of the Graceful Restart Capability is carried in the capability advertisement, the receiver of the advertisement MUST ignore all but the last instance of the Graceful Restart Capability. (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestNegotiateGracefulRestartLastInstance`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L62). **negative:** `unit/verify` [`TestNegotiateGracefulRestartLastInstance`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L70) |
-| `RFC4724-3-5` | When set (value 1), this bit indicates that the BGP speaker has restarted, and its peer MUST NOT wait for the End-of-RIB marker from the speaker before advertising routing information to the speaker. (Section 3) | MUST NOT | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: internal/component/bgp/reactor/peer_initial_sync.go::sendInitialRoutes meets it, since ze advertises its Adj-RIB-Out and End-of-RIB on reaching Established without waiting for the peer's End-of-RIB, and the only End-of-RIB timer (session_health.go, startEORTimer) raises a health warning and defers nothing; no test asserts it |
+| `RFC4724-3-5` | When set (value 1), this bit indicates that the BGP speaker has restarted, and its peer MUST NOT wait for the End-of-RIB marker from the speaker before advertising routing information to the speaker. (Section 3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestRFC4724PeerRestartStateBitDoesNotDelayInitialRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_rbit_no_wait_test.go#L34). **negative:** `unit/verify` [`TestRFC4724PeerRestartStateBitDoesNotDelayInitialRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_rbit_no_wait_test.go#L38) |
 | `RFC4724-4-1` | The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestBuildEOR_IPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L16). **positive:** `unit/verify` [`TestInitialSyncEORReachesTheSilentFamilyToo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L111). **positive:** `unit/verify` [`TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L764). **positive:** `unit/verify` [`TestInitialSyncMarkerWaitsForNoProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L797). **positive:** `unit/verify` [`TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L356). **positive:** `unit/verify` [`TestPredecessorSyncWritesNothingOnSuccessor`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_rapid_reconnect_test.go#L95). **positive:** `unit/verify` [`TestRoutePushingBindingsCountBothRails`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L437). **negative:** `unit/verify` [`TestIsEndOfRIBAnyFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L224). **negative:** `unit/verify` [`TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_reactor_b_test.go#L23). **positive:** `interop/nightly` [`checkNoFamilyEndOfRIB`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1280) |
 | `RFC4724-4-2` | It is noted that the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestGRStateManagerNotificationBypass`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L220). **positive:** `unit/verify` [`TestPeerCloseNamesTheNotificationTheNeighborSent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_close_test.go#L46). **positive:** `unit/verify` [`TestRFC4724NotificationCloseRetainsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go#L25). **negative:** `unit/verify` [`TestGRStateManagerRouteRetention`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L46). **negative:** `unit/verify` [`TestPeerCloseNamesTheTransportLoss`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_close_test.go#L74). **negative:** `unit/verify` [`TestRFC4724TransportCloseRetains`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go#L47) |
 | `RFC4724-4.1-1` | When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's Restarting Speaker path implements only GR signaling -- it writes a restart marker and sets the R bit (internal/component/bgp/grmarker/grmarker.go, internal/component/bgp/reactor/peer.go:574) -- and does not retain its own in-memory Loc-RIB forwarding state across a process restart within the bgp packages; the Loc-RIB is rebuilt from scratch on restart |
@@ -197,7 +197,6 @@ Source: [data/rfc/rfc4724.json](../../../data/rfc/rfc4724.json).
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC4724-3-5`](#rfc4724-3-5) When set (value 1), this bit indicates that the BGP speaker has restarted, and its peer MUST NOT wait for the End-of-RIB marker from the speaker before advertising routing information to the speaker. (Section 3) | {gap}, no test | gap in proof: internal/component/bgp/reactor/peer_initial_sync.go::sendInitialRoutes meets it, since ze advertises its Adj-RIB-Out and End-of-RIB on reaching Established without waiting for the peer's End-of-RIB, and the only End-of-RIB timer (session_health.go, startEORTimer) raises a health warning and defers nothing; no test asserts it |
 | [`RFC4724-4.1-1`](#rfc4724-4.1-1) When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB (Section 4.1) | {gap}, no test | ze's Restarting Speaker path implements only GR signaling -- it writes a restart marker and sets the R bit (internal/component/bgp/grmarker/grmarker.go, internal/component/bgp/reactor/peer.go:574) -- and does not retain its own in-memory Loc-RIB forwarding state across a process restart within the bgp packages; the Loc-RIB is rebuilt from scratch on restart |
 | [`RFC4724-4.1-2`](#rfc4724-4.1-2) When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB and MUST mark them as stale. (Section 4.1) | {gap}, no test | because ze does not retain its own Loc-RIB across a restart (see RFC4724-4.1-1), there is no retained own-forwarding state to mark stale; the stale-marking machinery (internal/component/bgp/plugins/rib/rib_commands.go:817 markStaleCommand) applies to routes received from a restarting peer, not to ze's own routes on ze's restart |
 | [`RFC4724-4.1-3`](#rfc4724-4.1-3) It MUST NOT differentiate between stale and other information during forwarding. (Section 4.1) | {gap}, no test | this governs forwarding over ze's own retained stale Loc-RIB, which ze does not build on restart (see RFC4724-4.1-1); the generic non-differentiation of level-1 stale in best-path selection (internal/component/bgp/plugins/rib/bestpath.go:308) is the Receiving Speaker path for peer routes, not ze's own routes as a Restarting Speaker |
@@ -219,7 +218,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestExtractGRCapabilities_CapabilityDecl`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_test.go#L111) | unit/verify | not verified |
+| positive | [`TestExtractGRCapabilities_CapabilityDecl`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_test.go#L111) | unit/verify | revert, verified |
 
 ### [`RFC4724-3-2`](#rfc4724-3-2)
 
@@ -255,8 +254,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. two 
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestNegotiateGracefulRestartLastInstance`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L70) | unit/verify | not verified |
-| positive | [`TestNegotiateGracefulRestartLastInstance`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L62) | unit/verify | not verified |
+| negative | [`TestNegotiateGracefulRestartLastInstance`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L70) | unit/verify | revert, verified |
+| positive | [`TestNegotiateGracefulRestartLastInstance`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L62) | unit/verify | revert, verified |
 
 ### [`RFC4724-3-5`](#rfc4724-3-5)
 
@@ -264,7 +263,10 @@ When set (value 1), this bit indicates that the BGP speaker has restarted, and i
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4724-3-5, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC4724PeerRestartStateBitDoesNotDelayInitialRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_rbit_no_wait_test.go#L38) | unit/verify | revert, verified |
+| positive | [`TestRFC4724PeerRestartStateBitDoesNotDelayInitialRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_rbit_no_wait_test.go#L34) | unit/verify | revert, verified |
 
 ### [`RFC4724-4-1`](#rfc4724-4-1)
 
@@ -289,7 +291,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 It is noted that the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message. (Section 4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent current-source rejudgment preserves enforced at the prior scope after reading the complete normative Section4/4.2 context, all current tagged whole units and actual helpers/producers. Exact observed new native job-advertiser-policy-wire-and-gr-freshness-90755426.log completed under Main wrapper49977 exit0. These renewals replace whole producing bodies with a panic: they demonstrate the named tests reach and depend on these producers, not isolated normal-return semantic omissions. No broken later subcase skipped by a panic is claimed. Other RFC requirements and broader GR/LLGR conformance are not inferred. Section4 requires normal BGP procedures on a sent or received NOTIFICATION. The two running-Peer tests distinguish an actually received Cease/Event25 with ReasonNotification from actual transport loss/Event18 with ReasonTCPFailure. sessionCloseFor gives the captured notification fact priority. The structured production GR notification test requires no retention/purge/mark commands; transport and local-close controls require exactly source-owner701/connection41 retain then stale-mark commands. The state-only tagged notification/retention roots contrast activation, not RIB contents. The current text/JSON state handler delegates to the same structured handler. The sending side shares notificationExchanged in the producer, with existing untagged sent-counter coverage; no new independently tagged end-to-end send scenario is claimed. Fresh notification clean PASS29, named panic FAIL34, record54; fresh transport clean PASS83 with both healthy subcases, first tcp-failure panic91, record112. The local-close broken subcase does not execute. Both existing reactor sessionCloseFor records are preserved.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 4724 Section 4 and current gr.go/gr_state.go (post-18b491ae23) and peer_close.go. Section 4 requires normal BGP procedures when a TCP session terminates due to a sent or received NOTIFICATION. handleStructuredState now delegates to onSessionDownPlan, which still short-circuits on wasNotification (rpc.ReasonForbidsRetention(reason)), clears any prior peer state (marking purgeAllPrevious if a prior cycle existed), and returns activated=false with no completion callback. All 6 tagged units verified: TestPeerCloseNamesTheNotificationTheNeighborSent vs TestPeerCloseNamesTheTransportLoss drive a running Peer to distinguish Cease/Event 25 (ReasonNotification) from TCP drop/Event 18 (ReasonTCPFailure); TestRFC4724NotificationCloseRetainsNothing asserts zero dispatched commands while TestRFC4724TransportCloseRetains asserts exact source-scoped retain-routes and mark-stale for ReasonTCPFailure and ReasonLocalClose; TestGRStateManagerNotificationBypass vs TestGRStateManagerRouteRetention contrast state-manager activation. Scope note: sent-NOTIFICATION handling shares sessionCloseFor (covered by untagged TestSessionCloseForCoversEveryCause), unchanged from prior scope.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -394,7 +396,7 @@ No test carries RFC4724-4.2-2, so there is no linked test.
 
 When the Receiving Speaker detects termination of the TCP session for a BGP session with a peer that has advertised the Graceful Restart Capability, it MUST retain the routes received from the peer for all the address families that were previously received in the Graceful Restart Capability and MUST mark them as stale routing information. (Section 4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent current-source rejudgment preserves enforced at the prior scope after reading the complete normative Section4/4.2 context, all current tagged whole units and actual helpers/producers. Exact observed new native job-advertiser-policy-wire-and-gr-freshness-90755426.log completed under Main wrapper49977 exit0. These renewals replace whole producing bodies with a panic: they demonstrate the named tests reach and depend on these producers, not isolated normal-return semantic omissions. No broken later subcase skipped by a panic is claimed. Other RFC requirements and broader GR/LLGR conformance are not inferred. Section4.2 requires retention of every previously advertised GR family and stale marking. All five tagged whole questions were read: state-manager presence/absence controls, exact IPv4+IPv6 family-set/timer assertion, real registered RIB storage positive and no-capability negative. Real input receives an issued source receipt and original owner/connection before DOWN; the IPv4-only and two-family positive cases require actual stale-level1 for retained routes and remove IPv6 when absent from capability. The no-capability negative first proves stored received input then its deletion on DOWN. The dispatch path retains exact original physical source and families before stale marking and before deferred expiry callbacks. These are storage observations, not command-text-only assertions. New healthy positive PASS143 includes both family subcases; the revert of retainPeerFamilies panics in the first ipv4-only case at151, record176, so no broken both-families case is claimed. New healthy no-capability PASS209, onSessionDownDeferred panic214, record238. Existing family/state controls remain distinct, and no restart-speaker Loc-RIB or collision claim is added.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 4724 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires retaining routes for all address families previously received in the GR Capability and marking them stale upon TCP termination. On first session drop (prev==nil), onSessionDownPlan populates staleFamilies from cap.Families and handleStructuredState dispatches retainPeerFamilies (retain-routes on-down families ...) followed by mark-stale before invoking completeDown. All 5 tagged units verified: TestRFC4724SessionDownRetainsAndMarksRoutesStale drives real RIB storage for ipv4-only (keeps IPv4 at stale-level 1, deletes unadvertised IPv6) and both-families (both at stale-level 1); TestRFC4724RetentionCoversEveryAdvertisedFamily verifies exact staleFamilies map and armed restartTimer; TestRFC4724SessionDownWithoutCapabilityRetainsNothing proves a stored received route is deleted on DOWN without GR capability; TestGRStateManagerRouteRetention and TestGRStateManagerNoGRCapability provide state-manager controls.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -408,7 +410,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 To deal with possible consecutive restarts, a route (from the peer) previously marked as stale MUST be deleted. (Section 4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent current-source rejudgment preserves enforced at the prior scope after reading the complete normative Section4/4.2 context, all current tagged whole units and actual helpers/producers. Exact observed new native job-advertiser-policy-wire-and-gr-freshness-90755426.log completed under Main wrapper49977 exit0. These renewals replace whole producing bodies with a panic: they demonstrate the named tests reach and depend on these producers, not isolated normal-return semantic omissions. No broken later subcase skipped by a panic is claimed. Other RFC requirements and broader GR/LLGR conformance are not inferred. Section4.2 requires deletion of routes already stale at a consecutive restart. The two tags on the state-only root distinguish replacement of a two-family stale set by the current one-family set from a first restart with no prior stale cycle. The shared real-RIB helper stores two useful received routes, proves both stale after first DOWN, admits a genuinely new physical source connection42/receipt and destination session142, refreshes only198.51.101.0/24, then drives the second DOWN. Both real-RIB roots require old unrefreshed198.51.100.0/24 absent and refreshed198.51.101.0/24 retained at stale-level1. They duplicate the same scenario in two named roots, not two independent experiments; their deletion and preserved-route oracles concern distinct inputs. handleStateEvent delegates to handleStructuredState, which captures previous retained source, prepares the new state, purges previous stale storage, retains current source families and marks the new generation in that order. Fresh negative clean PASS269, first-DOWN whole handleStateEvent panic274, record296; positive clean PASS325, first-DOWN panic330, record352. Because the revert stops the shared helper on its first DOWN, these observations do not independently isolate second-DOWN purge ordering; that ordering is asserted in healthy real-RIB outcomes and independently read current source. Existing conventional-GR scope is preserved; no LLGR consecutive-restart claim is made.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 4724 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires deleting previously stale routes on consecutive restarts (conventional GR; RFC 9494 Section 4.2 overrides consecutive-restart deletion only for running LLGR families). For conventional GR (no preservedLLGR and no expiredDuringSync), onSessionDownPlan sets plan.purgeAllPrevious=true, deletes the prior peer entry, and rebuilds staleFamilies from the new capability; handleStructuredState dispatches purge-stale on plan.prevSource before retain-routes and mark-stale. All 4 tag bindings across 3 functions verified: TestGRConsecutiveRestartClearsPriorStale contrasts consecutive drop replacing a two-family stale set with one family against a fresh peer's first drop; TestRFC4724ConsecutiveRestartDeletesThePreviouslyStaleRoutes and TestRFC4724ConsecutiveRestartDeletesBeforeMarking drive a real RIB through two drops with only 198.51.101.0/24 refreshed in between, asserting unrefreshed 198.51.100.0/24 is deleted while refreshed 198.51.101.0/24 survives at stale-level 1. Scope note: the two real-RIB tests share helper rfc4724SecondRestart with distinct target prefixes for deletion vs preservation, unchanged from prior scope.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -426,7 +428,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4724GRStaleRouteIsDecidedByItsAttributesAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4724_stale_forwarding_test.go#L27) | unit/verify | revert, verified |
-| positive | [`TestComparePair_GRStaleCompetesNormally`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L852) | unit/verify | not verified |
+| positive | [`TestComparePair_GRStaleCompetesNormally`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L852) | unit/verify | revert, verified |
 
 ### [`RFC4724-4.2-6`](#rfc4724-4.2-6)
 
@@ -445,7 +447,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 If the session does not get re-established within the "Restart Time" that the peer advertised previously, the Receiving Speaker MUST delete all the stale routes from the peer that it is retaining. (Section 4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently rejudged 2026-11-19 against RFC 4724 Section 4.2 and all seven current tagged roots. Retain enforced for the existing Receiving Speaker restart-expiry condition. TestGRStateManagerTimerExpiry supplies the exact cycle owner to the production expiry handler and checks state removal and the expiry callback. TestGRStateManagerReconnectWithFBit, TestGRStateManagerRestartExpiryAfterReconnect and TestGRStateManagerRestartExpiryRejectsOldCycle preserve timely reconnection and reject canceled or obsolete-cycle callbacks; explicit callback delivery proves identity/cancellation, not elapsed wall time. The dispatch pair separately proves an actual one-second deadline releases original owner 701 connection 41, while timely reestablishment on connection 42 preserves the retained original through two seconds. TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking executes JSON and structured DOWN, requires the exact original-source retain, mark-stale, release ordering, observes a genuinely received route disappear from the registered RIB, and rejects resurrection after RIB DOWN. Capture and cleanup helpers retain explicit original physical identities and join the real fixture lifecycle. Traced onSessionDownDeferred, startRestartTimer, handleTimerExpired, onSessionReestablished and releaseRoutes to the original physical-source release command. Native job-advertiser-gr-old-fixture-rfc-renewal-ed99178a.log contains named healthy runs and accepted producer-halt reverts for TimerExpiry, RestartExpiryAfterReconnect, RestartExpiryRejectsOldCycle and ZeroRestartTimeExpiresAfterStaleMarking. Those halts demonstrate dependency on handleTimerExpired; they are not normal-return semantic mutations and the broken old-cycle GR case and zero-time JSON case stop before later subcases. The separate existing native f2c0c785 semantic record omits release dispatch and fails the actual expiry assertion; 6f02c121 ignores successor reestablishment and fails because original routes are released after timely reconnect. These existing semantic records are preserved, not retaken or inferred from the new halts. The unchanged scope is conventional GR without LLGR retention in the positive deletion cases; no new LLGR, socket-publication or whole-advertiser claim is made.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 4724 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires deleting all retained stale routes if the session is not re-established within the peer's advertised Restart Time. onSessionReestablished still clears restartDeadline and stops restartTimer on reconnect, while handleTimerExpired without LLGR clears peer state and invokes onTimerExpired -> releaseRoutes -> release-routes. All 7 tagged units verified: TestGRStateManagerTimerExpiry checks state removal and expiry callback; TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes proves a real 1s Restart Time dispatches source release-routes; TestRFC4724ZeroRestartTimeExpiresAfterStaleMarking proves exact retain/mark-stale/release-routes ordering and real RIB deletion on both JSON and structured paths; TestGRStateManagerReconnectWithFBit, TestGRStateManagerRestartExpiryRejectsOldCycle, TestGRStateManagerRestartExpiryAfterReconnect, and TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes verify timely re-establishment cancels expiry and keeps routes.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -461,7 +463,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 Once the session is re-established, if the "Forwarding State" bit for a specific address family is not set in the newly received Graceful Restart Capability, or if a specific address family is not included in the newly received Graceful Restart Capability, or if the Graceful Restart Capability is not received in the re-established session at all, then the Receiving Speaker MUST immediately remove all the stale routes from the peer that it is retaining for that address family. (Section 4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently rejudged 2026-11-19 against the complete RFC 4724 Section 4.2 reconnection sentence and all five current tagged roots. Retain enforced for all three stated triggers: F clear, family omitted and capability absent. TestGRStateManagerReconnectFBitZero purges IPv4 while preserving F-set IPv6; TestGRStateManagerReconnectWithFBit supplies the opposite all-preserved control. The production dispatch positive consumes each new JSON OPEN fixture and exact successor UP, then requires exactly the original connection's affected-family purge commands for F clear, omitted IPv6 and absent code 64. The production dispatch negative reconnects with both F bits set and requires no purge. TestRFC4724ReestablishedWithoutCapabilityPurgesOnTheStructuredPath independently drives actual sent/received raw OPEN handlers, original DOWN and distinct successor UP; both only-capability-65 and empty-optional-parameter controls require both original families purged, following the exact useful retain/mark baseline. Source trace: forgetGRCapability removes prior received capability state; onSessionReestablished compares the successor family/F set to retained state and emits original-source family purges. The JSON fixture supplies capability payload values directly; this rejudgment adds no separate encoder-path evidence. Native job-advertiser-gr-old-fixture-rfc-renewal-ed99178a.log observes both structured clean subcases, then the explicit forgetGRCapability halt in the first broken subcase, and writes the renewed record. That halt proves producer dependence, not a normal-return family-selection result for both subcases. Existing ba6cf875 semantic observation ignores reestablishment and loses the exact expected purges; existing 38850e34 treats successor capability as absent and wrongly purges both preserved families. Preserve those two independent semantic records and their existing claims. Current helper migration supplies explicit original owner 701/connection 41 and successor 42 without changing capability bytes, expected family sets or refusal controls.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 4724 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires immediate removal of retained stale routes for a family on re-establishment when the new GR capability clears F, omits the family, or is absent altogether. In onSessionReestablished, newCap==nil stops all timers and purges every stale family, while reconnectKeepsFamily returns false whenever !grForwarding[fam], purging that family and stopping any LLST timer on it; handleStructuredState dispatches source purge-stale per purged family. All 5 tagged units verified: TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily covers all three triggers (F clear, family omitted, cap 65 only) through JSON handleEvent OPEN + UP; TestRFC4724ReestablishedWithoutCapabilityPurgesOnTheStructuredPath covers cap-65-only and empty-optional-params on the structured OPEN/DOWN/OPEN/UP path; TestGRStateManagerReconnectFBitZero tests per-family F=0 purge vs F=1 keep; TestGRStateManagerReconnectWithFBit and TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes verify F=1 keeps stale routes with zero purges.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -481,7 +483,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 |---|---|---|---|
 | negative | [`TestIsEndOfRIBAnyFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L229) | unit/verify | not verified |
 | negative | [`TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4724_reactor_b_test.go#L24) | unit/verify | revert, verified |
-| positive | [`TestBuildEOR_IPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L22) | unit/verify | not verified |
+| positive | [`TestBuildEOR_IPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4724_eor_test.go#L22) | unit/verify | revert, verified |
 | positive | [`TestInitialSyncEORReachesTheSilentFamilyToo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L116) | unit/verify | not verified |
 
 ### [`RFC4724-4.2-10`](#rfc4724-4.2-10)
@@ -492,14 +494,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inse
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFamilyRIB_InsertNewDuringStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go#L179) | unit/verify | not verified |
-| positive | [`TestFamilyRIB_InsertClearsStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go#L147) | unit/verify | not verified |
+| negative | [`TestFamilyRIB_InsertNewDuringStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go#L179) | unit/verify | revert, verified |
+| positive | [`TestFamilyRIB_InsertClearsStale`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go#L147) | unit/verify | revert, verified |
 
 ### [`RFC4724-4.2-11`](#rfc4724-4.2-11)
 
 Once the End-of-RIB marker for an address family is received from the peer, it MUST immediately remove any routes from the peer that are still marked as stale for that address family. (Section 4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently rejudged 2026-11-19 against RFC 4724 Section 4.2 and all four current tagged roots. Retain enforced for immediate stale removal scoped to the family whose End-of-RIB arrived. TestGRStateManagerEORPurge starts two retained families, reconnects a distinct successor with both F bits set, consumes IPv4 EOR while IPv6 remains active, then consumes IPv6 EOR and completes retention. TestGRStateManagerEORForNonGRPeer supplies the no-stale-state negative. The production dispatch positive begins with useful original-source retain/mark commands, establishes successor connection 42 and requires exactly one purge-stale command for original owner 701 connection 41 and IPv4 unicast before handleEOREvent returns. The production dispatch negative requires no IPv6 or whole-source purge and no extra dispatch for never-retained IPv4 multicast. Source trace: onEORReceived checks the exact successor and retained family, returns the original retained source, and handleEOREvent dispatches only that family's stale purge; the registered RIB physical-source purge command selects stale entries in that original source/family rather than fresh or sibling-source routes. Existing native d9ebe742 successful retry removes the purge dispatch and fails the exact positive command assertion; its earlier build-failed attempt is not evidence. Existing native 41f22752 removes the family argument and fails the negative whole-source-purge assertion. Preserve both normal-return semantic records unchanged. All four current root bodies retain their exact state/family assertions after the explicit original physical-source fixture migration. This is the existing command-dispatch and stale-family state scope, not a new proof of downstream TCP withdrawal or complete advertiser publication.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 4724 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires immediate removal of remaining stale routes for an address family upon receiving its End-of-RIB marker. onEORReceived validates the successor connection ID, checks wasStale (and clears llstExpiredDuringSync if present), removes fam from staleFamilies, stops any running LLST timer for fam, deletes peer state once both maps are empty, and returns (retainedSource, wasStale); handleEOREvent immediately dispatches source purge-stale scoped to that family. All 4 tagged units verified: TestGRStateManagerEORPurge purges IPv4 while keeping IPv6 active then completes on IPv6 EOR; TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes asserts the exact single source purge-stale command for IPv4; TestGRStateManagerEORForNonGRPeer returns false for non-GR peers; TestRFC4724EndOfRIBLeavesOtherFamiliesStale proves IPv6 is untouched, no whole-peer purge is sent, and an unretained family EOR dispatches nothing.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

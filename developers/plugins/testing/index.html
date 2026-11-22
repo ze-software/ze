@@ -81,7 +81,6 @@ this checker and the form a running Ze answers. A running Ze starts your
 program in declare mode when you type <code>show plugin declarations config &lt;file&gt;</code>
 in the session <code>ze cli</code> opens, and the row then carries what your plugin
 declares.</p>
-<!-- source: internal/component/plugin/declarations.go -- configuredDeclarationRow, unavailableDeclarationRow, queriedDeclarationRow -->
 <p>Two commands run the same checker and write the same rows:</p>
 <pre><code class="language-bash"># The shipped binary, for a plugin author or an operator.
 ze show plugin conformance run "./my-plugin --flag"
@@ -97,16 +96,11 @@ it, and a relative path is read from the directory you typed the command in.
 <code>name</code> is the plugin name the checks use in their refusals. Without it, the
 name is the file name of the program the run string starts. The program has the
 budget <code>ze.plugin.query.timeout</code> sets, 5 seconds by default.</p>
-<!-- source: internal/component/plugin/conformance/register.go -- dataConformance -->
-<!-- source: internal/le/plugin/conformance/actions.go -- runCheck -->
-<!-- source: internal/component/plugin/conformance/conformance.go -- Run, DefaultName -->
 <p>A caller cancellation or deadline stops the query's isolated process group and
 joins it before the checker answers. That interruption produces an error and no
 completed conformance report; it does not claim that the plugin failed. If the
 caller remains active and the query's own budget expires, the <code>exits-clean</code> row
 still fails.</p>
-<!-- source: internal/component/plugin/conformance/conformance.go -- Run -->
-<!-- source: internal/component/plugin/declarations.go -- QueryDeclaration, canceledDeclarationQuery -->
 <h3 id="the-report">The report</h3>
 <p>The report holds one row for each check, in the order the protocol reaches
 them. Each row carries these fields:</p>
@@ -140,7 +134,6 @@ them. Each row carries these fields:</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/plugin/conformance/conformance.go -- Row, Verdict -->
 <p>A <code>not-judged</code> row is a check that nobody ran, and its reason says why. A report
 with no failed row is therefore not full conformance: read the <code>not-judged</code>
 rows to learn what is still unproven.</p>
@@ -171,8 +164,6 @@ rows to learn what is still unproven.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/plugin/conformance/checks.go -- programStarts, exitsClean, declarationLine, strictLine, declarationDecodes -->
-<!-- source: internal/component/plugin/declarations.go -- queryExitOf -->
 <p>The next rows are the daemon's own Stage 1 checks, run over the declaration the
 program wrote. The checker and the daemon read one table, so a row that fails
 here is a declaration the daemon refuses, with the daemon's own reason. These
@@ -190,15 +181,9 @@ refuses at Stage 5. A module the join refuses fails the row with the join's
 own refusal. The daemon also counts the commands other plugins registered
 before this one, because the longest command that reaches a node takes it; the
 checker runs one program, so it judges the declaration alone.</p>
-<!-- source: internal/component/plugin/server/stage1_commands.go -- refuseUnservedCommandNodes, commandModules, commandServed -->
-<!-- source: internal/component/plugin/server/command.go -- longestReach, commandReaches -->
-<!-- source: internal/component/plugin/server/command_registry.go -- commandNameRefusal -->
-<!-- source: internal/component/plugin/server/stage1_checks.go -- programAlone -->
 <p>When the program did not start, every later row is <code>not-judged</code>. When no
 declaration was read, every Stage 1 row is <code>not-judged</code>. A row is never passed
 for a declaration that nobody read.</p>
-<!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks, JudgeDeclaration -->
-<!-- source: internal/component/plugin/conformance/checks.go -- stage1Rows, judgedRow, notStartedRow -->
 <h3 id="what-this-version-does-not-judge">What this version does not judge</h3>
 <p>These rows are <code>not-judged</code> in every report. Test each behavior under a
 daemon: configure the plugin with <code>plugin { external &lt;name&gt; { run ...; } }</code> and
@@ -289,9 +274,6 @@ start ze.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/plugin/conformance/register.go -- init, the notJudged registrations -->
-<!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks, the entries with daemonState -->
-<!-- source: internal/component/plugin/conformance/checks.go -- daemonStateRows, notJudged -->
 <h3 id="exit-codes">Exit codes</h3>
 <table>
 <thead>
@@ -315,7 +297,6 @@ start ze.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/plugin/conformance/conformance.go -- ExitConforms, ExitViolation, ExitNoRun, Run -->
 <h3 id="a-sample-report">A sample report</h3>
 <p>This is the report of a conforming program. The <code>reason</code> and <code>fix</code> columns are
 left out here to keep the lines short.</p>
@@ -354,11 +335,8 @@ execute-command-framing      runtime    not-judged
 bye-and-exit                 shutdown   not-judged
 schema                       schema     not-judged
 </code></pre>
-<!-- source: internal/component/plugin/conformance/register.go -- init, the check order and the column order -->
 <p><code>| json</code> gives the same rows under the key <code>checks</code>. The <code>le</code> command answers
 one document that holds <code>plugin</code>, <code>run</code>, <code>verdict</code> and <code>checks</code>.</p>
-<!-- source: internal/component/plugin/conformance/register.go -- keyChecks -->
-<!-- source: internal/component/plugin/conformance/conformance.go -- Report -->
 <h3 id="the-ze-command-runs-locally-only">The <code>ze</code> command runs locally only</h3>
 <p><code>ze show plugin conformance run</code> starts the program that the command line
 names, so it runs in your own <code>ze</code> process, under your own identity. The daemon
@@ -366,11 +344,9 @@ starts no program that a remote caller names. Through the daemon (SSH, the web
 UI, REST, gRPC, MCP), the command starts nothing and answers a refusal with
 code 2. The refusal gives the reason and the command to run in your own shell
 on the host that holds the program.</p>
-<!-- source: internal/component/plugin/conformance/register.go -- refuseRemoteCaller -->
 <h2 id="unit-testing-with-netpipe">Unit Testing with <code>net.Pipe</code></h2>
 <p>The SDK is designed for testability. Use <code>net.Pipe()</code> to create a connected pair of
 connections, then use <code>sdk.NewWithConn()</code> on one end and simulate the engine on the other.</p>
-<!-- source: pkg/plugin/sdk/sdk.go -- NewWithConn -->
 <pre><code class="language-go">import (
     "net"
     "testing"
@@ -397,15 +373,11 @@ func newTestPair(t *testing.T) (*sdk.Plugin, *rpc.MuxConn) {
     return p, engineMux
 }
 </code></pre>
-<!-- source: pkg/plugin/sdk/sdk_test.go -- newTestPair -->
 <p>The engine side uses <code>rpc.MuxConn</code> for bidirectional RPCs: it reads plugin requests
 via <code>Requests()</code> and sends engine callbacks via <code>CallRPC</code>.</p>
-<!-- source: pkg/plugin/rpc/mux.go -- MuxConn, NewMuxConn, Requests, CallRPC -->
-<!-- source: pkg/plugin/rpc/conn.go -- NewConn, Conn -->
 <h2 id="testing-event-handlers">Testing Event Handlers</h2>
 <p>Register callbacks with <code>OnEvent</code>, <code>OnConfigure</code>, or <code>OnExecuteCommand</code>, then
 run the plugin in a goroutine and simulate engine messages from the other end of the pipe.</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent, OnConfigure, OnExecuteCommand -->
 <pre><code class="language-go">func TestEventHandler(t *testing.T) {
     p, engineMux := newTestPair(t)
 
@@ -450,14 +422,11 @@ run the plugin in a goroutine and simulate engine messages from the other end of
     require.NoError(t, &lt;-errCh)
 }
 </code></pre>
-<!-- source: pkg/plugin/sdk/sdk_test.go -- TestSDKEventDelivery -->
 <h2 id="simulating-the-5-stage-startup">Simulating the 5-Stage Startup</h2>
 <p>The <code>Run()</code> method performs the 5-stage startup protocol before entering the event
 loop. Tests must simulate all five stages from the engine side.</p>
-<!-- source: pkg/plugin/sdk/sdk.go -- Run -->
 <p>Stage 1 must answer the negotiated protocol version, not an empty <code>ok</code>: the SDK
 refuses a missing or different version before continuing to Stage 2.</p>
-<!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
 <pre><code class="language-go">func completeStartup(t *testing.T, ctx context.Context, engineMux *rpc.MuxConn) {
     t.Helper()
 
@@ -492,7 +461,6 @@ refuses a missing or different version before continuing to Stage 2.</p>
     require.NoError(t, engineMux.SendOK(ctx, req.ID))
 }
 </code></pre>
-<!-- source: pkg/plugin/sdk/sdk_test.go -- completeStartup -->
 <p>The five stages are:</p>
 <table>
 <thead>
@@ -530,11 +498,9 @@ refuses a missing or different version before continuing to Stage 2.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: pkg/plugin/sdk/sdk.go -- Run (stages 1-5) -->
 <h2 id="testing-command-execution">Testing Command Execution</h2>
 <p>Plugins register command handlers with <code>OnExecuteCommand</code>. The handler receives
 a serial, command name, args, and peer address, and returns status, data, and error.</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
 <pre><code class="language-go">func TestCommandHandler(t *testing.T) {
     p, engineMux := newTestPair(t)
 
@@ -572,7 +538,6 @@ a serial, command name, args, and peer address, and returns status, data, and er
     assert.Contains(t, string(out.Data), "healthy")
 }
 </code></pre>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
 <p><code>CallRPC</code> cannot read this answer. A plugin answers <code>execute-command</code> with a
 head, its records and a terminator, so a test that reads one JSON result takes
 the head line's tail for its payload. Read the answer with <code>CallAnswer</code> and
@@ -590,10 +555,6 @@ collapse it, which is the engine's own three steps:</p>
 }
 </code></pre>
 <p><code>answer.Err()</code> is read AFTER the collapse, because the walk is what fills it.</p>
-<!-- source: pkg/plugin/rpc/mux.go -- MuxConn.CallAnswer -->
-<!-- source: pkg/plugin/rpc/collapse.go -- CollapseAnswer -->
-<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer, ExecuteCommandValue -->
-<!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 <h2 id="testing-configuration-handling">Testing Configuration Handling</h2>
 <p>The <code>OnConfigure</code> callback receives config sections during Stage 2.
 The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle config reload. A test
@@ -601,7 +562,6 @@ pair that wants config and exercises config-verify or config-apply must register
 <code>OnConfigApply</code> or call <code>DeclareAppliesNothing</code>: without either the SDK refuses
 the reload, and <code>TestConfigApplyWithoutHandlerIsRefused</code> in
 <code>pkg/plugin/sdk/sdk_callbacks_test.go</code> asserts that refusal.</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigure, OnConfigVerify, OnConfigApply, DeclareAppliesNothing -->
 <pre><code class="language-go">func TestConfigHandler(t *testing.T) {
     p, engineMux := newTestPair(t)
 
@@ -641,8 +601,6 @@ the reload, and <code>TestConfigApplyWithoutHandlerIsRefused</code> in
     assert.Equal(t, "bgp", receivedConfig[0].Root)
 }
 </code></pre>
-<!-- source: pkg/plugin/rpc/types.go -- ConfigSection -->
-<!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
 <h2 id="table-driven-tests">Table-Driven Tests</h2>
 <p>Test multiple scenarios efficiently using Go table-driven test patterns:</p>
 <pre><code class="language-go">func TestCommandDispatch(t *testing.T) {
@@ -686,9 +644,6 @@ the reload, and <code>TestConfigApplyWithoutHandlerIsRefused</code> in
     }
 }
 </code></pre>
-<!-- source: pkg/plugin/sdk/sdk_types.go -- ExecuteCommandOutput -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
-<!-- source: pkg/plugin/rpc/mux.go -- MuxConn, CallRPC -->
 <h2 id="ci-integration">CI Integration</h2>
 <pre><code class="language-yaml"># .github/workflows/test.yml (or Forgejo/Woodpecker equivalent)
 jobs:
@@ -716,7 +671,6 @@ go tool cover -html=coverage.out
 <p>Target at least 80% coverage on handlers.</p>
 <h2 id="debugging">Debugging</h2>
 <p>Enable debug logging with ze's hierarchical log system:</p>
-<!-- source: pkg/plugin/sdk/sdk.go -- NewFromEnv -->
 <pre><code class="language-bash"># Set the base log level (ze.log); ze.log.&lt;subsystem&gt; sets one subsystem
 export ZE_LOG=debug
 ./my-plugin
@@ -743,7 +697,7 @@ p.OnEvent(func(event string) error {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

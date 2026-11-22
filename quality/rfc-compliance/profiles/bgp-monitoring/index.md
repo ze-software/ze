@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-monitoring.json](
 
 ## Figures
 
-- **MUST bar**: Ze verified 57, Tests awaiting verification 7, Not built 20
-- **Overview bar**: Ze MUST verified 57, SHOULD verified 3, Tests awaiting verification 8, Not assessed 11, Not built 20
+- **MUST bar**: Ze verified 64, Not built 20
+- **Overview bar**: Ze MUST verified 64, SHOULD verified 3, Tests awaiting verification 1, Not assessed 11, Not built 20
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-monitoring.json](
 | Mandatory requirements complete | not complete |
 | MUST rows | 84 |
 | MUST rows kept (the MUST bar) | 84 |
-| Ze verified | 57 |
+| Ze verified | 64 |
 | OS verified | 0 |
-| Tests awaiting verification | 7 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -64,5 +64,5 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8671](../../rfc8671/) | Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP) | Ze verified 2, Tests awaiting verification 7, Not built 2 | Ze MUST verified 2, Tests awaiting verification 7, Not assessed 1, Not built 2 |
+| [RFC 8671](../../rfc8671/) | Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP) | Ze verified 9, Not built 2 | Ze MUST verified 9, Not assessed 1, Not built 2 |
 | [RFC 9069](../../rfc9069/) | Support for Local RIB in the BGP Monitoring Protocol (BMP) | Ze verified 16 | Ze MUST verified 16 |

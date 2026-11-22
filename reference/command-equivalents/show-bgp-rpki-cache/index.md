@@ -27,22 +27,24 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-No vendor equivalent has been curated yet for this Ze command.
+### RPKI cache and validation session state
+
+Category: BGP
 
 ## Vendor equivalents
 
 ### Junos MX
-
-No equivalent listed.
+- `show validation session` (verified, junos\-bgp)
+  - Intent: RPKI cache and validation session state
 
 ### IOS XR
-
-No equivalent listed.
+- `show bgp rpki server summary` (verified, iosxr\-bgp)
+  - Intent: RPKI cache and validation session state
 
 ### SR OS
 
 No equivalent listed.
 
 ### VyOS
-
-No equivalent listed.
+- `show rpki cache-connection` (verified, vyos\-cli)
+  - Intent: RPKI cache and validation session state

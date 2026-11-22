@@ -58735,7 +58735,7 @@
   {
     "path": "show host",
     "short-help": "Hardware inventory for this box.",
-    "description": "Sections: cpu, nic, dmi, memory, thermal, storage, kernel, platform. Use a\nsubcommand for one section, or 'show host all' for everything. The bare 'show\nhost' is an alias of 'show host all'.",
+    "description": "Sections: cpu, nic, dmi, memory, thermal, storage, kernel, platform. Use a\nsubcommand for one section, or 'show host all' for everything. The bare 'show\nhost' is an alias of 'show host all'. 'show host trend' lists the host\nresources the daemon watches for growth that ends in exhaustion.",
     "mode": "read-only",
     "wire-method": "ze-host:show-all",
     "usage": "show host",
@@ -58887,7 +58887,8 @@
       "nic",
       "platform",
       "storage",
-      "thermal"
+      "thermal",
+      "trend"
     ]
   },
   {
@@ -60116,6 +60117,157 @@
       },
       {
         "text": "thermal",
+        "kind": "keyword"
+      }
+    ],
+    "pipe-operations": [
+      {
+        "name": "json",
+        "source": "generic",
+        "argument": "optional",
+        "available": "always",
+        "class": "global",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "source": "generic",
+        "argument": "none",
+        "available": "always",
+        "class": "global",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "source": "generic",
+        "argument": "none",
+        "available": "always",
+        "class": "global",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "source": "generic",
+        "argument": "none",
+        "available": "always",
+        "class": "global",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "source": "generic",
+        "argument": "none",
+        "available": "always",
+        "class": "global",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "source": "generic",
+        "argument": "none",
+        "available": "always",
+        "class": "global",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "source": "generic",
+        "argument": "none",
+        "available": "always",
+        "class": "global",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "source": "generic",
+        "argument": "none",
+        "available": "when-streaming",
+        "class": "stream",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "source": "generic",
+        "argument": "path",
+        "available": "always",
+        "class": "global",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "source": "generic",
+        "argument": "text",
+        "available": "with-rows",
+        "class": "data",
+        "overridable": true,
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "source": "generic",
+        "argument": "none",
+        "available": "with-rows",
+        "class": "data",
+        "overridable": true,
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "source": "generic",
+        "argument": "count",
+        "available": "with-rows",
+        "class": "data",
+        "overridable": true,
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "source": "generic",
+        "argument": "count",
+        "available": "with-rows",
+        "class": "data",
+        "overridable": true,
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "source": "generic",
+        "argument": "fields",
+        "available": "with-rows",
+        "class": "data",
+        "overridable": true,
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "source": "generic",
+        "argument": "optional",
+        "available": "with-rows",
+        "class": "data",
+        "overridable": true,
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "show host trend",
+    "short-help": "Show host resources heading for exhaustion.",
+    "description": "Lists every host resource rule the daemon's trend monitor runs, such as\nkernel-memory. Each entry gives the rule's state (not-present, warming-up,\nquiet, confirming, active or unreadable), its level and limit with their unit,\nhow long it has been observed, the growth over the window it judged, and the\nprojected time to exhaustion when one exists. An active rule also carries the\nwarning it raised. The trend monitor runs only inside the daemon, so this\ncommand needs a running daemon. It is not part of 'show host all'.",
+    "mode": "read-only",
+    "wire-method": "ze-host:show-trend",
+    "usage": "show host trend",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "host",
+        "kind": "keyword"
+      },
+      {
+        "text": "trend",
         "kind": "keyword"
       }
     ],
@@ -64432,7 +64584,7 @@
     "args": [
       {
         "name": "id",
-        "type": "uint",
+        "type": "string",
         "mandatory": true,
         "short-help": "Local session ID.",
         "description": "The local session ID whose original event ring is wanted."
@@ -64451,7 +64603,7 @@
       },
       {
         "name": "tunnel-id",
-        "type": "uint",
+        "type": "string",
         "short-help": "Original local tunnel ID.",
         "description": "Restrict selection to the local tunnel carrying the original session.\nA session ID shared by several tunnels requires this qualifier."
       }
@@ -64916,7 +65068,7 @@
     "args": [
       {
         "name": "id",
-        "type": "uint",
+        "type": "string",
         "mandatory": true,
         "short-help": "Local session ID.",
         "description": "The local session ID whose original FSM history is wanted."
@@ -64935,7 +65087,7 @@
       },
       {
         "name": "tunnel-id",
-        "type": "uint",
+        "type": "string",
         "short-help": "Original local tunnel ID.",
         "description": "Restrict selection to the local tunnel carrying the original session.\nA session ID shared by several tunnels requires this qualifier."
       }
@@ -65118,7 +65270,7 @@
     "args": [
       {
         "name": "id",
-        "type": "uint",
+        "type": "string",
         "mandatory": true,
         "short-help": "Local session ID.",
         "description": "The decimal local session ID from the show l2tp session table. Zero is\nrefused because RFC 2661 reserves it, and an unknown ID is refused with 'no session with\nlocal-sid'."
@@ -65137,7 +65289,7 @@
       },
       {
         "name": "tunnel-id",
-        "type": "uint",
+        "type": "string",
         "short-help": "Original local tunnel ID.",
         "description": "Restrict selection to the local tunnel carrying the original session.\nA session ID shared by several tunnels requires this qualifier."
       }
@@ -65474,7 +65626,7 @@
     "args": [
       {
         "name": "id",
-        "type": "uint",
+        "type": "string",
         "mandatory": true,
         "short-help": "Local session ID.",
         "description": "The local session ID whose original counters are wanted."
@@ -65493,7 +65645,7 @@
       },
       {
         "name": "tunnel-id",
-        "type": "uint",
+        "type": "string",
         "short-help": "Original local tunnel ID.",
         "description": "Restrict selection to the local tunnel carrying the original session.\nA session ID shared by several tunnels requires this qualifier."
       }

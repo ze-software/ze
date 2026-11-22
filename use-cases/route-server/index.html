@@ -83,7 +83,7 @@
 <li>RPKI and IRR policy where the IXP requires them;</li>
 <li>the Looking Glass for member-facing visibility.</li>
 </ul>
-<p>Use the generated <a href="../../reference/plugins/">plugin catalogue</a> to confirm current dependencies and configuration roots. Build peer groups with the <a href="../../guides/bgp-peering/">BGP peering guide</a> and policy chains with the <a href="../../guides/bgp-policy/">BGP policy guide</a>.</p>
+<p>Use the generated <a href="../../reference/plugins/">plugin catalog</a> to confirm current dependencies and configuration roots. Build peer groups with the <a href="../../guides/bgp-peering/">BGP peering guide</a> and policy chains with the <a href="../../guides/bgp-policy/">BGP policy guide</a>.</p>
 <h2 id="complete-lab-configuration">Complete lab configuration</h2>
 <p>Save the following as <code>route-server.conf</code>. It declares three members, origin
 validation, retained inbound routes, route-server forwarding, BGP Role, and a
@@ -265,7 +265,7 @@ implementation have been tested.</p>
 <li>RPKI Invalid announcements where the IXP policy drops them;</li>
 <li>default routes and over-specific prefixes;</li>
 <li>malformed or prohibited AS paths;</li>
-<li>control communities owned by the IXP when a member is not authorised to set them.</li>
+<li>control communities owned by the IXP when a member is not authorized to set them.</li>
 </ul>
 <p>The exact policy is an IXP decision. Keep policy objects named and reviewable rather than embedding unrelated actions in one chain.</p>
 <h2 id="verification">Verification</h2>
@@ -294,11 +294,11 @@ ze cli -c "show errors"
 <li>A prefix limit that is too low tears down a valid member when their route count grows.</li>
 <li>A limit that is too high weakens protection against a leak.</li>
 <li>Missing ADD-PATH can reduce the paths sent to a member.</li>
-<li>RPKI or IRR cache failure behaviour must match the IXP's written policy.</li>
+<li>RPKI or IRR cache failure behavior must match the IXP's written policy.</li>
 <li>A slow member can create backpressure during churn.</li>
 <li>Route-server role compatibility must be checked before enabling strict enforcement.</li>
 </ul>
-<p>Monitor peer state, route counts, policy failures, forwarding-pool utilisation, and replay duration during every maintenance window.</p>
+<p>Monitor peer state, route counts, policy failures, forwarding-pool utilization, and replay duration during every maintenance window.</p>
 </div>
 </div>
             </section>
@@ -317,7 +317,7 @@ ze cli -c "show errors"
                     </a>
                     <a class="page-sidebar-link" href="../../features/bgp-protocol/">
                         <span class="page-sidebar-link-label">BGP protocol</span>
-                        <small>Behaviour used by the route examples.</small>
+                        <small>Behavior used by the route examples.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../labs/">
                         <span class="page-sidebar-link-label concept-evidence">Lab evidence</span>
@@ -336,7 +336,7 @@ ze cli -c "show errors"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -31,16 +31,16 @@ The figures count the files committed as of that day. Lines include comments and
 
 ## Commit calendar
 
-- Total commits:** 18,550:**
-- Days with commits:** 337:**
+- Total commits:** 18,609:**
+- Days with commits:** 338:**
 - Peak commit day:** 337:**
-- Days shown:** 356:**
+- Days shown:** 357:**
 
 The lines count every file committed outside the third-party trees (vendor/, third_party/, website/assets/vendor/): the files the Repository size view counts in every section but its third-party ones. Lines include comments and blank lines. A change to a binary file, or one that turns a file between text and binary, counts no lines. A renamed file counts its lines as deleted under the old name and added under the new one. A merge commit counts as a commit, and the lines it changes itself are not counted. Each commit counts on the UTC day of its author date. Under Added Lines, the cumulative curve also draws every committed file, the third-party trees included, as a second line.
 
-Commits in this window added 13,130,392 lines and deleted 6,527,172 lines, a net change of 6,603,220 lines. Under Added Lines, a day's color counts only the lines it added. The window reaches back to the first commit, so the net change is the number of lines these files hold at the newest commit the calendar reads, apart from the lines of a file that turned between text and binary and the lines a merge commit changed itself.
+Commits in this window added 13,156,856 lines and deleted 6,535,358 lines, a net change of 6,621,498 lines. Under Added Lines, a day's color counts only the lines it added. The window reaches back to the first commit, so the net change is the number of lines these files hold at the newest commit the calendar reads, apart from the lines of a file that turned between text and binary and the lines a merge commit changed itself.
 
- 2025-12-01 to 2026-11-21 LessMore
+ 2025-12-01 to 2026-11-22 LessMore
 
 ## Go code composition
 

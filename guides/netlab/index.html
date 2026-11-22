@@ -101,8 +101,6 @@ container instead.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: contrib/netlab/Dockerfile.tools -- pinned packages, Python/tool version receipts and dependency check -->
-<!-- source: contrib/netlab/README.md -- Running the reference topology -->
 <p>The lab image is not the deployment image. See <a href="../docker/">Docker</a> for the two images
 and what separates them.</p>
 <h2 id="step-1-build-the-image">Step 1: build the image</h2>
@@ -111,8 +109,6 @@ and what separates them.</p>
 <p><code>contrib/netlab/ze.yml</code> sets <code>clab.build: False</code> and names
 <code>netlab/ze:latest</code>, so netlab starts this image and builds nothing. Change its
 <code>image:</code> value when you choose a different Docker tag.</p>
-<!-- source: docker/Dockerfile.lab -- lab image -->
-<!-- source: contrib/netlab/ze.yml -- clab.build, clab.image -->
 <h2 id="step-2-give-netlab-the-daemon-definition">Step 2: give netlab the daemon definition</h2>
 <p>There are two routes, and <code>contrib/netlab/README.md</code> gives both. The main route
 exports a complete working directory, including <code>topology.yml</code>,
@@ -123,9 +119,6 @@ installation:</p>
 <p>The destination must be new. Once the lab image is available in the target
 Docker daemon, this directory can be copied to another host and used without
 the Ze source checkout.</p>
-<!-- source: internal/le/test/netlab/package.go -- Package -->
-<!-- source: internal/le/test/netlab/netlab.go -- buildLab -->
-<!-- source: internal/le/test/netlab/actions.go -- Answer -->
 <p>The other route copies the daemon definition and the templates into the netlab
 package. It creates no lab directory, so make one and copy the reference
 topology into it:</p>
@@ -135,7 +128,6 @@ mkdir /tmp/ze-lab
 cp contrib/netlab/topology.yml /tmp/ze-lab/topology.yml
 </code></pre>
 <p>Either route leaves <code>topology.yml</code> in <code>/tmp/ze-lab</code>, which Step 3 starts.</p>
-<!-- source: contrib/netlab/README.md -- Installing it into a netlab checkout -->
 <h2 id="step-3-run-the-reference-topology">Step 3: run the reference topology</h2>
 <pre><code class="language-bash">cd /tmp/ze-lab
 netlab up topology.yml
@@ -148,7 +140,6 @@ netlab up topology.yml
 <p>netlab runs an IGP on internal links only, so the eBGP peer sits on its own link. r1
 also carries two static routes. The topology declares every module <code>ze.yml</code> declares:
 bgp, ospf, isis, bfd, and routing.</p>
-<!-- source: contrib/netlab/topology.yml -- nodes, links, module -->
 <p>Stop the lab from that directory with <code>netlab down --cleanup</code>.
 <a href="#stop-and-remove-the-lab">Stop and remove the lab</a> says what stays behind.</p>
 <p>To run the automated live check from the source checkout instead, with
@@ -166,9 +157,6 @@ ze cli -c "show bgp peer list"
 <p>The CLI inside the node uses the lab login that <code>ze.yml</code> puts in the container
 environment (<a href="#the-lab-login">The lab login</a>). On r1, expect the iBGP session to
 r2 and the eBGP session to r3.</p>
-<!-- source: contrib/netlab/ze.yml -- clab.node.env -->
-<!-- source: contrib/netlab/golden/r1.conf -- peer r2, peer r3 -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer list -->
 <h2 id="update-the-lab-after-a-rebuild">Update the lab after a rebuild</h2>
 <p>A running node keeps the image it started from. To run a new build, stop the
 lab, rebuild the image, and start the lab again from the same directory:</p>
@@ -187,9 +175,6 @@ directory, because <code>package directory</code> needs a destination that does 
 needs no manual rebuild. To change a running node's configuration without a
 rebuild, see the SIGHUP reload in <a href="#how-netlab-configures-a-node">How netlab configures a node</a>.
 Review, rollback and recovery outside a lab are in <a href="../lifecycle/">Lifecycle</a>.</p>
-<!-- source: contrib/netlab/ze.yml -- clab.build, clab.image -->
-<!-- source: internal/le/test/netlab/actions.go -- Answer -->
-<!-- source: internal/le/test/netlab/images.go -- buildLabNode -->
 <h2 id="stop-and-remove-the-lab">Stop and remove the lab</h2>
 <p>From the lab directory, <code>netlab down --cleanup</code> stops the lab and removes its
 containers and the files netlab generated. The automated run uses the same
@@ -206,72 +191,51 @@ rm &lt;netlab&gt;/netsim/daemons/ze.yml
 rm -r &lt;netlab&gt;/netsim/daemons/ze
 </code></pre>
 <p>Then delete the lab directory you exported.</p>
-<!-- source: internal/le/test/netlab/live.go -- RunLive -->
 <h2 id="how-netlab-configures-a-node">How netlab configures a node</h2>
 <p>netlab renders <code>contrib/netlab/ze/ze.j2</code> into one file, <code>/etc/ze/ze.conf</code>, and
 containerlab bind-mounts it into the node. Ze has no <code>include</code> directive, so one file
 holds the whole running configuration. Each other module key points at an ignore file
 that nothing reads.</p>
-<!-- source: contrib/netlab/ze.yml -- daemon_config -->
 <p>The node starts netlab's <code>/etc/dataplane-wait.sh</code> under <code>tini</code>. That wrapper waits
 for initial interface configuration, then replaces itself with
 <code>ze start /etc/ze/ze.conf</code>. Ze therefore starts after its configured local
 addresses exist.</p>
-<!-- source: contrib/netlab/ze.yml -- clab.node.cmd, clab.node.config_templates, clab.group_vars.netlab_dp_module -->
 <p>The rendered empty <code>interface {}</code> block starts interface monitoring so
 <code>connected</code> can discover the addresses netlab installed. It declares no managed
 addresses; netlab keeps ownership of them. Applying the empty block still clears
 Ze's IPv6 reverse-path checks and interface IPv6 forwarding default. Each BGP peer's
 redistribution attachment receives <code>state</code> and can send <code>update</code>, allowing a
 peer that establishes later to request the current connected prefixes.</p>
-<!-- source: contrib/netlab/ze/ze.j2 -- interface, redistribute-orchestrator -->
-<!-- source: internal/component/iface/config_apply.go -- applyConfigPass -->
-<!-- source: internal/component/iface/config_sysctl.go -- applyIPv6ForwardingSwitch -->
-<!-- source: internal/plugins/redistribute/register.go -- runPlugin -->
 <p>Each BGP peer attaches <code>bgp-rib</code> with the grants to learn routes and advertise
 eligible selected routes. This lets r1 advertise routes between r2 and r3
 when their sessions come up in either order. The template sets an accepting
 export policy on every peer because Ze requires explicit export policy for
 learned routes. It also sets an accepting import policy on external peers to
 satisfy RFC 8212.</p>
-<!-- source: contrib/netlab/ze/ze.j2 -- filter, attach process bgp-rib -->
-<!-- source: internal/component/bgp/plugins/rib/rib_dissemination.go -- disseminationDecls -->
 <p>The template sets <code>next-hop self</code> toward external peers so they can use the
 advertising node as their next hop. It also sets <code>next-hop self</code> on internal
 sessions where the topology requests it.</p>
-<!-- source: contrib/netlab/ze/ze.j2 -- next-hop self -->
 <p>The explicit <code>clab.node_config.initial</code> shell method runs Linux interface setup
 through <code>docker exec</code>. The Ze initial template marks successful completion for
 the startup wrapper. The explicit method overrides the Linux parent's
 host-namespace method. Setting the default configuration mode alone does not
 replace an inherited method.</p>
-<!-- source: contrib/netlab/ze.yml -- clab.node_config.initial -->
-<!-- source: contrib/netlab/ze/initial.j2 -- Linux interface setup and completion marker -->
 <p>After changing that bind-mounted file, send SIGHUP to reload it.
 <code>handleSIGHUPReload</code> runs <code>signalReload</code>,
 which stages the file as a candidate, reloads it, and never writes the file back. netlab sends no SIGHUP, and <code>ze.yml</code> says so with
 <code>features.initial.reload: false</code>. A configuration change in a running lab therefore
 needs <code>kill -HUP</code> on the ze process inside the node, or a node restart.</p>
-<!-- source: contrib/netlab/ze.yml -- clab.group_vars.netlab_start_daemon -->
-<!-- source: contrib/netlab/ze.yml -- features.initial.reload -->
-<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, signalReload, stageSIGHUPCandidate -->
-<!-- source: cmd/ze/hub/config_source.go -- promoteSignalCandidate -->
 <p><code>netlab validate</code> reads the daemon through the CLI. <code>ze.yml</code> declares the show command
 as <code>ze cli -c "show $@ | json compact"</code>, and netlab runs it with <code>docker exec</code>. An
 explicit format pipe beats the <code>--format</code> flag, so that command emits JSON.</p>
-<!-- source: contrib/netlab/ze.yml -- clab.group_vars.netlab_show_command -->
-<!-- source: internal/component/cli/client/main.go -- commandWithFormat -->
 <h2 id="the-lab-login">The lab login</h2>
 <p>The rendered configuration declares one user, <code>netlab</code>, with the password <code>netlab</code>.
 <code>ze.yml</code> puts the same pair in the container environment, so the CLI inside the node has
 a credential. This is a well-known password in a throwaway container. Nothing in ze
 defaults to it and no image carries it.</p>
-<!-- source: contrib/netlab/ze/ze.j2 -- netlab_lab_user, netlab_lab_password -->
-<!-- source: contrib/netlab/ze.yml -- clab.node.env -->
 <p>The template writes the password as <code>plaintext-password</code>. Ze hashes that leaf when it
 loads the file, and it warns that the file still holds the secret. See
 <a href="../authentication/#passwords-in-a-config-file">Authentication</a>.</p>
-<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
 </div>
 </div>
             </section>
@@ -321,7 +285,7 @@ loads the file, and it warns that the file still holds the secret. See
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

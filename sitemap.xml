@@ -2644,6 +2644,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-host-thermal/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-host-trend/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-host/</loc>
   </url>
   <url>
@@ -3661,13 +3664,7 @@
     <loc>https://ze-software.net/reference/rfcs/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/search/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/security/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/style-guide/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/talks/</loc>
