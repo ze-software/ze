@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	l2tpauthradius "github.com/ze-software/ze/internal/component/l2tp/plugins/authradius"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginmgr "github.com/ze-software/ze/internal/component/plugin/manager"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -222,7 +223,8 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 	up := func(t *testing.T, id uint16) *radius.Packet {
 		t.Helper()
 		_, emitErr := server.Emit(l2tpevents.Namespace, l2tpevents.SessionIPAssignedEvent, &l2tpevents.SessionIPAssignedPayload{
-			TunnelID: 81, SessionID: id, Username: "alice", PeerAddr: "192.0.2.81",
+			SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, 81, id),
+			TunnelID:     81, SessionID: id, Username: "alice", PeerAddr: "192.0.2.81",
 		})
 		require.NoError(t, emitErr)
 		return nextReloadAccounting(t, packets, radius.AcctStatusStart)
