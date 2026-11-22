@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -52,6 +53,9 @@ func (d *espFormFastPathDP) ESPFormFastPathState() (dataplane.ESPFormFastPathSta
 // PREVENTS: a box whose bare ESP runs rate-bounded through ze-espform with doctor
 // silent about it, and a refused link reported as the whole fast path failing.
 func TestDoctorESPFormFastPath(t *testing.T) {
+	// The capability fix pinned below is the remedy for a ze under ze.service: fix the
+	// membership, so the answer does not depend on how the test process was started.
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	fastPath := "warning:" + diagnostic.CodeDoctorIPsecESPFormFastPath
 	link := "warning:" + diagnostic.CodeDoctorIPsecESPFormLink
 	unavailableCause := "load the ESP form rewrite program: operation not permitted; give ze the " +
@@ -101,11 +105,21 @@ func TestDoctorESPFormFastPath(t *testing.T) {
 		{
 			name: "unavailable",
 			dp: &espFormFastPathDP{state: dataplane.ESPFormFastPathState{
-				Status: dataplane.ESPFormFastPathUnavailable, FirewallReading: dataplane.ESPFormFirewallUnheld, Cause: unavailableCause,
+				Status: dataplane.ESPFormFastPathUnavailable, Fault: dataplane.ESPFormFastPathFaultCapability, FirewallReading: dataplane.ESPFormFirewallUnheld, Cause: unavailableCause,
 			}},
 			want:     fastPath,
-			contains: [][]string{{"fast path is unavailable (" + unavailableCause + ")", "ze-espform", bound, "CAP_BPF", "sudo systemctl stop ze"}},
-			fix:      []string{espFormFastPathFixCapabilities},
+			contains: [][]string{{"fast path is unavailable (" + unavailableCause + ")", "ze-espform", bound, "CAP_BPF", "CAP_NET_ADMIN", "EPERM"}},
+			fix:      []string{privilege.DaemonCapabilitiesFix},
+		},
+		{
+			name: "unavailable, kernel without TCX",
+			dp: &espFormFastPathDP{state: dataplane.ESPFormFastPathState{
+				Status: dataplane.ESPFormFastPathUnavailable, Fault: dataplane.ESPFormFastPathFaultKernel, FirewallReading: dataplane.ESPFormFirewallUnheld,
+				Cause: "this kernel does not attach TCX programs: operation not supported",
+			}},
+			want:     fastPath,
+			contains: [][]string{{"fast path is unavailable", "Linux 6.6", "no capability makes it load", "ze-espform", bound}},
+			fix:      []string{dataplane.RuntimeKernelBuildFix()},
 		},
 		{
 			name: "attached, two links refused",
@@ -146,7 +160,7 @@ func TestDoctorESPFormFastPath(t *testing.T) {
 				{"stopped following new links (the link subscription ended)", "on the 2 links it is attached to"},
 				{"does not serve link ppp0"},
 			},
-			fix: []string{espFormFastPathFixRestart, "ze show interface name ppp0 detail"},
+			fix: []string{dataplane.ESPFormFixRestart(), "ze show interface name ppp0 detail"},
 		},
 		{
 			name: "attached, the firewall could drop ESP",
@@ -176,7 +190,7 @@ func TestDoctorESPFormFastPath(t *testing.T) {
 				"off for safety (Ze stopped following nftables changes)",
 				"the firewall still decides on it", bound, dropped,
 			}},
-			fix: []string{espFormFastPathFixRestart},
+			fix: []string{dataplane.ESPFormFixRestart()},
 		},
 		{
 			// A cause means the ruleset was not read, so a blocking site beside it is
@@ -191,7 +205,7 @@ func TestDoctorESPFormFastPath(t *testing.T) {
 			contains: [][]string{{
 				"off for safety (the nftables ruleset could not be read: netlink receive: no buffer space available)",
 			}},
-			fix: []string{espFormFastPathFixRestart},
+			fix: []string{dataplane.ESPFormFixRestart()},
 		},
 		{
 			// A fast path that did not load reads no gate, so the blocking site the last
@@ -200,13 +214,13 @@ func TestDoctorESPFormFastPath(t *testing.T) {
 			// in espFormFastPathFindings: the blocking site is a second finding.
 			name: "unavailable, and the firewall could drop ESP",
 			dp: &espFormFastPathDP{state: dataplane.ESPFormFastPathState{
-				Status: dataplane.ESPFormFastPathUnavailable, FirewallReading: dataplane.ESPFormFirewallRead, Cause: unavailableCause,
+				Status: dataplane.ESPFormFastPathUnavailable, Fault: dataplane.ESPFormFastPathFaultCapability, FirewallReading: dataplane.ESPFormFirewallRead, Cause: unavailableCause,
 				FirewallBlocked: true, FirewallSite: firewallSite, FirewallAcceptFix: acceptFix,
 				FirewallAcceptHow: acceptHow,
 			}},
 			want:     fastPath,
 			contains: [][]string{{"fast path is unavailable"}},
-			fix:      []string{espFormFastPathFixCapabilities},
+			fix:      []string{privilege.DaemonCapabilitiesFix},
 		},
 		{
 			// Idle watches no SPI, so no bare ESP takes either path, and a firewall
@@ -235,7 +249,7 @@ func TestDoctorESPFormFastPath(t *testing.T) {
 			loadESPFormBackend(t, tc.dp)
 			// The last apply recorded the device opening, so only the fast path's
 			// findings appear (TestDoctorESPFormTUN owns the device's).
-			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(nil))
+			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(nil), nil)
 			if got := diagnosticCodes(diags); got != tc.want {
 				t.Fatalf("diagnostics = %q, want %q (%v)", got, tc.want, diags)
 			}
@@ -288,6 +302,7 @@ func TestDoctorESPFormFirewallReading(t *testing.T) {
 	// now is the doctor's clock for every row, so a stream of commits has a known age.
 	now := time.Date(2026, time.November, 12, 10, 0, 0, 0, time.UTC)
 	before := espFormFirewallNow
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	espFormFirewallNow = func() time.Time { return now }
 	t.Cleanup(func() { espFormFirewallNow = before })
 	oldStream := now.Add(-dataplane.ESPFormFirewallMovingReportAfter - time.Second)
@@ -336,7 +351,7 @@ func TestDoctorESPFormFirewallReading(t *testing.T) {
 			want:  firewall,
 			has:   []string{offForSafety, restart, "Nothing reads the ruleset again until ze restarts"},
 			lacks: []string{noRestart},
-			fix:   espFormFastPathFixRestart,
+			fix:   dataplane.ESPFormFixRestart(),
 		},
 		{
 			name: "watch closed",
@@ -347,7 +362,7 @@ func TestDoctorESPFormFirewallReading(t *testing.T) {
 			want:  firewall,
 			has:   []string{offForSafety, restart, "Nothing reads the ruleset again until ze restarts"},
 			lacks: []string{noRestart},
-			fix:   espFormFastPathFixRestart,
+			fix:   dataplane.ESPFormFixRestart(),
 		},
 		{
 			name: "read, a rule can drop ESP",
@@ -388,7 +403,7 @@ func TestDoctorESPFormFirewallReading(t *testing.T) {
 				"Nothing reads the ruleset before that commit", "To read it at once, restart ze with the command below",
 			},
 			lacks: []string{restart, "Nothing reads the ruleset again until ze restarts"},
-			fix:   espFormFastPathFixRestart,
+			fix:   dataplane.ESPFormFixRestart(),
 		},
 		{
 			// A stream of commits older than the report threshold is one warning naming
@@ -445,7 +460,7 @@ func TestDoctorESPFormFirewallReading(t *testing.T) {
 			// in espFormFastPathFindings: the Moving warning is a second finding.
 			name: "unavailable, with a stream older than the report threshold",
 			state: dataplane.ESPFormFastPathState{
-				Status: dataplane.ESPFormFastPathUnavailable, Cause: "no CAP_BPF",
+				Status: dataplane.ESPFormFastPathUnavailable, Fault: dataplane.ESPFormFastPathFaultCapability, Cause: "no CAP_BPF",
 				FirewallReading: dataplane.ESPFormFirewallMoving, FirewallMovingSince: oldStream,
 			},
 			want: fastPath,
@@ -492,7 +507,7 @@ func TestDoctorESPFormFirewallReading(t *testing.T) {
 			// Unavailable loads no program, so the only finding is the fast path's own.
 			name: "unheld",
 			state: dataplane.ESPFormFastPathState{
-				Status: dataplane.ESPFormFastPathUnavailable, Cause: "no CAP_BPF",
+				Status: dataplane.ESPFormFastPathUnavailable, Fault: dataplane.ESPFormFastPathFaultCapability, Cause: "no CAP_BPF",
 				FirewallReading: dataplane.ESPFormFirewallUnheld,
 			},
 			want: fastPath,
@@ -521,7 +536,7 @@ func TestDoctorESPFormFirewallReading(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			loadESPFormBackend(t, &espFormFastPathDP{state: tc.state})
-			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(nil))
+			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(nil), nil)
 			if got := diagnosticCodes(diags); got != tc.want {
 				t.Fatalf("diagnostics = %q, want %q (%v)", got, tc.want, diags)
 			}
@@ -562,6 +577,9 @@ func TestDoctorESPFormFirewallReading(t *testing.T) {
 // MUTATION: append espFormFirewallFindings(state) to the Detached finding: the blocking
 // site and the stream are second findings.
 func TestDoctorESPFormFastPathDetached(t *testing.T) {
+	// The capability fix pinned below is the remedy for a ze under ze.service: fix the
+	// membership, so the answer does not depend on how the test process was started.
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	fastPath := "warning:" + diagnostic.CodeDoctorIPsecESPFormFastPath
 	detachCause := "the firewall gate could not be shut (map update: bad file descriptor), so the program " +
 		"was detached from every link rather than rewrite bare ESP an nftables rule should see"
@@ -570,6 +588,7 @@ func TestDoctorESPFormFastPathDetached(t *testing.T) {
 	site := "inet ze_wan input (hook input) rule 7 \"block-all\": drop"
 	now := time.Date(2026, time.November, 12, 10, 0, 0, 0, time.UTC)
 	before := espFormFirewallNow
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	espFormFirewallNow = func() time.Time { return now }
 	t.Cleanup(func() { espFormFirewallNow = before })
 	detachedText := []string{
@@ -592,7 +611,7 @@ func TestDoctorESPFormFastPathDetached(t *testing.T) {
 			},
 			has:   detachedText,
 			lacks: []string{"CAP_BPF", "systemctl stop", "Linux 6.6", "unavailable"},
-			fix:   dataplane.ESPFormFixRestart,
+			fix:   dataplane.ESPFormFixRestart(),
 		},
 		{
 			name: "detached, beside a blocking site",
@@ -603,7 +622,7 @@ func TestDoctorESPFormFastPathDetached(t *testing.T) {
 			},
 			has:   detachedText,
 			lacks: []string{site},
-			fix:   dataplane.ESPFormFixRestart,
+			fix:   dataplane.ESPFormFixRestart(),
 		},
 		{
 			name: "detached, beside a stream of commits",
@@ -614,28 +633,28 @@ func TestDoctorESPFormFastPathDetached(t *testing.T) {
 			},
 			has:   detachedText,
 			lacks: []string{"kept changing", "no restart is needed"},
-			fix:   dataplane.ESPFormFixRestart,
+			fix:   dataplane.ESPFormFixRestart(),
 		},
 		{
 			name:  "detached, no cause given",
 			state: dataplane.ESPFormFastPathState{Status: dataplane.ESPFormFastPathDetached},
 			has:   []string{"detached itself from every link (the dataplane gave no cause)"},
-			fix:   dataplane.ESPFormFixRestart,
+			fix:   dataplane.ESPFormFixRestart(),
 		},
 		{
 			name: "a load failure is still unavailable",
 			state: dataplane.ESPFormFastPathState{
-				Status: dataplane.ESPFormFastPathUnavailable, Cause: loadCause,
+				Status: dataplane.ESPFormFastPathUnavailable, Fault: dataplane.ESPFormFastPathFaultCapability, Cause: loadCause,
 				FirewallReading: dataplane.ESPFormFirewallUnheld,
 			},
-			has:   []string{"fast path is unavailable (" + loadCause + ")", "CAP_BPF", "sudo systemctl stop ze", "Linux 6.6"},
+			has:   []string{"fast path is unavailable (" + loadCause + ")", "CAP_BPF", "CAP_NET_ADMIN", "EPERM"},
 			lacks: []string{"detached", "firewall gate"},
-			fix:   espFormFastPathFixCapabilities,
+			fix:   privilege.DaemonCapabilitiesFix,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			loadESPFormBackend(t, &espFormFastPathDP{state: tc.state})
-			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(nil))
+			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(nil), nil)
 			if got := diagnosticCodes(diags); got != fastPath {
 				t.Fatalf("diagnostics = %q, want %q (%v)", got, fastPath, diags)
 			}
@@ -679,6 +698,9 @@ func TestDoctorESPFormFastPathDetached(t *testing.T) {
 // MUTATION: drop the espFormOneWord test from espFormSharedSPI: "peer name not one word"
 // gets a fix line carrying the quote.
 func TestDoctorESPFormSharedSPI(t *testing.T) {
+	// The capability fix pinned below is the remedy for a ze under ze.service: fix the
+	// membership, so the answer does not depend on how the test process was started.
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	const spi = 0x1234
 	fastPath := "warning:" + diagnostic.CodeDoctorIPsecESPFormFastPath
 	served, unserved := netip.MustParseAddr("203.0.113.9"), netip.MustParseAddr("203.0.113.10")
@@ -770,21 +792,21 @@ func TestDoctorESPFormSharedSPI(t *testing.T) {
 		{
 			name: "unavailable reports its own warning alone",
 			state: dataplane.ESPFormFastPathState{
-				Status: dataplane.ESPFormFastPathUnavailable, Cause: "load the rewrite program: operation not permitted",
+				Status: dataplane.ESPFormFastPathUnavailable, Fault: dataplane.ESPFormFastPathFaultCapability, Cause: "load the rewrite program: operation not permitted",
 				FirewallReading: dataplane.ESPFormFirewallUnheld, SharedSPIs: shared,
 			},
 			peers: map[string]*PeerSession{"east": session("east", "203.0.113.10")},
 			want:  fastPath,
 			has:   []string{"fast path is unavailable"},
 			lacks: []string{"same random inbound SPI", "203.0.113.10"},
-			fix:   espFormFastPathFixCapabilities,
+			fix:   privilege.DaemonCapabilitiesFix,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			setActivePeers(tc.peers)
 			t.Cleanup(func() { setActivePeers(nil) })
 			loadESPFormBackend(t, &espFormFastPathDP{state: tc.state})
-			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(nil))
+			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(nil), nil)
 			if got := diagnosticCodes(diags); got != tc.want {
 				t.Fatalf("diagnostics = %q, want %q (%v)", got, tc.want, diags)
 			}
@@ -1047,7 +1069,7 @@ func TestDoctorESPFormTUN(t *testing.T) {
 	refused := newESPFormTUNRecord(refusal)
 	idle := dataplane.ESPFormFastPathState{Status: dataplane.ESPFormFastPathIdle}
 	attached := dataplane.ESPFormFastPathState{Status: dataplane.ESPFormFastPathAttached, FirewallReading: dataplane.ESPFormFirewallRead, Attached: []string{"eth0"}}
-	unavailable := dataplane.ESPFormFastPathState{Status: dataplane.ESPFormFastPathUnavailable, FirewallReading: dataplane.ESPFormFirewallUnheld, Cause: "no CAP_BPF"}
+	unavailable := dataplane.ESPFormFastPathState{Status: dataplane.ESPFormFastPathUnavailable, Fault: dataplane.ESPFormFastPathFaultCapability, FirewallReading: dataplane.ESPFormFirewallUnheld, Cause: "no CAP_BPF"}
 	consequence := "so every Child SA on UDP port 4500 is refused at install"
 
 	for _, tc := range []struct {
@@ -1096,7 +1118,7 @@ func TestDoctorESPFormTUN(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			loadESPFormBackend(t, tc.dp)
 			calls := stubESPFormTUN(t, errors.New("test: the doctor check opened the device"))
-			diags := checkIPsecESPFormFastPath(tc.tun)
+			diags := checkIPsecESPFormFastPath(tc.tun, nil)
 			if got := diagnosticCodes(diags); got != tc.want {
 				t.Fatalf("diagnostics = %q, want %q (%v)", got, tc.want, diags)
 			}
@@ -1311,6 +1333,20 @@ func TestEngineDoctorCheckDispatch(t *testing.T) {
 		t.Errorf("the doctor callback opened the device %d times, want 0", *calls)
 	}
 
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipOther, nil))
+	state.espFormTUN.Store(nil)
+	state.espFormFastPath.Store(newESPFormFastPathRecord(dataplane.ESPFormFastPathFaultCapability, errors.New("load eBPF: operation not permitted")))
+	diags, err = state.answerDoctorCheck(espFormFastPathCheckName)
+	if err != nil {
+		t.Fatalf("answer with fast-path readiness refusal: %v", err)
+	}
+	if got, want := diagnosticCodes(diags), "warning:"+diagnostic.CodeDoctorIPsecESPFormFastPath; got != want {
+		t.Fatalf("idle with will-not-load record: diagnostics = %q, want %q", got, want)
+	}
+	if strings.Contains(diags[0].Fix, "systemctl") {
+		t.Errorf("outside ze.service, readiness fix carries systemctl: %q", diags[0].Fix)
+	}
+
 	ps := &PeerSession{peerName: "site-b"}
 	ps.childRefused.Store(&childRefusal{err: errors.New("netlink: operation not supported"), at: time.Now()})
 	state.peers["site-b"] = ps
@@ -1328,5 +1364,298 @@ func TestEngineDoctorCheckDispatch(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "ipsec-no-such-check") {
 		t.Errorf("the error does not name the check: %v", err)
+	}
+}
+
+// stubESPFormFastPathReady stands in espFormFastPathReady for one test and
+// returns a pointer to the call counter.
+func stubESPFormFastPathReady(t *testing.T, fault dataplane.ESPFormFastPathFault, err error) *int {
+	t.Helper()
+	var calls int
+	previous := espFormFastPathReady
+	espFormFastPathReady = func() (dataplane.ESPFormFastPathFault, error) {
+		calls++
+		return fault, err
+	}
+	t.Cleanup(func() { espFormFastPathReady = previous })
+	return &calls
+}
+
+// TestNewESPFormFastPathRecord classifies every answer espFormFastPathReady can
+// return into the recorded readiness state.
+//
+// VALIDATES: nil -> loads; ErrNotSupported -> not supported; capability/kernel
+// fault -> will not load; unknown/unspecified fault with error -> undetermined.
+// PREVENTS: an unclassified load failure misread as loads or as a capability fault.
+func TestNewESPFormFastPathRecord(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		fault dataplane.ESPFormFastPathFault
+		err   error
+		want  espFormFastPathReadiness
+	}{
+		{"loads", dataplane.ESPFormFastPathFaultUnspecified, nil, espFormFastPathLoads},
+		{"not supported", dataplane.ESPFormFastPathFaultUnspecified, dataplane.ErrNotSupported, espFormFastPathNotSupported},
+		{"capability fault", dataplane.ESPFormFastPathFaultCapability, errors.New("operation not permitted"), espFormFastPathWillNotLoad},
+		{"kernel fault", dataplane.ESPFormFastPathFaultKernel, errors.New("operation not supported"), espFormFastPathWillNotLoad},
+		{"unknown fault", dataplane.ESPFormFastPathFaultUnknown, errors.New("verifier rejected"), espFormFastPathUndetermined},
+		{"unspecified fault with error", dataplane.ESPFormFastPathFaultUnspecified, errors.New("unexpected"), espFormFastPathUndetermined},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := newESPFormFastPathRecord(tc.fault, tc.err)
+			if rec.readiness != tc.want {
+				t.Fatalf("readiness = %d, want %d", rec.readiness, tc.want)
+			}
+			if rec.fault != tc.fault {
+				t.Errorf("fault = %d, want %d", rec.fault, tc.fault)
+			}
+			if !errors.Is(rec.err, tc.err) {
+				t.Errorf("err = %v, want %v", rec.err, tc.err)
+			}
+		})
+	}
+}
+
+// TestDoctorESPFormFastPathReadinessIdle drives the Idle branch of
+// checkIPsecESPFormFastPath over every readiness record state, without running
+// the readiness probe inside doctor.
+//
+// VALIDATES: nil, loads and not-supported report nothing; capability fault
+// reports doctor-ipsec-esp-form-fast-path with DaemonCapabilitiesFix under
+// ze.service and non-systemd CAP_BPF/CAP_NET_ADMIN fix outside ze.service;
+// kernel fault reports Linux 6.6 with RuntimeKernelBuildFix; undetermined says
+// Ze cannot tell with engine log fix; an unspecified record names a Ze defect.
+// PREVENTS: an idle receiver hiding a missing CAP_BPF or absent TCX kernel, or
+// offering a systemd repair outside ze.service.
+func TestDoctorESPFormFastPathReadinessIdle(t *testing.T) {
+	fastPath := "warning:" + diagnostic.CodeDoctorIPsecESPFormFastPath
+	idle := dataplane.ESPFormFastPathState{Status: dataplane.ESPFormFastPathIdle}
+
+	for _, tc := range []struct {
+		name       string
+		membership privilege.ServiceMembership
+		fast       *espFormFastPathRecord
+		want       string
+		contains   []string
+		fix        string
+		noSystemd  bool
+	}{
+		{name: "nil record", membership: privilege.MembershipOther},
+		{name: "loads", membership: privilege.MembershipOther, fast: newESPFormFastPathRecord(dataplane.ESPFormFastPathFaultUnspecified, nil)},
+		{name: "not supported", membership: privilege.MembershipOther, fast: newESPFormFastPathRecord(dataplane.ESPFormFastPathFaultUnspecified, dataplane.ErrNotSupported)},
+		{
+			name:       "capability fault under ze.service",
+			membership: privilege.MembershipZeService,
+			fast:       newESPFormFastPathRecord(dataplane.ESPFormFastPathFaultCapability, errors.New("load eBPF: operation not permitted")),
+			want:       fastPath,
+			contains:   []string{"will not load", "operation not permitted", "CAP_BPF", "CAP_NET_ADMIN", "ze-espform"},
+			fix:        privilege.DaemonCapabilitiesFix,
+		},
+		{
+			name:       "capability fault outside ze.service",
+			membership: privilege.MembershipOther,
+			fast:       newESPFormFastPathRecord(dataplane.ESPFormFastPathFaultCapability, errors.New("load eBPF: operation not permitted")),
+			want:       fastPath,
+			contains:   []string{"will not load", "CAP_BPF", "CAP_NET_ADMIN"},
+			noSystemd:  true,
+		},
+		{
+			name:       "kernel fault",
+			membership: privilege.MembershipOther,
+			fast:       newESPFormFastPathRecord(dataplane.ESPFormFastPathFaultKernel, errors.New("no TCX: operation not supported")),
+			want:       fastPath,
+			contains:   []string{"will not load", "Linux 6.6", "no capability makes it load"},
+			fix:        dataplane.RuntimeKernelBuildFix(),
+		},
+		{
+			name:       "undetermined",
+			membership: privilege.MembershipOther,
+			fast:       newESPFormFastPathRecord(dataplane.ESPFormFastPathFaultUnknown, errors.New("verifier rejected")),
+			want:       fastPath,
+			contains:   []string{"Ze cannot tell whether the IPsec ESP form fast path will load", "verifier rejected"},
+			fix:        espFormFastPathFixEngineLog,
+		},
+		{
+			name:       "empty record",
+			membership: privilege.MembershipOther,
+			fast:       &espFormFastPathRecord{},
+			want:       fastPath,
+			contains:   []string{"could not read", "Ze defect"},
+			fix:        espFormFastPathFixEngineLog,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Cleanup(privilege.SetServiceMembershipForTest(tc.membership, nil))
+			loadESPFormBackend(t, &espFormFastPathDP{state: idle})
+			calls := stubESPFormFastPathReady(t, dataplane.ESPFormFastPathFaultUnknown, errors.New("doctor must not probe"))
+			diags := checkIPsecESPFormFastPath(nil, tc.fast)
+			if *calls != 0 {
+				t.Errorf("doctor invoked the readiness probe %d times, want 0", *calls)
+			}
+			if got := diagnosticCodes(diags); got != tc.want {
+				t.Fatalf("diagnostics = %q, want %q (%v)", got, tc.want, diags)
+			}
+			if tc.want == "" {
+				return
+			}
+			for _, text := range tc.contains {
+				if !strings.Contains(diags[0].Message, text) {
+					t.Errorf("message does not carry %q: %q", text, diags[0].Message)
+				}
+			}
+			if tc.fix != "" && diags[0].Fix != tc.fix {
+				t.Errorf("fix = %q, want %q", diags[0].Fix, tc.fix)
+			}
+			if tc.noSystemd {
+				if strings.Contains(diags[0].Fix, "systemctl") || strings.Contains(diags[0].Fix, "install systemd") {
+					t.Errorf("outside ze.service, fix offers systemd: %q", diags[0].Fix)
+				}
+				if !strings.Contains(diags[0].Fix, "CAP_BPF") || !strings.Contains(diags[0].Fix, "CAP_NET_ADMIN") {
+					t.Errorf("outside ze.service, fix does not name CAP_BPF and CAP_NET_ADMIN: %q", diags[0].Fix)
+				}
+			}
+		})
+	}
+}
+
+// TestRecordESPFormFastPath drives recordESPFormFastPath through applyConfig and
+// directly, modeled on TestRecordESPFormTUN.
+//
+// VALIDATES: an apply with a peer under a dual-form dataplane probes once,
+// records the outcome, logs one WARN carrying code=doctor-ipsec-esp-form-fast-path
+// when it will not load or cannot be determined, and still commits; loads and
+// ErrNotSupported log nothing; no peer or no dual-form dataplane probes nothing
+// and clears an earlier record.
+// PREVENTS: a missing capability going unprobed at startup/reload, a probe
+// running when no IPsec peer is configured, or a stale record surviving peer removal.
+func TestRecordESPFormFastPath(t *testing.T) {
+	capErr := errors.New("load eBPF collection: operation not permitted")
+	fastWarn := "ike: the IPsec ESP form fast path will not load"
+	undeterminedWarn := "ike: Ze cannot tell whether the IPsec ESP form fast path will load"
+
+	t.Run("applyConfig records the probe refusal and commits", func(t *testing.T) {
+		t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipOther, nil))
+		loadFailClosedBackend(t, &espFormCatchAllDP{state: dataplane.ESPFormFastPathState{Status: dataplane.ESPFormFastPathIdle}})
+		state := applyTestState(t)
+		log, logged := cfxLogger()
+		state.log = log
+		stubESPFormTUN(t, nil)
+		calls := stubESPFormFastPathReady(t, dataplane.ESPFormFastPathFaultCapability, capErr)
+		if err := state.applyConfig(testIPsecConfig(applyTestPeer("127.0.0.1")), applyReload); err != nil {
+			t.Fatalf("applyConfig = %v, want nil: fast-path readiness never refuses the commit", err)
+		}
+		if *calls != 1 {
+			t.Fatalf("apply probed fast path %d times, want 1", *calls)
+		}
+		rec := state.espFormFastPath.Load()
+		if rec == nil || rec.readiness != espFormFastPathWillNotLoad || rec.fault != dataplane.ESPFormFastPathFaultCapability {
+			t.Fatalf("recorded %+v, want will-not-load capability fault", rec)
+		}
+		lines := cirWarnLines(logged, fastWarn)
+		if len(lines) != 1 {
+			t.Fatalf("%d WARN lines, want 1:\n%s", len(lines), logged.String())
+		}
+		if !strings.Contains(lines[0], "code="+diagnostic.CodeDoctorIPsecESPFormFastPath) {
+			t.Errorf("WARN line carries no doctor code: %s", lines[0])
+		}
+		if strings.Contains(lines[0], "systemctl") {
+			t.Errorf("outside ze.service, WARN line offers systemctl: %s", lines[0])
+		}
+	})
+
+	t.Run("each case of the probe", func(t *testing.T) {
+		peers := testIPsecConfig(applyTestPeer("127.0.0.1"))
+		reporter := &espFormFastPathDP{state: dataplane.ESPFormFastPathState{Status: dataplane.ESPFormFastPathIdle}}
+		for _, tc := range []struct {
+			name      string
+			dp        dataplane.Dataplane
+			cfg       *ipsec.IPsecConfig
+			fault     dataplane.ESPFormFastPathFault
+			err       error
+			probes    int
+			readiness espFormFastPathReadiness
+			warnSub   string
+			warns     int
+		}{
+			{name: "a peer, loads", dp: reporter, cfg: peers, probes: 1, readiness: espFormFastPathLoads},
+			{name: "a peer, not supported", dp: reporter, cfg: peers, err: dataplane.ErrNotSupported, probes: 1, readiness: espFormFastPathNotSupported},
+			{name: "a peer, capability fault", dp: reporter, cfg: peers, fault: dataplane.ESPFormFastPathFaultCapability, err: capErr, probes: 1, readiness: espFormFastPathWillNotLoad, warnSub: fastWarn, warns: 1},
+			{name: "a peer, kernel fault", dp: reporter, cfg: peers, fault: dataplane.ESPFormFastPathFaultKernel, err: errors.New("no TCX"), probes: 1, readiness: espFormFastPathWillNotLoad, warnSub: fastWarn, warns: 1},
+			{name: "a peer, undetermined", dp: reporter, cfg: peers, fault: dataplane.ESPFormFastPathFaultUnknown, err: errors.New("verifier error"), probes: 1, readiness: espFormFastPathUndetermined, warnSub: undeterminedWarn, warns: 1},
+			{name: "no peer", dp: reporter, cfg: testIPsecConfig(), fault: dataplane.ESPFormFastPathFaultCapability, err: capErr},
+			{name: "no dual-form receiver", dp: &bypassDP{}, cfg: peers, fault: dataplane.ESPFormFastPathFaultCapability, err: capErr},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				loadESPFormBackend(t, tc.dp)
+				log, logged := cfxLogger()
+				state := &ikeEngineState{log: log}
+				state.espFormFastPath.Store(newESPFormFastPathRecord(dataplane.ESPFormFastPathFaultCapability, capErr))
+				calls := stubESPFormFastPathReady(t, tc.fault, tc.err)
+				state.recordESPFormFastPath(tc.cfg)
+				if *calls != tc.probes {
+					t.Errorf("probed %d times, want %d", *calls, tc.probes)
+				}
+				rec := state.espFormFastPath.Load()
+				switch {
+				case tc.readiness == espFormFastPathReadinessUnspecified && rec != nil:
+					t.Errorf("recorded %+v, want nil", rec)
+				case tc.readiness != espFormFastPathReadinessUnspecified && (rec == nil || rec.readiness != tc.readiness):
+					t.Errorf("recorded %+v, want readiness %d", rec, tc.readiness)
+				}
+				if tc.warns == 0 {
+					if logged.Len() != 0 {
+						t.Errorf("expected no log lines, got:\n%s", logged.String())
+					}
+					return
+				}
+				lines := cirWarnLines(logged, tc.warnSub)
+				if len(lines) != tc.warns {
+					t.Fatalf("%d WARN lines, want %d:\n%s", len(lines), tc.warns, logged.String())
+				}
+				if !strings.Contains(lines[0], "code="+diagnostic.CodeDoctorIPsecESPFormFastPath) {
+					t.Errorf("WARN line carries no doctor code: %s", lines[0])
+				}
+			})
+		}
+	})
+}
+
+// TestIPsecEngineStateChecksAreRuntimePhase proves ipsec-application-override
+// is declared at the runtime phase in engineDoctorCheckDecls and absent from
+// the registry's post-config DoctorChecks, so an offline local doctor run never
+// reads empty engine state as healthy.
+//
+// VALIDATES: spec-doctor-coverage-3-access-security AC-36 (for
+// ipsec-application-override): runtime phase in Stage 1 registration, answered
+// by answerDoctorCheck, not in registry.PluginDoctorChecks.
+// PREVENTS: ipsec-application-override silently returning empty on the local
+// doctor route or in external-engine mode.
+func TestIPsecEngineStateChecksAreRuntimePhase(t *testing.T) {
+	const name = "ipsec-application-override"
+	var found bool
+	for _, decl := range engineDoctorCheckDecls() {
+		if decl.Name != name {
+			continue
+		}
+		found = true
+		if decl.Phase != rpc.DoctorPhaseRuntime {
+			t.Errorf("%s phase = %q, want %q", name, decl.Phase, rpc.DoctorPhaseRuntime)
+		}
+		wantCodes := []string{diagnostic.CodeDoctorIPsecOverrideGuard, diagnostic.CodeDoctorIPsecSocketPolicy}
+		if !slices.Equal(decl.Codes, wantCodes) {
+			t.Errorf("%s codes = %v, want %v", name, decl.Codes, wantCodes)
+		}
+	}
+	if !found {
+		t.Fatalf("engineDoctorCheckDecls does not declare %s", name)
+	}
+	for _, check := range registry.PluginDoctorChecks() {
+		if check.PluginName == "ike" && check.Name == name {
+			t.Errorf("%s is still registered in registry.PluginDoctorChecks (phase %s); Stage 1 refuses duplicate checks and local doctor would read empty engine state", name, check.Phase)
+		}
+	}
+	state := &ikeEngineState{}
+	if _, err := state.answerDoctorCheck(name); err != nil {
+		t.Errorf("answerDoctorCheck(%q) = %v, want nil", name, err)
 	}
 }

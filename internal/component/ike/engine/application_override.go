@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"log/slog"
 	"sync/atomic"
+	"syscall"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 // appliedOverride is the `application-override` value of the configuration the
@@ -26,7 +28,44 @@ var appliedOverride atomic.Pointer[ipsec.ApplicationOverride]
 // no appliedOverride, so without it a host with no cgroup2 mounted, or a ze without
 // CAP_BPF, would leave IPsec down with nothing in `ze doctor` saying why. Nil after an
 // apply that put the guard in the state it asked for, and after releaseSPD.
-var overrideRefusal atomic.Pointer[string]
+var overrideRefusal atomic.Pointer[overrideGuardRefusal]
+
+// overrideGuardRefusal is one refusal of the guard: the text the apply refused with, and
+// the fix the doctor finding carries for its cause (overrideGuardFix). Never changed
+// once stored.
+type overrideGuardRefusal struct {
+	text string
+	fix  string
+}
+
+// The fixes of a guard that did not attach, besides the capability remedy.
+const (
+	// overrideGuardFixMount mounts the cgroup2 hierarchy the guard attaches to, where
+	// no cgroup2 file system is mounted (dataplane.ErrNoCgroup2).
+	overrideGuardFixMount = "sudo mount -t cgroup2 none /sys/fs/cgroup"
+	// overrideGuardFixAllow is the configuration statement that accepts overrides, so
+	// the apply no longer needs the guard: the one way out for a backend that holds
+	// no guard, and for a cause Ze cannot name (a kernel before Linux 6.10, whose
+	// verifier refuses the guard's bpf_get_ns_current_pid_tgid call, answers EINVAL like
+	// other refusals do). The refusal's text names the risk it accepts.
+	overrideGuardFixAllow = "set vpn ipsec application-override allow"
+)
+
+// overrideGuardFix answers the fix for a guard that did not attach with err: the
+// capability remedy for an EPERM, which a process without CAP_BPF or CAP_NET_ADMIN
+// gets from bpf_prog_load for a CGroupSockopt program (kernel/bpf/syscall.c, v7.0),
+// worded for this process by privilege.CapabilityRemedy, so a ze that systemd did not
+// start from ze.service is never told to reinstall the unit; the mount for a host with
+// no cgroup2; otherwise the statement that accepts overrides.
+func overrideGuardFix(err error) string {
+	if errors.Is(err, syscall.EPERM) {
+		return privilege.CapabilityRemedy("CAP_BPF", "CAP_NET_ADMIN")
+	}
+	if errors.Is(err, dataplane.ErrNoCgroup2) {
+		return overrideGuardFixMount
+	}
+	return overrideGuardFixAllow
+}
 
 // errOverrideUnspecified refuses a configuration that names no override value. The
 // parser and EmptyConfig always write one, so only a configuration built by hand can
@@ -48,8 +87,7 @@ func applyApplicationOverride(dp dataplane.Dataplane, override ipsec.Application
 	switch override {
 	case ipsec.ApplicationOverrideDeny:
 		if err := attachOverrideGuard(dp); err != nil {
-			refusal := err.Error()
-			overrideRefusal.Store(&refusal)
+			overrideRefusal.Store(&overrideGuardRefusal{text: err.Error(), fix: overrideGuardFix(err)})
 			return err
 		}
 	case ipsec.ApplicationOverrideAllow:
@@ -85,11 +123,11 @@ func attachOverrideGuard(dp dataplane.Dataplane) error {
 	if err != nil {
 		return fmt.Errorf("vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root (%w). "+
 			"Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. "+
-			"Run ze with CAP_BPF and CAP_NET_ADMIN (under systemd, a ze unit written by an older ze does not grant CAP_BPF: "+
-			"stop ze with `sudo systemctl stop ze`, then rewrite the unit with `sudo ze install systemd --force --start`) "+
+			"Run ze with CAP_BPF and CAP_NET_ADMIN (%s) "+
 			"on Linux 6.10 or later (an older kernel refuses the guard's "+
 			"bpf_get_ns_current_pid_tgid call), mount cgroup2 at /sys/fs/cgroup, "+
-			"or set `vpn ipsec application-override allow` to accept that risk", err)
+			"or set `vpn ipsec application-override allow` to accept that risk",
+			err, privilege.CapabilityRemedy("CAP_BPF", "CAP_NET_ADMIN"))
 	}
 	return nil
 }

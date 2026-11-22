@@ -31,7 +31,6 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -116,6 +115,7 @@ type espFormFastPath struct {
 	mu       sync.Mutex
 	status   ESPFormFastPathStatus
 	cause    string
+	fault    ESPFormFastPathFault // set with cause under Unavailable, Unspecified otherwise
 	coll     *ebpf.Collection
 	ethernet *ebpf.Program
 	l3       *ebpf.Program
@@ -304,18 +304,20 @@ func probeESPFormTCX(program *ebpf.Program) error {
 
 // unavailable records a load or subscribe failure. Nothing is held, so the complete
 // path serves every bare datagram. The recorded cause is the failure alone, so the
-// doctor check's own fix does not reach the operator twice; the warning names the
-// command that grants the capabilities beside it, as the doctor check does. A kernel
-// without TCX (before Linux 6.6) says so in the cause.
+// doctor check's own fix does not reach the operator twice, and the recorded fault
+// classifies it (espFormFastPathFaultOf), so the warning names beside it the fix the
+// doctor check names: the capability remedy for this process, the kernel build for a
+// kernel without TCX (before Linux 6.6), or the warnings for a cause Ze cannot tell.
 func (f *espFormFastPath) unavailable(err error) {
 	cause := err.Error()
+	fault := espFormFastPathFaultOf(err)
 	f.mu.Lock()
-	f.status, f.cause = ESPFormFastPathUnavailable, cause
+	f.status, f.cause, f.fault = ESPFormFastPathUnavailable, cause, fault
 	f.mu.Unlock()
 	f.logger().Warn("esp-form: the fast path did not load, so all bare ESP is re-presented through "+
 		espFormTUNName+" by the complete path, rate-bounded",
 		"cause", cause, "datagrams-per-second-max", espFormRate,
-		"fix", privilege.DaemonCapabilitiesFix,
+		"fix", ESPFormFastPathFix(fault),
 		"code", diagnostic.CodeDoctorIPsecESPFormFastPath)
 }
 
@@ -722,7 +724,7 @@ func (f *espFormFastPath) stop() {
 	if f.coll != nil {
 		f.coll.Close()
 	}
-	f.status, f.cause = ESPFormFastPathIdle, ""
+	f.status, f.cause, f.fault = ESPFormFastPathIdle, "", ESPFormFastPathFaultUnspecified
 	f.coll, f.ethernet, f.l3, f.gate = nil, nil, nil, nil
 	f.watched4, f.watched6, f.counter = nil, nil, nil
 	f.links, f.refused = nil, nil
@@ -751,6 +753,7 @@ func (f *espFormFastPath) state() (ESPFormFastPathState, error) {
 	st := ESPFormFastPathState{
 		Status:   f.status,
 		Cause:    f.cause,
+		Fault:    f.fault,
 		GateOpen: f.gateOpen,
 	}
 	if f.rulesetMoving {

@@ -2117,10 +2117,23 @@ never refuses an SA: when the program cannot load, or a map write fails, the
 failure is logged at Warn with its doctor code and the complete path serves
 the SPI. Each watch, forget and retarget updates the registry and decides the
 start or stop under one lock, so a watch that races the last forget never finds
-the receiver stopping under it. `ESPFormFastPathState` on the XFRM backend
-reports the fast path's state for the doctor check.
+the receiver stopping under it. `ESPFormFastPathState` on the XFRM backend reports the fast path's state for
+the doctor check. While no Child SA on UDP port 4500 is installed the receiver
+is idle and has not tried to load the program yet, so every configuration apply
+that configures a peer probes readiness once (`recordESPFormFastPath`, calling
+`dataplane.ESPFormFastPathReady`, which runs `loadESPFormFastPathCollection`,
+probes TCX at an unused ifindex, and closes the collection) and stores the
+outcome (`espFormFastPathRecord`) for the idle branch of the runtime doctor
+check. A capability refusal (`EPERM`) is worded through
+`privilege.CapabilityRemedy("CAP_BPF", "CAP_NET_ADMIN")`, a kernel without TCX
+(`ebpf.ErrNotSupported`) points to `RuntimeKernelBuildFix`, and any other
+failure is reported as undetermined so Ze never claims readiness it did not
+measure.
 
 <!-- source: internal/component/ike/dataplane/espform_fastpath_linux.go -- the fast path's attach lifecycle -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_probe_linux.go -- ESPFormFastPathReady, espFormFastPathFaultOf -->
+<!-- source: internal/component/ike/engine/apply.go -- recordESPFormFastPath -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- newESPFormFastPathRecord, espFormFastPathReadinessFindings -->
 <!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormReceiver.Watch, espFormReceiver.Forget, espFormReceiver.watchFastPath, openLocked, stopLocked -->
 <!-- source: internal/component/ike/dataplane/espform_backend_linux.go -- ESPFormFastPathState -->
 
@@ -2588,7 +2601,13 @@ handler, and any attached program that answers 0 turns the call into `EPERM`.
 `applyApplicationOverride` (`engine/application_override.go`) attaches the guard
 after the if_id 0 catch-all is first installed, moves
 it on a reload, and `releaseApplicationOverride` detaches it after the catch-all
-leaves. A guard that cannot attach under `deny` fails the apply. The seam is
+leaves. A guard that cannot attach under `deny` fails the apply, records its
+refusal and cause-specific fix (`overrideGuardFix`, using
+`privilege.CapabilityRemedy("CAP_BPF", "CAP_NET_ADMIN")` on `EPERM`, the
+cgroup2 mount on `ErrNoCgroup2`, and `set vpn ipsec application-override allow`
+otherwise), and the `ipsec-application-override` runtime doctor check
+(`doctor_application_override.go`, declared in `engineDoctorChecks`) reports it
+from the engine's own process. The seam is
 `dataplane.OverrideGuard` (`override_guard.go`); the XFRM backend implements it
 in `override_guard_linux.go`, VPP answers `OverrideGuardNotApplicable` because
 its SPD holds no socket policies, and the noop backend answers `ErrNotSupported`.

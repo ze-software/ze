@@ -249,9 +249,6 @@ func kernelDev(statDev uint64) uint64 {
 	return uint64(unix.Major(statDev))<<20 | uint64(unix.Minor(statDev))
 }
 
-// errNoCgroup2 is the answer when no cgroup2 file system is mounted.
-var errNoCgroup2 = errors.New("no cgroup2 file system is mounted (mount -t cgroup2 none /sys/fs/cgroup)")
-
 // selfMountinfo is the calling process's mount table (proc(5)).
 const selfMountinfo = "/proc/self/mountinfo"
 
@@ -291,7 +288,7 @@ func cgroup2RootFrom(r io.Reader) (string, error) {
 	if err := scanner.Err(); err != nil {
 		return "", fmt.Errorf("scan mountinfo: %w", err)
 	}
-	return "", errNoCgroup2
+	return "", ErrNoCgroup2
 }
 
 // overrideGuardInstructions is the guard program. It answers 1 (let the call

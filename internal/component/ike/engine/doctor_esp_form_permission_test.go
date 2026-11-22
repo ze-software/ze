@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 // TestDoctorESPFormFirewallPermissionCauseRetainsUncertainty checks the warning
@@ -14,6 +15,7 @@ import (
 // does not establish that CAP_NET_ADMIN is absent. The operator must still get
 // the declared-capability guidance, restart command and diagnostic log command.
 func TestDoctorESPFormFirewallPermissionCauseRetainsUncertainty(t *testing.T) {
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	cause := "watch the nftables ruleset for commits: open an nftables connection to watch the ruleset: setns: operation not permitted"
 	finding := espFormFirewallUnread(cause)
 	if finding.Code != diagnostic.CodeDoctorIPsecESPFormFirewall {
@@ -39,5 +41,14 @@ func TestDoctorESPFormFirewallPermissionCauseRetainsUncertainty(t *testing.T) {
 	}
 	if strings.Contains(finding.Message, "lacks CAP_NET_ADMIN") {
 		t.Errorf("a refused setns operation does not establish a missing CAP_NET_ADMIN: %s", finding.Message)
+	}
+
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipOther, nil))
+	other := espFormFirewallUnread(cause)
+	if strings.Contains(other.Fix, "systemctl") {
+		t.Errorf("outside ze.service, finding fix carries systemctl: %q", other.Fix)
+	}
+	if !strings.Contains(other.Fix, "ze signal stop") {
+		t.Errorf("outside ze.service, finding fix = %q, want stop-and-start instructions", other.Fix)
 	}
 }

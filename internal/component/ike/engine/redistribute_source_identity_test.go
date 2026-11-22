@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
 
@@ -126,6 +127,7 @@ func TestChildSARouteSourceRekeyRefusesForeignSuccessor(t *testing.T) {
 // bounded sticky finding before and after a later successful source lookup.
 // A successful different publication cannot reconstruct the lost output.
 func TestChildSARouteSourceFailureRemainsVisible(t *testing.T) {
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	allocator := childRouteSourceAllocator{}
 	require.Empty(t, allocator.findings())
 	first, second := &ChildSA{}, &ChildSA{}
@@ -142,4 +144,18 @@ func TestChildSARouteSourceFailureRemainsVisible(t *testing.T) {
 	_, err = allocator.instance(first)
 	require.NoError(t, err)
 	require.Equal(t, findings, allocator.findings())
+
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipOther, nil))
+	otherAlloc := childRouteSourceAllocator{}
+	a, b := &ChildSA{}, &ChildSA{}
+	_, err = otherAlloc.instance(a)
+	require.NoError(t, err)
+	_, err = otherAlloc.instance(b)
+	require.NoError(t, err)
+	_, err = otherAlloc.inherit(a, b)
+	require.ErrorIs(t, err, errChildRouteSourceAssigned)
+	otherFindings := otherAlloc.findings()
+	require.Len(t, otherFindings, 1)
+	require.NotContains(t, otherFindings[0].Fix, "systemctl")
+	require.Contains(t, otherFindings[0].Fix, "ze signal stop")
 }

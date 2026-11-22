@@ -30,8 +30,9 @@ const espFormSocketWhy = "Ze reads, through a raw ESP socket, the bare ESP the k
 	"(RFC 7296 Section 2.23), so it refuses the SA at install and at a MOBIKE move. This is not a " +
 	"configuration error"
 
-// The fixes of the reader socket's refusals, besides the capability install
-// (privilege.DaemonCapabilitiesFix) and the dataplane's warnings (ESPFormFixLog).
+// The fixes of the reader socket's refusals, besides the capability remedy
+// (privilege.CapabilityRemedy, for the capability each operation needs), the file
+// limit's (espFormFixFileLimit) and the dataplane's warnings (ESPFormFixLog).
 const (
 	// espFormFixSecurityModule lists this boot's denials by SELinux (an "avc:" record)
 	// and AppArmor (apparmor="DENIED"). Both are audit records: where auditd does not run
@@ -39,16 +40,27 @@ const (
 	// standard systemd host, so the journal holds them either way, where ausearch needs
 	// the audit package and dmesg misses what auditd took.
 	espFormFixSecurityModule = `sudo journalctl -b --grep 'avc:|apparmor="DENIED"'`
-	// espFormFixFileLimit rewrites the ze unit, whose LimitNOFILE is 65536
-	// (internal/plugins/systemd/unit.go), and starts ze again under it: a ze started
-	// another way runs with the soft limit it inherited, 1024 by default.
-	espFormFixFileLimit = privilege.DaemonCapabilitiesFix
 	// espFormFixFileTable raises the host's table of open files to the value systemd
 	// sets at boot, the largest the kernel takes.
 	espFormFixFileTable = "sudo sysctl -w fs.file-max=9223372036854775807"
 	// espFormFixMemory shows the host's free memory, which the kernel was short of.
 	espFormFixMemory = "free -m"
 )
+
+// espFormFixFileLimitOther raises the limit of open files for a ze the ze unit did not
+// start, which runs with the soft limit it inherited, 1024 by default.
+const espFormFixFileLimitOther = "raise the open-file limit of whatever starts ze to 65536 " +
+	"(ulimit -n 65536 in the shell that starts it, LimitNOFILE=65536 in another unit), then restart ze"
+
+// espFormFileLimitFix answers the file limit's fix. Under the ze unit it rewrites the
+// unit, whose LimitNOFILE is 65536 (internal/plugins/systemd/unit.go), and starts ze
+// again under it: the same line privilege.DaemonCapabilitiesFix carries, because one
+// install rewrites the whole unit. It is not a capability remedy, so it does not go
+// through privilege.CapabilityRemedy, and it offers the unit only when ze runs under
+// it (privilege.ServiceRemedy).
+func espFormFileLimitFix() string {
+	return privilege.ServiceRemedy(privilege.DaemonCapabilitiesFix, espFormFixFileLimitOther)
+}
 
 // The subjects of the reader socket's refusals, each a verb phrase after "Ze ... to".
 const (
@@ -58,8 +70,8 @@ const (
 )
 
 // espFormSocketRefusal maps the error of the reader socket's open. EPERM is a process
-// without CAP_NET_RAW, which a raw socket needs (inet_create), and the unit install grants
-// it; EACCES is a security module that refuses the socket (security_socket_create), which
+// without CAP_NET_RAW, which a raw socket needs (inet_create), and privilege.CapabilityRemedy
+// words how this ze gets it; EACCES is a security module that refuses the socket (security_socket_create), which
 // no capability changes. Any other answer is the host's limit or a cause Ze does not
 // know (espFormOpenFailure). ListenPacket's error already names the network and the call,
 // so it is the cause unchanged.
@@ -68,7 +80,7 @@ func espFormSocketRefusal(err error) error {
 		return opererr.Wrap(err,
 			"Ze has no permission to "+espFormSocketSubject,
 			"a raw socket needs CAP_NET_RAW. "+espFormSocketWhy,
-			privilege.DaemonCapabilitiesFix)
+			privilege.CapabilityRemedy("CAP_NET_RAW"))
 	}
 	if errors.Is(err, unix.EACCES) {
 		return espFormSecurityModuleRefusal(err, espFormSocketSubject, espFormSocketWhy)
@@ -89,7 +101,7 @@ func espFormBypassRefusal(err error) error {
 		return opererr.Wrap(cause,
 			"Ze has no permission to "+espFormBypassSubject,
 			"setting a socket policy needs CAP_NET_ADMIN; "+why,
-			privilege.DaemonCapabilitiesFix)
+			privilege.CapabilityRemedy("CAP_NET_ADMIN"))
 	}
 	if errors.Is(err, unix.EACCES) {
 		return espFormSecurityModuleRefusal(cause, espFormBypassSubject, why)
@@ -119,9 +131,10 @@ func espFormOpenFailure(cause error, subject, why string) error {
 	if errors.Is(cause, unix.EMFILE) {
 		return opererr.Wrap(cause,
 			"Ze has reached its limit of open files, so it cannot "+subject,
-			"the ze unit Ze installs raises the limit to 65536 (LimitNOFILE), and the command below "+
-				"rewrites the unit and starts ze again under it. "+why+retry,
-			espFormFixFileLimit)
+			"the ze unit Ze installs raises the limit to 65536 (LimitNOFILE), and a ze started another "+
+				"way keeps the limit it inherited, 1024 by default; the fix below raises it for the way this "+
+				"ze was started. "+why+retry,
+			espFormFileLimitFix())
 	}
 	if errors.Is(cause, unix.ENFILE) {
 		return opererr.Wrap(cause,

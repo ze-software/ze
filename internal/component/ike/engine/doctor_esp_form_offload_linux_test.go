@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -58,6 +59,7 @@ func espFormOffloadDoctor(t *testing.T) []rpc.DoctorCheckDiagnostic {
 // name, the interception point, the tunnel outage and other-owner conditions of the
 // stop/unload/start fix, without executing that fix or touching host modules.
 func TestDoctorESPFormOffloadLoadedModuleWarns(t *testing.T) {
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	espFormOffloadModulesFile(t, "esp4_offload 16384 2 - Live 0x0\n", false)
 	for _, status := range []dataplane.ESPFormFastPathStatus{
 		dataplane.ESPFormFastPathAttached,
@@ -88,6 +90,20 @@ func TestDoctorESPFormOffloadLoadedModuleWarns(t *testing.T) {
 			}
 		})
 	}
+	t.Run("outside ze.service", func(t *testing.T) {
+		t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipOther, nil))
+		loadESPFormBackend(t, &espFormFastPathDP{state: dataplane.ESPFormFastPathState{Status: dataplane.ESPFormFastPathAttached}})
+		findings := espFormOffloadDoctor(t)
+		if len(findings) != 1 {
+			t.Fatalf("findings = %v, want one loaded-offload warning", findings)
+		}
+		if strings.Contains(findings[0].Fix, "systemctl") {
+			t.Errorf("fix = %q offers systemctl outside ze.service", findings[0].Fix)
+		}
+		if findings[0].Fix != espFormOffloadFixOther {
+			t.Errorf("fix = %q, want %q", findings[0].Fix, espFormOffloadFixOther)
+		}
+	})
 }
 
 // TestDoctorESPFormOffloadAbsentModuleIsNotInvented keeps an empty readable snapshot

@@ -282,8 +282,8 @@ func espFormTUNSetIffRefusal(err error) error {
 		return opererr.Wrap(cause,
 			"Ze has no permission to create the "+espFormTUNName+" TUN interface",
 			"creating a TUN interface needs CAP_NET_ADMIN in the network namespace Ze runs in, which the "+
-				"command below grants through the ze unit; in Docker, start the container with --cap-add NET_ADMIN. "+espFormTUNWhy,
-			privilege.DaemonCapabilitiesFix)
+				"fix below gives ze; in Docker, start the container with --cap-add NET_ADMIN. "+espFormTUNWhy,
+			privilege.CapabilityRemedy("CAP_NET_ADMIN"))
 	}
 	if errors.Is(err, unix.EBUSY) {
 		return espFormTUNNameTakenRefusal(cause)
@@ -313,7 +313,8 @@ const espFormTUNFixShow = "ip link show " + espFormTUNName + " (no interface may
 // interface Ze just created: what reads it back, gives it its address, sets its MTU or
 // brings it up. call names the netlink call for the cause, and step the step as a verb
 // phrase whose object is the interface ("bring it up"). EPERM is a process without
-// CAP_NET_ADMIN in the network namespace Ze runs in, which the unit install grants. Any
+// CAP_NET_ADMIN in the network namespace Ze runs in, which privilege.CapabilityRemedy
+// words how this ze gets. Any
 // other answer comes after TUNSETIFF made the name Ze's, so no other holder explains it,
 // and the interface is removed again (openESPFormTUN closes it), so a listing of the links
 // would show nothing: the fix lists the receiver's warnings, which carry the kernel's
@@ -324,8 +325,8 @@ func espFormTUNStepRefusal(call, step string, err error) error {
 		return opererr.Wrap(cause,
 			"Ze created the "+espFormTUNName+" interface, but has no permission to "+step,
 			"configuring an interface needs CAP_NET_ADMIN in the network namespace Ze runs in, which the "+
-				"command below grants through the ze unit; in Docker, start the container with --cap-add NET_ADMIN. "+espFormTUNWhy,
-			privilege.DaemonCapabilitiesFix)
+				"fix below gives ze; in Docker, start the container with --cap-add NET_ADMIN. "+espFormTUNWhy,
+			privilege.CapabilityRemedy("CAP_NET_ADMIN"))
 	}
 	return opererr.Wrap(cause,
 		"Ze created the "+espFormTUNName+" interface but could not "+step+", so it removed the interface again",

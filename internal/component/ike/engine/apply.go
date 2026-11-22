@@ -212,6 +212,11 @@ type ikeEngineState struct {
 	// ipsec-esp-form-fast-path doctor check reads it from the doctor callback's goroutine,
 	// so it is atomic.
 	espFormTUN atomic.Pointer[espFormTUNRecord]
+
+	// espFormFastPath is the outcome of the last apply's readiness probe of the ESP form
+	// fast path, nil when that apply made none (recordESPFormFastPath). The same doctor
+	// check reads it from the doctor callback's goroutine, so it is atomic.
+	espFormFastPath atomic.Pointer[espFormFastPathRecord]
 }
 
 // openPair binds whichever socket of l is absent and starts its receive loop. The IKE
@@ -583,6 +588,9 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// Before the peers start, so the device's refusal is logged ahead of the first Child
 	// SA it refuses. It refuses nothing itself: the refusal is per SA, at install.
 	s.recordESPFormTUN(cfg)
+	// Before the peers start too, so a fast path that will not load is logged ahead of
+	// the first Child SA that would load it. It refuses nothing either.
+	s.recordESPFormFastPath(cfg)
 
 	// Peer reconciliation is the only part of an apply that puts packets on the wire,
 	// and at STARTUP it is deferred to OnAllPluginsReady. Phase 1 loads a config-path
@@ -696,6 +704,53 @@ func (s *ikeEngineState) recordESPFormTUN(cfg *ipsec.IPsecConfig) {
 	}
 	s.log.Warn(refusedText, "error", record.err, "fix", "ze show doctor",
 		"code", diagnostic.CodeDoctorIPsecESPFormTUN)
+}
+
+// recordESPFormFastPath asks whether the ESP form fast path's program would load
+// (espFormFastPathReady), on every apply that configures a peer, start and reload alike,
+// and records the outcome for the doctor (ikeEngineState.espFormFastPath). The fast path
+// loads only at the first Child SA on UDP port 4500 (espFormFastPath.start), and every
+// IPsec peer can float there (RFC 7296 Section 2.23), so without this record a fast path
+// that has not been tried and one that loads read the same. An apply that configures no
+// peer, or whose dataplane has no dual-form receiver (VPP, a failed load), probes
+// nothing and clears the record, so the doctor reports nothing about a fast path no
+// configuration needs.
+//
+// The probe loads the program and closes it, and attaches nothing a packet meets
+// (dataplane.ESPFormFastPathReady). It runs here, in the engine's process, the one whose
+// capabilities the fast path's start will have, and never in the doctor check, which
+// only reads.
+//
+// A fast path that will not load, or one Ze cannot tell about, is logged once per
+// apply, at Warn, with its cause, its fix and the fast path's doctor code. Neither
+// refuses the configuration: the complete path still serves the bare ESP, at a bounded
+// rate. The caller holds applyMu.
+func (s *ikeEngineState) recordESPFormFastPath(cfg *ipsec.IPsecConfig) {
+	if len(cfg.Peers) == 0 {
+		s.espFormFastPath.Store(nil)
+		return
+	}
+	if _, ok := dataplane.Get().(dataplane.ESPFormFastPathReporter); !ok {
+		s.espFormFastPath.Store(nil)
+		return
+	}
+	record := newESPFormFastPathRecord(espFormFastPathReady())
+	s.espFormFastPath.Store(record)
+	switch record.readiness {
+	case espFormFastPathLoads, espFormFastPathNotSupported:
+		return
+	case espFormFastPathWillNotLoad:
+		s.log.Warn("ike: the IPsec ESP form fast path will not load, so bare ESP for a Child SA on UDP port 4500 "+
+			"will be re-presented through ze-espform, rate-bounded",
+			"cause", record.err, "fix", dataplane.ESPFormFastPathFix(record.fault),
+			"code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+		return
+	case espFormFastPathUndetermined, espFormFastPathReadinessUnspecified:
+	}
+	s.log.Warn("ike: Ze cannot tell whether the IPsec ESP form fast path will load: loading it to check failed "+
+		"for a cause that is neither a missing capability nor a kernel without TCX",
+		"error", record.err, "fix", "ze show doctor",
+		"code", diagnostic.CodeDoctorIPsecESPFormFastPath)
 }
 
 // reconcile starts, stops and restarts peer sessions so the running set matches plan,

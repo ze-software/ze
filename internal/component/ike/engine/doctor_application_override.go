@@ -27,6 +27,39 @@ import (
 // at a tree of its own.
 var procRoot = "/proc"
 
+// applicationOverrideCheckDecl declares ipsec-application-override at the runtime phase
+// in the engine's Stage 1 registration (engineDoctorChecks, doctor_runtime.go), so show
+// doctor asks the engine's own process for it, internal and forked alike. What it reads
+// (appliedOverride, overrideRefusal, the dataplane's guard) exists only there: as a
+// registry.DoctorCheckDef it ran in whichever process answered doctor, where all three
+// are empty, so a forked engine or the local route answered no row, read as healthy,
+// while the guard was refused (docs/architecture/doctor-and-health-checks.md, "The
+// phase decides what a check may read").
+var applicationOverrideCheckDecl = rpc.DoctorCheckDecl{
+	Name:  "ipsec-application-override",
+	Phase: rpc.DoctorPhaseRuntime,
+	Order: 736,
+	Codes: []string{diagnostic.CodeDoctorIPsecOverrideGuard, diagnostic.CodeDoctorIPsecSocketPolicy},
+}
+
+// Fix lines of the override findings.
+const (
+	// overrideGuardFixRestart starts ze again, whose first apply attaches the guard
+	// afresh before any IKE socket opens.
+	overrideGuardFixRestart = spdInstallFixRestart
+	// socketPolicyFixList lists every IPsec policy, the per-socket ones flagged, so the
+	// operator can match a foreign one to the application that set it: the kernel
+	// does not say which process owns it, and only that application's restart removes
+	// it.
+	socketPolicyFixList = "ze show vpn ipsec dataplane policy"
+)
+
+// answerApplicationOverride answers ipsec-application-override from the engine's
+// process (applicationOverrideCheckDecl).
+func answerApplicationOverride(_ *ikeEngineState) []rpc.DoctorCheckDiagnostic {
+	return checkIPsecApplicationOverride(registry.DoctorCheckContext{})
+}
+
 // checkIPsecApplicationOverride reports what defeats the administrator's choice.
 //
 // RFC 4301 Section 4.4.1: "However, the system administrator MUST be able to specify
@@ -38,13 +71,15 @@ var procRoot = "/proc"
 // itself (a warning: one set before the guard attached, or while `allow` held, lives
 // until its socket closes, and the kernel cannot remove it). An apply that asked for
 // `deny` and could not attach the guard is an error too, carrying the apply's refusal,
-// which names the cause and the three ways out.
+// which names the cause and the three ways out, and the fix for its cause
+// (overrideGuardFix).
 func checkIPsecApplicationOverride(_ registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	if refusal := overrideRefusal.Load(); refusal != nil {
 		return []rpc.DoctorCheckDiagnostic{{
 			Code:     diagnostic.CodeDoctorIPsecOverrideGuard,
 			Severity: severityError,
-			Message:  "The last IPsec apply was refused: " + *refusal,
+			Message:  "The last IPsec apply was refused: " + refusal.text,
+			Fix:      refusal.fix,
 		}}
 	}
 	applied := appliedOverride.Load()
@@ -84,8 +119,9 @@ func overrideGuardDiagnostic(why string) rpc.DoctorCheckDiagnostic {
 		Code:     diagnostic.CodeDoctorIPsecOverrideGuard,
 		Severity: severityError,
 		Message: "The IPsec application-override guard is not attached (" + why + "), so applications can " +
-			"override the SPD. Something detached it or Ze's load failed. Restart ze; if this persists, run " +
-			"`ze doctor --json` and read the attach error.",
+			"override the SPD. Something detached it or Ze's load failed. Restart ze with the command below; " +
+			"if this persists, run `ze show doctor` again and read the attach error.",
+		Fix: overrideGuardFixRestart,
 	}
 }
 
@@ -100,7 +136,8 @@ func socketPolicyDiagnostics(dp dataplane.Dataplane) []rpc.DoctorCheckDiagnostic
 			Code:     diagnostic.CodeDoctorIPsecSocketPolicy,
 			Severity: severityWarning,
 			Message: "Ze could not list the IPsec policies (" + err.Error() + "), so it cannot tell whether a " +
-				"process holds a per-socket policy that overrides the SPD. Run `show vpn ipsec dataplane policy`.",
+				"process holds a per-socket policy that overrides the SPD. The command below lists them.",
+			Fix: socketPolicyFixList,
 		}}
 	}
 	total := 0
@@ -129,11 +166,13 @@ func socketPolicyDiagnostics(dp dataplane.Dataplane) []rpc.DoctorCheckDiagnostic
 			Str(") that overrides the SPD for its socket (").Int(int64(total)).
 			Str(" per-socket policies in all). The kernel cannot remove it and does not say which process owns it. " +
 				"Restart the applications started before Ze: the policy goes with its socket, and with the guard " +
-				"attached a restarted application cannot set it again.")
+				"attached a restarted application cannot set it again. The command below lists the policies, so " +
+				"you can match this one to the application that set it.")
 		out = append(out, rpc.DoctorCheckDiagnostic{
 			Code:     diagnostic.CodeDoctorIPsecSocketPolicy,
 			Severity: severityWarning,
 			Message:  tb.String(),
+			Fix:      socketPolicyFixList,
 		})
 	}
 	return out

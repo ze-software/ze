@@ -281,6 +281,44 @@ WARN  [doctor-runtime-not-checked] runtime checks did not run: they need the run
 <!-- test: internal/component/doctor/answer_test.go TestDoctorLocalRouteAsksReachableDaemon -->
 <!-- test: internal/component/doctor/answer_test.go TestDoctorLocalRouteNoCredentialsAnswersLocally -->
 
+## Three severities
+
+A finding carries one of three severities (`diagnostic.Severity`):
+
+| Severity | Text tag | Readiness | Counted as |
+|----------|----------|-----------|------------|
+| `error` | `ERROR` | makes the box not ready, and `ze doctor` exits 1 | an error |
+| `warning` | `WARN` | the box stays ready | a warning |
+| `info` | `INFO` | the box stays ready | nothing: the summary line counts errors and warnings only |
+
+An `info` row is a fact that is not a problem by itself: the checks that can
+judge its impact report that impact under their own codes. A plugin's
+doctor-check answer may carry any of the three; `show doctor` maps any other
+severity to `warning`, and the text report draws and counts one that reaches it
+anyway as a warning, so an unrecognized finding is never shown as less than a
+problem. JSON carries the severity as written, under `severity`.
+
+The daemon's capability inventory is the `info` row of the `daemon-capabilities`
+runtime check, under `doctor-daemon-capability-missing`: the capabilities of
+the daemon set the running daemon lacks, each with what it serves, or that Ze
+cannot determine them. A config that uses nothing a missing capability serves
+runs without it, so the row never warns. Its fix is
+`privilege.CapabilityRemedy` for the capabilities it names, which offers the
+systemd unit rewrite only when the daemon runs under `ze.service`
+(`docs/architecture/system-architecture.md`, "Capabilities without root").
+
+```
+INFO  [doctor-daemon-capability-missing] The ze daemon runs without CAP_BPF (eBPF: IPsec ESP form fast path, IPsec override guard, traffic-usage). This is not a problem by itself: each configured feature that needs one checks for it and reports its own impact.
+      fix: restart ze as root, or holding CAP_BPF: grant it as an ambient capability from whatever starts ze, or run sudo setcap cap_bpf+ep on the ze binary
+```
+<!-- source: internal/core/diagnostic/types.go -- SeverityError, SeverityWarning, SeverityInfo -->
+<!-- source: internal/component/doctor/doctor.go -- outputText -->
+<!-- source: internal/component/doctor/answer.go -- readyOf -->
+<!-- source: internal/component/doctor/cmd/show.go -- normalizeSeverity -->
+<!-- source: internal/component/doctor/checks_daemon_capabilities.go -- checkDaemonCapabilities, daemonCapabilitiesMissing, daemonCapabilitiesUnknown -->
+<!-- test: internal/component/doctor/render_info_test.go TestRenderDoctorInfoIsNotAProblem -->
+<!-- test: internal/component/doctor/checks_daemon_capabilities_test.go TestDaemonCapabilitiesCheck -->
+
 ## Every finding names the command that fixes it
 
 A doctor diagnostic carries `fix`: the command or config statement the
@@ -761,7 +799,13 @@ bypass the kernel refused, which the transport records when it opens the socket
 (`exemptFromIPsec`, read through `BypassError`), with
 `doctor-ipsec-ike-socket-bypass` and the capability-and-restart fix.
 None of these checks probes the host: the TUN device outcome is recorded by the apply
-(`recordESPFormTUN`), because opening `/dev/net/tun` may create the node.
+(`recordESPFormTUN`), because opening `/dev/net/tun` may create the node, and
+the fast path's readiness is likewise recorded at apply (`recordESPFormFastPath`)
+so an idle receiver still reports a missing capability or absent TCX support.
+`ipsec-application-override` is also a runtime check in `engineDoctorChecks`,
+so `show doctor` reaches the engine's recorded override state and refusal in
+internal and forked modes alike, while an offline local run never reads empty
+engine state as healthy.
 A bind probe MUST NOT judge a port
 its own running daemon holds, because inside the daemon that bind fails on
 every healthy box. The listener probe (`checkListeners`) does not tell the
@@ -779,7 +823,8 @@ as a bind failure. `plan/release/validation/spec-doctor-coverage-11-hub-engine.m
 <!-- test: internal/component/ike/engine/doctor_spd_diverged_test.go TestSPDPreviousFormNotRemovedIsReportedByDoctor -->
 <!-- test: internal/component/ike/engine/doctor_spd_diverged_test.go TestSPDUndoNotTakenBackIsReportedByDoctor -->
 <!-- test: internal/component/ike/engine/doctor_ike_socket_bypass_test.go TestIKESocketBypassRefusalIsReportedByDoctor -->
-<!-- source: internal/component/ike/engine/apply.go -- recordESPFormTUN -->
+<!-- source: internal/component/ike/engine/apply.go -- recordESPFormTUN, recordESPFormFastPath -->
+<!-- source: internal/component/ike/engine/doctor_application_override.go -- applicationOverrideCheckDecl, answerApplicationOverride -->
 <!-- source: internal/component/doctor/registry.go -- runDoctorChecks -->
 <!-- source: internal/component/doctor/checks_plugin_registry.go -- runPluginRegistryChecks -->
 <!-- source: pkg/plugin/rpc/types.go -- DoctorCheckPhase, DoctorPhaseParsedConfig -->
@@ -802,8 +847,27 @@ from Go extractors (BGP, BFD, IPsec, TFTP, image server, NTP) do not depend on
 the schema and are still probed. The alternative, extending the YANG compiler to
 propagate `refine` defaults, would have touched every consumer of the compiler.
 
+A probe that fails reports the refusal the daemon reports for the same bind,
+built by the same producer (`network.ListenError`, the one the BGP listener
+answers at start, at reload and when an address appears;
+`docs/architecture/behavior/peer-lifecycle.md`, "What a refused listener tells
+the operator"). The finding keeps its listener's code and severity, names the
+address, port and service, and carries the kernel's answer as evidence and the
+fix in its `Fix` field: for a permission refusal on a port below
+`net.ipv4.ip_unprivileged_port_start`, `CAP_NET_BIND_SERVICE` and
+`privilege.CapabilityRemedy`; for a port in use, the `ss` line that finds the
+holder; for an address no interface holds, the address list. When the start
+cannot be read, the finding says the port may need the capability rather than
+asserting it. A permission refusal depends on the process that bound, so the
+finding names the pid and uid the probe ran as, which is the daemon only when
+the daemon answered the request. The probe still reads a port the running
+daemon holds as a failure on the daemon route (above, and
+`plan/release/validation/spec-doctor-coverage-11-hub-engine.md` AC-1).
+
 <!-- source: internal/component/config/listener_defaults.go -- builtin listener defaults -->
-<!-- source: internal/component/doctor/checks_listener.go -- collectSchemaListeners, listenerSetUnknown -->
+<!-- source: internal/component/doctor/checks_listener.go -- collectSchemaListeners, listenerSetUnknown, listenerProbeFinding -->
+<!-- source: internal/core/network/listen_error.go -- ListenError, IsPortPermissionRefusal -->
+<!-- test: internal/component/doctor/checks_listener_test.go TestListenerProbeFindingNamesTheCapability -->
 <!-- source: internal/le/config/ports/actions.go -- Answer -->
 
 Two constraints hold this together:

@@ -204,6 +204,9 @@ func TestESPFormReceiverWatchReopensAStoppedReader(t *testing.T) {
 // MUTATION: in reopenReaderLocked, do not set r.failure on a failed open: the state the
 // doctor reads carries no failure.
 func TestESPFormReceiverWatchRefusesWithTheRecordedOpenFailure(t *testing.T) {
+	// The fix pinned below is the remedy for a ze under ze.service: fix the membership,
+	// so the answer does not depend on how the test process was started.
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	const spi1, spi2 = 0x5E0B0001, 0x5E0B0002
 	peer, local := netip.MustParseAddr("198.51.100.7"), netip.MustParseAddr("203.0.113.9")
 	refusal := espFormSocketRefusal(unix.EPERM)

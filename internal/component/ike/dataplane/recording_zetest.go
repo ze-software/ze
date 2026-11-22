@@ -59,6 +59,8 @@ type recordingESPFormUnavailable struct {
 func (d *recordingESPFormUnavailable) ESPFormFastPathState() (ESPFormFastPathState, error) {
 	return ESPFormFastPathState{
 		Status: ESPFormFastPathUnavailable, Cause: recordingESPFormUnavailableCause,
+		// The kernel's EPERM to a process without CAP_BPF, as the cause says.
+		Fault: ESPFormFastPathFaultCapability,
 		// No program loaded, so no gate and no ruleset read, as start leaves it.
 		FirewallReading: ESPFormFirewallUnheld,
 	}, nil

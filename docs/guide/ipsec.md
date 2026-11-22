@@ -2014,20 +2014,24 @@ guard. When any of them is missing the apply fails rather than run without the
 guard:
 
 ```
-vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root (<kernel error>). Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. Run ze with CAP_BPF and CAP_NET_ADMIN (under systemd, a ze unit written by an older ze does not grant CAP_BPF: stop ze with `sudo systemctl stop ze`, then rewrite the unit with `sudo ze install systemd --force --start`) on Linux 6.10 or later (an older kernel refuses the guard's bpf_get_ns_current_pid_tgid call), mount cgroup2 at /sys/fs/cgroup, or set `vpn ipsec application-override allow` to accept that risk.
+vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root (<kernel error>). Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. Run ze with CAP_BPF and CAP_NET_ADMIN (<capability remedy for this process>) on Linux 6.10 or later (an older kernel refuses the guard's bpf_get_ns_current_pid_tgid call), mount cgroup2 at /sys/fs/cgroup, or set `vpn ipsec application-override allow` to accept that risk.
 ```
-<!-- source: internal/component/ike/engine/application_override.go -- attachOverrideGuard -->
+<!-- source: internal/component/ike/engine/application_override.go -- attachOverrideGuard, overrideGuardFix -->
 <!-- source: internal/component/ike/dataplane/override_guard_linux.go -- overrideGuardInstructions -->
 
 Until an apply succeeds, `show doctor` reports the same refusal as
-`doctor-ipsec-override-guard`, and so does a `ze doctor` the running daemon
-answers, so a boot that left IPsec down on such a host says why. The check reads
-what the IKE engine recorded in the process that answers doctor. It therefore
-reports nothing in a `ze doctor` no daemon answered, and nothing in a daemon that
-runs the IKE engine as an external plugin.
+`doctor-ipsec-override-guard` with its cause-specific fix (the systemd repair
+only when Ze established that it runs under `ze.service`, otherwise the
+capabilities to start Ze with; the cgroup2 mount when no cgroup2 hierarchy is
+mounted; or `set vpn ipsec application-override allow`). Because
+`ipsec-application-override` is a runtime check declared by the IKE engine,
+`show doctor` and a daemon-answered `ze doctor` reach it in both internal and
+external engine modes, while an offline `ze doctor` with no running daemon
+reports `doctor-runtime-not-checked` instead of reading empty engine state as
+healthy.
 
-<!-- source: internal/component/ike/engine/register.go -- DoctorChecks, ipsec-application-override at the post-config phase -->
-<!-- source: internal/component/ike/engine/doctor_application_override.go -- checkIPsecApplicationOverride -->
+<!-- source: internal/component/ike/engine/doctor_runtime.go -- engineDoctorChecks -->
+<!-- source: internal/component/ike/engine/doctor_application_override.go -- applicationOverrideCheckDecl, answerApplicationOverride, checkIPsecApplicationOverride -->
 <!-- source: internal/component/ike/engine/application_override.go -- overrideRefusal, appliedOverride -->
 <!-- source: internal/component/doctor/answer.go -- Answer -->
 <!-- source: internal/component/doctor/local_route.go -- answerLocalWith -->
@@ -2082,11 +2086,16 @@ for it as RFC 4301 Section 5.2 requires.
 On a distribution kernel, the loaded module `esp4_offload` can consume bare
 ESP during Generic Receive Offload (GRO), before either of Ze's paths sees it.
 While a dual-form SA is installed, `ze doctor` reports that module under
-`doctor-ipsec-esp-form-offload`. Its systemd fix is:
+`doctor-ipsec-esp-form-offload`. When Ze established that it runs under
+`ze.service`, its fix is:
 
 ```sh
 sudo systemctl stop ze && sudo modprobe -r esp4_offload && sudo systemctl start ze
 ```
+
+Otherwise the fix tells the operator to stop Ze, run `sudo modprobe -r esp4_offload`,
+and start Ze again the way it was started (with an uncertainty prefix when
+service membership cannot be read).
 
 Stopping Ze interrupts all its tunnels and removes their SAs, which can hold
 references that prevent the module from unloading. Ze does not request

@@ -2,17 +2,20 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -101,17 +104,32 @@ func TestDoctorApplicationOverride(t *testing.T) {
 			if tc.want == warn && !strings.Contains(diags[0].Message, "(out, 0.0.0.0/0 to 0.0.0.0/0)") {
 				t.Errorf("the warning does not name the policy: %q", diags[0].Message)
 			}
+			for _, d := range diags {
+				switch d.Code {
+				case diagnostic.CodeDoctorIPsecOverrideGuard:
+					if d.Fix != overrideGuardFixRestart {
+						t.Errorf("guard finding fix = %q, want %q", d.Fix, overrideGuardFixRestart)
+					}
+				case diagnostic.CodeDoctorIPsecSocketPolicy:
+					if d.Fix != socketPolicyFixList {
+						t.Errorf("socket-policy finding fix = %q, want %q", d.Fix, socketPolicyFixList)
+					}
+				}
+			}
 		})
 	}
 }
 
 // TestDoctorReportsRefusedDeny proves the doctor names a deny the apply could not
-// put in place, with the apply's own refusal, and stops once an apply succeeds.
+// put in place, with the apply's own refusal and cause-specific fix, and stops once
+// an apply succeeds.
 //
 // VALIDATES: overrideRefusal, set by applyApplicationOverride and read by
-// checkIPsecApplicationOverride; the first apply on a host with no cgroup2 mounted
-// records no appliedOverride, so only the refusal can reach the doctor.
-// PREVENTS: IPsec down at boot on such a host with `ze doctor` silent about why.
+// checkIPsecApplicationOverride; EPERM carries privilege.CapabilityRemedy for
+// CAP_BPF and CAP_NET_ADMIN under both memberships, ErrNoCgroup2 carries the
+// cgroup2 mount command, and any other error carries the allow statement.
+// PREVENTS: IPsec down at boot on such a host with `ze doctor` silent about why,
+// or offering a systemd repair outside ze.service.
 func TestDoctorReportsRefusedDeny(t *testing.T) {
 	previous := appliedOverride.Load()
 	appliedOverride.Store(nil)
@@ -119,22 +137,79 @@ func TestDoctorReportsRefusedDeny(t *testing.T) {
 		appliedOverride.Store(previous)
 		overrideRefusal.Store(nil)
 	})
-	dp := &socketPolicyDP{guardErr: errors.New("no cgroup2 file system is mounted (mount -t cgroup2 none /sys/fs/cgroup)")}
+
+	for _, tc := range []struct {
+		name       string
+		membership privilege.ServiceMembership
+		guardErr   error
+		wantFix    string
+		noSystemd  bool
+		contains   []string
+	}{
+		{
+			name:       "EPERM under ze.service",
+			membership: privilege.MembershipZeService,
+			guardErr:   fmt.Errorf("load cgroup sockopt program: %w", syscall.EPERM),
+			wantFix:    privilege.DaemonCapabilitiesFix,
+			contains:   []string{"CAP_BPF", "CAP_NET_ADMIN"},
+		},
+		{
+			name:       "EPERM outside ze.service",
+			membership: privilege.MembershipOther,
+			guardErr:   fmt.Errorf("load cgroup sockopt program: %w", syscall.EPERM),
+			noSystemd:  true,
+			contains:   []string{"CAP_BPF", "CAP_NET_ADMIN"},
+		},
+		{
+			name:       "no cgroup2 mounted",
+			membership: privilege.MembershipOther,
+			guardErr:   fmt.Errorf("%w (mount -t cgroup2 none /sys/fs/cgroup)", dataplane.ErrNoCgroup2),
+			wantFix:    overrideGuardFixMount,
+			contains:   []string{"mount -t cgroup2 none /sys/fs/cgroup", "set `vpn ipsec application-override allow`"},
+		},
+		{
+			name:       "other cause",
+			membership: privilege.MembershipOther,
+			guardErr:   errors.New("kernel verifier rejected bpf_get_ns_current_pid_tgid"),
+			wantFix:    overrideGuardFixAllow,
+			contains:   []string{"bpf_get_ns_current_pid_tgid", "set `vpn ipsec application-override allow`"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Cleanup(privilege.SetServiceMembershipForTest(tc.membership, nil))
+			appliedOverride.Store(nil)
+			overrideRefusal.Store(nil)
+			dp := &socketPolicyDP{guardErr: tc.guardErr}
+			loadFailClosedBackend(t, dp)
+
+			if err := applyApplicationOverride(dp, ipsec.ApplicationOverrideDeny); err == nil {
+				t.Fatal("deny applied with a guard the backend refused")
+			}
+			diags := checkIPsecApplicationOverride(registry.DoctorCheckContext{})
+			if got, want := diagnosticCodes(diags), "error:"+diagnostic.CodeDoctorIPsecOverrideGuard; got != want {
+				t.Fatalf("diagnostics = %q, want %q (%v)", got, want, diags)
+			}
+			for _, part := range tc.contains {
+				if !strings.Contains(diags[0].Message, part) {
+					t.Errorf("the diagnostic does not name %q: %q", part, diags[0].Message)
+				}
+			}
+			if tc.wantFix != "" && diags[0].Fix != tc.wantFix {
+				t.Errorf("fix = %q, want %q", diags[0].Fix, tc.wantFix)
+			}
+			if tc.noSystemd {
+				if strings.Contains(diags[0].Fix, "systemctl") || strings.Contains(diags[0].Fix, "install systemd") {
+					t.Errorf("outside ze.service, fix offers systemd: %q", diags[0].Fix)
+				}
+				if !strings.Contains(diags[0].Fix, "CAP_BPF") || !strings.Contains(diags[0].Fix, "CAP_NET_ADMIN") {
+					t.Errorf("outside ze.service, fix does not name CAP_BPF and CAP_NET_ADMIN: %q", diags[0].Fix)
+				}
+			}
+		})
+	}
+
+	dp := &socketPolicyDP{guardErr: dataplane.ErrNoCgroup2}
 	loadFailClosedBackend(t, dp)
-
-	if err := applyApplicationOverride(dp, ipsec.ApplicationOverrideDeny); err == nil {
-		t.Fatal("deny applied with a guard the backend refused")
-	}
-	diags := checkIPsecApplicationOverride(registry.DoctorCheckContext{})
-	if got, want := diagnosticCodes(diags), "error:"+diagnostic.CodeDoctorIPsecOverrideGuard; got != want {
-		t.Fatalf("diagnostics = %q, want %q (%v)", got, want, diags)
-	}
-	for _, part := range []string{"no cgroup2 file system is mounted", "mount -t cgroup2 none /sys/fs/cgroup", "set `vpn ipsec application-override allow`"} {
-		if !strings.Contains(diags[0].Message, part) {
-			t.Errorf("the diagnostic does not name %q: %q", part, diags[0].Message)
-		}
-	}
-
 	if err := applyApplicationOverride(dp, ipsec.ApplicationOverrideAllow); err != nil {
 		t.Fatalf("allow apply: %v", err)
 	}

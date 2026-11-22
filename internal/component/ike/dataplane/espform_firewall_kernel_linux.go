@@ -711,7 +711,7 @@ func espFormNFTWatchBuffer(conn *netlink.Conn) error {
 			"buffer, so a large firewall commit can overflow it; the fast path then stays shut until it "+
 			"watches the ruleset again",
 			"error", err, "octets", espFormNFTWatchBufferOctets,
-			"fix", privilege.DaemonCapabilitiesFix,
+			"fix", privilege.CapabilityRemedy("CAP_NET_ADMIN"),
 			"code", diagnostic.CodeDoctorIPsecESPFormFirewall)
 	}
 	return nil

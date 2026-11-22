@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 // ESPFormCompletePathRate is the complete path's bound, in datagrams per second, the
@@ -40,7 +42,8 @@ const (
 	ESPFormFastPathAttached
 	// ESPFormFastPathUnavailable means the program could not load (no CAP_BPF or
 	// CAP_NET_ADMIN, or a kernel without TCX), so the complete path carries all bare
-	// ESP. ESPFormFastPathState.Cause says why; the doctor check names the fix.
+	// ESP. ESPFormFastPathState.Cause says why, ESPFormFastPathState.Fault classifies
+	// it, and the doctor check names the fix ESPFormFastPathFix answers for it.
 	ESPFormFastPathUnavailable
 	// ESPFormFastPathDetached means the program loaded and attached, then the kernel
 	// refused a write that shuts its firewall gate, so the fast path detached it from
@@ -66,6 +69,52 @@ func (s ESPFormFastPathStatus) String() string {
 		return espFormFastPathStatusNames[s]
 	}
 	return "invalid-esp-form-fast-path-status-" + strconv.Itoa(int(s))
+}
+
+// ESPFormFastPathFault classifies why the fast path's program cannot load, which
+// decides the fix: the start that failed (espFormFastPath.unavailable) and the
+// readiness probe every apply that configures a peer runs (ESPFormFastPathReady)
+// classify the kernel's answer the same way (espFormFastPathFaultOf).
+type ESPFormFastPathFault uint8
+
+const (
+	// ESPFormFastPathFaultUnspecified is the zero value: nothing failed, or nothing
+	// classified the failure.
+	ESPFormFastPathFaultUnspecified ESPFormFastPathFault = iota
+	// ESPFormFastPathFaultCapability is a load the kernel refused with EPERM: the
+	// process lacks CAP_BPF, which bpf_prog_load asks for every SchedCLS program and
+	// map_create for the maps while kernel.unprivileged_bpf_disabled is set, or
+	// CAP_NET_ADMIN, which is_net_admin_prog_type asks for a SchedCLS program
+	// (kernel/bpf/syscall.c, v7.0).
+	ESPFormFastPathFaultCapability
+	// ESPFormFastPathFaultKernel is a kernel that does not attach TCX programs, any
+	// kernel before Linux 6.6 (cilium/ebpf answers ebpf.ErrNotSupported).
+	ESPFormFastPathFaultKernel
+	// ESPFormFastPathFaultUnknown is any other answer: Ze cannot tell what would make
+	// the program load, and says so rather than name a fix that may not apply.
+	ESPFormFastPathFaultUnknown
+)
+
+// espFormFastPathCapabilities are the capabilities the fast path's load needs
+// (ESPFormFastPathFaultCapability), in the order the remedy names them.
+var espFormFastPathCapabilities = [...]string{"CAP_BPF", "CAP_NET_ADMIN"}
+
+// ESPFormFastPathFix answers the fix for a fast path whose load failed with fault:
+// for a missing capability the remedy privilege.CapabilityRemedy words for this
+// process, which offers the systemd repair only when ze runs under ze.service; for a
+// kernel without TCX the build of Ze's runtime kernel; for any other cause the
+// dual-form receiver's warnings, which carry the kernel's answer. Safe for concurrent
+// use.
+func ESPFormFastPathFix(fault ESPFormFastPathFault) string {
+	switch fault {
+	case ESPFormFastPathFaultCapability:
+		return privilege.CapabilityRemedy(espFormFastPathCapabilities[:]...)
+	case ESPFormFastPathFaultKernel:
+		return RuntimeKernelBuildFix()
+	case ESPFormFastPathFaultUnknown, ESPFormFastPathFaultUnspecified:
+		return ESPFormFixLog
+	}
+	return ESPFormFixLog
 }
 
 // ESPFormFirewallReading is how the fast path reads the nftables ruleset its firewall
@@ -135,11 +184,14 @@ const ESPFormFirewallMovingReportAfter = 10 * time.Second
 // commits.
 const ESPFormFixMoving = "sudo nft monitor"
 
-// ESPFormFixRestart restarts ze: the fast path starts again, opens the nftables
-// reader, joins the nftables monitor and judges the ruleset at once. systemctl needs
-// root to restart a system unit. The dataplane's warnings and the doctor check both
-// name it, so the two say the same thing.
-const ESPFormFixRestart = "sudo systemctl restart ze"
+// ESPFormFixRestart answers the restart remedy for this ze process: the fast path
+// starts again, opens the nftables reader, joins the nftables monitor and judges the
+// ruleset at once. privilege.RestartRemedy offers systemctl only under ze.service,
+// and the dataplane's warnings and the doctor check both call it, so the two say the
+// same thing.
+func ESPFormFixRestart() string {
+	return privilege.RestartRemedy()
+}
 
 // ESPFormFixListSAs lists every peer with its Child SA's inbound SPI, so an operator
 // finds the peers whose Child SAs drew one inbound SPI. It shows no local address, so a
@@ -235,6 +287,10 @@ type ESPFormFastPathState struct {
 	// links listed stay attached, and a link created after that is served by the
 	// complete path alone.
 	Cause string
+	// Fault classifies the load failure under ESPFormFastPathUnavailable, so the
+	// doctor check names the fix that applies (ESPFormFastPathFix). Unspecified under
+	// every other status.
+	Fault ESPFormFastPathFault
 	// Attached names the links the program is attached to, sorted. lo and
 	// ze-espform never appear: a packet on lo is local, and one on ze-espform is
 	// already encapsulated.

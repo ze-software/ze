@@ -32,6 +32,9 @@ import (
 // MUTATION: in espFormTUNStepRefusal, answer ESPFormFixLog for EPERM too: the refused
 // step answers the warnings.
 func TestESPFormOpenRefusalsCarryTheirFix(t *testing.T) {
+	// The fix pinned below is the remedy for a ze under ze.service: fix the membership,
+	// so the answer does not depend on how the test process was started.
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	for _, tc := range []struct {
 		name    string
 		refusal error
@@ -41,7 +44,7 @@ func TestESPFormOpenRefusalsCarryTheirFix(t *testing.T) {
 	}{
 		{"raw socket, EPERM", espFormSocketRefusal(unix.EPERM), unix.EPERM, "no permission", privilege.DaemonCapabilitiesFix},
 		{"raw socket, EACCES", espFormSocketRefusal(unix.EACCES), unix.EACCES, "security module", espFormFixSecurityModule},
-		{"raw socket, EMFILE", espFormSocketRefusal(unix.EMFILE), unix.EMFILE, "Ze has reached its limit of open files", espFormFixFileLimit},
+		{"raw socket, EMFILE", espFormSocketRefusal(unix.EMFILE), unix.EMFILE, "Ze has reached its limit of open files", privilege.DaemonCapabilitiesFix},
 		{"raw socket, ENFILE", espFormSocketRefusal(unix.ENFILE), unix.ENFILE, "the host has reached its limit of open files", espFormFixFileTable},
 		{"raw socket, ENOBUFS", espFormSocketRefusal(unix.ENOBUFS), unix.ENOBUFS, "short of memory", espFormFixMemory},
 		{"raw socket, ENOMEM", espFormSocketRefusal(unix.ENOMEM), unix.ENOMEM, "short of memory", espFormFixMemory},
@@ -86,6 +89,9 @@ var espFormUnservedMigration = TunnelMigration{
 // MUTATION: in xfrmMigrationUnserved, wrap err itself rather than espFormRefusalCause:
 // the cause renders its own fix line, so the refusal carries two.
 func TestXFRMMigrationUnservedRendersTheFixOnce(t *testing.T) {
+	// The fix pinned below is the remedy for a ze under ze.service: fix the membership,
+	// so the answer does not depend on how the test process was started.
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	cause := espFormSocketRefusal(unix.EPERM)
 	causeOE, ok := errors.AsType[*opererr.Error](cause)
 	if !ok {

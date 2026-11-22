@@ -14,7 +14,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
-	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -97,18 +96,9 @@ const espFormDevice = "ze-espform"
 const espFormNoCause = "the dataplane gave no cause"
 
 // Fix lines of the fast path findings. Each is the command or setting alone: the
-// message says what it does.
+// message says what it does. The restart remedy is evaluated per call through
+// dataplane.ESPFormFixRestart(), so it follows the daemon's service membership.
 const (
-	// espFormFastPathFixCapabilities stops ze, which the install needs because it
-	// refuses while the daemon holds the store, rewrites the ze unit with the
-	// capabilities the current unit grants, CAP_BPF included
-	// (internal/plugins/systemd/unit.go), runs systemctl daemon-reload, and starts ze
-	// again, which loads the fast path again.
-	espFormFastPathFixCapabilities = privilege.DaemonCapabilitiesFix
-	// espFormFastPathFixRestart restarts ze, whose next dual-form Child SA follows
-	// link creation again, and whose fast path reads the nftables ruleset and joins
-	// the nftables monitor again. The dataplane's warnings name the same command.
-	espFormFastPathFixRestart = dataplane.ESPFormFixRestart
 	// espFormFastPathPeerEncap is the strongSwan connection setting that makes the peer
 	// send ESP-in-UDP, the form the kernel state receives on every link. It is a step
 	// taken on the peer, so the link finding carries it in its message, with the
@@ -157,7 +147,11 @@ const (
 // path does not serve is one warning each, a link subscription that ended is one
 // more, and a Child SA the fast path does not serve because another on a different
 // local address drew the same inbound SPI is one warning each (espFormSharedSPI). Idle,
-// nothing watched, reports nothing about the fast path.
+// nothing watched, reports what fast, the readiness the last apply that configured a
+// peer recorded (recordESPFormFastPath, apply.go), says: one warning when the program
+// will not load or Ze cannot tell whether it will, nothing when it loads or when no
+// peer is configured. The check never loads the program itself: a runtime check only
+// reads.
 //
 // The complete path needs the TUN device, and an SA that cannot receive both forms is
 // refused at install, so a device Ze cannot open refuses every Child SA on UDP port 4500.
@@ -167,7 +161,7 @@ const (
 //
 // The check runs in the engine's process (espFormFastPathCheckDecl), so the dataplane it
 // reads is the one runEngine loaded.
-func checkIPsecESPFormFastPath(tun *espFormTUNRecord) []rpc.DoctorCheckDiagnostic {
+func checkIPsecESPFormFastPath(tun *espFormTUNRecord, fast *espFormFastPathRecord) []rpc.DoctorCheckDiagnostic {
 	dp := dataplane.Get()
 	// In the engine's process a nil dataplane means dataplane.Load failed (runEngine logs
 	// it), so no Child SA installs and nothing can say which path would carry bare ESP.
@@ -194,8 +188,125 @@ func checkIPsecESPFormFastPath(tun *espFormTUNRecord) []rpc.DoctorCheckDiagnosti
 		// path's counters answered.
 		return append([]rpc.DoctorCheckDiagnostic{unread}, espFormDeviceFindings(tun, false, state.CompletePathFailure)...)
 	}
-	out, watching := espFormFastPathFindings(&state)
+	out, watching := espFormFastPathFindings(&state, fast)
 	return append(out, espFormDeviceFindings(tun, watching, state.CompletePathFailure)...)
+}
+
+// espFormFastPathReady asks the dataplane whether the fast path's program would load,
+// by loading it and closing it again (dataplane.ESPFormFastPathReady). It is a variable
+// so a test answers it without a BPF load. Only the apply path calls it
+// (recordESPFormFastPath, apply.go): a runtime doctor check only reads.
+var espFormFastPathReady = dataplane.ESPFormFastPathReady
+
+// espFormFastPathReadiness is what the last apply's readiness probe of the fast path
+// found. The zero value names no outcome: only newESPFormFastPathRecord builds a record,
+// so a record holding it is a Ze defect, and the check reports it as unread.
+type espFormFastPathReadiness uint8
+
+const (
+	espFormFastPathReadinessUnspecified espFormFastPathReadiness = iota
+	// espFormFastPathLoads: the program loaded and was closed again, so the first Child
+	// SA on UDP port 4500 will load it.
+	espFormFastPathLoads
+	// espFormFastPathNotSupported: the platform has no fast path
+	// (dataplane.ErrNotSupported), and no XFRM backend either.
+	espFormFastPathNotSupported
+	// espFormFastPathWillNotLoad: the kernel refused the load for a cause the dataplane
+	// classified (a missing capability, a kernel without TCX), which has a known fix.
+	espFormFastPathWillNotLoad
+	// espFormFastPathUndetermined: the load failed for a cause the dataplane could not
+	// classify, so Ze cannot tell whether the first Child SA's start would load it.
+	espFormFastPathUndetermined
+)
+
+// espFormFastPathRecord is the outcome of one readiness probe, with the error and the
+// fault a failed one carries. It is never changed once stored
+// (ikeEngineState.espFormFastPath), so the doctor callback reads it with no lock.
+type espFormFastPathRecord struct {
+	readiness espFormFastPathReadiness
+	fault     dataplane.ESPFormFastPathFault
+	err       error
+}
+
+// newESPFormFastPathRecord turns the answer of espFormFastPathReady into a record.
+func newESPFormFastPathRecord(fault dataplane.ESPFormFastPathFault, err error) *espFormFastPathRecord {
+	if err == nil {
+		return &espFormFastPathRecord{readiness: espFormFastPathLoads}
+	}
+	if errors.Is(err, dataplane.ErrNotSupported) {
+		return &espFormFastPathRecord{readiness: espFormFastPathNotSupported, err: err}
+	}
+	switch fault {
+	case dataplane.ESPFormFastPathFaultCapability, dataplane.ESPFormFastPathFaultKernel:
+		return &espFormFastPathRecord{readiness: espFormFastPathWillNotLoad, fault: fault, err: err}
+	case dataplane.ESPFormFastPathFaultUnknown, dataplane.ESPFormFastPathFaultUnspecified:
+	}
+	return &espFormFastPathRecord{readiness: espFormFastPathUndetermined, fault: fault, err: err}
+}
+
+// espFormFastPathReadinessFindings answers the fast path's finding while nothing is
+// loaded, from fast, the readiness the last apply recorded:
+//   - nil: no apply probed, because no peer is configured or the dataplane has no
+//     dual-form receiver. Nothing: no Child SA can need the fast path.
+//   - loads, or a platform with no fast path: nothing.
+//   - will not load: one warning with the cause, what it costs once a Child SA on UDP
+//     port 4500 comes up, and the fix for the fault.
+//   - undetermined: one warning that says Ze cannot tell, with the cause.
+//   - a record holding no outcome: the state could not be read, one warning.
+func espFormFastPathReadinessFindings(fast *espFormFastPathRecord) []rpc.DoctorCheckDiagnostic {
+	// refuse-by-default: guards recordESPFormFastPath -- a nil record is the no-probe state it leaves when no peer is configured or the dataplane has no dual-form receiver, so no fast path is owed
+	if fast == nil {
+		return nil
+	}
+	switch fast.readiness {
+	case espFormFastPathLoads, espFormFastPathNotSupported:
+		return nil
+	case espFormFastPathWillNotLoad:
+		return []rpc.DoctorCheckDiagnostic{espFormFastPathWillNotLoadFinding(fast)}
+	case espFormFastPathUndetermined:
+		return []rpc.DoctorCheckDiagnostic{espFormFastPathUndeterminedFinding(fast)}
+	case espFormFastPathReadinessUnspecified:
+	}
+	return []rpc.DoctorCheckDiagnostic{espFormFastPathUnread(
+		"the readiness the last apply recorded names no outcome, which is a Ze defect", espFormFastPathFixEngineLog)}
+}
+
+// espFormFastPathWillNotLoadFinding is the warning for a fast path the last apply's
+// probe could not load for a cause with a known fix: no Child SA needs it yet, so
+// nothing is lost now, and the first Child SA on UDP port 4500 will meet the same
+// refusal.
+func espFormFastPathWillNotLoadFinding(fast *espFormFastPathRecord) rpc.DoctorCheckDiagnostic {
+	var tb textbuf.Buffer
+	tb.Str("The IPsec ESP form fast path will not load when the first Child SA on UDP port 4500 is " +
+		"installed (Ze loaded it to check at the last configuration apply: ").Err(fast.err).
+		Str("), so bare ESP for such an SA will be re-presented by Ze's own receiver for bare ESP. ")
+	espFormCompletePathCost(&tb, "the link it arrived on")
+	espFormFastPathFaultSentence(&tb, fast.fault, espFormFastPathFixEngineLog)
+	return rpc.DoctorCheckDiagnostic{
+		Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
+		Severity: severityWarning,
+		Message:  tb.String(),
+		Fix:      espFormFastPathFaultFix(fast.fault, espFormFastPathFixEngineLog),
+	}
+}
+
+// espFormFastPathUndeterminedFinding is the warning for a probe whose failure the
+// dataplane could not classify: Ze says it cannot tell, never that the fast path is
+// ready, and names the engine's warnings, where the apply logged the kernel's answer.
+func espFormFastPathUndeterminedFinding(fast *espFormFastPathRecord) rpc.DoctorCheckDiagnostic {
+	var tb textbuf.Buffer
+	tb.Str("Ze cannot tell whether the IPsec ESP form fast path will load when the first Child SA on " +
+		"UDP port 4500 is installed: loading it to check at the last configuration apply failed (").
+		Err(fast.err).Str(") for a cause that is neither a missing capability nor a kernel without TCX. " +
+		"If it does not load, bare ESP for such an SA is re-presented by Ze's own receiver for bare ESP. ")
+	espFormCompletePathCost(&tb, "the link it arrived on")
+	tb.Str(" The warnings the command below lists carry the kernel's answer.")
+	return rpc.DoctorCheckDiagnostic{
+		Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
+		Severity: severityWarning,
+		Message:  tb.String(),
+		Fix:      espFormFastPathFixEngineLog,
+	}
 }
 
 // espFormDeviceFindings answers the findings under doctor-ipsec-esp-form-tun: the TUN
@@ -282,12 +393,17 @@ func espFormCompletePathFindings(failure *dataplane.ESPFormCompletePathFailure) 
 // nothing reads. It would also contradict the finding's fix, the unit and capability
 // install for Unavailable and a restart for Detached, where the Moving and Rewatching
 // findings say no restart is needed for the firewall reading.
-func espFormFastPathFindings(state *dataplane.ESPFormFastPathState) ([]rpc.DoctorCheckDiagnostic, bool) {
+//
+// Under Idle nothing is loaded, so the fast path's own state cannot say whether it would
+// load: fast, the readiness the last apply that configured a peer recorded
+// (recordESPFormFastPath, apply.go), answers instead (espFormFastPathReadinessFindings),
+// so a fast path not yet tried never reads as one that loads.
+func espFormFastPathFindings(state *dataplane.ESPFormFastPathState, fast *espFormFastPathRecord) ([]rpc.DoctorCheckDiagnostic, bool) {
 	switch state.Status {
 	case dataplane.ESPFormFastPathIdle:
-		return nil, false
+		return espFormFastPathReadinessFindings(fast), false
 	case dataplane.ESPFormFastPathUnavailable:
-		return []rpc.DoctorCheckDiagnostic{espFormFastPathUnavailable(state.Cause)}, true
+		return []rpc.DoctorCheckDiagnostic{espFormFastPathUnavailable(state.Cause, state.Fault)}, true
 	case dataplane.ESPFormFastPathDetached:
 		return []rpc.DoctorCheckDiagnostic{espFormFastPathDetached(state.Cause)}, true
 	case dataplane.ESPFormFastPathAttached:
@@ -712,7 +828,7 @@ func espFormFirewallUnread(cause string) rpc.DoctorCheckDiagnostic {
 		Code:     diagnostic.CodeDoctorIPsecESPFormFirewall,
 		Severity: severityWarning,
 		Message:  tb.String(),
-		Fix:      espFormFastPathFixRestart,
+		Fix:      dataplane.ESPFormFixRestart(),
 	}
 }
 
@@ -736,7 +852,7 @@ func espFormFirewallDumpFailed(cause string) rpc.DoctorCheckDiagnostic {
 		Code:     diagnostic.CodeDoctorIPsecESPFormFirewall,
 		Severity: severityWarning,
 		Message:  tb.String(),
-		Fix:      espFormFastPathFixRestart,
+		Fix:      dataplane.ESPFormFixRestart(),
 	}
 }
 
@@ -828,8 +944,12 @@ func espFormFirewallReadingUnknown(reading dataplane.ESPFormFirewallReading) rpc
 	}
 }
 
-// espFormFastPathUnavailable is the warning for a fast path that could not load.
-func espFormFastPathUnavailable(cause string) rpc.DoctorCheckDiagnostic {
+// espFormFastPathUnavailable is the warning for a fast path that could not load. fault,
+// which the dataplane classified from the kernel's answer, decides what the message
+// says the cause is and which fix it names (dataplane.ESPFormFastPathFix): the
+// capability remedy only for a refused capability, worded for this process, so a ze
+// that systemd did not start from ze.service is never told to reinstall the unit.
+func espFormFastPathUnavailable(cause string, fault dataplane.ESPFormFastPathFault) rpc.DoctorCheckDiagnostic {
 	if cause == "" {
 		cause = espFormNoCause
 	}
@@ -837,17 +957,44 @@ func espFormFastPathUnavailable(cause string) rpc.DoctorCheckDiagnostic {
 	tb.Str("The IPsec ESP form fast path is unavailable (").Str(cause).
 		Str("), so bare ESP for every Child SA on UDP port 4500 is re-presented by Ze's own receiver for bare ESP. ")
 	espFormCompletePathCost(&tb, "the link it arrived on")
-	tb.Str(" Under systemd, a ze unit written by an older ze does not grant CAP_BPF: the " +
-		"command below stops ze with sudo systemctl stop ze, because the install refuses while " +
-		"ze runs, then rewrites the unit (add the --config <dir> the unit was first installed " +
-		"with to the install), reloads systemd and starts ze again. Without systemd, start ze with CAP_BPF and CAP_NET_ADMIN. On a kernel " +
-		"before Linux 6.6, which has no TCX, upgrade the kernel instead.")
+	espFormFastPathFaultSentence(&tb, fault, espFormFastPathFixLog)
 	return rpc.DoctorCheckDiagnostic{
 		Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
 		Severity: severityWarning,
 		Message:  tb.String(),
-		Fix:      espFormFastPathFixCapabilities,
+		Fix:      espFormFastPathFaultFix(fault, espFormFastPathFixLog),
 	}
+}
+
+// espFormFastPathFaultSentence writes, after a space, what fault says about the load
+// and what the fix line does about it. unknownFix is the warnings that carry the
+// kernel's answer when fault names no cause Ze knows.
+func espFormFastPathFaultSentence(tb *textbuf.Buffer, fault dataplane.ESPFormFastPathFault, unknownFix string) {
+	switch fault {
+	case dataplane.ESPFormFastPathFaultCapability:
+		tb.Str(" The kernel refused the load with EPERM: loading the fast path's programs needs CAP_BPF " +
+			"and CAP_NET_ADMIN, and ze lacks one of them. The fix below says how this ze gets them.")
+		return
+	case dataplane.ESPFormFastPathFaultKernel:
+		tb.Str(" The kernel does not attach TCX programs, which Linux 6.6 added, so no capability makes " +
+			"it load. The commands below build Ze's runtime kernel, which does; install it and boot into it.")
+		return
+	case dataplane.ESPFormFastPathFaultUnknown, dataplane.ESPFormFastPathFaultUnspecified:
+	}
+	tb.Str(" Ze cannot tell what would make it load: the cause is neither a missing capability nor a " +
+		"kernel without TCX. The warnings ").Str(unknownFix).Str(" lists carry the kernel's answer.")
+}
+
+// espFormFastPathFaultFix answers the fix line for fault: the dataplane's fix for a
+// cause it classified, and unknownFix, the warnings that carry the kernel's answer,
+// for one it could not.
+func espFormFastPathFaultFix(fault dataplane.ESPFormFastPathFault, unknownFix string) string {
+	switch fault {
+	case dataplane.ESPFormFastPathFaultCapability, dataplane.ESPFormFastPathFaultKernel:
+		return dataplane.ESPFormFastPathFix(fault)
+	case dataplane.ESPFormFastPathFaultUnknown, dataplane.ESPFormFastPathFaultUnspecified:
+	}
+	return unknownFix
 }
 
 // espFormFastPathDetached is the warning for a fast path that loaded and attached, and
@@ -875,7 +1022,7 @@ func espFormFastPathDetached(cause string) rpc.DoctorCheckDiagnostic {
 		Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
 		Severity: severityWarning,
 		Message:  tb.String(),
-		Fix:      espFormFastPathFixRestart,
+		Fix:      dataplane.ESPFormFixRestart(),
 	}
 }
 
@@ -892,7 +1039,7 @@ func espFormFastPathStoppedFollowing(state *dataplane.ESPFormFastPathState) rpc.
 		Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
 		Severity: severityWarning,
 		Message:  tb.String(),
-		Fix:      espFormFastPathFixRestart,
+		Fix:      dataplane.ESPFormFixRestart(),
 	}
 }
 

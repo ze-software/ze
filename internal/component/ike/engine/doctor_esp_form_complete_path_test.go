@@ -89,7 +89,7 @@ func TestDoctorESPFormCompletePathFailure(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			loadESPFormBackend(t, tc.dp)
-			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(nil))
+			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(nil), nil)
 			if got := diagnosticCodes(diags); got != tc.want {
 				t.Fatalf("diagnostics = %q, want %q (%v)", got, tc.want, diags)
 			}
@@ -135,7 +135,7 @@ func TestDoctorESPFormDeviceFindingsReportOneCauseOnce(t *testing.T) {
 				Status:              dataplane.ESPFormFastPathIdle,
 				CompletePathFailure: &dataplane.ESPFormCompletePathFailure{Err: tc.failure, At: at},
 			}})
-			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(refusal))
+			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(refusal), nil)
 			if got := diagnosticCodes(diags); got != tc.want {
 				t.Fatalf("diagnostics = %q, want %q (%v)", got, tc.want, diags)
 			}

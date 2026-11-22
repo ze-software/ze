@@ -229,6 +229,9 @@ func TestXFRMMigrationReceiverFollowsTheMove(t *testing.T) {
 // so neither it nor the deferred release ends the hold: the failed move leaves a hold,
 // so the paths stay open with no SA watched.
 func TestXFRMMigrationUnwatchedSAOpensThePathsBeforeTheMove(t *testing.T) {
+	// The fix pinned below is the remedy for a ze under ze.service: fix the membership,
+	// so the answer does not depend on how the test process was started.
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	const spi = 0x71910006
 	oldPeer, oldLocal := netip.MustParseAddr("198.51.100.2"), netip.MustParseAddr("198.51.100.1")
 	newPeer, newLocal := netip.MustParseAddr("192.0.2.2"), netip.MustParseAddr("192.0.2.1")

@@ -239,6 +239,9 @@ func TestESPFormTUNNodeCreationOutcomes(t *testing.T) {
 // TestESPFormTUNSetIffRefusalNamesTheCause checks each TUNSETIFF errno maps to its
 // cause: EPERM to CAP_NET_ADMIN, EBUSY and EINVAL to a name another holder took.
 func TestESPFormTUNSetIffRefusalNamesTheCause(t *testing.T) {
+	// The fix pinned below is the remedy for a ze under ze.service: fix the membership,
+	// so the answer does not depend on how the test process was started.
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	cases := []struct {
 		errno   unix.Errno
 		problem string

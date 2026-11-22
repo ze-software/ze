@@ -265,6 +265,9 @@ func TestXFRMForwardDefaultFailedRestorationKeepsItsLeaseForRetry(t *testing.T) 
 }
 
 func TestXFRMForwardDefaultHostRefusalHasAnOperatorFix(t *testing.T) {
+	// The fix pinned below is the remedy for a ze under ze.service: fix the membership,
+	// so the answer does not depend on how the test process was started.
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	fixture := newForwardDefaultFixture(t)
 	fixture.readErr = unix.EPERM
 	backend := &xfrmBackend{}

@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -20,7 +21,18 @@ import (
 // can hold its module reference (xfrm_set_type_offload). Ze's state serializer sends no
 // XFRMA_OFFLOAD_DEV, so reconstructing those states does not request the module again.
 // Another IPsec owner can still hold or load it; the finding names that condition.
-const espFormOffloadFix = "sudo systemctl stop ze && sudo modprobe -r esp4_offload && sudo systemctl start ze"
+// The systemctl line stops and starts the ze unit, so it is offered only when ze runs
+// under it (privilege.ServiceRemedy); a ze started another way is told the same three
+// steps without the unit.
+func espFormOffloadFix() string {
+	return privilege.ServiceRemedy(espFormOffloadFixService, espFormOffloadFixOther)
+}
+
+// espFormOffloadFixService is the offload fix for a ze the ze unit started.
+const espFormOffloadFixService = "sudo systemctl stop ze && sudo modprobe -r esp4_offload && sudo systemctl start ze"
+
+// espFormOffloadFixOther is the offload fix for any other ze.
+const espFormOffloadFixOther = "stop ze, run sudo modprobe -r esp4_offload, then start ze again the way it was started"
 
 // answerESPFormOffload reads the receiver and the shared module-list snapshot, changing
 // neither. It reports only the loaded-module case: an ESP GRO implementation built
@@ -98,7 +110,7 @@ func espFormOffloadModuleFindings(modules map[string]bool) []rpc.DoctorCheckDiag
 			"configuration instead. Without systemd, stop Ze with its supervisor, run sudo modprobe -r esp4_offload, " +
 			"then start Ze with the same supervisor. This check detects a loaded module; it cannot detect ESP GRO " +
 			"built into the kernel.",
-		Fix: espFormOffloadFix,
+		Fix: espFormOffloadFix(),
 	}}
 }
 

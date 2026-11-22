@@ -2,6 +2,7 @@
 package engine
 
 import (
+	"errors"
 	"log/slog"
 	"net"
 	"net/netip"
@@ -12,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
@@ -168,14 +170,24 @@ type childRouteSourceAllocator struct {
 
 var childRouteSources childRouteSourceAllocator
 
-var errChildRouteSourceExhausted = opererr.New(
-	"IPsec redistribution source identities are exhausted",
-	"Ze refused a Child SA route publication instead of reusing another source's identity. Source publication cannot recover in this process",
-	"sudo systemctl restart ze")
-var errChildRouteSourceAssigned = opererr.New(
-	"An IPsec rekey successor already owns another redistribution source",
-	"Ze refused the route publication instead of replacing an independent Child SA's identity. Source publication cannot recover in this process",
-	"sudo systemctl restart ze")
+var (
+	errChildRouteSourceExhausted = errors.New("IPsec redistribution source identities are exhausted")
+	errChildRouteSourceAssigned  = errors.New("IPsec rekey successor already owns another redistribution source")
+)
+
+func childRouteSourceExhaustedError() *opererr.Error {
+	return opererr.Wrap(errChildRouteSourceExhausted,
+		"IPsec redistribution source identities are exhausted",
+		"Ze refused a Child SA route publication instead of reusing another source's identity. Source publication cannot recover in this process",
+		privilege.RestartRemedy())
+}
+
+func childRouteSourceAssignedError() *opererr.Error {
+	return opererr.Wrap(errChildRouteSourceAssigned,
+		"An IPsec rekey successor already owns another redistribution source",
+		"Ze refused the route publication instead of replacing an independent Child SA's identity. Source publication cannot recover in this process",
+		privilege.RestartRemedy())
+}
 
 func (a *childRouteSourceAllocator) instance(child *ChildSA) (uint32, error) {
 	a.mu.Lock()
@@ -189,7 +201,7 @@ func (a *childRouteSourceAllocator) instanceLocked(child *ChildSA) (uint32, erro
 		return child.redistributeInstance, nil
 	}
 	if a.next == ^uint32(0) {
-		return a.refuseLocked(errChildRouteSourceExhausted)
+		return a.refuseLocked(childRouteSourceExhaustedError())
 	}
 	a.next++
 	child.redistributeInstance = a.next
@@ -205,7 +217,7 @@ func (a *childRouteSourceAllocator) inherit(retired, successor *ChildSA) (uint32
 	}
 	if successor.redistributeInstance != 0 {
 		if successor.redistributeInstance != instance {
-			return a.refuseLocked(errChildRouteSourceAssigned)
+			return a.refuseLocked(childRouteSourceAssignedError())
 		}
 	}
 	successor.redistributeInstance = instance
@@ -223,7 +235,7 @@ func (a *childRouteSourceAllocator) refuseLocked(failure *opererr.Error) (uint32
 
 func logChildRouteSourceRefusal(log *slog.Logger, err error) {
 	log.Warn("IPsec redistribution lost a source publication and cannot reconstruct it in this process",
-		"error", err, "fix", "sudo systemctl restart ze",
+		"error", err, "fix", privilege.RestartRemedy(),
 		"code", diagnostic.CodeDoctorIPsecRedistributionSource)
 }
 

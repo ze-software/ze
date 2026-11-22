@@ -385,17 +385,6 @@ func init() {
 			Codes:        []string{diagnostic.CodeDoctorIPsecInterfaceAddress},
 			Check:        checkIPsecInterfaceAddress,
 		}, {
-			// RFC 4301 Section 4.4.1: the administrator's application-override choice
-			// holds only while the guard is attached, and a socket policy set before it
-			// attached outlives it (doctor_application_override.go).
-			Name:         "ipsec-application-override",
-			Phase:        rpc.DoctorPhasePostConfig,
-			Order:        736,
-			Dependencies: []string{doctorDepConfigLoaded},
-			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorIPsecOverrideGuard, diagnostic.CodeDoctorIPsecSocketPolicy},
-			Check:        checkIPsecApplicationOverride,
-		}, {
 			// RFC 4301 Section 4.4.1: a direct SPD write is outside the guard; Linux
 			// admits it from every CAP_NET_ADMIN holder in Ze's network namespace.
 			Name:         "ipsec-spd-writers",

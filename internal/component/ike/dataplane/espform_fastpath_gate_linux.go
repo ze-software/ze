@@ -367,7 +367,7 @@ func (f *espFormFastPath) adoptFirewallLocked(view espFormFirewallView, err erro
 		return
 	}
 	f.firewallLost = true
-	f.shutGateLocked(ESPFormFirewallUnreadable, err.Error(), ESPFormFixRestart)
+	f.shutGateLocked(ESPFormFirewallUnreadable, err.Error(), ESPFormFixRestart())
 }
 
 // judgeWatched judges the ruleset through judgeFirewall and answers how the judgment
@@ -530,7 +530,7 @@ func (f *espFormFastPath) publishFirewall(epoch uint64, blocked bool, site espFo
 		return false
 	}
 	if err != nil {
-		f.shutGateLocked(ESPFormFirewallDumpFailed, err.Error(), ESPFormFixRestart)
+		f.shutGateLocked(ESPFormFirewallDumpFailed, err.Error(), ESPFormFixRestart())
 		return true
 	}
 	if blocked {
@@ -593,7 +593,7 @@ func (f *espFormFastPath) firewallWatchEnded() (ended espFormRulesetWatch, faile
 	f.firewallLost = true
 	err := ended.Err()
 	if err == nil {
-		f.shutGateLocked(ESPFormFirewallWatchClosed, espFormFirewallWatchEnded, ESPFormFixRestart)
+		f.shutGateLocked(ESPFormFirewallWatchClosed, espFormFirewallWatchEnded, ESPFormFixRestart())
 		return ended, false
 	}
 	f.shutGateLocked(ESPFormFirewallRewatching, espFormFirewallWatchFailed(err), espFormFirewallRewatchFix)
@@ -723,7 +723,7 @@ func (f *espFormFastPath) writeGateLocked(value uint32) {
 	}
 	f.logger().Warn("esp-form: the fast path could not open its firewall gate, so bare ESP stays on "+
 		"the complete path through "+espFormTUNName+", rate-bounded",
-		"value", value, "error", err, "fix", ESPFormFixRestart,
+		"value", value, "error", err, "fix", ESPFormFixRestart(),
 		"code", diagnostic.CodeDoctorIPsecESPFormFirewall)
 }
 
@@ -751,7 +751,7 @@ func (f *espFormFastPath) detachLocked(err error) {
 	f.status, f.cause = ESPFormFastPathDetached, cause.String()
 	f.logger().Warn("esp-form: the fast path could not shut its firewall gate, so it detached from every "+
 		"link, and all bare ESP is re-presented through "+espFormTUNName+" by the complete path, rate-bounded",
-		"cause", f.cause, "datagrams-per-second-max", espFormRate, "fix", ESPFormFixRestart,
+		"cause", f.cause, "datagrams-per-second-max", espFormRate, "fix", ESPFormFixRestart(),
 		"code", diagnostic.CodeDoctorIPsecESPFormFastPath)
 }
 

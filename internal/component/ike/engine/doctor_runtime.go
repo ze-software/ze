@@ -5,6 +5,7 @@
 // Related: doctor_spd_install.go -- the ipsec-spd-install check
 // Related: spd_forward_bypass.go -- the ipsec-spd-forward-bypass check
 // Related: doctor_ike_socket_bypass.go -- the ipsec-ike-socket-bypass check
+// Related: doctor_application_override.go -- the ipsec-application-override check
 
 package engine
 
@@ -51,6 +52,12 @@ var engineDoctorChecks = []engineDoctorCheck{{
 }, {
 	decl:   ikeSocketBypassCheckDecl,
 	answer: answerIKESocketBypass,
+}, {
+	// RFC 4301 Section 4.4.1: the administrator's application-override choice holds
+	// only while the guard is attached, and a socket policy set before it attached
+	// outlives it (doctor_application_override.go).
+	decl:   applicationOverrideCheckDecl,
+	answer: answerApplicationOverride,
 }}
 
 // engineDoctorCheckDecls answers the declarations the engine sends at Stage 1.
@@ -76,7 +83,8 @@ func (s *ikeEngineState) answerDoctorCheck(name string) ([]rpc.DoctorCheckDiagno
 
 // answerESPFormFastPath answers ipsec-esp-form-fast-path from the engine's process. It
 // reads the outcome of the engine's last attempt to open the TUN clone device
-// (recordESPFormTUN, apply.go) and never makes one: a runtime check only reads.
+// (recordESPFormTUN, apply.go) and of its last readiness probe of the fast path
+// (recordESPFormFastPath), and never makes either: a runtime check only reads.
 func answerESPFormFastPath(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
-	return checkIPsecESPFormFastPath(s.espFormTUN.Load())
+	return checkIPsecESPFormFastPath(s.espFormTUN.Load(), s.espFormFastPath.Load())
 }

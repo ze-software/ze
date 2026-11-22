@@ -23,6 +23,12 @@ var (
 	// the engine skips a BYPASS catch-all there rather than failing the apply, and a
 	// platform without XFRM, which answers ErrNotSupported alone, fails it.
 	ErrNoNodeWideSPD = fmt.Errorf("%w: the backend has no node-wide SPD", ErrNotSupported)
+
+	// ErrNoCgroup2 is the override guard's answer when no cgroup2 file system is
+	// mounted, so it has no cgroup root to attach to (cgroup2Root,
+	// override_guard_linux.go). It is declared on every platform so the engine names
+	// the mount as the fix of that refusal.
+	ErrNoCgroup2 = errors.New("no cgroup2 file system is mounted (mount -t cgroup2 none /sys/fs/cgroup)")
 )
 
 // SAIdentity is the destination-qualified SAD key, including the XFRM interface.

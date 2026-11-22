@@ -66,6 +66,7 @@ func TestDoctorESPFormPeerRemovalHidesRetainedFailure(t *testing.T) {
 			loadESPFormBackend(t, dp)
 			state := applyTestState(t)
 			calls := stubESPFormTUN(t, nil)
+			stubESPFormFastPathReady(t, dataplane.ESPFormFastPathFaultUnspecified, nil)
 			configured := testIPsecConfig(applyTestPeer("127.0.0.1"))
 			wantFailure := "error:" + diagnostic.CodeDoctorIPsecESPFormTUN
 			if tc.warning != "" {

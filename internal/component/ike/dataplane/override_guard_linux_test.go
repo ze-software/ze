@@ -70,7 +70,7 @@ func TestCgroup2RootFromMountinfo(t *testing.T) {
 		t.Fatalf("root = %q, want /sys/fs/cgroup/unified", root)
 	}
 	_, err = cgroup2RootFrom(strings.NewReader("25 1 0:22 / /sys/fs/cgroup rw - cgroup cgroup rw\n"))
-	if !errors.Is(err, errNoCgroup2) {
-		t.Fatalf("no cgroup2: err = %v, want errNoCgroup2", err)
+	if !errors.Is(err, ErrNoCgroup2) {
+		t.Fatalf("no cgroup2: err = %v, want ErrNoCgroup2", err)
 	}
 }

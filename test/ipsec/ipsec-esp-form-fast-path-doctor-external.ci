@@ -48,9 +48,10 @@ EOF_CONFIG
 cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=40s
 
 # RUNTIME-OWNER: only the forked IKE backend holds this exact cause.
-# applyJSON sorts the keys and escapes each ampersand as \u0026.
+# applyJSON sorts the keys. Outside ze.service the fix is the non-systemd
+# capability remedy, never the systemd unit rewrite.
 command=show doctor config ze-bgp.conf | json
-expect=output:matches="code": ?"doctor-ipsec-esp-form-fast-path",[^}]*"fix": ?"sudo systemctl stop ze \\u0026\\u0026 sudo ze install systemd --force --start",[^}]*"message": ?"The IPsec ESP form fast path is unavailable \(the recording-esp-form-unavailable test backend loads no BPF program, as a host without CAP_BPF loads none\)[^}]*"severity": ?"warning":timeout=25
+expect=output:matches="code": ?"doctor-ipsec-esp-form-fast-path",[^}]*"fix": ?"[^"]*restart ze as root, or holding CAP_BPF and CAP_NET_ADMIN: grant them as ambient capabilities from whatever starts ze, or run sudo setcap cap_bpf,cap_net_admin\+ep on the ze binary",[^}]*"message": ?"The IPsec ESP form fast path is unavailable \(the recording-esp-form-unavailable test backend loads no BPF program, as a host without CAP_BPF loads none\)[^}]*"severity": ?"warning":timeout=25
 
 # COMPLETE-PATH-COST: the surviving policy check and above-bound losses.
 expect=output:contains=Every packet is still checked against the SA's policy, but at most 5000 datagrams per second go through ze-espform: Ze's own receiver drops every datagram above that rate before XFRM sees it, so that traffic is lost.:timeout=5

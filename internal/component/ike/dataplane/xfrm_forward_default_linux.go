@@ -70,8 +70,8 @@ func xfrmForwardDefaultRefusal(cause error, problem string) error {
 		why = "Another XFRM policy manager changed the value Ze had installed. Ze leaves that value untouched and retains its claim. Read the current defaults, then reconcile the other manager with the IPsec configuration before retrying."
 		fix = "ip xfrm policy getdefault"
 	case errors.Is(cause, unix.EPERM), errors.Is(cause, unix.EACCES):
-		why = "The IKE process cannot read or set the namespace forwarding policy without CAP_NET_ADMIN. The command below reinstalls the systemd service's capabilities and starts it; a container must also grant NET_ADMIN to that process."
-		fix = privilege.DaemonCapabilitiesFix
+		why = "The IKE process cannot read or set the namespace forwarding policy without CAP_NET_ADMIN. The fix below gives ze that capability; a container must also grant NET_ADMIN to that process."
+		fix = privilege.CapabilityRemedy("CAP_NET_ADMIN")
 	case errors.Is(cause, unix.EINVAL), errors.Is(cause, unix.EPROTONOSUPPORT), errors.Is(cause, unix.ENOPROTOOPT), errors.Is(cause, unix.EOPNOTSUPP):
 		why = "The running kernel does not provide the XFRM default-policy operation IPsec forwarding needs. Build Ze's native runtime kernel with the commands below, then install it and boot into it."
 		fix = RuntimeKernelBuildFix()
