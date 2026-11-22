@@ -582,7 +582,13 @@ func (e *Engine) Execute(ctx context.Context, command string, args []string) (js
 // peer context. Execute retains its original empty-peer behavior. This fixture
 // forwards context; it does not authenticate a caller or issue native authority.
 func (e *Engine) ExecutePeer(ctx context.Context, command string, args []string, peer string) (json.RawMessage, error) {
-	input := &rpc.ExecuteCommandInput{Serial: "1", Command: command, Args: args, Peer: peer}
+	return e.ExecutePeerPipe(ctx, command, args, peer, nil)
+}
+
+// ExecutePeerPipe reaches the real registered SDK callback with the supplied
+// peer context and declared pipe operations.
+func (e *Engine) ExecutePeerPipe(ctx context.Context, command string, args []string, peer string, pipe []rpc.PipeOperation) (json.RawMessage, error) {
+	input := &rpc.ExecuteCommandInput{Serial: "1", Command: command, Args: args, Peer: peer, Pipe: pipe}
 	if e.bridge != nil {
 		out, err := e.bridge.ExecuteCommand(ctx, input.Serial, input.Command, input.Args, input.Peer, input.Pipe)
 		if err != nil {
