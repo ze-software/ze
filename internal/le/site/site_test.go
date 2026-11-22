@@ -131,6 +131,64 @@ func TestMinifyCSSPreservesDescendantPseudoSelector(t *testing.T) {
 	}
 }
 
+// VALIDATES: JS minification strips comments and indentation while keeping
+// strings, template literals, regexes, and valid syntax across all authored scripts.
+func TestMinifyJSPreservesStringsTemplatesAndRegexes(t *testing.T) {
+	input := `// leading comment
+function demo(x) {
+    /* block
+       comment */
+    const url = "https://ze-software.net//keep";
+    const re = /[a-z]+\/foo/g;
+    const msg = ` + "`value=${x + /* inline */ 1}`" + `;
+    const ratio = (x + 1) / 2;
+    return [url, re.test(msg), ratio, x + +1];
+}
+`
+	minified, err := minifyJS([]byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(minified)
+	for _, forbidden := range []string{"leading comment", "block", "inline"} {
+		if strings.Contains(got, forbidden) {
+			t.Errorf("minified JS kept comment %q: %s", forbidden, got)
+		}
+	}
+	for _, want := range []string{`"https://ze-software.net//keep"`, `/[a-z]+\/foo/g`, "`value=${x+1}`", `(x+1)/2`, `x+ +1`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("minified JS lost %q: %s", want, got)
+		}
+	}
+	scripts, err := filepath.Glob(filepath.Join("..", "..", "..", "website", "assets", "js", "*.js"))
+	if err != nil || len(scripts) == 0 {
+		t.Fatalf("locate authored scripts: %v (found %d)", err, len(scripts))
+	}
+	nodePath, _ := exec.LookPath("node")
+	for _, script := range scripts {
+		raw, readErr := os.ReadFile(script)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		out, minErr := minifyJS(raw)
+		if minErr != nil {
+			t.Fatalf("minify %s: %v", filepath.Base(script), minErr)
+		}
+		if len(out) >= len(raw) {
+			t.Errorf("%s did not shrink: %d >= %d", filepath.Base(script), len(out), len(raw))
+		}
+		if nodePath != "" {
+			tmp := filepath.Join(t.TempDir(), filepath.Base(script))
+			if writeErr := os.WriteFile(tmp, out, 0o600); writeErr != nil {
+				t.Fatal(writeErr)
+			}
+			if checkOut, checkErr := exec.Command(nodePath, "--check", tmp).CombinedOutput(); checkErr != nil {
+				t.Fatalf("minified %s failed node --check: %v\n%s", filepath.Base(script), checkErr, checkOut)
+			}
+		}
+	}
+}
+
 // VALIDATES: deck images, nested CSS assets, slide sources, and standalone identity are in one file.
 func TestBundlePresentationInlinesLocalAssets(t *testing.T) {
 	root := t.TempDir()

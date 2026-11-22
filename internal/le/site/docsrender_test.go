@@ -199,8 +199,8 @@ func publishedEyebrows(t *testing.T) map[string]string {
 		}
 		labels[destination] = label
 	}
-	if len(labels) != 152 {
-		t.Fatalf("the eyebrow fixture names %d pages, want the 148 recovered pages plus legal/, project/ai-development/, guides/docker/ and guides/ai-agent/", len(labels))
+	if len(labels) != 157 {
+		t.Fatalf("the eyebrow fixture names %d pages, want the 148 recovered pages plus legal/, project/ai-development/, guides/docker/, guides/ai-agent/, and the 5 non-BGP use-case pages", len(labels))
 	}
 	return labels
 }

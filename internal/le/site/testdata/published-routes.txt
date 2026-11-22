@@ -706,12 +706,17 @@
 /talks/linx-2026-06/
 /talks/netmcr-2026-04/
 /use-cases/
+/use-cases/appliance-lifecycle/
 /use-cases/as-path-topology/
 /use-cases/as112/
 /use-cases/bgp-performance/
 /use-cases/chaos-tested-peering/
 /use-cases/exabgp-migration/
+/use-cases/fleet-management/
 /use-cases/flowspec-injection/
+/use-cases/fttp-cpe/
+/use-cases/igp-edge/
 /use-cases/route-server/
+/use-cases/site-to-site-vpn/
 /use-cases/transit-edge-rpki/
 /zeledon/

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -174,19 +175,360 @@ func renderJS(source, output string) error {
 	return nil
 }
 
-// renderScript writes one authored script without trailing whitespace.
+// renderScript minifies one authored script while preserving string, template,
+// and regular expression literals and line breaks for automatic semicolon insertion.
 func renderScript(source, path string) error {
 	content, err := os.ReadFile(source) //nolint:gosec // a site build reads the checkout it was pointed at
 	if err != nil {
 		return err
 	}
-	lines := strings.Split(string(content), "\n")
-	for index := range lines {
-		lines[index] = strings.TrimRight(lines[index], " \t")
+	minified, err := minifyJS(content)
+	if err != nil {
+		return fmt.Errorf("%s: %w", filepath.Base(source), err)
 	}
-	content = []byte(strings.TrimSpace(strings.Join(lines, "\n")) + "\n")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
 		return err
 	}
-	return os.WriteFile(path, content, 0o644) //nolint:gosec // published web content: a web server, often another account, serves these bytes
+	return os.WriteFile(path, minified, 0o644) //nolint:gosec // published web content: a web server, often another account, serves these bytes
+}
+
+// minifyJS strips comments, indentation, blank lines, and redundant horizontal
+// whitespace from a JavaScript file while preserving strings, template
+// literals, regex literals, and statement-terminating newlines.
+func minifyJS(content []byte) ([]byte, error) {
+	var out bytes.Buffer
+	out.Grow(len(content))
+
+	// templateBraces tracks nested brace depth inside each active `${...}`
+	// interpolation so closing `}` resumes the enclosing template literal.
+	var templateBraces []int
+	prevKind := jsTokStart
+	prevWord := ""
+	pendingSpace := false
+	pendingNewline := false
+
+	emitSep := func(next byte, nextIsWord bool) {
+		if out.Len() == 0 {
+			pendingSpace = false
+			pendingNewline = false
+			return
+		}
+		if pendingNewline {
+			out.WriteByte('\n')
+			pendingSpace = false
+			pendingNewline = false
+			return
+		}
+		if !pendingSpace {
+			return
+		}
+		pendingSpace = false
+		last := out.Bytes()[out.Len()-1]
+		if jsNeedsSpace(last, next, nextIsWord) {
+			out.WriteByte(' ')
+		}
+	}
+
+	for i := 0; i < len(content); {
+		ch := content[i]
+
+		// Inside a template literal's `${...}` interpolation, closing `}` at depth 0
+		// resumes scanning the template literal text.
+		if ch == '}' && len(templateBraces) > 0 && templateBraces[len(templateBraces)-1] == 0 {
+			templateBraces = templateBraces[:len(templateBraces)-1]
+			pendingSpace = false
+			pendingNewline = false
+			out.WriteByte('}')
+			i++
+			next, done, err := scanJSTemplateChunk(content, i, &out)
+			if err != nil {
+				return nil, err
+			}
+			i = next
+			if done {
+				prevKind = jsTokString
+				prevWord = ""
+			} else {
+				templateBraces = append(templateBraces, 0)
+				prevKind = jsTokPunct
+				prevWord = "{"
+			}
+			continue
+		}
+
+		// Whitespace: preserve newlines for ASI; defer horizontal spaces.
+		if ch == ' ' || ch == '\t' || ch == '\r' || ch == '\f' || ch == '\v' {
+			pendingSpace = true
+			i++
+			continue
+		}
+		if ch == '\n' {
+			pendingNewline = true
+			pendingSpace = false
+			i++
+			continue
+		}
+
+		// Line comment.
+		if ch == '/' && i+1 < len(content) && content[i+1] == '/' {
+			i += 2
+			for i < len(content) && content[i] != '\n' {
+				i++
+			}
+			continue
+		}
+
+		// Block comment.
+		if ch == '/' && i+1 < len(content) && content[i+1] == '*' {
+			end := bytes.Index(content[i+2:], []byte("*/"))
+			if end == -1 {
+				return nil, opererr.New("script has an unclosed block comment at byte "+strconv.Itoa(i),
+					"Publication stopped to preserve the script's syntax.", "./le site build")
+			}
+			if bytes.IndexByte(content[i+2:i+2+end], '\n') >= 0 {
+				pendingNewline = true
+				pendingSpace = false
+			} else {
+				pendingSpace = true
+			}
+			i += end + 4
+			continue
+		}
+
+		// Quoted string literal.
+		if ch == '"' || ch == '\'' {
+			emitSep(ch, false)
+			start := i
+			i++
+			closed := false
+			for i < len(content) {
+				if content[i] == '\\' {
+					i += min(2, len(content)-i)
+					continue
+				}
+				if content[i] == ch {
+					i++
+					closed = true
+					break
+				}
+				i++
+			}
+			if !closed {
+				return nil, opererr.New("script has an unclosed string at byte "+strconv.Itoa(start),
+					"Publication stopped to preserve the script's syntax.", "./le site build")
+			}
+			out.Write(content[start:i])
+			prevKind = jsTokString
+			prevWord = ""
+			continue
+		}
+
+		// Template literal.
+		if ch == '`' {
+			emitSep(ch, false)
+			out.WriteByte('`')
+			i++
+			next, done, err := scanJSTemplateChunk(content, i, &out)
+			if err != nil {
+				return nil, err
+			}
+			i = next
+			if done {
+				prevKind = jsTokString
+				prevWord = ""
+			} else {
+				templateBraces = append(templateBraces, 0)
+				prevKind = jsTokPunct
+				prevWord = "{"
+			}
+			continue
+		}
+
+		// Regex literal (when `/` cannot be division).
+		if ch == '/' && jsRegexCanFollow(prevKind, prevWord) {
+			emitSep(ch, false)
+			start := i
+			i++
+			inClass := false
+			closed := false
+			for i < len(content) {
+				c := content[i]
+				if c == '\\' {
+					i += min(2, len(content)-i)
+					continue
+				}
+				if c == '[' {
+					inClass = true
+				} else if c == ']' {
+					inClass = false
+				} else if c == '/' && !inClass {
+					i++
+					for i < len(content) && isJSIdentPart(content[i]) {
+						i++
+					}
+					closed = true
+					break
+				} else if c == '\n' {
+					break
+				}
+				i++
+			}
+			if !closed {
+				return nil, opererr.New("script has an unclosed regex literal at byte "+strconv.Itoa(start),
+					"Publication stopped to preserve the script's syntax.", "./le site build")
+			}
+			out.Write(content[start:i])
+			prevKind = jsTokRegex
+			prevWord = ""
+			continue
+		}
+
+		// Identifiers, keywords, and numbers.
+		if isJSIdentStart(ch) || (ch >= '0' && ch <= '9') {
+			emitSep(ch, true)
+			start := i
+			if ch >= '0' && ch <= '9' {
+				for i < len(content) && (isJSIdentPart(content[i]) || content[i] == '.') {
+					if (content[i] == 'e' || content[i] == 'E') && i+1 < len(content) && (content[i+1] == '+' || content[i+1] == '-') {
+						i += 2
+						continue
+					}
+					i++
+				}
+				prevKind = jsTokNumber
+				prevWord = ""
+			} else {
+				for i < len(content) && isJSIdentPart(content[i]) {
+					i++
+				}
+				prevKind = jsTokWord
+				prevWord = string(content[start:i])
+			}
+			out.Write(content[start:i])
+			continue
+		}
+
+		// Multi-character `++` / `--` must keep their token kind so `/` after them
+		// is parsed as division rather than a regex literal.
+		if (ch == '+' || ch == '-') && i+1 < len(content) && content[i+1] == ch {
+			emitSep(ch, false)
+			out.Write(content[i : i+2])
+			prevKind = jsTokIncDec
+			prevWord = string(content[i : i+2])
+			i += 2
+			continue
+		}
+
+		// Punctuation and operators.
+		emitSep(ch, false)
+		out.WriteByte(ch)
+		if ch == '{' && len(templateBraces) > 0 {
+			templateBraces[len(templateBraces)-1]++
+		} else if ch == '}' && len(templateBraces) > 0 {
+			templateBraces[len(templateBraces)-1]--
+		}
+		switch ch {
+		case ')':
+			prevKind = jsTokCloseParen
+		case ']':
+			prevKind = jsTokCloseBracket
+		case '}':
+			prevKind = jsTokCloseBrace
+		default:
+			prevKind = jsTokPunct
+		}
+		prevWord = string(ch)
+		i++
+	}
+
+	if out.Len() > 0 {
+		out.WriteByte('\n')
+	}
+	return out.Bytes(), nil
+}
+
+const (
+	jsTokStart = iota
+	jsTokPunct
+	jsTokWord
+	jsTokNumber
+	jsTokString
+	jsTokRegex
+	jsTokCloseParen
+	jsTokCloseBracket
+	jsTokCloseBrace
+	jsTokIncDec
+)
+
+// scanJSTemplateChunk copies raw template characters until an unescaped closing
+// backtick (done=true) or `${` interpolation start (done=false).
+func scanJSTemplateChunk(content []byte, i int, out *bytes.Buffer) (int, bool, error) {
+	start := i
+	for i < len(content) {
+		c := content[i]
+		if c == '\\' {
+			end := min(i+2, len(content))
+			out.Write(content[i:end])
+			i = end
+			continue
+		}
+		if c == '`' {
+			out.WriteByte('`')
+			return i + 1, true, nil
+		}
+		if c == '$' && i+1 < len(content) && content[i+1] == '{' {
+			out.WriteString("${")
+			return i + 2, false, nil
+		}
+		out.WriteByte(c)
+		i++
+	}
+	return i, false, opererr.New("script has an unclosed template literal at byte "+strconv.Itoa(start),
+		"Publication stopped to preserve the script's syntax.", "./le site build")
+}
+
+func isJSIdentStart(ch byte) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_' || ch == '$' || ch >= 0x80
+}
+
+func isJSIdentPart(ch byte) bool {
+	return isJSIdentStart(ch) || (ch >= '0' && ch <= '9')
+}
+
+func jsRegexCanFollow(kind int, word string) bool {
+	switch kind {
+	case jsTokStart, jsTokPunct, jsTokCloseBrace:
+		return true
+	case jsTokWord:
+		switch word {
+		case "return", "case", "throw", "in", "instanceof", "of", "typeof", "void", "delete", "else", "do", "yield", "await", "new":
+			return true
+		}
+	}
+	return false
+}
+
+// jsNeedsSpace keeps a single separating space whenever omitting it would merge
+// two identifiers/numbers or form an unintended compound operator (`++`, `--`, `//`, `/*`).
+func jsNeedsSpace(prev, next byte, nextIsWord bool) bool {
+	prevIsWord := isJSIdentPart(prev)
+	if prevIsWord && nextIsWord {
+		return true
+	}
+	if prev == '+' && next == '+' {
+		return true
+	}
+	if prev == '-' && next == '-' {
+		return true
+	}
+	if prev == '/' && (next == '/' || next == '*') {
+		return true
+	}
+	if prev == '<' && next == '!' {
+		return true
+	}
+	if prev == '-' && next == '>' {
+		return true
+	}
+	return false
 }

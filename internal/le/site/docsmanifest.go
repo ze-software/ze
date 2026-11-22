@@ -258,6 +258,11 @@ var useCasePages = []sitePage{
 	{Source: "website/use-cases/flowspec-injection/index.md", Dest: "use-cases/flowspec-injection/index.html", Desc: "Inject and withdraw FlowSpec rules through an authorized workflow with visible state and logs.", Category: categorySecure, Journey: journeyUseCase},
 	{Source: "website/use-cases/chaos-tested-peering/index.md", Dest: "use-cases/chaos-tested-peering/index.html", Desc: "Check BGP convergence and recovery with deterministic chaos scenarios.", Category: categoryObserve, Journey: journeyUseCase},
 	{Source: "website/use-cases/as-path-topology/index.md", Dest: "use-cases/as-path-topology/index.html", Desc: "Use the Looking Glass AS-path graph to investigate routing visibility and changes.", Category: categoryObserve, Journey: journeyUseCase},
+	{Source: "website/use-cases/fttp-cpe/index.md", Dest: "use-cases/fttp-cpe/index.html", Desc: "Deploy Ze as a Linux FTTP CPE with PPPoE, DHCPv6-PD, Router Advertisements, DHCPv4, LAN DNS forwarding, and nftables NAT.", Category: categoryServices, Journey: journeyUseCase},
+	{Source: "website/use-cases/site-to-site-vpn/index.md", Dest: "use-cases/site-to-site-vpn/index.html", Desc: "Connect sites with native IKEv2 IPsec over Linux XFRM VTI interfaces or WireGuard tunnels and static routing.", Category: categorySecure, Journey: journeyUseCase},
+	{Source: "website/use-cases/igp-edge/index.md", Dest: "use-cases/igp-edge/index.html", Desc: "Run OSPFv2 with BFD or dual-stack IS-IS alongside VRRPv3 first-hop redundancy and uplink tracking.", Category: categoryRouting, Journey: journeyUseCase},
+	{Source: "website/use-cases/fleet-management/index.md", Dest: "use-cases/fleet-management/index.html", Desc: "Enroll managed Ze devices to a central TLS hub, push live config changes, and resolve local divergence with audit logs.", Category: categoryAutomate, Journey: journeyUseCase},
+	{Source: "website/use-cases/appliance-lifecycle/index.md", Dest: "use-cases/appliance-lifecycle/index.html", Desc: "Build immutable gokrazy Ze appliances, push A/B testboot updates, guard edits with commit confirmed, and back up live ZeFS state.", Category: categoryOperate, Journey: journeyUseCase},
 }
 
 // labDetailPages publish two docs/ sources that the manifest does not name,

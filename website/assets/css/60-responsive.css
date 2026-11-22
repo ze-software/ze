@@ -90,7 +90,6 @@
     .feature-catalog[data-enhanced="true"] { grid-template-columns: 11rem minmax(0, 1fr); gap: 1.5rem; }
     .feature-results .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .site-home .hero-release-callout { max-width: none; }
-    .site-home .hero-primary-actions { flex-basis: 70%; }
     .site-home .capability-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 1180px) {
@@ -112,9 +111,7 @@
     .site-home .hero-project-metric:first-child { border-inline-start: 0; padding-inline-start: 0; }
     .site-home .showcase { justify-self: center; }
     .site-home .hero-outcome-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .site-home .proof-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .site-home .proof { border-bottom: 1px solid var(--line); }
-    .site-home .blog-list, .site-home .home-usecase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .site-home .blog-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .blog-article-shell, .blog-article-shell.has-visual { gap: 2rem; }
 }
 @media (max-width: 960px) {
@@ -144,13 +141,10 @@
     .blog-article-shell, .blog-article-shell.has-visual { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; padding: 2rem 0; }
     .blog-article-shell .blog-article-visual { grid-column: 1; grid-row: auto; max-width: 40rem; }
     .blog-article-shell .blog-article-heading .journey-hero.blog-article-hero :is(h1, h2) { font-size: clamp(2rem, 5vw, 2.6rem); }
-    .site-home .usp-grid, .site-home .capability-grid, .site-home .run-path-grid, .site-home .reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .site-home .usp-grid, .site-home .capability-grid, .site-home .reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .site-home .home-section-panel-map .capability-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .site-home .terminal-panel { grid-template-columns: minmax(0, 1fr); }
-    .site-home .hero-primary-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .site-home .section-head, .site-home .home-section-panel-map .section-head { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
-    .site-home .home-proof-head { gap: 1rem; }
-    .site-home .home-proof-actions { max-width: none; }
     .site-home .interop-strip { flex-wrap: wrap; }
 }
 @media (max-width: 640px) {
@@ -194,13 +188,10 @@
     .site-home .showcase .product-panels { order: 1; }
     .site-home .screen-toolbar { gap: 0.5rem; font-size: 0.65rem; }
     .site-home .screen-description { padding: 1rem; }
-    .site-home .hero-primary-actions { flex-basis: 100%; }
     .site-home .hero-outcome-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem 1rem; }
     .site-home .home-proof-block { padding-block: 2.25rem; }
-    .site-home .usp-grid, .site-home .capability-grid, .site-home .run-path-grid, .site-home .reference-grid, .site-home .home-usecase-grid, .site-home .proof-strip, .site-home .blog-list { grid-template-columns: minmax(0, 1fr); }
+    .site-home .usp-grid, .site-home .capability-grid, .site-home .reference-grid, .site-home .blog-list { grid-template-columns: minmax(0, 1fr); }
     .site-home .home-section-panel-map .capability-grid { grid-template-columns: minmax(0, 1fr); }
-    .site-home .proof { border-right: 0; }
-    .site-home .proof:last-child { border-bottom: 0; }
     .site-home .terminal-note { padding: 1.3rem; }
     .site-home .terminal-body { font-size: 0.75rem; }
     .site-home .interface-map > div:first-child { gap: 0.3rem; }

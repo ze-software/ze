@@ -141,12 +141,17 @@ reference/glossary/index.html	Documentation
 reference/index.html	Reference
 reference/rfcs/index.html	Feature
 security/index.html	Security
+use-cases/appliance-lifecycle/index.html	Use case
 use-cases/as-path-topology/index.html	Use case
 use-cases/as112/index.html	Use case
 use-cases/bgp-performance/index.html	Use case
 use-cases/chaos-tested-peering/index.html	Use case
 use-cases/exabgp-migration/index.html	Use case
+use-cases/fleet-management/index.html	Use case
 use-cases/flowspec-injection/index.html	Use case
+use-cases/fttp-cpe/index.html	Use case
+use-cases/igp-edge/index.html	Use case
 use-cases/index.html	Use case
 use-cases/route-server/index.html	Use case
+use-cases/site-to-site-vpn/index.html	Use case
 use-cases/transit-edge-rpki/index.html	Use case

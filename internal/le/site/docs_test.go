@@ -95,10 +95,10 @@ func TestEveryDocsProducerSourceExists(t *testing.T) {
 		t.Fatalf("pages: %v", err)
 	}
 	// 148 recovered pages, less project/roadmap/ and project/, which their
-	// dedicated producers own, plus legal/, project/ai-development/, Docker and
-	// guides/ai-agent/.
-	if len(pages) != 150 {
-		t.Errorf("the docs producer publishes %d pages, want the 146 recovered pages plus legal/, project/ai-development/, Docker and guides/ai-agent/", len(pages))
+	// dedicated producers own, plus legal/, project/ai-development/, Docker,
+	// guides/ai-agent/, and the 5 non-BGP use cases.
+	if len(pages) != 155 {
+		t.Errorf("the docs producer publishes %d pages, want the 146 recovered pages plus legal/, project/ai-development/, Docker, guides/ai-agent/, and the 5 non-BGP use cases", len(pages))
 	}
 	destinations := map[string]string{}
 	for _, page := range pages {
@@ -203,8 +203,8 @@ func publishedArtifactRoutes(t *testing.T) []string {
 	t.Helper()
 	content := readTestdata(t, "published-routes.txt")
 	routes := strings.Split(strings.TrimSpace(content), "\n")
-	if len(routes) != 717 {
-		t.Fatalf("the published route fixture holds %d routes, want the 712 at 2fa8fa2ad plus /legal/, /project/ai-development/, /guides/docker/, /guides/netlab/ and /guides/ai-agent/", len(routes))
+	if len(routes) != 722 {
+		t.Fatalf("the published route fixture holds %d routes, want the 712 at 2fa8fa2ad plus /legal/, /project/ai-development/, /guides/docker/, /guides/netlab/, /guides/ai-agent/, and the 5 non-BGP use-case routes", len(routes))
 	}
 	return routes
 }
