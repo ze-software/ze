@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zemcp "github.com/ze-software/ze/internal/component/mcp"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
@@ -150,7 +151,10 @@ func TestMCPServerReconfigureRejectsRemoteBearerWithoutTLS(t *testing.T) {
 			initial := handle.Addresses()
 			err := handle.Reconfigure(t.Context(), []string{"0.0.0.0:0"})
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "requires tls.cert and tls.key on non-loopback listener")
+			assert.Contains(t, err.Error(), "without TLS")
+			var opErr *opererr.Error
+			require.True(t, errors.As(err, &opErr), "reconfigure refusal %v (%T) is not an operator error", err, err)
+			assert.Equal(t, zeconfig.MCPTLSFix, opErr.Fix(), "the refusal names the MCP TLS fix")
 			assert.Equal(t, initial, handle.Addresses(), "refused reconfigure must keep prior bound addresses")
 
 			// Rebinding onto another loopback address remains allowed.

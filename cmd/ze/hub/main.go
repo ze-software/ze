@@ -1308,8 +1308,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	defer stopArchiveScheduler()
 
 	// commitReloads holds the store open until every commit-driven reload has
-	// returned (reloadGate, main_reload.go). Shutdown closes it below, after
-	// the SIGHUP worker, and before Run returns to the store's Close.
+	// returned, and holds the cancel of each one for the stop (reloadGate,
+	// main_reload.go). Shutdown closes it below, after the SIGHUP worker, and
+	// before Run returns to the store's Close (fenceCommitReloads).
 	commitReloads := &sessionMutations.gate
 	// signalReloads serializes the signal reloads of this daemon: SIGHUP waits
 	// on it, request reload refuses while it is held (main_reload.go).
@@ -1465,14 +1466,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 	// Declared only when MCP will actually bind: buildMCPService skips on an
 	// empty address list, and a declaration that binds nothing must not reach
-	// the guard's no-addresses refusal.
+	// the guard's no-addresses refusal. MCP's declaration (mcpMgmtListener,
+	// from zeconfig.MCPExposure) requires authentication and TLS off loopback,
+	// the same rule as gNMI's.
 	if mcpFactoryOn && len(mcpAddrs) > 0 {
-		mgmtListeners = append(mgmtListeners, mgmtListener{
-			service:       "MCP",
-			addrs:         mcpAddrs,
-			authenticated: mcpAuthed,
-			remedy:        "set ze.mcp.token (or environment.mcp auth-mode), or bind to 127.0.0.1/::1 only",
-		})
+		mgmtListeners = append(mgmtListeners, mcpMgmtListener(mcpAddrs, mcpCfgOK, mcpCfg, mcpToken))
 	}
 	if gnmiBuild != nil {
 		if decl, ok := gnmiMgmtListener(loadResult.Tree); ok {
@@ -1495,10 +1493,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	// Run the existing precise MCP semantic checks on the boot path too:
-	// bind-remote without auth, bearer without token, and remote authenticated
-	// listeners without TLS.
-	// They catch config-level inconsistencies that the loopback and auth guard
-	// alone does not find. They print the same messages as `ze config validate`.
+	// bind-remote without auth, bearer without token, a half TLS pair.
+	// They catch config-level inconsistencies that the exposure guard alone
+	// does not find. They print the same messages as `ze config validate`.
+	// Exposure itself (a non-loopback listener without authentication or TLS)
+	// is the guard's, through mcpMgmtListener above.
 	//
 	// The gate is the listener that binds, not the block that exists.
 	// ExtractMCPSettings returns a config for any environment.mcp block. Without
@@ -1868,11 +1867,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	close(reloadCh)
 	awaitReloadWorker(reloadDone, reloadShutdownGrace, reloadCancel)
 	// A window still open stays recorded for the next start; a revert in
-	// flight reloads, so the window stops before the reloads close.
-	stopConfirmWindow(confirmWindow)
-	// A commit-driven reload still running here would promote its candidate
-	// into a store the caller closes when Run returns: wait for it.
-	commitReloads.close()
+	// flight reloads, so the window stops before the reloads close. A
+	// commit-driven reload still running here would promote its candidate
+	// into a store the caller closes when Run returns: wait for it, and stand
+	// it down with the shutdown cause when it outlives the grace, as the
+	// SIGHUP worker above.
+	fenceCommitReloads(confirmWindow, commitReloads, reloadShutdownGrace)
 
 	// The drain runs while every plugin connection, the reactor and
 	// management are still up, and after config is fenced. BeginDrain runs

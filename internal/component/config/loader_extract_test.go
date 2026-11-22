@@ -500,7 +500,9 @@ environment {
 // TestMCPConfigValidate exercises the exact-or-reject gates applied at
 // `ze config verify` time.
 //
-// VALIDATES: Phase 2 AC-6/6a/6b + bearer-list / oauth sanity.
+// VALIDATES: Phase 2 AC-6/6a + bearer-list / oauth sanity. AC-6b (oauth on a
+// remote listener without TLS) is an exposure, answered by Refusals and
+// asserted in TestMCPListenConfigRefusalsRequireTLSOffLoopback.
 // PREVENTS: Silent acceptance of internally inconsistent configs.
 func TestMCPConfigValidate(t *testing.T) {
 	loopback := []ServerEndpoint{{Host: "127.0.0.1", Port: "8080"}}
@@ -544,19 +546,6 @@ func TestMCPConfigValidate(t *testing.T) {
 				OAuth:    MCPOAuthConfig{AuthorizationServer: "https://as.example/"},
 			},
 			wantErr: "requires oauth.audience",
-		},
-		{
-			name: "AC-6b oauth on remote without TLS rejects",
-			cfg: MCPListenConfig{
-				Servers:    remote,
-				BindRemote: true,
-				AuthMode:   "oauth",
-				OAuth: MCPOAuthConfig{
-					AuthorizationServer: "https://as.example/",
-					Audience:            "https://mcp.example/",
-				},
-			},
-			wantErr: "requires tls.cert and tls.key on non-loopback listeners",
 		},
 		{
 			name: "oauth on loopback without TLS ok",
@@ -741,15 +730,17 @@ func TestMCPTLSPairValidationAllModes(t *testing.T) {
 	}
 }
 
-// TestMCPConfigValidate_RemoteBearerRequiresTLS verifies that non-loopback MCP
-// listeners using bearer or bearer-list require both tls.cert and tls.key,
-// while loopback listeners remain valid without TLS and remote listeners with
-// TLS are accepted.
+// TestMCPConfigValidate_RemoteBearerRequiresTLS verifies that Validate refuses
+// a remote bearer, bearer-list or oauth listener that names only one of its two
+// TLS files, while loopback listeners remain valid without TLS and remote
+// listeners with both TLS files are accepted. A remote listener with no TLS at
+// all is an exposure, answered by Refusals and asserted in
+// TestMCPListenConfigRefusalsRequireTLSOffLoopback.
 //
-// VALIDATES: static bearer credentials are never transmitted in cleartext over
-// a non-loopback network listener.
-// PREVENTS: bearer / bearer-list remote configs passing offline validation
-// without TLS.
+// VALIDATES: a half-named TLS pair never passes offline validation, so static
+// credentials are never served over a listener that only appears to have TLS.
+// PREVENTS: bearer / bearer-list / oauth remote configs with a half TLS pair
+// passing offline validation.
 func TestMCPConfigValidate_RemoteBearerRequiresTLS(t *testing.T) {
 	loopback := []ServerEndpoint{{Host: "127.0.0.1", Port: "8080"}}
 	remote := []ServerEndpoint{{Host: "192.0.2.1", Port: "8443"}}
@@ -762,19 +753,14 @@ func TestMCPConfigValidate_RemoteBearerRequiresTLS(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "bearer remote without TLS rejects",
-			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer", Token: "secret"},
-			wantErr: "auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners",
-		},
-		{
 			name:    "bearer remote with cert only rejects",
 			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer", Token: "secret", TLS: MCPTLSConfig{Cert: "/etc/ze/mcp.pem"}},
-			wantErr: "auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners",
+			wantErr: "cert set without key",
 		},
 		{
 			name:    "bearer remote with key only rejects",
 			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer", Token: "secret", TLS: MCPTLSConfig{Key: "/etc/ze/mcp.key"}},
-			wantErr: "auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners",
+			wantErr: "key set without cert",
 		},
 		{
 			name:    "bearer loopback without TLS ok",
@@ -787,19 +773,14 @@ func TestMCPConfigValidate_RemoteBearerRequiresTLS(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name:    "bearer-list remote without TLS rejects",
-			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer-list", Identities: identities},
-			wantErr: "auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners",
-		},
-		{
 			name:    "bearer-list remote with cert only rejects",
 			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer-list", Identities: identities, TLS: MCPTLSConfig{Cert: "/etc/ze/mcp.pem"}},
-			wantErr: "auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners",
+			wantErr: "cert set without key",
 		},
 		{
 			name:    "bearer-list remote with key only rejects",
 			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer-list", Identities: identities, TLS: MCPTLSConfig{Key: "/etc/ze/mcp.key"}},
-			wantErr: "auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners",
+			wantErr: "key set without cert",
 		},
 		{
 			name:    "bearer-list loopback without TLS ok",
@@ -823,7 +804,7 @@ func TestMCPConfigValidate_RemoteBearerRequiresTLS(t *testing.T) {
 				},
 				TLS: MCPTLSConfig{Cert: "/etc/ze/mcp.pem"},
 			},
-			wantErr: "auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners",
+			wantErr: "cert set without key",
 		},
 	}
 

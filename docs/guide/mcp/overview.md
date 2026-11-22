@@ -187,7 +187,9 @@ only the older appended discovery path cannot be used with this configuration.
 `ze config validate` rejects internally inconsistent configurations (`bearer`,
 `bearer-list`, or `oauth` without TLS on a remote bind, `oauth` without
 `authorization-server`, `bind-remote` without auth, etc.) before the daemon
-starts. See [`rules/exact-or-reject.md`](../../../ai/rules/protocol.md) for the
+starts. A remote listener without authentication or TLS also refuses daemon
+start, with the same message, whatever supplied its address
+([Remote management listener guard](../authentication.md#remote-management-listener-guard)). See [`rules/exact-or-reject.md`](../../../ai/rules/protocol.md) for the
 contract.
 
 RFC 9728 metadata: when `auth-mode oauth`, the server publishes a document

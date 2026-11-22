@@ -4,7 +4,9 @@
 # through the config editor, and MCP's own fail-closed MCPListenConfig.Validate
 # never runs on that path (there is no config block to validate). The guard is
 # the only thing standing between that variable and an accept-all MCP server on
-# every interface, so it must refuse before anything binds.
+# every interface, so it must refuse before anything binds. With no
+# environment.mcp block the listener has no TLS either, and config.MCPExposure
+# requires both off loopback, so the guard names both breaches and both fixes.
 # PREVENTS: an environment variable in a unit file or container spec publishing
 # an unauthenticated tool-calling surface off-box.
 
@@ -19,4 +21,5 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=1
 expect=stderr:contains=refusing to start MCP on non-loopback listener "0.0.0.0:18081" without authentication
-expect=stderr:contains=set ze.mcp.token
+expect=stderr:contains=set environment mcp auth-mode bearer and set environment mcp token <token>
+expect=stderr:contains=refusing to start MCP on non-loopback listener "0.0.0.0:18081" without TLS

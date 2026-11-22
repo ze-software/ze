@@ -218,10 +218,19 @@ reload still running after those 3 seconds is canceled: the daemon prints
 the canceled reload to release the daemon's resources before it exits.
 
 A reload that a commit started (an SSH or web `commit`, an API full reload, a
-managed commit) is not cut short either: shutdown waits for it to finish, with no
-time limit, because it writes the store that shutdown is about to close. A commit
-that arrives once shutdown has begun is refused with `daemon is shutting down;
-config reload refused`: re-run it against the restarted daemon.
+managed commit) gets the same 3 seconds. A commit still running after them is
+canceled, and the daemon waits for it to release the store before it exits. The
+canceled commit rolls nothing back and restarts no plugin, because the daemon is
+stopping every plugin anyway. Whoever issued it is answered:
+
+```
+the configuration change was interrupted because ze is stopping
+ze ended the change before it was complete, so it may not be saved. After ze starts again, check the configuration it runs and commit the change again if it is missing
+fix: show config running
+```
+
+A commit that arrives once shutdown has begun is refused with `daemon is
+shutting down; config reload refused`: re-run it against the restarted daemon.
 
 Shutdown also stands the config TRANSACTION down before it closes any plugin
 connection. A closed connection is indistinguishable from a crashed plugin, so

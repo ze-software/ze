@@ -25,22 +25,63 @@ import (
 	"sync/atomic"
 )
 
-var acceptedLocalProfileGeneration atomic.Uint64
+// acceptedLocalUserGenerations maps each accepted local user name to the
+// per-user generations (UserCredential.UserGeneration) its records carry. A
+// name can repeat in the accepted list, hence a slice. nil means no local
+// identity is accepted, so every recovery grant is refused.
+var acceptedLocalUserGenerations atomic.Pointer[map[string][]uint64]
 
-// SetAcceptedLocalProfileGeneration advances the generation against which
-// local recovery grants are valid. Remote login-resolved profiles are not
+// SetAcceptedLocalUsers publishes the per-user generations of the accepted
+// local credentials, against which local recovery grants are valid. The hub
+// calls it each time it accepts a local identity, and with nil when it retires
+// one, which revokes every grant. Remote login-resolved profiles are not
 // generation-bound.
-func SetAcceptedLocalProfileGeneration(generation uint64) {
-	acceptedLocalProfileGeneration.Store(generation)
+func SetAcceptedLocalUsers(users []UserCredential) {
+	if users == nil {
+		acceptedLocalUserGenerations.Store(nil)
+		return
+	}
+	generations := make(map[string][]uint64, len(users))
+	for _, user := range users {
+		generations[user.Name] = append(generations[user.Name], user.UserGeneration)
+	}
+	acceptedLocalUserGenerations.Store(&generations)
 }
 
+// acceptedLocalUserHolds reports whether the accepted local identity still
+// declares username at generation, the per-user generation that granted a
+// recovery session. It is the check the web session store makes for a
+// locally anchored cookie (web.SessionStore.localUserSessionStatus): a change
+// to another user leaves it true, and a change to this user's own hash,
+// profiles or keys, or this user's removal, makes it false.
+//
+// Generation numbers are never shared between two user records, so a grant
+// presented under another username matches nothing and is refused.
+func acceptedLocalUserHolds(username string, generation uint64) bool {
+	// refuse-by-default: guards acceptedGenerationAuthorizer.Authorize -- a
+	// result no local record stamped carries generation 0 and grants nothing.
+	if generation == 0 {
+		return false
+	}
+	generations := acceptedLocalUserGenerations.Load()
+	// refuse-by-default: guards acceptedGenerationAuthorizer.Authorize -- no
+	// accepted identity (before boot publishes, after shutdown) grants nothing.
+	if generations == nil {
+		return false
+	}
+	return slices.Contains((*generations)[username], generation)
+}
+
+// acceptedGenerationAuthorizer is the break-glass recovery grant one local
+// login holds. It is valid only while the accepted local identity declares the
+// session's user at the per-user generation that authenticated it.
 type acceptedGenerationAuthorizer struct {
 	generation uint64
 	next       Authorizer
 }
 
 func (a acceptedGenerationAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
-	if a.generation == 0 || a.generation != acceptedLocalProfileGeneration.Load() {
+	if !acceptedLocalUserHolds(username, a.generation) {
 		return false
 	}
 	if a.next == nil {
@@ -55,7 +96,7 @@ func (a acceptedGenerationAuthorizer) AuthorizeCommandArgs(
 	peer string,
 	isReadOnly bool,
 ) bool {
-	if a.generation == 0 || a.generation != acceptedLocalProfileGeneration.Load() {
+	if !acceptedLocalUserHolds(username, a.generation) {
 		return false
 	}
 	if a.next == nil {
@@ -83,14 +124,15 @@ func WithProfileAuthorizer(next Authenticator, authorizer Authorizer) Authentica
 // AuthorizerForResult returns the authorization view for one successful
 // authentication result. Local users retain live assignment behavior across
 // reloads. Remote profiles are bound to the result. A recovery profile is valid
-// only while its accepted local credential generation remains current.
+// only while its own user's accepted generation (result.UserGeneration) remains
+// current: a change to any other local user leaves it valid.
 func AuthorizerForResult(authorizer Authorizer, result AuthResult) Authorizer {
 	if result.Source == SourceLocal {
 		if !slices.Contains(result.Profiles, ReservedRecoveryProfile) {
 			return authorizer
 		}
 		return acceptedGenerationAuthorizer{
-			generation: result.LocalGeneration,
+			generation: result.UserGeneration,
 			next:       BindProfiles(authorizer, []string{ReservedRecoveryProfile}),
 		}
 	}

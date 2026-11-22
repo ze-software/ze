@@ -89,11 +89,10 @@ func (a *LocalAuthenticator) Authenticate(request aaa.AuthRequest) (AuthResult, 
 			found = true
 			if CheckPassword(u.Hash, password, request.Local) {
 				return AuthResult{
-					Authenticated:   true,
-					Profiles:        u.Profiles,
-					Source:          aaa.SourceLocal,
-					LocalGeneration: u.LocalGeneration,
-					UserGeneration:  u.UserGeneration,
+					Authenticated:  true,
+					Profiles:       u.Profiles,
+					Source:         aaa.SourceLocal,
+					UserGeneration: u.UserGeneration,
 				}, nil
 			}
 		}

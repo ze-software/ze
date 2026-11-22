@@ -363,15 +363,21 @@ runs for a user whose profile lost the edit section while the window was open.
 Shutdown keeps plugin connections and storage open until the SIGHUP worker has
 returned. After the shutdown grace, it cancels the worker and waits for cleanup.
 A second termination signal can force exit during this wait. Commit-driven
-reloads (an SSH or web commit, an API full reload, a managed commit) run on
-request goroutines and pass through a second gate, `reloadGate`: shutdown closes
-it after the SIGHUP worker returned and waits, with no grace period, for every
-admitted reload to return, because each one ends in `promoteConfigCandidate`,
-which writes the store. A commit that reaches the gate after shutdown began is
-refused with `daemon is shutting down; config reload refused` and never starts.
-In-process storage guards are released before plugin callbacks run. The lifetime
-`database.lock` remains held until the store closes.
-<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, awaitReloadWorker, reloadGate -->
+reloads (an SSH or web commit, an API full reload, a managed commit, the revert
+of a confirmed commit) run on request goroutines and pass through a second gate,
+`reloadGate`: after the SIGHUP worker returned, shutdown stops the
+confirmed-commit window, closes the gate and waits for every admitted reload to
+return, because each one ends in `promoteConfigCandidate`, which writes the
+store. The gate also holds a cancel for each reload it admitted. A reload still
+running after the same 3-second grace is stood down with the shutdown cause, so
+its transaction ends without a rollback and without restarting a plugin, and its
+caller is answered that the stop interrupted the change; shutdown then waits for
+it to return (`docs/architecture/config/transaction-protocol.md`, "Shutdown
+while a transaction runs"). A commit that reaches the gate after shutdown began
+is refused with `daemon is shutting down; config reload refused` and never
+starts. In-process storage guards are released before plugin callbacks run. The
+lifetime `database.lock` remains held until the store closes.
+<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, awaitReloadWorker, reloadGate, fenceCommitReloads -->
 
 The hub also cancels and joins the complete outbound managed client, because its
 callbacks can read or write storage before reload admission. A managed start
@@ -445,7 +451,7 @@ Ctrl+C is the one that aborts the drain. Each phase prints what the next
 Ctrl+C does: "Stopping: finishing config changes (Ctrl+C again to skip the
 drain)...", "Draining routing protocols for up to N s (Ctrl+C again to stop
 now)..." and "Shutting down (Ctrl+C again to force)...".
-<!-- source: cmd/ze/hub/main.go -- run, runStopDrain after commitReloads.close -->
+<!-- source: cmd/ze/hub/main.go -- run, runStopDrain after fenceCommitReloads -->
 <!-- source: cmd/ze/hub/drain.go -- runStopDrain, stopSignals, requestRestartStop -->
 <!-- source: internal/component/plugin/server/system.go -- handleDaemonShutdown, handleDaemonQuit -->
 <!-- source: internal/component/plugin/process/manager.go -- RefuseRespawns -->

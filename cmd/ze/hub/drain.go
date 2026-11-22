@@ -85,8 +85,8 @@ type stopPhase uint8
 
 const (
 	stopPhaseUnspecified stopPhase = iota
-	// stopPhaseFence is the reload worker, the confirm window and
-	// commitReloads.close().
+	// stopPhaseFence is the reload worker, the confirm window and the commit
+	// reloads' gate (fenceCommitReloads).
 	stopPhaseFence
 	// stopPhaseDrain is the drain RPC round.
 	stopPhaseDrain

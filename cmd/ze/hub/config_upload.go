@@ -1,6 +1,6 @@
 // Design: docs/architecture/appliance/remote-operations.md -- daemon-owned configuration mutations.
 // Related: config_source.go -- the source-aware candidate/commit transaction.
-// Related: main_reload.go -- reloadGate joins mutations before store release.
+// Related: main_reload.go -- reloadGate joins mutations before store release, and stands them down at daemon stop.
 
 package hub
 
@@ -55,41 +55,49 @@ func (o *configMutationOwner) bind(store storage.Storage, path string, window *c
 
 var errConfigRuntimeStarting = opererr.New("configuration runtime is still starting", "The daemon cannot apply a configuration before its reload operation is ready", "ze doctor")
 
+// Reload runs the daemon's commit reload. Like Commit and Upload it runs under
+// the gate's shutdown scope (reloadGate.admit), so the daemon's stop stands it
+// down, and its caller is then answered that the stop interrupted the change
+// (stoodDownAnswer).
 func (o *configMutationOwner) Reload(ctx context.Context) error {
-	if !o.gate.enter() {
+	ctx, leave, admitted := o.gate.admit(ctx)
+	if !admitted {
 		return errDaemonStopping
 	}
-	defer o.gate.leave()
+	defer leave()
 	runtime := o.runtime.Load()
 	if runtime == nil {
 		return errConfigRuntimeStarting
 	}
-	return runtime.reload(ctx)
+	return stoodDownAnswer(ctx, runtime.reload(ctx))
 }
 
 // Commit is the source-aware commit operation shared with the web source editor
 // and HTTP upload adapter. Their existing validation and HTTP behavior remain
 // at that boundary. Admission precedes every store read and candidate write.
 func (o *configMutationOwner) Commit(ctx context.Context, expected, content []byte) error {
-	if !o.gate.enter() {
+	ctx, leave, admitted := o.gate.admit(ctx)
+	if !admitted {
 		return errDaemonStopping
 	}
-	defer o.gate.leave()
+	defer leave()
 	runtime := o.runtime.Load()
 	if runtime == nil {
 		return errConfigRuntimeStarting
 	}
-	return runtime.commit(ctx, expected, content)
+	return stoodDownAnswer(ctx, runtime.commit(ctx, expected, content))
 }
 
 // Upload validates a fully received replacement before using the same canonical
 // commit as HTTP. Once admitted, it runs synchronously through rollback or source
-// publication; disconnecting never leaves a detached configuration writer.
+// publication; disconnecting never leaves a detached configuration writer. A
+// daemon stop is the one event that ends it early (reloadGate.standDown).
 func (o *configMutationOwner) Upload(ctx context.Context, content []byte) error {
-	if !o.gate.enter() {
+	ctx, leave, admitted := o.gate.admit(ctx)
+	if !admitted {
 		return errDaemonStopping
 	}
-	defer o.gate.leave()
+	defer leave()
 	runtime := o.runtime.Load()
 	if runtime == nil {
 		return errConfigRuntimeStarting
@@ -120,6 +128,11 @@ func (o *configMutationOwner) Upload(ctx context.Context, content []byte) error 
 		// the one fix that works, so it is answered as the freeze wrote it.
 		if refusal, frozen := storage.FreezeRefusal(err); frozen {
 			return refusal
+		}
+		// A daemon stop ended the commit. The answer carries no cause, as the
+		// one below: the receipt never quotes the transaction's error.
+		if stoodDown(ctx, err) {
+			return opererr.New(stoodDownProblem, stoodDownWhy, stoodDownFix)
 		}
 		return opererr.New("configuration upload was not accepted", "The daemon could not complete its configuration transaction; inspect the live configuration and daemon diagnostics before retrying", "show config running")
 	}

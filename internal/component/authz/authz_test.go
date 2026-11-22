@@ -1069,12 +1069,12 @@ func TestStoreAuthorizeRecoveryProfile(t *testing.T) {
 	// exposed profiles-but-no-config-admin shape.
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
 
-	aaa.SetAcceptedLocalProfileGeneration(1)
-	t.Cleanup(func() { aaa.SetAcceptedLocalProfileGeneration(0) })
+	aaa.SetAcceptedLocalUsers([]aaa.UserCredential{{Name: "admin", UserGeneration: 1}})
+	t.Cleanup(func() { aaa.SetAcceptedLocalUsers(nil) })
 	authorizer := aaa.AuthorizerForResult(StoreAuthorizer{Store: s}, aaa.AuthResult{
-		Source:          aaa.SourceLocal,
-		Profiles:        []string{aaa.ReservedRecoveryProfile},
-		LocalGeneration: 1,
+		Source:         aaa.SourceLocal,
+		Profiles:       []string{aaa.ReservedRecoveryProfile},
+		UserGeneration: 1,
 	})
 
 	if !authorizer.Authorize("admin", "", "restart", true) {

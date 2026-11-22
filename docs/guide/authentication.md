@@ -383,12 +383,13 @@ back into a commit or upload is rejected with a clear error.
 ### Remote management listener guard
 
 Ze refuses to start an unauthenticated management service on a non-loopback
-listener. The guard runs before any covered listener binds:
+listener, and refuses to start gNMI or MCP on one without TLS. The guard runs
+before any covered listener binds:
 
 | Service | Authentication that permits a remote listener |
 |---------|------------------------------------------------|
 | Web in insecure mode | Disable insecure mode and configure users |
-| MCP | Configure a bearer token or another authenticated `auth-mode`. A remote `bearer`, `bearer-list` or `oauth` listener also needs TLS (`environment mcp tls cert` and `key`): `ze config validate` refuses it without TLS, and the daemon starts with MCP disabled and logs why |
+| MCP | Configure a bearer token or another authenticated `auth-mode`, and TLS (`environment mcp tls cert` and `key`). A token alone does not permit a remote listener, whether it comes from the config, `--mcp-token` or `ze.mcp.token` |
 | gNMI | Configure `ze.gnmi.token` (or `environment.gnmi token`) and TLS (`ze.gnmi.tls.cert`/`key` or `environment.gnmi tls`). A token alone does not permit a remote listener |
 | REST and gRPC API | Configure an API token, run `ze init`, or configure a `system.authentication.user` |
 
@@ -407,25 +408,25 @@ it serves TLS by default and takes an optional bearer token.
 so you find it before you deploy. They apply the same rule as the boot guard
 and print the same problem, reason and fix. A non-loopback gNMI listener with
 no token, or with a token and no TLS, gives `config-gnmi-invalid`, and an MCP
-block that asks for a remote bind with no authentication gives
-`config-mcp-invalid`. `ze doctor` also judges the gNMI listener as the daemon
+block that asks for a remote bind with no authentication, or with
+authentication and no TLS, gives `config-mcp-invalid`. `ze doctor` also judges the gNMI listener as the daemon
 resolves it, environment variables included, and reports an exposure that only
 the environment creates under `doctor-gnmi-tls-material`. Neither command can
 read the daemon's own environment, only the one it runs in, so a listener
 published only in the daemon's environment is caught at startup.
 
 <!-- source: internal/component/config/validate_semantic.go -- ValidateSemantics gNMI and MCP entries -->
-<!-- source: internal/component/config/loader_extract.go -- GNMIListenConfig.Refusals, GNMIExposure, ResolveGNMIListener -->
+<!-- source: internal/component/config/loader_extract.go -- GNMIListenConfig.Refusals, GNMIExposure, ResolveGNMIListener, MCPListenConfig.Refusals, MCPExposure -->
 <!-- source: internal/component/gnmi/doctor.go -- gnmiExposureFindings -->
 
-<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners --> <!-- source: internal/core/network/exposure.go -- ListenAddrIsLoopback, Exposure.Refusals -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners, mcpMgmtListener --> <!-- source: internal/core/network/exposure.go -- ListenAddrIsLoopback, Exposure.Refusals -->
 <!-- source: cmd/ze/hub/main.go -- management listener declarations and remedies -->
 <!-- source: cmd/ze/hub/listener_migrate.go -- reload refusal -->
 
 #### Upgrading from a release without the guard
 
 The guard is a boot refusal, so a config that started a daemon yesterday can
-stop one today. Three changes break an upgrade. Read them before you upgrade.
+stop one today. Four changes break an upgrade. Read them before you upgrade.
 
 **A remote unauthenticated management listener now refuses to boot.** ze exits
 with status 1 and prints one block of three lines for each refusal: the
@@ -443,6 +444,14 @@ fix: set environment gnmi tls cert <cert.pem> and set environment gnmi tls key <
 ```
 
 Apply the fix, or bind the service to `127.0.0.1`.
+
+**A remote MCP listener without TLS now refuses to boot.** A non-loopback MCP
+listener with a bearer token, a `bearer-list` or `oauth`, and no TLS used to
+start the daemon with MCP disabled and a warning. It now refuses like gNMI,
+with the same block (`refusing to start MCP on non-loopback listener ...
+without TLS`) and the fix `set environment mcp tls cert <cert.pem> and set
+environment mcp tls key <key.pem>`. `ze config validate` and `ze doctor` print
+the same block for the same config.
 
 **The looking glass serves TLS by default.** A `looking-glass` block with no
 `tls` leaf now serves `https://`, so a plaintext client fails the handshake.

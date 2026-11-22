@@ -71,10 +71,11 @@ environment {
 
 Environment variable overrides: `ze.mcp.listen=ip:port`, `ze.mcp.enabled=true`, `ze.mcp.token=<secret>`. Defaults to `127.0.0.1:8080` (security: local-only unless explicitly overridden via `ze.mcp.listen`). Bearer token auth available via `--mcp-token` flag, `ze.mcp.token` env var, or the config `token` leaf.
 
-A token is not enough for a listener off loopback. With `auth-mode` `bearer`, `bearer-list` or `oauth` (a token alone selects `bearer`), a non-loopback listener also needs TLS: set `tls cert` and `tls key` in the `environment mcp` block. `ze config validate` refuses such a listener without TLS, and the daemon starts with MCP disabled and logs the reason. With `auth-mode bearer-list`, an identity that lists `scopes` may call only what they grant (an identity with no scopes is not restricted): `mcp.read` allows read-only commands and `ze_reference`, `mcp.write` allows commands that change state and provider tools, and `mcp.admin` allows everything, including any tool with no scope rule of its own. `mcp.write` does not include `mcp.read`, so an identity that both reads and writes lists both.
+A token is not enough for a listener off loopback. A non-loopback MCP listener needs authentication (`auth-mode` `bearer`, `bearer-list` or `oauth`; a token alone selects `bearer`) and TLS: set `tls cert` and `tls key` in the `environment mcp` block. The rule is the one gNMI follows: the daemon refuses to start on such a listener without TLS, before anything binds, and `ze config validate` and `ze doctor` print the same refusal and fix for the same config. With `auth-mode bearer-list`, an identity that lists `scopes` may call only what they grant (an identity with no scopes is not restricted): `mcp.read` allows read-only commands and `ze_reference`, `mcp.write` allows commands that change state and provider tools, and `mcp.admin` allows everything, including any tool with no scope rule of its own. `mcp.write` does not include `mcp.read`, so an identity that both reads and writes lists both.
 <!-- source: internal/component/mcp/streamable_tools.go -- enforcesIdentityScopes, identityHasToolScope, checkHandcraftedScope, checkProviderScope -->
-<!-- source: internal/component/config/loader_extract.go -- MCPListenConfig.Validate -->
-<!-- source: cmd/ze/hub/service_mcp.go -- checkMCPRemoteTLS, startMCPServer -->
+<!-- source: internal/component/config/loader_extract.go -- MCPListenConfig.Validate, MCPListenConfig.Refusals, MCPExposure -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- mcpMgmtListener, checkMgmtListeners -->
+<!-- source: cmd/ze/hub/service_mcp.go -- checkMCPMigrationExposure -->
 
 ## AI Command Reference
 

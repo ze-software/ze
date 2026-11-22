@@ -31,15 +31,8 @@ func gnmiMgmtListener(tree *zeconfig.Tree) (mgmtListener, bool) {
 		return mgmtListener{}, false
 	}
 	certFile, keyFile := zeconfig.GNMITLSPaths(tree)
-	return mgmtListener{
-		service:       "gNMI",
-		addrs:         []string{addr},
-		authenticated: token != "",
-		remedy:        zeconfig.GNMIAuthFix,
-		requireTLS:    true,
-		tlsConfigured: tlsPathsConfigured(certFile, keyFile),
-		tlsRemedy:     zeconfig.GNMITLSFix,
-	}, true
+	tlsSet := tlsPathsConfigured(certFile, keyFile)
+	return mgmtListenerFor(zeconfig.GNMIExposure([]string{addr}, token != "", tlsSet)), true
 }
 
 // gnmiServer is the always-on view of a built gNMI server. The real

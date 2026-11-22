@@ -32,7 +32,8 @@ import (
 // range, length or pattern refusal is written for a session, which holds no
 // file and no position: no line number, and its fix the `set` command from
 // the root (sessionFixRefusal), so each block ends with its own `fix:` line.
-// errors.As on the answer finds the first refusal's ValidationError and
+// Any other finding that declares a why or a fix carries them under its
+// message in the same shape (writeFindingDetail). errors.As on the answer finds the first refusal's ValidationError and
 // operator error (contentRefusal).
 func ValidateContent(input, path string) error {
 	result := runValidation(input, path)
@@ -57,7 +58,9 @@ func ValidateContent(input, path string) error {
 		if d.Line > 0 {
 			block.Str("line ").Int(int64(d.Line)).Str(": ")
 		}
-		writeIndentedBlock(&b, block.Str(d.Message).String())
+		block.Str(d.Message)
+		writeFindingDetail(&block, d, "")
+		writeIndentedBlock(&b, block.String())
 	}
 	return &contentRefusal{text: b.String(), refusals: refusals}
 }
@@ -69,6 +72,30 @@ func sessionFixRefusal(refusal *configyang.ValidationError) *configyang.Validati
 	var fix textbuf.Buffer
 	fix.Str("set ").Str(config.FormatEditPath(refusal.Segments())).Byte(' ').Str(refusal.CorrectionText())
 	return refusal.WithFix(fix.String())
+}
+
+// findingDetailIndent aligns the why and fix lines of a finding two columns
+// under the message they answer, which `ze config validate` indents by two.
+const findingDetailIndent = "    "
+
+// writeFindingDetail writes, after the message already in b, why the finding
+// matters and the command that fixes it, each on a line of its own opened by
+// indent, so the finding reads problem, why, `fix:` as an operator error does
+// (ai/rules/user-facing-errors.md). A why that only repeats the fix is drawn
+// once, as the fix; a finding with neither draws nothing. A parser refusal is
+// not passed here: its message is its rendered operator error, fix included.
+// The fix is printed as its producer declared it: every fix a validation
+// finding carries names settings and placeholders (<token>, <cert.pem>), never
+// a configured secret, so the line prints none.
+func writeFindingDetail(b *textbuf.Buffer, d *diagnostic.Diagnostic, indent string) {
+	if d.Help != "" {
+		if d.Help != d.Fix {
+			b.Byte('\n').Str(indent).Str(d.Help)
+		}
+	}
+	if d.Fix != "" {
+		b.Byte('\n').Str(indent).Str(daemonFixLabel).Str(d.Fix)
+	}
 }
 
 // writeIndentedBlock writes text on its own lines after b, each line indented
@@ -554,11 +581,24 @@ func runValidationUnanswered(input, path string, unanswered *config.DaemonUnansw
 		result.addError("config-kernel-capability", capErr.Error())
 	}
 
-	// MCP semantic validation. The same check runs in config.ValidateSemantics
-	// for the `ze doctor` surface.
+	// MCP semantic validation. The same checks run in config.ValidateSemantics
+	// for the `ze doctor` surface. A non-loopback listener needs authentication
+	// and TLS: the daemon refuses to boot without them (config.MCPExposure, the
+	// rule the boot guard applies), so each exposure is reported here with its
+	// reason and fix.
 	if mcpCfg, ok := config.ExtractMCPConfig(tree); ok {
 		if verr := mcpCfg.Validate(); verr != nil {
 			result.addError("config-mcp-invalid", verr.Error())
+		}
+		for _, refusal := range mcpCfg.Refusals() {
+			result.Valid = false
+			result.Diagnostics = append(result.Diagnostics, diagnostic.Diagnostic{
+				Code:     "config-mcp-invalid",
+				Severity: diagnostic.SeverityError,
+				Message:  refusal.Problem(),
+				Help:     refusal.Why(),
+				Fix:      refusal.Fix(),
+			})
 		}
 	}
 
@@ -923,7 +963,10 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 			fmt.Fprintln(os.Stdout)              //nolint:errcheck // output
 			fmt.Fprintln(os.Stdout, "Warnings:") //nolint:errcheck // output
 			for i := range warnings {
-				fmt.Fprintf(os.Stdout, "  warning: %s\n", warnings[i].Message) //nolint:errcheck // output
+				var line textbuf.Buffer
+				line.Str("  warning: ").Str(warnings[i].Message)
+				writeFindingDetail(&line, &warnings[i], findingDetailIndent)
+				fmt.Fprintln(os.Stdout, line.String()) //nolint:errcheck // output
 			}
 		}
 
@@ -933,13 +976,23 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 	fmt.Fprintf(os.Stdout, "configuration invalid: %s\n", result.Path) //nolint:errcheck // output
 	fmt.Fprintln(os.Stdout)                                            //nolint:errcheck // output
 	fmt.Fprintln(os.Stdout, "Errors:")                                 //nolint:errcheck // output
-	errs := diagsBySeverity(result.Diagnostics, diagnostic.SeverityError)
-	for i := range errs {
-		if errs[i].Line > 0 {
-			fmt.Fprintf(os.Stdout, "  line %d: %s\n", errs[i].Line, errs[i].Message) //nolint:errcheck // output
-		} else {
-			fmt.Fprintf(os.Stdout, "  %s\n", errs[i].Message) //nolint:errcheck // output
+	for i := range result.Diagnostics {
+		d := &result.Diagnostics[i]
+		if d.Severity != diagnostic.SeverityError {
+			continue
 		}
+		var line textbuf.Buffer
+		line.Str("  ")
+		if d.Line > 0 {
+			line.Str("line ").Int(int64(d.Line)).Str(": ")
+		}
+		line.Str(d.Message)
+		// A parser refusal's message is already its rendered operator error,
+		// its fix line included, so only the other findings take the detail.
+		if _, rendered := result.refusals[i]; !rendered {
+			writeFindingDetail(&line, d, findingDetailIndent)
+		}
+		fmt.Fprintln(os.Stdout, line.String()) //nolint:errcheck // output
 	}
 	return 1
 }

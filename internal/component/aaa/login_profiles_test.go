@@ -54,17 +54,17 @@ func TestProfileAuthorizerKeepsOrdinaryLocalProfilesLive(t *testing.T) {
 	assert.Nil(t, probe.bound)
 }
 
-// VALIDATES: a recovery grant is bound to the accepted credential generation.
+// VALIDATES: a recovery grant is bound to its user's accepted generation.
 // PREVENTS: an established recovery session retaining authority after reload.
 func TestProfileAuthorizerExpiresLocalRecoveryGrant(t *testing.T) {
-	t.Cleanup(func() { SetAcceptedLocalProfileGeneration(0) })
-	SetAcceptedLocalProfileGeneration(1)
+	t.Cleanup(func() { SetAcceptedLocalUsers(nil) })
+	SetAcceptedLocalUsers([]UserCredential{{Name: "recovery", UserGeneration: 1}})
 	probe := &profileBindingProbe{}
 	auth := WithProfileAuthorizer(&fakeBackend{result: AuthResult{
-		Authenticated:   true,
-		Source:          SourceLocal,
-		Profiles:        []string{ReservedRecoveryProfile},
-		LocalGeneration: 1,
+		Authenticated:  true,
+		Source:         SourceLocal,
+		Profiles:       []string{ReservedRecoveryProfile},
+		UserGeneration: 1,
 	}}, probe)
 
 	result, err := auth.Authenticate(AuthRequest{Username: "recovery", Password: "pw"})
@@ -74,7 +74,7 @@ func TestProfileAuthorizerExpiresLocalRecoveryGrant(t *testing.T) {
 	require.True(t, ok)
 	assert.True(t, typed.AuthorizeCommandArgs("recovery", "", "show", []string{"version"}, "", true))
 
-	SetAcceptedLocalProfileGeneration(2)
+	SetAcceptedLocalUsers([]UserCredential{{Name: "recovery", UserGeneration: 2}})
 	assert.False(t, result.Authorizer.Authorize("recovery", "", "show version", true))
 	assert.False(t, typed.AuthorizeCommandArgs("recovery", "", "show", []string{"version"}, "", true))
 }
@@ -157,18 +157,18 @@ func TestProfileAuthorizerRejectsReservedUsername(t *testing.T) {
 }
 
 func TestLocalRecoveryAuthenticationRacingPublicationExpires(t *testing.T) {
-	t.Cleanup(func() { SetAcceptedLocalProfileGeneration(0) })
-	SetAcceptedLocalProfileGeneration(1)
+	t.Cleanup(func() { SetAcceptedLocalUsers(nil) })
+	SetAcceptedLocalUsers([]UserCredential{{Name: "racing-recovery", UserGeneration: 1}})
 	entered := make(chan struct{})
 	release := make(chan struct{})
 	auth := WithProfileAuthorizer(blockingAuthBackend{
 		entered: entered,
 		release: release,
 		result: AuthResult{
-			Authenticated:   true,
-			Source:          SourceLocal,
-			Profiles:        []string{ReservedRecoveryProfile},
-			LocalGeneration: 1,
+			Authenticated:  true,
+			Source:         SourceLocal,
+			Profiles:       []string{ReservedRecoveryProfile},
+			UserGeneration: 1,
 		},
 	}, &profileBindingProbe{})
 	done := make(chan AuthResult, 1)
@@ -177,7 +177,7 @@ func TestLocalRecoveryAuthenticationRacingPublicationExpires(t *testing.T) {
 		done <- result
 	}()
 	<-entered
-	SetAcceptedLocalProfileGeneration(2)
+	SetAcceptedLocalUsers([]UserCredential{{Name: "racing-recovery", UserGeneration: 2}})
 	close(release)
 
 	result := <-done

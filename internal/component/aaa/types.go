@@ -36,14 +36,11 @@ type UserCredential struct {
 	Hash       string
 	Profiles   []string
 	PublicKeys []SSHPublicKey
-	// LocalGeneration identifies the accepted local credential generation that
-	// produced this record: it changes when ANY local user's credentials
-	// change. It is runtime-only and never loaded from config.
-	LocalGeneration uint64
 	// UserGeneration identifies the accepted generation of THIS user's own
 	// record (hash, profiles, public keys): it changes only when this user's
-	// record changes, and a user added again after removal gets a new one. It
-	// is runtime-only and never loaded from config.
+	// record changes, and a user added again after removal gets a new one. No
+	// two user records share a number. It is runtime-only and never loaded
+	// from config.
 	UserGeneration uint64
 }
 
@@ -140,14 +137,11 @@ type AuthResult struct {
 	// answer reads it here rather than asking a second question of its own,
 	// which would be a different question taken at a different instant.
 	Source string
-	// LocalGeneration is copied from the matched local credential. It makes a
-	// recovery authorizer and locally anchored web sessions expire after a newer
-	// local credential generation is accepted (e.g. on password rotation),
-	// including when authentication and publication overlap.
-	LocalGeneration uint64
 	// UserGeneration is copied from the matched local credential. It makes a
-	// locally anchored web session expire when its own user's credentials or
-	// profiles change, and survive a change to any other user.
+	// locally anchored web session and a break-glass recovery grant expire when
+	// their own user's credentials or profiles change or the user is removed,
+	// including when authentication and publication overlap, and survive a
+	// change to any other user.
 	UserGeneration uint64
 	// Authorizer is the authorization view for this authentication result.
 	// Transports carry it with the session or request so another login that uses

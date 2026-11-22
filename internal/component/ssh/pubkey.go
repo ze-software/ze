@@ -38,10 +38,9 @@ func (s *Server) authenticatePublicKeyResult(username string, presented ssh.Publ
 		s.recordAuthFailure(username, remote)
 		return aaa.AuthResult{}
 	}
-	var generation, userGeneration uint64
+	var userGeneration uint64
 	for _, user := range users {
 		if user.Name == username {
-			generation = user.LocalGeneration
 			userGeneration = user.UserGeneration
 			break
 		}
@@ -51,11 +50,10 @@ func (s *Server) authenticatePublicKeyResult(username string, presented ssh.Publ
 		"source", "public-key",
 		"profiles", truncateProfiles(profiles))
 	return aaa.AuthResult{
-		Authenticated:   true,
-		Source:          aaa.SourceLocal,
-		Profiles:        profiles,
-		LocalGeneration: generation,
-		UserGeneration:  userGeneration,
+		Authenticated:  true,
+		Source:         aaa.SourceLocal,
+		Profiles:       profiles,
+		UserGeneration: userGeneration,
 	}
 }
 

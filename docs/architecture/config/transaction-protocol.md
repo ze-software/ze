@@ -885,18 +885,46 @@ A context keeps the cause of its FIRST cancellation, so the cause alone cannot
 carry a shutdown to a rollback that an expired reload deadline started. The
 owner of a transaction therefore opens a shutdown scope
 (`transaction.WithShutdownScope`), a second context carried as a value that
-only its cancel function ends, and the rollback context watches both. Two
+only its cancel function ends, and the rollback context watches both. Three
 owners open one: the server for each reload, whose cancel function `Stop`
-calls with `ErrShutdown`, and the hub for its SIGHUP reload worker. The hub
-cancels that worker with `ErrShutdown` when its 3-second stop wait runs out,
-because every cancel of that worker is a daemon stop. A commit-driven reload
-has no such owner in the hub: the stop waits for it at the commit gate before
-the server stops, so a rollback under it still runs to its own bound.
+calls with `ErrShutdown`, the hub for its SIGHUP reload worker, and the hub's
+reload gate for each commit-driven reload it admits. The hub cancels the
+SIGHUP worker with `ErrShutdown` when its 3-second stop wait runs out, because
+every cancel of that worker is a daemon stop.
+
+A commit-driven reload (an SSH upload, a web or API commit, `request reload`,
+a managed commit, the revert of a confirmed commit) runs on a request
+goroutine, and the stop waits for it before the server stops, so the server's
+own `Stop` comes too late to cancel it. The reload gate is its owner. Every
+such operation enters the gate before it reads or writes the config source,
+and the gate hands it the context it runs under: the caller's context inside a
+shutdown scope whose cancel function the gate keeps until the operation
+returns. At stop the hub stops the confirmed-commit window and closes the gate,
+and waits for both. The wait has the SIGHUP worker's bound: an operation still
+running after 3 seconds is stood down, which means the gate refuses every
+later operation and ends each scope it holds with `ErrShutdown`. The
+transaction under it then ends as a shutdown abort, whether it was applying or
+rolling back, and the hub waits for the operation to return before it goes on,
+because the operation still borrows the store.
+
+The caller's own context stays ordinary. A request client that goes away
+cancels the reload, which starts a rollback, and that rollback runs to its own
+bound in a daemon that keeps running: the caller's cancel ends no scope.
+
+The caller of a stood-down operation is answered with an operator error: the
+configuration change was interrupted because ze is stopping, it may not be
+saved, and the fix is to check the running configuration after the restart
+(`show config running`) and commit again if the change is missing. The answer
+claims neither outcome, because the stop can arrive before the plugins applied
+the change or while the hub publishes it. An operation that arrives after the
+gate closed is refused before it starts (`daemon is shutting down; config
+reload refused`).
 <!-- source: internal/component/config/transaction/rollback_context.go -- WithShutdownScope, RollbackContext -->
 <!-- source: internal/component/config/transaction/orchestrator.go -- handleRollbackAck, collectRollbackAcks -->
 <!-- source: internal/component/config/transaction/executor.go -- rollbackApplied -->
 <!-- source: internal/component/plugin/server/reload.go -- reloadConfig, stopTransaction -->
-<!-- source: cmd/ze/hub/main_reload.go -- awaitReloadWorker -->
+<!-- source: cmd/ze/hub/main_reload.go -- awaitReloadWorker, reloadGate, fenceCommitReloads, stoodDownAnswer -->
+<!-- source: cmd/ze/hub/config_upload.go -- Reload, Commit, Upload -->
 
 ---
 
@@ -1262,6 +1290,7 @@ a sibling aborted at the barrier.
 | Engine crashes during transaction | Boot recovers durable explicit-file publication intent before selecting the source. Stale candidate cleanup preserves referenced versions. Plugins reconcile stale apply journals at startup. |
 | Plugin exceeds rollback deadline (3x apply) | Its rollback RPC ends at the deadline and the bridge acks it `broken`, so the engine restarts it. A plugin with no ack at all is named in the rollback outcome and not restarted. |
 | Daemon stops during a rollback | The rollback ends at once: no further wait, inverse or section restore, and no `broken` plugin is restarted. The transaction ends as a shutdown abort. |
+| Daemon stops during a commit-driven reload | The stop waits 3 seconds for it, then stands it down through the reload gate: the transaction ends as a shutdown abort, applying or rolling back, and the committing caller is answered that the stop interrupted the change ("Shutdown while a transaction runs"). |
 | Plugin reports `broken` | Engine restarts plugin once via 5-stage protocol between rollback tiers. Second `broken` stops the plugin. |
 
 ---

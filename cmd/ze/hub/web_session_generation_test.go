@@ -27,7 +27,7 @@ import (
 //
 // VALIDATES: S5 end-to-end -- an unrelated reload that keeps local credentials
 // identical preserves open ze-session cookies, while rotating a local user's
-// password advances LocalGeneration and immediately invalidates existing
+// password advances its UserGeneration and immediately invalidates existing
 // cookies.
 // PREVENTS: hub generation stamping drifting from SessionStore.validateToken.
 func TestWebSessionCookieInvalidatedByPasswordRotationReload(t *testing.T) {
@@ -75,13 +75,13 @@ func TestWebSessionCookieInvalidatedByPasswordRotationReload(t *testing.T) {
 	cookieV1 := loginCookie("alice", "initial-pass")
 	require.Equal(t, http.StatusOK, requestStatus(cookieV1))
 
-	// Unrelated config reload: identical local credentials keep LocalGeneration.
+	// Unrelated config reload: identical local credentials keep UserGeneration.
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity([]authz.UserConfig{aliceV1}, nil, nil, ""))
 	assert.Equal(t, http.StatusOK, requestStatus(cookieV1),
 		"unrelated reload must keep the existing ze-session cookie valid")
 
 	// Password rotation: hash changes, so publishAcceptedLocalIdentity advances
-	// LocalGeneration and invalidates the pre-rotation cookie at once.
+	// alice's UserGeneration and invalidates the pre-rotation cookie at once.
 	aliceV2 := bcryptUser(t, "alice", "rotated-pass", "admin")
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity([]authz.UserConfig{aliceV2}, nil, nil, ""))
 	assert.Equal(t, http.StatusUnauthorized, requestStatus(cookieV1),

@@ -2,6 +2,9 @@
 # VALIDATES: spec-mcp-2-remote-oauth AC-6b -- OAuth requires TLS when the MCP
 #            endpoint binds to a non-loopback address. Cleartext HTTP + Bearer
 #            is never an acceptable OAuth resource-server posture.
+#            The refusal is the management-listener exposure rule
+#            (config.MCPExposure), the one the boot guard refuses start on,
+#            so it names the TLS fix.
 # PREVENTS: Silent acceptance leading to access-token exposure on the wire.
 stdin=config:terminator=EOF_CONF
 environment {
@@ -23,4 +26,5 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=stdout:contains=auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners
+expect=stdout:pattern=refusing to start MCP on non-loopback listener .192\.0\.2\.1:443. without TLS
+expect=stdout:contains=set environment mcp tls cert <cert.pem> and set environment mcp tls key <key.pem>

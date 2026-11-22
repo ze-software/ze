@@ -23,18 +23,18 @@ import (
 // zefs recovery profile before strict command authorization runs.
 func TestBuildAPIAuthenticationBindsRecoveryProfiles(t *testing.T) {
 	const username = "api-recovery-user"
-	aaa.SetAcceptedLocalProfileGeneration(1)
+	aaa.SetAcceptedLocalUsers([]aaa.UserCredential{{Name: username, UserGeneration: 1}})
 	t.Cleanup(func() {
-		aaa.SetAcceptedLocalProfileGeneration(0)
+		aaa.SetAcceptedLocalUsers(nil)
 	})
 
 	hash, err := bcrypt.GenerateFromPassword([]byte("recovery-pass"), bcrypt.MinCost)
 	require.NoError(t, err)
 	users := []authz.UserConfig{{
-		Name:            username,
-		Hash:            string(hash),
-		Profiles:        []string{aaa.ReservedRecoveryProfile},
-		LocalGeneration: 1,
+		Name:           username,
+		Hash:           string(hash),
+		Profiles:       []string{aaa.ReservedRecoveryProfile},
+		UserGeneration: 1,
 	}}
 	store := authz.NewStore()
 	store.AddProfile(authz.Profile{

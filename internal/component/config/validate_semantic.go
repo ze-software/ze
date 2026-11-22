@@ -16,12 +16,24 @@ import (
 func ValidateSemantics(tree *Tree) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
 
+	// A non-loopback MCP listener needs authentication and TLS, or the daemon
+	// refuses to boot (MCPExposure, the one rule the boot guard applies). Each
+	// exposure is reported with its reason and fix, as gNMI's are below.
 	if mcpCfg, ok := ExtractMCPConfig(tree); ok {
 		if err := mcpCfg.Validate(); err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     diagnostic.CodeConfigMCPInvalid,
 				Severity: diagnostic.SeverityError,
 				Message:  err.Error(),
+			})
+		}
+		for _, refusal := range mcpCfg.Refusals() {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     diagnostic.CodeConfigMCPInvalid,
+				Severity: diagnostic.SeverityError,
+				Message:  refusal.Problem(),
+				Help:     refusal.Why(),
+				Fix:      refusal.Fix(),
 			})
 		}
 	}

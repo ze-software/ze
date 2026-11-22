@@ -16,8 +16,10 @@ import (
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/transaction"
 	"github.com/ze-software/ze/internal/component/engine"
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	zepki "github.com/ze-software/ze/internal/component/pki"
@@ -200,17 +202,20 @@ func sighupReload(ctx context.Context, reloads *sync.Mutex, s *pluginserver.Serv
 // has: waiting would deadlock a plugin that sends it from inside its own
 // apply. It does not audit: the dispatcher already records the RPC with the
 // real caller. gate and ready are the commit reloads' shutdown gate and plugin
-// startup wait; notify, when set, runs after a successful reload.
+// startup wait; notify, when set, runs after a successful reload. The reload
+// runs under the gate's shutdown scope (reloadGate.admit), so the daemon's stop
+// stands it down and its caller is answered with stoodDownAnswer.
 func newRequestReloadFunc(gate *reloadGate, reloads *sync.Mutex, ready func(context.Context) error, notify func(), s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) pluginserver.FullReloadFunc {
 	return func(ctx context.Context) error {
-		if !gate.enter() {
+		ctx, leave, admitted := gate.admit(ctx)
+		if !admitted {
 			return errDaemonStopping
 		}
-		defer gate.leave()
+		defer leave()
 		startupCtx, startupCancel := context.WithTimeout(ctx, 30*time.Second)
 		defer startupCancel()
 		if err := ready(startupCtx); err != nil {
-			return fmt.Errorf("wait for plugin startup: %w", err)
+			return stoodDownAnswer(ctx, fmt.Errorf("wait for plugin startup: %w", err))
 		}
 		if !reloads.TryLock() {
 			return pluginserver.ErrReloadInProgress
@@ -218,7 +223,7 @@ func newRequestReloadFunc(gate *reloadGate, reloads *sync.Mutex, ready func(cont
 		err := signalReload(ctx, s, eng, cp, store, configPath, load, lm)
 		reloads.Unlock()
 		if err != nil {
-			return err
+			return stoodDownAnswer(ctx, err)
 		}
 		if notify != nil {
 			notify()
@@ -274,21 +279,40 @@ func awaitConfigTransaction(ctx context.Context, s *pluginserver.Server, reloadC
 	return ctx.Err() == nil
 }
 
-// reloadGate counts admitted configuration operations on request goroutines
-// (SSH upload, web source commit, commit reload, API full reload and managed
-// commit). The shared mutation owner enters before source reads or writes.
-// Shutdown closes admission and joins the operations before store release.
+// reloadGate owns every configuration operation that runs on a request
+// goroutine (SSH upload, web source commit, commit reload, API full reload,
+// managed commit and the confirmed-commit revert), from its admission to its
+// return. The shared mutation owner admits before source reads or writes.
+//
+// It is also the one owner of their cancel at daemon stop. admit opens a
+// shutdown scope for the operation (transaction.WithShutdownScope) and keeps
+// its cancel function until the operation leaves. standDown ends every scope
+// held with transaction.ErrShutdown, so a reload the stop interrupts emits no
+// rollback, and one already rolling back stops waiting for a silent plugin
+// and restarts none. An ordinary end of the caller's context ends no scope,
+// so a rollback it started still runs to its own bound.
+//
+// The stop order is fenceCommitReloads: close admission and join, and stand
+// down what is still running when the grace ends. Safe for concurrent use.
 type reloadGate struct {
 	mu     sync.Mutex
 	closed bool
 	wg     sync.WaitGroup
+	// standDowns holds the scope cancel of each operation admit let in, keyed
+	// by its admission number. An entry leaves with its operation, so the map
+	// is bounded by the operations in flight.
+	standDowns map[uint64]context.CancelCauseFunc
+	// admissions numbers the operations admit let in.
+	admissions uint64
 }
 
 // errDaemonStopping is the refusal a commit reload gets once shutdown began.
 var errDaemonStopping = errors.New("daemon is shutting down; config reload refused")
 
-// enter admits one operation; its caller MUST call leave when it returns.
-// It returns false once close has run.
+// enter admits one operation that runs no reload; its caller MUST call leave
+// when it returns. It returns false once close or standDown has run. An
+// operation that reloads enters through admit, which also gives the stop its
+// cancel.
 func (g *reloadGate) enter() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -299,8 +323,57 @@ func (g *reloadGate) enter() bool {
 	return true
 }
 
-// leave releases one admitted operation.
+// leave releases one operation enter admitted.
 func (g *reloadGate) leave() { g.wg.Done() }
+
+// admit admits one operation and returns the context it MUST run under: ctx
+// inside a shutdown scope whose cancel the gate holds until the operation
+// leaves. The caller MUST call the returned leave function when the operation
+// returns. admitted is false once close or standDown has run, and the other
+// two results are then nil.
+func (g *reloadGate) admit(ctx context.Context) (scoped context.Context, leave func(), admitted bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.closed {
+		return nil, nil, false
+	}
+	g.wg.Add(1)
+	scoped, endScope := transaction.WithShutdownScope(ctx)
+	g.admissions++
+	admission := g.admissions
+	if g.standDowns == nil {
+		g.standDowns = make(map[uint64]context.CancelCauseFunc)
+	}
+	g.standDowns[admission] = endScope
+	return scoped, func() {
+		g.mu.Lock()
+		delete(g.standDowns, admission)
+		g.mu.Unlock()
+		// The operation is over: release the scope. After standDown this is
+		// a second cancel, which changes nothing.
+		endScope(nil)
+		g.wg.Done()
+	}, true
+}
+
+// standDown refuses later operations and cancels every operation admit let in
+// that is still running, with transaction.ErrShutdown as the cause. It does
+// not wait for them: close does. Only a daemon stop calls it. It is
+// idempotent.
+func (g *reloadGate) standDown() {
+	g.mu.Lock()
+	g.closed = true
+	running := make([]context.CancelCauseFunc, 0, len(g.standDowns))
+	for _, endScope := range g.standDowns {
+		running = append(running, endScope)
+	}
+	g.mu.Unlock()
+	// Canceled outside the lock: an operation that unwinds calls leave, which
+	// takes it.
+	for _, endScope := range running {
+		endScope(transaction.ErrShutdown)
+	}
+}
 
 // close refuses later operations and waits for admitted ones. It is idempotent.
 func (g *reloadGate) close() {
@@ -308,6 +381,46 @@ func (g *reloadGate) close() {
 	g.closed = true
 	g.mu.Unlock()
 	g.wg.Wait()
+}
+
+// stoodDown reports whether the daemon's stop ended the operation that ran
+// under ctx, a context admit returned, and failed with err. The error names
+// the shutdown when the config transaction was the step it interrupted. The
+// context's cause names it when another step was: the wait for plugin
+// startup, a subsystem reload. A context keeps its first cause, so a caller
+// that went away before the stop reads as an ordinary cancellation there, and
+// only the transaction's error can still name the shutdown.
+func stoodDown(ctx context.Context, err error) bool {
+	if errors.Is(err, transaction.ErrShutdown) {
+		return true
+	}
+	return errors.Is(context.Cause(ctx), transaction.ErrShutdown)
+}
+
+// The operator's answer for a configuration change the daemon's stop ended.
+// The change may be saved or not: the stop can arrive before the plugins
+// applied it, or after, while the hub published it. So the answer claims
+// neither and names the check. Every surface shares these parts.
+const (
+	stoodDownProblem = "the configuration change was interrupted because ze is stopping"
+	stoodDownWhy     = "ze ended the change before it was complete, so it may not be saved. " +
+		"After ze starts again, check the configuration it runs and commit the change again if it is missing"
+	stoodDownFix = "show config running"
+)
+
+// stoodDownAnswer turns the failure of an operation the daemon's stop ended
+// into the operator's answer, and returns every other result as it is: nil
+// when the operation finished before the stop reached it, err when it failed
+// for a reason of its own. The answer keeps err as its evidence, so
+// errors.Is still finds transaction.ErrShutdown.
+func stoodDownAnswer(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	if !stoodDown(ctx, err) {
+		return err
+	}
+	return opererr.Wrap(err, stoodDownProblem, stoodDownWhy+". What ended it", stoodDownFix)
 }
 
 // reloadShutdownGrace gives the running reload time to finish before shutdown
@@ -325,6 +438,39 @@ func awaitReloadWorker(done <-chan struct{}, grace time.Duration, cancel context
 		cancel()
 		<-done
 	}
+}
+
+// fenceCommitReloads is the daemon stop's wait for the configuration changes
+// that run on request goroutines. It stops window, the confirmed-commit
+// window, and then closes gate, in that order: the window's worker runs the
+// commits and the revert, and each of them reloads through gate, so a gate
+// closed first would refuse a revert already decided.
+//
+// The wait is bounded as the SIGHUP worker's is (awaitReloadWorker): a change
+// still running after grace is stood down with transaction.ErrShutdown
+// (reloadGate.standDown), which also closes admission, and the join that
+// follows is short because a transaction stood down that way waits for no
+// plugin. Without the stand-down a stop waited the whole apply or rollback
+// deadline of a commit on one silent plugin, and a broken-plugin answer
+// arriving meanwhile restarted a plugin the stop was about to end.
+//
+// closeCommitReloads runs on the one-time join goroutine of this stop, not a
+// worker: it ends when the window's worker and every admitted operation have
+// returned, which awaitReloadWorker waits for before it returns.
+func fenceCommitReloads(window *confirm.Window, gate *reloadGate, grace time.Duration) {
+	fenced := make(chan struct{})
+	go closeCommitReloads(window, gate, fenced)
+	awaitReloadWorker(fenced, grace, gate.standDown)
+}
+
+// closeCommitReloads stops window, closes gate and waits for both, then closes
+// fenced. It is the join of fenceCommitReloads, which starts it once per
+// daemon stop and waits on fenced; reloadGate.standDown is what ends an
+// operation it would otherwise wait on.
+func closeCommitReloads(window *confirm.Window, gate *reloadGate, fenced chan<- struct{}) {
+	defer close(fenced)
+	stopConfirmWindow(window)
+	gate.close()
 }
 
 // reloadCompleteLine is the stable line a finished SIGHUP reload prints on
@@ -1046,6 +1192,7 @@ func lgTLSEnabled(parsedTree *zeconfig.Tree) bool {
 		return true
 	}
 	cfg, ok := zeconfig.ExtractLGSettings(parsedTree)
+	// refuse-by-default: guards lgCertificateName -- a config with no looking-glass block keeps TLS on, the default
 	if !ok {
 		return true
 	}

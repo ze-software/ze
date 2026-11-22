@@ -2,7 +2,8 @@
 //
 // The unifying fix for the 2026-07-16 management-surface audit: a single,
 // always-on, fail-closed guard that refuses to start any management listener
-// bound to a non-loopback address without authentication. Each management
+// bound to a non-loopback address without authentication, or without TLS where
+// the service requires it (gNMI and MCP do). Each management
 // surface appends its own mgmtListener declaration next to the code that
 // resolves its (address, auth) pair; checkMgmtListeners iterates the slice and
 // names no service. It subsumes the API server's prior inline refusal
@@ -16,6 +17,7 @@ import (
 	"fmt"
 	"os"
 
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
@@ -69,18 +71,42 @@ func (l mgmtListener) exposure() network.Exposure {
 	}
 }
 
-// mcpAuthModeAuthenticates reports whether a raw MCP auth-mode string gates
-// every request. "" and "none" select the accept-all noneAuthenticator
-// (internal/component/mcp/bearer.go), so they do NOT authenticate; bearer,
-// bearer-list, and oauth do. Kept as literals (not a config import) so the
-// always-on guard names no service package.
-func mcpAuthModeAuthenticates(mode string) bool {
-	switch mode {
-	case "bearer", "bearer-list", "oauth":
-		return true
-	default:
-		return false
+// mgmtListenerFor builds a guard declaration from a service's own declaration
+// of the exposure rule's inputs (zeconfig.GNMIExposure, zeconfig.MCPExposure),
+// so the guard copies no service's fixes or TLS requirement.
+func mgmtListenerFor(e network.Exposure) mgmtListener {
+	return mgmtListener{
+		service:       e.Service,
+		addrs:         e.Addrs,
+		authenticated: e.Authenticated,
+		remedy:        e.AuthFix,
+		requireTLS:    e.RequireTLS,
+		tlsConfigured: e.TLSConfigured,
+		tlsRemedy:     e.TLSFix,
 	}
+}
+
+// mcpMgmtListener builds the boot-time guard declaration for MCP from the
+// listener as the daemon will bind it: addrs are the resolved addresses (flag,
+// environment or config), and authentication follows the server's effective
+// mode (mcpListenerAuthenticated). TLS comes only from the environment.mcp
+// block, so a listener with no block (cfgOK false) has none. A non-loopback
+// MCP listener without authentication or without TLS refuses daemon start,
+// as a gNMI one does (zeconfig.MCPExposure).
+func mcpMgmtListener(addrs []string, cfgOK bool, cfg zeconfig.MCPListenConfig, token string) mgmtListener {
+	tlsSet := false
+	if cfgOK {
+		tlsSet = tlsPathsConfigured(cfg.TLS.Cert, cfg.TLS.Key)
+	}
+	authenticated := mcpListenerAuthenticated(cfgOK, cfg.AuthMode, token)
+	return mgmtListenerFor(zeconfig.MCPExposure(addrs, authenticated, tlsSet))
+}
+
+// mcpAuthModeAuthenticates reports whether a raw MCP auth-mode string gates
+// every request. The set of modes is declared once, in
+// zeconfig.MCPAuthModeAuthenticates, which the offline checks read too.
+func mcpAuthModeAuthenticates(mode string) bool {
+	return zeconfig.MCPAuthModeAuthenticates(mode)
 }
 
 // mcpListenerAuthenticated reports whether the MCP server, as it will actually

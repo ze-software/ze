@@ -60,7 +60,7 @@ func resetAAABundleForTest(t *testing.T) {
 	pre := aaaBundle.Swap(nil)
 	preBootClaimed := aaaBundleBootClaimed.Swap(false)
 	preIdentity := acceptedLocalIdentity.Swap(nil)
-	aaa.SetAcceptedLocalProfileGeneration(0)
+	aaa.SetAcceptedLocalUsers(nil)
 	// closeAAABundle latches the acceptance slot retired, because a daemon
 	// closes its AAA bundle once, at exit. A test binary boots many daemons in
 	// one process, so the latch is cleared here and again on the way out.
@@ -81,9 +81,9 @@ func resetAAABundleForTest(t *testing.T) {
 		acceptedLocalIdentity.Store(preIdentity)
 		resetAAAAcceptanceForTest()
 		if preIdentity != nil {
-			aaa.SetAcceptedLocalProfileGeneration(preIdentity.generation)
+			aaa.SetAcceptedLocalUsers(preIdentity.users)
 		} else {
-			aaa.SetAcceptedLocalProfileGeneration(0)
+			aaa.SetAcceptedLocalUsers(nil)
 		}
 	})
 }
@@ -565,25 +565,47 @@ func TestSwapAAABundleConcurrent(t *testing.T) {
 
 // recoverySessionAuthorizer returns the authorizer a live break-glass session
 // holds: the one aaa binds to a local login that resolved the reserved recovery
-// profile, pinned to the generation that authenticated it.
+// profile, pinned to its user's generation that authenticated it.
 func recoverySessionAuthorizer(t *testing.T, username string) aaa.Authorizer {
+	t.Helper()
+	return aaa.AuthorizerForResult(nil, aaa.AuthResult{
+		Authenticated:  true,
+		Source:         aaa.SourceLocal,
+		Profiles:       []string{aaa.ReservedRecoveryProfile},
+		UserGeneration: acceptedUserGeneration(t, username),
+	})
+}
+
+// acceptedUserGeneration returns the per-user generation the accepted identity
+// stamped on username's one record.
+func acceptedUserGeneration(t *testing.T, username string) uint64 {
 	t.Helper()
 	accepted := acceptedLocalIdentity.Load()
 	require.NotNil(t, accepted)
 
 	for _, user := range accepted.users {
 		if user.Name == username {
-			return aaa.AuthorizerForResult(nil, aaa.AuthResult{
-				Authenticated:   true,
-				Source:          aaa.SourceLocal,
-				Profiles:        []string{aaa.ReservedRecoveryProfile},
-				LocalGeneration: user.LocalGeneration,
-			})
+			return user.UserGeneration
 		}
 	}
 
 	t.Fatalf("the accepted generation carries no user %q to log in as", username)
-	return nil
+	return 0
+}
+
+// acceptedUserGenerations returns every per-user generation the accepted
+// identity stamped, by user name. A name the accepted list repeats maps to one
+// number per record.
+func acceptedUserGenerations(t *testing.T) map[string][]uint64 {
+	t.Helper()
+	accepted := acceptedLocalIdentity.Load()
+	require.NotNil(t, accepted)
+
+	generations := make(map[string][]uint64, len(accepted.users))
+	for _, user := range accepted.users {
+		generations[user.Name] = append(generations[user.Name], user.UserGeneration)
+	}
+	return generations
 }
 
 // VALIDATES: republishing an identical local credential set reuses the accepted
@@ -601,12 +623,12 @@ func TestAcceptedLocalIdentityReusesGenerationForUnchangedCredentials(t *testing
 		Profiles: []string{aaa.ReservedRecoveryProfile},
 	}}
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(users, nil, nil, ""))
-	first := acceptedLocalIdentity.Load().generation
+	first := acceptedUserGeneration(t, "admin")
 	session := recoverySessionAuthorizer(t, "admin")
 	require.True(t, session.Authorize("admin", "", "config commit", false))
 
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(users, nil, nil, ""))
-	assert.Equal(t, first, acceptedLocalIdentity.Load().generation)
+	assert.Equal(t, first, acceptedUserGeneration(t, "admin"))
 	assert.True(t, session.Authorize("admin", "", "config commit", false),
 		"a reload that changed no credential must not revoke a live recovery session")
 }
@@ -623,7 +645,7 @@ func TestAcceptedLocalIdentityAdvancesGenerationForChangedCredentials(t *testing
 		Profiles: []string{aaa.ReservedRecoveryProfile},
 	}}
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(users, nil, nil, ""))
-	first := acceptedLocalIdentity.Load().generation
+	first := acceptedUserGeneration(t, "admin")
 	session := recoverySessionAuthorizer(t, "admin")
 	require.True(t, session.Authorize("admin", "", "config commit", false))
 
@@ -633,7 +655,7 @@ func TestAcceptedLocalIdentityAdvancesGenerationForChangedCredentials(t *testing
 		Profiles: []string{aaa.ReservedRecoveryProfile},
 	}}
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(rotated, nil, nil, ""))
-	assert.NotEqual(t, first, acceptedLocalIdentity.Load().generation)
+	assert.NotEqual(t, first, acceptedUserGeneration(t, "admin"))
 	assert.False(t, session.Authorize("admin", "", "config commit", false),
 		"a rotated password hash must revoke the session it no longer matches")
 
@@ -652,29 +674,24 @@ func TestAcceptedLocalIdentityAdvancesGenerationForChangedCredentials(t *testing
 // to aaa.UserCredential: the field count below fails the moment the struct
 // grows, so whoever adds the field decides whether a change to it must revoke.
 func TestSameLocalCredentialReadsEveryField(t *testing.T) {
-	// The six fields this test covers: Name, Hash, Profiles and PublicKeys
-	// below, and LocalGeneration and UserGeneration, the two stamps, which are
-	// deliberately excluded. A seventh field fails here rather than reaching
-	// production unread. Counted by reflection because an unkeyed literal,
-	// which would fail at compile time instead, is what `go vet` composites
-	// refuses for a struct from another package.
-	require.Equal(t, 6, reflect.TypeFor[aaa.UserCredential]().NumField(),
+	// The five fields this test covers: Name, Hash, Profiles and PublicKeys
+	// below, and UserGeneration, the stamp, which is deliberately excluded. A
+	// sixth field fails here rather than reaching production unread. Counted
+	// by reflection because an unkeyed literal, which would fail at compile
+	// time instead, is what `go vet` composites refuses for a struct from
+	// another package.
+	require.Equal(t, 5, reflect.TypeFor[aaa.UserCredential]().NumField(),
 		"aaa.UserCredential grew a field: decide whether a change to it must revoke a live session, then extend sameLocalCredential and this test")
 
 	accepted := aaa.UserCredential{
-		Name:            "admin",
-		Hash:            "$2a$10$accepted",
-		Profiles:        []string{"ops"},
-		PublicKeys:      []aaa.SSHPublicKey{{Name: "laptop", Type: "ssh-ed25519", Key: "AAAA"}},
-		LocalGeneration: 7,
+		Name:           "admin",
+		Hash:           "$2a$10$accepted",
+		Profiles:       []string{"ops"},
+		PublicKeys:     []aaa.SSHPublicKey{{Name: "laptop", Type: "ssh-ed25519", Key: "AAAA"}},
+		UserGeneration: 7,
 	}
 
 	assert.True(t, sameLocalCredential(accepted, accepted), "a record compares equal to itself")
-
-	restamped := accepted
-	restamped.LocalGeneration = accepted.LocalGeneration + 1
-	assert.True(t, sameLocalCredential(accepted, restamped),
-		"LocalGeneration is the stamp this comparison decides and must not be read")
 
 	userRestamped := accepted
 	userRestamped.UserGeneration = accepted.UserGeneration + 1
@@ -704,36 +721,58 @@ func TestSameLocalCredentialReadsEveryField(t *testing.T) {
 	}
 }
 
-// VALIDATES: sameLocalCredentials pairs users by name, so a reordered set of
-// identical credentials still compares equal and a renamed user does not.
-// PREVENTS: the comparison depending on infra.ExtractAuthUsers and
+// VALIDATES: publishAcceptedLocalIdentity pairs users by name when it stamps
+// each user's generation, so a reordered set of identical credentials keeps
+// every number, a renamed user gets a fresh one, a repeated name gets fresh
+// numbers for each of its records, and a removed user is gone.
+// PREVENTS: the pairing depending on infra.ExtractAuthUsers and
 // mergeAuthUsers happening to produce the same order on both sides. An
-// index-wise comparison stops revoking the day either one stops sorting, with
+// index-wise pairing stops revoking the day either one stops sorting, with
 // every test still green.
 func TestSameLocalCredentialsPairsUsersByName(t *testing.T) {
+	resetAAABundleForTest(t)
+
 	alice := aaa.UserCredential{Name: "alice", Hash: "$2a$10$alice", Profiles: []string{"ops"}}
 	bob := aaa.UserCredential{Name: "bob", Hash: "$2a$10$bob"}
+	publish := func(users ...aaa.UserCredential) {
+		publishAcceptedLocalIdentity(newAcceptedLocalIdentity(users, nil, nil, ""))
+	}
+	// acceptBase publishes alice and bob and returns the numbers each got, so
+	// every case below starts from the same accepted pair.
+	acceptBase := func() (uint64, uint64) {
+		publish(alice, bob)
+		return acceptedUserGeneration(t, "alice"), acceptedUserGeneration(t, "bob")
+	}
 
-	assert.True(t, sameLocalCredentials(
-		[]aaa.UserCredential{alice, bob},
-		[]aaa.UserCredential{bob, alice}),
-		"the same two users in the other order are the same credential set")
+	aliceBase, bobBase := acceptBase()
+	publish(bob, alice)
+	assert.Equal(t, aliceBase, acceptedUserGeneration(t, "alice"),
+		"alice in the other order is the same record, so she keeps her number")
+	assert.Equal(t, bobBase, acceptedUserGeneration(t, "bob"),
+		"bob in the other order is the same record, so he keeps his number")
 
+	_, bobBase = acceptBase()
 	carol := aaa.UserCredential{Name: "carol", Hash: "$2a$10$bob"}
-	assert.False(t, sameLocalCredentials(
-		[]aaa.UserCredential{alice, bob},
-		[]aaa.UserCredential{alice, carol}),
+	publish(alice, carol)
+	assert.NotEqual(t, bobBase, acceptedUserGeneration(t, "carol"),
 		"renaming a user is a credential change, whatever its hash")
+	assert.NotContains(t, acceptedUserGenerations(t), "bob", "the renamed user is gone")
 
-	assert.False(t, sameLocalCredentials(
-		[]aaa.UserCredential{alice, bob},
-		[]aaa.UserCredential{alice, alice}),
-		"a repeated name leaves the pairing ambiguous, so it must fail closed")
+	aliceBase, _ = acceptBase()
+	publish(alice, alice)
+	repeated := acceptedUserGenerations(t)["alice"]
+	require.Len(t, repeated, 2, "both records of the repeated name are accepted")
+	assert.NotEqual(t, aliceBase, repeated[0],
+		"a repeated name leaves the pairing ambiguous, so its first record must fail closed")
+	assert.NotEqual(t, aliceBase, repeated[1],
+		"a repeated name leaves the pairing ambiguous, so its second record must fail closed")
+	assert.NotEqual(t, repeated[0], repeated[1], "no two user records share a number")
 
-	assert.False(t, sameLocalCredentials(
-		[]aaa.UserCredential{alice, bob},
-		[]aaa.UserCredential{alice}),
-		"a removed user is a credential change")
+	aliceBase, _ = acceptBase()
+	publish(alice)
+	assert.NotContains(t, acceptedUserGenerations(t), "bob", "a removed user is gone")
+	assert.Equal(t, aliceBase, acceptedUserGeneration(t, "alice"),
+		"removing bob is no change to alice's record, so she keeps her number")
 }
 
 // A password login's authorization follows the replacement bundle, including

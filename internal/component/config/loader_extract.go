@@ -19,17 +19,14 @@ import (
 )
 
 var (
-	errEnvironmentMcpBindRemoteRequiresAuth        = errors.New("environment.mcp: bind-remote requires auth-mode != none")
-	errEnvironmentMcpAuthModeBearerRequires        = errors.New("environment.mcp: auth-mode=bearer requires token")
-	errEnvironmentMcpAuthModeBearerRequiresTLS     = errors.New("environment.mcp: auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners")
-	errEnvironmentMcpAuthModeBearerList            = errors.New("environment.mcp: auth-mode=bearer-list requires at least one identity")
-	errEnvironmentMcpAuthModeBearerListRequiresTLS = errors.New("environment.mcp: auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners")
-	errEnvironmentMcpIdentityEntryMissingName      = errors.New("environment.mcp: identity entry missing name")
-	errEnvironmentMcpAuthModeOauthRequires         = errors.New("environment.mcp: auth-mode=oauth requires oauth.authorization-server")
-	errEnvironmentMcpAuthModeOauthRequires2        = errors.New("environment.mcp: auth-mode=oauth requires oauth.audience")
-	errEnvironmentMcpAuthModeOauthRequires3        = errors.New("environment.mcp: auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners")
-	errEnvironmentMcpTlsCertSetWithout             = errors.New("environment.mcp.tls: cert set without key")
-	errEnvironmentMcpTlsKeySetWithout              = errors.New("environment.mcp.tls: key set without cert")
+	errEnvironmentMcpBindRemoteRequiresAuth   = errors.New("environment.mcp: bind-remote requires auth-mode != none")
+	errEnvironmentMcpAuthModeBearerRequires   = errors.New("environment.mcp: auth-mode=bearer requires token")
+	errEnvironmentMcpAuthModeBearerList       = errors.New("environment.mcp: auth-mode=bearer-list requires at least one identity")
+	errEnvironmentMcpIdentityEntryMissingName = errors.New("environment.mcp: identity entry missing name")
+	errEnvironmentMcpAuthModeOauthRequires    = errors.New("environment.mcp: auth-mode=oauth requires oauth.authorization-server")
+	errEnvironmentMcpAuthModeOauthRequires2   = errors.New("environment.mcp: auth-mode=oauth requires oauth.audience")
+	errEnvironmentMcpTlsCertSetWithout        = errors.New("environment.mcp.tls: cert set without key")
+	errEnvironmentMcpTlsKeySetWithout         = errors.New("environment.mcp.tls: key set without cert")
 )
 
 // loaderLogger is the config loader subsystem logger (lazy initialization).
@@ -257,14 +254,86 @@ func anyEndpointNonLoopback(servers []ServerEndpoint) bool {
 }
 
 // AnyListenerNonLoopback reports whether at least one Server entry binds to
-// a non-loopback address. Used by Validate to decide whether TLS is required.
+// a non-loopback address, by the same loopback definition the exposure rule
+// (MCPExposure) applies.
 func (c MCPListenConfig) AnyListenerNonLoopback() bool {
 	return anyEndpointNonLoopback(c.Servers)
 }
 
+// MCPAuthFix and MCPTLSFix are the commands that close each MCP exposure. The
+// boot guard (cmd/ze/hub mgmt_guard.go), the listener migration, `ze config
+// validate` and `ze doctor` all print them through MCPExposure, so every
+// surface names the same fix. The auth fix sets the mode as well as the token:
+// an explicit `auth-mode none` makes the server ignore a token.
+const (
+	MCPAuthFix = "set environment mcp auth-mode bearer and set environment mcp token <token>"
+	MCPTLSFix  = "set environment mcp tls cert <cert.pem> and set environment mcp tls key <key.pem>"
+)
+
+// MCPAuthModeAuthenticates reports whether an effective MCP auth-mode gates
+// every request. "" and "none" select the accept-all authenticator
+// (internal/component/mcp), so they do not; bearer, bearer-list and oauth do.
+// An unknown mode does not authenticate: Validate refuses it.
+func MCPAuthModeAuthenticates(mode string) bool {
+	switch mode {
+	case mcpAuthBearer, mcpAuthBearerList, mcpAuthOAuth:
+		return true
+	default:
+		return false
+	}
+}
+
+// MCPExposure is the input of the one exposure rule (network.Exposure) for an
+// MCP listener: a non-loopback MCP listener MUST authenticate AND serve TLS.
+// TLS is required whatever the auth mode, because every mode that
+// authenticates (bearer, bearer-list, oauth) sends a credential on each
+// request, and a mode that does not authenticate is refused off loopback by
+// the authentication half of the rule. authenticated is whether the
+// effective auth mode gates every request; tlsSet is whether both TLS files
+// are configured.
+func MCPExposure(addrs []string, authenticated, tlsSet bool) network.Exposure {
+	return network.Exposure{
+		Service:       "MCP",
+		Addrs:         addrs,
+		Authenticated: authenticated,
+		AuthFix:       MCPAuthFix,
+		RequireTLS:    true,
+		TLSConfigured: tlsSet,
+		TLSFix:        MCPTLSFix,
+	}
+}
+
+// Refusals answers every exposure the config file asks for, one operator error
+// per breach, from the same rule the daemon refuses to boot on (MCPExposure).
+// The effective auth mode follows the server's precedence: an explicit
+// auth-mode wins, and a blank one with a token infers bearer.
+//
+// It reads the config FILE alone: the servers it names (clamped to 127.0.0.1
+// unless bind-remote is set) and the token it carries. A daemon started with
+// `--mcp`, ze.mcp.listen or ze.mcp.token binds or authenticates from those as
+// well, and the boot guard judges that resolved listener.
+func (c MCPListenConfig) Refusals() []*opererr.Error {
+	addrs := make([]string, 0, len(c.Servers))
+	for _, s := range c.Servers {
+		addrs = append(addrs, s.Listen())
+	}
+	authenticated := c.Token != ""
+	if c.AuthMode != "" {
+		authenticated = MCPAuthModeAuthenticates(c.AuthMode)
+	}
+	tlsSet := c.TLS.Cert != ""
+	if tlsSet {
+		tlsSet = c.TLS.Key != ""
+	}
+	return MCPExposure(addrs, authenticated, tlsSet).Refusals()
+}
+
 // Validate returns a non-nil error when the config combination is internally
 // inconsistent. Intended to be called by `ze config verify` so the operator
-// sees precise messages BEFORE the daemon tries to start.
+// sees precise messages BEFORE the daemon tries to start. Exposure (a
+// non-loopback listener without authentication or TLS) is Refusals' answer,
+// not Validate's: the boot guard applies that rule to the address the daemon
+// actually binds, which a flag or an environment variable can supply.
 //
 // Enforces the exact-or-reject rule (`ai/rules/protocol.md`): silent fallback
 // to a less-secure mode is never acceptable.
@@ -283,14 +352,6 @@ func (c MCPListenConfig) Validate() error {
 	case mcpAuthBearer:
 		if c.Token == "" {
 			return errEnvironmentMcpAuthModeBearerRequires
-		}
-		if c.AnyListenerNonLoopback() {
-			if c.TLS.Cert == "" {
-				return errEnvironmentMcpAuthModeBearerRequiresTLS
-			}
-			if c.TLS.Key == "" {
-				return errEnvironmentMcpAuthModeBearerRequiresTLS
-			}
 		}
 	case mcpAuthBearerList:
 		if len(c.Identities) == 0 {
@@ -318,14 +379,6 @@ func (c MCPListenConfig) Validate() error {
 			seenNames[id.Name] = true
 			seenTokens[id.Token] = true
 		}
-		if c.AnyListenerNonLoopback() {
-			if c.TLS.Cert == "" {
-				return errEnvironmentMcpAuthModeBearerListRequiresTLS
-			}
-			if c.TLS.Key == "" {
-				return errEnvironmentMcpAuthModeBearerListRequiresTLS
-			}
-		}
 	case mcpAuthOAuth:
 		if c.OAuth.AuthorizationServer == "" {
 			return errEnvironmentMcpAuthModeOauthRequires
@@ -341,14 +394,6 @@ func (c MCPListenConfig) Validate() error {
 		}
 		if err := validateMCPOAuthURL(c.OAuth.Audience); err != nil {
 			return fmt.Errorf("environment.mcp.oauth.audience: %w", err)
-		}
-		if c.AnyListenerNonLoopback() {
-			if c.TLS.Cert == "" {
-				return errEnvironmentMcpAuthModeOauthRequires3
-			}
-			if c.TLS.Key == "" {
-				return errEnvironmentMcpAuthModeOauthRequires3
-			}
 		}
 	}
 	if c.TLS.Cert != "" {
@@ -421,9 +466,9 @@ func ExtractMCPSettings(tree *Tree) (MCPListenConfig, bool) {
 // With BindRemote=false the loopback clamp forces every server entry to
 // 127.0.0.1. With BindRemote=true the operator-configured ip is preserved.
 // Runtime-fatal inconsistencies (auth-mode oauth without authorization-server,
-// bind-remote without auth, remote authenticated listeners without TLS) are
-// reported by Validate, which the verifier calls. Extraction itself never
-// rewrites to "best guess".
+// bind-remote without auth) are reported by Validate, and a non-loopback
+// listener without authentication or TLS by Refusals; the verifier calls both.
+// Extraction itself never rewrites to "best guess".
 //
 // ok=true means "config asks for an MCP listener". It deliberately does NOT
 // mean "these are the auth settings" -- see ExtractMCPSettings for that half.

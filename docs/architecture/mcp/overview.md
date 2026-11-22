@@ -444,11 +444,22 @@ whose handler is the `*zemcp.Streamable`. A configured certificate/key pair
 wraps the listeners with TLS 1.2 or later. Naming either file asks for TLS:
 a half-named pair, or a pair `loadMCPTLSConfig` cannot load, disables the MCP
 listener, which never falls back to plain HTTP. `checkKeyFilePermissions`
-refuses symlinks, non-regular files, and key files with any group or other
-permission bits (`0o077`) for every user including `root`. Authenticated modes
-(`bearer`, `bearer-list`, `oauth`) require TLS whenever any listener binds off
-loopback, enforced at config validation, startup (`startMCPServer`), and live
-address migration (`mcpServerHandle.Reconfigure`). Bind is all-or-nothing: if
+(`cmd/ze/hub/mcp_keyfile.go`) refuses, for every user including `root`, a key
+another local user could read or replace. It follows symlinks, so a Kubernetes
+projected secret or a link to a systemd credential works, and resolves the path
+one entry at a time, judging every entry the way OpenSSH's secure-path check
+does: each directory is owned by `root` or by the user ze runs as and is not
+writable by group or other unless it is sticky; each link is owned by `root` or
+that user; the resolved file is a regular file owned by `root` or that user with
+no group or other permission bit (`0o077`). A dangling link, a link to a
+directory or a device, and a loop are refused, and each refusal names the
+entry, why it matters and the command that fixes it. A listener off
+loopback needs authentication (`bearer`, `bearer-list`, `oauth`) and TLS. The
+rule is the management-listener exposure rule gNMI follows, declared for MCP
+once (`config.MCPExposure`): the boot guard refuses daemon start on a breach
+(`mcpMgmtListener`, `checkMgmtListeners`), `ze config validate` and `ze doctor`
+report it offline (`MCPListenConfig.Refusals`), and live address migration
+refuses it (`mcpServerHandle.Reconfigure`). Bind is all-or-nothing: if
 any listener fails, the already-bound listeners are closed. Shutdown calls
 `http.Server.Shutdown`, and the caller must also call `Close` on the handler so
 the task-registry GC goroutine exits.

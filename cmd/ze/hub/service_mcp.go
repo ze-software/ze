@@ -33,7 +33,6 @@ import (
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zemcp "github.com/ze-software/ze/internal/component/mcp"
-	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/privilege"
 )
@@ -198,9 +197,9 @@ func effectiveMCPAuthMode(cfg zemcp.StreamableConfig) zemcp.AuthMode {
 	return zemcp.AuthNone
 }
 
-// mcpAuthModeRequiresRemoteTLS reports whether mode sends credentials that
-// require TLS whenever any listener binds off loopback.
-func mcpAuthModeRequiresRemoteTLS(mode zemcp.AuthMode) bool {
+// mcpModeAuthenticates reports whether the typed mode the handler runs gates
+// every request, the typed twin of zeconfig.MCPAuthModeAuthenticates.
+func mcpModeAuthenticates(mode zemcp.AuthMode) bool {
 	switch mode {
 	case zemcp.AuthBearer, zemcp.AuthBearerList, zemcp.AuthOAuth:
 		return true
@@ -212,21 +211,20 @@ func mcpAuthModeRequiresRemoteTLS(mode zemcp.AuthMode) bool {
 	}
 }
 
-// checkMCPRemoteTLS refuses non-loopback listen addresses when TLS is disabled
-// for an authenticated MCP mode.
-func checkMCPRemoteTLS(mode zemcp.AuthMode, useTLS bool, addrs []string) error {
-	if useTLS {
+// checkMCPMigrationExposure applies the management-listener exposure rule
+// (zeconfig.MCPExposure, the one the boot guard refuses start on) to the
+// addresses a listener migration would bind, and answers every breach joined,
+// or nil.
+func checkMCPMigrationExposure(mode zemcp.AuthMode, useTLS bool, addrs []string) error {
+	refusals := zeconfig.MCPExposure(addrs, mcpModeAuthenticates(mode), useTLS).Refusals()
+	if len(refusals) == 0 {
 		return nil
 	}
-	if !mcpAuthModeRequiresRemoteTLS(mode) {
-		return nil
+	errs := make([]error, 0, len(refusals))
+	for _, r := range refusals {
+		errs = append(errs, r)
 	}
-	for _, addr := range addrs {
-		if !network.ListenAddrIsLoopback(addr) {
-			return fmt.Errorf("auth-mode=%s requires tls.cert and tls.key on non-loopback listener %s", mode, addr)
-		}
-	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // startMCPServer creates and starts an MCP HTTP server bound to every entry
@@ -242,9 +240,10 @@ func checkMCPRemoteTLS(mode zemcp.AuthMode, useTLS bool, addrs []string) error {
 // PEM-encoded certificate and key file paths supplied, or does not start.
 // Setting one without the other is a config error that
 // MCPListenConfig.Validate rejects at verify time; loadMCPTLSConfig refuses
-// it here too, so a half-named pair never serves plain HTTP. Authenticated
-// modes (bearer, bearer-list, oauth) refuse to bind non-loopback addresses
-// without TLS.
+// it here too, so a half-named pair never serves plain HTTP. Exposure (a
+// non-loopback address without authentication or TLS) is not judged here: the
+// boot guard (mcpMgmtListener) refuses daemon start on it before any service
+// is built, and Reconfigure applies the same rule to a listener migration.
 //
 // Speaks the MCP 2026-07-28 Streamable HTTP profile: POST-only and stateless,
 // with per-request metadata, headers and authentication, and no handshake,
@@ -257,15 +256,6 @@ func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands z
 
 	useTLS := tlsCert != "" || tlsKey != ""
 	mode := effectiveMCPAuthMode(mcpCfg)
-	if err := checkMCPRemoteTLS(mode, useTLS, addrs); err != nil {
-		opErr := opererr.Wrap(err,
-			"warning: MCP server disabled",
-			"non-loopback authenticated MCP listeners require TLS",
-			"configure environment.mcp tls cert and key, or bind MCP to 127.0.0.1/::1 only",
-		)
-		fmt.Fprintln(os.Stderr, opErr.Error())
-		return nil
-	}
 
 	// Caller populates auth + token fields; we fill the dispatcher + command
 	// lister because they come from the reactor, not from YANG.
@@ -340,11 +330,13 @@ func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands z
 // loadMCPTLSConfig parses the cert + key file pair and returns a tls.Config
 // with TLS 1.2 minimum. Cert chains are supported (stdlib X509KeyPair).
 //
-// Refuses key files whose permissions grant any access to group or other
-// (mode bits & 0o077 != 0) or that are symlinks/non-regular files, for every
-// user including root. Defense in depth: a world- or group-readable private
-// key on a shared host exposes the key to unprivileged local users even when
-// the daemon itself runs as root.
+// Before loading, checkKeyFilePermissions (mcp_keyfile.go) resolves the key
+// path one entry at a time and refuses it, for every user including root,
+// unless OpenSSH's secure-path rule holds: every directory on the path and
+// every symlink followed is owned by root or the user ze runs as, no such
+// directory is group- or other-writable unless sticky, and the resolved key
+// is a regular file with no group or other permission bit. A symlink that
+// passes is followed, so Kubernetes and systemd secret mounts work.
 func loadMCPTLSConfig(certFile, keyFile string) (*tls.Config, error) {
 	if certFile == "" {
 		return nil, opererr.New("MCP TLS key file "+keyFile+" is set without a certificate file",
@@ -367,39 +359,6 @@ func loadMCPTLSConfig(certFile, keyFile string) (*tls.Config, error) {
 		Certificates: []tls.Certificate{pair},
 		MinVersion:   tls.VersionTLS12,
 	}, nil
-}
-
-// checkKeyFilePermissions rejects private-key files that are readable by
-// group or other (mode bits & 0o077 != 0), are symlinks, or are not regular
-// files. Enforced for every user including root: running as root does not
-// prevent unprivileged local users from reading a world- or group-readable
-// key file, and symlinks would let a parent-directory writer redirect root's
-// read.
-//
-// Symlinks are rejected outright: an attacker who can write to the
-// key-file's parent directory could otherwise swap a strict-perm symlink
-// pointing at a world-readable target, and Stat's follow-through would pass
-// the 0o077 mask. Refusing symlinks forces the operator to store the key
-// as a regular file in a root-only directory.
-func checkKeyFilePermissions(keyFile string) error {
-	info, err := os.Lstat(keyFile)
-	if err != nil {
-		return fmt.Errorf("stat key file %q: %w", keyFile, err)
-	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("key file %q: symlinks are not permitted", keyFile)
-	}
-	if !info.Mode().IsRegular() {
-		return fmt.Errorf("key file %q: must be a regular file", keyFile)
-	}
-	perm := info.Mode().Perm()
-	if perm&0o077 != 0 {
-		return fmt.Errorf(
-			"key file %q has mode %04o; group/other permissions must be cleared (chmod 600)",
-			keyFile, perm,
-		)
-	}
-	return nil
 }
 
 // Addresses returns every bound listen address.
@@ -453,7 +412,7 @@ func (h *mcpServerHandle) Reconfigure(ctx context.Context, newAddrs []string) er
 		return errors.New("MCP server has been shut down")
 	}
 
-	if err := checkMCPRemoteTLS(h.authMode, h.useTLS, newAddrs); err != nil {
+	if err := checkMCPMigrationExposure(h.authMode, h.useTLS, newAddrs); err != nil {
 		return fmt.Errorf("MCP reconfigure: %w", err)
 	}
 

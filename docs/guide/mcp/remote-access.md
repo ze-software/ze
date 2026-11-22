@@ -300,20 +300,27 @@ environment {
 | Configuration | Rejection |
 |---------------|-----------|
 | `bind-remote true` + `auth-mode none` | `bind-remote requires auth-mode != none` |
-| `auth-mode bearer` + non-loopback listener without TLS | `auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners` |
-| `auth-mode bearer-list` + non-loopback listener without TLS | `auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners` |
+| Any non-loopback listener without TLS (`bearer`, `bearer-list`, `oauth`, or a token alone) | `refusing to start MCP on non-loopback listener "<addr>" without TLS`, fix `set environment mcp tls cert <cert.pem> and set environment mcp tls key <key.pem>` |
+| A non-loopback listener whose mode does not authenticate | `refusing to start MCP on non-loopback listener "<addr>" without authentication` |
 | `auth-mode oauth` without `oauth.authorization-server` | `auth-mode=oauth requires oauth.authorization-server` |
 | `auth-mode oauth` without `oauth.audience` | `auth-mode=oauth requires oauth.audience` |
-| `auth-mode oauth` + non-loopback listener without TLS | `auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners` |
 | `auth-mode bearer-list` without any `identity` entries | `auth-mode=bearer-list requires at least one identity` |
 | Issuer or audience with HTTP, userinfo, a fragment or no host | Invalid OAuth URL |
 | Issuer with a query, including an empty `?` | Invalid OAuth issuer |
 | Only one of `tls.cert` and `tls.key`, in any auth mode | Both TLS paths required |
 
-These checks run before MCP starts, and live address migration (`Reconfigure`)
-refuses to move a plaintext `bearer`, `bearer-list`, or `oauth` listener off
-loopback. A remote authenticated listener cannot silently fall back to
-plaintext, and a partial TLS configuration is never ignored.
+The two exposure rows are the management-listener rule gNMI follows
+([Remote management listener guard](../authentication.md#remote-management-listener-guard)).
+The daemon applies them at start to the address it actually binds, from the
+config, `--mcp` or `ze.mcp.listen`, and refuses to start, so `ze config
+validate`, `ze doctor` and `ze start` agree. Live address migration
+(`Reconfigure`) refuses to move a listener off loopback without them. A
+remote authenticated listener cannot silently fall back to plaintext, and a
+partial TLS configuration is never ignored.
+
+<!-- source: internal/component/config/loader_extract.go -- MCPListenConfig.Validate, MCPListenConfig.Refusals, MCPExposure -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- mcpMgmtListener -->
+<!-- source: cmd/ze/hub/service_mcp.go -- checkMCPMigrationExposure -->
 
 ## Security Notes
 
