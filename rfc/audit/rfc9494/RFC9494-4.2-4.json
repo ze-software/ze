@@ -9,7 +9,7 @@
   "requirement_sha": "22bb80e0584de1a8",
   "tests": {
     "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "a8e84939edc430d3",
-    "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity": "8d8a78a1d6bc0b0e",
+    "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity": "4d7e784cb653f709",
     "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale": "5dcff1a63df83f39"
   },
   "units": {

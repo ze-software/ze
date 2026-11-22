@@ -42,5 +42,27 @@
     "producer": "internal/plugins/mrt/dump.go::bgp4mpTypeSubtype",
     "producer-sha": "54961866cf24192a",
     "break": "body of bgp4mpTypeSubtype replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8050-x-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/mrt/rfc8050_message_addpath_as2_test.go::TestRFC8050BGP4MPAddPathAS2Subtypes",
+    "unit-sha": "00ec520b15181737",
+    "claim-sha": "58e66857c4979968",
+    "route": "revert",
+    "producer": "internal/plugins/mrt/dump.go::bgp4mpTypeSubtypeFor",
+    "producer-sha": "68ffc4dacf9eec3d",
+    "break": "body of bgp4mpTypeSubtypeFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8050-x-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/mrt/rfc8050_message_addpath_as2_test.go::TestRFC8050BGP4MPAddPathAS2Subtypes",
+    "unit-sha": "00ec520b15181737",
+    "claim-sha": "99e8f82f3b047751",
+    "route": "revert",
+    "producer": "internal/plugins/mrt/dump.go::bgp4mpTypeSubtypeFor",
+    "producer-sha": "68ffc4dacf9eec3d",
+    "break": "body of bgp4mpTypeSubtypeFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
