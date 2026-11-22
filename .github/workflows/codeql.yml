@@ -102,11 +102,11 @@ jobs:
           category: "/language:${{ matrix.language }}"
 
       - name: Check Go extraction evidence
-        if: matrix.build-mode == 'manual'
+        if: success() && matrix.build-mode == 'manual' && steps.analyze.outputs.db-locations != ''
         shell: bash
         env:
           CODEQL_EXECUTABLE: ${{ steps.init.outputs.codeql-path }}
-          CODEQL_DATABASE: ${{ fromJSON(steps.analyze.outputs.db-locations).go }}
+          CODEQL_DATABASE: ${{ fromJSON(steps.analyze.outputs.db-locations || '{}').go }}
         run: |
           CGO_ENABLED=0 ./le repo codeql check file "$RUNNER_TEMP/codeql-extraction-proof/manifest.json" database "$CODEQL_DATABASE" executable "$CODEQL_EXECUTABLE"
 

@@ -73,6 +73,29 @@ jobs:
         # and git holds only module source there: this downloads what every
         # gokrazy/*/builddir needs, as `./le setup install` does on a workstation.
         run: ./le setup appliance-modules
+      # `test qemu docker-lab` boots the cached docker-host image and never builds
+      # one inside its deadline. Cache the downloaded tarballs and static musl
+      # binaries (about 100 MiB, non-sparse) rather than the 64 GiB sparse raw
+      # image itself, because actions/cache untars without --sparse and would
+      # expand 64 GiB of zeroes onto the runner disk.
+      - name: Restore the docker-host build inputs cache
+        id: docker-host-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
+      - name: Build the docker-host image
+        run: ./le setup docker host build arch amd64
+      - name: Save the docker-host build inputs cache
+        if: steps.docker-host-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
       # Ze's image carries no Go, and the unit, installer and integration phases
       # of `test qemu all` compile in the guest. The patched tree's links name
       # this runner's GOROOT, outside every share, so the guest gets a copy that
@@ -223,6 +246,35 @@ jobs:
           FEATURES='ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web'
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_core zetest ze_distro ze_setup $FEATURES" -o bin/ze-linux-amd64 ./cmd/ze
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags 'ze_core' -o bin/ze-stripped-linux-amd64 ./cmd/ze
+      - name: Fill the gokrazy module cache
+        # Both `gokrazy-l2tp-ppp` and the docker-host image build with
+        # GOPROXY=off over gokrazy/modcache, and git holds only module source
+        # there. Fill it as the runner user before `sudo -E` runs
+        # `gokrazy-l2tp-ppp`, so that step finds every module and leaves no
+        # root-owned files in gokrazy/modcache.
+        run: ./le setup appliance-modules
+      # `test qemu docker-lab` boots the cached docker-host image and never builds
+      # one inside its deadline. Build it before `sudo -E` runs `gokrazy-l2tp-ppp`,
+      # and cache the non-sparse downloads and static musl binaries (about 100 MiB)
+      # under the same key `needs-linux` and `evidence-nightly.yml` share.
+      - name: Restore the docker-host build inputs cache
+        id: docker-host-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
+      - name: Build the docker-host image
+        run: ./le setup docker host build arch amd64
+      - name: Save the docker-host build inputs cache
+        if: steps.docker-host-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
       - name: L2TP PPP appliance proof
         run: sudo -E env "PATH=$PATH" "XDG_CACHE_HOME=$HOME/.cache" ./le test deployment gokrazy-l2tp-ppp
       - name: PPPoE against accel-ppp
@@ -239,11 +291,6 @@ jobs:
       # The two namespace steps below need only setcap, getcap, nft and ip, which
       # Ze's image carries, so they boot it. Their accel-ppp and Go neighbours
       # still need tools it does not carry.
-      - name: Fill the gokrazy module cache
-        if: ${{ !cancelled() }}
-        # The docker-host image builds with GOPROXY=off over gokrazy/modcache,
-        # and git holds only module source there.
-        run: ./le setup appliance-modules
       - name: PPPoE functional suite
         if: ${{ !cancelled() }}
         env:

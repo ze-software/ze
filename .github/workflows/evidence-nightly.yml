@@ -101,8 +101,12 @@ jobs:
       - name: Install kernel integration dependencies
         run: |
           sudo apt-get update
+          extra="linux-modules-extra-$(uname -r)"
+          if ! apt-cache show "$extra" >/dev/null 2>&1; then
+            extra=""
+          fi
           sudo apt-get install -y --no-install-recommends \
-            build-essential git iproute2 iptables nftables
+            build-essential git iproute2 iptables nftables $extra
 
       # The six actions below run as root, and a test that enters a namespace
       # of its own (internal/test/userns) re-executes its binary from
@@ -118,6 +122,20 @@ jobs:
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
+
+      # TestConntrackHelperFTPThroughMasquerade proves active FTP PORT/EPRT
+      # rewriting behind masquerade. Ze's runtime kernel builds CONFIG_NF_NAT_FTP
+      # in, whereas the hosted kernel ships it as a module that nft does not
+      # auto-load when attaching nf_conntrack_ftp; without it nf_nat_ftp_hook is
+      # nil and the command reaches the server unrewritten.
+      - name: Load the FTP NAT conntrack helper module
+        run: |
+          for module in nf_conntrack_ftp nf_nat_ftp; do
+            if ! sudo modprobe "$module"; then
+              echo "::error::kernel module $module is missing from this runner's kernel $(uname -r), so active FTP masquerade rewriting (TestConntrackHelperFTPThroughMasquerade) cannot run. Fix: install the Ubuntu package carrying $module for $(uname -r) in Install kernel integration dependencies." >&2
+              exit 1
+            fi
+          done
 
       # These six actions need CAP_NET_ADMIN or CAP_NET_BIND_SERVICE. Preserve
       # PATH across sudo so the Go toolchain remains available. Later actions
@@ -198,6 +216,29 @@ jobs:
         # and git holds only module source there: this downloads what every
         # gokrazy/*/builddir needs, as `./le setup install` does on a workstation.
         run: ./le setup appliance-modules
+      # `test qemu docker-lab` boots the cached docker-host image and never builds
+      # one inside its deadline. Cache the downloaded tarballs and static musl
+      # binaries (about 100 MiB, non-sparse) under the same key qemu-nightly.yml
+      # uses, rather than the 64 GiB sparse raw image itself, because
+      # actions/cache untars without --sparse and would expand 64 GiB of zeroes.
+      - name: Restore the docker-host build inputs cache
+        id: docker-host-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
+      - name: Build the docker-host image
+        run: ./le setup docker host build arch amd64
+      - name: Save the docker-host build inputs cache
+        if: steps.docker-host-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
       - name: BGP interoperability in the Ze-kernel guest
         env:
           ZE_QEMU_MEMORY: "12288"
@@ -263,6 +304,29 @@ jobs:
         # and git holds only module source there: this downloads what every
         # gokrazy/*/builddir needs, as `./le setup install` does on a workstation.
         run: ./le setup appliance-modules
+      # `test qemu docker-lab` boots the cached docker-host image and never builds
+      # one inside its deadline. Cache the downloaded tarballs and static musl
+      # binaries (about 100 MiB, non-sparse) under the same key qemu-nightly.yml
+      # uses, rather than the 64 GiB sparse raw image itself, because
+      # actions/cache untars without --sparse and would expand 64 GiB of zeroes.
+      - name: Restore the docker-host build inputs cache
+        id: docker-host-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
+      - name: Build the docker-host image
+        run: ./le setup docker host build arch amd64
+      - name: Save the docker-host build inputs cache
+        if: steps.docker-host-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
       - name: IKEv2/IPsec interoperability in the Ze-kernel guest
         env:
           ZE_QEMU_MEMORY: "12288"
@@ -331,6 +395,29 @@ jobs:
         # and git holds only module source there: this downloads what every
         # gokrazy/*/builddir needs, as `./le setup install` does on a workstation.
         run: ./le setup appliance-modules
+      # `test qemu docker-lab` boots the cached docker-host image and never builds
+      # one inside its deadline. Cache the downloaded tarballs and static musl
+      # binaries (about 100 MiB, non-sparse) under the same key qemu-nightly.yml
+      # uses, rather than the 64 GiB sparse raw image itself, because
+      # actions/cache untars without --sparse and would expand 64 GiB of zeroes.
+      - name: Restore the docker-host build inputs cache
+        id: docker-host-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
+      - name: Build the docker-host image
+        run: ./le setup docker host build arch amd64
+      - name: Save the docker-host build inputs cache
+        if: steps.docker-host-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
       - name: RADIUS admin-login interoperability against FreeRADIUS in the Ze-kernel guest
         env:
           ZE_QEMU_MEMORY: "12288"
@@ -399,6 +486,29 @@ jobs:
         # and git holds only module source there: this downloads what every
         # gokrazy/*/builddir needs, as `./le setup install` does on a workstation.
         run: ./le setup appliance-modules
+      # `test qemu docker-lab` boots the cached docker-host image and never builds
+      # one inside its deadline. Cache the downloaded tarballs and static musl
+      # binaries (about 100 MiB, non-sparse) under the same key qemu-nightly.yml
+      # uses, rather than the 64 GiB sparse raw image itself, because
+      # actions/cache untars without --sparse and would expand 64 GiB of zeroes.
+      - name: Restore the docker-host build inputs cache
+        id: docker-host-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
+      - name: Build the docker-host image
+        run: ./le setup docker host build arch amd64
+      - name: Save the docker-host build inputs cache
+        if: steps.docker-host-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
       - name: L2TP PPP/NCP interoperability in the Ze-kernel guest
         env:
           ZE_QEMU_MEMORY: "12288"
@@ -459,6 +569,29 @@ jobs:
         # and git holds only module source there: this downloads what every
         # gokrazy/*/builddir needs, as `./le setup install` does on a workstation.
         run: ./le setup appliance-modules
+      # `test qemu docker-lab` boots the cached docker-host image and never builds
+      # one inside its deadline. Cache the downloaded tarballs and static musl
+      # binaries (about 100 MiB, non-sparse) under the same key qemu-nightly.yml
+      # uses, rather than the 64 GiB sparse raw image itself, because
+      # actions/cache untars without --sparse and would expand 64 GiB of zeroes.
+      - name: Restore the docker-host build inputs cache
+        id: docker-host-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
+      - name: Build the docker-host image
+        run: ./le setup docker host build arch amd64
+      - name: Save the docker-host build inputs cache
+        if: steps.docker-host-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ze/docker-host/downloads
+            ~/.cache/ze/docker-host/amd64/static-*
+          key: ze-docker-host-inputs-amd64-${{ hashFiles('gokrazy/docker-host/binaries.json', 'internal/le/setup/docker/host/static.go') }}
       - name: PPPoE client against accel-ppp in the Ze-kernel guest
         env:
           ZE_QEMU_MEMORY: "12288"

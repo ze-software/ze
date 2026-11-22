@@ -24,6 +24,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/perf"
 	_ "github.com/ze-software/ze/internal/le/repo/codeql"
 	_ "github.com/ze-software/ze/internal/le/setup"
+	_ "github.com/ze-software/ze/internal/le/setup/docker/host"
 	_ "github.com/ze-software/ze/internal/le/setup/docker/kernel"
 	_ "github.com/ze-software/ze/internal/le/test/deployment"
 	_ "github.com/ze-software/ze/internal/le/test/fuzz"

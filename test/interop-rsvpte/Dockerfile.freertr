@@ -16,8 +16,8 @@
 # and /peer/ze-interop-resv.patch when redistributing these artifacts.
 FROM alpine:3.24.3 AS build
 ARG ZE_SOURCE_REPOSITORY=mc36/freeRtr
-ARG ZE_SOURCE_COMMIT=96368b02da1030148d44fc1821e844deeba0a2f0
-ARG ZE_SOURCE_DATE=2026-10-22T08:41:13Z
+ARG ZE_SOURCE_COMMIT=e7ba3343782412bfe2d315165d12114bbddebfde
+ARG ZE_SOURCE_DATE=2026-11-21T18:22:56Z
 RUN apk add --no-cache ca-certificates curl openjdk21-jdk build-base linux-headers zip
 WORKDIR /src/freertr
 RUN curl --fail --location --output /tmp/source.tar.gz \

@@ -10,8 +10,8 @@
 # master commit.
 FROM alpine:3.24.3 AS build
 ARG ZE_SOURCE_REPOSITORY=MarcJHuber/event-driven-servers
-ARG ZE_SOURCE_COMMIT=ed3c66a89d5cb71db04d514a330081fbb2595139
-ARG ZE_SOURCE_DATE=2026-10-19T14:39:08Z
+ARG ZE_SOURCE_COMMIT=be52c25872d38f32e2cc835af725953c7365e2ab
+ARG ZE_SOURCE_DATE=2026-11-21T17:29:27Z
 RUN apk add --no-cache build-base curl perl linux-headers pcre2-dev openssl-dev c-ares-dev
 WORKDIR /src/event-driven-servers
 RUN curl --fail --location --output /src/source.tar.gz \
