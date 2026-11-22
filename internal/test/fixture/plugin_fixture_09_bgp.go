@@ -68,50 +68,46 @@ func peerCounter09(ctx context.Context, p *sdk.Plugin, address, field string) in
 	return 0
 }
 
-func llgrReadvertise09(name string) Driver {
-	return func(ctx context.Context, _ []string) error {
-		return observe09(ctx, "observer", func(ctx context.Context, p *sdk.Plugin) error {
-			if name == "llgr-egress-state-unloaded" {
-				// The announced /24 covers its own next hop without this terminal /32.
-				covers := terminalCovers{label: "LLGR readvertise", device: llgrReceivedDevice,
-					instance: llgrReceivedInstance, addresses: []string{addrPeerOne}}
-				if err := covers.install(ctx, p); err != nil {
-					return err
-				}
-			}
-			var best commandResult09
-			Poll(ctx, 60, 250*time.Millisecond, func() bool {
-				best = dispatch09(ctx, p, "show bgp rib best")
-				return done09(best) && strings.Contains(best.text, "10.0.0.0/24")
-			})
-			if !strings.Contains(best.text, "10.0.0.0/24") {
-				return fmt.Errorf("source route never became best: %s", best.text)
-			}
-			if err := p12WaitPeersEOR(ctx, p, peerNameSource, "obsn"); err != nil {
-				return err
-			}
-			routesSent := func() int {
-				return peerCounter09(ctx, p, "127.0.0.2", "updates-sent") - peerCounter09(ctx, p, "127.0.0.2", "eor-sent")
-			}
-			if !Poll(ctx, 60, 250*time.Millisecond, func() bool { return routesSent() >= 1 }) {
-				return fmt.Errorf("obsn was never sent the reflected route (routes sent=%d)", routesSent())
-			}
-			base := routesSent()
-			mark := dispatch09(ctx, p, "request bgp rib mark-stale 127.0.0.1 60 2")
-			if !done09(mark) {
-				return fmt.Errorf("mark-stale failed: %s", mark.text)
-			}
-			clear := dispatch09(ctx, p, "clear bgp rib out * family ipv4/unicast")
-			if !done09(clear) {
-				return fmt.Errorf("clear-rib-out failed: %s", clear.text)
-			}
-			fmt.Fprintln(os.Stderr, "OK: mark-stale + clear-rib-out dispatched")
-			if !Poll(ctx, 60, 250*time.Millisecond, func() bool { return routesSent() > base }) {
-				return fmt.Errorf("readvertise never reached obsn (routes sent=%d, want %d)", routesSent(), base+1)
-			}
-			return nil
+func llgrReadvertise09(ctx context.Context, _ []string) error {
+	return observe09(ctx, "observer", func(ctx context.Context, p *sdk.Plugin) error {
+		// The announced /24 covers its own next hop without this terminal /32.
+		covers := terminalCovers{label: "LLGR readvertise", device: llgrReceivedDevice,
+			instance: llgrReceivedInstance, addresses: []string{addrPeerOne}}
+		if err := covers.install(ctx, p); err != nil {
+			return err
+		}
+		var best commandResult09
+		Poll(ctx, 60, 250*time.Millisecond, func() bool {
+			best = dispatch09(ctx, p, "show bgp rib best")
+			return done09(best) && strings.Contains(best.text, "10.0.0.0/24")
 		})
-	}
+		if !strings.Contains(best.text, "10.0.0.0/24") {
+			return fmt.Errorf("source route never became best: %s", best.text)
+		}
+		if err := p12WaitPeersEOR(ctx, p, peerNameSource, "obsn"); err != nil {
+			return err
+		}
+		routesSent := func() int {
+			return peerCounter09(ctx, p, "127.0.0.2", "updates-sent") - peerCounter09(ctx, p, "127.0.0.2", "eor-sent")
+		}
+		if !Poll(ctx, 60, 250*time.Millisecond, func() bool { return routesSent() >= 1 }) {
+			return fmt.Errorf("obsn was never sent the reflected route (routes sent=%d)", routesSent())
+		}
+		base := routesSent()
+		mark := dispatch09(ctx, p, "request bgp rib mark-stale 127.0.0.1 60 2")
+		if !done09(mark) {
+			return fmt.Errorf("mark-stale failed: %s", mark.text)
+		}
+		clear := dispatch09(ctx, p, "clear bgp rib out * family ipv4/unicast")
+		if !done09(clear) {
+			return fmt.Errorf("clear-rib-out failed: %s", clear.text)
+		}
+		fmt.Fprintln(os.Stderr, "OK: mark-stale + clear-rib-out dispatched")
+		if !Poll(ctx, 60, 250*time.Millisecond, func() bool { return routesSent() > base }) {
+			return fmt.Errorf("readvertise never reached obsn (routes sent=%d, want %d)", routesSent(), base+1)
+		}
+		return nil
+	})
 }
 
 func localPrefStrip09(ctx context.Context, _ []string) error {

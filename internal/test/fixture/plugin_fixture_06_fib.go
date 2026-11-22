@@ -79,8 +79,27 @@ func fixture06AllNextHops(entry map[string]any) []string {
 	return out
 }
 
+// ecmpNextHop1, ecmpNextHop2, and ecmpNextHop3 are the next hops the FIB ECMP
+// scenarios inject; ecmpRealtimeCovers06 and ecmpCovers06 give them terminal
+// /32 covers in the system RIB so RFC 4271 Section 9.1.2 admits them.
+const (
+	ecmpNextHop1 = "10.0.0.11"
+	ecmpNextHop2 = "10.0.0.12"
+	ecmpNextHop3 = "10.0.0.13"
+)
+
+var (
+	ecmpRealtimeCovers06 = terminalCovers{label: "FIB ECMP realtime", device: "ecmp-fixture0",
+		instance: 4271, addresses: []string{ecmpNextHop1, ecmpNextHop2}}
+	ecmpCovers06 = terminalCovers{label: "FIB ECMP", device: "ecmp-fixture0",
+		instance: 4271, addresses: []string{ecmpNextHop1, ecmpNextHop2, ecmpNextHop3}}
+)
+
 func fixture06FIBECMPRealtime(ctx context.Context, p *sdk.Plugin) error {
 	const prefix = "10.55.0.0/24"
+	if err := ecmpRealtimeCovers06.install(ctx, p); err != nil {
+		return err
+	}
 	for _, route := range []struct{ peer, nextHop string }{{addrPeerOne, "10.0.0.11"}, {addrPeerTwo, "10.0.0.12"}} {
 		command := fmt.Sprintf("request bgp rib inject %s ipv4/unicast %s origin igp localpref 100 aspath 65001 nexthop %s", route.peer, prefix, route.nextHop)
 		if err := fixture06DispatchDone(ctx, p, command); err != nil {
@@ -148,6 +167,9 @@ func fixture06SiblingCount(entry map[string]any) int {
 func fixture06FIBECMP(ctx context.Context, p *sdk.Plugin) error {
 	if _, err := fixture06PollObject(ctx, p, "show bgp rib status", 60, func(map[string]any) bool { return true }); err != nil {
 		return errors.New("rib plugin did not become ready")
+	}
+	if err := ecmpCovers06.install(ctx, p); err != nil {
+		return err
 	}
 	const prefix = ecmpPrefix06
 	// Each peer's path carries its own next hop, 10.0.0.N to 10.0.0.1N. A sibling

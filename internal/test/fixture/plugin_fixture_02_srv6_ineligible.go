@@ -29,6 +29,12 @@ func srv6InvalidSIDIneligible02(ctx context.Context, plugin *sdk.Plugin) error {
 	if !eorSent02(ctx, plugin, "peer1", 1, 40) {
 		return fmt.Errorf("ze never sent its End-of-RIB to peer1")
 	}
+	// All three VPN paths carry MP_REACH next hop 10.0.0.1; install a real
+	// terminal /32 cover so P3 (the valid SRv6 SID control) resolves while P1
+	// and P2 stay excluded solely for their invalid SRv6 SIDs (RFC 9252 §7).
+	if err := bestNextHopCover.install(ctx, plugin); err != nil {
+		return err
+	}
 	const vpn = `"family":"ipv4/mpls-vpn"`
 	stored := ""
 	if !Poll(ctx, 40, plugin01PollDelay, func() bool {

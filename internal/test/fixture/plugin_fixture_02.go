@@ -662,6 +662,9 @@ func bestpathReason02(ctx context.Context, plugin *sdk.Plugin) error {
 	if !eorSent02(ctx, plugin, "peer1", 1, 40) {
 		return fmt.Errorf("ze never sent its End-of-RIB to peer1")
 	}
+	if err := bestNextHopCover.install(ctx, plugin); err != nil {
+		return err
+	}
 	if _, err := requireDone02(ctx, plugin, "request bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65002 localpref 100"); err != nil {
 		return fmt.Errorf("rib inject failed: %w", err)
 	}

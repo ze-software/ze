@@ -119,7 +119,8 @@ const (
 	prefixTenOne               = "10.1.0.0/24"
 	prefixTenTwenty            = "10.20.0.0/24"
 	prefixTenZero              = "10.0.0.0/24"
-	suffixHostV4               = "/32" // Appended to an IPv4 address, the prefix of that host alone.
+	suffixHostV4               = "/32"  // Appended to an IPv4 address, the prefix of that host alone.
+	suffixHostV6               = "/128" // Appended to an IPv6 address, the prefix of that host alone.
 )
 
 // Plugin dispatch statuses, event kinds and payload field keys.

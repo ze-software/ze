@@ -434,7 +434,20 @@ func ribFilterShow13(ctx context.Context, args []string) error {
 }
 
 func ribForwardObserved13(ctx context.Context, args []string) error {
-	return observe13(ctx, "shutdown-after-update", func(ctx context.Context, plugin *sdk.Plugin) error {
+	// Seed the terminal /32 cover for NEXT_HOP 10.0.0.1 in OnStarted before
+	// BGP peers dial, so handleReceivedStructured admits 192.168.1.0/24 on its
+	// live wire arrival with a non-nil ribForwardHandle rather than deferring
+	// to a handle-less reselection walk.
+	setup := func(plugin *sdk.Plugin) error {
+		plugin.OnStarted(func(startCtx context.Context) error {
+			return bestNextHopCover.seed(startCtx, plugin)
+		})
+		return nil
+	}
+	return observeConfigured(ctx, "shutdown-after-update", &sdk.Registration{}, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := bestNextHopCover.install(ctx, plugin); err != nil {
+			return err
+		}
 		if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
 			return err
 		}
@@ -612,8 +625,17 @@ func ribGraph13(ctx context.Context, args []string) error {
 	})
 }
 
+// rfc5549NextHopCover13 gives the RFC 5549 extended next hop (2001:db8::1) a
+// terminal /128 cover in the system RIB so RFC 4271 Section 9.1.2 admits the
+// injected IPv4 route to best-path selection.
+var rfc5549NextHopCover13 = terminalCovers{label: "RFC 5549", device: "rfc5549-fixture0",
+	instance: 4271, addresses: []string{"2001:db8::1"}}
+
 func ribInjectRFC5549(ctx context.Context, args []string) error {
 	return observe13(ctx, "rib-inject-rfc5549", func(ctx context.Context, plugin *sdk.Plugin) error {
+		if err := rfc5549NextHopCover13.install(ctx, plugin); err != nil {
+			return err
+		}
 		inject := command13(ctx, plugin, "request bgp rib inject 10.0.0.99 ipv4/unicast 192.168.1.0/24 origin igp nexthop 2001:db8::1")
 		if err := requireDone13("rib inject", inject); err != nil {
 			return err

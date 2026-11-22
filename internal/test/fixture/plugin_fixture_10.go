@@ -498,11 +498,17 @@ func fixture10FindPrefix(rows []any, prefix string) map[string]any {
 	return nil
 }
 
+var multipathNextHopCovers10 = terminalCovers{label: "multipath", device: "best-fixture0",
+	instance: 4271, addresses: []string{"10.0.0.1", "10.0.0.2"}}
+
 func fixture10Multipath(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := fixture10WaitEOR(ctx, plugin, "peer1", 40); err != nil {
 		return err
 	}
-	inject := fixture10Call(ctx, plugin, "request bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65001 localpref 100")
+	if err := multipathNextHopCovers10.install(ctx, plugin); err != nil {
+		return err
+	}
+	inject := fixture10Call(ctx, plugin, "request bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 nexthop 10.0.0.2 origin igp aspath 65001 localpref 100")
 	if err := inject.requireDone("rib inject"); err != nil {
 		return err
 	}
@@ -576,6 +582,9 @@ func fixture10NextHopSelfIPv6(ctx context.Context, plugin *sdk.Plugin) error {
 
 func fixture10NextHopMode(ctx context.Context, plugin *sdk.Plugin, mode string) error {
 	if err := fixture10WaitEOR(ctx, plugin, "peer1", 40); err != nil {
+		return err
+	}
+	if err := bestNextHopCover.install(ctx, plugin); err != nil {
 		return err
 	}
 	reply := fixture10Call(ctx, plugin, "show bgp peer peer1 detail")

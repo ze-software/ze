@@ -31,6 +31,12 @@ const (
 // of test/plugin/api-peer-create-delete-rib.ci, that the lifecycle already ran.
 const lifecycleFirstRunMarker = "api-peer-create-delete-rib.first-run"
 
+// lifecycleNextHopCover13 gives the created peer's unchanged NEXT_HOP (1.1.1.1)
+// a terminal /32 cover in the system RIB so RFC 4271 Section 9.1.2 admits its
+// route to best-path selection.
+var lifecycleNextHopCover13 = terminalCovers{label: "peer lifecycle", device: "lifecycle-fixture0",
+	instance: 4271, addresses: []string{"1.1.1.1"}}
+
 // peerCreateDeleteRIB13 drives the runtime peer lifecycle through the command
 // dispatcher a plugin and an operator share, and reads every effect back from
 // the daemon rather than trusting an answer: the peer table, the RIB, the
@@ -80,6 +86,9 @@ func peerCreateDeleteRIB13(ctx context.Context, args []string) error {
 		before, err := os.ReadFile(fileBGPConf)
 		if err != nil {
 			return fmt.Errorf("read %s: %w", fileBGPConf, err)
+		}
+		if err := lifecycleNextHopCover13.install(ctx, plugin); err != nil {
+			return err
 		}
 		if err := lifecycleCreate(ctx, plugin); err != nil {
 			return err

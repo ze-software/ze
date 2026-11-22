@@ -47,12 +47,12 @@
     "rid": "RFC9252-5-1",
     "polarity": "negative",
     "unit": "test/plugin/srv6-invalid-sid-ineligible.ci",
-    "unit-sha": "858eb152f8d00da5",
+    "unit-sha": "f797edb457add095",
     "claim-sha": "17e42e6e256e1b4d",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible",
     "producer-sha": "d1f15612beac651f",
-    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "expect=stderr:contains=OK: srv6 ineligible: of three stored paths only P3 is selected"
   }
 ]

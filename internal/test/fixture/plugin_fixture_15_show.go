@@ -42,6 +42,9 @@ func plugin15RRBasic(ctx context.Context, p *sdk.Plugin) error {
 	if err := plugin15WaitEOR(ctx, p, "peer-src"); err != nil {
 		return err
 	}
+	if err := bestNextHopCover.install(ctx, p); err != nil {
+		return err
+	}
 	detail := plugin15Dispatch(ctx, p, "show bgp peer peer-src detail")
 	if !plugin15Done(detail) {
 		return fmt.Errorf("peer detail failed: status=%s data=%s", detail.status, detail.text())

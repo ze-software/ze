@@ -69,6 +69,9 @@ plugin {
 	internal bgp-rib {
 		use bgp-rib
 	}
+	internal rib {
+		use rib
+	}
 }
 
 environment {
@@ -112,6 +115,7 @@ bgp {
 				remote 65001
 			}
 			router-id 1.2.3.4
+			rs-client true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}

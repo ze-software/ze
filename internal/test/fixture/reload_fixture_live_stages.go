@@ -34,6 +34,7 @@ const (
 // skipped:
 //
 //	await-file <path>            wait for a file in the work directory (the test peer's established-file)
+//	cover <addr> [<addr>...]     install terminal static host covers via terminalCovers
 //	reload <source>              copy <source> over ze-bgp.conf, then SIGHUP the daemon (daemon.pid)
 //	has <command> => <needle>    poll <command> until its JSON answer contains <needle>
 //	lacks <command> => <needle>  poll <command> until its JSON answer does not contain <needle>
@@ -80,6 +81,8 @@ func runLiveStage(ctx context.Context, plugin *sdk.Plugin, step string) error {
 			return errors.New("the file never appeared")
 		}
 		return nil
+	case "cover":
+		return liveStagesCover(ctx, plugin, rest)
 	case "reload":
 		return liveStagesReload(ctx, plugin, rest)
 	case "has":
@@ -92,7 +95,23 @@ func runLiveStage(ctx context.Context, plugin *sdk.Plugin, step string) error {
 		fmt.Fprintln(os.Stderr, rest) //nolint:errcheck // the .ci reads this line; a lost write fails its await
 		return nil
 	}
-	return errors.New("unknown step: want await-file, reload, has, lacks, route or say")
+	return errors.New("unknown step: want await-file, cover, reload, has, lacks, route or say")
+}
+
+// liveStagesCover installs real terminal host covers via terminalCovers so BGP
+// routes injected by later stages resolve their next hops in the Loc-RIB.
+func liveStagesCover(ctx context.Context, plugin *sdk.Plugin, spec string) error {
+	addresses := strings.Fields(spec)
+	if len(addresses) == 0 {
+		return errors.New("want `cover <address> [<address>...]`")
+	}
+	covers := terminalCovers{
+		label:     "live-stages",
+		device:    "reload-fixture0",
+		instance:  4271,
+		addresses: addresses,
+	}
+	return covers.install(ctx, plugin)
 }
 
 // liveStagesReload copies source over the daemon's config file, sends it

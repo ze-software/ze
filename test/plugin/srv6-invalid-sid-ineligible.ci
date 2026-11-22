@@ -47,6 +47,9 @@ plugin {
 	internal bgp-rib {
 		use bgp-rib
 	}
+	internal rib {
+		use rib
+	}
 }
 bgp {
 	peer peer1 {
