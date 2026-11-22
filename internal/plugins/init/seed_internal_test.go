@@ -69,12 +69,12 @@ func TestZeInitSeedSkipsActiveConfig(t *testing.T) {
 }
 
 // TestZeInitWithoutSeedWritesActiveConfig proves the flag actually gates the
-// write: on a host where interface discovery succeeds, a non-seed init writes
-// the active config that --seed suppresses. Skips where the environment exposes
-// no discoverable interface (no contrast to draw).
+// write: a non-seed init writes the active config that --seed suppresses. The
+// non-seed config always holds the SSH listener, so the contrast holds on any
+// host, with or without discoverable interfaces.
 func TestZeInitWithoutSeedWritesActiveConfig(t *testing.T) {
 	if !hasActiveConfig(t, runInitSeed(t, false)) {
-		t.Skip("no interfaces discovered in this environment; cannot contrast --seed")
+		t.Fatal("a non-seed init wrote no file/active/ze.conf; want the config that holds the SSH listener")
 	}
 	if hasActiveConfig(t, runInitSeed(t, true)) {
 		t.Fatal("`ze init --seed` wrote file/active/ze.conf though a non-seed init did; the flag did not gate discovery")

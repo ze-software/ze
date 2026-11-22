@@ -81,8 +81,8 @@ func Run(args []string) int {
 				{Title: "Input (stdin or interactive prompts)", Entries: []helpfmt.HelpEntry{
 					{Name: "Line 1: username", Desc: ""},
 					{Name: "Line 2: password", Desc: ""},
-					{Name: "Line 3: host", Desc: "(default: 127.0.0.1)"},
-					{Name: "Line 4: port", Desc: "(default: 2222)"},
+					{Name: "Line 3: host", Desc: "(default: 127.0.0.1) the IP address the written config's SSH listener binds and the CLI connects to; --seed and --managed write no listener and also take a host name"},
+					{Name: "Line 4: port", Desc: "(default: 2222) the SSH listener's port, from 1 through 65535"},
 					{Name: "Line 5: name", Desc: "(default: hostname)"},
 					{Name: "Line 6: hub address", Desc: "(--managed only) host:port of the hub; empty to name it at the first start"},
 					{Name: "Line 7: hub token", Desc: "(--managed only) this client's secret on the hub, 32 characters or more"},
@@ -524,23 +524,12 @@ func runInitPublishedProfile(r io.Reader, promptW io.Writer, path string, fleet 
 	if name == "" {
 		name = defaultName
 	}
-	if profile == initLocalService {
-		address, err := netip.ParseAddr(host)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, opererr.New("The bootstrap SSH address is invalid", "Enter a loopback address, 127.0.0.1 or ::1, when repeating installation.", "ze install"))
-			return 1
-		}
-		if !address.IsLoopback() {
-			fmt.Fprintln(os.Stderr, opererr.New("The bootstrap SSH address is not loopback", "Enter 127.0.0.1 or ::1. Configure remote access after the first login.", "ze install"))
-			return 1
-		}
-		n, err := strconv.ParseUint(port, 10, 16)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, opererr.New("The bootstrap SSH port is invalid", "Enter a number from 1 through 65535 when repeating installation.", "ze install"))
-			return 1
-		}
-		if n == 0 {
-			fmt.Fprintln(os.Stderr, opererr.New("The bootstrap SSH port is zero", "Enter a number from 1 through 65535 when repeating installation.", "ze install"))
+	// Every init that writes a config writes the SSH listener on host and
+	// port, so both must be what a listener can bind. --seed and --managed
+	// write no config, and the CLI target they save may be a host name.
+	if !seed && !managed {
+		if err := checkListenerEndpoint(host, port, profile); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
 	}
@@ -588,69 +577,25 @@ func runInitPublishedProfile(r io.Reader, promptW io.Writer, path string, fleet 
 			}
 		}
 
-		// Discover OS interfaces and generate initial config. LoadBackend
-		// activates the netlink backend registered via the blank import
-		// above; without it DiscoverInterfaces returns "no backend loaded"
-		// and every detected netdev is silently dropped. Backend load
-		// failures (e.g., non-Linux platforms with only the stub backend)
-		// are non-fatal -- init still completes, the user just gets an
-		// empty interface config.
-		//
-		// --seed skips this entirely: an appliance-image seed DB must NOT bake
-		// this build host's interfaces into file/active/<name>.conf. That active
-		// config would hold the wrong host's NICs and would shadow any
-		// file/template/ze.conf so the appliance never applies it. Instead the
-		// appliance boots with no active config and builds one at first boot from
-		// the template merged with its own on-device discovery (see
-		// cmd/ze/ze_core_start.go bootstrapConfigFromTemplate).
-		//
-		// --managed skips it too: a managed client's config comes from its hub.
-		// cmdStartManaged reads file/active/<name>.conf as the hub's cached
-		// config, so a discovered file under that name would stand in for it
-		// and the first boot would never fetch from the hub.
-		if profile == initLocalService {
-			configName, err := resolve.DefaultConfig(store)
-			if err != nil {
+		// The initial config, file/active/<name>.conf, is what a bare
+		// `ze start` on this store reads.
+		switch {
+		case seed:
+			// --seed writes none: an appliance-image seed DB must NOT bake this
+			// build host's interfaces into file/active/<name>.conf. That active
+			// config would hold the wrong host's NICs and would shadow any
+			// file/template/ze.conf so the appliance never applies it. Instead
+			// the appliance boots with no active config and builds one at first
+			// boot from the template merged with its own on-device discovery
+			// (see cmd/ze/ze_core_start.go bootstrapConfigFromTemplate).
+		case managed:
+			// --managed writes none: a managed client's config comes from its
+			// hub. cmdStartManaged reads file/active/<name>.conf as the hub's
+			// cached config, so a file under that name would stand in for it
+			// and the first boot would never fetch from the hub.
+		default:
+			if err := writeInitialConfig(store, host, port, profile); err != nil {
 				return err
-			}
-			var config textbuf.Buffer
-			config.Str("environment {\n    ssh {\n        enabled true;\n        server local {\n            ip ").Str(host).
-				Str(";\n            port ").Str(port).Str(";\n        }\n    }\n}\n")
-			if err := store.WriteKey(zefs.KeyFileActive.Key(configName), config.Bytes()); err != nil {
-				return fmt.Errorf("write local SSH config: %w", err)
-			}
-		} else if seed { //nolint:staticcheck // SA9003: intentional no-op; see comment above
-			// appliance seed: nothing baked in; first boot discovers on-device.
-		} else if managed { //nolint:staticcheck // SA9003: intentional no-op; see comment above
-			// managed client: the hub supplies the first config.
-		} else if loadErr := iface.LoadBackend("netlink"); loadErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: load netlink backend: %v\n", loadErr)
-		} else {
-			if discovered, discErr := iface.DiscoverInterfaces(); discErr != nil {
-				fmt.Fprintf(os.Stderr, "warning: interface discovery: %v\n", discErr)
-			} else if len(discovered) > 0 {
-				if config := iface.EmitConfig(discovered); config != "" {
-					// Named by the instance name written above, the file a bare
-					// `ze start` on this store reads.
-					configName, nameErr := resolve.DefaultConfig(store)
-					if nameErr != nil {
-						if closeErr := iface.CloseBackend(); closeErr != nil {
-							return fmt.Errorf("name initial config: %w; close backend: %w", nameErr, closeErr)
-						}
-						return fmt.Errorf("name initial config: %w", nameErr)
-					}
-					configKey := zefs.KeyFileActive.Key(configName)
-					if wErr := store.WriteKey(configKey, []byte(config)); wErr != nil {
-						if closeErr := iface.CloseBackend(); closeErr != nil {
-							return fmt.Errorf("write initial config: %w; close backend: %w", wErr, closeErr)
-						}
-						return fmt.Errorf("write initial config: %w", wErr)
-					}
-					fmt.Fprintf(os.Stdout, "discovered %d interface(s), wrote initial config\n", len(discovered)) //nolint:errcheck // status output
-				}
-			}
-			if closeErr := iface.CloseBackend(); closeErr != nil {
-				fmt.Fprintf(os.Stderr, "warning: close netlink backend: %v\n", closeErr)
 			}
 		}
 
@@ -696,6 +641,111 @@ func runInitPublishedProfile(r io.Reader, promptW io.Writer, path string, fleet 
 	}
 	fmt.Fprintf(os.Stdout, "initialized %s\n", path) //nolint:errcheck // status output
 	return 0
+}
+
+// checkListenerEndpoint refuses a host or port the SSH listener in the
+// initial config could not bind, so ze init never writes a config that
+// `ze start` refuses. The local-service profile also requires a loopback
+// address: an installation is reached remotely only after the first login.
+// Each refusal names the command that asks again.
+func checkListenerEndpoint(host, port string, profile initProfile) error {
+	again := "ze init"
+	if profile == initLocalService {
+		again = "ze install"
+	}
+	address, err := netip.ParseAddr(host)
+	if err != nil {
+		return opererr.New("The SSH address "+strconv.Quote(host)+" is not an IP address",
+			"The daemon's SSH listener binds this address, so enter an IP address such as 127.0.0.1 or ::1.", again)
+	}
+	if profile == initLocalService {
+		if !address.IsLoopback() {
+			return opererr.New("The bootstrap SSH address is not loopback", "Enter 127.0.0.1 or ::1. Configure remote access after the first login.", again)
+		}
+	}
+	n, err := strconv.ParseUint(port, 10, 16)
+	if err != nil {
+		return opererr.New("The SSH port "+strconv.Quote(port)+" is not a number from 1 through 65535",
+			"The daemon's SSH listener binds this port, and the CLI connects to it.", again)
+	}
+	if n == 0 {
+		return opererr.New("The SSH port is zero",
+			"Port 0 lets the system pick the listener's port, so the CLI could not know it. Enter a number from 1 through 65535.", again)
+	}
+	return nil
+}
+
+// writeInitialConfig writes file/active/<name>.conf, the config a bare
+// `ze start` on this store reads. It opens with the SSH listener on the
+// endpoint ze init saved as the CLI's default target (meta/ssh/default), so
+// `ze cli` reaches the daemon ze init set up. The discover profile adds this
+// host's interfaces; the local-service profile claims none.
+func writeInitialConfig(store storage.Storage, host, port string, profile initProfile) error {
+	// Named by the instance name written before, as `ze start` names it.
+	configName, err := resolve.DefaultConfig(store)
+	if err != nil {
+		return fmt.Errorf("name initial config: %w", err)
+	}
+	var config textbuf.Buffer
+	writeSSHListener(&config, host, port)
+	if profile == initLocalService {
+		return writeInitialConfigKey(store, configName, &config)
+	}
+	var status textbuf.Buffer
+	interfaces, discovered, discErr := discoverInterfaceConfig()
+	if discErr != nil {
+		// The listener is still written: it is how the operator reaches the
+		// daemon to configure the interfaces discovery missed.
+		var warning textbuf.Buffer
+		warning.Str("warning: interface discovery failed, so the initial config holds no interface: ").Err(discErr).
+			Str(" (after ze start, 'ze interface scan --config' prints them)\n").StdErr() //nolint:errcheck // command diagnostic
+		status.Str("wrote initial config")
+	} else {
+		config.Str(interfaces)
+		status.Str("discovered ").Int(int64(discovered)).Str(" interface(s), wrote initial config")
+	}
+	if err := writeInitialConfigKey(store, configName, &config); err != nil {
+		return err
+	}
+	status.Str(" with the SSH listener on ").Str(net.JoinHostPort(host, port)).Byte('\n').StdOut() //nolint:errcheck // status output
+	return nil
+}
+
+// writeInitialConfigKey stores config as file/active/<configName>.
+func writeInitialConfigKey(store storage.Storage, configName string, config *textbuf.Buffer) error {
+	if err := store.WriteKey(zefs.KeyFileActive.Key(configName), config.Bytes()); err != nil {
+		return fmt.Errorf("write initial config: %w", err)
+	}
+	return nil
+}
+
+// writeSSHListener writes the environment block that starts the SSH server
+// on host and port. It is the one producer of ze init's listener, for every
+// profile that writes a config, so the endpoint the daemon listens on and the
+// one the CLI connects to are the same two values.
+func writeSSHListener(config *textbuf.Buffer, host, port string) {
+	config.Str("environment {\n    ssh {\n        enabled true;\n        server local {\n            ip ").Str(host).
+		Str(";\n            port ").Str(port).Str(";\n        }\n    }\n}\n")
+}
+
+// discoverInterfaceConfig answers this host's interfaces as config text and
+// how many were discovered. LoadBackend activates the netlink backend
+// registered via a blank import; without it DiscoverInterfaces answers "no
+// backend loaded". A backend that does not load (a platform with only the
+// stub) and a discovery that fails are both returned as the error.
+func discoverInterfaceConfig() (string, int, error) {
+	if err := iface.LoadBackend("netlink"); err != nil {
+		return "", 0, fmt.Errorf("load netlink backend: %w", err)
+	}
+	discovered, discErr := iface.DiscoverInterfaces()
+	if closeErr := iface.CloseBackend(); closeErr != nil {
+		var warning textbuf.Buffer
+		warning.Str("warning: close netlink backend: ").Err(closeErr).Byte('\n').StdErr() //nolint:errcheck // command diagnostic
+	}
+	if discErr != nil {
+		return "", 0, discErr
+	}
+	return iface.EmitConfig(discovered), len(discovered), nil
 }
 
 // readLine reads a single line from the scanner, trimming whitespace.

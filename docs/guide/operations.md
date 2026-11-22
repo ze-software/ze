@@ -23,6 +23,14 @@ ze init                        # interactive: prompts for username, password, ho
 
 Defaults: `127.0.0.1:2222`, ED25519 host key auto-generated.
 
+The host and port are where `ze cli` connects. `ze init` writes the same
+endpoint as the SSH listener at the top of the initial config, followed by
+the discovered interfaces, so a bare `ze start` listens where the CLI looks.
+The host must therefore be an IP address and the port a number from 1 through
+65535; `ze init` refuses anything else before it creates the store. `--seed`
+and `--managed` write no initial config, so they also take a host name.
+<!-- source: internal/plugins/init/main.go -- checkListenerEndpoint, writeInitialConfig, writeSSHListener -->
+
 Credentials are stored under `database/` in the resolved configuration folder,
 with bcrypt-hashed passwords. Initialization seeds every key before publishing
 the directory, so an interrupted initialization cannot expose partial credentials.
@@ -58,8 +66,8 @@ any process owns the store, including a web-only daemon. Changing the SSH target
 does not bypass this protection.
 <!-- source: internal/plugins/init/main.go -- Run, runInit -->
 
-The initial config is written under the name the store's instance name gives it. When that name cannot be read, `ze init` fails with `name initial config: ...` and closes the interface backend it opened, rather than writing the config under `ze.conf`.
-<!-- source: internal/plugins/init/main.go -- runInitPublished -->
+The initial config is written under the name the store's instance name gives it. When that name cannot be read, `ze init` fails with `name initial config: ...` before it opens the interface backend, rather than writing the config under `ze.conf`.
+<!-- source: internal/plugins/init/main.go -- writeInitialConfig -->
 
 ### Store folder and ownership
 

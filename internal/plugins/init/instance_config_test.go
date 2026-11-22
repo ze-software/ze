@@ -33,7 +33,7 @@ func TestZeInitActiveConfigFollowsInstanceName(t *testing.T) {
 		t.Fatal(nameErr)
 	}
 	if _, err := store.ReadFile(zefs.KeyFileActive.Key(configName)); err != nil {
-		// Discovery always finds the loopback, so init always writes one.
+		// A non-seed, unmanaged init always writes one: it holds the SSH listener.
 		t.Fatalf("init named \"edge\" wrote no file/active/edge.conf: %v", err)
 	}
 }
@@ -58,7 +58,9 @@ func TestZeInitManagedWritesNoDiscoveredConfig(t *testing.T) {
 	if nameErr != nil {
 		t.Fatal(nameErr)
 	}
-	if store.Exists(configName) {
-		t.Fatalf("managed init wrote %s; the hub supplies a managed client's first config", configName)
+	// The key, not the bare name: store.Exists(configName) asked about
+	// "edge-01.conf", a key no init writes, so it could never fail.
+	if configKey := zefs.KeyFileActive.Key(configName); store.Exists(configKey) {
+		t.Fatalf("managed init wrote %s; the hub supplies a managed client's first config", configKey)
 	}
 }

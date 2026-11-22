@@ -2720,7 +2720,25 @@ Running `ze init` discovers OS interfaces via netlink (Linux) or stdlib (other p
 and writes initial config to `<name>.conf`, named after the instance name it asked for, which
 is the file a bare `ze start` on that store reads. An instance name that is not a valid file
 stem (letters, digits and hyphens, up to 64) falls back to `ze.conf`, as `ze start` does.
-Each discovered interface gets an entry named
+
+The config opens with the SSH listener on the host and port `ze init` asked for, the
+endpoint it also saves for `ze cli`, so the CLI reaches the daemon a bare `ze start`
+runs. With the defaults:
+
+```
+environment {
+    ssh {
+        enabled true;
+        server local {
+            ip 127.0.0.1;
+            port 2222;
+        }
+    }
+}
+```
+
+The discovered interfaces follow it. When discovery fails, `ze init` warns and still
+writes the listener. Each discovered interface gets an entry named
 after its OS name, carrying one selector that binds it back to the device:
 
 | Discovered kind | Selector written |
@@ -2741,12 +2759,13 @@ it is an instruction, and it pins the kernel's random choice across a recreate.
 The same selectors are written by the appliance's first boot, which merges the config
 template with its own on-device discovery.
 
-The `--seed` flag skips this discovery entirely: an appliance-image seed database must not
-bake the build host's interfaces into the active config (they belong to the wrong machine
-and would shadow the appliance's first-boot template). The appliance discovers its own
-interfaces at first boot instead.
+The `--seed` flag skips this discovery and writes no initial config at all, listener
+included: an appliance-image seed database must not bake the build host's interfaces into
+the active config (they belong to the wrong machine and would shadow the appliance's
+first-boot template). The appliance discovers its own interfaces at first boot instead.
+`--managed` writes none either: a managed client's first config comes from its hub.
 
-<!-- source: internal/plugins/init/main.go -- runInit interface discovery, seedFlag -->
+<!-- source: internal/plugins/init/main.go -- writeInitialConfig, writeSSHListener, discoverInterfaceConfig, seedFlag -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 <!-- source: internal/component/iface/emit.go -- matchMACFor, emitSelectorBlock, emitSelectorSet -->
 <!-- source: cmd/ze/ze_core_start.go -- bootstrapConfigFromTemplate, bootstrapFromDiscovery -->

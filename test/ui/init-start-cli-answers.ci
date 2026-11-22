@@ -1,0 +1,44 @@
+# Test: after `ze init` and a bare `ze start`, does `ze cli` reach the daemon?
+#
+# VALIDATES: the default `ze init` profile writes the SSH listener on the
+# endpoint it saves for the CLI (meta/ssh/default) into the config a bare
+# `ze start` reads (file/active/<name>.conf), beside the discovered interfaces,
+# so the operator's first `ze cli` command answers. The CLI is given nothing
+# but the store: no ze.ssh.host, ze.ssh.port or ze.ssh.password, so it connects
+# to the endpoint ze init saved and logs in with the credentials ze init stored.
+# PREVENTS: init writing only the discovered interfaces, so the daemon started
+# no SSH server and every `ze cli` command failed with "connection refused".
+#
+# A unit test cannot decide it: the question is whether three commands agree
+# through the store, the listener the daemon parses and binds from init's
+# config, and the endpoint and credentials the CLI reads from the same store.
+#
+# needs-linux:caps=net-admin: the config holds this host's discovered
+# interfaces, at least the loopback, and the daemon applies them at boot. An
+# unprivileged apply is refused and the daemon exits 1
+# (docs/architecture/testing/ci-format.md, "caps=net-admin").
+
+option=needs-linux:caps=net-admin
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+init-start-secret
+127.0.0.1
+$PORT
+edge
+EOF_INIT
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+expect=stdout:contains=with the SSH listener on 127.0.0.1:
+
+cmd=background:seq=2:exec=ze start:name=daemon:ready=Ze running.
+
+cmd=foreground:seq=3:exec=ze cli -c "show config running | json":exit=0
+expect=stdout:contains="ip": "127.0.0.1"
+expect=stdout:contains="loopback"
+reject=stderr:contains=connection refused
+
+cmd=stop:seq=4:name=daemon:signal=term

@@ -140,8 +140,8 @@ export ZE_CONFIG_DIR="$PWD"
 ./ze init
 ```
 
-This prompts for username, password, SSH host (default `127.0.0.1`), port (default `2222`), and node name (default: hostname). Credentials are stored locally with bcrypt-hashed passwords. For scripting (later fields fall back to their defaults):
-<!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, bcrypt hashing -->
+This prompts for username, password, SSH host (default `127.0.0.1`), port (default `2222`), and node name (default: hostname). Credentials are stored locally with bcrypt-hashed passwords. The host must be an IP address: `ze init` also writes the initial config a bare `ze start` reads, which opens with the SSH listener on that host and port, followed by the discovered interfaces, so `ze cli` reaches the daemon it starts. For scripting (later fields fall back to their defaults):
+<!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, bcrypt hashing, checkListenerEndpoint, writeInitialConfig -->
 
 ```bash
 printf 'admin\nREPLACE_WITH_A_STRONG_PASSWORD\n' | ./ze init
@@ -176,6 +176,16 @@ explicit blob artifact for appliance builders.
 Save as `example.conf`:
 
 ```
+environment {
+    ssh {
+        enabled true;
+        server local {
+            ip 127.0.0.1;
+            port 2222;
+        }
+    }
+}
+
 static {
     table default {
         route 172.16.0.0/24 {
@@ -243,6 +253,13 @@ bgp {
     }
 }
 ```
+
+The `environment` block is the SSH listener `ze init` wrote into its own initial config,
+on the endpoint it saved for the CLI. `ze start example.conf` reads this file instead of
+that config, so the file carries the listener itself; without it the daemon starts no SSH
+server and every `ze cli` command below is refused. Change both if you gave `ze init`
+another host or port.
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment ssh enabled, default false -->
 
 This advertises two prefixes to `test-peer`, one by each of the routes Ze gives you to get
 a prefix into BGP:
