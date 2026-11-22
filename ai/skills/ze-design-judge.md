@@ -32,9 +32,13 @@ it owes, and the pages hold what each row cites.
 
 ## Procedure
 
-Every `./le` command you run starts with your identity line
-(`ZE_AGENT_ID=...`): the judge action keys your read records on it and refuses
-a process that has none.
+In Claude Code, prefix every `./le` command with your identity line
+(`ZE_AGENT_ID=...`). The judge keys read records on it and refuses a process
+with none.
+
+In Antigravity (`agy`), run `./le` directly with no `ZE_AGENT_ID` prefix. The
+judge uses `ANTIGRAVITY_CONVERSATION_ID` to check `read_file` calls in this
+conversation's transcript, and refuses if this conversation edited the spec.
 
 1. Run `./le spec design documents spec <path>`. It lists every page and
    decision row the spec owes. A derived row the table lacks is a REFUSE.
@@ -42,9 +46,9 @@ a process that has none.
    the missing judge approval is a REFUSE: the table or the presentation is
    incomplete.
 3. For every row of `## Design documents`, read the section it names with the
-   Read tool, the whole section in one Read. A door is read whole. The judge
-   action refuses a verdict while any row's section is unread, and prints the
-   offset and limit of each.
+   Read tool (`read_file` in Antigravity), the whole section in one read. A
+   door is read whole. The judge action refuses a verdict while any row's
+   section is unread, and prints the range that clears each one.
 4. Read the producing code where a row's truth depends on it: the function
    the design changes, not its doc comment (`ai/rules/evidence.md`).
 5. Read `## Existing Mechanisms` against the pages: each mechanism the design

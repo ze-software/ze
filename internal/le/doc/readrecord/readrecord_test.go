@@ -141,3 +141,36 @@ func TestSectionThroughNamesTheLineToReach(t *testing.T) {
 		t.Errorf("the last section reaches line %d with limit %d, want 9 and 5", last.Through, last.ReadLimit())
 	}
 }
+
+// TestCompleteSectionsAndWholeDigest verifies the pure in-memory helpers shared
+// by RecordRead and the Antigravity transcript reader. Method: CompleteSections
+// excludes an unclosed trailing section when reachesEnd is false and includes
+// it when reachesEnd is true; WholeDigest treats CRLF, LF and missing final
+// newline identically while changing when file content changes.
+func TestCompleteSectionsAndWholeDigest(t *testing.T) {
+	lines := strings.Split(strings.TrimSuffix(recordPage, "\n"), "\n")
+	cut := strings.Join(lines[:17], "\n")
+	if _, found := Find(CompleteSections(cut, false), "Design decisions"); found {
+		t.Error("CompleteSections included an unclosed section when reachesEnd is false")
+	}
+	if _, found := Find(CompleteSections(recordPage, false), "Design decisions"); !found {
+		t.Error("CompleteSections dropped a closed section when reachesEnd is false")
+	}
+	if _, found := Find(CompleteSections(recordPage, false), "Wire format"); found {
+		t.Error("CompleteSections included the unclosed last section when reachesEnd is false")
+	}
+	if _, found := Find(CompleteSections(recordPage, true), "Wire format"); !found {
+		t.Error("CompleteSections dropped the last section when reachesEnd is true")
+	}
+
+	base := WholeDigest("# Door\n\nRule.\n")
+	if got := WholeDigest("# Door\r\n\r\nRule.\r\n"); got != base {
+		t.Errorf("WholeDigest differed on CRLF: got %s, want %s", got, base)
+	}
+	if got := WholeDigest("# Door\n\nRule."); got != base {
+		t.Errorf("WholeDigest differed without trailing newline: got %s, want %s", got, base)
+	}
+	if got := WholeDigest("# Door\n\nChanged.\n"); got == base {
+		t.Error("WholeDigest did not change when content changed")
+	}
+}

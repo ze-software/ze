@@ -147,6 +147,24 @@ func reasonProblem(reason string) string {
 	return ""
 }
 
+// judgeHarness identifies which agent harness supplies the judge's identity
+// and file-read evidence.
+type judgeHarness int
+
+const (
+	judgeHarnessUnspecified judgeHarness = iota
+	judgeHarnessClaude
+	judgeHarnessAntigravity
+)
+
+// judgeCaller is the resolved identity of the agent invoking `le spec design
+// judge`, together with the transcript path when running inside Antigravity.
+type judgeCaller struct {
+	harness        judgeHarness
+	fingerprint    string
+	transcriptPath string
+}
+
 // uncoveredRow is one table row whose section this agent has not read.
 type uncoveredRow struct {
 	document string
@@ -154,25 +172,57 @@ type uncoveredRow struct {
 	door     bool
 }
 
-// line renders the row for the refusal: the Read that clears it.
-func (u uncoveredRow) line() string {
+// line renders the row for the refusal: the read call that clears it.
+func (u uncoveredRow) line(harness judgeHarness) string {
 	if u.door {
 		return "  - " + u.document + ": Read the whole door"
+	}
+	if harness == judgeHarnessAntigravity {
+		return "  - " + u.document + ", " + u.section.Heading + ": read_file with StartLine " +
+			strconv.Itoa(u.section.Start) + " and EndLine " + strconv.Itoa(u.section.Through)
 	}
 	return "  - " + u.document + ", " + u.section.Heading + ": Read it with offset " + strconv.Itoa(u.section.Start) +
 		" and limit " + strconv.Itoa(u.section.ReadLimit())
 }
 
-// uncoveredRows answers every row of rows whose section the agent of
-// fingerprint holds no current read record of, once per page and section. A
-// door row is covered by the whole-read marker the door gate keeps; any other
-// row by a section read record carrying the section's current digest. Both
-// are looked for in every store the Read hook can have written them to for
-// the checkout at root (readrecord.Stores), so a judge working in a worktree
-// finds the reads its session keeps in the holding checkout. A row whose page
-// or section the checkout does not hold is the check's to report.
-func uncoveredRows(root, fingerprint string, rows []tableRow, pages *pageCache) ([]uncoveredRow, error) {
-	stores := readrecord.Stores(root)
+// readCoverage abstracts the per-harness lookup of whole-door and section-read
+// proof: Claude Code reads tmp/session markers written by its PostToolUse Read
+// hook, and Antigravity reads its own conversation transcript.
+type readCoverage interface {
+	doorRead(door string) (bool, error)
+	sectionRead(page string, section readrecord.Section) (bool, error)
+}
+
+type claudeReadCoverage struct {
+	stores      []readrecord.Store
+	fingerprint string
+}
+
+func (c claudeReadCoverage) doorRead(door string) (bool, error) {
+	return doorRead(c.stores, door, c.fingerprint), nil
+}
+
+func (c claudeReadCoverage) sectionRead(page string, section readrecord.Section) (bool, error) {
+	return sectionRead(c.stores, page, c.fingerprint, section)
+}
+
+type antigravityReadCoverage struct {
+	root  string
+	reads antigravityReads
+}
+
+func (a antigravityReadCoverage) doorRead(door string) (bool, error) {
+	return a.reads.doorRead(a.root, door)
+}
+
+func (a antigravityReadCoverage) sectionRead(page string, section readrecord.Section) (bool, error) {
+	return a.reads.sectionRead(page, section), nil
+}
+
+// uncoveredRows answers every row of rows whose section coverage holds no
+// current read record of, once per page and section. A row whose page or
+// section the checkout does not hold is the check's to report.
+func uncoveredRows(coverage readCoverage, rows []tableRow, pages *pageCache) ([]uncoveredRow, error) {
 	seen := map[string]bool{}
 	var uncovered []uncoveredRow
 	for _, row := range rows {
@@ -182,7 +232,11 @@ func uncoveredRows(root, fingerprint string, rows []tableRow, pages *pageCache) 
 		}
 		seen[key] = true
 		if strings.HasPrefix(row.document, doorindex.Dir+"/") {
-			if !doorRead(stores, row.document, fingerprint) {
+			read, err := coverage.doorRead(row.document)
+			if err != nil {
+				return nil, err
+			}
+			if !read {
 				uncovered = append(uncovered, uncoveredRow{document: row.document, door: true})
 			}
 			continue
@@ -198,7 +252,7 @@ func uncoveredRows(root, fingerprint string, rows []tableRow, pages *pageCache) 
 		if !found {
 			continue
 		}
-		read, err := sectionRead(stores, row.document, fingerprint, section)
+		read, err := coverage.sectionRead(row.document, section)
 		if err != nil {
 			return nil, err
 		}
@@ -250,6 +304,42 @@ func (a judgeAnswer) Text() string {
 		Str(", ").Str(strconv.Itoa(a.Rows)).Str(" rows, each section read by this agent\n").String()
 }
 
+// resolveJudgeCaller identifies the agent running the judge action. An
+// explicit ZE_AGENT_ID selects Claude Code subagent identity; a set
+// CLAUDE_CODE_SESSION_ID without ZE_AGENT_ID is Claude Code's main thread and
+// is refused; otherwise an Antigravity conversation is resolved from
+// ANTIGRAVITY_CONVERSATION_ID and ANTIGRAVITY_APP_DATA_DIR.
+func resolveJudgeCaller(root string) (judgeCaller, []string) {
+	agent, err := lepath.Agent()
+	if err != nil {
+		return judgeCaller{}, []string{
+			"refused: " + err.Error(),
+			"  fix: run the judge from an agent whose commands carry its own ZE_AGENT_ID",
+		}
+	}
+	if agent != "" {
+		session, err := lepath.ResolveSessionID(root)
+		if err != nil {
+			return judgeCaller{}, []string{"refused: " + err.Error(), "  fix: run the judge inside a harness session"}
+		}
+		fingerprint, err := lepath.AgentFingerprint(session, agent)
+		if err != nil {
+			return judgeCaller{}, []string{"refused: " + err.Error()}
+		}
+		return judgeCaller{harness: judgeHarnessClaude, fingerprint: fingerprint}, nil
+	}
+	if os.Getenv("CLAUDE_CODE_SESSION_ID") == "" {
+		if caller, refusal, isAgy := resolveAntigravityCaller(); isAgy {
+			return caller, refusal
+		}
+	}
+	return judgeCaller{}, []string{
+		"refused: this process has no agent identity, so no judge's read records can be named",
+		"  why: the judge is an independent agent that did not write the spec, and the main thread is the author's",
+		"  fix: have a ze-design-judge agent run the command with its identity line (ZE_AGENT_ID) in front, or from an Antigravity agent session",
+	}
+}
+
 // judge records verdict and reason on the spec at relative, for the agent this
 // process runs for.
 func judge(root, relative, verdict, reason string) (any, int) {
@@ -257,39 +347,48 @@ func judge(root, relative, verdict, reason string) (any, int) {
 	if err != nil {
 		return nil, refuseAction("refused: " + err.Error())
 	}
-	agent, err := lepath.Agent()
-	if err != nil {
-		return nil, refuseAction("refused: "+err.Error(), "  fix: run the judge from an agent whose commands carry its own ZE_AGENT_ID")
-	}
-	if agent == "" {
-		return nil, refuseAction("refused: this process has no agent identity, so no judge's read records can be named",
-			"  why: the judge is an independent agent that did not write the spec, and the main thread is the author's",
-			"  fix: have a ze-design-judge agent run the command with its identity line (ZE_AGENT_ID) in front")
-	}
-	session, err := lepath.ResolveSessionID(root)
-	if err != nil {
-		return nil, refuseAction("refused: "+err.Error(), "  fix: run the judge inside a harness session")
-	}
-	fingerprint, err := lepath.AgentFingerprint(session, agent)
-	if err != nil {
-		return nil, refuseAction("refused: " + err.Error())
+	caller, refusal := resolveJudgeCaller(root)
+	if len(refusal) != 0 {
+		return nil, refuseAction(refusal...)
 	}
 	if problem := reasonProblem(reason); problem != "" {
 		return nil, refuseAction("refused: " + problem)
 	}
-	return judgeSpec(root, spec, fingerprint, verdict, reason)
+	return judgeSpec(root, spec, caller, verdict, reason)
 }
 
 // judgeSpec judges the coverage and, for an approval, the table, then writes
 // the record.
-func judgeSpec(root string, spec specFile, fingerprint, verdict, reason string) (any, int) {
+func judgeSpec(root string, spec specFile, caller judgeCaller, verdict, reason string) (any, int) {
 	derived, err := derive(root, spec)
 	if err != nil {
 		return nil, refuseAction("refused: " + err.Error())
 	}
+	var coverage readCoverage
+	switch caller.harness {
+	case judgeHarnessUnspecified:
+		return nil, refuseAction("refused: unknown judge harness")
+	case judgeHarnessClaude:
+		coverage = claudeReadCoverage{stores: readrecord.Stores(root), fingerprint: caller.fingerprint}
+	case judgeHarnessAntigravity:
+		reads, err := loadAntigravityReads(root, caller.transcriptPath, spec.relative)
+		if err != nil {
+			return nil, refuseAction("refused: " + err.Error())
+		}
+		if reads.editedSpec {
+			return nil, refuseAction(
+				"refused: this Antigravity conversation edited "+spec.relative+", so it cannot judge its own design",
+				"  why: the judge is an independent agent that did not write the spec",
+				"  fix: spawn a fresh Antigravity subagent (invoke_subagent) to run ze-design-judge on "+spec.relative,
+			)
+		}
+		coverage = antigravityReadCoverage{root: root, reads: reads}
+	default:
+		panic("BUG: unhandled judgeHarness")
+	}
 	rows, _, _ := spec.documentsTable()
 	pages := pageCache{root: root, texts: map[string]pageText{}}
-	uncovered, err := uncoveredRows(root, fingerprint, rows, &pages)
+	uncovered, err := uncoveredRows(coverage, rows, &pages)
 	if err != nil {
 		return nil, refuseAction("refused: " + err.Error())
 	}
@@ -298,11 +397,15 @@ func judgeSpec(root string, spec specFile, fingerprint, verdict, reason string) 
 		refusal = append(refusal, "refused: this agent has not read "+strconv.Itoa(len(uncovered))+
 			" section(s) the table gives a verdict on")
 		for _, row := range uncovered {
-			refusal = append(refusal, row.line())
+			refusal = append(refusal, row.line(caller.harness))
+		}
+		fixLine := "  fix: read each listed range with the Read tool, then run the judge again"
+		if caller.harness == judgeHarnessAntigravity {
+			fixLine = "  fix: read each listed range with read_file, then run the judge again"
 		}
 		refusal = append(refusal,
 			"  why: a judge vouches only for what it read, so each row's section is read before the verdict",
-			"  fix: read each listed range with the Read tool, then run the judge again")
+			fixLine)
 	}
 	if verdict == judgeApprove {
 		problems, err := checkSpec(root, spec, derived, judgeStepBeingTaken)
@@ -320,7 +423,7 @@ func judgeSpec(root string, spec specFile, fingerprint, verdict, reason string) 
 	}
 	record := judgment{
 		Spec: spec.name(), Digest: DesignDigest(spec.text), Verdict: verdict, Sentence: reason,
-		Judge: fingerprint, Date: time.Now().Format(time.DateOnly),
+		Judge: caller.fingerprint, Date: time.Now().Format(time.DateOnly),
 	}
 	if err := writeJudgment(root, spec.stem, record); err != nil {
 		return nil, refuseAction("refused: " + err.Error())

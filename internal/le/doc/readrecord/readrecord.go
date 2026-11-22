@@ -270,6 +270,34 @@ func SectionMarker(sessionDir, key, fingerprint string) string {
 	return filepath.Join(sessionDir, ".section-read-"+hex.EncodeToString(sum[:])+"-"+fingerprint)
 }
 
+// WholeDigest answers the SHA-256 hex digest of text's normalized lines
+// (pageLines joined by "\n"), so a whole-file read returned line by line
+// compares identically with the file on disk regardless of CRLF or a trailing
+// newline.
+func WholeDigest(text string) string {
+	sum := sha256.Sum256([]byte(strings.Join(pageLines(text), "\n")))
+	return hex.EncodeToString(sum[:])
+}
+
+// CompleteSections answers every section that content returned whole: closed
+// by a following heading of its level or a higher one, or reaching the page's
+// last line when reachesEnd is true.
+func CompleteSections(content string, reachesEnd bool) []Section {
+	return completeSections(pageLines(content), reachesEnd)
+}
+
+func completeSections(lines []string, reachesEnd bool) []Section {
+	sections := sectionsOf(lines)
+	complete := make([]Section, 0, len(sections))
+	for _, section := range sections {
+		if !section.closed && !reachesEnd {
+			continue
+		}
+		complete = append(complete, section)
+	}
+	return complete
+}
+
 // RecordRead appends to marker one line for every section a Read returned
 // whole. content is what the Read returned, from line start (1-based) of a
 // page of total lines. A section is whole when the content holds its heading
@@ -288,10 +316,7 @@ func RecordRead(marker, content string, start, total int) error {
 	lines := pageLines(content)
 	reachesEnd := start+len(lines) >= total
 	var record strings.Builder
-	for _, section := range sectionsOf(lines) {
-		if !section.closed && !reachesEnd {
-			continue
-		}
+	for _, section := range completeSections(lines, reachesEnd) {
 		record.WriteString(section.Digest())
 		record.WriteByte('\t')
 		record.WriteString(section.Heading)

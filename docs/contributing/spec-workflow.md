@@ -140,28 +140,42 @@ exits 2 when it cannot answer: a page or a record it cannot read.
 
 ### The judge
 
-<!-- source: internal/le/spec/design/judge.go -- judge, judgeSpec, uncoveredRows, judgeApprovalProblem -->
-<!-- source: internal/le/doc/readrecord/readrecord.go -- Stores, CheckoutKey, CheckoutLabel -->
+<!-- source: internal/le/spec/design/judge.go -- judge, judgeSpec, resolveJudgeCaller, uncoveredRows, judgeApprovalProblem -->
+<!-- source: internal/le/spec/design/antigravity.go -- resolveAntigravityCaller, loadAntigravityReads, parseAntigravityRead -->
+<!-- source: internal/le/doc/readrecord/readrecord.go -- Stores, CheckoutKey, CheckoutLabel, CompleteSections, WholeDigest -->
 An agent that did not write the spec runs the `ze-design-judge` skill
 (`ai/skills/ze-design-judge.md`) and records its verdict itself:
 `./le spec design judge spec <path> verdict approve|refuse reason "<one
-sentence>"`. The action refuses a process with no agent identity
-(`ZE_AGENT_ID`), because the main thread is the author's context. It also
-refuses while this agent has no current read record of the section behind
-some row, and prints the Read offset and limit that clear each one. A door row
-is covered by the whole-read record the door gate keeps, and any other row by
-a record of its section's current text. The Read hook keeps every record in
-its session root's `tmp/session`, the harness's project directory, which a
-command started from Bash is not told. So the judge looks in the checkout's
-own `tmp/session` under the page's path, and, from a worktree under another
-checkout's `.claude/worktrees`, also in that checkout's `tmp/session` under the
-key the hook gives the worktree's copy: the SHA-256 of the label
-`.claude/worktrees/<name>`, a slash and the path (`readrecord.Stores`). A read
-of the holding checkout's own copy carries another key, and covers no row of
-the worktree's spec. An `approve` verdict is also refused
-while the table fails the check. The reason is one line that does not start
-like a trailer. The record is replaced on each verdict, so a later `approve`
-replaces a `refuse`.
+sentence>"`. The action verifies the judge's identity and file reads for the
+harness it runs under:
+
+- **Claude Code:** refuses a process with no agent identity (`ZE_AGENT_ID`),
+  because the main thread is the author's context. It checks the Read hook's
+  records in the checkout's own `tmp/session` under the page's path, and, from
+  a worktree under another checkout's `.claude/worktrees`, also in that
+  checkout's `tmp/session` under the key the hook gives the worktree's copy:
+  the SHA-256 of the label `.claude/worktrees/<name>`, a slash and the path
+  (`readrecord.Stores`). A read of the holding checkout's own copy carries
+  another key, and covers no row of the worktree's spec. A door row is covered
+  by the whole-read record the door gate keeps, and any other row by a record
+  of its section's current text.
+- **Antigravity (`agy`):** when `ZE_AGENT_ID` and `CLAUDE_CODE_SESSION_ID` are
+  unset and `ANTIGRAVITY_CONVERSATION_ID` is set, the judge identifies itself
+  as `antigravity+<conversation-id>` and reads its own conversation transcript
+  under `$ANTIGRAVITY_APP_DATA_DIR/brain/<conversation-id>/.system_generated/logs/`
+  (`transcript_full.jsonl`, falling back to `transcript.jsonl` when absent). It
+  refuses if this conversation called `write_file` or `edit_file` on the spec
+  it is judging. A door row requires a whole `read_file` whose normalized
+  digest matches the current door on disk (`readrecord.WholeDigest`), and any
+  other row requires a `read_file` that returned that section complete with its
+  current digest (`readrecord.CompleteSections`), confined to this checkout.
+
+Under either harness, the action refuses while any row's door or section is
+unread and prints the range that clears each one (`offset` and `limit` for
+Claude Code, `StartLine` and `EndLine` for Antigravity). An `approve` verdict
+is also refused while the table fails the check. The reason is one line that
+does not start like a trailer. The record is replaced on each verdict, so a
+later `approve` replaces a `refuse`.
 
 ### Thomas approves
 
