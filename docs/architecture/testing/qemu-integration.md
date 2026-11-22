@@ -14,14 +14,14 @@ for the native validation and its limits.
 
 ```bash
 # Build the host driver, then the amd64 runtime kernel with Docker.
-CGO_ENABLED=0 ./le --name qemu-setup build-artifacts host
+./le build host-driver
 ./ze-host appliance kernel --target runtime --arch amd64 --builder docker
 
 ```
 
 The kernel builder prints its output directory. This example targets an amd64
 guest. Use the matching architecture for other
-guests. `build-artifacts host` builds only `ze-host`; it does not stage a kernel.
+guests. `build host-driver` builds only `ze-host`; it does not stage a kernel.
 
 Run the guest commands below through the command branch described in
 "One command in Ze's own system", with its `harness` switch: it builds the guest
