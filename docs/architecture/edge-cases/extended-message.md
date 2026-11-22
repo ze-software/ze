@@ -143,6 +143,34 @@ See [the Established FSM](../behavior/fsm-established.md) and
 
 The `plugin.PeerInfo` that `runOnce` builds for the session's wire observers carries the peer's AS as `rpc.RemoteAS`: a dynamic peer's settings hold 0 until its OPEN is negotiated, and `rpc.RemoteASOf` turns that 0 into the not-yet-known state, so an observer of the OPEN exchange sees `remote as unknown` (text) or no `remote.as` (JSON), never AS 0. See [peer lifecycle](../behavior/peer-lifecycle.md).
 
+## The size of a NOTIFICATION Ze sends
+
+Ze's own advertisement of capability 6 lets the peer send it messages of up to
+65,535 octets, whether or not the peer advertised the capability itself. A
+NOTIFICATION can copy part of such a message: the RFC 4760 Section 7 reset for
+an MP_REACH_NLRI or MP_UNREACH_NLRI that cannot be parsed carries the whole
+attribute as its Data. A peer that did not advertise capability 6 must not be
+sent a NOTIFICATION larger than 4,096 octets
+([RFC 8654 Section 5](https://www.rfc-editor.org/rfc/rfc8654#section-5)).
+
+Every NOTIFICATION a session sends is written by `writeMessageHeld`, which
+cuts the tail of the Data field to the peer's limit: 4,096 octets for a peer
+that did not advertise capability 6, 65,535 for one that did. The Error Code,
+the Error Subcode and the start of the Data survive, which for an attribute
+error is the attribute's flags, type code and length. A cut is logged at WARN
+with the original and the sent Data length, and raised on the report bus as a
+recent event (`doctor-recent-events`), so `ze show errors` and `ze show doctor`
+list it.
+
+FRR and BIRD never meet this case: each raises its receive limit only when
+both sides advertised capability 6 (`bgp_peer_set_max_packet_size` in FRR,
+`conn->ext_messages` in BIRD's OPEN handling), and neither cuts NOTIFICATION
+Data. Ze keeps the receive limit RFC 8654 Section 6 sets, which follows its own
+advertisement alone, so the cut is made at the send.
+
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeMessageHeld, notificationWithinPeerLimit -->
+<!-- source: internal/component/bgp/message/rfc7606.go -- MPAttributeErrorNotification -->
+
 ## Regression boundaries
 
 - `TestRFC8654ExtendedMessageDirections` asserts all four capability
@@ -150,6 +178,11 @@ The `plugin.PeerInfo` that `runOnce` builds for the session's wire observers car
 - `TestRFC8654ReceiveLimitFollowsLocalOPEN` exchanges OPENs and checks both
   readers at Length 4,096, 4,097 and 65,535, including exact accepted payloads
   and rejected-length NOTIFICATION data.
+- `TestRFC8654NotificationToPeerWithoutExtendedMessage` sends a 4,832-octet
+  UPDATE whose MP_UNREACH_NLRI overruns, after real OPENs in which Ze
+  advertises capability 6, and reads the NOTIFICATION off the socket: exactly
+  4,096 octets when the peer omitted the capability, the whole 4,830 when it
+  advertised it.
 - `TestRFC8654AnnouncementAccumulation` feeds standard-sized announcements
   through the accumulating reader, compares exact combined consumer payloads
   beyond 4,096 through 65,535 octets, and checks overflow/KEEPALIVE flushes.

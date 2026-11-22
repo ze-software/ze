@@ -1469,8 +1469,8 @@ func TestRFC8955TrafficRateNegativeDecodesAsZero(t *testing.T) {
 	require.Len(t, got, 1)
 	assert.Equal(t, "rate-limit:1000", got[0]["string"])
 
-	// RFC 8955 Section 7.1: "On decoding, a negative traffic-rate MUST be treated as
-	// zero (i.e., discard all traffic)." Section 7.2 says the same for traffic-rate-packets.
+	// RFC 8955 Section 7.1: "On decoding, negative values MUST be treated as zero
+	// (discard all traffic)." Section 7.2 says the same for traffic-rate-packets.
 	// RFC requirement: RFC8955-7.1-2 negative -- a negative decoded traffic-rate is treated as zero (§7.1, §7.2)
 	negBytes := append([]byte{0x80, 0x06, 0x00, 0x00}, negBits...)
 	got = parseExtendedCommunities(negBytes)

@@ -19,6 +19,8 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/report"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -223,6 +225,13 @@ func (s *Session) writeMessageHeld(msg message.Message) error {
 		return ErrNotConnected
 	}
 
+	// Every NOTIFICATION the session sends passes here (sendNotificationWithin,
+	// tryNotificationWithin), so the size limit is applied once, at the write.
+	if notif, ok := msg.(*message.Notification); ok {
+		// RFC 8654 Section 5
+		msg = s.notificationWithinPeerLimit(notif)
+	}
+
 	// Zero-allocation: write directly into session buffer.
 	// Message types don't use context for basic encoding
 	// (KEEPALIVE, OPEN, NOTIFICATION have fixed formats).
@@ -281,6 +290,75 @@ func (s *Session) writeMessageHeld(msg message.Message) error {
 	}
 
 	return nil
+}
+
+// notificationDataCutFix is the command an operator runs after a NOTIFICATION's
+// Data was shortened: the event list shows the peer and the reset beside it.
+const notificationDataCutFix = "ze show errors"
+
+// notificationWithinPeerLimit returns notif when it fits the largest
+// NOTIFICATION the peer accepts, and otherwise a copy whose Data field keeps
+// only the leading octets that fit. The caller MUST hold writeMu, the lock
+// s.negotiated is published under (publishNegotiation).
+//
+// The limit is reachable, not theoretical. Ze's own advertisement of capability
+// 6 lets the peer send it an UPDATE of up to 65,535 octets (RFC 8654 Section 6),
+// whether or not the peer advertised the capability itself, and an error in such
+// an UPDATE can copy a received attribute into the Data field: the RFC 4760
+// Section 7 reset carries the whole MP attribute (MPAttributeErrorNotification).
+// Sent whole to a peer that did not advertise capability 6, that NOTIFICATION
+// would exceed 4,096 octets, and it would overrun writeBuf, which
+// publishNegotiation sizes from the same advertisement.
+//
+// Cutting the tail keeps the Error Code, the Error Subcode and the start of the
+// Data, which for an attribute error is its flags, type code and length (RFC
+// 4271 Section 6.3), so the peer still learns which attribute failed.
+//
+// RFC 8654 Section 5: "However, if a NOTIFICATION is to be sent to a BGP
+// speaker that has not advertised the BGP Extended Message Capability, the
+// size of the message MUST NOT exceed 4,096 octets."
+//
+// The NOTIFICATION this bounds (RFC 4271 Section 4.5), after the 19-octet
+// header:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	| Error code    | Error subcode |   Data (variable)             |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	offset 19: Error code, 20: Error subcode, 21: Data, at most
+//	limit - 21 octets, where limit is 4,096 unless the peer advertised
+//	capability 6 and 65,535 when it did.
+//
+// Cold path: at most one NOTIFICATION per session.
+func (s *Session) notificationWithinPeerLimit(notif *message.Notification) *message.Notification {
+	peerExtended := s.negotiated != nil && s.negotiated.ExtendedMessageSend
+	limit := int(message.MaxMessageLength(msgtype.TypeNOTIFICATION, peerExtended))
+	// writeBuf is sized from the same advertisement, so this bound agrees with
+	// the one above; it is kept so a NOTIFICATION can never overrun the buffer.
+	limit = min(limit, len(s.writeBuf.Buffer()))
+	if notif.Len(nil) <= limit {
+		return notif
+	}
+	cut := *notif
+	cut.Data = notif.Data[:limit-message.HeaderLen-2]
+	sessionLogger().Warn("NOTIFICATION data shortened: the peer did not advertise Extended Message, "+
+		"so RFC 8654 Section 5 limits the NOTIFICATION to 4096 octets; the session is reset for the peer's "+
+		"malformed message anyway, so correct the peer that sent it",
+		"peer", s.settings.Address,
+		"error-code", notif.ErrorCode,
+		"error-subcode", notifySubcodeValue(notif.ErrorCode, notif.ErrorSubcode),
+		"data-octets", len(notif.Data),
+		"sent-octets", len(cut.Data),
+		"fix", notificationDataCutFix,
+		"code", diagnostic.CodeDoctorRecentEvents,
+	)
+	// A bounded report-bus append, as for the AS-zero event: it waits on no
+	// peer or plugin while writeMu is held.
+	report.RaiseErrorFix(reportSourceBGP, diagnostic.CodeDoctorRecentEvents, s.settings.Address.String(),
+		"BGP NOTIFICATION Data shortened to the 4096 octets a peer without Extended Message accepts",
+		notificationDataCutFix, map[string]any{"data-octets": len(notif.Data), "sent-octets": len(cut.Data)})
+	return &cut
 }
 
 // controlWriteDeadline returns the write deadline for control messages

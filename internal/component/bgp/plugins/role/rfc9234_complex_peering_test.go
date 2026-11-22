@@ -1,5 +1,6 @@
 // Design: docs/guide/bgp-role.md -- Complex peering relationship prohibition
 // RFC: rfc/short/rfc9234.md -- Section 6, roles must not be configured on Complex peering
+// RFC naming: untagged -- checks that the operator documentation states the RFC 9234 Section 6 prohibition; Ze cannot tell a Complex peering from another, so no test here proves the clause (RFC9234-6-1 is a gap).
 // Related: role.go -- GetYANG
 // Related: config.go -- parseRoleContainer, extractRoleCapabilities
 
@@ -14,31 +15,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestRFC9234ComplexPeeringGuidanceAndRolelessSession verifies that operator
-// documentation (both the embedded YANG schema description served by GetYANG
-// and docs/guide/bgp-role.md) carries the RFC 9234 Section 6 prohibition
-// against configuring BGP Roles on a Complex peering relationship, and that
-// leaving a Complex eBGP session without a role container emits no Role
-// capability while rejecting an invalid "complex" role token.
+// TestRFC9234ComplexPeeringGuidanceAndRolelessSession checks the operator
+// documentation of RFC 9234 Section 6 and the role parser's handling of a peer
+// with no role.
 //
 // RFC 9234 Section 6: "Roles MUST NOT be configured on an eBGP session with a
 // Complex peering relationship."
 //
-// VALIDATES: GetYANG() and docs/guide/bgp-role.md state the Complex peering
-// prohibition; parseRoleContainer accepts an omitted role block (nil) and
-// refuses "complex"; extractRoleCapabilities emits no Role capability for a
-// roleless peer.
-// PREVENTS: shipping role configuration without documenting the Section 6
-// Complex peering prohibition, or accepting a bogus role value.
+// Goal: the embedded YANG description served by GetYANG and
+// docs/guide/bgp-role.md tell the operator to omit the role on a Complex
+// peering, and a peer configured without a role advertises no Role capability.
+// Method: read both texts; parse an empty role container and one holding the
+// unknown token "complex"; extract the capabilities of a roleless peer and of a
+// peer with a provider role.
 //
-// RFC requirement: RFC9234-6-1 positive -- both the YANG schema description
-// returned by GetYANG and docs/guide/bgp-role.md state that roles MUST NOT be
-// configured on an eBGP session with a Complex peering relationship, and a
-// roleless eBGP peer emits no Role capability.
-// RFC requirement: RFC9234-6-1 negative -- parseRoleContainer rejects a
-// "complex" role token (returning nil rather than a valid peerRoleConfig), and
-// omitting the role container produces zero Role capabilities while a valid
-// normal role produces one.
+// This proves the documentation and the roleless case only. Ze does not know
+// whether a peering relationship is Complex, so nothing here shows a role on a
+// Complex peering refused, and the test carries no RFC requirement tag.
 func TestRFC9234ComplexPeeringGuidanceAndRolelessSession(t *testing.T) {
 	t.Parallel()
 
