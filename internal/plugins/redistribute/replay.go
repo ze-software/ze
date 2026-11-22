@@ -470,6 +470,7 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		// routes (by tag, family, BGP class) replays only the routes it accepts.
 		// The incremental path decides the same way.
 		route := redistRoute(name, b.Protocol, famVal, entry)
+		applyBatchOriginAS(&route.Route, b.OriginASN)
 		sets, accepted := ev.Accept(&route, destination)
 		if !accepted {
 			logger().Debug("redistribute-orchestrator: evaluator rejected replay entry", "source", name, "destination", destination, "family", famVal.String(), "prefix", entry.Prefix, "tag", entry.Tag)

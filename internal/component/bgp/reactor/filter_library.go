@@ -57,6 +57,12 @@ type libraryIntentContext struct {
 	// judgeFinal marks a pass over a body the chain already rewrote: only the
 	// members that declare it run (policychain.ExternalRoute.JudgeFinal).
 	judgeFinal bool
+	// skipRPKIValidation defers rpki-validation-state members until after all
+	// non-validating egress policy has run (RFC 8893 Section 1).
+	skipRPKIValidation bool
+	// judgeRPKIValidation runs only rpki-validation-state members over the
+	// post-policy body and applies the chain's final (RFC 8893 Section 1).
+	judgeRPKIValidation bool
 	// chainInput is the route as the chain received it, what a member reads as
 	// raw on a pass over a body the chain already rewrote (runFinalJudges).
 	// Nil on a chain's first pass, whose payload is that route.
@@ -158,6 +164,7 @@ func (r *Reactor) evaluateLibraryChain(library filterapi.LibraryChain, wireUpdat
 	}
 	route := policychain.ExternalRoute{Direction: direction, Peer: peer, PeerAS: intent.peerAS, Raw: raw,
 		Readvertise: intent.readvertise, SkipReadvertise: intent.skipReadvertise, JudgeFinal: intent.judgeFinal,
+		SkipRPKIValidation: intent.skipRPKIValidation, JudgeRPKIValidation: intent.judgeRPKIValidation,
 		BodyRewritten: intent.chainInput != nil && !bytes.Equal(intent.chainInput, payload)}
 	if api := r.filterAPI(); api != nil {
 		route.Caller = libraryCaller{api: api}
@@ -256,6 +263,60 @@ func (r *Reactor) holdsFinalJudge(library filterapi.LibraryChain) bool {
 		return false
 	}
 	return chain.HoldsFinalJudge(r.libraryDeclarations())
+}
+
+// holdsRPKIValidation reports whether library holds any rpki-validation-state
+// policy member that must run after non-validating egress policy (RFC 8893 Section 1).
+func (r *Reactor) holdsRPKIValidation(library filterapi.LibraryChain) bool {
+	chain, ok := library.(*policychain.Chain)
+	if !ok {
+		return false
+	}
+	if chain == nil {
+		return false
+	}
+	return chain.HoldsRPKIValidation()
+}
+
+// runPostEgressRPKIValidation runs the export chain's rpki-validation-state
+// members AFTER all non-validating egress policy (such as remove-private-as and
+// AS_PATH edits) and egress configuration (such as as-override and RFC 7705
+// local-as) have been applied, then applies the chain's final.
+//
+// RFC 8893 Section 1: "A validating BGP speaker MUST apply Route Origin
+// Validation policy semantics (see Section 2 of [RFC6811] and Section 4 of
+// [RFC8481]) after applying any egress configuration and policy."
+func (r *Reactor) runPostEgressRPKIValidation(library filterapi.LibraryChain, res libraryResult, input []byte, ctxID bgpctx.ContextID, session policyview.Session, intent libraryIntentContext, site, peer string, record func(policychain.MemberTrace)) libraryResult {
+	if res.outcome.Action != policychain.OutcomeAccept {
+		return res
+	}
+	if res.failed {
+		return res
+	}
+	body := input
+	if res.modifiedPayload != nil {
+		body = res.modifiedPayload
+	}
+	var update wireu.WireUpdate
+	wireu.InitWireUpdate(&update, body, ctxID)
+	intent.skipRPKIValidation = false
+	intent.judgeRPKIValidation = true
+	intent.judgeFinal = false
+	intent.readvertise = false
+	intent.skipReadvertise = false
+	intent.chainInput = input
+	last := r.runLibraryChain(library, &update, body, session, intent, directionExport, site, peer, record)
+	if last.outcome.Action == policychain.OutcomeAccept && !last.failed {
+		if last.modifiedPayload == nil {
+			last.modifiedPayload = res.modifiedPayload
+		}
+		if len(res.removals) > 0 {
+			last.removals = append(res.removals, last.removals...)
+		}
+	}
+	last.treatments |= res.treatments
+	last.wireChanges = append(res.wireChanges, last.wireChanges...)
+	return last
 }
 
 // railEndsOnFinalJudge reports whether a stale rail run over library owes no pass

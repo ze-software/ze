@@ -131,6 +131,9 @@ type member struct {
 	// func cannot be compared, so sameDecisions compares these instead.
 	config   map[string]any
 	resolved []policy.Instance
+	// readsRPKIValidation is true when this member evaluates rpki-validation-state,
+	// so export chains run it in the post-egress validation pass (RFC 8893 Section 1).
+	readsRPKIValidation bool
 }
 
 // Chain is one compiled in-process BGP chain. Immutable after Compile, so safe
@@ -273,7 +276,8 @@ func compileMember(attachment string, reg *policy.Registry, name string) (member
 		return member{}, fmt.Errorf("%s filter %q (%s): %w", attachment, name, inst.Type, err)
 	}
 	return member{name: name, filterType: inst.Type, evaluate: evaluate, onError: registration.onError,
-		settable: maskOf(sets) | intentsOfReads(reads), config: inst.Config, resolved: resolved}, nil
+		settable: maskOf(sets) | intentsOfReads(reads), config: inst.Config, resolved: resolved,
+		readsRPKIValidation: slices.Contains(reads, policy.FieldRPKIValidationState)}, nil
 }
 
 // sameDecisions reports whether m and other were compiled from the same instance
@@ -439,6 +443,12 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		if sets.route.JudgeFinal && !c.judgesFinalRuns(m, &sets.route) {
 			continue
 		}
+		if sets.route.SkipRPKIValidation && m.readsRPKIValidation {
+			continue
+		}
+		if sets.route.JudgeRPKIValidation && !m.readsRPKIValidation {
+			continue
+		}
 		sets.member.Reset()
 		sets.member.display = record != nil
 		sets.member.route = &sets.route
@@ -514,7 +524,13 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 		writeMetadata(view, &sets.member)
 		traceStep(record, m, TracePass, nil, &sets.member)
 	}
-	if sets.route.Readvertise || sets.route.JudgeFinal {
+	if sets.route.Readvertise {
+		return Outcome{Action: OutcomeAccept}
+	}
+	if sets.route.JudgeFinal {
+		return Outcome{Action: OutcomeAccept}
+	}
+	if sets.route.SkipRPKIValidation {
 		return Outcome{Action: OutcomeAccept}
 	}
 	switch c.endFinal(view) {
@@ -628,6 +644,18 @@ func (c *Chain) HoldsFinalJudge(caller ExternalCaller) bool {
 	route := ExternalRoute{Caller: caller}
 	for i := range c.members {
 		if c.judgesFinalRuns(&c.members[i], &route) {
+			return true
+		}
+	}
+	return false
+}
+
+// HoldsRPKIValidation reports whether any member in the chain evaluates
+// rpki-validation-state so export chains defer those members to run after all
+// non-validating egress policy and configuration (RFC 8893 Section 1).
+func (c *Chain) HoldsRPKIValidation() bool {
+	for i := range c.members {
+		if c.members[i].readsRPKIValidation {
 			return true
 		}
 	}

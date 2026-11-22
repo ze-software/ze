@@ -162,6 +162,11 @@ func (peer *Peer) captureOriginatedFacts(pending *peerForwardFacts) {
 	pending.peerAS = peer.settings.PeerAS
 	pending.localAS = peer.settings.LocalAS
 	pending.isEBGP = peer.settings.IsEBGP()
+	pending.asOverride = peer.settings.ASOverride
+	pending.secondaryAS = secondaryPrependAS(peer.settings)
+	pending.filterInfo = peer.settings.SessionFacts(peer.settings.PeerAS)
+	pending.filterInfo.PeerOwner = peer.sourceOwner
+	pending.filterInfo.ConnectionID = connectionIDOf(peer.session)
 	pending.addr = peer.settings.Address
 	pending.addrStr = peer.addrString
 	pending.sendCtxID = peer.sendCtxID

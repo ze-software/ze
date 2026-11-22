@@ -20,6 +20,7 @@ func init() {
 	MustRegisterReader(policy.FieldProtocol, readProtocol)
 	MustRegisterReader(policy.FieldNextHop, readNextHop)
 	MustRegisterReader(policy.FieldOriginAS, readOriginAS)
+	MustRegisterReader(policy.FieldRPKIValidationState, readRPKIValidationState)
 	MustRegisterReader(policy.FieldCommunity, readCommunity)
 	MustRegisterReader(policy.FieldLargeCommunity, readLargeCommunity)
 	MustRegisterReader(policy.FieldExtendedCommunity, readExtendedCommunity)

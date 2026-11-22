@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC8893-1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8893_policy_seam_test.go::TestRPKIPluginPublishesOriginValidatorSeam",
+    "unit-sha": "f4161c449870758d",
+    "claim-sha": "62aee896f7b13b47",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rpki.go::rPKIPlugin.validateOriginForPolicy",
+    "producer-sha": "454cacd9006916c4",
+    "break": "body of rPKIPlugin.validateOriginForPolicy replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8893-1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy",
+    "unit-sha": "dc767485cf4cbbd3",
+    "claim-sha": "420d9024aec1753a",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/filter_library.go::Reactor.runPostEgressRPKIValidation",
+    "producer-sha": "a7021398732695df",
+    "break": "body of Reactor.runPostEgressRPKIValidation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8893-1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy",
+    "unit-sha": "f3a62a7aaac3991f",
+    "claim-sha": "07e7a2a367d77324",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/filter_library.go::Reactor.runPostEgressRPKIValidation",
+    "producer-sha": "a7021398732695df",
+    "break": "body of Reactor.runPostEgressRPKIValidation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

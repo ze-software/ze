@@ -6,7 +6,7 @@
     "internal/component/bgp/message/open.go::Open.WriteTo": "3d74834336b73509",
     "internal/component/bgp/message/open.go::ValidateHoldTime": "77a26bb0dde38f3f",
     "internal/component/bgp/message/open.go::writeFixedFields": "c1755f8484c32561",
-    "internal/component/bgp/reactor/peer_settings.go": "8d3d2692c2b28890",
+    "internal/component/bgp/reactor/peer_settings.go": "22f095acb48c96ba",
     "internal/component/bgp/reactor/reactor_api_forward_test.go": "8920aa39ac625ef1",
     "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::splitMessages": "5ef103970113c6d1",
     "internal/component/bgp/reactor/session.go::NewSession": "03b411c8d83f0681",
@@ -19,7 +19,7 @@
     "internal/component/bgp/reactor/session_write.go::Session.writeMessageHeld": "cf3339d516be054b",
     "internal/component/bgp/reactor/session_write.go::Session.writeMessageWithin": "5bb18eb4acfbc592"
   },
-  "note": "Independent re-judgment after 562bc0139d against RFC 4271 Section 4.2 (\"The Hold Time MUST be either zero or at least three seconds.\"). The only change to writeMessageHeld is a step that rewrites a *message.Notification (a type assertion; Notification is the only message type whose Type() is NOTIFICATION) through notificationWithinPeerLimit; the OPEN that TestRFC4271OpenHoldTimeOnWire captures passes through untouched. The other units the stale check named changed in other commits without touching the Hold Time path: NewSession (a27a951239 connectionID, 6b82e4d05d LocalAddr zone) and peer_settings.go (19f7349896 Description field). The tests are unchanged: the wire test reads the raw Hold Time octets of sendOpen's real output (default 90, configured 0 and 3) and fails on a nonzero value below 3; TestOpenValidateHoldTime's negative requires 1 and 2 refused with OPEN Message Error / Unacceptable Hold Time; its positive is a supplementary policy contract, since Section 6.2 lets an implementation reject any value. The prior discrimination records still describe these unchanged units.",
+  "note": "Independent re-judgment against RFC 4271 Section 4.2 (\"The Hold Time MUST be either zero or at least three seconds.\") after RFC 8893 edit to internal/component/bgp/reactor/peer_settings.go. Inspected git diff: PeerSettings.SessionFacts adds two read-only egress policy metadata fields (ASOverride: n.ASOverride and SecondaryAS: secondaryPrependAS(n)) onto filterapi.PeerFilterInfo; HoldTime, openSettingsSnapshot, buildOpenFromSnapshot, prepareOpen, sendOpen, ValidateHoldTime, and OPEN message framing are completely untouched. Both tagged tests (TestOpenValidateHoldTime and TestRFC4271OpenHoldTimeOnWire) are byte-identical and PASS (go test -tags ze_bgp ./internal/component/bgp/message ./internal/component/bgp/reactor). All 18 existing code bindings (including bare peer_settings.go) and prior discrimination records remain valid; the enforced verdict stands.",
   "requirement_sha": "04995bc703ecf1f8",
   "tests": {
     "internal/component/bgp/message/open_test.go::TestOpenValidateHoldTime": "f521e1893abce145",

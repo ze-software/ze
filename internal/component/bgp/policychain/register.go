@@ -10,4 +10,8 @@ func init() {
 	// MatchConditions holds (match.go). A check that cannot answer fails the
 	// route closed, as it does at a Loc-RIB chain.
 	MustRegisterEvaluator(policy.MatchFilterType, rpc.OnErrorReject, compileMatchEvaluator)
+	// RFC 8893 Section 3: register the exact same rpki-validation-state match
+	// condition primitive on BGP chains (ingress and egress) as RouteConditions
+	// registers for redistribution.
+	MatchConditions.MustAdd(policy.RPKIValidationStateCondition, compileBGPRPKIValidationState)
 }

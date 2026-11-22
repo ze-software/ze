@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8893-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893SamePolicyPrimitiveAcrossIngressRedistributionAndEgress",
+    "unit-sha": "1a9f04c70e83ab29",
+    "claim-sha": "fa356a07d593dfee",
+    "route": "revert",
+    "producer": "internal/component/policy/match_route.go::ParseRPKIValidationStates",
+    "producer-sha": "d1fe36be8d1809b4",
+    "break": "body of ParseRPKIValidationStates replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8893-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ValidationStatePrimitiveRefusesInvalidConfigAndInactiveValidator",
+    "unit-sha": "0c814ed82e52b6ce",
+    "claim-sha": "067c0eb684199637",
+    "route": "revert",
+    "producer": "internal/component/policy/match_route.go::ParseRPKIValidationStates",
+    "producer-sha": "d1fe36be8d1809b4",
+    "break": "body of ParseRPKIValidationStates replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8893-3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/redistribute/rfc8893_redistribute_validation_test.go::TestRFC8893RedistributeInactiveValidatorRefusesValidMatch",
+    "unit-sha": "b3933dbb44bcfeed",
+    "claim-sha": "91fc1ea002a8cdce",
+    "route": "revert",
+    "producer": "internal/component/policy/match_route.go::compileRouteRPKIValidationState",
+    "producer-sha": "01db4125b0eb7af5",
+    "break": "body of compileRouteRPKIValidationState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8893-3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/redistribute/rfc8893_redistribute_validation_test.go::TestRFC8893RedistributePolicyFiltersByRPKIValidationState",
+    "unit-sha": "2942c71c993be4f3",
+    "claim-sha": "1d22d63fcbbd72dc",
+    "route": "revert",
+    "producer": "internal/component/policy/match_route.go::compileRouteRPKIValidationState",
+    "producer-sha": "01db4125b0eb7af5",
+    "break": "body of compileRouteRPKIValidationState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -175,7 +175,9 @@ func (r *Reactor) runStaleChain(chain staleChain, dest filterapi.PeerFilterInfo,
 	// is judged by: "Otherwise, the BGP speaker shall re-advertise to that peer the
 	// Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound
 	// route filtering policy."
+	rpkiExport := chain.judgeAll && r.holdsRPKIValidation(library)
 	intent.skipReadvertise, intent.readvertise = chain.judgeAll, !chain.judgeAll
+	intent.skipRPKIValidation = rpkiExport
 	res = run(body)
 	if chain.judgeAll && res.outcome.Action == policychain.OutcomeAccept && !res.failed {
 		judged := body
@@ -183,6 +185,7 @@ func (r *Reactor) runStaleChain(chain staleChain, dest filterapi.PeerFilterInfo,
 			judged = res.modifiedPayload
 		}
 		intent.skipReadvertise, intent.readvertise = false, true
+		intent.skipRPKIValidation = false
 		intent.chainInput = body
 		last := run(judged)
 		if last.modifiedPayload == nil && last.outcome.Action == policychain.OutcomeAccept && !last.failed {
@@ -191,15 +194,21 @@ func (r *Reactor) runStaleChain(chain staleChain, dest filterapi.PeerFilterInfo,
 		}
 		res = last
 	}
-	if r.railEndsOnFinalJudge(library) {
-		return res, true
+	if !r.railEndsOnFinalJudge(library) {
+		// A pass runs only what this rail may run: the opted members, or after a policy
+		// change every member that declares judges-final.
+		intent.readvertise = !chain.judgeAll
+		// RFC 9494 Section 4.3
+		res = r.runFinalJudges(library, res, body, chain.ctxID, session, intent,
+			modifySiteStaleReadvertise, address, nil)
 	}
-	// A pass runs only what this rail may run: the opted members, or after a policy
-	// change every member that declares judges-final.
-	intent.readvertise = !chain.judgeAll
-	// RFC 9494 Section 4.3
-	return r.runFinalJudges(library, res, body, chain.ctxID, session, intent,
-		modifySiteStaleReadvertise, address, nil), true
+	if rpkiExport {
+		// RFC 8893 Section 1: run rpki-validation-state after all non-validating
+		// egress policy and final judges over the effective outgoing body.
+		res = r.runPostEgressRPKIValidation(library, res, body, chain.ctxID, session, intent,
+			modifySiteStaleReadvertise, address, nil)
+	}
+	return res, true
 }
 
 // staleRailToward reports whether a stale batch toward peer takes the

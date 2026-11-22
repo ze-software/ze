@@ -47,6 +47,7 @@ func TestRouteViewReadsTheRoute(t *testing.T) {
 		Source: redistevents.ProtocolID(1), IsBGP: true, IsEBGP: true,
 		NextHop: netip.MustParseAddr("192.0.2.1"), Interface: "eth0", Metric: 7,
 		Tag: 0, HasTag: true, Level: ribpolicy.ISISLevel(1), OSPFRouteType: ribpolicy.OSPFRouteType(1),
+		OriginAS: 65001, HasOriginAS: true,
 	}
 	fullSets := ribpolicy.Sets{
 		Distance: 1, HasDistance: true, Tag: 1, HasTag: true, Metric: 1, HasMetric: true,

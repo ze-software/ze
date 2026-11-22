@@ -280,11 +280,18 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 			return egressStepResult{failed: true} // accept == false: suppress for this peer
 		}
 		// External members reach their plugin as on the import step.
-		intent := libraryIntentContext{asn4: asn4, localAS: destLocalAS, peerAS: destPeerAS, asPathEditable: !destInternal}
+		rpkiExport := r.holdsRPKIValidation(library)
+		intent := libraryIntentContext{asn4: asn4, localAS: destLocalAS, peerAS: destPeerAS, asPathEditable: !destInternal, skipRPKIValidation: rpkiExport}
 		res := r.runLibraryChain(library, wireUpdate, wireUpdate.Payload(), session, intent,
 			directionExport, modifySiteExportChain, destAddrStr, nil)
 		res = r.runFinalJudges(library, res, wireUpdate.Payload(), wireUpdate.SourceCtxID(), session, intent,
 			modifySiteExportChain, destAddrStr, nil)
+		if rpkiExport {
+			// RFC 8893 Section 1 & Section 3: apply Route Origin Validation
+			// after all egress configuration and non-validating egress policy.
+			res = r.runPostEgressRPKIValidation(library, res, wireUpdate.Payload(), wireUpdate.SourceCtxID(), session, intent,
+				modifySiteExportChain, destAddrStr, nil)
+		}
 		if res.outcome.Action == policychain.OutcomeWithdraw {
 			return egressStepResult{withdraw: true} // accept == false: withdraw toward this peer
 		}

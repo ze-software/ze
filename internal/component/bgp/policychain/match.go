@@ -40,6 +40,12 @@ type MatchRoute struct {
 	// the condition's filter, answering once per UPDATE, did. evaluate
 	// clears it with the rest of the route at every run.
 	Counted bool
+	// Withdraw is set when the current NLRI entry comes from Withdrawn Routes
+	// or MP_UNREACH_NLRI rather than an announcement.
+	Withdraw bool
+	// AcceptAction is true when the match's action is accept (rejects unmatched),
+	// false when action is reject (rejects matched).
+	AcceptAction bool
 }
 
 // MatchConditions holds the checks of the match conditions a BGP chain can
@@ -93,7 +99,7 @@ func compileMatchEvaluator(_ string, instance map[string]any, resolve policy.Ins
 // a section a drop cannot rewrite (FlowSpec). Otherwise it passes and drops
 // each rejected entry (DropNLRI), announced and withdrawn.
 func (e *matchEvaluator) evaluate(view *policyview.View, sets *Sets) (Decision, error) {
-	sets.matchRoute = MatchRoute{View: view, Reports: e.rejectsUnmatched && !sets.display}
+	sets.matchRoute = MatchRoute{View: view, Reports: e.rejectsUnmatched && !sets.display, AcceptAction: e.rejectsUnmatched}
 	w := matchWalk{e: e, sets: sets, route: &sets.matchRoute, collecting: e.reporting(sets)}
 	decision, err := w.judge(view)
 	if err == nil && w.collecting {
@@ -230,6 +236,7 @@ func (w *matchWalk) cidrSection(section NLRISection, fam family.Family, nlri []b
 			return errors.Join(policyview.ErrMalformed, errMatchCIDRFraming)
 		}
 		w.route.Prefix = prefix
+		w.route.Withdraw = withdraw
 		w.collect(prefix)
 		rejects, err := w.e.match.Rejects(w.route)
 		if err != nil {
@@ -265,6 +272,7 @@ func (w *matchWalk) flowSpecSection(fam family.Family, nlri []byte, addPath bool
 			return true
 		}
 		w.route.Prefix = destination
+		w.route.Withdraw = false
 		w.collect(destination)
 		rejects, err := w.e.match.Rejects(w.route)
 		if err != nil {

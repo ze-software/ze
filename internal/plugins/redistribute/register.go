@@ -28,8 +28,10 @@ func init() {
 	// The filter attachment points this plugin's config holds, with the route
 	// fields their routes carry and a filter there may set (the route field
 	// vocabulary, internal/component/policy/fields.go).
+	// RFC 8893 Section 3: redistribution policy carries rpki-validation-state
+	// using the same primitive as BGP ingress and egress policy.
 	policy.MustRegisterRouteAttachment(Name, chainAttachment,
-		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag},
+		[]policy.Field{policy.FieldPrefix, policy.FieldFamily, policy.FieldProtocol, policy.FieldNextHop, policy.FieldMetric, policy.FieldTag, policy.FieldRPKIValidationState},
 		[]policy.Field{policy.FieldTag, policy.FieldMetric})
 
 	// A withdrawal its consumer could not confirm (withdrawal_diagnostic.go).

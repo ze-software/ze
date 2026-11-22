@@ -271,8 +271,9 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 		for i := range b.Entries {
 			entry := &b.Entries[i]
 			// Acceptance is decided for each ROUTE, not for the batch: an import
-			// rule's chain reads the entry's prefix, tag and BGP class.
+			// rule's chain reads the entry's prefix, tag, origin AS and BGP class.
 			route := redistRoute(name, b.Protocol, famVal, entry)
+			applyBatchOriginAS(&route.Route, b.OriginASN)
 			key := heldKey{consumer: cname, source: name, family: famVal, prefix: entry.Prefix, instance: entry.SourceInstance, table: entry.Table}
 			sets, accepted := ev.Accept(&route, cname)
 			if !accepted {
@@ -387,10 +388,33 @@ func redistRoute(protocol string, id redistevents.ProtocolID, fam family.Family,
 			// like any other, so `match tag [ 0 ]` selects the untagged routes.
 			// That agrees with FRR's route_match_tag, which compares an
 			// untagged route's tag 0.
-			HasTag: true,
-			IsBGP:  entry.BGPClass != redistevents.BGPClassUnspecified,
-			IsEBGP: entry.BGPClass == redistevents.BGPClassExternal,
+			HasTag:      true,
+			IsBGP:       entry.BGPClass != redistevents.BGPClassUnspecified,
+			IsEBGP:      entry.BGPClass == redistevents.BGPClassExternal,
+			OriginAS:    entry.OriginAS,
+			HasOriginAS: entry.OriginAS != 0,
 		},
+	}
+}
+
+// applyBatchOriginAS fills Route.OriginAS from the batch's OriginASN when the
+// per-entry OriginAS was zero (e.g., locally originated producers like as112),
+// or from the speaker's published global BGP local AS for locally originated
+// non-BGP routes (static, connected, OSPF, IS-IS).
+// RFC 8893 Section 3: redistribution policy evaluates validation state against
+// the route's origin AS.
+func applyBatchOriginAS(r *ribpolicy.Route, batchOriginASN uint32) {
+	if r.HasOriginAS {
+		return
+	}
+	if batchOriginASN != 0 {
+		r.OriginAS = batchOriginASN
+		r.HasOriginAS = true
+		return
+	}
+	if localAS := ribpolicy.LocalOriginAS(); localAS != 0 {
+		r.OriginAS = localAS
+		r.HasOriginAS = true
 	}
 }
 

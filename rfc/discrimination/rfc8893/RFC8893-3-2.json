@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8893-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS",
+    "unit-sha": "f055dab5faec3d65",
+    "claim-sha": "097d78319c180a6a",
+    "route": "revert",
+    "producer": "internal/component/bgp/policyview/rpki_origin.go::View.EffectiveOriginAS",
+    "producer-sha": "9d4de457ff342614",
+    "break": "body of View.EffectiveOriginAS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8893-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS",
+    "unit-sha": "e8839e562785e102",
+    "claim-sha": "b01f26e8ff4ca8bc",
+    "route": "revert",
+    "producer": "internal/component/bgp/policyview/rpki_origin.go::View.EffectiveOriginAS",
+    "producer-sha": "9d4de457ff342614",
+    "break": "body of View.EffectiveOriginAS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

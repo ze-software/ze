@@ -57,6 +57,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/network"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -587,6 +588,9 @@ func New(config *Config) *Reactor {
 		panic("BUG: new origin issuer: " + err.Error())
 	}
 	origins.cancel = originCancel
+	if config.LocalAS != 0 {
+		ribpolicy.SetLocalOriginAS(config.LocalAS)
+	}
 	r := &Reactor{
 		originReceipts:    origins,
 		attrModHandlers:   defaultAttrModHandlers,

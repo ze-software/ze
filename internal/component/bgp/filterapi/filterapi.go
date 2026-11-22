@@ -75,6 +75,12 @@ type PeerFilterInfo struct {
 	// that needs the session type reads this field rather than comparing PeerAS
 	// with LocalAS, which gets the migration session wrong.
 	IsIBGP bool
+	// ASOverride reports that egress replaces PeerAS occurrences in AS_PATH
+	// with LocalAS (RFC 8893 Sections 1 and 3: effective origin AS on export).
+	ASOverride bool
+	// SecondaryAS is the innermost RFC 7705 migration ASN prepended behind
+	// LocalAS on eBGP export, or zero when only LocalAS is prepended.
+	SecondaryAS uint32
 	// LLGRAdvertised reports that the OPEN Ze sent on this session carried the
 	// Long-Lived Graceful Restart Capability (RFC 9494 Section 3). Filled on two
 	// rails. The received path fills it from the session's own OPEN on the

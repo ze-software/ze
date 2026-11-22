@@ -4,6 +4,7 @@
 package reactor
 
 import (
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -45,6 +46,9 @@ func (r *Reactor) setGlobals(globals Globals) {
 
 	r.config.RouterID = globals.RouterID
 	r.config.LocalAS = globals.LocalAS
+	if globals.LocalAS != 0 {
+		ribpolicy.SetLocalOriginAS(globals.LocalAS)
+	}
 	if r.rmetrics == nil {
 		return
 	}

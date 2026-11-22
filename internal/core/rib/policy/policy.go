@@ -86,6 +86,12 @@ type Route struct {
 
 	Level         ISISLevel
 	OSPFRouteType OSPFRouteType
+
+	// OriginAS is the route's origin AS for RPKI origin validation in
+	// redistribution policy (RFC 8893 Section 3). Meaningful only when
+	// HasOriginAS is set (including OriginNone for AS_SET).
+	OriginAS    uint32
+	HasOriginAS bool
 }
 
 // Action is a chain's verdict on a route. The zero value is ActionUnspecified,

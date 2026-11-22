@@ -35,6 +35,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
+	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -350,6 +351,7 @@ func runRPKIPlugin(conn net.Conn) int {
 		// The cache group runs on its own generation channel, which rp.stopCh does not
 		// reach, so the group is stopped and waited for by name.
 		rp.stopSessions()
+		ribpolicy.SetOriginValidator(nil)
 		if rp.dataLease != nil {
 			rp.dataLease.stop()
 		}
@@ -469,6 +471,19 @@ func runRPKIPlugin(conn net.Conn) int {
 	return 0
 }
 
+// validateOriginForPolicy answers RFC 6811 Section 2 origin validation against
+// this plugin's live ROA cache for ingress, redistribution, and egress policy
+// chains (RFC 8893 Sections 1 and 3).
+func (rp *rPKIPlugin) validateOriginForPolicy(prefix netip.Prefix, originAS uint32) ribpolicy.ValidationState {
+	if !rp.active.Load() {
+		return ribpolicy.ValidationNotValidated
+	}
+	if rp.cache == nil {
+		return ribpolicy.ValidationNotValidated
+	}
+	return ribpolicy.ValidationState(rp.cache.Validate(prefix.String(), originAS))
+}
+
 // setSessionsActive records how many cache servers are feeding this router. The group loads
 // from one cache at a time, so the gauge is 1 or 0, and it answers the question an alert
 // asks: is a cache feeding me? How many are CONFIGURED is `sessions-total` on
@@ -520,6 +535,13 @@ func (rp *rPKIPlugin) startSessions(cfg *rpkiConfig) {
 	active := len(cfg.CacheServers) != 0
 	rp.active.Store(active)
 	setSessionsActive(0)
+	if active {
+		// RFC 8893 Section 3: publish the active ROA cache to the shared
+		// policy origin-validation seam for ingress, redistribution, and egress.
+		ribpolicy.SetOriginValidator(rp.validateOriginForPolicy)
+	} else {
+		ribpolicy.SetOriginValidator(nil)
+	}
 
 	rp.aspaEnabled.Store(cfg.ASPAValidation)
 	rp.aspaInvalidAction.Store(uint32(cfg.ASPAInvalidAction))

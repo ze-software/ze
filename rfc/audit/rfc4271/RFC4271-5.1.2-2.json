@@ -2,7 +2,7 @@
   "code": {
     "internal/component/bgp/reactor/filter_library.go::libraryASPathOps": "a73292d48945f075",
     "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChain": "9f8d6e15d5ff49b0",
-    "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4": "b589f8a633fb7ed4",
+    "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4": "ff7418cc9804e9a1",
     "internal/component/bgp/reactor/forward_aigp.go::reactorAPIAdapter.forwardUpdateSelected": "b886f5fc47736d1c",
     "internal/component/bgp/reactor/forward_pool.go::drainBatch": "fa7a92c53caeae1a",
     "internal/component/bgp/reactor/forward_pool.go::fwdPool.TryDispatch": "9672ddad868dbfdb",
@@ -21,7 +21,7 @@
     "internal/component/bgp/reactor/forward_withhold_mixed_test.go::fwdDrainGrace": "c24007a97ee009ae",
     "internal/component/bgp/reactor/forward_withhold_mixed_test.go::newFwdAccumulator": "4a962bfb6c1c2c3d",
     "internal/component/bgp/reactor/peer.go::Peer.IsIBGP": "0b4f341ab12ba0ea",
-    "internal/component/bgp/reactor/peer_forward_facts.go::Peer.buildForwardFacts": "84e0fe3a6cf8fdbb",
+    "internal/component/bgp/reactor/peer_forward_facts.go::Peer.buildForwardFacts": "28aa51a6e3208489",
     "internal/component/bgp/reactor/peer_forward_facts.go::Peer.refreshForwardFacts": "16f1255650e5f8c5",
     "internal/component/bgp/reactor/peer_settings.go::PeerSettings.IsIBGP": "19657a023507bd19",
     "internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.forwardUpdateSection": "ddcc8feca5b50907",
@@ -35,7 +35,7 @@
     "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::a2ForwardWith": "d291224e0ecc9e6a",
     "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::a2ItemParts": "104f41eb325bdcbc"
   },
-  "note": "Independent re-judgment against RFC 4271 Section 5.1.2(a) ('When a given BGP speaker advertises the route to an internal peer, the advertising speaker SHALL NOT modify the AS_PATH attribute associated with the route.') after adding emitPrePolicyAdjRIBOut in reactorAPIAdapter.forwardUpdateSection (reactor_api_forward.go) for RFC 8671 Section 5.2. The added 4-line guard runs before orderedEgressSteps when !mods.IsWithdraw() and copies sourceWire.Payload() read-only for BMP pre-policy Adj-RIB-Out observation; it does not mutate sourceWire, mods, isEBGP/IsIBGP classification, runEgressPolicyChain, AS_PATH preservation toward internal peers, or AS_PATH prepending toward external peers. All fourteen tagged tests and every other cited producer/helper are byte-identical to the prior enforced audit, so the enforced verdict and its prior baseline scope and discrimination provenance remain valid.",
+  "note": "Independent re-judgment against RFC 4271 Section 5.1.2(a) ('When a given BGP speaker advertises the route to an internal peer, the advertising speaker SHALL NOT modify the AS_PATH attribute associated with the route.') after RFC 8893 edits to Reactor.runEgressPolicyChainASN4 (filter_ordered.go) and Peer.buildForwardFacts (peer_forward_facts.go). Inspected git diff: runEgressPolicyChainASN4 adds rpkiExport := r.holdsRPKIValidation(library), sets skipRPKIValidation: rpkiExport on libraryIntentContext while keeping asPathEditable: !destInternal unchanged, and calls runPostEgressRPKIValidation only when rpkiExport is true (evaluating read-only rpki-validation-state match members, never modifying AS_PATH toward internal peers). Peer.buildForwardFacts adds two read-only metadata copies (facts.filterInfo.ASOverride = s.ASOverride and facts.filterInfo.SecondaryAS = facts.secondaryAS) without altering isEBGP/IsIBGP classification, AS_PATH preservation toward internal peers, or AS_PATH prepending toward external peers. All 14 tagged tests are unchanged and PASS (go test -tags ze_bgp ./internal/component/bgp/reactor), so the enforced verdict stands.",
   "requirement_sha": "0cfcf537b0aafcec",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict": "b053f97d9dd545ba",

@@ -43,7 +43,10 @@ var (
 	})
 	FieldLevel     = MustRegisterField("level", RouteView{Read: func(r *ribpolicy.Route) any { return r.Level }})
 	FieldRouteType = MustRegisterField("route-type", RouteView{Read: func(r *ribpolicy.Route) any { return r.OSPFRouteType }})
-	FieldDistance  = MustRegisterField("distance", RouteView{Written: func(s *ribpolicy.Sets) bool { return s.HasDistance }})
+	// FieldRPKIValidationState is the RFC 6811 / RFC 8893 RPKI Route Origin
+	// Validation state, shared across BGP ingress, redistribution, and BGP egress.
+	FieldRPKIValidationState = MustRegisterField("rpki-validation-state", RouteView{Read: func(r *ribpolicy.Route) any { return routeOriginAS{r.OriginAS, r.HasOriginAS} }})
+	FieldDistance            = MustRegisterField("distance", RouteView{Written: func(s *ribpolicy.Sets) bool { return s.HasDistance }})
 	// The BGP path fields: a ribpolicy.Route holds none of them, so only a BGP
 	// attachment carries them.
 	FieldOriginAS = MustRegisterField("origin-as", RouteView{})
@@ -76,6 +79,13 @@ type routeProtocol struct {
 type routeTag struct {
 	tag    uint32
 	hasTag bool
+}
+
+// routeOriginAS is the origin-AS input on the route view that RPKI validation
+// evaluates alongside the route's prefix.
+type routeOriginAS struct {
+	originAS    uint32
+	hasOriginAS bool
 }
 
 func init() {

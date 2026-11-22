@@ -89,6 +89,15 @@ type ExternalRoute struct {
 	// so what they owe is not undone by a later member. With Readvertise also set
 	// no member runs.
 	SkipReadvertise bool
+	// SkipRPKIValidation passes over members that evaluate rpki-validation-state
+	// during the first egress policy pass so that all non-validating egress
+	// policy (such as remove-private-as and AS_PATH edits) runs first
+	// (RFC 8893 Section 1).
+	SkipRPKIValidation bool
+	// JudgeRPKIValidation runs only members that evaluate rpki-validation-state
+	// over the post-policy body (with egress configuration applied to the
+	// effective origin AS) and then applies the chain's final (RFC 8893 Section 1).
+	JudgeRPKIValidation bool
 	// JudgeFinal marks a pass over a body the chain already rewrote: only the
 	// external members whose declaration asks for it run, and a route reaching
 	// the end of the pass is accepted, since the chain's final already decided it

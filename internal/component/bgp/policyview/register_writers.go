@@ -30,6 +30,7 @@ func init() {
 	mustRegisterWriter(policy.FieldProtocol, writeProtocol, 0, "")
 	mustRegisterWriter(policy.FieldNextHop, writeNextHop, 0, "")
 	mustRegisterWriter(policy.FieldOriginAS, writeOriginAS, 0, "")
+	mustRegisterWriter(policy.FieldRPKIValidationState, writeOriginAS, 0, "")
 	mustRegisterWriter(policy.FieldASPath, writeASPath, attribute.AttrASPath, "")
 	mustRegisterWriter(policy.FieldMED, writeMED, attribute.AttrMED, "")
 	mustRegisterWriter(policy.FieldLocalPreference, writeLocalPreference, attribute.AttrLocalPref, "")

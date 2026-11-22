@@ -197,6 +197,15 @@ module ze-policy-conf {
                 }
             }
             uses route-source-conditions;
+            leaf-list rpki-validation-state {
+                type enumeration {
+                    enum valid { ze:help "A covering VRP authorizes the prefix and effective origin AS (RFC 6811)."; }
+                    enum not-found { ze:help "No covering VRP exists for the prefix (RFC 6811)."; }
+                    enum invalid { ze:help "A covering VRP exists, and none authorizes the prefix length and effective origin AS (RFC 6811)."; }
+                }
+                description "Match routes whose RPKI Route Origin Validation state (RFC 6811 Section 2, RFC 8893 Section 3) is one of the listed states. Available identically in BGP ingress, redistribution, and BGP egress policy; on egress, the state is determined from the effective origin AS as the route will be announced to the peer after egress configuration and policy.";
+                ze:help "Match routes by RPKI origin validation state (valid, not-found, invalid)";
+            }
         }
     }
 }

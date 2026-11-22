@@ -1077,13 +1077,15 @@ func (n *PeerSettings) IsIBGP() bool {
 // writer allows: a dynamic peer's PeerAS changes under Peer.mu.
 func (n *PeerSettings) SessionFacts(peerAS uint32) filterapi.PeerFilterInfo {
 	facts := filterapi.PeerFilterInfo{
-		Address:   n.Address,
-		PeerAS:    peerAS,
-		LocalAS:   n.LocalAS,
-		Name:      n.Name,
-		GroupName: n.GroupName,
-		RSClient:  n.RSClient,
-		IsIBGP:    n.isIBGPWith(peerAS),
+		Address:     n.Address,
+		PeerAS:      peerAS,
+		LocalAS:     n.LocalAS,
+		Name:        n.Name,
+		GroupName:   n.GroupName,
+		RSClient:    n.RSClient,
+		IsIBGP:      n.isIBGPWith(peerAS),
+		ASOverride:  n.ASOverride,
+		SecondaryAS: secondaryPrependAS(n),
 	}
 	// The ASN the route server acts on for a client, as the received path
 	// fills it (reactor_notify.go): the global local AS, never an override.

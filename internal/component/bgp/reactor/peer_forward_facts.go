@@ -490,6 +490,8 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	binary.BigEndian.PutUint32(facts.clusterIDBytes[:], facts.clusterID)
 
 	facts.secondaryAS = secondaryPrependAS(s)
+	facts.filterInfo.ASOverride = s.ASOverride
+	facts.filterInfo.SecondaryAS = facts.secondaryAS
 
 	facts.connectedLocal = connectedLocal
 	precomputeNextHop(s, facts)

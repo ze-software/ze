@@ -258,6 +258,55 @@ func compileRouteRouteType(value any, _ InstanceResolver) (RouteCheck, error) {
 	return func(r *ribpolicy.Route) (bool, error) { return slices.Contains(routeTypes, r.OSPFRouteType), nil }, nil
 }
 
+// ParseRPKIValidationStates parses the rpki-validation-state leaf-list values
+// (valid, not-found, invalid) for both RouteConditions and BGP policychain.
+//
+// RFC 8893 Section 3: "BGP implementations supporting RPKI-based origin
+// validation MUST provide the same policy configuration primitives for
+// decisions based on the validation state available for use in ingress,
+// redistribution, and egress policies."
+func ParseRPKIValidationStates(value any) ([]ribpolicy.ValidationState, error) {
+	values, err := matchValues(value)
+	if err != nil {
+		return nil, err
+	}
+	states := make([]ribpolicy.ValidationState, 0, len(values))
+	for _, v := range values {
+		switch v {
+		case "valid":
+			states = append(states, ribpolicy.ValidationValid)
+		case "not-found":
+			states = append(states, ribpolicy.ValidationNotFound)
+		case "invalid":
+			states = append(states, ribpolicy.ValidationInvalid)
+		default:
+			return nil, fmt.Errorf("%q is not an RPKI validation state; use valid, not-found or invalid", v)
+		}
+	}
+	return states, nil
+}
+
+// compileRouteRPKIValidationState compiles the rpki-validation-state match
+// condition over a ribpolicy.Route (redistribution import policy).
+//
+// RFC 8893 Section 3: "BGP implementations supporting RPKI-based origin
+// validation MUST provide the same policy configuration primitives for
+// decisions based on the validation state available for use in ingress,
+// redistribution, and egress policies."
+func compileRouteRPKIValidationState(value any, _ InstanceResolver) (RouteCheck, error) {
+	states, err := ParseRPKIValidationStates(value)
+	if err != nil {
+		return nil, err
+	}
+	return func(r *ribpolicy.Route) (bool, error) {
+		state := r.ValidationState()
+		if state == ribpolicy.ValidationNotValidated {
+			return false, nil
+		}
+		return slices.Contains(states, state), nil
+	}, nil
+}
+
 // parseUint32 reads a uint32 leaf value. The YANG range already bounds it;
 // the check is paired here because a JSON delivery reaches this reader too.
 func parseUint32(value any) (uint32, error) {
