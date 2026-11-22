@@ -1799,7 +1799,7 @@ back answers with `sdk.RunningConfigLost(cause, problem, firstStep)`. The
 error text the engine receives is the operator error's three parts, one per
 line: the problem, then the SDK's why (`sdk.RunningConfigLostWhy`) with the
 cause, then `fix: ` with the plugin's first step and the daemon restart
-(`sdk.RunningConfigLostRestart`), which spans several lines. A plugin that
+(`sdk.RunningConfigLostRestart()`), which spans several lines. A plugin that
 passes an empty problem gets `sdk.RunningConfigLostProblem`, never a panic,
 because the plugin's text is not Ze's to guarantee. The wire format
 does not change: the answer carries that text as its error string, and

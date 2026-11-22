@@ -253,14 +253,17 @@ it is the operator error `sdk.RunningConfigLost` builds, whose why
 (`sdk.RunningConfigLostWhy`) names what the engine does next and whose fix
 names the operator's repair, one first step of the plugin's own
 (`sdk.RunningConfigLostListenerFix` for a listener) then the daemon restart
-(`sdk.RunningConfigLostRestart`). The operator frees the port and, for a
+(`sdk.RunningConfigLostRestart()`). The operator frees the port and, for a
 listener a restarted plugin could not bind, stops the whole daemon and starts
 it again by the routes of `sdk.RestartSteps()`, one per line, which restarts
-every protocol and drops every session. The error claims neither rollback
+every protocol and drops every session. Those routes are evaluated per call:
+the route for this process (`privilege.RestartRemedy`, which names `sudo
+systemctl restart ze` only when the process runs under `ze.service`), then the
+appliance route. The error claims neither rollback
 outcome, because the operator reads it only after the rollback ran. No command restarts one plugin, and
-`ze signal restart` is not a route: it leaves ze stopped.
+`ze signal restart` is not a route: a ze no unit started stays stopped after it.
 <!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx, RunningConfigLost, RunningConfigLostWhy, RunningConfigLostListenerFix, RunningConfigLostRestart -->
-<!-- source: pkg/plugin/sdk/restart_text.go -- RestartSteps, restartRouteLines -->
+<!-- source: pkg/plugin/sdk/restart_text.go -- RestartSteps, restartRoutes, applianceRestartRoute -->
 
 Only the engine emits `(config, rollback)`. A failing plugin emits
 `(config, apply-failed)`; the engine reacts by emitting `rollback`. This ensures
