@@ -60,7 +60,8 @@ func (r *RIBManager) dispatchStructured(se *rpc.StructuredEvent) {
 		r.handleRefreshStructured(se)
 	case rpc.EventKindUnspecified, rpc.EventKindOpen, rpc.EventKindNotification,
 		rpc.EventKindKeepalive, rpc.EventKindEOR, rpc.EventKindBoRR, rpc.EventKindEoRR,
-		rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindCount:
+		rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindUpdateFiltered,
+		rpc.EventKindCount:
 		// These structured events do not change the RIB; BoRR/EoRR are text-only.
 	default:
 		// The plugin event set is open; unknown events do not change the RIB.

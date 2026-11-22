@@ -26,6 +26,8 @@ const (
 	routeKeyNLRIHex         = "nlri-hex"
 	routeKeyValidationState = "validation-state"
 	routeKeyIneligible      = "ineligible"
+	routeKeyFiltered        = "filtered"
+	routeKeyFilterStep      = "filter-step"
 
 	// replayKeyReplayed counts the routes a replay sent.
 	replayKeyReplayed = "replayed"
@@ -225,16 +227,24 @@ func (r *AdjRIBInManager) status() any {
 	defer r.mu.RUnlock()
 
 	totalRoutes := 0
+	filteredRoutes := 0
 	peers := make(map[string]int)
 	for peer, routes := range r.ribIn {
 		peers[peer.address.String()] += routes.Len()
 		totalRoutes += routes.Len()
+		routes.Range(func(_ compactRouteKey, _ uint64, rt *RawRoute) bool {
+			if rt.ImportFiltered {
+				filteredRoutes++
+			}
+			return true
+		})
 	}
 
 	return map[string]any{
-		"running":      true,
-		"total-routes": totalRoutes,
-		"peers":        peers,
+		"running":         true,
+		"total-routes":    totalRoutes,
+		"filtered-routes": filteredRoutes,
+		"peers":           peers,
 	}
 }
 
@@ -268,6 +278,10 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 				"peer-owner":    textbuf.StringUint(rt.SourceOwner), "connection-id": textbuf.StringUint(rt.ConnectionID),
 				routeKeyValidationState: rt.ValidationState,
 				routeKeyIneligible:      rt.Ineligible,
+				routeKeyFiltered:        rt.ImportFiltered,
+			}
+			if rt.FilterStep != "" {
+				routeMap[routeKeyFilterStep] = rt.FilterStep
 			}
 			routeList = append(routeList, routeMap)
 			return true

@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/netip"
+	"strconv"
 	"testing"
 	"time"
 
@@ -203,14 +204,18 @@ func (f *filteredSelectedLive) assertReplayWithheld(t *testing.T, prefix netip.P
 		}
 	}
 	require.True(t, controlFound, "the accepted control must remain available to the peer-up replay walk")
+	sourceOwner := strconv.FormatUint(f.source.peer.sourceOwner, 10)
+	sourceConn := strconv.FormatUint(f.source.peer.currentSession().connectionID, 10)
 	var path ribevents.ReplayPage
 	require.NoError(t, json.Unmarshal(f.command(t, ribevents.ReplayPathCommand, destination,
-		f.source.peer.Settings().Address.String(), "ipv4/unicast", prefix.String(), "0"), &path))
+		f.source.peer.Settings().Address.String(), "ipv4/unicast", prefix.String(), "0", sourceOwner, sourceConn), &path))
 	require.Len(t, path.Routes, 1)
 	assert.True(t, path.Routes[0].Withdraw, "single-path recovery must withhold the policy-denied entry")
+	controlOwner := strconv.FormatUint(f.control.peer.sourceOwner, 10)
+	controlConn := strconv.FormatUint(f.control.peer.currentSession().connectionID, 10)
 	var accepted ribevents.ReplayPage
 	require.NoError(t, json.Unmarshal(f.command(t, ribevents.ReplayPathCommand, destination,
-		f.control.peer.Settings().Address.String(), "ipv4/unicast", filteredReceivedControl().String(), "0"), &accepted))
+		f.control.peer.Settings().Address.String(), "ipv4/unicast", filteredReceivedControl().String(), "0", controlOwner, controlConn), &accepted))
 	require.Len(t, accepted.Routes, 1)
 	require.False(t, accepted.Routes[0].Withdraw)
 	require.Equal(t, hex.EncodeToString(firstASAttrs(4, 65003)), accepted.Routes[0].AttrHex)

@@ -3886,7 +3886,10 @@ identity, and the key names each row: `show bgp peer list` maps a peer address
 to that peer's record, and `show bgp adj-rib-in` maps a peer address to that
 peer's routes. A row operator keeps the spelling it was given, so
 `show bgp adj-rib-in | first 1` answers one peer's routes under that peer's
-address. A map that mixes an object with a list under different keys is one
+address. Each route object carries `filtered` (`bool`) and, when denied on
+ingress for an `rs-client` peer, `filter-step` (the denying ingress step name);
+`show bgp adj-rib-in status` reports `filtered-routes` alongside `total-routes`.
+A map that mixes an object with a list under different keys is one
 document, because its keys are field names rather than identities.
 <!-- source: internal/component/command/answer_shape.go -- rowSet, identityValuesShareOneShape, selectRows -->
 

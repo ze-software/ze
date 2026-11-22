@@ -244,6 +244,13 @@ type prefixCounts struct {
 	// string on the wire path (ai/rules/performance.md).
 	installed map[uint32]bool
 
+	// retained holds family keys on an rs-client peer that have a configured
+	// maximum in offered mode (not already in installed). RFC 7947 Section 2.1
+	// retains denied routes in Adj-RIB-In, so unique retained keys must stay
+	// bounded by maximum even when unmatched withdrawals decrement the offered
+	// tally, while leaving offered-mode count semantics intact.
+	retained map[uint32]bool
+
 	// limits holds each family's enforcement configuration under the uint32 key
 	// the receive path carries. Resolved ONCE for the same reason installed is:
 	// PrefixMaximum and PrefixWarning are keyed by "afi/safi" name, so answering
@@ -268,8 +275,19 @@ func newPrefixCounts(settings *PeerSettings) *prefixCounts {
 		installed: installedPrefixFamilies(settings),
 		limits:    prefixLimits(settings),
 	}
-	if pc.installed != nil {
-		pc.sets = make(map[uint32]map[string]struct{}, len(pc.installed))
+	if settings.RSClient && len(pc.limits) > 0 {
+		for fk := range pc.limits {
+			if pc.installed[fk] {
+				continue
+			}
+			if pc.retained == nil {
+				pc.retained = make(map[uint32]bool, len(pc.limits))
+			}
+			pc.retained[fk] = true
+		}
+	}
+	if setCount := len(pc.installed) + len(pc.retained); setCount > 0 {
+		pc.sets = make(map[uint32]map[string]struct{}, setCount)
 	}
 	return pc
 }
@@ -485,7 +503,7 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 	// Families that asked to count what ze installed are settled on the whole
 	// message, before any of it is counted. A peer whose families all keep the
 	// default never enters this branch.
-	if len(s.prefixCounts.installed) > 0 {
+	if len(s.prefixCounts.installed) > 0 || len(s.prefixCounts.retained) > 0 {
 		// The journal outlives applyInstalledPrefixSections on purpose. The
 		// offered loop below can still refuse this message, and by then every
 		// installed family is already settled, so this function is the only
@@ -578,7 +596,7 @@ type prefixSetChange struct {
 // crossed its bound, not the size the whole message would have reached.
 func (s *Session) applyInstalledPrefixSections(sections []prefixSection, hasLimits bool) (*message.Notification, bool) {
 	for _, sec := range sections {
-		if !s.prefixCounts.installed[sec.fk] {
+		if !s.prefixCounts.installed[sec.fk] && !s.prefixCounts.retained[sec.fk] {
 			continue
 		}
 		maximum, over := s.applyInstalledPrefixSection(sec, hasLimits)

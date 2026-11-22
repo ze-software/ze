@@ -124,9 +124,11 @@ type RawRoute struct {
 	// stores PathID 0 that way.
 	HasPathID bool
 
-	ValidationState       uint8 // RPKI validation state (0=NotValidated, 1=Valid, 2=NotFound, 3=Invalid)
-	retainedForValidation bool  // Original GR lifetime, never acceptance.
-	Ineligible            bool  // Retained by validation, excluded from selection and replay.
+	ValidationState       uint8  // RPKI validation state (0=NotValidated, 1=Valid, 2=NotFound, 3=Invalid)
+	retainedForValidation bool   // Original GR lifetime, never acceptance.
+	Ineligible            bool   // Retained by validation, excluded from selection and replay.
+	ImportFiltered        bool   // RFC 7947 Section 2.1: denied on ingress, retained pre-policy, never selected or replayed.
+	FilterStep            string // Denying ingress step name when ImportFiltered is true.
 
 	// MsgID is the reactor's MessageID of the UPDATE this route arrived in
 	// (reactor.nextMsgID, a process-global monotonic counter stamped on every
@@ -458,7 +460,7 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 			switch se.EventType {
 			case rpc.EventKindState:
 				r.handleStructuredState(se)
-			case rpc.EventKindUpdate:
+			case rpc.EventKindUpdate, rpc.EventKindUpdateFiltered:
 				r.handleReceivedStructured(se)
 			case rpc.EventKindUnspecified, rpc.EventKindOpen, rpc.EventKindNotification,
 				rpc.EventKindKeepalive, rpc.EventKindRefresh, rpc.EventKindEOR,
@@ -514,7 +516,9 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 	rpc.RegisterBatchValidator(r.handleBatchValidateTyped)
 
 	// Subscribe to received events with format=full (includes raw hex bytes).
-	p.SetStartupSubscriptions([]string{"update direction received", "state"}, nil, "full")
+	// update-filtered carries route-server client UPDATEs denied on ingress
+	// (RFC 7947 Section 2.1) and reaches only subscribers asking for it.
+	p.SetStartupSubscriptions([]string{"update direction received", "update-filtered direction received", "state"}, nil, "full")
 	// The selecting RIB's flowspec-gate, and gate-query from a reader that
 	// needs this store's validation gate announced again; enveloped, so
 	// handleGateEvent tells them from the BGP events.
@@ -644,12 +648,18 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		}
 	}
 
+	importFiltered := se.EventType == rpc.EventKindUpdateFiltered
+	filterStep := ""
+	if importFiltered {
+		filterStep = msg.FilterStep
+	}
+
 	// IPv4 unicast announces (body NLRI section).
 	if nlriData, err := wu.NLRI(); err == nil && len(nlriData) > 0 {
 		fam := family.IPv4Unicast
 		addPath := ctx != nil && ctx.AddPath(fam)
 		nhopHex := nhopHexFromWireAttr(msg.AttrsWire)
-		r.installStructuredNLRIs(source, fam, nlriData, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner, se.ConnectionID, msg.SourceReceipt)
+		r.installStructuredNLRIsWithFilter(source, fam, nlriData, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner, se.ConnectionID, msg.SourceReceipt, importFiltered, filterStep)
 	}
 
 	// MP_REACH_NLRI announces.
@@ -668,19 +678,26 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			// the link-local next hop it needs (RFC2545-3-1, RFC2545-3-2).
 			nhopHex := hex.EncodeToString(mpReach.NextHopBytes())
 			if isSimplePrefixFamily(fam) {
-				r.installStructuredNLRIs(source, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner, se.ConnectionID, msg.SourceReceipt)
+				r.installStructuredNLRIsWithFilter(source, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner, se.ConnectionID, msg.SourceReceipt, importFiltered, filterStep)
 			} else {
 				// Every other family: split and key each NLRI with the family's
 				// registered codec (rib_complex.go).
-				r.installComplexNLRIs(source, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner, se.ConnectionID, msg.SourceReceipt)
+				r.installComplexNLRIsWithFilter(source, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner, se.ConnectionID, msg.SourceReceipt, importFiltered, filterStep)
 			}
 		}
 	}
 }
 
-// installStructuredNLRIs walks simple-prefix wire bytes and installs routes.
+// installStructuredNLRIs walks simple-prefix wire bytes and installs accepted routes.
 // Caller must hold r.mu.
 func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr receivedPeer, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch, sourceOwner, connectionID, sourceReceipt uint64) {
+	r.installStructuredNLRIsWithFilter(peerAddr, fam, data, addPath, attrHex, nhopHex, msgID, sourcePolicyEpoch, sourceOwner, connectionID, sourceReceipt, false, "")
+}
+
+// installStructuredNLRIsWithFilter walks simple-prefix wire bytes and installs routes,
+// marking them import-filtered when received over the filtered-update rail.
+// Caller must hold r.mu.
+func (r *AdjRIBInManager) installStructuredNLRIsWithFilter(peerAddr receivedPeer, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch, sourceOwner, connectionID, sourceReceipt uint64, importFiltered bool, filterStep string) {
 	if attrHex == "" || nhopHex == "" {
 		return
 	}
@@ -711,6 +728,8 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr receivedPeer, fam fami
 			PathID:            pathID,
 			NLRIFraming:       rpc.NLRIFramingPrefixOnly,
 			HasPathID:         addPath,
+			ImportFiltered:    importFiltered,
+			FilterStep:        filterStep,
 			MsgID:             msgID,
 			SourcePolicyEpoch: sourcePolicyEpoch,
 			SourceOwner:       sourceOwner,
@@ -718,7 +737,7 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr receivedPeer, fam fami
 			ConnectionID:      connectionID,
 		}
 
-		if r.validationEnabled && isSimplePrefixFamily(fam) {
+		if !importFiltered && r.validationEnabled && isSimplePrefixFamily(fam) {
 			r.removeInstalled(peerAddr, rk)
 			pr := &pendingRoute{
 				peerAddr:   peerAddr,
@@ -736,6 +755,9 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr receivedPeer, fam fami
 				r.noteValidationChange(peerAddr, rk)
 			}
 		} else {
+			if importFiltered {
+				r.removePending(peerAddr, rk)
+			}
 			if r.ribIn[peerAddr] == nil {
 				r.ribIn[peerAddr] = newSeqMap()
 			}
@@ -860,7 +882,7 @@ func (r *AdjRIBInManager) dispatch(event *bgp.Event) {
 	eventType := event.GetEventType()
 
 	switch eventType {
-	case rpc.EventKindUpdate:
+	case rpc.EventKindUpdate, rpc.EventKindUpdateFiltered:
 		r.handleReceived(event)
 	case rpc.EventKindState:
 		r.handleState(event)
@@ -910,6 +932,11 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 	// attribute block CAN: it carries the MP_REACH_NLRI field verbatim. Read it
 	// once here, because one UPDATE carries at most one MP_REACH and the block is
 	// the whole UPDATE's (RFC2545-3-1, RFC2545-3-2).
+	importFiltered := event.GetEventType() == rpc.EventKindUpdateFiltered
+	filterStep := ""
+	if importFiltered {
+		filterStep = event.FilterStep
+	}
 	mpNhopHex, mpFam := mpReachNextHopHex(event.GetRawAttributesHex())
 
 	for fam, ops := range event.FamilyOps {
@@ -943,7 +970,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							nextHop = mpNhopHex
 						}
 					}
-					r.installComplexNLRIs(source, fam, event.GetRawNLRIBytes(fam), addPath, event.GetRawAttributesHex(), nextHop, event.GetMsgID(), event.SourcePolicyEpoch, event.PeerOwner, event.ConnectionID, event.SourceReceipt)
+					r.installComplexNLRIsWithFilter(source, fam, event.GetRawNLRIBytes(fam), addPath, event.GetRawAttributesHex(), nextHop, event.GetMsgID(), event.SourcePolicyEpoch, event.PeerOwner, event.ConnectionID, event.SourceReceipt, importFiltered, filterStep)
 				}
 			}
 			continue
@@ -1009,6 +1036,8 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							PathID:            pathID,
 							NLRIFraming:       framing,
 							HasPathID:         addPath,
+							ImportFiltered:    importFiltered,
+							FilterStep:        filterStep,
 							MsgID:             event.GetMsgID(),
 							SourcePolicyEpoch: event.SourcePolicyEpoch,
 							SourceOwner:       event.PeerOwner,
@@ -1016,7 +1045,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							ConnectionID:      event.ConnectionID,
 						}
 
-						if r.validationEnabled && isSimplePrefixFamily(fam) {
+						if !importFiltered && r.validationEnabled && isSimplePrefixFamily(fam) {
 							r.removeInstalled(source, rk)
 							pr := &pendingRoute{
 								peerAddr:   source,
@@ -1034,6 +1063,9 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 								r.noteValidationChange(source, rk)
 							}
 						} else {
+							if importFiltered {
+								r.removePending(source, rk)
+							}
 							if r.ribIn[source] == nil {
 								r.ribIn[source] = newSeqMap()
 							}
@@ -1240,6 +1272,12 @@ func (r *AdjRIBInManager) walkReplayRoutes(targetPeer netip.Addr, fromIndex uint
 				return true
 			}
 			if rt.Ineligible {
+				return true
+			}
+			// RFC 7947 Section 2.1: "These UPDATE messages MAY be omitted from
+			// the route server's Loc-RIB or Loc-RIBs, due to filters configured
+			// for the purpose of implementing routing policy."
+			if rt.ImportFiltered {
 				return true
 			}
 			// RFC 8212 Section 3: an applied import denial excludes the route.

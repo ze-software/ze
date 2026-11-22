@@ -7,6 +7,7 @@
 package reactor
 
 import (
+	"bytes"
 	"maps"
 	"net/netip"
 
@@ -284,9 +285,10 @@ func (r *Reactor) notifyMessageReceiverFrom(originalPeer *Peer, captured *Sessio
 		}
 		panic(transferredReadBufferPanic{cause: cause, buffer: buf})
 	}()
-	kept = r.notifyOneMessage(originalPeer, captured, peerAddr, msgType, rawBytes, wireUpdate, ctxID, direction, buf, meta, sentSourcePeerStr, sourceMessageID, ingressPolicyUndecided, 0, &follow)
+	kept = r.notifyOneMessage(originalPeer, captured, peerAddr, msgType, rawBytes, wireUpdate, ctxID, direction, buf, meta, sentSourcePeerStr, sourceMessageID, ingressPolicyUndecided, 0, false, "", &follow)
 	// One source decision yields at most two removal bodies and its surviving
-	// output. Already-judged continuations cannot enqueue another policy run.
+	// output (or an rs-client filtered retention). Already-judged continuations
+	// cannot enqueue another policy run.
 	for len(follow) > 0 {
 		next := follow[0]
 		follow[0] = ingressPolicyContinuation{}
@@ -300,7 +302,7 @@ func (r *Reactor) notifyMessageReceiverFrom(originalPeer *Peer, captured *Sessio
 			buffer = BufHandle{ID: noPoolBufID, Buf: next.body}
 		}
 		continuationKept := r.notifyOneMessage(originalPeer, captured, peerAddr, msgtype.TypeUPDATE, next.body, followUpdate, ctxID, direction,
-			buffer, next.meta, "", 0, ingressPolicyAlreadyApplied, next.epoch, &follow)
+			buffer, next.meta, "", 0, ingressPolicyAlreadyApplied, next.epoch, next.filtered, next.filterStep, &follow)
 		if next.buffer.Buf != nil {
 			kept = continuationKept // Only the effective replacement owns the original receipt buffer.
 		}
@@ -316,10 +318,12 @@ type ingressPolicyDisposition uint8
 // ingressPolicyContinuation owns an already-admitted body and its original
 // policy epoch. It is not a wire receipt and MUST NOT increment peer counters.
 type ingressPolicyContinuation struct {
-	body   []byte
-	epoch  uint64
-	meta   map[string]any
-	buffer BufHandle // Original receipt ownership transfers to the effective replacement once.
+	body       []byte
+	epoch      uint64
+	meta       map[string]any
+	buffer     BufHandle // Original receipt ownership transfers to the effective replacement once.
+	filtered   bool      // RFC 7947 Section 2.1: deliver on update-filtered to Adj-RIB-In only.
+	filterStep string    // Denying ingress step name when filtered is true.
 }
 
 const (
@@ -328,12 +332,47 @@ const (
 	ingressPolicyAlreadyApplied
 )
 
+// retainDeniedIngress reports whether an ingress-denied UPDATE from src MUST be
+// retained in Adj-RIB-In on the update-filtered rail (RFC 7947 Section 2.1).
+func retainDeniedIngress(hasPeer bool, src filterapi.PeerFilterInfo) bool {
+	return hasPeer && src.RSClient
+}
+
+// enqueueFilteredIngress queues the two FIFO continuations required when an
+// ingress step denies an UPDATE from a route-server client (RFC 7947 §2.1):
+//  1. Withdrawal(s) on the ordinary update rail so any previously accepted and
+//     selected version of a replaced prefix is withdrawn from Loc-RIB and
+//     recipients (and explicit withdrawals of a mixed UPDATE are honored).
+//  2. The original pre-policy UPDATE bytes on the distinct update-filtered rail
+//     so Adj-RIB-In retains the denied UPDATE marked import-filtered.
+func enqueueFilteredIngress(originalBody []byte, srcCtx *bgpctx.EncodingContext, sourcePolicyEpoch uint64, filterStep string, follow *[]ingressPolicyContinuation) {
+	if len(originalBody) > 0 {
+		buf := make([]byte, 2*(len(originalBody)+4))
+		first, second := buf[:len(originalBody)+4], buf[len(originalBody)+4:]
+		firstN, secondN := buildWithdrawalPayloads(originalBody, first, second, srcCtx)
+		if firstN > 0 {
+			*follow = append(*follow, ingressPolicyContinuation{body: first[:firstN], epoch: sourcePolicyEpoch})
+		}
+		if secondN > 0 {
+			*follow = append(*follow, ingressPolicyContinuation{body: second[:secondN], epoch: sourcePolicyEpoch})
+		}
+		// RFC 7947 Section 2.1: "A route server MUST accept all UPDATE messages
+		// received from each of its clients for inclusion in its Adj-RIB-In."
+		*follow = append(*follow, ingressPolicyContinuation{
+			body:       bytes.Clone(originalBody),
+			epoch:      sourcePolicyEpoch,
+			filtered:   true,
+			filterStep: filterStep,
+		})
+	}
+}
+
 // notifyOneMessage is notifyMessageReceiver for one message. follow receives
 // owned source removals and the effective replacement, or the second family of
 // a whole-source withdrawal. The caller MUST pass
 // ingressPolicyAlreadyApplied only for that accepted policy continuation:
 // it uses the same cache and publication path without judging ingress twice.
-func (r *Reactor) notifyOneMessage(originalPeer *Peer, captured *Session, peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64, policyDisposition ingressPolicyDisposition, admissionEpoch uint64, follow *[]ingressPolicyContinuation) bool {
+func (r *Reactor) notifyOneMessage(originalPeer *Peer, captured *Session, peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64, policyDisposition ingressPolicyDisposition, admissionEpoch uint64, filtered bool, filterStep string, follow *[]ingressPolicyContinuation) bool {
 	r.mu.RLock()
 	// The region below decodes the peer's UPDATE (IsEOR) and runs per-peer
 	// hooks under the reactor-wide lock. A panic there unwinds to the read
@@ -562,6 +601,8 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, captured *Session, peerAd
 			SourceConnectionID: connectionIDOf(captured),
 			WireUpdate:         wireUpdate,
 			AttrsWire:          attrsWire, // Derived from WireUpdate
+			Filtered:           filtered,
+			FilterStep:         filterStep,
 		}
 		if parseErr != nil {
 			msg.ParseError = parseErr
@@ -702,7 +743,8 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, captured *Session, peerAd
 		if srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID()); srcCtx != nil {
 			src.ASN4 = srcCtx.ASN4()
 		}
-		payload := wireUpdate.Payload()
+		originalBody := wireUpdate.Payload()
+		payload := originalBody
 		var ingressMeta map[string]any
 		for i := range r.orderedIngressSteps {
 			step := &r.orderedIngressSteps[i]
@@ -741,7 +783,19 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, captured *Session, peerAd
 				return false
 			}
 			if !res.accept {
-				return false // Route rejected by filter; don't cache or dispatch.
+				// RFC 7947 Section 2.1 binds route servers, so pre-policy retention
+				// follows the rs-client role rather than every peer.
+				if retainDeniedIngress(hasPeer, src) {
+					enqueueFilteredIngress(originalBody, bgpctx.Registry.Get(wireUpdate.SourceCtxID()), sourcePolicyEpoch, step.name, follow)
+				}
+				return false // Route rejected by filter; don't cache or dispatch directly.
+			}
+			if res.deniedAnnouncements && retainDeniedIngress(hasPeer, src) {
+				// Mixed UPDATE whose announcements were denied by policy: publish
+				// withdrawals on the ordinary update rail, then retain the original
+				// pre-policy UPDATE on update-filtered (RFC 7947 Section 2.1).
+				enqueueFilteredIngress(originalBody, bgpctx.Registry.Get(wireUpdate.SourceCtxID()), sourcePolicyEpoch, step.name, follow)
+				return false
 			}
 			if res.modifiedPayload != nil {
 				payload = res.modifiedPayload
@@ -791,7 +845,7 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, captured *Session, peerAd
 		*follow = append(*follow, ingressPolicyContinuation{body: wireUpdate.Payload(), epoch: sourcePolicyEpoch, meta: routeMeta, buffer: buf})
 		return false
 	}
-	if direction == rpc.DirectionReceived && wireUpdate != nil {
+	if !filtered && direction == rpc.DirectionReceived && wireUpdate != nil {
 		r.retainAIGPReceived(peerAddr, wireUpdate, routeMeta, sourcePolicyEpoch)
 	}
 
@@ -808,13 +862,9 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, captured *Session, peerAd
 		}
 	}
 
-	// Cache BEFORE event delivery (only received UPDATEs).
-	// Entry is inserted with pending=true so it exists when plugins receive the
-	// message-id. After dispatch, Activate(id, N) sets the consumer count.
-	// If a fast plugin calls "forward" before Activate(), Get() still works
-	// (pending entries are accessible) and Decrement() adjusts the count
-	// (negative is corrected when Activate adds N).
-	if direction == rpc.DirectionReceived && wireUpdate != nil && buf.Buf != nil {
+	// Cache BEFORE event delivery (only accepted received UPDATEs).
+	// Filtered UPDATEs are retained in Adj-RIB-In only and never cached for forwarding.
+	if !filtered && direction == rpc.DirectionReceived && wireUpdate != nil && buf.Buf != nil {
 		ru := &ReceivedUpdate{
 			poolBuf:           buf, // Cache owns buf
 			SourcePeerIP:      peerAddr,
@@ -850,7 +900,7 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, captured *Session, peerAd
 	// consumers that just want to know an UPDATE arrived (without the wire
 	// payload) subscribe here. Plugins that need the full UPDATE go through
 	// the EventDispatcher delivery path instead.
-	if r.eventBus != nil {
+	if !filtered && r.eventBus != nil {
 		// Use cached addrString when available to avoid per-message String() allocation.
 		addrStr := peerAddr.String()
 		if hasPeer {

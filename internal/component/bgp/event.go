@@ -72,7 +72,8 @@ func ParseEvent(data []byte) (*Event, error) {
 		return nil, err
 	}
 	var receipt bgptypes.UpdateReceipt
-	enveloped := wrapper.Namespace == bgpevents.Namespace && wrapper.Event == bgpevents.EventUpdate
+	enveloped := wrapper.Namespace == bgpevents.Namespace &&
+		(wrapper.Event == bgpevents.EventUpdate || wrapper.Event == bgpevents.EventUpdateFiltered)
 	if enveloped {
 		decoded, err := bgptypes.ParseUpdateReceipt(wrapper.Metadata)
 		if err != nil {
@@ -120,8 +121,8 @@ func ParseEvent(data []byte) (*Event, error) {
 	jsonKey := bgpPayload.Type
 	if jsonKey == "" && bgpPayload.Message != nil && bgpPayload.Message.Type != rpc.EventKindUnspecified {
 		jsonKey = bgpPayload.Message.Type.String()
-		// For "sent" type, the nested data is under "update".
-		if bgpPayload.Message.Type == rpc.EventKindSent {
+		// For "sent" and "update-filtered" types, the nested data is under "update".
+		if bgpPayload.Message.Type == rpc.EventKindSent || bgpPayload.Message.Type == rpc.EventKindUpdateFiltered {
 			jsonKey = "update"
 		}
 	}
@@ -154,11 +155,17 @@ func ParseEvent(data []byte) (*Event, error) {
 	}
 
 	// Preserve the event type parsed from the outer envelope.
-	if jsonKey != "" {
+	if bgpPayload.Message != nil && bgpPayload.Message.Type == rpc.EventKindUpdateFiltered {
+		event.Type = rpc.EventKindUpdateFiltered.String()
+		event.TypeKind = rpc.EventKindUpdateFiltered
+	} else if jsonKey != "" {
 		event.Type = jsonKey
 		var ek rpc.EventKind
 		_ = ek.UnmarshalText([]byte(jsonKey))
 		event.TypeKind = ek
+	}
+	if receipt.FilterStep != "" {
+		event.FilterStep = receipt.FilterStep
 	}
 	// Preserve peer from bgp level.
 	if len(bgpPayload.Peer) > 0 {
@@ -170,7 +177,7 @@ func ParseEvent(data []byte) (*Event, error) {
 	}
 	if enveloped {
 		kind := event.GetEventType()
-		if kind != rpc.EventKindUpdate {
+		if kind != rpc.EventKindUpdate && kind != rpc.EventKindUpdateFiltered {
 			if kind != rpc.EventKindSent {
 				return nil, fmt.Errorf("BGP UPDATE envelope carries a non-UPDATE payload")
 			}
@@ -388,6 +395,7 @@ type Event struct {
 	MsgID             uint64        `json:"msg-id"`
 	SourcePolicyEpoch uint64        `json:"source-policy-epoch"`
 	SourceReceipt     uint64        `json:"source-receipt"`
+	FilterStep        string        `json:"filter-step,omitempty"`
 	PeerOwner         uint64        `json:"peer-owner"`
 	ConnectionID      uint64        `json:"connection-id,string,omitempty"`
 

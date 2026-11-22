@@ -3,7 +3,7 @@
   "requirement_sha": "91cb65f9bb46cfd0",
   "tests": {
     "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsMEDForRouteServerClient": "9c699e457619798c",
-    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "ca1e393037a1b768",
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "bfc95ec0a5cb989c",
     "test/plugin/med-not-propagated-across-as.ci": "645c67f92099c212",
     "test/plugin/med-not-propagated-across-as.ci#2": "645c67f92099c212"
   },

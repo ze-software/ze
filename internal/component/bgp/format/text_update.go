@@ -36,8 +36,9 @@ import (
 // appendFilterResultJSON / appendSummaryJSON so the sent-vs-received distinction
 // is written at source rather than patched in via strings.Replace.
 const (
-	messageTypeUpdate = "update"
-	messageTypeSent   = "sent"
+	messageTypeUpdate         = "update"
+	messageTypeUpdateFiltered = "update-filtered"
+	messageTypeSent           = "sent"
 )
 
 // appendSourcePolicyEpochJSON writes dedicated transport provenance beside the
@@ -119,7 +120,11 @@ func appendConnectionIDText(buf []byte, connectionID uint64) []byte {
 // Uses lazy parsing via AttrsWire when available for optimal performance.
 // Handles encoding (json/text), format (parsed/raw/full), and attribute filtering.
 func AppendMessage(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig) []byte {
-	return appendMessageTyped(buf, peer, msg, content, rpc.DirectionUnspecified, messageTypeUpdate)
+	msgType := messageTypeUpdate
+	if msg.Filtered {
+		msgType = messageTypeUpdateFiltered
+	}
+	return appendMessageTyped(buf, peer, msg, content, rpc.DirectionUnspecified, msgType)
 }
 
 // AppendSentMessage appends a sent UPDATE to buf.

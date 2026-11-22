@@ -98,7 +98,7 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 	se.LocalAddress = peer.LocalAddrStr()
 	se.LocalPort = peer.LocalPort
 	se.RemotePort = peer.RemotePort
-	se.EventType = messageTypeToEventKind(msg.Type)
+	se.EventType = eventKindForMessage(msg)
 	se.Direction = msg.Direction
 	se.MessageID = msg.MessageID
 	se.RawMessage = msg
@@ -208,7 +208,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 		return 0 // Server shutting down, skip event delivery
 	}
 
-	eventType := messageTypeToEventKind(msg.Type)
+	eventType := eventKindForMessage(&msg)
 	if eventType == rpc.EventKindUnspecified {
 		logger().Debug("OnMessageReceived: unknown event type", "msgType", msg.Type)
 		return 0
@@ -350,9 +350,27 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		return counts
 	}
 
-	// All messages share the same peer → same event type for subscription lookup.
-	// Use the first message to determine event type (all are from same peer delivery goroutine).
-	eventType := messageTypeToEventKind(msgs[0].Type)
+	// All messages in a homogeneous run share one event kind for subscription
+	// lookup. When a peer's delivery batch mixes ordinary UPDATEs and
+	// update-filtered events, split into contiguous runs so each kind reaches
+	// only its own subscribers in strict FIFO order.
+	eventType := eventKindForMessage(&msgs[0])
+	for i := 1; i < len(msgs); i++ {
+		if eventKindForMessage(&msgs[i]) != eventType {
+			start := 0
+			for start < len(msgs) {
+				kind := eventKindForMessage(&msgs[start])
+				end := start + 1
+				for end < len(msgs) && eventKindForMessage(&msgs[end]) == kind {
+					end++
+				}
+				sub := onMessageBatchReceived(s, encoder, peer, msgs[start:end])
+				copy(counts[start:end], sub)
+				start = end
+			}
+			return counts
+		}
+	}
 	if eventType == rpc.EventKindUnspecified {
 		logBatchNotDelivered("unknown message type", peer, msgs)
 		return counts
@@ -376,7 +394,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	// serialization where the delivery goroutine blocks on the slowest
 	// subscriber (e.g., adj-rib-in's per-NLRI storage) before delivering the
 	// next UPDATE to fast subscribers (e.g., bgp-rs's sub-microsecond dispatch).
-	isUpdate := msgs[0].Type == msgtype.TypeUPDATE
+	isUpdate := eventType == rpc.EventKindUpdate
 	var fmtCache formatCache
 	var envelopeCache updateEnvelopeCache
 
@@ -459,6 +477,16 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	}
 
 	return counts
+}
+
+// eventKindForMessage selects the EventKind for a RawMessage. A route-server
+// client UPDATE denied on ingress rides EventKindUpdateFiltered so only
+// subscribers asking for update-filtered receive it (RFC 7947 Section 2.1).
+func eventKindForMessage(msg *bgptypes.RawMessage) rpc.EventKind {
+	if msg.Type == msgtype.TypeUPDATE && msg.Filtered {
+		return rpc.EventKindUpdateFiltered
+	}
+	return messageTypeToEventKind(msg.Type)
 }
 
 // messageTypeToEventKind converts BGP message type to typed EventKind.
@@ -1144,7 +1172,7 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 		return // Server shutting down, skip event delivery
 	}
 
-	eventType := messageTypeToEventKind(msg.Type)
+	eventType := eventKindForMessage(&msg)
 	if eventType == rpc.EventKindUnspecified {
 		return
 	}

@@ -116,7 +116,8 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 			bp.handleSenderMirror(se, senders)
 		}
 	case rpc.EventKindUnspecified, rpc.EventKindEOR, rpc.EventKindBoRR,
-		rpc.EventKindEoRR, rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindCount:
+		rpc.EventKindEoRR, rpc.EventKindSent, rpc.EventKindNegotiated,
+		rpc.EventKindUpdateFiltered, rpc.EventKindCount:
 		// These events have no collector message.
 	default:
 		// The plugin event set is open; unknown events have no collector message.

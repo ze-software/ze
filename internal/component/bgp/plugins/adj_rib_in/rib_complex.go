@@ -29,6 +29,10 @@ import (
 // an address STRING, which lost the link-local half of an RFC 2545 Section 3
 // pair before it ever reached storage.
 func (r *AdjRIBInManager) installComplexNLRIs(peerAddr receivedPeer, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch, sourceOwner, connectionID, sourceReceipt uint64) {
+	r.installComplexNLRIsWithFilter(peerAddr, fam, data, addPath, attrHex, nhopHex, msgID, sourcePolicyEpoch, sourceOwner, connectionID, sourceReceipt, false, "")
+}
+
+func (r *AdjRIBInManager) installComplexNLRIsWithFilter(peerAddr receivedPeer, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch, sourceOwner, connectionID, sourceReceipt uint64, importFiltered bool, filterStep string) {
 	if attrHex == "" {
 		return
 	}
@@ -68,6 +72,8 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr receivedPeer, fam family.
 			PathID:            pathID,
 			NLRIFraming:       rpc.NLRIFramingPrefixOnly,
 			HasPathID:         addPath,
+			ImportFiltered:    importFiltered,
+			FilterStep:        filterStep,
 			MsgID:             msgID,
 			SourcePolicyEpoch: sourcePolicyEpoch,
 			SourceOwner:       sourceOwner,

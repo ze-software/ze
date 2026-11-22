@@ -463,7 +463,8 @@ func RunRouteServer(conn net.Conn) int {
 				}
 			case rpc.EventKindUnspecified, rpc.EventKindNotification, rpc.EventKindKeepalive,
 				rpc.EventKindEOR, rpc.EventKindBoRR, rpc.EventKindEoRR,
-				rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindCount:
+				rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindUpdateFiltered,
+				rpc.EventKindCount:
 				// These events do not change route-server state.
 			default:
 				// The plugin event set is open; unknown events leave route-server state unchanged.

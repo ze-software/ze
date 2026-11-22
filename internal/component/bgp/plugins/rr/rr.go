@@ -235,7 +235,8 @@ func serveRouteReflector(p *sdk.Plugin) int {
 				}
 			case rpc.EventKindUnspecified, rpc.EventKindNotification, rpc.EventKindKeepalive,
 				rpc.EventKindRefresh, rpc.EventKindEOR, rpc.EventKindBoRR, rpc.EventKindEoRR,
-				rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindCount:
+				rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindUpdateFiltered,
+				rpc.EventKindCount:
 				// These events do not trigger reflection.
 			default:
 				// The plugin event set is open; unknown events do not trigger reflection.

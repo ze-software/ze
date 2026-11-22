@@ -1015,7 +1015,8 @@ func (r *RIBManager) dispatch(event *Event) {
 		// RFC 7313: End of Route Refresh from peer - log only
 		logger().Debug("received EoRR marker", "peer", event.GetPeerAddress())
 	case rpc.EventKindUnspecified, rpc.EventKindOpen, rpc.EventKindNotification,
-		rpc.EventKindKeepalive, rpc.EventKindEOR, rpc.EventKindNegotiated, rpc.EventKindCount:
+		rpc.EventKindKeepalive, rpc.EventKindEOR, rpc.EventKindNegotiated,
+		rpc.EventKindUpdateFiltered, rpc.EventKindCount:
 		// These events do not change the RIB.
 	default:
 		// The plugin event set is open; unknown events do not change the RIB.

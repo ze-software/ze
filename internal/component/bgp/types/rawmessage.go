@@ -47,6 +47,13 @@ type RawMessage struct {
 	// only these peers via ForwardCached when ReactorForwarded is true. A peer the fast path
 	// SUPPRESSED by policy is not listed -- that decision is final.
 	FastPathSkipped []rpc.ForwardTarget
+
+	// Filtered is true when an ingress step denied this route-server client
+	// UPDATE and the engine delivers its original pre-policy wire bytes on the
+	// distinct update-filtered event kind for Adj-RIB-In retention (RFC 7947
+	// Section 2.1). FilterStep names the denying ingress step.
+	Filtered   bool
+	FilterStep string
 }
 
 // IsAsyncSafe reports whether this message's RawBytes can be safely used after

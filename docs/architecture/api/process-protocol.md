@@ -49,7 +49,9 @@ single bidirectional connection. All messages use the wire format
 `#<id> <verb> [<json>]\n`.
 <!-- source: pkg/plugin/rpc/conn.go -- Conn doc comment -->
 
-- **Events (engine to plugin):** BGP events delivered via `deliver-event` or `deliver-batch` RPCs
+- **Events (engine to plugin):** BGP events delivered via `deliver-event` or `deliver-batch` RPCs. The `bgp` namespace registers `update-filtered` alongside `update`, so subscription grammar, YANG `ReceiveEventValidator`, and CLI completion derive it automatically; only subscribers to `update-filtered direction received` (such as `bgp-adj-rib-in`) receive ingress-denied route-server client UPDATEs.
+<!-- source: internal/core/bgp/events/events.go -- EventUpdateFiltered -->
+<!-- source: internal/component/bgp/plugin/register.go -- init -->
 - **Commands (plugin to engine):** Route updates, command dispatch, event emission via engine RPCs
 - **Callbacks (engine to plugin):** Config verification, command execution, OPEN validation
 

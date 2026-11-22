@@ -1483,6 +1483,31 @@ returns an error without allocating a store for an invalid address.
 `PeerAddress()` exposes that optional immutable display value. Received owner
 maps and engine leases supply identity and authorization independently of it.
 
+### Route-server pre-policy Adj-RIB-In retention (RFC 7947 Section 2.1)
+
+When an ingress filter or import policy denies an UPDATE received from a peer
+with `rs-client true` (including announcements stripped from a mixed UPDATE,
+excluding session teardown verdicts), the reactor first queues withdrawals for
+any affected prefixes on the ordinary `update` rail so Loc-RIB and downstream
+clients drop any previously accepted version, then queues the original
+pre-policy UPDATE bytes on the distinct `update-filtered` rail carrying the
+denying step name (`FilterStep`). `bgp-adj-rib-in` is the sole subscriber to
+`update-filtered direction received`: it installs each entry directly into
+`ribIn` with `ImportFiltered: true` and `FilterStep`, independent of RPKI
+`Ineligible`. `walkReplayRoutes`, `replayPathCommand`, and `routeEligible`
+withhold `ImportFiltered` entries unconditionally, and subsequent validation
+decisions cannot promote or delete them. Explicit withdrawals and peer DOWN
+remove them normally. For `rs-client true` peers with a configured prefix
+maximum in offered mode, `session_prefix.go` maintains a parallel unique
+retained key set so unmatched withdrawals cannot grow retained entries beyond
+the configured maximum.
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- enqueueFilteredIngress, notifyOneMessage -->
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- prefixCounts.retained, newPrefixCounts -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- RawRoute.ImportFiltered, walkReplayRoutes -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- routeEligible -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go -- replayPathCommand -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation.go -- applyToInstalled -->
+
 ### Adj-RIB-In route keys
 
 On the bridge ingest path (`handleReceivedStructured`, the in-process plugin),
@@ -1512,8 +1537,8 @@ each decoded native path independently on both event transports.
 The peer-up replay (`walkReplayRoutes`) covers every stored route of every
 source peer other than the target, within the requested from-index and
 max-msg-id cut, except FlowSpec routes, whose snapshots come
-only from the selecting RIB, and routes a validation decision marked
-`Ineligible`. A replay owner (`bgp-rs`, `bgp-rr`) reads it page by page through
+only from the selecting RIB, routes a validation decision marked
+`Ineligible`, and routes marked `ImportFiltered`. A replay owner (`bgp-rs`, `bgp-rr`) reads it page by page through
 the hidden `request bgp adj-rib-in replay-routes` (`buildReplayPage`) and relays
 each page under its own send grant; the store relays the whole walk itself
 (`buildReplayRoutes`) only for its own self-replay and the operator's

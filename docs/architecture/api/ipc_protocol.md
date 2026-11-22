@@ -29,7 +29,11 @@ A **subsystem** is a protocol component that follows the ZE API for plugin commu
 ### Event Subscription
 
 Plugins subscribe dynamically through `ze-plugin-engine:subscribe-events` or send
-startup subscriptions in `ze-plugin-engine:ready`.
+startup subscriptions in `ze-plugin-engine:ready`. Structured event delivery
+identifies each event by `rpc.EventKind`, including `EventKindUpdateFiltered`
+(`"update-filtered"`) for pre-policy route-server client UPDATE retention
+(RFC 7947 Section 2.1).
+<!-- source: pkg/plugin/rpc/enums.go -- EventKind, EventKindUpdateFiltered -->
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.SubscribeEvents -->
 <!-- source: pkg/plugin/rpc/types.go -- SubscribeEventsInput -->
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->

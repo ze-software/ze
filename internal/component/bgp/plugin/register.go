@@ -67,7 +67,7 @@ func init() {
 		"session-stuck", "session-flap", "eor-timeout"))
 
 	_ = events.RegisterNamespace(bgpevents.Namespace,
-		bgpevents.EventUpdate, bgpevents.EventOpen, bgpevents.EventNotification,
+		bgpevents.EventUpdate, bgpevents.EventUpdateFiltered, bgpevents.EventOpen, bgpevents.EventNotification,
 		bgpevents.EventKeepalive, bgpevents.EventRefresh, bgpevents.EventState,
 		bgpevents.EventNegotiated, bgpevents.EventEOR, bgpevents.EventCongested,
 		bgpevents.EventResumed, bgpevents.EventRPKI, bgpevents.EventListenerReady,

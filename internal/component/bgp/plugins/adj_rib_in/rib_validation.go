@@ -82,6 +82,15 @@ func (r *AdjRIBInManager) applyToInstalled(peerAddr receivedPeer, routeKey compa
 		r.noteValidationChange(peerAddr, routeKey)
 		return false
 	}
+	if route.ImportFiltered {
+		// RFC 7947 Section 2.1: an import-filtered route stays retained in the
+		// Adj-RIB-In and cannot be deleted or promoted to eligible by a
+		// subsequent origin-validation decision.
+		route.ValidationState = d.ValState
+		route.Ineligible = d.Ineligible
+		r.noteValidationChange(peerAddr, routeKey)
+		return true
+	}
 	if !d.Accept && !d.Ineligible {
 		r.removeInstalled(peerAddr, routeKey)
 		return true

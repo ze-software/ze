@@ -46,6 +46,7 @@ func (cache *updateEnvelopeCache) wrap(peer *plugin.PeerInfo, message *bgptypes.
 			SourcePolicyEpoch: message.SourcePolicyEpoch,
 			SourceReceipt:     message.SourceReceipt,
 			ReactorForwarded:  message.ReactorForwarded, FastPathSkipped: message.FastPathSkipped,
+			FilterStep: message.FilterStep,
 		})
 		if err != nil {
 			return "", fmt.Errorf("marshal BGP UPDATE receipt: %w", err)
@@ -62,8 +63,12 @@ func (cache *updateEnvelopeCache) wrap(peer *plugin.PeerInfo, message *bgptypes.
 	} else {
 		payload = json.RawMessage(output)
 	}
+	eventName := bgpevents.EventUpdate
+	if message.Filtered {
+		eventName = bgpevents.EventUpdateFiltered
+	}
 	encoded, err := json.Marshal(rpc.EventEnvelope{
-		Namespace: bgpevents.Namespace, Event: bgpevents.EventUpdate,
+		Namespace: bgpevents.Namespace, Event: eventName,
 		Payload: payload, Metadata: cache.metadata,
 	})
 	if err != nil {

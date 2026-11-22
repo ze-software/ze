@@ -94,6 +94,12 @@ func (r *AdjRIBInManager) routeEligible(key ribevents.ValidationRoute, msgID uin
 	if route.ConnectionID != key.ConnectionID {
 		return false
 	}
+	// RFC 7947 Section 2.1: an import-filtered entry is retained in Adj-RIB-In
+	// only and is never eligible for selection or advertisement, regardless of
+	// validation decisions.
+	if route.ImportFiltered {
+		return false
+	}
 	// RFC 8212 Section 3: an applied import denial excludes the route.
 	if r.sourcePolicyDeniedLocked(route.SourceOwner, route.SourcePolicyEpoch) {
 		return false

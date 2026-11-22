@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/netip"
+	"strconv"
 	"testing"
 	"time"
 
@@ -138,14 +139,18 @@ func (f *filteredReceivedLive) requireWithheld(t *testing.T, prefix netip.Prefix
 		}
 	}
 	require.True(t, controlFound, "replay must still include the accepted control route")
+	sourceOwner := strconv.FormatUint(f.source.peer.sourceOwner, 10)
+	sourceConn := strconv.FormatUint(f.source.peer.currentSession().connectionID, 10)
 	var path ribevents.ReplayPage
 	require.NoError(t, json.Unmarshal(f.command(t, ribevents.ReplayPathCommand, destination,
-		f.source.peer.Settings().Address.String(), "ipv4/unicast", prefix.String(), "0"), &path))
+		f.source.peer.Settings().Address.String(), "ipv4/unicast", prefix.String(), "0", sourceOwner, sourceConn), &path))
 	require.Len(t, path.Routes, 1)
 	require.True(t, path.Routes[0].Withdraw, "validation recovery must answer a policy-denied path as withdrawn")
+	controlOwner := strconv.FormatUint(f.control.peer.sourceOwner, 10)
+	controlConn := strconv.FormatUint(f.control.peer.currentSession().connectionID, 10)
 	var accepted ribevents.ReplayPage
 	require.NoError(t, json.Unmarshal(f.command(t, ribevents.ReplayPathCommand, destination,
-		f.control.peer.Settings().Address.String(), "ipv4/unicast", filteredReceivedControl().String(), "0"), &accepted))
+		f.control.peer.Settings().Address.String(), "ipv4/unicast", filteredReceivedControl().String(), "0", controlOwner, controlConn), &accepted))
 	require.Len(t, accepted.Routes, 1)
 	require.False(t, accepted.Routes[0].Withdraw, "validation recovery must retain the accepted control")
 }
@@ -272,9 +277,17 @@ func TestRFC7947ReceivedValidationCannotAcceptPolicyDenial(t *testing.T) {
 	f.requireRoute(t, f.source, prefix, attrs)
 	f.requireWithheld(t, prefix)
 	require.False(t, ribevents.RouteEligible(ribevents.ValidationRoute{
-		Peer: f.source.peer.Settings().Address, Family: family.IPv4Unicast, Prefix: prefix,
+		Peer:         f.source.peer.Settings().Address,
+		PeerOwner:    f.source.peer.sourceOwner,
+		ConnectionID: f.source.peer.currentSession().connectionID,
+		Family:       family.IPv4Unicast,
+		Prefix:       prefix,
 	}, 0), "a Valid origin cannot make an import-denied route eligible")
 	require.True(t, ribevents.RouteEligible(ribevents.ValidationRoute{
-		Peer: f.control.peer.Settings().Address, Family: family.IPv4Unicast, Prefix: filteredReceivedControl(),
+		Peer:         f.control.peer.Settings().Address,
+		PeerOwner:    f.control.peer.sourceOwner,
+		ConnectionID: f.control.peer.currentSession().connectionID,
+		Family:       family.IPv4Unicast,
+		Prefix:       filteredReceivedControl(),
 	}, 0), "the validation gate must admit the accepted control route")
 }

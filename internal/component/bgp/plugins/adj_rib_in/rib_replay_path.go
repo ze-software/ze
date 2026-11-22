@@ -96,8 +96,8 @@ func (r *AdjRIBInManager) replayPathCommand(args []string) (string, any, error) 
 		route.SourcePolicyEpoch = stored.SourcePolicyEpoch
 		route.Withdraw = false
 	}
-	if stored != nil && r.sourcePolicyDeniedLocked(stored.SourceOwner, stored.SourcePolicyEpoch) {
-		// RFC 8212 Section 3: a denied path is answered as withdrawn.
+	if stored != nil && (stored.ImportFiltered || r.sourcePolicyDeniedLocked(stored.SourceOwner, stored.SourcePolicyEpoch)) {
+		// RFC 7947 Section 2.1 / RFC 8212 Section 3: a policy-denied path is answered as withdrawn.
 		route = rpc.StoredRoute{SourcePeer: route.SourcePeer, SourceOwner: route.SourceOwner, SourceReceipt: route.SourceReceipt, SourceConnectionID: route.SourceConnectionID, Family: route.Family, PathID: route.PathID,
 			NLRIHex: route.NLRIHex, NLRIFraming: route.NLRIFraming, Withdraw: true}
 	}

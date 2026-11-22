@@ -24,6 +24,7 @@ type UpdateReceipt struct {
 	SourceReceipt     uint64              `json:"source-receipt"`
 	ReactorForwarded  bool                `json:"reactor-forwarded"`
 	FastPathSkipped   []rpc.ForwardTarget `json:"fast-path-skipped,omitempty"`
+	FilterStep        string              `json:"filter-step,omitempty"`
 }
 
 // ParseUpdateReceipt decodes one UPDATE envelope's mandatory metadata. The
@@ -41,6 +42,7 @@ func ParseUpdateReceipt(metadata json.RawMessage) (UpdateReceipt, error) {
 		SourceReceipt     receiptUint64       `json:"source-receipt"`
 		ReactorForwarded  receiptDecision     `json:"reactor-forwarded"`
 		FastPathSkipped   []rpc.ForwardTarget `json:"fast-path-skipped"`
+		FilterStep        string              `json:"filter-step"`
 	}
 	if err := json.Unmarshal(metadata, &fields); err != nil {
 		return UpdateReceipt{}, fmt.Errorf("BGP UPDATE receipt: %w", err)
@@ -74,6 +76,7 @@ func ParseUpdateReceipt(metadata json.RawMessage) (UpdateReceipt, error) {
 		SourceReceipt:     fields.SourceReceipt.value,
 		ReactorForwarded:  fields.ReactorForwarded == receiptDecisionForwarded,
 		FastPathSkipped:   fields.FastPathSkipped,
+		FilterStep:        fields.FilterStep,
 	}, nil
 }
 

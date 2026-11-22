@@ -70,6 +70,11 @@ type ingressStepResult struct {
 	// removals owns the source withdrawals omitted by an accepting marked subset.
 	// The notification path MUST publish them before the effective replacement.
 	removals [][]byte
+	// deniedAnnouncements is true when ingressPolicyWithdrawals stripped denied
+	// announcements from a mixed UPDATE while keeping its explicit withdrawals.
+	// On an rs-client peer, notifyOneMessage retains the original pre-policy
+	// UPDATE in Adj-RIB-In marked filtered (RFC 7947 Section 2.1).
+	deniedAnnouncements bool
 }
 
 // orderedEgressStep is one entry of the egress pass forwardUpdateCore runs per
@@ -349,7 +354,7 @@ func ingressPolicyWithdrawals(payload []byte) ingressStepResult {
 	if len(withdrawals) == len(payload) {
 		return ingressStepResult{accept: true}
 	}
-	return ingressStepResult{accept: true, modifiedPayload: withdrawals}
+	return ingressStepResult{accept: true, modifiedPayload: withdrawals, deniedAnnouncements: true}
 }
 
 // policyWithdrawals projects explicit withdrawals without converting denied

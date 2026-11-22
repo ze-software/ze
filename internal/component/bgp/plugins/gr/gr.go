@@ -335,7 +335,8 @@ func (gp *grPlugin) handleStructuredEvent(se *rpc.StructuredEvent) error {
 		}
 	case rpc.EventKindUnspecified, rpc.EventKindUpdate, rpc.EventKindNotification,
 		rpc.EventKindKeepalive, rpc.EventKindRefresh, rpc.EventKindEOR, rpc.EventKindBoRR,
-		rpc.EventKindEoRR, rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindCount:
+		rpc.EventKindEoRR, rpc.EventKindSent, rpc.EventKindNegotiated,
+		rpc.EventKindUpdateFiltered, rpc.EventKindCount:
 		// These events do not change this subscriber's GR state; EOR uses JSON.
 	default:
 		// The event kind is open; unrelated kinds leave GR state unchanged.

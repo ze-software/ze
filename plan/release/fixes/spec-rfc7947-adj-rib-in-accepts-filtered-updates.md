@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | verification |
 | Priority | P1 |
 | Release reason | A route server must retain the required pre-policy received population independently of policy rejection. |
 | Scope | protocol |
 | Depends | - |
-| Phase | Phase 1: wiring and filtered-update event emission |
+| Phase | Implemented and verified; ready for closure |
 | Handoff | - |
 | Updated | 2026-11-22 |
 
