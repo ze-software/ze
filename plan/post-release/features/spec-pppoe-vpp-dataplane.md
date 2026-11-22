@@ -33,7 +33,7 @@ validation limits below. The VPP provider is composed; it is not fully accepted.
 | Provider history defect | Repaired in `0c93a81fd2` (2026-11-22). `Settle` keeps a delayed settlement's causes and matched NACK; physical close joins instead of overwriting; a response the write itself received is still returned once and not retained. The model root and both genuine ACK/NACK roots went red to green. |
 | IPv6 | The arm64 kernel `cddff82e255fc9a7010a79d5237a733463569f495ae483b60962455788fb3884` and image `f92054020556fb26` passed four constructor models and thirteen genuine API roots. Carrier adopted 2026-11-22 (resume step 3): the kernel session carrier opens its ICMPv6 and UDPv6 sockets from the original unit, and the name-based path is deleted. On amd64 runtime tree `2b23af13` all nine `TestNativeIPv6Carrier*` roots pass, and so does the whole `pppoe/dataplane/kernel` package. The adoption also repaired kernel patch `0013b` for UDP6 receive. Fragment ownership is accepted (resume step 4, `169eccfa2c`): the five fragment roots pass on `2b23af13`, the package passes 47/0/0, and the name-based carrier cut turns the ownership roots red. Complete subscriber acceptance remains open. |
 | PCI override prerequisite | The Go reader and doctor reject ambiguous legacy override state and preserve exact raw bytes/errors. The `driver_override_raw` kernel patch `0006` is not enrolled. Do not claim managed NIC restoration is accepted on the current kernel from the Go model results. |
-| Final gates | The real-VPP IPv4 product lab passed 4 of 4 on 2026-11-22, including 100 subscribers ("Real-VPP product lab" below); its discrimination is owed. Server PADS and PADT order is proven (`b6388ee211`). AC-11 still lacks a PPPoE operator clear (owned here) and CoA Disconnect for PPPoE (`spec-lifecycle-invariants` I-4). L2TP accounting counts the original unit (`38267f5e0c`) and AC-24 route receipt is proven (`0a92e78161`); resume step 5 lists what remains of accounting and who owns it. Owed implementation, each needing a design: OD-2 VPP loss handling for AC-12 (no PPPoE code consumes `vpp/disconnected` or `vpp/reconnected`, and `Reconcile` in `pppoe/dataplane/vpp/reconcile.go` has no production caller), and policer wiring for AC-9, AC-10 and AC-15 (`newPolicerRatePolicy` in `pppoe/dataplane/vpp/rate_policy.go` has no production caller). Owed: the accounting admission design and the name-based shaper (Owned journal rows), scoped lint, documentation checks, independent review, discrimination, and real VPP forwarding, restart, interop and scale. AC-8 waits on `spec-l2tp-ipv6-subscriber`. Keep this spec in phase 2/7 until those requirements are actually met. |
+| Final gates | Current defect: VPP subscribers forward unpoliced, because the shaper's ingress policer is refused by traffic-vpp and only logged, and a VPP session's CoA rate change is NAKed (`unwired-feature.md`, 2026-11-22). The fix is the policer wiring design below. The real-VPP IPv4 product lab passed 4 of 4 on 2026-11-22, including 100 subscribers, and `product-framed` passed 1 of 1 (AC-7) ("Real-VPP product lab" below); the discrimination of both is owed. The OD-2 and policer designs are in "Implementation designs — 2026-11-22"; they wait on owner decisions D-1 and C-1. Server PADS and PADT order is proven (`b6388ee211`). AC-11 still lacks a PPPoE operator clear (owned here) and CoA Disconnect for PPPoE (`spec-lifecycle-invariants` I-4). L2TP accounting counts the original unit (`38267f5e0c`) and AC-24 route receipt is proven (`0a92e78161`); resume step 5 lists what remains of accounting and who owns it. Owed implementation, each needing a design: OD-2 VPP loss handling for AC-12 (no PPPoE code consumes `vpp/disconnected` or `vpp/reconnected`, and `Reconcile` in `pppoe/dataplane/vpp/reconcile.go` has no production caller), and policer wiring for AC-9, AC-10 and AC-15 (`newPolicerRatePolicy` in `pppoe/dataplane/vpp/rate_policy.go` has no production caller). Owed: the accounting admission design and the name-based shaper (Owned journal rows), scoped lint, documentation checks, independent review, discrimination, and real VPP forwarding, restart, interop and scale. AC-8 waits on `spec-l2tp-ipv6-subscriber`. Keep this spec in phase 2/7 until those requirements are actually met. |
 
 ### Retirement causal cuts — 2026-11-22
 
@@ -84,6 +84,288 @@ AC-11 teardown gaps and their owners: no PPPoE operator clear command exists
 Disconnect-Request for a PPPoE session answers Disconnect-NAK
 (`authradius/coa.go` `handleDisconnect`, "not yet wired to PPPoE teardown"),
 owed by `spec-lifecycle-invariants` I-4 and its AC-15.
+
+`./le test deployment vpp-pppoe product-framed` passed the same day: scenario
+`pppoe-vpp-ze-ac-radius-framed-route` (26 s), image from cache key
+`88588b41...` (`tmp/session/2026-11-22-203554/scratch/job-vpp-framed-52302217.log`).
+It covers AC-7 for a RADIUS Framed-Route. Its discrimination is owed too.
+
+## Implementation designs — 2026-11-22 (awaiting owner decisions)
+
+Two strongest-tier design agents produced these read-only, from facts read at
+the producers. Each designs within an agreed decision: OD-2 decides the loss
+behavior, and OD-4 with AC-15 decides the policer behavior. Paths are under
+`internal/component/l2tp/` unless named otherwise. Nothing here is built.
+
+### OD-2 VPP loss handling (AC-12)
+
+Corrections to earlier records:
+
+- The loss seam exists, unwired: `pppoe/dataplane/lifecycle.go`
+  (`SubscribeLifecycleFunc`, `LifecycleSignals` with Lost and Ready,
+  `LifecycleWatch` with Snapshot, Admit, Admission and Current, and a sticky
+  `LossSequence`). `RegisterSessionDataplane` takes it as an optional third
+  argument; only tests call `WatchLifecycle`, and `plugins/pppoe-vpp/register.go`
+  passes none.
+- VPP access uses `NewAccess`, not `NewRecoverableAccess`. `SettleAccess` runs
+  only when an access Close failed (caller `RefuseAccess`).
+- PPPoE sends no accounting Stop today: `authradius` subscribes to
+  `l2tpevents.SessionDown` only, `subevents.SessionDownPayload` has no cause,
+  and `withdrawSubscriber` drops `ppp.EventSessionDown.Cause`.
+- `vpp/disconnected` and the process-exit proof are unordered: the proof comes
+  from a 1 s pidfd probe (`vpp/conn_health.go`, `process_peer.go`
+  `observeExit`), and disconnected is the deferred `retireReadiness` in
+  `vpp.go`.
+
+Mechanisms extended:
+
+| Mechanism | Use |
+|-----------|-----|
+| VPP readiness subscription, as `iface/register.go` `subscribeReconcileOnReady` and `fib/vpp/register.go` `onVPPReady` do | In the pppoe-vpp wrapper, mapped onto `LifecycleSignals` |
+| `LifecycleWatch` | Wired as written; the PPPoE subsystem owns its one worker |
+| Reload's removal half (`quiesceRemovedServers`, `closeInterface`, `detachDrainedServers`, `closeAccessConfiguration`) | Becomes the loss drain |
+| Reload's addition half (`prepareAccessConfiguration`, `prepareAddedServers`, `swapServers`) | Becomes the recovery |
+| `Reconcile` (`pppoe/dataplane/vpp/reconcile.go`) | Called at the head of VPP `Prepare`; its error does not fail Prepare, because `controlMapOwners.refuseOverlap` stays the gate |
+| `AccessRecovery` | Unchanged |
+| `ppp.EventSessionDown.Cause`, `TerminateCauseLostService` (3) | Exist; `subevents.SessionDownPayload` gains a `Cause` field |
+
+Subscription and order:
+
+1. A new `plugins/pppoe-vpp/lifecycle.go` (tags `ze_vpp` and `ze_l2tp`) maps
+   `vpp/disconnected` to Lost, and `vpp/connected` and `vpp/reconnected` to
+   Ready, with no I/O. `register.go` passes it as the third argument. The
+   `pppoe` package imports nothing from VPP.
+2. `Subsystem.startLocked` calls `WatchLifecycle` on the bus before
+   preparation, takes the snapshot, prepares and builds, then admits that
+   snapshot. A stable provider (kernel) answers supported=false, and one
+   helper names that case "always admitted".
+3. Admission fence: `dispatchFrame` drops frames when there is no admission.
+   `handlePADR` takes the permit and rechecks Current before it sends PADS and
+   again before it hands the start to `SessionsIn()`. A stale permit closes
+   what was opened and sends no PADS.
+4. On loss: (1) Lost fences admission; (2) under `lifecycleMu`, quiesce every
+   server (`dispatchMu` waits out an in-flight PADR); (3) for each admission,
+   mark lost-service on the row (`SessionTable.markTeardownCause`) and run
+   `handleSessionDown` with PADT suppressed (claim the publication, send
+   nothing); (4) wait for the admission; the PPP terminal event reaches
+   `withdrawSubscriber`, which publishes the subscriber SessionDown with cause
+   3, and the pool releases on that event; (5) detach the servers and close
+   the accesses, the provider retaining any failed native cleanup; (6) raise
+   the loss report once.
+5. On ready (a retry is requested, nothing is admitted, and every loss is
+   retired): run `prepareAccessConfiguration` (VPP Prepare runs Reconcile
+   first), refuse a changed discovery namespace, build the servers, run
+   `swapServers`, then Admit the exact observation (a failed Admit is a new
+   loss), and clear the report.
+6. While prepare fails, the worker retries on its own `pacer.Pacer`; a second
+   Ready during the candidate phase does not wake it.
+7. Lock order: the worker needs `lifecycleMu`, and `stopLocked` holds it while
+   it joins workers. So `stopLocked` closes the watch and returns the worker's
+   done channel, Stop and Reload join after unlocking, and a worker that finds
+   its watch closed returns.
+
+Report once: a new code `doctor-pppoe-backend-lost`
+(`pppoe/register_doctor_codes.go`), with a runtime check and a health probe
+on the pattern of `pppoe/dataplane/vpp/reconcile_doctor.go`, named from the
+provider (`s.backend.Name()`), not from VPP. One Warn per retired loss
+sequence and one warning raised under `pppoe`, `backend/vpp`, cleared on
+Admit; retry failures log at Debug. Text sample:
+
+| Part | Text |
+|------|------|
+| Warning | PPPoE lost its "vpp" session backend and ended 37 subscriber sessions on 2 access interfaces |
+| Why | No subscriber can connect until the backend is ready and its access interfaces are prepared again. Ended subscribers redial by themselves. |
+| Fix | `ze doctor` |
+| Recovery (Info) | pppoe: session backend "vpp" is ready; discovery resumed on 2 access interfaces |
+
+Races:
+
+- A disconnect during PADR or open: the open fails as not sent or uncertain
+  (retained with its MAC reservation), and the Current recheck stops PADS.
+- A reconnect before the drain finishes: the loss count is sticky, the worker
+  retires every loss before it prepares, and Admit compares the exact
+  observation.
+- A second disconnect: a no-op while unavailable; during re-preparation Admit
+  fails, and the worker closes the new accesses and loops.
+- AC-23: a drain before the exit proof makes each session Close fail,
+  `macReservation.retain` raises one `doctor-pppoe-vpp-reconcile` per session,
+  and `retireCoveredSessions` clears it on proof; `refuseOverlap` blocks
+  re-preparation until then.
+- Final counters: the stats segment is gone, so the Stop carries no counters
+  (the accounting spec owns the record).
+
+Tests, each with its red:
+
+| Test | Where | Proves | Red before the change |
+|------|-------|--------|-----------------------|
+| `TestVPPEventsDriveLifecycle` | `plugins/pppoe-vpp/lifecycle_test.go` | VPP events drive Lost and Ready | `WatchLifecycle` answers supported=false |
+| `TestPPPoEVPPReconcileOnReconnect` | `pppoe/subsystem_lifecycle_test.go` | Fake changing provider, two sessions. After Lost: no PADT, two SessionDown with cause 3, empty tables, accesses closed, exactly one warning, PADI unanswered. After Ready: Prepare runs again, PADO answered, warning cleared | Sessions stay and PADO is answered |
+| `TestLossDuringPADRPublishesNoPADS`, `TestReadyBeforeDrainFinishesWaits`, `TestSecondLossDuringRecoveryRefusesAdmission` | same | The three races above | - |
+| `TestPrepareReconcilesRetainedFirst` | `pppoe/dataplane/vpp/` | Prepare reconciles retained state first | - |
+| Lab verb `product-restart` | `internal/le/test/deployment/vpppppoe/` (action in `register.go`, `productSuiteRestart` in `product_plan.go`, new `product_restart.go`; split `prepareProduct`; add `show warnings` to the `observeProduct` allowlist) | Dial, kill VPP with SIGKILL, wait for zero `show pppoe sessions`, exactly one `doctor-pppoe-backend-lost`, restart VPP and its infrastructure, the warning clears, no `doctor-pppoe-vpp-reconcile`, redial, `checkProduct` passes | Revert the wrapper's lifecycle argument: sessions never reach zero |
+
+The new verb appears in `le help`, and `docs/labs/pppoe-interop.md` and this
+spec's `pppoe-vpp-restart` row are renamed to it.
+
+Files. Create: `plugins/pppoe-vpp/lifecycle.go` and its test,
+`pppoe/subsystem_lifecycle.go` and its test, `vpppppoe/product_restart.go`.
+Change: `plugins/pppoe-vpp/register.go`, `pppoe/subsystem.go`,
+`pppoe/subsystem_reload.go`, `pppoe/server.go`, `pppoe/session.go`,
+`pppoe/register_doctor_codes.go`, `subscriber/events/events.go`,
+`pppoe/dataplane/vpp/prepare.go`, the lab's `register.go`, `product_plan.go`,
+`product_check.go` and `product_observe.go`,
+`docs/architecture/l2tp/bng-5-pppoe.md`, and this spec's rows.
+
+Open and recorded choices:
+
+- **D-1 (owner decision, open).** With `vpp external true`, the API is lost
+  while the VPP process stays alive. Managed mode kills the child, so only
+  external mode is exposed. No exit proof arrives: old sessions keep
+  forwarding in VPP, retained MACs stay blocked, and `refuseOverlap` refuses
+  re-preparation until that VPP exits. Goal G-5 ("no stale state in VPP,
+  service resumes without operator action") conflicts with the rule in
+  `bng-5-pppoe.md`, "An API reconnection alone cannot release that ownership".
+  - (A) OD-2 literally: service stays fenced until VPP restarts, and the
+    warning names it. Released pool addresses can be issued again while stale
+    VPP routes exist.
+  - (B) Hold each retained session's pool address until Reconcile releases it
+    (a second release event).
+  - (C) Let Reconcile act over a new API generation of the same pidfd-proven
+    process, by exact identity readback. It meets G-5 and changes the
+    documented invariant.
+- **D-2 (ordering, recorded).** RADIUS Stop on the wire for PPPoE is owed by
+  `spec-pppoe-subscribers-produce-no-accounting-or-telemetry` (design). Until
+  then AC-12's accounting clause is provable only at the event (cause 3).
+- **D-3 (recorded).** VPP not up at boot: Start fails as it does today; AC-12
+  does not cover it.
+
+### Per-session VPP policer wiring (AC-9, AC-10, AC-15)
+
+Facts at the producer:
+
+- `newPolicerRatePolicy` (`pppoe/dataplane/vpp/rate_policy.go`) has no caller.
+  `session.closeNative` (`pppoe/dataplane/vpp/session.go`) never touches a
+  policer, though its comment says every native child owner, policers
+  included, MUST finish before session deletion.
+- `subscriber.RatePolicy` has no consumer: `dataplane.OpenedSession`,
+  `ppp.SessionHandle` and `subscriber.Session` carry no policy and no owner
+  command (`ppp` cannot: `subscriber` imports `ppp`).
+- **Current defect.** The initial rate today is `Subsystem.onSessionUp`
+  (`pppoe/subsystem.go`) handing every session, VPP included, to the shaper
+  handler by `sess.PppInterface`. For a VPP session the shaper calls the
+  traffic backend by the VPP interface name; traffic-vpp refuses the ingress
+  policer (`applyInterface`, `internal/plugins/traffic/vpp/backend_linux.go`);
+  the shaper logs a warning, and the VPP subscriber forwards unpoliced.
+  (`unwired-feature.md`, 2026-11-22.)
+- CoA today: `confirmCoA` (`plugins/authradius/coa_transaction.go`) names the
+  shaper's rate request as a literal (prepare, apply, commit, rollback with a
+  token through `cfg.Dispatch`). The shaper's `prepareRate` needs a confirmed
+  interface, so a VPP session's CoA is NAKed.
+- The kernel rate owner today is the shaper plugin, by `pppN` name
+  (`identifier-reused-after-its-owner-is-gone.md`, 2026-11-22, AC-26). Its
+  `ShaperHandler` is an in-process function registered from `init()`, so it
+  already does nothing when the shaper runs external.
+- The library CoA is `PolicerUpdate` in place on name-verified indices
+  (`policerRates.apply`): no unbind, no delete, no feature change. Its cleanup
+  (`policerRates.cleanup`) turns the features off (four input arcs, device
+  input, two output arcs), unbinds each, then deletes each.
+- AC-9's verify refusal (TBF or HTB under VPP) does not exist.
+
+Mechanisms extended:
+
+| Mechanism | Use |
+|-----------|-----|
+| Rate policy seam (`subscriber/rate_policy.go`) | The one route: a VPP session gets a local rate policy; a kernel session gets a remote policy whose owner is the shaper's command |
+| Shaper handler registry | `RegisterShaperHandler` also registers the shaper's rate owner command; the kernel provider reads that registration and never names the command string |
+| `NewOpenedSession` (`pppoe/dataplane/session.go`) | `OpenedSession` gains a rate policy accessor, validated by `ValidateRatePolicy` at construction |
+| CoA owner-command transaction (`authradius` `confirmCoA`, the shaper's rate operation, CoS `session_transaction.go`) | Reused; only the command name stops being a literal |
+| VPP session owner and retention (`session.Close`, its retain, the reservation retain, `Reconcile`) | The policer owner becomes a child of the session |
+
+Build point, initial rate, CoA, shaper exclusion:
+
+1. In the factory's `openWithOps`, after `verifySession` and the interface
+   name and before the transfer is marked: build the policer policy from the
+   owner command, the created index, a prefix and the access API; store the
+   native owner on the session; hand the policy to `NewOpenedSession`. No
+   native write at construction; PADS timing is unchanged.
+2. Initial install happens in `onSessionIPAssigned`, before the first
+   acknowledge (before Connect opens forwarding); the Filter-Id read moves
+   there. Local policy: new rates, then prepare, apply, commit, and cancel the
+   assignment on failure, so a session never forwards unpoliced. Remote
+   policy: today's shaper call. No rate: a named no-op. Install once per
+   session.
+3. Shaper exclusion by variant: `onSessionUp` calls the shaper handler only
+   for a remote policy.
+4. CoA: `subscriber.Session` gains a `RateOwner` field; `authradius` rebuilds
+   the owner command from it and dispatches there; an empty owner answers
+   CoA-NAK. The rate prepare request gains `subscriber-id`, which the shaper's
+   rate request must accept (it refuses unknown fields today).
+5. VPP owner command: a new PPPoE request RPC (`pppoe/cmd` and
+   `ze-pppoe-api.yang`) with the same JSON operations and token. It finds the
+   session by subscriber ID through `pppoe.LookupService()`, requires a local
+   policy, allows one pending rate transaction per session, and updates the
+   registry rates on commit. `authradius` imports nothing from VPP.
+
+Teardown (AC-15):
+
+1. `closeNative`: admin down, IP gates closed, then the rates' Close (features
+   off, unbind, delete), then routes, then the VPP session remove only when
+   rates, routes and gates are confirmed. PADT stays after Close.
+2. On failure or an unknown outcome, the rates' Close error joins the cleanup
+   error, the session remove is skipped, and the session's retain keeps the
+   owner and the MAC reservation (AC-23). A retry re-enters `closeNative`;
+   `policerRates.Close` clears only confirmed slots.
+3. Gap: the process-exited branch must release the policer slots, and
+   `policerRates` has no retirement method yet.
+4. The CoA path deletes nothing.
+
+Verify refusal (AC-9): beside `validateBackendGate` (`pppoe/backend_gate.go`),
+reading the selected provider's registered rate capability, never a test of
+the backend name.
+
+Tests, each with its red:
+
+| Test | Where | Proves | Red before the change |
+|------|-------|--------|-----------------------|
+| Close order | `pppoe/dataplane/vpp/` unit, fake API | Feature off, unbind, policer delete, then the session delete; an unknown unbind leaves the session retained; process exit releases; the factory exposes a local policy | Drop the rates' Close |
+| CoA in place | same | Two `PolicerUpdate` plus readback; zero bind, feature or delete | - |
+| Local before acknowledge | `pppoe/` unit | A local policy is installed before Acknowledge and the shaper is not called; a remote policy calls it | Today the shaper is called for both |
+| Owner dispatch | `plugins/authradius/` unit | Dispatch goes to `Session.RateOwner`; an empty owner NAKs | - |
+| Lab verb `product-rate` | `vpppppoe/`, modelled on `product_framed.go` | Filter-Id gives two policers at the rate on the session interface and drops above it; CoA ACK with the same indices, the new rate and bounded loss; 100-session teardown under traffic leaves no policer and the same VPP PID | - |
+
+Files. Change: `pppoe/dataplane/vpp/factory.go`, `session.go`,
+`rate_owner.go`, `pppoe/dataplane/session.go`,
+`pppoe/dataplane/kernel/factory.go`, `pppoe/subsystem.go`, `pppoe/session.go`,
+`pppoe/cmd/pppoe.go`, the PPPoE API YANG, `subscriber/session.go`,
+`subscriber/handler_registry.go`, `plugins/shaper/register.go`,
+`rate_transaction.go`, `plugins/authradius/coa_transaction.go`, `coa.go`,
+`docs/architecture/l2tp/bng-5-pppoe.md`,
+`docs/architecture/l2tp/subscriber-session-model.md`, and this spec's rows.
+Create: the PPPoE rate-transaction handler, `vpppppoe/product_rate.go`, and
+the tests.
+
+Choices:
+
+- **C-1 (owner decision, open): where a configured VPP rate lives.** The only
+  configured rate is `l2tp/shaper/default-rate`, which also serves kernel L2TP
+  sessions, and AC-26 requires kernel shaping while VPP is the backend.
+  - (a) Add `policer` to `l2tp/shaper/qdisc-type` (R-4's wording): one value,
+    but TBF and HTB cannot be refused under VPP without also refusing AC-26's
+    L2TP case, and PPPoE reads the shaper's config.
+  - (b) A PPPoE-owned rate leaf: conflicts with OD-3 ("no leaf added").
+  - The designer recommends (b), subject to OD-3. RADIUS Filter-Id rates need
+    no config and are unaffected.
+- **C-2 (answered).** AC-10's "replaced" is answered by `bng-5-pppoe.md`:
+  update in place, so there is no gap at all.
+- **C-3 (answered).** A `.ci` stub cannot supply AF_PPPOX and a linux-cp TAP
+  (it would need many VPP messages in `internal/test/cli/cmd_vpp_stub.go`);
+  this spec already moved session proof to the product lab, so the lab
+  carries AC-10.
+
+Not verified by the designer: `authradius` dispatch reaching an engine-side
+RPC with a source peer; whether the FreeRADIUS lab image ships `radclient`;
+the policer name prefix rules; whether editing `confirmCoA` stales its three
+RFC 5176 records.
 
 Doors: `ai/doors/system.md`, `ai/doors/forwarding.md` (vpp, iface, traffic), `ai/doors/access-security.md` (l2tp, PPPoE, PPP).
 
@@ -892,7 +1174,7 @@ marked "Owed, not written". `vpp/` below is
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `pppoe-vpp-ze-ac-pppd-client` (`-<mode>` for the other modes, `vpppppoe/product_plan.go`) | Not under `test/interop-pppoe/scenarios/`: the real-VPP lab `./le test deployment vpp-pppoe product`, `product-framed`, `product-ipv6` (`internal/le/test/deployment/vpppppoe/`) | pppd client, real VPP container, Ze | AC-3..AC-8, AC-11: discovery, authentication, IPCP/IPv6CP, data forwarded by VPP, clean teardown | `product` (IPv4) passed 2026-11-22, 4 of 4 ("Real-VPP product lab" under the checkpoint); its discrimination (revert, rebuild, red) is owed. `product-framed`: no result recorded here. `product-ipv6`: cannot pass, because its config writes a `pool { ipv6-na }` leaf the pool YANG lacks (`test-against-broken-path.md`, 2026-11-20) |
+| `pppoe-vpp-ze-ac-pppd-client` (`-<mode>` for the other modes, `vpppppoe/product_plan.go`) | Not under `test/interop-pppoe/scenarios/`: the real-VPP lab `./le test deployment vpp-pppoe product`, `product-framed`, `product-ipv6` (`internal/le/test/deployment/vpppppoe/`) | pppd client, real VPP container, Ze | AC-3..AC-8, AC-11: discovery, authentication, IPCP/IPv6CP, data forwarded by VPP, clean teardown | `product` (IPv4) passed 2026-11-22, 4 of 4 ("Real-VPP product lab" under the checkpoint); its discrimination (revert, rebuild, red) is owed. `product-framed` passed 2026-11-22, 1 of 1 (`pppoe-vpp-ze-ac-radius-framed-route`, AC-7 Framed-Route); its discrimination is owed. `product-ipv6`: cannot pass, because its config writes a `pool { ipv6-na }` leaf the pool YANG lacks (`test-against-broken-path.md`, 2026-11-20) |
 | `pppoe-vpp-restart` | - | same | AC-12 | Owed, not written: OD-2 loss handling is not built |
 
 Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture assertions; G-2 by AC-1/AC-13; G-3 by AC-6, AC-7, AC-9; G-4 by AC-8; G-5 by the restart scenario. Each scenario is reverted-and-rebuilt once to record its red (`ai/rules/interop-and-goal-validation.md`). The lab Docker host runs Ze's kernel (`ai/META-DECISIONS.md`).
@@ -1027,6 +1309,7 @@ parallel packages.
 |------------|------|-----------------|
 | `test-against-broken-path.md` | 2026-11-20 | The product-ipv6 lab config uses a pool field (`ipv6-na`) Ze has never had; owed under G-4 and AC-8 |
 | `identifier-reused-after-its-owner-is-gone.md` | 2026-11-22 | The kernel subscriber shaper applies and restores tc by `pppN` name (PPPoE handler registry, L2TP session events); owed under AC-26 and "Native PPP writes" |
+| `unwired-feature.md` | 2026-11-22 | VPP subscribers forward unpoliced; a VPP session's CoA rate change is NAKed (policer wiring, AC-9, AC-10, AC-15) |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-11-22 | PPPoE has no operator clear-session command (L2TP has `clear l2tp session`); owed under AC-11 |
 | `invariant-enforced-by-an-absent-call-site.md` | 2026-11-22 | `ClaimAccountingAssignment` and `AccountingAdmission` have no production caller: no accounting capacity is reserved before Accept |
 
