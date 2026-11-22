@@ -2,10 +2,16 @@
 // Related: system.go -- the other machine-state steps, and privilegedStep
 //
 // The L2TP and PPPoE tests open /dev/ppp to drive the kernel PPP channel. The
-// device is root:root 0600 on a stock Debian host, so a test run as the
-// developer cannot open it, and a test that needs root runs nowhere an agent
-// works. This step grants the device to the dip group and puts the developer
-// in it.
+// kernel refuses that open unless the caller holds CAP_NET_ADMIN in its user
+// namespace (ppp_open in drivers/net/ppp/ppp_generic.c), so no unprivileged
+// process opens the device in the host namespaces, whatever its mode or group.
+// The tests open it in a user namespace of their own (internal/test/userns
+// Enter), which supplies the capability. The device's owner is not mapped into
+// that namespace, so the open still passes the file-permission check only
+// through the developer's groups, and a stock Debian host makes the device
+// root:root 0600. This step grants the device to the dip group and puts the
+// developer in it. The grant is necessary for those tests, not sufficient: it
+// lets no process open the device outside such a namespace.
 //
 // Why dip: Debian ships the group (gid 30) for exactly this, "PPP dial-up";
 // pppd's own documentation names it, and the developer is usually a member
@@ -50,12 +56,15 @@ const pppRuleLine = `KERNEL=="ppp", GROUP="dip", MODE="0660", OPTIONS+="static_n
 // pppRuleBody is the whole rule file.
 const pppRuleBody = pppRuleComment + "\n" + pppRuleLine + "\n"
 
-// ppp is whether this user can open /dev/ppp.
+// ppp is whether this session holds the dip grant the namespaced PPP tests need.
 type ppp string
 
 const (
-	// pppOK means this process can open /dev/ppp for reading and writing now.
-	pppOK ppp = "ok"
+	// pppGranted means this process passes the read-write permission check of
+	// /dev/ppp now, so a test it starts passes it in its user namespace too. It
+	// does not mean this process can open the device: the open also needs
+	// CAP_NET_ADMIN, which an unprivileged user holds only in that namespace.
+	pppGranted ppp = "granted"
 	// pppPendingLogin means the rule, the node and the membership are all in
 	// place, but this session started before the membership. Group membership
 	// is fixed at login.
@@ -76,8 +85,9 @@ type pppFacts struct {
 	nodeGranted bool
 	// member means the group database lists the user in dip.
 	member bool
-	// usable means this process may open /dev/ppp read-write now.
-	usable bool
+	// permitted means this process passes the read-write permission check of
+	// /dev/ppp now, through its ids and groups.
+	permitted bool
 }
 
 // pppDev answers the device the state is read from.
@@ -124,17 +134,18 @@ func (s *Setup) inDipGroup() bool {
 
 // pppProbe reads every piece of the grant.
 //
-// usable is judged by access(2), not by opening the device as deviceOpenable
-// does for /dev/kvm: opening /dev/ppp while ppp_generic is absent loads the
-// module, and a check run changes nothing. access(2) reads the same permission
-// bits against this process's ids and groups, which are the ones a test it
-// starts holds. A rule file that exists and cannot be read is an error, because
-// its content is then unknown.
+// permitted is judged by access(2), not by opening the device as deviceOpenable
+// does for /dev/kvm. Outside the tests' user namespace an unprivileged open
+// fails for lack of CAP_NET_ADMIN whatever the grant, and opening /dev/ppp while ppp_generic is
+// absent loads the module, while a check run changes nothing. access(2) runs
+// the file-permission check alone, against this process's ids and groups, which
+// a test it starts carries into its user namespace. A rule file that exists and
+// cannot be read is an error, because its content is then unknown.
 func (s *Setup) pppProbe() (pppFacts, error) {
 	var facts pppFacts
 	device := s.pppDev()
 
-	facts.usable = unix.Access(device, unix.R_OK|unix.W_OK) == nil
+	facts.permitted = unix.Access(device, unix.R_OK|unix.W_OK) == nil
 
 	gid, groupExists := s.dipGroupID()
 	facts.group = groupExists
@@ -159,15 +170,15 @@ func (s *Setup) pppProbe() (pppFacts, error) {
 	return facts, nil
 }
 
-// pppState answers whether this user can open /dev/ppp, with the facts it was
-// judged from.
+// pppState answers whether this session holds the dip grant, with the facts it
+// was judged from.
 func (s *Setup) pppState() (ppp, pppFacts, error) {
 	facts, err := s.pppProbe()
 	if err != nil {
 		return pppNotGranted, facts, err
 	}
-	if facts.usable {
-		return pppOK, facts, nil
+	if facts.permitted {
+		return pppGranted, facts, nil
 	}
 	if facts.rule && facts.nodeGranted && facts.member {
 		return pppPendingLogin, facts, nil
@@ -233,8 +244,8 @@ func pppSteps(facts pppFacts, device, rule, userName string) []privilegedStep {
 	return steps
 }
 
-// visitPpp reports whether the developer can open /dev/ppp, and grants it on
-// an install run.
+// visitPpp reports whether the developer holds the dip grant the namespaced
+// PPP tests need to open /dev/ppp, and grants it on an install run.
 func (s *Setup) visitPpp(report *Report) Outcome {
 	const name = "ppp-access"
 
@@ -248,7 +259,7 @@ func (s *Setup) visitPpp(report *Report) Outcome {
 		return Outcome{Name: name, State: StateMissing, Detail: tb.Str("unreadable: ").Err(err).String()}
 	}
 	switch state {
-	case pppOK:
+	case pppGranted:
 		return Outcome{Name: name, State: StatePresent}
 	case pppPendingLogin:
 		return Outcome{Name: name, State: StatePending, Detail: pppLoginDetail()}
@@ -268,7 +279,7 @@ func (s *Setup) visitPpp(report *Report) Outcome {
 	steps := pppSteps(facts, s.pppDev(), s.pppRule(), s.userName())
 	if s.applyPpp(report, steps) {
 		after, _, err := s.pppState()
-		if err == nil && after == pppOK {
+		if err == nil && after == pppGranted {
 			return Outcome{Name: name, State: StateInstalled}
 		}
 		if err == nil && after == pppPendingLogin {

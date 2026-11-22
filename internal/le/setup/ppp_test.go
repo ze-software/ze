@@ -69,24 +69,27 @@ func (h pppHost) setup(t *testing.T, rec *recorder, dipIsOurs, member bool) *Set
 	}
 }
 
-// TestPppTellsApartUsablePendingAndNotGranted pins the three answers.
-// VALIDATES: a node this process can open is ok; rule, node and membership all
-// in place with an unusable node is a stale login; any absent piece is not
-// granted.
+// TestPppTellsApartUsablePendingAndNotGranted pins the three answers. Usable
+// here means the dip grant is in place: this process passes the node's
+// read-write permission check, the part of the open in a test it starts that
+// the CAP_NET_ADMIN of that test's user namespace does not cover.
+// VALIDATES: a node whose permission check this process passes is granted;
+// rule, node and membership all in place with a node whose check it fails is a
+// stale login; any absent piece is not granted.
 // PREVENTS: a host whose session predates the group being told to run the
 // install again, or a host missing the rule being told only to log back in.
 func TestPppTellsApartUsablePendingAndNotGranted(t *testing.T) {
-	usable := newPppHost(t, 0o600, false)
-	if got, _, err := usable.setup(t, rootShell(), false, false).pppState(); err != nil || got != pppOK {
-		t.Errorf("a node this process opens answered %s (%v), want %s", got, err, pppOK)
+	permitted := newPppHost(t, 0o600, false)
+	if got, _, err := permitted.setup(t, rootShell(), false, false).pppState(); err != nil || got != pppGranted {
+		t.Errorf("a node this process may read and write answered %s (%v), want %s", got, err, pppGranted)
 	}
 
 	if os.Geteuid() == 0 {
-		t.Skip("root opens a node of any mode, so the unusable states are unreachable here")
+		t.Skip("root passes the permission check of a node of any mode, so the other states are unreachable here")
 	}
 
 	// Mode 0060 grants the group and denies the owner, which is this test: the
-	// node is granted to dip and still closed to this process.
+	// node is granted to dip and this process still fails its permission check.
 	granted := newPppHost(t, 0o060, true)
 	if got, _, err := granted.setup(t, rootShell(), true, true).pppState(); err != nil || got != pppPendingLogin {
 		t.Errorf("a member with a stale session answered %s (%v), want %s", got, err, pppPendingLogin)
@@ -171,7 +174,7 @@ func TestTheRuleIsWrittenWithItsContent(t *testing.T) {
 // TestAProbeOnlyRunNeverGrantsPpp pins check mode: it reports and runs nothing.
 func TestAProbeOnlyRunNeverGrantsPpp(t *testing.T) {
 	if os.Geteuid() == 0 {
-		t.Skip("root opens a node of any mode, so the step is ok here")
+		t.Skip("root passes the permission check of a node of any mode, so the step is present here")
 	}
 	host := newPppHost(t, 0o060, false)
 	rec := rootShell()
@@ -194,7 +197,7 @@ func TestAProbeOnlyRunNeverGrantsPpp(t *testing.T) {
 // TestAStaleLoginNamesTheGroupCommand pins the pending answer in check mode.
 func TestAStaleLoginNamesTheGroupCommand(t *testing.T) {
 	if os.Geteuid() == 0 {
-		t.Skip("root opens a node of any mode, so the step is ok here")
+		t.Skip("root passes the permission check of a node of any mode, so the step is present here")
 	}
 	host := newPppHost(t, 0o060, true)
 	setup := host.setup(t, rootShell(), true, true)
@@ -215,7 +218,7 @@ func TestAStaleLoginNamesTheGroupCommand(t *testing.T) {
 // PREVENTS: an agent session reporting pending with no line to give the owner.
 func TestPppWithNoRouteToRootPrintsEveryCommand(t *testing.T) {
 	if os.Geteuid() == 0 {
-		t.Skip("root opens a node of any mode, so the step is ok here")
+		t.Skip("root passes the permission check of a node of any mode, so the step is present here")
 	}
 	host := newPppHost(t, 0o060, false)
 	rec := rootShell()
