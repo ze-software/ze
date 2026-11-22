@@ -1744,7 +1744,10 @@ digest and preserves the native errno. It proves a terminal kernel response;
 an operation may have changed state before returning an error. The caller MUST
 retain its effect and cleanup receipts after transport settlement. Historical
 unknown-outcome errors remain available after successful physical socket Close
-and permit final backend cleanup. A failed physical socket Close retains the
+and permit final backend cleanup. A delayed settlement through `Settle` keeps
+the causes its earlier waits met, and its matched NACK, as that history: every
+later `Settle`, writer Close and backend Close returns them. A response the
+write itself received is returned once and is not retained. A failed physical socket Close retains the
 writer, backend resources and original cause. Close is attempted only once;
 neither a later `os.ErrClosed` nor the socket number authorizes another close
 or proves release.

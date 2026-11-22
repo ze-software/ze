@@ -340,7 +340,14 @@ func (w *nativePPPWriter) Settle(ctx context.Context) error {
 	if w.observeUnitRetirementLocked() {
 		return w.settleRetiredUnitLocked()
 	}
-	return w.pending.receive(ctx)
+	err := w.pending.receive(ctx)
+	if w.pending == nil {
+		// A delayed settlement ends custody with the causes its earlier waits
+		// met and any matched NACK. They stay history for every later Settle
+		// and Close; a response the write itself received is not retained.
+		w.closeErr = errors.Join(w.closeErr, err)
+	}
+	return err
 }
 
 func (w *nativePPPWriter) closeOriginal() (bool, error) {
@@ -358,7 +365,7 @@ func (w *nativePPPWriter) closeOriginal() (bool, error) {
 	}
 	w.closed = true
 	w.socketCloseErr = w.file.Close()
-	w.closeErr = w.socketCloseErr
+	w.closeErr = errors.Join(w.closeErr, w.socketCloseErr)
 	return w.socketCloseErr == nil, w.closeErr
 }
 

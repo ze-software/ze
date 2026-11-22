@@ -27,8 +27,14 @@ func (c *PPPoEClient) finishCleanup() error {
 	err := invokePPPoECleanup(cleanup)
 	c.publishNativeCleanup(err)
 	c.reportCleanupFailure(context.Background(), err)
-	if err != nil {
+	// Without the pending marker the original was released, so the cleanup did
+	// not fail: its errors are causes to inspect, from earlier native writes or
+	// from closing the unit, and no custody remains to release.
+	if errors.Is(err, ErrNativePPPPending) {
 		c.logger.Warn("pppoe-client: original session cleanup failed", "error", err,
+			"code", pppoeCleanupDoctorCode, "fix", pppoeCleanupRecovery(err))
+	} else if err != nil {
+		c.logger.Warn("pppoe-client: original session released; its cleanup reported errors", "error", err,
 			"code", pppoeCleanupDoctorCode, "fix", pppoeCleanupRecovery(err))
 	}
 	return err
