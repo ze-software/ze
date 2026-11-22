@@ -7,11 +7,14 @@
 package iface
 
 import (
+	"encoding/json"
 	"log/slog"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/events"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/test/userns"
 )
@@ -77,20 +80,91 @@ func pendingCarrier(q *linkEventQueue, ifaceName string) (bool, bool) {
 	return value.present, ok
 }
 
-// waitForPendingCarrier waits until the monitor has delivered the state the
-// link settled in. It is the deterministic replacement for a sleep: the flap is
-// finished when the state the kernel ended in is the state the queue holds.
-func waitForPendingCarrier(t *testing.T, q *linkEventQueue, ifaceName string, want bool) {
+// kernelCarrier reads the carrier state the kernel reports for ifaceName now,
+// through carrierFromInterfaces, the reading the monitor's isLinkUp and the
+// carrier resync share.
+func kernelCarrier(t *testing.T, ifaceName string) bool {
+	t.Helper()
+	info, err := GetInterface(ifaceName)
+	if err != nil {
+		t.Fatalf("read %s from the kernel: %v", ifaceName, err)
+	}
+	if info == nil {
+		t.Fatalf("the kernel reports no interface %s", ifaceName)
+	}
+	up, ok := carrierFromInterfaces([]InterfaceInfo{*info})[ifaceName]
+	if !ok {
+		t.Fatalf("the kernel answered for %q when asked for %s", info.Name, ifaceName)
+	}
+	return up
+}
+
+// markerAnnounced returns a channel that closes when the monitor announces, on
+// bus, the creation of the link named marker.
+func markerAnnounced(t *testing.T, bus *dispatchingBus, marker string) <-chan struct{} {
+	t.Helper()
+	announced := make(chan struct{})
+	var once sync.Once
+	bus.Subscribe(ifaceevents.Namespace, ifaceevents.EventCreated, events.AsString(func(data string) {
+		var ev struct {
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal([]byte(data), &ev); err != nil {
+			t.Errorf("decode the %s event %q: %v", ifaceevents.EventCreated, data, err)
+			return
+		}
+		if ev.Name == marker {
+			once.Do(func() { close(announced) })
+		}
+	}))
+	return announced
+}
+
+// awaitCarrierSettled returns once the monitor has pushed every carrier event
+// the kernel sent for ifaceName before its carrier settled at want, and fails
+// unless the queue then holds want. It never drains: the burst stays in the
+// queue until the caller's one drain, because an undrained queue is what the
+// test stands for.
+//
+// Polling the queue for want cannot tell the end of an alternating burst from
+// its middle: the queue passes through want on every second event, so the poll
+// can return while later events are still on their way, and a drain then
+// applies a state the burst went on to leave. Two facts close that gap.
+//
+// The kernel's own state is the first. flapCarrier returns with the carrier at
+// want, but the operstate the monitor reads, and the RTM_NEWLINK that carries
+// it, are written later by the kernel's linkwatch, in one pass under RTNL that
+// reads the carrier as it is then. Once the operstate reads want, the last
+// notification sent for ifaceName reports want, and so does every one after it.
+//
+// The marker link is the second. Creating it takes RTNL after that read, so its
+// RTM_NEWLINK follows every notification sent before the read on the monitor's
+// one link subscription. The monitor handles link updates in order and emits
+// each on the dispatching bus before it reads the next, so when the marker's
+// creation event arrives the queue holds the last state sent before the read,
+// and nothing still behind it reports anything but want.
+func awaitCarrierSettled(t *testing.T, bus *dispatchingBus, q *linkEventQueue, ifaceName, marker string, want bool) {
 	t.Helper()
 	deadline := time.Now().Add(monitorEventTimeout)
-	for time.Now().Before(deadline) {
-		if got, ok := pendingCarrier(q, ifaceName); ok && got == want {
-			return
+	for kernelCarrier(t, ifaceName) != want {
+		if !time.Now().Before(deadline) {
+			t.Fatalf("the kernel still holds carrier=%v for %s %v after the burst, want carrier=%v",
+				!want, ifaceName, monitorEventTimeout, want)
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	got, ok := pendingCarrier(q, ifaceName)
-	t.Fatalf("the queue holds carrier=%v (present=%v) for %s, want carrier=%v", got, ok, ifaceName, want)
+
+	announced := markerAnnounced(t, bus, marker)
+	createDummyForTest(t, marker)
+	select {
+	case <-announced:
+	case <-time.After(monitorEventTimeout):
+		t.Fatalf("the monitor did not announce the marker link %s within %v", marker, monitorEventTimeout)
+	}
+
+	if got, ok := pendingCarrier(q, ifaceName); !ok || got != want {
+		t.Fatalf("the queue holds carrier=%v (queued=%v) for %s, want carrier=%v", got, ok, ifaceName, want)
+	}
 }
 
 // flapCarrier drives the peer end of a veth pair admin down and up, which moves
@@ -211,7 +285,7 @@ func TestIntegrationLinkFlapDuringCommitKeepsTheRouteMetric(t *testing.T) {
 
 		// A burst that ends carrier-down deprioritizes the route.
 		flapCarrier(t, peer, transitions, false)
-		waitForPendingCarrier(t, queue, local, false)
+		awaitCarrierSettled(t, bus, queue, local, "zemark0", false)
 		drain()
 		if got := metricOf(t, local, gateway); got != metric+deprioritizedMetric {
 			t.Fatalf("after a burst that ended carrier-down the route via %s sits at metric %d, want %d",
@@ -220,7 +294,7 @@ func TestIntegrationLinkFlapDuringCommitKeepsTheRouteMetric(t *testing.T) {
 
 		// A burst that ends carrier-up restores the base metric.
 		flapCarrier(t, peer, transitions, true)
-		waitForPendingCarrier(t, queue, local, true)
+		awaitCarrierSettled(t, bus, queue, local, "zemark1", true)
 		drain()
 		if got := metricOf(t, local, gateway); got != metric {
 			t.Fatalf("after a burst that ended carrier-up the route via %s sits at metric %d, want %d",
