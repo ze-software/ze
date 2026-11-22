@@ -33,7 +33,7 @@ validation limits below. The VPP provider is composed; it is not fully accepted.
 | Provider history defect | Repaired in `0c93a81fd2` (2026-11-22). `Settle` keeps a delayed settlement's causes and matched NACK; physical close joins instead of overwriting; a response the write itself received is still returned once and not retained. The model root and both genuine ACK/NACK roots went red to green. |
 | IPv6 | The arm64 kernel `cddff82e255fc9a7010a79d5237a733463569f495ae483b60962455788fb3884` and image `f92054020556fb26` passed four constructor models and thirteen genuine API roots. Carrier adopted 2026-11-22 (resume step 3): the kernel session carrier opens its ICMPv6 and UDPv6 sockets from the original unit, and the name-based path is deleted. On amd64 runtime tree `2b23af13` all nine `TestNativeIPv6Carrier*` roots pass, and so does the whole `pppoe/dataplane/kernel` package. The adoption also repaired kernel patch `0013b` for UDP6 receive. Fragment ownership is accepted (resume step 4, `169eccfa2c`): the five fragment roots pass on `2b23af13`, the package passes 47/0/0, and the name-based carrier cut turns the ownership roots red. Complete subscriber acceptance remains open. |
 | PCI override prerequisite | The Go reader and doctor reject ambiguous legacy override state and preserve exact raw bytes/errors. The `driver_override_raw` kernel patch `0006` is not enrolled. Do not claim managed NIC restoration is accepted on the current kernel from the Go model results. |
-| Final gates | L2TP accounting counts the original unit (`38267f5e0c`) and AC-24 route receipt is proven (`0a92e78161`); resume step 5 lists what remains of accounting and who owns it. Owed: the accounting admission design and the name-based shaper (Owned journal rows), scoped lint, documentation checks, independent review, discrimination, and real VPP forwarding, restart, interop and scale. AC-8 waits on `spec-l2tp-ipv6-subscriber`. Keep this spec in phase 2/7 until those requirements are actually met. |
+| Final gates | L2TP accounting counts the original unit (`38267f5e0c`) and AC-24 route receipt is proven (`0a92e78161`); resume step 5 lists what remains of accounting and who owns it. Owed implementation, each needing a design: OD-2 VPP loss handling for AC-12 (no PPPoE code consumes `vpp/disconnected` or `vpp/reconnected`, and `Reconcile` in `pppoe/dataplane/vpp/reconcile.go` has no production caller), and policer wiring for AC-9, AC-10 and AC-15 (`newPolicerRatePolicy` in `pppoe/dataplane/vpp/rate_policy.go` has no production caller). Owed: the accounting admission design and the name-based shaper (Owned journal rows), scoped lint, documentation checks, independent review, discrimination, and real VPP forwarding, restart, interop and scale. AC-8 waits on `spec-l2tp-ipv6-subscriber`. Keep this spec in phase 2/7 until those requirements are actually met. |
 
 ### Retirement causal cuts — 2026-11-22
 
@@ -715,10 +715,10 @@ remains open.
 |-------------|---|--------------|------|
 | `./le build vpp run` with the optional proof variant | → | Registered source build and immutable image report | `TestVPPBuildActionRegisters`, `TestVPPProofVariantGrammarPassesStartupChecks` |
 | `./le test deployment vpp-pppoe run` or `proof` | → | Isolated mechanism and same-guest parser proof | `TestMechanismActionRegisters`, `TestMechanismProofActionRegisters`; native results are recorded in the Phase 0 test table |
-| Config `interface backend vpp` + `pppoe interface X` | → | PPPoE verify selects the `vpp` session data plane or refuses | `test/parse/pppoe-vpp-dataplane-refused-without-backend.ci`, `test/parse/pppoe-vpp-dataplane-accepted.ci` |
-| PADR on a VPP access interface | → | VPP session backend `CreateSession` -> `pppoe_add_del_session` | `TestPPPoEVPPSessionCreatedBeforePADS` (fake GoVPP channel) and `test/vpp/pppoe-vpp-session.ci` |
-| IPCP Opened | → | session handle installs peer /32 route in VPP | `TestPPPoEVPPPeerRouteOnIPCPOpened`, interop `pppoe-vpp-ze-ac-pppd-client` |
-| `vpp/disconnected` then `vpp/reconnected` | → | session reconciliation per OD-2 | `TestPPPoEVPPReconcileOnReconnect`, interop `pppoe-vpp-restart` |
+| Config `interface backend vpp` + `pppoe interface X` | → | PPPoE verify selects the `vpp` session data plane or refuses | `test/parse/pppoe-vpp-backend-refused.ci`, `pppoe-vpp-enabled-required.ci`, `pppoe-vpp-lcp-required.ci`, `pppoe-vpp-no-access-accepted.ci` |
+| PADR on a VPP access interface | → | VPP provider `Open` creates the session; returning from `Open` permits PADS | `TestVPPFactoryPublishesOnlyCreatedInterface`, `TestVPPFactoryRollbackClosesSocketAndConfirmedSession` (`pppoe/dataplane/vpp/factory_test.go`); end to end, `./le test deployment vpp-pppoe product`. Owed, not written: a server test that withholds PADS when `Open` fails |
+| IPCP Opened | → | session handle installs the peer /32 route in VPP | `TestVPPSessionPeerRouteUsesCreatedIndexAndTable`, `TestVPPPeerRouteWaitsForPostACKConnect`; the lab `./le test deployment vpp-pppoe product` (scenario `pppoe-vpp-ze-ac-pppd-client`, named in `vpppppoe/product_plan.go`) |
+| `vpp/disconnected` then `vpp/reconnected` | → | session reconciliation per OD-2 | Owed, not written: OD-2 is not built. No PPPoE code consumes the `vpp` events, and `Reconcile` (`pppoe/dataplane/vpp/reconcile.go`) has no production caller (Final gates) |
 
 ## Acceptance Criteria
 | AC ID | Input / Condition | Expected Behavior |
@@ -766,8 +766,8 @@ remains open.
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Subscriber dials PPPoE through a VPP access port and browses | client -> VPP pppoe-cp -> TAP -> Ze discovery/PPP -> VPP session + route -> VPP FIB | interop `pppoe-vpp-ze-ac-pppd-client` |
-| 2 | Operator restarts VPP | vpp component -> `vpp/disconnected` -> PPPoE backend reconcile -> `vpp/reconnected` | interop `pppoe-vpp-restart` |
-| 3 | RADIUS lowers a subscriber's rate by CoA | authradius CoA -> `SessionRateChange` -> VPP policer replace | `test/vpp/pppoe-vpp-coa-rate.ci` |
+| 2 | Operator restarts VPP | vpp component -> `vpp/disconnected` -> PPPoE backend reconcile -> `vpp/reconnected` | Owed, not written: a restart scenario, after OD-2 loss handling is built |
+| 3 | RADIUS lowers a subscriber's rate by CoA | authradius CoA -> `SessionRateChange` -> VPP policer replace | Owed, not written: a CoA rate test, after the policer is wired |
 
 ## 🧪 TDD Test Plan
 
@@ -835,22 +835,23 @@ product session backend. The root registry package also passed in
 
 ### Unit Tests
 
-The original planned locations below are retained as the design record. The
-implementation mapping after Files to Create identifies their current owning
-packages; the blank status cells still require evidence for the named questions.
+Rewritten 2026-11-22 to the tests that exist in the tree. "Written" means the
+test exists; it records no run result. A planned test with no counterpart is
+marked "Owed, not written". `vpp/` below is
+`internal/component/l2tp/pppoe/dataplane/vpp/`.
 
-| Test | File | Validates | Status |
-|------|------|-----------|--------|
-| `TestSessionDataplaneRegistry` | `internal/component/l2tp/pppoe/dataplane_test.go` | Register, lookup by name, duplicate refused, unknown name error lists registered names | |
-| `TestKernelDataplaneParity` | `internal/plugins/pppoe/kernel/` | Kernel backend reproduces today's AF_PPPOX + `/dev/ppp` sequence | |
-| `TestPPPChannelSeam` | `internal/component/l2tp/ppp/` | PPP session runs over a non-fd frame channel; one reader | |
-| `TestPPPoEVPPSessionCreatedBeforePADS` | `internal/plugins/pppoe/vpp/` | PADS withheld when session add fails | |
-| `TestPPPoEVPPPeerRouteOnIPCPOpened` | `internal/plugins/pppoe/vpp/` | Route add carries VRF table and session sw_if_index | |
-| `TestPPPoEVPPTeardownOrder` | `internal/plugins/pppoe/vpp/` | Route flush, policer delete, session delete, then PADT | |
-| `TestPPPoEVPPReconcileOnReconnect` | `internal/plugins/pppoe/vpp/` | OD-2 policy on disconnect and reconnect | |
-| `TestPPPoEVPPPolicerFeaturesRemovedBeforePolicer` | `internal/plugins/pppoe/vpp/` | AC-15: on teardown and on a CoA swap the fake GoVPP channel records the four feature disables before the policer unbind and delete | |
-| `TestSessionFrameChannelClosedOnceByOwner` | `internal/component/l2tp/ppp/` | AC-16: every session end path closes the frame channel once, after poller deregistration; other sessions keep running | |
-| `TestPPPoEVPPCountersFromSessionHandle` | `internal/plugins/pppoe/vpp/` | AC-17: counters read by the sw_if_index the handle learned at create; a failed read is an error, never zero, and never idle | |
+| Planned question | Test that exists | Validates | Status |
+|------------------|------------------|-----------|--------|
+| Session data-plane registry | `TestSessionRegistrySelectsFactory`, `TestSessionRegistryRefusesRegistration` (`pppoe/dataplane/registry_test.go`); `TestLifecycleRegistry*` (`lifecycle_test.go`) | Selection of the registered provider; refused registrations | Written |
+| Kernel parity | `TestKernelDataplaneParity` (`internal/component/l2tp/ppp/kernel/session_test.go`) | Kernel backend reproduces the AF_PPPOX + `/dev/ppp` sequence | Written |
+| PPP over a non-fd frame channel, one reader (planned `TestPPPChannelSeam`) | None found | - | Owed, not written |
+| Session created before PADS | `TestVPPFactoryPublishesOnlyCreatedInterface`, `TestVPPFactoryRollbackClosesSocketAndConfirmedSession` (`vpp/factory_test.go`) | Publication needs the created name and index, table and MTU acknowledgement; returning from `Open` permits PADS; rollback after a confirmed create | Written (provider). Owed, not written: the server half, PADS withheld when `Open` fails |
+| Peer route on IPCP Opened | `TestVPPSessionPeerRouteUsesCreatedIndexAndTable`, `TestVPPPeerRouteWaitsForPostACKConnect` (`vpp/`) | Route add carries the session's created index and table | Written |
+| Teardown order | `TestVPPSessionCloseOwnsSocketAndTeardown` (`vpp/session_test.go`) | Close removes every owned path before the VPP session and refuses later operations | Written. Owed, not written: PADT after the VPP session delete |
+| OD-2 on disconnect and reconnect (planned `TestPPPoEVPPReconcileOnReconnect`) | None. `TestVPPReconcile*` test the library `Reconcile`, which has no production caller | - | Owed, not written: OD-2 loss handling is not built (Final gates) |
+| AC-15 policer features before policer | `TestVPPPolicerFeatureFenceCoversAllNativeArcs` (`vpp/rate_features_test.go`), `TestVPPPolicerOwnerCloseOrdersFeaturesBindingsAndObjects` (`vpp/rate_owner_test.go`) | Cleanup confirms every feature arc off, then each binding, then the owned policer | Written (provider). Owed: the production path, because `newPolicerRatePolicy` has no production caller (Final gates) |
+| AC-16 frame channel closed once | `TestSessionFrameChannelClosedOnceByOwner` (`internal/component/l2tp/ppp/kernel/session_test.go`); for the VPP socket, `TestVPPSessionCloseOwnsSocketAndTeardown` | One owner closes the channel once | Written |
+| AC-17 counters from the session handle | `TestVPPSessionCountersRequireExactCreatedIndex`, `TestVPPSessionCounterFreshnessBounds` (`vpp/`) | Counters read by the created index; failed and stale reads refused | Written. Owed: idle detection and accounting from these counters (resume step 5 (d)) |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -862,16 +863,18 @@ packages; the blank status cells still require evidence for the named questions.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `pppoe-vpp-dataplane-refused-without-backend` | `test/parse/` | AC-1, AC-2 | |
-| `pppoe-vpp-dataplane-accepted` | `test/parse/` | Valid VPP PPPoE tree | |
-| `pppoe-vpp-session` | `test/vpp/` | Session add/route/teardown against the VPP stub harness | |
-| `pppoe-vpp-coa-rate` | `test/vpp/` | AC-10 | |
+| `pppoe-vpp-backend-refused` | `test/parse/` | Offline validation refuses an unsupported PPPoE access backend, naming the path, the active and supported backends and the repair (toward AC-1) | Written |
+| `pppoe-vpp-enabled-required` | `test/parse/` | Configured PPPoE access refuses a disabled VPP provider | Written |
+| `pppoe-vpp-lcp-required` | `test/parse/` | AC-2: configured PPPoE access refuses VPP without control-plane pairs | Written |
+| `pppoe-vpp-no-access-accepted` | `test/parse/` | Global PPPoE settings with no access interface are accepted on VPP | Written |
+| Session add, route and teardown (planned `test/vpp/pppoe-vpp-session.ci`) | - | Covered against real VPP by `./le test deployment vpp-pppoe product` instead | Owed, not written as a `.ci` |
+| CoA rate (planned `test/vpp/pppoe-vpp-coa-rate.ci`) | - | AC-10 | Owed, not written: the policer is not wired |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `pppoe-vpp-ze-ac-pppd-client` | `test/interop-pppoe/scenarios/` | pppd + rp-pppoe client (existing `Dockerfile.client`), real VPP container, Ze container | AC-3..AC-8, AC-11: discovery, CHAP, IPCP/IPv6CP, data forwarded by VPP (VPP session counters, no 0x8864 data on the TAP), clean teardown | |
-| `pppoe-vpp-restart` | `test/interop-pppoe/scenarios/` | same | AC-12 | |
+| `pppoe-vpp-ze-ac-pppd-client` (`-<mode>` for the other modes, `vpppppoe/product_plan.go`) | Not under `test/interop-pppoe/scenarios/`: the real-VPP lab `./le test deployment vpp-pppoe product`, `product-framed`, `product-ipv6` (`internal/le/test/deployment/vpppppoe/`) | pppd client, real VPP container, Ze | AC-3..AC-8, AC-11: discovery, authentication, IPCP/IPv6CP, data forwarded by VPP, clean teardown | Written. `product` (IPv4): result pending, recorded by the main thread. `product-framed`: no result recorded here. `product-ipv6`: cannot pass, because its config writes a `pool { ipv6-na }` leaf the pool YANG lacks (`test-against-broken-path.md`, 2026-11-20) |
+| `pppoe-vpp-restart` | - | same | AC-12 | Owed, not written: OD-2 loss handling is not built |
 
 Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture assertions; G-2 by AC-1/AC-13; G-3 by AC-6, AC-7, AC-9; G-4 by AC-8; G-5 by the restart scenario. Each scenario is reverted-and-rebuilt once to record its red (`ai/rules/interop-and-goal-validation.md`). The lab Docker host runs Ze's kernel (`ai/META-DECISIONS.md`).
 
