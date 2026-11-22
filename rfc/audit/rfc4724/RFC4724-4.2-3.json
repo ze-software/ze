@@ -1,12 +1,13 @@
 {
   "code": {
     "internal/component/bgp/plugins/gr/gr.go::handleStateEvent": "e7cb0b130901d0f5",
-    "internal/component/bgp/plugins/gr/gr.go::handleStructuredState": "4dbdf98726ee00e0",
-    "internal/component/bgp/plugins/gr/gr.go::retainPeerFamilies": "84720d2a250a5417",
+    "internal/component/bgp/plugins/gr/gr.go::handleStructuredState": "f150c34a7f21ff3c",
+    "internal/component/bgp/plugins/gr/gr.go::retainPeerFamilies": "067a99a6c2d18758",
+    "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.recordEarlierRetained": "ebaf3f84028316e0",
     "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred": "4eb8f02d590623e5",
-    "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownPlan": "fa33f08229664f71"
+    "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownPlan": "75fd43c28561b4b2"
   },
-  "note": "Independent re-audit against RFC 4724 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires retaining routes for all address families previously received in the GR Capability and marking them stale upon TCP termination. On first session drop (prev==nil), onSessionDownPlan populates staleFamilies from cap.Families and handleStructuredState dispatches retainPeerFamilies (retain-routes on-down families ...) followed by mark-stale before invoking completeDown. All 5 tagged units verified: TestRFC4724SessionDownRetainsAndMarksRoutesStale drives real RIB storage for ipv4-only (keeps IPv4 at stale-level 1, deletes unadvertised IPv6) and both-families (both at stale-level 1); TestRFC4724RetentionCoversEveryAdvertisedFamily verifies exact staleFamilies map and armed restartTimer; TestRFC4724SessionDownWithoutCapabilityRetainsNothing proves a stored received route is deleted on DOWN without GR capability; TestGRStateManagerRouteRetention and TestGRStateManagerNoGRCapability provide state-manager controls.",
+  "note": "Independent re-audit after 26d70dfa0d against RFC 4724 Section 4.2. First DOWN: retainPeerFamilies sends the same retain-routes on-down families for every family of the received GR capability, now reading the RIB answer (an empty earlier-connections list records nothing), then handleStructuredState sends the same peer-wide mark-stale with the Restart Time. newGRWithRealRIB now passes the RIB's real answers, so TestRFC4724SessionDownRetainsAndMarksRoutesStale exercises the answer-reading path and still requires IPv4 kept at stale level 1 with unadvertised IPv6 deleted, and both families at level 1 when both are advertised; TestRFC4724SessionDownWithoutCapabilityRetainsNothing requires deletion without the capability; TestRFC4724RetentionCoversEveryAdvertisedFamily and the state-manager pair are unchanged controls. The commit also closes a consecutive-restart hole (routes a later connection sent for a family already in LLGR were retained unmarked), now marked by restalePreservedLLGR and proven by the untagged-for-this-row real-RIB root TestRFC9494ConsecutiveRestartMarksTheLaterConnectionsRoutes.",
   "requirement_sha": "3a8fbfa725f71668",
   "tests": {
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNoGRCapability": "9f3429deeea442b3",

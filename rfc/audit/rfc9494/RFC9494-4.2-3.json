@@ -1,23 +1,29 @@
 {
   "code": {
-    "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks": "8bd0ae6ed1d8de5d",
+    "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks": "5d9f65046fcdd483",
+    "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.dispatchRetained": "5f8ba62080bee34d",
+    "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.retainedConnections": "db586fc95102bcb3",
     "internal/component/bgp/plugins/gr/gr_state.go::enterLLGRLocked": "0f14d0d456655fe9",
     "internal/component/bgp/plugins/gr/gr_state.go::handleLLSTExpired": "b3e02445bfc026d0",
-    "internal/component/bgp/plugins/rib/rib_commands.go::purgeStaleCommand": "60db74d2a9cdcccc",
     "internal/component/bgp/plugins/rib/rib_source_commands.go::purgePhysicalSourceCommand": "d0ef0dc53098389d",
-    "internal/component/bgp/plugins/rib/storage/peerrib.go::RemoveFamilyMatching": "39b5945f05e2a876"
+    "internal/component/bgp/plugins/rib/rib_source_mutation.go::RIBManager.earlierRetainedLocked": "0bb5f5ec821c0bec",
+    "internal/component/bgp/plugins/rib/rib_source_mutation.go::RIBManager.physicalSourceKnownLocked": "5fcf47f6ca1e4a1d"
   },
-  "note": "Independent re-audit against RFC 9494 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires deleting all retained stale routes of an AFI/SAFI if its LLST timer expires before the session is re-established. In handleLLSTExpired, while syncing==false, expiring a family removes it from staleFamilies and llgrFamilies, dispatches onLLGRFamilyExpired(expiredSource, fam) -> request bgp rib source purge-stale for that family, and fires onLLGRComplete -> release-routes when the last family expires. All 4 tag bindings across 3 functions verified: TestLLSTTimerExpiry_SingleFamily verifies single-family expiry leaves sibling active; TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes drives production wireStateCallbacks and asserts exact IPv4 source purge-stale with no IPv6 purge; TestRFC9494DelayedDownPreservesLLSTDeadlines (positive and negative tags) verifies in the real RIB with synctest that each family remains at stale-level 2 one nanosecond before its deadline (even after its sibling expires) and disappears at its exact deadline.",
+  "note": "Independent re-audit after 26d70dfa0d. onLLGRFamilyExpired and onLLGRComplete now send purge-stale and release-routes through dispatchRetained to every connection the retained cycle holds, earlier ones first; for a single restart that is the source alone, so TestLLSTTimerExpiry_SingleFamily, TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes (exact IPv4 purge, no IPv6 purge) and TestRFC9494DelayedDownPreservesLLSTDeadlines (both polarities, real RIB, 1ns either side of each family's deadline) keep their full force. The commit adds both polarities on TestRFC9494ConsecutiveRestartExpiryDeletesEveryConnectionsRoutes: after a second restart during LLGR, the real RIB holds all three routes of connections 41 and 42 at level 2 with LLGR_STALE one nanosecond before the original deadline and none at it, so reverting dispatchRetained to the latest connection leaves 41's route and goes red. The RIB side (earlierRetainedLocked, retainsEarlier keeping an emptied earlier connection known) answers a zero purge rather than refusing. The whole sentence, every stale route of the family from the neighbor, is covered for both the single and the consecutive case.",
   "requirement_sha": "3f738c50ccd28c69",
   "tests": {
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_SingleFamily": "9f3429deeea442b3",
     "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes": "398743d2d03dc53d",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_rib_test.go::TestRFC9494ConsecutiveRestartExpiryDeletesEveryConnectionsRoutes": "575f00a64eca4b02",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_rib_test.go::TestRFC9494ConsecutiveRestartExpiryDeletesEveryConnectionsRoutes#2": "575f00a64eca4b02",
     "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines": "a8e84939edc430d3",
     "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines#2": "a8e84939edc430d3"
   },
   "units": {
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_SingleFamily": "f410d52e40579124",
     "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes": "8908a92f92014c77",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_rib_test.go::TestRFC9494ConsecutiveRestartExpiryDeletesEveryConnectionsRoutes": "66ecb93a0057d6ed",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_rib_test.go::TestRFC9494ConsecutiveRestartExpiryDeletesEveryConnectionsRoutes#2": "66ecb93a0057d6ed",
     "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines": "20c0b54bb6c5555b",
     "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines#2": "20c0b54bb6c5555b"
   },

@@ -1,13 +1,13 @@
 {
-  "note": "positive decodes 1000.0 to rate-limit:1000; negative decodes -1000.0 to rate-limit:0 for both subtype 0x06 and 0x0c",
+  "note": "Independent re-judgment after 562bc0139d, which changed only the comment quote in TestRFC8955TrafficRateNegativeDecodesAsZero to the byte-exact RFC 8955 Section 7.1 text (\"On decoding, negative values MUST be treated as zero (discard all traffic).\"); no executable statement changed. Positive: 1000.0 (0x447A0000) under subtype 0x06 decodes to exactly rate-limit:1000. Negative: -1000.0 (0xC47A0000) decodes to exactly rate-limit:0 under 0x06 and rate-limit:0:packets under 0x0c (Section 7.2). Both go through parseExtendedCommunities into attribute.appendExtCommTrafficRate, which clamps rate < 0 or NaN to 0. appendExtCommTrafficRate is the only traffic-rate float decoder in the tree (Float32frombits appears elsewhere only in rsvpte, ospf, mrt and bgp-ls), so the decoded value the test observes is the one every reader of the community gets. A decoder that passed the negative through would render a huge or negative rate and fail the exact string equality.",
   "requirement_sha": "6ce9c01c5365f2dd",
   "tests": {
-    "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero": "39e8e7881e51ee55",
-    "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero#2": "39e8e7881e51ee55"
+    "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero": "8569670d770450d1",
+    "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero#2": "8569670d770450d1"
   },
   "units": {
-    "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero": "490a9bdb50aed2bf",
-    "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero#2": "490a9bdb50aed2bf"
+    "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero": "aac10a40ff209684",
+    "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero#2": "aac10a40ff209684"
   },
   "verdict": "enforced"
 }

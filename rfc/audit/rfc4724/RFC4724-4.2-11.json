@@ -1,10 +1,11 @@
 {
   "code": {
-    "internal/component/bgp/plugins/gr/gr.go::grPlugin.handleEOREvent": "cf56647fbabd9cae",
+    "internal/component/bgp/plugins/gr/gr.go::grPlugin.handleEOREvent": "59f8703c5d1bcb98",
+    "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.dispatchRetained": "5f8ba62080bee34d",
     "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.onEORReceived": "7bd6eb0e6a14f082",
     "internal/component/bgp/plugins/rib/rib_source_commands.go::RIBManager.purgePhysicalSourceCommand": "d0ef0dc53098389d"
   },
-  "note": "Independent re-audit against RFC 4724 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires immediate removal of remaining stale routes for an address family upon receiving its End-of-RIB marker. onEORReceived validates the successor connection ID, checks wasStale (and clears llstExpiredDuringSync if present), removes fam from staleFamilies, stops any running LLST timer for fam, deletes peer state once both maps are empty, and returns (retainedSource, wasStale); handleEOREvent immediately dispatches source purge-stale scoped to that family. All 4 tagged units verified: TestGRStateManagerEORPurge purges IPv4 while keeping IPv6 active then completes on IPv6 EOR; TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes asserts the exact single source purge-stale command for IPv4; TestGRStateManagerEORForNonGRPeer returns false for non-GR peers; TestRFC4724EndOfRIBLeavesOtherFamiliesStale proves IPv6 is untouched, no whole-peer purge is sent, and an unretained family EOR dispatches nothing.",
+  "note": "Independent re-audit after 26d70dfa0d. For a single restart handleEOREvent still sends exactly one purge-stale for the End-of-RIB family to the retained connection, and the tagged roots still pin it: TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes requires the exact single command, TestRFC4724EndOfRIBLeavesOtherFamiliesStale no IPv6 or whole-peer purge and nothing for an unretained family, and the state-manager pair the per-family bookkeeping. FINDING, whole requirement: after a consecutive restart during the LLGR period, the routes still marked stale for the family belong to more than one connection (41 and 42), and all are routes from the peer. 26d70dfa0d changed handleEOREvent from dispatchSource to dispatchRetained because the purge named only the latest connection and left connection 41's stale routes in place; every tagged root of this row stayed green under that defect and would stay green if the change were reverted, because none drives a second retained connection. The untagged real-RIB root TestRFC9494ConsecutiveRestartEORDeletesEveryConnectionsStaleRoutes does require both stale routes absent and the refreshed one fresh after the third connection's End-of-RIB; tagging it as this row's positive, with its discrimination record, would close the finding.",
   "requirement_sha": "3a7dc061a2a9ae09",
   "tests": {
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORForNonGRPeer": "9f3429deeea442b3",
@@ -18,5 +19,5 @@
     "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBLeavesOtherFamiliesStale": "f3a2354f259e3d45",
     "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes": "2f9317c29ef4b7ac"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

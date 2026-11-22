@@ -1,21 +1,25 @@
 {
   "code": {
-    "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks": "8bd0ae6ed1d8de5d",
+    "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks": "5d9f65046fcdd483",
+    "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.attachLLGRStale": "f71f116a5b5bf2e5",
+    "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.restalePreservedLLGR": "c7f569ebb20234b4",
+    "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.llgrFamilyActive": "f2372f31b34d2677",
     "internal/component/bgp/plugins/rib/rib_commands_community.go::attachCommunity": "7d14e49896417036",
-    "internal/component/bgp/plugins/rib/rib_commands_community.go::attachCommunityCommand": "c4e1fb2d3bedbbc3",
     "internal/component/bgp/plugins/rib/rib_source_commands.go::attachPhysicalSourceCommunityCommand": "fa23693f37deda0b"
   },
-  "note": "Independent current-source rejudgment, not authored by this judge. Read the complete normative Sections4.1-4.6 and5 context, current requirement/derived ledger, every whole tagged question and actual helpers/producers for this row. Preserve the existing verdict and scope, without claiming whole-RFC conformance. Section4.2 requires attaching LLGR_STALE to retained stale routes. All3whole tagged questions read. The zero-GR real-RIB test exercises both event rails and requires literal0xffff0006 on a retained received route at level2. TestAttachCommunity requires actual pooled community bytes equalffff0006 after generic stale marking; the fresh-route negative requires attached0, fresh level retained and no community bundle. Current physical and generic attach consumers skip fresh entries and only mutate retained original source state; wireStateCallbacks orders NO_LLGR deletion before marker attachment and level2 marking. These tags prove storage attachment, not a separately observed destination-wire dissemination guarantee or neighboring4.3-2 community-preservation obligation. Fresh native receipt scratch/job-advertiser-llgr-local-record-renewal-b4406954.log wrote this row at lines1181, each after its own named healthy baseline and producer-halt failure. The whole-body panic proves producer dependency only; it can occur in setup, the first event-path/subcase, or an asynchronous timer. It does not independently isolate timer duration, later skipped subcases, partial deployment, or normal-return route omission. Exact useful healthy assertions and independent source judgment supply the semantic scope; no unexecuted broken branch is credited.",
+  "note": "Independent re-audit after 26d70dfa0d. The tagged roots still prove attachment on the normal paths: the zero-GR real-RIB root requires literal 0xffff0006 at level 2, TestAttachCommunity the pooled bytes, the fresh-route negative no attachment to fresh routes, and the new TestRFC9494ConsecutiveRestartMarksTheLaterConnectionsRoutes requires LLGR_STALE at level 2 on the routes connection 42 delivered for a family already in LLGR (restalePreservedLLGR). FINDING, single restart: the same commit made llgrFamilyActive return false once reestablishedConnectionID is set, and wireStateCallbacks' onLLGREnter checks it before NO_LLGR removal, before attach-community and before the level-2 mark. When the successor's UP lands while a Restart-Time-expiry LLGR entry is dispatching, the LLGR period has begun (its LLST timer keeps running through synchronization) but the retained stale routes keep level 1 and no LLGR_STALE until End-of-RIB, LLST expiry or a later DOWN; nothing completes the entry on reconnect (only restalePreservedLLGR at the next DOWN), and the RIB safety timer armed by the DOWN mark-stale stays armed. Section 4.2 says these procedures MUST be performed once the Restart Time period ends. The untagged TestRFC9494ConsecutiveRestartCompletesARevokedLLGREntry asserts that undecorated state at lines 276-278 as expected, and no tagged root can fail on it. Before this commit llgrFamilyActive kept true after reconnect, so the entry completed. Suspected code defect, not verified by a run.",
   "requirement_sha": "22bb80e0584de1a8",
   "tests": {
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_rib_test.go::TestRFC9494ConsecutiveRestartMarksTheLaterConnectionsRoutes": "575f00a64eca4b02",
     "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "a8e84939edc430d3",
     "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity": "4d7e784cb653f709",
     "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale": "5dcff1a63df83f39"
   },
   "units": {
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_rib_test.go::TestRFC9494ConsecutiveRestartMarksTheLaterConnectionsRoutes": "2e648df86c508cc4",
     "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "e54a5a7f3e8ee0b4",
     "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity": "83b089a4bc1c72b3",
     "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale": "36b00afc3fb611d3"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

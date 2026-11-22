@@ -1,12 +1,12 @@
 {
   "code": {
-    "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks": "8bd0ae6ed1d8de5d",
+    "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks": "5d9f65046fcdd483",
     "internal/component/bgp/plugins/gr/gr_state.go::enterLLGRLocked": "0f14d0d456655fe9",
     "internal/component/bgp/plugins/gr/gr_state.go::handleLLSTExpired": "b3e02445bfc026d0",
     "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred": "4eb8f02d590623e5",
-    "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownPlan": "fa33f08229664f71"
+    "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownPlan": "75fd43c28561b4b2"
   },
-  "note": "Independent re-audit against RFC 9494 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires starting a timer for each AFI/SAFI with a nonzero received Long-Lived Stale Time once its LLGR period begins. onSessionDownPlan schedules immediate LLGR entry for omitted GR families and arms startRestartTimer for GR families; enterLLGRLocked arms a per-family timer for each family with LLST>0 anchored to deadline+LLST (subtracting dispatch delay) and skips already-active LLST timers. All 8 tagged units verified: TestOnTimerExpired_WithLLGR, TestRFC9494RestartTimeThenLongLivedStaleTime, TestLLGROmittedGRFamilyRetainsRealRIB, TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry, and TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry prove per-family timer arming and exact 1ns virtual-clock expiry boundaries in the real RIB; negatives TestOnSessionDown_ZeroGR_ZeroLLST, TestRFC9494BothTimesZeroRetainsNothing, and TestLLGROmittedGRFamilyWithoutLLSTIsRemoved prove zero LLST and unexchanged LLGR families arm no timer and retain no routes.",
+  "note": "Independent re-audit after 26d70dfa0d. Per-family LLST timers are still armed only in enterLLGRLocked (unchanged) at the GR deadline or immediately for omitted-GR families from onSessionDownPlan, whose only change adds preservedLLGRFams; restalePreservedLLGR arms no new timer for a family whose period runs, as RFC9494-4.2-9 requires. The new llgrFamilyActive reconnect guard sits after the timer is armed, so it cannot suppress the timer. Tagged roots unchanged and now run through the RIB's real answers: TestOnTimerExpired_WithLLGR, TestRFC9494RestartTimeThenLongLivedStaleTime and the three omitted-family positives require the per-family timer and its exact 1ns expiry; negatives TestOnSessionDown_ZeroGR_ZeroLLST, TestRFC9494BothTimesZeroRetainsNothing and TestLLGROmittedGRFamilyWithoutLLSTIsRemoved require no timer and no retention for a zero or unexchanged LLST.",
   "requirement_sha": "1f2696c1a36dff3c",
   "tests": {
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionDown_ZeroGR_ZeroLLST": "9f3429deeea442b3",

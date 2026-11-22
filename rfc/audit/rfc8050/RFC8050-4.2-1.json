@@ -1,11 +1,20 @@
 {
-  "note": "Forbidden behaviour: reading RIB_GENERIC_ADDPATH (subtype 12) RIB Entries as redefined (a Path Identifier in each entry), or losing the Path Identifier that belongs in the raw NLRI. TestRIBGenericAddPathRoundTrip hand-builds the bytes the RFC describes (Path ID 42 at the head of the NLRI blob, then an entry with Peer Index, Originated Time, Attribute Length, attributes and no Path ID) and requires rec.NLRI == nlri and Entries[0].Attributes == attrs; a decoder that read a 4-octet Path ID from the entry would take 0x0004 plus attribute bytes as the path id and misparse the attribute length, so the attribute comparison or the decode goes red. The negative TestRIBGenericRoundTrip requires the base subtype 6 NLRI to decode verbatim. Ze writes no subtype 12 record (internal/mrt/encode.go writes none; internal/mrt/decode.go is the only producer), so the decode path is the whole surface.",
+  "code": {
+    "internal/component/bgp/plugins/rib/rib_mrt.go::RIBManager.dumpRIBForMRT": "170aa860f023ae6c",
+    "internal/mrt/encode.go::WriteRIBGenericHeaderAddPath": "cc6f159c5e0e90b9",
+    "internal/plugins/mrt/dump.go::writeTableDumpV2": "97bbb1e7348bd822"
+  },
+  "note": "Independent re-judgment after 381e927417 against RFC 8050 Section 4.2 (\"These fields continue to encapsulate the raw and additional-path- enabled AFI/SAFI/NLRI in the record, and the raw attributes in the RIB Entries. For clarity, the RIB Entries in this subtype are not redefined.\"). The prior note's \"Ze writes no subtype 12 record\" is no longer true: writeTableDumpV2 writes RIB_GENERIC_ADDPATH (12) for a non-unicast/multicast family delivered on OnRouteAddPath, putting the Path Identifier ahead of the NLRI (mrtfmt.WriteRIBGenericHeaderAddPath) and the RIB Entry with entryAddPath=false. Positive TestRFC8050MRTDumpGenericWithAddPath drives the real RIB walk into the writer on the default configuration: subtype 12, AFI 1 / SAFI 133, NLRI field exactly 00 00 00 09 + the FlowSpec NLRI, entry count 1 and entry length exactly 2+2+4+2+Attribute Length. A Path Identifier written into the RIB Entry (redefining it) puts 0x0000 where Attribute Length is read and fails the length; one dropped from the NLRI fails the NLRI equality. Negative TestRFC8050MRTDumpGenericWithoutAddPath: the same FlowSpec route stored without ADD-PATH is subtype 6 with the bare NLRI and the same RFC 6396 entry. Decode side unchanged: TestRIBGenericAddPathRoundTrip reads hand-built subtype 12 bytes with the Path ID in the NLRI and an unredefined entry; TestRIBGenericRoundTrip the base subtype 6. Strength gap, not a verdict change: requireGenericRecord checks the attribute framing but not that the attribute octets equal the stored attributes (\"the raw attributes in the RIB Entries\"); attribute reconstruction is judged under the RFC 6396 rows.",
   "requirement_sha": "6872cc51eafebe46",
   "tests": {
+    "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_path_test.go::TestRFC8050MRTDumpGenericWithAddPath": "5de9ddd3322c0efd",
+    "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_path_test.go::TestRFC8050MRTDumpGenericWithoutAddPath": "5de9ddd3322c0efd",
     "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip": "fb2e8a7edf55af3c",
     "internal/mrt/mrt_test.go::TestRIBGenericRoundTrip": "fb2e8a7edf55af3c"
   },
   "units": {
+    "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_path_test.go::TestRFC8050MRTDumpGenericWithAddPath": "32cc893f691f4718",
+    "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_path_test.go::TestRFC8050MRTDumpGenericWithoutAddPath": "0c0b8ddad5d046b2",
     "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip": "9e0cd914d419a246",
     "internal/mrt/mrt_test.go::TestRIBGenericRoundTrip": "4e9a8b80460e9682"
   },

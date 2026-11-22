@@ -1,12 +1,12 @@
 {
   "code": {
     "internal/component/bgp/plugins/gr/gr.go::handleStateEvent": "e7cb0b130901d0f5",
-    "internal/component/bgp/plugins/gr/gr.go::handleStructuredState": "4dbdf98726ee00e0",
+    "internal/component/bgp/plugins/gr/gr.go::handleStructuredState": "f150c34a7f21ff3c",
     "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred": "4eb8f02d590623e5",
-    "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownPlan": "fa33f08229664f71",
+    "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownPlan": "75fd43c28561b4b2",
     "internal/component/bgp/reactor/peer_close.go::sessionCloseFor": "77c4c0befb43a191"
   },
-  "note": "Independent re-audit against RFC 4724 Section 4 and current gr.go/gr_state.go (post-18b491ae23) and peer_close.go. Section 4 requires normal BGP procedures when a TCP session terminates due to a sent or received NOTIFICATION. handleStructuredState now delegates to onSessionDownPlan, which still short-circuits on wasNotification (rpc.ReasonForbidsRetention(reason)), clears any prior peer state (marking purgeAllPrevious if a prior cycle existed), and returns activated=false with no completion callback. All 6 tagged units verified: TestPeerCloseNamesTheNotificationTheNeighborSent vs TestPeerCloseNamesTheTransportLoss drive a running Peer to distinguish Cease/Event 25 (ReasonNotification) from TCP drop/Event 18 (ReasonTCPFailure); TestRFC4724NotificationCloseRetainsNothing asserts zero dispatched commands while TestRFC4724TransportCloseRetains asserts exact source-scoped retain-routes and mark-stale for ReasonTCPFailure and ReasonLocalClose; TestGRStateManagerNotificationBypass vs TestGRStateManagerRouteRetention contrast state-manager activation. Scope note: sent-NOTIFICATION handling shares sessionCloseFor (covered by untagged TestSessionCloseForCoversEveryCause), unchanged from prior scope.",
+  "note": "Independent re-audit after 26d70dfa0d against RFC 4724 Section 4. handleStructuredState still takes onSessionDownPlan's plan, which short-circuits a NOTIFICATION close (rpc.ReasonForbidsRetention) to activated=false; the only change on that branch is dropEarlierRetained, a map deletion, and a prior cycle's purge-stale now reaches every retained connection through dispatchRetained, which for a single restart is the previous connection alone. No retain-routes or mark-stale is sent for a NOTIFICATION close. Tagged roots unchanged: TestRFC4724NotificationCloseRetainsNothing requires zero dispatched commands; TestRFC4724TransportCloseRetains requires exact source-scoped retain-routes and mark-stale for tcp-failure and local-close; the peer_close pair distinguishes Cease from transport loss on a running Peer; the state-manager pair contrasts activation. Sent-NOTIFICATION handling shares sessionCloseFor, covered by the untagged TestSessionCloseForCoversEveryCause, as before.",
   "requirement_sha": "27edc6747b36ca46",
   "tests": {
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNotificationBypass": "9f3429deeea442b3",

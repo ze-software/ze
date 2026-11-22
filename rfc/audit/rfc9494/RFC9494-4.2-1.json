@@ -1,13 +1,16 @@
 {
   "code": {
-    "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks": "8bd0ae6ed1d8de5d",
+    "internal/component/bgp/plugins/gr/gr.go::grPlugin.retainPeerFamilies": "067a99a6c2d18758",
+    "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks": "5d9f65046fcdd483",
+    "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.dispatchRetained": "5f8ba62080bee34d",
+    "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.recordEarlierRetained": "ebaf3f84028316e0",
     "internal/component/bgp/plugins/gr/gr_state.go::enterLLGRLocked": "0f14d0d456655fe9",
     "internal/component/bgp/plugins/gr/gr_state.go::handleLLSTExpired": "b3e02445bfc026d0",
     "internal/component/bgp/plugins/gr/gr_state.go::handleTimerExpired": "bfa3a92d9cb60d38",
     "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred": "4eb8f02d590623e5",
-    "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownPlan": "fa33f08229664f71"
+    "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownPlan": "75fd43c28561b4b2"
   },
-  "note": "Independent re-audit against RFC 9494 Section 4.2 and current gr.go/gr_state.go (post-18b491ae23). Section 4.2 requires retaining stale routes after session down and before re-establishment, bounded by Restart Time + Long-Lived Stale Time (including zero-GR immediate LLGR, omitted-GR deemed zero, and both-zero base BGP). onSessionDownPlan preserves identical first-DOWN retention and immediate-entry scheduling; in handleLLSTExpired, while the session is down (syncing==false, llstExpiredDuringSync empty), lastFamily expiry still deletes peer state and fires onLLGRFamilyExpired + onLLGRComplete. All 10 tagged units verified: real-RIB tests TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod, TestRFC9494RestartTimeThenLongLivedStaleTime, TestRFC9494DelayedDownPreservesLLSTDeadlines, TestLLGROmittedGRFamilyRetainsRealRIB, TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry, and TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry verify GR level-1 -> LLGR level-2 + LLGR_STALE retention and 1ns virtual-clock boundaries on both JSON and structured paths; negatives TestOnTimerExpired_WithoutLLGR, TestRFC9494BothTimesZeroRetainsNothing, and TestLLGROmittedGRFamilyWithoutLLSTIsRemoved verify deletion without LLGR or with zero/unexchanged LLST; TestLLSTTimerExpiry_LastFamily supplements state-manager coverage.",
+  "note": "Independent re-audit after 26d70dfa0d against RFC 9494 Section 4.2 full text. Single restart: retainPeerFamilies now reads the retain-routes answer (dispatchSourceAnswer, recordEarlierRetained) but sends the same retain-routes and mark-stale commands; with no earlier connection retainedConnections answers the source alone, so onLLGRFamilyExpired and onLLGRComplete still send exactly one purge-stale and one release-routes to that connection. The real-RIB helper newGRWithRealRIB now routes every command through answerHook, so the tagged real-RIB roots (TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod, TestRFC9494RestartTimeThenLongLivedStaleTime, TestRFC9494DelayedDownPreservesLLSTDeadlines, the four omitted-GR-family roots) exercise the new answer-reading path and still require level-1 then level-2 retention with 1ns boundaries before deletion; negatives TestOnTimerExpired_WithoutLLGR, TestRFC9494BothTimesZeroRetainsNothing and TestLLGROmittedGRFamilyWithoutLLSTIsRemoved still require removal. The RIB change (retainPhysicalStateLocked no longer refuses while an earlier connection owns routes) repairs the consecutive-restart retention, whose own row RFC9494-4.2-7 tags it. The new reconnect revocation in llgrFamilyActive acts only after re-establishment, outside this row's down interval.",
   "requirement_sha": "8760148f130249ac",
   "tests": {
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_LastFamily": "9f3429deeea442b3",
