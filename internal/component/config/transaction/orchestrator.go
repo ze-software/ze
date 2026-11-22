@@ -18,6 +18,7 @@ import (
 	"log/slog"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -167,9 +168,6 @@ type TxCoordinator struct {
 
 	// Stored unsubscribe functions for cleanup.
 	unsubs []func()
-
-	// Number of participants that received verify/apply events (have diffs).
-	activeCount int
 }
 
 // NewTxCoordinator creates a transaction coordinator.
@@ -251,8 +249,6 @@ func (o *TxCoordinator) ParticipantBudgets(name string) Participant {
 func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSection) *TxResult {
 	o.subscribeAcks()
 	defer o.unsubscribeAcks()
-
-	o.activeCount = o.activeParticipantCount(diffs)
 
 	// Phase 1: Verify.
 	if err := o.runVerify(ctx, diffs); err != nil {
@@ -338,7 +334,20 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 // coordinator is discarded with its transaction. The verify ack is the one
 // that has a reader, and runVerify drains it on both paths.
 func (o *TxCoordinator) subscribeAcks() {
+	// Snapshot participant names once before any callback runs: updateParticipantApplyBudget
+	// mutates Participant.ApplyBudget under o.mu while subscriber callbacks are active.
+	knownParticipants := make(map[string]struct{}, len(o.participants))
+	for i := range o.participants {
+		knownParticipants[o.participants[i].Name] = struct{}{}
+	}
+	isKnownParticipant := func(name string) bool {
+		_, ok := knownParticipants[name]
+		return ok
+	}
+
 	subscribeVerifyAck := func(eventType string, ch chan<- VerifyAck) {
+		var seenMu sync.Mutex
+		seen := make(map[string]struct{}, len(knownParticipants))
 		unsub := o.gateway.SubscribeConfigEvent(eventType, func(payload []byte) {
 			var ack VerifyAck
 			if err := json.Unmarshal(payload, &ack); err != nil {
@@ -347,12 +356,30 @@ func (o *TxCoordinator) subscribeAcks() {
 			if ack.TransactionID != o.txID {
 				return
 			}
+			if !isKnownParticipant(ack.Plugin) {
+				logger().Warn("ignoring verify ack from unknown plugin",
+					"tx", o.txID, "plugin", ack.Plugin, "event-type", eventType,
+					"code", diagnostic.CodeDoctorInternalDefect)
+				return
+			}
+			seenMu.Lock()
+			if _, duplicate := seen[ack.Plugin]; duplicate {
+				seenMu.Unlock()
+				logger().Warn("ignoring duplicate verify ack",
+					"tx", o.txID, "plugin", ack.Plugin, "event-type", eventType,
+					"code", diagnostic.CodeDoctorInternalDefect)
+				return
+			}
+			seen[ack.Plugin] = struct{}{}
+			seenMu.Unlock()
 			trySendVerifyAck(ch, ack, o.txID, eventType)
 		})
 		o.unsubs = append(o.unsubs, unsub)
 	}
 
 	subscribeApplyAck := func(eventType string, ch chan<- ApplyAck) {
+		var seenMu sync.Mutex
+		seen := make(map[string]struct{}, len(knownParticipants))
 		unsub := o.gateway.SubscribeConfigEvent(eventType, func(payload []byte) {
 			var ack ApplyAck
 			if err := json.Unmarshal(payload, &ack); err != nil {
@@ -361,6 +388,22 @@ func (o *TxCoordinator) subscribeAcks() {
 			if ack.TransactionID != o.txID {
 				return
 			}
+			if !isKnownParticipant(ack.Plugin) {
+				logger().Warn("ignoring apply ack from unknown plugin",
+					"tx", o.txID, "plugin", ack.Plugin, "event-type", eventType,
+					"code", diagnostic.CodeDoctorInternalDefect)
+				return
+			}
+			seenMu.Lock()
+			if _, duplicate := seen[ack.Plugin]; duplicate {
+				seenMu.Unlock()
+				logger().Warn("ignoring duplicate apply ack",
+					"tx", o.txID, "plugin", ack.Plugin, "event-type", eventType,
+					"code", diagnostic.CodeDoctorInternalDefect)
+				return
+			}
+			seen[ack.Plugin] = struct{}{}
+			seenMu.Unlock()
 			trySendApplyAck(ch, ack, o.txID, eventType)
 		})
 		o.unsubs = append(o.unsubs, unsub)
@@ -371,6 +414,8 @@ func (o *TxCoordinator) subscribeAcks() {
 	subscribeApplyAck(EventApplyOK, o.applyOKCh)
 	subscribeApplyAck(EventApplyFailed, o.applyFailedCh)
 
+	var rollbackSeenMu sync.Mutex
+	rollbackSeen := make(map[string]struct{}, len(knownParticipants))
 	o.unsubs = append(o.unsubs, o.gateway.SubscribeConfigEvent(EventRollbackOK, func(payload []byte) {
 		var ack RollbackAck
 		if err := json.Unmarshal(payload, &ack); err != nil {
@@ -379,6 +424,22 @@ func (o *TxCoordinator) subscribeAcks() {
 		if ack.TransactionID != o.txID {
 			return
 		}
+		if !isKnownParticipant(ack.Plugin) {
+			logger().Warn("ignoring rollback ack from unknown plugin",
+				"tx", o.txID, "plugin", ack.Plugin, "event-type", EventRollbackOK,
+				"code", diagnostic.CodeDoctorInternalDefect)
+			return
+		}
+		rollbackSeenMu.Lock()
+		if _, duplicate := rollbackSeen[ack.Plugin]; duplicate {
+			rollbackSeenMu.Unlock()
+			logger().Warn("ignoring duplicate rollback ack",
+				"tx", o.txID, "plugin", ack.Plugin, "event-type", EventRollbackOK,
+				"code", diagnostic.CodeDoctorInternalDefect)
+			return
+		}
+		rollbackSeen[ack.Plugin] = struct{}{}
+		rollbackSeenMu.Unlock()
 		trySendRollbackAck(o.rollbackOKCh, ack, o.txID)
 	}))
 }
@@ -437,18 +498,30 @@ func (o *TxCoordinator) runVerify(ctx context.Context, diffs map[string][]DiffSe
 	timer := time.NewTimer(deadline)
 	defer timer.Stop()
 
-	remaining := o.activeParticipantCount(diffs)
-	for remaining > 0 {
+	expected := o.expectedParticipants(diffs)
+	for len(expected) > 0 {
 		select {
 		case ack := <-o.verifyOKCh:
+			if _, ok := expected[ack.Plugin]; !ok {
+				logger().Warn("ignoring unexpected or duplicate verify ack",
+					"tx", o.txID, "plugin", ack.Plugin,
+					"code", diagnostic.CodeDoctorInternalDefect)
+				continue
+			}
+			delete(expected, ack.Plugin)
 			o.mu.Lock()
 			o.verifyAcks[ack.Plugin] = ack
 			if ack.ApplyBudgetSecs > 0 {
 				o.updateParticipantApplyBudget(ack.Plugin, ack.ApplyBudgetSecs)
 			}
 			o.mu.Unlock()
-			remaining--
 		case ack := <-o.verifyFailedCh:
+			if _, ok := expected[ack.Plugin]; !ok {
+				logger().Warn("ignoring unexpected verify-failed ack",
+					"tx", o.txID, "plugin", ack.Plugin,
+					"code", diagnostic.CodeDoctorInternalDefect)
+				continue
+			}
 			o.mu.Lock()
 			o.verifyAcks[ack.Plugin] = ack
 			o.mu.Unlock()
@@ -485,10 +558,17 @@ func (o *TxCoordinator) runApply(ctx context.Context, diffs map[string][]DiffSec
 	timer := time.NewTimer(deadline)
 	defer timer.Stop()
 
-	remaining := o.activeParticipantCount(diffs)
-	for remaining > 0 {
+	expected := o.expectedParticipants(diffs)
+	for len(expected) > 0 {
 		select {
 		case ack := <-o.applyOKCh:
+			if _, ok := expected[ack.Plugin]; !ok {
+				logger().Warn("ignoring unexpected or duplicate apply ack",
+					"tx", o.txID, "plugin", ack.Plugin,
+					"code", diagnostic.CodeDoctorInternalDefect)
+				continue
+			}
+			delete(expected, ack.Plugin)
 			o.mu.Lock()
 			o.applyAcks[ack.Plugin] = ack
 			if ack.VerifyBudgetSecs > 0 {
@@ -498,8 +578,13 @@ func (o *TxCoordinator) runApply(ctx context.Context, diffs map[string][]DiffSec
 				o.updateParticipantApplyBudget(ack.Plugin, ack.ApplyBudgetSecs)
 			}
 			o.mu.Unlock()
-			remaining--
 		case ack := <-o.applyFailedCh:
+			if _, ok := expected[ack.Plugin]; !ok {
+				logger().Warn("ignoring unexpected apply-failed ack",
+					"tx", o.txID, "plugin", ack.Plugin,
+					"code", diagnostic.CodeDoctorInternalDefect)
+				continue
+			}
 			o.mu.Lock()
 			o.applyAcks[ack.Plugin] = ack
 			o.mu.Unlock()
@@ -598,23 +683,33 @@ func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperat
 	o.applyDeadline = o.computeApplyDeadline()
 	deadline := o.applyDeadline
 	o.mu.Unlock()
-	executor.SetDeadlineMS(time.Now().Add(deadline).UnixMilli())
 	executor.SetRollbackBudget(o.computeRollbackDeadline())
 	executor.afterRollback = o.restoreSectionsAfterOperationUndo
-	if err := executor.Verify(ctx, sorted); err != nil {
+
+	verifyCtx, verifyCancel := context.WithTimeout(ctx, o.computeVerifyDeadline())
+	verifyDeadlineAt, _ := verifyCtx.Deadline()
+	executor.SetDeadlineMS(verifyDeadlineAt.UnixMilli())
+	verifyErr := executor.Verify(verifyCtx, sorted)
+	verifyCancel()
+	if verifyErr != nil {
 		if canceledByShutdown(ctx) {
-			return o.abortForShutdown("operation verify", err)
+			return o.abortForShutdown("operation verify", verifyErr)
 		}
-		o.publishAbort("operation verify", err.Error())
-		return &TxResult{State: StateAborted, Err: err}
+		o.publishAbort("operation verify", verifyErr.Error())
+		return &TxResult{State: StateAborted, Err: verifyErr}
 	}
-	if err := executor.Execute(ctx, sorted); err != nil {
+
+	applyCtx, applyCancel := context.WithTimeout(ctx, deadline)
+	defer applyCancel()
+	applyDeadlineAt, _ := applyCtx.Deadline()
+	executor.SetDeadlineMS(applyDeadlineAt.UnixMilli())
+	if err := executor.Execute(applyCtx, sorted); err != nil {
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation apply", err)
 		}
 		return &TxResult{State: StateRolledBack, Err: err}
 	}
-	if err := executor.Commit(ctx, sorted); err != nil {
+	if err := executor.Commit(applyCtx, sorted); err != nil {
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation commit", err)
 		}
@@ -778,15 +873,15 @@ func (o *TxCoordinator) checkOperationRootCoverage(ops []ConfigOperation, diffs 
 	return nil
 }
 
-// activeParticipantCount returns how many participants have diffs to process.
-func (o *TxCoordinator) activeParticipantCount(diffs map[string][]DiffSection) int {
-	count := 0
+// expectedParticipants returns the set of participants that have diffs to process.
+func (o *TxCoordinator) expectedParticipants(diffs map[string][]DiffSection) map[string]struct{} {
+	expected := make(map[string]struct{}, len(o.participants))
 	for _, p := range o.participants {
 		if len(p.FilterDiffs(diffs)) > 0 {
-			count++
+			expected[p.Name] = struct{}{}
 		}
 	}
-	return count
+	return expected
 }
 
 // publishAbort ends the transaction with nothing applied and tells the
@@ -832,13 +927,18 @@ func (o *TxCoordinator) abortForShutdown(phase string, err error) *TxResult {
 }
 
 // rollBack ends a transaction whose apply failed with err: it emits the
-// rollback, waits for every participant's answer, and returns a result whose
-// error carries err and, after it, what the rollback left running. The
-// operator reads that second part to know whether each plugin put its
-// running config back, was restarted, or still needs them.
+// rollback, waits for every participant's answer under a detached context
+// bounded by computeRollbackDeadline (so an apply timeout or caller
+// cancellation still completes rollback ack collection and restarts CodeBroken
+// plugins), and returns a result whose error carries err and, after it, what
+// the rollback left running. The operator reads that second part to know
+// whether each plugin put its running config back, was restarted, or still
+// needs them.
 func (o *TxCoordinator) rollBack(ctx context.Context, err error) *TxResult {
+	rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), o.computeRollbackDeadline())
+	defer cancel()
 	o.publishRollback(err.Error())
-	o.collectRollbackAcks(ctx)
+	o.collectRollbackAcks(rollbackCtx)
 	return &TxResult{State: StateRolledBack, Err: fmt.Errorf("%w\n%s", err, o.rollbackOutcome())}
 }
 

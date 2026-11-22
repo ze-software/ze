@@ -20,6 +20,7 @@ import (
 	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -447,22 +448,27 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 	coordinator.SetOperationPlanner(operationPlannerFromTrees(gateway, runningTree, candidateTree, participants))
 
 	result := coordinator.Execute(ctx, diffs)
+	var restoreErr error
 	if result.State != transaction.StateCommitted {
 		// A rolled-back or aborted transaction leaves no capability
 		// declaration its verify answers carried: an OPEN built from here on
-		// carries what the running configuration declares.
+		// carries what the running configuration declares. Restore failure
+		// must not skip completion receipts: owners that paused state across
+		// the transaction still owe config-complete(false).
 		if err := bridge.restoreCapabilities(); err != nil {
 			s.capabilityRestore.failed(err)
-			return errors.Join(txResultToError(result), err)
+			restoreErr = err
 		}
 	}
 	if result.State == transaction.StateRolledBack {
 		batch := &reloadOperationBatch{txID: coordinator.TransactionID(), participants: bridge.participants}
-		return errors.Join(txResultToError(result), s.completeRolledBack(ctx, batch))
+		return errors.Join(txResultToError(result), restoreErr, s.completeRolledBack(ctx, batch))
 	}
-	if result.State == transaction.StateAborted && errors.Is(result.Err, transaction.ErrShutdown) {
-		batch := &reloadOperationBatch{txID: coordinator.TransactionID(), participants: bridge.participants}
-		return errors.Join(txResultToError(result), s.completeShutdown(ctx, batch))
+	if result.State == transaction.StateAborted {
+		if errors.Is(result.Err, transaction.ErrShutdown) {
+			batch := &reloadOperationBatch{txID: coordinator.TransactionID(), participants: bridge.participants}
+			return errors.Join(txResultToError(result), restoreErr, s.completeShutdown(ctx, batch))
+		}
 	}
 	if result.State == transaction.StateCommitted {
 		// The committed configuration's declarations are now the ones in
@@ -477,7 +483,7 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 			pending.mu.Unlock()
 		}
 	}
-	return txResultToError(result)
+	return errors.Join(txResultToError(result), restoreErr)
 }
 
 // operationPlannerFromTrees installs the planner the orchestrator calls once
@@ -499,26 +505,52 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 // candidate subtrees are the same bytes.
 func operationPlannerFromTrees(gateway transaction.EventGateway, runningTree, candidateTree map[string]any, participants []transaction.Participant) transaction.OperationPlanner {
 	return func(ctx context.Context, req transaction.OperationPlanRequest) ([]transaction.ConfigOperation, error) {
-		decomposeOKCh := make(chan transaction.ConfigOperationDecomposeAck, len(req.Diffs))
-		decomposeFailedCh := make(chan transaction.ConfigOperationDecomposeAck, len(req.Diffs))
+		diffSections := 0
+		for _, sections := range req.Diffs {
+			diffSections += len(sections)
+		}
+		decomposingDecls := 0
+		for _, p := range participants {
+			for _, decl := range p.ConfigOperations {
+				if decl.Decompose {
+					decomposingDecls++
+				}
+			}
+		}
+		// Size for two passes (changed roots + disturbed-address binders); sends
+		// below are also non-blocking and done-gated so extra or late acks can
+		// never stall the synchronous event emitter goroutine.
+		bufSize := max(diffSections, len(participants), decomposingDecls, 1) * 2
+		decomposeOKCh := make(chan transaction.ConfigOperationDecomposeAck, bufSize)
+		decomposeFailedCh := make(chan transaction.ConfigOperationDecomposeAck, bufSize)
+		done := make(chan struct{})
 		var unsubs []func()
 		if gateway != nil {
 			unsubs = append(unsubs,
 				gateway.SubscribeConfigEvent(transaction.EventOperationDecomposeOK, func(payload []byte) {
 					var ack transaction.ConfigOperationDecomposeAck
-					if err := json.Unmarshal(payload, &ack); err == nil && ack.TransactionID == req.TransactionID {
-						decomposeOKCh <- ack
+					if err := json.Unmarshal(payload, &ack); err != nil {
+						return
 					}
+					if ack.TransactionID != req.TransactionID {
+						return
+					}
+					trySendDecomposeAck(done, decomposeOKCh, ack, req.TransactionID, transaction.EventOperationDecomposeOK)
 				}),
 				gateway.SubscribeConfigEvent(transaction.EventOperationDecomposeFailed, func(payload []byte) {
 					var ack transaction.ConfigOperationDecomposeAck
-					if err := json.Unmarshal(payload, &ack); err == nil && ack.TransactionID == req.TransactionID {
-						decomposeFailedCh <- ack
+					if err := json.Unmarshal(payload, &ack); err != nil {
+						return
 					}
+					if ack.TransactionID != req.TransactionID {
+						return
+					}
+					trySendDecomposeAck(done, decomposeFailedCh, ack, req.TransactionID, transaction.EventOperationDecomposeFailed)
 				}),
 			)
 			defer closeUnsubs(unsubs)
 		}
+		defer close(done)
 
 		plan := &operationPlan{
 			gateway:       gateway,
@@ -728,6 +760,22 @@ func operationDeclForRoot(participants []transaction.Participant, root string) (
 		}
 	}
 	return transaction.Participant{}, transaction.ConfigOperationDecl{}, false
+}
+
+func trySendDecomposeAck(done <-chan struct{}, ch chan<- transaction.ConfigOperationDecomposeAck, ack transaction.ConfigOperationDecomposeAck, txID, eventType string) {
+	select {
+	case <-done:
+		return
+	default:
+	}
+	select {
+	case <-done:
+	case ch <- ack:
+	default:
+		logger().Warn("operation decompose ack channel full, dropping ack",
+			"tx", txID, "plugin", ack.Plugin, "root", ack.Root, "event-type", eventType,
+			"code", diagnostic.CodeDoctorPluginSubscriptionDropped)
+	}
 }
 
 func waitDecomposeAck(ctx context.Context, pluginName, root string, okCh, failedCh <-chan transaction.ConfigOperationDecomposeAck) ([]transaction.ConfigOperation, error) {

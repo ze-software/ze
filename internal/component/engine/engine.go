@@ -8,9 +8,12 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+const startRollbackTimeout = 3 * time.Second
 
 var errAlreadyStarted = errors.New("already started")
 
@@ -63,6 +66,9 @@ func (e *Engine) RegisterSubsystem(sub ze.Subsystem) error {
 // Start launches all components in order:
 // plugins start → subsystems start (in registration order).
 // EventBus and config are provided at construction time.
+// If a subsystem fails to start, already-started subsystems (in reverse order)
+// and plugins are stopped under a detached, bounded context, and every cleanup
+// failure is joined with the startup error.
 func (e *Engine) Start(ctx context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -79,12 +85,21 @@ func (e *Engine) Start(ctx context.Context) error {
 	// Start subsystems in registration order.
 	for i, sub := range e.subsystems {
 		if err := sub.Start(ctx, e.eventBus, e.config); err != nil {
+			startErr := fmt.Errorf("start subsystem %q: %w", sub.Name(), err)
+			rollbackCtx, rollbackCancel := context.WithTimeout(context.WithoutCancel(ctx), startRollbackTimeout)
+			defer rollbackCancel()
 			// Stop already-started subsystems in reverse order.
+			var cleanupFailure error
 			for j := i - 1; j >= 0; j-- {
-				_ = e.subsystems[j].Stop(ctx)
+				startedSub := e.subsystems[j]
+				if stopErr := startedSub.Stop(rollbackCtx); stopErr != nil {
+					cleanupFailure = errors.Join(cleanupFailure, fmt.Errorf("stop subsystem %q: %w", startedSub.Name(), stopErr))
+				}
 			}
-			_ = e.plugins.StopAll(ctx)
-			return fmt.Errorf("start subsystem %q: %w", sub.Name(), err)
+			if stopErr := e.plugins.StopAll(rollbackCtx); stopErr != nil {
+				cleanupFailure = errors.Join(cleanupFailure, fmt.Errorf("stop plugins: %w", stopErr))
+			}
+			return errors.Join(startErr, cleanupFailure)
 		}
 	}
 

@@ -133,13 +133,21 @@ func unreadDeclarationsRefusal(firstPassErr error) error {
 // reloads is the daemon's signal-reload mutex, shared with request reload
 // (newRequestReloadFunc).
 //
-// It closes done when reloadCh is closed and the reload it was running has
-// reported. Shutdown waits on that (awaitReloadWorker), so a SIGTERM racing a
-// SIGHUP does not take the verdict with it.
+// It closes done when reloadCh is closed or ctx is canceled and the reload it
+// was running has reported. Shutdown waits on that (awaitReloadWorker), so a
+// SIGTERM racing a SIGHUP does not take the verdict with it.
 func handleSIGHUPReload(ctx context.Context, reloadCh <-chan os.Signal, done chan<- struct{}, reloads *sync.Mutex, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator, recorder audit.Recorder) {
 	defer close(done)
 
-	for range reloadCh {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case _, ok := <-reloadCh:
+			if !ok {
+				return
+			}
+		}
 		if ctx.Err() != nil {
 			return
 		}
@@ -778,15 +786,6 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		}
 	}
 
-	applyHostTuningFromMap(newTree)
-	applyConsoleFromMap(newTree)
-	applyKernelHostnameFromMap(newTree)
-	applyConntrackFromMap(newTree, s)
-	applyUpdateCheckerFromMap(newTree)
-	startArchiveScheduler(parsedTree, configPath, store, s)
-	applyResolvConf(parsedTree)
-	reloadSmartManager(parsedTree)
-
 	if candidateSet {
 		if err := promoteReloadCandidate(source, store, configPath); err != nil {
 			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
@@ -796,8 +795,18 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		}
 	}
 
-	// The name servers go live with the promoted config, never before: a
-	// reload rolled back above leaves the accepted list published.
+	// Host-side system mutations and name-server publication go live only once
+	// candidate promotion has succeeded, never before: a reload rolled back
+	// above must leave host tuning, hostname, resolv.conf, schedulers and the
+	// accepted name-server list untouched.
+	applyHostTuningFromMap(newTree)
+	applyConsoleFromMap(newTree)
+	applyKernelHostnameFromMap(newTree)
+	applyConntrackFromMap(newTree, s)
+	applyUpdateCheckerFromMap(newTree)
+	startArchiveScheduler(parsedTree, configPath, store, s)
+	applyResolvConf(parsedTree)
+	reloadSmartManager(parsedTree)
 	publishNameServers(parsedTree)
 
 	// The complete local and API identity becomes live only after every

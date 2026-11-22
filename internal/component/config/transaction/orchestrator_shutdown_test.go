@@ -151,6 +151,9 @@ func TestOrdinaryCancelDuringApplyStillRollsBack(t *testing.T) {
 	waitForEmit(t, gw, EventApplyFor("bgp"))
 	cancel(nil) // an ordinary cancellation: cause is context.Canceled
 
+	waitForEmit(t, gw, EventRollback)
+	p1.respondRollback(gw, orch.TransactionID())
+
 	select {
 	case result := <-resultCh:
 		if result.State != StateRolledBack {

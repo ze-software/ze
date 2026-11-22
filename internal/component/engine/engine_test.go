@@ -2,6 +2,7 @@ package engine_test
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"sync"
 	"testing"
@@ -392,3 +393,118 @@ func (p *testPlugins) Plugin(string) (ze.PluginProcess, bool) { return ze.Plugin
 func (p *testPlugins) Plugins() []ze.PluginProcess            { return nil }
 
 func stubPlugins() ze.PluginManager { return &testPlugins{} }
+
+type rollbackTestSubsystem struct {
+	name      string
+	recorder  *recorder
+	startFn   func(context.Context) error
+	stopErr   error
+	stopCtxOK bool
+	stopBound bool
+}
+
+func (s *rollbackTestSubsystem) Name() string { return s.name }
+
+func (s *rollbackTestSubsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) error {
+	s.recorder.record("start:" + s.name)
+	if s.startFn != nil {
+		return s.startFn(ctx)
+	}
+	return nil
+}
+
+func (s *rollbackTestSubsystem) Stop(ctx context.Context) error {
+	s.recorder.record("stop:" + s.name)
+	s.stopCtxOK = ctx.Err() == nil
+	_, s.stopBound = ctx.Deadline()
+	return s.stopErr
+}
+
+func (s *rollbackTestSubsystem) Reload(_ context.Context, _ ze.ConfigProvider) error { return nil }
+
+type rollbackTestPlugins struct {
+	testPlugins
+	recorder  *recorder
+	stopErr   error
+	stopCtxOK bool
+	stopBound bool
+}
+
+func (p *rollbackTestPlugins) StopAll(ctx context.Context) error {
+	p.recorder.record("stop:plugins")
+	p.stopCtxOK = ctx.Err() == nil
+	_, p.stopBound = ctx.Deadline()
+	return p.stopErr
+}
+
+// TestStartPartialRollbackDetachesCancelAndJoinsCleanupErrors proves that when
+// a subsystem fails to start after Start's context is canceled, rollback stops
+// already-started subsystems in reverse order and then stops plugins under an
+// uncanceled, bounded context, and returns the startup error joined with every
+// cleanup failure.
+//
+// VALIDATES: Engine.Start detaches cancellation with a bounded timeout on
+// partial-start rollback and aggregates all cleanup errors via errors.Join.
+// PREVENTS: a canceled Start context aborting rollback cleanup and discarded
+// cleanup errors hiding teardown failures.
+func TestStartPartialRollbackDetachesCancelAndJoinsCleanupErrors(t *testing.T) {
+	rec := &recorder{}
+	startErr := errors.New("charlie start failed")
+	bravoStopErr := errors.New("bravo stop failed")
+	alphaStopErr := errors.New("alpha stop failed")
+	pluginsStopErr := errors.New("plugins stop failed")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	plugins := &rollbackTestPlugins{recorder: rec, stopErr: pluginsStopErr}
+	eng := engine.NewEngine(stubBus(), stubConfig(), plugins)
+
+	alpha := &rollbackTestSubsystem{name: "alpha", recorder: rec, stopErr: alphaStopErr}
+	bravo := &rollbackTestSubsystem{name: "bravo", recorder: rec, stopErr: bravoStopErr}
+	charlie := &rollbackTestSubsystem{
+		name:     "charlie",
+		recorder: rec,
+		startFn: func(context.Context) error {
+			cancel()
+			return startErr
+		},
+	}
+
+	for _, sub := range []*rollbackTestSubsystem{alpha, bravo, charlie} {
+		if err := eng.RegisterSubsystem(sub); err != nil {
+			t.Fatalf("RegisterSubsystem(%s): %v", sub.name, err)
+		}
+	}
+
+	err := eng.Start(ctx)
+	if err == nil {
+		t.Fatal("Start succeeded, want failure")
+	}
+
+	for _, want := range []error{startErr, bravoStopErr, alphaStopErr, pluginsStopErr} {
+		if !errors.Is(err, want) {
+			t.Errorf("Start error %v missing cause %v", err, want)
+		}
+	}
+
+	wantOrder := []string{"start:alpha", "start:bravo", "start:charlie", "stop:bravo", "stop:alpha", "stop:plugins"}
+	if got := rec.get(); !slices.Equal(got, wantOrder) {
+		t.Errorf("lifecycle order = %v, want %v", got, wantOrder)
+	}
+
+	for _, sub := range []*rollbackTestSubsystem{bravo, alpha} {
+		if !sub.stopCtxOK {
+			t.Errorf("%s.Stop received a canceled context", sub.name)
+		}
+		if !sub.stopBound {
+			t.Errorf("%s.Stop context had no deadline", sub.name)
+		}
+	}
+	if !plugins.stopCtxOK {
+		t.Error("plugins.StopAll received a canceled context")
+	}
+	if !plugins.stopBound {
+		t.Error("plugins.StopAll context had no deadline")
+	}
+}
