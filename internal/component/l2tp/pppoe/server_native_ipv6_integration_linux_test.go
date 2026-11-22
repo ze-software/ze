@@ -24,6 +24,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	_ "github.com/ze-software/ze/internal/component/l2tp/plugins/pppoe-kernel"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
@@ -149,29 +150,7 @@ func TestServerNativeIPv6TeardownReleasesOriginalUnit(t *testing.T) {
 		return
 	}
 	f := newServerV6Fixture(t)
-	var buffer [EthMaxLen]byte
-	padt := BuildPADT(buffer[:], serverV6PeerMAC, serverV6AccessMAC, f.sid, "")
-	if padt == nil {
-		t.Fatal("build the subscriber's PADT")
-	}
-	f.sub.dispatchFrame(f.server.ifIndex, padt)
-
-	serverV6Eventually(t, "the session's native release", func() (bool, error) {
-		status, err := f.attempt.CleanupStatus()
-		if err != nil {
-			return false, err
-		}
-		if status.Err != nil {
-			return false, fmt.Errorf("session cleanup failed: %w", status.Err)
-		}
-		if !status.Finished {
-			return false, nil
-		}
-		if !status.Released {
-			return false, nil
-		}
-		return !f.driver.HasPendingNativeRelease(), nil
-	})
+	f.releaseByPADT(t)
 	_, err := f.route.LinkByIndex(int(f.identity.NativeIndex))
 	if err == nil {
 		t.Fatalf("release reported while the original %s (index %d) still exists", f.identity.InterfaceName, f.identity.NativeIndex)
@@ -197,9 +176,23 @@ type serverV6Fixture struct {
 	localLL  netip.Addr
 	// discovery receives the frames the server's discovery handlers send.
 	discovery chan []byte
+	// framedRoutes is the profile the fixture's auth acceptance stages. Only
+	// a credentialed original round carries one (EventAuthRequest.StageFramedRoutes).
+	framedRoutes []l2tpevents.FramedRoute
 }
 
+// serverV6NoAuth is the access configuration of the tests that need no
+// authenticated profile.
+const serverV6NoAuth = "pppoe { auth-method none; allow-no-auth true; interface " + serverV6Access + " {} }"
+
 func newServerV6Fixture(t *testing.T) *serverV6Fixture {
+	t.Helper()
+	return startServerV6Fixture(t, serverV6NoAuth, nil)
+}
+
+// startServerV6Fixture admits one subscriber under config, the PPPoE
+// configuration text, and accepts its authentication with framedRoutes.
+func startServerV6Fixture(t *testing.T, config string, framedRoutes []l2tpevents.FramedRoute) *serverV6Fixture {
 	t.Helper()
 	serverV6Defaults(t)
 	if err := iface.LoadBackend("netlink"); err != nil {
@@ -215,10 +208,10 @@ func newServerV6Fixture(t *testing.T) *serverV6Fixture {
 		t.Fatal(err)
 	}
 	t.Cleanup(route.Close)
-	f := &serverV6Fixture{t: t, route: route, discovery: make(chan []byte, 8)}
+	f := &serverV6Fixture{t: t, route: route, discovery: make(chan []byte, 8), framedRoutes: framedRoutes}
 	f.peer = serverV6Veth(t, route)
 
-	p := extractFromConfigText(t, "pppoe { auth-method none; allow-no-auth true; interface "+serverV6Access+" {} }")
+	p := extractFromConfigText(t, config)
 	backend, err := selectedSessionBackend()
 	if err != nil {
 		t.Fatal(err)
@@ -294,6 +287,10 @@ func (f *serverV6Fixture) pump(ctx context.Context, done chan<- struct{}) {
 			request, ok := event.(ppp.EventAuthRequest)
 			if !ok {
 				continue
+			}
+			// A round that may carry no profile stages nothing and is no error.
+			if err := request.StageFramedRoutes(f.framedRoutes); err != nil {
+				f.t.Errorf("stage the accepted profile's framed routes: %v", err)
 			}
 			if err := f.driver.AuthResponse(request, true, "", nil); err != nil {
 				f.t.Errorf("accept the no-auth request: %v", err)
@@ -415,6 +412,37 @@ func (f *serverV6Fixture) requireIPv6Service(t *testing.T) {
 	})
 }
 
+// releaseByPADT sends the subscriber's PADT through the production discovery
+// handler, then waits until the admitted attempt reports its protocol run
+// finished and its owner released with no error, and the driver holds no
+// pending native release.
+func (f *serverV6Fixture) releaseByPADT(t *testing.T) {
+	t.Helper()
+	var buffer [EthMaxLen]byte
+	padt := BuildPADT(buffer[:], serverV6PeerMAC, serverV6AccessMAC, f.sid, "")
+	if padt == nil {
+		t.Fatal("build the subscriber's PADT")
+	}
+	f.sub.dispatchFrame(f.server.ifIndex, padt)
+
+	serverV6Eventually(t, "the session's native release", func() (bool, error) {
+		status, err := f.attempt.CleanupStatus()
+		if err != nil {
+			return false, err
+		}
+		if status.Err != nil {
+			return false, fmt.Errorf("session cleanup failed: %w", status.Err)
+		}
+		if !status.Finished {
+			return false, nil
+		}
+		if !status.Released {
+			return false, nil
+		}
+		return !f.driver.HasPendingNativeRelease(), nil
+	})
+}
+
 // serverV6Defaults sets the private namespace's IPv6 defaults before any
 // device exists, so no kernel-generated address or solicitation appears.
 func serverV6Defaults(t *testing.T) {
@@ -470,7 +498,10 @@ func serverV6Veth(t *testing.T, route *netlink.Handle) *serverV6PeerWire {
 	if err := unix.SetsockoptInt(fd, unix.SOL_PACKET, unix.PACKET_IGNORE_OUTGOING, 1); err != nil {
 		t.Fatal(err)
 	}
-	return &serverV6PeerWire{fd: fd, index: peer.Attrs().Index, ipv6: make(chan []byte, 256), opened: make(chan [8]byte, 1)}
+	return &serverV6PeerWire{
+		t: t, fd: fd, index: peer.Attrs().Index, ipv6: make(chan []byte, 256),
+		opened: make(chan [8]byte, 1), v6Closed: make(chan struct{}, 1),
+	}
 }
 
 // serverV6Capture opens a packet socket on the dummy that took the old name.
@@ -571,17 +602,26 @@ func serverV6Eventually(t *testing.T, what string, ready func() (bool, error)) {
 // the access veth. It answers LCP and IPv6CP, Protocol-Rejects IPCP, and hands
 // every IPv6 packet the session carries to the test.
 type serverV6PeerWire struct {
+	// t receives the trace of every control packet the subscriber sends or
+	// receives. Its workers end before the test does.
+	t         *testing.T
 	fd, index int
 	sid       uint16
 	ipv6      chan []byte
 	opened    chan [8]byte
+	// v6Closed reports each IPv6CP Terminate-Ack the server sent.
+	v6Closed chan struct{}
 
 	nextID       uint8
 	lcpRequested bool
-	v6Requested  bool
-	v6Acked      bool
-	v6Peer       bool
-	serverID     [8]byte
+	// papAsked records that the server's LCP Configure-Request named PAP,
+	// so the subscriber authenticates once its own request is acknowledged.
+	papAsked    bool
+	papSent     bool
+	v6Requested bool
+	v6Acked     bool
+	v6Peer      bool
+	serverID    [8]byte
 }
 
 // serve owns the wire's reads until ctx ends. The caller MUST cancel ctx and
@@ -652,11 +692,16 @@ func (p *serverV6PeerWire) parse(frame []byte) (uint16, []byte, bool) {
 }
 
 func (p *serverV6PeerWire) handle(t *testing.T, proto uint16, info []byte) error {
+	if proto != ppp.ProtoIPv6 {
+		t.Logf("subscriber received %s", serverV6Trace(proto, info))
+	}
 	switch proto {
 	case ppp.ProtoLCP:
 		return p.handleLCP(info)
 	case ppp.ProtoIPv6CP:
 		return p.handleIPv6CP(info)
+	case ppp.ProtoPAP:
+		return serverV6PAPReply(info)
 	case ppp.ProtoIPCP:
 		// RFC 1661 Section 5.7: Protocol-Reject carries the rejected protocol
 		// and the rejected packet's information field.
@@ -681,9 +726,14 @@ func (p *serverV6PeerWire) handleLCP(info []byte) error {
 	}
 	switch packet.Code {
 	case ppp.LCPConfigureRequest:
+		asked, err := serverV6AsksPAP(packet.Data)
+		if err != nil {
+			return err
+		}
 		if err := p.sendControl(ppp.ProtoLCP, ppp.LCPConfigureAck, packet.Identifier, packet.Data); err != nil {
 			return err
 		}
+		p.papAsked = asked
 		if p.lcpRequested {
 			return nil
 		}
@@ -692,6 +742,17 @@ func (p *serverV6PeerWire) handleLCP(info []byte) error {
 		options := []byte{ppp.LCPOptMRU, 4, 0x05, 0xd4, ppp.LCPOptMagic, 6, 0, 0, 0, 0}
 		binary.BigEndian.PutUint32(options[6:], serverV6Magic)
 		return p.sendControl(ppp.ProtoLCP, ppp.LCPConfigureRequest, p.id(), options)
+	case ppp.LCPConfigureAck:
+		// The subscriber acknowledged the server's request before sending its
+		// own, so this Ack opens LCP on both sides.
+		if !p.papAsked {
+			return nil
+		}
+		if p.papSent {
+			return nil
+		}
+		p.papSent = true
+		return p.sendControl(ppp.ProtoPAP, ppp.PAPAuthenticateRequest, p.id(), serverV6PAPCredentials())
 	case ppp.LCPConfigureNak, ppp.LCPConfigureReject:
 		return fmt.Errorf("server refused the subscriber's LCP options: code %d %x", packet.Code, packet.Data)
 	case ppp.LCPEchoRequest:
@@ -740,6 +801,13 @@ func (p *serverV6PeerWire) handleIPv6CP(info []byte) error {
 		p.v6Acked = true
 	case ppp.LCPConfigureNak, ppp.LCPConfigureReject:
 		return fmt.Errorf("server refused the subscriber's Interface-Identifier: code %d %x", packet.Code, packet.Data)
+	case ppp.LCPTerminateAck:
+		select {
+		case p.v6Closed <- struct{}{}:
+		default:
+			// An earlier Terminate-Ack is still unread; one report suffices.
+		}
+		return nil
 	}
 	if !p.v6Peer {
 		return nil
@@ -763,6 +831,7 @@ func (p *serverV6PeerWire) id() uint8 {
 func (p *serverV6PeerWire) sendControl(proto uint16, code, id uint8, data []byte) error {
 	var packet [1500]byte
 	n := ppp.WriteLCPPacket(packet[:], 0, code, id, data)
+	p.t.Logf("subscriber sent %s", serverV6Trace(proto, packet[:n]))
 	return p.send(proto, packet[:n])
 }
 
