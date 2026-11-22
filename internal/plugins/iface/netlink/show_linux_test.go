@@ -274,17 +274,17 @@ func TestLinkSpeedDuplexLoopback(t *testing.T) {
 // PREVENTS: the apply bringing up again, without CAP_NET_ADMIN, a host bridge
 // that is up and has no port with a carrier (docker0 with no container).
 func TestLinkToInfoAdminStateIsNotOperState(t *testing.T) {
-	noCarrier := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{
+	noCarrier := &netlink.Bridge{
 		Name: "docker0", Index: 5, Flags: net.FlagUp, OperState: netlink.OperDown,
-	}}
+	}
 	info := linkToInfo(noCarrier)
 	assert.Equal(t, iface.LinkStateDown, info.State, "no carrier is operationally down")
 	assert.Equal(t, iface.AdminStateUp, info.AdminState, "IFF_UP is administratively up")
 
-	down := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: "br1", Index: 6, OperState: netlink.OperDown}}
+	down := &netlink.Bridge{Name: "br1", Index: 6, OperState: netlink.OperDown}
 	assert.Equal(t, iface.AdminStateDown, linkToInfo(down).AdminState)
 
-	vlan := &netlink.Vlan{LinkAttrs: netlink.LinkAttrs{Name: "eth0.100", Index: 7, ParentIndex: 2}, VlanId: 100}
+	vlan := &netlink.Vlan{Name: "eth0.100", Index: 7, ParentIndex: 2, VlanId: 100}
 	assert.True(t, linkToInfo(vlan).QoSMapsRead, "a VLAN with no map holds none")
 	assert.False(t, linkToInfo(down).QoSMapsRead, "a bridge has no QoS map to read")
 }

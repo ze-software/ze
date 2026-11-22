@@ -69,8 +69,8 @@ func hostBridgeConfig() *ifaceConfig {
 	return &ifaceConfig{
 		Ethernet: []ifaceEntry{{Name: "eth1", MTU: 1500}},
 		Bridge: []bridgeEntry{{
-			ifaceEntry: ifaceEntry{Name: "docker0", MTU: 1500, MACAddress: "02:42:AC:11:00:01"},
-			Members:    []string{"eth1"},
+			Name: "docker0", MTU: 1500, MACAddress: "02:42:AC:11:00:01",
+			Members: []string{"eth1"},
 		}},
 	}
 }
