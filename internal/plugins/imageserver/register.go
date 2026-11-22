@@ -52,8 +52,7 @@ func init() {
 		}
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "imageserver: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: imageserver: registration failed: " + err.Error())
 	}
 }
 

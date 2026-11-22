@@ -1,9 +1,6 @@
 package rib
 
 import (
-	"fmt"
-	"os"
-
 	ribyang "github.com/ze-software/ze/internal/component/bgp/plugins/rib/yang"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -87,7 +84,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "rib: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: bgp-rib: registration failed: " + err.Error())
 	}
 }

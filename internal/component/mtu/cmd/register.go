@@ -11,9 +11,6 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/ze-software/ze/internal/component/command"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -51,7 +48,6 @@ func init() {
 		Check:        checkMTULocalState,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		fmt.Fprintf(os.Stderr, "mtu: doctor check registration: %v\n", err)
-		os.Exit(2)
+		panic("BUG: mtu: doctor check registration: " + err.Error())
 	}
 }

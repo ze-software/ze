@@ -5,8 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log/slog"
-	"os"
 
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/route_refresh/yang" // init() registers the refresh api and command modules
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -57,7 +55,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error("route-refresh: registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: route-refresh: registration failed: " + err.Error())
 	}
 }

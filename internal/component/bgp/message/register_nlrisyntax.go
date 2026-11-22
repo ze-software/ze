@@ -10,9 +10,6 @@
 package message
 
 import (
-	"log/slog"
-	"os"
-
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisyntax"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -38,13 +35,12 @@ func init() {
 		}, retainEVPNNLRI)
 }
 
-// registerNLRISyntax installs rule with retain as its Retain answer, and stops
-// the process when the registry refuses it: a family with two rulings, or none
-// where its walk exists, is a build defect no runtime path can resolve.
+// registerNLRISyntax installs rule with retain as its Retain answer, and panics
+// when the registry refuses it: a family with two rulings, or none where its
+// walk exists, is a build defect no runtime path can resolve.
 func registerNLRISyntax(fam family.Family, rule nlrisyntax.Rule, retain func([]byte, bool) ([]byte, int, bool)) {
 	rule.Retain = retain
 	if err := nlrisyntax.Register(fam, rule); err != nil {
-		slog.Error("message: NLRI syntax rule registration failed", "family", fam, "error", err)
-		os.Exit(1)
+		panic("BUG: message: NLRI syntax rule registration failed for " + fam.String() + ": " + err.Error())
 	}
 }

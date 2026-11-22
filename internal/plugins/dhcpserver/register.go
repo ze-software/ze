@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
-	"os"
 	"slices"
 	"sync/atomic"
 	"time"
@@ -57,16 +56,14 @@ func init() {
 	}
 	reg.ConfigureMetrics = configureMetrics
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "dhcpserver: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: dhcpserver: registration failed: " + err.Error())
 	}
 
 	// The server binds a socket on every listen-interface, so this plugin owns
 	// the readiness check that asks whether each one exists (doctor.go). A
 	// refusal is a programmer error in the declaration beside it.
 	if err := diagnostic.RegisterDoctorCheck(dhcpDoctorCheck); err != nil {
-		fmt.Fprintf(os.Stderr, "dhcpserver: doctor check registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: dhcpserver: doctor check registration failed: " + err.Error())
 	}
 }
 

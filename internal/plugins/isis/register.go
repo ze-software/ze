@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
 	"sync"
 	"sync/atomic"
 
@@ -207,8 +206,7 @@ func registerISIS() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "isis: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: isis: registration failed: " + err.Error())
 	}
 }
 
@@ -235,8 +233,8 @@ func registerISISDiagnosticCodes() {
 
 // registerISISDoctor registers the IS-IS config-sanity doctor check
 // (checkISISConfigSanity in doctor.go). It lives in register.go (not doctor.go)
-// so the registration side effect, and the os.Exit on a registration failure,
-// are confined to the component's registration file (ai/patterns/registration.md).
+// so the registration side effect is confined to the component's registration
+// file (ai/patterns/registration.md).
 func registerISISDoctor() {
 	check := diagnostic.DoctorCheck{
 		Name:         "isis-config-sanity",
@@ -249,8 +247,7 @@ func registerISISDoctor() {
 		Check:        checkISISConfigSanity,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		fmt.Fprintf(os.Stderr, "isis: doctor config-sanity registration: %v\n", err)
-		os.Exit(2)
+		panic("BUG: isis: doctor config-sanity registration: " + err.Error())
 	}
 }
 

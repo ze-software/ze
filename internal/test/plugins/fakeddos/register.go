@@ -20,7 +20,6 @@ package fakeddos
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"os"
 	"time"
@@ -59,8 +58,7 @@ func init() {
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "fakeddos: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: fakeddos: registration failed: " + err.Error())
 	}
 }
 

@@ -3,14 +3,12 @@ package trafficusage
 import (
 	"fmt"
 	"net"
-	"os"
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	trafficusageyang "github.com/ze-software/ze/internal/plugins/trafficusage/yang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -40,9 +38,7 @@ func init() {
 		return 1
 	}
 	if err := registry.Register(reg); err != nil {
-		var tb textbuf.Buffer
-		tb.Str("traffic-usage: registration failed: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // the process exits next; stderr is the only channel left
-		os.Exit(1)
+		panic("BUG: traffic-usage: registration failed: " + err.Error())
 	}
 	registerTrafficUsageDiagnosticCodes()
 }
@@ -54,9 +50,7 @@ func init() {
 func registerTrafficUsageDiagnosticCodes() {
 	for _, meta := range trafficUsageDiagnosticCodes {
 		if err := diagnostic.Register(meta); err != nil {
-			var tb textbuf.Buffer
-			tb.Str("traffic-usage: diagnostic code ").Str(meta.Code).Str(" registration failed: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // the process exits next; stderr is the only channel left
-			os.Exit(1)
+			panic("BUG: traffic-usage: diagnostic code " + meta.Code + " registration failed: " + err.Error())
 		}
 	}
 }

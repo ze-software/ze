@@ -31,7 +31,11 @@ The question each goal asks: [go-style/goals.md](go-style/goals.md).
 
 **A peer MUST NOT be able to panic the daemon.** A malformed message from a
 socket is an operating error and returns an error. Use `panic("BUG: <what>")`
-only for a state that a Ze defect alone can produce.
+only for a state that a Ze defect alone can produce. Startup registration
+failures in `init()` (such as `registry.Register`,
+`diagnostic.RegisterDoctorCheck`, backend or validator registration) can only
+result from a compile-time Ze defect and MUST call
+`panic("BUG: <pkg>: ...: " + err.Error())`, never `os.Exit()`.
 
 **The best check is the one that never runs.** When a type makes a bad state
 impossible to write, use the type and delete the check. **Pair the check** on

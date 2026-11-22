@@ -7,10 +7,8 @@
 package ifacera
 
 import (
-	"fmt"
 	"log/slog"
 	"net"
-	"os"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/iface"
@@ -48,15 +46,13 @@ func init() {
 	}
 	reg.ConfigureMetrics = func(r metrics.Registry) { SetMetricsRegistry(r) }
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "iface-ra: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: iface-ra: registration failed: " + err.Error())
 	}
 
 	// The forwarding warning belongs to the package that owns the dependency,
 	// so removing this plugin removes the check with it.
 	if err := diagnostic.RegisterDoctorCheck(raForwardingDoctorCheck); err != nil {
-		fmt.Fprintf(os.Stderr, "iface-ra: doctor check registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: iface-ra: doctor check registration failed: " + err.Error())
 	}
 }
 

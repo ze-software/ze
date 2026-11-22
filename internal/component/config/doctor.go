@@ -10,12 +10,7 @@
 
 package config
 
-import (
-	"os"
-
-	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/textbuf"
-)
+import "github.com/ze-software/ze/internal/core/diagnostic"
 
 // doctorComponent is the name this package registers its doctor checks under.
 const doctorComponent = "config"
@@ -58,12 +53,9 @@ func checkSemantics(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 
 func init() {
 	// A refusal is a programmer error in the declaration above, and none of
-	// its causes can be reached from a config or a peer, so it stops the
-	// process rather than leaving `ze doctor` quietly short of a check.
+	// its causes can be reached from a config or a peer, so it panics as a
+	// Ze defect rather than leaving `ze doctor` quietly short of a check.
 	if err := diagnostic.RegisterDoctorCheck(semanticsDoctorCheck()); err != nil {
-		var tb textbuf.Buffer
-		tb.Str("config: doctor check registration failed: ").Err(err).Byte('\n')
-		tb.StdErr() //nolint:errcheck // the process is exiting on the next line
-		os.Exit(1)
+		panic("BUG: config: doctor check registration failed: " + err.Error())
 	}
 }

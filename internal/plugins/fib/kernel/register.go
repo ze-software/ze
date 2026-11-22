@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"os"
 	"sync"
 	"time"
 
@@ -211,8 +210,7 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "fib-kernel: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: fib-kernel: registration failed: " + err.Error())
 	}
 }
 

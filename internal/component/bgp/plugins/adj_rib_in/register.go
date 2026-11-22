@@ -1,9 +1,6 @@
 package adj_rib_in
 
 import (
-	"log/slog"
-	"os"
-
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -33,7 +30,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error("adj-rib-in: registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: adj-rib-in: registration failed: " + err.Error())
 	}
 }

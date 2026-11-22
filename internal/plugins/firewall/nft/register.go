@@ -1,16 +1,10 @@
 package firewallnft
 
-import (
-	"fmt"
-	"os"
-
-	"github.com/ze-software/ze/internal/component/firewall"
-)
+import "github.com/ze-software/ze/internal/component/firewall"
 
 func init() {
 	if err := firewall.RegisterBackend("nft", newBackend); err != nil {
-		fmt.Fprintf(os.Stderr, "firewallnft: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: firewallnft: registration failed: " + err.Error())
 	}
 	RegisterHealthCheck()
 }

@@ -3,9 +3,7 @@ package sysrib
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
-	"os"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -77,8 +75,7 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "sysrib: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: sysrib: registration failed: " + err.Error())
 	}
 }
 

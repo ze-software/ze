@@ -10,7 +10,6 @@ import (
 	"context"
 	"log/slog"
 	"net"
-	"os"
 	"sync/atomic"
 	"time"
 
@@ -21,7 +20,6 @@ import (
 	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	resolveryang "github.com/ze-software/ze/internal/plugins/dnsresolver/yang"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -93,8 +91,7 @@ func init() {
 	})
 
 	if err := registry.Register(reg); err != nil {
-		_ = textbuf.New().Str("dnsresolver: registration failed: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // exiting; stderr is the last channel
-		os.Exit(1)
+		panic("BUG: dnsresolver: registration failed: " + err.Error())
 	}
 }
 

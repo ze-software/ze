@@ -10,7 +10,6 @@ import (
 	"maps"
 	"net"
 	"net/netip"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -448,8 +447,7 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "ike: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: ike: registration failed: " + err.Error())
 	}
 }
 

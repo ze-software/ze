@@ -32,7 +32,7 @@ string literals and untouched legacy lines never false-positive.
 | No direct Ze env access | ruleguard `zeEnvAccess`, `gostyle` | `os.Getenv`, `os.LookupEnv` or `os.Setenv` on a `ZE_*` or `ze.*` key in shipped product code outside `internal/core/env` |
 | Never compare with `String()` | `gostyle` | Newly added `x.String() == y` or `x.String() != y` |
 | No anonymous goroutine | `gostyle` | `go func(` |
-| No exit from a handler | ruleguard `noHandlerOsExit`, `gostyle` | `os.Exit(` outside entrypoints, `register*.go`, `pprof*.go`, `doctor.go`, `env`, `crashlog` and test fixtures |
+| No exit outside entrypoints | ruleguard `noHandlerOsExit`, `gostyle` | `os.Exit(` outside entrypoints, `pprof*.go`, `env`, `crashlog` and test fixtures; `init()` registration failures use `panic("BUG: ...")` |
 | Registration only in `register*.go` | `gostyle` | An `init()` outside `register*.go`, `init.go` or `all*.go` |
 | No switch dispatch | `gostyle` | `switch args[0]` |
 | No fake `BufHandle` | ruleguard `noFakeBufHandle`, `gostyle` | `BufHandle{..., Buf: make(...)}` |

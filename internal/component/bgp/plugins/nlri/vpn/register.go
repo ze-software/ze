@@ -3,9 +3,7 @@ package vpn
 import (
 	"bytes"
 	"flag"
-	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -50,7 +48,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "vpn: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: vpn: registration failed: " + err.Error())
 	}
 }

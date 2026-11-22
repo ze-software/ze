@@ -452,11 +452,7 @@ func checkCallExpr(
 		}
 	case "os":
 		if sel.Sel.Name == "Exit" && !allowExit {
-			f := newFinding(rel, line, SeverityBlock,
-				"newly added os.Exit() in handler",
-				"handlers return errors rather than terminating the process directly (ai/rules/go-standards.md)",
-				"return an error to the entrypoint instead of calling os.Exit in "+rel,
-			)
+			f := osExitFinding(rel, line)
 			return &f
 		}
 		if !allowZeEnv && isOSEnvFunc(sel.Sel.Name) && firstArgIsZeEnvKey(call) {
@@ -557,11 +553,7 @@ func checkFragmentTokens(rel, source string, added map[int]bool, opts Options) [
 				}
 			case "os":
 				if fnName == "Exit" && !allowExit {
-					hits = append(hits, newFinding(norm, t.line, SeverityBlock,
-						"newly added os.Exit() in handler",
-						"handlers return errors rather than terminating the process directly (ai/rules/go-standards.md)",
-						"return an error to the entrypoint instead of calling os.Exit in "+norm,
-					))
+					hits = append(hits, osExitFinding(norm, t.line))
 				}
 			}
 		}
@@ -654,13 +646,7 @@ func osExitAllowed(rel string) bool {
 	if base == "main.go" {
 		return true
 	}
-	if strings.HasPrefix(base, "register") {
-		return true
-	}
 	if strings.HasPrefix(rel, "cmd/ze/pprof") {
-		return true
-	}
-	if rel == "internal/component/config/doctor.go" {
 		return true
 	}
 	if strings.HasPrefix(rel, "internal/core/env/") {
@@ -670,6 +656,28 @@ func osExitAllowed(rel string) bool {
 		return true
 	}
 	return strings.HasPrefix(rel, "internal/test/fixture/")
+}
+
+func isRegistrationFile(rel string) bool {
+	if strings.HasPrefix(path.Base(rel), "register") {
+		return true
+	}
+	return rel == "internal/component/config/doctor.go"
+}
+
+func osExitFinding(rel string, line int) Finding {
+	if isRegistrationFile(rel) {
+		return newFinding(rel, line, SeverityBlock,
+			"newly added os.Exit() in registration file",
+			"startup registration failures are compile-time Ze defects and must panic with BUG: rather than calling os.Exit (ai/rules/go-standards.md)",
+			"call panic(\"BUG: <pkg>: registration failed: \" + err.Error()) instead of os.Exit in "+rel,
+		)
+	}
+	return newFinding(rel, line, SeverityBlock,
+		"newly added os.Exit() in handler",
+		"handlers return errors rather than terminating the process directly (ai/rules/go-standards.md)",
+		"return an error to the entrypoint instead of calling os.Exit in "+rel,
+	)
 }
 
 func zeEnvAllowed(rel string) bool {

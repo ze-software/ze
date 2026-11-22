@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
 	"sync"
 	"sync/atomic"
 
@@ -195,8 +194,7 @@ func registerOSPF() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "ospf: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: ospf: registration failed: " + err.Error())
 	}
 }
 
@@ -264,8 +262,8 @@ func registerOSPFDiagnosticCodes() {
 }
 
 // registerOSPFDoctor registers the OSPF config-sanity doctor check (checkOSPFConfigSanity
-// in doctor.go). The os.Exit on a registration failure is confined to this registration
-// file (ai/patterns/registration.md).
+// in doctor.go). Registration lives in this registration file
+// (ai/patterns/registration.md).
 func registerOSPFDoctor() {
 	check := diagnostic.DoctorCheck{
 		Name:         "ospf-config-sanity",
@@ -278,8 +276,7 @@ func registerOSPFDoctor() {
 		Check:        checkOSPFConfigSanity,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		fmt.Fprintf(os.Stderr, "ospf: doctor config-sanity registration: %v\n", err)
-		os.Exit(2)
+		panic("BUG: ospf: doctor config-sanity registration: " + err.Error())
 	}
 }
 
@@ -298,8 +295,7 @@ func registerOSPFGracefulRestartDoctor() {
 		Check:        checkOSPFGracefulRestartNVS,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		fmt.Fprintf(os.Stderr, "ospf: doctor graceful-restart registration: %v\n", err)
-		os.Exit(2)
+		panic("BUG: ospf: doctor graceful-restart registration: " + err.Error())
 	}
 }
 
@@ -318,8 +314,7 @@ func registerOSPFSegmentRoutingDoctor() {
 		Check:        checkOSPFSegmentRouting,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		fmt.Fprintf(os.Stderr, "ospf: doctor segment-routing registration: %v\n", err)
-		os.Exit(2)
+		panic("BUG: ospf: doctor segment-routing registration: " + err.Error())
 	}
 }
 
@@ -338,8 +333,7 @@ func registerOSPFDebugDoctor() {
 		Check:        checkOSPFDebugEnabled,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		fmt.Fprintf(os.Stderr, "ospf: doctor debug-enabled registration: %v\n", err)
-		os.Exit(2)
+		panic("BUG: ospf: doctor debug-enabled registration: " + err.Error())
 	}
 }
 
@@ -358,8 +352,7 @@ func registerOSPFIPsecDoctor() {
 		Check:        checkOSPFv3IPsec,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		fmt.Fprintf(os.Stderr, "ospf: doctor ipsec registration: %v\n", err)
-		os.Exit(2)
+		panic("BUG: ospf: doctor ipsec registration: " + err.Error())
 	}
 }
 

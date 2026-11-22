@@ -8,18 +8,10 @@
 
 package gtsm
 
-import (
-	"os"
-
-	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/textbuf"
-)
+import "github.com/ze-software/ze/internal/core/diagnostic"
 
 func init() {
 	if err := diagnostic.RegisterDoctorCheck(kernelStateDoctorCheck()); err != nil {
-		var tb textbuf.Buffer
-		tb.Str("gtsm: doctor check registration failed: ").Err(err).Byte('\n')
-		tb.StdErr() //nolint:errcheck // the process is exiting on the next line
-		os.Exit(1)
+		panic("BUG: gtsm: doctor check registration failed: " + err.Error())
 	}
 }

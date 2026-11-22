@@ -4,9 +4,7 @@ package kernel
 
 import (
 	"context"
-	"fmt"
 	"net"
-	"os"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
@@ -60,8 +58,7 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "kernel: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: kernel: registration failed: " + err.Error())
 	}
 }
 

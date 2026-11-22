@@ -1,9 +1,6 @@
 package bfd
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bfd/engine"
 	bfdyang "github.com/ze-software/ze/internal/component/bfd/yang"
@@ -116,7 +113,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "bfd: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: bfd: registration failed: " + err.Error())
 	}
 }

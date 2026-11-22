@@ -3,10 +3,8 @@
 package tftpserver
 
 import (
-	"fmt"
 	"log/slog"
 	"net"
-	"os"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/iface"
@@ -48,8 +46,7 @@ func init() {
 	}
 	reg.ConfigureMetrics = func(metricsRegistry metrics.Registry) { tftpGuard.SetMetricsRegistry(metricsRegistry) }
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "tftpserver: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: tftpserver: registration failed: " + err.Error())
 	}
 }
 

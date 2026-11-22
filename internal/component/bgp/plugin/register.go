@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"sync"
 
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
@@ -119,8 +118,7 @@ func init() {
 		},
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "bgp: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: bgp: registration failed: " + err.Error())
 	}
 }
 

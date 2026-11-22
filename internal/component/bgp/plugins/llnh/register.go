@@ -1,9 +1,6 @@
 package llnh
 
 import (
-	"fmt"
-	"os"
-
 	llnhyang "github.com/ze-software/ze/internal/component/bgp/plugins/llnh/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -48,7 +45,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "llnh: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: llnh: registration failed: " + err.Error())
 	}
 }

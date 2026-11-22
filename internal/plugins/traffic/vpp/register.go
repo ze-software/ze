@@ -2,20 +2,13 @@
 
 package trafficvpp
 
-import (
-	"fmt"
-	"os"
-
-	"github.com/ze-software/ze/internal/component/traffic"
-)
+import "github.com/ze-software/ze/internal/component/traffic"
 
 func init() {
 	if err := traffic.RegisterBackend("vpp", newBackend); err != nil {
-		fmt.Fprintf(os.Stderr, "trafficvpp: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: trafficvpp: registration failed: " + err.Error())
 	}
 	if err := traffic.RegisterVerifier("vpp", Verify); err != nil {
-		fmt.Fprintf(os.Stderr, "trafficvpp: verifier registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: trafficvpp: verifier registration failed: " + err.Error())
 	}
 }

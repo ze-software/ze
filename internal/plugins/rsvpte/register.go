@@ -15,7 +15,6 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
-	"os"
 	"sort"
 	"strconv"
 	"sync"
@@ -500,8 +499,7 @@ func registerRSVPTE() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "rsvp-te: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: rsvp-te: registration failed: " + err.Error())
 	}
 }
 

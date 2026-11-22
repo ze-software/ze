@@ -1,9 +1,6 @@
 package filter_path_asn
 
 import (
-	"log/slog"
-	"os"
-
 	fpayang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_path_asn/yang"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/config/yang"
@@ -54,8 +51,7 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error(reg.Name+": registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: " + reg.Name + ": registration failed: " + err.Error())
 	}
 	// The match condition runs in the daemon even when the command owner is
 	// forked. Bind its counters there, never through the child's publisher.

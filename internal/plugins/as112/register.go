@@ -4,11 +4,9 @@
 package as112
 
 import (
-	"fmt"
 	"log/slog"
 	"net"
 	"net/netip"
-	"os"
 	"sync/atomic"
 	"time"
 
@@ -209,8 +207,7 @@ func init() {
 	})
 
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "as112: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: as112: registration failed: " + err.Error())
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
 	"sync"
 
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
@@ -184,8 +183,7 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "static: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: static: registration failed: " + err.Error())
 	}
 }
 

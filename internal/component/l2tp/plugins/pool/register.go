@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
-	"os"
 	"sync"
 	"time"
 
@@ -119,8 +118,7 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: registration failed: %v\n", Name, err)
-		os.Exit(1)
+		panic("BUG: " + Name + ": registration failed: " + err.Error())
 	}
 }
 

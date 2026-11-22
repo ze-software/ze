@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"sync/atomic"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	flowspecyang "github.com/ze-software/ze/internal/plugins/ddos/flowspec/yang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -59,9 +57,7 @@ func init() {
 	statestore.RegisterPluginKeys(Name, announcementKey)
 	for _, check := range []diagnostic.DoctorCheck{orphanRecordCheck, stoppedRecordCheck} {
 		if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-			var tb textbuf.Buffer
-			_ = tb.Str("ddos-flowspec: doctor check registration failed: ").Err(err).Byte('\n').StdErr()
-			os.Exit(1)
+			panic("BUG: ddos-flowspec: doctor check registration failed: " + err.Error())
 		}
 	}
 
@@ -91,9 +87,7 @@ func init() {
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
 	if err := registry.Register(reg); err != nil {
-		var tb textbuf.Buffer
-		_ = tb.Str("ddos-flowspec: registration failed: ").Err(err).Byte('\n').StdErr()
-		os.Exit(1)
+		panic("BUG: ddos-flowspec: registration failed: " + err.Error())
 	}
 }
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
 	"sync/atomic"
 	"time"
 
@@ -109,8 +108,7 @@ func init() {
 		return 1
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "flow-export: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: flow-export: registration failed: " + err.Error())
 	}
 
 	RegisterHealthCheck()

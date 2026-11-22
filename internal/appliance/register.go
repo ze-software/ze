@@ -7,8 +7,6 @@
 package appliance
 
 import (
-	"fmt"
-	"os"
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
@@ -55,8 +53,7 @@ func init() {
 
 	for _, check := range applianceDoctorChecks() {
 		if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-			fmt.Fprintf(os.Stderr, "appliance doctor check registration: %v\n", err)
-			os.Exit(2)
+			panic("BUG: appliance: doctor check registration: " + err.Error())
 		}
 	}
 }

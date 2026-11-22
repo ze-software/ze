@@ -4,8 +4,6 @@
 package firewall
 
 import (
-	"fmt"
-	"os"
 	"sync"
 
 	firewallyang "github.com/ze-software/ze/internal/component/firewall/yang"
@@ -88,7 +86,6 @@ func init() { //nolint:gochecknoinits // plugin registration
 		return 1
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "firewall: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: firewall: registration failed: " + err.Error())
 	}
 }

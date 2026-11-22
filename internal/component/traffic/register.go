@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -187,8 +186,7 @@ func init() {
 		return 1
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "traffic: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: traffic: registration failed: " + err.Error())
 	}
 }
 

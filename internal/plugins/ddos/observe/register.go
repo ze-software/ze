@@ -3,7 +3,6 @@ package observe
 import (
 	"fmt"
 	"net"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -53,8 +52,7 @@ func init() {
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "ddos-observe: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: ddos-observe: registration failed: " + err.Error())
 	}
 }
 

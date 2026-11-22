@@ -105,8 +105,7 @@ func init() {
 		setEventBus(eb)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "ntp: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: ntp: registration failed: " + err.Error())
 	}
 
 	// The client reads environment/ntp and adjusts the clock, so this plugin

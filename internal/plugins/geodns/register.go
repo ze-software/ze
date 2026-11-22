@@ -1,10 +1,8 @@
 package geodns
 
 import (
-	"fmt"
 	"log/slog"
 	"net"
-	"os"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -102,8 +100,7 @@ func init() {
 	})
 
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "geodns: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: geodns: registration failed: " + err.Error())
 	}
 }
 

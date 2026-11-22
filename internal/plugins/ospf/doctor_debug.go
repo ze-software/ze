@@ -4,8 +4,8 @@
 // AC-25: when debug LSA injection is left enabled, `ze doctor` emits a Warning so an
 // operator does not leave a router able to originate crafted test LSAs into production. It
 // is a DISTINCT ext-14 doctor code (doctor-ospf-debug-enabled); the config-sanity codes are
-// untouched. One Warning covers the shared (both address families) enablement. The
-// os.Exit-guarded registration lives in register.go (registerOSPFDebugDoctor).
+// untouched. One Warning covers the shared (both address families) enablement.
+// Registration lives in register.go (registerOSPFDebugDoctor).
 
 package ospf
 

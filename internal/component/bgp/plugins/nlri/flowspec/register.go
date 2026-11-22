@@ -3,10 +3,7 @@ package flowspec
 import (
 	"bytes"
 	"flag"
-	"fmt"
 	"io"
-	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -33,8 +30,7 @@ func init() {
 	// resets the session rather than reaching a plugin (rfc8955_syntax.go).
 	for _, fam := range flowSpecFamilySet {
 		if err := nlrisyntax.Register(fam, flowSpecSyntaxRule(fam)); err != nil {
-			slog.Error("flowspec: NLRI syntax rule registration failed", "family", fam, "error", err)
-			os.Exit(1)
+			panic("BUG: flowspec: NLRI syntax rule registration failed for " + fam.String() + ": " + err.Error())
 		}
 	}
 
@@ -75,7 +71,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "flowspec: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: flowspec: registration failed: " + err.Error())
 	}
 }

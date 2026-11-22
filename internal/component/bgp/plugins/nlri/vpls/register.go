@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"io"
-	"log/slog"
-	"os"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -44,7 +42,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error("vpls: registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: vpls: registration failed: " + err.Error())
 	}
 }

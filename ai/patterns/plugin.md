@@ -36,12 +36,9 @@ After creating, run `./le repo update` to update `internal/component/plugin/all/
 package bgp_<name>
 
 import (
-    "fmt"
-    "os"
-
-    "github.com/ze-software/ze/internal/core/slogutil"
     "github.com/ze-software/ze/internal/component/plugin/cli"
     "github.com/ze-software/ze/internal/component/plugin/registry"
+    "github.com/ze-software/ze/internal/core/slogutil"
 )
 
 func init() {
@@ -71,9 +68,7 @@ func init() {
     }
 
     if err := registry.Register(reg); err != nil {
-        var tb textbuf.Buffer
-        tb.Str(reg.Name).Str(": registration failed: ").Str(err.Error()).Byte('\n').StdErr()
-        os.Exit(1)
+        panic("BUG: " + reg.Name + ": registration failed: " + err.Error())
     }
 }
 ```

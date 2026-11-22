@@ -1,8 +1,6 @@
 package role
 
 import (
-	"os"
-
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	roleyang "github.com/ze-software/ze/internal/component/bgp/plugins/role/yang"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
@@ -117,7 +115,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		logger().Error("bgp-role: registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: bgp-role: registration failed: " + err.Error())
 	}
 }

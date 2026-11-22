@@ -79,7 +79,7 @@ func init() {
 	}
 	for i := range checks {
 		if err := diagnostic.RegisterDoctorCheck(checks[i]); err != nil {
-			exitOnRegistrationFailure(err)
+			panic("BUG: plugin: doctor check registration (" + checks[i].Name + "): " + err.Error())
 		}
 	}
 }

@@ -10,18 +10,12 @@
 
 package exporter
 
-import (
-	"fmt"
-	"os"
-
-	"github.com/ze-software/ze/internal/core/diagnostic"
-)
+import "github.com/ze-software/ze/internal/core/diagnostic"
 
 func init() {
-	// A refusal is a programmer error in the declaration beside it and stops
-	// the process rather than leaving `ze doctor` quietly short of a check.
+	// A refusal is a programmer error in the declaration beside it and panics
+	// as a Ze defect rather than leaving `ze doctor` quietly short of a check.
 	if err := diagnostic.RegisterDoctorCheck(telemetryProcfsDoctorCheck); err != nil {
-		fmt.Fprintf(os.Stderr, "telemetry: doctor check registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: telemetry: doctor check registration failed: " + err.Error())
 	}
 }

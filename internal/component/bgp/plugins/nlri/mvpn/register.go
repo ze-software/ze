@@ -3,10 +3,7 @@ package mvpn
 import (
 	"bytes"
 	"flag"
-	"fmt"
 	"io"
-	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -36,8 +33,7 @@ func init() {
 	// removing this plugin removes both the advertisement and the obligation.
 	for _, fam := range []Family{IPv4MVPN, IPv6MVPN} {
 		if err := nlritype.Register(fam, RecognizeNLRI); err != nil {
-			fmt.Fprintf(os.Stderr, "mvpn: RFC 7606 Section 5.4 recognizer registration failed: %v\n", err)
-			os.Exit(1)
+			panic("BUG: mvpn: RFC 7606 Section 5.4 recognizer registration failed: " + err.Error())
 		}
 	}
 
@@ -76,7 +72,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error("mvpn: registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: mvpn: registration failed: " + err.Error())
 	}
 }

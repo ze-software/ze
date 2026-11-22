@@ -2,8 +2,6 @@ package softver
 
 import (
 	"bytes"
-	"fmt"
-	"os"
 
 	softveryang "github.com/ze-software/ze/internal/component/bgp/plugins/softver/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -41,7 +39,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "softver: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: softver: registration failed: " + err.Error())
 	}
 }

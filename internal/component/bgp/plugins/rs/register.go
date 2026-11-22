@@ -1,9 +1,6 @@
 package rs
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rs/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -92,7 +89,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "rs: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: rs: registration failed: " + err.Error())
 	}
 }

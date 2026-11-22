@@ -1,9 +1,6 @@
 package filter_aspath_length
 
 import (
-	"log/slog"
-	"os"
-
 	falyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_aspath_length/yang"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/config/yang"
@@ -54,7 +51,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error(reg.Name+": registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: " + reg.Name + ": registration failed: " + err.Error())
 	}
 }

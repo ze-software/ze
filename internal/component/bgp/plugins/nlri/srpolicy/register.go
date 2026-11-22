@@ -8,9 +8,6 @@
 package srpolicy
 
 import (
-	"log/slog"
-	"os"
-
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisyntax"
@@ -36,8 +33,7 @@ func init() {
 		nlriBits int
 	}{{IPv4SRPolicy, nlriBitsIPv4}, {IPv6SRPolicy, nlriBitsIPv6}} {
 		if err := nlrisyntax.Register(one.fam, srPolicySyntaxRule(one.nlriBits)); err != nil {
-			slog.Error("srpolicy: NLRI syntax rule registration failed", "family", one.fam, "error", err)
-			os.Exit(1)
+			panic("BUG: srpolicy: NLRI syntax rule registration failed for " + one.fam.String() + ": " + err.Error())
 		}
 	}
 
@@ -69,7 +65,6 @@ func init() {
 		},
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error("srpolicy: registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: srpolicy: registration failed: " + err.Error())
 	}
 }

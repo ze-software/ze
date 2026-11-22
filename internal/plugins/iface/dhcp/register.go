@@ -5,7 +5,6 @@ package ifacedhcp
 import (
 	"fmt"
 	"net"
-	"os"
 
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/iface"
@@ -46,8 +45,7 @@ func init() {
 		}
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "iface-dhcp: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: iface-dhcp: registration failed: " + err.Error())
 	}
 }
 

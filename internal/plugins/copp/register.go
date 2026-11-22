@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/firewall"
@@ -58,8 +57,7 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "copp: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: copp: registration failed: " + err.Error())
 	}
 }
 

@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"io"
-	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -49,7 +47,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error("labeled: registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: labeled: registration failed: " + err.Error())
 	}
 }

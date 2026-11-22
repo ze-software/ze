@@ -3,9 +3,6 @@
 package domain
 
 import (
-	"log/slog"
-	"os"
-
 	domainyang "github.com/ze-software/ze/internal/component/firewall/plugins/domain/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -46,28 +43,25 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error("firewall-domain: registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: firewall-domain: registration failed: " + err.Error())
 	}
 }
 
 // registerDomainDoctor registers the domain-group data check and the
-// diagnostic codes it emits (domainDiagnosticCodes). It lives in register.go so the side effect, and
-// the exit on a registration failure, stay in the plugin's registration file
-// (ai/patterns/registration.md).
+// diagnostic codes it emits (domainDiagnosticCodes). It lives in register.go so
+// the side effect, and the panic on a registration failure, stay in the plugin's
+// registration file (ai/patterns/registration.md).
 func registerDomainDoctor() {
 	for _, meta := range domainDiagnosticCodes {
 		if err := diagnostic.Register(meta); err != nil {
-			slog.Error("firewall-domain: diagnostic code registration failed", "code", meta.Code, "error", err)
-			os.Exit(1)
+			panic("BUG: firewall-domain: diagnostic code registration failed (" + meta.Code + "): " + err.Error())
 		}
 	}
 	// An unsaved answer is also raised on the report bus (unsaved_issue.go),
 	// and the daemon accepts a plugin's raise only under a registered event
 	// code. Registered after its metadata, which RegisterEventCode requires.
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDomainGroupUnsavedAnswer}); err != nil {
-		slog.Error("firewall-domain: event code registration failed", "code", codeDomainGroupUnsavedAnswer, "error", err)
-		os.Exit(1)
+		panic("BUG: firewall-domain: event code registration failed (" + codeDomainGroupUnsavedAnswer + "): " + err.Error())
 	}
 	check := diagnostic.DoctorCheck{
 		Name:         "firewall-domain-group-data",
@@ -86,7 +80,6 @@ func registerDomainDoctor() {
 		Check: checkDomainGroupData,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		slog.Error("firewall-domain: doctor check registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: firewall-domain: doctor check registration failed: " + err.Error())
 	}
 }

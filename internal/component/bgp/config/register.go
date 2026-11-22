@@ -4,7 +4,6 @@ package bgpconfig
 
 import (
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 	"time"
@@ -21,7 +20,6 @@ import (
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // attachmentOwnerBGP is the registration name of the BGP daemon plugin
@@ -121,15 +119,12 @@ func init() {
 	registerBGPDoctorChecks()
 }
 
-// doctorRegistrationFailed stops the process on a refused registration. Every
-// refusal is a programmer error in the table beside the call -- a duplicate
-// name, an unknown phase, a code without the doctor prefix -- so the daemon
-// must not start one readiness check short of what it declares.
+// doctorRegistrationFailed panics on a refused registration. Every refusal is a
+// programmer error in the table beside the call -- a duplicate name, an unknown
+// phase, a code without the doctor prefix -- so the daemon must not start one
+// readiness check short of what it declares.
 func doctorRegistrationFailed(check string, err error) {
-	var tb textbuf.Buffer
-	tb.Str("bgp: ").Str(check).Str(" doctor check registration failed: ").Err(err).Byte('\n')
-	tb.StdErr() //nolint:errcheck // the process is exiting on the next line
-	os.Exit(1)
+	panic("BUG: bgp: " + check + " doctor check registration failed: " + err.Error())
 }
 
 // validatePeersFromTree adapts PeersFromConfigTree to the infra.BGPPeerValidator

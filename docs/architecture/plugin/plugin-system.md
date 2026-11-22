@@ -27,7 +27,9 @@ a new plugin is `ai/patterns/plugin.md`.
 
 ## Registration fields
 
-Each plugin registers exactly one `registry.Registration` from its `init()`.
+Each plugin registers exactly one `registry.Registration` from its `init()`. A
+refused startup registration in `init()` is a compile-time Ze defect and panics
+with `panic("BUG: ...")`, never `os.Exit`.
 
 Registration happens only during package initialization. Go runs every
 `init()` before `main`, and `main` in `cmd/ze` calls `registry.Seal` before it

@@ -3,9 +3,7 @@ package evpn
 import (
 	"bytes"
 	"flag"
-	"fmt"
 	"io"
-	"os"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -19,8 +17,7 @@ func init() {
 	// Registered here, beside the family, so removing this plugin removes both the
 	// advertisement and the obligation.
 	if err := nlritype.Register(L2VPNEVPN, RecognizeNLRI); err != nil {
-		fmt.Fprintf(os.Stderr, "evpn: RFC 7606 Section 5.4 recognizer registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: evpn: RFC 7606 Section 5.4 recognizer registration failed: " + err.Error())
 	}
 
 	reg := registry.Registration{
@@ -59,7 +56,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "evpn: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: evpn: registration failed: " + err.Error())
 	}
 }

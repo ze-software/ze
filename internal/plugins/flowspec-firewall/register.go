@@ -4,8 +4,6 @@
 package flowspecfirewall
 
 import (
-	"fmt"
-	"os"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -48,7 +46,6 @@ func init() { //nolint:gochecknoinits // plugin registration
 		return 1
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "flowspec-firewall: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: flowspec-firewall: registration failed: " + err.Error())
 	}
 }

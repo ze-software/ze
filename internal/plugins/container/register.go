@@ -10,8 +10,6 @@
 package container
 
 import (
-	"os"
-
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -20,7 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	containeryang "github.com/ze-software/ze/internal/plugins/container/yang"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -30,8 +27,7 @@ func init() {
 	registerContainer()
 }
 
-// registerContainer registers the command proxy and the plugin. The os.Exit
-// on a registration failure is confined to this registration file.
+// registerContainer registers the command proxy and the plugin.
 func registerContainer() {
 	registerContainerDiagnosticCodes()
 
@@ -76,9 +72,7 @@ func registerContainer() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		var tb textbuf.Buffer
-		tb.Str("container: registration failed: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // the process exits next; stderr is the only channel left
-		os.Exit(1)
+		panic("BUG: container: registration failed: " + err.Error())
 	}
 }
 
@@ -92,16 +86,12 @@ func registerContainerDiagnosticCodes() {
 	for _, table := range [][]diagnostic.CodeMeta{containerDiagnosticCodes, storeDiagnosticCodes} {
 		for _, meta := range table {
 			if err := diagnostic.Register(meta); err != nil {
-				var tb textbuf.Buffer
-				tb.Str("container: diagnostic code ").Str(meta.Code).Str(" registration failed: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // the process exits next; stderr is the only channel left
-				os.Exit(1)
+				panic("BUG: container: diagnostic code " + meta.Code + " registration failed: " + err.Error())
 			}
 		}
 	}
 	if err := registerStoreEventCodes(); err != nil {
-		var tb textbuf.Buffer
-		tb.Str("container: event code registration failed: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // the process exits next; stderr is the only channel left
-		os.Exit(1)
+		panic("BUG: container: event code registration failed: " + err.Error())
 	}
 }
 

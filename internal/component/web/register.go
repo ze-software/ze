@@ -10,12 +10,7 @@
 
 package web
 
-import (
-	"fmt"
-	"os"
-
-	"github.com/ze-software/ze/internal/core/diagnostic"
-)
+import "github.com/ze-software/ze/internal/core/diagnostic"
 
 func init() {
 	check := diagnostic.DoctorCheck{
@@ -29,15 +24,13 @@ func init() {
 		Check:        checkWebTLSCertificate,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		fmt.Fprintf(os.Stderr, "web: doctor check registration: %v\n", err)
-		os.Exit(2)
+		panic("BUG: web: doctor check registration: " + err.Error())
 	}
 
 	// The certificate and key the listener serves from blob storage travel with
 	// this component too, so removing web removes the check that reads them
 	// (doctor_material.go).
 	if err := diagnostic.RegisterDoctorCheck(webTLSMaterialDoctorCheck); err != nil {
-		fmt.Fprintf(os.Stderr, "web: stored TLS pair doctor check registration: %v\n", err)
-		os.Exit(2)
+		panic("BUG: web: stored TLS pair doctor check registration: " + err.Error())
 	}
 }

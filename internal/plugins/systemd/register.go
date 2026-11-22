@@ -5,13 +5,10 @@
 package systemd
 
 import (
-	"os"
-
 	"github.com/ze-software/ze/cmd/ze/install"
 	"github.com/ze-software/ze/cmd/ze/uninstall"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/subdispatch"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -23,9 +20,6 @@ func init() {
 	// readiness check that reads the unit back (doctor.go). A refusal is a
 	// programmer error in the declaration beside it.
 	if err := diagnostic.RegisterDoctorCheck(serviceDoctorCheck()); err != nil {
-		var tb textbuf.Buffer
-		tb.Str("systemd: doctor check registration failed: ").Err(err).Byte('\n')
-		tb.StdErr() //nolint:errcheck // the process is exiting on the next line
-		os.Exit(1)
+		panic("BUG: systemd: doctor check registration failed: " + err.Error())
 	}
 }

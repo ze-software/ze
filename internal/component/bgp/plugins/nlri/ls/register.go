@@ -85,8 +85,7 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "bgpls: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: bgpls: registration failed: " + err.Error())
 	}
 
 	// RFC 9552 Section 8.2.2: "A BGP-LS Propagator ... should not perform semantic

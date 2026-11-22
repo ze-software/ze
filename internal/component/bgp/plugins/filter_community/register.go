@@ -1,9 +1,6 @@
 package filter_community
 
 import (
-	"log/slog"
-	"os"
-
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	fcyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_community/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -52,7 +49,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error(reg.Name+": registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: " + reg.Name + ": registration failed: " + err.Error())
 	}
 }

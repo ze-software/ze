@@ -3,7 +3,6 @@ package flowtriq
 import (
 	"fmt"
 	"net"
-	"os"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -41,8 +40,7 @@ func init() {
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "ddos-flowtriq: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: ddos-flowtriq: registration failed: " + err.Error())
 	}
 }
 

@@ -3,7 +3,6 @@ package shape
 import (
 	"fmt"
 	"net"
-	"os"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/firewall"
@@ -63,8 +62,7 @@ func init() {
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "anomaly-shape: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: anomaly-shape: registration failed: " + err.Error())
 	}
 }
 

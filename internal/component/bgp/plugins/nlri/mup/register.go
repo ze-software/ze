@@ -3,10 +3,7 @@ package mup
 import (
 	"bytes"
 	"flag"
-	"fmt"
 	"io"
-	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -25,14 +22,12 @@ func init() {
 	// advertisement and the obligation.
 	for _, fam := range []Family{IPv4MUP, IPv6MUP} {
 		if err := nlritype.RegisterBodyRecognizer(fam, recognizerFor(fam.AFI)); err != nil {
-			fmt.Fprintf(os.Stderr, "mup: RFC 7606 Section 5.4 recognizer registration failed: %v\n", err)
-			os.Exit(1)
+			panic("BUG: mup: RFC 7606 Section 5.4 recognizer registration failed: " + err.Error())
 		}
 		// draft-ietf-bess-mup-safi Section 3.3.6: a DSD route announced with no
 		// Prefix-SID attribute is treated as withdrawn (CheckDSDPrefixSID).
 		if err := nlritype.RegisterUpdateCheck(fam, CheckDSDPrefixSID); err != nil {
-			fmt.Fprintf(os.Stderr, "mup: draft-ietf-bess-mup-safi Section 3.3.6 check registration failed: %v\n", err)
-			os.Exit(1)
+			panic("BUG: mup: draft-ietf-bess-mup-safi Section 3.3.6 check registration failed: " + err.Error())
 		}
 	}
 
@@ -71,7 +66,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error("mup: registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: mup: registration failed: " + err.Error())
 	}
 }

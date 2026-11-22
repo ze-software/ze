@@ -371,6 +371,8 @@ Plugins define keys by convention (prefix with plugin name).
 ```
 
 All registration is complete before any concurrent access. Registries are read-only after init.
+A failed registration in `init()` is a compile-time Ze defect and MUST call
+`panic("BUG: <pkg>: ...: " + err.Error())`, never `os.Exit()`.
 
 ## Adding Something New
 
@@ -434,7 +436,8 @@ Consumers use `registry.PluginForEventType()` / `registry.PluginForSendType()`.
 |------|-------------|
 | No unregistered env var access | `env.Get()` aborts on unknown key |
 | No YANG validator without handler | `CheckAllValidatorsRegistered()` panics at startup |
-| No duplicate plugin names | `registry.Register()` returns error |
+| No duplicate plugin names | `registry.Register()` returns error; caller `init()` panics with `BUG:` |
+| Failed startup registration in `init()` panics, never calls `os.Exit()` | Compile-time Ze defect: `init()` MUST call `panic("BUG: <pkg>: ...: " + err.Error())`; enforced by `gostyle` and ruleguard `noHandlerOsExit` |
 | No circular plugin deps | Dependency resolver rejects cycles |
 | No missing plugin deps | Resolver checks all declared deps exist |
 | Plugins never import siblings | `ai/rules/plugins.md` import rules + code review |

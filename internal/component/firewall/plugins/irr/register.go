@@ -1,9 +1,6 @@
 package irr
 
 import (
-	"log/slog"
-	"os"
-
 	irryang "github.com/ze-software/ze/internal/component/firewall/plugins/irr/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -50,20 +47,18 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error("firewall-irr: registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: firewall-irr: registration failed: " + err.Error())
 	}
 }
 
 // registerIRRDoctor registers the IRR data-freshness doctor check and the
-// diagnostic codes it emits. It lives in register.go so the side effect, and the
-// exit on a registration failure, stay in the plugin's registration file
+// diagnostic codes it emits. It lives in register.go so the side effect, and
+// the panic on a registration failure, stay in the plugin's registration file
 // (ai/patterns/registration.md).
 func registerIRRDoctor() {
 	for _, meta := range irrDiagnosticCodes {
 		if err := diagnostic.Register(meta); err != nil {
-			slog.Error("firewall-irr: diagnostic code registration failed", "code", meta.Code, "error", err)
-			os.Exit(1)
+			panic("BUG: firewall-irr: diagnostic code registration failed (" + meta.Code + "): " + err.Error())
 		}
 	}
 	check := diagnostic.DoctorCheck{
@@ -76,7 +71,6 @@ func registerIRRDoctor() {
 		Check:        checkIRRDataFreshness,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		slog.Error("firewall-irr: doctor check registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: firewall-irr: doctor check registration failed: " + err.Error())
 	}
 }

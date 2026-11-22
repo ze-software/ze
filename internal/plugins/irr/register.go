@@ -3,13 +3,9 @@
 package irr
 
 import (
-	"log/slog"
-	"os"
-
-	"github.com/ze-software/ze/internal/core/diagnostic"
-
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/statestore"
 	irryang "github.com/ze-software/ze/internal/plugins/irr/yang"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -28,9 +24,7 @@ func init() {
 	statestore.RegisterPluginKeys(pluginName, zefs.KeyIRRPrefixCache)
 	for _, meta := range irrDiagnosticCodes {
 		if err := diagnostic.Register(meta); err != nil {
-			slog.Error("irr: diagnostic code registration failed", "diagnostic", meta.Code, "error", err,
-				"code", diagnostic.CodeDoctorInternalDefect)
-			os.Exit(1)
+			panic("BUG: irr: diagnostic code " + meta.Code + " registration failed: " + err.Error())
 		}
 	}
 
@@ -52,7 +46,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error("irr: registration failed", "error", err, "code", diagnostic.CodeDoctorInternalDefect)
-		os.Exit(1)
+		panic("BUG: irr: registration failed: " + err.Error())
 	}
 }

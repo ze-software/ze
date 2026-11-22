@@ -2,8 +2,6 @@ package gr
 
 import (
 	"bytes"
-	"fmt"
-	"os"
 
 	gryang "github.com/ze-software/ze/internal/component/bgp/plugins/gr/yang"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
@@ -114,7 +112,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "gr: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: gr: registration failed: " + err.Error())
 	}
 }

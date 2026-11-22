@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -70,9 +69,7 @@ func registerVRRP() {
 	// refusal (validateNoProxyARP) is repeated there against the running
 	// groups (refuseLiveProxyARP, proxyarp.go).
 	if _, err := sysctlreg.RegisterWriteGuard(pluginName, refuseLiveProxyARP); err != nil {
-		var tb textbuf.Buffer
-		_ = tb.Str("vrrp: sysctl write guard registration failed: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // the process exits next; stderr is the only channel left
-		os.Exit(1)
+		panic("BUG: vrrp: sysctl write guard registration failed: " + err.Error())
 	}
 
 	reg := registry.Registration{
@@ -130,8 +127,7 @@ func registerVRRP() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "vrrp: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: vrrp: registration failed: " + err.Error())
 	}
 }
 
@@ -272,8 +268,8 @@ func registerVRRPDiagnosticCodes() {
 }
 
 // registerVRRPDoctor registers the config-sanity check (checkVRRPConfigSanity in
-// doctor.go). The os.Exit on a registration failure is confined to this
-// registration file (ai/patterns/registration.md).
+// doctor.go). Registration is confined to this registration file
+// (ai/patterns/registration.md).
 func registerVRRPDoctor() {
 	check := diagnostic.DoctorCheck{
 		Name:         "vrrp-config-sanity",
@@ -286,8 +282,7 @@ func registerVRRPDoctor() {
 		Check:        checkVRRPConfigSanity,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		fmt.Fprintf(os.Stderr, "vrrp: doctor config-sanity registration: %v\n", err)
-		os.Exit(2)
+		panic("BUG: vrrp: doctor config-sanity registration: " + err.Error())
 	}
 }
 

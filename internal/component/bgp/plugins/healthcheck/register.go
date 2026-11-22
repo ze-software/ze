@@ -1,8 +1,6 @@
 package healthcheck
 
 import (
-	"os"
-
 	"github.com/ze-software/ze/internal/component/bgp/plugins/healthcheck/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -36,7 +34,6 @@ func pluginSetup() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slogutil.Logger("bgp.healthcheck").Error("registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: bgp-healthcheck: registration failed: " + err.Error())
 	}
 }

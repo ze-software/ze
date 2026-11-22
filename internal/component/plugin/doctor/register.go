@@ -3,12 +3,7 @@
 
 package doctor
 
-import (
-	"os"
-
-	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/textbuf"
-)
+import "github.com/ze-software/ze/internal/core/diagnostic"
 
 // componentPlugin names the component every check here belongs to. The doctor
 // runner reports it beside each diagnostic, so one spelling serves all three.
@@ -33,7 +28,7 @@ func init() {
 		Codes:        []string{codePluginMissing},
 		Check:        checkPlugins,
 	}); err != nil {
-		exitOnRegistrationFailure(err)
+		panic("BUG: plugin: doctor check registration (plugin-binaries): " + err.Error())
 	}
 
 	// The shell check answers the other half of "can this external plugin
@@ -50,7 +45,7 @@ func init() {
 		Codes:        []string{codePluginShellMissing},
 		Check:        checkPluginShell,
 	}); err != nil {
-		exitOnRegistrationFailure(err)
+		panic("BUG: plugin: doctor check registration (plugin-shell): " + err.Error())
 	}
 
 	// The managed listener check reads the config tree. It runs after the tree
@@ -68,7 +63,7 @@ func init() {
 		Codes:        []string{codeHubManagedCollision},
 		Check:        checkManagedListener,
 	}); err != nil {
-		exitOnRegistrationFailure(err)
+		panic("BUG: plugin: doctor check registration (hub-managed-listener): " + err.Error())
 	}
 
 	// The report bus check reads the daemon's own bus, so it runs at the
@@ -84,17 +79,6 @@ func init() {
 		Codes:        []string{diagnostic.CodeDoctorReportBusFull},
 		Check:        checkReportBusFull,
 	}); err != nil {
-		exitOnRegistrationFailure(err)
+		panic("BUG: plugin: doctor check registration (" + reportBusCheckName + "): " + err.Error())
 	}
-}
-
-// exitOnRegistrationFailure ends the process on a refused doctor check.
-// Registration runs in init(). A refusal therefore means this binary would run
-// without a check it claims to carry. A missing check nobody is told about
-// reads to the operator as a clean report.
-func exitOnRegistrationFailure(err error) {
-	var report textbuf.Buffer
-	report.Str("doctor check registration: ").Err(err).Byte('\n')
-	report.StdErr() //nolint:errcheck // the process is exiting on the next line
-	os.Exit(2)
 }

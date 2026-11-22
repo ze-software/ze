@@ -1,9 +1,6 @@
 package rpki
 
 import (
-	"log/slog"
-	"os"
-
 	rpkiyang "github.com/ze-software/ze/internal/component/bgp/plugins/rpki/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -45,14 +42,12 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error("bgp-rpki: registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: bgp-rpki: registration failed: " + err.Error())
 	}
 
 	// This plugin connects to the caches the config names, so it owns the
 	// readiness check that asks whether any of them can be reached (doctor.go).
 	if err := diagnostic.RegisterDoctorCheck(rpkiDoctorCheck); err != nil {
-		slog.Error("bgp-rpki: doctor check registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: bgp-rpki: doctor check registration failed: " + err.Error())
 	}
 }

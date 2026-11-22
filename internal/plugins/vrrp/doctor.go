@@ -23,8 +23,8 @@ const (
 )
 
 // vrrpDiagnosticCodes is the explanation metadata for the codes this plugin
-// owns. Registered from register.go (init-time registration + os.Exit on
-// failure are confined to that file, ai/patterns/registration.md).
+// owns. Registered from register.go (init-time registration is confined to
+// that file, ai/patterns/registration.md).
 var vrrpDiagnosticCodes = []diagnostic.CodeMeta{
 	{
 		Code:        codeVRRPConfigInvalid,

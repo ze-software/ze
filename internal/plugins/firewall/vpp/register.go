@@ -2,20 +2,13 @@
 
 package firewallvpp
 
-import (
-	"fmt"
-	"os"
-
-	"github.com/ze-software/ze/internal/component/firewall"
-)
+import "github.com/ze-software/ze/internal/component/firewall"
 
 func init() {
 	if err := firewall.RegisterBackend("vpp", newBackend); err != nil {
-		fmt.Fprintf(os.Stderr, "firewallvpp: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: firewallvpp: registration failed: " + err.Error())
 	}
 	if err := firewall.RegisterVerifier("vpp", Verify); err != nil {
-		fmt.Fprintf(os.Stderr, "firewallvpp: verifier registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: firewallvpp: verifier registration failed: " + err.Error())
 	}
 }

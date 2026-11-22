@@ -21,7 +21,7 @@ const doctorDependencyManagedServer = "managed-server"
 func init() {
 	// The name check reads the parsed tree, so it still reports a config the
 	// commit now refuses and ReadConfig would hide.
-	registerOrExit(diagnostic.DoctorCheck{
+	registerOrPanic(diagnostic.DoctorCheck{
 		Name:         externalNameCheckName,
 		Phase:        diagnostic.DoctorPhaseParsedConfig,
 		Order:        703,
@@ -33,7 +33,7 @@ func init() {
 	})
 	// The in-process check reads the plugins the loaded config starts and
 	// each one's registration, both present in the operator's own process.
-	registerOrExit(diagnostic.DoctorCheck{
+	registerOrPanic(diagnostic.DoctorCheck{
 		Name:         externalInProcessCheckName,
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        704,
@@ -45,7 +45,7 @@ func init() {
 	})
 	// The managed checks read the daemon's managed server, so they run at the
 	// runtime phase, which only the daemon runs.
-	registerOrExit(diagnostic.DoctorCheck{
+	registerOrPanic(diagnostic.DoctorCheck{
 		Name:         managedUnboundCheckName,
 		Phase:        diagnostic.DoctorPhaseRuntime,
 		Order:        711,
@@ -55,7 +55,7 @@ func init() {
 		Codes:        []string{server.CodeDoctorManagedListenerUnbound},
 		Check:        checkManagedListenerUnbound,
 	})
-	registerOrExit(diagnostic.DoctorCheck{
+	registerOrPanic(diagnostic.DoctorCheck{
 		Name:         managedRejectedCheckName,
 		Phase:        diagnostic.DoctorPhaseRuntime,
 		Order:        712,
@@ -67,10 +67,10 @@ func init() {
 	})
 }
 
-// registerOrExit registers one check and ends the process on a refusal, for
-// the reason exitOnRegistrationFailure states.
-func registerOrExit(check diagnostic.DoctorCheck) { //nolint:gocritic // hugeParam: registered once at init
+// registerOrPanic registers one check and panics on a refusal. Registration
+// runs in init(), so a refusal is a compile-time Ze defect.
+func registerOrPanic(check diagnostic.DoctorCheck) { //nolint:gocritic // hugeParam: registered once at init
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		exitOnRegistrationFailure(err)
+		panic("BUG: plugin: doctor check registration (" + check.Name + "): " + err.Error())
 	}
 }

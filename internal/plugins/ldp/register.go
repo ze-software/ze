@@ -18,7 +18,6 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
-	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -244,8 +243,7 @@ func registerLDP() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "ldp: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: ldp: registration failed: " + err.Error())
 	}
 }
 

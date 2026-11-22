@@ -46,8 +46,7 @@ func init() { //nolint:gochecknoinits // plugin registration
 		return 1
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "memlock: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: memlock: registration failed: " + err.Error())
 	}
 }
 

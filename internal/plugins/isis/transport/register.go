@@ -10,12 +10,7 @@
 
 package transport
 
-import (
-	"fmt"
-	"os"
-
-	"github.com/ze-software/ze/internal/core/diagnostic"
-)
+import "github.com/ze-software/ze/internal/core/diagnostic"
 
 func init() {
 	check := diagnostic.DoctorCheck{
@@ -29,7 +24,6 @@ func init() {
 		Check:        checkISISRawSocket,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-		fmt.Fprintf(os.Stderr, "isis/transport: doctor check registration: %v\n", err)
-		os.Exit(2)
+		panic("BUG: isis/transport: doctor check registration: " + err.Error())
 	}
 }

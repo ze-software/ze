@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"math"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -110,8 +109,7 @@ func init() {
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "mrt: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: mrt: registration failed: " + err.Error())
 	}
 
 	// Self-register the reactor bridges into the leaf registry seam. The BGP

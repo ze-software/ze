@@ -1,9 +1,6 @@
 package filter_irr
 
 import (
-	"log/slog"
-	"os"
-
 	firryang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_irr/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -23,9 +20,7 @@ func init() {
 		zefs.KeyIRRDataset, zefs.KeyIRRSet, zefs.KeyIRRASN, zefs.KeyIRRGeneration)
 	for _, meta := range irrDiagnosticCodes {
 		if err := diagnostic.Register(meta); err != nil {
-			slog.Error("bgp-filter-irr: diagnostic code registration failed", "diagnostic", meta.Code, "error", err,
-				"code", diagnostic.CodeDoctorInternalDefect)
-			os.Exit(1)
+			panic("BUG: bgp-filter-irr: diagnostic code " + meta.Code + " registration failed: " + err.Error())
 		}
 	}
 
@@ -48,7 +43,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error("bgp-filter-irr: registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: bgp-filter-irr: registration failed: " + err.Error())
 	}
 }

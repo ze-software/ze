@@ -1,9 +1,6 @@
 package filter_modify
 
 import (
-	"log/slog"
-	"os"
-
 	fmyang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_modify/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -46,7 +43,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slog.Error(reg.Name+": registration failed", "error", err)
-		os.Exit(1)
+		panic("BUG: " + reg.Name + ": registration failed: " + err.Error())
 	}
 }

@@ -2,8 +2,6 @@ package hostname
 
 import (
 	"bytes"
-	"fmt"
-	"os"
 
 	hostnameyang "github.com/ze-software/ze/internal/component/bgp/plugins/hostname/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -41,7 +39,6 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "hostname: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: hostname: registration failed: " + err.Error())
 	}
 }

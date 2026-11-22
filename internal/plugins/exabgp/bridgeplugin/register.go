@@ -11,9 +11,7 @@ package bridgeplugin
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
-	"os"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -62,8 +60,7 @@ func init() {
 	}
 
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "exabgp-bridge: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: exabgp-bridge: registration failed: " + err.Error())
 	}
 }
 

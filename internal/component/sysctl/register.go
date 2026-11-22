@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"maps"
 	"net"
-	"os"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -81,16 +80,14 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "sysctl: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: sysctl: registration failed: " + err.Error())
 	}
 
 	// Every sysctl is applied through /proc/sys, so this component owns the
 	// readiness check that asks whether the daemon will be able to write it
 	// (doctor.go). A refusal is a programmer error in the table beside it.
 	if err := diagnostic.RegisterDoctorCheck(sysctlProcfsDoctorCheck()); err != nil {
-		fmt.Fprintf(os.Stderr, "sysctl: doctor check registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: sysctl: doctor check registration failed: " + err.Error())
 	}
 }
 

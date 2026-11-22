@@ -5,9 +5,7 @@
 package policy
 
 import (
-	"fmt"
 	"net"
-	"os"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	policyyang "github.com/ze-software/ze/internal/component/policy/yang"
@@ -96,8 +94,7 @@ func init() {
 		// the metrics of what they hide (locrib/policy_metrics.go).
 		ConfigureMetrics: locrib.SetPolicyMetricsRegistry,
 	}); err != nil {
-		fmt.Fprintf(os.Stderr, "policy: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: policy: registration failed: " + err.Error())
 	}
 }
 
