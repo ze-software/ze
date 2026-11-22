@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/transaction"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -96,6 +97,7 @@ func TestRestartCommandRefusesItsCaller(t *testing.T) {
 	proc := s.procManager.Load().GetProcess(name)
 	ctx := &CommandContext{Server: s, Process: proc, Sender: plugin.ProcessSender(name)}
 
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	var wg sync.WaitGroup
 	t.Cleanup(wg.Wait)
 	answered := make(chan restartOutcome, 1)
@@ -184,6 +186,7 @@ func TestRestartCommandFailsWhenReplacementNeverHandshakes(t *testing.T) {
 	const stage = 200 * time.Millisecond
 	// Registered first, so it runs after the server's teardown, which ends a
 	// handshake this test failed to bound.
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	var wg sync.WaitGroup
 	t.Cleanup(wg.Wait)
 
@@ -254,6 +257,7 @@ func TestRestartCommandFailsWhenOldCleanupNeverEnds(t *testing.T) {
 	pm := s.procManager.Load()
 	old := pm.GetProcess(name)
 
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	var wg sync.WaitGroup
 	t.Cleanup(wg.Wait)
 	entered, release := holdFirstCleanup(t, name)

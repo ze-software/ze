@@ -15,6 +15,7 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 // inverseKey names one retained original inverse by its transaction, the owner
@@ -176,8 +177,8 @@ func planRecoverySchedule(chain []inverseAction, recovery []plugin.PluginConfig)
 	if cycle := removedCycle(graph, recovery); cycle != nil {
 		return nil, fmt.Errorf("reload compensation cannot order the removed and retained plugins, so nothing was restored: %w: "+
 			"plugins %s each declare that they start after another of them, so no restart order exists.\n"+
-			"Restart the ze daemon so every plugin starts from the committed configuration, under systemd:\n"+
-			"  systemctl restart ze", registry.ErrCircularDependency, strings.Join(cycle, ", "))
+			"Restart the ze daemon so every plugin starts from the committed configuration:\n"+
+			"  %s", registry.ErrCircularDependency, strings.Join(cycle, ", "), privilege.RestartRemedy())
 	}
 	removed := make(map[string]bool, len(recovery))
 	for _, cfg := range recovery {
@@ -205,9 +206,9 @@ func planRecoverySchedule(chain []inverseAction, recovery []plugin.PluginConfig)
 				"%s depends on retained plugin %s, and retained plugin %s depends on %s, "+
 				"so %s must start after %s is undone and before %s is undone; "+
 				"undo runs in reverse apply order, which undoes %s before %s, so no slot is left for %s.\n"+
-				"Restart the ze daemon so every plugin starts from the committed configuration, under systemd:\n"+
-				"  systemctl restart ze",
-				cfg.Name, cfg.Name, after, before, cfg.Name, cfg.Name, after, before, before, after, cfg.Name)
+				"Restart the ze daemon so every plugin starts from the committed configuration:\n"+
+				"  %s",
+				cfg.Name, cfg.Name, after, before, cfg.Name, cfg.Name, after, before, before, after, cfg.Name, privilege.RestartRemedy())
 		}
 		slot := min(max(placement, earliest), latest)
 		schedule.starts[slot] = append(schedule.starts[slot], cfg)

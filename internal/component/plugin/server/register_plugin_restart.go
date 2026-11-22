@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 // The registration carries no RequiresSelector. That guard is the peer
@@ -219,8 +220,7 @@ func pluginRestartFailure(name string, err error) *opererr.Error {
 			"a new process cannot take the plugin's name until the process it replaces has finished its cleanup, "+
 				"so the plugin stays down and ze show doctor names it; run the command below again once that cleanup "+
 				"has finished, which the doctor row stops saying it owes; if it never finishes, the last resort is "+
-				"to restart the ze daemon, which ends every call a plugin made into it: systemctl restart ze under systemd "+
-				"(ze signal restart writes the graceful-restart marker and shuts ze down, so ze comes back only under a supervisor)",
+				"to restart the ze daemon, which ends every call a plugin made into it: "+privilege.RestartRemedy(),
 			process.RestartCommand(name))
 	}
 	return opererr.Wrap(err, "plugin "+name+" did not start again",

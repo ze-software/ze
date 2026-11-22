@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/core/callsink"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -203,7 +204,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	generation, err := l2tpevents.NewObservationGeneration()
 	if err != nil {
 		observerStartErr = opererr.Wrap(err, "L2TP could not start",
-			"A distinct session observation scope could not be allocated", "sudo systemctl restart ze")
+			"A distinct session observation scope could not be allocated", privilege.RestartRemedy())
 		return observerStartErr
 	}
 	metricsRegistry := registry.GetMetricsRegistry()

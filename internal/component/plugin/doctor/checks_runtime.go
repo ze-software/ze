@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -70,12 +71,12 @@ func pluginStoppedRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic 
 
 // daemonRestartLastResort names the one way out when a stopped process's
 // cleanup never finishes: restarting the ze daemon ends every call a plugin
-// made into it. `ze signal restart` alone does not bring ze back: it writes
-// the graceful-restart marker and shuts ze down (internal/plugins/signal).
-const daemonRestartLastResort = "if it never finishes, the last resort is to restart the ze daemon, " +
-	"which ends every call a plugin made into it: systemctl restart ze under systemd " +
-	"(ze signal restart writes the graceful-restart marker and shuts ze down, " +
-	"so ze comes back only under a supervisor)"
+// made into it. privilege.RestartRemedy offers systemctl only under ze.service
+// and explains the stop-and-start steps otherwise.
+func daemonRestartLastResort() string {
+	return "if it never finishes, the last resort is to restart the ze daemon, " +
+		"which ends every call a plugin made into it: " + privilege.RestartRemedy()
+}
 
 // pluginStoppedRow is the row for one down plugin. While a stopped process
 // of it still owes its cleanup, the restart command refuses the plugin, so
@@ -90,7 +91,7 @@ func pluginStoppedRow(name string, stop *process.PluginStop, cleanupOwed bool) d
 			"(it may be waiting for a call that process made into ze, or still be running), " +
 			"and ze refuses to start the plugin until it has, because that cleanup " +
 			"would remove what a new process registered under the name; " +
-			"run the restart again once this row no longer says so; ").Str(daemonRestartLastResort)
+			"run the restart again once this row no longer says so; ").Str(daemonRestartLastResort())
 	}
 	return diagnostic.Diagnostic{
 		Code:     diagnostic.CodeDoctorPluginStopped,

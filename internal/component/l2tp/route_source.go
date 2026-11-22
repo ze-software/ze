@@ -4,6 +4,7 @@
 package l2tp
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -55,16 +57,22 @@ type routeSourceSequence struct {
 
 var subscriberRouteSources routeSourceSequence
 
-var errRouteSourceExhausted = opererr.New(
-	"Subscriber redistribution source identities are exhausted",
-	"Ze refused another route contribution instead of reusing an existing source identity",
-	"sudo systemctl restart ze")
+const (
+	routeSourceExhaustedProblem = "Subscriber redistribution source identities are exhausted"
+	routeSourceExhaustedWhy     = "Ze refused another route contribution instead of reusing an existing source identity"
+)
+
+var errRouteSourceExhausted = errors.New("subscriber redistribution source identities are exhausted")
+
+func routeSourceExhaustedError() *opererr.Error {
+	return opererr.Wrap(errRouteSourceExhausted, routeSourceExhaustedProblem, routeSourceExhaustedWhy, privilege.RestartRemedy())
+}
 
 func (source *routeSourceSequence) next() (uint32, error) {
 	source.mu.Lock()
 	defer source.mu.Unlock()
 	if source.last == ^uint32(0) {
-		return 0, errRouteSourceExhausted
+		return 0, routeSourceExhaustedError()
 	}
 	source.last++
 	return source.last, nil
@@ -74,12 +82,13 @@ func (source *routeSourceSequence) next() (uint32, error) {
 // The allocator only returns a cause; it MUST NOT call reporters under that lock.
 func (o *subscriberRouteObserver) reportSourceRefusal(session *subscriber.Session, cause error) {
 	label, value := routeDiagnosticAttachment(session)
+	fix := privilege.RestartRemedy()
 	o.logger.Warn(string(session.AccessType)+": subscriber route contribution refused",
 		"code", report.CodeInternalDefect,
 		reportFieldSubscriberID, session.ID, label, value, reportFieldSessionID, routeSessionLabel(session),
-		"error", cause, "fix", errRouteSourceExhausted.Fix())
+		"error", cause, "fix", fix)
 	report.RaiseWarningFix(string(session.AccessType), report.CodeInternalDefect, "subscriber route source",
-		errRouteSourceExhausted.Problem()+": "+errRouteSourceExhausted.Why(), errRouteSourceExhausted.Fix(),
+		routeSourceExhaustedProblem+": "+routeSourceExhaustedWhy, fix,
 		map[string]any{reportFieldSubscriberID: session.ID, label: value, reportFieldSessionID: routeSessionLabel(session), reportFieldCause: cause.Error()})
 }
 

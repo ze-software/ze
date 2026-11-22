@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -315,6 +316,7 @@ func slotOf(schedule *recoverySchedule, name string) int {
 // names P, R1 and R2, the undo order that crosses, and the restart that
 // recovers. Method: call the planner directly with chain [R2, R1].
 func TestPlanRecoveryScheduleRefusesCrossedBounds(t *testing.T) {
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	isolatePlannerRegistry(t)
 	const removed, first, second = "crossed-p", "crossed-r1", "crossed-r2"
 	registerPlannerPlugin(t, removed, first)
@@ -331,6 +333,13 @@ func TestPlanRecoveryScheduleRefusesCrossedBounds(t *testing.T) {
 	require.Contains(t, message, "systemctl restart ze")
 	require.NotContains(t, message, "one direction only", "no cycle exists, so the refusal must not ask for one to be removed")
 	require.NotContains(t, message, "cycle")
+
+	// Outside ze.service, the restart instruction must not offer systemctl.
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipOther, nil))
+	_, err = planRecoverySchedule(plannerChain(plannerStep{second, testResourceSysctl}, plannerStep{first, testResourceSysctl}), plannerRecovery(removed))
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "systemctl")
+	require.Contains(t, err.Error(), "ze signal stop")
 }
 
 // When the fixed undo order leaves room, the removed plugin takes the one slot

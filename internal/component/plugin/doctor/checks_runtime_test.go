@@ -9,6 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -98,27 +99,35 @@ func TestPluginStoppedEveryDownPath(t *testing.T) {
 // with no way out, or told `ze signal restart` brings ze back on its own.
 func TestPluginStoppedRowWhileCleanupOwed(t *testing.T) {
 	stop := process.PluginStop{Cause: process.StopRestartFailed, Detail: "the stopped process has not finished its cleanup"}
-	owed := pluginStoppedRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{
-		{Name: "stuck", Configured: true, Down: true, Stop: stop, CleanupOwed: true},
-	}})
-	if len(owed) != 1 {
-		t.Fatalf("rows = %d, want one: %+v", len(owed), owed)
-	}
-	for _, want := range []string{
-		"refuses to start the plugin",
-		"had not finished within the restart's bound",
-		"or still be running",
-		daemonRestartLastResort,
-	} {
-		if !strings.Contains(owed[0].Message, want) {
-			t.Errorf("message %q does not say %q", owed[0].Message, want)
-		}
-	}
-	if strings.Contains(owed[0].Message, "has not returned") {
-		t.Errorf("message %q claims a call has not returned, which ze does not know", owed[0].Message)
-	}
-	if owed[0].Fix != process.RestartCommand("stuck") {
-		t.Errorf("fix %q, want the restart command alone, %q", owed[0].Fix, process.RestartCommand("stuck"))
+	for _, membership := range []privilege.ServiceMembership{privilege.MembershipZeService, privilege.MembershipOther} {
+		t.Run(membership.String(), func(t *testing.T) {
+			t.Cleanup(privilege.SetServiceMembershipForTest(membership, nil))
+			owed := pluginStoppedRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{
+				{Name: "stuck", Configured: true, Down: true, Stop: stop, CleanupOwed: true},
+			}})
+			if len(owed) != 1 {
+				t.Fatalf("rows = %d, want one: %+v", len(owed), owed)
+			}
+			for _, want := range []string{
+				"refuses to start the plugin",
+				"had not finished within the restart's bound",
+				"or still be running",
+				daemonRestartLastResort(),
+			} {
+				if !strings.Contains(owed[0].Message, want) {
+					t.Errorf("message %q does not say %q", owed[0].Message, want)
+				}
+			}
+			if membership != privilege.MembershipZeService && strings.Contains(owed[0].Message, "systemctl") {
+				t.Errorf("message %q offers systemctl outside ze.service", owed[0].Message)
+			}
+			if strings.Contains(owed[0].Message, "has not returned") {
+				t.Errorf("message %q claims a call has not returned, which ze does not know", owed[0].Message)
+			}
+			if owed[0].Fix != process.RestartCommand("stuck") {
+				t.Errorf("fix %q, want the restart command alone, %q", owed[0].Fix, process.RestartCommand("stuck"))
+			}
+		})
 	}
 
 	settled := pluginStoppedRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{
