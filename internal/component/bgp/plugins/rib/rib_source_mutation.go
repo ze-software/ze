@@ -268,8 +268,10 @@ func (r *RIBManager) removePhysicalSource(source ribPhysicalSource, selected *fa
 	}
 	if routes := r.bgpPeers[source.owner]; routes != nil {
 		if routes.Len() == 0 {
+			peerAddr := routes.PeerAddr()
 			routes.Release()
 			delete(r.bgpPeers, source.owner)
+			r.unresolvedNextHops.purgeByOwner(bestPeer{owner: source.owner, address: peerAddr})
 		}
 	}
 	r.peerMu.Unlock()

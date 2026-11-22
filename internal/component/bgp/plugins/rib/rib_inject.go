@@ -91,6 +91,7 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 	r.peerMu.Unlock()
 
 	ipv4Family := family.Family{AFI: 1, SAFI: 1}
+	withdrew := false
 
 	// Withdrawals first, for the reason handleReceivedStructured spells out: RFC 4271
 	// Section 4.3 says an UPDATE naming the same prefix in WITHDRAWN ROUTES and NLRI is
@@ -106,6 +107,7 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 		withdrawns, _ := nlrisplit.Split(ipv4Family, wdData, false)
 		for _, wd := range withdrawns {
 			peerRIB.Remove(ipv4Family, wd)
+			withdrew = true
 		}
 	}
 
@@ -118,6 +120,7 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 				withdrawns, _ := nlrisplit.SplitWithdrawn(fam, wdBytes, false)
 				for _, wd := range withdrawns {
 					peerRIB.Withdraw(fam, wd)
+					withdrew = true
 				}
 			}
 		}
@@ -144,6 +147,16 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 				prefixes, _ := nlrisplit.Split(fam, nlriBytes, false)
 				for _, wirePrefix := range prefixes {
 					peerRIB.InsertAt(fam, attrBytes, wirePrefix, changedAt)
+				}
+			}
+		}
+	}
+
+	if withdrew {
+		if protoID == bgpProtocolID {
+			if r.unresolvedNextHops.total.Load() != 0 {
+				if peerRIB.Len() == 0 {
+					r.unresolvedNextHops.purgeByOwner(bestPeer{owner: 0, address: peerKey})
 				}
 			}
 		}
@@ -317,6 +330,9 @@ func (r *RIBManager) withdrawAllForPeer(protocol, peerKey string) {
 	if peerRIB := protoPeers[peerKey]; peerRIB != nil {
 		peerRIB.Release()
 		delete(protoPeers, peerKey)
+		if protoID == bgpProtocolID {
+			r.unresolvedNextHops.purgeByOwner(bestPeer{owner: 0, address: peerKey})
+		}
 	}
 }
 
@@ -342,6 +358,9 @@ func (r *RIBManager) withdrawAllForRouter(protocol, routerPrefix string) {
 		if len(key) > len(prefix) && key[:len(prefix)] == prefix {
 			peerRIB.Release()
 			delete(protoPeers, key)
+			if protoID == bgpProtocolID {
+				r.unresolvedNextHops.purgeByOwner(bestPeer{owner: 0, address: key})
+			}
 		}
 	}
 }

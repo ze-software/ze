@@ -1,0 +1,127 @@
+# Test: unresolved BGP next-hop visibility in inject, show bgp rib, and show doctor
+#
+# Question: when an operator injects a BGP route with an unresolvable next hop
+# into a running daemon, do `request bgp rib inject`, `show bgp rib | match
+# next-hop-unresolvable`, `show bgp rib best`, and `show doctor` expose the
+# exclusion end to end, and does committing a covering static route elect the
+# route and clear the doctor warning without re-injection?
+#
+# Why a unit test cannot decide it: unit tests invoke RIBManager.handleCommand
+# and doctorCheck in isolation; only a live daemon with bgp-rib, rib, and
+# static proves Stage 1 runtime doctor discovery through `show doctor`, CLI
+# pipe filtering (`| match next-hop-unresolvable`), and live Loc-RIB static
+# cover reselection clearing the runtime warning.
+#
+# VALIDATES: spec-bgp-next-hop-reachability-admission AC-1, AC-2, AC-3 end to
+#            end through the real daemon, bgp-rib, system Loc-RIB, static, and
+#            SSH CLI.
+# PREVENTS: silent best-path exclusion after `request bgp rib inject`, missing
+#           `next-hop-unresolvable` annotation in `show bgp rib`, missing or
+#           stale `doctor-bgp-next-hop-unresolvable` warnings in `show doctor`.
+# Linux-only: `interface { backend netlink }` and `static` (`next interface lo`) require Linux netlink and loopback interface `lo`.
+option=needs-linux
+option=storage:value=disk
+option=timeout:value=60s
+
+tmpfs=rib-unresolved-next-hop-visibility.conf:terminator=EOF_CONF
+plugin {
+    internal bgp-rib {
+        use bgp-rib
+    }
+    internal rib {
+        use rib
+    }
+    internal static {
+        use static
+    }
+}
+
+interface {
+    backend netlink
+}
+
+system {
+    authentication {
+        user admin {
+            # bcrypt cost-4 hash of "testpass".
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+
+static {
+}
+EOF_CONF
+
+tmpfs=rib-unresolved-next-hop-visibility.script:terminator=EOF_SCRIPT
+# AC-2: inject with an unresolvable next hop retains the route and warns.
+cli request bgp rib inject 192.0.2.1 ipv4/unicast 10.80.1.0/24 nexthop 198.51.100.129 | no-more | json compact
+has "injected":"10.80.1.0/24"
+has "next-hop-resolvable":false
+has "warning":
+has 198.51.100.129
+
+# AC-1: show bgp rib marks the excluded route, filterable via | match next-hop-unresolvable,
+# while show bgp rib best excludes it.
+cli show bgp rib | match next-hop-unresolvable | no-more | json compact
+has "prefix":"10.80.1.0/24"
+has "next-hop-resolvable":false
+has "ineligible-reason":"next-hop-unresolvable"
+cli show bgp rib best | no-more | json compact
+lacks 10.80.1.0/24
+
+# AC-3: show doctor surfaces doctor-bgp-next-hop-unresolvable as a warning with its fix.
+cli show doctor | no-more | json compact
+has "code":"doctor-bgp-next-hop-unresolvable"
+has "severity":"warning"
+has 10.80.1.0/24
+has 198.51.100.129
+has "fix":"ze show bgp rib | match next-hop-unresolvable"
+
+# Install a real terminal static cover for 198.51.100.128/25 on lo (no kernel FIB writer).
+send set static table default route 198.51.100.128/25 next interface lo weight 1
+send commit now
+wait Session committed:
+
+# Reselection elects 10.80.1.0/24 without re-injection, removes the exclusion
+# fields from show bgp rib, and clears doctor-bgp-next-hop-unresolvable.
+cli show bgp rib best | no-more | json compact
+has "prefix":"10.80.1.0/24"
+cli show bgp rib | match next-hop-unresolvable | no-more | json compact
+lacks 10.80.1.0/24
+cli show doctor | no-more | json compact
+lacks doctor-bgp-next-hop-unresolvable
+
+# Control (AC-2): injecting a route whose next hop resolves omits warning keys.
+cli request bgp rib inject 192.0.2.1 ipv4/unicast 10.80.2.0/24 nexthop 198.51.100.130 | no-more | json compact
+has "injected":"10.80.2.0/24"
+lacks "next-hop-resolvable"
+lacks "warning"
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start rib-unresolved-next-hop-visibility.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 rib-unresolved-next-hop-visibility.conf rib-unresolved-next-hop-visibility.script:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: session editor script completed
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

@@ -68,8 +68,9 @@ func (r *RIBManager) igpDistance(addr netip.Addr) igpcost.Distance {
 	out, err := remote.client.RouteMetrics(ctx, []string{addr.String()})
 	// refuse-by-default: guards candidateNextHopResolved -- Resolved=false excludes a non-CIDR candidate; the failed lookup is recorded, reported and not cached.
 	if err != nil {
-		remote.noteMetricFailure(true)
-		logger().Error(remoteMetricProblem, "code", codeRemoteMetricFailure, "next-hop", addr, "error", err)
+		if remote.noteMetricFailure(true) {
+			logger().Error(remoteMetricProblem, "code", codeRemoteMetricFailure, "next-hop", addr, "error", err)
+		}
 		return igpcost.Distance{}
 	}
 	remote.noteMetricFailure(false)
@@ -82,6 +83,16 @@ func (r *RIBManager) igpDistance(addr netip.Addr) igpcost.Distance {
 	}
 	remote.costs[addr] = cost
 	return cost
+}
+
+// igpDistanceCached reads the last cached IGP distance for addr without issuing
+// an engine RPC. A cache miss returns the zero unresolved Distance (fail-closed)
+// so show commands never stall on a failing route-metrics RPC.
+func (remote *remoteRIB) igpDistanceCached(addr netip.Addr) igpcost.Distance {
+	remote.mu.Lock()
+	distance := remote.costs[addr]
+	remote.mu.Unlock()
+	return distance
 }
 
 func (r *RIBManager) setupRemoteRIB() {
@@ -146,14 +157,29 @@ const remoteMetricFix = "ze show doctor"
 
 const remoteIssueSubject = string(sourcePolicyOwner)
 
-// noteMetricFailure coalesces failures into one bounded warning. The caller
-// MUST hold remote.mu; only the existing metric worker sends report RPCs.
-func (remote *remoteRIB) noteMetricFailure(failed bool) {
+// noteMetricFailure coalesces failures into one bounded warning and reports
+// whether the failure state transitioned. The caller MUST hold remote.mu; only
+// the existing metric worker sends report RPCs.
+func (remote *remoteRIB) noteMetricFailure(failed bool) bool {
 	if remote.metricFailed == failed {
-		return
+		return false
 	}
 	remote.metricFailed = failed
 	remote.metricIssueRevision++
+	return true
+}
+
+// metricFailureActive reports whether the most recent remote route-metrics
+// lookup failed and has not yet recovered. Safe for concurrent use; reads
+// remote.metricFailed under remote.mu without calling the engine.
+func (remote *remoteRIB) metricFailureActive() bool {
+	if remote == nil {
+		return false
+	}
+	remote.mu.Lock()
+	active := remote.metricFailed
+	remote.mu.Unlock()
+	return active
 }
 
 // reportRemoteMetricIssue sends a snapshot outside peerMu and remote.mu. A

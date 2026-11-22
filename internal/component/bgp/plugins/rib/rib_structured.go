@@ -224,6 +224,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// the multiprotocol ones, so the guarantee does not depend on which section
 	// carried the prefix.
 	ipv4Family := family.Family{AFI: 1, SAFI: 1}
+	withdrew := false
 
 	// Process IPv4 unicast withdrawals (legacy Withdrawn section).
 	wdData, err := wu.Withdrawn()
@@ -239,6 +240,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			}
 			for _, wd := range withdrawns {
 				peerRIB.Remove(ipv4Family, wd)
+				withdrew = true
 				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wd, addPath: addPath})
 			}
 		}
@@ -263,6 +265,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 				}
 				isLabeled := fam.SAFI == family.SAFIMPLSLabel
 				for _, wd := range withdrawns {
+					withdrew = true
 					if isLabeled {
 						r.removeLabeled(peerRIB, fam, wd, addPath, &affected)
 					} else {
@@ -397,6 +400,14 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wirePrefix, addPath: addPath})
 					}
 				}
+			}
+		}
+	}
+
+	if withdrew {
+		if r.unresolvedNextHops.total.Load() != 0 {
+			if peerRIB.Len() == 0 {
+				r.unresolvedNextHops.purgeByOwner(bestPeer{owner: se.PeerOwner, address: peerRIB.PeerAddr()})
 			}
 		}
 	}

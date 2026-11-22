@@ -78,6 +78,7 @@ const (
 	jsonKeyInjected  = "injected"
 	jsonKeyWithdrawn = "withdrawn"
 	jsonKeyExisted   = "existed"
+	jsonKeyWarning   = "warning"
 )
 
 const (
@@ -434,6 +435,11 @@ type RIBManager struct {
 	// advertise owns immutable current learned selections for ordinary output.
 	// It captures retained winners; it never runs another candidate election.
 	advertise advertiseState
+
+	// unresolvedNextHops records routes currently excluded from Phase 2 by an
+	// unresolvable next hop so runtime doctor checks read bounded live state
+	// without taking peerMu or issuing engine RPCs (rib_next_hop_doctor.go).
+	unresolvedNextHops unresolvedNextHopTracker
 
 	// flowSpec is the immutable authorization and winning-action snapshot.
 	// flowSpecMu serializes recomputation; events run after it is released.
@@ -837,7 +843,7 @@ func runRIBPlugin(conn net.Conn) int {
 	// raw wire bytes from RawMessage's AttrsWire/WireUpdate.
 	// RFC 8212 Section 3: the source-policy lifecycle (source_policy.go).
 	p.OnSourcePolicy(r.handleSourcePolicy)
-	p.OnDoctorCheck(r.advertiseDoctorCheck)
+	p.OnDoctorCheck(r.doctorCheck)
 
 	p.OnStructuredEvent(func(events []any) error {
 		for _, event := range events {
@@ -935,7 +941,11 @@ func runRIBPlugin(conn net.Conn) int {
 		Dissemination:       disseminationDecls(),
 		SignalsSessionReady: true,
 		FencesLiveForwards:  true,
-		DoctorChecks:        []rpc.DoctorCheckDecl{advertiseDoctorDeclaration()},
+		DoctorChecks: []rpc.DoctorCheckDecl{
+			advertiseDoctorDeclaration(),
+			unresolvedNextHopDoctorDeclaration(),
+			nextHopMetricsDoctorDeclaration(),
+		},
 		// ApplyBudget bounds a reload's apply: a selection-rule edit
 		// (maximum-paths, relax-as-path, blackhole honoring) reselects every
 		// stored route inside it (installConfig), one election per route. With

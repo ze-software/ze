@@ -416,6 +416,8 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 	// (the legacy NEXT_HOP attribute is IPv4-only). Set below when the operator
 	// supplies an IPv6 next-hop; emitted as an MP_REACH attribute after the loop.
 	var extNextHop netip.Addr
+	var suppliedNextHop netip.Addr
+	var injectedMED uint32
 
 	for i := 0; i < len(attrArgs); i += 2 {
 		key := attrArgs[i]
@@ -437,6 +439,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 				return statusError, "", fmt.Errorf("invalid next-hop IP: %s", val)
 			}
 			nhAddr = nhAddr.Unmap()
+			suppliedNextHop = nhAddr
 			if nhAddr.Is4() {
 				// Legacy NEXT_HOP attribute (type 3, IPv4 only).
 				ab.SetNextHop(nhAddr.As4())
@@ -477,7 +480,8 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 			if err != nil {
 				return statusError, "", fmt.Errorf("invalid med: %w", err)
 			}
-			ab.SetMED(uint32(n))
+			injectedMED = uint32(n)
+			ab.SetMED(injectedMED)
 			continue
 		}
 		return statusError, "", fmt.Errorf("unknown attribute: %s", key)
@@ -532,7 +536,31 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 
 	r.reconcileBestPath(fam, nlriBytes)
 
-	return statusDone, map[string]any{jsonKeyInjected: prefix, rowKeyPeer: args[0], rowKeyFamily: familyStr}, nil
+	resp := map[string]any{
+		jsonKeyInjected: prefix,
+		rowKeyPeer:      args[0],
+		rowKeyFamily:    familyStr,
+	}
+	if suppliedNextHop.IsValid() {
+		_, pfx, _ := parsePrevKey(fam, nlriBytes, false)
+		if !r.nextHopResolved(fam, pfx, suppliedNextHop, true, injectedMED, 0, false) {
+			var warnBuf textbuf.Buffer
+			warnBuf.Str("next hop ").Str(suppliedNextHop.String()).
+				Str(" is not resolvable in the Loc-RIB; route retained in Adj-RIB-In but excluded from best-path selection (RFC 4271 Section 9.1.2). Check covering routes with ze show rib or inspect excluded routes with ").
+				Str(unresolvedNextHopDoctorFix).Byte('.')
+			resp[rowKeyNextHopResolvable] = false
+			resp[jsonKeyWarning] = warnBuf.String()
+			logger().Warn("injected BGP route has an unresolvable next hop",
+				"code", codeDoctorBGPNextHopUnresolvable,
+				"prefix", prefix,
+				"peer", args[0],
+				"next-hop", suppliedNextHop.String(),
+				"fix", unresolvedNextHopDoctorFix,
+			)
+		}
+	}
+
+	return statusDone, resp, nil
 }
 
 // validateIPv6NextHop checks whether an IPv6 next-hop is valid for this peer and family.
@@ -620,6 +648,7 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, any, error)
 			if len(manual) == 0 {
 				delete(r.ribInPool, bgpProtocolID)
 			}
+			r.unresolvedNextHops.purgeByOwner(bestPeer{owner: 0, address: key})
 		}
 	}
 	r.peerMu.Unlock()
@@ -781,10 +810,12 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 		if !r.selectsPeer(sel, peer) {
 			continue
 		}
+		peerAddr := peerRIB.PeerAddr()
 		cleared += peerRIB.Len()
 		sourceKeys = append(sourceKeys, r.captureScopedSourceKeysLocked(peerRIB)...)
 		peerRIB.Release()
 		delete(r.bgpPeers, peer)
+		r.unresolvedNextHops.purgeByOwner(bestPeer{owner: peer, address: peerAddr})
 		r.clearPeerRouteMetadataLocked(peer)
 		purgedPeers = append(purgedPeers, peer)
 	}
@@ -803,6 +834,7 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 		}
 		routes.Release()
 		delete(r.ribInPool[bgpProtocolID], address)
+		r.unresolvedNextHops.purgeByOwner(bestPeer{owner: 0, address: address})
 	}
 	r.peerMu.Unlock()
 
@@ -1207,9 +1239,11 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 		}
 		delete(r.retainedPeers, peer)
 		if peerRIB := r.bgpPeers[peer]; peerRIB != nil {
+			peerAddr := peerRIB.PeerAddr()
 			sourceKeys = append(sourceKeys, r.captureScopedSourceKeysLocked(peerRIB)...)
 			peerRIB.Release()
 			delete(r.bgpPeers, peer)
+			r.unresolvedNextHops.purgeByOwner(bestPeer{owner: peer, address: peerAddr})
 			purgedPeers = append(purgedPeers, peer)
 		}
 		r.clearPeerRouteMetadataLocked(peer)
@@ -1560,6 +1594,7 @@ func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.P
 func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx netip.Prefix, admission candidateAdmission) []*Candidate {
 	requiresResolution := admission.requiresResolution()
 	var candidates []*Candidate
+	var unresolved []unresolvedCandidate
 	// Loaded ONCE, so every candidate for this prefix is judged against the same
 	// set of this speaker's own addresses (rib_self_nexthop.go). A per-candidate
 	// load could straddle a session change and admit one route while excluding
@@ -1581,6 +1616,16 @@ func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx neti
 			continue
 		}
 		paths, peerAddPath := peerRIB.AppendPrefixPathsRetained(fam, pfx, pathsArray[:0])
+		if len(paths) == 0 {
+			if admission == candidateAdmissionForwarding {
+				if r.unresolvedNextHops.hasOverflow() {
+					if peerRIB.Len() == 0 {
+						r.unresolvedNextHops.purgeByOwner(bestPeer{owner: owner, address: peerRIB.PeerAddr()})
+					}
+				}
+			}
+			continue
+		}
 		for i := range paths {
 			path := &paths[i]
 			if !r.candidateAdmitted(fam, peerRIB, path.Entry, selfNextHops) {
@@ -1594,6 +1639,14 @@ func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx neti
 			if requiresResolution {
 				// RFC 4271 Section 9.1.2: forwarding feasibility precedes ranking.
 				if !r.candidateNextHopResolved(fam, pfx, c) {
+					unresolved = append(unresolved, unresolvedCandidate{
+						owner:         owner,
+						peerAddr:      peerRIB.PeerAddr(),
+						pathID:        path.PathID,
+						addPath:       peerAddPath,
+						displayPrefix: pfx.String(),
+						nextHop:       entryNextHopAddr(fam, path.Entry),
+					})
 					path.Release()
 					continue
 				}
@@ -1611,7 +1664,8 @@ func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx neti
 		candidates = gate.filter(candidates)
 	}
 	if admission == candidateAdmissionForwarding {
-		candidates = r.appendManualCandidatesLocked(candidates, fam, pfx, selfNextHops)
+		candidates, unresolved = r.appendManualCandidatesLocked(candidates, unresolved, fam, pfx, selfNextHops)
+		r.unresolvedNextHops.reconcilePrefixRoute(fam, pfx, unresolved)
 	}
 	return candidates
 }
@@ -1640,6 +1694,7 @@ func (r *RIBManager) gatherKeyCandidatesLocked(fam family.Family, routeKey []byt
 func (r *RIBManager) gatherKeyCandidatesForLocked(fam family.Family, routeKey []byte, admission candidateAdmission) []*Candidate {
 	requiresResolution := admission.requiresResolution()
 	var candidates []*Candidate
+	var unresolved []unresolvedCandidate
 	selfNextHops := r.selfNextHops.Load()
 	// Stack-backed for the same reason gatherPrefixCandidatesLocked's is.
 	var pathsArray [4]storage.PrefixPath
@@ -1650,6 +1705,16 @@ func (r *RIBManager) gatherKeyCandidatesForLocked(fam family.Family, routeKey []
 			continue
 		}
 		paths, peerAddPath := peerRIB.AppendKeyPathsRetained(fam, routeKey, pathsArray[:0])
+		if len(paths) == 0 {
+			if admission == candidateAdmissionForwarding {
+				if r.unresolvedNextHops.hasOverflow() {
+					if peerRIB.Len() == 0 {
+						r.unresolvedNextHops.purgeByOwner(bestPeer{owner: owner, address: peerRIB.PeerAddr()})
+					}
+				}
+			}
+			continue
+		}
 		for i := range paths {
 			path := &paths[i]
 			// Validation keys a route by the NLRI its own session sent.
@@ -1671,12 +1736,23 @@ func (r *RIBManager) gatherKeyCandidatesForLocked(fam family.Family, routeKey []
 			if requiresResolution {
 				// RFC 4271 Section 9.1.2: forwarding feasibility precedes ranking.
 				if !r.candidateNextHopResolved(fam, netip.Prefix{}, c) {
+					unresolved = append(unresolved, unresolvedCandidate{
+						owner:         owner,
+						peerAddr:      peerRIB.PeerAddr(),
+						pathID:        path.PathID,
+						addPath:       peerAddPath,
+						displayPrefix: path.Route,
+						nextHop:       entryNextHopAddr(fam, path.Entry),
+					})
 					path.Release()
 					continue
 				}
 			}
 			candidates = append(candidates, c)
 		}
+	}
+	if admission == candidateAdmissionForwarding {
+		r.unresolvedNextHops.reconcileOpaqueRoute(fam, routeKey, unresolved)
 	}
 	return candidates
 }

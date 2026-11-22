@@ -59,6 +59,12 @@ type RouteItem struct {
 	// held (markBestFacts); a row it is unknown for carries no `best` member.
 	Best bestFact
 
+	// nextHopUnresolvable marks a non-best received row whose address next hop
+	// currently fails forwarding admission (RFC 4271 Section 9.1.2). Set by
+	// markNextHopFacts; false omits the exclusion keys so valid rows stay
+	// unchanged.
+	nextHopUnresolvable bool
+
 	// route, pathID and addPath name a received CIDR path for markBestFacts:
 	// the prefix, and the path identifier when addPath says one was read.
 	route      netip.Prefix
@@ -252,6 +258,7 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 			return true
 		})
 		s.r.markBestFacts(s.items)
+		s.r.markNextHopFacts(ref.owner, s.items)
 		s.r.markReadAt(s.items)
 	}
 }
@@ -1250,6 +1257,7 @@ func serializeRouteItem(item RouteItem) map[string]any {
 	if item.HasInEntry {
 		enrichRouteMapFromEntry(routeMap, item.InEntry)
 		writeBestFact(routeMap, item.Best)
+		writeNextHopIneligible(routeMap, item.nextHopUnresolvable)
 		writeRouteAge(routeMap, item.InEntry.ChangedAt, item.readAt)
 	} else if item.OutRoute != nil {
 		if item.OutRoute.NextHop != "" {

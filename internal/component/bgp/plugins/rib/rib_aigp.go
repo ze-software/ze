@@ -58,6 +58,10 @@ func (r *RIBManager) runAIGPSelection(ctx context.Context) {
 // walk per stored path ran the same election once per peer holding it. The
 // config reload runs this walk inside its apply deadline.
 func (r *RIBManager) reselectAIGPRoutes() {
+	// Reset overflow counters before the full-table scan while keeping tracked
+	// entries intact: routes that still overflow re-count accurately without
+	// inflating across repeated reselections, and full resolution clears to 0.
+	r.unresolvedNextHops.clearOverflow()
 	// Copy keys while their pools are retained by PeerRIB.Iterate, then release
 	// every read lock before checkBestPathChange can publish into Loc-RIB.
 	var keys []affectedPrefix

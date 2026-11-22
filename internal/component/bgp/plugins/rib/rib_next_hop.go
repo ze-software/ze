@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/rib/igpcost"
@@ -23,6 +25,14 @@ const nextHopMetricTimeout = 5 * time.Second
 // without an address next hop do not acquire a forwarding requirement here.
 func (r *RIBManager) candidateNextHopResolved(fam family.Family, prefix netip.Prefix, c *Candidate) bool {
 	nextHop := entryNextHopAddr(fam, c.entry)
+	isEBGP := r.protocolType(c) == routeaction.ProtocolEBGP
+	return r.nextHopResolved(fam, prefix, nextHop, isEBGP, c.MED, c.AIGP, c.HasAIGP)
+}
+
+// nextHopResolved evaluates RFC 4271 Section 9.1.2 next-hop resolvability
+// (including prospective self-capture for CIDR routes) using the active
+// internal Loc-RIB or forked metric RPC transport.
+func (r *RIBManager) nextHopResolved(fam family.Family, prefix netip.Prefix, nextHop netip.Addr, isEBGP bool, med uint32, aigp uint64, hasAIGP bool) bool {
 	if !nextHop.IsValid() {
 		return true
 	}
@@ -36,8 +46,8 @@ func (r *RIBManager) candidateNextHopResolved(fam family.Family, prefix netip.Pr
 	path := locrib.Path{
 		Source: bgpProtocolID, Instance: bgpLocRIBInstance,
 		NextHop: nextHop, IsBGP: true,
-		IsEBGP: r.protocolType(c) == routeaction.ProtocolEBGP,
-		Metric: c.MED, AIGP: c.AIGP, AIGPPresent: c.HasAIGP,
+		IsEBGP: isEBGP,
+		Metric: med, AIGP: aigp, AIGPPresent: hasAIGP,
 	}
 	// RFC 4271 Section 9.1.2: "If the NEXT_HOP attribute of a BGP route depicts
 	// an address that is not resolvable, or if it would become unresolvable if
@@ -47,6 +57,83 @@ func (r *RIBManager) candidateNextHopResolved(fam family.Family, prefix netip.Pr
 		return remote.prospectiveDistance(fam, prefix, path).Resolved
 	}
 	return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved
+}
+
+// nextHopResolvedCached evaluates next-hop resolvability from in-memory remote
+// caches without issuing engine RPCs. An uncached entry returns false
+// (fail-closed) while route-metrics lookups are failing.
+func (r *RIBManager) nextHopResolvedCached(fam family.Family, prefix netip.Prefix, nextHop netip.Addr, isEBGP bool, med uint32, aigp uint64, hasAIGP bool) bool {
+	if !nextHop.IsValid() {
+		return true
+	}
+	remote := r.forkRIB
+	if remote == nil {
+		return r.nextHopResolved(fam, prefix, nextHop, isEBGP, med, aigp, hasAIGP)
+	}
+	if !prefix.IsValid() {
+		return remote.igpDistanceCached(nextHop).Resolved
+	}
+	path := locrib.Path{
+		Source: bgpProtocolID, Instance: bgpLocRIBInstance,
+		NextHop: nextHop, IsBGP: true,
+		IsEBGP: isEBGP,
+		Metric: med, AIGP: aigp, AIGPPresent: hasAIGP,
+	}
+	return remote.prospectiveDistanceCached(fam, prefix, path).Resolved
+}
+
+// ownerIsEBGP reports whether routes learned from owner rank as eBGP in
+// prospective Loc-RIB previews, matching protocolType on Candidate.
+// Caller MUST NOT hold peerMu.
+func (r *RIBManager) ownerIsEBGP(owner uint64) bool {
+	if owner == 0 {
+		return true
+	}
+	r.peerMu.RLock()
+	meta := r.peerMeta[owner]
+	isEBGP := true
+	if meta != nil {
+		if meta.LocalASN != 0 {
+			isEBGP = meta.PeerASN != meta.LocalASN
+		}
+	}
+	r.peerMu.RUnlock()
+	return isEBGP
+}
+
+// entryNextHopResolvedWithClass evaluates forwarding next-hop admission for one
+// retained Adj-RIB-In entry using the same prospective resolver as
+// candidateNextHopResolved.
+func (r *RIBManager) entryNextHopResolvedWithClass(fam family.Family, prefix netip.Prefix, isEBGP bool, entry storage.RouteEntry) bool {
+	return r.entryNextHopResolved(fam, prefix, isEBGP, entry, false)
+}
+
+// entryNextHopResolvedCached evaluates forwarding next-hop admission for one
+// retained Adj-RIB-In entry from in-memory caches only, without issuing engine
+// RPCs.
+func (r *RIBManager) entryNextHopResolvedCached(fam family.Family, prefix netip.Prefix, isEBGP bool, entry storage.RouteEntry) bool {
+	return r.entryNextHopResolved(fam, prefix, isEBGP, entry, true)
+}
+
+func (r *RIBManager) entryNextHopResolved(fam family.Family, prefix netip.Prefix, isEBGP bool, entry storage.RouteEntry, cacheOnly bool) bool {
+	nextHop := entryNextHopAddr(fam, entry)
+	if !nextHop.IsValid() {
+		return true
+	}
+	var med uint32
+	b := entry.GetBundle()
+	if b.HasMED() {
+		if data, err := pool.MED.Get(b.MED); err == nil {
+			if v, ok := formatUint32Attr(data); ok {
+				med = v
+			}
+		}
+	}
+	aigp, hasAIGP := entryAIGP(entry)
+	if cacheOnly {
+		return r.nextHopResolvedCached(fam, prefix, nextHop, isEBGP, med, aigp, hasAIGP)
+	}
+	return r.nextHopResolved(fam, prefix, nextHop, isEBGP, med, aigp, hasAIGP)
 }
 
 // prospectiveMetricKey includes every varying field of the offer above. A route
@@ -60,6 +147,19 @@ type prospectiveMetricKey struct {
 	aigp     uint64
 	hasAIGP  bool
 	external bool
+}
+
+// prospectiveDistanceCached reads the last cached prospective distance for
+// (fam, prefix, path) without issuing an engine RPC. A cache miss returns the
+// zero unresolved Distance (fail-closed) so show commands never stall on a
+// failing route-metrics RPC.
+func (remote *remoteRIB) prospectiveDistanceCached(fam family.Family, prefix netip.Prefix, path locrib.Path) igpcost.Distance {
+	key := prospectiveMetricKey{fam: fam, prefix: prefix, nextHop: path.NextHop,
+		metric: path.Metric, aigp: path.AIGP, hasAIGP: path.AIGPPresent, external: path.IsEBGP}
+	remote.mu.Lock()
+	distance := remote.prospective[key]
+	remote.mu.Unlock()
+	return distance
 }
 
 func (remote *remoteRIB) prospectiveDistance(fam family.Family, prefix netip.Prefix, path locrib.Path) igpcost.Distance {
@@ -79,8 +179,9 @@ func (remote *remoteRIB) prospectiveDistance(fam family.Family, prefix netip.Pre
 	}})
 	// refuse-by-default: guards candidateNextHopResolved -- Resolved=false excludes the candidate; the failed lookup is recorded, reported and not cached.
 	if err != nil {
-		remote.noteMetricFailure(true)
-		logger().Error(remoteMetricProblem, "code", codeRemoteMetricFailure, "next-hop", path.NextHop, "prefix", prefix, "error", err)
+		if remote.noteMetricFailure(true) {
+			logger().Error(remoteMetricProblem, "code", codeRemoteMetricFailure, "next-hop", path.NextHop, "prefix", prefix, "error", err)
+		}
 		return igpcost.Distance{}
 	}
 	remote.noteMetricFailure(false)

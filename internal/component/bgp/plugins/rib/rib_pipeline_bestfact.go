@@ -22,7 +22,12 @@ const (
 
 // rowKeyBest names the member a received row says it won the election with.
 // The looking glass reads it as birdwatcher's `primary`.
-const rowKeyBest = "best"
+const (
+	rowKeyBest                = "best"
+	rowKeyNextHopResolvable   = "next-hop-resolvable"
+	rowKeyIneligibleReason    = "ineligible-reason"
+	reasonNextHopUnresolvable = "next-hop-unresolvable"
+)
 
 // markBestFacts sets Best on each buffered received CIDR row from the
 // recorded winners. A non-CIDR route keys its record by wire NLRI, which the
@@ -40,6 +45,45 @@ func (r *RIBManager) markBestFacts(items []RouteItem) {
 		}
 		item.Best = r.bestFactOf(item.Family, item.route, item.Peer, item.storeOwner, item.pathID, item.addPath)
 	}
+}
+
+// markNextHopFacts marks buffered received rows whose address next hop
+// currently fails forwarding admission (RFC 4271 Section 9.1.2).
+//
+// Caller MUST hold no lock: ownerIsEBGP reads peerMeta once under peerMu.RLock
+// and entryNextHopResolvedForShow may consult the Loc-RIB or forked metric
+// cache/RPC. Best rows already passed admission and are skipped.
+func (r *RIBManager) markNextHopFacts(owner uint64, items []RouteItem) {
+	if len(items) == 0 {
+		return
+	}
+	isEBGP := r.ownerIsEBGP(owner)
+	for i := range items {
+		item := &items[i]
+		if !item.HasInEntry {
+			continue
+		}
+		if item.Best == bestFactBest {
+			continue
+		}
+		if !r.entryNextHopResolvedForShow(item.Family, item.route, isEBGP, item.InEntry) {
+			item.nextHopUnresolvable = true
+		}
+	}
+}
+
+// entryNextHopResolvedForShow evaluates forwarding next-hop admission for one
+// retained Adj-RIB-In row during show bgp rib. When forked route-metrics
+// lookups are actively failing, it reads only cached results (fail-closed on
+// miss) so show bgp rib returns promptly without issuing blocking per-row RPCs
+// or starving runRemoteMetrics recovery probes.
+func (r *RIBManager) entryNextHopResolvedForShow(fam family.Family, prefix netip.Prefix, isEBGP bool, entry storage.RouteEntry) bool {
+	if r.forkRIB != nil {
+		if r.forkRIB.metricFailureActive() {
+			return r.entryNextHopResolvedCached(fam, prefix, isEBGP, entry)
+		}
+	}
+	return r.entryNextHopResolvedWithClass(fam, prefix, isEBGP, entry)
 }
 
 // bestFactOf answers whether peer's path (pathID under addPath) is the
@@ -96,4 +140,15 @@ func writeBestFact(row map[string]any, fact bestFact) {
 		row[rowKeyBest] = false
 	case bestFactUnknown:
 	}
+}
+
+// writeNextHopIneligible attaches next-hop exclusion fields onto a received
+// row whose next hop failed forwarding admission. Resolvable and no-next-hop
+// rows omit both keys so ordinary show bgp rib output stays unchanged.
+func writeNextHopIneligible(row map[string]any, unresolvable bool) {
+	if !unresolvable {
+		return
+	}
+	row[rowKeyNextHopResolvable] = false
+	row[rowKeyIneligibleReason] = reasonNextHopUnresolvable
 }

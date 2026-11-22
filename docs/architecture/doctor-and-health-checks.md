@@ -105,6 +105,29 @@ are released. An acknowledged error raise is sent once; the runtime finding
 continues to report the cause until the RIB restarts.
 <!-- source: internal/component/bgp/plugins/rib/rib_advertise_diagnostic.go -- advertiseDoctorDeclaration, advertiseDoctorCheck, reportAdvertiseIssue -->
 
+Alongside `bgp-rib-selected-output`, `bgp-rib` declares two warning-severity
+runtime checks in Stage 1 `sdk.Registration.DoctorChecks` and answers them from
+its `OnDoctorCheck` dispatcher (`doctorCheck`) in both internal and forked
+placements:
+
+- `bgp-rib-unresolved-next-hop` (`doctor-bgp-next-hop-unresolvable`, warning):
+  reads the bounded per-RIB `unresolvedNextHopTracker`
+  (`maxTrackedUnresolvedNextHops = 4096`), reports the count and bounded sample
+  of routes currently excluded from Phase 2 by an unresolvable next hop with
+  fix `ze show bgp rib | match next-hop-unresolvable`, and clears automatically
+  on resolution, withdrawal, or peer teardown. Its code metadata is registered
+  in `doctor_codes.go`.
+- `bgp-rib-next-hop-metrics` (`doctor-bgp-next-hop-metrics`, warning): reads
+  live `remoteRIB.metricFailureActive` state without issuing an engine RPC so
+  `show doctor` reports an active forked `route-metrics` lookup failure
+  directly alongside the SDK report bus (deduplicated with `recent-events` via
+  `DoctorCheckDecl.Codes`). Its code metadata and event code remain
+  single-registered in `register.go`.
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop_doctor.go -- unresolvedNextHopDoctorDeclaration, nextHopMetricsDoctorDeclaration, doctorCheck, unresolvedNextHopDoctorCheck, nextHopMetricsDoctorCheck, unresolvedNextHopTracker -->
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- runRIBPlugin -->
+<!-- source: internal/component/bgp/plugins/rib/doctor_codes.go -- codeDoctorBGPNextHopUnresolvable, registerDoctorCodes -->
+<!-- source: internal/component/bgp/plugins/rib/register.go -- init -->
+
 A `runtime` check only reads, and applies nothing. It is handed the platform
 and the configuration doctor read: the tree the `post-config` phase of the same
 answer judged, or no tree when that phase did not run (the configuration is
@@ -134,6 +157,9 @@ plugin's process:
 
 | Check | Plugin | Reports | Code |
 |-------|--------|---------|------|
+| `bgp-rib-selected-output` | `bgp-rib` | a failed selected-route capture, source authorization, or destination output in that RIB process (error) | `doctor-bgp-selected-output` |
+| `bgp-rib-unresolved-next-hop` | `bgp-rib` | stored BGP routes currently excluded from Phase 2 best-path selection by an unresolvable next hop, with excluded count, bounded sample, and `ze show bgp rib \| match next-hop-unresolvable` as fix (warning) | `doctor-bgp-next-hop-unresolvable` |
+| `bgp-rib-next-hop-metrics` | `bgp-rib` | an active forked engine `route-metrics` lookup failure leaving affected next hops fail-closed until recovery (warning) | `doctor-bgp-next-hop-metrics` |
 | `ldp-label-entries` | `ldp` | a push or pop LDP wants that no writer carried out | `doctor-fib-mpls-no-writer` |
 | `rsvp-te-label-entries` | `rsvp-te` | an entry a writer's replay did not install, under an LSP RSVP-TE holds up | `doctor-fib-mpls-no-writer` |
 | `ospf-sr-label-entries` | `ospf` | a Segment Routing push, swap or pop no writer carried out, or one OSPF cannot program because it runs forked | `doctor-fib-mpls-no-writer` |

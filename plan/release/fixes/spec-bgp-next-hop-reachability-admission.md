@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | An unresolved BGP next hop must not displace a usable route; operators must see excluded routes and unresolvable injects instead of silent exclusion, and affected functional fixtures must supply real next-hop reachability |
 | RFC gaps | RFC4271-3.1-2, RFC4271-9.1.2.1-2 |
 | Depends | - |
-| Phase | - |
+| Phase | closure |
 | Handoff | - |
 | Updated | 2026-11-22 |
 
@@ -242,10 +242,10 @@ No BGP protocol wire bytes (`UPDATE`, `OPEN`, `NOTIFICATION`) and no `pkg/plugin
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | All 148 historical RIB unit test failures from `job-rfc4271-next-hop-packages-125044b6.log` are already resolved on current `main` | Observed 2026-11-22 in `./le test unit pkg path ./internal/component/bgp/plugins/rib/` (`job-unit-pkg-8c945297.log`): 0 next-hop assertion failures (only 2 race-load timeouts) | Any remaining unit failure is classified and fixed with independent `ze-test-judge` approval | Re-run `./le test unit pkg path ./internal/component/bgp/plugins/rib/` cleanly once sibling `aaa` edit settles | confirmed (pending clean rerun of the 2 burst tests) |
-| A-2 | Existing `show bgp rib` callers (`lg`, CLI, `.ci` fixtures) ignore additive optional JSON fields that are omitted on resolvable routes | Inspected `rib_pipeline.go` (`serializeRouteItem`) and `test/plugin/*.ci`; resolvable routes emit identical JSON | A strict schema test rejects the new keys on unresolved routes | Scoped unit tests + `test/plugin/` suite | unvalidated |
-| A-3 | Every one of the 11 remaining failing `.ci` fixtures fails solely because its mock next hop lacks a covering route in the Loc-RIB, not because of an unrelated product bug | Audited all 11 fixture drivers in `internal/test/fixture/` and `test/reload/bgp-rib-maximum-paths-reload.ci` (Research Report §6) | A fixture exposes a separate product defect that must be fixed at its producer | Run each fixture before and after adding `terminalCovers`, plus independent `ze-test-judge` review | unvalidated |
-| A-4 | Recording unresolved exclusions in a bounded per-RIB map updated at selection time adds negligible cost and avoids triggering live RPCs during `show doctor` | `OnDoctorCheck` reads only the in-memory tracker (no lock nesting with `peerMu` or engine RPCs), matching `advertiseDoctorCheck` | Map grows unbounded under churn or goes stale after peer DOWN | Bound tracker capacity (e.g., 4096 entries with overflow counter), clear per-prefix on election/withdrawal and per-peer on DOWN/purge; unit-test bounds and cleanup | unvalidated |
+| A-1 | All 148 historical RIB unit test failures from `job-rfc4271-next-hop-packages-125044b6.log` are already resolved on current `main` | Observed 2026-11-22 in `./le test unit pkg path ./internal/component/bgp/plugins/rib/` (`job-unit-pkg-8c945297.log`): 0 next-hop assertion failures | Any remaining unit failure is classified and fixed with independent `ze-test-judge` approval | Re-run `./le test unit pkg path ./internal/component/bgp/plugins/rib/` cleanly | confirmed 2026-11-22: full `internal/component/bgp/plugins/rib/` package PASSED (`exit 0, 1 package ok`) with 0 failures |
+| A-2 | Existing `show bgp rib` callers (`lg`, CLI, `.ci` fixtures) ignore additive optional JSON fields that are omitted on resolvable routes | Inspected `rib_pipeline.go` (`serializeRouteItem`) and `test/plugin/*.ci`; resolvable routes emit identical JSON | A strict schema test rejects the new keys on unresolved routes | Scoped unit tests + `test/plugin/` suite | confirmed 2026-11-22: `TestShowBGPRIBMarksUnresolvedNextHop`, full RIB unit package, all 14 repaired `.ci` fixtures, and 20/20 stress runs of `rib-unresolved-next-hop-visibility.ci` PASSED |
+| A-3 | Every one of the remaining failing `.ci` fixtures fails solely because its mock next hop lacks a covering route in the Loc-RIB (plus pre-existing loopback self-NH in `api-peer-create-delete-rib`), not because of an unrelated next-hop admission bug | Audited all 14 fixture drivers in `internal/test/fixture/` and `.ci` scenarios | A fixture exposes a separate product defect that must be fixed at its producer | Run each fixture before and after adding `terminalCovers`, plus independent `ze-test-judge` review | confirmed 2026-11-22: all 14 repaired `.ci` fixtures (13 target + `srv6-invalid-sid-ineligible`) failed on baseline and PASSED 14/14 after real `terminalCovers` (plus `nexthop 10.0.0.2` in `multipath-basic` and `rs-client true` in `api-peer-create-delete-rib`); `forward-mpreach-nexthop-self-two-peer` confirmed unrelated (no `bgp-rib`); 14/14 independent `ze-test-judge` APPROVE |
+| A-4 | Recording unresolved exclusions in a bounded per-RIB map updated at selection time adds negligible cost and avoids triggering live RPCs during `show doctor` | `OnDoctorCheck` reads only the in-memory tracker (no lock nesting with `peerMu` or engine RPCs), matching `advertiseDoctorCheck` | Map grows unbounded under churn or goes stale after peer DOWN | Bound tracker capacity (4096 entries + 512-byte deduplicated overflow filter), clear per-prefix on election/withdrawal and per-owner on DOWN/purge/empty; unit-test bounds and cleanup | confirmed 2026-11-22: `TestUnresolvedNextHopDoctorCheckLifecycle`, `TestUnresolvedNextHopOverflowDeduplicationAndEmptyCleanup`, and `TestShowBGPRIBUsesCachedNextHopDuringRemoteMetricOutage` PASSED |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -436,8 +436,8 @@ This change closes the remaining visibility, error-coalescence, and fixture gaps
 
 | # | Choice | Options | Decision |
 |---|--------|---------|----------|
-| C-1 | Behavior of `request bgp rib inject` when the supplied next hop is unresolved | (a) Retain route in Adj-RIB-In and return `"next-hop-resolvable": false` + `"warning"` + `WARN` log (Recommended — matches RFC 4271 retention and `plan/journal/silent-fall-through.md` 2026-11-20); (b) refuse the inject outright with an operator error | pending |
-| C-2 | Severity of `doctor-bgp-next-hop-unresolvable` in `show doctor` | (a) `warning` (Recommended — keeps box ready during normal IGP convergence while making excluded routes visible); (b) `error` (marks box not ready whenever any received route has an unresolved next hop) | pending |
+| C-1 | Behavior of `request bgp rib inject` when the supplied next hop is unresolved | (a) Retain route in Adj-RIB-In and return `"next-hop-resolvable": false` + `"warning"` + `WARN` log (Recommended — matches RFC 4271 retention and `plan/journal/silent-fall-through.md` 2026-11-20); (b) refuse the inject outright with an operator error | (a) adopted 2026-11-22 |
+| C-2 | Severity of `doctor-bgp-next-hop-unresolvable` in `show doctor` | (a) `warning` (Recommended — keeps box ready during normal IGP convergence while making excluded routes visible); (b) `error` (marks box not ready whenever any received route has an unresolved next hop) | (a) adopted 2026-11-22 |
 
 ## Implementation Steps
 
@@ -612,3 +612,160 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 ## Review Gate
 
 Prior campaign note: bounded recovery producer repair, ordinary and live prospective kernel proofs (`46f486c4a0`, `b032fb7dc7`), and `lg-best-table.ci` (`b5079ff5ff`) landed with enforced RFC 4271 audits (`3.1-2`, `9.1.2-1`, `9.1.2-4`, `9.1.2.1-2`). Final closure Review Gate runs via `/ze-close` once Phases 1–4 above are implemented.
+
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Phase 1 & 2 (Unresolved visibility, inject warning, runtime doctor checks, and fail-closed log coalescence):**
+  - Added `doctor-bgp-next-hop-unresolvable` in `internal/component/bgp/plugins/rib/doctor_codes.go` (preserving single `doctor-bgp-next-hop-metrics` + `diagnostic.RegisterEventCode` registration in `register.go`).
+  - Added bounded `unresolvedNextHopTracker` (`maxTrackedUnresolvedNextHops = 4096`, `maxUnresolvedDoctorSamples = 5`, fixed 512-byte `[64]uint64` deduplicated overflow filter, leaf mutex never nested with `peerMu`/`remote.mu`, zero-lock atomic fast path) and Stage 1 `DoctorChecks` / `OnDoctorCheck` handlers for `bgp-rib-unresolved-next-hop` and `bgp-rib-next-hop-metrics` in `rib_next_hop_doctor.go` and `rib.go`.
+  - Wired forwarding-only (`candidateAdmissionForwarding`, never `candidateAdmissionRecovery`) tracker reconciliation and emptied-owner cleanup across `rib_commands.go`, `rib_manual.go`, `rib_bestchange.go`, `rib_aigp.go`, `rib_structured.go`, `rib_inject.go`, and `rib_source_mutation.go`.
+  - Updated `RIBManager.injectRoute` (`rib_commands.go`) to retain unresolved routes in Adj-RIB-In while returning `"next-hop-resolvable": false` and `"warning"` naming the next hop and remedy (`ze show rib` / `ze show bgp rib | match next-hop-unresolvable`) plus one `WARN` log carrying `doctor-bgp-next-hop-unresolvable`; resolvable and no-NH injects emit the unchanged 3-key response.
+  - Updated `show bgp rib` (`rib_pipeline.go`, `rib_pipeline_bestfact.go`) to annotate excluded non-best received rows with `"next-hop-resolvable": false` and `"ineligible-reason": "next-hop-unresolvable"`, switching to cache-only fail-closed lookup (`entryNextHopResolvedForShow`, `rib_next_hop.go`, `rib_remote.go`) when `metricFailureActive()` is true so `show bgp rib` never fires `5s * N` blocking RPCs during an outage.
+  - Updated `remoteRIB.noteMetricFailure` (`rib_remote.go`) to return state transition `bool` so `logger().Error` in `prospectiveDistance` (`rib_next_hop.go`) and `igpDistance` (`rib_remote.go`) coalesces onto `healthy -> failed` transitions while keeping `// refuse-by-default:` uncached `Resolved: false`.
+  - Created unit test suites `rib_next_hop_doctor_test.go` and `rib_next_hop_visibility_test.go`, and drafted, 20x stress-tested (20/20 PASS), and promoted `test/plugin/rib-unresolved-next-hop-visibility.ci` (`option=needs-linux`).
+- **Phase 3 (14 `.ci` functional fixture repairs):**
+  - Generalized `internal/test/fixture/terminal_cover_fixture.go` (`terminalCovers` + `parseTerminalCover` + `seed`, unit-tested by `TestParseTerminalCover` in `terminal_cover_fixture_test.go`) to support IPv6 `/128` (`AFI: 2, SAFI: 1`) beside IPv4 `/32` (`AFI: 1, SAFI: 1`).
+  - Repaired all 13 target `.ci` scenarios plus RFC-tagged `test/plugin/srv6-invalid-sid-ineligible.ci` (`RFC9252-5-1`) with real independent terminal covers (`rr-basic`, `bestpath-reason`, `api-peer-create-delete-rib`, `multipath-basic`, `nexthop-self`, `nexthop-unchanged`, `rib-forward-handle-observed`, `rib-inject-rfc5549`, `fib-ecmp`, `fib-ecmp-realtime`, `llgr-readvertise-multipeer`, `llgr-readvertise-multipeer-forked`, `bgp-rib-maximum-paths-reload`, `srv6-invalid-sid-ineligible`); audited `forward-mpreach-nexthop-self-two-peer` as unrelated (loads neither `bgp-rib` nor `rib`). All 14/14 passed live execution and received independent `ze-test-judge` APPROVE.
+- **Phase 4 (Docs & journal):**
+  - Updated `docs/architecture/route-selection.md` and `docs/architecture/doctor-and-health-checks.md` with exact source anchors; flipped the 2026-11-18 and 2026-11-20 rows in `plan/journal/silent-fall-through.md` to `fixed:` (verified `plan/journal/conflicting-feature-contracts.md` 2026-11-15 row was already `fixed:`).
+
+### Bugs Found/Fixed
+- Live run of `multipath-basic` revealed that after covering `peer1`'s `10.0.0.1` (`IGPCost = 0`), the synthetic inject with no `nexthop` kept `IGPCost = ^uint64(0)`, failing `multipathEqual`; fixed by covering `10.0.0.2/32` and passing `nexthop 10.0.0.2` (re-judged APPROVE).
+- Live run of `api-peer-create-delete-rib` revealed `dest-peer` (attached to `process rs`) lacked `rs-client true`, causing eBGP `next-hop self` to rewrite `1.1.1.1` to `local.ip 127.0.0.1 == remote.ip`, triggering RFC 4271 §5.1.3 self-next-hop withdrawal; fixed by setting `rs-client true` on `dest-peer` (re-judged APPROVE).
+- Independent Round-1 review (`e98dc465`) caught (1) overflow re-announcement inflation, emptied-owner cleanup gaps, and zero-sample doctor formatting, (2) blocking per-row `5s` `RouteMetrics` RPCs in `show bgp rib` during a forked metric outage, and (3) missing `option=needs-linux` on `rib-unresolved-next-hop-visibility.ci`. All fixed with regression tests (`TestUnresolvedNextHopOverflowDeduplicationAndEmptyCleanup`, `TestShowBGPRIBUsesCachedNextHopDuringRemoteMetricOutage`) and verified `CLEAN` in Round 2 (`ac1c070e`).
+
+### Documentation Updates
+- `docs/architecture/route-selection.md` — documented `Design: Unified Rejection Reason` departure, removed stale open-proof notes, documented visibility fields, inject warning, bounded tracker, runtime doctor checks, cache-only show path, and coalesced metric error logging with exact `<!-- source: ... -->` anchors.
+- `docs/architecture/doctor-and-health-checks.md` — added `bgp-rib-unresolved-next-hop` and `bgp-rib-next-hop-metrics` to the Stage 1 plugin runtime-checks table and prose.
+- `./le doc check all`: `Documentation tests PASSED` (3156/3156 anchors resolve; 0 drift).
+
+### Deviations from Plan
+- Also repaired `test/plugin/srv6-invalid-sid-ineligible.ci` (audited in AC-6 and confirmed failing solely because valid control P3 lacked a `10.0.0.1/32` cover); approved via `./le rfc approve unit plugin.srv6-invalid-sid-ineligible`.
+- `fib-ecmp` uses 3 next hops (`10.0.0.11/12/13`) and `fib-ecmp-realtime` uses 2 (`10.0.0.11/12`) — the spec text had those two counts transposed; fixtures use the exact addresses each scenario injects.
+- Additional helper/test files touched beyond initial list: `rib_aigp.go`, `rib_pipeline_bestfact.go`, `rib_structured.go`, `rib_inject.go`, `rib_source_mutation.go`, `constants.go`, `plugin_fixture_09.go`, `reload_fixture_live_stages.go`, `plugin_fixture_02_srv6_ineligible.go`, `srv6-invalid-sid-ineligible.ci`, `terminal_cover_fixture_test.go`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Initial `unresolvedNextHopTracker` incremented `overflowByPeer` on every `reconcileRoute` at cap and did not purge overflow on individual withdrawal to empty peer | Repeated announcements of the same overflowed route inflated counts and withdrawing all routes individually left stale overflow | Independent Round-1 review (`e98dc465`) | Added fixed 512B deduplicated overflow filter, emptied-owner purges, and `TestUnresolvedNextHopOverflowDeduplicationAndEmptyCleanup` |
+| approach | Initial `markNextHopFacts` called `entryNextHopResolvedWithClass` directly during remote-metric outages | Each uncached row triggered a 5s RPC under `remote.mu` during `show bgp rib` | Independent Round-1 review (`e98dc465`) | Added cache-only `entryNextHopResolvedForShow` when `metricFailureActive()` is true plus `TestShowBGPRIBUsesCachedNextHopDuringRemoteMetricOutage` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Surface unresolved next-hop exclusions in `show bgp rib` and `ze doctor` (`doctor-bgp-next-hop-unresolvable`) | Done | `internal/component/bgp/plugins/rib/{rib_next_hop_doctor,rib_pipeline,rib_pipeline_bestfact,doctor_codes,rib}.go` | Proven by unit + `rib-unresolved-next-hop-visibility.ci` (20/20 stress PASS) |
+| Warn on `request bgp rib inject` with unresolvable next hop while retaining in Adj-RIB-In | Done | `internal/component/bgp/plugins/rib/rib_commands.go` (`injectRoute`) | Proven by `TestInjectRouteWarnsOnUnresolvedNextHop` + `rib-unresolved-next-hop-visibility.ci` |
+| Coalesce `logger().Error` on `prospectiveDistance`/`igpDistance` and expose `bgp-rib-next-hop-metrics` in `OnDoctorCheck` | Done | `internal/component/bgp/plugins/rib/{rib_next_hop,rib_remote,rib_next_hop_doctor}.go` | Proven by `TestRemoteMetricFailureCoalescesLogAndReportsDoctor` |
+| Repair all 14 `.ci` fixtures with real `terminalCovers` and update stale docs | Done | `internal/test/fixture/*`, `test/plugin/*`, `test/reload/bgp-rib-maximum-paths-reload.ci`, `docs/architecture/{route-selection,doctor-and-health-checks}.md` | 14/14 PASS + 14/14 `ze-test-judge` APPROVE + `./le doc check all` PASS |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestShowBGPRIBMarksUnresolvedNextHop`, `TestShowBGPRIBUsesCachedNextHopDuringRemoteMetricOutage`, `test/plugin/rib-unresolved-next-hop-visibility.ci` | `next-hop-resolvable: false`, `ineligible-reason: next-hop-unresolvable`, omitted when resolvable/no-NH |
+| AC-2 | Done | `TestInjectRouteWarnsOnUnresolvedNextHop`, `test/plugin/rib-unresolved-next-hop-visibility.ci` | Retains route, keeps 3 keys + adds warning fields + 1 `WARN` log |
+| AC-3 | Done | `TestUnresolvedNextHopDoctorCheckLifecycle`, `TestUnresolvedNextHopOverflowDeduplicationAndEmptyCleanup`, `test/plugin/rib-unresolved-next-hop-visibility.ci` | Warning with count, <=5 samples, overflow cap, fix, full lifecycle cleanup |
+| AC-4 | Done | `TestRemoteMetricFailureCoalescesLogAndReportsDoctor` | Fail-closed uncached, 1 coalesced Error log per outage, `OnDoctorCheck` reports & clears |
+| AC-5 | Done | `TestRIBNextHopDoctorCodesRegistered` | `doctor-bgp-next-hop-unresolvable` in `doctor_codes.go`, single `doctor-bgp-next-hop-metrics` in `register.go` |
+| AC-6 | Done | 14/14 `.ci` PASS + 14/14 independent `ze-test-judge` APPROVE + `TestParseTerminalCover` PASS | Includes `srv6-invalid-sid-ineligible` (`RFC9252-5-1`) |
+| AC-7 | Done | `./le doc check all` PASS (`3156/3156` anchors, 0 drift) | `route-selection.md` + `doctor-and-health-checks.md` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestShowBGPRIBMarksUnresolvedNextHop` + `TestShowBGPRIBUsesCachedNextHopDuringRemoteMetricOutage` | Done | `internal/component/bgp/plugins/rib/rib_next_hop_visibility_test.go` | PASS |
+| `TestInjectRouteWarnsOnUnresolvedNextHop` | Done | `internal/component/bgp/plugins/rib/rib_next_hop_visibility_test.go` | PASS |
+| `TestUnresolvedNextHopDoctorCheckLifecycle` + `TestUnresolvedNextHopOverflowDeduplicationAndEmptyCleanup` | Done | `internal/component/bgp/plugins/rib/rib_next_hop_doctor_test.go` | PASS |
+| `TestRemoteMetricFailureCoalescesLogAndReportsDoctor` | Done | `internal/component/bgp/plugins/rib/rib_next_hop_doctor_test.go` | PASS |
+| `TestRIBNextHopDoctorCodesRegistered` | Done | `internal/component/bgp/plugins/rib/rib_next_hop_doctor_test.go` | PASS |
+| `TestParseTerminalCover` | Done | `internal/test/fixture/terminal_cover_fixture_test.go` | PASS |
+| `test/plugin/rib-unresolved-next-hop-visibility.ci` | Done | `test/plugin/rib-unresolved-next-hop-visibility.ci` | 20/20 stress PASS + promoted 1/1 PASS (11.2s) |
+| 14 repaired `.ci` fixtures | Done | `test/plugin/*.ci`, `test/reload/bgp-rib-maximum-paths-reload.ci` | 14/14 PASS |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/plugins/rib/{doctor_codes,rib,rib_next_hop_doctor,rib_next_hop_doctor_test,rib_next_hop_visibility_test,rib_next_hop,rib_remote,rib_commands,rib_manual,rib_bestchange,rib_aigp,rib_pipeline,rib_pipeline_bestfact,rib_structured,rib_inject,rib_source_mutation}.go` | Done | Full RIB package PASS; `./le go style check` OK (16/16); 0 Plan 2 lint issues |
+| `internal/test/fixture/{constants,terminal_cover_fixture,terminal_cover_fixture_test,plugin_fixture_15_show,plugin_fixture_02,plugin_fixture_02_srv6_ineligible,plugin_fixture_13_peer_lifecycle,plugin_fixture_10,plugin_fixture_13_rib,plugin_fixture_06_fib,plugin_fixture_09,plugin_fixture_09_bgp,reload_fixture_live_stages}.go` | Done | `./le go style check` OK (13/13); 0 Plan 2 lint issues |
+| `test/plugin/{rib-unresolved-next-hop-visibility,rr-basic,bestpath-reason,api-peer-create-delete-rib,multipath-basic,nexthop-self,nexthop-unchanged,rib-forward-handle-observed,rib-inject-rfc5549,llgr-readvertise-multipeer,llgr-readvertise-multipeer-forked,srv6-invalid-sid-ineligible}.ci`, `test/reload/bgp-rib-maximum-paths-reload.ci` | Done | 15/15 PASS |
+| `docs/architecture/{route-selection,doctor-and-health-checks}.md`, `plan/journal/silent-fall-through.md` | Done | `./le doc check all` PASS |
+
+### Audit Summary
+- **Total items:** 21
+- **Done:** 21
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (added `srv6-invalid-sid-ineligible`, corrected `fib-ecmp`/`fib-ecmp-realtime` cover counts, added overflow/emptied-owner/cache-only files from Round-1 review)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Unresolved next hops surface in `show bgp rib`, `request bgp rib inject`, and `show doctor`, and clear on resolution | Functional `.ci` + unit tests | `test/plugin/rib-unresolved-next-hop-visibility.ci` (20/20 stress PASS, promoted PASS 11.2s); full `./le test unit pkg path ./internal/component/bgp/plugins/rib/` PASS (`exit 0, 1 package ok`) |
+| Coalesced fail-closed remote metrics + runtime doctor check | Unit test | `TestRemoteMetricFailureCoalescesLogAndReportsDoctor` & `TestShowBGPRIBUsesCachedNextHopDuringRemoteMetricOutage` PASS |
+| Remaining 14 `.ci` fixtures pass with real `terminalCovers` and unchanged assertions | Functional `.ci` + `ze-test-judge` | Baseline FAIL -> 14/14 PASS (`rr-basic`, `bestpath-reason`, `api-peer-create-delete-rib`, `multipath-basic`, `nexthop-self`, `nexthop-unchanged`, `rib-forward-handle-observed`, `rib-inject-rfc5549`, `fib-ecmp`, `fib-ecmp-realtime`, `llgr-readvertise-multipeer`, `llgr-readvertise-multipeer-forked`, `srv6-invalid-sid-ineligible`, `bgp-rib-maximum-paths-reload`); 14/14 independent `ze-test-judge` APPROVE |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None (every in-scope item implemented and verified; `test/plugin/forward-mpreach-nexthop-self-two-peer.ci` audited as unrelated to `bgp-rib`) | N-A | N-A |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-next-hop-reachability-admission-plan2rib.md` |
+| `./le spec review check` | clean (verdict=clean) |
+| Rounds | 2 |
+| Reviewer lenses used | independent code+spec review (`e98dc465`), independent Round-2 review (`ac1c070e`, CLEAN 0/0/0), independent `ze-test-judge` (`00414c22`, 14/14 APPROVE) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Tracker overflow inflated on re-announcement, leaked on individual withdrawal/empty manual/peer owner, and formatted `(+N more)` with zero samples | `rib_next_hop_doctor.go`, `rib_commands.go`, `rib_source_mutation.go`, `rib_bestchange.go` | Fixed 512B deduplicated overflow filter, emptied-owner cleanup across all withdrawal/clear paths, zero-sample phrasing, `TestUnresolvedNextHopOverflowDeduplicationAndEmptyCleanup` |
+| 2 | ISSUE | `show bgp rib` fired `5s * N` blocking `RouteMetrics` RPCs during forked metric outage | `rib_pipeline_bestfact.go`, `rib_next_hop.go`, `rib_remote.go` | Added cache-only fail-closed `entryNextHopResolvedForShow` when `metricFailureActive()` is true + `TestShowBGPRIBUsesCachedNextHopDuringRemoteMetricOutage` |
+| 3 | ISSUE | Missing `option=needs-linux` on `rib-unresolved-next-hop-visibility.ci` (`backend netlink` + `static`/`lo`) | `test/plugin/rib-unresolved-next-hop-visibility.ci` | Added `option=needs-linux` with rationale comment |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/plugins/rib/rib_next_hop_doctor.go` | Yes | `-rw-r--r-- 1 thomas thomas 15833 Nov 22 15:23 internal/component/bgp/plugins/rib/rib_next_hop_doctor.go` |
+| `internal/component/bgp/plugins/rib/rib_next_hop_doctor_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 22783 Nov 22 15:22 internal/component/bgp/plugins/rib/rib_next_hop_doctor_test.go` |
+| `internal/component/bgp/plugins/rib/rib_next_hop_visibility_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 15404 Nov 22 15:22 internal/component/bgp/plugins/rib/rib_next_hop_visibility_test.go` |
+| `internal/test/fixture/terminal_cover_fixture_test.go` | Yes | `-rw-r--r-- 1 thomas thomas  1457 Nov 22 14:09 internal/test/fixture/terminal_cover_fixture_test.go` |
+| `test/plugin/rib-unresolved-next-hop-visibility.ci` | Yes | `-rw-r--r-- 1 thomas thomas  4486 Nov 22 15:21 test/plugin/rib-unresolved-next-hop-visibility.ci` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5 | Visibility, inject warning, runtime doctor checks, coalesced remote metric failure, doctor code registry | `./le test unit pkg path ./internal/component/bgp/plugins/rib/`: `exit 0, 1 package ok` (`job-unit-pkg-8c945297.log`); `./le --name plan2 test bgp plugin -pattern rib-unresolved-next-hop-visibility`: `PASS 1/1 11.2s` (and 20/20 stress PASS) |
+| AC-6 | 14 repaired `.ci` fixtures green with unchanged assertions | 14/14 PASS (`rr-basic` 1.1s, `bestpath-reason` 988ms, `api-peer-create-delete-rib` 10.5s, `multipath-basic` 822ms, `nexthop-self` PASS, `nexthop-unchanged` 805ms, `rib-forward-handle-observed` 1.0s, `rib-inject-rfc5549` 1.0s, `fib-ecmp` 758ms, `fib-ecmp-realtime` 737ms, `llgr-readvertise-multipeer` 1.2s, `llgr-readvertise-multipeer-forked` 1.5s, `srv6-invalid-sid-ineligible` 3.0s, `bgp-rib-maximum-paths-reload` 1.0s); 14/14 independent `ze-test-judge` APPROVE |
+| AC-7 | Docs and journal updated cleanly | `./le doc check all`: `Documentation tests PASSED` (`3156/3156` anchors, 0 drift); `./le plugin boundary check` OK; `./le plugin declarations check` OK |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `request bgp rib inject`, `show bgp rib \| match next-hop-unresolvable`, `show bgp rib best`, `show doctor`, static cover live commit & reselection | `test/plugin/rib-unresolved-next-hop-visibility.ci` | Yes: live daemon + SSH CLI + static commit (`PASS 1/1`, 20/20 stress PASS) |
+| Repaired BGP/RIB/FIB/LLGR/SRv6/reload scenarios via `terminalCovers` | 14 `.ci` files in `test/plugin/` and `test/reload/` | Yes: 14/14 PASS with working-tree `le` binary |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Full `internal/component/bgp/plugins/rib/` unit package PASS (`exit 0, 1 package ok`) |
+| A-2 | confirmed | All RIB unit tests, 14 repaired `.ci` fixtures, and `rib-unresolved-next-hop-visibility.ci` PASS |
+| A-3 | confirmed | Baseline FAIL -> 14/14 PASS with `terminalCovers` + 14/14 `ze-test-judge` APPROVE |
+| A-4 | confirmed | Bounded 4096-entry tracker + 512B overflow filter + cache-only show path unit-tested and PASS |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/route-selection.md`, `docs/architecture/doctor-and-health-checks.md`, `plan/journal/silent-fall-through.md` | `./le doc check all` (`Documentation tests PASSED`, 3156/3156 anchors, 0 drift) | Yes |
