@@ -22,33 +22,6 @@ func newBackend() backend {
 	return &linuxBackend{}
 }
 
-// keyToPath converts a dotted sysctl key to a /proc/sys relative path.
-// Per-interface keys (net.ipv4.conf.<iface>.leaf) need special handling
-// because VLAN interface names contain dots (e.g., eth0.100) that must
-// NOT be converted to slashes. The leaf name (last segment after the
-// interface name) never contains dots, so we split on the last dot
-// for keys under net.ipv{4,6}.conf.
-// If future per-interface sysctl prefixes are added (e.g., net.ipv4.neigh.),
-// they must be added to the prefix list here.
-func keyToPath(key string) string {
-	for _, prefix := range []string{"net.ipv4.conf.", "net.ipv6.conf."} {
-		if !strings.HasPrefix(key, prefix) {
-			continue
-		}
-		rest := key[len(prefix):] // e.g., "eth0.100.forwarding"
-		ifaceName, leaf, found := strings.CutLast(rest, ".")
-		if !found {
-			break // malformed, fall through to naive conversion
-		}
-		if ifaceName == "" {
-			break // malformed: empty interface name, fall through
-		}
-		pathPrefix := strings.ReplaceAll(prefix[:len(prefix)-1], ".", "/") // "net/ipv4/conf"
-		return pathPrefix + "/" + ifaceName + "/" + leaf
-	}
-	return strings.ReplaceAll(key, ".", "/")
-}
-
 func (b *linuxBackend) read(key string) (string, error) {
 	if strings.Contains(key, "..") {
 		return "", fmt.Errorf("sysctl: invalid key %q (contains ..)", key)

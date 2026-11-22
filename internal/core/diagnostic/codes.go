@@ -1515,15 +1515,17 @@ var builtinCodes = append([]CodeMeta{
 	},
 	{
 		Code:  CodeDoctorDaemonCapabilityMissing,
-		Title: "The ze daemon runs without a capability it needs",
-		Description: "The ze daemon runs without root and lacks one of the capabilities a non-root " +
-			"daemon runs with (CAP_NET_ADMIN, CAP_NET_RAW, CAP_NET_BIND_SERVICE, CAP_BPF), or could " +
-			"not read its own capability set. Each missing capability disables what it serves: " +
-			"without CAP_BPF, for example, the IPsec ESP form fast path, the IPsec override guard " +
-			"and traffic-usage load no eBPF program. Under systemd, a ze unit written by an older " +
-			"ze does not grant CAP_BPF: stop ze with sudo systemctl stop ze, then rewrite the unit " +
-			"with sudo ze install systemd --force --start, which starts ze again. Without systemd, " +
-			"start ze with the capabilities the finding names.",
+		Title: "The ze daemon runs without part of the daemon capability set",
+		Description: "An informational row: the ze daemon lacks one of the capabilities the " +
+			"systemd unit grants (CAP_NET_ADMIN, CAP_NET_RAW, CAP_NET_BIND_SERVICE, CAP_BPF), or " +
+			"Ze cannot determine its own capability set. This is not a problem by itself and never " +
+			"makes the box not ready: a config that uses nothing a missing capability serves runs " +
+			"without it, as an interfaces-and-SSH config runs with CAP_NET_ADMIN alone. Each " +
+			"configured feature that needs a capability checks for it and reports its own impact " +
+			"under its own code. The fix names the remedy for this process: when the daemon runs " +
+			"under ze.service, stop ze with sudo systemctl stop ze and rewrite the unit with " +
+			"sudo ze install systemd --force --start; otherwise restart ze as root or holding the " +
+			"capabilities named.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-daemon-capability-missing"},
 	},
 	{
@@ -1720,10 +1722,11 @@ var builtinCodes = append([]CodeMeta{
 		RelatedCodes: []string{CodeDoctorIPsecTransformUnavailable},
 	},
 	{
-		Code:        CodeDoctorBGPListen,
-		Title:       "BGP listener unavailable",
-		Description: "A configured BGP local address and port could not be bound before daemon startup.",
-		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-bgp-listen"},
+		Code:  CodeDoctorBGPListen,
+		Title: "BGP listener unavailable",
+		Description: "A configured BGP local address and port could not be bound: by the doctor's bind probe, or by the daemon when a reload added a dynamic group or the kernel reported the address added, which the daemon logs without refusing. " +
+			"The message names the address, port and what configured them. A port below net.ipv4.ip_unprivileged_port_start (1024 by default) needs CAP_NET_BIND_SERVICE, and the fix names how to grant it; an address in use names the command that finds its holder.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-bgp-listen"},
 	},
 	{
 		Code:  CodeDoctorBGPPeerNotReading,
@@ -1858,18 +1861,6 @@ var builtinCodes = append([]CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-hub-unreachable"},
 	},
 	{
-		Code:        "doctor-traffic-usage-ebpf",
-		Title:       "traffic-usage eBPF unavailable",
-		Description: "The traffic-usage plugin is enabled but this host cannot attach its eBPF TCX programs: the kernel has no TCX attach point (Linux 6.6 or later with CONFIG_NET_XGRESS), or the build is not Linux. Byte accounting will not run.",
-		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-traffic-usage-ebpf"},
-	},
-	{
-		Code:        "doctor-traffic-usage-ebpf-unknown",
-		Title:       "traffic-usage eBPF readiness not measured",
-		Description: "The traffic-usage plugin is enabled but the doctor could not ask the kernel whether it attaches eBPF TCX programs, usually because the process that ran the check lacks CAP_BPF or CAP_NET_ADMIN. Under systemd, a ze unit written by an older ze does not grant CAP_BPF: stop ze with `sudo systemctl stop ze`, then rewrite the unit with `sudo ze install systemd --force --start`. Without systemd, run ze with CAP_BPF and CAP_NET_ADMIN, and run `sudo ze doctor` to measure it.",
-		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-traffic-usage-ebpf-unknown"},
-	},
-	{
 		Code:        CodeDoctorBFDPort,
 		Title:       "BFD control port unavailable",
 		Description: "BFD is configured but the UDP control port could not be bound.",
@@ -1913,8 +1904,8 @@ var builtinCodes = append([]CodeMeta{
 	},
 	{
 		Code:        "doctor-sysctl-procfs",
-		Title:       "Sysctl procfs unavailable",
-		Description: "Sysctl settings are configured but /proc/sys is not writable.",
+		Title:       "Sysctl key not writable or undetermined",
+		Description: "Sysctl settings are configured, and this process cannot write one or more configured /proc/sys key files (net.* keys need CAP_NET_ADMIN or root; other keys need root; /proc/sys may be read-only) or cannot determine whether they are writable.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-sysctl-procfs"},
 	},
 	{

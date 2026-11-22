@@ -4,29 +4,39 @@
 package sysctl
 
 import (
+	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 // withUnwritableProcSys stands in a kernel that refuses every write to /proc/sys
 // for the life of one test.
 func withUnwritableProcSys(t *testing.T) {
 	t.Helper()
-	previous := procSysWritable
-	procSysWritable = func(string) error { return os.ErrPermission }
-	t.Cleanup(func() { procSysWritable = previous })
+	previous := probeProcSysPath
+	probeProcSysPath = func(string) (procSysVerdict, error) { return procSysRefused, os.ErrPermission }
+	t.Cleanup(func() { probeProcSysPath = previous })
 }
 
 // sysctlTree builds the smallest config that applies one sysctl.
 func sysctlTree() *config.Tree {
+	return sysctlTreeWithKeys("net.ipv4.ip_forward")
+}
+
+// sysctlTreeWithKeys builds a config applying the given sysctl keys.
+func sysctlTreeWithKeys(keys ...string) *config.Tree {
 	tree := config.NewTree()
 	block := tree.GetOrCreateContainer("sysctl")
-	setting := config.NewTree()
-	setting.Set("value", "1")
-	block.AddListEntry("setting", "net.ipv4.ip_forward", setting)
+	for _, key := range keys {
+		setting := config.NewTree()
+		setting.Set("value", "1")
+		block.AddListEntry("setting", key, setting)
+	}
 	return tree
 }
 
@@ -72,10 +82,106 @@ func TestCheckSysctlProcfsIsSilentWithoutASysctlBlock(t *testing.T) {
 		t.Fatalf("nil tree: diagnostics = %d, want 0", len(diags))
 	}
 
-	procSysWritable = func(string) error { return nil }
+	probeProcSysPath = func(string) (procSysVerdict, error) { return procSysWritable, nil }
 	if diags := checkSysctlProcfs(diagnostic.DoctorCheckContext{Tree: sysctlTree()}); len(diags) != 0 {
 		t.Fatalf("writable tree: diagnostics = %d, want 0", len(diags))
 	}
+}
+
+// TestCheckSysctlProcfsVerdictsAndRemedies checks each verdict checkSysctlProcfs
+// can receive from probeProcSysPath: net.* refusal uses CapabilityRemedy for
+// CAP_NET_ADMIN (systemd only under ze.service), non-net.* refusal explains the
+// root requirement without naming CAP_NET_ADMIN as a fix, read-only procfs
+// names remount, and unknown says "cannot determine".
+//
+// VALIDATES: per-key probing and distinct messages/fixes for net.* EACCES,
+// non-net.* EACCES, EROFS, and unknown (ENOENT/ENOSYS/other).
+// PREVENTS: a non-root CAP_NET_ADMIN daemon falsely warned about net.* keys,
+// a systemd command offered outside ze.service, or an unreadable probe reported
+// as writable or refused.
+func TestCheckSysctlProcfsVerdictsAndRemedies(t *testing.T) {
+	t.Run("net key refused under ze.service", func(t *testing.T) {
+		t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
+		withUnwritableProcSys(t)
+		diags := checkSysctlProcfs(diagnostic.DoctorCheckContext{Tree: sysctlTreeWithKeys("net.ipv4.ip_forward")})
+		if len(diags) != 1 {
+			t.Fatalf("diagnostics = %v, want 1", diags)
+		}
+		if !strings.HasSuffix(diags[0].Path, "/net/ipv4/ip_forward") {
+			t.Errorf("path = %q, want suffix /net/ipv4/ip_forward", diags[0].Path)
+		}
+		if diags[0].Fix != privilege.DaemonCapabilitiesFix {
+			t.Errorf("fix = %q, want %q", diags[0].Fix, privilege.DaemonCapabilitiesFix)
+		}
+		if !strings.Contains(diags[0].Message, "CAP_NET_ADMIN") {
+			t.Errorf("message = %q, want CAP_NET_ADMIN", diags[0].Message)
+		}
+	})
+
+	t.Run("net key refused outside ze.service", func(t *testing.T) {
+		t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipOther, nil))
+		withUnwritableProcSys(t)
+		diags := checkSysctlProcfs(diagnostic.DoctorCheckContext{Tree: sysctlTreeWithKeys("net.ipv4.ip_forward")})
+		if len(diags) != 1 {
+			t.Fatalf("diagnostics = %v, want 1", diags)
+		}
+		if strings.Contains(diags[0].Fix, "systemctl") || strings.Contains(diags[0].Fix, "install systemd") {
+			t.Errorf("fix = %q offers systemd outside ze.service", diags[0].Fix)
+		}
+		if !strings.Contains(diags[0].Fix, "CAP_NET_ADMIN") {
+			t.Errorf("fix = %q does not name CAP_NET_ADMIN", diags[0].Fix)
+		}
+	})
+
+	t.Run("non-net key refused requires root", func(t *testing.T) {
+		t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipOther, nil))
+		withUnwritableProcSys(t)
+		diags := checkSysctlProcfs(diagnostic.DoctorCheckContext{Tree: sysctlTreeWithKeys("vm.swappiness")})
+		if len(diags) != 1 {
+			t.Fatalf("diagnostics = %v, want 1", diags)
+		}
+		if !strings.HasSuffix(diags[0].Path, "/vm/swappiness") {
+			t.Errorf("path = %q, want suffix /vm/swappiness", diags[0].Path)
+		}
+		if !strings.Contains(diags[0].Message, "requires root") {
+			t.Errorf("message = %q, want root requirement", diags[0].Message)
+		}
+		if diags[0].Fix != "delete sysctl setting vm.swappiness" {
+			t.Errorf("fix = %q, want delete sysctl setting vm.swappiness", diags[0].Fix)
+		}
+	})
+
+	t.Run("read-only filesystem", func(t *testing.T) {
+		previous := probeProcSysPath
+		probeProcSysPath = func(string) (procSysVerdict, error) { return procSysReadOnlyFS, errors.New("read-only file system") }
+		t.Cleanup(func() { probeProcSysPath = previous })
+		diags := checkSysctlProcfs(diagnostic.DoctorCheckContext{Tree: sysctlTreeWithKeys("net.ipv4.ip_forward")})
+		if len(diags) != 1 {
+			t.Fatalf("diagnostics = %v, want 1", diags)
+		}
+		if !strings.Contains(diags[0].Message, "mounted read-only") {
+			t.Errorf("message = %q, want mounted read-only", diags[0].Message)
+		}
+		if !strings.Contains(diags[0].Fix, "mount -o remount,rw") {
+			t.Errorf("fix = %q, want remount command", diags[0].Fix)
+		}
+	})
+
+	t.Run("cannot determine", func(t *testing.T) {
+		previous := probeProcSysPath
+		probeProcSysPath = func(string) (procSysVerdict, error) { return procSysUnknown, os.ErrNotExist }
+		t.Cleanup(func() { probeProcSysPath = previous })
+		diags := checkSysctlProcfs(diagnostic.DoctorCheckContext{Tree: sysctlTreeWithKeys("net.ipv4.conf.eth99.forwarding")})
+		if len(diags) != 1 {
+			t.Fatalf("diagnostics = %v, want 1", diags)
+		}
+		if !strings.Contains(diags[0].Message, "cannot determine") {
+			t.Errorf("message = %q, want cannot determine", diags[0].Message)
+		}
+		if diags[0].Fix == "" {
+			t.Errorf("fix is empty")
+		}
+	})
 }
 
 // TestSysctlProcfsDoctorCheckRegistered asks the registry the doctor runner
