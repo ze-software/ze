@@ -35,75 +35,96 @@ import (
 // during MRT RIB snapshots.
 //
 // RFC requirement: RFC8050-4.1-1 positive -- dumpRIBForMRT supplies each
-// ADD-PATH route's exact Path Identifier (7 and 42) and clean /24 prefix to
-// OnRouteAddPath, so both paths for 203.0.113.0/24 decode from
-// RIB_IPV4_UNICAST_ADDPATH with distinct Path Identifiers.
-// RFC requirement: RFC8050-4.1-1 negative -- a route from a non-ADD-PATH
-// family reports PathID 0 and clean /24 prefix without stripping prefix bytes.
+// ADD-PATH route's exact Path Identifier (7 and 42) and clean prefix to
+// OnRouteAddPath across all four AFI/SAFI-specific subtypes
+// (RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH,
+// RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH).
+// RFC requirement: RFC8050-4.1-1 negative -- routes from non-ADD-PATH
+// unicast and multicast families report PathID 0 and clean prefixes without
+// stripping prefix bytes.
 func TestRFC8050MRTSnapshotPreservesPathIDs(t *testing.T) {
 	t.Parallel()
 
-	r := newTestRIBManager(t)
+	families := []struct {
+		name      string
+		fam       family.Family
+		prefixLen uint8
+		prefix    []byte
+		plainPfx  []byte
+		apSubtype uint16
+	}{
+		{"ipv4-unicast", family.IPv4Unicast, 24, []byte{203, 0, 113}, []byte{198, 51, 100}, mrtfmt.TDV2RIBIPv4UnicastAP},
+		{"ipv4-multicast", family.IPv4Multicast, 24, []byte{233, 252, 0}, []byte{233, 252, 1}, mrtfmt.TDV2RIBIPv4MulticastAP},
+		{"ipv6-unicast", family.IPv6Unicast, 48, []byte{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}, []byte{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x02}, mrtfmt.TDV2RIBIPv6UnicastAP},
+		{"ipv6-multicast", family.IPv6Multicast, 48, []byte{0xff, 0x3e, 0x00, 0x00, 0x00, 0x01}, []byte{0xff, 0x3e, 0x00, 0x00, 0x00, 0x02}, mrtfmt.TDV2RIBIPv6MulticastAP},
+	}
 
-	apPeer := netip.MustParseAddr("192.0.2.10")
-	apRIB := storage.NewPeerRIB(apPeer.String())
-	apRIB.SetAddPath(family.IPv4Unicast, true)
-	r.bgpPeers[10] = apRIB
-	r.peerMeta[10] = &peerMetadata{Address: apPeer, PeerASN: 65010, RemoteRouterID: 0xc000020a}
-	t.Cleanup(apRIB.Release)
+	for _, tc := range families {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newTestRIBManager(t)
 
-	attrs1 := []byte{0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xe9, 0x40, 3, 4, 192, 0, 2, 10}
-	attrs2 := []byte{0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xea, 0x40, 3, 4, 192, 0, 2, 11}
-	nlriPath7 := binary.BigEndian.AppendUint32(nil, 7)
-	nlriPath7 = append(nlriPath7, 24, 203, 0, 113)
-	nlriPath42 := binary.BigEndian.AppendUint32(nil, 42)
-	nlriPath42 = append(nlriPath42, 24, 203, 0, 113)
-	partialMRTStore(t, apRIB, attrs1, nlriPath7)
-	partialMRTStore(t, apRIB, attrs2, nlriPath42)
+			apPeer := netip.MustParseAddr("192.0.2.10")
+			apRIB := storage.NewPeerRIB(apPeer.String())
+			apRIB.SetAddPath(tc.fam, true)
+			r.bgpPeers[10] = apRIB
+			r.peerMeta[10] = &peerMetadata{Address: apPeer, PeerASN: 65010, RemoteRouterID: 0xc000020a}
+			t.Cleanup(apRIB.Release)
 
-	plainPeer := netip.MustParseAddr("192.0.2.20")
-	plainRIB := storage.NewPeerRIB(plainPeer.String())
-	r.bgpPeers[20] = plainRIB
-	r.peerMeta[20] = &peerMetadata{Address: plainPeer, PeerASN: 65020, RemoteRouterID: 0xc0000214}
-	t.Cleanup(plainRIB.Release)
-	partialMRTStore(t, plainRIB, attrs1, []byte{24, 198, 51, 100})
+			attrs1 := []byte{0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xe9, 0x40, 3, 4, 192, 0, 2, 10}
+			attrs2 := []byte{0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xea, 0x40, 3, 4, 192, 0, 2, 11}
+			nlriPath7 := append(binary.BigEndian.AppendUint32(nil, 7), tc.prefixLen)
+			nlriPath7 = append(nlriPath7, tc.prefix...)
+			nlriPath42 := append(binary.BigEndian.AppendUint32(nil, 42), tc.prefixLen)
+			nlriPath42 = append(nlriPath42, tc.prefix...)
+			apRIB.Insert(tc.fam, attrs1, nlriPath7)
+			apRIB.Insert(tc.fam, attrs2, nlriPath42)
 
-	peerAddrs := make(map[uint16]string)
-	apPathIDs := make(map[uint32]bool)
-	var plainCount int
+			plainPeer := netip.MustParseAddr("192.0.2.20")
+			plainRIB := storage.NewPeerRIB(plainPeer.String())
+			r.bgpPeers[20] = plainRIB
+			r.peerMeta[20] = &peerMetadata{Address: plainPeer, PeerASN: 65020, RemoteRouterID: 0xc0000214}
+			t.Cleanup(plainRIB.Release)
+			plainNLRI := append([]byte{tc.prefixLen}, tc.plainPfx...)
+			plainRIB.Insert(tc.fam, attrs1, plainNLRI)
 
-	r.dumpRIBForMRT(registry.RIBDumpVisitor{
-		OnPeer: func(addr string, _ uint32, _ [4]byte, _ bool) uint16 {
-			idx := uint16(len(peerAddrs))
-			peerAddrs[idx] = addr
-			return idx
-		},
-		OnRouteAddPath: func(peerIndex, afi, safi uint16, pathID uint32, prefixLen uint8, prefix, attrs []byte) {
-			require.Equal(t, uint16(1), afi)
-			require.Equal(t, uint16(1), safi)
-			require.Equal(t, uint8(24), prefixLen)
-			switch peerAddrs[peerIndex] {
-			case apPeer.String():
-				require.Equal(t, []byte{203, 0, 113}, prefix)
-				buf := make([]byte, 512)
-				off := mrtfmt.WriteRIBHeader(buf, 0, 1, prefixLen, prefix)
-				off += mrtfmt.WriteRIBEntries(buf, off, []mrtfmt.RIBEntry{{PeerIndex: peerIndex, PathID: pathID, Attributes: attrs}}, true)
-				rec, err := mrtfmt.DecodeRIBRecord(mrtfmt.TDV2RIBIPv4UnicastAP, buf[:off])
-				require.NoError(t, err)
-				require.Len(t, rec.Entries, 1)
-				require.Equal(t, pathID, rec.Entries[0].PathID)
-				apPathIDs[rec.Entries[0].PathID] = true
-			case plainPeer.String():
-				require.Zero(t, pathID)
-				require.Equal(t, []byte{198, 51, 100}, prefix)
-				plainCount++
-			default:
-				t.Fatalf("unexpected peer index %d", peerIndex)
-			}
-		},
-	})
+			peerAddrs := make(map[uint16]string)
+			apPathIDs := make(map[uint32]bool)
+			var plainCount int
 
-	require.Equal(t, map[uint32]bool{7: true, 42: true}, apPathIDs,
-		"both ADD-PATH routes for 203.0.113.0/24 must retain their distinct Path IDs")
-	require.Equal(t, 1, plainCount, "non-ADD-PATH control route must dump cleanly with pathID 0")
+			r.dumpRIBForMRT(registry.RIBDumpVisitor{
+				OnPeer: func(addr string, _ uint32, _ [4]byte, _ bool) uint16 {
+					idx := uint16(len(peerAddrs))
+					peerAddrs[idx] = addr
+					return idx
+				},
+				OnRouteAddPath: func(peerIndex, afi, safi uint16, pathID uint32, prefixLen uint8, prefix, attrs []byte) {
+					require.Equal(t, uint16(tc.fam.AFI), afi)
+					require.Equal(t, uint16(tc.fam.SAFI), safi)
+					require.Equal(t, tc.prefixLen, prefixLen)
+					switch peerAddrs[peerIndex] {
+					case apPeer.String():
+						require.Equal(t, tc.prefix, prefix)
+						buf := make([]byte, 512)
+						off := mrtfmt.WriteRIBHeader(buf, 0, 1, prefixLen, prefix)
+						off += mrtfmt.WriteRIBEntries(buf, off, []mrtfmt.RIBEntry{{PeerIndex: peerIndex, PathID: pathID, Attributes: attrs}}, true)
+						rec, err := mrtfmt.DecodeRIBRecord(tc.apSubtype, buf[:off])
+						require.NoError(t, err)
+						require.Len(t, rec.Entries, 1)
+						require.Equal(t, pathID, rec.Entries[0].PathID)
+						apPathIDs[rec.Entries[0].PathID] = true
+					case plainPeer.String():
+						require.Zero(t, pathID)
+						require.Equal(t, tc.plainPfx, prefix)
+						plainCount++
+					default:
+						t.Fatalf("unexpected peer index %d", peerIndex)
+					}
+				},
+			})
+
+			require.Equal(t, map[uint32]bool{7: true, 42: true}, apPathIDs,
+				"both ADD-PATH routes for %s must retain their distinct Path IDs", tc.name)
+			require.Equal(t, 1, plainCount, "non-ADD-PATH control route for %s must dump cleanly with pathID 0", tc.name)
+		})
+	}
 }

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6396-4.4.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/mrt/rfc6396_invariants_test.go::TestRFC6396BGP4MPSubtypeMatchesSessionASWidth",
+    "unit-sha": "eb00bca05ab388d5",
+    "claim-sha": "9817336526397055",
+    "route": "revert",
+    "producer": "internal/plugins/mrt/dump.go::Component.bgp4mpTypeSubtypeFor",
+    "producer-sha": "68ffc4dacf9eec3d",
+    "break": "body of Component.bgp4mpTypeSubtypeFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6396-4.4.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/mrt/rfc6396_invariants_test.go::TestRFC6396BGP4MPSubtypeMatchesSessionASWidth",
+    "unit-sha": "eb00bca05ab388d5",
+    "claim-sha": "b0fbbe2f29260fdc",
+    "route": "revert",
+    "producer": "internal/plugins/mrt/dump.go::messageAS4",
+    "producer-sha": "8b1db184aeee1b97",
+    "break": "body of messageAS4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

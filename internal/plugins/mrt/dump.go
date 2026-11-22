@@ -137,7 +137,7 @@ func (c *Component) writeTableDumpV2() {
 	var seq uint32
 	pitWritten := false
 
-	writeRoute := func(peerIndex, afi, _ uint16, pathID uint32, prefixLen uint8, prefix, attrs []byte) {
+	writeRoute := func(peerIndex, afi, safi uint16, pathID uint32, prefixLen uint8, prefix, attrs []byte) {
 		if !pitWritten {
 			pitWritten = true
 			c.writePeerIndexTable(hdrSize, now, peers)
@@ -148,6 +148,11 @@ func (c *Component) writeTableDumpV2() {
 		// store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH,
 		// RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and
 		// RIB_IPV6_MULTICAST_ADDPATH subtypes."
+		// RFC 8050 Section 4.2: RIB_GENERIC_ADDPATH carries the Path Identifier
+		// inside the NLRI field of the header, not in the RIB Entry.
+		subtype := ribSubtypeFor(afi, safi, addPath)
+		generic := subtype == mrtfmt.TDV2RIBGeneric || subtype == mrtfmt.TDV2RIBGenericAP
+		entryAddPath := addPath && !generic
 		entry := mrtfmt.RIBEntry{
 			PeerIndex:  peerIndex,
 			OrigTime:   ts,
@@ -155,16 +160,19 @@ func (c *Component) writeTableDumpV2() {
 			Attributes: attrs,
 		}
 
-		subtype := ribSubtype(afi, addPath)
-
-		needed := hdrSize + 4 + 1 + len(prefix) + 2 + 8 + 2 + len(attrs) + 4
+		needed := hdrSize + 4 + 3 + len(prefix) + 2 + 8 + 2 + len(attrs) + 4
 		buf := pb.b
 		if needed > len(buf) {
 			buf = make([]byte, needed)
 		}
 
-		msgLen := mrtfmt.WriteRIBHeader(buf, hdrSize, seq, prefixLen, prefix)
-		msgLen += mrtfmt.WriteRIBEntries(buf, hdrSize+msgLen, []mrtfmt.RIBEntry{entry}, addPath)
+		var msgLen int
+		if generic {
+			msgLen = mrtfmt.WriteRIBGenericHeader(buf, hdrSize, seq, afi, uint8(safi), prefix)
+		} else {
+			msgLen = mrtfmt.WriteRIBHeader(buf, hdrSize, seq, prefixLen, prefix)
+		}
+		msgLen += mrtfmt.WriteRIBEntries(buf, hdrSize+msgLen, []mrtfmt.RIBEntry{entry}, entryAddPath)
 		writeHeader(buf, c.config.ExtendedTimestamp, now, mrtfmt.TypeTableDumpV2, subtype, msgLen)
 
 		if err := c.routes.Write(buf[:hdrSize+msgLen]); err != nil {
@@ -228,15 +236,29 @@ func (c *Component) writePeerIndexTable(hdrSize int, now time.Time, peers []mrtf
 }
 
 func ribSubtype(afi uint16, addPath bool) uint16 {
+	return ribSubtypeFor(afi, 1, addPath)
+}
+
+func ribSubtypeFor(afi, safi uint16, addPath bool) uint16 {
 	switch {
-	case afi == mrtfmt.AFIIPv4 && !addPath:
+	case afi == mrtfmt.AFIIPv4 && safi == 1 && !addPath:
 		return mrtfmt.TDV2RIBIPv4Unicast
-	case afi == mrtfmt.AFIIPv4 && addPath:
+	case afi == mrtfmt.AFIIPv4 && safi == 1 && addPath:
 		return mrtfmt.TDV2RIBIPv4UnicastAP
-	case afi == mrtfmt.AFIIPv6 && !addPath:
+	case afi == mrtfmt.AFIIPv4 && safi == 2 && !addPath:
+		return mrtfmt.TDV2RIBIPv4Multicast
+	case afi == mrtfmt.AFIIPv4 && safi == 2 && addPath:
+		return mrtfmt.TDV2RIBIPv4MulticastAP
+	case afi == mrtfmt.AFIIPv6 && safi == 1 && !addPath:
 		return mrtfmt.TDV2RIBIPv6Unicast
-	case afi == mrtfmt.AFIIPv6 && addPath:
+	case afi == mrtfmt.AFIIPv6 && safi == 1 && addPath:
 		return mrtfmt.TDV2RIBIPv6UnicastAP
+	case afi == mrtfmt.AFIIPv6 && safi == 2 && !addPath:
+		return mrtfmt.TDV2RIBIPv6Multicast
+	case afi == mrtfmt.AFIIPv6 && safi == 2 && addPath:
+		return mrtfmt.TDV2RIBIPv6MulticastAP
+	case addPath:
+		return mrtfmt.TDV2RIBGenericAP
 	default:
 		return mrtfmt.TDV2RIBGeneric
 	}
@@ -262,15 +284,41 @@ func (c *Component) headerSize() int {
 }
 
 func (c *Component) bgp4mpTypeSubtype(addPath bool) (uint16, uint16) {
+	return c.bgp4mpTypeSubtypeFor(addPath, true)
+}
+
+func (c *Component) bgp4mpTypeSubtypeFor(addPath, as4 bool) (uint16, uint16) {
 	typ := mrtfmt.TypeBGP4MP
 	if c.config.ExtendedTimestamp {
 		typ = mrtfmt.TypeBGP4MPET
 	}
-	subtype := mrtfmt.BGP4MPMessageAS4
-	if addPath {
+	var subtype uint16
+	switch {
+	case as4 && addPath:
 		subtype = mrtfmt.BGP4MPMessageAS4AP
+	case as4:
+		subtype = mrtfmt.BGP4MPMessageAS4
+	case addPath:
+		subtype = mrtfmt.BGP4MPMessageAP
+	default:
+		subtype = mrtfmt.BGP4MPMessage
 	}
 	return typ, subtype
+}
+
+// messageAS4 reports whether the session that carried the BGP message uses
+// 4-byte AS_PATH encoding (RFC 6793).
+// RFC 6396 Section 4.4.2: "The BGP4MP_MESSAGE Subtype does not support 4-byte
+// AS numbers.  The AS_PATH contained in these messages MUST only consist of
+// 2-byte AS numbers."
+// RFC 6396 Section 4.4.3: "The AS_PATH in these messages MUST only consist of
+// 4-byte AS numbers."
+func messageAS4(ctxID bgpctx.ContextID) bool {
+	ctx := bgpctx.Registry.Get(ctxID)
+	if ctx == nil {
+		return true
+	}
+	return ctx.ASN4()
 }
 
 // updateAddPath reads only family fields, never copies or decodes the NLRI.

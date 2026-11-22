@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC6396-B.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/mrt/rfc6396_invariants_test.go::TestRFC6396NoDeprecatedInformationalTypesEmitted",
+    "unit-sha": "0428e961350395f9",
+    "claim-sha": "57db64b0253a00db",
+    "route": "revert",
+    "producer": "internal/plugins/mrt/dump.go::Component.bgp4mpTypeSubtypeFor",
+    "producer-sha": "68ffc4dacf9eec3d",
+    "break": "body of Component.bgp4mpTypeSubtypeFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

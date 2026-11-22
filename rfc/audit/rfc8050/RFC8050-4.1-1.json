@@ -1,18 +1,28 @@
 {
   "code": {
-    "internal/plugins/mrt/dump.go::writeTableDumpV2": "e3e18fdb3216d3a8"
+    "internal/component/bgp/plugins/rib/rib_mrt.go::dumpRIBForMRT": "88c51b08b1b212f7",
+    "internal/plugins/mrt/dump.go::ribSubtypeFor": "839b8d1b35de64ec",
+    "internal/plugins/mrt/dump.go::writeTableDumpV2": "0b6c017a927e9249"
   },
-  "note": "Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 8050 Section 4.1: \"This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes.\" Tested: the existing RIB Entries field is redefined for use within the new AFI/SAFI-specific RIB subtypes defined by this document as follows. TestRFC8050AddPathRIBEntryFollowsFigure1 compares WriteRIBEntries output with the literal Figure 1 octets and decodes them under subtypes 8-11; TestRIBRecordAddPathRoundTrip round-trips PathID 1 and 2 under subtype 8; TestRIBRecordRoundTrip (negative) reads no Path Identifier under base subtype 2. Gap: This adds a field to the RIB Entries record to store the Path Identifier. Producer internal/plugins/mrt/dump.go::writeTableDumpV2 builds each mrtfmt.RIBEntry from PeerIndex, OrigTime and Attributes only, because registry.RIBDumpVisitor.OnRoute carries no path id, so under the add-path toggle every entry's field is written as 0 and the route's Path Identifier is not stored. Revert records cover all three tagged units.",
-  "requirement_sha": "a5bf76b27995779e",
+  "note": "Independent rejudgment against RFC 8050 Section 4.1 after fixing multicast Path ID extraction and subtype dispatch across dumpRIBForMRT and writeTableDumpV2/ribSubtypeFor. RFC 8050 Section 4.1: \"This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes.\" Q1-Q4 all pass: (1) Wire codec: TestRFC8050AddPathRIBEntryFollowsFigure1 compares WriteRIBEntries output byte-for-byte against literal Figure 1 octets (Peer Index, Originated Time, 4-octet big-endian Path Identifier 0x01020304, Attribute Length, Attributes) and decodes those literal octets under all four subtypes (8, 9, 10, 11); TestRIBRecordAddPathRoundTrip proves multi-entry round-trip under subtype 8; TestRIBRecordRoundTrip (negative) proves base subtype 2 omits the Path Identifier field. (2) RIB snapshot bridge: internal/component/bgp/plugins/rib/rib_mrt.go::dumpRIBForMRT now peels the 4-octet big-endian Path Identifier and clean prefix for both unicast and multicast IPv4/IPv6 families ((AFI 1|2) && (SAFI 1|2)); TestRFC8050MRTSnapshotPreservesPathIDs stores two ADD-PATH paths (IDs 7 and 42) plus a non-ADD-PATH control in real PeerRIBs for all four families and verifies exact Path IDs, clean prefixes, and Figure 1 decode across subtypes 8-11 (and pathID 0 with intact prefix for the non-ADD-PATH controls). (3) TABLE_DUMP_V2 writer: internal/plugins/mrt/dump.go::writeTableDumpV2 and ribSubtypeFor now dispatch on both AFI and SAFI to emit subtypes 8, 9, 10, 11 with RIBEntry.PathID populated when Config.AddPath is true (and WriteRIBGenericHeader with entryAddPath=false for generic subtypes 6/12); TestRFC8050DumpV2AddPathStoresPathID writes and reads back MRT files for all four families, asserting exact ADD-PATH subtypes (8, 9, 10, 11) with distinct Path IDs 7 and 42 on the positive path and base subtypes (2, 3, 4, 5) with no wire Path Identifier (decoded PathID 0) on the negative path. Fresh discrimination records cover all seven tags.",
+  "requirement_sha": "0e4e298f95ef5404",
   "tests": {
+    "internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go::TestRFC8050MRTSnapshotPreservesPathIDs": "8fcccd7f1197be18",
+    "internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go::TestRFC8050MRTSnapshotPreservesPathIDs#2": "8fcccd7f1197be18",
     "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "fb2e8a7edf55af3c",
     "internal/mrt/mrt_test.go::TestRIBRecordRoundTrip": "fb2e8a7edf55af3c",
-    "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1": "9b52224532bd0e0b"
+    "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1": "9b52224532bd0e0b",
+    "internal/plugins/mrt/rfc8050_dump_addpath_test.go::TestRFC8050DumpV2AddPathStoresPathID": "fe321b186c188bcf",
+    "internal/plugins/mrt/rfc8050_dump_addpath_test.go::TestRFC8050DumpV2AddPathStoresPathID#2": "fe321b186c188bcf"
   },
   "units": {
+    "internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go::TestRFC8050MRTSnapshotPreservesPathIDs": "317b1f67664000a0",
+    "internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go::TestRFC8050MRTSnapshotPreservesPathIDs#2": "317b1f67664000a0",
     "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "8e03d227ce4c4eb5",
     "internal/mrt/mrt_test.go::TestRIBRecordRoundTrip": "a8270cec375affeb",
-    "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1": "20999c37aa3c7a0d"
+    "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1": "20999c37aa3c7a0d",
+    "internal/plugins/mrt/rfc8050_dump_addpath_test.go::TestRFC8050DumpV2AddPathStoresPathID": "6b627699bfd19974",
+    "internal/plugins/mrt/rfc8050_dump_addpath_test.go::TestRFC8050DumpV2AddPathStoresPathID#2": "6b627699bfd19974"
   },
-  "verdict": "partial"
+  "verdict": "enforced"
 }

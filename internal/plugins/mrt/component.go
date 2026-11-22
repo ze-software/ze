@@ -126,8 +126,8 @@ func (c *Component) OnBGPMessage(peer *plugin.PeerInfo, msgType msgtype.MessageT
 	if isUpdate {
 		addPath = updateAddPath(rawBytes[19:], peer.MessageContextID)
 	}
-	typ, subtype := c.bgp4mpTypeSubtype(addPath)
-	as4 := mrtfmt.IsAS4Subtype(subtype)
+	as4 := messageAS4(peer.MessageContextID)
+	typ, subtype := c.bgp4mpTypeSubtypeFor(addPath, as4)
 	if sent {
 		subtype = localSubtype(subtype)
 	}
@@ -135,6 +135,16 @@ func (c *Component) OnBGPMessage(peer *plugin.PeerInfo, msgType msgtype.MessageT
 	var ipBuf [32]byte
 	var hdr mrtfmt.BGP4MPHeader
 	peerInfoToHeader(peer, ipBuf[:], &hdr)
+	if !as4 {
+		// RFC 6793 Section 4.1: a 4-byte ASN cannot be written into a 2-byte
+		// BGP4MP_MESSAGE header field; map >65535 to AS_TRANS (23456).
+		if hdr.PeerAS > 0xFFFF {
+			hdr.PeerAS = 23456
+		}
+		if hdr.LocalAS > 0xFFFF {
+			hdr.LocalAS = 23456
+		}
+	}
 	off := c.headerSize()
 	// RFC 6396 Section 4.4.2: "Only one BGP message SHALL be encoded in the
 	// BGP4MP_MESSAGE Subtype." Never reconstruct or split the observed packet.

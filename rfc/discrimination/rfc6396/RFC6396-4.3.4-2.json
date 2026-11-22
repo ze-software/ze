@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6396-4.3.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc6396_mrt_mpreach_test.go::TestRFC6396MRTAbbreviatesMPReachNLRI",
+    "unit-sha": "14c1bc53b385d3b1",
+    "claim-sha": "e5f89c4ebb9a33e8",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_mrt.go::abbreviateMPReachForMRT",
+    "producer-sha": "a4e3173d64832ce9",
+    "break": "body of abbreviateMPReachForMRT replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6396-4.3.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc6396_mrt_mpreach_test.go::TestRFC6396MRTAbbreviatesMPReachNLRI",
+    "unit-sha": "14c1bc53b385d3b1",
+    "claim-sha": "b86c843e3f605a77",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_mrt.go::appendOtherAttrsWireForMRT",
+    "producer-sha": "317633429fbab0a2",
+    "break": "body of appendOtherAttrsWireForMRT replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

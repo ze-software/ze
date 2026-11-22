@@ -113,11 +113,11 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 				var prefixLen uint8
 				var prefix []byte
 				switch {
-				case (fam.AFI == 1 || fam.AFI == 2) && fam.SAFI == 1 && addPath && len(rt.nlri) > 4:
+				case (fam.AFI == 1 || fam.AFI == 2) && (fam.SAFI == 1 || fam.SAFI == 2) && addPath && len(rt.nlri) > 4:
 					pathID = binary.BigEndian.Uint32(rt.nlri[:4])
 					prefixLen = rt.nlri[4]
 					prefix = rt.nlri[5:]
-				case (fam.AFI == 1 || fam.AFI == 2) && fam.SAFI == 1 && !addPath && len(rt.nlri) > 0:
+				case (fam.AFI == 1 || fam.AFI == 2) && (fam.SAFI == 1 || fam.SAFI == 2) && !addPath && len(rt.nlri) > 0:
 					prefixLen = rt.nlri[0]
 					prefix = rt.nlri[1:]
 				default:
@@ -185,10 +185,52 @@ func reconstructWireAttrs(entry storage.RouteEntry, buf []byte) []byte {
 	if b.HasOtherAttrs() {
 		data, err := pool.OtherAttrs.Get(b.OtherAttrs)
 		if err == nil {
-			buf = appendOtherAttrsWire(buf, data)
+			buf = appendOtherAttrsWireForMRT(buf, data)
 		}
 	}
 
+	return buf
+}
+
+// abbreviateMPReachForMRT strips AFI, SAFI, Reserved, and NLRI from a wire
+// MP_REACH_NLRI (code 14) attribute value, returning [nhLen, nextHop...].
+// RFC 6396 Section 4.3.4: "only the Next Hop Address Length and Next Hop
+// Address fields are included.  The Reserved field is omitted."
+func abbreviateMPReachForMRT(value []byte) ([]byte, bool) {
+	if len(value) < 4 {
+		return nil, false
+	}
+	nhLen := int(value[3])
+	if 4+nhLen > len(value) {
+		return nil, false
+	}
+	return value[3 : 4+nhLen], true
+}
+
+// appendOtherAttrsWireForMRT converts the compact OtherAttrs pool format back
+// to wire for MRT TABLE_DUMP_V2 RIB entries, abbreviating MP_REACH_NLRI (code 14)
+// per RFC 6396 Section 4.3.4.
+func appendOtherAttrsWireForMRT(buf, data []byte) []byte {
+	off := 0
+	for off+4 <= len(data) {
+		code := data[off]
+		flags := data[off+1]
+		vLen := int(data[off+2])<<8 | int(data[off+3])
+		off += 4
+		if off+vLen > len(data) {
+			break
+		}
+		val := data[off : off+vLen]
+		if code == 14 {
+			if abbrev, ok := abbreviateMPReachForMRT(val); ok {
+				buf = appendWireAttr(buf, code, flags&^0x10, abbrev)
+				off += vLen
+				continue
+			}
+		}
+		buf = appendWireAttr(buf, code, flags, val)
+		off += vLen
+	}
 	return buf
 }
 
