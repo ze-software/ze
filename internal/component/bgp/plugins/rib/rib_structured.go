@@ -58,11 +58,15 @@ func (r *RIBManager) dispatchStructured(se *rpc.StructuredEvent) {
 		r.handleStructuredState(se)
 	case rpc.EventKindRefresh:
 		r.handleRefreshStructured(se)
+	case rpc.EventKindBoRR:
+		r.handleBoRRStructured(se)
+	case rpc.EventKindEoRR:
+		r.handleEoRRStructured(se)
 	case rpc.EventKindUnspecified, rpc.EventKindOpen, rpc.EventKindNotification,
-		rpc.EventKindKeepalive, rpc.EventKindEOR, rpc.EventKindBoRR, rpc.EventKindEoRR,
+		rpc.EventKindKeepalive, rpc.EventKindEOR,
 		rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindUpdateFiltered,
 		rpc.EventKindCount:
-		// These structured events do not change the RIB; BoRR/EoRR are text-only.
+		// These structured events do not change the RIB.
 	default:
 		// The plugin event set is open; unknown events do not change the RIB.
 	}
@@ -759,15 +763,21 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	if !ok || msg == nil || len(msg.RawBytes) < 4 {
 		return
 	}
-	// The captured message retains its wire bytes. Only effective normal
-	// requests belong here; RFC2918-only reserved normalization is upstream.
-	if msg.RawBytes[2] != 0 {
-		return
+	fam := family.Family{
+		AFI:  family.AFI(uint16(msg.RawBytes[0])<<8 | uint16(msg.RawBytes[1])),
+		SAFI: family.SAFI(msg.RawBytes[3]),
 	}
-	fam := family.Family{AFI: family.AFI(uint16(msg.RawBytes[0])<<8 | uint16(msg.RawBytes[1])),
-		SAFI: family.SAFI(msg.RawBytes[3])}
-	r.queueSelectedRefresh(se.PeerAddress, se.PeerOwner,
-		se.DestinationSession, se.SelectedDestination, fam)
+	switch msg.RawBytes[2] {
+	case 0:
+		r.queueSelectedRefresh(se.PeerAddress, se.PeerOwner,
+			se.DestinationSession, se.SelectedDestination, fam)
+	case 1:
+		// RFC 7313 Section 4: BoRR marks all routes of <AFI, SAFI> from peer stale.
+		r.handleBoRRForPeer(se.PeerOwner, se.PeerAddress, fam)
+	case 2:
+		// RFC 7313 Section 4: EoRR purges remaining stale routes of <AFI, SAFI> from peer.
+		r.handleEoRRForPeer(se.PeerOwner, se.PeerAddress, fam)
+	}
 }
 
 // insertLabeled handles a single labeled unicast NLRI announce. It strips

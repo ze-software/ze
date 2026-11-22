@@ -824,10 +824,21 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 // Uses cursor mode for efficient batched replay with delta encoding.
 func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 	sel := selector.ParseDefault(selectorStr)
+	var filterFam family.Family
+	validFamFilter := true
+	if famStr != "" {
+		if parsed, ok := family.LookupFamily(famStr); ok {
+			filterFam = parsed
+		} else {
+			validFamFilter = false
+		}
+	}
+
 	r.peerMu.RLock()
 	var peersToResend []uint64
 	groupsToResend := make(map[uint64][]replayGroup)
 	destinations := make(map[uint64]netip.Addr)
+	var ordinaryTargets []localOrdinaryRefreshTarget
 
 	for peer := range r.ribOut {
 		if !r.selectsDestination(sel, peer) {
@@ -835,6 +846,11 @@ func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 		}
 		if !r.peerUp[peer] {
 			continue // Only resend to up peers
+		}
+		if meta := r.peerMeta[peer]; meta != nil {
+			if meta.refreshOrdinary {
+				continue // Ordinary destinations refresh solely through selectedDispatch below.
+			}
 		}
 		address, known := r.peerAddressLocked(peer)
 		if !known {
@@ -844,14 +860,51 @@ func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 		var groups []replayGroup
 		if famStr == "" {
 			groups = r.collectGroupedRibOutRoutes(peer)
-		} else {
-			if fam, ok := family.LookupFamily(famStr); ok {
-				groups = r.collectGroupedRibOutRoutesForFamily(peer, fam)
-			}
+		} else if validFamFilter {
+			groups = r.collectGroupedRibOutRoutesForFamily(peer, filterFam)
 		}
 		if len(groups) > 0 {
 			peersToResend = append(peersToResend, peer)
 			groupsToResend[peer] = groups
+		}
+	}
+
+	if validFamFilter {
+		for owner, up := range r.peerUp {
+			if !up {
+				continue
+			}
+			if !r.selectsDestination(sel, owner) {
+				continue
+			}
+			meta := r.peerMeta[owner]
+			if meta == nil {
+				continue
+			}
+			if !meta.refreshOrdinary {
+				continue
+			}
+			if !meta.Address.IsValid() {
+				continue
+			}
+			if meta.refreshSession == 0 {
+				continue
+			}
+			var configured []family.Family
+			for fam, routes := range r.ribOut[owner] {
+				for _, route := range routes {
+					if route.configuredForSession(meta.refreshSession) {
+						configured = append(configured, fam)
+						break
+					}
+				}
+			}
+			ordinaryTargets = append(ordinaryTargets, localOrdinaryRefreshTarget{
+				peer:               meta.Address,
+				owner:              owner,
+				session:            meta.refreshSession,
+				configuredFamilies: configured,
+			})
 		}
 	}
 	r.peerMu.RUnlock()
@@ -864,9 +917,16 @@ func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 		refused += peerRefused
 	}
 
+	// RFC 7313 Section 4: locally initiated refresh on admitted ordinary
+	// destinations uses selectedDispatch (BoRR -> Adj-RIB-Out -> EoRR).
+	ordinaryPeers := 0
+	if validFamFilter {
+		ordinaryPeers = r.selectedDispatch.requestLocalRefresh(ordinaryTargets, filterFam)
+	}
+
 	// refused names the routes the engine did not take, so an operator never
 	// reads a resend the engine rejected as delivered.
-	return map[string]any{"resent": resent, "refused": refused, "peers": len(peersToResend)}
+	return map[string]any{"resent": resent, "refused": refused, "peers": len(peersToResend) + ordinaryPeers}
 }
 
 // resendFamiliesBracketed resends a peer's Adj-RIB-Out one family at a time,

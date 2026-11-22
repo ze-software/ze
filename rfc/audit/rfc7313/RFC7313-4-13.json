@@ -1,0 +1,13 @@
+{
+  "note": "RFC 7313 Section 4 requires sending BoRR before starting a locally initiated route refresh and EoRR after completing Adj-RIB-Out re-advertisement. RIBManager.outboundResend (internal/component/bgp/plugins/rib/rib_commands.go) excludes meta.refreshOrdinary peers from legacy resendFamiliesBracketed (preventing double refresh), snapshots matching up ordinary destinations and their config-static SENT families under r.peerMu.RLock() before releasing peerMu, and invokes selectedDispatch.requestLocalRefresh (rib_selected_refresh.go) which requires non-empty haveFamilies (configured, current, scoped, or acknowledged) so empty/unnegotiated families are never queued and lock ordering (never d.mu -> peerMu) is preserved. TestRFC7313LocallyInitiatedRouteRefreshSendsBoRRBeforeRoutes (internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go) verifies positive BoRR -> routes -> EoRR ordering on both legacy (decoding actual re-advertised prefixes 10.0.0.0/24 and 10.0.1.0/24 via consumeRefreshCommand/consumedRefreshRoutes) and ordinary destinations (with ribOut populated and refreshOrdinary=true, asserting zero legacy duplicate dispatch and peers==1), plus negative controls (non-matching selector, empty family, down peer) on both legacy and ordinary destinations.",
+  "requirement_sha": "27a686fa0f12b81b",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313LocallyInitiatedRouteRefreshSendsBoRRBeforeRoutes": "ab39d7d6db657c0a",
+    "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313LocallyInitiatedRouteRefreshSendsBoRRBeforeRoutes#2": "ab39d7d6db657c0a"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313LocallyInitiatedRouteRefreshSendsBoRRBeforeRoutes": "011b0edb1e5dfe0c",
+    "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313LocallyInitiatedRouteRefreshSendsBoRRBeforeRoutes#2": "011b0edb1e5dfe0c"
+  },
+  "verdict": "enforced"
+}

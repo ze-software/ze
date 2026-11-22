@@ -1652,6 +1652,10 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 		if opaque && s.egressFinalAccepts != nil && !s.egressFinalAccepts(s.sentForward.exportKind()) {
 			return nil
 		}
+		// RFC 7313 Section 4: enforce GR EoR gate atomically under writeMu.
+		if err := s.checkRawBoRRAllowedHeld(payload); err != nil {
+			return err
+		}
 		written, err := s.bufWriter.Write(payload)
 		if err == nil && written != len(payload) {
 			err = io.ErrShortWrite

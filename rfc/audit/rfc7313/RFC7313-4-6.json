@@ -1,0 +1,13 @@
+{
+  "note": "RFC 7313 Section 4 forbids a BGP speaker supporting Graceful Restart from sending BoRR for an <AFI, SAFI> before sending EoR for that <AFI, SAFI>. All production BoRR senders now enforce Session.checkBoRRAllowedHeld (internal/component/bgp/reactor/selected_refresh_eor.go) atomically under s.writeMu on the target session: reactorAPIAdapter.sendRouteRefreshContext (reactor_api_forward.go) plus Session.checkRawBoRRAllowedHeld inside Session.SendRawMessage (session_write.go, closing any TOCTOU across session replacement or opQueue drain), reactorAPIAdapter.SelectRefresh (selected_refresh.go), and Session.sendBoundMarker (destination_marker.go). TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported (internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go) exercises all three paths (unbound_and_raw, select_refresh_with_gr, select_refresh_without_gr, bound_marker): positive proves localGR=true refuses IPv4 BoRR with errBoRRBeforeEOR and writes zero BoRR frames before IPv4 EoR (even after IPv6 EoR, proving per-<AFI, SAFI> scoping); negative proves IPv4 BoRR is written once IPv4 EoR reaches observedBGPWriter, and localGR=false allows BoRR before EoR.",
+  "requirement_sha": "aab4b56aafd45839",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported": "8fbfb00deeab497e",
+    "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported#2": "8fbfb00deeab497e"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported": "2563f890252c27f7",
+    "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported#2": "2563f890252c27f7"
+  },
+  "verdict": "enforced"
+}

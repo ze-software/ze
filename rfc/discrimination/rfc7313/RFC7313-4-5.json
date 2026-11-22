@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7313-4-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale",
+    "unit-sha": "794dc177fbf605ae",
+    "claim-sha": "d13b2e26b9f7c74a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_refresh_rx.go::RIBManager.handleEoRRForPeer",
+    "producer-sha": "10caa5b42ba691a2",
+    "break": "body of RIBManager.handleEoRRForPeer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7313-4-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale",
+    "unit-sha": "794dc177fbf605ae",
+    "claim-sha": "48999aad24258635",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_refresh_rx.go::RIBManager.handleEoRRForPeer",
+    "producer-sha": "10caa5b42ba691a2",
+    "break": "body of RIBManager.handleEoRRForPeer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7313-4-13",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313LocallyInitiatedRouteRefreshSendsBoRRBeforeRoutes",
+    "unit-sha": "5c31c150a0cff601",
+    "claim-sha": "dd03d830718a205f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_commands.go::RIBManager.outboundResend",
+    "producer-sha": "8965cc4caaa90e89",
+    "break": "body of RIBManager.outboundResend replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7313-4-13",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313LocallyInitiatedRouteRefreshSendsBoRRBeforeRoutes",
+    "unit-sha": "5c31c150a0cff601",
+    "claim-sha": "c860bdeda06d881e",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_commands.go::RIBManager.outboundResend",
+    "producer-sha": "8965cc4caaa90e89",
+    "break": "body of RIBManager.outboundResend replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -15,6 +15,7 @@ const (
 	openIdentifierRefusalAction = "configure a nonzero BGP Identifier on the peer; for iBGP it must differ from this speaker's identifier"
 	codeBFDWaitHoldExpired      = "doctor-bgp-bfd-wait-hold-expired"
 	bfdWaitHoldExpiryFix        = "ze show bfd sessions"
+	codeDoctorBGPBoRRBeforeEOR  = "doctor-bgp-borr-before-eor"
 )
 
 // init declares connection history through the existing recent-events check.
@@ -42,6 +43,17 @@ func init() {
 	}
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeBFDWaitHoldExpired}); err != nil {
 		panic("BUG: bgp reactor: BFD wait expiry event registration failed: " + err.Error())
+	}
+	if err := diagnostic.Register(diagnostic.CodeMeta{
+		Code:        codeDoctorBGPBoRRBeforeEOR,
+		Title:       "BGP BoRR marker ignored before End-of-RIB from Graceful Restart peer",
+		Description: "A neighbor that advertised the Graceful Restart Capability sent a Beginning-of-Route-Refresh (BoRR) marker for an address family before sending its End-of-RIB (EoR) marker for that family. Per RFC 7313 Section 4, Ze ignored the BoRR and kept the session Established.",
+		Examples:    []string{"ze show bgp peer list", "ze show diagnostic " + codeDoctorBGPBoRRBeforeEOR},
+	}); err != nil {
+		panic("BUG: bgp reactor: BoRR-before-EoR diagnostic registration failed: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPBoRRBeforeEOR}); err != nil {
+		panic("BUG: bgp reactor: BoRR-before-EoR event registration failed: " + err.Error())
 	}
 }
 

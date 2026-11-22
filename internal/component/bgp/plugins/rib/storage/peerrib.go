@@ -593,15 +593,25 @@ func (r *PeerRIB) Families() []family.Family {
 	return result
 }
 
-// markFamilyStale marks all routes in a specific family at the given stale level.
+// MarkFamilyStale marks all routes in a specific family at the given stale level.
 // No-op if the family doesn't exist.
-func (r *PeerRIB) markFamilyStale(fam family.Family, level uint8) {
+// RFC 7313 Section 4: "When a BGP speaker receives a BoRR message from a peer,
+// it MUST mark all the routes with the given Address Family Identifier and
+// Subsequent Address Family Identifier, <AFI, SAFI> [RFC2918], from that peer
+// as stale."
+func (r *PeerRIB) MarkFamilyStale(fam family.Family, level uint8) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if rib, exists := r.families[fam]; exists {
 		rib.MarkStale(level)
 	}
+}
+
+// markFamilyStale marks all routes in a specific family at the given stale level.
+// No-op if the family doesn't exist.
+func (r *PeerRIB) markFamilyStale(fam family.Family, level uint8) {
+	r.MarkFamilyStale(fam, level)
 }
 
 // MarkAllStale marks all routes across all families at the given stale level.

@@ -1,0 +1,15 @@
+{
+  "note": "RFC 7313 Section 4 requires marking all <AFI, SAFI> routes from a peer stale upon receiving BoRR, applicable only when the speaker has received the Enhanced Route Refresh Capability (code 70) from that peer. RIBManager.handleBoRRForPeer (internal/component/bgp/plugins/rib/rib_refresh_rx.go) calls PeerRIB.MarkFamilyStale, and Session.normalizeReceivedRouteRefresh (internal/component/bgp/reactor/selected_refresh_eor.go) wired via Reactor.messageReceiverForPeer (source_session.go, used by both static and dynamic peers) normalizes octet 2 of a 4-byte ROUTE-REFRESH to 0 when the peer did not advertise Cap 70. TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale (internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go) exercises both DirectBridge structured and real JSONEncoder.Message -> ParseEvent rails: positive proves all three IPv4 unicast routes from peer 1 are marked stale on BoRR; negative proves subtype-0 normal refresh leaves routes fresh and peer 1's IPv6 unicast and peer 2's IPv4 unicast routes remain fresh. TestRFC7313RxNonEnhancedPeerReservedOctetNotBoRR (internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go) proves via Session.ReadAndProcess + messageReceiverForPeer that an RFC-2918-only peer's Reserved=1 delivers subtype 0 ('refresh'), while a Cap-70 peer delivers BoRR ('borr').",
+  "requirement_sha": "6460051606a15a4b",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale": "ab39d7d6db657c0a",
+    "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale#2": "ab39d7d6db657c0a",
+    "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313RxNonEnhancedPeerReservedOctetNotBoRR": "8fbfb00deeab497e"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale": "d1c66673e262a159",
+    "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale#2": "d1c66673e262a159",
+    "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313RxNonEnhancedPeerReservedOctetNotBoRR": "00935a6ea24a3503"
+  },
+  "verdict": "enforced"
+}

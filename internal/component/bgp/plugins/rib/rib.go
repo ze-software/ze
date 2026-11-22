@@ -419,6 +419,11 @@ type RIBManager struct {
 	// RFC 4724 Section 4.2: Receiving Speaker route retention state.
 	grState map[uint64]*peerGRState
 
+	// borrActive tracks per-peer, per-family active Enhanced Route Refresh
+	// (BoRR received, awaiting EoRR) state. Protected by peerMu.
+	// RFC 7313 Section 4.
+	borrActive map[uint64]map[family.Family]bool
+
 	// bestPrev tracks the previous best-path per (family, prefix) for change
 	// detection. Sharded by prefix: each family is split across N shards
 	// (default GOMAXPROCS, ze.bgp.rib.bestprev.shards override), each with
@@ -754,6 +759,7 @@ func newRIBManager(plugin *sdk.Plugin) *RIBManager {
 		sourceApplied:    make(map[uint64]sourceApplied),
 		retainedPeers:    make(map[uint64]bool),
 		grState:          make(map[uint64]*peerGRState),
+		borrActive:       make(map[uint64]map[family.Family]bool),
 		bestPrev:         newBestPrevShards(),
 		bestPathInterner: newBestPrevInterner(),
 		routeClock:       newRouteClock(clock.RealClock{}),
@@ -1036,11 +1042,11 @@ func (r *RIBManager) dispatch(event *Event) {
 		// RFC 7313: Normal route refresh request - resend Adj-RIB-Out with markers
 		r.handleRefresh(event)
 	case rpc.EventKindBoRR:
-		// RFC 7313: Beginning of Route Refresh from peer - log only
-		logger().Debug("received BoRR marker", "peer", event.GetPeerAddress())
+		// RFC 7313 Section 4: Beginning of Route Refresh from peer - mark family stale
+		r.handleBoRR(event)
 	case rpc.EventKindEoRR:
-		// RFC 7313: End of Route Refresh from peer - log only
-		logger().Debug("received EoRR marker", "peer", event.GetPeerAddress())
+		// RFC 7313 Section 4: End of Route Refresh from peer - purge remaining stale routes
+		r.handleEoRR(event)
 	case rpc.EventKindUnspecified, rpc.EventKindOpen, rpc.EventKindNotification,
 		rpc.EventKindKeepalive, rpc.EventKindEOR, rpc.EventKindNegotiated,
 		rpc.EventKindUpdateFiltered, rpc.EventKindCount:
@@ -1565,6 +1571,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 			replayGroups = r.collectPeerUpReplay(peerOwner, seenBefore)
 		}
 	} else if departed {
+		delete(r.borrActive, peerOwner)
 		r.dropSourcePolicyLocked(peerOwner)
 		if r.retainedPeers[peerOwner] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
@@ -1674,6 +1681,7 @@ func (r *RIBManager) handleState(event *Event) {
 			replayGroups = r.collectPeerUpReplay(peerOwner, seenBefore)
 		}
 	} else if departed {
+		delete(r.borrActive, peerOwner)
 		r.dropSourcePolicyLocked(peerOwner)
 		// Peer went down - clear Adj-RIB-In unless retained for GR.
 		if r.retainedPeers[peerOwner] {

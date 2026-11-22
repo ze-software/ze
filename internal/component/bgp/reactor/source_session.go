@@ -100,6 +100,12 @@ func (s *Session) sourceMessageCallback(next MessageCallback) MessageCallback {
 func (r *Reactor) messageReceiverForPeer(peer *Peer) MessageCallback {
 	return func(captured *Session, address netip.Addr, kind msgtype.MessageType, body []byte, update *wireu.WireUpdate, context bgpctx.ContextID,
 		direction rpc.MessageDirection, buffer BufHandle, meta map[string]any, source string, id uint64) bool {
+		if kind == msgtype.TypeROUTEREFRESH {
+			if direction == rpc.DirectionReceived {
+				// RFC 7313 Section 4 / RFC 2918 Section 3: non-Cap-70 Reserved octet is ignored.
+				body = captured.normalizeReceivedRouteRefresh(body)
+			}
+		}
 		return r.notifyMessageReceiverFrom(peer, captured, address, kind, body, update, context, direction, buffer, meta, source, id)
 	}
 }

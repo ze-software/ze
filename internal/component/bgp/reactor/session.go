@@ -35,6 +35,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/memguard"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -396,6 +397,13 @@ type Session struct {
 	// publishNegotiation sets it from the retained local proposal under writeMu;
 	// selected refresh reads it under that same lock, never from PeerSettings.
 	localGR bool
+
+	// recvEOR records address families for which the current negotiation epoch
+	// has received an End-of-RIB marker from the neighbor (RFC 4724 Section 2 /
+	// RFC 7313 Section 4), bound to recvEORFor so re-negotiation starts fresh.
+	// Accessed only from the session's single read goroutine.
+	recvEORFor *capability.Negotiated
+	recvEOR    map[family.Family]bool
 
 	// sourceReceipt captures this exact connection after negotiation. It stays
 	// immutable through its ordered DOWN and never reads a replacement Session.

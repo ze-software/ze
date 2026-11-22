@@ -4,7 +4,6 @@ package reactor
 
 import (
 	"context"
-	"errors"
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -143,13 +142,8 @@ func (s *Session) sendBoundMarker(ctx context.Context, marker *message.RouteRefr
 	// RFC 7313 Section 4. The actual writer, not a configured GR flag or
 	// staged UPDATE, records the EOR accepted by this original connection.
 	if marker.Subtype == message.RouteRefreshBoRR {
-		if s.localGR {
-			if s.wireWriter == nil {
-				return errors.New("bound refresh has no completed EOR record; finish this session's initial routing update before refresh")
-			}
-			if !s.wireWriter.sentEOR[fam] {
-				return errors.New("bound refresh EOR has not reached this session's wire; finish this family's initial routing update before refresh")
-			}
+		if err := s.checkBoRRAllowedHeld(fam); err != nil {
+			return err
 		}
 	}
 	conn := s.conn

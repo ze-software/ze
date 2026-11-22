@@ -1,0 +1,13 @@
+{
+  "note": "RFC 7313 Section 4 requires immediately removing routes from the peer that are still marked stale for <AFI, SAFI> on EoRR. RIBManager.handleEoRRForPeer (internal/component/bgp/plugins/rib/rib_refresh_rx.go) gates on per-(peer, family) borrActive, purges remaining stale routes of (peerOwner, fam) via PeerRIB.RemoveFamilyMatching, withdraws sent copies, and reconciles Loc-RIB/BestChange. TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale (internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go) exercises both DirectBridge structured and real JSONEncoder.Message / AppendMessage -> ParseEvent rails: positive proves EoRR immediately purges still-stale pDrop and pBackup from peer 1's Adj-RIB-In, removes pDrop from Loc-RIB with BestChangeWithdraw, and fails pBackup over to peer 2; negative proves unsolicited EoRR without prior BoRR does not purge already-stale routes, re-advertising pKeep through production UPDATE ingest (handleReceivedStructured / handleReceived -> InsertEntry) clears its stale mark so it survives EoRR, and simultaneously-stale routes in peer 1's sibling family (IPv6) and peer 2's Adj-RIB-In survive peer 1's IPv4 EoRR still marked stale.",
+  "requirement_sha": "35c94a51e10f4189",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale": "ab39d7d6db657c0a",
+    "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale#2": "ab39d7d6db657c0a"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale": "d1c66673e262a159",
+    "internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go::TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale#2": "d1c66673e262a159"
+  },
+  "verdict": "enforced"
+}

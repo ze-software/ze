@@ -445,6 +445,8 @@ func (a *reactorAPIAdapter) sendRouteRefreshContext(ctx context.Context, sel *se
 			}
 		}
 
+		fam := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}
+
 		owner, _ := sender.Destination()
 		if owner != 0 {
 			session := peer.currentSession()
@@ -455,6 +457,12 @@ func (a *reactorAPIAdapter) sendRouteRefreshContext(ctx context.Context, sel *se
 			err := session.sendUpdateCounted(ctx, &message.Update{}, nil, false, nil, func(current *Session, _ *message.Update) error {
 				if err := destinationCurrent(peer, current, sender); err != nil {
 					return err
+				}
+				// RFC 7313 Section 4: do not send BoRR before EoR when GR is supported.
+				if subtype == message.RouteRefreshBoRR {
+					if err := current.checkBoRRAllowedHeld(fam); err != nil {
+						return err
+					}
 				}
 				return current.writeMessageHeld(rr)
 			})
@@ -471,6 +479,16 @@ func (a *reactorAPIAdapter) sendRouteRefreshContext(ctx context.Context, sel *se
 		// RFC 7313 Section 4: a BoRR or EoRR takes its place among the routes of
 		// the refresh it brackets (sendRefreshMarker), and is counted when sent.
 		if requiresEnhancedRR {
+			if subtype == message.RouteRefreshBoRR {
+				if session := peer.currentSession(); session != nil {
+					// RFC 7313 Section 4: speaker supporting GR MUST NOT send BoRR
+					// for <AFI, SAFI> before sending EoR for <AFI, SAFI>.
+					if err := session.checkBoRRAllowed(fam); err != nil {
+						errs = append(errs, err)
+						continue
+					}
+				}
+			}
 			if err := peer.sendRefreshMarker(data); err != nil {
 				errs = append(errs, err)
 			}

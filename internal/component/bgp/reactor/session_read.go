@@ -615,6 +615,10 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			return nil, false
 		}
 		s.noteReceivedRoute(wireUpdate)
+		if eorFam, isEOR := wireUpdate.IsEOR(); isEOR {
+			// RFC 7313 Section 4: track per-family received EoR for GR BoRR gating.
+			s.recordReceivedEOR(eorFam)
+		}
 	}
 
 	// Screen a ROUTE-REFRESH before callback delivery, so malformed peer input
@@ -630,6 +634,10 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			return refreshErr, false
 		}
 		if ignore {
+			return nil, false
+		}
+		// RFC 7313 Section 4
+		if s.routeRefreshBoRRBeforeEOR(body) {
 			return nil, false
 		}
 	}

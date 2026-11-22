@@ -91,13 +91,8 @@ func (a *reactorAPIAdapter) SelectRefresh(ctx context.Context, request *plugin.S
 	}
 	// RFC 7313 Section 4: "For a BGP speaker that supports the BGP Graceful Restart, it MUST NOT send a BoRR for an <AFI, SAFI> to a neighbor before it sends the EoR for the <AFI, SAFI> to the neighbor."
 	if input.Action == rpc.SelectedRefreshBegin {
-		if session.localGR {
-			if session.wireWriter == nil {
-				return nil, errors.New("select-refresh has no completed EOR record; finish this session's initial routing update before refresh")
-			}
-			if !session.wireWriter.sentEOR[request.Family()] {
-				return nil, errors.New("select-refresh EOR has not reached this session's wire; finish this family's initial routing update before refresh")
-			}
+		if err := session.checkBoRRAllowedHeld(request.Family()); err != nil {
+			return nil, err
 		}
 	}
 	conn := session.conn

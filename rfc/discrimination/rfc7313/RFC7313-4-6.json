@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7313-4-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported",
+    "unit-sha": "32eeadb4f03dd55a",
+    "claim-sha": "c2e393f8121c4566",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/selected_refresh_eor.go::Session.checkBoRRAllowedHeld",
+    "producer-sha": "60ba4c1bc27a4e3f",
+    "break": "body of Session.checkBoRRAllowedHeld replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7313-4-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go::TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported",
+    "unit-sha": "32eeadb4f03dd55a",
+    "claim-sha": "7b70ce201783667f",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/selected_refresh_eor.go::Session.checkBoRRAllowedHeld",
+    "producer-sha": "60ba4c1bc27a4e3f",
+    "break": "body of Session.checkBoRRAllowedHeld replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

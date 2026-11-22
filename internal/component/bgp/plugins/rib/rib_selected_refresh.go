@@ -122,6 +122,101 @@ func (d *selectedDispatch) requestRefresh(peer netip.Addr, owner, session uint64
 	return nil
 }
 
+// localOrdinaryRefreshTarget snapshots one matching ordinary destination and
+// its config-static SENT families under RIBManager.peerMu before entering
+// selectedDispatch.mu, preserving the strict lock order (never d.mu -> peerMu).
+type localOrdinaryRefreshTarget struct {
+	peer               netip.Addr
+	owner              uint64
+	session            uint64
+	configuredFamilies []family.Family
+}
+
+// requestLocalRefresh queues a locally initiated RFC 7313 Section 4 route
+// refresh (BoRR -> Adj-RIB-Out -> EoRR) for each snapshotted admitted ordinary
+// destination, either for famFilter or for every family with routes in
+// current/acknowledged/configured output for that destination.
+func (d *selectedDispatch) requestLocalRefresh(targets []localOrdinaryRefreshTarget, famFilter family.Family) int {
+	if d == nil {
+		return 0
+	}
+	if len(targets) == 0 {
+		return 0
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.stopped {
+		return 0
+	}
+	if d.refresh == nil {
+		return 0
+	}
+	queuedPeers := 0
+	for _, target := range targets {
+		destination := d.destinations[selectedDestinationID{peer: target.peer, session: target.session}]
+		if destination == nil {
+			continue
+		}
+		if destination.owner != target.owner {
+			continue
+		}
+		haveFamilies := make(map[family.Family]struct{})
+		for _, fam := range target.configuredFamilies {
+			haveFamilies[fam] = struct{}{}
+		}
+		for key := range d.current {
+			haveFamilies[key.family] = struct{}{}
+		}
+		for key := range d.scoped[originScope{peer: destination.peer, owner: destination.owner}] {
+			haveFamilies[key.family] = struct{}{}
+		}
+		for _, ack := range destination.acknowledged {
+			if !ack.possible {
+				continue
+			}
+			if fam, ok := family.LookupFamily(ack.family); ok {
+				haveFamilies[fam] = struct{}{}
+			}
+		}
+		var families []family.Family
+		if famFilter != (family.Family{}) {
+			if _, hasRoutes := haveFamilies[famFilter]; hasRoutes {
+				if _, ok := destination.refreshFamilies[famFilter]; ok {
+					families = []family.Family{famFilter}
+				}
+			}
+		} else {
+			for fam := range haveFamilies {
+				if _, ok := destination.refreshFamilies[fam]; ok {
+					families = append(families, fam)
+				}
+			}
+		}
+		if len(families) == 0 {
+			continue
+		}
+		if destination.refreshPending == nil {
+			destination.refreshPending = make(map[family.Family]uint64)
+		}
+		added := false
+		for _, fam := range families {
+			if _, exists := destination.refreshPending[fam]; exists {
+				continue
+			}
+			destination.refreshPending[fam] = destination.owner
+			destination.refreshOrder = append(destination.refreshOrder, fam)
+			added = true
+		}
+		if added {
+			queuedPeers++
+		}
+	}
+	if queuedPeers > 0 {
+		d.signalLocked()
+	}
+	return queuedPeers
+}
+
 func (d *selectedDispatch) refreshQueuedLocked(destination *selectedDestination) bool {
 	if d.fatal != nil {
 		return false
