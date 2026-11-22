@@ -551,7 +551,9 @@ type IPv6ExtendedCommunities []IPv6ExtendedCommunity
 func (e IPv6ExtendedCommunities) Code() AttributeCode { return AttrIPv6ExtCommunity }
 
 // Flags returns the attribute flags (transitive optional) per RFC 5701 Section 2.
-func (e IPv6ExtendedCommunities) Flags() AttributeFlags { return FlagOptional | FlagTransitive }
+func (e IPv6ExtendedCommunities) Flags() AttributeFlags {
+	return FlagOptional | FlagTransitive
+}
 
 // Len returns the length in bytes (20 bytes per IPv6 extended community).
 func (e IPv6ExtendedCommunities) Len() int { return len(e) * 20 }
