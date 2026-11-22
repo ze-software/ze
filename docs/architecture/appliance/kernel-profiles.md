@@ -536,8 +536,20 @@ UDP keeps the receipt only because its enqueue scrubs extensions through
 the receipt is then not marked stateless, so consuming it releases the
 receipt's owner reference. Linux 7.3's own reset there erased the receipt, so
 every datagram queued to an owned UDP6 socket was dropped at receive-copy.
+A `MSG_PEEK` read leaves the receipt on the queued datagram, so the read that
+follows it returns the same datagram and the queue keeps delivering.
+The scrub runs for unowned UDP6 sockets too, so they keep the receipt as well.
+A PPP unit with a control owner stamps a received IPv6 packet that the 0012
+candidate filter matches: UDP to port 547, including DHCPv6 multicast to
+`ff02::1:2`, which native delivery clones to every matching socket, and every
+packet whose first next header is an IPv6 extension or fragment header. Such a
+datagram queued to an unowned UDP6 socket holds the receipt, and with it the
+owner reference that pins the logical PPP interface object and the provider
+module, until that socket reads the datagram or closes.
 <!-- source: gokrazy/kernel/patches/0013b-ppp-control-ipv6-receive.patch -- ppp_control_rx_match, udpv6_recvmsg, rawv6_recvmsg, udp_read_skb, udp_try_make_stateless -->
-<!-- test: internal/component/l2tp/ppp/kernel/created_unit_control_socket_receive_integration_linux_test.go TestCreatedUnitControlSocketNativeUDP6ReceivesPeerDatagram -->
+<!-- source: gokrazy/kernel/patches/0012-ppp-control-owner-foundation.patch -- ppp_control_rx_candidate, ppp_control_scrub -->
+<!-- source: gokrazy/kernel/patches/0013a-ppp-control-rx-fragments.patch -- ppp_control_rx_stamp -->
+<!-- test: internal/component/l2tp/ppp/kernel/created_unit_control_socket_receive_integration_linux_test.go TestCreatedUnitControlSocketNativeUDP6ReceivesPeerDatagram, TestCreatedUnitControlSocketNativeUDP6PeekKeepsReceipt -->
 
 Received ICMP errors preserve their RX receipt through the native error clone.
 Fresh local errors and path-MTU notifications receive a TX receipt from the
@@ -577,8 +589,17 @@ no fallback to name-bound sockets.
 <!-- source: gokrazy/kernel/patches/0013c-ppp-control-ipv6-transmit.patch -- ppp_control_mc_idev, __ipv6_sock_mc_join -->
 
 Constructor and option tests cover this file API and its refusal boundaries.
-Carrier packets, multicast cleanup and fragment isolation require their
-separate native tests before shared PPP acceptance is complete.
+On the amd64 runtime kernel, the carrier owner roots prove all four traffic
+lanes through a real PPPoE session, a rename before and after acquisition,
+refusal of every stale read and write once the original retires and a
+replacement takes its index and name, multicast cleanup, and socket
+construction from the retained session rather than the caller's namespace.
+The fragment roots prove useful fragmented UDP through the PPP owner, no
+completion across two units sharing a tuple and fragment ID, no completion on
+a replacement after retirement, one queue kept across a rename, and untouched
+reassembly on ordinary Ethernet. Complete subscriber acceptance remains open.
+<!-- test: internal/component/l2tp/pppoe/dataplane/kernel/native_ipv6_carrier_owner_integration_linux_test.go TestNativeIPv6CarrierOriginalTraffic, TestNativeIPv6CarrierRenameAfterAcquire, TestNativeIPv6CarrierAcquireAfterRename, TestNativeIPv6CarrierRetiredRS, TestNativeIPv6CarrierRetiredDHCP, TestNativeIPv6CarrierRetiredRAWrite, TestNativeIPv6CarrierRetiredDHCPWrite, TestNativeIPv6CarrierMulticastCleanup, TestNativeIPv6CarrierForeignCaller -->
+<!-- test: internal/component/l2tp/pppoe/dataplane/kernel/native_ipv6_fragment_integration_linux_test.go TestNativeIPv6FragmentUseful, TestNativeIPv6FragmentDistinctOwners, TestNativeIPv6FragmentRetiredOwner, TestNativeIPv6FragmentRename, TestNativeIPv6FragmentOrdinaryEthernet -->
 
 ## Runtime requirements
 

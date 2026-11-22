@@ -3,6 +3,7 @@
 package kernel
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -31,6 +32,9 @@ type sessionOps struct {
 	setMRU         func(int, uint16) error
 	setIPv4Mode    func(int, NPMode) error
 	setIPv6Mode    func(int, NPMode) error
+	// openIPv6Carrier opens the carrier from the original unit. Only the
+	// production set binds it; a fixture without it refuses the open.
+	openIPv6Carrier func(context.Context, *CreatedUnit, int) (ppp.IPv6Carrier, error)
 }
 
 func productionSessionOps() sessionOps {
@@ -39,7 +43,7 @@ func productionSessionOps() sessionOps {
 		wrapUnit: wrapClaimedSessionUnit, closeUnit: closeClaimedSessionUnit,
 		duplicateFD: duplicateSessionDescriptor, stampBirth: stampSessionBirth,
 		preparePair: prepareOriginalSessionPair, connectPair: connectOriginalSessionPair, disconnectPair: disconnectOriginalSessionPair, setMRU: realSetMRU,
-		setIPv4Mode: SetIPv4Mode, setIPv6Mode: SetIPv6Mode}
+		setIPv4Mode: SetIPv4Mode, setIPv6Mode: SetIPv6Mode, openIPv6Carrier: openIPv6Carrier}
 }
 
 func closeSessionDescriptor(fd int) error {

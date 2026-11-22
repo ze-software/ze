@@ -46,29 +46,8 @@ func TestCreatedUnitControlSocketNativeUDP6ReceivesPeerDatagram(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
-	unit, backend, link := controlSocketNativeUnitWithBackend(t, "zcudp6rx")
-	operations := controlSocketReceiveOperations(t, unit, backend)
-	channel := nativeChannelFixtureNew(t, 9)
-	if err := unit.WithDescriptor(func(fd int) error {
-		if err := nativeChannelOperate(channel.fd, nativeChannelConnect, fd); err != nil {
-			return err
-		}
-		return pppkernel.SetIPv6Mode(fd, pppkernel.NPModePass)
-	}); err != nil {
-		t.Fatalf("connect the real PPPoE channel to the original unit: %v", err)
-	}
-	if err := operations.SetAdminUp(t.Context()); err != nil {
-		t.Fatalf("set the original unit up: %v", err)
-	}
-	local := netip.AddrPortFrom(netip.MustParseAddr("fe80::1"), controlSocketReceiveServerPort)
-	peer := netip.AddrPortFrom(netip.MustParseAddr("fe80::2"), controlSocketReceiveClientPort)
-	if err := operations.AddAddressP2P(t.Context(), netip.PrefixFrom(local.Addr(), 64), netip.PrefixFrom(peer.Addr(), 64)); err != nil {
-		t.Fatalf("install the original unit's IPv6 pair: %v", err)
-	}
-	controlSocketReceiveAddressReady(t, link, local.Addr())
-	// Opening the owned socket gives the unit its control owner, which PPP
-	// input needs before it stamps the receipt.
-	conn := controlSocketReceiveConn(t, controlSocketNativeOpen(t, unit, pppkernel.IPv6ControlSocketUDP6))
+	link, channel, conn := controlSocketReceiveSetup(t, "zcudp6rx")
+	local, peer := controlSocketReceiveLocal, controlSocketReceivePeer
 	payload := []byte{1, 0, 0x5a, 0x7e, 'o', 'w', 'n', 'e', 'd'}
 	channel.inject(t, append([]byte{0x00, 0x57}, controlSocketReceivePacket(peer, local, payload)...))
 	if err := conn.SetReadDeadline(time.Now().Add(controlSocketReceiveWait)); err != nil {
@@ -93,6 +72,104 @@ func TestCreatedUnitControlSocketNativeUDP6ReceivesPeerDatagram(t *testing.T) {
 	if zone != link.Attrs().Name && zone != strconv.Itoa(link.Attrs().Index) {
 		t.Fatalf("owned UDP6 datagram arrived on zone %q, want the original unit %s", zone, link.Attrs().Name)
 	}
+}
+
+// TestCreatedUnitControlSocketNativeUDP6PeekKeepsReceipt proves a peeked
+// datagram stays readable on the owned UDP6 socket, and the queue keeps
+// delivering after it.
+//
+// VALIDATES: MSG_PEEK on the raw descriptor returns the peer's payload, the
+// following read returns the same payload with the receipt still checked, and
+// a second datagram from the peer then arrives intact.
+// PREVENTS: the shared skb_consume_udp path of a peek releasing or erasing the
+// RX receipt, after which the real read drops the datagram it peeked, or a
+// peek leaving the queue unable to deliver the next datagram.
+func TestCreatedUnitControlSocketNativeUDP6PeekKeepsReceipt(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	_, channel, conn := controlSocketReceiveSetup(t, "zcudp6pk")
+	local, peer := controlSocketReceiveLocal, controlSocketReceivePeer
+	first := []byte{1, 0, 0x5a, 0x7e, 'p', 'e', 'e', 'k'}
+	channel.inject(t, append([]byte{0x00, 0x57}, controlSocketReceivePacket(peer, local, first)...))
+	if err := conn.SetReadDeadline(time.Now().Add(controlSocketReceiveWait)); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := conn.SyscallConn()
+	if err != nil {
+		t.Fatal(err)
+	}
+	peeked := make([]byte, 256)
+	var peekCount int
+	var peekErr error
+	readErr := raw.Read(func(fd uintptr) bool {
+		peekCount, _, peekErr = unix.Recvfrom(int(fd), peeked, unix.MSG_PEEK)
+		// EAGAIN hands the wait back to the poller, which honors the deadline.
+		return !errors.Is(peekErr, unix.EAGAIN)
+	})
+	if err := errors.Join(readErr, peekErr); err != nil {
+		t.Fatalf("MSG_PEEK on the owned UDP6 socket read no datagram from its PPP peer within %s: %v", controlSocketReceiveWait, err)
+	}
+	if !bytes.Equal(peeked[:peekCount], first) {
+		t.Fatalf("MSG_PEEK returned %x, want the peer's exact payload %x", peeked[:peekCount], first)
+	}
+	buffer := make([]byte, 256)
+	count, _, err := conn.ReadFromUDPAddrPort(buffer)
+	if err != nil {
+		t.Fatalf("read after MSG_PEEK returned no datagram: %v (the peek released the receipt the read checks)", err)
+	}
+	if !bytes.Equal(buffer[:count], first) {
+		t.Fatalf("read after MSG_PEEK returned %x, want the peeked payload %x", buffer[:count], first)
+	}
+	second := []byte{2, 0, 0x5a, 0x7e, 'n', 'e', 'x', 't'}
+	channel.inject(t, append([]byte{0x00, 0x57}, controlSocketReceivePacket(peer, local, second)...))
+	if err := conn.SetReadDeadline(time.Now().Add(controlSocketReceiveWait)); err != nil {
+		t.Fatal(err)
+	}
+	count, _, err = conn.ReadFromUDPAddrPort(buffer)
+	if err != nil {
+		t.Fatalf("owned UDP6 socket read no second datagram within %s after a peek: %v", controlSocketReceiveWait, err)
+	}
+	if !bytes.Equal(buffer[:count], second) {
+		t.Fatalf("second read returned %x, want the peer's next payload %x", buffer[:count], second)
+	}
+}
+
+// The original unit's link-local pair: the owned socket listens on the local
+// end at the DHCPv6 server port, and the PPP peer sends from the client port.
+var (
+	controlSocketReceiveLocal = netip.AddrPortFrom(netip.MustParseAddr("fe80::1"), controlSocketReceiveServerPort)
+	controlSocketReceivePeer  = netip.AddrPortFrom(netip.MustParseAddr("fe80::2"), controlSocketReceiveClientPort)
+)
+
+// controlSocketReceiveSetup connects a real PPPoE channel to a new original
+// unit, brings the unit up with its usable link-local pair, and opens the
+// owned UDP6 socket on the DHCPv6 server port.
+func controlSocketReceiveSetup(t *testing.T, name string) (netlink.Link, *nativeChannelFixture, *net.UDPConn) {
+	t.Helper()
+	unit, backend, link := controlSocketNativeUnitWithBackend(t, name)
+	operations := controlSocketReceiveOperations(t, unit, backend)
+	channel := nativeChannelFixtureNew(t, 9)
+	if err := unit.WithDescriptor(func(fd int) error {
+		if err := nativeChannelOperate(channel.fd, nativeChannelConnect, fd); err != nil {
+			return err
+		}
+		return pppkernel.SetIPv6Mode(fd, pppkernel.NPModePass)
+	}); err != nil {
+		t.Fatalf("connect the real PPPoE channel to the original unit: %v", err)
+	}
+	if err := operations.SetAdminUp(t.Context()); err != nil {
+		t.Fatalf("set the original unit up: %v", err)
+	}
+	local, peer := controlSocketReceiveLocal, controlSocketReceivePeer
+	if err := operations.AddAddressP2P(t.Context(), netip.PrefixFrom(local.Addr(), 64), netip.PrefixFrom(peer.Addr(), 64)); err != nil {
+		t.Fatalf("install the original unit's IPv6 pair: %v", err)
+	}
+	controlSocketReceiveAddressReady(t, link, local.Addr())
+	// Opening the owned socket gives the unit its control owner, which PPP
+	// input needs before it stamps the receipt.
+	conn := controlSocketReceiveConn(t, controlSocketNativeOpen(t, unit, pppkernel.IPv6ControlSocketUDP6))
+	return link, channel, conn
 }
 
 // controlSocketReceiveOperations binds the unit's guarded link writer from its

@@ -874,8 +874,13 @@ unit retires, so a renamed original keeps its carrier and a replacement that
 takes the old name neither receives from nor sends through it. The UDPv6
 socket binds port 547 with `SO_REUSEADDR`, and both multicast joins pass
 interface zero, which the kernel resolves to the original device. A session
-without a genuine original unit refuses to open a carrier. Its cancellation
-changes only the read deadline.
+without a genuine original unit refuses to open a carrier, and so does a
+session whose carrier open is already in progress: two concurrent opens would
+both bind port 547 on one unit, and unicast DHCPv6 would reach only one of
+them. The refusal covers the open alone, so a reopen after the caller closed
+its carrier is admitted. A carrier whose session closed, or whose original
+unit changed, while it opened is closed and the open answers
+`io.ErrClosedPipe`. Its cancellation changes only the read deadline.
 <!-- source: internal/component/l2tp/ppp/kernel/session.go -- session.OpenIPv6Carrier -->
 <!-- source: internal/component/l2tp/ppp/kernel/ipv6_linux.go -- openIPv6Carrier, openOriginalIPv6Conn, configureRASocket, openDHCPSocket -->
 
