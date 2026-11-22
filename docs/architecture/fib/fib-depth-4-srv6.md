@@ -45,7 +45,7 @@ rewrites `EOPNOTSUPP` into an operator error naming the prefix,
 original netlink error.
 
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildSEG6Encap, buildRichRoute, addRichRoute, replaceRichRoute, wrapSEG6InstallError -->
-<!-- source: gokrazy/kernel/runtime.require -- CONFIG_IPV6_SEG6_LWTUNNEL, CONFIG_IPV6_SEG6_FORWARD_TTL -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_IPV6_SEG6_LWTUNNEL, CONFIG_IPV6_SEG6_FORWARD_TTL, CONFIG_IPV6_SEG6_FORWARD_FRAG -->
 
 On a stock Linux kernel, `seg6_build_state` sets `LWTUNNEL_STATE_INPUT_REDIRECT`
 on L3 modes, so forwarded packets skip `ip_forward` and `ip6_forward`
@@ -71,22 +71,51 @@ Needed or Packet Too Big to the sender. Locally originated traffic already took
 
 <!-- source: gokrazy/kernel/patches/0014-seg6-forward-ttl.patch -- seg6_build_state, __seg6_do_srh_encap, CONFIG_IPV6_SEG6_FORWARD_TTL -->
 
-`fib-kernel` enrolls two degrading kernel capabilities for SRv6: `srv6-encap`
-(`CONFIG_IPV6_SEG6_LWTUNNEL`) and `srv6-forward-ttl`
-(`CONFIG_IPV6_SEG6_FORWARD_TTL`). Both trigger when `SRv6InUse` sees
-`fib { kernel { } }` with at least one BGP peer or peer group. A shared
-behavioral probe (`kernelcap.SRv6Encap`, `kernelcap.SRv6ForwardTTL`) installs a
-seg6 route and forwards one marked packet through a TUN device in a throwaway
-namespace. `ze doctor` reports missing or unknown support as warnings under
-`doctor-srv6-encap-unavailable`, `doctor-srv6-encap-unknown`,
-`doctor-srv6-forward-ttl-not-decremented` (naming
-`LL-SEG6-HEADEND-NO-TTL-DECREMENT`), and `doctor-srv6-forward-ttl-unknown`, and
-never refuses startup.
+Oversized DF-clear IPv4 packets still drop on stock and 0014-only kernels
+(`LL-SEG6-HEADEND-NO-DF-CLEAR-FRAG` in
+`docs/architecture/linux-limitations.md`): `ip_forward` skips `ip_exceeds_mtu`
+when `IP_DF` is clear, and `lwtunnel_output` bypasses `ip_output` and
+`ip_finish_output` / `ip_fragment`, so `seg6_output_core` encapsulates past the
+egress MTU and `ip6_fragment` drops the outer packet. Ze's runtime kernel also
+carries `gokrazy/kernel/patches/0015-seg6-forward-df-clear-frag.patch` (marker
+`CONFIG_IPV6_SEG6_FORWARD_FRAG=y`). Inside `seg6_output_core`, oversized
+DF-clear IPv4 packets (and DF-clear IPv4 GSO skbs whose segment size exceeds
+the effective tunnel MTU) are fragmented at the inner IPv4 layer via Linux's
+exported `ip_do_fragment` before `seg6_output_encap`, emitting unfragmented
+outer IPv6+SRH packets each within the egress MTU. Pre-encapsulation inner IPv4
+fragmentation is required rather than outer IPv6 fragmentation because Linux's
+own `seg6_local` (`End.DT4` / `End.DX4`) hooks `LWTUNNEL_STATE_INPUT_REDIRECT`,
+running `decap_and_validate` before `ipv6_frag_rcv` and dropping outer IPv6
+fragments unconditionally; inner fragmentation also preserves RFC 791 IPv4
+option rules, guards sub-quantum MTUs (`mtu < hlen + 8`) without livelock, and
+works across anycast SIDs. Like `ip_forward`'s DF-set PMTU check,
+`ip_skb_dst_mtu(sk, skb)` reflects the IPv4 route's `orig_dst`, not a separate
+outer IPv6 `dst`, so split-interface routes where `orig_dst->dev->mtu` exceeds
+the outer IPv6 underlay MTU or learned PMTU remain outside this bound; Ze's
+`buildRichRoute` resolves the IPv4 next hop onto the underlay egress interface.
 
-<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- srv6EncapCapability, srv6ForwardTTLCapability -->
+<!-- source: gokrazy/kernel/patches/0015-seg6-forward-df-clear-frag.patch -- seg6_output_core, seg6_output_ipv4_fragment, seg6_output_ipv4_gso, seg6_output_encap, CONFIG_IPV6_SEG6_FORWARD_FRAG -->
+
+`fib-kernel` enrolls three degrading kernel capabilities for SRv6: `srv6-encap`
+(`CONFIG_IPV6_SEG6_LWTUNNEL`), `srv6-forward-ttl`
+(`CONFIG_IPV6_SEG6_FORWARD_TTL`), and `srv6-forward-frag`
+(`CONFIG_IPV6_SEG6_FORWARD_FRAG`). All three trigger when `SRv6InUse` sees
+`fib { kernel { } }` with at least one BGP peer or peer group. A shared
+behavioral probe (`kernelcap.SRv6Encap`, `kernelcap.SRv6ForwardTTL`,
+`kernelcap.SRv6ForwardFrag`) installs a seg6 route and forwards a marked TTL
+packet plus an oversized DF-clear IPv4 packet and sentinel through a TUN device
+in a throwaway namespace. `ze doctor` reports missing or unknown support as
+warnings under `doctor-srv6-encap-unavailable`, `doctor-srv6-encap-unknown`,
+`doctor-srv6-forward-ttl-not-decremented` (naming
+`LL-SEG6-HEADEND-NO-TTL-DECREMENT`), `doctor-srv6-forward-ttl-unknown`,
+`doctor-srv6-forward-frag-unavailable` (naming
+`LL-SEG6-HEADEND-NO-DF-CLEAR-FRAG`), and `doctor-srv6-forward-frag-unknown`,
+and never refuses startup.
+
+<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- srv6EncapCapability, srv6ForwardTTLCapability, srv6ForwardFragCapability -->
 <!-- source: internal/plugins/fib/kernel/register_doctor_codes.go -- doctorDiagnosticCodes -->
 <!-- source: internal/component/kernelcap/predicate.go -- SRv6InUse -->
-<!-- source: internal/component/kernelcap/probe_srv6_linux.go -- SRv6Encap, SRv6ForwardTTL -->
+<!-- source: internal/component/kernelcap/probe_srv6_linux.go -- SRv6Encap, SRv6ForwardTTL, SRv6ForwardFrag -->
 
 ## VPP backend
 

@@ -1,7 +1,7 @@
 //go:build integration && linux
 
 // Design: docs/architecture/fib/fib-depth-4-srv6.md -- selected Service SID reaches the wire as IPv6 encapsulation.
-// Related: srv6probe_integration_linux_test.go -- throwaway-namespace probe verification for srv6-encap and srv6-forward-ttl.
+// Related: srv6probe_integration_linux_test.go -- throwaway-namespace probe verification for srv6-encap, srv6-forward-ttl, and srv6-forward-frag.
 // Related: mplsmtu_integration_linux_test.go -- shared veth testbed, return routes, packet injection, and checksum helpers.
 package fibkernel
 
@@ -40,16 +40,26 @@ const (
 	srv6DFClearTestSize        = 1460
 	srv6CaptureBufSize         = 4096
 	srv6UDPPort                = 4000
+	srv6IPv4FlagDF             = 0x4000
+	srv6IPv4FlagMF             = 0x2000
+	srv6IPv4FragOffMask        = 0x1fff
+	srv6FragUnit               = 8
+	srv6SubQuantumPathMTU      = 84
+	srv6SubQuantumPacketLen    = 68
+	srv6MarkerPacketLen        = 44
 
-	srv6PrivilegeReason  = "the userns.Enter trial timed out waiting for an SRv6-encapsulated packet on the capture link"
-	srv6TestSID          = "2001:db8:1::2"
-	srv6TestIPv4Prefix   = "192.0.2.0/24"
-	srv6TestIPv4Src      = "192.0.2.10"
-	srv6TestIPv4Dst      = "192.0.2.20"
-	srv6TestIPv6Prefix   = "2001:db8:20::/64"
-	srv6TestIPv6Src      = "2001:db8:10::10"
-	srv6TestIPv6Dst      = "2001:db8:20::20"
-	srv6MsgOuterHopLimit = "outer IPv6 Hop Limit must be the egress interface hop limit"
+	srv6PrivilegeReason      = "the userns.Enter trial timed out waiting for an SRv6-encapsulated packet on the capture link"
+	srv6TestSID              = "2001:db8:1::2"
+	srv6TestIPv4Prefix       = "192.0.2.0/24"
+	srv6TestIPv4Src          = "192.0.2.10"
+	srv6TestIPv4Dst          = "192.0.2.20"
+	srv6SubQuantumIPv4Prefix = "192.0.2.20/32"
+	srv6MarkerIPv4Prefix     = "192.0.2.21/32"
+	srv6MarkerIPv4Dst        = "192.0.2.21"
+	srv6TestIPv6Prefix       = "2001:db8:20::/64"
+	srv6TestIPv6Src          = "2001:db8:10::10"
+	srv6TestIPv6Dst          = "2001:db8:20::20"
+	srv6MsgOuterHopLimit     = "outer IPv6 Hop Limit must be the egress interface hop limit"
 )
 
 // srv6ForwardTTLPatched probes whether the running kernel carries Ze's
@@ -80,6 +90,41 @@ func srv6ForwardTTLPatched(t *testing.T) bool {
 		return false
 	case kernelcap.StateUnknown, kernelcap.StateDenied, kernelcap.StateUnspecified:
 		t.Fatalf("kernel %s: srv6-forward-ttl probe answered %v (%v); expected present or absent",
+			release, probe.State, probe.Reason)
+		return false
+	default:
+		panic("BUG: unexpected kernelcap.State")
+	}
+}
+
+// srv6ForwardFragPatched probes whether the running kernel carries Ze's
+// forwarded DF-clear IPv4 fragmentation seg6 patch
+// (CONFIG_IPV6_SEG6_FORWARD_FRAG, patch 0015). On Ze's runtime kernel (release
+// suffix "-ze"), it requires StatePresent and never takes the stock-kernel
+// branch. On a stock kernel without CONFIG_IPV6_SEG6_LWTUNNEL it skips;
+// otherwise it returns whether the patch is present and fails on unknown or
+// denied verdicts since the caller already verified init-namespace privilege.
+func srv6ForwardFragPatched(t *testing.T) bool {
+	t.Helper()
+	release := kernelRelease(t)
+	encap := kernelcap.SRv6Encap()
+	probe := kernelcap.SRv6ForwardFrag()
+	t.Logf("kernel %s: srv6-forward-frag %v (%v)", release, probe.State, probe.Reason)
+	if strings.HasSuffix(release, "-ze") {
+		require.Equal(t, kernelcap.StatePresent, probe.State,
+			"Ze kernel %s must carry CONFIG_IPV6_SEG6_FORWARD_FRAG (%v)", release, probe.Reason)
+		return true
+	}
+	if encap.State == kernelcap.StateAbsent {
+		t.Skipf("stock kernel %s lacks CONFIG_IPV6_SEG6_LWTUNNEL (%v)", release, encap.Reason)
+	}
+	switch probe.State {
+	case kernelcap.StatePresent:
+		return true
+	case kernelcap.StateAbsent:
+		return false
+	case kernelcap.StateUnknown, kernelcap.StateDenied, kernelcap.StateUnspecified:
+		t.Fatalf("kernel %s: srv6-forward-frag probe answered %v (%v); expected present or absent",
 			release, probe.State, probe.Reason)
 		return false
 	default:
@@ -483,6 +528,231 @@ func TestFIBServiceSIDOversizedDFAnswersFragmentationNeeded(t *testing.T) {
 	})
 }
 
+// TestFIBServiceSIDOversizedDFClearFragmentsInnerIPv4 verifies pre-encapsulation
+// inner IPv4 fragmentation of forwarded DF-clear IPv4 packets crossing a
+// single-SID SRv6 headend over a 1500-byte egress link (effective MTU 1436).
+//
+// VALIDATES: AC-1, A-1, A-4 (RFC 791 Section 3.1, RFC 1812 Section 4.2.2.7,
+// RFC 8986 Section 5.1 S05). On Ze's patched kernel (CONFIG_IPV6_SEG6_FORWARD_FRAG),
+// a 1436-byte DF-clear IPv4 packet leaves as one unfragmented 1500-byte outer
+// IPv6+SRH packet, while 1437-byte and 1460-byte DF-clear packets each leave as
+// two unfragmented outer IPv6+SRH packets <= 1500 bytes (1500B+85B and
+// 1500B+108B) carrying valid inner IPv4 fragments with inner TTL 63, matching
+// IPv4 ID, valid header checksums, zero ICMP errors, zero outer IPv6 Fragment
+// Headers, and byte-for-byte payload reassembly. On stock or 0014-only kernels
+// without patch 0015, the 1460-byte DF-clear packet is dropped in ip6_fragment
+// (LL-SEG6-HEADEND-NO-DF-CLEAR-FRAG).
+// PREVENTS: silent blackholing of oversized DF-clear IPv4 traffic at the SRv6
+// headend, emitting outer IPv6 Fragment Headers that Linux seg6_local drops, or
+// corrupting fragment offsets and payload bytes during reassembly.
+func TestFIBServiceSIDOversizedDFClearFragmentsInnerIPv4(t *testing.T) {
+	skipWithoutInitNamespacePrivilege(t, srv6PrivilegeReason)
+	patched := srv6ForwardFragPatched(t)
+	withNetNS(t, func() {
+		h, err := netlink.NewHandle()
+		require.NoError(t, err)
+		defer h.Close()
+		bed, writer := setupSRv6Testbed(t, h)
+		link, err := h.LinkByName(mplsZeLink)
+		require.NoError(t, err)
+		require.NoError(t, h.LinkSetMTU(link, srv6LinkMTU))
+
+		sid := netip.MustParseAddr(srv6TestSID)
+		sidBytes := sid.As16()
+		entry := incomingChange{
+			Action:  routeaction.Add,
+			Prefix:  netip.MustParsePrefix(srv6TestIPv4Prefix),
+			NextHop: mplsNextHop,
+			SRv6SID: sid,
+		}
+		writer.processEvent(makeSysribPayload([]incomingChange{entry}))
+
+		if patched {
+			// Exact fit (1500 - 64 = 1436 bytes, DF clear) must leave as one
+			// unfragmented 1500-byte outer IPv6+SRH packet.
+			exact := srv6DFClearDatagram(srv6EffectiveIPv4MTU, 0x2101)
+			mplsMTUInject(bed, nil, exact, false)
+			exactFrame := bed.awaitForwarded("exact-fit DF-clear SRv6-encapsulated IPv4 packet", func(frame []byte) bool {
+				return isSRv6Frame(frame, sidBytes)
+			})
+			exactOuter, exactInner := extractSRv6Inner(t, exactFrame, unix.IPPROTO_IPIP, len(exact))
+			require.Equal(t, srv6LinkMTU, len(exactOuter), "exact-fit DF-clear packet must equal the 1500-byte link MTU")
+			require.Equal(t, exact[8]-1, exactInner[8], "exact-fit DF-clear IPv4 forwarding must decrement TTL once")
+			require.Equal(t, byte(srv6DefaultIPv6HopLimit), exactOuter[7], srv6MsgOuterHopLimit)
+			require.Zero(t, binary.BigEndian.Uint16(exactInner[6:8]), "exact-fit DF-clear packet must stay unfragmented")
+			require.Zero(t, internetChecksum(exactInner[:ipv4HeaderLen]), "exact-fit DF-clear inner IPv4 checksum")
+			require.True(t, slices.Equal(exact[12:], exactInner[12:]), "encapsulation changed exact-fit DF-clear inner addresses or payload")
+			requireNoSRv6Frame(t, bed, sidBytes, "exact-fit DF-clear packet must emit only one SRv6 frame")
+
+			// Boundary + 1 (1437 bytes, DF clear): splits into 1500B + 85B
+			// unfragmented outer IPv6+SRH packets.
+			boundary := srv6DFClearDatagram(srv6EffectiveIPv4MTU+1, 0x2102)
+			mplsMTUInject(bed, nil, boundary, false)
+			boundaryLengths := requireSRv6IPv4Fragments(t, bed, sidBytes, boundary, nil, nil)
+			require.Equal(t, []int{srv6LinkMTU, 85}, boundaryLengths,
+				"1437-byte DF-clear IPv4 packet must emit 1500B and 85B outer IPv6+SRH packets")
+
+			// Oversized (1460 bytes, DF clear): splits into 1500B + 108B
+			// unfragmented outer IPv6+SRH packets.
+			oversized := srv6DFClearDatagram(srv6DFClearTestSize, 0x2103)
+			mplsMTUInject(bed, nil, oversized, false)
+			oversizedLengths := requireSRv6IPv4Fragments(t, bed, sidBytes, oversized, nil, nil)
+			require.Equal(t, []int{srv6LinkMTU, 108}, oversizedLengths,
+				"1460-byte DF-clear IPv4 packet must emit 1500B and 108B outer IPv6+SRH packets")
+			return
+		}
+
+		// Stock or 0014-only kernel without patch 0015: ip6_fragment drops the
+		// oversized encapsulated packet (LL-SEG6-HEADEND-NO-DF-CLEAR-FRAG).
+		oversized := srv6DFClearDatagram(srv6DFClearTestSize, 0x2103)
+		mplsMTUInject(bed, nil, oversized, false)
+		unfragSRv6, fragOuterV6, icmpErrors, lengths := observeSRv6DFClearOutcome(bed, sidBytes)
+		require.Zero(t, unfragSRv6, "unpatched kernel must drop oversized DF-clear IPv4 (LL-SEG6-HEADEND-NO-DF-CLEAR-FRAG); lengths=%v", lengths)
+		require.Zero(t, fragOuterV6, "unpatched kernel must not emit outer IPv6 fragments; lengths=%v", lengths)
+		require.Zero(t, icmpErrors, "unpatched kernel must not emit ICMPv4 errors for DF-clear drop; lengths=%v", lengths)
+	})
+}
+
+// TestFIBServiceSIDOversizedDFClearPreservesIPv4Options verifies RFC 791 IPv4
+// option handling when an oversized DF-clear IPv4 packet carrying both a copied
+// option (Router Alert) and a non-copied option (Record Route) fragments before
+// SRv6 encapsulation.
+//
+// VALIDATES: AC-2, A-1 (RFC 791 Section 3.1). Fragment 1 carries Router Alert
+// plus Record Route populated by ip_forward_options with the egress interface
+// address (10.0.0.1, pointer advanced from 4 to 8), while fragment 2 retains
+// copied Router Alert and replaces non-copied Record Route in-place with
+// IPOPT_NOOP (0x01) via ip_options_fragment. Both leave as unfragmented outer
+// IPv6+SRH packets <= 1500 bytes (1496B + 124B) with inner TTL 63, valid IPv4
+// header checksums, and byte-for-byte payload reassembly.
+// PREVENTS: dropping copied IPv4 options on later fragments or leaking
+// non-copied Record Route options past fragment 1.
+func TestFIBServiceSIDOversizedDFClearPreservesIPv4Options(t *testing.T) {
+	skipWithoutInitNamespacePrivilege(t, srv6PrivilegeReason)
+	patched := srv6ForwardFragPatched(t)
+	if !patched {
+		t.Skipf("kernel without patch 0015; DF-clear IPv4 option fragmentation requires CONFIG_IPV6_SEG6_FORWARD_FRAG")
+	}
+	withNetNS(t, func() {
+		h, err := netlink.NewHandle()
+		require.NoError(t, err)
+		defer h.Close()
+		bed, writer := setupSRv6Testbed(t, h)
+		link, err := h.LinkByName(mplsZeLink)
+		require.NoError(t, err)
+		require.NoError(t, h.LinkSetMTU(link, srv6LinkMTU))
+
+		sid := netip.MustParseAddr(srv6TestSID)
+		sidBytes := sid.As16()
+		entry := incomingChange{
+			Action:  routeaction.Add,
+			Prefix:  netip.MustParsePrefix(srv6TestIPv4Prefix),
+			NextHop: mplsNextHop,
+			SRv6SID: sid,
+		}
+		writer.processEvent(makeSysribPayload([]incomingChange{entry}))
+
+		sentOptions := []byte{
+			0x94, 0x04, 0x00, 0x00, // Router Alert (copied, copy bit 0x80 set).
+			0x07, 0x07, 0x04, 0x00, 0x00, 0x00, 0x00, // Record Route (non-copied, one empty slot).
+			0x01, // NOP padding to 12 bytes (IHL = 8, 32-byte IPv4 header).
+		}
+		expectedFirstOptions := []byte{
+			0x94, 0x04, 0x00, 0x00,
+			0x07, 0x07, 0x08, 10, 0, 0, 1, // Record Route updated by ip_forward_options with zempls0 address.
+			0x01,
+		}
+		expectedLaterOptions := []byte{
+			0x94, 0x04, 0x00, 0x00, // Copied Router Alert kept in fragment 2.
+			0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, // Non-copied Record Route replaced with IPOPT_NOOP.
+		}
+
+		packet := srv6DFClearDatagramWithOptions(srv6DFClearTestSize, 0x2201, sentOptions)
+		mplsMTUInject(bed, nil, packet, false)
+		lengths := requireSRv6IPv4Fragments(t, bed, sidBytes, packet, expectedFirstOptions, expectedLaterOptions)
+		require.Equal(t, []int{1496, 124}, lengths,
+			"1460-byte DF-clear IPv4 packet with 12B options must emit 1496B and 124B outer IPv6+SRH packets")
+	})
+}
+
+// TestFIBServiceSIDOversizedDFClearSubQuantumDropsCleanly verifies that an SRv6
+// route whose explicit PathMTU (RTAX_MTU) leaves fewer than hlen + 8 bytes
+// after the 64-byte seg6 headroom drops DF-clear IPv4 packets cleanly without
+// encapsulating or livelocking the forwarding CPU.
+//
+// VALIDATES: AC-3, A-5. With PathMTU=84 (84 - 64 = 20 < 28 = 20 + 8), a 68-byte
+// DF-clear IPv4 packet to 192.0.2.20 emits zero SRv6 frames, and a 44-byte
+// marker packet to 192.0.2.21 injected immediately after on the same veth queue
+// arrives encapsulated intact with inner TTL 63.
+// PREVENTS: infinite zero-byte fragment livelock in ip_do_fragment or emitting
+// malformed fragments when route PathMTU leaves less than one 8-byte quantum.
+func TestFIBServiceSIDOversizedDFClearSubQuantumDropsCleanly(t *testing.T) {
+	skipWithoutInitNamespacePrivilege(t, srv6PrivilegeReason)
+	patched := srv6ForwardFragPatched(t)
+	if !patched {
+		t.Skipf("kernel without patch 0015; sub-quantum DF-clear IPv4 drop requires CONFIG_IPV6_SEG6_FORWARD_FRAG")
+	}
+	withNetNS(t, func() {
+		h, err := netlink.NewHandle()
+		require.NoError(t, err)
+		defer h.Close()
+		bed := newMPLSTestbed(t, h)
+		link, err := h.LinkByName(mplsZeLink)
+		require.NoError(t, err)
+		require.NoError(t, h.LinkSetMTU(link, srv6LinkMTU))
+		mplsMTUReturnRoutes(t, h, link)
+
+		sid := netip.MustParseAddr(srv6TestSID)
+		sidBytes := sid.As16()
+		backend := &netlinkBackend{handle: h}
+		require.NoError(t, backend.addRichRoute(RichRoute{
+			Prefix:  netip.MustParsePrefix(srv6SubQuantumIPv4Prefix),
+			NextHop: mplsNextHop,
+			SRv6SID: sid,
+			PathMTU: srv6SubQuantumPathMTU,
+		}))
+		require.NoError(t, backend.addRichRoute(RichRoute{
+			Prefix:  netip.MustParsePrefix(srv6MarkerIPv4Prefix),
+			NextHop: mplsNextHop,
+			SRv6SID: sid,
+		}))
+
+		subQuantumDst := netip.MustParseAddr(srv6TestIPv4Dst).As4()
+		markerDst := netip.MustParseAddr(srv6MarkerIPv4Dst).As4()
+
+		subQuantum := srv6DFClearDatagram(srv6SubQuantumPacketLen, 0x2301)
+		mplsMTUInject(bed, nil, subQuantum, false)
+
+		marker := srv6DFClearDatagram(srv6MarkerPacketLen, 0x2302)
+		copy(marker[16:20], markerDst[:])
+		mplsMTUChecksum(marker)
+		mplsMTUInject(bed, nil, marker, false)
+
+		markerFrame := bed.awaitForwarded("SRv6-encapsulated marker IPv4 packet", func(frame []byte) bool {
+			if !isSRv6Frame(frame, sidBytes) {
+				return false
+			}
+			if frame[ethernetHeaderLen+6] == unix.IPPROTO_FRAGMENT {
+				t.Fatal("sub-quantum SRv6 route emitted an outer IPv6 fragment instead of dropping cleanly")
+			}
+			dst, ok := srv6InnerIPv4Dst(frame, sidBytes)
+			if !ok {
+				return false
+			}
+			if dst == subQuantumDst {
+				t.Fatal("sub-quantum SRv6 route emitted a frame for 192.0.2.20 instead of dropping cleanly")
+			}
+			return dst == markerDst
+		})
+		outer, inner := extractSRv6Inner(t, markerFrame, unix.IPPROTO_IPIP, len(marker))
+		require.Equal(t, byte(srv6DefaultIPv6HopLimit), outer[7], srv6MsgOuterHopLimit)
+		require.Equal(t, marker[8]-1, inner[8], "marker packet must decrement inner IPv4 TTL once")
+		require.Zero(t, internetChecksum(inner[:ipv4HeaderLen]), "marker inner IPv4 header checksum")
+		require.True(t, slices.Equal(marker[12:], inner[12:]), "marker inner addresses or payload changed")
+		requireNoSRv6Frame(t, bed, sidBytes, "sub-quantum DF-clear IPv4 packet emitted a trailing SRv6 frame")
+	})
+}
+
 func setupSRv6Testbed(t *testing.T, h *netlink.Handle) (*mplsTestbed, *fibKernel) {
 	t.Helper()
 	bed := newMPLSTestbed(t, h)
@@ -626,4 +896,181 @@ func observeSRv6DFClearOutcome(bed *mplsTestbed, sid [16]byte) (unfragSRv6, frag
 		}
 	}
 	return unfragSRv6, fragOuterV6, icmpErrors, lengths
+}
+
+func srv6DFClearDatagram(size int, id uint16) []byte {
+	return srv6DFClearDatagramWithOptions(size, id, nil)
+}
+
+func srv6DFClearDatagramWithOptions(size int, id uint16, options []byte) []byte {
+	hlen := ipv4HeaderLen + len(options)
+	udpLen := size - hlen
+	packet := make([]byte, size)
+	packet[0] = 0x40 | byte(hlen/4)
+	binary.BigEndian.PutUint16(packet[2:4], uint16(size))
+	binary.BigEndian.PutUint16(packet[4:6], id)
+	packet[8] = mplsTTL
+	packet[9] = unix.IPPROTO_UDP
+	copy(packet[12:16], netip.MustParseAddr(srv6TestIPv4Src).AsSlice())
+	copy(packet[16:20], netip.MustParseAddr(srv6TestIPv4Dst).AsSlice())
+	copy(packet[ipv4HeaderLen:hlen], options)
+	mplsMTUChecksum(packet)
+
+	udp := packet[hlen:]
+	binary.BigEndian.PutUint16(udp[0:2], srv6UDPPort)
+	binary.BigEndian.PutUint16(udp[2:4], srv6UDPPort)
+	binary.BigEndian.PutUint16(udp[4:6], uint16(udpLen))
+	payload := udp[udpHeaderLen:]
+	for i := range payload {
+		payload[i] = byte((i*31 + 7) & 0xff)
+	}
+	return packet
+}
+
+func srv6InnerIPv4Dst(frame []byte, sid [16]byte) ([4]byte, bool) {
+	var zero [4]byte
+	if !isSRv6Frame(frame, sid) {
+		return zero, false
+	}
+	outer := frame[ethernetHeaderLen:]
+	if outer[6] != unix.IPPROTO_ROUTING {
+		return zero, false
+	}
+	if len(outer) < srv6IPv6HeaderLen+srv6SRHMinHeaderLen {
+		return zero, false
+	}
+	srh := outer[srv6IPv6HeaderLen:]
+	if srh[2] != srv6SRHRoutingType {
+		return zero, false
+	}
+	if srh[0] != unix.IPPROTO_IPIP {
+		return zero, false
+	}
+	srhLen := (int(srh[1]) + 1) * 8
+	if len(srh) < srhLen+ipv4HeaderLen {
+		return zero, false
+	}
+	inner := srh[srhLen:]
+	if inner[0]>>4 != 4 {
+		return zero, false
+	}
+	var dst [4]byte
+	copy(dst[:], inner[16:20])
+	return dst, true
+}
+
+func requireSRv6IPv4Fragments(
+	t *testing.T,
+	bed *mplsTestbed,
+	sid [16]byte,
+	original []byte,
+	expectedFirstOptions, expectedLaterOptions []byte,
+) []int {
+	t.Helper()
+	origHlen := int(original[0]&0x0f) * 4
+	expectedTTL := original[8] - 1
+	expectedPayload := original[origHlen:]
+	reassembled := make([]byte, len(expectedPayload))
+	seen := make([]bool, len(expectedPayload))
+	received, fragments, hasFinal := 0, 0, false
+	var outerLengths []int
+
+	buf := make([]byte, srv6CaptureBufSize)
+	deadline := time.Now().Add(mplsForwardWait)
+	for received < len(expectedPayload) && time.Now().Before(deadline) {
+		frame := bed.readForwarded(buf)
+		if frame == nil {
+			continue
+		}
+		if isICMPv4Frame(frame) {
+			t.Fatal("oversized DF-clear IPv4 packet triggered an ICMPv4 error instead of fragmenting")
+		}
+		if !isSRv6Frame(frame, sid) {
+			continue
+		}
+		require.Equal(t, []byte(mplsNextMAC), frame[:6], "SRv6 fragment return next hop")
+
+		outer := frame[ethernetHeaderLen:]
+		require.GreaterOrEqual(t, len(outer), srv6IPv6HeaderLen+srv6SRHMinHeaderLen, "truncated outer IPv6+SRH frame")
+		require.NotEqual(t, byte(unix.IPPROTO_FRAGMENT), outer[6], "outer IPv6 must not carry a Fragment Header (NH=44)")
+		require.Equal(t, byte(unix.IPPROTO_ROUTING), outer[6], "outer IPv6 next header must be Routing (43)")
+		payloadLen := int(binary.BigEndian.Uint16(outer[4:6]))
+		outerLen := srv6IPv6HeaderLen + payloadLen
+		require.LessOrEqual(t, outerLen, len(outer), "outer IPv6 payload length exceeds captured frame")
+		require.LessOrEqual(t, outerLen, srv6LinkMTU, "outer IPv6+SRH packet must fit within the 1500-byte egress link MTU")
+		require.Equal(t, byte(srv6DefaultIPv6HopLimit), outer[7], srv6MsgOuterHopLimit)
+		outer = outer[:outerLen]
+		outerLengths = append(outerLengths, outerLen)
+
+		srh := outer[srv6IPv6HeaderLen:]
+		require.GreaterOrEqual(t, len(srh), srv6SRHMinHeaderLen, "truncated SRH")
+		require.Equal(t, byte(srv6SRHRoutingType), srh[2], "missing Segment Routing Header")
+		require.Equal(t, byte(unix.IPPROTO_IPIP), srh[0], "SRH next header must be IPIP (4)")
+		srhLen := (int(srh[1]) + 1) * 8
+		require.GreaterOrEqual(t, len(srh), srhLen+ipv4HeaderLen, "truncated inner IPv4 header after SRH")
+
+		inner := srh[srhLen:]
+		require.Equal(t, byte(4), inner[0]>>4, "inner packet must be IPv4")
+		ihl := int(inner[0]&0x0f) * 4
+		require.GreaterOrEqual(t, ihl, ipv4HeaderLen, "inner IPv4 IHL below 20 bytes")
+		totalLen := int(binary.BigEndian.Uint16(inner[2:4]))
+		require.Equal(t, len(inner), totalLen, "inner IPv4 total length must match SRH payload length")
+		require.LessOrEqual(t, ihl, totalLen, "inner IPv4 IHL exceeds total length")
+		require.Zero(t, internetChecksum(inner[:ihl]), "inner IPv4 fragment header checksum")
+		require.Equal(t, expectedTTL, inner[8], "inner IPv4 fragment TTL must be decremented once")
+		require.Equal(t, original[4:6], inner[4:6], "inner IPv4 fragment ID must match original")
+		require.Equal(t, original[12:20], inner[12:20], "inner IPv4 fragment src/dst must match original")
+
+		flagsOff := binary.BigEndian.Uint16(inner[6:8])
+		require.Zero(t, flagsOff&srv6IPv4FlagDF, "inner IPv4 fragment must have DF clear")
+		offset := int(flagsOff&srv6IPv4FragOffMask) * srv6FragUnit
+		fragPayloadLen := totalLen - ihl
+		if offset == 0 {
+			require.True(t, slices.Equal(expectedFirstOptions, inner[ipv4HeaderLen:ihl]),
+				"first-fragment IPv4 options mismatch: got %x want %x", inner[ipv4HeaderLen:ihl], expectedFirstOptions)
+		} else {
+			require.True(t, slices.Equal(expectedLaterOptions, inner[ipv4HeaderLen:ihl]),
+				"later-fragment IPv4 options mismatch: got %x want %x", inner[ipv4HeaderLen:ihl], expectedLaterOptions)
+		}
+
+		end := offset + fragPayloadLen
+		require.LessOrEqual(t, end, len(expectedPayload), "fragment extends past original IPv4 payload")
+		if flagsOff&srv6IPv4FlagMF == 0 {
+			require.False(t, hasFinal, "received multiple final IPv4 fragments")
+			require.Equal(t, len(expectedPayload), end, "final IPv4 fragment must end at original payload length")
+			hasFinal = true
+		} else {
+			require.Positive(t, fragPayloadLen, "non-final IPv4 fragment must carry non-zero payload")
+			require.Zero(t, fragPayloadLen%srv6FragUnit, "non-final IPv4 fragment payload length must be 8-byte aligned")
+		}
+
+		for i := offset; i < end; i++ {
+			require.False(t, seen[i], "overlapping IPv4 fragment byte at offset %d", i)
+			seen[i] = true
+		}
+		copy(reassembled[offset:end], inner[ihl:totalLen])
+		received += fragPayloadLen
+		fragments++
+	}
+
+	require.GreaterOrEqual(t, fragments, 2, "oversized DF-clear IPv4 packet must produce at least two fragments")
+	require.True(t, hasFinal, "missing final IPv4 fragment (MF=0)")
+	require.Equal(t, len(expectedPayload), received, "incomplete inner IPv4 fragment payload coverage")
+	require.True(t, slices.Equal(expectedPayload, reassembled), "reassembled inner IPv4 payload differs from original")
+
+	silenceDeadline := time.Now().Add(mplsSilenceWait)
+	for time.Now().Before(silenceDeadline) {
+		frame := bed.readForwarded(buf)
+		if frame == nil {
+			continue
+		}
+		if isICMPv4Frame(frame) {
+			t.Fatal("trailing ICMPv4 error frame arrived after DF-clear IPv4 fragmentation")
+		}
+		if isSRv6Frame(frame, sid) {
+			t.Fatalf("unexpected trailing SRv6 frame (outer NH=%d, len=%d) after DF-clear IPv4 fragmentation",
+				frame[ethernetHeaderLen+6], len(frame)-ethernetHeaderLen)
+		}
+	}
+	return outerLengths
 }

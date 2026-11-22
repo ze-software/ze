@@ -1,14 +1,15 @@
 # Test: ze doctor --json reports SRv6 kernel capability warnings on the kernel FIB
-# Spec: plan/post-release/kernel/spec-srv6-headend-decrements-inner-ttl.md AC-8, AC-9
-# VALIDATES: the fib-kernel plugin's two SRv6 kernel capability enrolments
+# Spec: spec-srv6-headend-decrements-inner-ttl AC-8, AC-9; spec-srv6-df-clear-fragmentation AC-6
+# VALIDATES: the fib-kernel plugin's three SRv6 kernel capability enrolments
 # (srv6-encap for CONFIG_IPV6_SEG6_LWTUNNEL; srv6-forward-ttl for
-# CONFIG_IPV6_SEG6_FORWARD_TTL) are reachable from the user entry point when
+# CONFIG_IPV6_SEG6_FORWARD_TTL; srv6-forward-frag for
+# CONFIG_IPV6_SEG6_FORWARD_FRAG) are reachable from the user entry point when
 # `fib { kernel { } }` and a BGP peer are configured, degrade at WARNING
 # severity (exit 0), name their kernel features and forced override, and are
 # skipped completely when no BGP block is configured.
 # PREVENTS: an unpatched stock kernel silently forwarding SRv6 packets without
-# decrementing the inner TTL/Hop Limit, or an unrelated non-BGP router being
-# probed or warned about SRv6.
+# decrementing the inner TTL/Hop Limit or dropping oversized DF-clear IPv4
+# packets, or an unrelated non-BGP router being probed or warned about SRv6.
 #
 # The probes are FORCED so both branches (absent and unknown) are reached on
 # any host regardless of its kernel. The enrolments are Linux-only
@@ -20,7 +21,7 @@
 # ERROR severity; an enabled client with no server reports nothing).
 option=needs-linux
 
-option=env:var=ze.test.kernelcap.force:value=srv6-forward-ttl=absent,srv6-encap=unknown
+option=env:var=ze.test.kernelcap.force:value=srv6-forward-ttl=absent,srv6-forward-frag=absent,srv6-encap=unknown
 
 tmpfs=srv6.conf:terminator=EOF_CONF
 fib {
@@ -89,6 +90,9 @@ expect=exit:code=0
 expect=stdout:contains=doctor-srv6-forward-ttl-not-decremented
 expect=stdout:contains=CONFIG_IPV6_SEG6_FORWARD_TTL
 expect=stdout:contains=LL-SEG6-HEADEND-NO-TTL-DECREMENT
+expect=stdout:contains=doctor-srv6-forward-frag-unavailable
+expect=stdout:contains=CONFIG_IPV6_SEG6_FORWARD_FRAG
+expect=stdout:contains=LL-SEG6-HEADEND-NO-DF-CLEAR-FRAG
 expect=stdout:contains=doctor-srv6-encap-unknown
 expect=stdout:contains=CONFIG_IPV6_SEG6_LWTUNNEL
 expect=stdout:contains=ze.test.kernelcap.force
@@ -100,3 +104,4 @@ expect=stdout:contains="ready": true
 reject=stdout:contains=doctor-srv6-
 reject=stdout:contains=srv6-encap
 reject=stdout:contains=srv6-forward-ttl
+reject=stdout:contains=srv6-forward-frag

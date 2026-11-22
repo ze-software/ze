@@ -19,6 +19,8 @@ import (
 	"github.com/ze-software/ze/internal/component/kernelcap"
 )
 
+const srv6ConfigLeaf = "a BGP peer or group on the kernel FIB"
+
 func init() {
 	kernelcap.MustRegister(kernelcap.Capability{
 		Subsystem:   "mpls",
@@ -34,6 +36,7 @@ func init() {
 	kernelcap.MustRegister(transitMTUCapability)
 	kernelcap.MustRegister(srv6EncapCapability)
 	kernelcap.MustRegister(srv6ForwardTTLCapability)
+	kernelcap.MustRegister(srv6ForwardFragCapability)
 }
 
 // transitMTUCapability is the path MTU an RSVP-TE transit route carries. Only
@@ -64,7 +67,7 @@ var srv6EncapCapability = kernelcap.Capability{
 	Subsystem:   "srv6-encap",
 	Component:   pluginName,
 	Kernel:      "CONFIG_IPV6_SEG6_LWTUNNEL",
-	ConfigLeaf:  "a BGP peer or group on the kernel FIB",
+	ConfigLeaf:  srv6ConfigLeaf,
 	Degrades:    "BGP routes carrying an SRv6 Service SID cannot be installed into the kernel FIB (plain IP routes still install)",
 	CodeAbsent:  codeDoctorSRv6EncapUnavailable,
 	CodeUnknown: codeDoctorSRv6EncapUnknown,
@@ -83,11 +86,30 @@ var srv6ForwardTTLCapability = kernelcap.Capability{
 	Subsystem:   "srv6-forward-ttl",
 	Component:   pluginName,
 	Kernel:      "CONFIG_IPV6_SEG6_FORWARD_TTL",
-	ConfigLeaf:  "a BGP peer or group on the kernel FIB",
+	ConfigLeaf:  srv6ConfigLeaf,
 	Degrades:    "forwarded packets entering an SRv6 seg6 headend leave with their inner IPv4 TTL or IPv6 Hop Limit unchanged and TTL 1 packets are encapsulated instead of answered with ICMP Time Exceeded (LL-SEG6-HEADEND-NO-TTL-DECREMENT)",
 	CodeAbsent:  codeDoctorSRv6ForwardTTLNotDecremented,
 	CodeUnknown: codeDoctorSRv6ForwardTTLUnknown,
 	Order:       741,
 	InUse:       kernelcap.SRv6InUse,
 	Probe:       kernelcap.SRv6ForwardTTL,
+}
+
+// srv6ForwardFragCapability is pre-encapsulation IPv4 fragmentation of
+// forwarded DF-clear IPv4 packets exceeding the effective seg6 MTU. Only a
+// kernel carrying gokrazy/kernel/patches/0015-seg6-forward-df-clear-frag.patch
+// (CONFIG_IPV6_SEG6_FORWARD_FRAG) performs this fragmentation; a stock kernel
+// still encapsulates packets that fit within the effective MTU, so absence
+// warns without refusing a start.
+var srv6ForwardFragCapability = kernelcap.Capability{
+	Subsystem:   "srv6-forward-frag",
+	Component:   pluginName,
+	Kernel:      "CONFIG_IPV6_SEG6_FORWARD_FRAG",
+	ConfigLeaf:  srv6ConfigLeaf,
+	Degrades:    "forwarded DF-clear IPv4 packets exceeding the egress MTU minus seg6 headroom are dropped after encapsulation instead of being fragmented before encapsulation (LL-SEG6-HEADEND-NO-DF-CLEAR-FRAG)",
+	CodeAbsent:  codeDoctorSRv6ForwardFragUnavailable,
+	CodeUnknown: codeDoctorSRv6ForwardFragUnknown,
+	Order:       742,
+	InUse:       kernelcap.SRv6InUse,
+	Probe:       kernelcap.SRv6ForwardFrag,
 }

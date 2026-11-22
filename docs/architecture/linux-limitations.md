@@ -804,6 +804,81 @@ For a `library` entry, read the module in the module cache:
 <!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- srv6EncapCapability, srv6ForwardTTLCapability -->
 <!-- source: internal/component/kernelcap/probe_srv6_linux.go -- SRv6Encap, SRv6ForwardTTL -->
 
+### LL-SEG6-HEADEND-NO-DF-CLEAR-FRAG
+
+- **Kind:** kernel
+- **Effect:** constrains design
+- **Status:** verified
+- **Checked:** Linux 7.3, 2026-11-22
+- **Limitation:** Even with `LWTUNNEL_STATE_OUTPUT_REDIRECT`
+  (`0014-seg6-forward-ttl.patch`), a forwarded DF-clear IPv4 packet larger than
+  the seg6 route's effective MTU (egress link or route MTU minus the seg6
+  lwtunnel headroom) is silently dropped. `ip_forward` skips `ip_exceeds_mtu`
+  when `IP_DF` is clear and calls `dst_output`, which `lwtunnel_set_redirect`
+  replaced with `lwtunnel_output` -> `seg6_output_core`, bypassing `ip_output`
+  and `ip_finish_output` / `ip_fragment`. `seg6_output_core` encapsulates the
+  oversized IPv4 packet into an outer IPv6+SRH packet exceeding the egress MTU
+  with `skb->ignore_df == 0`, and `ip6_fragment` rejects it at `fail_toobig`,
+  dropping the packet and sending ICMPv6 Packet Too Big to the headend's own
+  outer IPv6 source address rather than forwarding fragments or signaling the
+  IPv4 sender.
+- **Blocks:** RFC 791 Section 3.1 and RFC 1812 Section 4.2.2.7 IPv4
+  fragmentation of forwarded DF-clear datagrams across an SRv6 headend on stock
+  kernels (and on kernels carrying only `0014-seg6-forward-ttl.patch`).
+- **Evidence:** `net/ipv4/ip_forward.c` `ip_exceeds_mtu` returns `false` unless
+  `ip_hdr(skb)->frag_off & htons(IP_DF)` (and `ip_forward` skips MTU rejection
+  for DF-clear packets), then `ip_forward_finish` invokes
+  `dst_output(net, sk, skb)`. `net/core/lwtunnel.c` `lwtunnel_set_redirect`
+  replaces `dst->output = lwtunnel_output`, so `ip_output` and
+  `ip_finish_output` never run. `net/ipv6/seg6_iptunnel.c` `seg6_output_core`
+  encapsulates the skb directly without checking `ip_skb_dst_mtu(sk, skb)` or
+  calling `ip_do_fragment` and hands the oversized outer IPv6 skb with
+  `skb->ignore_df == 0` to `dst_output`. `net/ipv6/ip6_output.c` `ip6_fragment`
+  rejects it at `if (!skb->ignore_df && ...) goto fail_toobig;` and sends
+  `ICMPV6_PKT_TOOBIG` to the outer IPv6 source address. Measured empirically on
+  Linux 7.3.0-ze with patch 0014 only
+  (`TestFIBServiceSIDOversizedDFAnswersFragmentationNeeded`): a 1460-byte
+  DF-clear IPv4 packet on a 1500-byte egress link with 64-byte SRv6 headroom
+  produced `unfragmented-srv6=0 ipv6-outer-fragments=0 icmp-errors=0`.
+- **Alternatives:** Post-encapsulation outer IPv6 fragmentation
+  (`skb->ignore_df = 1` in `seg6_output_core`, literal RFC 2473 Section 7.2(b))
+  fails against Linux's own SRv6 egress decapsulator (`net/ipv6/seg6_local.c`):
+  `seg6_local_build_state` sets `LWTUNNEL_STATE_INPUT_REDIRECT`, so `End.DT4`
+  and `End.DX4` run `decap_and_validate` before `ip6_local_deliver` /
+  `ipv6_frag_rcv` and drop outer IPv6 fragments unconditionally; outer IPv6
+  fragments also break reassembly at anycast SID exit points (RFC 2473
+  Section 7). Switching seg6 L3 modes from `LWTUNNEL_STATE_OUTPUT_REDIRECT` to
+  `LWTUNNEL_STATE_XMIT_REDIRECT` (the MPLS lwtunnel hook) was rejected because
+  it runs `NF_INET_POST_ROUTING` and `BPF_CGROUP_RUN_PROG_INET_EGRESS` on the
+  inner packet before encapsulation (changing `nf_hooks_lwtunnel_enabled`
+  semantics and double-running `POST_ROUTING` on outer IPv6), drops `sk` in
+  `lwtunnel_xmit(skb)` for locally originated packets, and alters the
+  IPv6-inner path (`ip6_output` rejects routes whose `orig_dst->dev` has
+  `disable_ipv6=1`).
+- **Re-check:** read `seg6_output_core` in `net/ipv6/seg6_iptunnel.c` at the
+  new kernel version. Lift this entry if upstream fragments oversized DF-clear
+  IPv4 packets before seg6 encapsulation (or otherwise delivers valid fragments
+  without relying on outer IPv6 fragmentation that `seg6_local` drops). Then
+  confirm whether `gokrazy/kernel/patches/0015-seg6-forward-df-clear-frag.patch`
+  still applies with `--fuzz=0` or is no longer needed.
+- **Ze meanwhile:** Ze's runtime kernel carries
+  `gokrazy/kernel/patches/0015-seg6-forward-df-clear-frag.patch` with marker
+  `CONFIG_IPV6_SEG6_FORWARD_FRAG=y` pinned in `gokrazy/kernel/runtime.require`.
+  In `seg6_output_core`, oversized DF-clear IPv4 packets (and DF-clear IPv4 GSO
+  skbs whose segment size exceeds effective MTU) are fragmented at the inner
+  IPv4 layer via Linux's exported `ip_do_fragment` before `seg6_output_encap`,
+  emitting unfragmented outer IPv6+SRH packets within the egress MTU. The
+  `fib-kernel` plugin enrolls degrading capability `srv6-forward-frag`, probed
+  behaviorally in the shared throwaway namespace (`kernelcap.SRv6ForwardFrag`),
+  and `ze doctor` reports missing support as a warning under
+  `doctor-srv6-forward-frag-unavailable`.
+
+<!-- source: gokrazy/kernel/patches/0015-seg6-forward-df-clear-frag.patch -- seg6_output_core, seg6_output_ipv4_fragment, seg6_output_ipv4_gso, seg6_output_encap, CONFIG_IPV6_SEG6_FORWARD_FRAG -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_IPV6_SEG6_FORWARD_FRAG -->
+<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- srv6ForwardFragCapability -->
+<!-- source: internal/plugins/fib/kernel/register_doctor_codes.go -- doctorDiagnosticCodes -->
+<!-- source: internal/component/kernelcap/probe_srv6_linux.go -- SRv6ForwardFrag -->
+
 ### LL-IPV6-NO-RP-FILTER
 
 - **Kind:** kernel

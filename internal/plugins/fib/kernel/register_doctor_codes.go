@@ -13,6 +13,8 @@ const (
 	codeDoctorMPLSUnknown                  = "doctor-mpls-unknown"
 	codeDoctorSRv6EncapUnavailable         = "doctor-srv6-encap-unavailable"
 	codeDoctorSRv6EncapUnknown             = "doctor-srv6-encap-unknown"
+	codeDoctorSRv6ForwardFragUnavailable   = "doctor-srv6-forward-frag-unavailable"
+	codeDoctorSRv6ForwardFragUnknown       = "doctor-srv6-forward-frag-unknown"
 	codeDoctorSRv6ForwardTTLNotDecremented = "doctor-srv6-forward-ttl-not-decremented"
 	codeDoctorSRv6ForwardTTLUnknown        = "doctor-srv6-forward-ttl-unknown"
 	exampleDoctorJSON                      = "ze doctor --json"
@@ -100,6 +102,20 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Description:  "ze could not determine whether the kernel decrements the inner IPv4 TTL or IPv6 Hop Limit on forwarded SRv6 seg6 encapsulation routes (CONFIG_IPV6_SEG6_FORWARD_TTL, gokrazy/kernel/patches/0014-seg6-forward-ttl.patch). The behavioral probe forwards one packet through a seg6 encap route inside a throwaway network namespace using /dev/net/tun, which needs CAP_NET_ADMIN, CAP_SYS_ADMIN, and access to /dev/net/tun; an unprivileged `ze doctor` run or a container without /dev/net/tun cannot complete it. This is a WARNING and never refuses a start. Remedy: run `ze doctor` as root on a host with /dev/net/tun available.",
 		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-srv6-forward-ttl-unknown"},
 		RelatedCodes: []string{codeDoctorSRv6ForwardTTLNotDecremented, codeDoctorSRv6EncapUnknown},
+	},
+	{
+		Code:         codeDoctorSRv6ForwardFragUnavailable,
+		Title:        "SRv6 headend drops oversized DF-clear IPv4 packets",
+		Description:  "BGP runs on the kernel FIB, and the kernel does not fragment forwarded DF-clear IPv4 packets whose length exceeds the egress MTU minus seg6 headroom before encapsulation (Linux limitation LL-SEG6-HEADEND-NO-DF-CLEAR-FRAG, docs/architecture/linux-limitations.md): it is a stock or unpatched kernel without CONFIG_IPV6_SEG6_FORWARD_FRAG, which ze's own runtime kernel adds with gokrazy/kernel/patches/0015-seg6-forward-df-clear-frag.patch. SRv6 Service SID routes still install and forward packets that fit within the effective MTU, but oversized DF-clear IPv4 packets are encapsulated past the egress MTU and silently dropped in ip6_fragment instead of being fragmented at the inner IPv4 layer before encapsulation. This is a WARNING and never refuses a start. Remedy: run ze's appliance kernel, or a Linux kernel built with CONFIG_IPV6_SEG6_LWTUNNEL=y and gokrazy/kernel/patches/0015-seg6-forward-df-clear-frag.patch, and confirm with `ze doctor`.",
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-srv6-forward-frag-unavailable"},
+		RelatedCodes: []string{codeDoctorSRv6ForwardFragUnknown, codeDoctorSRv6ForwardTTLNotDecremented, codeDoctorSRv6EncapUnavailable},
+	},
+	{
+		Code:         codeDoctorSRv6ForwardFragUnknown,
+		Title:        "SRv6 headend DF-clear IPv4 fragmentation support unknown",
+		Description:  "ze could not determine whether the kernel fragments oversized forwarded DF-clear IPv4 packets before SRv6 seg6 encapsulation (CONFIG_IPV6_SEG6_FORWARD_FRAG, gokrazy/kernel/patches/0015-seg6-forward-df-clear-frag.patch). The behavioral probe forwards packets through a seg6 encap route inside a throwaway network namespace using /dev/net/tun, which needs CAP_NET_ADMIN, CAP_SYS_ADMIN, and access to /dev/net/tun; an unprivileged `ze doctor` run or a container without /dev/net/tun cannot complete it. This is a WARNING and never refuses a start. Remedy: run `ze doctor` as root on a host with /dev/net/tun available.",
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-srv6-forward-frag-unknown"},
+		RelatedCodes: []string{codeDoctorSRv6ForwardFragUnavailable, codeDoctorSRv6ForwardTTLUnknown, codeDoctorSRv6EncapUnknown},
 	},
 }
 

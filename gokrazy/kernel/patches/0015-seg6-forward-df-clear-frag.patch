@@ -1,0 +1,171 @@
+From: Ze kernel maintainers
+Subject: [PATCH] ipv6: seg6: fragment oversized DF-clear IPv4 packets before encapsulation
+
+When a forwarded DF-clear IPv4 packet exceeds the effective SRv6 tunnel
+MTU (egress link or route MTU minus seg6 lwtunnel headroom, e.g. 1436
+bytes on a 1500-byte link with a single-SID SRH), ip_forward() skips
+ip_exceeds_mtu() because IP_DF is clear and calls dst_output(). Because
+L3 seg6 routes use LWTUNNEL_STATE_OUTPUT_REDIRECT, dst->output points to
+lwtunnel_output() -> seg6_output_core() rather than ip_output() ->
+ip_finish_output() -> ip_fragment(). seg6_output_core() therefore
+encapsulates the oversized inner IPv4 packet into an outer IPv6+SRH
+packet exceeding the egress MTU with skb->ignore_df == 0, which
+ip6_fragment() rejects at fail_toobig, dropping the packet and sending
+ICMPv6 Packet Too Big to the headend's own outer IPv6 source address.
+
+Fragment oversized IPv4 packets at the inner IPv4 layer before SRv6
+encapsulation using Linux's exported ip_do_fragment() rather than
+fragmenting the outer IPv6 packet via skb->ignore_df = 1:
+- Linux's own seg6_local decapsulator (End.DT4/End.DX4) registers
+  LWTUNNEL_STATE_INPUT_REDIRECT, so decap_and_validate() runs before
+  ip6_local_deliver()/ipv6_frag_rcv() and drops outer IPv6 fragments
+  unconditionally.
+- Outer IPv6 fragments fail reassembly at anycast SID exit points
+  (RFC 2473 Section 7) and are commonly dropped or punted by hardware
+  SRv6 egress routers.
+
+Pre-encapsulation fragmentation via ip_do_fragment() reuses the kernel's
+IPv4 fragmentation path: it computes ip_skb_dst_mtu(sk, skb) (which
+subtracts lwtunnel_headroom()), guards sub-quantum MTUs (mtu < hlen + 8),
+completes CHECKSUM_PARTIAL before splitting, preserves RFC 791 IPv4
+options across fragments via ip_options_fragment(), updates IPv4
+fragmentation MIB counters, and invokes seg6_output_encap() on each
+fragment so every emitted outer IPv6+SRH packet is unfragmented and
+within the egress MTU. Non-GSO packets fitting within the effective MTU
+with no frag_max_size take the fast path directly to seg6_output_encap().
+
+CONFIG_IPV6_SEG6_FORWARD_FRAG identifies this capability to the runtime
+kernel manifest; it has no alternate datapath or disable switch.
+
+Based on Linux v7.3 (after 0014-seg6-forward-ttl.patch).
+
+--- a/net/ipv6/Kconfig
++++ b/net/ipv6/Kconfig
+@@ -300,6 +300,10 @@
+ config IPV6_SEG6_FORWARD_TTL
+ 	def_bool y
+ 	depends on IPV6_SEG6_LWTUNNEL
++
++config IPV6_SEG6_FORWARD_FRAG
++	def_bool y
++	depends on IPV6_SEG6_LWTUNNEL && IPV6_SEG6_FORWARD_TTL
+ 
+ config IPV6_SEG6_HMAC
+ 	bool "IPv6: Segment Routing HMAC support"
+--- a/net/ipv6/seg6_iptunnel.c
++++ b/net/ipv6/seg6_iptunnel.c
+@@ -10,6 +10,8 @@
+ #include <linux/skbuff.h>
+ #include <linux/net.h>
+ #include <linux/module.h>
++#include <net/gso.h>
++#include <net/icmp.h>
+ #include <net/ip.h>
+ #include <net/ip_tunnels.h>
+ #include <net/lwtunnel.h>
+@@ -666,8 +668,8 @@
+ 	return dst;
+ }
+ 
+-static int seg6_output_core(struct net *net, struct sock *sk,
+-			    struct sk_buff *skb)
++static int seg6_output_encap(struct net *net, struct sock *sk,
++			     struct sk_buff *skb)
+ {
+ 	struct dst_entry *orig_dst = skb_dst(skb);
+ 	struct dst_entry *dst = NULL;
+@@ -721,6 +723,94 @@
+ 	kfree_skb(skb);
+ 	return err;
+ }
++
++static int seg6_output_ipv4_fragment(struct net *net, struct sock *sk,
++				     struct sk_buff *skb, unsigned int mtu)
++{
++	struct iphdr *iph = ip_hdr(skb);
++
++	if ((iph->frag_off & htons(IP_DF)) == 0)
++		return ip_do_fragment(net, sk, skb, seg6_output_encap);
++
++	if (unlikely(!skb->ignore_df ||
++		     (IPCB(skb)->frag_max_size &&
++		      IPCB(skb)->frag_max_size > mtu))) {
++		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
++		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
++			  htonl(mtu));
++		kfree_skb(skb);
++		return -EMSGSIZE;
++	}
++
++	return ip_do_fragment(net, sk, skb, seg6_output_encap);
++}
++
++static int seg6_output_ipv4_gso(struct net *net, struct sock *sk,
++				struct sk_buff *skb, unsigned int mtu)
++{
++	struct sk_buff *segs, *nskb;
++	int ret = 0;
++
++	if (skb_gso_validate_network_len(skb, mtu))
++		return seg6_output_encap(net, sk, skb);
++
++	/* Software-segment with features = 0: locally originated packets
++	 * reaching lwtunnel_output() bypass ip_output() so skb->dev may be
++	 * NULL, while forwarded packets still carry the ingress device in
++	 * skb->dev.
++	 */
++	BUILD_BUG_ON(sizeof(*IPCB(skb)) > SKB_GSO_CB_OFFSET);
++	segs = skb_gso_segment(skb, 0);
++	if (IS_ERR_OR_NULL(segs)) {
++		kfree_skb(skb);
++		return -ENOMEM;
++	}
++
++	consume_skb(skb);
++
++	skb_list_walk_safe(segs, segs, nskb) {
++		int err;
++
++		skb_mark_not_on_list(segs);
++		if (segs->len > mtu || IPCB(segs)->frag_max_size)
++			err = seg6_output_ipv4_fragment(net, sk, segs, mtu);
++		else
++			err = seg6_output_encap(net, sk, segs);
++
++		if (err && ret == 0)
++			ret = err;
++	}
++
++	return ret;
++}
++
++static int seg6_output_core(struct net *net, struct sock *sk,
++			    struct sk_buff *skb)
++{
++	struct dst_entry *orig_dst = skb_dst(skb);
++	struct seg6_iptunnel_encap *tinfo;
++
++	tinfo = seg6_encap_lwtunnel(orig_dst->lwtstate);
++	if (skb->protocol == htons(ETH_P_IP) &&
++	    (tinfo->mode == SEG6_IPTUN_MODE_ENCAP ||
++	     tinfo->mode == SEG6_IPTUN_MODE_ENCAP_RED)) {
++		unsigned int mtu;
++
++		if (!pskb_may_pull(skb, sizeof(struct iphdr))) {
++			kfree_skb(skb);
++			return -EINVAL;
++		}
++
++		mtu = ip_skb_dst_mtu(sk, skb);
++		if (skb_is_gso(skb))
++			return seg6_output_ipv4_gso(net, sk, skb, mtu);
++
++		if (skb->len > mtu || IPCB(skb)->frag_max_size)
++			return seg6_output_ipv4_fragment(net, sk, skb, mtu);
++	}
++
++	return seg6_output_encap(net, sk, skb);
++}
+ 
+ static int seg6_output_nf(struct net *net, struct sock *sk, struct sk_buff *skb)
+ {

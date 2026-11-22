@@ -56,9 +56,9 @@ func TestMPLSTransitMTUCapabilityDegrades(t *testing.T) {
 	}
 }
 
-// TestSRv6CapabilityCodesRegistered proves both SRv6 kernel capabilities are
-// enrolled and that all four diagnostic codes reach `ze show diagnostic` with
-// title, description, and remedy.
+// TestSRv6CapabilityCodesRegistered proves all three SRv6 kernel capabilities
+// are enrolled and that all six diagnostic codes reach `ze show diagnostic`
+// with title, description, and remedy.
 //
 // VALIDATES: an operator meeting any doctor-srv6-* diagnostic can look the
 // code up and read what is wrong, why, and the remedy.
@@ -67,7 +67,7 @@ func TestSRv6CapabilityCodesRegistered(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
 
 	enrolled := kernelcap.Enrolled()
-	for _, subsystem := range []string{"srv6-encap", "srv6-forward-ttl"} {
+	for _, subsystem := range []string{"srv6-encap", "srv6-forward-ttl", "srv6-forward-frag"} {
 		if !slices.Contains(enrolled, subsystem) {
 			t.Fatalf("the %s kernel capability is not enrolled, so its codes are unreachable", subsystem)
 		}
@@ -78,6 +78,8 @@ func TestSRv6CapabilityCodesRegistered(t *testing.T) {
 		codeDoctorSRv6EncapUnknown,
 		codeDoctorSRv6ForwardTTLNotDecremented,
 		codeDoctorSRv6ForwardTTLUnknown,
+		codeDoctorSRv6ForwardFragUnavailable,
+		codeDoctorSRv6ForwardFragUnknown,
 	}
 	for _, code := range codes {
 		meta := diagnostic.Lookup(code)
@@ -97,14 +99,14 @@ func TestSRv6CapabilityCodesRegistered(t *testing.T) {
 	}
 }
 
-// TestSRv6CapabilitiesDegrade proves both SRv6 enrolments declare Degrades and
-// carry the expected kernel build symbols, so absent answers warn and never
+// TestSRv6CapabilitiesDegrade proves all three SRv6 enrolments declare Degrades
+// and carry the expected kernel build symbols, so absent answers warn and never
 // refuse a start.
 //
-// VALIDATES: srv6-encap and srv6-forward-ttl degrade rather than refusing, and
-// kernelcap.Refuse returns nil when both are absent.
-// PREVENTS: a stock kernel without seg6 or patch 0014 blocking a BGP router on
-// the kernel FIB from starting.
+// VALIDATES: srv6-encap, srv6-forward-ttl, and srv6-forward-frag degrade rather
+// than refusing, and kernelcap.Refuse returns nil when all three are absent.
+// PREVENTS: a stock kernel without seg6, patch 0014, or patch 0015 blocking a
+// BGP router on the kernel FIB from starting.
 func TestSRv6CapabilitiesDegrade(t *testing.T) {
 	if srv6EncapCapability.Degrades == "" {
 		t.Error("srv6-encap must declare Degrades so absence warns rather than refusing a start")
@@ -112,14 +114,20 @@ func TestSRv6CapabilitiesDegrade(t *testing.T) {
 	if srv6ForwardTTLCapability.Degrades == "" {
 		t.Error("srv6-forward-ttl must declare Degrades so absence warns rather than refusing a start")
 	}
+	if srv6ForwardFragCapability.Degrades == "" {
+		t.Error("srv6-forward-frag must declare Degrades so absence warns rather than refusing a start")
+	}
 	if srv6EncapCapability.Kernel != "CONFIG_IPV6_SEG6_LWTUNNEL" {
 		t.Errorf("srv6-encap names %q, want CONFIG_IPV6_SEG6_LWTUNNEL", srv6EncapCapability.Kernel)
 	}
 	if srv6ForwardTTLCapability.Kernel != "CONFIG_IPV6_SEG6_FORWARD_TTL" {
 		t.Errorf("srv6-forward-ttl names %q, want CONFIG_IPV6_SEG6_FORWARD_TTL", srv6ForwardTTLCapability.Kernel)
 	}
+	if srv6ForwardFragCapability.Kernel != "CONFIG_IPV6_SEG6_FORWARD_FRAG" {
+		t.Errorf("srv6-forward-frag names %q, want CONFIG_IPV6_SEG6_FORWARD_FRAG", srv6ForwardFragCapability.Kernel)
+	}
 
-	t.Cleanup(kernelcap.ForceAnswersForTest("srv6-encap=absent,srv6-forward-ttl=absent"))
+	t.Cleanup(kernelcap.ForceAnswersForTest("srv6-encap=absent,srv6-forward-ttl=absent,srv6-forward-frag=absent"))
 
 	tree := config.NewTree()
 	tree.GetOrCreateContainer("fib").GetOrCreateContainer("kernel")
@@ -134,7 +142,11 @@ func TestSRv6CapabilitiesDegrade(t *testing.T) {
 	for i := range diags {
 		seen[diags[i].Code] = diags[i].Severity
 	}
-	for _, code := range []string{codeDoctorSRv6EncapUnavailable, codeDoctorSRv6ForwardTTLNotDecremented} {
+	for _, code := range []string{
+		codeDoctorSRv6EncapUnavailable,
+		codeDoctorSRv6ForwardTTLNotDecremented,
+		codeDoctorSRv6ForwardFragUnavailable,
+	} {
 		sev, ok := seen[code]
 		if !ok {
 			t.Errorf("expected diagnostic %q when forced absent, got %+v", code, diags)

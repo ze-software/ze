@@ -45,3 +45,8 @@ func SRv6Encap() Result {
 func SRv6ForwardTTL() Result {
 	return Result{State: StateUnknown, Reason: errNotLinux}
 }
+
+// SRv6ForwardFrag reports cannot-determine off Linux.
+func SRv6ForwardFrag() Result {
+	return Result{State: StateUnknown, Reason: errNotLinux}
+}
