@@ -81,3 +81,28 @@ func TestCommandRegistryQuotedChildBoundaryPreservesTokenRules(t *testing.T) {
 		})
 	}
 }
+
+// TestCommandRegistryLookupSkipsArgDefSourceWhenKeywordsAbsent proves that
+// lookupPath does not invoke the YANG argument definition source for registered
+// paths whose keywords do not even appear in the command words (such as `le`
+// shell callbacks checking unrelated `le <area>` declarations).
+func TestCommandRegistryLookupSkipsArgDefSourceWhenKeywordsAbsent(t *testing.T) {
+	calls := 0
+	prev := ReplaceArgDefSourceForTest(func(path string) ([]ArgDef, error) {
+		calls++
+		return nil, nil
+	})
+	t.Cleanup(func() { ReplaceArgDefSourceForTest(prev) })
+
+	registry := newCommandRegistry[string]()
+	registry.register([]string{"le spec"}, "spec")
+	registry.register([]string{"le verify"}, "verify")
+	registry.register([]string{"show bgp peer rib"}, "peer-rib")
+
+	if _, _, found := registry.lookupPath("le completion words"); found {
+		t.Fatal("unexpected match for le completion words")
+	}
+	if calls != 0 {
+		t.Fatalf("argDefSource called %d times for unrelated keywords, want 0", calls)
+	}
+}

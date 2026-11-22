@@ -56,6 +56,9 @@ func invocationReachesCommandPath(words []string, path string) bool {
 	if words[0] != segments[0] {
 		return false
 	}
+	if !segmentsAppearInOrder(words, segments) {
+		return false
+	}
 	if argDefSource == nil {
 		return false
 	}
@@ -68,4 +71,20 @@ func invocationReachesCommandPath(words []string, path string) bool {
 	}
 	_, _, matched := MatchInvocationPath(words, path, defs)
 	return matched
+}
+
+// segmentsAppearInOrder reports whether every keyword in segments appears in
+// words in the same order, matching MatchInvocationPath's necessary condition
+// without consulting the YANG argument source.
+func segmentsAppearInOrder(words, segments []string) bool {
+	matched := 0
+	for _, word := range words {
+		if word == segments[matched] {
+			matched++
+			if matched == len(segments) {
+				return true
+			}
+		}
+	}
+	return false
 }
