@@ -36,7 +36,10 @@ EOF_WRITER
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-    internal rs { use bgp-rs; }
+    external replay-claimant {
+        run "le test fixture plugin/replay-permission-claimant";
+        encoder json;
+    }
     external claim-permission {
         run "le test fixture plugin/peer-up-replay-claim-permission";
         encoder json;
@@ -61,7 +64,7 @@ bgp {
             remote { ip 127.0.0.1; }
             local { ip 127.0.0.1; accept false; }
         }
-        attach process rs { receive [ state open-received refresh ]; }
+        attach process replay-claimant { receive [ state ]; }
         attach process claim-permission { receive [ state ]; }
     }
     peer raw-only {
@@ -74,7 +77,7 @@ bgp {
             remote { ip 127.0.0.2; }
             local { ip 127.0.0.2; accept false; }
         }
-        attach process rs { receive [ state open-received refresh ]; send [ raw ]; }
+        attach process replay-claimant { receive [ state ]; send [ raw ]; }
         attach process claim-permission { receive [ state ]; }
     }
     peer writer {
@@ -87,7 +90,7 @@ bgp {
             remote { ip 127.0.0.3; }
             local { ip 127.0.0.3; accept false; }
         }
-        attach process rs { receive [ state open-received refresh ]; send [ update ]; }
+        attach process replay-claimant { receive [ state ]; send [ update ]; }
         attach process claim-permission { receive [ state ]; }
     }
 }

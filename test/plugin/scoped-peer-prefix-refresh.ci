@@ -93,7 +93,7 @@ bgp {
    capability { graceful-restart disable; link-local-nexthop enable; }
   }
   behavior { rs-fast-path enable; group-updates disable; }
-  attach process rs { receive [ update-received ]; send [ update ]; }
+  attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
   timer { connect-retry 1; }
  }
  peer source1 {
@@ -106,7 +106,7 @@ bgp {
    capability { graceful-restart disable; link-local-nexthop enable; }
   }
   behavior { rs-fast-path enable; group-updates disable; }
-  attach process rs { receive [ update-received ]; send [ update ]; }
+  attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
   timer { connect-retry 1; }
  }
  peer source2 {
@@ -119,7 +119,7 @@ bgp {
    capability { graceful-restart disable; link-local-nexthop enable; }
   }
   behavior { rs-fast-path enable; group-updates disable; }
-  attach process rs { receive [ update-received ]; send [ update ]; }
+  attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
   timer { connect-retry 1; }
  }
  peer source3 {
@@ -132,7 +132,7 @@ bgp {
    capability { graceful-restart disable; link-local-nexthop enable; }
   }
   behavior { rs-fast-path enable; group-updates disable; }
-  attach process rs { receive [ update-received ]; send [ update ]; }
+  attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
   timer { connect-retry 1; }
  }
  peer sentinel1 {

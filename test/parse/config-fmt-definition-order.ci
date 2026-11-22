@@ -26,6 +26,9 @@ tmpfs=order.conf:terminator=EOF_CONF
 bgp {
 	peer zulu {
 		connection {
+			local {
+				ip 192.0.2.1
+			}
 			remote {
 				ip 192.0.2.26
 			}

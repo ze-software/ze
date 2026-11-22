@@ -112,7 +112,7 @@ bgp {
   behavior { group-updates disable; rs-fast-path enable; }
   filter { export { filters [ classic-mixed-nh:rewrite ]; final accept; } }
   attach process classic-mixed-nh { send [ update ]; }
-  attach process rs { receive [ state ]; send [ update ]; }
+  attach process rs { receive [ state open-received refresh ]; send [ update ]; }
  }
  peer useful {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.4; connect false; } }
@@ -125,7 +125,7 @@ bgp {
   behavior { group-updates disable; rs-fast-path enable; }
   filter { export { filters [ classic-mixed-nh:rewrite ]; final accept; } }
   attach process classic-mixed-nh { send [ update ]; }
-  attach process rs { receive [ state ]; send [ update ]; }
+  attach process rs { receive [ state open-received refresh ]; send [ update ]; }
  }
 }
 NATIVE_CONFIG

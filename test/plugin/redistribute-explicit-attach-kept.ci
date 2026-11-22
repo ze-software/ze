@@ -4,21 +4,26 @@
 #
 # VALIDATES: spec-fixit-redistribution-chain-drops-silently AC-4, at the process
 # boundary. The config is AC-1's (a `redistribute` rule importing BGP, no plugin
-# block for bgp-rib) plus `attach process bgp-rib { receive [ state ]; }` on the
-# peer. Two things must hold:
+# block for bgp-rib) plus `attach process bgp-rib { receive [ update-received state ]; }`
+# on the peer (the complete Loc-RIB source grant, still narrower than the derived
+# `update state refresh` binding). Three things must hold:
 #
 #   1. the operator's grant is the one in force: the Loc-RIB counts the peer as
 #      up, which only the state event the operator granted can make it do (the
 #      observer asserts it through `show bgp rib status`)
-#   2. the daemon reports that the grant is narrower than what the Loc-RIB
-#      declared: bgp-rib declares update, and the peer grants it only state.
-#      That line is reconcileDelivery's reasonUngranted
-#      (internal/component/plugin/server/delivery_reconcile.go), the same report
-#      any plugin fed less than it declared gets
+#   2. `show event delivery` reports exactly one `bgp-rib` binding carrying only
+#      `state` and `update-received`, with no `send`, `implicit` or `unresolved`
+#      grants (so the wider derived `update state refresh` neither replaced nor
+#      supplemented it)
+#   3. the daemon reports that the grant is narrower than what the Loc-RIB
+#      declared: bgp-rib declares refresh, and the peer grants it only
+#      update-received and state. That line is reconcileDelivery's
+#      reasonUngranted (internal/component/plugin/server/delivery_reconcile.go),
+#      the same report any plugin fed less than it declared gets
 #
 # PREVENTS: the derived binding silently widening the operator's grant (then no
 # disagreement exists to report), or replacing it with a second binding for the
-# same process. The unit half, exactly one binding carrying state alone, is
+# same process. The unit half, exactly one narrower binding, is
 # TestExplicitBindingWins (internal/component/bgp/config/redistribute_binding_test.go).
 
 # ze-peer expectations
@@ -37,7 +42,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external redist-explicit-attach-test {
-		run "le test fixture plugin/redistribute-explicit-attach-kept"
+		run "le test fixture plugin/redistribute-explicit-source-grant"
 		encoder json
 	}
 	# Declares the fakedest destination the rule names. Nothing here registers a
@@ -94,7 +99,7 @@ bgp {
 			group-updates disable
 		}
 		attach process bgp-rib {
-			receive [ state ]
+			receive [ update-received state ]
 		}
 	}
 }
@@ -104,7 +109,8 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=stderr:pattern=OK: the operator's state grant brought the peer up in the Loc-RIB
+expect=stderr:contains=EXPLICIT-SOURCE-GRANT: bindings=1 receive=[state update-received] send=[] implicit=[] unresolved=[]
 # The daemon's report for the type the operator did not grant. The pattern pins
 # the peer and the process, so another plugin's line cannot satisfy it.
-expect=stderr:pattern=the plugin declared an event the peer does not grant it.*peer=127.0.0.1.*process=bgp-rib.*declared=[^ ]*update
+expect=stderr:pattern=the plugin declared an event the peer does not grant it.*peer=127.0.0.1.*process=bgp-rib.*declared=[^ ]*refresh
 expect=exit:code=0

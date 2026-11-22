@@ -111,7 +111,7 @@ bgp {
         attach process rfc8212-reload { receive [ update-received state ]; send [ update ]; }
         attach process rfc8212-owner { receive [ update-received ]; }
         attach process rs { receive [ state open-received refresh ]; send [ update ]; }
-        attach process rib { receive [ update-sent state refresh ]; }
+        attach process rib { receive [ update-sent state refresh ]; send [ update ]; }
     }
     peer peer-3 {
         connection { remote { ip 127.0.0.3; } local { ip 127.0.0.6; accept false; } }

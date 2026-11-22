@@ -106,7 +106,7 @@ bgp {
 			rs-fast-path enable;
 		}
 		attach process rs {
-			receive [ update-received ]
+			receive [ update-received state open-received refresh ]
 			send [ update ]
 		}
 		# The injector starts after the receiver is up, so Ze's first dial is
@@ -141,7 +141,7 @@ bgp {
 			rs-fast-path enable;
 		}
 		attach process rs {
-			receive [ update-received ]
+			receive [ update-received state open-received refresh ]
 			send [ update ]
 		}
 		timer { connect-retry 2; }
