@@ -1468,8 +1468,8 @@ The answer is one object per rule under `rules`:
 
 A figure the rule does not have is absent, never `0`: a rule still warming up
 shows its observed duration and no projection. When the trend monitor is not
-running the command refuses, says why that matters, and names the fix,
-`ze signal restart`; it never answers an empty list. With no daemon reachable
+running the command refuses, says why that matters, and names the fix, the
+restart for this ze: `sudo systemctl restart ze` only when ze runs under ze.service, otherwise `ze signal stop`, then a start the way ze was started; it never answers an empty list. With no daemon reachable
 it says the daemon is needed, because the history lives in the daemon.
 
 <!-- source: internal/plugins/host-cmd/cmd/show_trend.go -- handleShowTrend, trendRuleOf -->

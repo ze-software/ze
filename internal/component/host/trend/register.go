@@ -6,6 +6,7 @@ package trend
 
 import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 // The monitor's own codes. A rule's warning code is declared by the rule's
@@ -27,9 +28,17 @@ const (
 	// trendCheckOrder places the trend checks among the runtime checks; the
 	// order only sorts the rows.
 	trendCheckOrder = 800
-	// restartFix restarts the daemon, whose system start starts the monitor.
-	restartFix = "ze signal restart"
 )
+
+// NotRunningFix answers the fix of CodeNotRunning: restart the daemon, whose
+// system start starts the monitor. The monitor check, the hub's log line when
+// Start refuses, and show host trend's refusal all name it. `ze signal restart`
+// exits without starting a new process, so privilege.RestartRemedy words the
+// restart for this process: systemctl only under ze.service, the
+// stop-and-start steps otherwise. Safe for concurrent use.
+func NotRunningFix() string {
+	return privilege.RestartRemedy()
+}
 
 const notRunningMessage = "The host trend monitor is not running, so Ze does not watch host resources " +
 	"for growth that ends in exhaustion. The daemon starts it when it starts, so a restart starts it again."
@@ -38,8 +47,8 @@ func init() {
 	if err := diagnostic.Register(diagnostic.CodeMeta{
 		Code:        CodeNotRunning,
 		Title:       "The host trend monitor is not running",
-		Description: "The daemon starts the host trend monitor at its system start. When it is not running, no trend rule watches the host, so a resource that runs out slowly is not reported before the box fails. Restart the daemon to start it again.",
-		Examples:    []string{restartFix, trendFix},
+		Description: "The daemon starts the host trend monitor at its system start. When it is not running, no trend rule watches the host, so a resource that runs out slowly is not reported before the box fails. Restart the daemon to start it again: the finding's fix gives the restart for this process, a systemd command only when ze runs under ze.service, otherwise the steps for a ze started another way.",
+		Examples:    []string{"ze show doctor", trendFix},
 	}); err != nil {
 		panic("BUG: host trend not-running code registration: " + err.Error())
 	}
@@ -73,7 +82,7 @@ func checkMonitor(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	statuses, err := Rules()
 	if err != nil {
 		return []diagnostic.Diagnostic{{Code: CodeNotRunning, Severity: diagnostic.SeverityWarning,
-			Message: notRunningMessage, Fix: restartFix}}
+			Message: notRunningMessage, Fix: NotRunningFix()}}
 	}
 	var findings []diagnostic.Diagnostic
 	for i := range statuses {

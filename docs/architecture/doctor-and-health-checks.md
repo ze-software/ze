@@ -410,7 +410,7 @@ component, for the import cycle the section above names.
 
 | Runtime check | Registered by | Reports | Code |
 |---------------|---------------|---------|------|
-| `host-trend-monitor` | the monitor's own file | the monitor not running, with `ze signal restart` as fix, because the daemon's system start starts it; and each rule whose latest read failed, naming the path and the error, with `show host trend` | `doctor-host-trend-not-running`, `doctor-host-trend-unreadable` |
+| `host-trend-monitor` | the monitor's own file | the monitor not running, with the restart for this process as fix (`trend.NotRunningFix`, worded by `privilege.RestartRemedy`: `sudo systemctl restart ze` only when ze runs under ze.service, otherwise `ze signal stop`, then a start the way ze was started), because the daemon's system start starts it; and each rule whose latest read failed, naming the path and the error, with `show host trend` | `doctor-host-trend-not-running`, `doctor-host-trend-unreadable` |
 | `host-trend-kernel-memory` | the kernel-memory rule's file | the rule's standing warning, with the message and the fix the report bus holds; no row while the rule is quiet, warming up or not present | `doctor-host-kernel-memory-growth` |
 
 Every row is a warning: the box still reads ready. Because each runtime check

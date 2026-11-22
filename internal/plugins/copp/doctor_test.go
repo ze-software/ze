@@ -77,8 +77,8 @@ func TestCoppDoctorNamesMissingDropTerm(t *testing.T) {
 		kernel []firewall.Table
 		want   []string
 	}{
-		{"drop term gone", []firewall.Table{withoutDrop}, []string{"term unknown-source-drop in chain input", "ze signal restart"}},
-		{"table gone", nil, []string{"the whole table (inet ze_copp)", "ze signal restart"}},
+		{"drop term gone", []firewall.Table{withoutDrop}, []string{"term unknown-source-drop in chain input", restoreHint()}},
+		{"table gone", nil, []string{"the whole table (inet ze_copp)", restoreHint()}},
 		{"table whole", []firewall.Table{want}, nil},
 	}
 	for _, tc := range cases {

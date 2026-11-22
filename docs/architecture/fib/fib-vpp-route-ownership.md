@@ -59,9 +59,12 @@ process, reports under `doctor-fib-vpp-stale-route` (error):
 
 | Finding | Fix |
 |---------|-----|
-| A route a previous run left that VPP refused to remove, with VPP's answer, until this run installs or removes the prefix | `ze signal restart` |
-| IP tables the writer could not read when it opened | `ze signal restart` |
-| A writer that could not open because VPP gave it no FIB source | a VPP release serving `fib_source_add` and `ip_route_add_del_v2`, then `ze signal restart` |
+| A route a previous run left that VPP refused to remove, with VPP's answer, until this run installs or removes the prefix | a restart of Ze |
+| IP tables the writer could not read when it opened | a restart of Ze |
+| A writer that could not open because VPP gave it no FIB source | a VPP release serving `fib_source_add` and `ip_route_add_del_v2`, then a restart of Ze |
+
+The finding's fix words the restart for this process (`staleRouteFix`, which is
+`privilege.RestartRemedy`): `sudo systemctl restart ze` only when ze runs under ze.service, otherwise `ze signal stop`, then a start the way ze was started.
 
 It lists at most 32 routes, one finding each, and counts the rest in one more
 finding. While no writer is open for any other reason it answers no finding:

@@ -16,6 +16,7 @@ package fibvpp
 
 import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -34,10 +35,15 @@ const codeStaleLabel = "doctor-fib-vpp-mpls-stale-label"
 // are counted in one more finding.
 const labelFindingsMax = 32
 
-// staleLabelFix is the command that runs the sweep again: the restarted
+// staleLabelFix answers the restart that runs the sweep again: the restarted
 // daemon opens a new writer, which reads MPLS table 0 and removes every
-// label route no source re-claims.
-const staleLabelFix = "ze signal restart"
+// label route no source re-claims. `ze signal restart` exits without starting
+// a new process, so privilege.RestartRemedy words the restart for this
+// process: systemctl only under ze.service, the stop-and-start steps
+// otherwise. Safe for concurrent use.
+func staleLabelFix() string {
+	return privilege.RestartRemedy()
+}
 
 // labelEntriesCheckDecl declares the runtime check in fib-vpp's Stage 1
 // registration, so `show doctor` asks fib-vpp's process for it.
@@ -58,8 +64,9 @@ var staleLabelCodeMeta = diagnostic.CodeMeta{
 		"route with an unreserved in-label that no source re-claimed. This ERROR means VPP refused to remove one, or " +
 		"MPLS table 0 could not be read, so a label nobody advertises may still forward packets. A push (a labeled " +
 		"IP route) is not in MPLS table 0: the stale IP route sweep removes one a previous run left, and reports " +
-		"what it could not remove under doctor-fib-vpp-stale-route. Remedy: restart Ze with `ze signal restart`, which opens a new writer and runs the sweep again; " +
-		"the finding names VPP's refusal when it repeats.",
+		"what it could not remove under doctor-fib-vpp-stale-route. Remedy: restart Ze, which opens a new writer and runs the sweep again; " +
+		"the finding names VPP's refusal when it repeats, and its fix gives the restart for this process: a systemd command only " +
+		"when ze runs under ze.service, otherwise the steps for a ze started another way.",
 	Examples: []string{"ze show doctor", "ze show diagnostic doctor-fib-vpp-mpls-stale-label"},
 }
 
@@ -132,7 +139,7 @@ func staleLabelFinding(message string) rpc.DoctorCheckDiagnostic {
 		Code:     codeStaleLabel,
 		Severity: string(diagnostic.SeverityError),
 		Message:  message,
-		Fix:      staleLabelFix,
+		Fix:      staleLabelFix(),
 	}
 }
 

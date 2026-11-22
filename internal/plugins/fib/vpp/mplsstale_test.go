@@ -152,7 +152,7 @@ func TestFibVPPSweepFailureReachesDoctor(t *testing.T) {
 	assert.Equal(t, string(diagnostic.SeverityError), findings[0].Severity)
 	assert.Contains(t, findings[0].Message, "in-label 100")
 	assert.Contains(t, findings[0].Message, refusal.Error())
-	assert.Equal(t, staleLabelFix, findings[0].Fix)
+	assert.Equal(t, staleLabelFix(), findings[0].Fix)
 	assert.NotNil(t, diagnostic.Lookup(codeStaleLabel), "ze show diagnostic describes the code")
 
 	reclaim := swapEntry(100, []uint32{101})

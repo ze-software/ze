@@ -517,7 +517,7 @@ func startTrendMonitor() {
 	monitor, err := trend.Start(clock.RealClock{}, &host.Detector{})
 	if err != nil {
 		slogutil.Logger("host").Warn("host trend monitor did not start",
-			"code", trend.CodeNotRunning, "error", err, "fix", "ze signal restart")
+			"code", trend.CodeNotRunning, "error", err, "fix", trend.NotRunningFix())
 		return
 	}
 	trendMonitor = monitor

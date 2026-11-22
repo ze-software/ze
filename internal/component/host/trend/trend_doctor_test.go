@@ -37,7 +37,7 @@ func TestTrendMonitorNotRunningIsReported(t *testing.T) {
 			t.Fatalf("%s: monitor check rows = %d, want 1: %+v", when, len(rows), rows)
 		}
 		if rows[0].Code != CodeNotRunning || rows[0].Severity != diagnostic.SeverityWarning ||
-			rows[0].Fix != "ze signal restart" || rows[0].Message != notRunningMessage {
+			rows[0].Fix != NotRunningFix() || rows[0].Message != notRunningMessage {
 			t.Errorf("%s: monitor check row = %+v", when, rows[0])
 		}
 		if rows := kernelCheck.Check(diagnostic.DoctorCheckContext{}); len(rows) != 0 {

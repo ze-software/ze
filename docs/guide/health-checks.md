@@ -90,7 +90,7 @@ Use `ze show diagnostic <code>` for remediation guidance.
 | `doctor-dns-resolver` | Name server reachability |
 | `doctor-*-unreachable` | External-service reachability probes that warn (never fail startup) when a configured peer is down: RADIUS admin (`doctor-radius-admin-unreachable`), RPKI cache (`doctor-rpki-unreachable`), BMP collector (`doctor-bmp-unreachable`), NTP (`doctor-ntp-server-unreachable`), management hub (`doctor-hub-unreachable`) <!-- source: internal/component/managed/doctor.go -- checkHubReachable / doctor-hub-unreachable --> |
 | `doctor-clock-skew` | System clock vs NTP (>5 min) |
-| `doctor-gtsm-kernel-state` | A BGP peer or dynamic group range with `connection ttl` (RFC 5082 GTSM) whose kernel state is short: inside the daemon (`show doctor`), the host route carrying hop limit 255, or a `ze_gtsm` term the daemon published (the listen-port drop or a related-ICMP drop), is missing from the kernel. The report names each missing term and the fix, `ze signal restart`, because a reload leaves an unchanged peer set alone. In `ze doctor`, before a start, the kernel resolves no route to the peer, so that route cannot be installed at apply <!-- source: internal/component/gtsm/doctor.go -- checkKernelState, installedStateDiagnostics, missingStateDiagnostic --> |
+| `doctor-gtsm-kernel-state` | A BGP peer or dynamic group range with `connection ttl` (RFC 5082 GTSM) whose kernel state is short: inside the daemon (`show doctor`), the host route carrying hop limit 255, or a `ze_gtsm` term the daemon published (the listen-port drop or a related-ICMP drop), is missing from the kernel. The report names each missing term and the fix, a restart of Ze worded for this process (`sudo systemctl restart ze` only when ze runs under ze.service, otherwise `ze signal stop`, then a start the way ze was started), because a reload leaves an unchanged peer set alone. In `ze doctor`, before a start, the kernel resolves no route to the peer, so that route cannot be installed at apply <!-- source: internal/component/gtsm/doctor.go -- checkKernelState, installedStateDiagnostics, missingStateDiagnostic --> |
 | `doctor-vpp-unreachable` | VPP API socket (Linux) |
 | `doctor-vpp-version` | VPP version compatibility (Linux) |
 | `doctor-module-missing` | Kernel modules (Linux) |
@@ -320,10 +320,15 @@ Every new doctor check must:
    because a `doctor-` alias for them would be a second code for one fact. The
    registry accepts any well-formed lower-kebab code
    (`diagnostic.RegisterDoctorCheck`).
-2. Register the code in `internal/core/diagnostic/codes.go` so
-   `ze show diagnostic <code>` works. The entry names the code through an exported
-   constant, and the check that emits it references that constant. A code
-   spelled a second time in the emitting package is a second declaration of
-   one fact, and `./le arch enumeration check` refuses it.
+2. Register the code's metadata (`diagnostic.CodeMeta`) via
+   `diagnostic.Register` from the owning package's `init()` (in
+   `register_doctor_codes.go`, or from `register.go`) so `ze show diagnostic <code>`
+   works. Declare the code
+   once as a constant beside that table and reference that constant from the
+   check and registration. Only `config-*` codes, core TLS helpers, and
+   cross-cutting `doctor-*` codes shared across unrelated packages live in
+   `internal/core/diagnostic/codes.go`. A code spelled a second time in the
+   emitting package is a second declaration of one fact, and
+   `./le arch enumeration check` refuses it.
 3. Include a unit test proving the check fires when the relevant config
    is present and emits the registered code.

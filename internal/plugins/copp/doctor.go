@@ -15,17 +15,24 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 const doctorCoppCode = "doctor-copp-missing"
 
-// restoreHint is the command that installs the ze_copp table again when the
-// kernel lost part of it. A reload is not it: a reload that changes neither
-// root copp reads does not reach copp. A restart delivers the configuration
-// to copp's start handler, which installs the whole table.
-const restoreHint = "Run `ze signal restart` so the daemon installs the table again, then rerun `ze doctor`."
+// restoreHint answers how to install the ze_copp table again when the kernel
+// lost part of it. A reload is not it: a reload that changes neither root copp
+// reads does not reach copp. A restart delivers the configuration to copp's
+// start handler, which installs the whole table. `ze signal restart` exits
+// without starting a new process, so privilege.RestartRemedy words the restart
+// for this process: systemctl only under ze.service, the stop-and-start steps
+// otherwise. Safe for concurrent use.
+func restoreHint() string {
+	return "Restart Ze so the daemon installs the table again, then rerun `ze doctor`. To restart it: " +
+		privilege.RestartRemedy() + "."
+}
 
 // readKernelTables reads the ze-owned tables the kernel holds, through the
 // firewall backend this process loaded. It is a var so the unit test can stand
@@ -65,7 +72,7 @@ func checkCoppInputChain(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 		return []rpc.DoctorCheckDiagnostic{coppDiagnostic(textbuf.New().
 			Str("copp: the kernel firewall tables could not be read (").Err(err).
 			Str("), so whether the ze_copp table and its unknown-source-drop term are installed is unknown. ").
-			Str(restoreHint).String())}
+			Str(restoreHint()).String())}
 	}
 
 	missing := missingFromKernel(want, tables)
@@ -75,7 +82,7 @@ func checkCoppInputChain(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 	return []rpc.DoctorCheckDiagnostic{coppDiagnostic(textbuf.New().
 		Str("copp: the kernel does not hold ").Join(missing, ", ").
 		Str(" of the ze_copp table, so port ").Str(protectedPortsText(want)).
-		Str(" is not protected as configured. ").Str(restoreHint).String())}
+		Str(" is not protected as configured. ").Str(restoreHint()).String())}
 }
 
 // expectedTable builds the table this configuration installs, from the same

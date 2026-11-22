@@ -15,6 +15,7 @@ import (
 	"errors"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -27,10 +28,15 @@ const staleRoutesCheckName = "fib-vpp-stale-routes"
 // FIB source to mark its routes with.
 const codeStaleRoute = "doctor-fib-vpp-stale-route"
 
-// staleRouteFix is the command that runs the sweep again: the restarted
+// staleRouteFix answers the restart that runs the sweep again: the restarted
 // daemon opens a new writer, which reads fib-vpp's FIB source and removes
-// every route sysrib and the label sources do not re-announce.
-const staleRouteFix = "ze signal restart"
+// every route sysrib and the label sources do not re-announce. `ze signal
+// restart` exits without starting a new process, so privilege.RestartRemedy
+// words the restart for this process: systemctl only under ze.service, the
+// stop-and-start steps otherwise. Safe for concurrent use.
+func staleRouteFix() string {
+	return privilege.RestartRemedy()
+}
 
 // staleRoutesCheckDecl declares the runtime check in fib-vpp's Stage 1
 // registration, so `show doctor` asks fib-vpp's process for it.
@@ -52,9 +58,11 @@ var staleRouteCodeMeta = diagnostic.CodeMeta{
 		"sources to re-announce what they want, and after 30 seconds removes every listed route nobody " +
 		"re-announced; the removal takes away only fib-vpp's source, never another owner's route for the same " +
 		"prefix. This ERROR means VPP refused to remove one, the IP tables could not be read, or VPP would not " +
-		"register the FIB source, in which case fib-vpp programs no route at all. Remedy: restart Ze with " +
-		"`ze signal restart`, which opens a new writer and runs the sweep again; when the FIB source is refused, " +
-		"run a VPP release that serves `fib_source_add` and `ip_route_add_del_v2` first.",
+		"register the FIB source, in which case fib-vpp programs no route at all. Remedy: restart Ze, " +
+		"which opens a new writer and runs the sweep again; when the FIB source is refused, " +
+		"run a VPP release that serves `fib_source_add` and `ip_route_add_del_v2` first. The finding's fix gives " +
+		"the restart for this process: a systemd command only when ze runs under ze.service, otherwise the steps " +
+		"for a ze started another way.",
 	Examples: []string{"ze show doctor", "ze show diagnostic doctor-fib-vpp-stale-route"},
 }
 
@@ -110,6 +118,6 @@ func staleRouteFinding(message string) rpc.DoctorCheckDiagnostic {
 		Code:     codeStaleRoute,
 		Severity: string(diagnostic.SeverityError),
 		Message:  message,
-		Fix:      staleRouteFix,
+		Fix:      staleRouteFix(),
 	}
 }

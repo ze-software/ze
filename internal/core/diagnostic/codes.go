@@ -551,7 +551,8 @@ var builtinCodes = append([]CodeMeta{
 			"expired, not yet valid or near expiry. gNMI refuses to start rather than serve its token " +
 			"and config in clear text, and the daemon logs the refusal under this code. The finding " +
 			"names the file and the fix: restore the file or point the setting at a readable PEM pair, " +
-			"then run ze signal restart.",
+			"then restart Ze. The fix gives the restart for this process: a systemd command only when ze runs " +
+			"under ze.service, otherwise the steps for a ze started another way.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-gnmi-tls-material"},
 	},
 	{

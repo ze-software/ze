@@ -14,13 +14,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/ze-software/ze/internal/core/bgp/routeaction"
-	"github.com/ze-software/ze/internal/core/diagnostic"
-
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/fib"
 	"go.fd.io/govpp/binapi/ip"
+
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // fibSourceAPI is FIB_SOURCE_API's id, the source ip_route_add_del (v1)
@@ -248,7 +247,7 @@ func TestFibVPPStaleRouteDumpFailureReachesDoctor(t *testing.T) {
 	assert.Equal(t, codeStaleRoute, findings[0].Code)
 	assert.Equal(t, string(diagnostic.SeverityError), findings[0].Severity)
 	assert.Contains(t, findings[0].Message, "VPP API timeout")
-	assert.Equal(t, staleRouteFix, findings[0].Fix)
+	assert.Equal(t, staleRouteFix(), findings[0].Fix)
 }
 
 // TestFibVPPStaleRouteRefusalReachesDoctor proves a leftover VPP refuses to
@@ -315,7 +314,7 @@ func TestOpenRouteSourceFindsOrAddsSource(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, findings, 1)
 	assert.Equal(t, codeStaleRoute, findings[0].Code)
-	assert.Equal(t, staleRouteFix, findings[0].Fix)
+	assert.Equal(t, staleRouteFix(), findings[0].Fix)
 
 	findings, err = answerDoctorCheck(staleRoutesCheckName, nil, errFibVPPNoConnector)
 	require.NoError(t, err)

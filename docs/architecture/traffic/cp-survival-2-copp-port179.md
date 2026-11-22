@@ -139,7 +139,8 @@ any plugin with a rate-spec leaf can use it.
 - The `copp-input-chain` doctor check (code `doctor-copp-missing`) builds the
   table this configuration asks for with `translatePolicy`, reads the kernel's
   tables back through the firewall backend, and names each part the kernel does
-  not hold: the whole table, a chain, a term by name, or a set. It names
-  `ze signal restart` as the fix, because a reload that changes neither root
+  not hold: the whole table, a chain, a term by name, or a set. It names a
+  restart of Ze as the fix (`restoreHint`, worded for this process by
+  `privilege.RestartRemedy`: `sudo systemctl restart ze` only when ze runs under ze.service, otherwise `ze signal stop`, then a start the way ze was started), because a reload that changes neither root
   copp reads does not reach copp. When the kernel tables cannot be read, it
   says so rather than reporting the table present.

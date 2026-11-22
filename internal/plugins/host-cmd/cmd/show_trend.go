@@ -15,14 +15,13 @@ import (
 )
 
 // The refusal of show host trend while no trend monitor runs. The fix is the
-// one the monitor's own doctor check names: the daemon starts the monitor at
-// its system start, so a restart starts it again.
+// one the monitor's own doctor check names, trend.NotRunningFix: the daemon
+// starts the monitor at its system start, so a restart starts it again.
 const (
 	trendNotRunningProblem = "the host trend monitor is not running"
 	trendNotRunningWhy     = "no rule watches the host resources, so a resource that runs out slowly, " +
 		"such as kernel memory, is not reported before the box fails. " +
 		"The daemon starts the monitor when it starts, so a restart starts it again"
-	trendNotRunningFix = "ze signal restart"
 )
 
 func registerShowTrend() {
@@ -75,7 +74,7 @@ func handleShowTrend(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*
 // so a later failure is never reported as a monitor that is not running.
 func trendReadRefusal(err error) *opererr.Error {
 	if errors.Is(err, trend.ErrNotRunning) {
-		return opererr.New(trendNotRunningProblem, trendNotRunningWhy, trendNotRunningFix)
+		return opererr.New(trendNotRunningProblem, trendNotRunningWhy, trend.NotRunningFix())
 	}
 	return opererr.Wrap(err, "the host trend state could not be read",
 		"show host trend has no rule to list without it", "show doctor")

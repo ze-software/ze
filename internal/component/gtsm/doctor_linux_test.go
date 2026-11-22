@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
@@ -191,7 +192,7 @@ func TestGTSMDoctorNamesMissingListenTerm(t *testing.T) {
 		t.Fatalf("diagnostics = %+v, want one for the missing listen-port term", diags)
 	}
 	want := listenTermName(netip.PrefixFrom(p.Addr, 128))
-	if !strings.Contains(diags[0].Message, want) || !strings.Contains(diags[0].Message, "ze signal restart") {
+	if !strings.Contains(diags[0].Message, want) || !strings.HasSuffix(diags[0].Message, privilege.RestartRemedy()) {
 		t.Errorf("message %q names neither the term %q nor the command that restores it", diags[0].Message, want)
 	}
 

@@ -33,6 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -256,14 +257,17 @@ func hopLimitRouteMissing(p Peer) (string, bool) {
 }
 
 // missingStateDiagnostic names the peer or range, each piece of its state the
-// kernel does not hold, and the command that republishes it. A reload does
+// kernel does not hold, and the restart that republishes it. A reload does
 // not: SetPeers leaves an unchanged set alone. A restart starts a process
 // whose published set is empty, so its first reconcile installs everything.
+// `ze signal restart` exits without starting a new process, so
+// privilege.RestartRemedy words the restart for this process: systemctl only
+// under ze.service, the stop-and-start steps otherwise.
 func missingStateDiagnostic(source string, missing []string) diagnostic.Diagnostic {
 	var tb textbuf.Buffer
 	tb.Str("gtsm: ").Str(source).Str(": the kernel does not hold ").Join(missing, " and ").
 		Str(", so a packet below its TTL floor is not dropped before it reaches BGP;").
-		Str(" run `ze signal restart` to republish the GTSM kernel state")
+		Str(" restart ze to republish the GTSM kernel state: ").Str(privilege.RestartRemedy())
 	return diagnostic.Diagnostic{
 		Code:     doctorKernelStateCode,
 		Severity: diagnostic.SeverityWarning,

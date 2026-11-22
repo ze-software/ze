@@ -109,8 +109,8 @@ projection. The read is a plain call: host-cmd's handlers are builtin RPCs
 that the daemon's own dispatcher serves (`pluginserver.RegisterRPCs`, loaded by
 `NewServer` through `LoadBuiltins`), so they run in the process that holds the
 monitor, as `show storage smart` reads the SMART manager. With no monitor
-running the command refuses with an operator error whose fix is
-`ze signal restart`. When the daemon did not answer, the offline fallback of
+running the command refuses with an operator error whose fix is the restart
+for this process (`trend.NotRunningFix`): `sudo systemctl restart ze` only when ze runs under ze.service, otherwise `ze signal stop`, then a start the way ze was started. When the daemon did not answer, the offline fallback of
 `show host trend` says the daemon is needed, rather than reading `trend` as an
 unknown inventory section. Its refusal names why the daemon did not answer and
 ends on that cause's fix, both handed to it by the CLI client that asked
