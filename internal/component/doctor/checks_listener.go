@@ -23,6 +23,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/dnsserver"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -132,15 +135,51 @@ func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 	for _, l := range listeners {
 		if err := listenerProbe(l); err != nil {
-			diags = append(diags, diagnostic.Diagnostic{
-				Code:     l.code,
-				Severity: l.severity,
-				Message:  tb.Reset().Str(l.service).Str(": cannot bind ").Str(l.network).Byte(' ').Str(listenerAddress(l)).Str(": ").Err(err).String(),
-			})
+			diags = append(diags, listenerProbeFinding(&tb, l, err))
 		}
 	}
 
 	return diags
+}
+
+// listenerProbeFinding is the finding for an endpoint the probe could not
+// bind. It carries the refusal the daemon reports for the same bind
+// (network.ListenError, which the BGP listener also answers), so ze doctor
+// and the daemon name the same cause and fix: CAP_NET_BIND_SERVICE and its
+// remedy for a privileged port, the holder of a port in use, the address list
+// for an address no interface holds.
+//
+// A permission refusal depends on the privileges of the process that bound,
+// and the probe runs in whichever process answers the doctor request: the
+// daemon, or the operator's own ze doctor when no daemon answered. The finding
+// names the process it measured rather than claiming the daemon's answer.
+func listenerProbeFinding(tb *textbuf.Buffer, l serviceListener, err error) diagnostic.Diagnostic {
+	address := listenerAddress(l)
+	endpoint, parseErr := netip.ParseAddrPort(address)
+	if parseErr != nil {
+		// Every listener comes from a validated address leaf or a literal
+		// wildcard, so this is a collector defect: the finding says the
+		// probe's answer and that the address did not read back.
+		return diagnostic.Diagnostic{
+			Code:     l.code,
+			Severity: l.severity,
+			Message: tb.Reset().Str(l.service).Str(": cannot bind ").Str(l.network).Byte(' ').Str(address).Str(": ").Err(err).
+				Str(", and doctor cannot read that address and port back: ").Err(parseErr).String(),
+			Fix: "ze config validate",
+		}
+	}
+	refusal := network.ListenError(network.ListenSite{Network: l.network, Endpoint: endpoint, Owner: l.service}, err)
+	tb.Reset().Str(refusal.Problem()).Str(": ").Str(refusal.Why()).Str(": ").Err(err)
+	if network.IsPortPermissionRefusal(err) {
+		tb.Str(". The probe measured process ").Int(int64(os.Getpid())).Str(" (uid ").Int(int64(os.Getuid())).
+			Str("), which is the ze daemon only when the daemon answered this doctor request")
+	}
+	return diagnostic.Diagnostic{
+		Code:     l.code,
+		Severity: l.severity,
+		Message:  tb.String(),
+		Fix:      refusal.Fix(),
+	}
 }
 
 // listenerSetUnknown is the finding for a listener set doctor cannot derive. It

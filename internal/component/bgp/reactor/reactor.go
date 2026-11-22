@@ -2039,7 +2039,9 @@ func (r *Reactor) newListenerFactory(port int) network.ListenerFactory {
 	return r.listenerFactory
 }
 
-// startListenerForAddressPort creates and starts a listener on addr:port.
+// startListenerForAddressPort creates and starts a listener on addr:port. A
+// bind the kernel refuses answers listenRefusal's operator error, which names
+// the address, port and owner with the cause and its fix.
 // handleListenerConnection (reactor_connection.go) attributes every connection
 // it accepts. That decision is taken per connection, not here, because a
 // listener outlives the configuration it was born under.
@@ -2081,7 +2083,11 @@ func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int) error {
 	})
 
 	if err := listener.StartWithContext(r.ctx); err != nil {
-		return fmt.Errorf("listen on %s: %w", lkey, err)
+		// Every route that opens a listener (the start, AddPeer on a reload or
+		// an API call, a dynamic group a reload added, an address the kernel
+		// added) reports this one refusal, so the operator reads the same
+		// address, port, owner, cause and fix whichever route met it.
+		return r.listenRefusal(addr, port, err)
 	}
 
 	r.listeners[lkey] = listener

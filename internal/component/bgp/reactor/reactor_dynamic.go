@@ -637,9 +637,11 @@ func (r *Reactor) installDynamicGroupsLocked(groups []*DynamicGroupConfig) {
 		if s == nil || !s.LocalAddress.IsValid() || !s.Connection.IsPassive() {
 			continue
 		}
+		// The reload that added the group is applied, so a listener that does
+		// not start is logged, not refused: the refusal names the group, the
+		// address and port, the cause and the fix (logListenRefusal).
 		if err := r.startListenerForAddressPort(s.LocalAddress, r.peerListenPort(s)); err != nil {
-			reactorLogger().Error("dynamic group listener failed",
-				"group", dg.GroupName, "address", s.LocalAddress, "error", err)
+			logListenRefusal(err)
 		}
 	}
 }

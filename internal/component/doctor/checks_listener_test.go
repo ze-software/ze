@@ -2,7 +2,11 @@ package doctor
 
 import (
 	"errors"
+	"net"
+	"net/netip"
+	"os"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +14,9 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/privilege"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // TestDoctorRefusesUnderivableListenerSet makes the schema fail to load by
@@ -67,6 +74,63 @@ func TestDoctorSchemaWithNoListenerServiceIsAnAnswer(t *testing.T) {
 		assert.NotEqual(t, diagnostic.CodeDoctorListenerSetUnknown, d.Code, "a loaded schema must not be refused: %v", d)
 	}
 	assert.NotContains(t, *probed, "ssh", "a schema without the ssh service yields no ssh probe")
+}
+
+// bgpProbeRefusal is what the bind probe returns when the kernel refuses the
+// bind of the BGP listener with errno.
+func bgpProbeRefusal(errno syscall.Errno) error {
+	return &net.OpError{Op: "listen", Net: "tcp", Err: os.NewSyscallError("bind", errno)}
+}
+
+// TestListenerProbeFindingNamesTheCapability checks the doctor finding for a
+// BGP listener the probe could not bind for lack of permission.
+//
+// Method: listenerProbeFinding judges a BGP endpoint on port 179 refused with
+// EACCES. The finding MUST keep the BGP code and severity, name the address,
+// port and service, name the process it measured, and carry the same fix the
+// daemon's own refusal carries (network.ListenError): the
+// CAP_NET_BIND_SERVICE remedy wherever the host's unprivileged port start
+// makes 179 privileged.
+//
+// VALIDATES: doctor names the capability and its remedy for port 179, and says
+// which process its probe measured.
+// PREVENTS: "bgp: cannot bind tcp 192.0.2.1:179: ... permission denied" with no
+// capability and no fix, and a finding that reads the operator's own process
+// as the daemon's.
+func TestListenerProbeFindingNamesTheCapability(t *testing.T) {
+	l := tcpListener("bgp", "192.0.2.1", "179", diagnostic.CodeDoctorBGPListen)
+	cause := bgpProbeRefusal(syscall.EACCES)
+	finding := listenerProbeFinding(&textbuf.Buffer{}, l, cause)
+
+	assert.Equal(t, diagnostic.CodeDoctorBGPListen, finding.Code)
+	assert.Equal(t, diagnostic.SeverityWarning, finding.Severity)
+	assert.Contains(t, finding.Message, "cannot listen on 192.0.2.1:179 for bgp")
+	assert.Contains(t, finding.Message, "The probe measured process")
+	assert.Contains(t, finding.Message, "permission denied", "the kernel's answer MUST stay in the finding as evidence")
+	want := network.ListenError(network.ListenSite{Network: "tcp", Endpoint: netip.MustParseAddrPort("192.0.2.1:179"), Owner: "bgp"}, cause)
+	assert.Equal(t, want.Fix(), finding.Fix, "doctor MUST carry the fix the daemon's refusal carries")
+
+	start, readErr := network.UnprivilegedPortStart()
+	if readErr == nil && start <= 179 {
+		return
+	}
+	assert.Contains(t, finding.Message, "CAP_NET_BIND_SERVICE")
+	assert.Equal(t, privilege.CapabilityRemedy("CAP_NET_BIND_SERVICE"), finding.Fix)
+}
+
+// TestListenerProbeFindingAddressInUseKeepsItsFix checks a probe refusal that
+// does not depend on the probing process.
+//
+// VALIDATES: an address in use names the command that finds its holder and
+// no process note, and no capability.
+// PREVENTS: a capability remedy for a port another program holds.
+func TestListenerProbeFindingAddressInUseKeepsItsFix(t *testing.T) {
+	l := tcpListener("bgp", "192.0.2.1", "179", diagnostic.CodeDoctorBGPListen)
+	finding := listenerProbeFinding(&textbuf.Buffer{}, l, bgpProbeRefusal(syscall.EADDRINUSE))
+
+	assert.Equal(t, "sudo ss -ltnp 'sport = :179'", finding.Fix)
+	assert.NotContains(t, finding.Message, "The probe measured process")
+	assert.NotContains(t, finding.Message, "CAP_NET_BIND_SERVICE")
 }
 
 // useListenerSchema replaces the schema loader for one test.

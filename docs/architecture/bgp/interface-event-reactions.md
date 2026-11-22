@@ -38,7 +38,15 @@ alone re-settles the common-subnet condition without touching a listener.
 duplicate address detection is already in the table, and binding it fails with
 `EADDRNOTAVAIL` until DAD clears its tentative flag. The kernel reports that
 clearing as an address update, so the reactor leaves the address unrecorded
-and binds it on the next read.
+and binds it on the next read. Any other refusal is not tried again: the
+reactor logs it at Error under `doctor-bgp-listen`, naming the address, port
+and owner with the kernel's cause and its fix (`CAP_NET_BIND_SERVICE` and its
+remedy for a port below the unprivileged port start), as every listen route
+reports it (`docs/architecture/behavior/peer-lifecycle.md`, "What a refused
+listener tells the operator").
+
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- handleAddressAdded -->
+<!-- source: internal/component/bgp/reactor/listen_refusal.go -- logListenRefusal -->
 
 **Listener map keys come from `net.JoinHostPort(addr, port)`, never from string
 concatenation.** Concatenation produces `::1:179` for IPv6 instead of

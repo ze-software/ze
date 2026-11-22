@@ -318,9 +318,10 @@ func (r *Reactor) handleAddressAdded(addr netip.Addr) bool {
 			usable = false
 			continue
 		}
-		reactorLogger().Error("iface: start listener failed",
-			"address", addr, "port", port, "error", startErr,
-			"fix", "the error names the cause: for address already in use, find the other listener with: ss -ltnp; for permission denied, run ze with CAP_NET_BIND_SERVICE")
+		// The refusal names the address, port and owner, and its own fix:
+		// CAP_NET_BIND_SERVICE for a privileged port, the holder of a port in
+		// use (startListenerForAddressPort, listenRefusal).
+		logListenRefusal(startErr)
 	}
 	if !ready {
 		return usable

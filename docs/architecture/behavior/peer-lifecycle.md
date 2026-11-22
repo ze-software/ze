@@ -682,7 +682,7 @@ When the pair has no listener, one is started. When the pair already has one
 and the new peer carries an MD5 key, the listener is rebuilt, because the key
 set is read only when the socket is created (`newListenerFactory`). When the
 listener cannot start, the peer is removed again and `AddPeer` returns the
-`listen on <address>:<port>` error. The peer itself starts only once the
+listen refusal described below. The peer itself starts only once the
 reactor is running and the barrier has opened (`peersStarted`). Until then a
 connection the listener accepts waits in the peer's inbound slot: the peer
 has no session, so `acceptOrReject` stores it with `setInboundConnection`, and
@@ -707,6 +707,49 @@ up just before it was removed.
 One window stays: a connection that arrives after the reconcile removed the
 old peer and before it added the replacement finds no peer and is closed, as
 a connection for an unconfigured address is. The neighbor retries.
+
+### What a refused listener tells the operator
+
+Every BGP listening socket is born in `startListenerForAddressPort`, so every
+route that opens one reports the same refusal when the kernel refuses the bind:
+the start, `AddPeer` (a reload, a config operation, an API call), a dynamic
+group a reload added, and an address the kernel reported added. The refusal is
+an operator error built by `network.ListenError`. Its first line names the
+configured address and port and what configured them (`listenOwner`: the peer
+by its name, else its address; a dynamic group or its member by the group; the
+first in sort order and a count of the rest when several share the listener).
+Its why and its fix follow the kernel's answer:
+
+| The kernel's answer | Why | Fix |
+|---------------------|-----|-----|
+| Permission (`EACCES`, `EPERM`) on a port below `net.ipv4.ip_unprivileged_port_start` (1024 by default) | Only a process that holds `CAP_NET_BIND_SERVICE` can listen there | `privilege.CapabilityRemedy("CAP_NET_BIND_SERVICE")`: the systemd repair only when Ze established that it runs under the ze service, else the capability for the ze process |
+| Permission on a port at or above that start | The capability is not the cause: a security policy (SELinux, AppArmor, a cgroup BPF program) refused the bind | `sudo journalctl -k -g denied` |
+| Permission, and the start cannot be read | The port may need `CAP_NET_BIND_SERVICE`; the refusal says it could not read the start rather than asserting it | The capability remedy |
+| Address in use (`EADDRINUSE`) | Another socket holds the address and port | `sudo ss -ltnp 'sport = :<port>'` |
+| Address not available (`EADDRNOTAVAIL`) | No interface holds the address | `ip -brief address show` |
+| Anything else | The kernel refused the socket | `ze doctor` |
+
+The start and `AddPeer` return the refusal, so it reaches the operator as the
+start failure or the reload refusal: `bgp: start reactor: cannot listen on
+192.0.2.1:179 for bgp peer upstream1`, then the why with the kernel's answer,
+then the fix on its own line. A dynamic group a reload added and an address the
+kernel added refuse nothing, because no caller is left to answer, so the
+refusal is logged at Error with the code `doctor-bgp-listen`
+(`logListenRefusal`). An address still in IPv6 duplicate address detection is
+not refused: it is tried again when the kernel reports it usable
+(`docs/architecture/bgp/interface-event-reactions.md`).
+
+`ze doctor` reports the same refusal before a start
+(`docs/architecture/doctor-and-health-checks.md`, the `listeners` check).
+
+<!-- source: internal/core/network/listen_error.go — ListenError, ListenSite, UnprivilegedPortStart, permissionRefusal -->
+<!-- source: internal/component/bgp/reactor/listen_refusal.go — listenRefusal, listenOwner, peerListenOwner, logListenRefusal -->
+<!-- source: internal/component/bgp/reactor/reactor.go — startListenerForAddressPort -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go — installDynamicGroupsLocked -->
+<!-- source: internal/component/bgp/reactor/reactor_iface.go — handleAddressAdded -->
+<!-- test: internal/core/network/listen_error_test.go TestListenErrorPermissionBelowUnprivilegedStartNamesTheCapability -->
+<!-- test: internal/component/bgp/reactor/listen_refusal_test.go TestStartListenerRefusalNamesAddressPortOwnerAndCapability -->
+<!-- test: internal/component/bgp/reactor/listen_refusal_test.go TestAddPeerListenerRefusalNamesAddressPortOwnerAndCapability -->
 
 <!-- source: internal/component/bgp/reactor/peer_inbound_held.go — takeUnstartedInbound, adoptHeldInbound, handHeldInbound, rejectHeldInbound -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go — reconcilePeersJournaled, heldInbound -->
