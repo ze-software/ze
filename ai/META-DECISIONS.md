@@ -89,11 +89,12 @@ in the spec or commit it applies to.
   compatibility to plugins built on an older SDK. A protocol change is made
   directly, every plugin in the tree is rebuilt with it, and no version gate,
   negotiation or fallback is added to keep an old plugin working.
-- A change to Ze's own config syntax converts the configs in the repository
-  directly. No `ze config migrate` transformation, compatibility path or
-  migrate hint is written for a form no release shipped, because the
-  repository is the only place that uses it. The ExaBGP migration is separate
-  and stays.
+- Ze's migration of its own older config syntax is a feature and stays:
+  `ze config migrate`, the rewrite of an older form when a config is loaded,
+  and the hints that name the current form. None of it is removed, before the
+  first release or after. A change to Ze's own config syntax also converts the
+  configs in the repository directly, so the repository never depends on the
+  migration to load. The ExaBGP migration is separate and stays.
 - A change to what Ze does (a default, an enforcement, a refusal, an output
   format) converts or re-validates, in the same work, every user of it the
   repository carries: configs, `.ci` bodies, fixtures, benchmarks, interop
@@ -220,6 +221,14 @@ in the spec or commit it applies to.
 
 ## Reports and messages
 
+- Thomas speaks his messages through voice transcription, and the text often
+  says something other than what he said: a word swapped, dropped or turned
+  into its opposite. His words are read for what he means, never for their
+  letter, and a brief that quotes him says they are transcribed. Before acting
+  on words of his that would remove a feature or code, reverse an earlier
+  ruling, or read oddly, the main session states the reading it took and
+  confirms it with him. A rule written from his words is shown to him in the
+  wording it is recorded in.
 - Report defects found and fixes made during requested work promptly, rather
   than waiting for the final report. Say what each defect blocks, distinguish
   a written patch from a verified fix, and give the evidence when it is fixed.
