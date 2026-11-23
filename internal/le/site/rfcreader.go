@@ -24,6 +24,68 @@ const rfcHeroLead = "How far Ze meets each RFC it implements, and the tests that
 // rfcReaderHeading is the heading of the reader's introduction.
 const rfcReaderHeading = "How to read this page"
 
+// rfcCalculationHeading is the heading of the plain-language calculation guide
+// written for network and software engineers.
+const rfcCalculationHeading = "How compliance is calculated"
+
+// rfcCalculationPoint is one plain-English rule explaining how Ze calculates
+// its published compliance numbers for an engineer evaluating the software.
+type rfcCalculationPoint struct {
+	Heading string
+	Body    string
+}
+
+// rfcCalculationPoints explains the compliance calculation without internal
+// repository vocabulary.
+var rfcCalculationPoints = []rfcCalculationPoint{
+	{
+		Heading: "Two headline percentages",
+		Body: "Ze publishes two percentages over mandatory (MUST / MUST NOT / SHALL / REQUIRED) requirements of reviewed RFCs it implements. " +
+			"The overall figure is (Ze verified + OS verified) divided by all applicable MUST requirements, including optional or unfinished parts of an RFC Ze does not build yet. " +
+			"The built-features figure leaves out those unbuilt parts, showing (Ze verified + OS verified) divided by (all applicable MUST requirements minus not built).",
+	},
+	{
+		Heading: "What counts as verified",
+		Body: "A requirement counts as verified only when a test checks it and that test was observed to fail when the underlying behavior was deliberately broken. " +
+			"That fault check runs when the test is written and again whenever the test changes, not on every test run. " +
+			"Behavior handled by the Linux kernel or a linked library counts as OS verified once a test verifies that behavior on the state Ze installs.",
+	},
+	{
+		Heading: "Default behavior vs. custom operator configuration",
+		Body: "Compliance is judged on Ze's default configuration path. " +
+			"Operators can still configure custom routing policy, raw wire attributes, or explicit overrides that depart from an RFC; those controls are kept by design and do not count as compliance failures when default behavior follows the standard.",
+	},
+	{
+		Heading: "Superseded RFCs",
+		Body: "When a newer RFC obsoletes an older one and Ze implements the newer standard, an obsoleted requirement counts as validated and complete once its replacement in the newer RFC is verified (or dropped by the newer RFC). " +
+			"Requirements that are still unimplemented in the newer RFC remain open gaps.",
+	},
+	{
+		Heading: "What is left out of the denominator",
+		Body: "Requirements that bind a role Ze does not fill (such as a DNSSEC zone signer, an RPKI cache server, or a route reflector), obligations that apply only to a human operator's deployment or network topology, IANA/IETF registry rules, optional features Ze explicitly declines, and requirements blocked by a documented Linux kernel limit are excluded from the denominator. " +
+			"RFCs whose requirement lists have not yet been reviewed against the original RFC text are excluded until that review is complete.",
+	},
+}
+
+// rfcCountingHistory records every change to how compliance figures are
+// calculated so engineers and release updates can compare numbers across dates.
+var rfcCountingHistory = []rfcCalculationPoint{
+	{
+		Heading: "2026-11-23",
+		Body: "Superseded requirements whose replacement in an implemented successor RFC is verified (or dropped) now count as validated and complete. " +
+			"Operator-only, topology, IANA/IETF registry, and section-scoped non-Ze role obligations leave the denominator as not applicable. " +
+			"An operator's ability to configure custom policy or overrides no longer marks a compliant default path as partial.",
+	},
+	{
+		Heading: "2026-11-13",
+		Body:    "OS-verified requirements (behavior provided by Linux or a linked library and verified on state Ze installs) joined the verified numerator, and the built-features percentage was added beside the all-MUSTs share.",
+	},
+	{
+		Heading: "Until 2026-10-31",
+		Body:    "All mandatory rows counted in one total, including annotated rows; summary rows were excluded.",
+	},
+}
+
 // rfcReaderParagraphs introduce the page to a reader who has never seen Ze's
 // repository.
 var rfcReaderParagraphs = []string{
@@ -154,6 +216,41 @@ func rfcBarGlossary() []rfcGlossaryTerm {
 		terms = append(terms, rfcGlossaryTerm{strings.Join(labels[name], ", ") + " (bar segment)", meaning})
 	}
 	return terms
+}
+
+// rfcCalculationHTML renders the engineer-facing explanation of how compliance
+// figures are computed and how the counting rules changed over time.
+func rfcCalculationHTML() string {
+	var out textbuf.Buffer
+	out.Str("<section id=\"how-compliance-is-calculated\"><h2>").Str(rfcCalculationHeading).Str("</h2>\n")
+	out.Str("<dl class=\"rfc-glossary\">\n")
+	for _, point := range rfcCalculationPoints {
+		out.Str("<dt>").Str(html.EscapeString(point.Heading)).Str("</dt><dd>").
+			Str(html.EscapeString(point.Body)).Str("</dd>\n")
+	}
+	out.Str("</dl>\n")
+	out.Str("<details class=\"rfc-glossary-fold\"><summary>Counting history</summary>\n")
+	out.Str("<dl class=\"rfc-glossary\">\n")
+	for _, entry := range rfcCountingHistory {
+		out.Str("<dt>").Str(html.EscapeString(entry.Heading)).Str("</dt><dd>").
+			Str(html.EscapeString(entry.Body)).Str("</dd>\n")
+	}
+	out.Str("</dl>\n</details>\n</section>\n")
+	return out.String()
+}
+
+// rfcCalculationMirror states the same calculation guide in the Markdown mirror.
+func rfcCalculationMirror() string {
+	var out textbuf.Buffer
+	out.Str("## ").Str(rfcCalculationHeading).Str("\n\n")
+	for _, point := range rfcCalculationPoints {
+		out.Str("- **").Str(point.Heading).Str("**: ").Str(point.Body).Byte('\n')
+	}
+	out.Str("\n### Counting history\n\n")
+	for _, entry := range rfcCountingHistory {
+		out.Str("- **").Str(entry.Heading).Str("**: ").Str(entry.Body).Byte('\n')
+	}
+	return out.String()
 }
 
 // rfcReaderIntroHTML renders the introduction and the glossary.

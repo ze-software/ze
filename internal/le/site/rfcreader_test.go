@@ -67,3 +67,28 @@ func TestGlossaryStatesOSBlockedNeverCountsAgainstZe(t *testing.T) {
 	}
 	t.Fatal("the glossary has no linux-limit entry")
 }
+
+// VALIDATES: /quality/rfc-compliance/ publishes a plain-English calculation
+// guide and counting history in both HTML and Markdown mirror covering the two
+// headline figures, default-path scope, superseded RFCs, and exclusions.
+// PREVENTS: removing or drifting the engineer-facing methodology or counting
+// history from either rendering surface.
+func TestComplianceCalculationGuideAndHistoryRenderInHTMLAndMirror(t *testing.T) {
+	htmlOut := rfcCalculationHTML()
+	mirrorOut := rfcCalculationMirror()
+	for _, want := range []string{
+		rfcCalculationHeading,
+		"Two headline percentages",
+		"Default behavior vs. custom operator configuration",
+		"Superseded RFCs",
+		"Counting history",
+		"2026-11-23",
+	} {
+		if !strings.Contains(htmlOut, want) {
+			t.Errorf("rfcCalculationHTML() missing %q", want)
+		}
+		if !strings.Contains(mirrorOut, want) {
+			t.Errorf("rfcCalculationMirror() missing %q", want)
+		}
+	}
+}

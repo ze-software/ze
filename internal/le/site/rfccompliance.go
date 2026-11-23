@@ -671,6 +671,7 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	body.Str(rfcComplianceStyle)
 	body.Str(rfcListSlot)
 	body.Str(rfcReaderIntroHTML())
+	body.Str(rfcCalculationHTML())
 	body.Str(rfcLeadHTML(rfcLeadVerdict))
 	body.Str(rfcEnrolledSectionsHTML())
 	body.Str(rfcCardGrid(snapshot, ledger))
@@ -1562,6 +1563,7 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	mirror.Str(rfcHeroLead).Str(" Source: `internal/le/rfc`, `rfc/short/*.md`, and ").
 		Str("`rfc/audit/*/*.json`.\n\n")
 	mirror.Str(rfcReaderIntroMirror()).Byte('\n')
+	mirror.Str(rfcCalculationMirror()).Byte('\n')
 	mirror.Str("## Compliance check result\n\n").Str(rfcLeadVerdict).Str("\n\n").Str(rfcGateWord(snapshot.Gate.OK)).Str(". ").
 		Str(rfcGateVerdictText(snapshot)).Str(" Contributors reproduce it with `").Str(snapshot.Verify.Command).
 		Str("`. The check's original output reads `").Str(snapshot.Gate.Message).Str("`.\n\n")

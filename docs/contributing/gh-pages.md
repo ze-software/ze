@@ -1499,11 +1499,15 @@ gate / ON` was a card until 2026-09-01; it answers how, not where Ze stands.
 **The index is written for a reader who is not a contributor.** Under the
 title it carries "How to read this page", two paragraphs and a glossary that
 explains each project term once (gated, tagged unit, recorded break, escaped,
-lapsed, walked, each annotation kind). Every section opens with one plain
-paragraph saying what it shows and why it matters to someone choosing a router.
-The words live in `rfcreader.go`, and each glossary entry restates what a card,
-legend or section already says, so it adds no claim of its own.
-<!-- source: internal/le/site/rfcreader.go -- rfcGlossary, rfcReaderIntroHTML, rfcLeadHTML -->
+lapsed, walked, each annotation kind), followed by "How compliance is
+calculated" (a plain-English engineering guide covering the two headline
+percentages, fault-checked tests, default-path scope vs. custom operator
+overrides, superseded RFCs, exclusions, and the dated Counting history). Every
+section opens with one plain paragraph saying what it shows and why it matters
+to someone choosing a router. The words live in `rfcreader.go`, and each
+glossary entry restates what a card, legend or section already says, so it adds
+no claim of its own.
+<!-- source: internal/le/site/rfcreader.go -- rfcGlossary, rfcReaderIntroHTML, rfcCalculationHTML, rfcCalculationMirror, rfcCountingHistory, rfcLeadHTML -->
 
 **Check results leads with one plain line for each group of checks**: its
 name, Passed or the number of problems, what the group verifies, and for a
@@ -1770,20 +1774,27 @@ count may accompany the list and never stands in for it.
 For a partial requirement, the proof block states that the records cover only
 scoped tag claims and give zero whole-requirement credit. The compliance index
 publishes no proof percentage: its sections count the MUST rows of the walked
-enrolled RFCs. The homepage RFC card states one, from
-`rfc.ImplementedSectionsOf` through the site facts: the proven MUST rows, Ze
-proven plus OS verified, over the MUST rows Ze and the OS owe (Ze proven, OS
-verified, proof pending, OS testing gap, exclusion unchecked, not assessed and
-not built) in the walked RFCs Ze implements (`rfc.proven_display` of
-`rfc.must_kept_display`), then the implemented RFC count with its not-walked
-part. A row not owed (not applicable, declined, OS blocked) is on neither side,
+enrolled RFCs. The homepage RFC card states two, from
+`rfc.ImplementedSectionsOf` through the site facts, by owner ruling of
+2026-11-23 (`website/AI.md`, "Owner rulings"). The first is the proven MUST
+rows, Ze proven plus OS verified, over the MUST rows Ze and the OS owe (Ze
+proven, OS verified, proof pending, OS testing gap, exclusion unchecked, not
+assessed and not built) in the walked RFCs Ze implements
+(`rfc.proven_percent`, `rfc.proven_display` of `rfc.must_kept_display`), and
+it names the not built rows it holds (`rfc.must_not_built_display`), which
+need no test until their part is built. The second is the same proven rows
+over only the MUST rows of what Ze builds, the owed rows less the not built
+ones (`rfc.proven_built_percent`, `rfc.proven_display` of
+`rfc.must_built_display`), so it shows how well the shipped features are
+tested. Then come the implemented RFC count with its not-walked part, and a
+link to the RFC dependency map beside the link to the compliance index. A row not owed (not applicable, declined, OS blocked) is on neither side,
 and a row counts not owed only when its evidence passes the exclusion evidence
 check (`docs/contributing/rfc-conformance-gates.md`).
 The gated-binding partition still spans every implemented RFC, walked or not,
 and every row in it, so its total exceeds the card's denominator. Rollup rows
 belong to neither count. These figures come from the native RFC collector, not
 hand-maintained totals.
-<!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, ImplementedSections.ProvenPercent -->
+<!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, ImplementedSections.ProvenPercent, ImplementedSections.ProvenBuiltPercent -->
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
 The input is `../gh-pages/data/rfc-requirements.json`, derived once per build by
