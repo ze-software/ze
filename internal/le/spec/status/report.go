@@ -15,6 +15,7 @@ package specstatus
 
 import (
 	"slices"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
@@ -127,11 +128,28 @@ func (in Inventory) categories() (backlog, ideas, other Inventory, stale int) {
 	return backlog, ideas, other, stale
 }
 
+// bucketHeading heads the bucket column, and bounds its width from below.
+const bucketHeading = "Bucket"
+
+// colBucket is the bucket column's width: the longest category name the
+// declaration holds, so a category added there widens the column rather than
+// pushing its own rows out of line.
+var colBucket = bucketColumnWidth()
+
+// bucketColumnWidth answers the rune length of the longest current category
+// name, and never less than the column's "Bucket" heading.
+func bucketColumnWidth() int {
+	width := utf8.RuneCountInString(bucketHeading)
+	for _, category := range specpath.Categories() {
+		width = max(width, utf8.RuneCountInString(category.Name))
+	}
+	return width
+}
+
 // Column widths of the inventory table. The last column takes no width: it ends
 // the line, so padding it would write trailing spaces.
 const (
 	colFlag    = 5
-	colBucket  = 11
 	colStatus  = 12
 	colUpdated = 10
 	colSpec    = 34
@@ -194,7 +212,7 @@ func categorySection(tb *textbuf.Buffer, title string, rows Inventory) {
 		tb.Str("  (none)\n\n")
 		return
 	}
-	specRow(tb, "Flag", "Bucket", "Priority", "Status", "Updated", "Spec", "Phase", "Set", "Depends", "Release reason")
+	specRow(tb, "Flag", bucketHeading, "Priority", "Status", "Updated", "Spec", "Phase", "Set", "Depends", "Release reason")
 	specRow(tb,
 		dashes(colFlag), dashes(colBucket), dashes(8), dashes(colStatus), dashes(colUpdated),
 		dashes(colSpec), dashes(colPhase), dashes(colSet), dashes(colDepends), dashes(14),

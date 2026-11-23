@@ -14,6 +14,7 @@ does not become optional because its spec is only a skeleton.
 | `release/fixes/` | Incorrect shipped behavior: security, protocol, routing, configuration and lifecycle defects |
 | `release/validation/` | Evidence that shipped behavior works, including interoperability, failure recovery and accurate support claims |
 | `release/delivery/` | Release artifacts, signing, installation, appliance boot and essential onboarding |
+| `release/features/` | New capabilities the owner put in the first release |
 | `post-release/features/` | Additional capabilities, absent RFC features and broader language or platform support |
 | `post-release/engineering/` | Refactors, tooling and optimizations that do not block release correctness or proof |
 | `post-release/kernel/` | Work on the Linux kernel Ze runs, and the proof routes that build and boot a patched kernel |

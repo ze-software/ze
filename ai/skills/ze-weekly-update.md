@@ -147,7 +147,7 @@ edits enter the report only after a commit and a new comparison.
    Read both endpoint inventories and their diagnostics. Do not scan specs to
    build a separate news inventory.
 7. Read the snapshot's declared categories separately and its required total.
-   Current categories distinguish release fixes, validation and delivery from
+   Current categories distinguish release fixes, validation, delivery and features from
    post-release features, engineering and proposals; historical snapshots retain
    their old categories. Include every declared state and diagnostic. Keep the
    qualification that classification is not proof of readiness or delivery.

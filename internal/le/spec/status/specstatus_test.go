@@ -511,6 +511,7 @@ func TestCollectNamesTheReleaseBucketOfEverySpec(t *testing.T) {
 		"release/fixes/spec-fixture-fixes.md":                  templateShapedSpec("ready", "2026-08-20"),
 		"release/validation/spec-fixture-validation.md":        templateShapedSpec("ready", "2026-08-20"),
 		"release/delivery/spec-fixture-delivery.md":            templateShapedSpec("ready", "2026-08-20"),
+		"release/features/spec-fixture-release-features.md":    templateShapedSpec("ready", "2026-08-20"),
 		"post-release/features/spec-fixture-features.md":       templateShapedSpec("ready", "2026-08-20"),
 		"post-release/engineering/spec-fixture-engineering.md": templateShapedSpec("ready", "2026-08-20"),
 		"proposals/spec-fixture-proposals.md":                  templateShapedSpec("skeleton", "2026-08-20"),
@@ -519,12 +520,13 @@ func TestCollectNamesTheReleaseBucketOfEverySpec(t *testing.T) {
 	got := byName(inventory)
 
 	want := map[string]string{
-		"fixture-fixes":       specpath.Fixes,
-		"fixture-validation":  specpath.Validation,
-		"fixture-delivery":    specpath.Delivery,
-		"fixture-features":    specpath.Features,
-		"fixture-engineering": specpath.Engineering,
-		"fixture-proposals":   specpath.Proposals,
+		"fixture-fixes":            specpath.Fixes,
+		"fixture-validation":       specpath.Validation,
+		"fixture-delivery":         specpath.Delivery,
+		"fixture-release-features": specpath.ReleaseFeatures,
+		"fixture-features":         specpath.Features,
+		"fixture-engineering":      specpath.Engineering,
+		"fixture-proposals":        specpath.Proposals,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("the inventory holds %d specs, want %d: %v", len(got), len(want), got)

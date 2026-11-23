@@ -494,7 +494,7 @@ func TestRoadmapStatusVocabularyIsTheSpecVocabulary(t *testing.T) {
 	}
 }
 
-// TestCurrentRoadmapUsesTheDeclaration drives all six categories through the
+// TestCurrentRoadmapUsesTheDeclaration drives every declared category through the
 // collector and renderer. Priority precedes the prior bucket/status/name order;
 // dependency text remains visible rather than pretending to be a scheduler.
 func TestCurrentRoadmapUsesTheDeclaration(t *testing.T) {
@@ -503,6 +503,7 @@ func TestCurrentRoadmapUsesTheDeclaration(t *testing.T) {
 		"plan/release/fixes/spec-routing.md":         fixtureCurrentSpec("Routing", "ready", "plan/release/validation/spec-proof.md", "P1"),
 		"plan/release/validation/spec-proof.md":      fixtureCurrentSpec("Proof", "blocked", "-", "P2"),
 		"plan/release/delivery/spec-image.md":        fixtureCurrentSpec("Image", "design", "-", "P2"),
+		"plan/release/features/spec-fleet.md":        fixtureCurrentSpec("Fleet", "ready", "-", "P2"),
 		"plan/post-release/features/spec-feature.md": fixtureCurrentSpec("Feature", "ready", "-", "P3"),
 		"plan/post-release/engineering/spec-tool.md": fixtureCurrentSpec("Tool", "in-progress", "-", "P3"),
 		"plan/proposals/spec-idea.md":                fixtureCurrentSpec("Idea", "skeleton", "-", "P2"),
@@ -519,10 +520,10 @@ func TestCurrentRoadmapUsesTheDeclaration(t *testing.T) {
 	if !reflect.DeepEqual(snapshot.Categories, specpath.Categories()) {
 		t.Fatalf("snapshot category declaration differs: %+v", snapshot.Categories)
 	}
-	if snapshot.Counts.Total != 11 || snapshot.Counts.Required != 7 || snapshot.Counts.NiceToHave != 4 {
+	if snapshot.Counts.Total != 12 || snapshot.Counts.Required != 8 || snapshot.Counts.NiceToHave != 4 {
 		t.Fatalf("current population counts = %+v", snapshot.Counts)
 	}
-	wantCounts := map[string]int{"fixes": 5, "validation": 1, "delivery": 1, "features": 1, "engineering": 1, "kernel": 0, "proposals": 2}
+	wantCounts := map[string]int{"fixes": 5, "validation": 1, "delivery": 1, "release-features": 1, "features": 1, "engineering": 1, "kernel": 0, "proposals": 2}
 	if !reflect.DeepEqual(snapshot.Counts.Buckets, wantCounts) {
 		t.Fatalf("current categories lost: %+v", snapshot.Counts.Buckets)
 	}
@@ -540,7 +541,7 @@ func TestCurrentRoadmapUsesTheDeclaration(t *testing.T) {
 			}
 		}
 	}
-	wantOrder := []string{"security", "active", "routing", "routing-two", "proof", "image", "idea", "feature", "tool", "malformed", "invalid"}
+	wantOrder := []string{"security", "active", "routing", "routing-two", "proof", "image", "fleet", "idea", "feature", "tool", "malformed", "invalid"}
 	if !slices.Equal(names, wantOrder) {
 		t.Fatalf("priority/category/status/name order = %v, want %v", names, wantOrder)
 	}
@@ -550,10 +551,21 @@ func TestCurrentRoadmapUsesTheDeclaration(t *testing.T) {
 			t.Errorf("category %s not rendered exactly once: %s", category.Name, markdown)
 		}
 	}
+	// Release features are a release commitment, so they render with the
+	// required work, before the optional section begins.
+	releaseFeatures := strings.Index(markdown, "### Release features (1)")
+	optional := strings.Index(markdown, "## Not required for release")
+	if releaseFeatures < 0 {
+		t.Errorf("release features heading not rendered: %s", markdown)
+	}
+	if optional < releaseFeatures {
+		t.Errorf("release features rendered after the optional section starts (at %d, optional at %d): %s", releaseFeatures, optional, markdown)
+	}
 	for _, visible := range []string{
 		"| Priority | Release reason |", "Release boundary fixture",
 		"[plan/release/validation/spec-proof.md](validation/spec-proof.md)",
 		"[spec-routing.md](fixes/spec-routing.md)",
+		"[Fleet](features/spec-fleet.md)",
 		"../post-release/features/spec-feature.md", "../post-release/engineering/spec-tool.md",
 		"../proposals/spec-idea.md", "priority unavailable or invalid", "release reason unavailable",
 	} {

@@ -12,7 +12,7 @@ See also: `/ze-debrief` (deep dive on current session/spec)
 ## Steps
 
 1. **Selected spec:** Run `./le spec current`. If set, read spec metadata (Status, Phase, Updated).
-2. **Open specs:** Run `./le spec status`. Its declared folders include release fixes, validation and delivery, post-release features and engineering, and proposals (`plan/README.md`). Read priority and dependencies separately from lifecycle status. Present:
+2. **Open specs:** Run `./le spec status`. Its declared folders include release fixes, validation, delivery and features, post-release features, engineering and kernel, and proposals (`plan/README.md`). Read priority and dependencies separately from lifecycle status. Present:
 
 | Spec | Bucket | Priority | Status | Updated |
 |------|--------|----------|--------|---------|

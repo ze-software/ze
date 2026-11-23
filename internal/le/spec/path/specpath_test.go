@@ -31,7 +31,7 @@ func tree(t *testing.T, files ...string) string {
 
 func TestDirsAndGlobsAreInBucketOrder(t *testing.T) {
 	dirs := Dirs()
-	want := []string{"plan/release/fixes", "plan/release/validation", "plan/release/delivery", "plan/post-release/features", "plan/post-release/engineering", "plan/post-release/kernel", "plan/proposals"}
+	want := []string{"plan/release/fixes", "plan/release/validation", "plan/release/delivery", "plan/release/features", "plan/post-release/features", "plan/post-release/engineering", "plan/post-release/kernel", "plan/proposals"}
 	if !slices.Equal(dirs, want) {
 		t.Fatalf("Dirs() = %v, want %v", dirs, want)
 	}
@@ -55,6 +55,7 @@ func TestBucketPlacesASpecAndRefusesEverythingElse(t *testing.T) {
 		{"plan/release/fixes/spec-now.md", Fixes, true},
 		{"plan/release/validation/spec-proof.md", Validation, true},
 		{"plan/release/delivery/spec-image.md", Delivery, true},
+		{"plan/release/features/spec-fleet.md", ReleaseFeatures, true},
 		{"plan/post-release/features/spec-feature.md", Features, true},
 		{"plan/post-release/engineering/spec-tool.md", Engineering, true},
 		{"plan/proposals/spec-idea.md", Proposals, true},
@@ -91,6 +92,7 @@ func TestAllReadsEveryBucketSortedAndRecursesIntoNone(t *testing.T) {
 		"plan/release/fixes/spec-now.md",
 		"plan/release/validation/spec-blocking.md",
 		"plan/release/delivery/spec-image.md",
+		"plan/release/features/spec-fleet.md",
 		"plan/post-release/engineering/spec-tool.md",
 		"plan/proposals/spec-idea.md",
 		"plan/journal/spec-lookalike.md",
@@ -107,6 +109,7 @@ func TestAllReadsEveryBucketSortedAndRecursesIntoNone(t *testing.T) {
 		"plan/post-release/features/spec-zulu.md",
 		"plan/proposals/spec-idea.md",
 		"plan/release/delivery/spec-image.md",
+		"plan/release/features/spec-fleet.md",
 		"plan/release/fixes/spec-now.md",
 		"plan/release/validation/spec-blocking.md",
 	}
@@ -251,7 +254,9 @@ func TestCategoriesOwnClassificationAndCopies(t *testing.T) {
 		if category.Dir != Dirs()[index] || category.Label == "" {
 			t.Fatalf("incomplete declaration: %+v", category)
 		}
-		want := index < 3
+		// The four release rows (fixes, validation, delivery, release
+		// features) come first and together; every row after them is optional.
+		want := index < 4
 		if category.Required != want {
 			t.Fatalf("%s required = %v, want %v", category.Name, category.Required, want)
 		}

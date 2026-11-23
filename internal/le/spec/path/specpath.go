@@ -21,11 +21,14 @@ import (
 
 // Category names identify current work queues, independently of lifecycle status.
 const (
-	Fixes       = "fixes"
-	Validation  = "validation"
-	Delivery    = "delivery"
-	Features    = "features"
-	Engineering = "engineering"
+	Fixes      = "fixes"
+	Validation = "validation"
+	Delivery   = "delivery"
+	// ReleaseFeatures holds the new capabilities the owner put in the first
+	// release; Features holds those that wait until after it.
+	ReleaseFeatures = "release-features"
+	Features        = "features"
+	Engineering     = "engineering"
 	// Kernel holds work on the Linux kernel Ze runs and on the proof routes
 	// that patch it, apart from Ze's own Go tooling.
 	Kernel    = "kernel"
@@ -56,6 +59,7 @@ var buckets = [...]Category{
 	{Fixes, Root + "/release/fixes", "Correctness fixes", true},
 	{Validation, Root + "/release/validation", "Release validation", true},
 	{Delivery, Root + "/release/delivery", "Release delivery", true},
+	{ReleaseFeatures, Root + "/release/features", "Release features", true},
 	{Features, Root + "/post-release/features", "Post-release features", false},
 	{Engineering, Root + "/post-release/engineering", "Post-release engineering", false},
 	{Kernel, Root + "/post-release/kernel", "Post-release kernel", false},

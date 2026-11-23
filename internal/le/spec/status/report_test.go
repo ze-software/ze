@@ -147,13 +147,17 @@ func TestTextMarksAStaleSkeleton(t *testing.T) {
 func TestTextAlignsEveryRowOnTheSameColumns(t *testing.T) {
 	root := planTree(t, map[string]string{
 		"spec-fixture-short.md": templateShapedSpec("ready", "2026-08-20"),
+		// The longest category name the declaration holds: its row stays on
+		// the same columns because the bucket width derives from that name.
+		"release/features/spec-fixture-wide.md": templateShapedSpec("ready", "2026-08-20"),
 	})
 	page := mustPage(t, root)
 
 	header := rowNaming(t, page, "Flag")
 	separator := rowNaming(t, page, "─────")
 	data := rowNaming(t, page, "fixture-short")
-	for i, line := range []string{header, separator, data} {
+	wide := rowNaming(t, page, "fixture-wide")
+	for i, line := range []string{header, separator, data, wide} {
 		if got := runeOffsetOfColumn(line, 5); got != colFlag+2+colBucket+2+8+2+colStatus+2+colUpdated+2 {
 			t.Errorf("row %d starts its sixth column at rune %d, want %d:\n%q",
 				i, got, colFlag+2+colBucket+2+8+2+colStatus+2+colUpdated+2, line)

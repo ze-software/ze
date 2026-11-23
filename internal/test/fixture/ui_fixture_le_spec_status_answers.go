@@ -380,6 +380,7 @@ func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []s
 		{"fixture-stale", "plan/post-release/engineering", leSpecBucketEngineering, leSpecStatusSkeleton, leSpecCategoryIdea, "2000-01-01", committed, true},
 		{"fixture-blocked", "plan/release/validation", "validation", "blocked", leSpecCategoryOther, "2000-01-01", committed, false},
 		{"fixture-delivery", "plan/release/delivery", "delivery", "ready", leSpecCategoryBacklog, committed, committed, false},
+		{"fixture-release-feature", "plan/release/features", "release-features", "ready", leSpecCategoryBacklog, committed, committed, false},
 		{"fixture-feature", "plan/post-release/features", "features", "deferred", leSpecCategoryOther, committed, committed, false},
 		{"fixture-proposal", "plan/proposals", "proposals", leSpecStatusSkeleton, leSpecCategoryIdea, time.Now().UTC().Format("2006-01-02"), committed, false},
 	}

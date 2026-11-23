@@ -22,7 +22,7 @@ import (
 )
 
 // Qualification states the release boundary without claiming readiness from counts.
-const Qualification = "Release fixes, validation and delivery are required; post-release work and unapproved proposals are not release commitments. Dependencies take precedence over priority."
+const Qualification = "Every release category is required; post-release work and unapproved proposals are not release commitments. Dependencies take precedence over priority."
 
 // Named failures distinguish an unreadable population from an empty one.
 var (

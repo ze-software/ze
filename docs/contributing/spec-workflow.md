@@ -279,6 +279,7 @@ derive from it. Lifecycle status is independent of placement.
 | `plan/release/fixes/` | Incorrect shipped behavior and required repairs | Yes |
 | `plan/release/validation/` | Proof of shipped behavior and release support claims | Yes |
 | `plan/release/delivery/` | Artifacts, installation, appliance boot and essential onboarding | Yes |
+| `plan/release/features/` | New capabilities the owner put in the first release | Yes |
 | `plan/post-release/features/` | Additional capabilities and absent features | No |
 | `plan/post-release/engineering/` | Release-independent refactors, tooling and optimizations | No |
 | `plan/post-release/kernel/` | Work on the Linux kernel Ze runs, and the proof routes that build and boot a patched kernel | No |
@@ -335,7 +336,8 @@ The derived-artifact freshness check compares the recorded revision with `HEAD`;
 a commit therefore requires regeneration. Pending edits appear only after commit.
 <!-- source: internal/le/spec/roadmap/register.go -- Update, indexCurrent -->
 
-The three release categories include every spec, whatever its lifecycle state.
+The release categories (the rows "Work queues and placement" marks required)
+include every spec, whatever its lifecycle state.
 Post-release categories and proposals are visible but not required for release;
 a proposal is not an approved delivery commitment. Rows sort by priority, then
 the existing category, status and name order. Dependencies remain visible; this
@@ -673,7 +675,7 @@ at all, so that work sat in no count and nothing scheduled it.
 |--------|---------|
 | What was not done | The specific item, never a vague category. "Edge cases" is not an item |
 | Why | Why this spec did not do it |
-| The spec that now owns it | The path of a spec that exists on disk in one of the six declared current categories |
+| The spec that now owns it | The path of a spec that exists on disk in one of the declared current categories |
 
 The destination is a PATH. "later", "future work", "a follow-up" and "TBD" are
 not destinations, and a destination that is prose is a deletion with a polite
@@ -690,7 +692,7 @@ so amending one that exists is the default and a new file is the exception.
 
 | Order | Action |
 |-------|--------|
-| 1 | Search the six categories and `./le spec status` for a spec that already covers the topic. Prefer a `spec-finish-<subsystem>` or `spec-followup-<subsystem>` umbrella that owns the area |
+| 1 | Search the declared categories ("Work queues and placement") and `./le spec status` for a spec that already covers the topic. Prefer a `spec-finish-<subsystem>` or `spec-followup-<subsystem>` umbrella that owns the area |
 | 2 | If one exists, amend its scope: add the item to its `## Task` section with an acceptance criterion, and name that spec in the table. A spec fits when it changes the same mechanism; one in `verification` is handed off and is not widened |
 | 3 | If none does, write a new spec from `plan/templates/TEMPLATE.md` and name it in the table |
 
