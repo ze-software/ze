@@ -2,6 +2,39 @@
   {
     "rid": "RFC4271-5.1.6-1",
     "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_atomic_aggregate_mp_replay_proof_test.go::TestRFC4271AtomicAggregateMPNLRIAndNativeFamiliesRefuseDeaggregation",
+    "unit-sha": "f61ba4580f1c52fa",
+    "claim-sha": "4b0cdaae7f3f640d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/filter_atomic_aggregate.go::atomicAggregatePolicyAllowed",
+    "producer-sha": "7f711678482ce538",
+    "break": "line 100: \"return false, nil\" -\u003e \"return true, nil // MUTATION-APPLIED: admit newly introduced or more-specific native NLRI\""
+  },
+  {
+    "rid": "RFC4271-5.1.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_atomic_aggregate_mp_replay_proof_test.go::TestRFC4271AtomicAggregateMPNLRIRelayPreservesExactPrefix",
+    "unit-sha": "c2f024b9a5353459",
+    "claim-sha": "5dfab2bfba2de92d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/filter_atomic_aggregate.go::atomicAggregatePolicyAllowed",
+    "producer-sha": "7f711678482ce538",
+    "break": "line 104: \"return true, nil\" -\u003e \"return false, nil // MUTATION-APPLIED: refuse valid marked modified output\""
+  },
+  {
+    "rid": "RFC4271-5.1.6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_atomic_aggregate_mp_replay_proof_test.go::TestRFC4271AtomicAggregateStoredReplayRefusesDeaggregationAndWithdraws",
+    "unit-sha": "8d9aca3cbd133c5f",
+    "claim-sha": "e998a8d2d90e17c8",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/filter_library.go::runLibraryChain",
+    "producer-sha": "dee450936f0c362a",
+    "break": "line 127: \"if allowed {\" -\u003e \"if allowed || !allowed { // MUTATION-APPLIED: bypass marked-route admission in runLibraryChain\""
+  },
+  {
+    "rid": "RFC4271-5.1.6-1",
+    "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_atomic_aggregate_policy_rewrite_test.go::TestRFC4271AtomicAggregatePolicyRewriteDoesNotDeaggregate",
     "unit-sha": "b13084e6221346a0",
     "claim-sha": "4982f8a3defa01b4",
