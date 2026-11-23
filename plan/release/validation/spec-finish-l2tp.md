@@ -7,8 +7,8 @@
 | Priority | P2 |
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
 | Depends | The AC-2 proof uses the session identity fixes of spec-l2tp-session-identity-and-publish-stall (closed 2026-11-19) |
-| Phase | 5/5 lab implementation landed. AC-2 verified. AC-3 verified |
-| Updated | 2026-11-19 |
+| Phase | 5/5 lab implementation landed. AC-2 verified. AC-3 verified; closure ready |
+| Updated | 2026-11-23 |
 
 ## Post-Compaction Recovery
 
@@ -68,7 +68,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
 - **DONE (2026-08-07): `--user` / `-u` flag for `ze l2tp show`/`tunnel`/`session` (from spec-fixit-cli-credential-resolution R-5, 2026-07-16).** The flag, the arg split and the unit tests shipped in commit `b6086ee7d`. The shell-completion half of the row's own scope was still missing and landed on 2026-08-07: `registry.RegisterCommandFlags` for the three paths plus a non-empty `Meta.Subs` (`internal/component/l2tp/cli/register.go`), covered by `register_test.go`. `clientFlags` owns `--user`/`-u` only; every other token stays the daemon's grammar and forwards unchanged, and a flag left after the subcommand is refused before any round trip. Deferral row set to `done` in the retired deferral shard "fixit-cli-credential-resolution". Original record kept below for context: `internal/component/l2tp/cli/show.go` calls `sshclient.LoadCredentialsWithFlags("")` with a hardcoded empty user and exposes no flag, unlike the other 9 client CLIs (`ze cli`, `ze signal`, `ze config set/edit/deactivate/archive`, `ze interface migrate`, `ze bgp plugin cli`). Since spec-fixit-cli-credential-resolution made the zefs store optional, an operator who cannot read the store (every user who did not install ze: the store is one shared `0600` file under `/etc/ze`) can name themselves with `--user` on every command EXCEPT this one, so `ze l2tp show` alone fails with the "no credentials ... pass --user" error unless `ze.ssh.username` is exported. **This is bigger than adding a flag -- read before estimating.** `internal/component/l2tp/cli/` has NO flag parsing outside `decode.go`: `cmdShow` (`show.go`), `cmdTunnelTeardown` and `cmdSessionTeardown` each take a raw `args []string` and append it VERBATIM to the daemon command string (`append([]string{"show","l2tp"}, args...)`), then call the shared `forwardToDaemon(command string)`, which is where the hardcoded `LoadCredentialsWithFlags("")` lives. So there is no FlagSet to hang `--user` on, and `ze l2tp show --user alice tunnels` today would ship `show l2tp --user alice tunnels` to the daemon as a command string (unverified whether the daemon rejects it or misparses -- check before writing the fix). The work is: introduce flag parsing in the three commands without breaking arg pass-through, then thread a user through `forwardToDaemon` into `LoadCredentialsWithFlags`. All three commands need it, not just `show`, or `ze l2tp tunnel`/`session` stay unreachable for the same operators. Reference for the long+short pair: `cmd_set.go` / `cmd_deactivate.go` / `cmd_edit.go` / `signal/main.go` (`fs.String("user", ...)` + `fs.StringVar(user, "u", "", "Short alias for --user")`); `decode.go` shows the local `flag.NewFlagSet` idiom already used in this package. NOT `cmd_archive.go` -- it defines only the long form and has no `-u` alias, so it is the wrong template despite also calling `LoadCredentialsWithFlags`. Note the existing **offline-show-tunnels `.ci` (L194)** item above covers the same command's SSH-creds round-trip, so do both together.
 - **Four RADIUS subscriber accounting attributes (from spec-radius-subscriber-attributes, homed here 2026-09-03, re-homed the same day)** - Calling-Station-Id (31), Event-Timestamp (55), Acct-Delay-Time (41) and Acct-Terminate-Cause (49). **Settled, built and closed: `spec-radius-acct-session-attributes` implemented all four and closed on 2026-09-04, and `docs/architecture/l2tp/bng-1-radius-attributes.md` describes what each record now carries.** All four are RFC 2119 MAY for a NAS, so the RFCs decide nothing and `ai/rules/rfc-compliance.md` reserved the choice for the owner. Thomas ruled on 2026-09-03: copy Juniper, emit all four, no config knob. The one place ze does not follow Juniper is Acct-Terminate-Cause on Interim, which RFC 2866 Section 5.10 confines to Stop. Nothing is owed here any more; the costs this row used to carry are in that spec's Task section. Row: the retired deferral shard "radius-subscriber-attributes".
 - **AVP reserved bits 2-5 on RECEIVE (from spec-rfcgate-2-deferred-nonunit-evidence-backfill, 2026-08-03)** - establish what ze does with a received AVP whose reserved bits 2-5 are set, which is the receive half of `RFC2661-4.1-1`. A probe on 2026-08-02 produced neither a ze log line nor a reply, and the cause was not isolated, so **nothing is claimed in either direction**: this is not a finding that ze is lenient, and not a finding that it is strict. It needs a deliberate reproduction before it can be called conformant or not. Related and separate: the ledger's `RFC2661-x-1` row records `{single-polarity}` for the header reserved bits on the same grounds, that ze emits them zero by construction and never rejects non-zero on receive (`internal/component/l2tp/header.go`). The send half of both requirements IS proven, by `test/l2tp/rfc2661-emitted-control-shape.ci`. Copy that file's shape: a Python peer that hand-packs the datagram and parses ze's reply with its own decoder. Knowledge from the source spec (closed 2026-09-07, its durable half is `plan/learned/006-rfc-evidence-oracle-selection-rule.md`). If the reproduction shows ze accepts a reserved-bit-set AVP where the RFC requires otherwise, that is a conformance question for Thomas, not a `{gap}` to annotate (`ai/rules/rfc-compliance.md`).
-- **Scale-shaped LNS interop (added 2026-11-15).** An LNS in production sees a few LACs, each carrying many PPP sessions inside one tunnel. The L2TP lab (`test/interop-l2tp/`, `./le test deployment l2tp-ppp`) runs xl2tpd and pppd with one session per tunnel, so per-tunnel ordering, control-window load (RFC 2661 Section 5.8 Receive Window Size) and session-ID reuse across tunnels are never exercised. LAC peer, chosen 2026-11-15 from source read at each candidate's latest stable release: katalix go-l2tp `kl2tpd` at tag v0.1.8 (MIT), driving the lab's existing pppd 2.5.5. In `cmd/kl2tpd/kl2tpd.go` `application.run`, each `[tunnel.X]` block becomes one tunnel and `for _, scfg := range tcfg.Sessions { tunl.NewSession(...) }` opens every session inside it. `cmd/kl2tpd/pppd.go` runs pppd with `plugin pppol2tp.so` per session, so each session negotiates LCP, authentication and IPCP and carries traffic. A per-session `sid` key forces equal Session IDs on different tunnels. Set aside: xl2tpd v1.3.20, because `l2tp_call` builds a new tunnel for every call, `control_handle_lac_connect` refuses a second `c <lac>` ("Session '%s' already active!"), and its numeric `c <tunnel-id>` path dereferences `c->lac` unguarded in `control_finish` (`control.c`, read, not run); accel-ppp 1.15.0, because its LAC mode does place many sessions in one tunnel but its PPP only authenticates and assigns, so no session reaches IPCP against Ze; OpenL2TP, unmaintained. What the scenario may not expect of kl2tpd: `newV2Sccrq` (`l2tp/msg.go`) sends no Receive Window Size AVP, so Ze must hold its transmit window toward it at 4 (RFC 2661 Section 4.4.3: "If absent, the peer must assume a Window Size of 4 for its transmit window."), which the scenario asserts; kl2tpd's own transmit window comes from its `window_size` setting and never from Ze's advertised value (`TxWindowSize: dt.cfg.WindowSize`, `l2tp/l2tp_dynamic_tunnel.go`), so the scenario sets it no higher than Ze advertises; sessions are fixed at start, with no runtime add. Its last commit is v0.1.8 itself (2024-05-17), which is still the latest stable release under the lab rule (`ai/META-DECISIONS.md`, "Test systems and labs"). Owed: the kl2tpd LAC image (`go install` at the pinned tag in the LAC Dockerfile, reusing its pppd build) and a named scenario with several LACs, each opening many sessions in one tunnel, in which every session gets an address and passes traffic both ways, and sessions on different tunnels that hold the same session ID stay distinct (each keeps its own address, route and teardown). That collision is a known defect owned by `plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md` (parts 2 and 3, "Observers keyed by session id alone" and "Teardown by session id alone"); the scenario is its interop proof and goes red until that spec lands. Later, the same scale with PPPoE clients: none of the L2TP candidates is a PPPoE client; the candidate is pppd 2.5.5's `pppoe` plugin, one pppd per session on its own macvlan, from the same image, its discovery source (`pppd/plugins/pppoe/discovery.c`) read before a check relies on it. AC-2.
+- **Scale-shaped LNS interop (added 2026-11-15).** An LNS in production sees a few LACs, each carrying many PPP sessions inside one tunnel. The L2TP lab (`test/interop-l2tp/`, `./le test deployment l2tp-ppp`) runs xl2tpd and pppd with one session per tunnel, so per-tunnel ordering, control-window load (RFC 2661 Section 5.8 Receive Window Size) and session-ID reuse across tunnels are never exercised. LAC peer, chosen 2026-11-15 from source read at each candidate's latest stable release: katalix go-l2tp `kl2tpd` at tag v0.1.8 (MIT), driving the lab's existing pppd 2.5.5. In `cmd/kl2tpd/kl2tpd.go` `application.run`, each `[tunnel.X]` block becomes one tunnel and `for _, scfg := range tcfg.Sessions { tunl.NewSession(...) }` opens every session inside it. `cmd/kl2tpd/pppd.go` runs pppd with `plugin pppol2tp.so` per session, so each session negotiates LCP, authentication and IPCP and carries traffic. A per-session `sid` key forces equal Session IDs on different tunnels. Set aside: xl2tpd v1.3.20, because `l2tp_call` builds a new tunnel for every call, `control_handle_lac_connect` refuses a second `c <lac>` ("Session '%s' already active!"), and its numeric `c <tunnel-id>` path dereferences `c->lac` unguarded in `control_finish` (`control.c`, read, not run); accel-ppp 1.15.0, because its LAC mode does place many sessions in one tunnel but its PPP only authenticates and assigns, so no session reaches IPCP against Ze; OpenL2TP, unmaintained. What the scenario may not expect of kl2tpd: `newV2Sccrq` (`l2tp/msg.go`) sends no Receive Window Size AVP, so Ze must hold its transmit window toward it at 4 (RFC 2661 Section 4.4.3: "If absent, the peer must assume a Window Size of 4 for its transmit window."), which the scenario asserts; kl2tpd's own transmit window comes from its `window_size` setting and never from Ze's advertised value (`TxWindowSize: dt.cfg.WindowSize`, `l2tp/l2tp_dynamic_tunnel.go`), so the scenario sets it no higher than Ze advertises; sessions are fixed at start, with no runtime add. Its last commit is v0.1.8 itself (2024-05-17), which is still the latest stable release under the lab rule (`ai/META-DECISIONS.md`, "Test systems and labs"). Owed: the kl2tpd LAC image (`go install` at the pinned tag in the LAC Dockerfile, reusing its pppd build) and a named scenario with several LACs, each opening many sessions in one tunnel, in which every session gets an address and passes traffic both ways, and sessions on different tunnels that hold the same session ID stay distinct (each keeps its own address, route and teardown). That collision is a known defect owned by `spec-l2tp-session-identity-and-publish-stall` (closed 2026-11-19; parts 2 and 3, "Observers keyed by session id alone" and "Teardown by session id alone"); the scenario is its interop proof and goes red until that spec lands. Later, the same scale with PPPoE clients: none of the L2TP candidates is a PPPoE client; the candidate is pppd 2.5.5's `pppoe` plugin, one pppd per session on its own macvlan, from the same image, its discovery source (`pppd/plugins/pppoe/discovery.c`) read before a check relies on it. AC-2.
 - **FF 03 on every PPP frame Ze sends over L2TP (added 2026-11-15).** RFC 1661 Section 6.6: "The Address and Control fields MUST NOT be compressed when sending any LCP packet." The same section: "By default, all implementations MUST transmit frames with Address and Control fields appropriate to the link framing." RFC 1662 Section 3.1 gives those fields as 0xff and 0x03. Ze writes only the protocol and payload (`ppp.WriteFrame`, `internal/component/l2tp/ppp/frame.go`); the kernel's `pppol2tp_xmit` prepends FF 03. A requirement a lower layer meets still owes a test of what Ze sends (`ai/rules/rfc-compliance.md`). The ledger rows are `RFC1661-6.6-1` and `RFC1661-6.6-2` (`rfc/short/rfc1661.md`), both annotated `{lower-layer: ...}` with no tagged test; Ze acks a peer's well-formed ACFC option (`lcp_options.go` `negotiatePeerOption`) and sets no channel compression flag, so the kernel's FF 03 is the whole answer. What exists (read 2026-11-15): `checkPPPCodeReject` (`internal/le/interoplab/l2tp/ppp_code_reject.go`) decodes every relayed data datagram through `pppInformation`, which already refuses one with no `ff 03`, in both directions; the relay logs only after the checker's marker (`relayData`, `avprelay/pppinject.go`), so the LCP negotiation at session start is never seen, and the check is not tagged, so nothing claims it. Owed: (a) a numbered assertion tagged `RFC requirement: RFC1661-6.6-1` and `RFC1661-6.6-2` that every Ze-to-LAC frame in the log, its LCP Code-Rejects and LCP Echo included, starts `ff 03`, with the relay logging from the session's first data datagram so the LCP Configure exchange is covered; (b) the negative: for 6.6-2, the violating input on reception, a LAC LCP packet sent with Address and Control compressed while ACFC is not negotiated, injected by the relay, and Ze's handling observed (RFC 1661 Section 6.6: "If a compressed frame is received when Address-and-Control-Field-Compression has not been negotiated, the implementation MAY silently discard the frame."); the kernel's receive path decides it first, so the record names whether `pppol2tp_recv` strips or passes the frame before Ze reads it; (c) a discrimination record per row through `./le rfc record`, the break being a relay that strips `ff 03` from Ze's frames before logging. AC-3.
 - **DONE (leaf 2026-07-16, `.ci` 2026-08-23): authradius coa-port YANG leaf + CoA end-to-end `.ci` (from spec-startup-resilience 2026-07-10).** The leaf landed in commit `64d160ace`, with `TestParseConfigCoAPortProductionPath` pinning the File -> Tree -> `Config.CoAPort` path, so the row's claim that no leaf exists has been false since that date. The end-to-end half landed on 2026-08-23 as `test/l2tp/radius-coa-listener.ci`: it starts the daemon from a config naming `coa-port` and asserts the listener answers an RFC 5176 Disconnect-Request with a Disconnect-NAK carrying Error-Cause 503, which proves source filtering accepted the configured RADIUS address and both authenticators verified. The apply-path DNS lookup on that branch is bounded (spec-startup-resilience FIX 2: one shared 750ms deadline < the plugin's 1s ApplyBudget), pinned by `TestServerIPs*`.
 
@@ -155,7 +155,7 @@ session, including unchanged readers and the Docker build consumer.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The verified `file:line` evidence in the Task items still holds at design time | 2026-07-06 backlog triage | Re-scope the item | grep/LSP at design time | unvalidated |
+| A-1 | The verified `file:line` evidence in the Task items still holds at design time | 2026-07-06 backlog triage | Re-scope the item | source check at 2026-11-23 closure: L41, L43, L163, L164, RFC2661-4.1-1 receive, and `rfc2661-emitted-control-shape.ci` fencing already landed on `main`; L42 owned by `plan/release/fixes/spec-lifecycle-invariants.md`; L44, L162, L194 and PPPoE-at-scale homed in `plan/release/validation/spec-l2tp-remaining-proof-backlog.md` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -210,32 +210,7 @@ session, including unchanged readers and the Docker build consumer.
 3. **Phase: wiring** - register entry points, write the failing wiring test.
 4. **Phase: implement (TDD)** - write test, fail, implement, pass, per work item.
 5. **Full verification** - `./le verify current mode full`.
-6. **Complete spec** - fill audit tables, write `plan/learned/NNN-<name>.md`, two-commit closure.
-
-## Review Gate
-
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
-<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
-<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
-<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
-<!-- NOTE-only findings do not block — record them and proceed. -->
-
-### Run 1 (initial)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
-
-### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
-
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-
-### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+6. **Complete spec** - fill audit tables, two-commit closure.
 
 ## Checklist
 
@@ -689,3 +664,170 @@ failures before producer changes: missing early sampling, overlapping Births,
 premature Stop during Start/Interim and a changed terminal endpoint. Their
 broader implementation is tracked in the dependency spec. The 48/47/46 lab
 proof is verified above.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Scenario registration & overlay-aware lab staging** (`e26052dd8d`, `79c75ff140`, `1fc9dfbc6c`, `3bd4a605c4`, `88df400c07`): Registered `l2tp-many-sessions-kl2tpd`, `ze-l2tp-scale`, and `ze-l2tp-kl2tpd` (`internal/le/interoplab/l2tp/register_scale.go`, `scenarios.go`, `scale_plan.go`). Extended `LabBinary` / `stageBinary` (`internal/le/interoplab/zebuild.go`, `zebuild_overlay.go`) for package staging and isolated composable Go overlays, moved `avprelay/Dockerfile` onto the host-staged relay binary, and added `prepareScaleAllocatorOverlay` (`internal/le/interoplab/l2tp/scale_overlay.go`) with strict AST shape validation of `allocateSessionID`.
+- **AC-2 strict 3×16 multi-session L2TP interop scenario** (`5c5a7eae29`, `198422cb9a`, `0a68181381`, `44d9cfdfb6`, `606a3ba2f2`, `84d9251897`, `65e181f668`, `13d6c374d2`, `191adcb4a6`): Added `internal/le/interoplab/l2tp/scale*.go`, `avprelay/scale.go`, `avprelay/relaymode.go`, `test/interop-l2tp/Dockerfile.kl2tpd`, `kl2tpd-v0.1.8-hello-queue.patch`, `Dockerfile.ze-scale`, and `test/interop-l2tp/scenarios/l2tp-many-sessions-kl2tpd/` (3 kl2tpd LACs × 16 sessions, FreeRADIUS 3.2.10, FRR 10.7.1). Verified full 48/47/46 session pass in Linux 7.3 arm64 guest on 2026-11-19 at `d3c2021464`.
+- **AC-3 full-session `FF 03` PPP framing & compressed LCP receive probe** (`7cf6aa055d`): Added `internal/le/interoplab/l2tp/ppp_framing.go`, `avprelay/pppframing.go`, updated `ppp_code_reject.go` and `avprelay/pppinject.go` with startup-to-end capture, explicit `code_reject_armed` phase metadata, numbered assertions 7 and 8, and `noaccomp` in `test/interop-l2tp/scenarios/ppp-code-reject-xl2tpd/ppp-options`. Added discrimination/audit records for `RFC1661-6.6-1` and `RFC1661-6.6-2` and renewed `RFC1661-5.5-1`, `RFC1661-5.6-1`, `RFC1661-5.6-2`, and `RFC1661-5.6-3`.
+- **Closure homing & news fragment**: Homed the 4 remaining open legacy validation items (L44, L162, L194, PPPoE-at-scale) in `plan/release/validation/spec-l2tp-remaining-proof-backlog.md`; verified the other legacy items already landed on `main` or are owned by `plan/release/fixes/spec-lifecycle-invariants.md`. Added operator news fragment `website/changes/fragments/finish-l2tp.md`.
+
+### Bugs Found/Fixed
+- **Queued L2TP controls emitted after fresh replies (`cdc9070db0`):** `L2TPTunnel.Process` (`internal/component/l2tp/tunnel_fsm.go`) returned fresh handler replies before `res.NewSends` released by an incoming ACK, causing out-of-order `Ns` that stalled `kl2tpd`. Fixed by emitting `res.NewSends` before `res.Delivered` handler replies; covered by `TestTunnelProcessQueuedSendBeforeFreshReply` (`internal/component/l2tp/process_send_order_test.go`).
+- **Linux pre-bind PPP channel `EBUSY` drop (`d3c2021464`):** Concurrent bring-up of 48 L2TP sessions hit transient kernel lock contention (`EBUSY`) on `PPPIOCGTRANSPORT_OWNER` / `PPPIOCATTCHAN_OWNER` and dropped 3 sessions; closed PPPoX sockets could also surface an internal Go error instead of `os.ErrClosed`. Fixed in `captureFreshPPPChannel` / `CreatePPPChannel` (`internal/component/l2tp/ppp/kernel/created_channel_linux.go`) with bounded pre-bind retry (4× 20 ms) on the original leased files and `os.ErrClosed` wrapping; covered by `internal/component/l2tp/ppp/kernel/created_channel_contention_linux_test.go`.
+- **kl2tpd v0.1.8 autonomous HELLO bypass (`606a3ba2f2`):** Upstream `sendHelloMessage` bypassed `processTxQueue`/`ackQueue` and closed sessions after 3 retries despite Ze ACKs. Fixed via verified SHA-256 zero-fuzz build-time patch `test/interop-l2tp/kl2tpd-v0.1.8-hello-queue.patch` retained in the runtime image.
+- **Per-subscriber LAC return routes & diagnostic bounds (`65e181f668`, `84d9251897`):** Added per-interface source-specific policy routes on the LAC fixture, retained current FRR BGP state on census failure, and bounded wire log emission to check boundaries (51 MiB -> ~1 MiB).
+
+### Documentation Updates
+- `docs/labs/l2tp-interop.md` — documented `l2tp-many-sessions-kl2tpd`, kl2tpd v0.1.8 HELLO diff provenance, scale window/FRR/peer-route proof, and `ppp-code-reject-xl2tpd` full-session `FF 03` framing and compressed Echo receive probe (`e26052dd8d`, `1fc9dfbc6c`, `5c5a7eae29`, `7cf6aa055d`, `88df400c07`, `44d9cfdfb6`, `606a3ba2f2`, `84d9251897`, `65e181f668`, `191adcb4a6`).
+- `docs/architecture/testing/interop.md` — documented `LabBinary` package/overlay staging and isolation (`e26052dd8d`, `1fc9dfbc6c`, `3bd4a605c4`).
+- `docs/architecture/wire/l2tp.md` and `docs/research/l2tpv2-implementation-guide.md` — documented `L2TPTunnel.Process` queued-before-fresh control emission (`cdc9070db0`).
+- `docs/research/l2tpv2-ze-integration.md` and `docs/architecture/appliance/kernel-profiles.md` — documented bounded pre-bind `EBUSY` retry on original channel capture (`d3c2021464`).
+- `rfc/short/rfc1661.md` — recorded `RFC1661-6.6-1` and `RFC1661-6.6-2` L2TP framing evidence and limits (`7cf6aa055d`).
+- `ai/INDEX.md` — added L2TP scale/kl2tpd/ff 03/ACFC discovery row (`7cf6aa055d`).
+- `./le doc check anchors`: 0 failures in L2TP/PPP/interop. `./le doc check all`: fails only on unrelated repository-wide journal due-class warnings (0 failures on edited L2TP/PPP/interop pages; 3160/3160 digest anchors pass).
+
+### Deviations from Plan
+- Active work scoped by owner directive (2026-11-15) to AC-2 and AC-3 only; unselected legacy validation items were audited against `main` (6 already done, 1 owned by `spec-lifecycle-invariants.md`, 4 homed in `plan/release/validation/spec-l2tp-remaining-proof-backlog.md`).
+- Scope widened within AC-2 per `ai/META-DECISIONS.md` to fix two product defects exposed by the strict scale proof: `L2TPTunnel.Process` send ordering (`cdc9070db0`) and Linux pre-bind PPP channel `EBUSY` contention (`d3c2021464`), plus the pinned `kl2tpd` v0.1.8 HELLO queueing patch (`606a3ba2f2`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4 assumed stock `kl2tpd` v0.1.8 could sustain configured 5-second autonomous HELLOs | Upstream `sendHelloMessage` bypasses `processTxQueue`/`ackQueue` and closes sessions after 3 retries despite Ze ACKs | Real Linux 7.3 guest scale run | Applied SHA-256-verified zero-fuzz build patch `test/interop-l2tp/kl2tpd-v0.1.8-hello-queue.patch` retaining all HELLO inputs and assertions (`606a3ba2f2`) |
+| approach | Initial AC-3 framing proposal used first injection as the armed-phase cutoff | That cutoff dropped armed normal frames preceding the first injection | Independent `ze-test-judge` review | Preserved exact armed population via explicit `code_reject_armed` metadata sampled at the original boundary; approved before edit (`7cf6aa055d`) |
+| approach | Polling printed the full growing wire capture on every poll iteration | Produced 51 MiB of duplicate log output | Real guest failure log inspection | Printed full capture once per check boundary (`writeScaleWireLog`), dropping logs to ~1 MiB (`65e181f668`) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| AC-2: 3×16 multi-session L2TP interop with deterministic SID collisions, CWND4 hold/release, RADIUS Disconnect, pppd teardown, FRR /32 census, 96/94/92 bound pings | Done | `internal/le/interoplab/l2tp/scale.go::checkScaleSessions`, `scale_window.go::readScaleWindow`, `scale_observe.go::requireScaleFRR`, `scale_overlay.go::prepareScaleAllocatorOverlay`, `register_scale.go::init`, `test/interop-l2tp/scenarios/l2tp-many-sessions-kl2tpd/` | Passed in Linux 7.3 arm64 guest on 2026-11-19 at `d3c2021464` |
+| AC-2 supporting fix: `L2TPTunnel.Process` emits queued controls before fresh replies | Done | `internal/component/l2tp/tunnel_fsm.go::Process` | Verified by `TestTunnelProcessQueuedSendBeforeFreshReply` (`cdc9070db0`) |
+| AC-2 supporting fix: Linux pre-bind PPP channel `EBUSY` retry | Done | `internal/component/l2tp/ppp/kernel/created_channel_linux.go::CreatePPPChannel`, `captureFreshPPPChannel` | Verified by `created_channel_contention_linux_test.go` and full 48-session guest run (`d3c2021464`) |
+| AC-2 peer fix: `kl2tpd` v0.1.8 HELLO queueing diff | Done | `test/interop-l2tp/Dockerfile.kl2tpd`, `test/interop-l2tp/kl2tpd-v0.1.8-hello-queue.patch` | Zero-fuzz SHA-256 verified build (`606a3ba2f2`) |
+| AC-3: full-session `FF 03` framing proof (`RFC1661-6.6-1`, `RFC1661-6.6-2`) + compressed LCP Echo probe + 4 renewed Code-Reject records | Done | `internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject`, `ppp_framing.go::readPPPFramingLog`, `avprelay/pppframing.go::framingCapture`, `rfc/short/rfc1661.md`, `rfc/discrimination/rfc1661/RFC1661-{6.6-1,6.6-2,5.5-1,5.6-1,5.6-2,5.6-3}.json` | Approved by independent test judge (`7cf6aa055d`) |
+| Legacy skeleton items (L41, L43, L163, L164, RFC2661-4.1-1 receive, `rfc2661-emitted-control-shape.ci` fencing) | Done | `ncp_test.go` (`TestIPCPBackendAddressFailureFailsSession`, `TestIPCPDNSIsOptional`), `ncp_dns_reject_test.go` (`TestIPCPDNSRequestWithoutServer`), `rfc1661_lcp_restart_counter_test.go`, `docs/architecture/core-design.md` (section 19 `ppp` row), `avp.go` (`AVPIterator.Next` `FlagReserved`), `test/l2tp/rfc2661-emitted-control-shape.ci` (`89af0cc45e`) | Verified already landed on `main` |
+| Legacy skeleton items (L42, L44, L162, L194, PPPoE-at-scale) | Changed | `plan/release/fixes/spec-lifecycle-invariants.md` (L42); `plan/release/validation/spec-l2tp-remaining-proof-backlog.md` (L44, L162, L194, PPPoE-at-scale) | Owner scoped session to AC-2 & AC-3 only; zero items dropped |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Changed | Homed in `plan/release/validation/spec-l2tp-remaining-proof-backlog.md` (L44, L162, L194, PPPoE-at-scale) and `plan/release/fixes/spec-lifecycle-invariants.md` (L42); remaining legacy items already done on `main` | Owner instructed AC-2 and AC-3 only (2026-11-15) |
+| AC-2 | Done | `l2tp-many-sessions-kl2tpd` passed 48/47/46 populations, 3 CWND4 holds, 7 HELLOs, FRR /32 census & withdrawals, RADIUS Disconnect, pppd teardown, 96/94/92 bound pings in Linux 7.3 guest (`d3c2021464`, `191adcb4a6`); `TestTunnelProcessQueuedSendBeforeFreshReply`; `created_channel_contention_linux_test.go` | Full proof recorded in Goal Validation |
+| AC-3 | Done | `ppp-code-reject-xl2tpd` assertions 1–8 passed in Linux 7.3 guest; paired discrimination records `rfc/discrimination/rfc1661/RFC1661-6.6-1.json` and `RFC1661-6.6-2.json` plus renewed `RFC1661-5.5-1`, `5.6-1`, `5.6-2`, `5.6-3` (`7cf6aa055d`) | Independent `ze-test-judge` approval recorded |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestScaleScenarioPlan` | Done | `internal/le/interoplab/l2tp/scale_plan_test.go` | Proves discovery, peers, images, cleanup |
+| `TestLabBinary*` (7 cases) | Done | `internal/le/interoplab/zebuild_input_test.go` | Proves package staging, overlay composition, cleanup |
+| `TestScaleAllocatorOverlayIsolation` | Done | `internal/le/interoplab/l2tp/scale_overlay_test.go` | Proves isolated substitution and drift refusal |
+| `TestScaleWindowEvidence`, `TestScaleReliableEvidence`, `TestScaleWireSessionsEvidence`, `TestScalePeerCDNEvidence`, `scale_frr_attribution_test.go`, `scale_peer_routes_test.go`, `scale_failure_test.go` | Done | `internal/le/interoplab/l2tp/scale*_test.go`, `avprelay/scale_test.go` | Independent control/window/FRR/route/failure boundaries |
+| `TestTunnelProcessQueuedSendBeforeFreshReply` | Done | `internal/component/l2tp/process_send_order_test.go` | Guards queued-before-fresh control emission |
+| `created_channel_contention_linux_test.go` | Done | `internal/component/l2tp/ppp/kernel/created_channel_contention_linux_test.go` | Guards pre-bind `EBUSY` retry and `os.ErrClosed` |
+| `TestPPPFullSessionFraming`, `TestPPPArmedPhasePreservation`, `TestPPPArmedPhaseMetadata`, `TestPPPCompressedEchoEvidence`, `TestPPPFramingAssertionAttribution` | Done | `internal/le/interoplab/l2tp/ppp_framing_test.go`, `avprelay/pppframing_test.go` | Guards full-session `FF 03`, phase fence, compressed Echo |
+| `l2tp-many-sessions-kl2tpd` | Done | `test/interop-l2tp/scenarios/l2tp-many-sessions-kl2tpd/`, `internal/le/interoplab/l2tp/scale.go` | Passed Linux 7.3 guest (`191adcb4a6`) |
+| `ppp-code-reject-xl2tpd` | Done | `test/interop-l2tp/scenarios/ppp-code-reject-xl2tpd/`, `internal/le/interoplab/l2tp/ppp_code_reject.go` | Passed Linux 7.3 guest + RFC discrimination records (`7cf6aa055d`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/interoplab/zebuild.go`, `zebuild_overlay.go`, `zebuild_input_test.go` | Done | Committed in `1fc9dfbc6c` |
+| `internal/le/interoplab/l2tp/register_scale.go`, `scenarios.go`, `scale_plan.go`, `scale_overlay.go`, `scale*.go` | Done | Committed in `e26052dd8d`..`65e181f668` |
+| `internal/le/interoplab/l2tp/avprelay/scale.go`, `relaymode.go`, `pppframing.go`, `pppinject.go`, `main.go`, `Dockerfile` | Done | Committed in `1fc9dfbc6c`, `5c5a7eae29`, `7cf6aa055d`, `44d9cfdfb6` |
+| `internal/le/interoplab/l2tp/ppp_code_reject.go`, `ppp_framing.go`, `ppp_framing_test.go` | Done | Committed in `7cf6aa055d` |
+| `internal/component/l2tp/tunnel_fsm.go`, `process_send_order_test.go` | Done | Committed in `cdc9070db0` |
+| `internal/component/l2tp/ppp/kernel/created_channel_linux.go`, `created_channel_contention_linux_test.go` | Done | Committed in `d3c2021464` |
+| `test/interop-l2tp/Dockerfile.kl2tpd`, `Dockerfile.ze-scale`, `kl2tpd-v0.1.8-hello-queue.patch`, `scenarios/l2tp-many-sessions-kl2tpd/`, `scenarios/ppp-code-reject-xl2tpd/ppp-options` | Done | Committed in `e26052dd8d`..`606a3ba2f2` |
+| `rfc/short/rfc1661.md`, `rfc/discrimination/rfc1661/*`, `rfc/audit/rfc1661/*` | Done | Committed in `7cf6aa055d` |
+| `docs/labs/l2tp-interop.md`, `docs/architecture/testing/interop.md`, `docs/architecture/wire/l2tp.md`, `docs/research/l2tpv2-implementation-guide.md`, `docs/research/l2tpv2-ze-integration.md`, `docs/architecture/appliance/kernel-profiles.md`, `ai/INDEX.md` | Done | Updated in the same commits as each code change |
+
+### Audit Summary
+- **Total items:** 7 Task requirements (5 AC-2/AC-3 + 2 legacy groups)
+- **Done:** 6
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (unselected legacy AC-1 items homed in `plan/release/validation/spec-l2tp-remaining-proof-backlog.md` and `plan/release/fixes/spec-lifecycle-invariants.md` per owner scope ruling)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| AC-2: Scale-shaped LNS interop (3 LACs × 16 sessions, deterministic SID collision, CWND4 hold/release, RADIUS Disconnect, pppd teardown, FRR /32 census, bidirectional traffic) | Interop scenario + unit regressions | `l2tp-many-sessions-kl2tpd` passed in Linux 7.3 arm64 guest on 2026-11-19 at `d3c2021464` (`191adcb4a6`): 3 CWND4 marker releases, 7 acknowledged peer HELLOs, 48 IPCP sessions/pool addresses/kernel routes/FRR /32 routes/Accounting-Starts, ambiguity & foreign-selector refusals, targeted Disconnect (`scale-1-09`) and pppd CDN (`scale-2-11`) removals with matching Accounting-Stops and FRR withdrawals, and 96/94/92 interface-bound pings; plus `TestTunnelProcessQueuedSendBeforeFreshReply` (`cdc9070db0`) and `created_channel_contention_linux_test.go` (`d3c2021464`) |
+| AC-3: Full-session `FF 03` PPP framing proof (`RFC1661-6.6-1`, `RFC1661-6.6-2`) and compressed LCP receive observation without losing Code-Reject proof | Interop scenario + RFC discrimination records | `ppp-code-reject-xl2tpd` assertions 1–8 passed in Linux 7.3 guest (`7cf6aa055d`); `rfc/discrimination/rfc1661/RFC1661-6.6-1.json` and `RFC1661-6.6-2.json` record observed framing-strip (assertion 7) and compressed-probe-suppression (assertion 8) reds; `RFC1661-5.5-1`, `5.6-1`, `5.6-2`, `5.6-3` renewed on assertions 2/3/4/6 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| L42: NCP renegotiation-after-Opened behavioural & functional proof | Unselected legacy item; already owned by the lifecycle-invariants spec | `plan/release/fixes/spec-lifecycle-invariants.md` |
+| L44: Native Linux netns `./le test deployment l2tp-ppp` release-proof run | Owner scoped active session to AC-2 and AC-3 only (2026-11-15) | `plan/release/validation/spec-l2tp-remaining-proof-backlog.md` |
+| L162: `accel-ppp` L2TP LAC LCP-Opened + MTU `.ci` | Owner scoped active session to AC-2 and AC-3 only (2026-11-15) | `plan/release/validation/spec-l2tp-remaining-proof-backlog.md` |
+| L194: `offline-show-tunnels` `.ci` (`ze l2tp show tunnels` SSH-credentials round-trip) | Owner scoped active session to AC-2 and AC-3 only (2026-11-15) | `plan/release/validation/spec-l2tp-remaining-proof-backlog.md` |
+| PPPoE-at-scale interop (`pppd` 2.5.5 `pppoe` plugin on macvlans) | Follow-up half of scale interop, outside AC-2/AC-3 scope | `plan/release/validation/spec-l2tp-remaining-proof-backlog.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/finish-l2tp-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md` |
+| `./le spec review check` | `review_gate: OK (49 code files, clean, hashes match tmp/review/finish-l2tp-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md)` |
+| Rounds | 1 (CLEAN: 0 BLOCKER, 0 ISSUE, 2 NOTEs) |
+| Reviewer lenses used | logic+wiring, security+edge-cases, rfc+style, spec-completeness (`ze-work:close-finish-l2tp`, independent of implementation) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | Unselected AC-1 legacy items (L44, L162, L194, PPPoE-at-scale) carried over without dropping any obligation; 6 legacy items verified already completed on `main` | `spec-finish-l2tp` | Homed in `plan/release/validation/spec-l2tp-remaining-proof-backlog.md` (and L42 in `plan/release/fixes/spec-lifecycle-invariants.md`) |
+| 2 | NOTE | Spec predates `## Design documents` table; verified `l2tp.go:139,167` and `register_scale.go:27` agree with the 2026-11-23 `docs/architecture/testing/interop.md` scoped-kernel-capabilities decision | `internal/le/interoplab/l2tp/l2tp.go`, `register_scale.go` | Acknowledged; no code change needed |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/interoplab/zebuild_overlay.go`, `zebuild_input_test.go` | Yes | `ls -1` verified present (2026-11-23) |
+| `internal/le/interoplab/l2tp/{register_scale,scale,scale_window,scale_observe,scale_overlay,ppp_framing}.go` | Yes | `ls -1` verified present (2026-11-23) |
+| `internal/le/interoplab/l2tp/avprelay/{scale,pppframing}.go` | Yes | `ls -1` verified present (2026-11-23) |
+| `internal/component/l2tp/process_send_order_test.go`, `internal/component/l2tp/ppp/kernel/created_channel_contention_linux_test.go` | Yes | `ls -1` verified present (2026-11-23) |
+| `test/interop-l2tp/{Dockerfile.kl2tpd,Dockerfile.ze-scale,kl2tpd-v0.1.8-hello-queue.patch,scenarios/l2tp-many-sessions-kl2tpd/ze.conf}` | Yes | `ls -1` verified present (2026-11-23) |
+| `rfc/discrimination/rfc1661/RFC1661-6.6-{1,2}.json` | Yes | `ls -1` verified present (2026-11-23) |
+| `plan/release/validation/spec-l2tp-remaining-proof-backlog.md`, `website/changes/fragments/finish-l2tp.md` | Yes | `ls -1` verified present (2026-11-23) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Legacy unselected items resolved or homed with zero dropped | Verified via source read: L41 (`TestIPCPBackendAddressFailureFailsSession`), L43 (`TestIPCPDNSIsOptional`, `TestIPCPDNSRequestWithoutServer`), L163 (`rfc1661_lcp_restart_counter_test.go`), L164 (`docs/architecture/core-design.md` section 19 `ppp` row), RFC2661-4.1-1 receive (`avp.go` `AVPIterator.Next` `FlagReserved`), `rfc2661-emitted-control-shape.ci` (`89af0cc45e`) done on `main`; L42 in `spec-lifecycle-invariants.md`; L44/L162/L194/PPPoE-at-scale in `spec-l2tp-remaining-proof-backlog.md` |
+| AC-2 | 3×16 `l2tp-many-sessions-kl2tpd` scale proof + `Process` ordering + `EBUSY` retry | `register_scale.go:15-28`, `scale.go:23-115`, `tunnel_fsm.go:98-109`, `created_channel_linux.go:52-143`; passed Linux 7.3 arm64 guest at `d3c2021464` (`191adcb4a6`); scoped unit runs listed in main thread's Owed commands |
+| AC-3 | Full-session `FF 03` framing (`RFC1661-6.6-1`, `6.6-2`) + compressed Echo probe + 4 renewed Code-Reject records | `ppp_code_reject.go:84-110`, `ppp_framing.go:44-120`, `avprelay/pppframing.go:41-98`, `rfc/discrimination/rfc1661/RFC1661-{6.6-1,6.6-2,5.5-1,5.6-1,5.6-2,5.6-3}.json` (`7cf6aa055d`); `./le rfc check` listed in Owed commands |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File / Scenario | Verified |
+|-------------|---------------------|----------|
+| Native L2TP scenario selector `l2tp-many-sessions-kl2tpd` | `test/interop-l2tp/scenarios/l2tp-many-sessions-kl2tpd/` via `register_scale.go::init` -> `checkScaleSessions` (`scale.go:23`) | Yes — registered via `registerScenario` + `interoplab.RegisterImage`, `needsKernel: true` -> `l2tp.go:167` `plan.KernelCapabilities` |
+| Native L2TP scenario selector `ppp-code-reject-xl2tpd` | `test/interop-l2tp/scenarios/ppp-code-reject-xl2tpd/` via `checkPPPCodeReject` (`ppp_code_reject.go:114`) -> `framingPPPFrames`, `armedPPPFrames`, `armCompressedPPPEcho` | Yes — host-staged relay via `LabBinary`, full-session capture from datagram 1 |
+| L2TP tunnel control receive (`reactor.go::handle`) | `L2TPTunnel.Process` (`tunnel_fsm.go:80`) | Yes — `res.NewSends` appended before `res.Delivered` handler replies (`tunnel_fsm.go:100-109`) |
+| Linux PPP channel creation (`kernel_linux.go`) | `CreatePPPChannel` (`created_channel_linux.go:52`) -> `captureFreshPPPChannel` (`:118`) | Yes — bounded pre-bind `EBUSY` retry on original leased socket and fresh `/dev/ppp` file |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Re-verified every legacy Task item against `main` on 2026-11-23 (6 done, 1 owned by `spec-lifecycle-invariants.md`, 4 homed in `spec-l2tp-remaining-proof-backlog.md`) |
+| A-2 | confirmed | Real Linux 7.3 guest run of `ppp-code-reject-xl2tpd` observed compressed LCP Echo-Request accepted by `pppol2tp_recv` and answered by Ze with correlated uncompressed Echo-Reply (`7cf6aa055d`) |
+| A-3 | confirmed | `spec-l2tp-session-identity-and-publish-stall` closed 2026-11-19 (`6ec4108857`); `scale_overlay.go` AST check and tuple extraction ran cleanly through the full 48/47/46 guest proof (`191adcb4a6`) |
+| A-4 | broken | Stock `kl2tpd` v0.1.8 failed autonomous HELLOs after 3 retries (`sendHelloMessage` bypassed `ackQueue`); resolved by verified build-time patch `test/interop-l2tp/kl2tpd-v0.1.8-hello-queue.patch` (`606a3ba2f2`), recorded in Mistake Log and Deviations |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Lab documentation (`docs/labs/l2tp-interop.md`) | Updated in `e26052dd8d`..`191adcb4a6` covering `l2tp-many-sessions-kl2tpd`, kl2tpd HELLO diff, `ppp-code-reject-xl2tpd` FF 03 & compressed Echo; `./le doc check anchors` reports 0 L2TP failures | Yes |
+| Interop architecture (`docs/architecture/testing/interop.md`) | Updated in `e26052dd8d`, `1fc9dfbc6c`, `3bd4a605c4` for `LabBinary` package/overlay staging; agrees with 2026-11-23 `KernelCapabilities` decision (`l2tp.go:139,167`) | Yes |
+| Wire & integration docs (`docs/architecture/wire/l2tp.md`, `docs/research/l2tpv2-implementation-guide.md`, `docs/research/l2tpv2-ze-integration.md`, `docs/architecture/appliance/kernel-profiles.md`) | Updated in `cdc9070db0` (`L2TPTunnel.Process` send order) and `d3c2021464` (`CreatePPPChannel` pre-bind `EBUSY` retry) with source anchors | Yes |
+| RFC compliance (`rfc/short/rfc1661.md`) & discovery (`ai/INDEX.md`) | `rfc/short/rfc1661.md` (`RFC1661-6.6-1`, `RFC1661-6.6-2`) + 6 discrimination records (`7cf6aa055d`); `ai/INDEX.md` L2TP interop row lists `kl2tpd`, `many sessions per tunnel`, `ff 03`, `ACFC` | Yes |
+| Config/CLI/API/SDK/Feature level/Comparison (No/N-A) | `git show --stat` over all `Spec-work: finish-l2tp` + `d3c2021464` commits shows no YANG, CLI grammar, API/RPC, SDK, or `features/` edits | Yes |

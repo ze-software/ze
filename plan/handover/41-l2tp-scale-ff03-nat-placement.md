@@ -16,8 +16,8 @@ integration tests in Ze's guest.
 
 | Item | Spec | AC | State | Blocks on |
 |------|------|----|-------|-----------|
-| Many-sessions-per-tunnel LNS interop | `plan/release/validation/spec-finish-l2tp.md` | AC-2 | skeleton | Thomas approves the design before the spec moves to ready; it goes red until `plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md` lands, by design |
-| FF 03 proof for RFC1661-6.6-1 and 6.6-2 | same spec | AC-3 | skeleton | Thomas approves the design |
+| Many-sessions-per-tunnel LNS interop | `spec-finish-l2tp` (closed 2026-11-23) | AC-2 | closed | Completed after `spec-l2tp-session-identity-and-publish-stall` (closed 2026-11-19) landed |
+| FF 03 proof for RFC1661-6.6-1 and 6.6-2 | same spec (`spec-finish-l2tp`, closed 2026-11-23) | AC-3 | closed | Completed with paired RFC 1661 discrimination records |
 | NAT and nat-chain placement refused at verify | `plan/release/fixes/spec-network-services-one-off-defects.md` | AC-33 | design | Thomas approves the design; the kernel rule set is already settled in the AC |
 | D-14 route observer and `pppoe` redistribute source | `plan/release/fixes/spec-lifecycle-invariants.md` | AC-23, phase 7 | ready | Thomas's ruling on the recommended design; phase 7 also waits for the D-10 keyspace phase |
 

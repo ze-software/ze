@@ -351,7 +351,7 @@ Three independent entry points converge on the same downstream consumers.
 |----------|--------|
 | What breaks if this is wrong? | Subscriber sessions on both transports: addresses leak from the pool, accounting records double or vanish, shaping and CoS stop applying, and RADIUS-imposed session limits stop being enforced. IKE and NetFlow changes are observability-only |
 | How is it reverted? | Phase by phase. The consumer migration is revertible per consumer because the bridge keeps feeding both namespaces. The topic split is one commit. The metadata re-key is not independently revertible once consumers depend on the new key |
-| Who else touches this path? | `plan/release/validation/spec-finish-l2tp.md` (its L42 renegotiation-test gap is closed by this spec; its L41 row is already stale and should be corrected), `plan/post-release/engineering/spec-radius-acct-timewheel.md` (same `interimLoop`, so land this first), `docs/architecture/traffic/cos-dynamic.md` |
+| Who else touches this path? | `spec-finish-l2tp` (closed 2026-11-23; its L42 renegotiation-test gap is owned here and its L41 row was already closed by `TestIPCPBackendAddressFailureFailsSession`), `plan/post-release/engineering/spec-radius-acct-timewheel.md` (same `interimLoop`, so land this first), `docs/architecture/traffic/cos-dynamic.md` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -502,7 +502,7 @@ tests instead.
 - `ai/rules/architecture.md` - add the fresh-versus-restore trigger row
 - `rfc/short/rfc2865.md`, `rfc/short/rfc2866.md`, `rfc/short/rfc3954.md`, `rfc/short/rfc5176.md` - extract the missing obligations
 - `docs/features/rfc-status.md` - keep the ledger in step with the summaries
-- `plan/release/validation/spec-finish-l2tp.md` - correct the stale L41 row and close L42
+- `spec-finish-l2tp` (closed 2026-11-23; L41 already verified done and L42 remains owned here)
 
 ## Files to Create
 - `internal/component/l2tp/ppp/renegotiate_test.go` - the behavioural renegotiation tests
