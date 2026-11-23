@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Shipped config and command surfaces accept input Ze then ignores, or read it differently from what the YANG declares: a leaf commits and changes nothing, a declared rpc or notification has no handler or producer, a handler reads tokens the model never declares, a Go vocabulary and its YANG enum disagree. These are defects in implemented capabilities, so they belong before the first release |
 | RFC gaps | - |
-| Depends | Split on 2026-11-14 (owner, "Split. Pieces A, B, C become release fixes now ... D, E and F become one design spec, with the startup refusal replaced by a build gate plus `ze doctor`"). Siblings: A `plan/release/fixes/spec-review-typed-config-decode.md`, B `plan/release/fixes/spec-validation-walks-every-schema-section.md`, C `plan/release/fixes/spec-yang-defaults-applied-once.md`. Argument modelling of commands with no leaf: `plan/release/fixes/spec-declared-commands-without-leaves.md`. External plugin YANG: `plan/post-release/features/spec-plugin-external-yang-at-startup.md`. Peer leaves the peer parser never reads: `plan/release/fixes/spec-peer-leaves-the-peer-parser-never-reads.md` |
+| Depends | Split on 2026-11-14 (owner, "Split. Pieces A, B, C become release fixes now ... D, E and F become one design spec, with the startup refusal replaced by a build gate plus `ze doctor`"). Siblings: A `plan/release/fixes/spec-review-typed-config-decode.md`, B `plan/release/fixes/spec-validation-walks-every-schema-section.md`, C `plan/release/fixes/spec-yang-defaults-applied-once.md`. Argument modelling of commands with no leaf: `plan/release/fixes/spec-declared-commands-without-leaves.md`. External plugin YANG: `spec-plugin-external-yang-at-startup`. Peer leaves the peer parser never reads: `plan/release/fixes/spec-peer-leaves-the-peer-parser-never-reads.md` |
 | Phase | - |
 | Handoff | - |
 | Design tier | strongest tier |
@@ -375,7 +375,7 @@ Rows of the 2026-10-23 table that moved: A (uint64) to `spec-review-typed-config
 | T-5: whether the leaf gate allows recorded exceptions | None; an allowlist like `claims/allowlist.json`, each entry with a reason and an owner | None: every row in T-4 is wired or deleted before the gate lands. Allowlist: the gate can land first and T-4's later rows wait in it, visible |
 
 ## Known Limitations
-- External plugin YANG compiled at startup: `plan/post-release/features/spec-plugin-external-yang-at-startup.md` (its AC-1 holds the old AC-11 schema half).
+- External plugin YANG compiled at startup: `spec-plugin-external-yang-at-startup` (its AC-1 holds the old AC-11 schema half).
 
 ## Checklist
 

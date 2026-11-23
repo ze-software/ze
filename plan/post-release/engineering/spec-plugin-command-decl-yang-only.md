@@ -18,7 +18,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Today Stage 1 `rpc.CommandDecl` (`pkg/plugin/rpc/types.go`) carries `ShortHelp`, `Description`, and `Args` alongside `Name`, even though every compiled-in command and every external plugin with a `-cmd` module declares its help text and argument leaves in YANG. When both exist, YANG already wins (`registerProcessCommands`, `internal/component/plugin/server/doctor_delivery.go`), leaving the Stage 1 fields as a second declaration across ~54 Go files.
 
-Provenance: left out by the owner's approval of phase 11 in `plan/post-release/features/spec-plugin-external-yang-at-startup.md` (2026-11-17: wanted later, not declined; listed in its `Work Not Done` table).
+Provenance: left out by the owner's approval of phase 11 in `spec-plugin-external-yang-at-startup` (2026-11-17: wanted later, not declined; listed in its `Work Not Done` table).
 
 Goal: remove help text and argument names from Stage 1 `CommandDecl` (and update `ze-plugin-engine.yang`, the SDK, all ~54 in-tree plugins, the Python library, and `docs/plugin-development/commands.md`) so YANG `-cmd` modules are the single source of truth for command help and arguments.
 

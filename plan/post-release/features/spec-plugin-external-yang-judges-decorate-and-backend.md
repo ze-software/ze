@@ -42,7 +42,7 @@ path (`unheldRegistrationRefusal`), and the start ends with
 `doctor-plugin-schema-refused`.
 
 **Origin.** Acceptance criterion AC-11 of
-`plan/post-release/features/spec-plugin-external-yang-at-startup.md` asked for
+`spec-plugin-external-yang-at-startup` asked for
 every daemon-side registration to be judged. The join could judge only two:
 the decorator and backend registries live in packages that import `config`, so
 `config/yang` cannot read them. Shown that limit and the two options (build it

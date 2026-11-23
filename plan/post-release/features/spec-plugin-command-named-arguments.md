@@ -18,7 +18,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Today `execute-command` (`ExecuteCommandInput` in `pkg/plugin/rpc/types.go` and `sdk.ExecuteCommandHandler` in `pkg/plugin/sdk/sdk_callbacks.go`) delivers command arguments to a plugin as an ordered `args []string` slice, even though the dispatcher already parsed and validated every argument against the command's YANG leaves (`command.ValidateModelArgs`). External plugin authors must index `args[0]`, `args[1]`, etc. by position rather than reading arguments by their declared YANG leaf name.
 
-Provenance: left out by the owner's approval of phase 11 in `plan/post-release/features/spec-plugin-external-yang-at-startup.md` (2026-11-17: wanted later, not declined; listed in its `Work Not Done` table). Separate from `plan/release/fixes/spec-yang-single-source-of-truth.md` part D, which moves compiled-in handlers onto `ValidatedArgs` as a release fix; this spec changes the plugin wire protocol and public SDK after the first release.
+Provenance: left out by the owner's approval of phase 11 in `spec-plugin-external-yang-at-startup` (2026-11-17: wanted later, not declined; listed in its `Work Not Done` table). Separate from `plan/release/fixes/spec-yang-single-source-of-truth.md` part D, which moves compiled-in handlers onto `ValidatedArgs` as a release fix; this spec changes the plugin wire protocol and public SDK after the first release.
 
 Goal: carry validated named arguments (keyed by YANG leaf name) across `execute-command` and the Go/Python plugin SDKs so external plugin handlers read their command arguments by name instead of positional `args []string`.
 

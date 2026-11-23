@@ -18,7 +18,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 In an interactive CLI session (`ze cli` / SSH), `TreeCompleter.matchChildren` (`internal/component/command/completer.go`) offers argument leaves by name without showing each leaf's own `ze:help` text, for compiled-in and external plugin commands alike. Command-level help and description are shown in the menu, on `?`, and in `system command help`, and MCP/REST/gRPC publish argument-leaf help from `-api` RPC inputs, while no interactive session surface renders an argument leaf's `ze:help`.
 
-Provenance: discovered during phase 11 of `plan/post-release/features/spec-plugin-external-yang-at-startup.md` (AC-30 / row 22, commit `6448a74128`). Fixed in design separately because displaying argument-leaf help in the completion menu and `?` explanation box applies to every command in the tree and needs a UI/completion design of its own.
+Provenance: discovered during phase 11 of `spec-plugin-external-yang-at-startup` (AC-30 / row 22, commit `6448a74128`). Fixed in design separately because displaying argument-leaf help in the completion menu and `?` explanation box applies to every command in the tree and needs a UI/completion design of its own.
 
 Goal: show each argument leaf's declared `ze:help` text in interactive session completion and `?` help for both compiled-in and external plugin commands, derived once from the YANG command tree.
 

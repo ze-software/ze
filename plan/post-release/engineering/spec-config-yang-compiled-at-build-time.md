@@ -50,7 +50,7 @@ design simple.
 
 This spec also owns the cost of the second schema build that a declared
 external plugin adds to a start, handed over by
-`plan/post-release/features/spec-plugin-external-yang-at-startup.md` (R-19,
+`spec-plugin-external-yang-at-startup` (R-19,
 Q10). AC-18 closes it.
 
 Scope widened 2026-11-18 (a small defect found in step P2 and fixed in the work
@@ -776,7 +776,7 @@ Re-estimated 2026-11-18 from the re-measured reach.
 
 | Item | Home |
 |------|------|
-| Joining external plugin YANG at startup, the offline rule, the restart rule | Built by `plan/post-release/features/spec-plugin-external-yang-at-startup.md` |
+| Joining external plugin YANG at startup, the offline rule, the restart rule | Built by `spec-plugin-external-yang-at-startup` |
 | One definer per config node, and the CoS-over-interface defect | `plan/release/fixes/spec-config-yang-one-definer-per-node.md` (lands first) |
 | Printing children in D-1 order | `plan/release/fixes/spec-config-yang-definition-order.md` (lands first) |
 | The structural checks owed by the loader | `plan/release/fixes/spec-config-yang-loader-structural-checks.md` (Q6) |
