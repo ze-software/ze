@@ -199,13 +199,3 @@ func kernelPPPFailure(failure any) error {
 func bridgeOriginalKernelPPP(ev kernelSetupEvent, owners *kernelPPPOwners) (bool, error) {
 	return maybeBridgePPPoE(ev, owners)
 }
-
-func unbridgeOriginalKernelPPP(owners *kernelPPPOwners) error {
-	if owners == nil {
-		return errors.New("l2tp: bridge cleanup has no original resources")
-	}
-	if owners.bridge == nil {
-		return errors.New("l2tp: bridge cleanup has no retained original bridge")
-	}
-	return owners.bridge.Unbridge()
-}

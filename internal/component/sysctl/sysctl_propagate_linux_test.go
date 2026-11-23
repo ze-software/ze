@@ -3,6 +3,7 @@
 package sysctl
 
 import (
+	"maps"
 	"strings"
 	"testing"
 
@@ -41,9 +42,7 @@ func (p *propagatingBackend) write(key, value string) error {
 
 func newPropagatingStore(values map[string]string) (*store, *propagatingBackend) {
 	pb := &propagatingBackend{fakeBackend: newFakeBackend()}
-	for k, v := range values {
-		pb.values[k] = v
-	}
+	maps.Copy(pb.values, values)
 	return newStore(pb, slogutil.DiscardLogger()), pb
 }
 

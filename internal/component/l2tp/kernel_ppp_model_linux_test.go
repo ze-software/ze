@@ -44,18 +44,3 @@ func closeLogicalPPPForTest(closeFD func(int) error) func(*kernelPPPOwners, *os.
 		return closeKernelPPPResources(operations)
 	}
 }
-
-// takeLogicalPPPForTest drives both production receipt stages; it is not an
-// alternate production transfer path. The caller's subsequent file/recorder
-// assertions remain attached to the actual configuration returned by take.
-func takeLogicalPPPForTest(worker *kernelWorker, event kernelSetupSucceeded) (int, int, bool) {
-	transfer, current, err := worker.preparePPPTransfer(event, nil)
-	if err != nil {
-		return -1, -1, false
-	}
-	if !current {
-		return -1, -1, false
-	}
-	config, claimed := worker.takePPPConfig(event, transfer)
-	return config.ChanFD, config.UnitFD, claimed
-}

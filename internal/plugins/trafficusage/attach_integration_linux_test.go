@@ -23,7 +23,9 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
-func htons(h uint16) uint16 { return (h << 8) | (h >> 8) }
+// etherTypeAllNetwork is ETH_P_ALL in network byte order, as AF_PACKET wants
+// it, on a little-endian host.
+const etherTypeAllNetwork uint16 = unix.ETH_P_ALL<<8 | unix.ETH_P_ALL>>8
 
 // createVethPair creates an up/up veth pair and returns the ifindex of `a`.
 func createVethPair(t *testing.T, a, b string) int {
@@ -61,12 +63,12 @@ func injectFrame(t *testing.T, ifname string, frame []byte) {
 	if err != nil {
 		t.Fatalf("InterfaceByName %s: %v", ifname, err)
 	}
-	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW, int(htons(unix.ETH_P_ALL)))
+	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW, int(etherTypeAllNetwork))
 	if err != nil {
 		t.Skipf("cannot open AF_PACKET socket (need CAP_NET_RAW): %v", err)
 	}
 	defer func() { _ = unix.Close(fd) }()
-	addr := &unix.SockaddrLinklayer{Protocol: htons(unix.ETH_P_ALL), Ifindex: ifi.Index}
+	addr := &unix.SockaddrLinklayer{Protocol: etherTypeAllNetwork, Ifindex: ifi.Index}
 	if err := unix.Sendto(fd, frame, 0, addr); err != nil {
 		t.Fatalf("sendto %s: %v", ifname, err)
 	}

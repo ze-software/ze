@@ -4,6 +4,7 @@
 package l2tp
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -32,6 +33,18 @@ func (*originalBridgeTransport) WithDescriptor(func(int) error) error {
 func (transport *originalBridgeTransport) WithOriginalFile(use func(*os.File) error) error {
 	transport.borrows++
 	return use(transport.original)
+}
+
+// unbridgeOriginalKernelPPP detaches the retained original bridge; only this
+// integration test unbridges, so the helper lives under its build tags.
+func unbridgeOriginalKernelPPP(owners *kernelPPPOwners) error {
+	if owners == nil {
+		return errors.New("l2tp: bridge cleanup has no original resources")
+	}
+	if owners.bridge == nil {
+		return errors.New("l2tp: bridge cleanup has no retained original bridge")
+	}
+	return owners.bridge.Unbridge()
 }
 
 // The actual worker bridge consumer captures its peer from the SAME genuine

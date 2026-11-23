@@ -41,6 +41,21 @@ func ownedKernelResult(t *testing.T) (*kernelWorker, kernelSetupSucceeded) {
 	return worker, kernelSetupSucceeded{localTID: 1, localSID: 2, fds: *fds, owner: fds, session: session}
 }
 
+// takeLogicalPPPForTest drives both production receipt stages; it is not an
+// alternate production transfer path. The caller's subsequent file/recorder
+// assertions remain attached to the actual configuration returned by take.
+func takeLogicalPPPForTest(worker *kernelWorker, event kernelSetupSucceeded) (int, int, bool) {
+	transfer, current, err := worker.preparePPPTransfer(event, nil)
+	if err != nil {
+		return -1, -1, false
+	}
+	if !current {
+		return -1, -1, false
+	}
+	config, claimed := worker.takePPPConfig(event, transfer)
+	return config.ChanFD, config.UnitFD, claimed
+}
+
 // A natural PPP exit can recycle both descriptor numbers before kernel teardown.
 // The worker must disconnect only the PPPoX transport, not the replacement files.
 func TestKernelTeardownDoesNotCloseTransferredDescriptors(t *testing.T) {

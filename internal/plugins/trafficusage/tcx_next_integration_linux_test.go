@@ -75,11 +75,11 @@ func TestProgram_LetsAClsactFilterRun(t *testing.T) {
 		}
 	}()
 
-	qdisc := &netlink.Clsact{QdiscAttrs: netlink.QdiscAttrs{
+	qdisc := &netlink.Clsact{
 		LinkIndex: countedIndex,
 		Handle:    netlink.MakeHandle(0xffff, 0),
 		Parent:    netlink.HANDLE_CLSACT,
-	}}
+	}
 	if err := netlink.QdiscAdd(qdisc); err != nil {
 		t.Fatalf("add the clsact qdisc to tuv3a: %v", err)
 	}
@@ -100,14 +100,12 @@ func TestProgram_LetsAClsactFilterRun(t *testing.T) {
 	} {
 		t.Run(leg.name, func(t *testing.T) {
 			filter := &netlink.MatchAll{
-				FilterAttrs: netlink.FilterAttrs{
-					LinkIndex: countedIndex,
-					Parent:    leg.parent,
-					Priority:  1,
-					Protocol:  unix.ETH_P_ALL,
-				},
+				LinkIndex: countedIndex,
+				Parent:    leg.parent,
+				Priority:  1,
+				Protocol:  unix.ETH_P_ALL,
 				Actions: []netlink.Action{&netlink.MirredAction{
-					ActionAttrs:  netlink.ActionAttrs{Action: netlink.TC_ACT_PIPE},
+					Action:       netlink.TC_ACT_PIPE,
 					MirredAction: netlink.TCA_EGRESS_MIRROR,
 					Ifindex:      mirrorIndex,
 				}},

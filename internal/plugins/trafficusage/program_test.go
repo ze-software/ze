@@ -398,11 +398,11 @@ func packetReceiver(t *testing.T, ifname string) int {
 	if err != nil {
 		t.Fatalf("InterfaceByName %s: %v", ifname, err)
 	}
-	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW, int(htons(unix.ETH_P_ALL)))
+	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW, int(etherTypeAllNetwork))
 	if err != nil {
 		t.Skipf("cannot open AF_PACKET socket (need CAP_NET_RAW): %v", err)
 	}
-	if err := unix.Bind(fd, &unix.SockaddrLinklayer{Protocol: htons(unix.ETH_P_ALL), Ifindex: ifi.Index}); err != nil {
+	if err := unix.Bind(fd, &unix.SockaddrLinklayer{Protocol: etherTypeAllNetwork, Ifindex: ifi.Index}); err != nil {
 		_ = unix.Close(fd)
 		t.Fatalf("bind the receiver to %s: %v", ifname, err)
 	}
