@@ -41,9 +41,9 @@ The work has four parts, each to be designed:
 
 | Part | What the operator gets |
 |------|------------------------|
-| P1 Capacity profile | From the detected CPU, memory and NICs, an expected capacity for the kernel data plane and for VPP (forwarding rate, route scale, peer scale), taken from a table of known platforms when the hardware matches one, and otherwise computed by a heuristic and labelled an estimate. The answer says which of the two it is |
+| P1 Capacity profile | From the detected CPU, memory and NICs, an expected capacity for the kernel data plane and for VPP (forwarding rate, route scale, peer scale), taken from the trusted database when the hardware matches an entry (an observed value), and otherwise computed by a heuristic (an estimate, information only). The answer says which it is. It is a guarantee only on the appliance, where Ze knows the full machine state; on a general Linux install the same figure is informational |
 | P2 Sizing at init | `ze init` uses the profile to write the VPP settings it can choose (main core, worker count, main heap, buffers) into the config it writes, so the first start runs with settings that fit the box |
-| P3 Not enough memory | When the profile says the configured work cannot fit in memory (VPP heap and buffers against reserved hugepages, the RIB for the configured peers and families against RAM), Ze says so at init and at commit, with the number it computed and the fix |
+| P3 Not enough resources | Ze refuses to start VPP when it does not believe the resources are enough for VPP to remain stable (heap and buffers against reserved hugepages, workers against cores), naming the number it computed and the fix, and the operator can override the refusal. The RIB for the configured peers and families against RAM is reported at init and at commit, refusal or warning still to be decided |
 | P4 Doctor | `ze doctor` reports a configuration that contradicts the hardware (more workers than cores, workers on a NIC's remote NUMA node, VPP memory beyond the hugepages) and the problems that show only under load (CPU saturation, softirq starvation, NIC drops, conntrack fill) |
 | P5 Record mode and built-in database | A mode of `ze` records a performance run on the box, tied to the hardware it ran on (CPU model and cores, memory, NIC driver and speed, kernel, Ze version, data plane, whether the host is a VM), into a record of the database's own format. The known-platform table P1 reads is that database: a JSON file in the repository, embedded in the binary, updated by a commit after a test on known hardware or from a record a user reports |
 
@@ -173,7 +173,7 @@ Further verified facts:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | At least one platform can be measured on known hardware per data plane before release of this feature, so the table is not empty | `ai/META-DECISIONS.md` limits figures to known hosts; `test/perf/history/` is empty today; P5 record mode is how a run becomes an entry | Every answer is an estimate, and the "known configuration" half of the request delivers nothing | Thomas names the first platforms (C-2) and a record-mode run fills them | unvalidated |
+| A-1 | The feature can land with an empty trusted database: every answer is then an estimate, labelled information only, and the database fills as Thomas adds records by the documented procedure | Thomas (2026-11-23), answer to C-2 | - | Thomas's answer to C-2 | confirmed |
 | A-3 | A user's record on real hardware satisfies the owner rule that a figure comes only from a machine whose performance is known, while a record from a VM on an unknown host does not | `ai/META-DECISIONS.md`, "Test systems and labs": real hardware is a known host | User reports either cannot enter the table at all, or enter it under a label that is not "measured" | Thomas's answer to C-6 | unvalidated |
 | A-2 | 2M hugepages can be reserved at runtime on first boot early enough to succeed, while 1G pages and isolated CPUs need the boot command line | Kernel behaviour; `docs/architecture/vpp-host-tuning.md` | First-boot sizing cannot cover hugepages and must go through the image build | A QEMU first-boot run | unvalidated |
 
@@ -235,7 +235,8 @@ Further verified facts:
 - [rest to be designed]
 
 ## Files to Create
-- [to be designed]
+- A guide page, under `docs/guide/`, on how to run Ze in record perf mode and add the artifact to the trusted database: the deliverable C-2 asks for, so Thomas can fill the database himself
+- [rest to be designed]
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -299,14 +300,14 @@ Further verified facts:
 
 | # | Choice | Options | Decision |
 |---|--------|---------|----------|
-| C-1 | What a capacity answer promises | (a) a measured figure only for a known platform, an estimate labelled as such otherwise, never the word "guaranteed"; (b) a conservative floor presented as guaranteed | |
-| C-2 | Which platforms are measured first for the known-platform table, on which known hardware | (a) the N100-class appliance target and one server class, each recorded with P5 record mode; (b) other | Filled by record mode into the embedded JSON database (Thomas, 2026-11-23); which platforms first is still open |
+| C-1 | What a capacity answer promises | (a) a measured figure only for a known platform, an estimate labelled as such otherwise, never the word "guaranteed"; (b) a conservative floor presented as guaranteed | Thomas (2026-11-23): every answer says which source it comes from. A value from the trusted database is an observed value; an estimate is information only. Performance is guaranteed only when Ze runs as an appliance, where it has full knowledge of the machine state, and the hardware matches a trusted entry. On a general Linux install, even on the same hardware, the same figure is informational, not guaranteed |
+| C-2 | Which platforms are measured first for the known-platform table, on which known hardware | (a) the N100-class appliance target and one server class, each recorded with P5 record mode; (b) other | Filled by record mode into the embedded JSON database (Thomas, 2026-11-23). Thomas (2026-11-23): the spec does not plan which platforms are measured or when; he adds data once documentation says how to do it, and the table fills when it fills. The spec owes that documentation, not a first entry |
 | C-6 | How a user-reported record enters the shipped database | (a) through a reviewed commit, labelled "user-reported" beside "project-measured", and only when the record shows real hardware, so an estimate, a user report and a project measurement are three different answers; (b) user reports are kept apart and never shipped in the table | |
 | C-7 | Whether a box uses its own recorded run | (a) yes: a run recorded on this box is kept in its store and beats both the embedded table and the estimate for this box only, labelled "measured on this device"; (b) no, only the embedded table is read | |
 | C-8 | How a user reports a record | (a) record mode writes a cleaned file the user chooses to submit (an issue or a pull request); Ze never sends it anywhere by itself; (b) an opt-in upload command | (a), refined by Thomas (2026-11-23): the user runs a lab with Ze in "record perf mode", and it produces an artifact they share with the project |
 | C-3 | Where sizing applies on the appliance | (a) both: `ze appliance init` takes a declared platform for hugepages and isolated CPUs, and first boot writes the YANG leaves from detection; (b) first boot only, reporting hugepage and isolation mismatches through doctor | |
 | C-4 | Whether the profile is also a command (`show host capacity`) served on every surface | (a) yes, so an operator re-reads it after a hardware change; (b) init output only | |
-| C-5 | Memory shortfall: refuse or warn | (a) refuse a VPP heap and buffers that cannot be allocated, warn on an estimated RIB shortfall; (b) warn on both | |
+| C-5 | Memory shortfall: refuse or warn | (a) refuse a VPP heap and buffers that cannot be allocated, warn on an estimated RIB shortfall; (b) warn on both | VPP half, Thomas (2026-11-23): refuse to start VPP when Ze does not believe the resources are enough for it to remain stable, with a way for the operator to override when they know better (recorded in `docs/architecture/vpp-host-tuning.md`, "Design decisions"). RIB half still open |
 
 ## Implementation Steps
 

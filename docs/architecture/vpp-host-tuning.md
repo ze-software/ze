@@ -128,3 +128,9 @@ symptom is a check that produces no diagnostic end to end.
 A Linux-tagged test with no `integration` tag runs in the native unit groups on
 a Linux host. Adding it to `./le test qemu all`, which builds with
 `-tags integration`, does not change the unit population.
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| Ze refuses to start VPP when it does not believe the host has enough resources for VPP to remain stable, and the operator has a way to override that refusal when they know better | Starting VPP on resources Ze judges insufficient without telling the operator, and a refusal the operator cannot override | plan/post-release/features/spec-hardware-capacity-profile.md | 2026-11-23 |
