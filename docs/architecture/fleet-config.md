@@ -10,6 +10,14 @@ TLS listener that reuses the shared auth + MuxConn primitives (see "Architecture
 
 ---
 
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| A reload that changes the certificate a serving hub's managed listener presents installs it on the running listener at that reload: the next handshake presents the certificate the configuration names, the listener keeps its socket and no session is closed, as the web and looking glass listeners do. The certificate stays in the configuration's `pki` block. In Thomas's words (voice-transcribed): "Keep the certificate in the configuration." and "In that case on commit we can perform the certificate change on the listener." | Keeping a changed managed certificate until the next restart; refusing a reload because it changes the managed certificate; rebinding the managed listener or closing its sessions to change its certificate; keeping the managed certificate anywhere but the configuration's `pki` block | plan/release/features/spec-fleet-1-device-registry.md | 2026-11-23 |
+
+---
+
 ## Vision
 
 A managed client's config contains everything: BGP sessions, plugin settings, AND the hub connection info. The `plugin { hub { client <name> { host; port; secret } } }` block declares who the client is and where its hub lives (client blocks use `host` for the remote address). After the first boot (provisioned via `ze init`), the cached config is self-describing -- `ze start` reads it and knows everything.
