@@ -24,6 +24,30 @@
   {
     "rid": "RFC4271-9.1.2.2-2",
     "polarity": "positive",
+    "unit": "internal/le/interoplab/bgp/register_med_ibgp_ordinary.go::checkMEDIBGPOrdinaryPostSelectionRemovalGoBGP",
+    "unit-sha": "d3f55676b7db0374",
+    "claim-sha": "3330ad8580f50db0",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_med.go::applyFactsMED",
+    "producer-sha": "7a8d013aec5b5395",
+    "break": "line 158: \"f.isEBGP\" -\u003e \"true\"",
+    "citation": "6"
+  },
+  {
+    "rid": "RFC4271-9.1.2.2-2",
+    "polarity": "negative",
+    "unit": "internal/le/interoplab/bgp/register_med_ibgp_ordinary.go::checkMEDIBGPOrdinaryPostSelectionRemovalGoBGP",
+    "unit-sha": "d3f55676b7db0374",
+    "claim-sha": "09f10c2cc1543fd0",
+    "route": "mutant",
+    "producer": "internal/component/bgp/policychain/sets_attributes.go::RemoveMED",
+    "producer-sha": "fa79ab2a1bbb889a",
+    "break": "line 124: \"|=\" -\u003e \"\u0026=\"",
+    "citation": "7"
+  },
+  {
+    "rid": "RFC4271-9.1.2.2-2",
+    "polarity": "positive",
     "unit": "test/plugin/med-ibgp-ordinary-post-selection-removal.ci",
     "unit-sha": "7d35c8a1e1098d67",
     "claim-sha": "58ad259dcca8f2b2",

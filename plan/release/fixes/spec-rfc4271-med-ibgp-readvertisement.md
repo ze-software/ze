@@ -11,9 +11,9 @@ before implementation.
 | Release reason | The owned normal selected-route egress prerequisite and MED provenance proof remain release correctness work. |
 | Scope | protocol |
 | Depends | - |
-| Phase | Ordinary selected MED witness: test-first baseline pending |
-| Handoff | verify |
-| Updated | 2026-11-18 |
+| Phase | Closure -- ordinary selected-route unit, functional `.ci`, and GoBGP interop proofs landed; Review Gate CLEAN (2 rounds) |
+| Handoff | - |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -444,27 +444,192 @@ If implementation proceeds, add the RFC 4271 Section 9.1.2.2 requirement comment
 
 ### Goal Gates
 
-- [ ] AC-1 through AC-9 demonstrated for normal BGP selected-route readvertisement
-- [ ] Every user story has a working normal BGP path and a passing test
-- [x] Wiring Test table complete for the common egress boundary
-- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [x] AC-1 through AC-10 demonstrated for normal BGP selected-route readvertisement
+- [x] Every user story has a working normal BGP path and a passing test
+- [x] Wiring Test table complete for the common egress boundary and ordinary selected-route producer
+- [x] Scoped test suite passes (`./le test unit pkg path ./internal/component/bgp/reactor/`, `med-ibgp-ordinary-post-selection-removal.ci` 80/80 + live, GoBGP interop `bgp-med-ibgp-ordinary-post-selection-removal-gobgp`, `./le rfc check` zero findings on `RFC4271-9.1.2.2-2` and `RFC4271-5.1.4-1`)
 - [x] Feature code integrated through the applicable forward rail
-- [x] Integration and Documentation checklists revalidated for the route-server rail
+- [x] Integration and Documentation checklists revalidated for the ordinary and route-server rails
 - [x] Architectural Verification revalidated
 - [x] Every assumption confirmed or broken
 
 ### TDD
 
-- [x] Tests written for the common egress boundary and route-server rail
-- [x] Tests FAIL without enforcement on the common egress boundary
+- [x] Tests written for the common egress boundary, route-server rail, and ordinary selected-route rail
+- [x] Tests FAIL without enforcement on the common egress boundary (revert + mutant records in `rfc/discrimination/rfc4271/RFC4271-9.1.2.2-2.json`)
 - [x] Tests PASS with enforcement on the common egress boundary
-- [x] MED boundary values covered
-- [x] Functional test covers the route-server rail
-- [x] Interop test covers the route-server rail and discriminates
+- [x] MED boundary values covered (`TestRFC4271IBGPReadvertisementBoundaryMEDZeroAndMax`)
+- [x] Functional test covers both route-server (`med-ibgp-post-selection-removal.ci`) and ordinary (`med-ibgp-ordinary-post-selection-removal.ci`) rails
+- [x] Interop test covers both route-server and ordinary (`bgp-med-ibgp-ordinary-post-selection-removal-gobgp`) rails and discriminates on both polarities
 
 ### Closure
 
-- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section
-- [ ] Independent review gate is clean
-- [ ] Commit implementation, tests, docs, and spec as one focused change
-- [ ] Remove the spec in a separate closure commit
+- [x] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section
+- [x] Independent review gate is clean (`tmp/review/rfc4271-med-ibgp-readvertisement-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md`)
+- [x] Commit implementation, tests, docs, and spec as focused changes (`e28e56afc7` + closure Commit A)
+- [x] Remove the spec in a separate closure commit (Commit B)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Verbatim RFC 4271 Section 9.1.2.2 quote directly above the enforcing internal-egress branch in `internal/component/bgp/reactor/forward_med.go::applyFactsMED` (`e28e56afc7`).
+- Mixed iBGP/eBGP same-neighbor-AS (65010) ordinary selected-route MED readvertisement witness with `RFC4271-9.1.2.2-2` positive and negative tags in `internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go::TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval` (independently test-judged by `a1ccf08c`).
+- MED boundary-value unit test (`0` and `4294967295`) in `internal/component/bgp/reactor/forward_med_test.go::TestRFC4271IBGPReadvertisementBoundaryMEDZeroAndMax`.
+- Three post-Established eBGP origination negative tests (`writeAnnounceUpdate`, `BuildUnicast`, `planBatchAttrs`) in `internal/component/bgp/reactor/rfc4271_originated_med_established_test.go`, closing owned journal row `plan/journal/requirement-proven-in-one-state-of-many.md:11` with per-builder discrimination records in `rfc/discrimination/rfc4271/RFC4271-5.1.4-1.json`.
+- Promoted ordinary functional test `test/plugin/med-ibgp-ordinary-post-selection-removal.ci` with fixture `internal/test/fixture/{med_ibgp_ordinary.go,register_med_ibgp_ordinary.go}` (80/80 stress pass + live run 872ms).
+- Ordinary GoBGP interop scenario `test/interop/scenarios/bgp-med-ibgp-ordinary-post-selection-removal-gobgp/` + `internal/le/interoplab/bgp/register_med_ibgp_ordinary.go::checkMEDIBGPOrdinaryPostSelectionRemovalGoBGP` (PASS, plus discriminating positive mutant at assertion 6 and negative mutant at assertion 7).
+- Removed `{gap}` from `RFC4271-9.1.2.2-2` in `rfc/short/rfc4271.md:889`, recorded 6 discrimination proofs in `rfc/discrimination/rfc4271/RFC4271-9.1.2.2-2.json`, independently audited and stamped both `RFC4271-9.1.2.2-2` and `RFC4271-5.1.4-1` as `enforced` (`3c181428`), updated `plan/journal/unwired-feature.md:137` to `fixed:`, and added `website/changes/fragments/rfc4271-med-ibgp-readvertisement.md`.
+
+### Bugs Found/Fixed
+- `test/interop/scenarios/bgp-med-ibgp-ordinary-post-selection-removal-gobgp/ze.conf` initially omitted `aigp { enabled false; }` on `frr-source` and `gobgp`, causing AIGP capability mismatch on FRR/GoBGP session bring-up; fixed and verified green (`1 passed, 0 failed`).
+
+### Documentation Updates
+- `docs/architecture/bgp/egress-attribute-rules.md` (`<!-- source: internal/component/bgp/reactor/forward_med.go -->`): documents ordinary `bgp-rib` selected-route proof alongside route-server proof.
+- `docs/features/bgp-protocol.md` (`<!-- source: internal/component/bgp/reactor/forward_med.go -->`): updated MED preservation and ordinary selected-route proof claims.
+- `features/bgp-protocol.md` and `features/egress-attribute-conformance.md`: updated feature claims (`docs/features.md` is derived/untracked per `internal/le/feature/register.go:31-41`; `./le feature check` passes with 0 refusals on both files).
+- `rfc/short/rfc4271.md:889`: removed `{gap}` on `RFC4271-9.1.2.2-2` after unit, `.ci`, and GoBGP interop proof + independent audit (`3c181428`).
+- `website/changes/fragments/rfc4271-med-ibgp-readvertisement.md`: added user-facing release news fragment.
+
+### Deviations from Plan
+- Added distinct ordinary-path artifacts (`test/plugin/med-ibgp-ordinary-post-selection-removal.ci`, `internal/test/fixture/med_ibgp_ordinary.go`, `test/interop/scenarios/bgp-med-ibgp-ordinary-post-selection-removal-gobgp/`, `internal/le/interoplab/bgp/register_med_ibgp_ordinary.go`) while preserving the earlier route-server `.ci` and interop artifacts unchanged, as required by the spec's "not relabeling" rule.
+- Also closed the owned journal row `plan/journal/requirement-proven-in-one-state-of-many.md:11` via `internal/component/bgp/reactor/rfc4271_originated_med_established_test.go`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 assumed an in-process egress filter could append `AttrMED` suppression | Registered egress filters refuse `del { med; }` on export (`filter_modify` / `policychain`) | Source census | Confirmed A-2 broken; kept enforcement narrow at `applyFactsMED` |
+| assumption | A-4 assumed no normal BGP selected-route producer existed | Ordinary `bgp-rib` retained-winner dissemination (`SelectRoutes` -> `forwardUpdateSection` -> `applyFactsMED`) landed | Source census (A-5) | Confirmed A-4 superseded; proved ordinary path end-to-end (unit, `.ci`, GoBGP interop) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Preserve MED presence at common IBGP egress boundary on raw removal | Done | `internal/component/bgp/reactor/forward_med.go:156-167` | Verbatim RFC 4271 §9.1.2.2 quote at `:161` |
+| Ordinary selected-route witness (mixed iBGP/eBGP same-neighbor 65010, no RS/RR) | Done | `internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go` | Tagged `RFC4271-9.1.2.2-2` pos/neg, independently judged |
+| Ordinary functional `.ci` and foreign-peer GoBGP interop proofs | Done | `test/plugin/med-ibgp-ordinary-post-selection-removal.ci`, `test/interop/scenarios/bgp-med-ibgp-ordinary-post-selection-removal-gobgp/` | Distinct from RS tests; both discriminate pos/neg |
+| Resolve `RFC4271-9.1.2.2-2` gap disposition & owned journal row (`RFC4271-5.1.4-1`) | Done | `rfc/short/rfc4271.md:889`, `rfc/audit/rfc4271/RFC4271-{9.1.2.2-2,5.1.4-1}.json`, `plan/journal/requirement-proven-in-one-state-of-many.md:11` | Independent audit `3c181428` stamped both `enforced` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC4271IBGPReadvertisementRejectsRawMEDRemoval`, `TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval`, `med-ibgp-ordinary-post-selection-removal.ci`, `bgp-med-ibgp-ordinary-post-selection-removal-gobgp` | Verified across unit, `.ci`, and GoBGP interop |
+| AC-2 | Done | `TestRFC4271IBGPReadvertisementDoesNotSynthesizeMED`, `TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval` (no-MED control), `bgp-med-ibgp-ordinary-post-selection-removal-gobgp` assertion 7 | Negative mutant on `RemoveMED` breaks assertion 7 |
+| AC-3 | Done | `TestIBGPEgressMEDSetWins`, `TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval` (destination-specific Set) | Policy MED Set survives |
+| AC-4 | Done | `TestRFC4271OriginatedMEDEstablished*`, existing eBGP §5.1.4 tests in `forward_med_test.go` | External suppression unchanged |
+| AC-5 | Done | `TestMEDPropagationAllowedTo` and RS tests in `forward_med_test.go` | RFC 7947 RS transparency unchanged |
+| AC-6 | Done | `forward_med.go:163` (`src.present && !base.present ...`) + `TestRFC4271IBGPReadvertisementSkipsWithdrawOnlyBase` | Zero-copy fast path preserved when MED presence unchanged |
+| AC-7 | Done | `rfc/discrimination/rfc4271/RFC4271-9.1.2.2-2.json` (6 records), `rfc/audit/rfc4271/RFC4271-9.1.2.2-2.json` (`enforced`) | `{gap}` removed only after discriminating ordinary proofs |
+| AC-8 | Done | `TestDifferentBaseSameEditSetNeverShares` (`forward_dedup_test.go`) | Passes without using MED as base marker |
+| AC-9 | Done | `git show --stat e28e56afc7` | Zero MED syntax/parser/formatter/help changes |
+| AC-10 | Done | `TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval` | Real mixed iBGP/eBGP AS 65010 election, raw removal, no-MED control, destination Set |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRFC4271IBGPReadvertisementRejectsRawMEDRemoval` | Done | `internal/component/bgp/reactor/forward_med_test.go` | Passing |
+| `TestRFC4271IBGPReadvertisementSkipsWithdrawOnlyBase` | Done | `internal/component/bgp/reactor/forward_med_test.go` | Passing |
+| `TestRFC4271IBGPReadvertisementDoesNotSynthesizeMED` | Done | `internal/component/bgp/reactor/forward_med_test.go` | Passing |
+| `TestIBGPEgressMEDSetWins` | Done | `internal/component/bgp/reactor/forward_med_test.go` | Passing |
+| `TestRFC4271IBGPReadvertisementBoundaryMEDZeroAndMax` | Done | `internal/component/bgp/reactor/forward_med_test.go` | MED 0 and 4294967295 boundary coverage |
+| `TestDifferentBaseSameEditSetNeverShares` | Done | `internal/component/bgp/reactor/forward_dedup_test.go` | Passing |
+| `TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval` | Done | `internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go` | Tagged `RFC4271-9.1.2.2-2` pos/neg |
+| `TestRFC4271OriginatedMEDEstablished*` (3 builders) | Done | `internal/component/bgp/reactor/rfc4271_originated_med_established_test.go` | Closes `RFC4271-5.1.4-1` journal row |
+| `med-ibgp-ordinary-post-selection-removal.ci` | Done | `test/plugin/med-ibgp-ordinary-post-selection-removal.ci` | 80/80 stress + live 872ms + pos/neg records |
+| `bgp-med-ibgp-ordinary-post-selection-removal-gobgp` | Done | `test/interop/scenarios/bgp-med-ibgp-ordinary-post-selection-removal-gobgp/` | PASS + pos/neg mutant records |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/reactor/forward_med.go` | Done | Verbatim RFC 4271 §9.1.2.2 quote at `:161` |
+| `internal/component/bgp/reactor/forward_med_test.go` | Done | Boundary test added |
+| `internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go` | Done | Mixed iBGP/eBGP AS 65010 witness |
+| `internal/component/bgp/reactor/rfc4271_originated_med_established_test.go` | Done | Post-Established eBGP origination negatives |
+| `test/plugin/med-ibgp-ordinary-post-selection-removal.ci` + `internal/test/fixture/{med_ibgp_ordinary.go,register_med_ibgp_ordinary.go}` | Done | Ordinary `.ci` + fixture |
+| `test/interop/scenarios/bgp-med-ibgp-ordinary-post-selection-removal-gobgp/` + `internal/le/interoplab/bgp/register_med_ibgp_ordinary.go` | Done | Ordinary GoBGP interop |
+| `docs/architecture/bgp/egress-attribute-rules.md`, `docs/features/bgp-protocol.md`, `features/{bgp-protocol,egress-attribute-conformance}.md`, `rfc/short/rfc4271.md`, `website/changes/fragments/rfc4271-med-ibgp-readvertisement.md` | Done | Derived `docs/features.md`, `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md` untracked |
+
+### Audit Summary
+- **Total items:** 10 ACs, 4 Task requirements, 10 test groups, 7 file groups
+- **Done:** All 10 ACs, 4 Task requirements, 10 test groups, 7 file groups
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** Distinct ordinary `.ci`/interop added alongside RS artifacts (see Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Raw egress MED removal cannot strip MED before ordinary iBGP readvertisement | Unit + functional `.ci` + GoBGP interop (with revert & mutant reds) | `TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval` (PASS, revert red recorded); `test/plugin/med-ibgp-ordinary-post-selection-removal.ci` (80/80 stress + live 872ms, revert red recorded); `bgp-med-ibgp-ordinary-post-selection-removal-gobgp` (PASS, mutant `forward_med.go:158:3#1` RED at assertion 6: `GoBGP route 10.63.0.0/24 carries no Med at all, want 100`) |
+| Pre-selection import MED removal is not re-synthesized on iBGP egress | Unit + functional `.ci` + GoBGP interop (with mutant red) | `TestRFC4271IBGPReadvertisementDoesNotSynthesizeMED` + `TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval`; `bgp-med-ibgp-ordinary-post-selection-removal-gobgp` (PASS, mutant `sets_attributes.go:124:2#2` RED at assertion 7: `GoBGP route 10.63.1.0/24 still carries Med 100`) |
+| Close owned journal row (`RFC4271-5.1.4-1` post-Established eBGP origination builders) | Unit + revert records + audit | `rfc4271_originated_med_established_test.go` (3 builder tests PASS, 3 records in `RFC4271-5.1.4-1.json`, audited `enforced` by `3c181428`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All in-scope ACs, ordinary-path proofs, RFC audits, and owned journal rows are complete | none |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc4271-med-ibgp-readvertisement-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md` |
+| `./le spec review check` | `review_gate: OK (8 code files, clean, hashes match tmp/review/rfc4271-med-ibgp-readvertisement-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md)` |
+| Rounds | 2 |
+| Reviewer lenses used | logic+wiring, security+edge-cases, `ze-go-style.md`, `/ze-review-spec`, docs & RFC ledgers (`4309d7f1`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `docs/features.md` appeared stale vs updated `features/*.md` | `docs/features.md` | Verified derived/untracked (`internal/le/feature/register.go:31-41`); `features/bgp-protocol.md` and `features/egress-attribute-conformance.md` updated and `./le feature check` passes |
+| 2 | ISSUE | Interop checker `checkMEDIBGPOrdinaryPostSelectionRemovalGoBGP` lacked discrimination records | `rfc/discrimination/rfc4271/RFC4271-9.1.2.2-2.json` | Recorded both `positive` (`forward_med.go:158:3#1`, assertion 6) and `negative` (`sets_attributes.go:124:2#2`, assertion 7) via `./le --name session rfc record`; `./le rfc discriminate id RFC4271-9.1.2.2-2` shows 0 stale, 0 unproven |
+
+NOTEs (non-blocking): `register_med_ibgp_ordinary.go:49` omits `IsValid()` guard before `networkHostAddress`; `register_med_ibgp_ordinary.go:41` local `const name` duplicates package constant (required by `./le rfc record`); `forward_med_test.go:85` lacks `// VALIDATES:` header; pre-closure checklist items settled above.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go` | Yes | `ls -1` verified 2026-11-23 |
+| `internal/component/bgp/reactor/rfc4271_originated_med_established_test.go` | Yes | `ls -1` verified 2026-11-23 |
+| `internal/test/fixture/med_ibgp_ordinary.go`, `register_med_ibgp_ordinary.go` | Yes | `ls -1` verified 2026-11-23 |
+| `internal/le/interoplab/bgp/register_med_ibgp_ordinary.go` | Yes | `ls -1` verified 2026-11-23 |
+| `test/plugin/med-ibgp-ordinary-post-selection-removal.ci` | Yes | `ls -1` verified 2026-11-23 |
+| `test/interop/scenarios/bgp-med-ibgp-ordinary-post-selection-removal-gobgp/ze.conf` | Yes | `ls -1` verified 2026-11-23 |
+| `website/changes/fragments/rfc4271-med-ibgp-readvertisement.md` | Yes | `ls -1` verified 2026-11-23 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-6, AC-8, AC-10 | Reactor MED guard, boundary values, ordinary mixed-AS witness, eBGP origination builders | `./le test unit pkg path ./internal/component/bgp/reactor/ run 'TestRFC4271IBGPReadvertisement\|TestIBGPEgressMEDSetWins\|TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval\|TestRFC4271OriginatedMEDEstablished\|TestDifferentBaseSameEditSetNeverShares\|TestForward.*MED\|TestMEDPropagationAllowedTo\|TestPayloadMED'` -> `exit 0, 1 package ok` |
+| AC-7 | `RFC4271-9.1.2.2-2` and `RFC4271-5.1.4-1` discrimination & audit clean | `./le rfc discriminate id RFC4271-9.1.2.2-2` -> 6 records, 0 stale, 0 unproven; `./le rfc check` -> zero findings on `RFC4271-9.1.2.2-2`, `RFC4271-5.1.4-1`, `register_med_ibgp_ordinary` |
+| AC-9 | Zero MED syntax/parser/formatter/help diff | Reviewed in `e28e56afc7` by `4309d7f1` (`CLEAN`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Ordinary `bgp-rib` `SelectRoutes` -> `forwardUpdateCore` -> `applyFactsMED` -> iBGP wire | `test/plugin/med-ibgp-ordinary-post-selection-removal.ci` | Yes: 80/80 stress + live 872ms + pos/neg revert records in `RFC4271-9.1.2.2-2.json` |
+| Foreign-peer FRR -> Ze ordinary `bgp-rib` + `raw-med-drop` -> GoBGP | `test/interop/scenarios/bgp-med-ibgp-ordinary-post-selection-removal-gobgp/` | Yes: PASS + pos mutant (assertion 6) and neg mutant (assertion 7) recorded in `RFC4271-9.1.2.2-2.json` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestRFC4271IBGPReadvertisementRejectsRawMEDRemoval`, `med-ibgp-ordinary-post-selection-removal.ci`, GoBGP interop |
+| A-2 | broken | Registered egress filters refuse `del { med; }` on export (`filter_modify`, `policychain/external_attributes.go:48`) |
+| A-3 | confirmed | `TestIBGPEgressMEDSetWins` and destination-specific Set in `TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval` |
+| A-4 | broken (superseded by A-5) | Ordinary `bgp-rib` retained-winner dissemination exists and is proven end-to-end |
+| A-5 | confirmed | `TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval`, `med-ibgp-ordinary-post-selection-removal.ci`, GoBGP interop |
+| A-6 | confirmed | `lowLiveStart` runs `lowLiveOptions.api` before `StartWithContext`; race run passed cleanly |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Wire & internal architecture (`docs/architecture/bgp/egress-attribute-rules.md`) | Anchored to `internal/component/bgp/reactor/forward_med.go`, updated in `e28e56afc7` | Yes |
+| Feature docs (`docs/features/bgp-protocol.md`, `features/{bgp-protocol,egress-attribute-conformance}.md`) | Verified against `forward_med.go` by `4309d7f1`; `./le feature check` 0 refusals | Yes |
+| RFC summary & ledgers (`rfc/short/rfc4271.md:889`, `rfc/audit/rfc4271/`, `rfc/discrimination/rfc4271/`) | `./le rfc check` zero findings on `RFC4271-9.1.2.2-2` and `RFC4271-5.1.4-1` | Yes |
+| Release news (`website/changes/fragments/rfc4271-med-ibgp-readvertisement.md`) | Verified frontmatter and prose by `4309d7f1` | Yes |
