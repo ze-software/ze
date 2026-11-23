@@ -45,6 +45,14 @@ The work has four parts, each to be designed:
 | P2 Sizing at init | `ze init` uses the profile to write the VPP settings it can choose (main core, worker count, main heap, buffers) into the config it writes, so the first start runs with settings that fit the box |
 | P3 Not enough memory | When the profile says the configured work cannot fit in memory (VPP heap and buffers against reserved hugepages, the RIB for the configured peers and families against RAM), Ze says so at init and at commit, with the number it computed and the fix |
 | P4 Doctor | `ze doctor` reports a configuration that contradicts the hardware (more workers than cores, workers on a NIC's remote NUMA node, VPP memory beyond the hugepages) and the problems that show only under load (CPU saturation, softirq starvation, NIC drops, conntrack fill) |
+| P5 Record mode and built-in database | A mode of `ze` records a performance run on the box, tied to the hardware it ran on (CPU model and cores, memory, NIC driver and speed, kernel, Ze version, data plane, whether the host is a VM), into a record of the database's own format. The known-platform table P1 reads is that database: a JSON file in the repository, embedded in the binary, updated by a commit after a test on known hardware or from a record a user reports |
+
+Thomas's addition (2026-11-23), on how the known-platform table is filled:
+
+> We should have a mode in Ze to record performance so when we do a test, we
+> can use that data to update our system. So we should have a "built-in
+> database" for example, like JSON file embedded or the like, we can update
+> after test or have users report their testing
 
 ### Defects found while researching, owned here
 
@@ -105,6 +113,8 @@ Further verified facts:
 | `vpp-hugepages`, `vpp-cpu-isolation` doctor checks | `internal/component/vpp/doctor_linux.go` `evaluateVPPHugepages` | Warn on missing or short hugepages and unisolated workers | Replaces the estimate arithmetic with the shared estimator (the two owned defects) |
 | Host trend rules | `plan/release/validation/spec-host-resource-trend-alerts.md` | Slow-exhaustion rules per metric | Extends: a high-load rule lands there under its per-metric ruling, not as a parallel monitor |
 | `ze init` config writer | `internal/plugins/init/main.go` `writeInitialConfig` | Writes the listener and discovered interfaces | Extends: adds the sized VPP block |
+| `./le perf` benchmark harness | `docs/performance.md`, `internal/le/perf` | Measures BGP convergence, throughput and withdrawal against DUTs in Docker, writes result JSON with the run's environment (platform, virtualisation, commit), and refuses a lossy run in comparisons; `le perf record` stores only a baseline commit (`Report.Recorded`), no figure | Extends as a producer: a project run on known hardware emits a database record through the P5 format. It cannot be the user-facing mode: `le` is development tooling and never carries a product feature (`ai/META-DECISIONS.md`, "Test systems and labs"), so record mode lives in `ze` |
+| Support bundle sanitizer | `internal/component/support/sanitize.go` `sanitizeConfig` | Replaces the values of sensitive config leaves with REDACTED before a bundle is shared | Extends: a user-reported record carries a config shape and host facts, so it is cleaned by the same producer; it must also leave out identifying host facts (serial numbers, MAC addresses, hostname) the bundle keeps |
 
 ## Design documents
 
@@ -151,13 +161,15 @@ Further verified facts:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | At least one platform can be measured on known hardware per data plane before release of this feature, so the table is not empty | `ai/META-DECISIONS.md` limits figures to known hosts; `test/perf/history/` is empty today | Every answer is an estimate, and the "known configuration" half of the request delivers nothing | Thomas names the first platforms (C-2) | unvalidated |
+| A-1 | At least one platform can be measured on known hardware per data plane before release of this feature, so the table is not empty | `ai/META-DECISIONS.md` limits figures to known hosts; `test/perf/history/` is empty today; P5 record mode is how a run becomes an entry | Every answer is an estimate, and the "known configuration" half of the request delivers nothing | Thomas names the first platforms (C-2) and a record-mode run fills them | unvalidated |
+| A-3 | A user's record on real hardware satisfies the owner rule that a figure comes only from a machine whose performance is known, while a record from a VM on an unknown host does not | `ai/META-DECISIONS.md`, "Test systems and labs": real hardware is a known host | User reports either cannot enter the table at all, or enter it under a label that is not "measured" | Thomas's answer to C-6 | unvalidated |
 | A-2 | 2M hugepages can be reserved at runtime on first boot early enough to succeed, while 1G pages and isolated CPUs need the boot command line | Kernel behaviour; `docs/architecture/vpp-host-tuning.md` | First-boot sizing cannot cover hugepages and must go through the image build | A QEMU first-boot run | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | An estimate is read as a promise, and an operator sizes a deployment on it | An operator report quoting an estimate as a measured figure | Every answer carries its kind (measured on a named platform, or estimate) in the same line as the figure |
+| R-3 | A user-submitted record is wrong (a VM reported as hardware, a lossy run, an edited file) and skews the table for everyone on that platform; and once users submit records, the record format is a contract with people outside the repository | A submitted record whose figures sit far from the project's own run on the same platform, or a record that fails to parse after a format change | Record mode applies the `./le perf` publication rule (a lossy run is not a figure) and records the platform detection it saw; a user record enters only by reviewed commit (C-6); the format carries a version so an older report still parses |
 | R-2 | Init-chosen values drift from what the hardware supports after a hardware change or image move | Doctor sees workers beyond the isolated set, or hugepages short of the estimate | The P4 doctor rows judge the running config against the current hardware, not against what init saw |
 
 ## Blast Radius
@@ -275,7 +287,10 @@ Further verified facts:
 | # | Choice | Options | Decision |
 |---|--------|---------|----------|
 | C-1 | What a capacity answer promises | (a) a measured figure only for a known platform, an estimate labelled as such otherwise, never the word "guaranteed"; (b) a conservative floor presented as guaranteed | |
-| C-2 | Which platforms are measured first for the known-platform table, on which known hardware | (a) the N100-class appliance target and one server class; (b) other | |
+| C-2 | Which platforms are measured first for the known-platform table, on which known hardware | (a) the N100-class appliance target and one server class, each recorded with P5 record mode; (b) other | Filled by record mode into the embedded JSON database (Thomas, 2026-11-23); which platforms first is still open |
+| C-6 | How a user-reported record enters the shipped database | (a) through a reviewed commit, labelled "user-reported" beside "project-measured", and only when the record shows real hardware, so an estimate, a user report and a project measurement are three different answers; (b) user reports are kept apart and never shipped in the table | |
+| C-7 | Whether a box uses its own recorded run | (a) yes: a run recorded on this box is kept in its store and beats both the embedded table and the estimate for this box only, labelled "measured on this device"; (b) no, only the embedded table is read | |
+| C-8 | How a user reports a record | (a) record mode writes a cleaned file the user chooses to submit (an issue or a pull request); Ze never sends it anywhere by itself; (b) an opt-in upload command | |
 | C-3 | Where sizing applies on the appliance | (a) both: `ze appliance init` takes a declared platform for hugepages and isolated CPUs, and first boot writes the YANG leaves from detection; (b) first boot only, reporting hugepage and isolation mismatches through doctor | |
 | C-4 | Whether the profile is also a command (`show host capacity`) served on every surface | (a) yes, so an operator re-reads it after a hardware change; (b) init output only | |
 | C-5 | Memory shortfall: refuse or warn | (a) refuse a VPP heap and buffers that cannot be allocated, warn on an estimated RIB shortfall; (b) warn on both | |
