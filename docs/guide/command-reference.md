@@ -32,7 +32,7 @@ through pipes without temp files:
 generate | ze config show -                 # read a config from stdin
 ssh host cat rib.mrt | ze analyze show -    # analyse an MRT streamed in
 ze config show - | ze config set - bgp session asn local 65001 | ze config validate -
-ze config migrate -o - old.conf             # write the migrated config to stdout
+ze config migrate -o - router.conf          # write the set form to stdout
 ```
 
 stdin can be consumed once: a second `-` in a single command fails with a clear
@@ -455,20 +455,25 @@ history when that store has no daemon owner.
 
 **Form conversion:**
 
-**Migration:**
+```
+ze config migrate <file>                        # Rewrite in the set form
+ze config migrate format hierarchical <file>    # Rewrite as nested blocks
+```
 
-```
-ze config migrate <file>         # Convert old format to current
-```
+`ze config migrate` reads a config in either form and applies the format
+conversions `--list` names; Ze writes the conversion of one format change only
+once it has a stable release, so none is registered today. An ExaBGP config is
+converted by `ze exabgp migrate` (below).
+<!-- source: internal/component/config/cli/cmd_migrate.go -- cmdMigrate, printTransformationList, cmdMigrateDryRun -->
 <!-- source: internal/component/config/cli/main.go -- subcommandHandlers, storageHandlers -->
 
 | Flag | Purpose |
 |------|---------|
 | `-f` | Edit a loose file offline without bypassing store ownership |
 | `-o <output>` | Output file (migrate) |
-| `--dry-run` | Show what would be migrated without changes (migrate) |
-| `--list` | List available transformations (migrate) |
-| `--format <fmt>` | Output format: `set` (default) or `hierarchical` (migrate) |
+| `format <form>` | Output form, typed before the file: `set` (default) or `hierarchical` (migrate) |
+| `--dry-run` | Show which conversions the file needs without writing (migrate) |
+| `--list` | List the format conversions this binary carries (migrate) |
 
 ### ze secret
 

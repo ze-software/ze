@@ -35,6 +35,22 @@ func MustRegisterTransformation(t Transformation) {
 	registeredTransformations = append(registeredTransformations, t)
 }
 
+// RegisterTransformationForTest registers t as MustRegisterTransformation does,
+// and answers the function that restores the registered set to what it held
+// before. The caller MUST call the restore function when its test ends, so no
+// later test runs the transformation. Only for use in tests.
+func RegisterTransformationForTest(t Transformation) (restore func()) {
+	registeredMu.RLock()
+	previous := slices.Clone(registeredTransformations)
+	registeredMu.RUnlock()
+	MustRegisterTransformation(t)
+	return func() {
+		registeredMu.Lock()
+		defer registeredMu.Unlock()
+		registeredTransformations = previous
+	}
+}
+
 // allTransformations answers the built-in transformations then the registered
 // ones, as a fresh slice the caller may keep.
 func allTransformations() []Transformation {

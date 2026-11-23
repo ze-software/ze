@@ -295,15 +295,6 @@ route.
 <!-- source: internal/plugins/redistribute/register_reference.go -- importFiltersPattern -->
 <!-- source: internal/plugins/redistribute/redistribute.go -- redistRoute -->
 
-A file written before the chain, with `family [ ... ]` or `tag N` directly under
-`import`, no longer loads: the refusal names the fix,
-`ze config migrate -o <new-file> <file>`, which moves the two leaves into a
-`match redistribute-<destination>-<source>` instance named in the rule's
-`filters` with `final accept`. `tag 0` becomes `tag [ 0 ]` and keeps selecting
-the untagged routes. A rule that names neither leaf, a bare `import <source>`
-included, is already current and is left as written.
-<!-- source: internal/plugins/redistribute/migrate.go -- migrateImportLeaves, importNeedsMigration -->
-
 ```
 policy {
     match redistribute-ospf-static {

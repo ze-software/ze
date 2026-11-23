@@ -26,11 +26,13 @@ func cmdMigrate(args []string) int {
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command:   "ze config migrate",
-			ShortHelp: "Convert configuration to current format",
+			ShortHelp: "Rewrite a configuration in the set or hierarchical form",
 			Usage:     []string{"ze config migrate [options] [format <form>] <config-file>"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionDescription, Entries: []helpfmt.HelpEntry{
-					{Name: "", Desc: "Default output is set format. Use - to read from stdin."},
+					{Name: "", Desc: "Reads a config in either form, applies each format conversion --list names, " +
+						"and writes it in the form named, with plaintext passwords hashed. " +
+						"Default output is set format. Use - to read from stdin."},
 				}},
 				{Title: "Forms", Entries: []helpfmt.HelpEntry{
 					{Name: "format set", Desc: "Write flat set commands (default)"},
@@ -263,37 +265,14 @@ func printMigrateWarnings(warnings []string) {
 	}
 }
 
+// findUnsupportedFeatures names, for each BGP peer, the configured features the
+// schema accepts and Ze does not implement.
 func findUnsupportedFeatures(tree *config.Tree) []string {
 	var warnings []string
-
-	for _, entry := range tree.GetListOrdered("peer") {
-		warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
-	}
-
-	for _, entry := range tree.GetListOrdered("neighbor") {
-		warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
-	}
 
 	if bgp := tree.GetContainer("bgp"); bgp != nil {
 		for _, entry := range bgp.GetListOrdered("peer") {
 			warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
-		}
-	}
-
-	if tmpl := tree.GetContainer("template"); tmpl != nil {
-		for _, entry := range tmpl.GetListOrdered("group") {
-			warnings = append(warnings, checkUnsupportedInPeerTree("template/group/"+entry.Key, entry.Value)...)
-		}
-		for _, entry := range tmpl.GetListOrdered("match") {
-			warnings = append(warnings, checkUnsupportedInPeerTree("template/match/"+entry.Key, entry.Value)...)
-		}
-		for _, entry := range tmpl.GetListOrdered("neighbor") {
-			warnings = append(warnings, checkUnsupportedInPeerTree("template/neighbor/"+entry.Key, entry.Value)...)
-		}
-		if bgp := tmpl.GetContainer("bgp"); bgp != nil {
-			for _, entry := range bgp.GetListOrdered("peer") {
-				warnings = append(warnings, checkUnsupportedInPeerTree("template/bgp/peer/"+entry.Key, entry.Value)...)
-			}
 		}
 	}
 
@@ -319,6 +298,10 @@ func checkUnsupportedInPeerTree(path string, tree *config.Tree) []string {
 	return warnings
 }
 
+// configMigrateWithWarnings reads the config at inputPath in either form,
+// applies each registered format conversion (migration.Migrate), and answers
+// it in outputForm with the conversions' outcome and the unsupported features
+// it holds. With an outputPath it writes the file and answers no output.
 func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string, *migration.MigrateResult, []string, error) {
 	data, err := cliio.ReadFile(inputPath)
 	if err != nil {

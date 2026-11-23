@@ -17,9 +17,9 @@ import (
 )
 
 // staticExternal is the External the `ospf filter export` chain hands the engine
-// for a static route in these tests: metric 33 and type 2, as the migrated
-// `redistribute static { metric 33; tag 77; }` entry set, with tag the route's
-// own tag, or 77 for an untagged route.
+// for a static route in these tests: metric 33 and type 2, as a modify
+// instance matching `protocol [ static ]` sets them, with tag the route's own
+// tag, or 77 for an untagged route.
 func staticExternal(tag uint32) ospfredistribute.External {
 	return ospfredistribute.External{Metric: 33, Type2: true, Tag: tag}
 }

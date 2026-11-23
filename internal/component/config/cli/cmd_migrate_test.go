@@ -8,7 +8,77 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/migration"
 )
+
+// testRouterIDConversion is a test-only format conversion: it rewrites the
+// bgp router-id 1.2.3.4 as 5.6.7.8.
+func testRouterIDConversion() migration.Transformation {
+	routerID := func(tree *config.Tree) (string, bool) {
+		bgp := tree.GetContainer("bgp")
+		if bgp == nil {
+			return "", false
+		}
+		return bgp.Get("router-id")
+	}
+	return migration.Transformation{
+		Name:        "test-router-id",
+		Description: "Rewrite router-id 1.2.3.4 as 5.6.7.8 (test only)",
+		Detect: func(tree *config.Tree) bool {
+			id, ok := routerID(tree)
+			return ok && id == "1.2.3.4"
+		},
+		Apply: func(tree *config.Tree) (*config.Tree, error) {
+			tree.GetContainer("bgp").Set("router-id", "5.6.7.8")
+			return tree, nil
+		},
+	}
+}
+
+// TestMigrateAppliesRegisteredConversion: `ze config migrate` runs a format
+// conversion a package registered, prints its output, and reports it applied;
+// a block registered as relocated is parsed at its old position and moved to
+// its top-level root. Ze writes the conversion of a format change only once it
+// has a stable release, so both registrations are test-only and removed when
+// the test ends.
+// VALIDATES: the migrate command reaches the migration framework and the
+// relocated-container registry through MigrationSchema and migration.Migrate.
+// PREVENTS: the conversion path of ze config migrate rotting while Ze
+// registers no conversion of its own.
+func TestMigrateAppliesRegisteredConversion(t *testing.T) {
+	t.Cleanup(migration.RegisterTransformationForTest(testRouterIDConversion()))
+	t.Cleanup(config.RegisterRelocatedContainerForTest("environment", "redistribute"))
+
+	input := "bgp {\n\trouter-id 1.2.3.4\n}\nenvironment {\n\tredistribute {\n\t\tdestination ospf {\n\t\t}\n\t}\n}\n"
+	configPath := filepath.Join(t.TempDir(), "old.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(input), 0o600))
+
+	output, result, _, err := configMigrateWithWarnings(configPath, "", formSet)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, []string{"relocated-blocks", "test-router-id"}, result.Applied)
+	assert.Contains(t, output, "set bgp router-id 5.6.7.8")
+	assert.NotContains(t, output, "1.2.3.4")
+	assert.Contains(t, output, "set redistribute destination ospf")
+	assert.NotContains(t, output, "set environment redistribute")
+}
+
+// TestMigrateWithoutConversionsReportsNoneApplied: with no conversion
+// needed, migrate answers the config unchanged and lists every step skipped.
+func TestMigrateWithoutConversionsReportsNoneApplied(t *testing.T) {
+	t.Cleanup(migration.RegisterTransformationForTest(testRouterIDConversion()))
+
+	configPath := filepath.Join(t.TempDir(), "current.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte("bgp {\n\trouter-id 9.9.9.9\n}\n"), 0o600))
+
+	output, result, _, err := configMigrateWithWarnings(configPath, "", formSet)
+	require.NoError(t, err)
+	assert.Empty(t, result.Applied)
+	assert.Contains(t, result.Skipped, "test-router-id")
+	assert.Contains(t, output, "set bgp router-id 9.9.9.9")
+}
 
 // TestWritersKeepPlaintextPasswordAsHash runs `ze config fmt` (configFmtBytes)
 // and `ze config migrate` in both output forms (configMigrateWithWarnings) on a

@@ -1,6 +1,7 @@
 package migration
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,8 +10,68 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 )
 
-// VALIDATES: Config migration transformations produce correct output trees.
-// PREVENTS: Regressions in ExaBGP → Ze config migration pipeline.
+// VALIDATES: the migration framework (Migrate, DryRun, NeedsMigration,
+// ListTransformations and the registration API) runs what a package registers,
+// in order, and leaves the input tree untouched. Ze writes the conversion of a
+// format change only once it has a stable release, so each test registers its
+// own test-only transformation and removes it when it ends.
+// PREVENTS: a framework that cannot carry the first real conversion when one
+// is written.
+
+// errTestApply is the failure the failing test transformation answers.
+var errTestApply = errors.New("test transformation refused")
+
+// renameLeaf is a test-only transformation: while the top-level leaf from is
+// set and to is not, it copies from's value into to.
+func renameLeaf(name, from, to string) Transformation {
+	return Transformation{
+		Name:        name,
+		Description: "Copy " + from + " into " + to + " (test only)",
+		Detect: func(tree *config.Tree) bool {
+			if _, old := tree.Get(from); !old {
+				return false
+			}
+			_, done := tree.Get(to)
+			return !done
+		},
+		Apply: func(tree *config.Tree) (*config.Tree, error) {
+			value, _ := tree.Get(from)
+			tree.Set(to, value)
+			return tree, nil
+		},
+	}
+}
+
+// failing is a test-only transformation that is always needed, writes a leaf
+// into the tree it is handed, then refuses.
+func failing(name string) Transformation {
+	return Transformation{
+		Name:        name,
+		Description: "Always refuse (test only)",
+		Detect:      func(*config.Tree) bool { return true },
+		Apply: func(tree *config.Tree) (*config.Tree, error) {
+			tree.Set("touched", "yes")
+			return nil, errTestApply
+		},
+	}
+}
+
+// register registers each transformation for the rest of the test.
+func register(t *testing.T, ts ...Transformation) {
+	t.Helper()
+	for _, tr := range ts {
+		t.Cleanup(RegisterTransformationForTest(tr))
+	}
+}
+
+// transformationNames answers the names ListTransformations lists, in order.
+func transformationNames() []string {
+	var names []string
+	for _, tr := range ListTransformations() {
+		names = append(names, tr.Name)
+	}
+	return names
+}
 
 // --- Migrate() ---
 
@@ -20,381 +81,90 @@ func TestMigrate_NilTree(t *testing.T) {
 	require.ErrorIs(t, err, ErrNilTree)
 }
 
-// TestMigrate_EmptyTree verifies empty tree passes through unchanged.
+// TestMigrate_EmptyTree verifies an empty tree passes through with every
+// transformation skipped.
 func TestMigrate_EmptyTree(t *testing.T) {
-	tree := config.NewTree()
-	result, err := Migrate(tree)
+	register(t, renameLeaf("test-rename", "old-leaf", "new-leaf"))
+
+	result, err := Migrate(config.NewTree())
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Empty(t, result.Applied)
-	assert.Len(t, result.Skipped, len(transformations))
+	assert.Equal(t, transformationNames(), result.Skipped)
 }
 
-// TestMigrate_NeighborToPeer verifies neighbor blocks become peer blocks.
-func TestMigrate_NeighborToPeer(t *testing.T) {
+// TestMigrateAppliesRegisteredTransformation: a registered transformation
+// whose Detect answers true runs, its output is the answer, and the input tree
+// is left as it was.
+func TestMigrateAppliesRegisteredTransformation(t *testing.T) {
+	register(t, renameLeaf("test-rename", "old-leaf", "new-leaf"))
+
 	tree := config.NewTree()
-	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65002")
-	tree.AddListEntry("neighbor", "10.0.0.1", peerTree)
+	tree.Set("old-leaf", "7")
 
 	result, err := Migrate(tree)
 	require.NoError(t, err)
-	assert.Contains(t, result.Applied, "neighbor->peer")
+	assert.Equal(t, []string{"test-rename"}, result.Applied)
+	assert.Contains(t, result.Skipped, relocatedBlocksName)
 
-	// "neighbor" should be gone; "peer" is now inside bgp {} (from wrap-bgp-block)
-	assert.Empty(t, result.Tree.GetList("neighbor"))
-	bgp := result.Tree.GetContainer("bgp")
-	require.NotNil(t, bgp)
-	peers := bgp.GetList("peer")
-	require.Contains(t, peers, "10.0.0.1")
-	peerAS, ok := peers["10.0.0.1"].Get("peer-as")
-	assert.True(t, ok)
-	assert.Equal(t, "65002", peerAS)
+	value, ok := result.Tree.Get("new-leaf")
+	require.True(t, ok, "the migrated tree carries the rewritten leaf")
+	assert.Equal(t, "7", value)
+
+	_, touched := tree.Get("new-leaf")
+	assert.False(t, touched, "Migrate works on a clone: the input tree is unchanged")
 }
 
-// TestMigrate_PeerGlobToGroup verifies glob patterns become peer groups.
-//
-// VALIDATES: Glob peer patterns are converted to named groups via template->group migration.
-// PREVENTS: Glob patterns remaining as flat peers or in deleted template block.
-func TestMigrate_PeerGlobToGroup(t *testing.T) {
+// TestMigrateSkipsTransformationNotNeeded: a registered transformation whose
+// Detect answers false is listed as skipped and changes nothing.
+func TestMigrateSkipsTransformationNotNeeded(t *testing.T) {
+	register(t, renameLeaf("test-rename", "old-leaf", "new-leaf"))
+
 	tree := config.NewTree()
-
-	// Regular peer -- should end up as standalone peer in bgp
-	regular := config.NewTree()
-	regular.Set("peer-as", "65002")
-	tree.AddListEntry("peer", "10.0.0.1", regular)
-
-	// Glob peer -- should become a named group
-	glob := config.NewTree()
-	glob.Set("peer-as", "65000")
-	tree.AddListEntry("peer", "10.0.0.0/8", glob)
+	tree.Set("other-leaf", "1")
 
 	result, err := Migrate(tree)
 	require.NoError(t, err)
-
-	// Template block should be gone (template->group removes it).
-	tmpl := result.Tree.GetContainer("template")
-	assert.Nil(t, tmpl, "template block should be removed after migration")
-
-	// Regular peer ends up in bgp block (via wrap-bgp-block then template->group default group).
-	bgp := result.Tree.GetContainer("bgp")
-	require.NotNil(t, bgp, "bgp block should exist after migration")
-
-	// The glob pattern should be a group (match-10-0-0-0-8 or similar).
-	groups := bgp.GetListOrdered("group")
-	assert.NotEmpty(t, groups, "groups should exist after migration")
+	assert.Empty(t, result.Applied)
+	assert.Contains(t, result.Skipped, "test-rename")
+	_, ok := result.Tree.Get("new-leaf")
+	assert.False(t, ok)
 }
 
-// TestMigrate_TemplateNeighborToGroup verifies template.neighbor becomes bgp.group.
-//
-// VALIDATES: Template neighbors are converted to peer groups in bgp block.
-// PREVENTS: Template neighbors remaining in deleted template block.
-func TestMigrate_TemplateNeighborToGroup(t *testing.T) {
+// TestMigrateFailureLeavesTreeUnchanged: a transformation that refuses ends
+// the migration with an error naming it, and what it wrote before refusing
+// never reaches the input tree.
+func TestMigrateFailureLeavesTreeUnchanged(t *testing.T) {
+	register(t, failing("test-failing"))
+
 	tree := config.NewTree()
-	tmpl := config.NewTree()
-	tmplNeighbor := config.NewTree()
-	tmplNeighbor.Set("receive-hold-time", "30")
-	tmpl.AddListEntry("neighbor", "my-group", tmplNeighbor)
-	tree.SetContainer("template", tmpl)
+	result, err := Migrate(tree)
+	require.ErrorIs(t, err, errTestApply)
+	assert.Contains(t, err.Error(), "test-failing")
+	assert.Nil(t, result)
+	_, touched := tree.Get("touched")
+	assert.False(t, touched, "the input tree is unchanged on failure")
+}
+
+// TestMigrateRunsRegisteredInOrderAfterBuiltins: registered transformations run
+// after the built-in ones, in registration order, each on the output of the
+// one before.
+func TestMigrateRunsRegisteredInOrderAfterBuiltins(t *testing.T) {
+	register(t,
+		renameLeaf("test-first", "old-leaf", "mid-leaf"),
+		renameLeaf("test-second", "mid-leaf", "new-leaf"),
+	)
+	assert.Equal(t, []string{relocatedBlocksName, "test-first", "test-second"}, transformationNames())
+
+	tree := config.NewTree()
+	tree.Set("old-leaf", "7")
 
 	result, err := Migrate(tree)
 	require.NoError(t, err)
-
-	// Template block should be removed entirely.
-	resultTmpl := result.Tree.GetContainer("template")
-	assert.Nil(t, resultTmpl, "template block should be removed after migration")
-
-	// my-group should now be a group in bgp block.
-	bgp := result.Tree.GetContainer("bgp")
-	require.NotNil(t, bgp, "bgp block should exist")
-	groups := bgp.GetList("group")
-	require.Contains(t, groups, "my-group", "my-group should be a bgp group")
-	holdTime, ok := groups["my-group"].Get("receive-hold-time")
-	assert.True(t, ok)
-	assert.Equal(t, "30", holdTime)
-}
-
-// --- Static route extraction ---
-
-// TestExtractStaticRoutes_IPv4 verifies IPv4 static → announce.ipv4.unicast.
-func TestExtractStaticRoutes_IPv4(t *testing.T) {
-	tree := config.NewTree()
-	peerTree := config.NewTree()
-
-	static := config.NewTree()
-	routeAttrs := config.NewTree()
-	routeAttrs.Set("next-hop", "192.168.1.1")
-	static.AddListEntry("route", "10.0.0.0/24", routeAttrs)
-	peerTree.SetContainer("static", static)
-	tree.AddListEntry("peer", "10.0.0.1", peerTree)
-
-	result, err := ExtractStaticRoutes(tree)
-	require.NoError(t, err)
-
-	peer := result.GetList("peer")["10.0.0.1"]
-	require.NotNil(t, peer)
-
-	// static should be removed
-	assert.Nil(t, peer.GetContainer("static"))
-
-	// announce.ipv4.unicast should have the route
-	announce := peer.GetContainer("announce")
-	require.NotNil(t, announce)
-	ipv4 := announce.GetContainer("ipv4")
-	require.NotNil(t, ipv4)
-	unicast := ipv4.GetList("unicast")
-	require.Contains(t, unicast, "10.0.0.0/24")
-}
-
-// TestExtractStaticRoutes_IPv6 verifies IPv6 static → announce.ipv6.unicast.
-func TestExtractStaticRoutes_IPv6(t *testing.T) {
-	tree := config.NewTree()
-	peerTree := config.NewTree()
-
-	static := config.NewTree()
-	routeAttrs := config.NewTree()
-	routeAttrs.Set("next-hop", "2001:db8::1")
-	static.AddListEntry("route", "2001:db8::/32", routeAttrs)
-	peerTree.SetContainer("static", static)
-	tree.AddListEntry("peer", "10.0.0.1", peerTree)
-
-	result, err := ExtractStaticRoutes(tree)
-	require.NoError(t, err)
-
-	peer := result.GetList("peer")["10.0.0.1"]
-	announce := peer.GetContainer("announce")
-	require.NotNil(t, announce)
-	ipv6 := announce.GetContainer("ipv6")
-	require.NotNil(t, ipv6)
-	unicast := ipv6.GetList("unicast")
-	require.Contains(t, unicast, "2001:db8::/32")
-}
-
-// TestExtractStaticRoutes_VPN verifies routes with RD → announce.ipv4.mpls-vpn.
-func TestExtractStaticRoutes_VPN(t *testing.T) {
-	tree := config.NewTree()
-	peerTree := config.NewTree()
-
-	static := config.NewTree()
-	routeAttrs := config.NewTree()
-	routeAttrs.Set("rd", "100:100")
-	routeAttrs.Set("label", "100")
-	static.AddListEntry("route", "10.0.0.0/24", routeAttrs)
-	peerTree.SetContainer("static", static)
-	tree.AddListEntry("peer", "10.0.0.1", peerTree)
-
-	result, err := ExtractStaticRoutes(tree)
-	require.NoError(t, err)
-
-	peer := result.GetList("peer")["10.0.0.1"]
-	announce := peer.GetContainer("announce")
-	require.NotNil(t, announce)
-	ipv4 := announce.GetContainer("ipv4")
-	require.NotNil(t, ipv4)
-	vpn := ipv4.GetList("mpls-vpn")
-	require.Contains(t, vpn, "10.0.0.0/24")
-}
-
-// TestExtractStaticRoutes_Labeled verifies routes with label only → announce.ipv4.nlri-mpls.
-func TestExtractStaticRoutes_Labeled(t *testing.T) {
-	tree := config.NewTree()
-	peerTree := config.NewTree()
-
-	static := config.NewTree()
-	routeAttrs := config.NewTree()
-	routeAttrs.Set("label", "100")
-	static.AddListEntry("route", "10.0.0.0/24", routeAttrs)
-	peerTree.SetContainer("static", static)
-	tree.AddListEntry("peer", "10.0.0.1", peerTree)
-
-	result, err := ExtractStaticRoutes(tree)
-	require.NoError(t, err)
-
-	peer := result.GetList("peer")["10.0.0.1"]
-	announce := peer.GetContainer("announce")
-	require.NotNil(t, announce)
-	ipv4 := announce.GetContainer("ipv4")
-	require.NotNil(t, ipv4)
-	labeled := ipv4.GetList("nlri-mpls")
-	require.Contains(t, labeled, "10.0.0.0/24")
-}
-
-// TestExtractStaticRoutes_Multicast verifies multicast range → announce.ipv4.multicast.
-func TestExtractStaticRoutes_Multicast(t *testing.T) {
-	tree := config.NewTree()
-	peerTree := config.NewTree()
-
-	static := config.NewTree()
-	routeAttrs := config.NewTree()
-	static.AddListEntry("route", "239.0.0.0/8", routeAttrs)
-	peerTree.SetContainer("static", static)
-	tree.AddListEntry("peer", "10.0.0.1", peerTree)
-
-	result, err := ExtractStaticRoutes(tree)
-	require.NoError(t, err)
-
-	peer := result.GetList("peer")["10.0.0.1"]
-	announce := peer.GetContainer("announce")
-	require.NotNil(t, announce)
-	ipv4 := announce.GetContainer("ipv4")
-	require.NotNil(t, ipv4)
-	mcast := ipv4.GetList("multicast")
-	require.Contains(t, mcast, "239.0.0.0/8")
-}
-
-// TestExtractStaticRoutes_NilTree verifies nil returns ErrNilTree.
-func TestExtractStaticRoutes_NilTree(t *testing.T) {
-	_, err := ExtractStaticRoutes(nil)
-	require.ErrorIs(t, err, ErrNilTree)
-}
-
-// TestExtractStaticRoutes_NoStatic verifies no-op when no static blocks exist.
-func TestExtractStaticRoutes_NoStatic(t *testing.T) {
-	tree := config.NewTree()
-	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65002")
-	tree.AddListEntry("peer", "10.0.0.1", peerTree)
-
-	result, err := ExtractStaticRoutes(tree)
-	require.NoError(t, err)
-
-	peer := result.GetList("peer")["10.0.0.1"]
-	assert.Nil(t, peer.GetContainer("announce"), "no announce block when no static")
-}
-
-// --- API migration ---
-
-// TestMigrateAPIBlocks_NilTree verifies nil returns ErrNilTree.
-func TestMigrateAPIBlocks_NilTree(t *testing.T) {
-	_, err := MigrateAPIBlocks(nil)
-	require.ErrorIs(t, err, ErrNilTree)
-}
-
-// TestMigrateAPIBlocks_AnonymousProcess verifies anonymous process block migration.
-// api { processes [ foo ]; neighbor-changes; } becomes
-// attach process foo { receive [ state ]; }.
-func TestMigrateAPIBlocks_AnonymousProcess(t *testing.T) {
-	tree := config.NewTree()
-	peerTree := config.NewTree()
-
-	apiTree := config.NewTree()
-	apiTree.SetSlice("processes", []string{"foo"})
-	apiTree.Set("neighbor-changes", "")
-	peerTree.GetOrCreateContainer("attach").AddListEntry("process", config.KeyDefault, apiTree)
-	tree.AddListEntry("peer", "10.0.0.1", peerTree)
-
-	result, err := MigrateAPIBlocks(tree)
-	require.NoError(t, err)
-
-	peer := result.GetList("peer")["10.0.0.1"]
-	processList := peer.GetContainer("attach").GetList("process")
-
-	// Old anonymous block should be gone
-	_, hasDefault := processList[config.KeyDefault]
-	assert.False(t, hasDefault, "anonymous block should be replaced")
-
-	// New named block should exist
-	require.Contains(t, processList, "foo")
-	fooBlock := processList["foo"]
-
-	// Should have receive [ state ]
-	recv, ok := fooBlock.Get("receive")
-	assert.True(t, ok)
-	assert.Contains(t, recv, "state")
-}
-
-// TestMigrateAPIBlocks_FormatParsed verifies parsed flag → format parsed.
-func TestMigrateAPIBlocks_FormatParsed(t *testing.T) {
-	tree := config.NewTree()
-	peerTree := config.NewTree()
-
-	apiTree := config.NewTree()
-	apiTree.SetSlice("processes", []string{"foo"})
-	recv := config.NewTree()
-	recv.Set("parsed", "")
-	recv.Set("update", "")
-	apiTree.SetContainer("receive", recv)
-	peerTree.GetOrCreateContainer("attach").AddListEntry("process", config.KeyDefault, apiTree)
-	tree.AddListEntry("peer", "10.0.0.1", peerTree)
-
-	result, err := MigrateAPIBlocks(tree)
-	require.NoError(t, err)
-
-	peer := result.GetList("peer")["10.0.0.1"]
-	fooBlock := peer.GetContainer("attach").GetList("process")["foo"]
-	require.NotNil(t, fooBlock)
-
-	content := fooBlock.GetContainer("content")
-	require.NotNil(t, content)
-	format, ok := content.Get("format")
-	assert.True(t, ok)
-	assert.Equal(t, "parsed", format)
-}
-
-// TestMigrateAPIBlocks_FormatRaw verifies packets flag → format raw.
-func TestMigrateAPIBlocks_FormatRaw(t *testing.T) {
-	tree := config.NewTree()
-	peerTree := config.NewTree()
-
-	apiTree := config.NewTree()
-	apiTree.SetSlice("processes", []string{"bar"})
-	recv := config.NewTree()
-	recv.Set("packets", "")
-	recv.Set("update", "")
-	apiTree.SetContainer("receive", recv)
-	peerTree.GetOrCreateContainer("attach").AddListEntry("process", config.KeyDefault, apiTree)
-	tree.AddListEntry("peer", "10.0.0.1", peerTree)
-
-	result, err := MigrateAPIBlocks(tree)
-	require.NoError(t, err)
-
-	peer := result.GetList("peer")["10.0.0.1"]
-	barBlock := peer.GetContainer("attach").GetList("process")["bar"]
-	content := barBlock.GetContainer("content")
-	require.NotNil(t, content)
-	format, ok := content.Get("format")
-	assert.True(t, ok)
-	assert.Equal(t, "raw", format)
-}
-
-// TestMigrateAPIBlocks_FormatFull verifies consolidate flag → format full.
-func TestMigrateAPIBlocks_FormatFull(t *testing.T) {
-	tree := config.NewTree()
-	peerTree := config.NewTree()
-
-	apiTree := config.NewTree()
-	apiTree.SetSlice("processes", []string{"baz"})
-	recv := config.NewTree()
-	recv.Set("consolidate", "")
-	apiTree.SetContainer("receive", recv)
-	peerTree.GetOrCreateContainer("attach").AddListEntry("process", config.KeyDefault, apiTree)
-	tree.AddListEntry("peer", "10.0.0.1", peerTree)
-
-	result, err := MigrateAPIBlocks(tree)
-	require.NoError(t, err)
-
-	peer := result.GetList("peer")["10.0.0.1"]
-	bazBlock := peer.GetContainer("attach").GetList("process")["baz"]
-	content := bazBlock.GetContainer("content")
-	require.NotNil(t, content)
-	format, ok := content.Get("format")
-	assert.True(t, ok)
-	assert.Equal(t, "full", format)
-}
-
-// TestMigrateAPIBlocks_DuplicateProcess verifies duplicate detection.
-func TestMigrateAPIBlocks_DuplicateProcess(t *testing.T) {
-	tree := config.NewTree()
-	peerTree := config.NewTree()
-
-	apiTree := config.NewTree()
-	apiTree.SetSlice("processes", []string{"foo", "foo"})
-	peerTree.GetOrCreateContainer("attach").AddListEntry("process", config.KeyDefault, apiTree)
-	tree.AddListEntry("peer", "10.0.0.1", peerTree)
-
-	_, err := MigrateAPIBlocks(tree)
-	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrDuplicateProcess)
+	assert.Equal(t, []string{"test-first", "test-second"}, result.Applied)
+	value, ok := result.Tree.Get("new-leaf")
+	require.True(t, ok, "the second transformation saw the first one's output")
+	assert.Equal(t, "7", value)
 }
 
 // --- DryRun ---
@@ -407,38 +177,64 @@ func TestDryRun_NilTree(t *testing.T) {
 
 // TestDryRun_NoChanges verifies all-done case.
 func TestDryRun_NoChanges(t *testing.T) {
-	tree := config.NewTree()
-	result, err := DryRun(tree)
+	register(t, renameLeaf("test-rename", "old-leaf", "new-leaf"))
+
+	result, err := DryRun(config.NewTree())
 	require.NoError(t, err)
 	assert.True(t, result.WouldSucceed)
 	assert.Empty(t, result.WouldApply)
-	assert.Len(t, result.AlreadyDone, len(transformations))
+	assert.Equal(t, transformationNames(), result.AlreadyDone)
 }
 
-// TestDryRun_WouldApply verifies detection of needed changes.
+// TestDryRun_WouldApply verifies detection of needed changes, without
+// changing the tree.
 func TestDryRun_WouldApply(t *testing.T) {
+	register(t, renameLeaf("test-rename", "old-leaf", "new-leaf"))
+
 	tree := config.NewTree()
-	peerTree := config.NewTree()
-	tree.AddListEntry("neighbor", "10.0.0.1", peerTree)
+	tree.Set("old-leaf", "7")
 
 	result, err := DryRun(tree)
 	require.NoError(t, err)
 	assert.True(t, result.WouldSucceed)
-	assert.Contains(t, result.WouldApply, "neighbor->peer")
+	assert.Equal(t, []string{"test-rename"}, result.WouldApply)
+	_, touched := tree.Get("new-leaf")
+	assert.False(t, touched, "a dry run changes nothing")
+}
+
+// TestDryRun_ReportsFailure: a transformation that would refuse is named in
+// the analysis with its error, and the dry run itself answers no error.
+func TestDryRun_ReportsFailure(t *testing.T) {
+	register(t, failing("test-failing"))
+
+	tree := config.NewTree()
+	result, err := DryRun(tree)
+	require.NoError(t, err)
+	assert.False(t, result.WouldSucceed)
+	assert.Equal(t, "test-failing", result.FailedAt)
+	require.ErrorIs(t, result.Error, errTestApply)
+	_, touched := tree.Get("touched")
+	assert.False(t, touched, "a dry run changes nothing")
 }
 
 // --- NeedsMigration ---
 
 // TestNeedsMigration_True verifies detection when migration needed.
 func TestNeedsMigration_True(t *testing.T) {
+	register(t, renameLeaf("test-rename", "old-leaf", "new-leaf"))
+
 	tree := config.NewTree()
-	tree.AddListEntry("neighbor", "10.0.0.1", config.NewTree())
+	tree.Set("old-leaf", "7")
 	assert.True(t, NeedsMigration(tree))
 }
 
 // TestNeedsMigration_False verifies no detection when already migrated.
 func TestNeedsMigration_False(t *testing.T) {
+	register(t, renameLeaf("test-rename", "old-leaf", "new-leaf"))
+
 	tree := config.NewTree()
+	tree.Set("old-leaf", "7")
+	tree.Set("new-leaf", "7")
 	assert.False(t, NeedsMigration(tree))
 }
 
@@ -447,145 +243,43 @@ func TestNeedsMigration_Nil(t *testing.T) {
 	assert.False(t, NeedsMigration(nil))
 }
 
-// --- ListTransformations ---
+// --- ListTransformations and registration ---
 
 // TestListTransformations verifies it returns a copy with all entries.
 func TestListTransformations(t *testing.T) {
 	list := ListTransformations()
-	assert.Len(t, list, len(transformations))
+	require.Len(t, list, len(transformations))
 
 	// Verify it's a copy (modifying doesn't affect original)
 	list[0].Name = "modified"
 	assert.NotEqual(t, "modified", transformations[0].Name)
 }
 
-// --- Detect helpers ---
+// TestMustRegisterTransformationRefusesDuplicate: a second registration under
+// one name is a Ze defect and panics.
+func TestMustRegisterTransformationRefusesDuplicate(t *testing.T) {
+	register(t, renameLeaf("test-rename", "old-leaf", "new-leaf"))
 
-// TestIsGlobPattern verifies glob detection.
-func TestIsGlobPattern(t *testing.T) {
-	assert.True(t, isGlobPattern("10.0.0.0/8"))
-	assert.True(t, isGlobPattern("*"))
-	assert.True(t, isGlobPattern("10.0.0.*"))
-	assert.False(t, isGlobPattern("10.0.0.1"))
-	assert.False(t, isGlobPattern("my-peer"))
+	assert.PanicsWithValue(t, "BUG: migration: transformation test-rename registered twice", func() {
+		MustRegisterTransformation(renameLeaf("test-rename", "a", "b"))
+	})
 }
 
-// TestIsIPv6Prefix verifies IPv6 detection.
-func TestIsIPv6Prefix(t *testing.T) {
-	assert.True(t, isIPv6Prefix("2001:db8::/32"))
-	assert.True(t, isIPv6Prefix("::ffff:10.0.0.1"))
-	assert.False(t, isIPv6Prefix("10.0.0.0/24"))
+// TestMustRegisterTransformationRefusesShadowingBuiltin: a registration under
+// a built-in step's name panics.
+func TestMustRegisterTransformationRefusesShadowingBuiltin(t *testing.T) {
+	assert.PanicsWithValue(t, "BUG: migration: transformation "+relocatedBlocksName+" shadows a built-in one", func() {
+		MustRegisterTransformation(renameLeaf(relocatedBlocksName, "a", "b"))
+	})
+	assert.Equal(t, []string{relocatedBlocksName}, transformationNames())
 }
 
-// TestIsMulticastPrefix verifies multicast range detection.
-func TestIsMulticastPrefix(t *testing.T) {
-	assert.True(t, isMulticastPrefix("224.0.0.0/4"))
-	assert.True(t, isMulticastPrefix("239.255.255.255/32"))
-	assert.True(t, isMulticastPrefix("ff00::/8"))
-	assert.False(t, isMulticastPrefix("10.0.0.0/24"))
-	assert.False(t, isMulticastPrefix("2001:db8::/32"))
-	assert.False(t, isMulticastPrefix("invalid"))
-}
-
-// TestDetectSAFI verifies SAFI detection logic.
-func TestDetectSAFI(t *testing.T) {
-	tests := []struct {
-		name     string
-		prefix   string
-		hasRD    bool
-		hasLabel bool
-		expected string
-	}{
-		{"unicast", "10.0.0.0/24", false, false, "unicast"},
-		{"vpn", "10.0.0.0/24", true, true, "mpls-vpn"},
-		{"labeled", "10.0.0.0/24", false, true, "nlri-mpls"},
-		{"multicast", "239.0.0.0/8", false, false, "multicast"},
-		{"multicast beats rd", "239.0.0.0/8", true, false, "multicast"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, detectSAFI(tt.prefix, tt.hasRD, tt.hasLabel))
-		})
-	}
-}
-
-// --- Wrap BGP block ---
-
-// TestWrapBGPBlock verifies BGP elements move into bgp {} container.
-func TestWrapBGPBlock(t *testing.T) {
-	tree := config.NewTree()
-	tree.Set("router-id", "1.2.3.4")
-	tree.Set("local-as", "65001")
-	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65002")
-	tree.AddListEntry("peer", "10.0.0.1", peerTree)
-
-	result, err := wrapBGPBlock(tree)
-	require.NoError(t, err)
-
-	// Root should not have BGP elements
-	_, hasRID := result.Get("router-id")
-	assert.False(t, hasRID, "router-id should be inside bgp block")
-	_, hasAS := result.Get("local-as")
-	assert.False(t, hasAS, "local-as should be inside bgp block")
-	assert.Empty(t, result.GetList("peer"), "peers should be inside bgp block")
-
-	// bgp container should have everything
-	bgp := result.GetContainer("bgp")
-	require.NotNil(t, bgp)
-	rid, ok := bgp.Get("router-id")
-	assert.True(t, ok)
-	assert.Equal(t, "1.2.3.4", rid)
-	// local-as is now nested inside local { as ... }
-	localContainer := bgp.GetContainer("local")
-	require.NotNil(t, localContainer, "local container should exist in bgp block")
-	las, ok := localContainer.Get("as")
-	assert.True(t, ok)
-	assert.Equal(t, "65001", las)
-	assert.Contains(t, bgp.GetList("peer"), "10.0.0.1")
-}
-
-// --- Full pipeline ---
-
-// TestMigrate_FullPipeline verifies all transformations in sequence.
-func TestMigrate_FullPipeline(t *testing.T) {
-	tree := config.NewTree()
-
-	// Add a neighbor (should become peer)
-	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65002")
-	peerTree.Set("router-id", "1.2.3.4")
-
-	// Add static routes (should become announce)
-	static := config.NewTree()
-	routeAttrs := config.NewTree()
-	routeAttrs.Set("next-hop", "192.168.1.1")
-	static.AddListEntry("route", "10.0.0.0/24", routeAttrs)
-	peerTree.SetContainer("static", static)
-
-	tree.AddListEntry("neighbor", "10.0.0.1", peerTree)
-	tree.Set("router-id", "1.2.3.4")
-	tree.Set("local-as", "65001")
-
-	result, err := Migrate(tree)
-	require.NoError(t, err)
-	require.NotNil(t, result.Tree)
-
-	// Should have applied multiple transformations
-	assert.Contains(t, result.Applied, "neighbor->peer")
-	assert.Contains(t, result.Applied, "static->announce")
-	assert.Contains(t, result.Applied, "wrap-bgp-block")
-
-	// Final structure: bgp { peer 10.0.0.1 { announce { ipv4 { unicast ... } } } }
-	bgp := result.Tree.GetContainer("bgp")
-	require.NotNil(t, bgp)
-	peers := bgp.GetList("peer")
-	require.Contains(t, peers, "10.0.0.1")
-
-	peer := peers["10.0.0.1"]
-	announce := peer.GetContainer("announce")
-	require.NotNil(t, announce)
-	ipv4 := announce.GetContainer("ipv4")
-	require.NotNil(t, ipv4)
-	assert.Contains(t, ipv4.GetList("unicast"), "10.0.0.0/24")
+// TestRegisterTransformationForTestRestores: the restore function answered by
+// RegisterTransformationForTest removes the registration, so no later test
+// runs it.
+func TestRegisterTransformationForTestRestores(t *testing.T) {
+	restore := RegisterTransformationForTest(renameLeaf("test-rename", "old-leaf", "new-leaf"))
+	assert.Contains(t, transformationNames(), "test-rename")
+	restore()
+	assert.Equal(t, []string{relocatedBlocksName}, transformationNames())
 }

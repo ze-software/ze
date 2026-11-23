@@ -340,7 +340,7 @@ func TestOldSyntaxHint(t *testing.T) {
 		_, err := loadReactor(input)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unknown top-level keyword: neighbor")
-		require.Contains(t, err.Error(), "ze config migrate")
+		require.Contains(t, err.Error(), "ze exabgp migrate")
 	})
 
 	t.Run("template keyword rejected", func(t *testing.T) {

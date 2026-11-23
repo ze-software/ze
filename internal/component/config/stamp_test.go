@@ -143,6 +143,98 @@ func TestRecoverConfigFindsCompatibleRollback(t *testing.T) {
 	}
 }
 
+// TestRecoverConfigAnswersTheRollbacksOwnStamp checks the downgrade path a
+// schema evolution depends on.
+//
+// VALIDATES: a binary older than its config file recovers a rollback stamped by
+// an earlier release than its own. RecoverConfig publishes that rollback
+// re-stamped with this binary's release, and LoadConfigResult.StampRelease
+// still holds the rollback's own stamp: the release the hub passes to
+// applyEvolutions after a recovery (cmd/ze/hub/main.go, Phase 1b).
+// PREVENTS: a recovered rollback skipping every evolution it is owed, because
+// the only stamp left to read says this binary's release. The rollback is
+// stamped earlier than the binary, unlike in
+// TestRecoverConfigFindsCompatibleRollback, so the two stamps differ and a
+// StampRelease scanned from the published bytes turns this red.
+func TestRecoverConfigAnswersTheRollbacksOwnStamp(t *testing.T) {
+	const binaryRelease = "26.05.26"
+	const rollbackRelease = "26.05.01"
+	version.Stamp(binaryRelease, "2026-05-26")
+	defer version.Stamp("dev", "unknown")
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.conf")
+	store, err := storage.Create(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close() //nolint:errcheck // test cleanup
+
+	future := []byte("# ze-schema: 99.01.01\nset unknown-future-leaf value\n")
+	if err := store.WriteFile(configPath, future, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rollback := []byte("# ze-schema: " + rollbackRelease + "\nset bgp router-id 1.2.3.4\nset bgp session asn local 65000\n")
+	if err := store.WriteVersion(configPath, rollback, time.Date(2026, 5, 20, 12, 0, 0, 0, time.Local)); err != nil {
+		t.Fatal(err)
+	}
+
+	var published []byte
+	result, ok := RecoverConfig(store, configPath, future, nil, func(content []byte) error {
+		published = content
+		return nil
+	})
+	if !ok {
+		t.Fatalf("the %s rollback was not recovered", rollbackRelease)
+	}
+	if got := ScanStampRelease(published); got != binaryRelease {
+		t.Fatalf("published stamp %q, want this binary's %q", got, binaryRelease)
+	}
+	if result.StampRelease != rollbackRelease {
+		t.Fatalf("recovered StampRelease %q, want the rollback's own %q", result.StampRelease, rollbackRelease)
+	}
+}
+
+// TestLoadConfigAnswersTheStampItParsed checks where StampRelease is set.
+//
+// VALIDATES: LoadConfig and ReadConfig answer, in StampRelease, the release of
+// the `# ze-schema:` stamp on the content they parsed, and "" for content that
+// carries no stamp.
+// PREVENTS: a loader that drops the stamp, so every stamped file looks
+// unstamped to schema evolution and an evolution limited to stamped files
+// never runs; or one that invents a stamp for a hand-written file.
+func TestLoadConfigAnswersTheStampItParsed(t *testing.T) {
+	const body = "set bgp router-id 1.2.3.4\nset bgp session asn local 65000\n"
+	loaders := []struct {
+		name string
+		load func(input, configPath string, cliPlugins []string) (*LoadConfigResult, error)
+	}{
+		{"LoadConfig", LoadConfig},
+		{"ReadConfig", ReadConfig},
+	}
+	inputs := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"stamped", "# ze-schema: 26.05.01\n" + body, "26.05.01"},
+		{"unstamped", body, ""},
+	}
+	for _, loader := range loaders {
+		for _, in := range inputs {
+			t.Run(loader.name+"/"+in.name, func(t *testing.T) {
+				result, err := loader.load(in.input, "test.conf", nil)
+				if err != nil {
+					t.Fatalf("%s: %v", loader.name, err)
+				}
+				if result.StampRelease != in.want {
+					t.Fatalf("StampRelease %q, want %q", result.StampRelease, in.want)
+				}
+			})
+		}
+	}
+}
+
 func TestRecoverConfigSkipsWhenStampCompatible(t *testing.T) {
 	version.Stamp("26.05.26", "2026-05-26")
 	defer version.Stamp("dev", "unknown")

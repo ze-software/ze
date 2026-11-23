@@ -31,8 +31,7 @@ var (
 )
 
 // MustRegisterRetiredLeaf records that the leaf name under the schema node at
-// path (schema names only, no list keys: "redistribute", "destination",
-// "import") was retired. node is the leaf's old shape, which MigrationSchema
+// path (schema names only, no list keys: "bgp", "peer") was retired. node is the leaf's old shape, which MigrationSchema
 // parses; replacement says in a phrase what the operator writes now. The package
 // that owns the transformation rewriting the leaf calls it from init(). A second
 // registration of the same leaf is a Ze defect and panics.
@@ -45,6 +44,24 @@ func MustRegisterRetiredLeaf(path []string, name string, node Node, replacement 
 		}
 	}
 	retiredLeaves = append(retiredLeaves, retiredLeaf{path: slices.Clone(path), name: name, node: node, replacement: replacement})
+}
+
+// RegisterRetiredLeafForTest registers a retired leaf as MustRegisterRetiredLeaf
+// does, makes every later YANGSchema build carry it, and answers the function
+// that restores the registered set and the schema without it. The caller MUST
+// call the restore function when its test ends. Only for use in tests.
+func RegisterRetiredLeafForTest(path []string, name string, node Node, replacement string) (restore func()) {
+	retiredLeavesMu.RLock()
+	previous := slices.Clone(retiredLeaves)
+	retiredLeavesMu.RUnlock()
+	MustRegisterRetiredLeaf(path, name, node, replacement)
+	yangSchemaCache.reset()
+	return func() {
+		retiredLeavesMu.Lock()
+		retiredLeaves = previous
+		retiredLeavesMu.Unlock()
+		yangSchemaCache.reset()
+	}
 }
 
 // registeredRetiredLeaves answers a copy of the registered retired leaves.

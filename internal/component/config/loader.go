@@ -386,34 +386,34 @@ func ParseSetFormat(schema *Schema, input string, format ConfigFormat) (*Tree, e
 // unknown. A build with a feature compiled out (feature-gates.txt) would
 // otherwise boot a committed set-meta config minus its gated blocks:
 // tacacs/radius authentication silently degrading to local auth was the
-// concrete fail-open this closes (feature-gate-12 review). When the lenient
-// parse finds no unknown field, the registered config migrations rewrite its
-// tree and the migrated tree is answered.
+// concrete fail-open this closes (feature-gate-12 review). The lenient tree is
+// never returned: the strict parse already refused the config. A tree the
+// strict parse accepts passes through the registered conversions
+// (convertLoaded).
 func parseSetConfig(schema *Schema, input string, hasMeta bool) (*Tree, error) {
 	sp := NewSetParser(schema)
 	var strictErr error
 	if hasMeta {
 		tree, _, err := sp.ParseWithMeta(input)
 		if err == nil {
-			return tree, nil
+			return convertLoaded(tree)
 		}
 		strictErr = err
 	} else {
 		tree, err := sp.Parse(input)
 		if err == nil {
-			return tree, nil
+			return convertLoaded(tree)
 		}
 		strictErr = err
 	}
 
 	lenient := NewSetParser(schema)
 	lenient.SetPreMigration(true)
-	var tree *Tree
 	var err error
 	if hasMeta {
-		tree, _, err = lenient.ParseWithMeta(input)
+		_, _, err = lenient.ParseWithMeta(input)
 	} else {
-		tree, err = lenient.Parse(input)
+		_, err = lenient.Parse(input)
 	}
 	if err != nil {
 		return nil, err
@@ -428,13 +428,28 @@ func parseSetConfig(schema *Schema, input string, hasMeta bool) (*Tree, error) {
 			"remove or correct each field named above, or rebuild ze with the build tag a field names")
 	}
 
-	if fn := getMigrateFunc(); fn != nil {
-		if applied, migrateErr := fn(tree); migrateErr == nil && len(applied) > 0 {
-			loaderLogger().Info("applied config migrations", "count", len(applied), "migrations", applied)
-		}
-	}
+	return nil, strictErr
+}
 
-	return tree, nil
+// convertLoaded applies the registered config conversions to a tree the strict
+// parse accepted, and answers the converted tree. A conversion that refuses
+// refuses the load: answering the unconverted tree would run a config this
+// release reads differently from what its author wrote.
+func convertLoaded(tree *Tree) (*Tree, error) {
+	fn := getMigrateFunc()
+	if fn == nil {
+		return tree, nil
+	}
+	converted, applied, err := fn(tree)
+	if err != nil {
+		return nil, opererr.Wrap(err, "the config could not be converted to this release's format",
+			"a registered conversion refused it, and loading it unconverted would change its meaning",
+			"run ze config migrate --dry-run <file> to see the failing conversion")
+	}
+	if len(applied) > 0 {
+		loaderLogger().Info("applied config migrations", "count", len(applied), "migrations", applied)
+	}
+	return converted, nil
 }
 
 // detectLegacySyntaxHint checks if a parse error is likely due to ExaBGP syntax
@@ -753,9 +768,10 @@ func MarkInternalPlugin(pc *plugin.PluginConfig) {
 	}
 }
 
-// MigrateFunc applies config migrations to a parsed tree.
-// Returns the list of applied migration names and any error.
-type MigrateFunc func(tree *Tree) (applied []string, err error)
+// MigrateFunc applies the registered config conversions to a parsed tree.
+// It answers the converted tree (tree itself when nothing applied), the names
+// of the conversions it applied, and the error of a conversion that refused.
+type MigrateFunc func(tree *Tree) (converted *Tree, applied []string, err error)
 
 var (
 	migrateMu   sync.RWMutex

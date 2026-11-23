@@ -1,8 +1,8 @@
 // VALIDATES: spec-static-route-tag-reaches-no-consumer AC-4, AC-5 -- the tag the
 // consumer hands the engine becomes the External Route Tag of the AS-External-LSA
 // (RFC 2328 Appendix A.4.5): the route's own tag, or the tag an `ospf filter export`
-// filter set, which is how `ze config migrate` carries a retired per-source `tag`
-// for a route that carries none (`match { tag [ 0 ] }`).
+// filter set, such as a per-source tag for a route that carries none
+// (`match { tag [ 0 ] }`).
 // PREVENTS: a route tag reaching the engine and being dropped before origination.
 package ospf
 

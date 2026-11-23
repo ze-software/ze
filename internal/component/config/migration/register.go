@@ -5,11 +5,14 @@ package migration
 import "github.com/ze-software/ze/internal/component/config"
 
 func init() {
-	config.RegisterMigrateFunc(func(tree *config.Tree) ([]string, error) {
+	config.RegisterMigrateFunc(func(tree *config.Tree) (*config.Tree, []string, error) {
+		if !NeedsMigration(tree) {
+			return tree, nil, nil
+		}
 		result, err := Migrate(tree)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return result.Applied, nil
+		return result.Tree, result.Applied, nil
 	})
 }

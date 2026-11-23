@@ -47,6 +47,25 @@ func MustRegisterRelocatedContainer(parent, root string) {
 	relocations = append(relocations, relocation{parent: parent, root: root})
 }
 
+// RegisterRelocatedContainerForTest registers a relocation as
+// MustRegisterRelocatedContainer does, makes every later YANGSchema build carry
+// it, and answers the function that restores the registered set and the schema
+// without it. The caller MUST call the restore function when its test ends.
+// Only for use in tests.
+func RegisterRelocatedContainerForTest(parent, root string) (restore func()) {
+	relocationsMu.RLock()
+	previous := slices.Clone(relocations)
+	relocationsMu.RUnlock()
+	MustRegisterRelocatedContainer(parent, root)
+	yangSchemaCache.reset()
+	return func() {
+		relocationsMu.Lock()
+		relocations = previous
+		relocationsMu.Unlock()
+		yangSchemaCache.reset()
+	}
+}
+
 // registeredRelocations answers a copy of the registered relocations.
 func registeredRelocations() []relocation {
 	relocationsMu.RLock()
@@ -81,7 +100,7 @@ func (n *ContainerNode) relocatedHint(name string) (string, bool) {
 	}
 	var b textbuf.Buffer
 	return b.Str("\n  ").Str(name).Str(" is no longer inside ").Str(parent).
-		Str(": it is now the top-level ").Str(name).Str(" { ... } block, shared by every protocol\n").
+		Str(": it is now the top-level ").Str(name).Str(" { ... } block\n").
 		Str("  fix: ze config migrate -o <new-file> <file>\n").
 		Str("  this writes ").Str(parent).Str(" { ").Str(name).Str(" { ... } } as ").Str(name).
 		Str(" { ... }; then load <new-file>").String(), true
