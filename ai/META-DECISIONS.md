@@ -473,6 +473,12 @@ in the spec or commit it applies to.
   need from him. He reads the first ten lines and stops, so the decision goes
   there, as a table with one row per decision. What you did and what each agent
   found goes last or goes unsaid. Status that changes no decision is one line.
+- A message to Thomas is written the way one person speaks to another: whole,
+  plain sentences in a natural order, one idea in each, in short paragraphs.
+  It has a visible structure, with a heading for each part and a list only for
+  things that really are a list. It is never compressed notes, fragments, or a
+  dense block that reads as typed in a hurry. A question to him is asked one
+  at a time, with a small example, the choices, and the one recommended.
 
 ## How agents work
 
