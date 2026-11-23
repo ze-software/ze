@@ -1,0 +1,110 @@
+# Test: does a live commit or SIGHUP reload refuse switching PPPoE access to an unsupported VPP backend while keeping the running config unchanged and allowing a later valid reload?
+# Why not a unit test: only the running daemon proves the gRPC config editor
+# commit hook, SIGHUP reload validation, running-tree retention, and recovery
+# on a subsequent valid reload are wired together end to end.
+# VALIDATES: spec-pppoe-refuse-vpp-backend AC-4 (and commit/reload boundary with ze_vpp absent).
+
+option=needs-linux
+option=needs-build-tag:value=ze_l2tp:state=present
+option=needs-build-tag:value=ze_grpc:state=present
+option=needs-build-tag:value=ze_vpp:state=absent
+option=storage:value=disk
+option=timeout:value=60s
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external pppoe-backend-refusal {
+        run "le test fixture reload/pppoe-vpp-backend-refused 127.0.0.1:$PORT2 pppoe-refusal.pem"
+        encoder json
+    }
+}
+environment {
+    api-server {
+        token "secret";
+        grpc {
+            enabled true;
+            tls-cert "pppoe-refusal.pem";
+            tls-key "pppoe-refusal.key";
+            server main { ip 127.0.0.1; port $PORT2; }
+        }
+    }
+}
+interface {
+    backend netlink;
+}
+pppoe {
+    ac-name "before";
+}
+EOF_CONF
+
+tmpfs=config2.conf:refused=config-validator-unavailable:terminator=EOF_CONF2
+plugin {
+    external pppoe-backend-refusal {
+        run "le test fixture reload/pppoe-vpp-backend-refused 127.0.0.1:$PORT2 pppoe-refusal.pem"
+        encoder json
+    }
+}
+environment {
+    api-server {
+        token "secret";
+        grpc {
+            enabled true;
+            tls-cert "pppoe-refusal.pem";
+            tls-key "pppoe-refusal.key";
+            server main { ip 127.0.0.1; port $PORT2; }
+        }
+    }
+}
+interface {
+    backend vpp;
+}
+pppoe {
+    ac-name "before";
+    interface access0 {}
+}
+EOF_CONF2
+
+tmpfs=config3.conf:terminator=EOF_CONF3
+plugin {
+    external pppoe-backend-refusal {
+        run "le test fixture reload/pppoe-vpp-backend-refused 127.0.0.1:$PORT2 pppoe-refusal.pem"
+        encoder json
+    }
+}
+environment {
+    api-server {
+        token "secret";
+        grpc {
+            enabled true;
+            tls-cert "pppoe-refusal.pem";
+            tls-key "pppoe-refusal.key";
+            server main { ip 127.0.0.1; port $PORT2; }
+        }
+    }
+}
+interface {
+    backend netlink;
+}
+pppoe {
+    ac-name "after";
+}
+EOF_CONF3
+
+cmd=foreground:seq=1:exec=le test fixture config-refusal/tls pppoe-refusal.pem pppoe-refusal.key
+expect=exit:code=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=reload error:
+expect=stderr:contains=/pppoe/interface/access0
+expect=stderr:contains=backend "vpp"
+expect=stderr:contains=supported: netlink
+expect=stderr:contains=no PPPoE session data plane
+expect=stderr:contains=ze_vpp
+expect=stderr:contains=fix: set interface backend netlink
+expect=stderr:contains=OK: PPPoE backend commit refused before changing the running configuration
+expect=stderr:contains=OK: PPPoE backend reload refused and the running configuration stayed unchanged
+expect=stderr:contains=OK: a subsequent supported PPPoE configuration applied
+reject=stderr:pattern=panic
+expect=key:path=meta/config/ze-bgp.conf/active:exists=true
+expect=key:path=meta/config/ze-bgp.conf/candidate:absent=true
+expect=key:glob=object/*:not-contains=backend vpp

@@ -125,16 +125,52 @@ func pppoeBackendCommit(ctx context.Context, address, certificate string) error 
 		return fmt.Errorf("PPPoE backend commit status = %s, want InvalidArgument: %w", status.Code(err), err)
 	}
 	text := status.Convert(err).Message()
-	for _, want := range []string{"/pppoe/interface/access0", `backend "vpp"`, "supported: netlink", "no PPPoE session data plane"} {
-		if !strings.Contains(text, want) {
+	findingLines, err := pppoeBackendFinding(text)
+	if err != nil {
+		return err
+	}
+	finding := strings.Join(findingLines, "\n")
+	for _, want := range []string{pppoeBackendPath, `backend "vpp"`, "supported: netlink", "no PPPoE session data plane"} {
+		if !strings.Contains(finding, want) {
 			return fmt.Errorf("PPPoE commit refusal lacks %q: %s", want, text)
 		}
 	}
-	if !strings.HasSuffix(text, "fix: set interface backend netlink") {
+	if strings.TrimSpace(findingLines[len(findingLines)-1]) != "fix: set interface backend netlink" {
 		return fmt.Errorf("PPPoE commit refusal does not end with its repair command: %s", text)
 	}
 	_, err = client.DiscardSession(ctx, &zepb.SessionRequest{SessionId: id})
 	return err
+}
+
+const pppoeBackendPath = "/pppoe/interface/access0"
+
+// pppoeBackendFinding isolates the PPPoE backend refusal block from a
+// multi-finding commit validation error so every assertion judges that finding
+// itself rather than a sibling plugin's refusal.
+func pppoeBackendFinding(text string) ([]string, error) {
+	lines := strings.Split(text, "\n")
+	start := -1
+	for i, line := range lines {
+		if strings.Contains(line, pppoeBackendPath) {
+			start = i
+			break
+		}
+	}
+	if start < 0 {
+		return nil, fmt.Errorf("PPPoE commit refusal lacks %q: %s", pppoeBackendPath, text)
+	}
+	end := len(lines)
+	for i := start + 1; i < len(lines); i++ {
+		if strings.HasPrefix(lines[i], "  config: ") {
+			end = i
+			break
+		}
+		if strings.HasPrefix(lines[i], "  config validation failed:") {
+			end = i
+			break
+		}
+	}
+	return lines[start:end], nil
 }
 
 // pppoeBackendRunning reads the daemon's applied parsed tree, not the file that
