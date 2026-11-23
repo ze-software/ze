@@ -144,9 +144,10 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		return interoplab.Suite{}, err
 	}
 	return interoplab.Suite{
-		SuffixVariable: environment.SuffixVariable,
-		Docker:         docker,
-		StagedZe:       interoplab.StagedZePath(root, LabBinaries()),
+		SuffixVariable:     environment.SuffixVariable,
+		Docker:             docker,
+		StagedZe:           interoplab.StagedZePath(root, LabBinaries()),
+		KernelCapabilities: interoplab.KernelCapabilitiesRequired("l2tp", "l2tp-ppp"),
 		// The /dev/ppp probe runs FIRST: a host with no PPP device cannot run
 		// this lab, and refusing it before the cross-compile costs it nothing.
 		// Suite.Run checks the kernel capabilities (l2tp, l2tp-ppp) itself.

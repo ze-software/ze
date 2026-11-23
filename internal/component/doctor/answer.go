@@ -58,6 +58,7 @@ type doctorRequest struct {
 	kernel     bool
 	help       bool
 	configPath string
+	subsystems []string
 }
 
 // answerLocal is the local-data handler of doctor: the readiness answer of
@@ -117,7 +118,20 @@ func answerDoctor(validated command.ValidatedArgs, readiness readinessFunc) comm
 		if request.configPath != "" {
 			return doctorRefusal(route, kernelCapabilitiesKeyword+" takes no config file: "+request.configPath)
 		}
-		return command.LocalAnswer{Payload: kernelAnswer{kernelCapabilitiesAnswer: newKernelCapabilitiesAnswer(kernelcap.ProbeAll()), asJSON: request.asJSON}}
+		var rows []kernelcap.Row
+		if len(request.subsystems) > 0 {
+			var probeErr error
+			rows, probeErr = kernelcap.ProbeSubsystems(request.subsystems)
+			if probeErr != nil {
+				return doctorRefusal(route, probeErr.Error())
+			}
+		} else {
+			rows = kernelcap.ProbeAll()
+		}
+		return command.LocalAnswer{Payload: kernelAnswer{kernelCapabilitiesAnswer: newKernelCapabilitiesAnswer(rows), asJSON: request.asJSON}}
+	}
+	if len(request.subsystems) > 0 {
+		return doctorRefusal(route, subsystemKeyword+" requires "+kernelCapabilitiesKeyword)
 	}
 
 	configPath := request.configPath
@@ -164,6 +178,15 @@ func readDoctorRequest(args []string) (doctorRequest, error) {
 			request.asJSON = true
 		case kernelCapabilitiesKeyword:
 			request.kernel = true
+		case subsystemKeyword:
+			if index+1 >= len(args) {
+				return request, errors.New("subsystem needs a name: ze doctor kernel-capabilities subsystem <name>")
+			}
+			index++
+			if strings.HasPrefix(args[index], "-") {
+				return request, errors.New("subsystem needs a name, not the option " + args[index] + ": ze doctor kernel-capabilities subsystem <name>")
+			}
+			request.subsystems = append(request.subsystems, args[index])
 		case configKeyword:
 			if request.configPath != "" {
 				return request, errors.New("config is named once; a second config keyword was given")

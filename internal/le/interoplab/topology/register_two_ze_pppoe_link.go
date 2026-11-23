@@ -24,7 +24,8 @@ func init() {
 		links: []interoplab.Link{
 			{Name: "access", VLAN: 183, Members: []string{"ze-server", "ze-client"}},
 		},
-		checker: checkPPPoELink,
+		checker:            checkPPPoELink,
+		kernelCapabilities: []string{"pppoe"},
 	}
 }
 

@@ -76,6 +76,15 @@ var containerRoles = []string{
 	peerDnsmasq, peerDnsmasqB, peerKea, peerZePeer,
 }
 
+// scenarioKernelCapabilities declares the kernel capabilities needed by
+// individual scenarios in the general interop suite that configure kernel
+// dataplane features. Pure control-plane BGP/OSPF/IS-IS/BFD/RPKI/BMP scenarios
+// omit entries and require no special Ze kernel capabilities.
+var scenarioKernelCapabilities = map[string][]string{
+	"ospf-ipsec-frr":    {"ipsec", "ipsec-esp-ipv6", "ipsec-transform-hmac-sha256"},
+	"ospf-ipsec-ah-frr": {"ipsec", "ipsec-transform-hmac-sha256"},
+}
+
 func scenarioPlans(root, producer, suffix string, sources []interoplab.ScenarioSource) ([]interoplab.ScenarioPlan, error) {
 	candidates, err := subnetCandidates()
 	if err != nil {
@@ -102,10 +111,11 @@ func scenarioPlans(root, producer, suffix string, sources []interoplab.ScenarioS
 		}
 		sourceCopy := source
 		plans = append(plans, interoplab.ScenarioPlan{
-			Source:     sourceCopy,
-			Network:    interoplab.NetworkSpec{Name: networkName, Candidates: subnets},
-			Containers: containers,
-			Links:      linkDeclarations[source.Name],
+			Source:             sourceCopy,
+			Network:            interoplab.NetworkSpec{Name: networkName, Candidates: subnets},
+			Containers:         containers,
+			Links:              linkDeclarations[source.Name],
+			KernelCapabilities: scenarioKernelCapabilities[source.Name],
 			Prepare: func(_ context.Context, prepare interoplab.PrepareContext) (interoplab.PreparedScenario, error) {
 				return prepareScenario(root, producer, suffix, prepare)
 			},

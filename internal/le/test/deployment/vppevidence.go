@@ -88,7 +88,7 @@ func (v *VPP) Run(ctx context.Context) (report VPPReport, err error) {
 		return report, err
 	}
 	// The kernel check comes before the image, so a refused host pulls nothing.
-	if err := buildCheckedDaemon(ctx, v.Tree, v.Goarch, v.buildBinaries); err != nil {
+	if err := buildCheckedDaemon(ctx, v.Tree, v.Goarch, interoplab.KernelCapabilitiesAll(), v.buildBinaries); err != nil {
 		return report, err
 	}
 	if err := v.readyImage(); err != nil {

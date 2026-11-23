@@ -35,7 +35,7 @@ const daemonKernelTimeout = 3 * time.Minute
 // NO_BUILD=1 skips build and reuses the daemon already at that path, as the
 // interop suites do (interoplab.ReadEnvironment). A reuse with no daemon there
 // is refused by name: probing with nothing would read as a broken kernel.
-func buildCheckedDaemon(ctx context.Context, tree, goarch string, build func() error) error {
+func buildCheckedDaemon(ctx context.Context, tree, goarch string, required interoplab.KernelCapabilities, build func() error) error {
 	daemon := filepath.Join(tree, daemonRel(goarch))
 	if interoplab.ReadEnvironment(interoplab.EnvironmentOptions{}).NoBuild {
 		if _, err := os.Stat(daemon); err != nil {
@@ -50,5 +50,5 @@ func buildCheckedDaemon(ctx context.Context, tree, goarch string, build func() e
 	ctx, cancel := context.WithTimeout(ctx, daemonKernelTimeout)
 	defer cancel()
 
-	return interoplab.DockerKernel(daemon)(ctx, interoplab.NewDocker())
+	return interoplab.DockerKernelFor(daemon, required)(ctx, interoplab.NewDocker())
 }

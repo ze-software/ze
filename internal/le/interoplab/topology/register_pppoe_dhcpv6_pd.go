@@ -121,6 +121,7 @@ func init() {
 			{Name: pdLANLink, VLAN: 199, Members: []string{nodeCPE, nodeSLAACHost},
 				Devices: map[string]string{nodeCPE: pdLANDevice}},
 		},
-		checker: checkPPPoEDHCPv6PD,
+		checker:            checkPPPoEDHCPv6PD,
+		kernelCapabilities: []string{"pppoe"},
 	}
 }

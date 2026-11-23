@@ -151,7 +151,13 @@ func homeLab(checker interoplab.Checker, options homeOptions) scenario {
 		links = append(links, interoplab.Link{Name: homeInternetLink, VLAN: 196,
 			IPv4: netip.MustParsePrefix("198.51.100.0/24"), Members: internet})
 	}
-	return scenario{nodes: nodes, links: links, checker: checker, prepare: prepareHomeCPE(options.cpeKey)}
+	return scenario{
+		nodes:              nodes,
+		links:              links,
+		checker:            checker,
+		prepare:            prepareHomeCPE(options.cpeKey),
+		kernelCapabilities: []string{"pppoe", "l2tp", "l2tp-ppp", "wireguard", "ipsec", "ipsec-esp-*", "ipsec-transform-*", "xfrm-interface"},
+	}
 }
 
 // convertedCPE is the Ze CPE of every home-CPE scenario: the converted

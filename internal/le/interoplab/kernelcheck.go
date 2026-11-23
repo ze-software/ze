@@ -249,12 +249,129 @@ type kernelAnswer struct {
 	Capabilities []kernelRow `json:"capabilities"`
 }
 
+// kernelCheckMode selects which enrolled kernel capabilities a Docker lab
+// requires. The zero value (kernelCheckAll) is the strictest mode so a suite
+// that forgets to declare its needs fails closed rather than skipping.
+type kernelCheckMode uint8
+
+const (
+	kernelCheckAll kernelCheckMode = iota
+	kernelCheckNone
+	kernelCheckSelected
+)
+
+// KernelCapabilities declares the kernel capabilities a Docker suite or lab
+// requires from the Docker daemon's host kernel. The zero value checks every
+// enrolled capability (fail-closed).
+type KernelCapabilities struct {
+	mode       kernelCheckMode
+	subsystems []string
+}
+
+// KernelCapabilitiesAll requires every enrolled kernel capability on the host.
+func KernelCapabilitiesAll() KernelCapabilities {
+	return KernelCapabilities{mode: kernelCheckAll}
+}
+
+// KernelCapabilitiesNone declares that a suite requires no special kernel
+// capability by default. Individual scenarios in that suite may still add
+// requirements through ScenarioPlan.KernelCapabilities.
+func KernelCapabilitiesNone() KernelCapabilities {
+	return KernelCapabilities{mode: kernelCheckNone}
+}
+
+// KernelCapabilitiesRequired requires the named enrolled kernel capability
+// selectors (exact subsystem names or trailing-wildcard prefixes such as
+// "ipsec-esp-*"). An empty list fails closed to KernelCapabilitiesAll.
+func KernelCapabilitiesRequired(subsystems ...string) KernelCapabilities {
+	cleaned := normalizeKernelSelectors(subsystems)
+	if len(cleaned) == 0 {
+		return KernelCapabilitiesAll()
+	}
+	return KernelCapabilities{mode: kernelCheckSelected, subsystems: cleaned}
+}
+
+// IsNone reports whether no kernel capability is required.
+func (k KernelCapabilities) IsNone() bool {
+	return k.mode == kernelCheckNone
+}
+
+// Subsystems returns a copy of the required subsystem selectors when scoped.
+func (k KernelCapabilities) Subsystems() []string {
+	if k.mode != kernelCheckSelected {
+		return nil
+	}
+	return append([]string(nil), k.subsystems...)
+}
+
+func (k KernelCapabilities) mergeScenarioSelectors(plans []ScenarioPlan) KernelCapabilities {
+	if k.mode == kernelCheckAll {
+		return k
+	}
+	var merged []string
+	if k.mode == kernelCheckSelected {
+		merged = append(merged, k.subsystems...)
+	}
+	for index := range plans {
+		merged = append(merged, plans[index].KernelCapabilities...)
+	}
+	cleaned := normalizeKernelSelectors(merged)
+	if len(cleaned) == 0 {
+		return KernelCapabilitiesNone()
+	}
+	return KernelCapabilities{mode: kernelCheckSelected, subsystems: cleaned}
+}
+
+func normalizeKernelSelectors(raw []string) []string {
+	var cleaned []string
+	for _, selector := range raw {
+		trimmed := strings.TrimSpace(selector)
+		if trimmed == "" {
+			continue
+		}
+		cleaned = append(cleaned, trimmed)
+	}
+	slices.Sort(cleaned)
+	return slices.Compact(cleaned)
+}
+
+func kernelProbeArgsFor(required KernelCapabilities) []string {
+	if required.mode != kernelCheckSelected {
+		return append([]string(nil), kernelProbeArguments...)
+	}
+	args := make([]string, 0, len(kernelProbeArguments)+2*len(required.subsystems))
+	args = append(args, kernelProbeArguments...)
+	for _, selector := range required.subsystems {
+		args = append(args, "subsystem", selector)
+	}
+	return args
+}
+
+func kernelProbeNeedsTUN(required KernelCapabilities) bool {
+	if required.mode == kernelCheckAll {
+		return true
+	}
+	for _, selector := range required.subsystems {
+		if strings.HasPrefix(selector, "srv6") {
+			return true
+		}
+	}
+	return false
+}
+
 // DockerKernel returns the preflight that refuses a Docker daemon whose kernel
 // lacks any kernel feature Ze enrolls. zePath is the staged linux ze for the
 // daemon's architecture, so it runs after StageBinaries.
 func DockerKernel(zePath string) PreflightCheck {
+	return DockerKernelFor(zePath, KernelCapabilitiesAll())
+}
+
+// DockerKernelFor returns the preflight that verifies only the kernel
+// capabilities required by a suite or scenario. When required is
+// KernelCapabilitiesNone, no kernel-capability probe runs.
+func DockerKernelFor(zePath string, required KernelCapabilities) PreflightCheck {
 	return func(ctx context.Context, docker *Docker) error {
-		return checkDockerKernel(ctx, docker, zePath)
+		return checkDockerKernelFor(ctx, docker, zePath, required)
 	}
 }
 
@@ -279,13 +396,19 @@ func StagedZePath(root string, binaries []LabBinary) string {
 // sysctl writes (D-7). It runs through RunOneShot, so it carries the owner
 // labels and a canceled probe is removed by name.
 func kernelProbeContainer(zePath string, appArmor bool) OneShotContainer {
+	return kernelProbeContainerFor(zePath, appArmor, KernelCapabilitiesAll())
+}
+
+func kernelProbeContainerFor(zePath string, appArmor bool, required KernelCapabilities) OneShotContainer {
 	arguments := make([]string, 0, 10)
 	arguments = append(arguments, "--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN", "--network", "none")
-	arguments = append(arguments, TUNDeviceArguments()...)
+	if kernelProbeNeedsTUN(required) {
+		arguments = append(arguments, TUNDeviceArguments()...)
+	}
 	if appArmor {
 		arguments = append(arguments, "--security-opt", "apparmor="+kernelcap.ProbeAppArmorProfileName)
 	}
-	container := stagedBinaryContainer(zePath, kernelProbeMount, kernelProbeArguments, kernelProbeTimeout)
+	container := stagedBinaryContainer(zePath, kernelProbeMount, kernelProbeArgsFor(required), kernelProbeTimeout)
 	container.Arguments = arguments
 	return container
 }
@@ -401,6 +524,13 @@ func appArmorRefusal(goos, release, finding string) error {
 // wrong kernel "should not be possible - fail"), and so is a probe that did not
 // answer: the check never proceeds on a question it could not ask.
 func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error {
+	return checkDockerKernelFor(ctx, docker, zePath, KernelCapabilitiesAll())
+}
+
+func checkDockerKernelFor(ctx context.Context, docker *Docker, zePath string, required KernelCapabilities) error {
+	if required.IsNone() {
+		return nil
+	}
 	if docker == nil {
 		return errors.New("the Docker kernel check needs a Docker client")
 	}
@@ -429,7 +559,7 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 			return missing
 		}
 	}
-	probe := kernelProbeContainer(zePath, appArmor)
+	probe := kernelProbeContainerFor(zePath, appArmor, required)
 	result, err := docker.RunOneShot(ctx, probe)
 
 	var problem textbuf.Buffer
@@ -477,7 +607,7 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 		return errors.New(problem.Str("answered an unknown capability; the probe failed to determine kernel support,").
 			Str(" not evidence of a missing kernel feature:").Str(missing.String()).
 			Str("\nResolve the reported probe failure, then rerun the same doctor probe (`").
-			Str(strings.Join(kernelProbeCommand, " ")).Str("`) through:\n  ./le setup docker kernel check ze ").
+			Str(strings.Join(probe.Command, " ")).Str("`) through:\n  ./le setup docker kernel check ze ").
 			Str(shellJoin([]string{zePath})).String())
 	}
 	if count == 0 {
@@ -492,7 +622,7 @@ func checkDockerKernel(ctx context.Context, docker *Docker, zePath string) error
 	}
 	var refusal textbuf.Buffer
 	refusal.Str("the Docker daemon's kernel ").Str(release).Str(" lacks ").Str(strconv.Itoa(count)).
-		Str(" kernel feature(s) Ze needs (`").Str(strings.Join(kernelProbeCommand, " ")).Str("` answered):").
+		Str(" kernel feature(s) Ze needs (`").Str(strings.Join(probe.Command, " ")).Str("` answered):").
 		Str(missing.String()).
 		Byte('\n').Str(dockerKernelRouteFor(docker.owner.goos, release, leWords(), selectorEnvironment()))
 	if denied {

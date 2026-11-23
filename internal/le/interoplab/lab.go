@@ -47,6 +47,10 @@ type ScenarioPlan struct {
 	// refuses a link it cannot build before any container starts.
 	Links   []Link   `json:"links,omitempty"`
 	Prepare Preparer `json:"-"`
+	// KernelCapabilities lists additional enrolled kernelcap subsystem selectors
+	// this scenario requires beyond Suite.KernelCapabilities (exact names or
+	// trailing-wildcard prefixes such as "ipsec-mobike", "xfrm-interface").
+	KernelCapabilities []string `json:"kernel-capabilities,omitempty"`
 }
 
 // PreflightCheck proves host capabilities before image builds consume time.
@@ -79,12 +83,14 @@ type Suite struct {
 	Preflight PreflightCheck
 	// StagedZe is the absolute path of the linux ze Preflight stages for the
 	// daemon's architecture (StagedZePath). Run probes the daemon's kernel with
-	// it before any image build (DockerKernel), and refuses when it is empty:
-	// every suite runs Ze on that kernel, so the check fails and never skips.
-	StagedZe  string
-	Images    []ImageBuild
-	Scenarios []ScenarioPlan
-	NoBuild   bool
+	// it before any image build (DockerKernelFor) for the capabilities declared
+	// by KernelCapabilities and the selected Scenarios; zero KernelCapabilities
+	// checks every enrolled capability (fail-closed).
+	StagedZe           string
+	KernelCapabilities KernelCapabilities
+	Images             []ImageBuild
+	Scenarios          []ScenarioPlan
+	NoBuild            bool
 	// ImagesOnDemand prepares only images used by the final peer plans, after
 	// dynamic preparation. Every peer MUST name a declared image in this mode.
 	// A full suite leaves this false to retain its eager image preparation.
@@ -306,8 +312,9 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 	}
 	// The kernel check follows Preflight because it runs the ze Preflight
 	// stages, and precedes the first image build so a host that cannot run
-	// the lab costs no build.
-	if err := DockerKernel(s.StagedZe)(ctx, s.Docker); err != nil {
+	// the lab costs no build. Only the capabilities required by this suite and
+	// its selected scenarios are probed.
+	if err := DockerKernelFor(s.StagedZe, s.KernelCapabilities.mergeScenarioSelectors(s.Scenarios))(ctx, s.Docker); err != nil {
 		report.SetupError = err.Error()
 		report.Code = 1
 		return report

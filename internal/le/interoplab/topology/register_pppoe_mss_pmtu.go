@@ -62,6 +62,7 @@ func init() {
 			{Name: "lan", VLAN: 185, IPv4: netip.MustParsePrefix("10.185.1.0/24"), Members: []string{nodeCPE, nodeLANHost}},
 			{Name: "core", VLAN: 186, IPv4: netip.MustParsePrefix("10.186.1.0/24"), Members: []string{nodeAccel, nodeServer}},
 		},
-		checker: checkMSSPMTU,
+		checker:            checkMSSPMTU,
+		kernelCapabilities: []string{"pppoe"},
 	}
 }

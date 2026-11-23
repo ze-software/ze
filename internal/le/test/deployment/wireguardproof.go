@@ -46,9 +46,10 @@ func runWireGuardProof(ctx context.Context, root string) interoplab.SuiteReport 
 	}
 	suite := interoplab.Suite{
 		Docker: interoplab.NewDocker(), Checkout: root,
-		Preflight: interoplab.StageBinaries(root, false, interopipsec.LabBinaries()...),
-		StagedZe:  interoplab.StagedZePath(root, interopipsec.LabBinaries()),
-		Images:    interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),
+		Preflight:          interoplab.StageBinaries(root, false, interopipsec.LabBinaries()...),
+		StagedZe:           interoplab.StagedZePath(root, interopipsec.LabBinaries()),
+		KernelCapabilities: interoplab.KernelCapabilitiesRequired("wireguard"),
+		Images:             interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),
 		Scenarios: []interoplab.ScenarioPlan{{
 			Source: interoplab.ScenarioSource{Name: "wireguard-kernel-ping", Checker: checkWireGuardProof},
 			Network: interoplab.NetworkSpec{

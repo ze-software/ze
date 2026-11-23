@@ -816,3 +816,72 @@ func TestDockerKernelProbePassesTUNDevice(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: DockerKernelFor probes only the capabilities a suite/scenario
+// requires: KernelCapabilitiesNone runs no probe container, scoped selectors
+// pass `subsystem <name>` to `ze doctor --json kernel-capabilities` and omit
+// /dev/net/tun unless an srv6 capability is requested, and missing required
+// capabilities still fail fast.
+// PREVENTS: a pure-BGP or non-SRv6 suite being blocked by unrelated kernel
+// features, or a scoped suite silently passing when its own required feature
+// is absent.
+func TestDockerKernelForScopesToSuiteAndScenarioCapabilities(t *testing.T) {
+	t.Run("none skips kernel probe container", func(t *testing.T) {
+		runner := &recordingRunner{}
+		if err := DockerKernelFor(kernelCheckZe, KernelCapabilitiesNone())(t.Context(), newDocker(runner)); err != nil {
+			t.Fatalf("DockerKernelFor(None) failed: %v", err)
+		}
+		if len(runner.commands) != 0 {
+			t.Fatalf("DockerKernelFor(None) ran %d docker commands, want 0", len(runner.commands))
+		}
+	})
+
+	t.Run("scoped passes subsystem selectors and omits TUN for non-srv6", func(t *testing.T) {
+		answer := `{"ready":true,"capabilities":[{"subsystem":"mpls","kernel":"CONFIG_MPLS_ROUTING","state":"present"}]}`
+		runner := scriptedKernel(answer, 0, nil)
+		req := KernelCapabilitiesRequired("mpls")
+		if err := DockerKernelFor(kernelCheckZe, req)(t.Context(), newDocker(runner)); err != nil {
+			t.Fatalf("DockerKernelFor(mpls) failed: %v", err)
+		}
+		probeCmd := strings.Join(runner.commands[len(runner.commands)-1].Arguments, " ")
+		if !strings.Contains(probeCmd, "doctor --json kernel-capabilities subsystem mpls") {
+			t.Errorf("probe command %q did not narrow to subsystem mpls", probeCmd)
+		}
+		if strings.Contains(probeCmd, "/dev/net/tun") {
+			t.Errorf("non-srv6 probe command %q unexpectedly mounted /dev/net/tun", probeCmd)
+		}
+	})
+
+	t.Run("srv6 selector mounts TUN and fails when absent", func(t *testing.T) {
+		answer := `{"ready":false,"capabilities":[{"subsystem":"srv6-forward-frag","kernel":"CONFIG_IPV6_SEG6_FORWARD_FRAG","state":"absent","reason":"patch 0015 missing"}]}`
+		runner := scriptedKernel(answer, 1, nil)
+		req := KernelCapabilitiesRequired("srv6-forward-frag")
+		err := DockerKernelFor(kernelCheckZe, req)(t.Context(), newDocker(runner))
+		if err == nil {
+			t.Fatal("DockerKernelFor(srv6-forward-frag) passed on absent capability")
+		}
+		if !strings.Contains(err.Error(), "srv6-forward-frag") {
+			t.Errorf("refusal %q does not name srv6-forward-frag", err.Error())
+		}
+		probeCmd := strings.Join(runner.commands[len(runner.commands)-1].Arguments, " ")
+		if !strings.Contains(probeCmd, "/dev/net/tun") {
+			t.Errorf("srv6 probe command %q lacked /dev/net/tun", probeCmd)
+		}
+	})
+
+	t.Run("suite none plus scenario capability probes only selected scenario needs", func(t *testing.T) {
+		base := KernelCapabilitiesNone()
+		merged := base.mergeScenarioSelectors([]ScenarioPlan{
+			{Source: ScenarioSource{Name: "bgp-only"}},
+			{Source: ScenarioSource{Name: "ospf-ipsec-frr"}, KernelCapabilities: []string{"ipsec", "ipsec-esp-ipv6"}},
+		})
+		got := merged.Subsystems()
+		want := []string{"ipsec", "ipsec-esp-ipv6"}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("merged subsystems = %v, want %v", got, want)
+		}
+		if !base.mergeScenarioSelectors([]ScenarioPlan{{Source: ScenarioSource{Name: "bgp-only"}}}).IsNone() {
+			t.Fatal("bgp-only scenario under KernelCapabilitiesNone should require no kernel capabilities")
+		}
+	})
+}

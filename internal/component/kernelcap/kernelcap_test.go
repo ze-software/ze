@@ -306,6 +306,38 @@ func TestDoctorAllCapabilitiesIgnoresConfig(t *testing.T) {
 	}
 }
 
+func TestProbeSubsystemsSelectsExactAndPrefixAndRefusesUnknown(t *testing.T) {
+	ipsec := capabilityFor("ipsec", StatePresent, nil)
+	esp4 := capabilityFor("ipsec-esp-ipv4", StatePresent, nil)
+	esp6 := capabilityFor("ipsec-esp-ipv6", StatePresent, nil)
+	srv6 := capabilityFor("srv6-forward-frag", StateAbsent, errors.New("absent"))
+	srv6.Probe = func() Result {
+		t.Error("unselected srv6-forward-frag probe must not run")
+		return Result{State: StateAbsent}
+	}
+	withEnrolment(t, srv6, esp6, ipsec, esp4)
+
+	rows, err := ProbeSubsystems([]string{"ipsec", "ipsec-esp-*"})
+	if err != nil {
+		t.Fatalf("ProbeSubsystems failed: %v", err)
+	}
+	wantNames := []string{"ipsec", "ipsec-esp-ipv4", "ipsec-esp-ipv6"}
+	if len(rows) != len(wantNames) {
+		t.Fatalf("got %d rows (%+v), want %d", len(rows), rows, len(wantNames))
+	}
+	for i, name := range wantNames {
+		if rows[i].Subsystem != name || rows[i].State != "present" {
+			t.Errorf("row %d = %+v, want %s present", i, rows[i], name)
+		}
+	}
+
+	for _, bad := range [][]string{nil, {""}, {"*"}, {"ipsec*foo"}, {"does-not-exist"}, {"nope-*"}} {
+		if _, err := ProbeSubsystems(bad); err == nil {
+			t.Errorf("ProbeSubsystems(%v) accepted invalid/unknown selector", bad)
+		}
+	}
+}
+
 // withForcedAnswers forces probe answers for the duration of a test, through the
 // Go seam rather than the variable: a unit test binary is not a zetest build, so
 // the variable is not read here (probe_force_shipped.go).

@@ -132,14 +132,15 @@ func runAt(ctx context.Context, root, selector string, docker *interoplab.Docker
 	binaries := binariesForImages(root, images)
 	stage := interoplab.StageBinaries(root, environment.NoBuild, binaries...)
 	suite := interoplab.Suite{
-		SuffixVariable: environment.SuffixVariable,
-		Docker:         docker,
-		Preflight:      stage,
-		StagedZe:       interoplab.StagedZePath(root, binaries),
-		Images:         images,
-		Scenarios:      plans,
-		NoBuild:        environment.NoBuild,
-		Checkout:       root,
+		SuffixVariable:     environment.SuffixVariable,
+		Docker:             docker,
+		Preflight:          stage,
+		StagedZe:           interoplab.StagedZePath(root, binaries),
+		KernelCapabilities: interoplab.KernelCapabilitiesNone(),
+		Images:             images,
+		Scenarios:          plans,
+		NoBuild:            environment.NoBuild,
+		Checkout:           root,
 	}
 	// The kernel probe runs FIRST where it runs at all: a machine with no
 	// PPPoL2TP module cannot run this lab, and refusing it before the
@@ -160,10 +161,12 @@ func plansAt(root, selector string, environment interoplab.Environment) ([]inter
 	plans := make([]interoplab.ScenarioPlan, 0, len(sources))
 	standardFlow := false
 	for _, source := range sources {
-		plans = append(plans, scenarioPlan(root, source, environment))
+		plan := scenarioPlan(root, source, environment)
 		if scenarioRegistrations[source.Name].needsKernel {
 			standardFlow = true
+			plan.KernelCapabilities = []string{"l2tp", "l2tp-ppp"}
 		}
+		plans = append(plans, plan)
 	}
 	return plans, standardFlow, nil
 }

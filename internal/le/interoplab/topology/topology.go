@@ -69,7 +69,8 @@ type scenario struct {
 	// prepare writes the files a run of the scenario issues into directory
 	// (home_lab_render.go, preparePlan), nil for a scenario that mounts only
 	// committed files.
-	prepare func(root, directory string) error
+	prepare            func(root, directory string) error
+	kernelCapabilities []string
 }
 
 // scenarios holds every topology scenario by its directory name. Register
@@ -134,14 +135,15 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 		return setupFailure(err)
 	}
 	suite := interoplab.Suite{
-		SuffixVariable: environment.SuffixVariable,
-		Docker:         interoplab.NewDocker(),
-		StagedZe:       interoplab.StagedZePath(root, binaries),
-		Preflight:      interoplab.StageBinaries(root, options.NoBuild, binaries...),
-		Images:         builds,
-		Scenarios:      plans,
-		NoBuild:        options.NoBuild,
-		Checkout:       root,
+		SuffixVariable:     environment.SuffixVariable,
+		Docker:             interoplab.NewDocker(),
+		StagedZe:           interoplab.StagedZePath(root, binaries),
+		KernelCapabilities: interoplab.KernelCapabilitiesNone(),
+		Preflight:          interoplab.StageBinaries(root, options.NoBuild, binaries...),
+		Images:             builds,
+		Scenarios:          plans,
+		NoBuild:            options.NoBuild,
+		Checkout:           root,
 	}
 	return suite.Run(ctx)
 }
@@ -175,10 +177,11 @@ func scenarioPlan(root string, source interoplab.ScenarioSource, declared scenar
 	}
 	var network textbuf.Buffer
 	return interoplab.ScenarioPlan{
-		Source:  source,
-		Network: interoplab.NetworkSpec{Name: network.Str("ze-topo-").Str(suffix).String(), Candidates: subnets},
-		Peers:   peers,
-		Links:   declared.links,
+		Source:             source,
+		Network:            interoplab.NetworkSpec{Name: network.Str("ze-topo-").Str(suffix).String(), Candidates: subnets},
+		Peers:              peers,
+		Links:              declared.links,
+		KernelCapabilities: declared.kernelCapabilities,
 	}
 }
 

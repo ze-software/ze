@@ -137,7 +137,8 @@ func realmRelayChain(lns node, checker interoplab.Checker) scenario {
 			{Name: accessLink, VLAN: 191, Members: []string{nodeLAC, nodePPPD, nodeStrayPPPD}},
 			{Name: coreLink, VLAN: 192, IPv4: netip.MustParsePrefix("192.0.2.0/24"), Members: []string{nodeLAC, lns.name}},
 		},
-		checker: checker,
+		checker:            checker,
+		kernelCapabilities: []string{"pppoe", "l2tp", "l2tp-ppp"},
 	}
 }
 

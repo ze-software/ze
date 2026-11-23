@@ -22,6 +22,10 @@ import (
 // position a config path otherwise takes (ai/rules/cli.md).
 const kernelCapabilitiesKeyword = "kernel-capabilities"
 
+// subsystemKeyword narrows kernel-capabilities to one exact subsystem or
+// trailing-wildcard prefix selector (repeatable).
+const subsystemKeyword = "subsystem"
+
 // kernelCapabilitiesAnswer is the JSON answer. Capabilities is never null, so
 // a consumer reads an empty list rather than a missing one.
 type kernelCapabilitiesAnswer struct {

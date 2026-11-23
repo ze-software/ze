@@ -282,7 +282,7 @@ func (v *vppIface) writeScratch(work string) error {
 // TestVPPSRv6ServiceRoute (build tag integration). The check comes before the
 // image, so a refused host pulls nothing.
 func (v *vppIface) prepareDaemon() error {
-	if err := buildCheckedDaemon(v.ctx, v.Tree, v.Goarch, func() error { return buildDaemon(v.ctx, v.Tree, v.Goarch, v.Progress) }); err != nil {
+	if err := buildCheckedDaemon(v.ctx, v.Tree, v.Goarch, interoplab.KernelCapabilitiesAll(), func() error { return buildDaemon(v.ctx, v.Tree, v.Goarch, v.Progress) }); err != nil {
 		return err
 	}
 	return v.readyImage()

@@ -160,9 +160,10 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		plans = append(plans, plan)
 	}
 	return interoplab.Suite{
-		SuffixVariable: environment.SuffixVariable,
-		Docker:         docker,
-		StagedZe:       interoplab.StagedZePath(root, LabBinaries()),
+		SuffixVariable:     environment.SuffixVariable,
+		Docker:             docker,
+		StagedZe:           interoplab.StagedZePath(root, LabBinaries()),
+		KernelCapabilities: interoplab.KernelCapabilitiesRequired("mpls", "mpls-transit-mtu"),
 		// The MPLS probe runs first: a host kernel without mpls_router cannot
 		// run this lab, and refusing it before the cross-compile costs nothing.
 		Preflight: interoplab.Preflights(mplsPreflight(), interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...)),

@@ -150,7 +150,8 @@ func dialChain(checker interoplab.Checker, subscriber node) scenario {
 			{Name: accessLink, VLAN: 191, Members: []string{nodeLAC, subscriber.name}},
 			{Name: coreLink, VLAN: 192, IPv4: netip.MustParsePrefix("192.0.2.0/24"), Members: []string{nodeLAC, nodeLNS, nodeRADIUS}},
 		},
-		checker: checker,
+		checker:            checker,
+		kernelCapabilities: []string{"pppoe", "l2tp", "l2tp-ppp"},
 	}
 }
 

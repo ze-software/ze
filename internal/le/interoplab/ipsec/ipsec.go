@@ -205,14 +205,15 @@ func runAt(ctx context.Context, root string, environment interoplab.Environment,
 	}
 
 	suite := interoplab.Suite{
-		SuffixVariable: environment.SuffixVariable,
-		Docker:         docker,
-		Preflight:      interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...),
-		StagedZe:       interoplab.StagedZePath(root, LabBinaries()),
-		Images:         images,
-		Scenarios:      plans,
-		NoBuild:        environment.NoBuild,
-		Checkout:       root,
+		SuffixVariable:     environment.SuffixVariable,
+		Docker:             docker,
+		Preflight:          interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...),
+		StagedZe:           interoplab.StagedZePath(root, LabBinaries()),
+		KernelCapabilities: interoplab.KernelCapabilitiesRequired("ipsec", "ipsec-esp-*", "ipsec-transform-*"),
+		Images:             images,
+		Scenarios:          plans,
+		NoBuild:            environment.NoBuild,
+		Checkout:           root,
 	}
 	suiteReport := suite.Run(ctx)
 	report := Report{SuiteReport: suiteReport}
@@ -232,13 +233,21 @@ func scenarioPlan(root string, environment interoplab.Environment, source intero
 	natContainer := tb.Reset().Str("ze-ipsec-nat-").Str(environment.Suffix).String()
 	dnsContainer := tb.Reset().Str("ze-ipsec-dns-").Str(environment.Suffix).String()
 	networkName := tb.Reset().Str("ze-ipsec-").Str(environment.Suffix).String()
+	var extraKernelCaps []string
+	if strings.HasPrefix(source.Name, "mobike-") {
+		extraKernelCaps = append(extraKernelCaps, "ipsec-mobike")
+	}
+	if zeBytes, err := os.ReadFile(filepath.Join(source.Directory, "ze.conf")); err == nil && strings.Contains(string(zeBytes), "xfrm") {
+		extraKernelCaps = append(extraKernelCaps, "xfrm-interface")
+	}
 	return interoplab.ScenarioPlan{
 		Source: source,
 		Network: interoplab.NetworkSpec{
 			Name:       networkName,
 			Candidates: []interoplab.Subnet{{IPv4: networkPrefix, IPv6: scenarioCheckers[source.Name].networkIPv6}},
 		},
-		Containers: []string{zeContainer, swanContainer, frrContainer, natContainer, dnsContainer},
+		Containers:         []string{zeContainer, swanContainer, frrContainer, natContainer, dnsContainer},
+		KernelCapabilities: extraKernelCaps,
 		Prepare: func(_ context.Context, prepare interoplab.PrepareContext) (interoplab.PreparedScenario, error) {
 			return prepareScenario(root, source, state, labContainers{ze: zeContainer, swan: swanContainer,
 				frr: frrContainer, nat: natContainer, dns: dnsContainer})

@@ -31,6 +31,7 @@ import (
 	"errors"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -278,7 +279,81 @@ func ProbeAll() []Row {
 	capabilities.Unlock()
 
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Subsystem < entries[j].Subsystem })
+	return probeEntries(entries)
+}
 
+// ProbeSubsystems probes only the enrolled capabilities matching selectors,
+// sorted and deduplicated by Subsystem. Each selector is either an exact
+// enrolled subsystem name ("mpls", "wireguard") or a trailing wildcard prefix
+// ("ipsec-esp-*", "ipsec-transform-*"). An empty selector list, a malformed
+// wildcard, or a selector matching no enrolled capability is refused so a
+// misspelled or renamed subsystem never silently skips its kernel check.
+func ProbeSubsystems(selectors []string) ([]Row, error) {
+	if len(selectors) == 0 {
+		return nil, errors.New("kernelcap: at least one subsystem selector is required")
+	}
+
+	capabilities.Lock()
+	entries := append([]Capability(nil), capabilities.entries...)
+	capabilities.Unlock()
+
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Subsystem < entries[j].Subsystem })
+
+	selected := make([]bool, len(entries))
+	for _, raw := range selectors {
+		selector := strings.TrimSpace(raw)
+		if selector == "" {
+			return nil, errors.New("kernelcap: empty subsystem selector")
+		}
+		prefix, wildcard := strings.CutSuffix(selector, "*")
+		if wildcard {
+			if prefix == "" {
+				return nil, errors.New("kernelcap: wildcard selector \"*\" is not allowed; omit subsystem to probe all capabilities")
+			}
+			if strings.Contains(prefix, "*") {
+				return nil, errors.New("kernelcap: invalid subsystem selector " + selector + ": '*' is only allowed at the end")
+			}
+		} else if strings.Contains(selector, "*") {
+			return nil, errors.New("kernelcap: invalid subsystem selector " + selector + ": '*' is only allowed at the end")
+		}
+		matched := false
+		for i := range entries {
+			if wildcard {
+				if strings.HasPrefix(entries[i].Subsystem, prefix) {
+					selected[i] = true
+					matched = true
+				}
+				continue
+			}
+			if entries[i].Subsystem == selector {
+				selected[i] = true
+				matched = true
+			}
+		}
+		if !matched {
+			enrolled := make([]string, 0, len(entries))
+			for i := range entries {
+				enrolled = append(enrolled, entries[i].Subsystem)
+			}
+			var msg textbuf.Buffer
+			msg.Str("kernelcap: unknown subsystem selector ").Str(selector)
+			if len(enrolled) > 0 {
+				msg.Str("; enrolled subsystems: ").Join(enrolled, ", ")
+			}
+			return nil, errors.New(msg.String())
+		}
+	}
+
+	var matched []Capability
+	for i := range entries {
+		if selected[i] {
+			matched = append(matched, entries[i])
+		}
+	}
+	return probeEntries(matched), nil
+}
+
+func probeEntries(entries []Capability) []Row {
 	rows := make([]Row, 0, len(entries))
 	for i := range entries {
 		result := probe(&entries[i])

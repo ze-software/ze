@@ -115,10 +115,11 @@ func suiteFor(root string, options Options) (interoplab.Suite, error) {
 		return interoplab.Suite{}, err
 	}
 	return interoplab.Suite{
-		SuffixVariable: environment.SuffixVariable,
-		Docker:         interoplab.NewDocker(),
-		Preflight:      interoplab.StageBinaries(root, options.NoBuild, LabBinaries()...),
-		StagedZe:       interoplab.StagedZePath(root, LabBinaries()),
+		SuffixVariable:     environment.SuffixVariable,
+		Docker:             interoplab.NewDocker(),
+		Preflight:          interoplab.StageBinaries(root, options.NoBuild, LabBinaries()...),
+		StagedZe:           interoplab.StagedZePath(root, LabBinaries()),
+		KernelCapabilities: interoplab.KernelCapabilitiesNone(),
 		// The registered images (register_images.go), then the FRR this run
 		// names and each FRR release a selected scenario pins.
 		Images: append(append(interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),

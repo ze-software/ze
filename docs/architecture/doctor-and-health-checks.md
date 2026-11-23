@@ -602,16 +602,21 @@ memoize a definitive `present` or `absent` verdict for the process life
 `ProbeAll` asks the other question: does this kernel hold every enrolled
 feature, whatever the configuration uses. It probes each enrolment with `InUse`
 ignored and returns one `Row` per subsystem (subsystem, kernel symbol, state,
-reason), and a probe that gave no verdict reads `unknown`. A host that runs Ze's
-Docker labs must answer it with every row present
+reason), and a probe that gave no verdict reads `unknown`. `ProbeSubsystems`
+answers the same question narrowed to the exact subsystem names or
+trailing-wildcard prefixes (`ipsec-esp-*`, `ipsec-transform-*`) that a caller
+needs, refusing any selector that matches no enrolled capability so a typo
+cannot silently skip a check. Full-host checks probe every enrolment; each
+Docker interop suite and scenario probes only the capabilities it requires
 (`docs/architecture/testing/interop.md`, "The Docker host kernel check"). The operator
-reaches it as `ze doctor [--json] kernel-capabilities`, which takes no config
+reaches it as `ze doctor [--json] kernel-capabilities [subsystem <selector> ...]`,
+which takes no config
 file, prints the rows (as `{"ready":...,"capabilities":[...]}` under `--json`)
-and exits 0 only when at least one capability is enrolled and every row is
+and exits 0 only when at least one capability is probed and every row is
 `present`. An `unknown` or `denied` row is not a pass, and neither is an empty enrolment:
 the owners enroll on Linux only, so off Linux the mode answers not ready.
 
-<!-- source: internal/component/kernelcap/kernelcap.go -- ProbeAll, Row -->
+<!-- source: internal/component/kernelcap/kernelcap.go -- ProbeAll, ProbeSubsystems, Row -->
 <!-- source: internal/component/doctor/kernel_capabilities.go -- writeKernelCapabilities -->
 
 `MustRegister` registers the doctor check too, so one call from the owner puts

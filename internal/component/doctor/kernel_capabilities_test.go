@@ -96,3 +96,25 @@ func TestKernelCapabilitiesText(t *testing.T) {
 		t.Errorf("empty enrolment not explained:\n%s", out.String())
 	}
 }
+
+func TestReadDoctorRequestSubsystemSelectors(t *testing.T) {
+	req, err := readDoctorRequest([]string{"--json", "kernel-capabilities", "subsystem", "mpls", "subsystem", "ipsec-esp-*"})
+	if err != nil {
+		t.Fatalf("readDoctorRequest failed: %v", err)
+	}
+	if !req.asJSON || !req.kernel {
+		t.Fatalf("expected json+kernel, got %+v", req)
+	}
+	if len(req.subsystems) != 2 || req.subsystems[0] != "mpls" || req.subsystems[1] != "ipsec-esp-*" {
+		t.Fatalf("subsystems = %v, want [mpls ipsec-esp-*]", req.subsystems)
+	}
+
+	for _, args := range [][]string{
+		{"kernel-capabilities", "subsystem"},
+		{"kernel-capabilities", "subsystem", "--json"},
+	} {
+		if _, err := readDoctorRequest(args); err == nil {
+			t.Errorf("readDoctorRequest(%v) succeeded, want error", args)
+		}
+	}
+}
