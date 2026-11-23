@@ -457,6 +457,8 @@ type Ticket struct {
 	// unshared says the claim was made under Admission.Unshared, so nothing
 	// follows it and its release writes no receipt.
 	unshared bool
+	// lockFile is the open entry file holding the exclusive flock for this slot.
+	lockFile *os.File
 }
 
 // Release drops the slot: it records the job's verdict where a follower can
@@ -491,6 +493,12 @@ func (t *Ticket) Release(code int) {
 	if t.Log != "" {
 		// An empty Log names no file: abs would answer the checkout root.
 		adm.remove(adm.abs(t.Log))
+	}
+	if t.lockFile != nil {
+		if err := t.lockFile.Close(); err != nil {
+			adm.note(errorLine(err))
+		}
+		t.lockFile = nil
 	}
 }
 
@@ -630,7 +638,7 @@ func (a *Admission) queue(ctx context.Context, job *pending) (*Ticket, error) {
 			return &Ticket{
 				Label: job.label, Kind: KindClaimed, Tree: job.tree, Key: job.key,
 				Entry: result.entry, Log: result.log, Waited: time.Since(started),
-				adm: a, started: result.started, unshared: job.unshared,
+				adm: a, started: result.started, unshared: job.unshared, lockFile: result.lockFile,
 			}, nil
 
 		case stateAttach:
@@ -691,7 +699,7 @@ func (a *Admission) insideParent() (string, bool, error) {
 	if !validLabel(label) {
 		return "", false, fmt.Errorf("parent job identity %q has no valid LABEL; run nested work from its live job holder", named)
 	}
-	if !parentRunning(body) {
+	if !parentRunning(named, body) {
 		// A parent whose holder has ended no longer grants a slot; admit anew.
 		return "", false, nil
 	}
@@ -699,15 +707,23 @@ func (a *Admission) insideParent() (string, bool, error) {
 }
 
 // parentRunning reports whether the holder a parent entry's body records may
-// still run, read the way the registry reads a holder (scanAndClaim): a PID
-// the process table says is gone, or a zombie, has ended. Every other reading
-// answers true. A body with no PID is a stand-in for a slot another machine
-// holds (the entry a QEMU guest names, guestJobParentEntry), whose holder no
-// process table here can see. A PID that does not parse, or a liveness that
-// cannot be read, fails closed as the registry does: the entry counts as an
-// occupied slot there, so the child runs inside it here, and nothing runs
-// uncounted.
-func parentRunning(body []byte) bool {
+// still run, read the way the registry reads a holder (scanAndClaim): an entry
+// with FLOCK=1 is judged by its kernel flock; otherwise a PID the process table
+// says is gone, or a zombie, has ended. Every other reading answers true. A
+// body with no PID is a stand-in for a slot another machine holds (the entry a
+// QEMU guest names, guestJobParentEntry), whose holder no process table here
+// can see. A PID that does not parse, or a liveness that cannot be read, fails
+// closed as the registry does: the entry counts as an occupied slot there, so
+// the child runs inside it here, and nothing runs uncounted.
+func parentRunning(path string, body []byte) bool {
+	if field(body, flockField) == flockHeld {
+		running, err := flockAlive(path)
+		// refuse-by-default: guards insideParent -- an unknown flock state fails closed as an occupied slot
+		if err != nil {
+			return true
+		}
+		return running
+	}
 	recorded := field(body, "PID")
 	if recorded == "" {
 		return true

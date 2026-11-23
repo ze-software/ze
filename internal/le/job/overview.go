@@ -610,6 +610,17 @@ func (a *Admission) holderRow(path string, table processTable, now time.Time) (H
 	}
 
 	verdict := table.judge(held.pid)
+	if held.flocked {
+		running, err := flockAlive(held.path)
+		switch {
+		case err != nil:
+			verdict = livenessUnknown
+		case running:
+			verdict = livenessRunning
+		default:
+			verdict = livenessGone
+		}
+	}
 	if verdict == livenessGone {
 		return HolderRow{}, false
 	}

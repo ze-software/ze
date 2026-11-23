@@ -15,9 +15,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
@@ -146,6 +149,9 @@ type runnerOps struct {
 	// changed since (job.SnapshotInputs, job.ChangedInputs).
 	inputSnapshot func(string) (job.InputSnapshot, error)
 	inputChanges  func(string, job.InputSnapshot, func(string) bool) ([]job.InputChange, error)
+	// listWorkers bounds concurrent `go list` flavor queries during planning.
+	// Zero or one runs sequentially (preserving single-threaded test fixtures).
+	listWorkers int
 }
 
 // listedPackage is the public go-list metadata used to distinguish authored
@@ -243,7 +249,15 @@ func realRunnerOps() runnerOps {
 		stream:        streamCommand,
 		inputSnapshot: snapshotLintInputs,
 		inputChanges:  job.ChangedInputs,
+		listWorkers:   lintPlanWorkers(),
 	}
+}
+
+// lintPlanWorkers chooses a bounded concurrency for the 20 independent
+// `go list` planning queries: a quarter of the machine's cores, clamped to
+// [2, 8], matching the lint runner's own quarter-machine CPU budget.
+func lintPlanWorkers() int {
+	return min(max(runtime.NumCPU()/4, 2), 8)
 }
 
 // snapshotLintInputs records what the lint label reads, before planning.
@@ -360,54 +374,77 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 	}
 	inputs := &planInputs{start: start, population: newLintPopulation(patterns)}
 	seen := make(map[string]bool)
-	for _, flavor := range basePasses() {
-		packages, files, read, err := r.goList(flavor, patterns)
-		inputs.population.add(read)
-		if inputErr := r.checkPlanningInputs(inputs, flavor.Name); inputErr != nil {
-			return LintPlan{}, errors.Join(err, inputErr)
-		}
-		if err != nil {
-			return LintPlan{}, err
-		}
-		if len(packages) == 0 || len(files) == 0 {
-			return LintPlan{}, fmt.Errorf("lint flavor %s selected an empty package population", flavor.Name)
-		}
-		for path := range files {
-			seen[path] = true
-		}
-		passes = append(passes, r.passPlan(flavor, patterns, false))
-	}
-
-	for _, flavor := range flavors {
-		packages, files, read, err := r.goList(flavor, patterns)
-		inputs.population.add(read)
-		if inputErr := r.checkPlanningInputs(inputs, flavor.Name); inputErr != nil {
-			return LintPlan{}, errors.Join(err, inputErr)
-		}
-		if err != nil {
-			return LintPlan{}, err
-		}
-		if len(packages) == 0 || len(files) == 0 {
-			return LintPlan{}, fmt.Errorf("lint flavor %s selected an empty package population", flavor.Name)
-		}
-		// A flavor claims only packages holding a file no earlier pass
-		// selected, so it lints, it does not type-check: a package of shared
-		// files is never compiled under this flavor's GOOS here. The BSD and
-		// Darwin compile check is ./le go vet-platforms, over every package.
-		scope := make([]string, 0, len(packages))
-		for name, selected := range packages {
-			for path := range selected {
-				if !seen[path] {
-					scope = append(scope, name)
-					break
-				}
+	base := basePasses()
+	if r.ops.listWorkers > 1 {
+		allFlavors := make([]Flavor, 0, len(base)+len(flavors))
+		allFlavors = append(allFlavors, base...)
+		allFlavors = append(allFlavors, flavors...)
+		results := r.queryFlavorsParallel(allFlavors, patterns)
+		for index, flavor := range allFlavors {
+			res := results[index]
+			inputs.population.add(res.read)
+			if inputErr := r.checkPlanningInputs(inputs, flavor.Name); inputErr != nil {
+				return LintPlan{}, errors.Join(res.err, inputErr)
 			}
+			if res.err != nil {
+				return LintPlan{}, res.err
+			}
+			if len(res.packages) == 0 {
+				return LintPlan{}, fmt.Errorf("lint flavor %s selected an empty package population", flavor.Name)
+			}
+			if len(res.files) == 0 {
+				return LintPlan{}, fmt.Errorf("lint flavor %s selected an empty package population", flavor.Name)
+			}
+			if index < len(base) {
+				for path := range res.files {
+					seen[path] = true
+				}
+				passes = append(passes, r.passPlan(flavor, patterns, false))
+				continue
+			}
+			scope := unclaimedPackages(res.packages, seen)
+			for path := range res.files {
+				seen[path] = true
+			}
+			passes = append(passes, r.passPlan(flavor, scope, len(scope) == 0))
 		}
-		slices.Sort(scope)
-		for path := range files {
-			seen[path] = true
+	} else {
+		for _, flavor := range base {
+			packages, files, read, err := r.goList(flavor, patterns)
+			inputs.population.add(read)
+			if inputErr := r.checkPlanningInputs(inputs, flavor.Name); inputErr != nil {
+				return LintPlan{}, errors.Join(err, inputErr)
+			}
+			if err != nil {
+				return LintPlan{}, err
+			}
+			if len(packages) == 0 || len(files) == 0 {
+				return LintPlan{}, fmt.Errorf("lint flavor %s selected an empty package population", flavor.Name)
+			}
+			for path := range files {
+				seen[path] = true
+			}
+			passes = append(passes, r.passPlan(flavor, patterns, false))
 		}
-		passes = append(passes, r.passPlan(flavor, scope, len(scope) == 0))
+
+		for _, flavor := range flavors {
+			packages, files, read, err := r.goList(flavor, patterns)
+			inputs.population.add(read)
+			if inputErr := r.checkPlanningInputs(inputs, flavor.Name); inputErr != nil {
+				return LintPlan{}, errors.Join(err, inputErr)
+			}
+			if err != nil {
+				return LintPlan{}, err
+			}
+			if len(packages) == 0 || len(files) == 0 {
+				return LintPlan{}, fmt.Errorf("lint flavor %s selected an empty package population", flavor.Name)
+			}
+			scope := unclaimedPackages(packages, seen)
+			for path := range files {
+				seen[path] = true
+			}
+			passes = append(passes, r.passPlan(flavor, scope, len(scope) == 0))
+		}
 	}
 
 	var coverage population.Coverage
@@ -458,6 +495,62 @@ func (r *Runner) checkPlanningInputs(inputs *planInputs, after string) error {
 	text.Str(" changed, and this run lints or depends on it; no plan was produced;" +
 		" rerun when edits to the linted packages and their dependencies have stopped")
 	return errors.New(text.String())
+}
+
+// flavorQueryResult holds one flavor's goList output so parallel workers write
+// disjoint slice slots and reduction stays in deterministic flavor order.
+type flavorQueryResult struct {
+	packages map[string]map[string]bool
+	files    map[string]bool
+	read     queryInputs
+	err      error
+}
+
+// queryFlavorsParallel runs goList across flavors with up to r.ops.listWorkers
+// concurrent workers. Each worker writes only its own result slot.
+func (r *Runner) queryFlavorsParallel(flavors []Flavor, patterns []string) []flavorQueryResult {
+	results := make([]flavorQueryResult, len(flavors))
+	workers := min(r.ops.listWorkers, len(flavors))
+	var next atomic.Int64
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for range workers {
+		go r.runFlavorWorker(flavors, patterns, &next, results, &wg)
+	}
+	wg.Wait()
+	return results
+}
+
+// runFlavorWorker claims flavor indices from next until exhausted and stores
+// each goList result in its disjoint results slot before signalling wg.
+func (r *Runner) runFlavorWorker(flavors []Flavor, patterns []string, next *atomic.Int64, results []flavorQueryResult, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for {
+		index := int(next.Add(1) - 1)
+		if index >= len(flavors) {
+			return
+		}
+		packages, files, read, err := r.goList(flavors[index], patterns)
+		results[index] = flavorQueryResult{packages: packages, files: files, read: read, err: err}
+	}
+}
+
+// unclaimedPackages returns the sorted package directories holding at least one
+// file no earlier flavor already selected. A flavor lints only unclaimed files
+// rather than type-checking every shared file under each GOOS (./le go
+// vet-platforms checks cross-platform compilation).
+func unclaimedPackages(packages map[string]map[string]bool, seen map[string]bool) []string {
+	scope := make([]string, 0, len(packages))
+	for name, selected := range packages {
+		for path := range selected {
+			if !seen[path] {
+				scope = append(scope, name)
+				break
+			}
+		}
+	}
+	slices.Sort(scope)
+	return scope
 }
 
 // goList answers one flavor's population: the authored files of each listed

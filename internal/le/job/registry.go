@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -60,6 +61,12 @@ const (
 	agentField   = "AGENT"
 	// commandField is the command line, written last and read as data only.
 	commandField = "CMD"
+	// flockField marks an entry whose holder keeps an exclusive flock on the
+	// entry file for the life of its Ticket. The kernel releases the lock the
+	// instant the holder exits or is killed, across PID namespaces and immune
+	// to PID reuse or kernel-thread collisions.
+	flockField = "FLOCK"
+	flockHeld  = "1"
 )
 
 // owner is who asked for a job: the harness session and, for a subagent, the
@@ -207,6 +214,11 @@ type outcome struct {
 	// liveness is a process-query failure, not evidence of a free slot.
 	liveness error
 	started  time.Time
+	// lockFile is the open entry file whose flock backs a claimed slot.
+	lockFile *os.File
+	// flocked says the entry carries flockField=flockHeld, so followers judge
+	// liveness by the entry's flock rather than PID alone.
+	flocked bool
 }
 
 // entry is one registry file, parsed.
@@ -230,6 +242,8 @@ type entry struct {
 	who owner
 	// command is the entry's CMD line, read as data and never executed.
 	command string
+	// flocked reports whether the entry records FLOCK=1.
+	flocked bool
 }
 
 // claim asks the registry once, under the registry lock, and answers what it
@@ -281,7 +295,7 @@ func (a *Admission) scanAndClaim(ctx context.Context, job *pending) outcome {
 			continue
 		}
 
-		running, queryErr := alive(ctx, held.pid)
+		running, queryErr := entryAlive(ctx, held)
 		if err := ctx.Err(); err != nil {
 			return outcome{err: err}
 		}
@@ -314,7 +328,7 @@ func (a *Admission) scanAndClaim(ctx context.Context, job *pending) outcome {
 	}
 
 	if share != nil {
-		return outcome{state: stateAttach, entry: a.rel(share.path), log: share.log, pid: share.pid}
+		return outcome{state: stateAttach, entry: a.rel(share.path), log: share.log, pid: share.pid, flocked: share.flocked}
 	}
 	if occupied >= a.Slots {
 		return result
@@ -397,15 +411,21 @@ func (a *Admission) take(job *pending, now time.Time) (result outcome) {
 	if err != nil {
 		return outcome{err: err}
 	}
-	if err := file.Close(); err != nil {
-		a.remove(file.Name())
-		return outcome{err: err}
-	}
 	defer func() {
 		if result.state != stateClaimed {
+			if closeErr := file.Close(); closeErr != nil {
+				a.note(errorLine(closeErr))
+			}
 			a.remove(file.Name())
 		}
 	}()
+	// Hold an exclusive flock on the entry file for the Ticket's lifetime.
+	// The kernel drops it on Release, process exit, SIGKILL, or sandbox
+	// teardown, so readers across PID namespaces never confuse a dead low
+	// sandbox PID with a live host kernel thread.
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		return outcome{err: err}
+	}
 	rel := a.rel(file.Name())
 	logRel, err := a.claimLog(job, rel)
 	if err != nil {
@@ -445,16 +465,17 @@ func (a *Admission) take(job *pending, now time.Time) (result outcome) {
 	// The owner fields come after the nine an entry always held, so a reader
 	// that knows only those reads this entry as it read the older ones.
 	writeOwner(&tb, job.who)
+	writeField(&tb, flockField, flockHeld)
 	written := []byte(tb.String())
 
-	if err := os.WriteFile(file.Name(), written, 0o644); err != nil { //nolint:gosec // this invocation exclusively created the entry above
+	if _, err := file.Write(written); err != nil {
 		return outcome{err: err}
 	}
 	if err := os.Chmod(file.Name(), 0o644); err != nil { //nolint:gosec // followers read the completed registry entry
 		return outcome{err: err}
 	}
 
-	return outcome{state: stateClaimed, entry: rel, log: logRel, pid: pid, started: now}
+	return outcome{state: stateClaimed, entry: rel, log: logRel, pid: pid, started: now, lockFile: file, flocked: true}
 }
 
 // claimLog creates the progress log of the claim whose entry is entryRel and
@@ -746,6 +767,7 @@ func (a *Admission) readEntry(path string) (entry, bool) {
 		// The writer put the command on one line (writeField), so this line
 		// is the whole of it, shown as text and never run.
 		command: field(body, commandField),
+		flocked: field(body, flockField) == flockHeld,
 	}
 	// A STARTED nobody wrote leaves the job as old as this instant, which
 	// makes its elapsed time zero rather than fifty years. Elapsed time is
@@ -876,9 +898,48 @@ func processGroup() int {
 // A follower would also wait for a run that ended. Linux prints the state as
 // one letter, and macOS appends flags to it. Therefore, the state is the first
 // letter on both systems.
+// entryAlive reports whether held's holder is still running. Entries carrying
+// FLOCK=1 are judged by their kernel inode flock, which works across Linux PID
+// namespaces and drops automatically on SIGKILL or sandbox teardown. Legacy
+// entries without FLOCK=1 fall back to PID inspection.
+func entryAlive(ctx context.Context, held entry) (bool, error) {
+	if held.flocked {
+		return flockAlive(held.path)
+	}
+	return alive(ctx, held.pid)
+}
+
+// flockAlive tests whether the holder's exclusive flock on path is still held.
+// A missing file means the holder already released it. Any unexpected I/O or
+// syscall error is returned so callers fail closed.
+func flockAlive(path string) (bool, error) {
+	f, err := os.Open(path) //nolint:gosec // path is a registry entry inside tmp/.ze-jobs
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	defer func() { _ = f.Close() }()
+
+	err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err == nil {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		return false, nil
+	}
+	if errors.Is(err, syscall.EWOULDBLOCK) {
+		return true, nil
+	}
+	return false, err
+}
+
 func alive(parent context.Context, pid int) (bool, error) {
 	if pid <= 0 {
 		return false, errors.New("a process query needs a positive PID")
+	}
+	// On Linux, PID 2 is kthreadd; no Ze job is a kernel thread.
+	if runtime.GOOS == "linux" && pid == 2 {
+		return false, nil
 	}
 
 	ctx, cancel := context.WithTimeout(parent, aliveTimeout)
@@ -886,7 +947,7 @@ func alive(parent context.Context, pid int) (bool, error) {
 
 	var tb textbuf.Buffer
 	//nolint:gosec // the argument is a number this package printed from a registry entry's PID field
-	out, err := exec.CommandContext(ctx, "ps", "-o", "state=", "-p", tb.Int(int64(pid)).String()).Output()
+	out, err := exec.CommandContext(ctx, "ps", "-o", "state=,ppid=", "-p", tb.Int(int64(pid)).String()).Output()
 	reported := strings.TrimSpace(string(out))
 	if err != nil {
 		// ps exits 1 with no output when the selected PID is absent. Every
@@ -899,10 +960,27 @@ func alive(parent context.Context, pid int) (bool, error) {
 		}
 		return false, err
 	}
-	if reported == "" {
+	return parseAliveOutput(reported, runtime.GOOS)
+}
+
+// parseAliveOutput interprets `ps -o state=,ppid=` output. Zombies count as
+// gone. On Linux, children of kthreadd (ppid == 2) are kernel threads and
+// never a Ze job — guarding legacy non-flocked entries whose low sandbox PID
+// collides with a host kernel thread.
+func parseAliveOutput(reported, goos string) (bool, error) {
+	fields := strings.Fields(reported)
+	if len(fields) == 0 {
 		return false, errors.New("the process query returned no state")
 	}
-	return !strings.HasPrefix(reported, "Z"), nil
+	if strings.HasPrefix(fields[0], "Z") {
+		return false, nil
+	}
+	if goos == "linux" && len(fields) >= 2 {
+		if ppid, err := strconv.Atoi(fields[1]); err == nil && ppid == 2 {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // registryLock is the flock this package takes for the length of a scan.

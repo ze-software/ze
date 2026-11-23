@@ -98,7 +98,13 @@ func (a *Admission) follow(ctx context.Context, target outcome) {
 			a.copyTail(file)
 			break
 		}
-		running, err := alive(ctx, target.pid)
+		var running bool
+		var err error
+		if target.flocked {
+			running, err = flockAlive(a.abs(target.entry))
+		} else {
+			running, err = alive(ctx, target.pid)
+		}
 		if err == nil {
 			if !running {
 				a.copyTail(file)

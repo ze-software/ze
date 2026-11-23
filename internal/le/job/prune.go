@@ -356,7 +356,17 @@ func (p *prunePass) entry(registry *Admission, file registryFile) {
 		p.keep(file, PruneKeptUnreadable, nil)
 		return
 	}
-	if p.keptAlive(file, held.pid) {
+	if held.flocked {
+		running, err := flockAlive(held.path)
+		switch {
+		case err != nil:
+			p.keep(file, PruneKeptLivenessUnknown, err)
+			return
+		case running:
+			p.keep(file, PruneKeptRunning, nil)
+			return
+		}
+	} else if p.keptAlive(file, held.pid) {
 		return
 	}
 
