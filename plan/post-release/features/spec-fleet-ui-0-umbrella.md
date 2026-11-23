@@ -65,6 +65,7 @@ components it composes.
 | 5 | `plan/post-release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` | The hub task model and its panel, the alarm list, toasts and the live event stream | fleet-ui-1 (approved), fleet-1, fleet-4 |
 | 6 | `plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md` | Per-device config view and diff, divergence resolution, rollouts, the audit trail and the administration pages | fleet-ui-2, fleet-ui-5, fleet-2, fleet-3, fleet-5, fleet-7 |
 | 7 | `spec-fleet-ui-7-recorded-demonstration` (closed 2026-11-19) | A recorded demonstration of the interface on the sample estate, played from the website checkout with no daemon, written where the site does not publish it, for the owner's review. It is rendered on request by `./le site fleet-demo render`, never by the site build, into the output's unpublished `tmp/fleet-demo/` (`docs/contributing/gh-pages.md`, "Render the fleet demonstration") | fleet-ui-1 |
+| 8 | `plan/post-release/features/spec-fleet-ui-8-alarm-causes.md` | Alarm causes: an alarm kind names the kinds that cause it in its own registration; an alarm whose cause is open on its device is hidden behind it, listed under its cause, and shown again with its original `Since` when the cause clears. Narrows `fleet-ui-5` AC-4 for a hidden alarm and adds the `has:cause` filter and the `hidden-behind` field of `show fleet alarm` | fleet-ui-5, fleet-1, fleet-4, fleet-8 |
 
 Back-end work the interface needs, owned by the `fleet` set:
 
@@ -627,6 +628,9 @@ implemented, and is not started before the specs it depends on.
    - Verify: nothing the hub does to a device is invisible
 6. **Phase: Config, rollout, audit and administration (fleet-ui-6)** -- the remaining fleet views
    - Verify: every fleet capability with a CLI command has a page
+8. **Phase: Alarm causes (fleet-ui-8)** -- an alarm hidden behind its open cause, listed under it, shown again when the cause clears
+   - Tests: `fleet-alarm-cause`, `alarm-hidden-behind-offline`
+   - Verify: a device that goes offline shows one alarm, and its other alarms return with it
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
