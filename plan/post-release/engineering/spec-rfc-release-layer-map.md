@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | 4/4 -- presentation approved; scoped verification and publication |
 | Handoff | - |
-| Updated | 2026-11-15 |
+| Updated | 2026-11-23 |
 
 ## Task
 
@@ -554,3 +554,185 @@ existing `ai tokens report` menu summary exceeded its 60-character limit.
 Removing the redundant word "the" in `internal/le/ai/tokens/run.go` repaired
 that one-line blocker without changing the command's behavior or its other
 uncommitted work. The subsequent named build and page render succeeded.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Registered standalone `rfc-map` website producer (`internal/le/site/rfcmap.go::init`, `renderRFCMap`) publishing `/quality/rfc-map/` (`quality/rfc-map/index.html`), its Markdown mirror (`quality/rfc-map/index.md`), compact topology/relation projection (`data/rfc-map.json`), and page-local assets (`assets/rfc-map.css`, `assets/js/rfc-map.js`).
+- Implemented recorded-input validation and projection (`internal/le/site/rfcmap_model.go::loadRFCMapData`, `loadRFCMapLayers`, `validateRFCMapLayers`, `validateRFCMapMembers`, `projectRFCMapGraph`, `projectRFCMapProfiles`, `projectRFCMapRelations`, `appendRFCMapRelation`) over the canonical requirement ledger, committed roadmap snapshot, and proposed layers declaration (`website/data/rfc-release-layers.json`, 10 proposed groups, 47 RFC stems).
+- Built native SVG/DOM interactive graph, release-layer/profile/technology/all-RFCs selectors, search, exact keyword requirement filter (`MUST`, `SHOULD`, `MAY`, mandatory family), canonical `data/rfc/<stem>.json` figure loader, completion-gradient node cards, associated/unmapped specification inventory, and input-provenance/diagnostics disclosure (`website/assets/js/rfc-map.js`, `website/assets/rfc-map.css`).
+- Added approved navigation links in `website/data/nav.json` (Evaluate -> Evidence menu) and `website/data/page-links.json` (quality overview, testing health, RFC compliance, RFC reference, RFC details, roadmap sidebars) plus persistent return navigation outside `#rfc-map` (`rfcmap.go::rfcMapBody`).
+- Landed core sources and navigation in `44d388c347`, approved homepage wording in `315fcc8f05`, Pages publication in `1f2a063dfd`, production-renderer browser fixtures in `ed7106facf`, updated proof wording assertions in `bab9ec6fcb`, and card-gradient completion coloring with `TestRFCMapNodeGradientsMatchRecordedProof` in `44fd48cde7`.
+- Added operator news fragment `website/changes/fragments/rfc-release-layer-map.md`.
+
+### Bugs Found/Fixed
+- Reload dropped the All RFCs view: fixed in `website/assets/js/rfc-map.js::setURL` and `start` (`?view=all`), covered by `internal/le/site/browsertest/rfcmap_test.go::TestRFCMapBrowserInteraction/all_scope_survives_reload`.
+- Keyboard selection lost focus when graph/list DOM re-rendered: fixed in `website/assets/js/rfc-map.js::select` (restoring focus to the newly selected node/document or inspector), covered by `TestRFCMapBrowserInteraction/keyboard_selection_keeps_focus`.
+- Avoidable struct copies and fixture path construction flagged by scoped lint were fixed in `44d388c347`.
+
+### Security Review Summary
+- **HTML escaping & DOM injection (`internal/le/site/rfcmap.go`, `website/assets/js/rfc-map.js`):** `rfcMapBody` escapes `RoadmapRevision`, `node.Stem`, and `node.Title` with `html.EscapeString`; `rfcMapMirrorText` strips CR/LF and escapes `[` and `]`. `rfc-map.js` constructs all HTML/SVG nodes via `createElement`, `createElementNS`, `textContent`, `createTextNode`, and `replaceChildren` with zero `innerHTML`/`outerHTML`/`insertAdjacentHTML`/`document.write`/`eval`/`new Function` sinks.
+- **URL and external-link safety (`website/assets/js/rfc-map.js`):** `safeURL` parses via `new URL(value, document.baseURI)` and permits only `http:` and `https:` on `spec["source-url"]`; `detail` uses `encodeURIComponent(stem)` against same-origin `site`; external RFC links require `/^rfc\d+$/` plus `encodeURIComponent(stem)`. URL query parameters (`layer`, `profile`, `technology`, `rfc`) are validated against loaded map identities before use. CSS `--rfc-map-node-gradient` uses only hardcoded `proofSegments` keys and validated non-negative integer ratios (`must.kept > 0`).
+- **Path handling & JSON validation (`internal/le/site/rfcmap.go`, `rfcmap_model.go`):** Only fixed compile-time relative paths (`assets/rfc-map.css`, `assets/js/rfc-map.js`, `data/rfc-release-layers.json`, `data/rfc-requirements.json`, `data/release-roadmap.json`) are read or written under `paths.Source`/`paths.Output`; no user-controlled path traversal. `loadRFCMapLayers` enforces `json.Valid` plus `DisallowUnknownFields`, schema version 1, `proposed: true`, lowercase hyphenated layer IDs, and known corpus stems before any write occurs. `rfcMapSpecReference` uses linear-time RE2 (`regexp`).
+- **Result:** 0 security findings.
+
+### Documentation Updates
+- `website/AI.md` (updated in `44d388c347`, extended in `44fd48cde7`): documents `/quality/rfc-map/`, `rfcmap.go`, `rfcmap_model.go`, `website/data/rfc-release-layers.json`, `website/assets/js/rfc-map.js`, `website/assets/rfc-map.css`, and `TestRFCMapNodeGradientsMatchRecordedProof`.
+- `docs/contributing/gh-pages.md` (updated in `ed7106facf` and subsequent RFC compliance updates): anchors `<!-- source: internal/le/site/browsertest/rfcmap_test.go -- rfcMapBrowserSite -->` and notes the map link beside the compliance index.
+- `./le doc check all`: 0 drift, 0 anchor errors on any `rfcmap`/`rfc-map`/`gh-pages`/`website` file (2 unrelated pre-existing anchor errors in `internal/component/bgp/reactor/peer_forward_facts.go::rsRelaySendGranted` from concurrent BGP work).
+
+### Deviations from Plan
+- **Test file split and naming:** Model tests live in `internal/le/site/rfcmap_model_test.go` alongside publication tests in `internal/le/site/rfcmap_test.go`. Planned test names `TestRFCMapProofAndKeywordScopes` and `TestRFCMapAccountsForEverySpec` were consolidated across `TestRFCMapRelationsPreserveProvenance` (exact keyword levels, gated flags, duplicate token deduplication, unmapped/no-gap/unknown-RID diagnostics), `TestRFCMapProducerPublishesNewPage` (canonical proof boundary), `TestRFCMapRejectsInvalidRecordedInputs` (missing inventory refusal), `TestRFCMapAmbiguousCitationRemainsUnassigned`, and `TestRFCMapBrowserInteraction` (`declared_scopes_and_keyword_filters`, `proof_states_remain_distinct`, `document_without_summary_stays_unknown`).
+- **Additional follow-up enhancement:** `44fd48cde7` added left-to-right proof-gradient coloring on connected RFC cards (`website/assets/js/rfc-map.js::paintNodeProof`, `website/assets/rfc-map.css`, `internal/le/site/browsertest/rfcmap_gradient_test.go::TestRFCMapNodeGradientsMatchRecordedProof`).
+- **Approved navigation follow-up:** Added menu and sidebar links (`website/data/nav.json`, `website/data/page-links.json`) after Thomas approved the initial standalone presentation on 2026-11-15.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Initial implementation omitted `?view=all` in URL state and dropped keyboard focus on DOM replacement during node selection | Reloading All RFCs reverted to default layer and keyboard users lost focus after pressing Enter | Initial browser regression run (`TestRFCMapBrowserInteraction`) | Fixed in `website/assets/js/rfc-map.js::setURL`, `start`, and `select` with regression subtests `all_scope_survives_reload` and `keyboard_selection_keeps_focus` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| New website page at `/quality/rfc-map/` with Markdown mirror and static fallback | Done | `internal/le/site/rfcmap.go::renderRFCMap`, `rfcMapBody`, `rfcMapMirror` | Registered via `init()` -> `registerProducer` |
+| Dependency graph with release-layer filters focused on base IPv4 BGP | Done | `website/assets/js/rfc-map.js::start`, `renderGraph`, `website/data/rfc-release-layers.json` | Default layer `base-ipv4-bgp` (`rfc4271`); 10 proposed groups |
+| Derived canonical proof figures and exact requirement levels (`MUST`, `SHOULD`, `MAY`) | Done | `website/assets/js/rfc-map.js::ensureFigure`, `paintProof`, `renderRequirementList`; `internal/le/site/rfcmap_model.go::projectRFCMapRelations` | Proof loaded solely from `data/rfc/<stem>.json`; exact `Level` and `Gated` preserved |
+| Specifications associated with each RFC plus visible unclassified inventory | Done | `internal/le/site/rfcmap_model.go::projectRFCMapRelations`; `website/assets/js/rfc-map.js::relationsFor`, `renderInventory` | Deduplicates relations, keeps unmapped specs and diagnostics visible |
+| Approved menu and related-page navigation without altering existing page layouts | Done | `website/data/nav.json`, `website/data/page-links.json`, `internal/le/site/rfcmap.go::rfcMapBody` | Evaluate -> Evidence menu + 6 sidebar groups + persistent return nav |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `internal/le/site/rfcmap.go::renderRFCMap`; `website/assets/js/rfc-map.js::start`, `renderGraph`; `TestRFCMapBrowserInteraction/declared_scopes_and_keyword_filters` | Opens on `base-ipv4-bgp` (`RFC 4271`) with layer/profile/technology selectors |
+| AC-2 | Done | `internal/le/site/rfcmap_model.go::projectRFCMapGraph`; `website/assets/js/rfc-map.js::buildShell`, `ensureFigure`, `paintProof`; `TestRFCMapGraphPreservesIdentityAndScope`, `TestRFCMapBrowserInteraction/document_without_summary_stays_unknown` | All recorded nodes searchable; text-only nodes show explicit `Unknown` without fetching nonexistent figure files |
+| AC-3 | Done | `internal/le/site/rfcmap_model.go::projectRFCMapGraph`; `website/assets/js/rfc-map.js::graphMembers`, `renderGraph`, `renderRelationships`; `TestRFCMapGraphPreservesIdentityAndScope` | Preserves unique nodes, `builds-on`/`updates`/`obsoletes` edges, and `component` cycles; context cards dashed |
+| AC-4 | Done | `internal/le/site/rfcmap_model.go::validateRFCMapLayers`, `projectRFCMapProfiles`; `website/assets/js/rfc-map.js::scope`, `changeView`; `TestRFCMapGraphPreservesIdentityAndScope`, `TestRFCMapBrowserInteraction/declared_scopes_and_keyword_filters`, `all_scope_survives_reload` | Exact declared layer or profile required set shown; optional/context labeled; All RFCs exposes unassigned docs |
+| AC-5 | Done | `website/assets/js/rfc-map.js::ensureFigure`, `paintProof`; `TestRFCMapProducerPublishesNewPage`, `TestRFCMapBrowserInteraction/proof_states_remain_distinct`, `document_without_summary_stays_unknown`, `TestRFCMapNodeGradientsMatchRecordedProof` | Canonical `ze-proven + os-verified / kept`; explicit `Unknown`, `No MUST rows`, `None owed`; no copied proof in `rfc-map.json` |
+| AC-6 | Done | `internal/le/site/rfcmap_model.go::projectRFCMapRelations`; `website/assets/js/rfc-map.js::relationsFor`, `renderRequirementList`; `TestRFCMapRelationsPreserveProvenance`, `TestRFCMapBrowserInteraction/declared_scopes_and_keyword_filters` | Exact `MUST`/`SHOULD`/`MAY` filtering updates listed statements and exact-RID relations while keeping mandatory proof card unchanged |
+| AC-7 | Done | `internal/le/site/rfcmap_model.go::projectRFCMapRelations`, `appendRFCMapRelation`; `TestRFCMapRelationsPreserveProvenance`, `TestRFCMapAmbiguousCitationRemainsUnassigned` | Distinguishes `declared-requirement`, `declared-rfc`, `summary-gap-citation`, `summary-partial-citation`; deduplicates specs |
+| AC-8 | Done | `internal/le/site/rfcmap_model.go::projectRFCMapRelations`; `website/assets/js/rfc-map.js::renderInventory`, `renderProvenance`; `TestRFCMapRelationsPreserveProvenance`, `TestRFCMapAmbiguousCitationRemainsUnassigned` | Unmapped specs listed in inventory; unknown RIDs, ambiguous citations, and item diagnostics recorded visibly |
+| AC-9 | Done | `internal/le/site/rfcmap_model.go::loadRFCMapData`, `readRFCMapInput`; `internal/le/site/rfcmap.go::rfcMapBody`, `rfcMapMirror`; `website/assets/js/rfc-map.js::renderProvenance`, `renderInventory`; `TestRFCMapInputProvenance` | Separate SHA-256 digests per input; ledger revision/age stays unknown; roadmap revision drift flagged |
+| AC-10 | Done | `internal/le/site/rfcmap.go::renderRFCMap`; `TestRFCMapProducerPublishesNewPage`, `TestRFCMapPreservesExistingPages` | Publishes only the 5 map-owned artifacts; preflight refuses before writes; existing page bytes unchanged |
+| AC-11 | Done | `website/assets/js/rfc-map.js::select`, `buildShell`; `website/assets/rfc-map.css` responsive media queries; `TestRFCMapBrowserInteraction/keyboard_selection_keeps_focus`, `phone_layout_and_menu` | Keyboard focus retained on selection; 375px viewport has no horizontal overflow; list alternative present |
+| AC-12 | Done | `internal/le/site/rfcmap.go::rfcMapBody`; `website/assets/js/rfc-map.js::start` catch block; `TestRFCMapProducerPublishesNewPage`, `TestRFCMapBrowserInteraction/missing_input_keeps_static_navigation` | `<noscript>` fallback, static RFC list, and `[role="alert"]` HTTP error preserving static links |
+| AC-13 | Done | Spec `## Local Presentation Review` & `## Approved Navigation and Verification`; commits `44d388c347`, `1f2a063dfd` | Prototype rendered standalone for owner review, approved by Thomas on 2026-11-15, then tested and published |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRFCMapProducerPublishesNewPage` | Done | `internal/le/site/rfcmap_test.go` | Verifies route, 5 outputs, fallback, mirror, assets, and no copied proof fields |
+| `TestRFCMapGraphPreservesIdentityAndScope` | Done | `internal/le/site/rfcmap_model_test.go` | Verifies nodes, cycles, typed edges, layer scope, profile tiers |
+| `TestRFCMapProofAndKeywordScopes` | Changed | `internal/le/site/rfcmap_model_test.go::TestRFCMapRelationsPreserveProvenance`, `internal/le/site/rfcmap_test.go::TestRFCMapProducerPublishesNewPage`, `internal/le/site/browsertest/rfcmap_test.go::TestRFCMapBrowserInteraction`, `internal/le/site/browsertest/rfcmap_gradient_test.go::TestRFCMapNodeGradientsMatchRecordedProof` | Consolidated across model, producer, and browser tests (see Deviations) |
+| `TestRFCMapRelationsPreserveProvenance` | Done | `internal/le/site/rfcmap_model_test.go` | Plus `TestRFCMapAmbiguousCitationRemainsUnassigned` |
+| `TestRFCMapAccountsForEverySpec` | Changed | `internal/le/site/rfcmap_model_test.go::TestRFCMapRelationsPreserveProvenance`, `TestRFCMapRejectsInvalidRecordedInputs` | Deduplication, unmapped/no-gap/stale diagnostics, missing-inventory refusal covered in model suite (see Deviations) |
+| `TestRFCMapInputProvenance` | Done | `internal/le/site/rfcmap_model_test.go` | Plus `TestRFCMapRejectsInvalidRecordedInputs` (12 corruption cases) |
+| `TestRFCMapPreservesExistingPages` | Done | `internal/le/site/rfcmap_test.go` | Byte-snapshot preservation on success and both preflight failure modes |
+| `TestRFCMapBrowserInteraction` | Done | `internal/le/site/browsertest/rfcmap_test.go` | 7 subtests covering reload, keyboard focus, scopes/keywords, phone/menu, proof states, no-summary, HTTP 503 fallback |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/site/rfcmap.go` | Done | Landed in `44d388c347` |
+| `internal/le/site/rfcmap_model.go` | Done | Landed in `44d388c347` |
+| `internal/le/site/rfcmap_test.go` | Done | Landed in `44d388c347`; model tests split into sibling `internal/le/site/rfcmap_model_test.go` |
+| `internal/le/site/browsertest/rfcmap_test.go` | Done | Landed in `44d388c347`; updated in `ed7106facf`, `bab9ec6fcb`; plus `rfcmap_gradient_test.go` in `44fd48cde7` |
+| `website/data/rfc-release-layers.json` | Done | Landed in `44d388c347`; all 10 layers and 47 stems match spec |
+| `website/assets/rfc-map.css` | Done | Landed in `44d388c347`; updated in `44fd48cde7` |
+| `website/assets/js/rfc-map.js` | Done | Landed in `44d388c347`; updated in `eeaa8cf573`, `44fd48cde7` |
+
+### Audit Summary
+- **Total items:** 33 (5 task requirements + 13 ACs + 8 planned tests + 7 planned files)
+- **Done:** 31
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (two planned test names consolidated into existing model/browser test functions with full behavioral coverage; recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Publish standalone `/quality/rfc-map/` page with Markdown mirror and static fallback preserving existing pages | Unit & publication test + Pages commit | `internal/le/site/rfcmap_test.go::TestRFCMapProducerPublishesNewPage`, `TestRFCMapPreservesExistingPages`; live publication in Pages commit `1f2a063dfd` (main-thread rerun owed) |
+| Interactive dependency graph with proposed release-layer filters, existing profiles, and base IPv4 BGP focus | Unit & Chrome browser test | `internal/le/site/rfcmap_model_test.go::TestRFCMapGraphPreservesIdentityAndScope`; `internal/le/site/browsertest/rfcmap_test.go::TestRFCMapBrowserInteraction` (`all_scope_survives_reload`, `declared_scopes_and_keyword_filters`, `keyboard_selection_keeps_focus`, `phone_layout_and_menu`) |
+| Canonical proof figures separated from exact `MUST`/`SHOULD`/`MAY` statement filters | Unit & Chrome browser test | `internal/le/site/rfcmap_test.go::TestRFCMapProducerPublishesNewPage`; `internal/le/site/browsertest/rfcmap_test.go::TestRFCMapBrowserInteraction` (`declared_scopes_and_keyword_filters`, `proof_states_remain_distinct`, `document_without_summary_stays_unknown`), `TestRFCMapNodeGradientsMatchRecordedProof` |
+| Preserve spec associations, provenance, unclassified work, and unknown evidence age | Unit & Chrome browser test | `internal/le/site/rfcmap_model_test.go::TestRFCMapRelationsPreserveProvenance`, `TestRFCMapAmbiguousCitationRemainsUnassigned`, `TestRFCMapInputProvenance`, `TestRFCMapRejectsInvalidRecordedInputs`; `TestRFCMapBrowserInteraction/missing_input_keeps_static_navigation` |
+| Connect map from website menu and related pages while preserving existing page layouts | Source & Chrome browser test | `website/data/nav.json`, `website/data/page-links.json`, `internal/le/site/rfcmap.go::rfcMapBody`; `TestRFCMapBrowserInteraction/phone_layout_and_menu` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None — all in-scope deliverables, tests, navigation links, documentation, and site publication are complete | Spec-to-RFC batch mapping audits are explicitly outside this spec's scope per Thomas's 2026-11-15 decision ("Build the graph first; audit mappings in batches") | none |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc-release-layer-map-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md` |
+| `./le spec review check` | `review_gate: OK (6 code files, clean, hashes match tmp/review/rfc-release-layer-map-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md)` |
+| Rounds | 1 |
+| Reviewer lenses used | logic+wiring, security+edge-cases, go-style (`docs/contributing/ze-go-style.md` + `./le go style check path`), design-documents (`./le spec design documents`), spec-completeness (`/ze-review-spec`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | Run 1 found 0 BLOCKER, 0 ISSUE (2 NOTEs: test-name consolidation recorded in Deviations; static `rfcMapBody` link stems use `html.EscapeString` from trusted repo ledger) | `internal/le/site/rfcmap*.go`, `internal/le/site/browsertest/rfcmap*.go`, `website/assets/js/rfc-map.js`, `website/assets/rfc-map.css`, `website/data/rfc-release-layers.json` | Clean on Run 1 |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/site/rfcmap.go` | Yes | `-rw-rw-r-- 1 thomas thomas 7329 Nov 15 14:18 internal/le/site/rfcmap.go` |
+| `internal/le/site/rfcmap_model.go` | Yes | `-rw-rw-r-- 1 thomas thomas 16663 Nov 15 14:18 internal/le/site/rfcmap_model.go` |
+| `internal/le/site/rfcmap_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 6300 Nov 15 14:18 internal/le/site/rfcmap_test.go` |
+| `internal/le/site/rfcmap_model_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 11427 Nov 15 14:18 internal/le/site/rfcmap_model_test.go` |
+| `internal/le/site/browsertest/rfcmap_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 14956 Nov 17 06:05 internal/le/site/browsertest/rfcmap_test.go` |
+| `internal/le/site/browsertest/rfcmap_gradient_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 2420 Nov 18 00:54 internal/le/site/browsertest/rfcmap_gradient_test.go` |
+| `website/data/rfc-release-layers.json` | Yes | `-rw-rw-r-- 1 thomas thomas 1622 Nov 15 14:18 website/data/rfc-release-layers.json` |
+| `website/assets/rfc-map.css` | Yes | `-rw-rw-r-- 1 thomas thomas 13755 Nov 18 00:54 website/assets/rfc-map.css` |
+| `website/assets/js/rfc-map.js` | Yes | `-rw-rw-r-- 1 thomas thomas 41624 Nov 18 00:54 website/assets/js/rfc-map.js` |
+| `website/changes/fragments/rfc-release-layer-map.md` | Yes | `-rw-rw-r-- 1 thomas thomas 1517 Nov 23 09:59 website/changes/fragments/rfc-release-layer-map.md` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Graph opens on base BGP with release-layer controls | `website/data/rfc-release-layers.json` (`default-layer: "base-ipv4-bgp"`, `rfc4271`); `website/assets/js/rfc-map.js::start`, `buildShell`; `TestRFCMapBrowserInteraction/declared_scopes_and_keyword_filters` (owed main-thread rerun) |
+| AC-2 | Any recorded RFC including text-only nodes reachable with explicit unknown status | `internal/le/site/rfcmap_model.go::projectRFCMapGraph`; `website/assets/js/rfc-map.js::ensureFigure`, `paintProof`; `TestRFCMapGraphPreservesIdentityAndScope`, `TestRFCMapBrowserInteraction/document_without_summary_stays_unknown` |
+| AC-3 | Shared parents, cycles, and typed edges navigable without duplicate accounting | `internal/le/site/rfcmap_model.go::projectRFCMapGraph`; `website/assets/js/rfc-map.js::renderGraph`; `TestRFCMapGraphPreservesIdentityAndScope` |
+| AC-4 | Proposed layer or existing profile reflects declared set; context/unassigned labeled | `internal/le/site/rfcmap_model.go::validateRFCMapLayers`, `projectRFCMapProfiles`; `website/assets/js/rfc-map.js::scope`; `TestRFCMapBrowserInteraction/declared_scopes_and_keyword_filters`, `all_scope_survives_reload` |
+| AC-5 | Canonical mandatory proof shown; unwalked/empty/excluded states distinct | `internal/le/site/rfcmap_test.go::TestRFCMapProducerPublishesNewPage`; `TestRFCMapBrowserInteraction/proof_states_remain_distinct`, `TestRFCMapNodeGradientsMatchRecordedProof` |
+| AC-6 | Exact keyword filter updates listed statements and exact-RID relations without changing mandatory proof card | `website/assets/js/rfc-map.js::relationsFor`, `renderRequirementList`; `TestRFCMapRelationsPreserveProvenance`, `TestRFCMapBrowserInteraction/declared_scopes_and_keyword_filters` |
+| AC-7 | Mixed requirement/spec relations and historical citations keep provenance and deduplication | `internal/le/site/rfcmap_model.go::projectRFCMapRelations`, `appendRFCMapRelation`; `TestRFCMapRelationsPreserveProvenance`, `TestRFCMapAmbiguousCitationRemainsUnassigned` |
+| AC-8 | Unmapped, no-gap, and unresolved relations remain visible in inventory/diagnostics | `internal/le/site/rfcmap_model.go::projectRFCMapRelations`; `website/assets/js/rfc-map.js::renderInventory`, `renderProvenance`; `TestRFCMapRelationsPreserveProvenance` |
+| AC-9 | Separate input hashes/revisions; absent ledger age stays unknown; drift flagged | `internal/le/site/rfcmap_model.go::loadRFCMapData`, `readRFCMapInput`; `internal/le/site/rfcmap_model_test.go::TestRFCMapInputProvenance` |
+| AC-10 | Standalone producer publishes only map artifacts and leaves existing pages unchanged | `internal/le/site/rfcmap.go::renderRFCMap`; `internal/le/site/rfcmap_test.go::TestRFCMapProducerPublishesNewPage`, `TestRFCMapPreservesExistingPages` |
+| AC-11 | Keyboard focus retained and narrow screen has no body overflow | `website/assets/js/rfc-map.js::select`; `website/assets/rfc-map.css` `@media (max-width: 760px)`/`430px`; `TestRFCMapBrowserInteraction/keyboard_selection_keeps_focus`, `phone_layout_and_menu` |
+| AC-12 | No-JS fallback and failed-input alert keep static navigation useful | `internal/le/site/rfcmap.go::rfcMapBody` (`<noscript>`, static list); `website/assets/js/rfc-map.js::start` catch (`role="alert"`); `TestRFCMapBrowserInteraction/missing_input_keeps_static_navigation` |
+| AC-13 | Standalone review preceded tests and publication after owner approval | Commits `44d388c347`, `315fcc8f05`, Pages `1f2a063dfd`; `./le go style check path` OK on all 6 Go files |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le site build` / `./le site build producer rfc-map` -> `internal/le/site/rfcmap.go::init` -> `registerProducer` -> `renderRFCMap` | None required (website tooling; no daemon RPC/protocol change; verified via Chrome `internal/le/site/browsertest/rfcmap_test.go::TestRFCMapBrowserInteraction` and `rfcmap_gradient_test.go::TestRFCMapNodeGradientsMatchRecordedProof`) | Yes — producer registered at `rfcmap.go:24-26`, linked in `website/data/nav.json:39` and 6 groups in `website/data/page-links.json`, exercised end-to-end in Chrome |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `internal/le/site/rfcmap_model.go::loadRFCMapData` reads `data/rfc-requirements.json`, `data/release-roadmap.json`, and `website/data/rfc-release-layers.json`; published from Pages ledger `7aa7fb54f8` (339 nodes, 10 groups, 471 relations) into `1f2a063dfd`; preflight refusal verified by `TestRFCMapPreservesExistingPages` |
+| A-2 | confirmed | `internal/le/site/rfcmap_test.go::TestRFCMapPreservesExistingPages` and 2,260-file SHA-256 comparison during standalone render confirmed zero existing page bytes changed |
+| A-3 | confirmed | `website/data/rfc-release-layers.json` carries `"proposed": true` enforced by `validateRFCMapLayers`; Thomas approved the presentation on 2026-11-15 and requested menu/sidebar integration |
+| A-4 | confirmed | `internal/le/site/rfcmap_model.go` reuses `rfcLedger`, `roadmap.Snapshot`, and `specstatus.ResolveRFCGaps` directly without copying schemas; verified by `TestRFCMapGraphPreservesIdentityAndScope` and `TestRFCMapInputProvenance` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Website discovery and agent instructions (`website/AI.md`) | `git show 44d388c347 -- website/AI.md` and `44fd48cde7`: documents `/quality/rfc-map/`, `rfcmap.go`, `rfcmap_model.go`, `website/data/rfc-release-layers.json`, `rfc-map.js`, `rfc-map.css`, `TestRFCMapNodeGradientsMatchRecordedProof` | Yes |
+| Site build / browser test guide (`docs/contributing/gh-pages.md`) | `git grep -n "rfcmap\|rfc-map" docs/`: line 1047 `<!-- source: internal/le/site/browsertest/rfcmap_test.go -- rfcMapBrowserSite -->`, line 1790 map link reference; `./le doc check all` reports 0 anchor errors on site/gh-pages docs | Yes |
+| Product docs (feature declaration, user guide, config, CLI, API/RPC, plugin SDK, wire, RFC status, comparison, architecture, metrics) | `git grep -n "rfcmap\|rfc-map\|rfc-release-layers" docs/ ai/` returns only `docs/contributing/gh-pages.md`; all implementation is under `internal/le/site/` and `website/` with zero product daemon/config/protocol changes | Yes (N/A verified) |
+| Spec citers across tracked tree | `git grep -n "spec-rfc-release-layer-map"` returned 0 hits across the tracked tree | Yes |
+| Operator news fragment | `website/changes/fragments/rfc-release-layer-map.md` written with `spec: rfc-release-layer-map`, `topic: RFC Compliance`, and all six fixed headings | Yes |
