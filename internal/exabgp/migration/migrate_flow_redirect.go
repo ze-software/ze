@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"net/netip"
 	"strings"
+
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // The ze extended-community words a redirect or copy migrates to
@@ -121,4 +124,89 @@ func flowRedirectNeedsAddress(action, value, instead string) error {
 	return fmt.Errorf(
 		"%q needs an IPv4 or IPv6 address and %q is not one: the address is where the traffic is "+
 			"redirected or copied to. Write \"%s\" in the ExaBGP config and migrate again", action, value, instead)
+}
+
+// zeFlowRedirectNextHopLeaf is the peer session leaf that enables the
+// draft-simpson-idr-flowspec-redirect-02 Section 3 next hop on 0x0800 FlowSpec
+// routes. RFC 8955 Section 4 keeps it false by default.
+const zeFlowRedirectNextHopLeaf = "flowspec-redirect-next-hop"
+
+// peerNeedsFlowSpecRedirectNextHop reports whether a migrated ExaBGP peer may
+// originate draft-simpson 0x0800 FlowSpec routes carrying an MP_REACH next hop:
+// either a static migrated update carries a Simpson community, or an attached
+// API process serves a peer negotiating a FlowSpec family (because the process
+// script can announce `redirect-simpson` / `copy-simpson` dynamically).
+func peerNeedsFlowSpecRedirectNextHop(peer *config.Tree, hasAPIProcess bool) bool {
+	if peerHasFlowSpecSimpsonRoute(peer) {
+		return true
+	}
+	if !hasAPIProcess {
+		return false
+	}
+	return peerNegotiatesFlowSpec(peer)
+}
+
+// peerHasFlowSpecSimpsonRoute reports whether any migrated update block on peer
+// carries the draft-simpson 0x0800 redirect-to-IP-next-hop community
+// (`redirect-to-nexthop-draft` or a bare `copy-to-nexthop` with no IP operand).
+func peerHasFlowSpecSimpsonRoute(peer *config.Tree) bool {
+	for _, entry := range peer.GetListOrdered("update") {
+		attr := entry.Value.GetContainer("attribute")
+		if attr == nil {
+			continue
+		}
+		raw, ok := attr.Get(routeAttributeExtendedCommunity)
+		if !ok {
+			continue
+		}
+		if extCommunityHasSimpson(raw) {
+			return true
+		}
+	}
+	return false
+}
+
+// extCommunityHasSimpson reports whether a bracketed extended-community list
+// string contains `redirect-to-nexthop-draft` or bare `copy-to-nexthop` (i.e.
+// not followed by an IP address operand).
+func extCommunityHasSimpson(raw string) bool {
+	tokens := strings.Fields(strings.Trim(raw, "[] "))
+	for i, tok := range tokens {
+		if tok == zeRedirectSimpson {
+			return true
+		}
+		if tok != zeCopySimpson {
+			continue
+		}
+		// `copy-to-nexthop <ip>` is the IETF form; bare `copy-to-nexthop` is Simpson.
+		if i+1 < len(tokens) {
+			if _, isAddr := flowRedirectAddress(tokens[i+1]); isAddr {
+				continue
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// peerNegotiatesFlowSpec reports whether peer's migrated `session > family`
+// list contains any FlowSpec family (SAFI 133 or 134).
+func peerNegotiatesFlowSpec(peer *config.Tree) bool {
+	session := peer.GetContainer("session")
+	if session == nil {
+		return false
+	}
+	for _, entry := range session.GetListOrdered("family") {
+		fam, ok := family.LookupFamily(entry.Key)
+		if !ok {
+			continue
+		}
+		if fam.SAFI == family.SAFIFlowSpec {
+			return true
+		}
+		if fam.SAFI == family.SAFIFlowSpecVPN {
+			return true
+		}
+	}
+	return false
 }

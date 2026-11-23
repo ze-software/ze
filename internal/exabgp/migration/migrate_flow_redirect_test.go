@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	bgpconfig "github.com/ze-software/ze/internal/component/bgp/config"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // migratedExtCommunity matches the extended-community leaf a migrated update carries.
@@ -65,19 +66,20 @@ func TestMigrateFlowRedirectForms(t *testing.T) {
 		octets  string // 8-octet communities, hex
 		octets6 string // 20-octet IPv6-address-specific communities, hex
 		nextHop string // empty: the route carries no next hop
+		simpson bool   // true: migrated peer enables session flowspec-redirect-next-hop
 	}{
-		{"redirect 1.2.3.4", "010c010203040000", "", ""},
-		{"redirect 2001:db8::1", "", "000c20010db8000000000000000000000001" + "0000", ""},
-		{"redirect 65500:12345", "8008ffdc00003039", "", ""},
-		{"redirect-simpson 1.2.3.4", "0800000000000000", "", "1.2.3.4"},
-		{"copy 1.2.3.4", "010c010203040001", "", ""},
-		{"copy 2001:db8::1", "", "000c20010db8000000000000000000000001" + "0001", ""},
-		{"copy-simpson 1.2.3.4", "0800000000000001", "", "1.2.3.4"},
-		{"redirect-to-nexthop", "0800000000000000", "", ""},
-		{"redirect-to-nexthop 1.2.3.4", "010c010203040000", "", ""},
-		{"redirect-to-nexthop-ietf 1.2.3.4", "010c010203040000", "", ""},
-		{"redirect-to-nexthop-ietf 2001:db8::1", "", "000c20010db8000000000000000000000001" + "0000", ""},
-		{"redirect-to-nexthop-simpson", "0800000000000000", "", ""},
+		{"redirect 1.2.3.4", "010c010203040000", "", "", false},
+		{"redirect 2001:db8::1", "", "000c20010db8000000000000000000000001" + "0000", "", false},
+		{"redirect 65500:12345", "8008ffdc00003039", "", "", false},
+		{"redirect-simpson 1.2.3.4", "0800000000000000", "", "1.2.3.4", true},
+		{"copy 1.2.3.4", "010c010203040001", "", "", false},
+		{"copy 2001:db8::1", "", "000c20010db8000000000000000000000001" + "0001", "", false},
+		{"copy-simpson 1.2.3.4", "0800000000000001", "", "1.2.3.4", true},
+		{"redirect-to-nexthop", "0800000000000000", "", "", true},
+		{"redirect-to-nexthop 1.2.3.4", "010c010203040000", "", "", false},
+		{"redirect-to-nexthop-ietf 1.2.3.4", "010c010203040000", "", "", false},
+		{"redirect-to-nexthop-ietf 2001:db8::1", "", "000c20010db8000000000000000000000001" + "0000", "", false},
+		{"redirect-to-nexthop-simpson", "0800000000000000", "", "", true},
 	}
 
 	for _, tc := range cases {
@@ -102,15 +104,69 @@ func TestMigrateFlowRedirectForms(t *testing.T) {
 				t.Errorf("%q: IPv6 communities = %s, want %s (ze text %q)", tc.action, got, tc.octets6, match[1])
 			}
 
-			hasNextHop := strings.Contains(output, "next-hop ")
+			hasOptIn := strings.Contains(output, "flowspec-redirect-next-hop true")
+			if hasOptIn != tc.simpson {
+				t.Errorf("%q: flowspec-redirect-next-hop true present=%v, want %v:\n%s", tc.action, hasOptIn, tc.simpson, output)
+			}
+
+			hasRouteNextHop := strings.Contains(output, "\tnext-hop ")
 			if tc.nextHop == "" {
-				if hasNextHop {
-					t.Errorf("%q: the IETF form carries its address in the community, yet the route has a next hop:\n%s", tc.action, output)
+				if hasRouteNextHop {
+					t.Errorf("%q: route carries no next hop, yet migrated update has one:\n%s", tc.action, output)
 				}
 				return
 			}
-			if !strings.Contains(output, "next-hop "+tc.nextHop) {
+			if !strings.Contains(output, "\tnext-hop "+tc.nextHop) {
 				t.Errorf("%q: the Simpson form needs next hop %s:\n%s", tc.action, tc.nextHop, output)
+			}
+		})
+	}
+}
+
+// TestMigrateFlowSpecAPIProcessEnablesRedirectNextHop proves that an ExaBGP
+// neighbor with an attached API process and a FlowSpec family gets
+// `session { flowspec-redirect-next-hop true; }` so dynamic `redirect-simpson`
+// commands work, while an API neighbor without FlowSpec keeps the RFC 8955 default.
+func TestMigrateFlowSpecAPIProcessEnablesRedirectNextHop(t *testing.T) {
+	family.RegisterTestFamilies()
+	for _, tc := range []struct {
+		name     string
+		family   string
+		wantFlag bool
+	}{
+		{"flow-api", "ipv4 flow;", true},
+		{"flow-vpn-api", "ipv4 flow-vpn;", true},
+		{"unicast-only-api", "ipv4 unicast;", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := `
+process announce-routes {
+	run /bin/true;
+	encoder json;
+}
+neighbor 127.0.0.1 {
+	local-as 1;
+	peer-as 1;
+	family {
+		` + tc.family + `
+	}
+	api {
+		processes [ announce-routes ];
+	}
+}
+`
+			tree, err := ParseExaBGPConfig(input)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			result, err := MigrateFromExaBGP(tree)
+			if err != nil {
+				t.Fatalf("migrate: %v", err)
+			}
+			output := SerializeTree(result.Tree)
+			got := strings.Contains(output, "flowspec-redirect-next-hop true")
+			if got != tc.wantFlag {
+				t.Errorf("flowspec-redirect-next-hop true present=%v, want %v:\n%s", got, tc.wantFlag, output)
 			}
 		})
 	}

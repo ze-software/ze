@@ -48,6 +48,11 @@ type PluginParams struct {
 	// MapV4NextHop maps an IPv4 next-hop to IPv4-mapped IPv6 in MP_REACH for IPv6
 	// families (MUP). MVPN/VPLS/FlowSpec/SR-Policy leave it false.
 	MapV4NextHop bool
+	// FlowSpecRedirectNextHop is the peer's explicit `session flowspec-redirect-next-hop`
+	// opt-in for draft-simpson-idr-flowspec-redirect-02 Section 3. When false (the
+	// default), FlowSpec MP_REACH_NLRI always carries a zero-length next hop per
+	// RFC 8955 Section 4, even when a route carries the 0x0800 extended community.
+	FlowSpecRedirectNextHop bool
 }
 
 // PluginNLRI returns one pre-built plugin NLRI in the form the session sends it.
@@ -178,10 +183,11 @@ func (ub *UpdateBuilder) buildMPReachPlugin(p PluginParams, afi uint16, profile 
 	// peer_rib_routes.go, and this one did not, so a FlowSpec route that reached
 	// the wire through a plugin or a config `update` block carried a four-octet
 	// next-hop an RFC 8955 speaker MUST NOT send. MPReachCarriesNextHop owns
-	// the one exception, the redirect-to-IP-next-hop action; a zero next hop
-	// still encodes as length 0 there, which its receiver ignores.
+	// the one extension, the redirect-to-IP-next-hop action when the peer
+	// explicitly opted in via `session flowspec-redirect-next-hop true`; a zero
+	// next hop still encodes as length 0 there, which its receiver ignores.
 	fam := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(p.SAFI)}
-	if !MPReachCarriesNextHop(fam, pluginRedirectsToNextHop(p.RawAttrs)) {
+	if !MPReachCarriesNextHop(fam, p.FlowSpecRedirectNextHop && pluginRedirectsToNextHop(p.RawAttrs)) {
 		nextHop = netip.Addr{}
 	}
 	nhLen := profile.NextHopOctets(nextHop)
@@ -258,7 +264,8 @@ func (r *fullRawAttribute) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.
 //
 // A family that names a forwarding hop carries it. FlowSpec does not (RFC 8955
 // Section 4: "When advertising Flow Specifications, the Length of the Next-Hop
-// Network Address MUST be set to 0."), except when the route's action is the
+// Network Address MUST be set to 0."), except when the peer explicitly opted in
+// (`session flowspec-redirect-next-hop true`) AND the route's action is the
 // redirect/mirror-to-IP-next-hop community, whose target IS that next hop
 // (attribute.FlowSpecRedirectsToNextHop, draft-simpson-idr-flowspec-redirect-02
 // Section 3).

@@ -30,6 +30,7 @@ bgp {
 				remote 1
 			}
 			router-id 1.2.3.4
+			flowspec-redirect-next-hop true
 			family {
 				ipv4/flow { prefix { maximum 10000; } }
 			}

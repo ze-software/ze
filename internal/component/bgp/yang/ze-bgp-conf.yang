@@ -927,6 +927,19 @@ module ze-bgp-conf {
                 ze:help "Accept RFC 8097 Origin Validation State extended community from this EBGP peer.";
             }
 
+            leaf flowspec-redirect-next-hop {
+                type boolean;
+                default false;
+                description "RFC 8955 Section 4 requires the MP_REACH_NLRI Next-Hop Network Address Length of every
+                    advertised Flow Specification to be 0. When false (the default), Ze emits a zero-length next hop on
+                    every FlowSpec route, including one carrying the 0x0800 redirect-to-IP-next-hop extended community.
+                    Set this leaf to true on a peer that needs the draft-simpson-idr-flowspec-redirect-02 Section 3
+                    extension, where a 0x0800 FlowSpec route carries its redirect target in the MP_REACH_NLRI next-hop
+                    field on origination and forwarding. ze exabgp migrate sets this leaf when a migrated neighbor uses
+                    a Simpson redirect action or serves an API process on a FlowSpec family.";
+                ze:help "Carry MP_REACH next hop for 0x0800 FlowSpec redirect (draft-simpson).";
+            }
+
             container community {
                 description "The container holds the send leaf-list alone. send names the community types Ze puts in an
                     outbound UPDATE, and it acts on no inbound message.";

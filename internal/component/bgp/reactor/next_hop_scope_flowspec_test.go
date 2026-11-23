@@ -26,6 +26,7 @@ func TestNextHopScopePreservesFlowSpecFamilyDecision(t *testing.T) {
 	ipv4 := netip.MustParseAddr("192.0.2.77").AsSlice()
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.90"), 65000, 65000, 1)
 	settings.NextHopMode = NextHopUnchanged
+	settings.FlowSpecRedirectNextHop = true
 	peer := NewPeer(settings)
 	peer.refreshForwardFacts()
 	facts := peer.forwardFacts()

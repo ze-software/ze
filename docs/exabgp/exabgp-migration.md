@@ -316,6 +316,18 @@ Removing a refused line migrates the peer with Ze's behavior, which the refusal
 names.
 <!-- source: internal/exabgp/migration/migrate_receive_policy.go -- applyASSetPolicy, checkTunnelEncapsulationPolicy -->
 
+#### FlowSpec 0x0800 redirect next hop
+
+RFC 8955 Section 4 sets the `MP_REACH_NLRI` next-hop length of every FlowSpec
+route to `0`, which is Ze's default (`session { flowspec-redirect-next-hop false; }`).
+When a migrated ExaBGP neighbor defines a static Simpson redirect/copy route
+(`redirect-simpson`, `copy-simpson`, bare `redirect-to-nexthop`, or
+`redirect-to-nexthop-simpson`), or attaches an API process on a FlowSpec family,
+`ze exabgp migrate` writes `session { flowspec-redirect-next-hop true; }` on the
+peer so Ze carries the 4- or 16-octet redirect target in `MP_REACH_NLRI` per
+`draft-simpson-idr-flowspec-redirect-02` Section 3.
+<!-- source: internal/exabgp/migration/migrate_flow_redirect.go -- peerNeedsFlowSpecRedirectNextHop -->
+
 ### Running ExaBGP Plugins
 
 Use `ze exabgp plugin` to run existing ExaBGP plugins with Ze:

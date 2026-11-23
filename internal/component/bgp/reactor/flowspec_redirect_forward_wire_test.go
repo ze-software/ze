@@ -81,6 +81,7 @@ func TestFlowSpecRedirectForwardNextHop(t *testing.T) {
 				f.destination.settings.PeerAS = dest.peerAS
 				f.destination.settings.NextHopMode = dest.mode
 				f.destination.settings.SendCommunity = dest.community
+				f.destination.settings.FlowSpecRedirectNextHop = true
 				f.destination.refreshForwardFacts()
 				raw := mustHex(t, tc.nlri)
 				originalSession := f.source.currentSession()
@@ -164,6 +165,8 @@ func assertFlowRedirectWire(t *testing.T, body []byte, fam family.Family, raw, h
 // (the client receives the route server's connected address).
 func TestFlowSpecRedirectRouteServerKeepsNextHop(t *testing.T) {
 	peers := flowForwardLiveRouter(t, "auto")
+	peers[1].peer.settings.FlowSpecRedirectNextHop = true
+	peers[1].peer.refreshForwardFacts()
 	peers[0].send(t, flowForwardFrame(mustHex(t, "000000144001010040020602010000fdea400304c000020118c00002")))
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	raw := mustHex(t, "050118c00002")

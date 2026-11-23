@@ -122,6 +122,11 @@ type announceFacts struct {
 	// they must not share a build. nlriUnitLen owns the framing itself, and
 	// every rail that sends a batch reads it there.
 	groupUpdates bool
+	// flowSpecRedirectNextHop partitions the groups: `session flowspec-redirect-next-hop true`
+	// carries the 4- or 16-octet redirect target in MP_REACH_NLRI for a 0x0800
+	// FlowSpec route (draft-simpson-idr-flowspec-redirect-02 Section 3), where a
+	// default peer receives RFC 8955 Section 4's zero-length next hop.
+	flowSpecRedirectNextHop bool
 }
 
 // announceFactsFor reads one peer's answer to every fact above. It is the only
@@ -134,15 +139,16 @@ type announceFacts struct {
 func announceFactsFor(peer *Peer, fam family.Family, nextHop netip.Addr, isIBGP bool, nc *NegotiatedCapabilities) announceFacts {
 	settings := peer.Settings()
 	return announceFacts{
-		nextHop:            nextHop,
-		isIBGP:             isIBGP,
-		rsClient:           settings.RSClient,
-		propagatePrefixSID: settings.PropagateSRv6PrefixSID,
-		prepend:            localASPrependFor(settings),
-		addPath:            peer.addPathFor(fam),
-		asn4:               peer.asn4(),
-		extended:           nc.ExtendedMessage,
-		groupUpdates:       settings.GroupUpdates,
+		nextHop:                 nextHop,
+		isIBGP:                  isIBGP,
+		rsClient:                settings.RSClient,
+		propagatePrefixSID:      settings.PropagateSRv6PrefixSID,
+		prepend:                 localASPrependFor(settings),
+		addPath:                 peer.addPathFor(fam),
+		asn4:                    peer.asn4(),
+		extended:                nc.ExtendedMessage,
+		groupUpdates:            settings.GroupUpdates,
+		flowSpecRedirectNextHop: settings.FlowSpecRedirectNextHop,
 	}
 }
 
@@ -885,6 +891,7 @@ func withdrawFactsFor(peer *Peer, batch bgptypes.NLRIBatch, isIBGP bool, nc *Neg
 	facts.isIBGP = isIBGP
 	facts.rsClient = settings.RSClient
 	facts.propagatePrefixSID = settings.PropagateSRv6PrefixSID
+	facts.flowSpecRedirectNextHop = settings.FlowSpecRedirectNextHop
 	facts.prepend = localASPrependFor(settings)
 	facts.asn4 = peer.asn4()
 	return facts
@@ -1607,10 +1614,11 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 		// Address MUST be set to 0.  The Network Address of the Next-Hop field
 		// MUST be ignored." Offering the unresolved address instead made the
 		// validator below refuse every FlowSpec announce ze was asked to send.
-		// The one FlowSpec exception, shared by every rail, is the
-		// redirect-to-IP-next-hop action (message.MPReachCarriesNextHop).
+		// The one FlowSpec extension, shared by every rail, is the
+		// redirect-to-IP-next-hop action when the peer explicitly opted in
+		// (`session flowspec-redirect-next-hop true`, message.MPReachCarriesNextHop).
 		var nextHops []netip.Addr
-		if message.MPReachCarriesNextHop(batch.Family, batchRedirectsToNextHop(batch, facts.nextHop)) {
+		if message.MPReachCarriesNextHop(batch.Family, facts.flowSpecRedirectNextHop && batchRedirectsToNextHop(batch, facts.nextHop)) {
 			nextHops = []netip.Addr{facts.nextHop}
 		}
 		mpReach := attribute.NewMPReachNLRI(attribute.AFI(batch.Family.AFI), attribute.SAFI(batch.Family.SAFI),

@@ -101,13 +101,35 @@
   {
     "rid": "RFC8955-4-3",
     "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8955_redirect_default_wire_test.go::TestFlowSpecDefaultPathOmitsRedirectNextHop",
+    "unit-sha": "a4caff63c1490add",
+    "claim-sha": "7454beb4d223bf30",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build_plugin.go::MPReachCarriesNextHop",
+    "producer-sha": "36026b4a83e6a8be",
+    "break": "body of MPReachCarriesNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8955_redirect_default_wire_test.go::TestFlowSpecDefaultPathOmitsRedirectNextHop",
+    "unit-sha": "a4caff63c1490add",
+    "claim-sha": "f6a4f64da98ee913",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_forward_facts.go::precomputeRedirectNextHop",
+    "producer-sha": "f6fd204fb806dc8d",
+    "break": "body of precomputeRedirectNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4-3",
+    "polarity": "positive",
     "unit": "test/encode/flow-encode.ci",
-    "unit-sha": "c73b5cbd15366a4c",
-    "claim-sha": "cce9825413e96a83",
+    "unit-sha": "5e1a743a750d0eab",
+    "claim-sha": "696b742aea2a4b8d",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build_plugin.go::buildMPReachPlugin",
-    "producer-sha": "c45c8a3042a821aa",
-    "break": "body of buildMPReachPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "producer-sha": "b2b1896f727294eb",
+    "break": "body of buildMPReachPlugin replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
     "citation": "RFC 8955 Section 4"
   }
 ]

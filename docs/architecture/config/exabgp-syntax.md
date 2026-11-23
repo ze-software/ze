@@ -301,7 +301,15 @@ as ExaBGP 6.0 itself reads it.
 
 An IPv6 address is accepted bare or in brackets. A keyword that takes an
 address and is given something else stops the migration.
-<!-- source: internal/exabgp/migration/migrate_flow_redirect.go -- flowRedirectAction -->
+
+When a migrated neighbor carries any static Simpson redirect/copy route
+(`redirect-to-nexthop-draft` or bare `copy-to-nexthop`), or attaches an API
+process on a FlowSpec family (which may announce `redirect-simpson` or
+`copy-simpson` dynamically), the migration also writes
+`session { flowspec-redirect-next-hop true; }` on the peer so Ze carries the
+0x0800 MP_REACH next hop for that peer while keeping RFC 8955 Section 4's
+zero-length next hop as the default for all other peers.
+<!-- source: internal/exabgp/migration/migrate_flow_redirect.go -- flowRedirectAction, peerNeedsFlowSpecRedirectNextHop -->
 
 ---
 

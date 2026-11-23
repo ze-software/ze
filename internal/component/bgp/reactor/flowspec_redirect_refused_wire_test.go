@@ -46,6 +46,7 @@ func TestFlowSpecRedirectRefusedForward(t *testing.T) {
 			}
 			f.destination.settings.PeerAS = 65001
 			f.destination.settings.NextHopMode = NextHopUnchanged
+			f.destination.settings.FlowSpecRedirectNextHop = true
 			f.destination.refreshForwardFacts()
 			source := f.source.Settings().Address
 			originalSession := f.source.currentSession()
@@ -129,6 +130,8 @@ func TestFlowSpecRedirectRefusedRouteServer(t *testing.T) {
 // forwardValidationWire (the replayed route keeps its action).
 func TestFlowSpecRedirectRefusedReplay(t *testing.T) {
 	peers := flowForwardLiveRouter(t, "auto")
+	peers[1].peer.settings.FlowSpecRedirectNextHop = true
+	peers[1].peer.refreshForwardFacts()
 	ownOrigin := mustHex(t, "000000144001010040020602010000fdea400304c000020118c00002")
 	otherOrigin := mustHex(t, "000000184001010040020a02020000fdea0000fdf1400304c000020118c00002")
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}

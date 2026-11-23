@@ -26,6 +26,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -36,9 +39,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // announceFactGlobalAS is the router's own AS number, and announceFactLegacyAS
@@ -71,6 +71,9 @@ type announceFactPeer struct {
 	oldSpeaker bool
 	addPath    bool
 	extended   bool
+	// flowSpecRedirectNextHop is `session flowspec-redirect-next-hop true`
+	// (draft-simpson-idr-flowspec-redirect-02 Section 3).
+	flowSpecRedirectNextHop bool
 }
 
 // announceFactCase is one field of announceFacts, and the two peers that differ
@@ -151,6 +154,13 @@ func announceFactCases() []announceFactCase {
 			why:   "RFC 8654 raises the maximum message size to 65535 octets, so an announce that one peer receives whole is split for the other",
 			batch: announceFactLargeBatch,
 			left:  announceFactPeer{addr: "10.0.0.2", peerAS: announceFactPeerAS, extended: true},
+			right: announceFactPeer{addr: "10.0.0.3", peerAS: announceFactPeerAS},
+		},
+		{
+			field: "flowSpecRedirectNextHop",
+			why:   "RFC 8955 Section 4 emits a zero-length FlowSpec next hop by default while session flowspec-redirect-next-hop true emits the 0x0800 redirect address",
+			batch: announceFactFlowSpecRedirectBatch,
+			left:  announceFactPeer{addr: "10.0.0.2", peerAS: announceFactPeerAS, flowSpecRedirectNextHop: true},
 			right: announceFactPeer{addr: "10.0.0.3", peerAS: announceFactPeerAS},
 		},
 	}
@@ -244,6 +254,7 @@ func newAnnounceFactPeer(t *testing.T, dest announceFactPeer) (*Peer, *recording
 	settings.LocalASReplaceAS = dest.replaceAS
 	settings.RSClient = dest.rsClient
 	settings.PropagateSRv6PrefixSID = dest.srDomain
+	settings.FlowSpecRedirectNextHop = dest.flowSpecRedirectNextHop
 	if dest.localAddr != "" {
 		settings.LocalAddress = netip.MustParseAddr(dest.localAddr)
 	}
@@ -287,8 +298,9 @@ func newAnnounceFactPeer(t *testing.T, dest announceFactPeer) (*Peer, *recording
 // a field a test wrote.
 func announceFactNegotiate(dest announceFactPeer, localAS uint32) *capability.Negotiated {
 	ipv4 := &capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}
-	local := []capability.Capability{ipv4}
-	remote := []capability.Capability{ipv4}
+	flow4 := &capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpec}
+	local := []capability.Capability{ipv4, flow4}
+	remote := []capability.Capability{ipv4, flow4}
 
 	// RFC 6793: an OLD speaker advertises no four-octet AS capability at all.
 	if !dest.oldSpeaker {
@@ -377,4 +389,29 @@ func announceFactLargeBatch() bgptypes.NLRIBatch {
 	batch := announceFactBatch()
 	batch.NLRIs = nlris
 	return batch
+}
+
+// announceFactFlowSpecRedirectBatch is one IPv4 FlowSpec rule carrying the
+// 0x0800 redirect-to-IP-next-hop community and an explicit next hop, so a peer
+// with flowspec-redirect-next-hop true receives the 4-octet next hop while a
+// default peer receives RFC 8955 Section 4's zero-length next hop.
+func announceFactFlowSpecRedirectBatch() bgptypes.NLRIBatch {
+	family.RegisterTestFamilies()
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+	raw, err := hex.DecodeString("050118c00002")
+	if err != nil {
+		panic("BUG: FlowSpec NLRI fixture does not decode: " + err.Error())
+	}
+	n, err := nlri.NewWireNLRI(fam, raw, false)
+	if err != nil {
+		panic("BUG: FlowSpec NLRI fixture rejected: " + err.Error())
+	}
+	attrs := attribute.NewBuilder()
+	attrs.AddExtendedCommunity(attribute.ExtendedCommunity{0x08, 0x00, 0, 0, 0, 0, 0, 0})
+	return bgptypes.NLRIBatch{
+		Family:  fam,
+		NLRIs:   []nlri.NLRI{n},
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.77")),
+		Wire:    attribute.NewAttributesWire(attrs.Build(), bgpctx.APIContextID),
+	}
 }

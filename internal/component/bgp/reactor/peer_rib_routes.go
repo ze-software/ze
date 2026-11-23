@@ -50,6 +50,10 @@ import (
 // the UPDATE was announcing. Both rails now take that bound as an explicit region
 // argument to announceAttrs.emit (ai/rules/evidence.md).
 func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, nextHop netip.Addr, localAS uint32, isIBGP, asn4, addPath bool) *message.Update {
+	return buildRIBRouteUpdateWithRedirect(attrBuf, route, nextHop, localAS, isIBGP, asn4, addPath, false)
+}
+
+func buildRIBRouteUpdateWithRedirect(attrBuf []byte, route *rib.Route, nextHop netip.Addr, localAS uint32, isIBGP, asn4, addPath, flowSpecRedirectNextHop bool) *message.Update {
 	// The destination encoding context for AS_PATH (RFC 6793 ASN width). Shared
 	// rather than built per route: it is a pure function of asn4 and is immutable.
 	dstCtx := announceDstCtx(asn4)
@@ -147,10 +151,11 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, nextHop netip.Addr, l
 		// (reactor_api_batch.go), and which rail encodes a route is decided by
 		// scheduling: a FlowSpec route queued while the peer drains its initial
 		// sync comes through here, so the two rails must answer alike or the wire
-		// bytes depend on timing. The one FlowSpec exception is the
-		// redirect-to-IP-next-hop action, whose target is this next hop.
+		// bytes depend on timing. The one FlowSpec extension is the
+		// redirect-to-IP-next-hop action when the peer explicitly opted in via
+		// `session flowspec-redirect-next-hop true`.
 		var nextHops []netip.Addr
-		if message.MPReachCarriesNextHop(fam, ribRouteRedirectsToNextHop(route, nextHop)) {
+		if message.MPReachCarriesNextHop(fam, flowSpecRedirectNextHop && ribRouteRedirectsToNextHop(route, nextHop)) {
 			nextHops = []netip.Addr{nextHop}
 		}
 		mpReach := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI),

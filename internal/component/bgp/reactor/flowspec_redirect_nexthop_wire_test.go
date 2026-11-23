@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -87,6 +88,7 @@ func TestFlowSpecRedirectToNextHopCarriesTheNextHop(t *testing.T) {
 				peer, _ := newInitialSyncPeer(t, false, tc.family)
 				peer.settings.PeerAS = peer.settings.LocalAS
 				peer.settings.ManualEOR = true
+				peer.settings.FlowSpecRedirectNextHop = true
 				session, client := newConnectedLocalSession(t, peer.settings, "127.0.0.1")
 				if err := session.fsm.Event(fsm.EventBGPOpen); err != nil {
 					t.Fatal(err)
@@ -155,5 +157,34 @@ func TestFlowSpecRedirectToNextHopCarriesTheNextHop(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestBuildRIBRouteUpdateAddPathDefaultOmitsFlowSpecNextHop proves that the
+// default-path 7-argument buildRIBRouteUpdate wrapper keeps a zero-length
+// MP_REACH next hop even when ADD-PATH is enabled and a 0x0800 redirect
+// community and explicit next hop are present.
+func TestBuildRIBRouteUpdateAddPathDefaultOmitsFlowSpecNextHop(t *testing.T) {
+	family.RegisterTestFamilies()
+	ipv4Flow := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
+	rawNLRI := mustHex(t, "050118c00002")
+	n, err := nlri.NewWireNLRI(ipv4Flow, rawNLRI, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ec attribute.ExtendedCommunity
+	copy(ec[:], mustHex(t, "0800000000000000"))
+	hop := netip.MustParseAddr("1.2.3.4")
+	route := rib.NewRouteWithASPath(n, hop, []attribute.Attribute{attribute.ExtendedCommunities{ec}}, nil)
+
+	upd := buildRIBRouteUpdate(make([]byte, message.MaxMsgLen), route, hop, 65000, true, true, true)
+	if upd == nil {
+		t.Fatal("buildRIBRouteUpdate returned nil")
+	}
+	// MP_REACH_NLRI (code 14) carries AFI=1, SAFI=133, NH-Len=0, Reserved=0,
+	// followed by the 4-octet ADD-PATH PathID (00000000) and the FlowSpec NLRI.
+	wantMP := mustHex(t, "800e0f000185000000000000050118c00002")
+	if !bytes.Contains(upd.PathAttributes, wantMP) {
+		t.Fatalf("ADD-PATH default FlowSpec attributes %x do not contain expected zero-NH MP_REACH %x", upd.PathAttributes, wantMP)
 	}
 }

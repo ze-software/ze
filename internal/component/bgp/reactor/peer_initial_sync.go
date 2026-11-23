@@ -276,7 +276,7 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 			// p.settings.IsIBGP() read directly: this is inside a p.mu.Lock section, so it is
 			// already synchronized with the resolveDynamicPeerSettings write. Using the
 			// p.IsIBGP() accessor here would deadlock (RLock while holding Lock).
-			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+			update := buildRIBRouteUpdateWithRedirect(attrHandle.Buf, op.Route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.settings.FlowSpecRedirectNextHop)
 			p.mu.Unlock()
 			queueLocked = false
 			sendErr := session.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath, op.Replay)
@@ -613,7 +613,7 @@ func (p *Peer) drainAndCloseQueueGate(session *Session, addr string, opMaxMsgSiz
 			// p.settings.IsIBGP() read directly: this is inside a p.mu.Lock section, so it is
 			// already synchronized with the resolveDynamicPeerSettings write. Using the
 			// p.IsIBGP() accessor here would deadlock (RLock while holding Lock).
-			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+			update := buildRIBRouteUpdateWithRedirect(attrHandle.Buf, op.Route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.settings.FlowSpecRedirectNextHop)
 			p.mu.Unlock()
 			queueLocked = false
 			sendErr := session.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath, op.Replay)
@@ -1043,7 +1043,7 @@ func (p *Peer) sendPluginRoutesVia(session *Session, sendFn func(*message.Update
 			continue
 		}
 
-		params, err := toPluginParams(*route, fam, p.prefixSIDAllowed(), local)
+		params, err := toPluginParamsForPeer(*route, fam, p.prefixSIDAllowed(), p.settings.FlowSpecRedirectNextHop, local)
 		if err != nil {
 			routesLogger().Warn("skipping plugin route", "peer", addr, "family", route.Family, "error", err)
 			continue
@@ -1096,7 +1096,7 @@ func concatNLRIs(nlris [][]byte) []byte {
 func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, local netip.Addr, maxMsgSize int, sendFn func(*message.Update) error, addr string) {
 	addPath := p.addPathFor(g.fam)
 	// RFC 8669 Section 8, as in the non-grouped pass (sendPluginRoutesVia).
-	base, err := toPluginParams(*g.rep, g.fam, p.prefixSIDAllowed(), local)
+	base, err := toPluginParamsForPeer(*g.rep, g.fam, p.prefixSIDAllowed(), p.settings.FlowSpecRedirectNextHop, local)
 	if err != nil {
 		routesLogger().Warn("skipping plugin route group", "peer", addr, "family", g.rep.Family, "error", err)
 		return

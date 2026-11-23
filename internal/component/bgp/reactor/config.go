@@ -415,6 +415,11 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 		if v, ok := mapBool(sessionMap, "accept-origin-validation-state"); ok {
 			ps.AcceptOriginValidationState = v
 		}
+		// RFC 8955 Section 4 / draft-simpson-idr-flowspec-redirect-02 Section 3:
+		// carry MP_REACH next hop for 0x0800 FlowSpec redirect only when configured.
+		if v, ok := mapBool(sessionMap, "flowspec-redirect-next-hop"); ok {
+			ps.FlowSpecRedirectNextHop = v
+		}
 	}
 
 	// Send-community control from session > community > send (leaf-list).

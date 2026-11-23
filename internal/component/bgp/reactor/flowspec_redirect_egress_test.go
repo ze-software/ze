@@ -31,6 +31,7 @@ func flowRedirectForward(t *testing.T, fam family.Family, raw, payload []byte, s
 	}
 	f.destination.settings.PeerAS = 65000
 	f.destination.settings.NextHopMode = NextHopAuto
+	f.destination.settings.FlowSpecRedirectNextHop = true
 	if setup != nil {
 		setup(f)
 	}
@@ -268,7 +269,7 @@ func TestPrecomputeRedirectNextHopAddressFamily(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := &peerForwardFacts{isEBGP: true, connectedLocal: netip.MustParseAddr(tc.local)}
-			precomputeRedirectNextHop(&PeerSettings{NextHopMode: NextHopAuto}, f)
+			precomputeRedirectNextHop(&PeerSettings{NextHopMode: NextHopAuto, FlowSpecRedirectNextHop: true}, f)
 			if f.redirect.action != tc.action {
 				t.Fatalf("action=%d, want %d", f.redirect.action, tc.action)
 			}
@@ -277,6 +278,13 @@ func TestPrecomputeRedirectNextHopAddressFamily(t *testing.T) {
 			}
 			if got := len(f.redirect.hop(family.AFIIPv6)); got != tc.want6 {
 				t.Errorf("IPv6 rule next hop=%d octets, want %d", got, tc.want6)
+			}
+
+			// Default (FlowSpecRedirectNextHop == false) always strips per RFC 8955 Section 4.
+			fDefault := &peerForwardFacts{isEBGP: true, connectedLocal: netip.MustParseAddr(tc.local)}
+			precomputeRedirectNextHop(&PeerSettings{NextHopMode: NextHopAuto}, fDefault)
+			if fDefault.redirect.action != redirectStrip {
+				t.Fatalf("default action=%d, want redirectStrip (%d)", fDefault.redirect.action, redirectStrip)
 			}
 		})
 	}
@@ -299,6 +307,7 @@ func TestPrecomputeRedirectNextHopAddressFamily(t *testing.T) {
 // replay carries length 0).
 func TestRelayFlowSpecRedirectNextHop(t *testing.T) {
 	api, src, dst, capture := validationForwardFixture(t, false)
+	dst.settings.FlowSpecRedirectNextHop = true
 	for _, peer := range []*Peer{src, dst} {
 		peer.negotiated.Store(&NegotiatedCapabilities{families: map[family.Family]bool{flowRedirectIPv4: true}})
 		peer.refreshForwardFacts()

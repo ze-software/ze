@@ -450,6 +450,14 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap, brid
 			bindWatchdogProcess(result.Tree, peer)
 		}
 
+		// RFC 8955 Section 4 keeps FlowSpec MP_REACH next-hop length at 0 by
+		// default. Preserve ExaBGP's draft-simpson 0x0800 next-hop behavior on
+		// migrated peers that carry a Simpson static route or serve an API
+		// process on a FlowSpec family.
+		if peerNeedsFlowSpecRedirectNextHop(peer, len(bound) > 0) {
+			peerSession(peer).Set(zeFlowRedirectNextHopLeaf, configTrue)
+		}
+
 		// Get or create group tree.
 		groupTree, ok := groups[groupName]
 		if !ok {

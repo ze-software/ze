@@ -467,15 +467,24 @@ families, preserving the NLRI, VPN route distinguisher and traffic-rate action.
 <!-- source: internal/component/bgp/reactor/peer_rib_routes.go -- buildRIBRouteUpdate -->
 <!-- test: internal/component/bgp/reactor/flowspec_origin_wire_test.go TestFlowSpecOriginationOmitsConfiguredNextHop -->
 
-The one exception is a route whose action is the redirect/mirror-to-IP-next-hop
-community, type 0x0800 (`redirect-to-nexthop-draft`, `copy-to-nexthop`, and
-ExaBGP's `redirect <address>`). Its target is the MP_REACH next hop
-(draft-simpson-idr-flowspec-redirect-02 Section 3), so all three rails carry the
-route's next hop when it has one. Without an address the length stays zero, and
-the receiver ignores the community, as the draft says.
+The one optional extension is a route whose action is the
+redirect/mirror-to-IP-next-hop community, type 0x0800
+(`redirect-to-nexthop-draft`, `copy-to-nexthop`, and ExaBGP's
+`redirect-simpson <address>` / `copy-simpson <address>`). Its target is the
+MP_REACH next hop (draft-simpson-idr-flowspec-redirect-02 Section 3), which
+departs from RFC 8955 Section 4's zero-length MUST. By default
+(`session { flowspec-redirect-next-hop false; }`), all three origination rails
+emit a zero-length next hop even for 0x0800 routes, keeping the default
+configuration path fully RFC 8955 compliant. When an operator explicitly sets
+`session { flowspec-redirect-next-hop true; }` on a peer (or group), all three
+rails carry the route's next hop for 0x0800 routes when it has one; without an
+address the length stays zero, and the receiver ignores the community, as the
+draft says. Non-0x0800 FlowSpec routes always emit length zero regardless of
+the leaf.
 <!-- source: internal/component/bgp/message/update_build_plugin.go -- MPReachCarriesNextHop -->
 <!-- source: internal/core/bgp/attribute/flowspec_action.go -- FlowSpecRedirectsToNextHop -->
 <!-- test: internal/component/bgp/reactor/flowspec_redirect_nexthop_wire_test.go TestFlowSpecRedirectToNextHopCarriesTheNextHop -->
+<!-- test: internal/component/bgp/reactor/rfc8955_redirect_default_wire_test.go TestFlowSpecDefaultPathOmitsRedirectNextHop -->
 
 Forwarding applies that family contract after destination policy and before
 next-hop withholding. Received FlowSpec next-hop bytes are ignored for forwarding
@@ -501,10 +510,14 @@ their next-hop scope rules.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope -->
 <!-- test: internal/component/bgp/reactor/next_hop_scope_flowspec_test.go TestNextHopScopePreservesFlowSpecFamilyDecision -->
 
-A received redirect-to-IP route is the exception on the forward rails too. When
-its EXTENDED_COMMUNITIES carry 0x0800 and its MP_REACH next hop is a 4- or
-16-octet address, that address is the redirect target, and each destination's
-decision is computed once per facts snapshot:
+A received redirect-to-IP route follows the same per-session opt-in on the
+forward rails too. When the destination peer leaves
+`session { flowspec-redirect-next-hop }` at its default `false`,
+`precomputeRedirectNextHop` strips the next hop to length zero per RFC 8955
+Section 4. When the destination peer sets `flowspec-redirect-next-hop true`,
+and the route's EXTENDED_COMMUNITIES carry 0x0800 with a 4- or 16-octet
+MP_REACH next hop, each destination's decision is computed once per facts
+snapshot:
 
 | Destination | Next hop sent |
 |-------------|---------------|
@@ -1633,3 +1646,9 @@ policy for announce permission. Message zero is not withdrawal authority. A
 newer same-connection generation, selected output and unrelated local output
 remain independent. Missing receipts require explicit prefix-only NLRI framing.
 <!-- source: internal/component/bgp/reactor/relay_retire_original.go -- retireOriginalStoredRoute, originalStoredRetirement -->
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| Gate draft-simpson 0x0800 FlowSpec MP_REACH next-hop emission behind an explicit per-session opt-in (`session { flowspec-redirect-next-hop true; }`, default `false`), written automatically by `ze exabgp migrate` when a migrated neighbor uses Simpson actions or serves an API process on a FlowSpec family | Emitting a non-zero FlowSpec MP_REACH_NLRI next-hop length on the default configuration path, or breaking ExaBGP `redirect-simpson` / `copy-simpson` compatibility for migrated peers | ai/META-DECISIONS.md "Protocol and RFC scope", rfc/corrections/rfc8955.md | 2026-11-23 |

@@ -148,3 +148,50 @@ func TestSchemaAcceptOriginValidationStateDefaultsFalse(t *testing.T) {
 		require.Error(t, validator.Validate(path, "not-a-bool"), path)
 	}
 }
+
+// TestSchemaFlowSpecRedirectNextHopDefaultsFalse proves RFC 8955 Section 4 at
+// the YANG schema boundary: session/flowspec-redirect-next-hop is a boolean
+// leaf defaulting to "false" across group and peer scopes.
+func TestSchemaFlowSpecRedirectNextHopDefaultsFalse(t *testing.T) {
+	loader := yang.NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.LoadRegistered())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+
+	mod := schema.GetModule("ze-bgp-conf")
+	require.NotNil(t, mod)
+	var found bool
+	for _, g := range mod.Grouping {
+		if g.Name != "peer-fields" {
+			continue
+		}
+		for _, c := range g.Container {
+			if c.Name != "session" {
+				continue
+			}
+			for _, leaf := range c.Leaf {
+				if leaf.Name != "flowspec-redirect-next-hop" {
+					continue
+				}
+				found = true
+				require.NotNil(t, leaf.Type)
+				assert.Equal(t, "boolean", leaf.Type.Name)
+				require.NotNil(t, leaf.Default)
+				assert.Equal(t, "false", leaf.Default.Name)
+			}
+		}
+	}
+	require.True(t, found, "ze-bgp-conf peer-fields/session must declare flowspec-redirect-next-hop leaf")
+
+	validator := yang.NewValidator(schema)
+	for _, path := range []string{
+		"bgp/group/session/flowspec-redirect-next-hop",
+		"bgp/group/peer/session/flowspec-redirect-next-hop",
+		"bgp/peer/session/flowspec-redirect-next-hop",
+	} {
+		require.NoError(t, validator.Validate(path, false), path)
+		require.NoError(t, validator.Validate(path, true), path)
+		require.Error(t, validator.Validate(path, "not-a-bool"), path)
+	}
+}

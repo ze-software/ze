@@ -730,6 +730,14 @@ func sendCommunitySuppression(list []string) sendCommunityMask {
 // destination does with a FlowSpec redirect-to-IP route's next hop. It runs
 // after precomputeNextHop and precomputeSendCommunity, whose results it reads.
 func precomputeRedirectNextHop(s *PeerSettings, f *peerForwardFacts) {
+	// RFC 8955 Section 4: "When advertising Flow Specifications, the Length of
+	// the Next-Hop Network Address MUST be set to 0." Carrying a non-zero next
+	// hop for the 0x0800 redirect-to-IP community (draft-simpson-idr-flowspec-
+	// redirect-02 Section 3) is an explicit per-session opt-in.
+	if !s.FlowSpecRedirectNextHop {
+		f.redirect.action = redirectStrip
+		return
+	}
 	// The 0x0800 community is an extended community. A destination that is
 	// not sent extended communities receives no redirect action, so its next
 	// hop is the RFC 8955 Section 4 one: "MUST be set to 0".

@@ -603,6 +603,16 @@ type PeerSettings struct {
 	// neighbor configured with `as-set accept`. False is RFC 9774's own behavior.
 	AcceptASSet bool
 
+	// FlowSpecRedirectNextHop is the peer's `session flowspec-redirect-next-hop`
+	// opt-in for draft-simpson-idr-flowspec-redirect-02 Section 3. False (the
+	// default) enforces RFC 8955 Section 4 unconditionally: every advertised
+	// FlowSpec MP_REACH_NLRI carries a zero-length next hop on origination and
+	// forwarding, even when a route carries the 0x0800 extended community. True
+	// carries the 4- or 16-octet redirect target in MP_REACH_NLRI for 0x0800
+	// routes; `ze exabgp migrate` sets it for migrated ExaBGP neighbors that use
+	// Simpson redirect actions or serve an API process on a FlowSpec family.
+	FlowSpecRedirectNextHop bool
+
 	// AIGPOriginate permits explicitly configured metrics on domain-local
 	// routes for which this speaker is the next hop (RFC 7311 Section 3.4.1).
 	AIGPOriginate bool

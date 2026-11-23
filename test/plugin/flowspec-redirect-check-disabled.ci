@@ -127,6 +127,7 @@ bgp {
 			}
 			router-id 1.2.3.4
 			rs-client true
+			flowspec-redirect-next-hop true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 				ipv4/flow { prefix { maximum 10000; } }

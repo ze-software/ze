@@ -18,12 +18,19 @@ import (
 
 var errPluginNextHopSelf = errors.New("plugin route next-hop self requires a connected local address")
 
-// toPluginParams converts a PluginRoute to PluginParams.
+// toPluginParams converts a PluginRoute to PluginParams with RFC 8955's default
+// zero-length FlowSpec next hop.
 // prefixSIDAllowed is RFC 8669 Section 8 for the destination
 // (prefixSIDAllowedTo, forward_prefix_sid.go). A plugin route carries its extra
 // attributes as pre-built wire bytes under any type code, code 40 included, so
 // the section reaches this rail through them.
 func toPluginParams(r PluginRoute, fam family.Family, prefixSIDAllowed bool, local netip.Addr) (message.PluginParams, error) {
+	return toPluginParamsForPeer(r, fam, prefixSIDAllowed, false, local)
+}
+
+// toPluginParamsForPeer converts a PluginRoute to PluginParams for a destination
+// whose `session flowspec-redirect-next-hop` setting is flowSpecRedirectNextHop.
+func toPluginParamsForPeer(r PluginRoute, fam family.Family, prefixSIDAllowed, flowSpecRedirectNextHop bool, local netip.Addr) (message.PluginParams, error) {
 	if r.NextHopSelf {
 		if !local.IsValid() {
 			return message.PluginParams{}, errPluginNextHopSelf
@@ -40,7 +47,8 @@ func toPluginParams(r PluginRoute, fam family.Family, prefixSIDAllowed bool, loc
 		NextHop: r.NextHop, RawAttrs: rawAttrs,
 		ASPath: r.ASPath, LocalPreference: r.LocalPreference, HasLocalPreference: r.HasLocalPreference,
 		HasAggregator: r.HasAggregator, AggregatorASN: r.AggregatorASN, AggregatorIP: r.AggregatorIP,
-		MapV4NextHop: r.MapV4NextHop,
+		MapV4NextHop:            r.MapV4NextHop,
+		FlowSpecRedirectNextHop: flowSpecRedirectNextHop,
 	}, nil
 }
 
