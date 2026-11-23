@@ -996,7 +996,10 @@ implied configuration visibility, or a CLI pipe operator.
   The plugin declares the insertion; the engine and config code never name a
   feature, a plugin or a config path to make it happen.
 - Nothing Ze does on an operator's behalf is hidden. Where the configuration
-  leaves the operator a choice, the operator writes it. Where it leaves none
+  leaves the operator a choice, the operator writes it. What a plugin
+  registers is not such a choice: a configured plugin receives and sends what
+  it registered, shown as implied, and the operator writes an allow-list only
+  to narrow it. Where it leaves none
   (the plugin that serves a block the operator wrote, the flow a rule the
   operator wrote needs), Ze does it without asking or correcting at commit, and
   one display option on the configuration shows every such implied item beside
