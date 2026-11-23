@@ -171,6 +171,49 @@ used a self or unchanged, we should automatically change it on eBGP. Because
 otherwise we have two ways to modify packets on the way out to the peer." —
 "Unify into the export chain it is the way I want it."
 
+Owner decision (Thomas, 2026-11-23, D-1): extend `policy { modify <name> { set {
+next-hop self | unchanged | auto | <ip>; } } }` for conditional rules and
+provide built-in chain references `next-hop:self`, `next-hop:unchanged`, and
+`next-hop:auto` for peer-wide policy without a `modify` wrapper block, both
+feeding the same `policychain.Sets` next-hop intent (recorded in
+`docs/architecture/core-design.md` under `## Design decisions`).
+
+Owner decision (Thomas, 2026-11-23, D-2): `next-hop:auto`, `next-hop:self`, and
+`next-hop:unchanged` are built-in BGP engine steps compiled into
+`policychain.Chain` (parallel to `loop-detection`, zero RPC, no
+`pkg/plugin/rpc.FilterInsertion` tail extension). Config loading appends
+`next-hop:auto` at the tail of every export chain unless an unconditional
+`next-hop:self`, `next-hop:unchanged`, or `next-hop:auto` is already present,
+leaving `Policy.Configured()` false for unconfigured chains; operators override
+via `next-hop:unchanged`, and `inactive:next-hop:auto` is refused (recorded in
+`docs/architecture/core-design.md` under `## Design decisions`).
+
+Owner decision (Thomas, 2026-11-23, D-3): explicit next-hop sets in an export
+chain use last-write-wins folding while auto-appended trailing `next-hop:auto`
+fills only when next-hop is still unset. For whole-UPDATE raw overrides
+(`wireOverride`), Ze checks next-hop byte provenance against the received
+UPDATE (matching `forward_med.go`): trailing `auto` is skipped only when the
+raw override changed the next-hop bytes or an earlier member already selected
+`unchanged`/`self`/explicit (recorded in `docs/architecture/core-design.md`
+under `## Design decisions`).
+
+Owner decision (Thomas, 2026-11-23, D-4): explicit next-hop addresses in
+`policy { modify <name> { set { next-hop <ip>; } } }` and
+`policychain.Sets.NextHop` support both IPv4 (attr 3) and IPv6/MP_REACH
+(through `NextHopProfile` and `ValidatePeerGlobalNextHop`) on both export and
+import chains. Egress-only modes (`self`, `unchanged`, `auto`) — both built-in
+`next-hop:*` refs and inside `policy { modify }` — are refused on import chains
+at config load (recorded in `docs/architecture/core-design.md` under
+`## Design decisions`).
+
+Owner decision (Thomas, 2026-11-23, D-5): auto-appended trailing
+`next-hop:auto` applies only to forwarded routes and preserves the
+originator-chosen next hop on locally originated routes (static config routes,
+ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions
+(`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both
+forwarded and locally originated routes (recorded in
+`docs/architecture/core-design.md` under `## Design decisions`).
+
 ### Owner-approved behaviour table
 
 Recorded from the link-local research, approved by Thomas on 2026-10-03.
