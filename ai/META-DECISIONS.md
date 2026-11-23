@@ -89,14 +89,11 @@ in the spec or commit it applies to.
   compatibility to plugins built on an older SDK. A protocol change is made
   directly, every plugin in the tree is rebuilt with it, and no version gate,
   negotiation or fallback is added to keep an old plugin working.
-- Ze keeps the infrastructure that migrates its own older config syntax:
-  `ze config migrate`, the rewrite of an older form when a config is loaded,
-  the registries a transformation or a retired-field hint registers into, and
-  the hints that name the current form. It is never removed. Until the first
-  stable release, a change to Ze's own config syntax converts the configs in
-  the repository directly and needs no transformation written for it. From the
-  first stable release on, every such change ships its transformation. The
-  ExaBGP migration is separate and stays.
+- The infrastructure that converts a config written in an older format of
+  Ze's own syntax is there to stay. The code that converts one format change
+  is written only once Ze has a stable release; before it, a format change
+  converts the configs in the repository directly. The ExaBGP migration is
+  separate and stays.
 - A change to what Ze does (a default, an enforcement, a refusal, an output
   format) converts or re-validates, in the same work, every user of it the
   repository carries: configs, `.ci` bodies, fixtures, benchmarks, interop
