@@ -214,6 +214,17 @@ ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions
 forwarded and locally originated routes (recorded in
 `docs/architecture/core-design.md` under `## Design decisions`).
 
+Owner decision (Thomas, 2026-11-23, D-6): every automatic filter-chain member
+Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail,
+`loop-detection` at the import head) and plugin-declared `FilterInsertions` —
+must be published through one queryable implied-filter seam (direction,
+position, reference, `implied-by` reason) so `| implied` displays every extra
+chain member alongside the operator's written filter list (recorded in
+`docs/architecture/core-design.md` under `## Design decisions`, and aligned with
+`plan/release/fixes/spec-bus-2-implied-display-and-grant-refusals.md`). In
+Thomas's words: "Can you make sure that | implied show the extra chain members
+when it displays the filter ?".
+
 ### Owner-approved behaviour table
 
 Recorded from the link-local research, approved by Thomas on 2026-10-03.
