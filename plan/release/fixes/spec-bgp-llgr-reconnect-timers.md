@@ -139,7 +139,7 @@ its producer at HEAD before writing the design.
 |----------|--------|
 | What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
 | How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
-| Who else touches this path? | `plan/release/fixes/spec-bgp-graceful-restart-rfc-defects.md` (D2, `onSessionReestablished`); `plan/release/fixes/spec-bgp-llgr-per-family-config.md` (RFC9494-5-2) |
+| Who else touches this path? | `plan/release/fixes/spec-bgp-graceful-restart-rfc-defects.md` (D2, `onSessionReestablished`); `spec-bgp-llgr-per-family-config` (RFC9494-5-2, closed 2026-11-23, commit `3c2a055fd9`) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -310,7 +310,7 @@ its producer at HEAD before writing the design.
 |----------|------------------------|-----------|
 
 ## Known Limitations
-- RFC9494-5-2 belongs to `plan/release/fixes/spec-bgp-llgr-per-family-config.md`
+- RFC9494-5-2 was implemented by `spec-bgp-llgr-per-family-config` (commit `3c2a055fd9`)
 - The six GR/LLGR defects D1 to D6 belong to `plan/release/fixes/spec-bgp-graceful-restart-rfc-defects.md`
 
 ## RFC Documentation (Scope: protocol)

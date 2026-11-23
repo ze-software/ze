@@ -45,7 +45,6 @@
 1 internal/component/bgp/plugins/filter_modify/modify.go
 2 internal/component/bgp/plugins/filter_modify/rib_evaluator.go
 1 internal/component/bgp/plugins/filter_path_asn/match.go
-1 internal/component/bgp/plugins/gr/gr_llgr.go
 3 internal/component/bgp/plugins/nlri/evpn/encode.go
 2 internal/component/bgp/plugins/nlri/evpn/plugin.go
 1 internal/component/bgp/plugins/nlri/flowspec/config.go

@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | verification |
 | Handoff | verify |
-| Updated | 2026-11-22 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -193,7 +193,7 @@ syntax, and any config naming the deleted leaf is refused at YANG validation.
 | AC-5 | Existing configs converted; deleted legacy `long-lived-stale-time` rejected | All in-tree configs converted with byte-identical OPENs; legacy `long-lived-stale-time` refused by YANG validation |
 | AC-6 | RFC9494-5-2 | `{gap}` removed; tagged units in both polarities with discrimination records, independently audited `enforced` (`rfc/audit/rfc9494/RFC9494-5-2.json`) |
 | AC-7 | YANG and docs | Native range validation (`0..16777215`), `docs/guide/graceful-restart.md` and config syntax docs updated, old leaf removed |
-| AC-8 | Interop | `bgp-llgr-per-family-frr` (`test/interop/scenarios/bgp-llgr-per-family-frr/`, `internal/le/interoplab/bgp/check_llgr_per_family.go`) asserts FRR sees code 64 for both families and code 71 for `ipv4/unicast` alone. Live Docker run + red-on-revert walk currently BLOCKED in this shared checkout by another concurrent session's uncommitted `internal/component/kernelcap/probe_srv6_linux.go` (`srv6-forward-frag`/`srv6-forward-ttl` absent from host kernel `7.3.0-ze`), keeping this spec at `Status: verification` |
+| AC-8 | Interop | `bgp-llgr-per-family-frr` (`test/interop/scenarios/bgp-llgr-per-family-frr/`, `internal/le/interoplab/bgp/check_llgr_per_family.go`) passed live against FRR 10.7.1 (`NO_BUILD=1 INTEROP_SCENARIO=bgp-llgr-per-family-frr ./le --name llgr-interop test integration interop`: exit 0, `1 passed, 0 failed`, 15s; recording `tmp/session/2026-11-21-023904/scratch/interop-recordings/bgp/bgp-llgr-per-family-frr-BZY3NKEXIWGG4AI7KQXLM2WWJT.jsonl` confirms FRR saw code 64 for both `ipv4Unicast` and `ipv6Unicast`, code 71 for `IPv4 Unicast` only, `ipv4Unicast.timers.llgrStaleTime: 60`, and `ipv6Unicast.timers.llgrStaleTime: 0`) |
 
 ## End-to-End User Stories
 
@@ -231,7 +231,7 @@ syntax, and any config naming the deleted leaf is refused at YANG validation.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-llgr-per-family-frr` | `test/interop/scenarios/bgp-llgr-per-family-frr/` | FRR 10.7.1 | Dual-stack peer advertises both families in code 64 and only `ipv4/unicast` in code 71 | blocked (host kernelcap drift from concurrent session) |
+| `bgp-llgr-per-family-frr` | `test/interop/scenarios/bgp-llgr-per-family-frr/` | FRR 10.7.1 | Dual-stack peer advertises both families in code 64 and only `ipv4/unicast` in code 71 | pass (live FRR 10.7.1, 15s, `ipv4Unicast.llgrStaleTime=60`, `ipv6Unicast.llgrStaleTime=0`) |
 
 ## Files to Modify
 - `internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang` - symmetric `short-lived` and `long-lived` containers; old per-peer leaf removed
@@ -300,7 +300,7 @@ syntax, and any config naming the deleted leaf is refused at YANG validation.
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-1..AC-7 verified; AC-8 scenario implemented and unit-tested, live Docker run deferred at `Status: verification` due to concurrent session kernelcap block |
+| Completeness | Every AC-1..AC-8 verified, including live Docker FRR 10.7.1 interop pass for `bgp-llgr-per-family-frr` |
 | Feature completeness | Config parse, offline validation, commit verification, Stage 2/3 capability declaration, filter insertion, and `create bgp peer` all use the new paths |
 | Correctness | Peer `graceful-restart` container replaces group container for both code 64 and code 71; `short-lived` absence emits `0000`; `long-lived` emits only listed families |
 | Naming | Kebab-case YANG nodes (`short-lived`, `long-lived`, `restart-time`, `stale-time`); wire decode JSON key `long-lived-stale-time` preserved |
@@ -314,7 +314,7 @@ syntax, and any config naming the deleted leaf is refused at YANG validation.
 | Unit tests & `RFC9494-5-2` proofs | `./le test unit pkg path ./internal/component/bgp/plugins/gr/`, `./le rfc discriminate stem rfc9494` |
 | Functional tests | `./le test bgp parse --pattern graceful-restart`, `./le test bgp reload --pattern reload-gr`, `./le test bgp plugin --pattern graceful-restart` |
 | Docs & anchors | `./le doc check all`, `./le config claims` |
-| Interop scenario `bgp-llgr-per-family-frr` | Discovery + parser unit test pass; live Docker run blocked by host kernelcap mismatch (`srv6-forward-frag`, `srv6-forward-ttl`) |
+| Interop scenario `bgp-llgr-per-family-frr` | Live Docker run against FRR 10.7.1 (`NO_BUILD=1 INTEROP_SCENARIO=bgp-llgr-per-family-frr ./le --name llgr-interop test integration interop`): exit 0, `1 passed, 0 failed`, 15s |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -341,7 +341,7 @@ syntax, and any config naming the deleted leaf is refused at YANG validation.
 | Pre-release clean cut (no legacy fallback) | Keep runtime reader for `long-lived-stale-time` | `ai/rules/no-layering.md` and `docs/architecture/config/deprecated-options.md` forbid legacy shims pre-release; all 66 in-tree configs converted directly |
 
 ## Known Limitations
-- Live Docker execution and red-on-revert proof of `bgp-llgr-per-family-frr` (AC-8) remain owed until the concurrent session's uncommitted `internal/component/kernelcap/probe_srv6_linux.go` (`srv6-forward-frag`, `srv6-forward-ttl`) matches the booted Docker host kernel. Spec remains open at `Status: verification`.
+- None for RFC9494-5-2. (AC-8 live Docker interop `bgp-llgr-per-family-frr` was unblocked by `17bbd4a7df` and passed live against FRR 10.7.1.)
 
 ## RFC Documentation (Scope: protocol)
 
@@ -363,7 +363,7 @@ syntax, and any config naming the deleted leaf is refused at YANG validation.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-N all demonstrated (AC-8 live Docker run owed at verification handoff)
+- [ ] AC-1..AC-8 all demonstrated (including AC-8 live FRR 10.7.1 Docker interop)
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
@@ -382,6 +382,175 @@ syntax, and any config naming the deleted leaf is refused at YANG validation.
 - [ ] Interop tests for protocol features
 
 ### Closure
-- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it (after AC-8 live Docker proof completes)
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
-- [ ] Commit A lands implementation + tests + docs + spec at `Status: verification`; Commit B deletes spec only once AC-8 live Docker proof completes and `/ze-close` finishes
+- [ ] Commit A lands closure edits + news fragment + citer/allowlist cleanup + spec; Commit B deletes spec
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Replaced legacy flat `graceful-restart` schema (`restart-time`, `family { name [...] }`, `long-lived-stale-time`) with symmetric `short-lived` (presence container, `restart-time` `0..4095`, keyed `list family`) and `long-lived` (keyed `list family` with mandatory `stale-time` `0..16777215`) in `internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang` (landed in handoff commit `3c2a055fd953d19c911fdf3538c101e31c6fab5b`).
+- Updated `gr_capability.go` (`parseGRCapValue`, `grAdvertisedFamilies`, `refuseUncarriedGRSections`, `refusePeerGRFamilies`, `refusePeerPhaseFamilies`), `gr_llgr.go` (`parseLLGRCapValue`, `extractLLGRCapabilities`), `gr_filter.go` (`llgrConfig`, `llgrRequiredReason`), `register.go` (`InProcessConfigVerifier: refuseUncarriedGRSections`), and `doctor.go` (`shortLivedCapabilityIssues`, `longLivedCapabilityIssues`).
+- Updated peer-over-group replacement in `internal/component/bgp/config/resolve.go` (`replacePaths`), reactor capability reading in `internal/component/bgp/reactor/config_capabilities.go`, dynamic peer creation in `internal/component/bgp/plugins/cmd/peer/create.go` (`setGracefulRestart`), and ExaBGP migration in `internal/exabgp/migration/migrate_defaults.go` (`migratedCapabilityContainer`).
+- Added unit tests and `RFC9494-5-2` proofs (`internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go`, `rfc/discrimination/rfc9494/RFC9494-5-2.json`, `rfc/audit/rfc9494/RFC9494-5-2.json`), functional test `test/parse/graceful-restart-llgr-per-family.ci`, converted all 66 in-tree configs/tests, and added FRR 10.7.1 interop scenario `bgp-llgr-per-family-frr` (`test/interop/scenarios/bgp-llgr-per-family-frr/`, `internal/le/interoplab/bgp/check_llgr_per_family.go`).
+- Removed stale `internal/le/repo/numberparse-allowlist.txt` entry for `internal/component/bgp/plugins/gr/gr_llgr.go`, cleared all tracked citers of the closing spec, and wrote operator news fragment `website/changes/fragments/bgp-llgr-per-family-config.md`.
+
+### Bugs Found/Fixed
+- Stale allowlist line `1 internal/component/bgp/plugins/gr/gr_llgr.go` in `internal/le/repo/numberparse-allowlist.txt` left behind after `gr_llgr.go` switched from `strconv.ParseUint` to `configvalue.Int` (flagged by `./le repo check`); removed in closure Commit A.
+- `docs/guide/graceful-restart.md` `## Design decisions` row cited `plan/release/fixes/spec-bgp-llgr-per-family-config.md` in `Source`, which would become dangling upon spec deletion; repointed to landed commit `3c2a055fd9` in closure Commit A (requires owner terminal `decision-change` per `internal/le/doc/consistency/decisionschange.go:judgeDecisionRows`).
+
+### Documentation Updates
+- `docs/guide/graceful-restart.md`: updated config syntax, per-family LLGR documentation, source anchors (`gr_capability.go`, `gr_llgr.go`, `gr_llgr_exchange.go`, `gr_filter.go`, `ze-graceful-restart.yang`), and `## Design decisions` row (`Source` repointed to `3c2a055fd9, plan/records/rfc-verdict-test-fix-pass-rulings.md`).
+- `docs/architecture/config/syntax.md`, `docs/config-reference.md`, `docs/features/configuration.md`, `docs/guide/bgp-resilience.md`, `docs/guide/configuration.md`, `docs/architecture/api/process-protocol.md`: updated config examples and `llgrConfig` path (`3c2a055fd9`).
+- `rfc/short/rfc9494.md`: removed `{gap}` on `RFC9494-5-2`; `./le rfc update` confirmed `docs/features/rfc-status.md` is current with zero diff.
+- `./le doc check all`: `Documentation tests PASSED` (0 drift, 562/562 commands, 3160/3160 digest anchors).
+
+### Deviations from Plan
+- Live Docker interop (AC-8) was initially blocked at handoff commit `3c2a055fd9` by unrelated host kernel capability probes; `17bbd4a7df` unblocked it and `bgp-llgr-per-family-frr` subsequently passed live against FRR 10.7.1.
+- Handoff commit `3c2a055fd9` landed with trailer `Spec-work: pppoe-vpp-dataplane` from a concurrent session claim; closure review artifact explicitly pins all 85 code files from `3c2a055fd9`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | `3c2a055fd9` removed `strconv.ParseUint` from `gr_llgr.go` without removing its line in `internal/le/repo/numberparse-allowlist.txt` | Exact-count allowlist forbids stale entries whose file parses no 32-bit integer | `./le repo check` during closure step 5 | Removed stale line in closure Commit A |
+| approach | `3c2a055fd9` wrote `plan/release/fixes/spec-bgp-llgr-per-family-config.md` into `docs/guide/graceful-restart.md` `## Design decisions` `Source` | A closing spec path cannot survive spec removal in `## Design decisions`; modifying any cell (including `Source`) triggers `LostDecisions` (`decisions.go:DecisionRow.key`) | Closure citer check + `decisionschange.go` audit | Repointed `Source` to `3c2a055fd9` and flagged owner-terminal `decision-change` on Commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Per-AFI/SAFI LLGR affirmative config (RFC 9494 §5) | Done | `internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang:81-117`, `gr_llgr.go:143-221` | `long-lived / family` keyed list with mandatory `stale-time` (`0..16777215`) |
+| Symmetric `short-lived` / `long-lived` inside `graceful-restart` (RFC 9494 §3.1/§4.1) | Done | `ze-graceful-restart.yang:28-118`, `gr_capability.go:117-221` | Omitting `short-lived` sends code 64 `0000` |
+| Remove legacy per-peer leaves (`no-layering`) | Done | `ze-graceful-restart.yang`, `test/parse/graceful-restart-llgr-per-family.ci:104-127,170-172` | Legacy `long-lived-stale-time`, top-level `restart-time`, and `family { name [...] }` deleted and refused |
+| Offline/commit/boot validation parity | Done | `internal/component/bgp/plugins/gr/register.go:94`, `gr_capability.go:227-366` | `InProcessConfigVerifier: refuseUncarriedGRSections` matches `OnConfigVerify` / Stage 2 |
+| Peer-over-group replacement parity | Done | `internal/component/bgp/config/resolve.go:41-43,560-563`, `gr_capability.go:287-295`, `gr_llgr.go:242` | `replacePaths` matches `grCapabilityFor` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC9494_PerFamilyLLGRConfigPositive`, `TestRFC9494_PerFamilyLLGRConfigNegative`, `bgp-llgr-per-family-frr` | Code 71 names `ipv4/unicast` only; `exchangedLLGRLocked` purges `ipv6/unicast` |
+| AC-2 | Done | `TestRFC9494_PerFamilyLLGRConfigPositive/distinct_stale_times_and_boundaries` | `0001018000000000020180ffffff` (`0` and `16777215`) |
+| AC-3 | Done | `TestRFC9494_PerFamilyLLGRConfigNegative`, `TestRFC9494_LLGRNotEnabledByDefault` | Absent or empty `long-lived` emits no code 71 |
+| AC-4 | Done | `TestLLGRSkipGRPhaseOmitsShortLived`, `test/parse/graceful-restart-llgr-per-family.ci` | Omitting `short-lived` emits code 64 `0000` with code 71 intact |
+| AC-5 | Done | 66 converted in-tree configs + `TestLLGRRefusesUncarriedFamilyAndInvalidStaleTime` + `test/parse/graceful-restart-llgr-per-family.ci` | Legacy leaves refused by YANG |
+| AC-6 | Done | `rfc/short/rfc9494.md:234`, `rfc/discrimination/rfc9494/RFC9494-5-2.json`, `rfc/audit/rfc9494/RFC9494-5-2.json` | `{gap}` removed, audited `enforced` |
+| AC-7 | Done | `ze-graceful-restart.yang:105-115`, `docs/guide/graceful-restart.md`, `./le doc check all` | Native `0..16777215` range + 7 docs updated |
+| AC-8 | Done | `bgp-llgr-per-family-frr` live Docker run against FRR 10.7.1 | Passed in 15s (`ipv4Unicast.llgrStaleTime: 60`, `ipv6Unicast.llgrStaleTime: 0`) |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRFC9494_PerFamilyLLGRConfigPositive` | Done | `internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go:53` | Tagged `RFC9494-5-2 positive` |
+| `TestRFC9494_PerFamilyLLGRConfigNegative` | Done | `internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go:106` | Tagged `RFC9494-5-2 negative` |
+| `TestLLGRSkipGRPhaseOmitsShortLived` | Done | `internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go:154` | Proves code 64 `0000` + code 71 |
+| `TestLLGRRefusesUncarriedFamilyAndInvalidStaleTime` | Done | `internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go:174` | Boundary + legacy refusal + `InProcessConfigVerifier` |
+| `TestLLGRPeerContainerReplacesGroupLLGR` | Done | `internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go:223` | Peer container replaces group LLGR |
+| `TestLLGRDefensiveValidationAndTupleCap` | Done | `internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go:243` | 36-tuple cap + RIB-less family + malformed JSON |
+| `TestLLGRPerFamilyFRROutput` | Done | `internal/le/interoplab/bgp/check_llgr_test.go` | Parser unit test |
+| `graceful-restart-llgr-per-family` | Done | `test/parse/graceful-restart-llgr-per-family.ci` | Parse + JSON + refusals (80x stress pass) |
+| `bgp-llgr-per-family-frr` | Done | `test/interop/scenarios/bgp-llgr-per-family-frr/` | Live Docker FRR 10.7.1 pass |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang` | Done | Modified in `3c2a055fd9` |
+| `internal/component/bgp/plugins/gr/gr_capability.go` | Done | Modified in `3c2a055fd9` |
+| `internal/component/bgp/plugins/gr/gr_llgr.go` | Done | Modified in `3c2a055fd9` |
+| `internal/component/bgp/plugins/gr/gr_filter.go` | Done | Modified in `3c2a055fd9` |
+| `internal/component/bgp/plugins/gr/register.go` | Done | Modified in `3c2a055fd9` |
+| `internal/component/bgp/plugins/gr/doctor.go` | Done | Modified in `3c2a055fd9` |
+| `internal/component/bgp/config/resolve.go` | Done | Modified in `3c2a055fd9` |
+| `internal/component/bgp/reactor/config_capabilities.go` | Done | Modified in `3c2a055fd9` |
+| `internal/component/bgp/plugins/cmd/peer/create.go` | Done | Modified in `3c2a055fd9` |
+| `internal/exabgp/migration/migrate_defaults.go` | Done | Modified in `3c2a055fd9` |
+| `internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go` | Done | Created in `3c2a055fd9` |
+| `test/parse/graceful-restart-llgr-per-family.ci` | Done | Created in `3c2a055fd9` |
+| `test/interop/scenarios/bgp-llgr-per-family-frr/{ze.conf,frr.conf}` | Done | Created in `3c2a055fd9` |
+| `internal/le/interoplab/bgp/check_llgr_per_family.go` | Done | Created in `3c2a055fd9` |
+| `rfc/short/rfc9494.md` + 7 docs + 66 `.ci`/interop configs | Done | Modified in `3c2a055fd9` |
+
+### Audit Summary
+- **Total items:** 28
+- **Done:** 28
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Make LLGR (RFC 9494 §5) an affirmative per-AFI/SAFI operator decision | interop + unit + RFC discrimination | Live Docker FRR 10.7.1 `bgp-llgr-per-family-frr` (`NO_BUILD=1 INTEROP_SCENARIO=bgp-llgr-per-family-frr ./le --name llgr-interop test integration interop`: exit 0, `1 passed, 0 failed`, 15s; recording `bgp-llgr-per-family-frr-BZY3NKEXIWGG4AI7KQXLM2WWJT.jsonl` shows `Graceful Restart: IPv4 Unicast, IPv6 Unicast`, `Long-lived Graceful Restart: IPv4 Unicast` only, `ipv4Unicast.llgrStaleTime: 60`, `ipv6Unicast.llgrStaleTime: 0`); `TestRFC9494_PerFamilyLLGRConfigPositive` & `TestRFC9494_PerFamilyLLGRConfigNegative` (`rfc/discrimination/rfc9494/RFC9494-5-2.json`, `rfc/audit/rfc9494/RFC9494-5-2.json`) |
+| Symmetric `short-lived` / `long-lived` config inside `graceful-restart` with GR-phase skip and legacy removal | functional + unit | `test/parse/graceful-restart-llgr-per-family.ci` (80x stress pass: accepts symmetric config & GR-skip, dumps `stale-time`, refuses uncarried `ipv6/unicast`, legacy `long-lived-stale-time`, and `16777216`); `TestLLGRSkipGRPhaseOmitsShortLived`; `TestLLGRRefusesUncarriedFamilyAndInvalidStaleTime` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All AC-1..AC-8 and RFC9494-5-2 deliverables are complete and verified | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-llgr-per-family-config-1c2a7b0e-fafc-4e6c-beac-67f60f6e67d0.md` |
+| `./le spec review check` | `review_gate: OK (85 code files, clean, hashes match tmp/review/bgp-llgr-per-family-config-1c2a7b0e-fafc-4e6c-beac-67f60f6e67d0.md)` |
+| Rounds | 1 (0 BLOCKER, 0 ISSUE in product code; non-code allowlist/citer findings fixed inline) |
+| Reviewer lenses used | logic+wiring, security+edge-cases, rfc+style+spec (full `/ze-review` + `/ze-review-spec` inline over `3c2a055fd9~1..3c2a055fd9` + closure edits) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Stale `1 internal/component/bgp/plugins/gr/gr_llgr.go` line in `numberparse-allowlist.txt` after `gr_llgr.go` removed `strconv.ParseUint` (`./le repo check`) | `internal/le/repo/numberparse-allowlist.txt:48` | Deleted stale line in closure Commit A |
+| 2 | ISSUE | Tracked citers referenced `plan/release/fixes/spec-bgp-llgr-per-family-config.md` (`docs/guide/graceful-restart.md:759`, `spec-bgp-graceful-restart-rfc-defects.md:801,807`, `spec-bgp-llgr-reconnect-timers.md:142,313`) | `docs/guide/graceful-restart.md:759`, sibling specs | Repointed `Design decisions` `Source` to `3c2a055fd9` and restated sibling spec refs as bare stem `spec-bgp-llgr-per-family-config` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 14278 Nov 22 20:08` |
+| `test/parse/graceful-restart-llgr-per-family.ci` | Yes | `-rw-r--r-- 1 thomas thomas 3692 Nov 22 20:06` |
+| `test/interop/scenarios/bgp-llgr-per-family-frr/ze.conf` | Yes | `-rw-r--r-- 1 thomas thomas 1087 Nov 22 19:49` |
+| `test/interop/scenarios/bgp-llgr-per-family-frr/frr.conf` | Yes | `-rw-r--r-- 1 thomas thomas 531 Nov 22 19:49` |
+| `internal/le/interoplab/bgp/check_llgr_per_family.go` | Yes | `-rw-r--r-- 1 thomas thomas 5333 Nov 22 20:05` |
+| `website/changes/fragments/bgp-llgr-per-family-config.md` | Yes | Created in closure Commit A |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Per-family code 71 & helper-side purge of unconfigured family | `gr_llgr.go:parseLLGRCapValue`, `rfc9494_llgr_per_family_test.go:TestRFC9494_PerFamilyLLGRConfigPositive`, `TestRFC9494_PerFamilyLLGRConfigNegative` |
+| AC-2 | Distinct per-family LLST values (`0`, `16777215`) | `rfc9494_llgr_per_family_test.go:72-85` asserts `"0001018000000000020180ffffff"` |
+| AC-3 | No code 71 by default | `gr_llgr.go:152-161` returns `""` when `long-lived` or `family` absent; `TestRFC9494_PerFamilyLLGRConfigNegative` |
+| AC-4 | Omitting `short-lived` sends code 64 `0000` with code 71 intact | `gr_capability.go:126-138` returns `"0000"`; `TestLLGRSkipGRPhaseOmitsShortLived` |
+| AC-5 | In-tree configs converted; legacy leaves refused | `ze-graceful-restart.yang` removes `long-lived-stale-time`; `test/parse/graceful-restart-llgr-per-family.ci:170-172` |
+| AC-6 | `RFC9494-5-2` `{gap}` removed, proven, audited `enforced` | `rfc/short/rfc9494.md:234`, `rfc/discrimination/rfc9494/RFC9494-5-2.json`, `rfc/audit/rfc9494/RFC9494-5-2.json`; `./le rfc check` owed |
+| AC-7 | YANG range `0..16777215` and 7 docs updated | `ze-graceful-restart.yang:106-110`; `./le doc check all` -> `Documentation tests PASSED` |
+| AC-8 | Live FRR 10.7.1 interop `bgp-llgr-per-family-frr` passes | `NO_BUILD=1 INTEROP_SCENARIO=bgp-llgr-per-family-frr ./le --name llgr-interop test integration interop`: exit 0, `1 passed, 0 failed`, recording `bgp-llgr-per-family-frr-BZY3NKEXIWGG4AI7KQXLM2WWJT.jsonl` verdict `passed: true` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config validate` / `ze cli -c "show config dump - \| json"` | `test/parse/graceful-restart-llgr-per-family.ci` | Read lines 1-175: exercises valid symmetric GR+LLGR, GR-skip, JSON dump, uncarried `ipv6/unicast` refusal via `InProcessConfigVerifier`, legacy refusal, and `16777216` range refusal |
+| `bgp-gr` filter insertion (`llgrConfig`) | `test/plugin/llgr-stale-received-depreferenced.ci` | Exists (`4151` bytes), updated in `3c2a055fd9` to `short-lived`/`long-lived` syntax |
+| SIGHUP reload of `short-lived / family` | `test/reload/reload-gr-explicit-family-list-accepted.ci`, `test/reload/reload-gr-family-change-restarts.ci` | Exist (`3104` / `4647` bytes), updated in `3c2a055fd9` |
+| Live FRR 10.7.1 dual-stack session | `test/interop/scenarios/bgp-llgr-per-family-frr/{ze.conf,frr.conf}` | Read both files + live JSONL recording (`verdict.passed: true`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `test/parse/graceful-restart-llgr-per-family.ci` compact `family { ipv4/unicast 3600; }` + `internal/component/config/serialize_test.go` |
+| A-2 | confirmed | `gr_capability.go:126-138` returns `"0000"`; `TestLLGRSkipGRPhaseOmitsShortLived` |
+| A-3 | confirmed | `gr_capability.go:grCapabilityFor`, `resolve.go:replacePaths`, `TestLLGRPeerContainerReplacesGroupLLGR` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Config syntax & user guides (7 files) | `ze-graceful-restart.yang`, `gr_capability.go`, `gr_llgr.go`, `gr_filter.go`; `./le doc check all` -> `Documentation tests PASSED` | Yes |
+| `docs/guide/graceful-restart.md` `## Design decisions` | Line 759 `Source` repointed to `3c2a055fd9, plan/records/rfc-verdict-test-fix-pass-rulings.md` | Yes |
+| RFC status (`rfc/short/rfc9494.md` & `docs/features/rfc-status.md`) | `./le rfc update` produced zero diff on `docs/features/rfc-status.md` | Yes |
+| Non-applicable categories (CLI verb, RPC, metrics, wire format) | `git diff 3c2a055fd9~1..3c2a055fd9` touched no RPC/metric/wire format definitions; `git grep long-lived-stale-time` shows only wire decode JSON tag (`gr_llgr.go:30`), negative tests, and static site testdata | Yes |
