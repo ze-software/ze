@@ -635,8 +635,10 @@ publishes, or a screenshot, demo or video about Ze.
   (`website/changes/discord/STYLE.md`, "Identity & voice").
 - The update report's RFC section gives its figures as percentages, in plain
   words, and gives two of them, each saying what it counts: the share of all
-  the MUSTs of the RFCs Ze implements whose test has been seen to fail with
-  the code broken, and the same share over only the MUSTs of what Ze builds.
+  the MUSTs of the RFCs Ze implements whose test was seen to fail with the
+  code broken on purpose when it was written (the check is repeated only when
+  the test itself changes, never on every run), and the same share over only
+  the MUSTs of what Ze builds.
   It says that a MUST for a part of an RFC Ze does not build needs no test
   until that part is built, so the second figure shows how well the shipped
   features are tested.

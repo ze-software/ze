@@ -67,6 +67,15 @@ whatever the span (`ai/META-DECISIONS.md`, "Reports and messages").
    - read the touched source, docs, specs, or tests needed to understand user-visible behavior,
    - verify the behavior at its producing function in the selected `release-to` tree,
    - leave design and planning work out: the update carries no forward-looking section.
+   A two-week range runs to thousands of commits. Split the research into
+   read-only agents at the development tier, started while the weekly report
+   runs: two that verify the fragments, half each; three that sweep the
+   commit log for what no fragment carries (BGP and routing; access, VPN and
+   services; the platform and operator surfaces); and the independent
+   Milestones review. Brief each one to read code at the pinned `release-to`
+   with `git show` and `git grep`, because the working tree holds other
+   sessions' edits. Check every headline claim and changed default yourself at
+   its producer before it enters the draft.
 6. Group the week by user-facing theme. Fold small commits into one capability when they serve one story.
 7. A commit message, like a fragment, describes the moment it was written. A quoted number can describe a defect before its fix. Read the producer before claiming delivery, including for removed release work items.
 8. Verify the fragment claims, then research only what no fragment carries. `STYLE.md` "How much detail" needs these facts, and none of them can be written from the commit log alone. The fragments of step 4 carry them as their authors knew them, under the Before, After, Corrects, Exposure, Upstream and Asked by headings. Verify each fragment claim you use at the producer. Research the fact below only when no fragment carries it, a fragment that says `none` included when the item needs the fact:
@@ -168,6 +177,72 @@ the MUSTs of what Ze builds, leaving out the `not built` section of
 endpoints were counted the same way. When the counting changed and a published
 figure can not be reconciled with today's, give today's figures alone and say
 the counting changed.
+
+### Writing the RFC section
+
+Thomas reads this section as an engineer outside the project would. Plain
+words, percentages, and what each number counts. No "proven", "recorded
+break", "walked", "ledger" or "polarity".
+
+1. **The first figure, all MUSTs.** The weekly report's `rfc-proven` section,
+   line `MUSTs proven at to: <proven> of <total>`. Give it as a percentage
+   with the counts in brackets.
+2. **The second figure, what Ze builds.** Run `./le rfc tree` at the pinned
+   tip. It prints one line per document and no total. Sum over every document
+   line that carries `MUST <n> kept:`, each stem once. A line in a dependency
+   cycle carries `(cycle with ...)` before its counts, so match the counts
+   anywhere in the line, not right after the stem. From each line take `kept`,
+   `Ze proven`, `OS verified` and `not built`. The share is (Ze proven + OS
+   verified) over (kept - not built). Your sum of proven over kept must land
+   within a few MUSTs of the report's first figure. When it does not, the
+   parse is wrong. The tree reads the working tree, so another session's
+   uncommitted RFC edits can move it slightly. Round the second figure to a
+   whole percent when its two readings differ in the decimal.
+3. **Say what a counted test is.** The check against broken code happens
+   when the test is written, and again only when the test itself changes. It
+   is never repeated on every run, so never write that it is.
+4. **Say why the two figures differ.** A MUST for a part of an RFC Ze does not
+   build needs no test until that part is built. Say what is not built, never
+   whether or when it will be.
+5. **Compare only like with like.** Before quoting a past figure, run the
+   weekly report over the earlier post's range and compare its endpoint
+   figure with the one that post printed. When they differ, the counting
+   changed: say so in one sentence and give no comparison, no trend and no
+   gain in points.
+6. Close with where the period's new tests came from, by RFC, and the
+   compliance page link.
+
+The shape Thomas approved on 2026-11-23:
+
+```
+**📚 Closing the RFC gap**
+Each MUST in the RFCs Ze implements gets a test. When the test is written, the code behind it is broken on purpose to see the test fail, and that check is repeated only when the test itself changes.
+- <A>% of all the MUSTs have a test checked this way (<p> of <t>). This counts every MUST of every RFC Ze implements, including the <n> for parts of an RFC Ze does not build today, which need no test until they are built.
+- <B>% of the MUSTs for what Ze builds have a test checked this way. This leaves those <n> out, so it shows how well the features Ze ships are tested.
+
+<a comparison with the last update when the counting is the same, or one sentence saying the counting changed>. Most of this period's new tests are for <RFC>, followed by <RFC>: https://ze-software.net/quality/rfc-compliance/
+```
+
+`./le weekly report` prints text even when `'|' json` is passed through
+`./le job run`. Read its sections by their `== name ==` headers.
+
+### Fitting the budget
+
+`./le weekly publish source <file>` splits at section boundaries, at most
+1900 characters a message. The opening sentence and the release-progress
+paragraph take about 650 characters, so the first section must stay under
+about 1250 to share their message. Pack the sections so each message is
+nearly full: the changes to check in two messages, security with one feature
+section, the remaining features with the RFC section. A two-week range found
+over a hundred candidate items, and about thirty fitted in four messages.
+
+### Before announcing a feature
+
+Read its declaration in `features/*.md` at the pinned tip and where its specs
+live. A feature whose `Scope` is `future`, or whose work sits under
+`plan/post-release/`, is not announced, even when a shipped build carries it,
+unless Thomas says so. Put it to him as a decision with that evidence, and
+hold its milestone entry with it.
 
 A MUST counts as covered only when a recorded break proved its test goes red
 (`ai/META-DECISIONS.md`). Report that figure first. The ledger's "checked" count
