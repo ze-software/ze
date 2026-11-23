@@ -117,7 +117,7 @@ func committedAuditSource(tree string, stems map[string]bool, extraPaths []strin
 		if err := checkAggregate(&meta, parsedProfiles.Aggregates, stem, rel); err != nil {
 			return auditSource{}, err
 		}
-		if err := checkUseCases(&meta, parsedProfiles, rel); err != nil {
+		if err := checkUseCases(stem, &meta, parsedProfiles, rel); err != nil {
 			return auditSource{}, err
 		}
 		if meta.Enrolled() {

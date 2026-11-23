@@ -30,13 +30,14 @@ func indexRequirements(requirements []Requirement) map[string]*Requirement {
 	return out
 }
 
-// implementedStemsOf answers the stems Ze implements (Implements) for
-// resolving `{superseded: dropped}` rows whose obsoleting successor is built.
+// implementedStemsOf answers the published RFC stems Ze implements
+// (ImplementsRFC) for resolving `{superseded: dropped}` rows whose obsoleting
+// successor is built. Internet-Drafts never satisfy a published RFC.
 func implementedStemsOf(metas map[string]Meta) map[string]bool {
 	out := make(map[string]bool, len(metas))
 	for stem := range metas {
 		meta := metas[stem]
-		if Implements(&meta) {
+		if ImplementsRFC(stem, &meta) {
 			out[stem] = true
 		}
 	}

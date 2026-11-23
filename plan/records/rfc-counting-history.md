@@ -6,6 +6,25 @@ explanations. When writing a weekly update (`/ze-weekly-update`), read this
 file before interpreting a jump or shift in compliance numbers so the article
 clearly separates rule changes from new protocol implementations or tests.
 
+## 2026-11-23 — Internet-Drafts (`draft-*`) separated from published RFC conformance counts
+
+**Owner rulings and code commits:**
+- Policy & rules: `67e9973b01` (`ai/META-DECISIONS.md`, `ai/rules/points/rfc-conformance/directives/separate-drafts-from-rfc-conformance.md`)
+- Counting implementation: `internal/le/rfc/` (`IsDraft`, `ImplementsRFC`, `DraftSections`, `ImplementedSectionsOf`, `checkUseCases`), `internal/le/site/` (`rfcdata.go`, `rfccompliance.go`, `rfcreader.go`, `homebody.go`)
+
+**What changed in the calculation:**
+- IETF Internet-Drafts (`draft-*`) are not published RFCs and carry no formal RFC requirements, so they no longer enter published RFC conformance figures, RFC satisfaction buckets, or release-profile obligations.
+- `ImplementedSectionsOf` now partitions enrolled `draft-*` summaries into `ImplementedSections.Drafts` (`DraftSections`) with its own `ProvenPercent()` and `ProvenBuiltPercent()`, keeping RFC conformance and Draft conformance strictly separate.
+- `checkUseCases` refuses any `draft-*` summary declaring a required `Use cases` entry so drafts cannot become release-profile targets.
+
+**Measured shift across the 7 enrolled Internet-Drafts moved out of RFC counts (2026-11-23):**
+
+| Drafts moved to separate `DraftSections` count | Kept MUSTs | Ze proven | Proof pending | Not built |
+|---|---:|---:|---:|---:|
+| 7 enrolled `draft-*` summaries (`draft-abraitis-bgp-version-capability`, `draft-abraitis-idr-addpath-paths-limit`, `draft-ietf-bess-mup-safi`, `draft-ietf-idr-bgp-bfd-strict-mode`, `draft-ietf-idr-linklocal-capability`, `draft-ietf-sidrops-aspa-verification`, `draft-walton-bgp-hostname-capability`) | 91 | 55 | 3 | 33 |
+
+*(Published industry specifications that are not `draft-*`, such as `sflow-v5`, remain unaffected.)*
+
 ## 2026-11-23 — Superseded proofs, default-path rule, and non-software exclusions
 
 **Owner rulings and code commits:**

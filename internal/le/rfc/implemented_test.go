@@ -108,6 +108,65 @@ func TestImplementsPopulation(t *testing.T) {
 	}
 }
 
+// TestImplementedSectionsSeparatesDraftsFromRFCs checks that Internet-Drafts
+// (`draft-*`) are counted separately in ImplementedSections.Drafts and never
+// enter RFC conformance figures, denominators, or percentages.
+func TestImplementedSectionsSeparatesDraftsFromRFCs(t *testing.T) {
+	enrolledZe := Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe,
+		Aggregate: "bgp-core", Row: true}
+	enrolledDraft := Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe,
+		Aggregate: "drafts", Row: true}
+	metas := map[string]Meta{
+		"rfc1":                    enrolledZe,
+		"draft-example-bgp-thing": enrolledDraft,
+	}
+	requirements := []Requirement{
+		{RFC: "rfc1", RID: "RFC1-1-1", Level: levelMust},
+		{RFC: "rfc1", RID: "RFC1-1-2", Level: levelMust},
+		{RFC: "draft-example-bgp-thing", RID: "DRAFT-EXAMPLE-BGP-THING-1-1", Level: levelMust},
+		{RFC: "draft-example-bgp-thing", RID: "DRAFT-EXAMPLE-BGP-THING-1-2", Level: levelMust,
+			Annotation: &Annotation{Kind: AnnotationGap, Reason: "not built"}},
+	}
+	walked := map[string]bool{"rfc1": true, "draft-example-bgp-thing": true}
+	proven := map[string]bool{"RFC1-1-1": true, "DRAFT-EXAMPLE-BGP-THING-1-1": true}
+	got, err := sectionsOver(t, metas, requirements, walked, proven)
+	if err != nil {
+		t.Fatalf("ImplementedSectionsOf: %v", err)
+	}
+	if !IsDraft("draft-example-bgp-thing") || IsDraft("rfc1") || IsDraft("sflow-v5") {
+		t.Errorf("IsDraft classification mismatch")
+	}
+	if ImplementsRFC("draft-example-bgp-thing", &enrolledDraft) || !ImplementsRFC("rfc1", &enrolledZe) {
+		t.Errorf("ImplementsRFC must exclude draft-* and include published RFCs")
+	}
+	if got.RFCs != 1 || got.Inspected != 1 || got.MustInspected != 2 {
+		t.Errorf("RFC counts = (RFCs=%d Inspected=%d MustInspected=%d), want (1, 1, 2)",
+			got.RFCs, got.Inspected, got.MustInspected)
+	}
+	if got.Sections.Must.Kept != 2 || got.Sections.Must.ZeProven != 1 || got.Sections.Must.NotBuilt != 0 {
+		t.Errorf("RFC sections = %+v, want Kept=2 ZeProven=1 NotBuilt=0 (draft rows must not enter RFC counts)",
+			got.Sections.Must)
+	}
+	if got.ProvenPercent() != "50.0" {
+		t.Errorf("RFC ProvenPercent = %q, want \"50.0\"", got.ProvenPercent())
+	}
+	if got.Drafts.Drafts != 1 || got.Drafts.Inspected != 1 || got.Drafts.MustInspected != 2 {
+		t.Errorf("Draft counts = (Drafts=%d Inspected=%d MustInspected=%d), want (1, 1, 2)",
+			got.Drafts.Drafts, got.Drafts.Inspected, got.Drafts.MustInspected)
+	}
+	if got.Drafts.Sections.Must.Kept != 2 || got.Drafts.Sections.Must.ZeProven != 1 || got.Drafts.Sections.Must.NotBuilt != 1 {
+		t.Errorf("Draft sections = %+v, want Kept=2 ZeProven=1 NotBuilt=1", got.Drafts.Sections.Must)
+	}
+	draftPct, err := got.Drafts.ProvenPercent()
+	if err != nil || draftPct != "50.0" {
+		t.Errorf("Draft ProvenPercent = (%q, %v), want (\"50.0\", nil)", draftPct, err)
+	}
+	draftBuiltPct, err := got.Drafts.ProvenBuiltPercent()
+	if err != nil || draftBuiltPct != "100.0" {
+		t.Errorf("Draft ProvenBuiltPercent = (%q, %v), want (\"100.0\", nil)", draftBuiltPct, err)
+	}
+}
+
 // TestImplementedSectionsCountVerifiedRecordsOnly checks AC-6 for the
 // published counts: a row counts as Ze proven only when a verified record
 // proves it on a walked summary, and each other row lands in the section its

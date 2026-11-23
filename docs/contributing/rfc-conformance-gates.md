@@ -709,8 +709,13 @@ surface that counts proof reads it.
 
 The published section counts of the RFCs Ze implements
 (`ImplementedSectionsOf`, `internal/le/rfc/implemented.go`) sum `SectionsOf`
-over the RFCs Ze implements (`Implements`): enrolled, which already requires an
-Implementation of `ze` or `mixed`, and rendering a public row. An enrolled RFC
+over the non-draft RFCs Ze implements (`ImplementsRFC`: `Implements` and
+`!IsDraft(stem)`): enrolled, which already requires an Implementation of `ze`
+or `mixed`, and rendering a public row. Internet-Drafts (`draft-*`, detected by
+`IsDraft`) are not published RFCs and are counted separately in
+`ImplementedSections.Drafts` (`DraftSections`) rather than mixed into RFC
+conformance figures or release-profile targets; `checkUseCases` also refuses a
+`draft-*` summary declaring a required `Use cases` entry. An enrolled RFC
 whose feature is still to come counts at its real figure (owner, 2026-10-30).
 Only walked RFCs add to a section, and the count states how many RFCs it
 leaves out (`NotWalked`): an unwalked list is unbounded, so a section holding
@@ -746,7 +751,7 @@ denominator.
 <!-- source: internal/le/rfc/profilecoverage.go -- figuresByStem, rowCounts, rollupOf, Rollup.mandatoryComplete, StemFiguresOf, figureEvidence -->
 <!-- source: internal/le/rfc/profilecoverage.go -- countOpen, openSectionOf, declinedForever, figureEvidence.tested -->
 <!-- source: internal/le/rfc/sectioncounts.go -- SectionsOf, sectionsOf, checkMustSections, checkShouldSections, Sections.String, MustSections.Proven, MustSections.Built -->
-<!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, ImplementedSections.ProvenPercent, ImplementedSections.ProvenBuiltPercent, Implements -->
+<!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, ImplementedSections.ProvenPercent, ImplementedSections.ProvenBuiltPercent, DraftSections, Implements, ImplementsRFC, IsDraft -->
 <!-- source: internal/le/rfc/profilecoverage.go -- StemFigures.MustProven, mustProven, kindOS -->
 <!-- source: internal/le/rfc/tree.go -- TreeRow.MarshalJSON, TreeRow.UnmarshalJSON -->
 

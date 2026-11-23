@@ -52,7 +52,7 @@ func TestRollupMovesNeitherSectionsNorGatedCount(t *testing.T) {
 	var synthetic Requirement
 	for _, requirement := range bare {
 		meta := collected.Metas[requirement.RFC]
-		if !requirement.Gated() || !Implements(&meta) {
+		if !requirement.Gated() || !ImplementsRFC(requirement.RFC, &meta) {
 			continue
 		}
 		synthetic = Requirement{RFC: requirement.RFC, RID: requirement.RFC + "-rollup-1",

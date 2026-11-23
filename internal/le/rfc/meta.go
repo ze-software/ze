@@ -918,8 +918,17 @@ func useCaseNames(values map[string]string, label, where string) ([]string, erro
 
 // checkUseCases refuses a summary naming, in either use-case row, a name that
 // is no use-case profile: a technology aggregate, or a name with no profile
-// file at all (AC-3).
-func checkUseCases(meta *Meta, profiles Profiles, where string) error {
+// file at all (AC-3). It also refuses an Internet-Draft (`draft-*`) listed as
+// a required use-case member, because drafts are not published RFCs and cannot
+// count as release-profile or use-case RFC targets.
+func checkUseCases(stem string, meta *Meta, profiles Profiles, where string) error {
+	if IsDraft(stem) && len(meta.UseCases) > 0 {
+		var tb textbuf.Buffer
+		return parseErr(tb.Str(where).Str(": Internet-Draft `").Str(stem).
+			Str("` lists required `").Str(metaUseCases).Str("` ").Str(pyRepr(meta.UseCases)).
+			Str(", but drafts are not published RFCs and cannot count as RFC targets or release-profile obligations. ").
+			Str("Set `| ").Str(metaUseCases).Str(" | - |` until the draft is published as an RFC"))
+	}
 	for _, row := range []struct {
 		label string
 		names []string
@@ -1188,7 +1197,7 @@ func summaryMetas(tree string, stems map[string]bool, profiles Profiles) (map[st
 			problems[stem] = err.Error()
 			continue
 		}
-		if err := checkUseCases(&meta, profiles, rel); err != nil {
+		if err := checkUseCases(stem, &meta, profiles, rel); err != nil {
 			problems[stem] = err.Error()
 			continue
 		}

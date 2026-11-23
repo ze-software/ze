@@ -142,14 +142,16 @@ func TestRFCDataSaysWhoImplementsEachRFC(t *testing.T) {
 // PREVENTS: the enrolled sums counting an RFC another layer implements.
 func TestTheIndexGatesOnlyWhatTheGateHolds(t *testing.T) {
 	in := rfc.RenderInput{Deriver: rfc.NewDeriver(t.TempDir()), Metas: map[string]rfc.Meta{
-		"rfc1": {Enrolment: "enrolled", Implementation: "ze", Row: true},
-		"rfc2": {Enrolment: "enrolled", Implementation: "third-party", Row: true},
+		"rfc1":                    {Enrolment: "enrolled", Implementation: "ze", Row: true},
+		"rfc2":                    {Enrolment: "enrolled", Implementation: "third-party", Row: true},
+		"draft-example-bgp-thing": {Enrolment: "enrolled", Implementation: "ze", Row: true},
 	}}
 	data, err := rfcDataOf(&in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]bool{"rfc1": true, "rfc2": false}
+	want := map[string]bool{"rfc1": true, "rfc2": false, "draft-example-bgp-thing": false}
+	wantDraft := map[string]bool{"rfc1": false, "rfc2": false, "draft-example-bgp-thing": true}
 	if len(data.index.RFCs) != len(want) {
 		t.Fatalf("the index lists %d RFCs, want %d: %+v", len(data.index.RFCs), len(want), data.index.RFCs)
 	}
@@ -159,6 +161,9 @@ func TestTheIndexGatesOnlyWhatTheGateHolds(t *testing.T) {
 		}
 		if entry.Gated != want[entry.Stem] {
 			t.Errorf("%s: gated is %v, want %v", entry.Stem, entry.Gated, want[entry.Stem])
+		}
+		if entry.Draft != wantDraft[entry.Stem] {
+			t.Errorf("%s: draft is %v, want %v", entry.Stem, entry.Draft, wantDraft[entry.Stem])
 		}
 	}
 }

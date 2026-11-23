@@ -59,7 +59,7 @@ func readRoadmapCorpus(root string, files map[string]string) (roadmap.Corpus, er
 		if err != nil {
 			return roadmap.Corpus{}, err
 		}
-		if err := checkUseCases(&meta, profiles, rel); err != nil {
+		if err := checkUseCases(stem, &meta, profiles, rel); err != nil {
 			return roadmap.Corpus{}, err
 		}
 		metas[stem] = meta

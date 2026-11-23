@@ -217,7 +217,7 @@ func leavesOwedOnTraits(requirement *Requirement, meta *Meta, walked map[string]
 	if !requirement.Gated() {
 		return false
 	}
-	if !Implements(meta) {
+	if !ImplementsRFC(requirement.RFC, meta) {
 		return false
 	}
 	if !walked[requirement.RFC] {
@@ -241,7 +241,7 @@ func annotationWholeCreditDelta(requirement *Requirement, meta *Meta, walked, pr
 	if !requirement.Gated() {
 		return 0
 	}
-	if !Implements(meta) {
+	if !ImplementsRFC(requirement.RFC, meta) {
 		return 0
 	}
 	if !walked[requirement.RFC] {

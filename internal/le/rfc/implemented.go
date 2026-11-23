@@ -7,34 +7,76 @@ package rfc
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// DraftSections holds the separate conformance section counts for implemented
+// Internet-Drafts (`draft-*`). Internet-Drafts are not RFCs and are kept out
+// of RFC conformance figures and release targets until published as RFCs.
+type DraftSections struct {
+	Sections      Sections
+	NotWalked     int
+	Drafts        int
+	Inspected     int
+	MustInspected int
+}
+
+// ProvenPercent renders the proven MUST rows of implemented Internet-Drafts
+// over the MUST rows those drafts owe, to one decimal place without its sign.
+func (d *DraftSections) ProvenPercent() (string, error) {
+	if d.Sections.Must.Kept == 0 {
+		return "", errors.New("no walked, enrolled Internet-Draft declares a kept MUST row, " +
+			"so the draft proven percentage would divide by zero")
+	}
+	var tb textbuf.Buffer
+	return tb.Float(100*float64(d.Sections.Must.Proven())/float64(d.Sections.Must.Kept), 1).String(), nil
+}
+
+// ProvenBuiltPercent renders the proven MUST rows of implemented
+// Internet-Drafts over only the MUST rows of what Ze builds for those drafts,
+// to one decimal place without its sign.
+func (d *DraftSections) ProvenBuiltPercent() (string, error) {
+	built := d.Sections.Must.Built()
+	if built == 0 {
+		return "", errors.New("no walked, enrolled Internet-Draft declares a built MUST row, " +
+			"so the draft proven-built percentage would divide by zero")
+	}
+	var tb textbuf.Buffer
+	return tb.Float(100*float64(d.Sections.Must.Proven())/float64(built), 1).String(), nil
+}
+
 // ImplementedSections is the section counts of the RFCs Ze implements, with
-// the wider population they are drawn from beside them.
+// the wider population they are drawn from and the separate Internet-Draft
+// counts beside them.
 //
 // Every count carries its denominator (owner directive, 2026-09-01): a reader
 // gets the proven rows (Ze proven and OS verified) of the MUST rows Ze and the
 // OS owe, and Inspected RFCs with
-// MustInspected MUST rows for everything the ledger has judged.
+// MustInspected MUST rows for everything the ledger has judged. Internet-Drafts
+// (`draft-*`) are counted separately in Drafts rather than mixed into RFC
+// conformance figures.
 type ImplementedSections struct {
-	// Sections sums SectionsOf over the walked RFCs Ze implements. An
+	// Sections sums SectionsOf over the walked non-draft RFCs Ze implements. An
 	// unwalked RFC's rows are out of it: its list is unbounded, so a section
 	// holding it would measure the list, not the software
 	// (ai/rules/rfc-conformance.md).
 	Sections Sections
-	// NotWalked is how many of the RFCs Ze implements carry no valid
+	// NotWalked is how many of the non-draft RFCs Ze implements carry no valid
 	// extraction sign-off. They add nothing to Sections, exactly as a profile
 	// rollup sums its walked members and states how many are not walked.
 	// Every surface that prints the sections prints this count beside them.
 	NotWalked int
-	// RFCs is how many enrolled RFCs Ze implements, and Inspected is how many
-	// it has enrolled at all. MustInspected is the MUST row count across that
-	// wider set, walked or not.
+	// RFCs is how many enrolled non-draft RFCs Ze implements, and Inspected is
+	// how many non-draft RFCs it has enrolled at all. MustInspected is the MUST
+	// row count across that wider non-draft set, walked or not.
 	RFCs          int
 	Inspected     int
 	MustInspected int
+	// Drafts holds the separate section counts for enrolled Internet-Drafts
+	// (`draft-*`), kept out of RFC conformance figures and release targets.
+	Drafts DraftSections
 }
 
 // ProvenPercent renders the proven MUST rows (Sections.Must.Proven: Ze proven
@@ -82,12 +124,13 @@ func (s *ImplementedSections) ProvenBuiltPercent() (string, error) {
 }
 
 // ImplementedSectionsOf sums the section counts over the RFCs Ze implements,
-// from the per-RFC figures StemFiguresOf answers.
+// from the per-RFC figures StemFiguresOf answers, keeping Internet-Drafts
+// (`draft-*`) separate in Drafts.
 //
-// What leaves the population is a whole RFC Implements says Ze does not
-// implement, and an unwalked RFC, counted in NotWalked instead. An RFC must be
-// enrolled to count either way, so obligations no gate checks never reach a
-// published count.
+// What leaves the RFC population is a whole document Implements says Ze does
+// not implement, an Internet-Draft (counted separately in Drafts), and an
+// unwalked RFC, counted in NotWalked instead. A document must be enrolled to
+// count either way, so obligations no gate checks never reach a published count.
 func ImplementedSectionsOf(metas map[string]Meta, figures map[string]StemFigures) (ImplementedSections, error) {
 	var out ImplementedSections
 	for stem := range metas {
@@ -101,6 +144,12 @@ func ImplementedSectionsOf(metas map[string]Meta, figures map[string]StemFigures
 			return ImplementedSections{}, errors.New(tb.Str("rfc/short/").Str(stem).
 				Str(".md is enrolled but has no figure, so the published section counts would omit it: " +
 					"answer the figures with rfc.StemFiguresOf over the same corpus as the Meta tables").String())
+		}
+		if IsDraft(stem) {
+			if err := addDraftSection(&out.Drafts, stem, &meta, &one); err != nil {
+				return ImplementedSections{}, err
+			}
+			continue
 		}
 		out.Inspected++
 		out.MustInspected += one.Mandatory.Total
@@ -128,6 +177,44 @@ func ImplementedSectionsOf(metas map[string]Meta, figures map[string]StemFigures
 				"then re-run `./le rfc check`")
 	}
 	return out, nil
+}
+
+// addDraftSection accumulates one enrolled Internet-Draft into Drafts so draft
+// conformance is tracked separately from RFC conformance.
+func addDraftSection(drafts *DraftSections, stem string, meta *Meta, one *StemFigures) error {
+	drafts.Inspected++
+	drafts.MustInspected += one.Mandatory.Total
+	if !Implements(meta) {
+		return nil
+	}
+	drafts.Drafts++
+	if !one.Walked {
+		drafts.NotWalked++
+		return nil
+	}
+	sections, err := SectionsOf(stem, one)
+	if err != nil {
+		return err
+	}
+	drafts.Sections.add(&sections)
+	return nil
+}
+
+// IsDraft reports whether stem names an IETF Internet-Draft (`draft-*`) rather
+// than a published RFC. Internet-Drafts are not RFCs and are counted separately
+// from RFC conformance figures, targets, and release-profile obligations until
+// published as RFCs.
+func IsDraft(stem string) bool {
+	return strings.HasPrefix(stem, "draft-")
+}
+
+// ImplementsRFC reports whether stem is an implemented non-draft RFC counted
+// in RFC conformance figures: Implements(meta) and not an Internet-Draft.
+func ImplementsRFC(stem string, meta *Meta) bool {
+	if IsDraft(stem) {
+		return false
+	}
+	return Implements(meta)
 }
 
 // Implements is the ONE definition of "an RFC Ze implements", and every

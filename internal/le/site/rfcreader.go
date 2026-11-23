@@ -63,6 +63,7 @@ var rfcCalculationPoints = []rfcCalculationPoint{
 	{
 		Heading: "What is left out of the denominator",
 		Body: "Requirements that bind a role Ze does not fill (such as a DNSSEC zone signer, an RPKI cache server, or a route reflector), obligations that apply only to a human operator's deployment or network topology, IANA/IETF registry rules, optional features Ze explicitly declines, and requirements blocked by a documented Linux kernel limit are excluded from the denominator. " +
+			"Internet-Drafts (draft-*) are not published RFCs and are counted separately from RFC conformance figures and release targets until published as RFCs. " +
 			"RFCs whose requirement lists have not yet been reviewed against the original RFC text are excluded until that review is complete.",
 	},
 }
@@ -74,7 +75,8 @@ var rfcCountingHistory = []rfcCalculationPoint{
 		Heading: "2026-11-23",
 		Body: "Superseded requirements whose replacement in an implemented successor RFC is verified (or dropped) now count as validated and complete. " +
 			"Operator-only, topology, IANA/IETF registry, and section-scoped non-Ze role obligations leave the denominator as not applicable. " +
-			"An operator's ability to configure custom policy or overrides no longer marks a compliant default path as partial.",
+			"An operator's ability to configure custom policy or overrides no longer marks a compliant default path as partial. " +
+			"Internet-Drafts (draft-*) are now counted separately from published RFC conformance figures and cannot act as RFC release targets.",
 	},
 	{
 		Heading: "2026-11-13",

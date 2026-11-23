@@ -179,7 +179,7 @@ func TestUseCasesNamingUnknownProfileRefused(t *testing.T) {
 	}
 	for label, one := range cases {
 		t.Run(label, func(t *testing.T) {
-			err := checkUseCases(&one.meta, profiles, metaWhere)
+			err := checkUseCases("rfc9999", &one.meta, profiles, metaWhere)
 			if err == nil {
 				t.Fatal("refused nothing")
 			}
@@ -191,8 +191,26 @@ func TestUseCasesNamingUnknownProfileRefused(t *testing.T) {
 		})
 	}
 	known := Meta{UseCases: []string{"lns"}, OptionalUseCases: []string{"route-server"}}
-	if err := checkUseCases(&known, profiles, metaWhere); err != nil {
+	if err := checkUseCases("rfc9999", &known, profiles, metaWhere); err != nil {
 		t.Errorf("two known use cases refused: %v", err)
+	}
+}
+
+// TestDraftRefusedAsRequiredUseCase checks that Internet-Drafts (`draft-*`)
+// cannot be listed as required members of use-case or release profiles.
+func TestDraftRefusedAsRequiredUseCase(t *testing.T) {
+	profiles := Profiles{UseCases: map[string]UseCase{"looking-glass": {Name: "looking-glass", Release: true}}}
+	required := Meta{UseCases: []string{"looking-glass"}}
+	err := checkUseCases("draft-example-bgp-foo", &required, profiles, "rfc/short/draft-example-bgp-foo.md")
+	if err == nil {
+		t.Fatal("draft listed in required Use cases was not refused")
+	}
+	if !strings.Contains(err.Error(), "not published RFCs") {
+		t.Errorf("refusal %q does not explain that drafts are not published RFCs", err)
+	}
+	noUseCase := Meta{}
+	if err := checkUseCases("draft-example-bgp-foo", &noUseCase, profiles, "rfc/short/draft-example-bgp-foo.md"); err != nil {
+		t.Errorf("draft with no required Use cases was refused: %v", err)
 	}
 }
 

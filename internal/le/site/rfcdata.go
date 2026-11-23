@@ -181,11 +181,15 @@ type rfcIndexRFC struct {
 	Title     string `json:"title,omitempty"`
 	Walked    bool   `json:"walked"`
 	Enrolment string `json:"enrolment"`
-	// Gated is rfc.Meta.Enrolled: the enrolment row says enrolled AND the
-	// Implementation kind counts against Ze's Go. The enrolled subject reads
-	// it, so a third-party or foundation summary marked enrolled, which the
-	// gate never holds Ze to, is never summed as enrolled.
+	// Gated is rfc.Meta.Enrolled && !rfc.IsDraft(stem): the enrolment row says
+	// enrolled, the Implementation kind counts against Ze's Go, and the document
+	// is a published RFC rather than an Internet-Draft. The enrolled subject
+	// reads it, so third-party, foundation, and draft-* summaries are never
+	// summed into RFC conformance figures.
 	Gated bool `json:"gated"`
+	// Draft is rfc.IsDraft(stem): true for IETF Internet-Drafts (`draft-*`),
+	// which are counted separately from RFC conformance figures.
+	Draft bool `json:"draft,omitempty"`
 }
 
 // rfcIndexProfile is one profile in the index.
@@ -262,7 +266,8 @@ func rfcDataOf(in *rfc.RenderInput) (rfcData, error) {
 		rfcStemImplementer(&stemData, &meta)
 		data.stems = append(data.stems, stemData)
 		data.index.RFCs = append(data.index.RFCs, rfcIndexRFC{Stem: stem, File: rfcStemDataFile(stem),
-			Title: meta.Title, Walked: stemData.Walked, Enrolment: meta.Enrolment, Gated: meta.Enrolled()})
+			Title: meta.Title, Walked: stemData.Walked, Enrolment: meta.Enrolment,
+			Gated: meta.Enrolled() && !rfc.IsDraft(stem), Draft: rfc.IsDraft(stem)})
 	}
 	data.profiles, err = rfcProfileDataOf(in.Profiles, in.Metas)
 	if err != nil {
