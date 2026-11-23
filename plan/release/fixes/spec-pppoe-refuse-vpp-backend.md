@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | 1/1 |
 | Handoff | `tmp/session/2026-11-15-134815/state/session-state-pppoe-refuse-vpp-backend-caa03485-2cbe-4a47-96e9-b290a7c0a4d1.md` |
-| Updated | 2026-11-15 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -151,7 +151,7 @@ replaces it with the LCP-pair check).
 | `pppoe-vpp-backend-refused` | `test/parse/` | AC-1 | Draft, 80 stress and promoted live suite passes; registration-omission counterfactual failed as expected, 2026-11-15 |
 | `pppoe-netlink-backend-accepted` | `test/parse/` | AC-2 | Draft, 80 stress and promoted live suite passes, 2026-11-15 |
 | `pppoe-vpp-no-access-accepted` | `test/parse/` | AC-3 through the offline command | Draft, 80 stress and promoted live suite passes, 2026-11-15 |
-| `pppoe-vpp-backend-reload-refused` | `test/reload/` | AC-4 | Draft passed all assertions on Ze's Linux kernel after independently approved Linux/quote fixture corrections; 80-iteration stress and promotion owed |
+| `pppoe-vpp-backend-reload-refused` | `test/reload/` | AC-4 | Promoted (`5f8fef2c4f`); 1/1 pass (5.0s) and 80/80 stress pass under load on a no-`ze_vpp` binary, cleanly skipped on a `ze_vpp` binary (`option=needs-build-tag:value=ze_vpp:state=absent`), 2026-11-23 |
 
 The three parse tests were promoted after their named draft runs, 80 stress
 passes each and the cost report; none was listed as a cost-review candidate.
@@ -236,7 +236,7 @@ functional/stress, promotion and configuration-corpus validation remain owed.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Refusal | Public unit registration-overlay runtime red and live-registration green observed; named offline and daemon functional proofs remain owed |
+| Refusal | `TestPPPoEVerifyRefusesVPPBackend` (registration-overlay red + live green), `pppoe-vpp-backend-refused.ci` (410ms), `pppoe-netlink-backend-accepted.ci` (591ms), `pppoe-vpp-no-access-accepted.ci` (403ms), `pppoe-vpp-backend-reload-refused.ci` (1/1 5.0s + 80/80 stress on no-`ze_vpp`, skipped on `ze_vpp`), `./internal/component/l2tp/pppoe/` (13.876s), `TestRepositoryConfigsValidate` (230.535s) — all passed 2026-11-23 |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -310,3 +310,162 @@ functional/stress, promotion and configuration-corpus validation remain owed.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Registered original-tree validator `pppoe-backend` (`validateBackendGate`, `internal/component/l2tp/pppoe/backend_gate.go:20-58`) in `init()` (`internal/component/l2tp/pppoe/register.go:11`).
+- Implemented `sessionBackendSelection` and exported `ConfiguredSessionBackendName` (`internal/component/l2tp/pppoe/backend_gate.go:63-93`), failing closed via `backendSchemaError` when the `interface/backend` schema leaf or default is unavailable.
+- Updated `internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` (`list interface`, lines 161-167) to document that access interfaces require a registered session provider for the selected interface backend.
+- Added unit tests `TestPPPoEVerifyRefusesVPPBackend`, `TestPPPoEVerifyAcceptsDefaultBackend`, `TestPPPoEVerifyAllowsNoAccessInterface`, and `TestPPPoEVerifyReadsTheBackendPath` (`internal/component/l2tp/pppoe/backend_gate_test.go`) plus kernel provider test registration (`internal/component/l2tp/pppoe/backend_kernel_registration_test.go`).
+- Added offline parse tests `test/parse/pppoe-vpp-backend-refused.ci`, `test/parse/pppoe-netlink-backend-accepted.ci`, and `test/parse/pppoe-vpp-no-access-accepted.ci`.
+- Added live commit + SIGHUP reload refusal test `test/reload/pppoe-vpp-backend-reload-refused.ci` and its observer fixture `pppoeBackendRefusal` (`internal/test/fixture/register_pppoe_backend_refusal.go`, landed in `5f8fef2c4f`).
+- Flipped the owned 2026-10-28 journal row in `plan/journal/validate-accepts-what-start-refuses.md` from `open:` to `fixed:`, added operator news fragment `website/changes/fragments/pppoe-refuse-vpp-backend.md`, and repointed all 6 path citations in `plan/post-release/features/spec-pppoe-vpp-dataplane.md` to bare stem `spec-pppoe-refuse-vpp-backend`.
+
+### Bugs Found/Fixed
+- Multi-finding commit error parsing in `pppoeBackendCommit` (`internal/test/fixture/register_pppoe_backend_refusal.go`): when `interface`'s `ConfigNeed` appended a second validation finding on no-`ze_vpp` builds, a whole-message `HasSuffix` check failed. Fixed in `5f8fef2c4f` by adding `pppoeBackendFinding` to isolate the `/pppoe/interface/access0` finding block and strictly assert its final line equals `fix: set interface backend netlink` (approved via `Test-judge:`).
+
+### Documentation Updates
+- `docs/guide/pppoe.md` (lines 118-128): documents `validateBackendGate`, `ze_vpp` build tag, no-access-interface carve-out, and `pppoe-client` separation; anchors `<!-- source: internal/component/l2tp/pppoe/backend_gate.go -- validateBackendGate -->` and `<!-- source: internal/component/l2tp/pppoe/register.go -- original-tree validator registration -->`.
+- `features/commit-time-backend-capability-check.md` (lines 11-19): lists `internal/component/l2tp/pppoe/backend_gate.go`, all four `.ci` tests, updated Doc review (2026-11-23), and Description anchored to `validateBackendGate`.
+- `docs/architecture/l2tp/bng-5-pppoe.md` (lines 187-196) and `docs/guide/vpp.md` (lines 340-346): document `validateBackendGate` and `ConfiguredSessionBackendName`, both anchored to `internal/component/l2tp/pppoe/backend_gate.go`.
+- `./le doc check all`: 0 drift (`Documentation drift`), all 562 YANG commands validated, 0 issues on any PPPoE/config/backend_gate source anchor (the 2 reported source-anchor errors are unrelated pre-existing BGP `rsRelaySendGranted` anchors in `docs/architecture/bgp/structural-forwarding.md:117` and `docs/guide/route-reflection.md:491`), all 3169 digest anchors resolve.
+
+### Deviations from Plan
+- **Dynamic provider registry instead of static `ze:backend "netlink"` YANG annotation:** Q-1 originally planned a static `ze:backend "netlink"` annotation on `list interface` walked via `config.ValidateBackendFeaturesJSON`. When the shared PPPoE session dataplane registry landed (`59f67661db` / `b7748c4aa6`), `validateBackendGate` (`internal/component/l2tp/pppoe/backend_gate.go`) evolved to query `dataplane.LookupSessionDataplane(backend)` directly instead of a static YANG tag. As a result, builds compiled with `ze_vpp` admit the registered VPP provider while builds without `ze_vpp` refuse `interface backend vpp` with the exact AC-1 message (naming `/pppoe/interface/<name>`, `backend "vpp"`, `supported: netlink`, `no PPPoE session data plane`, `ze_vpp`, and `fix: set interface backend netlink`). Accordingly, `test/parse/pppoe-vpp-backend-refused.ci` and `test/reload/pppoe-vpp-backend-reload-refused.ci` declare `option=needs-build-tag:value=ze_vpp:state=absent`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | `TestPPPoEVerifyReadsTheBackendPath` initially used `//` comments in its inline config fixture | Ze config syntax uses `#` comments | Unit test parse failure before validation (2026-11-15) | Replaced `//` with `#` after independent test-judge APPROVE |
+| approach | `pppoe-vpp-backend-reload-refused.ci` initially lacked `option=needs-linux` | Explicit `interface` root auto-loads Linux interface monitor on startup | Native Darwin failure before observer (2026-11-15) | Added `option=needs-linux` and ran in Ze Linux QEMU guest |
+| approach | `pppoeBackendCommit` checked `strings.HasSuffix` on the entire gRPC error string | `ValidateContent` returns all findings as separate blocks each ending with its own `fix:` line; `interface` `ConfigNeed` adds a second finding on no-`ze_vpp` builds | Live no-`ze_vpp` reload run (2026-11-23) | Scoped assertions via `pppoeBackendFinding` in `5f8fef2c4f` after `Test-judge:` approval |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Refuse `interface backend vpp` + `pppoe` access interface at validate, commit, and reload verify | Done | `internal/component/l2tp/pppoe/backend_gate.go:20-58` (`validateBackendGate`), `internal/component/l2tp/pppoe/register.go:11` (`init`) | Registered original-tree validator; refuses whenever no session provider is registered for `interface backend` |
+| Preserve PPPoE under default `netlink` backend | Done | `internal/component/l2tp/pppoe/backend_gate.go:68-93` (`sessionBackendSelection`) | Reads `interface/backend` YANG default (`netlink`); kernel provider admitted |
+| Preserve `pppoe` block with no access interface under VPP | Done | `internal/component/l2tp/pppoe/backend_gate.go:28-30` (`validateBackendGate`) | Early `return nil` when `len(access.GetList("interface")) == 0` |
+| Preserve `iface` `pppoe-client` units | Done | `internal/component/l2tp/pppoe/backend_gate.go:24` | Only inspects `pppoe` root container, never `interface/pppoe-client` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestPPPoEVerifyRefusesVPPBackend` (`backend_gate_test.go:15-33`), `test/parse/pppoe-vpp-backend-refused.ci` | Exits 1; names `/pppoe/interface/access0`, `backend "vpp"`, `supported: netlink`, `no PPPoE session data plane`, `ze_vpp`, `fix: set interface backend netlink` |
+| AC-2 | Done | `TestPPPoEVerifyAcceptsDefaultBackend` (`backend_gate_test.go:37-57`), `test/parse/pppoe-netlink-backend-accepted.ci` | Schema default is `netlink`; validate exits 0 (`configuration valid`) |
+| AC-3 | Done | `TestPPPoEVerifyAllowsNoAccessInterface` (`backend_gate_test.go:61-66`), `test/parse/pppoe-vpp-no-access-accepted.ci` | `interface backend vpp` with `pppoe { ac-name proof }` exits 0 (`configuration valid`) |
+| AC-4 | Done | `test/reload/pppoe-vpp-backend-reload-refused.ci` + `pppoeBackendRefusal` (`internal/test/fixture/register_pppoe_backend_refusal.go:29-223`) | Proves gRPC editor commit refusal, SIGHUP reload refusal, unchanged running config after both, and subsequent valid reload apply (1/1 5.0s + 80/80 stress on no-`ze_vpp` binary) |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestPPPoEVerifyRefusesVPPBackend` | Done | `internal/component/l2tp/pppoe/backend_gate_test.go:15` | Passed in `./le test unit pkg path ./internal/component/l2tp/pppoe/` (13.876s, 2026-11-23) |
+| `TestPPPoEVerifyAcceptsDefaultBackend` | Done | `internal/component/l2tp/pppoe/backend_gate_test.go:37` | Passed (2026-11-23) |
+| `TestPPPoEVerifyAllowsNoAccessInterface` | Done | `internal/component/l2tp/pppoe/backend_gate_test.go:61` | Passed (2026-11-23) |
+| `TestPPPoEVerifyReadsTheBackendPath` | Done | `internal/component/l2tp/pppoe/backend_gate_test.go:70` | Passed (2026-11-23) |
+| `pppoe-vpp-backend-refused` | Done | `test/parse/pppoe-vpp-backend-refused.ci` | Passed (410ms, 2026-11-23) |
+| `pppoe-netlink-backend-accepted` | Done | `test/parse/pppoe-netlink-backend-accepted.ci` | Passed (591ms, 2026-11-23) |
+| `pppoe-vpp-no-access-accepted` | Done | `test/parse/pppoe-vpp-no-access-accepted.ci` | Passed (403ms, 2026-11-23) |
+| `pppoe-vpp-backend-reload-refused` | Done | `test/reload/pppoe-vpp-backend-reload-refused.ci` | Passed 1/1 (5.0s) and 80/80 stress on no-`ze_vpp` binary; skipped cleanly on `ze_vpp` binary (2026-11-23) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` | Changed | Documents runtime session-provider requirement on `list interface` instead of static `ze:backend` tag (see Deviations) |
+| `internal/component/l2tp/pppoe/register.go` | Done | Registers `"pppoe-backend"` -> `validateBackendGate` in `init()` |
+| `internal/component/l2tp/pppoe/backend_gate.go` | Done | Implements `validateBackendGate`, `ConfiguredSessionBackendName`, `sessionBackendSelection`, `backendSchemaError` |
+| `internal/component/l2tp/pppoe/backend_gate_test.go` | Done | Unit tests for AC-1..AC-3 and parsed-path isolation |
+| `internal/component/l2tp/pppoe/backend_kernel_registration_test.go` | Done | Links `pppoe-kernel` provider for unit tests |
+| `internal/test/fixture/register_pppoe_backend_refusal.go` | Done | Live editor commit + SIGHUP reload refusal observer (`5f8fef2c4f`) |
+| `test/parse/pppoe-vpp-backend-refused.ci` | Done | Offline refusal test (AC-1) |
+| `test/parse/pppoe-netlink-backend-accepted.ci` | Done | Offline default-backend acceptance test (AC-2) |
+| `test/parse/pppoe-vpp-no-access-accepted.ci` | Done | Offline no-access-interface acceptance test (AC-3) |
+| `test/reload/pppoe-vpp-backend-reload-refused.ci` | Done | Live commit + SIGHUP reload refusal test (AC-4, `5f8fef2c4f`) |
+| `docs/guide/pppoe.md` | Done | Updated with backend refusal and `ze_vpp` requirement + source anchors |
+| `features/commit-time-backend-capability-check.md` | Done | Updated with `pppoe/backend_gate.go` and all 4 `.ci` tests |
+
+### Audit Summary
+- **Total items:** 28 (4 task requirements, 4 ACs, 8 tests, 12 files)
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (`ze-pppoe-conf.yang`: dynamic provider registry lookup replaced static `ze:backend` tag; recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Refuse `interface backend vpp` + `pppoe` access interface at offline validate before any session can fail at IPCP Opened | Functional + Unit test (with registration-omission red counterfactual) | `test/parse/pppoe-vpp-backend-refused.ci` PASS (410ms, 2026-11-23); `TestPPPoEVerifyRefusesVPPBackend` PASS (`./internal/component/l2tp/pppoe/`, 13.876s, 2026-11-23); registration-omission counterfactual failed with exit 0 (`configuration valid`) |
+| Refuse switching a running PPPoE config to unsupported `interface backend vpp` at editor commit and SIGHUP reload while keeping running config unchanged | Functional daemon test + 80x stress | `test/reload/pppoe-vpp-backend-reload-refused.ci` PASS 1/1 (5.0s) and 80/80 stress under load on no-`ze_vpp` binary, skipped cleanly on `ze_vpp` binary (2026-11-23); verifies `OK: PPPoE backend commit refused`, `OK: PPPoE backend reload refused`, unchanged `show config running`, and recovery via `config3.conf` |
+| Preserve valid PPPoE configs (default `netlink` backend, VPP with no access interface, and repository config corpus) | Functional + Corpus validation | `test/parse/pppoe-netlink-backend-accepted.ci` PASS (591ms), `test/parse/pppoe-vpp-no-access-accepted.ci` PASS (403ms), `TestRepositoryConfigsValidate` PASS (230.535s, 2026-11-23) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None — all in-scope verify-time refusal deliverables (AC-1..AC-4) are complete; the VPP PPPoE session data plane itself is out of scope per OD-5 | Separate post-release feature per OD-5 (2026-10-28) | `plan/post-release/features/spec-pppoe-vpp-dataplane.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/pppoe-refuse-vpp-backend-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md` |
+| `./le spec review check` | `review_gate: OK (10 code files, clean, hashes match tmp/review/pppoe-refuse-vpp-backend-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md)` |
+| Rounds | 1 |
+| Reviewer lenses used | logic+wiring, security+edge-cases, style+rules (`/ze-review` 3-lens guard audit + 7-question Go style pass) and `/ze-review-spec` |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | Spec predates `## Design documents` table; verified all 4 derived decision rows in `docs/architecture/l2tp/bng-5-pppoe.md` are VPP API-loss/adoption lifecycle decisions unaffected by `backend_gate.go` | `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` | NOTE-only; 0 BLOCKER, 0 ISSUE |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/l2tp/pppoe/backend_gate.go` | Yes | `-rw-rw-r-- 1 thomas thomas 3550 Nov 21 02:19 internal/component/l2tp/pppoe/backend_gate.go` |
+| `internal/component/l2tp/pppoe/backend_gate_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 3430 Nov 16 20:01 internal/component/l2tp/pppoe/backend_gate_test.go` |
+| `internal/component/l2tp/pppoe/backend_kernel_registration_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 400 Nov 16 12:17 internal/component/l2tp/pppoe/backend_kernel_registration_test.go` |
+| `internal/component/l2tp/pppoe/register.go` | Yes | `-rw-rw-r-- 1 thomas thomas 841 Nov 16 12:17 internal/component/l2tp/pppoe/register.go` |
+| `internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` | Yes | `-rw-rw-r-- 1 thomas thomas 10326 Nov 16 20:01 internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` |
+| `internal/test/fixture/register_pppoe_backend_refusal.go` | Yes | `-rw-rw-r-- 1 thomas thomas 8004 Nov 23 10:15 internal/test/fixture/register_pppoe_backend_refusal.go` |
+| `test/parse/pppoe-vpp-backend-refused.ci` | Yes | `-rw-rw-r-- 1 thomas thomas 773 Nov 18 00:54 test/parse/pppoe-vpp-backend-refused.ci` |
+| `test/parse/pppoe-netlink-backend-accepted.ci` | Yes | `-rw-rw-r-- 1 thomas thomas 575 Nov 18 00:54 test/parse/pppoe-netlink-backend-accepted.ci` |
+| `test/parse/pppoe-vpp-no-access-accepted.ci` | Yes | `-rw-rw-r-- 1 thomas thomas 471 Nov 20 18:00 test/parse/pppoe-vpp-no-access-accepted.ci` |
+| `test/reload/pppoe-vpp-backend-reload-refused.ci` | Yes | `-rw-rw-r-- 1 thomas thomas 3369 Nov 23 09:59 test/reload/pppoe-vpp-backend-reload-refused.ci` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | `ze config validate` refuses `interface backend vpp` + `pppoe interface access0` with path, backend, supported provider, reason, and fix | `internal/component/l2tp/pppoe/backend_gate.go:20-58` (`validateBackendGate`), `register.go:11`; `TestPPPoEVerifyRefusesVPPBackend` PASS (2026-11-23) + `test/parse/pppoe-vpp-backend-refused.ci` PASS (410ms, 2026-11-23) |
+| AC-2 | Same tree with default backend accepted | `internal/component/l2tp/pppoe/backend_gate.go:68-93` (`sessionBackendSelection`); `TestPPPoEVerifyAcceptsDefaultBackend` PASS + `test/parse/pppoe-netlink-backend-accepted.ci` PASS (591ms, 2026-11-23) |
+| AC-3 | `interface backend vpp` with `pppoe` naming no access interface accepted | `internal/component/l2tp/pppoe/backend_gate.go:28-30` (`len(access.GetList("interface")) == 0`); `TestPPPoEVerifyAllowsNoAccessInterface` PASS + `test/parse/pppoe-vpp-no-access-accepted.ci` PASS (403ms, 2026-11-23) |
+| AC-4 | Live editor commit and SIGHUP reload switching to `interface backend vpp` refused with AC-1 message, running config unchanged | `internal/test/fixture/register_pppoe_backend_refusal.go:29-223` (`pppoeBackendRefusal`, `pppoeBackendCommit`, `pppoeBackendFinding`); `test/reload/pppoe-vpp-backend-reload-refused.ci` PASS 1/1 (5.0s) and 80/80 stress on no-`ze_vpp` binary, skipped cleanly on `ze_vpp` binary (2026-11-23) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config validate -` (`interface { backend vpp } pppoe { interface access0 {} }`) -> `config.ValidateCustomSections` -> `pppoe.validateBackendGate` | `test/parse/pppoe-vpp-backend-refused.ci` | Yes — read lines 1-20: pipes stdin config to `ze config validate -`, asserts exit 1 and all 6 needles (`/pppoe/interface/access0`, `backend "vpp"`, `supported: netlink`, `no PPPoE session data plane`, `fix: set interface backend netlink`, `ze_vpp`); passed 410ms (2026-11-23) |
+| Live gRPC `CommitSession` + SIGHUP reload -> `pppoe.validateBackendGate` -> unchanged `show config running` -> subsequent valid reload | `test/reload/pppoe-vpp-backend-reload-refused.ci` | Yes — read lines 1-110 and `register_pppoe_backend_refusal.go`: drives `CommitSession` and `liveStagesReload("config2.conf")`, verifies refusal needles + `reflect.DeepEqual` on running tree + `config3.conf` apply + disk store contains no `backend vpp`; passed 1/1 (5.0s) and 80/80 stress (2026-11-23) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestPPPoEVerifyAcceptsDefaultBackend` (`internal/component/l2tp/pppoe/backend_gate_test.go:37-57`) verifies `schema.Lookup("interface/backend")` has `leaf.Default == "netlink"` and accepts an omitted backend leaf; passed in `./le test unit pkg path ./internal/component/l2tp/pppoe/` (13.876s, 2026-11-23) and `test/parse/pppoe-netlink-backend-accepted.ci` (591ms, 2026-11-23) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| User guide: `docs/guide/pppoe.md` (lines 118-128) | Anchors `internal/component/l2tp/pppoe/backend_gate.go -- validateBackendGate` and `register.go`; matches `validateBackendGate` (`backend_gate.go:20-58`) | Yes |
+| Feature declaration: `features/commit-time-backend-capability-check.md` (lines 11-19) | Lists `internal/component/l2tp/pppoe/backend_gate.go` and all 4 `.ci` tests; Description + Doc review updated 2026-11-23 against `validateBackendGate` | Yes |
+| Architecture & VPP guide: `docs/architecture/l2tp/bng-5-pppoe.md` (lines 187-196), `docs/guide/vpp.md` (lines 340-346) | Both anchor `internal/component/l2tp/pppoe/backend_gate.go -- validateBackendGate` / `ConfiguredSessionBackendName`; `./le doc check all` confirmed 0 PPPoE/config drift or anchor errors | Yes |
+| Problem journal: `plan/journal/validate-accepts-what-start-refuses.md` (line 18) | Flipped 2026-10-28 row from `open:` to `fixed:`; `./le spec journal check file plan/journal/validate-accepts-what-start-refuses.md` returned `is valid (18 row(s))` | Yes |
+| Operator news fragment: `website/changes/fragments/pppoe-refuse-vpp-backend.md` | Written with required front matter (`spec`, `topic: PPPoE`, `feature: commit-time-backend-capability-check`) and all 6 headings | Yes |
+| Other categories (CLI grammar, API/RPC, plugin SDK, wire format, RFC compliance) | `git grep -n "backend_gate.go" docs/ features/ ai/` shows all anchored claims are covered above; config-only refusal adds no CLI command, RPC, wire format, or RFC obligation | Yes |

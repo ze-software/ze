@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Priority | P2 |
-| Release reason | Owner decision: Ze terminates PPPoE subscriber sessions in VPP, after the first release (OD-5, decided 2026-10-28). The shipped-behaviour fix that was Phase 1 (validate accepts PPPoE under the VPP backend and every session then fails) moved to `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` |
+| Release reason | Owner decision: Ze terminates PPPoE subscriber sessions in VPP, after the first release (OD-5, decided 2026-10-28). The shipped-behaviour fix that was Phase 1 (validate accepts PPPoE under the VPP backend and every session then fails) moved to `spec-pppoe-refuse-vpp-backend` |
 | RFC gaps | - |
 | Depends | `plan/post-release/features/spec-vpp-failure-lifecycle.md` (OD-2 and AC-12 consume its form-1 continuation inside the timer and its declared-loss event) |
 | Phase | 2/7 (shared PPP seam; full product acceptance remains owed) |
@@ -1091,7 +1091,7 @@ own repair and native proof. None of these open items is marked complete.
 | 3 | Retain the published dependency-ordered shutdown and full-stop contract without `OnBye`, including the completed guard failures, restored passes and scoped checks. Prove physical VPP cleanup completes before its provider stops. The native stub passes do not discharge that proof |
 | 4 | Retain the matching-DUT refusal and enabled/LCP prerequisite passes and their 80-run stress results. Finish the remaining parser cases, metadata causal proofs and native backend acceptance for AC-1, AC-2, AC-29 and AC-30. Preserve declaration failures, exact metadata refusal, valid mismatch skips and the existing Linux default-backend proof |
 | 5 | Accept Phase 2 kernel parity and the complete Phase 3 IPv4, Phase 4 IPv6 and Phase 5 policer/CoA paths. Use the actual Ze entry points, native forwarding/counter and TAP captures, VRF/framed/delegated routes, teardown and concurrent policer ordering. Finish the named functional and `pppoe-vpp-ze-ac-pppd-client` interop proofs, including their rebuilt causal failures; draft code and unit-only passes do not discharge these paths |
-| 6 | Accept Phase 6 VPP loss/restart through `pppoe-vpp-restart`, then Phase 7 guides, digests, feature declarations, RFC performer annotations and discrimination records. Complete scoped checks and both independent review gates, demonstrate all 37 acceptance criteria and every goal, then close. Phase 1 remains owned by `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` |
+| 6 | Accept Phase 6 VPP loss/restart through `pppoe-vpp-restart`, then Phase 7 guides, digests, feature declarations, RFC performer annotations and discrimination records. Complete scoped checks and both independent review gates, demonstrate all 37 acceptance criteria and every goal, then close. Phase 1 remains owned by `spec-pppoe-refuse-vpp-backend` |
 
 ## Required Reading
 
@@ -1501,7 +1501,7 @@ parallel packages.
 ## Implementation Steps
 
 1. **Phase 0: Lab proof of mechanism (no product code).** Real VPP container (af_packet access interface, LCP pair), pppd client, Ze unmodified except a scratch harness. Prove A-1..A-5 and the upstream facts above by capture and `vppctl show pppoe session`. Apply the separately retained Ze parser hardening diff, run its real-buffer runtime test, and inject malformed frames to prove AC-18 through the receive entry points. Run the baseline and exact missing-metadata counterfactual on the same Ze-kernel Docker guest. Also prove AC-19 with divergent software/hardware indices, refused invalid/absent/mismatched map deletions, preserved unrelated bindings and successful exact-pair removal. Repair native CRC32C portability and require the strict 29-case build-time proof for AC-20. Output: the evidence recorded in this spec, run against the VPP Ze builds with the patches (OD-1 B).
-2. **Phase 1: moved out.** The verify-time refusal of PPPoE under `interface backend vpp` is `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` (OD-5), which owns the journal row and lands before this spec. This spec's AC-1 holds while no VPP session data plane is registered, and Phase 3's registration replaces that refusal with AC-2.
+2. **Phase 1: moved out.** The verify-time refusal of PPPoE under `interface backend vpp` is `spec-pppoe-refuse-vpp-backend` (OD-5), which owns the journal row and lands before this spec. This spec's AC-1 holds while no VPP session data plane is registered, and Phase 3's registration replaces that refusal with AC-2.
 3. **Phase 2: The seam, kernel backend moved behind it.** `pppoe` declares the session data-plane interface and registry; the kernel implementation moves to its own package and registers; `ppp.StartSession` carries a frame channel and a per-session data-plane handle in place of `ChanFD`/`UnitFD`/`UnitNum` and `IfaceBackend`; L2TP supplies the kernel handle. The handle's contract names one owner for each descriptor it holds, which closes it exactly once (AC-16). No behaviour change. Tests: AC-13, AC-16, `TestKernelDataplaneParity`, `TestPPPChannelSeam`.
 4. **Phase 3: VPP backend, IPv4.** cp map, discovery and session control on the cp TAP, session create before PADS, MTU, peer route in VRF, framed routes, teardown order, session counters and idle detection read through the session handle, `show pppoe` and doctor. Tests: AC-2..AC-7, AC-11, AC-14, AC-16, AC-17, interop `pppoe-vpp-ze-ac-pppd-client` IPv4.
 5. **Phase 4: VPP backend, IPv6.** IPv6CP, RA, DHCPv6 IA_NA/IA_PD, delegated-prefix routes, through patch 0014's punt of RS and DHCPv6 to the cp (OD-1 B). Tests: AC-8.
@@ -1562,7 +1562,7 @@ parallel packages.
 | `invariant-enforced-by-an-absent-call-site.md` | 2026-11-22 | `ClaimAccountingAssignment` and `AccountingAdmission` have no production caller: no accounting capacity is reserved before Accept |
 | `invariant-enforced-by-an-absent-call-site.md` | 2026-11-23 | The VPP provider takes no process lease (F-1, F-2): after an API drop a later VPP exit's proof is lost and retained owners stay quarantined for good |
 
-The earlier row this spec found (`validate-accepts-what-start-refuses.md`, 2026-10-28) is owned by `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md`.
+The earlier row this spec found (`validate-accepts-what-start-refuses.md`, 2026-10-28) is owned by `spec-pppoe-refuse-vpp-backend`.
 
 ## Work Not Done
 
@@ -1576,7 +1576,7 @@ The earlier row this spec found (`validate-accepts-what-start-refuses.md`, 2026-
 
 | Item | Where it went | Why |
 |------|---------------|-----|
-| Phase 1: refuse PPPoE under `interface backend vpp` at verify | `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` | OD-5: a shipped-behaviour fix belongs to the release; the rest of this spec is post-release |
+| Phase 1: refuse PPPoE under `interface backend vpp` at verify | `spec-pppoe-refuse-vpp-backend` | OD-5: a shipped-behaviour fix belongs to the release; the rest of this spec is post-release |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -1599,7 +1599,7 @@ Thomas approved the recommendation for each of the five decisions. None is open.
 | OD-2 | VPP loss policy | **A.** On `vpp/disconnected` tear down every VPP session in Ze (no PADT is possible), Stop accounting with a lost-service cause, release pool addresses; clients redial when LCP echo fails |
 | OD-3 | Config surface | **A.** No new leaf: PPPoE's data plane follows `interface backend`; `pppoe_plugin.so` loads whenever `pppoe` is configured with the VPP backend |
 | OD-4 | Subscriber rate on VPP | **A.** Police both directions; TBF and HTB shaping under VPP are refused at verify until a VPP shaping mechanism exists |
-| OD-5 | Release bucket | **Post-release**, except Phase 1 (refuse PPPoE on the VPP backend at verify), which moved to `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` |
+| OD-5 | Release bucket | **Post-release**, except Phase 1 (refuse PPPoE on the VPP backend at verify), which moved to `spec-pppoe-refuse-vpp-backend` |
 
 The options as they were put to the owner:
 
