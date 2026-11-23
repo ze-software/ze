@@ -45,7 +45,9 @@ in the spec or commit it applies to.
   device health reports, metric history, the alarm list, alarm causes (an
   alarm hidden while the alarm that causes it is open) and configuration
   drift detection with repair by the hub. Their specs live in
-  `plan/release/features/`.
+  `plan/release/features/`. In the first release these features are reached
+  through commands, on every command surface; their web pages, the hub's task
+  model and panel, notifications and live page updates come after it.
 - Opt-in unreleased capabilities: a capability that must be explicitly enabled
   is not part of Ze's default setup, is not released as a first-release
   feature, and is not covered by the first-release quality process. Its known
