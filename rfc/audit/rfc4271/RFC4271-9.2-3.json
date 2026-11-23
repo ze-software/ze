@@ -1,24 +1,25 @@
 {
-  "code": {
-    "internal/component/bgp/plugins/rib/rib_bestchange.go::publishBestChanges": "dcfaebf610cc05a9",
-    "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4": "ff7418cc9804e9a1",
-    "internal/component/bgp/reactor/reactor_api_selected.go::reactorAPIAdapter.selectRoute": "9530813fd9a00c8c",
-    "internal/component/bgp/reactor/selected_flush.go::Session.retireSelected": "efa3d12b0c7bc5dc",
-    "internal/component/bgp/reactor/selected_flush.go::reactorAPIAdapter.writeSelected": "9bb3368335fabc00",
-    "internal/component/bgp/reactor/session_write.go::Session.writeUpdateBody": "5ec501d6d94507e4",
-    "pkg/plugin/sdk/sdk_selected.go::Plugin.SelectRoutes": "5cba42f38fa5e0f8"
-  },
-  "note": "Independent re-judgment retains PARTIAL for RFC 4271 Section 9.1.3 / 9.2 after RFC 8893 edit to Reactor.runEgressPolicyChainASN4 (filter_ordered.go). Tested is \"previously advertised route\"; Gap is \"a route in Loc-RIB is excluded from a particular Adj-RIB-Out\". The remaining gap-context Producer is pkg/plugin/sdk/sdk_selected.go::Plugin.SelectRoutes (framed forked selected publication, mixed origins, and refresh/stale replay remain unproven under the declared partial scope). Inspected git diff in runEgressPolicyChainASN4: adding rpkiExport := r.holdsRPKIValidation(library) and calling runPostEgressRPKIValidation when rpkiExport is true leaves chains without rpki-validation-state identical and preserves OutcomeWithdraw / OutcomeReject / failed mapping identically (an export reject from post-egress RPKI still returns accept=false so callers withdraw previously advertised routes). All three tagged tests (TestRFC4271AcceptedGenerationRemainsAnnounced, TestRFC4271ExportExclusionWithdrawsPreviouslyAdvertisedRoute, TestRFC4271OrdinarySelectedExportDenialWithdraws) are unchanged and PASS (go test -tags ze_bgp ./internal/component/bgp/reactor). All 7 existing code bindings and prior discrimination records remain valid; partial verdict stands with zero whole-requirement credit.",
-  "requirement_sha": "9f15588b13884d40",
+  "note": "Independent rejudgment upgrades RFC4271-9.2-3 (RFC 4271 Section 9.1.3 / 9.2) from partial to enforced after closing all four previously declared partial proof gaps. Eight tagged tests (6 positive, 2 negative) across rfc4271_egress_exclusion_withdraw_proof_test.go, rfc4271_selected_advertisement_test.go, and rfc4271_selected_exclusion_boundary_proof_test.go assert exact wire UPDATE withdrawals for previously advertised routes excluded from an Adj-RIB-Out while accepted siblings/controls remain announced: (1) ordinary in-process RIB/Loc-RIB selected export denial without lower-candidate promotion (TestRFC4271OrdinarySelectedExportDenialWithdraws), (2) framed forked JSON socket RPC publication across pkg/plugin/sdk/sdk_selected.go::Plugin.SelectRoutes with !HasBridge() for both policy exclusion and SelectedRouteAbsent (TestRFC4271FramedForkedSelectRoutesExclusionWithdrawsPriorRoute), (3) mixed SelectedRouteReceived/SelectedRouteOrigin exclusion transitions and accepted-route negative control (TestRFC4271SelectedMixedOriginExclusionWithdrawsPriorRoute, TestRFC4271SelectedExclusionAllowsAcceptedControl), (4) GR SelectedStale, LLGR SelectedLLGR, and Enhanced Route Refresh BoRR..EoRR replay exclusion (TestRFC4271SelectedRefreshAndStaleReplayExclusionWithdrawsPriorRoute), and (5) general and isolated rs=true route-server forwarding rails plus accepted-MED negative control (TestRFC4271ExportExclusionWithdrawsPreviouslyAdvertisedRoute, TestRFC4271RouteServerExportExclusionWithdrawsPreviouslyAdvertisedRoute, TestRFC4271AcceptedGenerationRemainsAnnounced). All 8 tagged units carry semantically genuine mutant discrimination records in rfc/discrimination/rfc4271/RFC4271-9.2-3.json across sdk_selected.go::SelectRoutes, forward_rs.go::reactorForwardRSSectionResult, reactor_api_forward.go::forwardUpdateSection, selected_flush.go::writeSelected, filter_ordered.go::runEgressPolicyChainASN4, and session_write.go::writeUpdateBody.",
+  "requirement_sha": "9cf4cb40bcbf0e97",
   "tests": {
     "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271AcceptedGenerationRemainsAnnounced": "7275e119a589e30c",
     "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271ExportExclusionWithdrawsPreviouslyAdvertisedRoute": "7275e119a589e30c",
-    "internal/component/bgp/reactor/rfc4271_selected_advertisement_test.go::TestRFC4271OrdinarySelectedExportDenialWithdraws": "3c735934d14283a8"
+    "internal/component/bgp/reactor/rfc4271_selected_advertisement_test.go::TestRFC4271OrdinarySelectedExportDenialWithdraws": "3c735934d14283a8",
+    "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271FramedForkedSelectRoutesExclusionWithdrawsPriorRoute": "87e9a719be688213",
+    "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271RouteServerExportExclusionWithdrawsPreviouslyAdvertisedRoute": "87e9a719be688213",
+    "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271SelectedExclusionAllowsAcceptedControl": "87e9a719be688213",
+    "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271SelectedMixedOriginExclusionWithdrawsPriorRoute": "87e9a719be688213",
+    "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271SelectedRefreshAndStaleReplayExclusionWithdrawsPriorRoute": "87e9a719be688213"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271AcceptedGenerationRemainsAnnounced": "996654e65a065ff2",
     "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271ExportExclusionWithdrawsPreviouslyAdvertisedRoute": "2fbde37ec1a3d6d5",
-    "internal/component/bgp/reactor/rfc4271_selected_advertisement_test.go::TestRFC4271OrdinarySelectedExportDenialWithdraws": "d5192d8bd451e36a"
+    "internal/component/bgp/reactor/rfc4271_selected_advertisement_test.go::TestRFC4271OrdinarySelectedExportDenialWithdraws": "d5192d8bd451e36a",
+    "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271FramedForkedSelectRoutesExclusionWithdrawsPriorRoute": "c5187b77fbc9c934",
+    "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271RouteServerExportExclusionWithdrawsPreviouslyAdvertisedRoute": "dab4828f5773c2a5",
+    "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271SelectedExclusionAllowsAcceptedControl": "502b2afa844f0519",
+    "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271SelectedMixedOriginExclusionWithdrawsPriorRoute": "b6dab5600c572507",
+    "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271SelectedRefreshAndStaleReplayExclusionWithdrawsPriorRoute": "5ea18102c8abf4b2"
   },
-  "verdict": "partial"
+  "verdict": "enforced"
 }

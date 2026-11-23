@@ -31,5 +31,60 @@
     "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateBody",
     "producer-sha": "60cd943ed1b0b0cd",
     "break": "line 771: \"if code, found := s.transmittedASZeroAttribute(body); found {\" -\u003e \"if s.sentForward != nil \u0026\u0026 s.sentForward.selected != nil \u0026\u0026 len(body) \u003e= 2 \u0026\u0026 (body[0] != 0 || body[1] != 0) { return false, nil }; if code, found := s.transmittedASZeroAttribute(body); found { // MUTATION-APPLIED: omit selected IPv4 withdrawal bytes\""
+  },
+  {
+    "rid": "RFC4271-9.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271FramedForkedSelectRoutesExclusionWithdrawsPriorRoute",
+    "unit-sha": "452ce0b70e644631",
+    "claim-sha": "66125f5a06d9c3ee",
+    "route": "mutant",
+    "producer": "pkg/plugin/sdk/sdk_selected.go::SelectRoutes",
+    "producer-sha": "681b830c4bc1b8c6",
+    "break": "line 28: \"result, err = p.engineMux.CallRPCCancellable(ctx, rpc.MethodSelectRoutes, \u0026input)\" -\u003e \"if len(input.Routes) \u003e 0 \u0026\u0026 input.Routes[0].Kind == rpc.SelectedRouteAbsent { return \u0026rpc.SelectRoutesOutput{Results: []rpc.SelectedRouteResult{{Family: input.Routes[0].Family, KeyNLRI: input.Routes[0].KeyNLRI, Revision: input.Routes[0].Revision, CurrentRevision: input.Routes[0].Revision, Outcome: rpc.SelectedAbsent}}}, nil }; result, err = p.engineMux.CallRPCCancellable(ctx, rpc.MethodSelectRoutes, \u0026input)\""
+  },
+  {
+    "rid": "RFC4271-9.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271RouteServerExportExclusionWithdrawsPreviouslyAdvertisedRoute",
+    "unit-sha": "649d1895dc2692a9",
+    "claim-sha": "85ea4ac855e49929",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+    "producer-sha": "ef6ca673f96124dd",
+    "break": "line 538: \"mods.SetWithdraw()\" -\u003e \"_ = isEOR // MUTATION-APPLIED: omit route-server export-rejection withdrawal\""
+  },
+  {
+    "rid": "RFC4271-9.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271SelectedExclusionAllowsAcceptedControl",
+    "unit-sha": "03b787bb36c4804e",
+    "claim-sha": "17c0a8c434f0ae4b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/selected_flush.go::writeSelected",
+    "producer-sha": "f6764bdaf308cf9b",
+    "break": "line 56: \"allowed := facts.exportPolicy.AcceptsExportAtEnd(facts.isEBGP, work.output.kind)\" -\u003e \"allowed := false // MUTATION-APPLIED: over-suppress accepted selected routes\""
+  },
+  {
+    "rid": "RFC4271-9.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271SelectedMixedOriginExclusionWithdrawsPriorRoute",
+    "unit-sha": "980c10849ed96135",
+    "claim-sha": "7cb2f68905013525",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/selected_flush.go::writeSelected",
+    "producer-sha": "f6764bdaf308cf9b",
+    "break": "line 66: \"return s.retireSelected(work)\" -\u003e \"return nil // MUTATION-APPLIED: skip retiring excluded selected output\""
+  },
+  {
+    "rid": "RFC4271-9.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_selected_exclusion_boundary_proof_test.go::TestRFC4271SelectedRefreshAndStaleReplayExclusionWithdrawsPriorRoute",
+    "unit-sha": "17360e19c9fabc28",
+    "claim-sha": "df95dc289ba47249",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
+    "producer-sha": "a77cd93a9a1fba56",
+    "break": "line 969: \"mods.SetWithdraw()\" -\u003e \"_ = suppressed // MUTATION-APPLIED: omit policy-rejection withdrawal conversion\""
   }
 ]
