@@ -254,7 +254,7 @@ Thomas set three rules for every VPP Ze runs. They are recorded in
    readable: continue from where it is. Software possibly crashed or stopped
    forwarding: reflect it in Ze and update IGP and BGP peers.
 
-**Owner refinements, same day** (lifecycle spec R-4 to R-8; the "Design
+**Owner refinements, same day** (lifecycle spec R-4 to R-7 and R-9; the "Design
 decisions" rows of both pages, each naming the earlier row it narrows):
 
 - One timer serves both the alive test and the loss declaration. A probe
@@ -270,10 +270,18 @@ decisions" rows of both pages, each naming the earlier row it narrows):
   undecided window follows the declaration.
 - Blackholing during the restart is accepted. Routes are withdrawn
   (VPP-backed interfaces down in Ze's model, so IGP and BGP react) only when
-  neither form succeeds within the recovery deadline and the crash-loop limit.
-- Ze is the only restarter: a systemd unit it drives has Restart=no.
-- Open values for Thomas: the single timer, the recovery deadline, the
-  crash-loop limit.
+  neither form succeeds. The recovery deadline and the crash-loop limit that
+  bound "cannot recover" are the main session's proposals (P-1, P-2), not his
+  words, until he adopts them.
+- Corrected the same day: "Ze is the only restarter, a systemd unit it drives
+  has Restart=no" was the main session's proposal P-3, not his rule. His
+  systemd words reverse it: "we can not be sure that an OS update will not
+  change the settings so we should detect the settings and adapt". Ze requires
+  no unit policy; it reads the unit's effective settings each time it acts and
+  adapts (lifecycle R-9, step 2a).
+- Open for Thomas: the single timer, whether he adopts the recovery deadline
+  and the crash-loop limit and their values, and the other lifecycle choices
+  (that spec's "Choices the rules do not settle").
 - F-1 stays a defect to fix; F-2 closes with it; F-3 is fixed for form 1 by
   change 2. E-1 stays open for form 1; E-2, E-3 and E-4 close on form 2. No
   graceful-restart claim on re-open: the F bit stays 0.
@@ -374,7 +382,7 @@ unless named):
 | `TestReconcileUnknownCreationVisibleStaysRetained` | Cut: delete on presence |
 | `TestCaptureAPIRetainsProcessLease` | No lease taken |
 | `TestLeasedWitnessPublishesExitAfterDisconnect` (`internal/component/vpp`; check for an existing one first) | Pins F-2 |
-| Lab `product-restart`, API-drop case | Freeze VPP past `connectionProbeTimeout` (5 s) with SIGSTOP and SIGCONT or a container pause. A freeze shorter than the single timer asserts form 1: same process, readback matches, sessions survive. A longer one asserts form 2: a pidfd kill, the exit proof, a restart and reconfiguration, the OD-2 drain and a redial. The timer value is the lifecycle spec's P-4. Red: cut the `SameProcess` adoption; reconcile warnings persist and the redial is refused ("client MAC already belongs to a live or constructing session"). A socket proxy cannot drop the API, because SO_PEERPIDFD would name the proxy. Not read: whether the lab VPP shares a container with Ze (signal or pause) |
+| Lab `product-restart`, API-drop case | Three cases (lifecycle step 3.1 and step 5). A SIGSTOP (or a container pause) shorter than the single timer does not break the socket: it exercises the late-probe state, asserts that nothing changes, and cannot prove form 1, because no reconnect happens and the `SameProcess` cut below would stay green on it. Form 1 needs a real API-only drop with the process alive (mechanism at the lifecycle design): it asserts same process, readback matches, sessions survive. A freeze longer than the timer asserts form 2: a pidfd kill, the exit proof, a restart and reconfiguration, the OD-2 drain and a redial. The timer value is the lifecycle spec's P-4. Red: cut the `SameProcess` adoption; reconcile warnings persist and the redial is refused ("client MAC already belongs to a live or constructing session"). A socket proxy cannot drop the API, because SO_PEERPIDFD would name the proxy. Not read: whether the lab VPP shares a container with Ze (signal or pause) |
 
 Text that changes when this is built: `bng-5-pppoe.md` "on its captured
 connection" ("VPP session ownership") and "block overlapping admissions across
