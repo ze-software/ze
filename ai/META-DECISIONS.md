@@ -41,6 +41,11 @@ in the spec or commit it applies to.
   capabilities it implements. A missing RFC feature may wait until after the
   first release, and a partial implementation is never announced as full
   support.
+- Fleet management ships in the first release with its device registry,
+  device health reports, metric history, the alarm list, alarm causes (an
+  alarm hidden while the alarm that causes it is open) and configuration
+  drift detection with repair by the hub. Their specs live in
+  `plan/release/features/`.
 - Opt-in unreleased capabilities: a capability that must be explicitly enabled
   is not part of Ze's default setup, is not released as a first-release
   feature, and is not covered by the first-release quality process. Its known
