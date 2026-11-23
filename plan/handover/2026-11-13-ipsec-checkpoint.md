@@ -4,11 +4,10 @@ Branch: `main`. This page preserves the dated checkpoints at which both specs
 were `in-progress`:
 
 - `spec-ipsec-dual-form-receive-spd-bypass` (historical record in git)
-- `plan/release/fixes/spec-rfc4301-architecture-gaps.md`
+- `spec-rfc4301-architecture-gaps` (closed 2026-11-23; historical record in git)
 
-Current status: the dual-form product acceptance and independent CLEAN closure
-review are complete. The architecture-gaps spec remains `in-progress` for its
-broader RFC discrimination and mapped-return obligations. The durable product
+Current status: both the dual-form product acceptance and the architecture-gaps
+spec (AC-1 to AC-23, Review Gate Rounds 1-3 CLEAN) are closed. The durable product
 contract is [the Child SA and XFRM architecture](../../docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md).
 The earlier progress and pending-work descriptions below are historical receipts.
 

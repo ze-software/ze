@@ -7,9 +7,9 @@
 | Release reason | Retain remaining IPsec architecture obligations and fragment investigation without claiming an unproven vulnerability. |
 | Scope | protocol |
 | Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off, `rfc/extraction/rfc4301.json`, and the ledger scope set; this spec supplies the implemented obligations and the 12 held sites' evidence the walk classifies). No dependency on `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`: by Thomas's ruling of 2026-11-20 ("plan/release/fixes/spec-ipsec-vpp-policy-interface.md will be done after the release") that spec owns the VPP half of decision 5a and of AC-1 (operator SPD entries on the VPP backend) after the release, and no operator can reach the VPP backend before `plan/post-release/features/spec-ipsec-dataplane-selector.md` lands |
-| Phase | closure -- AC-1 to AC-22 met; closure review gate 2026-11-20 (Review Gate below) |
+| Phase | closure -- AC-1 to AC-23 met; Review Gate Rounds 1-3 CLEAN (2026-11-23) |
 | Handoff | - |
-| Updated | 2026-11-20 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -1556,7 +1556,7 @@ remaining requirements or its own final Review Gate.
 | AC-20 | Ze's kernel is built with the patch series and a multi-pair Child SA is installed (phase 2b) | the receipt reports the ABI number and the feature bits the series provides; the engine sets the SA's complete directional selector set as its state scope; a decrypted packet outside every pair of its own SA is dropped although a sibling SA's policy would admit it; `show vpn ipsec dataplane sa` reads the scope back. On a kernel without the receipt the install is refused with the kernel build command named. Tests: `TestRFC4301KernelAdvertisesExactStateScope`, `TestRFC4301ChildStateScopeReadback`, `TestRFC4301MultipairSAsRejectSiblingScope`, `TestRFC4301ParallelMultipairSAsKeepPermittedDelivery`, in the QEMU guest. Owed only under owner decision 1 (a) or (c). Status 2026-11-20: the packet tests are observed on Ze's kernel `docker-53c57c37` | A single-pair SA keeps its legacy state selector, byte-identical to its one scope record; a packet inside any pair of its own SA is delivered (`TestRFC4301ParallelMultipairSAsKeepPermittedDelivery`) |
 | AC-21 | A Child SA is installed on Linux 6.10 or later, and `show vpn ipsec dataplane sa` reads it back (owner decision 2 (a), 2026-11-19) | CLOSED 2026-11-19 by the owner; evidence in the AC-21 evidence paragraph of the current checkpoint. the inbound state reads back `in` and the outbound one `out`, each showing only its own options (the ICMP error check on `in`; DF and outer DSCP on `out`); the outbound state carries no anti-replay window and the inbound one keeps the negotiated 64 (RFC 4301 Section 4.4.2.1: the window is "used to determine whether an inbound AH or ESP packet is a replay"); an `SAParams` with `Dir` out and a nonzero window, or with `Dir` fwd, is refused before the kernel as a Ze defect; the OSPFv3 per-neighbor outbound state drops its window too. Tests: `TestXFRMStateCarriesTheSADirection`, `TestXFRMStateReplayWindowOnlyOnTheReceivingSA`, `TestXFRMStateRefusesADirectionNoStateCarries` (dataplane, linux), `TestXFRMReadbackReportsTheDirectionZeInstalled` (kernel readback, QEMU guest), `TestChildSAReplayWindowDefault` (engine), `TestIPsecSAReplayWindowOnlyOnTheReceivingSA` (ospf), `TestVPPSAFlagsAntiReplayPerDirection` (ze_vpp) | A zero-`Dir` state, the RFC 4552 OSPFv3 multicast SA serving both directions, is installed without a direction and keeps its window; a kernel older than 6.10 ignores the attribute and reads back `unknown`; the VPP outbound SA carries no window and so no `USE_ANTI_REPLAY`, and still refuses a cycled counter, because VPP v26.06 `esp_seq_advance` does so on every outbound SA (RFC 4303 Section 3.3.3) |
 | AC-22 | An operator commits a `vpn ipsec policy` BYPASS with a local or remote port on an XFRM dataplane whose kernel does not advertise K3's capability bit 3 (owner decision 2, "refusal until done", 2026-11-20) | the commit is refused with the entry named and the fix, unless the entry's local prefix is one address this host holds (traffic to and from Ze is reassembled before the IN check and classified before fragmentation); a host address list that cannot be read refuses rather than guesses. At start, by decision 3 (a), the entry is installed and logged at Error, and doctor check `ipsec-spd-forward-bypass` reports it with the fix. With bit 3 the refusal does not apply and the entry is projected onto FWD (AC-2, AC-16). Landed in `a29420771d`. Tests: `TestRFC4301PortScopedForwardBypassRefusedAtCommit`, `TestPortScopedForwardBypassRefusalCoversBothPortsAndUnreadableAddresses`, `TestPortScopedForwardBypassAtStartIsLoggedAndReportedByDoctor`, which its commit records passing on darwin; these unit tests are the proof of the refusal path. The old draft `ipsec-spd-forward-bypass-refused.ci` was deleted by owner decision (C) of 2026-11-20. Its replacement, the promoted `test/ipsec/ipsec-spd-forward-bypass-projected.ci`, proves the bit-3 side on Ze's kernel. It asserts that the bypass commits and that the kernel holds its FWD decision and gate with port 22; it passed 40 of 40 under load in the guest, and goes red at LIVE-STAGES line 4 with `spdForwardGathers` forced false. The bit-3 positive is `TestPortScopedBypassForwardPathFollowsFragmentGathering` (`1dc1323b86`). Status 2026-11-20: DONE | No dataplane, VPP (its inbound SPD runs before routing), a DISCARD with a port and an any-port BYPASS are not refused, because none of them leaves a forwarded fragment judged on ports the check could not read |
-| AC-23 | A wildcard peer (a Child SA negotiated for the whole of a family, any protocol, any port) is live while Ze installs, reloads or tears down the `unmatched` catch-all, or a `vti bind` wildcard peer is live beside its XFRM interface's catch-all (`interfaceSPDCatchAll`). The peer's PROTECT policy and the catch-all share one kernel identity (selector, direction, if_id), and the kernel holds one policy per identity whatever the priority, so the policy installed second replaced the other (Review Gate item 2, handover 54) | [ ] The XFRM ownership ledger (`dataplane/policy_final.go`) records a final entry asked for at a selector a peer's PROTECT policy holds in `policyOwners.finals` and makes no kernel call (`yieldFinal`), so the PROTECT policy stays and a reload neither replaces it nor fails. When the peer removes its PROTECT policy, the kept final entry is written over it in one kernel upsert with no delete (`reinstateFinal`), so at no instant does the identity hold neither. Only a PROTECT policy stands in for a final entry; a failed or foreign removal never loses the kept entry; a final entry removed while the peer is live is not put back. The same holds for the interface catch-all of a `vti bind` wildcard peer. [ ] `show vpn ipsec dataplane policy` shows the peer's policy row with `displaced-final-entry` and `displaced-final-action`, naming the final entry it stands in for (`PolicyInfo.Displaced`). [ ] Tests: the five tests of `dataplane/policy_final_test.go`; `TestReloadAndTeardownWithAWildcardPeerKeepAFinalEntry` and `TestWildcardPeerBeforeTheCatchAllKeepsAFinalEntry` (`dataplane/xfrm_final_entry_linux_test.go`, over a fake kernel map through the seam `xfrmPolicyUpdate`); `TestWildcardPeerStandsInForTheCatchAllAndGivesItBack` (`engine/spd_wildcard_peer_integration_linux_test.go`, guest root); `TestShowDataplanePolicyRendersDisplacedFinalEntry` (`cmd/show_dataplane_displaced_test.go`). [ ] Docs: `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` "Policy ownership", `docs/architecture/ike/ipsec-dataplane-inspection.md`, `docs/guide/ipsec.md`. Status 2026-11-20: written, nothing run | A final entry at a selector no peer's PROTECT policy holds is installed and removed directly, as before; a template-free allow on the same identity never stands in for it, because it would pass what the final entry discards. RFC 4301 Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it." While the wildcard PROTECT policy is live it matches every packet the catch-all would, so no packet of that direction and family is unmatched |
+| AC-23 | A wildcard peer (a Child SA negotiated for the whole of a family, any protocol, any port) is live while Ze installs, reloads or tears down the `unmatched` catch-all, or a `vti bind` wildcard peer is live beside its XFRM interface's catch-all (`interfaceSPDCatchAll`). The peer's PROTECT policy and the catch-all share one kernel identity (selector, direction, if_id), and the kernel holds one policy per identity whatever the priority, so the policy installed second replaced the other (Review Gate item 2, handover 54) | [x] The XFRM ownership ledger (`dataplane/policy_final.go`) records a final entry asked for at a selector a peer's PROTECT policy or an operator's wildcard entry holds in `policyOwners.finals` and makes no kernel call (`yieldFinal`), so the holding policy stays and a reload neither replaces it nor fails. When the peer or operator removes its policy, the kept final entry is written over it in one kernel upsert with no delete (`reinstateFinal`), and a stale/repeated delete returns `errFinalEntryHolds` (`ENOENT`) without touching the live catch-all. Only a PROTECT policy or operator wildcard stands in for a final entry; a failed or foreign removal never loses the kept entry; a final entry removed while held is not put back. The same holds for the interface catch-all of a `vti bind` wildcard peer, with `SPDInterface` preserved across dual-family displacement (`policy_owner.go::annotate`). [x] `show vpn ipsec dataplane policy` shows the holding policy row with `displaced-final-entry` and `displaced-final-action` (`PolicyInfo.Displaced`). [x] Tests: `dataplane/policy_final_test.go` (including `TestFinalEntryYieldsToOperatorWildcardAcrossReloadAndReinstates` and `TestInterfaceCatchAllDisplacementPreservesSPDInterfaceName`); `dataplane/xfrm_final_entry_linux_test.go`; `TestWildcardPeerStandsInForTheCatchAllAndGivesItBack` (`engine/spd_wildcard_peer_integration_linux_test.go`, PASS 0.08s on amd64 Ze 7.3 kernel); `TestShowDataplanePolicyRendersDisplacedFinalEntry` (`cmd/show_dataplane_displaced_test.go`). [x] Docs: `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `docs/architecture/ike/ipsec-dataplane-inspection.md`, `docs/guide/ipsec.md`. Status 2026-11-23: DONE (`827c73e9e1`, `8e2669dbad`) | A final entry at a selector no peer's PROTECT policy or operator wildcard holds is installed and removed directly, as before; a template-free allow on the same identity never stands in for it, because it would pass what the final entry discards. RFC 4301 Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it." |
 
 Rows of Work Not Done that had no criterion: the forwarded `RFC4301-6.2-3` and
 `RFC4301-6.2-4` cases are AC-4 (its forwarded half, proven by
@@ -2168,6 +2168,7 @@ settled gap.
 | AC-20 | Done | `TestRFC4301MultipairSAsRejectSiblingScope` and siblings, `docker-53c57c37` | |
 | AC-21 | Done | closed by the owner 2026-11-19 | |
 | AC-22 | Done | `TestRFC4301PortScopedForwardBypassRefusedAtCommit`, `test/ipsec/ipsec-spd-forward-bypass-projected.ci` | |
+| AC-23 | Done | `dataplane/policy_final_test.go`, `dataplane/xfrm_final_entry_linux_test.go`, `TestWildcardPeerStandsInForTheCatchAllAndGivesItBack` (QEMU PASS 0.08s), `TestShowDataplanePolicyRendersDisplacedFinalEntry` | Round 1-3 fixes landed (`827c73e9e1`, `8e2669dbad`) |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -2178,12 +2179,12 @@ settled gap.
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `ipsec/spd_policy.go`, `engine/spd_policy.go`, `engine/spd_order.go`, `engine/unmatched.go`, `engine/icmp_overlap.go`, `dataplane/xfrm_linux.go`, YANG | Done | |
+| `ipsec/spd_policy.go`, `engine/spd_policy.go`, `engine/spd_order.go`, `engine/unmatched.go`, `engine/icmp_overlap.go`, `dataplane/xfrm_linux.go`, `dataplane/policy_final.go`, `dataplane/policy_owner.go`, YANG | Done | |
 | `engine/fragment.go`, `engine/icmp.go` | Changed | kernel route, see Deviations |
 
 ### Audit Summary
-- **Total items:** 22 ACs, 6 Task requirements
-- **Done:** 22 ACs; 5 requirements
+- **Total items:** 23 ACs, 6 Task requirements
+- **Done:** 23 ACs; 5 requirements
 - **Partial:** Phase 8 fixed DSCP, by owner decision of 2026-11-12, homed
 - **Skipped:** none
 - **Changed:** fragment and ICMP engine files (Deviations)
@@ -2192,34 +2193,23 @@ settled gap.
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/rfc4301-architecture-gaps-c12916cd-1099-4d46-8984-c5eeae8c89d3.md` (4 files, 0 code files) |
-| `./le spec review check` | clean |
-| Rounds | 2 |
-| Reviewer lenses used | logic and wiring, security and RFC claims, docs and ledger |
+| Artifact | `tmp/review/rfc4301-architecture-gaps-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md` (246 files, 242 code files) |
+| `./le spec review check` | `review_gate: OK (242 code files, clean, hashes match tmp/review/rfc4301-architecture-gaps-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md)` |
+| Rounds | 3 |
+| Reviewer lenses used | logic and wiring, policy ownership & catch-all yield, security and RFC claims, docs and ledger (`e77db4b2`, independent test judges `666bf284` / `1abad6f7`, independent RFC auditors `31650d3d` / `34aa48e2`) |
 
-Scope: the committed diff of `25a3115a04` (tests, summary rows, records,
-audits, docs, citers) and the closure edits. Earlier implementation commits were
-reviewed in their phases ("Owed next" item 10). Round 1: `./le test weakened
-check base 25a3115a04^` clean; `./le repo check` 9 findings, none under
-`internal/component/ike`; no product code in the diff; the new
-`TestRFC4301OperatorBypassForwardsTransitEchoInClear` reaches
-`reconcileSPDPolicies` through the test helper `installSPDPolicies` and
-recomputes the IPv4 checksum (`fragmentPacketID`). Round 2, over the closure
-edits: no finding.
+Scope: full `Spec-work: rfc4301-architecture-gaps` change set through Round-1 (`827c73e9e1`) and Handover 55 / Round 2-3 fixes (`8e2669dbad`). Round 1 (`827c73e9e1`) fixed XFRM policy ownership both ways, wildcard catch-all yield (`dataplane/policy_final.go`), VPP IKE bypass, per-socket IKE bypass consolidation, E14 transport-mode test, and AC-23. Round 2 (`e77db4b2`) audited `827c73e9e1` + Handover 55 E3/E8/E10/E11/E13 + `mhBoundaryLANEgress` removal and found 2 ISSUEs (R2-1 wildcard operator policy reload/reinstatement, R2-2 VTI `SPDInterface` preservation on dual-family displacement). Round 3 (`e77db4b2`) caught 1 ISSUE in the R2-1 fix (R3-1 stale/repeated operator wildcard delete falling through to `deleteThenRelease` instead of returning `errFinalEntryHolds`), fixed in `policy_final.go:144-150` with regression assertion in `policy_final_test.go:409-422`, and verified **CLEAN** (`0 BLOCKER, 0 ISSUE, 0 NEW NOTE`).
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
-|---|----------|----------|----------|----------|
-| 1 | ISSUE | `RFC4301-6-1` published bare while its tests cover ICMPv4 only and Section 6 applies to ICMPv6 | `rfc/short/rfc4301.md` | `{partial}`; fragment-receive AC-8 amended |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `RFC4301-6-1` published bare while its tests cover ICMPv4 only and Section 6 applies to ICMPv6 | `rfc/short/rfc4301.md` | `{partial}`; fragment-receive AC-8 amended (`25a3115a04`) |
+| 2 | ISSUE | Round 1: XFRM policy ownership gaps, wildcard peer catch-all collision, duplicate socket bypass | `dataplane/policy_final.go`, `policy_owner.go`, `xfrm_linux.go` | Landed in `827c73e9e1` (AC-23) |
+| 3 | ISSUE | Round 2 (R2-1): Wildcard operator `vpn ipsec policy` (`0/0` or `::/0`) overwritten by `assertUnmatched` on reload and did not reinstate catch-all on removal | `dataplane/policy_final.go`, `policy_owner.go` | Fixed in `8e2669dbad` (`yieldFinal`, `label`, `reinstateFinal`, `deleteThenRelease` + `TestFinalEntryYieldsToOperatorWildcardAcrossReloadAndReinstates`) |
+| 4 | ISSUE | Round 2 (R2-2): Dual-family wildcard VTI peer displacement lost `SPDInterface` in `show vpn ipsec dataplane policy` | `dataplane/policy_owner.go:181-189` | Fixed in `8e2669dbad` (`annotate` copies `final.SPD` + `TestInterfaceCatchAllDisplacementPreservesSPDInterfaceName`) |
+| 5 | ISSUE | Round 3 (R3-1): Stale/repeated operator wildcard `RemovePolicyParams` fell through to `deleteThenRelease` and deleted the live catch-all | `dataplane/policy_final.go:144-150` | Fixed in `8e2669dbad` (returns `(true, errFinalEntryHolds)` when catch-all holds selector + post-reinstatement assertion in `policy_final_test.go:409-422`) |
 
-NOTEs: the `RFC4301-4.4.1.1-1` reason omitted OPAQUE (fixed); `RFC4301-6.2-5`
-names polarities oppositely in its two tests, each carrying both, and no rule
-fixes the convention, so the tags stay; several records break their producer
-with a panic body, which proves reach and not discrimination, accepted by
-`./le rfc check`; `plan/release/fixes/spec-rfc-proof-debt-outside-filter-wire.md`
-AC-33 names `spec-rfc4301-architecture-gaps.md` without a work-folder path, in
-another session's uncommitted file; the fragment-receive spec already failed
-spec validation (13 missing sections) before its amendment.
+NOTEs: `RFC4301-4.1-3`/`4.1-4` stale "hardcodes tunnel mode" notes and `6-1`/`6.2-3..5` "first paragraph" -> "second paragraph" citations corrected in `rfc/short/rfc4301.md` and independently re-audited (`31650d3d`, `34aa48e2`); AC-10 Notes cell fixed in `plan/post-release/features/spec-ipsec-vpp-policy-interface.md:445`.
 
 ## Pre-Commit Verification
 
@@ -2227,15 +2217,15 @@ spec validation (13 missing sections) before its amendment.
 | File | Exists | Evidence |
 |------|--------|----------|
 | `test/ipsec/ipsec-spd-discard-entry.ci`, `ipsec-spd-order-readback.ci`, `ipsec-icmp-type-selector.ci`, `ipsec-spd-forward-bypass-projected.ci` | Yes | ls at closure |
-| `test/parse/ipsec-spd-order-total.ci`, `ipsec-spd-discard-beside-default-peer.ci`, `ipsec-df-bit-treatment.ci`, `ipsec-dscp-map.ci` | Yes | ls at closure |
+| `test/parse/ipsec-spd-order-total.ci`, `ipsec-spd-discard-beside-default-peer.ci`, `ipsec-df-bit-treatment.ci`, `ipsec-dscp-map.ci`, `ipsec-icmp-type-selector-refused.ci` | Yes | ls & `./le test functional parse` verified 2026-11-23 |
+| `website/changes/fragments/rfc4301-architecture-gaps.md` | Yes | `ls -1` verified 2026-11-23 |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 | DISCARD is expressible | `SPActionDiscard`: 3 hits in `dataplane.go`, 3 in `xfrm_linux.go`, 1 in `vpp_policy.go` |
-| AC-11 | summary describes the native engine | `grep -in strongswan rfc/short/rfc4301.md` returns nothing |
-| AC-12 | RFC 4301 records fresh | `./le rfc check`: zero rfc4301 violations before the closure edits; re-run owed after the 6-1 re-audit |
-| AC-1 to AC-22 | tests named in the Audit exist | 14 Wiring Test functions found under `internal/` |
+| AC-1..AC-23 | Dataplane, transport, cmd, ipsec, engine units & VPP build | `./le test unit pkg` on `ike/dataplane`, `ike/transport`, `ike/cmd`, `ike/ipsec`, `ike/engine` (`exit 0`); `go test -tags ze_vpp ./internal/component/ike/dataplane` (`0.115s` PASS) |
+| AC-2, AC-4, AC-14, AC-16, AC-18, AC-20, AC-23 | 16 QEMU guest integration tests on amd64 Ze 7.3 kernel (`7.3-runtime-amd64-runtime-qemu-2b23af13-5d7f6651`) | All 16 PASS including `TestWildcardPeerStandsInForTheCatchAllAndGivesItBack` (0.08s), `TestOperatorGateNeverReplacesALiveChildSAPolicy` (0.11s), `TestMHChildPoliciesSelectIncomingIPv6Packets` (1.99s), `TestRFC4301ForwardedFragmentsRespectOperatorDisposition` (0.14s), `TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector` (1.41s) |
+| AC-11, AC-12 | RFC 4301 records, audits, arch tier, scoped lint clean | `./le rfc discriminate stem rfc4301` -> `STALE COUNT: 0`; `./le rfc check` -> 0 `rfc4301` errors; `./le arch tier check` -> PASS; `./le go lint run scope "./internal/component/ike/engine ./internal/component/ike/dataplane ./internal/component/ike/transport ./internal/le/test/qemu"` -> `0 issues.` across all 6 stages |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
