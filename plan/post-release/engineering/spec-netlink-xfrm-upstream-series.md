@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-13 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -133,9 +133,9 @@ already quoted in the existing patch's leading text and travel with their hunks.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Ze ↔ vendored library | The library's exported state and policy values, plus one opaque attribute hook | No |
-| Library ↔ kernel | XFRM netlink messages | No |
-| Ze ↔ upstream project | One pull request per upstream-candidate patch, opened on the owner's order | No |
+| Ze ↔ vendored library | The library's exported state and policy values, plus `XfrmState.ExtraAttrs` (`XfrmAttr`, `addXfrmExtraAttrs`, `parseXfrmState`) | Yes (`TestXfrmStateExtraAttributes`, `TestXFRMStateScopeWirePreservesOrderedSelectors`, `TestSAStateScopeOwnsSelectors`) |
+| Library ↔ kernel | XFRM netlink messages | Owed in main thread (4 kernel integration tests under Ze's runtime kernel) |
+| Ze ↔ upstream project | One pull request per upstream-candidate patch, opened on the owner's order | Homed in `plan/post-release/engineering/spec-netlink-xfrm-open-upstream-prs.md` (patches verified against upstream `main` `e0e26cd`) |
 
 ### Changed-Wire Census
 
@@ -167,12 +167,12 @@ them, because the writer and reader move from the library into Ze.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | `xfrmBackend.InstallSA` (`xfrm_linux.go`) checks live capabilities via `checkXFRMStateScopeCapabilities` (`xfrm_state_scope_linux.go`) -> `readXFRMZECapabilities` (`xfrm_state_scope_abi_linux.go`) -> `xfrmGetDefaultAnswer` (`xfrm_forward_default_linux.go`), encodes via `xfrmStateScopeFromParams` -> `SAStateScope.xfrmStateScopeAttr`, hands `XfrmState.ExtraAttrs` to `xfrmStateAddOrUpdate` -> `addXfrmExtraAttrs`, and decodes readback in `xfrmBackend.ListSAs` via `parseXfrmState` -> `xfrmStateScopeFromAttrs` |
+| No unintended coupling (components stay isolated) | Yes | `internal/component/ike/dataplane` stays ungated (no gated imports, no `internal/le` imports); `vendor/github.com/vishvananda/netlink/` holds zero Ze symbols (0 hits for `XFRMA_STATE_SCOPE`, `XFRMA_ZE_CAPS`, `StateScope`, `XfrmZECapabilities`) |
+| No duplicated functionality (extends existing, does not recreate) | Yes | `SAStateScope` (`internal/component/ike/dataplane/state_scope.go` + `xfrm_state_scope_abi_linux.go`) is the single owner of the scope type and wire codec; `xfrmGetDefaultAnswer` (`xfrm_forward_default_linux.go`) serves both `readXFRMDefaults` and `readXFRMZECapabilities`; `assertVendorPatchApplied` (`vendor_patch_test.go`) is the single guard producer |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | `writeXFRMStateScope` (`xfrm_state_scope_abi_linux.go`) writes into caller's `(buf, off)` buffer; `parseXfrmState` (`xfrm_state_linux.go`) copies `ExtraAttrs` value once to prevent netlink-buffer aliasing |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | No command, view, family or core switch added; `vendorpatch.Patches` discovers every `.patch` file from `internal/le/vendorpatch/patches/` |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | `TestEveryVendorPatchIsApplied` (`vendor_patch_test.go`) and `TestPatchedVendorModulesMatchUpstream` (`upstream_test.go`) derive from `vendorpatch.Patches`; `netlinkXFRMSeries` (`netlink_xfrm_patch_test.go`) is retained explicitly per independent `ze-test-judge` refusal to prevent silent deletion of a patch file |
 
 ## Risks & Assumptions
 
@@ -182,7 +182,7 @@ them, because the writer and reader move from the library into Ze.
 | A-1 | Upstream's main branch has not already fixed or reshaped the code these patches touch | Compared 2026-11-13: the three patched files at v1.3.1 against upstream `main` at `e0e26cd`. Not fixed: `selFromPolicy` on `main` still takes the family from the destination alone, and `main` sets no state flag but ESN. Reshaped: `main` replaced the package handle `pkgHandle` with a `pkgHandle()` call, and no longer sends `XFRMA_SA_PCPU` on a get or delete request. No release follows v1.3.1 | No patch is redundant. A patch against v1.3.1 equals its pull request against `main` byte for byte only where `main` left the surrounding lines alone (R-9) | `diff` of each file at v1.3.1 against `raw.githubusercontent.com/vishvananda/netlink/main` | half false: not fixed, reshaped |
 | A-2 | The library's exported request builder lets the dataplane read the capability receipt without any library change | `readXFRMDefaults` in `xfrm_forward_default_linux.go` issues the same request with the same three-byte body as the library's `XfrmZECapabilitiesGet`, and the receipt is an attribute after those three bytes in the same answer | The capability read stays in the Ze-only patch | Read both functions side by side: done 2026-11-13, the requests are identical | confirmed |
 | A-3 | A generic "extra attributes" hook on a state request and its readback is small enough to be the whole Ze-only patch | `xfrmStateAddOrUpdate` appends attributes one after another; `parseXfrmState` already loops over them | The Ze-only patch keeps more of the private ABI | Write the hook and measure the remaining Ze-only diff | confirmed 2026-11-13: 151 lines, see Design Insights |
-| A-4 | Every upstream-candidate test can run unprivileged, as a pure encode or decode check | The selector family test already runs that way | A test needs a network namespace, which upstream's suite runs as root and Ze agents do not | Run each new test without privileges | unvalidated |
+| A-4 | Every upstream-candidate test can run unprivileged, as a pure encode or decode check | The selector family test already runs that way | A test needs a network namespace, which upstream's suite runs as root and Ze agents do not | Run each new test without privileges | confirmed 2026-11-13 (`c9ce6ba81d`): all 16 tests across patches 01 to 10 run unprivileged (with 3 small helper extractions: `xfrmReplayWindowInESN`, `xfrmUserTmplFamily`, `xfrmUserpolicyFlags`) and passed on upstream `main` (`e0e26cd`) |
 | A-5 | Ze never installs a selector with a source and no destination | Traced 2026-11-13 over every non-test producer of an `XfrmPolicy` or `XfrmState` selector: `childPairPolicy` and its fallback (`newChildSA` fills an absent side with `ipToFullNet`), `newRekeyedChild`, `inboundStateSelector`, `spdPolicyDirection` (`SPDPolicy.validate` refuses an absent prefix), the configured traffic selectors (`traffic_selector.go` refuses either side absent), `ikeBypassPolicies`, `spdCatchAllEntries`, `xfrmInterfaceExemptions`, `xfrmStateScopeFromParams`, and OSPF's `buildIPsecSA` and `buildIPsecPolicies`. The narrowing helpers `intersectNet`, `rangePrefixes` and `leaseHostIn` answer ok only with a prefix. An unrestricted side is always an explicit zero prefix | The source-only gap is a live Ze defect and moves to a release fix | The trace named in Basis. The producers hold it; nothing at the library boundary refuses a source-only selector, so a new caller can still produce one | confirmed |
 | A-6 | The kernel refuses an IPv4 selector whose prefix length exceeds 32, so the upstream bug is a refused install and not a wrong match | Read 2026-11-13 in Linux 7.3 (`internal/appliance/kernel.version`), `net/xfrm/xfrm_user.c`: `verify_newpolicy_info` for a policy and `verify_selector_prefixlen`, called by `verify_newsa_info`, for a state both answer `-EINVAL` with "Invalid prefix length in selector (must be <= 32 for IPv4)" when either prefix length is above 32 under `AF_INET`. Both checks are present in mainline from v4.19 and absent in v4.18 | The pull request text would misstate the bug's effect | The two functions named in Basis. Not read: the commit that introduced the checks, and stable backports | confirmed |
 | A-7 | The uncommitted library work of `spec-rfc4301-architecture-gaps` lands before this spec starts | That session's state file lists the green run and patch regeneration as owed | The split would be made under another session's edits | Check the patch and the vendored files are clean in git before the first edit | confirmed 2026-11-13: commit `352f231413` carries the library work and its patch, and both are clean in git |
@@ -482,3 +482,195 @@ through the daemon that the states and policies still install.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Forward-apply vendor patch guard (`ce3a0e0fd7`):** `compareWithUpstream` (`internal/le/vendorpatch/upstream_test.go`) now applies every module's patches forward via `gitApplyForward` in a separate `pristine` temp tree that `gitApplyReverse` never touched, catching missing `new file mode 100644` creation headers (AC-13).
+- **Split into an ordered series + derived guard (`b43120b371`):** Replaced the monolithic `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` with 11 ordered patch files (`netlink-xfrm-01` through `netlink-xfrm-10` plus `netlink-xfrm-90`) without changing a single vendored byte (AC-1, AC-4, AC-10). Added `TestEveryVendorPatchIsApplied` and stack-aware `assertPatchAppliedInStack` (`internal/le/vendorpatch/vendor_patch_test.go`), while keeping the hand-named guards (`TestNetlinkXFRMPatchApplied`, `netlinkXFRMSeries` in `internal/le/vendorpatch/netlink_xfrm_patch_test.go`) per the independent `ze-test-judge` refusal (AC-9 as amended).
+- **Upstream-style unprivileged tests and selector-family gaps (`c9ce6ba81d`):** Added 10 standalone, unprivileged, Ze-free test files in `vendor/github.com/vishvananda/netlink/` covering patches 01 to 10 (16 tests total, verified against upstream `main` at `e0e26cd`), extracted three small pure helpers (`xfrmReplayWindowInESN` in `xfrm_state_linux.go`, `xfrmUserTmplFamily` and `xfrmUserpolicyFlags` in `xfrm_policy_linux.go`), fixed source-only IPv4-mapped IPv6 selectors in `selFromPolicy` (AC-7), and pinned sixteen-byte IPv4 prefix handling in `TestXfrmSelectorFamilySixteenByteIPv4` and patch 10's leading text (AC-2, AC-3, AC-8).
+- **Private kernel ABI moved into Ze dataplane (`8afd1ff560`):** Moved `xfrmaStateScope` (42), `xfrmaZECaps` (43), `xfrmStateScopeAttr`, `writeXFRMStateScope`, `xfrmStateScopeFromAttrs`, `parseXFRMStateScope`, `readXFRMZECapabilities`, `parseXFRMZECapabilities`, and the compile-time assertion `var _ [xfrmaStateScope - nl.XFRMA_MAX - 1]struct{}` into `internal/component/ike/dataplane/xfrm_state_scope_abi_linux.go`, sharing `xfrmGetDefaultAnswer` (`internal/component/ike/dataplane/xfrm_forward_default_linux.go`). Deleted `vendor/github.com/vishvananda/netlink/xfrm_state_scope_linux.go`, its tests, and the private constants in `vendor/github.com/vishvananda/netlink/nl/xfrm_linux.go`. Replaced `netlink-xfrm-90-ze-state-scope.patch` (396 lines) with the generic `netlink-xfrm-90-state-extra-attributes.patch` (149 lines: `XfrmState.ExtraAttrs`, `XfrmAttr`, `addXfrmExtraAttrs`, `parseXfrmState` `default:` arm above `nl.XFRMA_MAX`, and `TestXfrmStateExtraAttributes`) (AC-5, AC-6).
+- **Future PR opening homed (`plan/post-release/engineering/spec-netlink-xfrm-open-upstream-prs.md`):** Phase 7 / AC-11 (opening outward-facing PRs on Thomas's order) is homed in a `skeleton` spec rather than dropped.
+
+### Bugs Found/Fixed
+- **Malformed patch creation header invisible to reverse-only check (`ce3a0e0fd7`):** A patch adding a file without `new file mode 100644` reversed cleanly and passed a same-tree forward apply because the revert left an empty `dev/null` file. Fixed by running `gitApplyForward` in a separate `pristine` temp tree in `compareWithUpstream` (`internal/le/vendorpatch/upstream_test.go`), covered by `TestPatchedVendorModulesMatchUpstream` and recorded in `plan/journal/green-that-could-not-have-been-red.md`.
+- **Source-only IPv4-mapped IPv6 selector encoded as AF_INET (`c9ce6ba81d`):** `selFromPolicy` (`vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go`) inferred family only from `policy.Dst`. Fixed to inspect `policy.Src.Mask.Size()` when `policy.Dst == nil`, covered by `TestXfrmSelectorFamilySourceOnly` (`vendor/github.com/vishvananda/netlink/xfrm_selector_family_linux_test.go`).
+- **Scope validation order in `ListSAs` and future `XFRMA_MAX` drift (`8afd1ff560`):** Caught during Phase 5 review: `xfrmBackend.ListSAs` (`internal/component/ike/dataplane/xfrm_linux.go`) now validates `xfrmStateScopeFromAttrs(s.ExtraAttrs)` before the `ifID` filter (covered by `TestXFRMStateScopeReadbackRefusesScopeOutsideFilter`), and `xfrm_state_scope_abi_linux.go` carries `var _ [xfrmaStateScope - nl.XFRMA_MAX - 1]struct{}` so a re-vendor raising `XFRMA_MAX` to 42+ fails to compile.
+
+### Documentation Updates
+- `docs/contributing/patching-the-standard-library.md` (`b43120b371`, `ce3a0e0fd7`): updated "Patching a vendored module" for the forward-apply upstream check, `TestEveryVendorPatchIsApplied`, stacked patch checking, and `netlinkXFRMSeries`; anchors `internal/le/vendorpatch/upstream_test.go -- TestPatchedVendorModulesMatchUpstream`, `internal/le/vendorpatch/vendor_patch_test.go -- TestEveryVendorPatchIsApplied, assertVendorPatchApplied`, `internal/le/vendorpatch/netlink_xfrm_patch_test.go -- TestNetlinkXFRMPatchApplied, netlinkXFRMSeries`.
+- `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (`b43120b371`, `c9ce6ba81d`, `8afd1ff560`): rewrote "Vendored netlink patch" and "Carried kernel scope ABI" for the 11-patch series, `./le setup install` recovery, `XfrmState.ExtraAttrs`, and dataplane ownership of the scope ABI and GETDEFAULT receipt; anchors `internal/component/ike/dataplane/xfrm_state_scope_abi_linux.go -- xfrmStateScopeAttr, writeXFRMStateScope, xfrmStateScopeFromAttrs, parseXFRMStateScope, readXFRMZECapabilities, parseXFRMZECapabilities`, `internal/component/ike/dataplane/xfrm_forward_default_linux.go -- xfrmGetDefaultAnswer`, `vendor/github.com/vishvananda/netlink/xfrm_state_linux.go -- XfrmAttr, addXfrmExtraAttrs, xfrmStateAddOrUpdate, parseXfrmState`, `internal/le/vendorpatch/patches/ -- netlink-xfrm-*.patch`.
+- `docs/architecture/ike/ipsec-dataplane-inspection.md` (`8afd1ff560`): updated scope readback owner references to `internal/component/ike/dataplane/xfrm_state_scope_abi_linux.go`.
+- `docs/architecture/linux-limitations.md` (`b43120b371`, `8afd1ff560`): updated `LL-NETLINK-XFRM-DECODE` and selector port-mask limitation to name the series and `netlink-xfrm-90-state-extra-attributes.patch`; anchor `internal/le/vendorpatch/patches/ -- netlink-xfrm-*.patch`.
+- `ai/INDEX.md` (`b43120b371`): updated the XFRM/netlink row to `internal/le/vendorpatch/patches/netlink-xfrm-*.patch`.
+- `plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md` (closure Commit A): repointed the Existing Mechanisms row from `netlink-xfrm-fixes.patch` to `netlink-xfrm-*.patch`.
+- `plan/handover/2026-11-13-ipsec-checkpoint.md` (closure Commit A): rewrote the full path citation of this spec to bare stem `spec-netlink-xfrm-upstream-series`.
+- `./le doc check all` (2026-11-23): Documentation drift = 0; YANG/handler = OK; Command usage = OK; Command help shape = OK; Rules render/round-trip/gate-map/format/digest = OK; Discovery index = OK; Digest anchors = 3160/3160 OK; Source anchors = 2 unrelated BGP reactor failures (`rsRelaySendGranted` in `docs/architecture/bgp/structural-forwarding.md` and `docs/guide/route-reflection.md` from another session's uncommitted work), 0 findings on any IKE, netlink, or vendorpatch page.
+
+### Deviations from Plan
+- **AC-9 hand-named guards retained:** The original plan removed `netlink_xfrm_patch_test.go`, `bubbles_cursor_patch_test.go`, and `gokrazy_packer_patch_test.go` in favor of `TestEveryVendorPatchIsApplied` alone. An independent `ze-test-judge` refused removing the hand-named guards because a directory-derived guard cannot detect a deleted patch file. `TestNetlinkXFRMPatchApplied` therefore stays and pins `netlinkXFRMSeries` (11 files) alongside `TestEveryVendorPatchIsApplied`.
+- **Capability read does not share the forward-default answer value:** `readXFRMZECapabilities` (`xfrm_state_scope_abi_linux.go`) and `readXFRMDefaults` (`xfrm_forward_default_linux.go`) share the request builder `xfrmGetDefaultAnswer`, rather than caching one reply, because policy setup and per-SA capability verification run at different times and enforcement is never cached.
+- **A-1 half-false (upstream `main` reshaped), R-9 did not materialize:** Upstream `main` (`e0e26cd`) had reshaped `pkgHandle` to `pkgHandle()`, yet patches 01 to 10 still applied unchanged to `main` in file-name order (and 01, 02, 03, 05, 10 standalone) with all 16 tests passing unprivileged.
+- **Phase 7 / AC-11 homed to a follow-up `skeleton` spec:** Because opening outward-facing pull requests requires Thomas's explicit order, Phase 7 / AC-11 is homed in `plan/post-release/engineering/spec-netlink-xfrm-open-upstream-prs.md` rather than left open indefinitely on a finished series.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 assumed upstream `main` had not reshaped the patched files since v1.3.1 | `main` (`e0e26cd`) changed `pkgHandle` to `pkgHandle()` and removed `XFRMA_SA_PCPU` on get/delete, though none of the 10 XFRM bugs were fixed and patches 01-10 still applied cleanly | Diffing v1.3.1 against upstream `main` on 2026-11-13 | Recorded in A-1 and R-9; verified all 10 candidate patches apply cleanly to `main` `e0e26cd` |
+| approach | Planned to delete the hand-named per-patch guard tests when adding `TestEveryVendorPatchIsApplied` | A directory-derived guard cannot detect when a patch file itself is deleted | Independent `ze-test-judge` refusal during Phase 1 | Kept `TestNetlinkXFRMPatchApplied` pinning `netlinkXFRMSeries` beside `TestEveryVendorPatchIsApplied` |
+| escalation | A malformed patch lacking `new file mode 100644` reversed cleanly and passed a same-tree forward check | Reverting left an empty `dev/null` file that satisfied a same-tree `git apply` while `./le setup install` failed | Running forward apply on the starting patch on 2026-11-13 | Fixed in `ce3a0e0fd7` (`compareWithUpstream` uses a second `pristine` tree); logged in `plan/journal/green-that-could-not-have-been-red.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Split single diff into standalone upstream-candidate patches + Ze-only patch sorting last | Done | `internal/le/vendorpatch/patches/netlink-xfrm-01..10-*.patch`, `netlink-xfrm-90-state-extra-attributes.patch` | `netlink-xfrm-fixes.patch` deleted in `b43120b371` |
+| Move private kernel ABI out of library into `internal/component/ike/dataplane` | Done | `internal/component/ike/dataplane/xfrm_state_scope_abi_linux.go`, `xfrm_state_scope_linux.go`, `xfrm_forward_default_linux.go`, `xfrm_linux.go` | Zero private ABI symbols remain in `vendor/github.com/vishvananda/netlink/` |
+| Smallest generic hook in vendored library | Done | `vendor/github.com/vishvananda/netlink/xfrm_state_linux.go` (`XfrmState.ExtraAttrs`, `XfrmAttr`, `addXfrmExtraAttrs`, `parseXfrmState`) | Patch 90 shrank from 396 to 149 lines; names no Ze concept |
+| Upstream-runnable unprivileged tests without Ze identifiers or headers | Done | `vendor/github.com/vishvananda/netlink/xfrm_*_linux_test.go` (10 files, 16 tests) | Passed unprivileged on upstream `main` (`e0e26cd`) |
+| Fix source-only IPv4-mapped IPv6 selector gap | Done | `vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go` (`selFromPolicy`), `xfrm_selector_family_linux_test.go` (`TestXfrmSelectorFamilySourceOnly`) | Landed in `c9ce6ba81d` |
+| Pin and document 16-byte IPv4 address with 128-bit mask | Done | `vendor/github.com/vishvananda/netlink/xfrm_selector_family_linux_test.go` (`TestXfrmSelectorFamilySixteenByteIPv4`), `netlink-xfrm-10-selector-prefix-family.patch` | Landed in `c9ce6ba81d` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `internal/le/vendorpatch/patches/netlink-xfrm-01..10-*.patch` + `netlink-xfrm-90-state-extra-attributes.patch` | `netlink-xfrm-fixes.patch` absent; other module patches untouched |
+| AC-2 | Done | `c9ce6ba81d` verification against upstream `main` (`e0e26cd`); `TestPatchedVendorModulesMatchUpstream` | 01, 02, 03, 05, 10 apply standalone; 04, 06, 07, 08, 09 apply after named predecessors |
+| AC-3 | Done | 10 test files in `vendor/github.com/vishvananda/netlink/`; grep of added lines in patches 01..10 | 0 Ze identifiers, 0 `Design:` headers, 0 Ze imports |
+| AC-4 | Done | `git show --stat b43120b371` (0 vendor files modified); `TestPatchedVendorModulesMatchUpstream` | Split preserved vendored tree byte for byte |
+| AC-5 | Done | `internal/component/ike/dataplane/xfrm_state_scope_abi_linux.go`; 0 census hits in `vendor/github.com/vishvananda/netlink/` | Unit tests green in `8afd1ff560`; 4 kernel integration tests in `Owed commands` |
+| AC-6 | Done | `internal/le/vendorpatch/patches/netlink-xfrm-90-state-extra-attributes.patch` (`XfrmAttr`, `ExtraAttrs`, `addXfrmExtraAttrs`, `parseXfrmState`) | Generic hook only; 0 Ze concepts in code |
+| AC-7 | Done | `vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go` (`selFromPolicy`), `TestXfrmSelectorFamilySourceOnly` | Source-only mapped IPv6 written as `FAMILY_V6`; 32-bit stays `FAMILY_V4` |
+| AC-8 | Done | `vendor/github.com/vishvananda/netlink/xfrm_selector_family_linux_test.go` (`TestXfrmSelectorFamilySixteenByteIPv4`), `netlink-xfrm-10-selector-prefix-family.patch` | 32-bit stays IPv4; 33/120/128-bit written as IPv6 |
+| AC-9 | Changed | `TestEveryVendorPatchIsApplied` (`vendor_patch_test.go`) + `TestNetlinkXFRMPatchApplied` (`netlink_xfrm_patch_test.go`) | Amended per `ze-test-judge` refusal to retain deletion-pinning guards (see Deviations) |
+| AC-10 | Done | Leading text of all 11 files `internal/le/vendorpatch/patches/netlink-xfrm-*.patch` | Every patch carries `Ze-Reviewed-Against`, PR status/issue 1213, requirement, and deletion condition |
+| AC-11 | Skipped (homed) | `plan/post-release/engineering/spec-netlink-xfrm-open-upstream-prs.md` (`Status: skeleton`) | Outward-facing PRs require owner order; no PR opened without order; work homed in `Work Not Done` |
+| AC-12 | Done | `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `docs/contributing/patching-the-standard-library.md`, `docs/architecture/linux-limitations.md`, `ai/INDEX.md`, `plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md` | Live pages/specs updated; `spec-rfc4301-architecture-gaps.md` is an active spec in closure owned by another session |
+| AC-13 | Done | `compareWithUpstream` -> `gitApplyForward` (`internal/le/vendorpatch/upstream_test.go`, `ce3a0e0fd7`) | Separate `pristine` tree refuses missing `new file mode` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestEveryVendorPatchIsApplied` | Done | `internal/le/vendorpatch/vendor_patch_test.go` | Owed rerun in main thread |
+| `TestPatchedVendorModulesMatchUpstream` | Done | `internal/le/vendorpatch/upstream_test.go` | Extended with forward-apply check in `ce3a0e0fd7`; owed rerun |
+| `TestXfrmSelectorFamilyFromMask` | Done | `vendor/github.com/vishvananda/netlink/xfrm_selector_family_linux_test.go` | Added in `c9ce6ba81d` |
+| `TestXfrmSelectorFamilySourceOnly` | Done | `vendor/github.com/vishvananda/netlink/xfrm_selector_family_linux_test.go` | Added in `c9ce6ba81d` |
+| `TestXfrmSelectorFamilySixteenByteIPv4` | Done | `vendor/github.com/vishvananda/netlink/xfrm_selector_family_linux_test.go` | Added in `c9ce6ba81d` |
+| Per-candidate upstream tests (patches 01-09) | Done | `xfrm_state_readback_linux_test.go`, `xfrm_state_replay_window_linux_test.go`, `xfrm_policy_tmpl_family_linux_test.go`, `xfrm_readback_family_linux_test.go`, `xfrm_state_truncated_linux_test.go`, `xfrm_selector_port_mask_linux_test.go`, `xfrm_state_af_unspec_linux_test.go`, `xfrm_state_nopmtudisc_linux_test.go`, `xfrm_icmp_flag_linux_test.go` | All 9 added in `c9ce6ba81d` |
+| `TestXfrmStateExtraAttributes` | Done | `vendor/github.com/vishvananda/netlink/xfrm_state_extra_attrs_linux_test.go` | Added in `8afd1ff560` |
+| `TestXFRMStateScopeWirePreservesOrderedSelectors` | Done | `internal/component/ike/dataplane/kernel_scope_wire_linux_test.go` | Repointed to moved codec in `8afd1ff560` |
+| `ipsec-sa-installed` | Existing | `test/ipsec/ipsec-sa-installed.ci` | Owed command in main thread |
+| `ipsec-icmp-type-selector` | Existing | `test/ipsec/ipsec-icmp-type-selector.ci` | Owed command in main thread (`needs-linux:caps=net-admin,bpf`) |
+| `ipsec-sa-options-kernel` | Existing | `test/ipsec/ipsec-sa-options-kernel.ci` | Owed command in main thread (`needs-linux:caps=net-admin,bpf`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` | Done (removed) | Deleted in `b43120b371` |
+| `internal/le/vendorpatch/patches/netlink-xfrm-01..10-*.patch`, `netlink-xfrm-90-state-extra-attributes.patch` | Done (created) | 11 files present |
+| `internal/le/vendorpatch/vendor_patch_test.go` | Done | Derived guard + stacked reverse check |
+| `internal/le/vendorpatch/netlink_xfrm_patch_test.go` | Changed | Retained with 11-entry `netlinkXFRMSeries` per `ze-test-judge` refusal |
+| `internal/le/vendorpatch/bubbles_cursor_patch_test.go`, `gokrazy_packer_patch_test.go` | Changed | `gokrazy_packer_patch_test.go` retained per `ze-test-judge` refusal (`bubbles_cursor_patch_test.go` already absent before this spec) |
+| `vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go`, `xfrm_state_linux.go`, `nl/xfrm_linux.go` | Done | Updated in `c9ce6ba81d` and `8afd1ff560` |
+| `vendor/github.com/vishvananda/netlink/xfrm_state_scope_linux.go` + tests | Done (removed) | Deleted in `8afd1ff560` |
+| `vendor/github.com/vishvananda/netlink/xfrm_*_linux_test.go` (11 test files) | Done | 10 candidate test files + `xfrm_state_extra_attrs_linux_test.go` |
+| `internal/component/ike/dataplane/xfrm_state_scope_abi_linux.go`, `xfrm_state_scope_linux.go`, `xfrm_linux.go`, `xfrm_forward_default_linux.go` | Done | Private ABI moved in `8afd1ff560` (`state_scope.go` already owned canonical `SAStateScope`, needed no edit) |
+| `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `docs/contributing/patching-the-standard-library.md`, `docs/architecture/linux-limitations.md`, `ai/INDEX.md` | Done | Updated in `b43120b371`, `ce3a0e0fd7`, `c9ce6ba81d`, `8afd1ff560` |
+
+### Audit Summary
+- **Total items:** 36
+- **Done:** 32
+- **Partial:** 0
+- **Skipped:** 1 (AC-11 / Phase 7: outward-facing PR opening requires owner order; homed in `plan/post-release/engineering/spec-netlink-xfrm-open-upstream-prs.md`)
+- **Changed:** 3 (AC-9 hand-named guards retained per `ze-test-judge` refusal; `netlink_xfrm_patch_test.go` and `gokrazy_packer_patch_test.go` retained accordingly; all recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every upstreamable change is a standalone patch byte-identical to its PR with an unprivileged upstream test | Unit test + upstream check | `TestPatchedVendorModulesMatchUpstream` and `TestEveryVendorPatchIsApplied` (`internal/le/vendorpatch`); 10 candidate patches `netlink-xfrm-01`..`10` verified clean of Ze names and passed all 16 unprivileged tests on upstream `main` `e0e26cd` (`c9ce6ba81d`); fresh `./le test unit pkg path ./internal/le/vendorpatch/` in main thread `Owed commands` |
+| Private kernel ABI moves into `internal/component/ike/dataplane` and library keeps only the smallest generic hook | Unit test + census + kernel integration | 0 census hits in `vendor/github.com/vishvananda/netlink/`; `netlink-xfrm-90-state-extra-attributes.patch` is 149 lines (`XfrmAttr`, `ExtraAttrs`, `addXfrmExtraAttrs`, `parseXfrmState`); `TestXfrmStateExtraAttributes`, `TestXFRMStateScopeWirePreservesOrderedSelectors`, `TestXFRMStateScopeReadbackRefusesScopeOutsideFilter` green in `8afd1ff560`; 4 kernel integration tests (`rfc4301_state_scope_integration_linux_test.go`, `rfc4301_state_scope_readback_integration_linux_test.go`, `rfc4301_forward_default_integration_linux_test.go`, `xfrm_readback_integration_linux_test.go`) in main thread `Owed commands` |
+| Source-only mapped IPv6 selector and 16-byte IPv4 /128 gaps closed | Unit test | `TestXfrmSelectorFamilySourceOnly` and `TestXfrmSelectorFamilySixteenByteIPv4` (`vendor/github.com/vishvananda/netlink/xfrm_selector_family_linux_test.go`), red before `c9ce6ba81d` and green after |
+| Existing operator IPsec data plane and policy/SA options preserved | Functional `.ci` tests | `test/ipsec/ipsec-sa-installed.ci`, `test/ipsec/ipsec-icmp-type-selector.ci`, `test/ipsec/ipsec-sa-options-kernel.ci` in main thread `Owed commands` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Phase 7 / AC-11: create branches on a `ze-software` fork of `github.com/vishvananda/netlink`, open the 10 upstream pull requests, and record their URLs in the patch leading text | Opening pull requests is outward-facing and requires Thomas's explicit order (Known Limitations) | `plan/post-release/engineering/spec-netlink-xfrm-open-upstream-prs.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/netlink-xfrm-upstream-series-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md` |
+| `./le spec review check` | `review_gate: OK (29 code files, clean, hashes match tmp/review/netlink-xfrm-upstream-series-410e80c8-b20a-447d-a6b8-c87b6b1ac94b.md)` |
+| Rounds | 1 (CLEAN: 0 BLOCKER, 0 ISSUE, 2 NOTEs) |
+| Reviewer lenses used | logic+wiring, security+edge-cases, style+docs+simplicity (inline `/ze-close` + `/ze-review-spec` over `b43120b371`, `ce3a0e0fd7`, `c9ce6ba81d`, `8afd1ff560`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | Spec predates `## Design documents`; derived pages checked with zero contradictions (`docs/architecture/testing/interop.md` 2026-11-23 decision is unrelated; `ike/dataplane` remains ungated) | `plan/post-release/engineering/spec-netlink-xfrm-upstream-series.md` | Recorded in Review Gate (NOTE does not block) |
+| 2 | NOTE | Live skeleton spec still named `netlink-xfrm-fixes.patch`; handover file cited this spec by full path | `plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md`, `plan/handover/2026-11-13-ipsec-checkpoint.md` | Repointed in closure Commit A (`spec-rfc4301-architecture-gaps.md` left untouched as active spec owned by another session) |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/vendorpatch/patches/netlink-xfrm-01..10-*.patch` + `netlink-xfrm-90-state-extra-attributes.patch` | Yes (11 files; `netlink-xfrm-fixes.patch` absent) | `ls -la internal/le/vendorpatch/patches/` lists all 11 `netlink-xfrm-*` files (`01`..`10`, `90-state-extra-attributes.patch`) and no `netlink-xfrm-fixes.patch` |
+| `vendor/github.com/vishvananda/netlink/xfrm_*_linux_test.go` (11 test files) | Yes | Verified by direct read of all 11 files (`xfrm_state_readback`, `xfrm_state_replay_window`, `xfrm_policy_tmpl_family`, `xfrm_readback_family`, `xfrm_state_truncated`, `xfrm_selector_port_mask`, `xfrm_state_af_unspec`, `xfrm_state_nopmtudisc`, `xfrm_icmp_flag`, `xfrm_selector_family`, `xfrm_state_extra_attrs`) |
+| `internal/component/ike/dataplane/xfrm_state_scope_abi_linux.go` | Yes | Read in full (354 lines) |
+| `test/ipsec/ipsec-sa-installed.ci`, `ipsec-icmp-type-selector.ci`, `ipsec-sa-options-kernel.ci` | Yes | `ls -la`: 4969 B, 6677 B, 8798 B; all three read in full |
+| 4 Linux kernel integration test files | Yes | `ls -la`: `rfc4301_state_scope_integration_linux_test.go` (10640 B), `rfc4301_state_scope_readback_integration_linux_test.go` (9385 B), `rfc4301_forward_default_integration_linux_test.go` (4545 B), `xfrm_readback_integration_linux_test.go` (26492 B) |
+| `plan/post-release/engineering/spec-netlink-xfrm-open-upstream-prs.md` | Yes | Created with `Status: skeleton` to own Phase 7 / AC-11 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 10 upstream candidates + 1 Ze-only patch sorting last, single patch absent | `ls -la internal/le/vendorpatch/patches/`: `netlink-xfrm-01`..`10`, `netlink-xfrm-90-state-extra-attributes.patch`, no `netlink-xfrm-fixes.patch` |
+| AC-2 | Each candidate applies to upstream alone or after named predecessors | Leading text of all 10 patches verified; `TestPatchedVendorModulesMatchUpstream` owed in main thread |
+| AC-3 | Candidate patches have unprivileged tests and zero Ze names/headers | `grep -E '^\+[^+]'` + `grep -E '\b[Zz]e\b|Ze[A-Z]|Design:|ze-software'` across patches 01..10: `CLEAN` on all 10 |
+| AC-4 | Split preserved vendored tree byte for byte | `git show --stat b43120b371` touched 0 files under `vendor/` |
+| AC-5 | Private ABI lives in `internal/component/ike/dataplane`, absent from vendor | `grep -rnE "XFRMA_STATE_SCOPE|XFRMA_ZE_CAPS|StateScope|XfrmZECapabilities" vendor/github.com/vishvananda/netlink/`: 0 hits (positive control in `internal/component/ike/dataplane/` finds `SAStateScope` / `xfrmaStateScope` / `xfrmaZECaps`) |
+| AC-6 | Patch 90 holds only generic `ExtraAttrs` hook | Read `netlink-xfrm-90-state-extra-attributes.patch` and `xfrm_state_linux.go` (`XfrmAttr`, `ExtraAttrs`, `addXfrmExtraAttrs`, `parseXfrmState` `default:` arm `> nl.XFRMA_MAX`) |
+| AC-7 | Source-only mapped IPv6 selector written as IPv6 | Read `selFromPolicy` (`xfrm_policy_linux.go`) and `TestXfrmSelectorFamilySourceOnly` (`xfrm_selector_family_linux_test.go`) |
+| AC-8 | 16-byte IPv4 with 128-bit mask written as IPv6 and documented | Read `TestXfrmSelectorFamilySixteenByteIPv4` and `netlink-xfrm-10-selector-prefix-family.patch` leading text |
+| AC-9 | Derived guard + deletion-pinning guards | Read `TestEveryVendorPatchIsApplied`, `assertPatchAppliedInStack` (`vendor_patch_test.go`) and `TestNetlinkXFRMPatchApplied` (`netlink_xfrm_patch_test.go`); owed unit run in main thread |
+| AC-10 | Leading text carries stamp, PR status, requirement, deletion condition | Read leading text of all 11 patches (`01`..`10`, `90`); every file carries `Ze-Reviewed-Against: github.com/vishvananda/netlink v1.3.1` and all required statements |
+| AC-11 | No PR opened without owner order; future PR work homed | No PR opened; Phase 7 / AC-11 homed in `plan/post-release/engineering/spec-netlink-xfrm-open-upstream-prs.md` |
+| AC-12 | Pages and live unclaimed specs name the series | `git grep -n "netlink-xfrm-fixes\.patch"` shows 0 hits in `docs/`, `ai/`, `internal/`, and `spec-xfrm-outer-df-set-dscp.md` |
+| AC-13 | Forward-apply guard catches missing `new file mode` | Read `compareWithUpstream` -> `gitApplyForward` (`upstream_test.go`) and verified all 11 `--- /dev/null` blocks carry `new file mode 100644` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Patch files in `internal/le/vendorpatch/patches/` -> `assertVendorPatchApplied` | Unit wiring: `TestEveryVendorPatchIsApplied`, `TestNetlinkXFRMPatchApplied` (`internal/le/vendorpatch`) | Verified at producer (`vendor_patch_test.go`, `netlink_xfrm_patch_test.go`); run owed in main thread |
+| Vendored netlink tree -> reverse + pristine forward apply | Unit wiring: `TestPatchedVendorModulesMatchUpstream` (`internal/le/vendorpatch/upstream_test.go`) | Verified at producer (`compareWithUpstream`); run owed in main thread |
+| Child SA installed with negotiated scope -> `xfrmStateScopeAttr` -> `XfrmState.ExtraAttrs` -> `addXfrmExtraAttrs` | Unit + kernel integration: `TestXFRMStateScopeWirePreservesOrderedSelectors`, `rfc4301_state_scope_integration_linux_test.go` | Verified at producer (`xfrm_state_scope_linux.go`, `xfrm_state_scope_abi_linux.go`, `xfrm_state_linux.go`); kernel run owed in main thread |
+| Kernel state dump -> `parseXfrmState` (`ExtraAttrs`) -> `xfrmStateScopeFromAttrs` | Kernel integration: `rfc4301_state_scope_readback_integration_linux_test.go` (`TestRFC4301KernelAdvertisesExactStateScope`, `TestRFC4301ChildStateScopeReadback`) | Verified at producer (`xfrm_linux.go`, `xfrm_state_scope_abi_linux.go`); kernel run owed in main thread |
+| Operator tunnel, ICMP selector port masks, and SA flags through daemon | `test/ipsec/ipsec-sa-installed.ci`, `test/ipsec/ipsec-icmp-type-selector.ci`, `test/ipsec/ipsec-sa-options-kernel.ci` | All three `.ci` files read in full: assert `sa-up`/`show vpn ipsec sa`, `show vpn ipsec dataplane policy` (`icmp-code "0/0xfffc"`, `icmp-type "3"`/`"0"`), and `show vpn ipsec dataplane sa` (`df-bit "clear"`, `dscp-map "0"`, `icmp-error-check false`); runs owed in main thread |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken (half false) | Compared v1.3.1 against upstream `main` (`e0e26cd`, 2026-11-13): bugs still unfixed, `pkgHandle` reshaped to `pkgHandle()`, yet patches 01-10 apply unchanged to `main` |
+| A-2 | confirmed | `xfrmGetDefaultAnswer` (`xfrm_forward_default_linux.go`) builds the shared `XFRM_MSG_GETDEFAULT` request for both `readXFRMDefaults` and `readXFRMZECapabilities` (`xfrm_state_scope_abi_linux.go`) |
+| A-3 | confirmed | `netlink-xfrm-90-state-extra-attributes.patch` is 149 lines total (27 lines in `xfrm_state_linux.go`, 55 lines test), down from 396 lines |
+| A-4 | confirmed | All 16 new tests across patches 01-10 run unprivileged (with 3 helper extractions in `c9ce6ba81d`) and passed on upstream `main` (`e0e26cd`) |
+| A-5 | confirmed | Source trace of all non-test XFRM selector producers in IKE and OSPF confirmed every unrestricted side uses an explicit zero prefix; fix kept in patch 10 for library correctness |
+| A-6 | confirmed | Read Linux 7.3 `net/xfrm/xfrm_user.c` (`verify_newpolicy_info`, `verify_selector_prefixlen`): both return `-EINVAL` for `AF_INET` prefix length > 32 |
+| A-7 | confirmed | RFC 4301 library work and single patch landed in `352f231413` before the split began |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Test infrastructure (`docs/contributing/patching-the-standard-library.md`, "Patching a vendored module") | Read file against `vendor_patch_test.go`, `netlink_xfrm_patch_test.go`, `upstream_test.go`; all source anchors match | Yes |
+| Internal architecture & recovery command (`docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, "Vendored netlink patch" and "Carried kernel scope ABI") | Read committed HEAD against `xfrm_state_scope_abi_linux.go`, `xfrm_forward_default_linux.go`, `xfrm_state_linux.go`, and `internal/le/vendorpatch/patches/netlink-xfrm-*.patch` | Yes |
+| Dataplane inspection & Linux limitations (`docs/architecture/ike/ipsec-dataplane-inspection.md`, `docs/architecture/linux-limitations.md`, `ai/INDEX.md`) | Read committed HEAD and current files; all references name the series and `netlink-xfrm-90-state-extra-attributes.patch` | Yes |
+| Categories marked No (config, CLI, API/RPC, plugin, user guide, wire format, SDK, RFC compliance, comparison, metrics, route metadata) | `git show --stat b43120b371 ce3a0e0fd7 c9ce6ba81d 8afd1ff560` touched no YANG, CLI, API, plugin, or metrics file; `./le doc check all` reported 0 documentation drift and 0 anchor failures on any touched file | Yes |

@@ -248,7 +248,7 @@ remain through closure review.
 ## Remaining work, in order
 
 1. Done: the private-ABI move landed in `8afd1ff560` (2026-11-13), and
-   `plan/post-release/engineering/spec-netlink-xfrm-upstream-series.md` records
+   `spec-netlink-xfrm-upstream-series` records
    it as AC-5 and AC-6 met. That spec's closure owes the scope install and
    read-back integration tests on Ze's kernel, which the move did not run.
 2. The historical guest mutant 20 remains unrecovered. Its definition was
