@@ -191,7 +191,8 @@ nothing in that file says where the number came from.
 Every value the site shows that changes over time is published once, in the
 artifact's `data/site-facts.json`, and a page shows it only inside an element
 that names its key: `data-ze-stat="<dotted.key>"`, or `data-ze-rfc="<stem>:<field>"`
-for a value of `data/rfc/<stem>.json`, or `data-ze-history="<subject>:<field>"`
+for a value of `data/rfc/<stem>.json` (`data-ze-rfc-bar="<subject>:<bar>"` for a
+proof bar the same file fills), or `data-ze-history="<subject>:<field>"`
 for a repository size of `data/repo-history.json`, the committed size history. The text inside is the last build's value
 for readers without JavaScript, and a script replaces it from the file at load.
 A value printed as plain text is a second copy the file cannot update.

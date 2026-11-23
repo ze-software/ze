@@ -352,14 +352,19 @@ func plainFigures(page, content string, figures []publishedFigure) ([]plainFigur
 	return findings, nil
 }
 
-// figureMarked answers whether an element carries one of the three markers:
-// a site-facts value, an RFC figure or a size-history figure.
+// figureMarked answers whether an element carries one of the four markers:
+// a site-facts value, an RFC figure, an RFC proof bar (rfc-figures.js fills
+// its text from data/rfc/<stem>.json, as it fills data-ze-rfc) or a
+// size-history figure.
 func figureMarked(node *xhtml.Node) bool {
 	for _, attribute := range node.Attr {
 		if attribute.Key == "data-ze-stat" {
 			return true
 		}
 		if attribute.Key == "data-ze-rfc" {
+			return true
+		}
+		if attribute.Key == "data-ze-rfc-bar" {
 			return true
 		}
 		if attribute.Key == "data-ze-history" {

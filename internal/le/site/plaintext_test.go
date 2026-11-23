@@ -283,6 +283,44 @@ func TestHistoryMarkedFigureIsNotPlain(t *testing.T) {
 	}
 }
 
+// VALIDATES: an element carrying data-ze-rfc-bar="<subject>:<bar>" is marked,
+// the same as data-ze-rfc: rfc-figures.js fills the bar's text from
+// data/rfc/<stem>.json, so a figure inside it is not refused, even where it
+// equals a site-facts value.
+// PREVENTS: the site check refusing the RFC compliance page's MUST bar once a
+// site-facts value (rfc.must_not_built_display) equals one of its counts.
+//
+// The method lays down one page with and one without the bar marker and asks
+// the check for each: the marked page passes, and the unmarked page names the
+// figure, so the pass is the marker's doing.
+func TestRFCBarMarkedFigureIsNotPlain(t *testing.T) {
+	const page = "quality/rfc-compliance/index.html"
+	marked := t.TempDir()
+	writeArtifactFile(t, marked, factsFile, plainFigureSnapshot)
+	writeArtifactFile(t, marked, page, `<!doctype html><html><body>
+<div data-ze-rfc-bar="enrolled:must">Ze verified 4,744</div></body></html>`)
+	check, err := checkPlainFigures(ratchetSource(t, noRatchetedPages), marked)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(check.Figures) != 0 {
+		t.Errorf("a figure inside data-ze-rfc-bar was refused: %v", check.Figures)
+	}
+
+	plain := t.TempDir()
+	writeArtifactFile(t, plain, factsFile, plainFigureSnapshot)
+	writeArtifactFile(t, plain, page, `<!doctype html><html><body>
+<div data-ze-bar="enrolled:must">Ze verified 4,744</div></body></html>`)
+	check, err = checkPlainFigures(ratchetSource(t, noRatchetedPages), plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []plainFigure{{Page: page, Figure: "4,744", Key: "rfc.requirements_display"}}
+	if !slices.Equal(check.Figures, want) {
+		t.Errorf("without the marker the check found\n%v\nwant\n%v", check.Figures, want)
+	}
+}
+
 // A display string whose only significant digit is its first, such as "100+",
 // reads as "a hundred or more" in any prose, so the guard matches it only
 // beside its key's unit word, the way it matches a whole number. A display
