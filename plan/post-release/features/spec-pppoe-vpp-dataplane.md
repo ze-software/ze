@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Owner decision: Ze terminates PPPoE subscriber sessions in VPP, after the first release (OD-5, decided 2026-10-28). The shipped-behaviour fix that was Phase 1 (validate accepts PPPoE under the VPP backend and every session then fails) moved to `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` |
 | RFC gaps | - |
-| Depends | `plan/post-release/features/spec-vpp-failure-lifecycle.md` (OD-2 and AC-12 consume its adopt and down verdicts) |
+| Depends | `plan/post-release/features/spec-vpp-failure-lifecycle.md` (OD-2 and AC-12 consume its form-1 continuation inside the timer and its declared-loss event) |
 | Phase | 2/7 (shared PPP seam; full product acceptance remains owed) |
 | Handoff | - |
 | Updated | 2026-11-23 |
@@ -254,20 +254,44 @@ Thomas set three rules for every VPP Ze runs. They are recorded in
    readable: continue from where it is. Software possibly crashed or stopped
    forwarding: reflect it in Ze and update IGP and BGP peers.
 
+**Owner refinements, same day** (lifecycle spec R-4 to R-8; the "Design
+decisions" rows of both pages, each naming the earlier row it narrows):
+
+- One timer serves both the alive test and the loss declaration. A probe
+  missed inside it is not a loss.
+- "Recovered" has exactly two forms. Form 1, inside the timer: Ze reconnects
+  to the same pidfd-proven process and a full readback of everything it
+  configured (interfaces, LCP pairs, owned routes, PPPoE sessions) matches.
+  Ze continues, with no kill and no withdrawal, and the PPPoE sessions are
+  kept. Form 2, on a declared loss: Ze kills the process through the retained
+  pidfd, waits for the exit proof, restarts VPP and reconfigures it exactly as
+  at boot; PPPoE drains per OD-2 and subscribers redial.
+- Option C is scoped to form 1 only. A declared loss is never adopted, and no
+  undecided window follows the declaration.
+- Blackholing during the restart is accepted. Routes are withdrawn
+  (VPP-backed interfaces down in Ze's model, so IGP and BGP react) only when
+  neither form succeeds within the recovery deadline and the crash-loop limit.
+- Ze is the only restarter: a systemd unit it drives has Restart=no.
+- Open values for Thomas: the single timer, the recovery deadline, the
+  crash-loop limit.
+- F-1 stays a defect to fix; F-2 closes with it; F-3 is fixed for form 1 by
+  change 2. E-1 stays open for form 1; E-2, E-3 and E-4 close on form 2. No
+  graceful-restart claim on re-open: the F bit stays 0.
+
 He also chose option C for D-1, with osvbng and VyOS as references. Under the
-rules D-1 resolves on two paths, recorded in
+rules and their refinements D-1 resolves on two paths, recorded in
 `docs/architecture/l2tp/bng-5-pppoe.md`, "Design decisions":
 
-| Verdict | What PPPoE does |
-|---------|-----------------|
-| Down (crashed, stalled, unprovable, or the bound expired) | A live VPP that Ze cannot adopt is killed and restarted, so its exit proof always arrives and retires the retained owners. OD-2's drain runs here, and only here. E-2, E-3 and E-4 close on this path |
-| Adopt (same pidfd-proven process, forwarding, state read back) | Option C: retained owners read back their exact native identity over the new connection of the same process and are cleaned there. Sessions survive. E-1 stays open |
-| Undecided window (API lost, verdict pending) | Admission is fenced and sessions are held (lifecycle choice 6) |
+| Path | What PPPoE does |
+|------|-----------------|
+| Form 2: a declared loss (the timer expired, or form 1 failed: a different or unprovable process, or any readback mismatch) | Ze kills VPP through the retained pidfd and restarts it, so its exit proof always arrives and retires the retained owners. OD-2's drain runs here, on every declared loss, and subscribers redial. E-2, E-3 and E-4 close on this path |
+| Form 1: inside the timer (same pidfd-proven process, full readback matches) | Option C: retained owners read back their exact native identity over the new connection of the same process and are cleaned there. Sessions survive. E-1 stays open |
+| Inside the timer, before form 1 succeeds or the loss is declared | Admission is fenced and sessions are held (lifecycle choice 6) |
 
-OD-2 (A) still decides what the down path does; it no longer runs on every
-API loss. The subscription in step 1 of "Subscription and order" maps the
-lifecycle spec's verdict events once that spec names them (its choice 8). This
-work depends on that spec's design.
+OD-2 (A) still decides what a declared loss does; it never runs inside the
+timer. The subscription in step 1 of "Subscription and order" maps the
+lifecycle spec's events once that spec names them (its choice 8). This work
+depends on that spec's design.
 
 Findings (read at the producers, 2026-11-23):
 
@@ -332,10 +356,10 @@ Open owner choices left by C, and where each stands under the rules:
 
 | # | Choice | Status under the rules |
 |---|--------|------------------------|
-| E-1 | Unknown-outcome creations (a PADR in flight at the loss): (a) keep refusing, the MAC blocked until VPP exits; (b) adopt on a complete identity match in a same-process VPP where Ze holds the owned cp map for that access. VPP sessions carry no owner tag, so Ze cannot tell its own from an identical one another API client made | Open on the adopt path (lifecycle choice 6) |
-| E-2 | Unknown first policer binding stays quarantined until VPP exits (policer design, C-1) | Closes on the down path: the kill delivers the exit |
-| E-3 | A retained session's address: (a) recovery refuses admission while Reconcile reports a pending confirmed session; (b) hold for retained sessions only (misses RADIUS addresses and framed routes); (c) a publication guard: AddAddressP2P or Connect refuses a prefix that already has a ze-pppoe path through another index (covers pool, RADIUS and framed routes; exact or refuse). None alone closes the window in which L2TP and pppoe-kernel share the pool | Closes on the down path: the exit removes the stale state before admission resumes |
-| E-4 | A different process on reconnect: after change 1 the old lease delivers the exit proof and retirement works; if the old process lives on behind another socket, owners stay retained and overlapping accesses fenced | Closes on the down path: an unprovable process is killed |
+| E-1 | Unknown-outcome creations (a PADR in flight at the loss): (a) keep refusing, the MAC blocked until VPP exits; (b) adopt on a complete identity match in a same-process VPP where Ze holds the owned cp map for that access. VPP sessions carry no owner tag, so Ze cannot tell its own from an identical one another API client made | Open on form 1, inside the timer (lifecycle choice 6) |
+| E-2 | Unknown first policer binding stays quarantined until VPP exits (policer design, C-1) | Closes on form 2: the kill delivers the exit |
+| E-3 | A retained session's address: (a) recovery refuses admission while Reconcile reports a pending confirmed session; (b) hold for retained sessions only (misses RADIUS addresses and framed routes); (c) a publication guard: AddAddressP2P or Connect refuses a prefix that already has a ze-pppoe path through another index (covers pool, RADIUS and framed routes; exact or refuse). None alone closes the window in which L2TP and pppoe-kernel share the pool | Closes on form 2: the exit removes the stale state before admission resumes |
+| E-4 | A different process on reconnect: after change 1 the old lease delivers the exit proof and retirement works; if the old process lives on behind another socket, owners stay retained and overlapping accesses fenced | Closes on form 2: an unprovable process fails form 1 and is killed |
 
 Tests owed (`pppoe/dataplane/vpp` with a fake connector and the lease seam,
 unless named):
@@ -350,7 +374,7 @@ unless named):
 | `TestReconcileUnknownCreationVisibleStaysRetained` | Cut: delete on presence |
 | `TestCaptureAPIRetainsProcessLease` | No lease taken |
 | `TestLeasedWitnessPublishesExitAfterDisconnect` (`internal/component/vpp`; check for an existing one first) | Pins F-2 |
-| Lab `product-restart`, API-drop case | Freeze VPP longer than `connectionProbeTimeout` (5 s) with SIGSTOP and SIGCONT or a container pause. Asserts "adopted, sessions survive" or "killed after the bound", per the lifecycle spec's choices 1 and 2. Red: cut the `SameProcess` adoption; reconcile warnings persist and the redial is refused ("client MAC already belongs to a live or constructing session"). A socket proxy cannot drop the API, because SO_PEERPIDFD would name the proxy. Not read: whether the lab VPP shares a container with Ze (signal or pause) |
+| Lab `product-restart`, API-drop case | Freeze VPP past `connectionProbeTimeout` (5 s) with SIGSTOP and SIGCONT or a container pause. A freeze shorter than the single timer asserts form 1: same process, readback matches, sessions survive. A longer one asserts form 2: a pidfd kill, the exit proof, a restart and reconfiguration, the OD-2 drain and a redial. The timer value is the lifecycle spec's P-4. Red: cut the `SameProcess` adoption; reconcile warnings persist and the redial is refused ("client MAC already belongs to a live or constructing session"). A socket proxy cannot drop the API, because SO_PEERPIDFD would name the proxy. Not read: whether the lab VPP shares a container with Ze (signal or pause) |
 
 Text that changes when this is built: `bng-5-pppoe.md` "on its captured
 connection" ("VPP session ownership") and "block overlapping admissions across

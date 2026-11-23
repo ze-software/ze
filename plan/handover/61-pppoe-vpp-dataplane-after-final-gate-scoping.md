@@ -51,11 +51,33 @@ Thomas decided how Ze manages VPP, and D-1 = option C:
    continue from where it is; possibly crashed or stopped forwarding means
    reflect it in Ze and update IGP and BGP peers.
 
+Refined the same day (lifecycle spec R-4 to R-7, the two pages' "Design
+decisions", the PPPoE spec's D-1 section):
+
+- One timer for the alive test and the loss declaration; a probe missed inside
+  it is not a loss.
+- "Recovered" has two forms. (1) Inside the timer: reconnect to the same
+  pidfd-proven process and a full readback match; continue, no kill, no
+  withdrawal, PPPoE sessions kept (option C, scoped to this form). (2) After
+  the declaration: kill through the retained pidfd, exit proof, reconfigure as
+  at boot; PPPoE drains per OD-2 and subscribers redial.
+- Blackholing during recovery is accepted; routes are withdrawn only when
+  neither form succeeds within the recovery deadline and the crash-loop limit.
+  No F bit on re-open.
+- Ze is the only restarter: a systemd unit it drives has Restart=no (R-8).
+- Values still open for Thomas: the single timer (today a 1 s tick and a 5 s
+  probe timeout), the recovery deadline, and the crash-loop limit (N restarts
+  in a window, then withdrawal and a `ze doctor` report).
+- The first rows written for rule (c) (adopt "when alive, forwarding and
+  readable", and "update peers" on a possible crash) are still in the pages'
+  tables. A row changes only with Thomas: removing or rewording them needs his
+  `./le commit create ... decision-change "<his words>"` from his terminal.
+
 | Where | What |
 |-------|------|
-| `docs/research/vpp-deployment-reference.md`, "Design decisions" | Rules 1 to 3; a note in "Socket Transport" says they replace "Ze neither kills that process" and are not built |
+| `docs/research/vpp-deployment-reference.md`, "Design decisions" | Rules 1 to 3, then four rows of the refinement (one timer; kill, exit proof, restart, Ze the only restarter; the two recovery forms; blackhole accepted, withdrawal only when neither form succeeds), each naming the earlier row it narrows; a note in "Socket Transport" says they replace "Ze neither kills that process" and are not built |
 | `docs/guide/vpp.md`, "Running against an externally supervised VPP" | The same note |
-| `docs/architecture/l2tp/bng-5-pppoe.md`, "Design decisions" | D-1 resolved: kill and restart when Ze cannot adopt, option C readback when it adopts; a note on the "VPP session ownership" invariant |
+| `docs/architecture/l2tp/bng-5-pppoe.md`, "Design decisions" | D-1 resolved: kill and restart when Ze cannot adopt, option C readback when it adopts; a refinement row scoping adoption to form (1) inside the timer and every declared loss to a kill, restart and OD-2 drain; a note on the "VPP session ownership" invariant |
 | `plan/post-release/features/spec-vpp-failure-lifecycle.md` (new skeleton) | The rules, findings 1 to 7, the design draft, the eight open choices, the pages made wrong; owns two journal rows |
 | `plan/post-release/features/spec-pppoe-vpp-dataplane.md`, "Owner decisions of 2026-11-23: D-1 resolved" and "VPP subscriber shaping research — 2026-11-23" | F-1 to F-5, changes 1 and 2, readback table, E-1 to E-4 under the rules, owed tests; the shaping summary and recommendation; the ng row corrected |
 | `ai/digests/vpp-dataplane.md` | Corrected against today's code (connect path, disconnected emitter, external API loss) |
@@ -64,10 +86,10 @@ Thomas decided how Ze manages VPP, and D-1 = option C:
 
 | # | Work | First action |
 |---|------|--------------|
-| 1 | Owner choices: the eight lifecycle choices (`spec-vpp-failure-lifecycle`, "Choices the rules do not settle"), E-1 (unknown-outcome creations on adopt), C-1 (where a configured VPP rate lives), and the shaping plugin licence route: a Ze-written plugin as an Apache-2.0 diff in the VPP tree or an AGPL-3.0 plugin directory, or carry osvbng's GPL-3.0+ plugin | Present them to Thomas from the two specs |
+| 1 | Owner choices: the open lifecycle values and choices (`spec-vpp-failure-lifecycle`: the values of P-1, P-2 and P-4, and choices 4 (starting an inactive unit at boot), 7 and 8), E-1 (unknown-outcome creations on form 1), C-1 (where a configured VPP rate lives), and the shaping plugin licence route: a Ze-written plugin as an Apache-2.0 diff in the VPP tree or an AGPL-3.0 plugin directory, or carry osvbng's GPL-3.0+ plugin | Present them to Thomas from the two specs |
 | 2 | The lifecycle spec's design | Fresh session, `/ze-spec plan/post-release/features/spec-vpp-failure-lifecycle.md`; also put its bucket (post-release or release) to Thomas |
 | 3 | The VPP shaping spec | Fresh session, `/ze-spec`; references `~/Code/github.com/veesix-networks/osvbng-vpp` `plugins/osvbng_qos_sched` and VyOS with accel-ppp-ng; the recommendation is in the PPPoE spec's shaping section |
-| 4 | PPPoE OD-2 and the F-1 and F-3 fixes | After the lifecycle spec's design: OD-2's drain runs on the down verdict only |
+| 4 | PPPoE OD-2 and the F-1 and F-3 fixes | After the lifecycle spec's design: OD-2's drain runs on every declared loss (form 2), never inside the timer; form (1) keeps the sessions through option C |
 | 5 | The per-session VPP policer wiring | The Filter-Id/RADIUS path needs no decision; the configured rate waits on C-1. This fixes the open defect: VPP subscribers forward unpoliced today |
 | 6 | Lab discrimination (revert, rebuild, red) for `product` and `product-framed` | Spec "Real-VPP product lab" |
 | 7 | VPP accounting and idle detection (AC-17) | After `spec-pppoe-subscribers-produce-no-accounting-or-telemetry` |

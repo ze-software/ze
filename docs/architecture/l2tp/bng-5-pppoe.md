@@ -694,11 +694,13 @@ an unbind would be unsafe. These unknown owners remain quarantined until
 ownership-aware readback resolves the operation or process retirement proves
 the native state gone. An API reconnection alone cannot release that ownership
 or authorize native interface recycling.
-The owner decision of 2026-11-23 ("Design decisions" below) replaces that last
-rule for an adopted VPP: over a new connection whose peer is proven the same
-process by comparing retained pidfs identities, a retained owner reads back and
-cleans its exact native identity. That is not built yet;
-`plan/post-release/features/spec-pppoe-vpp-dataplane.md` owns it.
+The owner decisions of 2026-11-23 ("Design decisions" below) replace it in two
+ways. Inside the single loss timer, a reconnect to the same process, proven by
+comparing retained pidfs identities, lets a retained owner read back and clean
+its exact native identity over the new connection. Once a loss is declared,
+Ze kills the process through its retained pidfd and waits for the exit proof,
+which retires these owners, so no owner waits on a VPP that never exits. That is not built
+yet; `plan/post-release/features/spec-pppoe-vpp-dataplane.md` owns it.
 <!-- source: internal/component/l2tp/pppoe/dataplane/vpp/rate_owner.go -- policerRates, policerRates.Close, policerRates.cleanup -->
 <!-- source: internal/component/l2tp/pppoe/dataplane/vpp/rate_transaction.go -- policerRates.Prepare, policerRateTransaction.Apply, policerRateTransaction.Rollback -->
 <!-- source: internal/component/l2tp/pppoe/dataplane/vpp/rate_features.go -- binaryAPI.quarantinePolicers -->
@@ -749,3 +751,4 @@ logic use this receipt snapshot instead of deriving publication from State.
 |----------|------------|--------|------|
 | D-1, a VPP API loss with the process alive, is resolved by the VPP lifecycle rules: a live VPP that Ze cannot adopt is killed and restarted, so its exit proof always arrives and retires the retained owners | Holding PPPoE service fenced until an external VPP happens to exit, or releasing retained owners on an API reconnection alone | plan/post-release/features/spec-pppoe-vpp-dataplane.md, plan/post-release/features/spec-vpp-failure-lifecycle.md | 2026-11-23 |
 | When Ze adopts the VPP, retained owners are read back by exact identity over the new connection of the same pidfd-proven process, and cleaned there (option C) | Using a new connection whose peer is not proven the same process, or releasing an owner without a confirmed deletion or a completed absence read | plan/post-release/features/spec-pppoe-vpp-dataplane.md | 2026-11-23 |
+| Adoption happens only inside the single VPP loss timer: a reconnect to the same pidfd-proven process whose full readback matches (option C) keeps the sessions. A declared loss is never adopted: Ze kills the process through the retained pidfd, waits for its exit proof, restarts and reconfigures VPP as at boot, and PPPoE tears its sessions down per OD-2 and lets subscribers redial. The provider holds the process lease, which gives the identity proof, the kill and the exit proof. This narrows the row "When Ze adopts the VPP" to the single timer, and the D-1 row's "cannot adopt" to every declared loss | Option C readback after the timer expired, keeping PPPoE sessions across a forced restart, or a provider that holds no process lease | plan/post-release/features/spec-pppoe-vpp-dataplane.md, plan/post-release/features/spec-vpp-failure-lifecycle.md | 2026-11-23 |

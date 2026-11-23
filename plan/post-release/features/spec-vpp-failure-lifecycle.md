@@ -1,4 +1,4 @@
-# Spec: vpp-failure-lifecycle -- Ze manages every VPP it runs, decides after a failure whether to adopt or restart it, and updates its routing peers
+# Spec: vpp-failure-lifecycle -- Ze manages every VPP it runs, kills and restarts it after a declared loss, and withdraws only when it cannot recover it
 
 | Field | Value |
 |-------|-------|
@@ -27,7 +27,34 @@ name.
 |---|------|
 | R-1 | Ze refuses to run VPP unmanaged. If VPP is external, the operator accepts that Ze may terminate and restart it |
 | R-2 | Ze must know how to manage and restart an external VPP: through a systemd unit, or by starting the binary directly, as it does with the embedded runtime (`plan/release/delivery/spec-vpp-embedded-runtime.md`) |
-| R-3 | After a failure: if the process is alive, routing (forwarding) continued, and Ze reconnects and can see the configured state, Ze continues from where it is. If the software could have crashed or stopped forwarding, Ze reflects it in its own model and makes sure IGP and BGP peers are updated |
+| R-3 | After a failure: if the process is alive, routing (forwarding) continued, and Ze reconnects and can see the configured state, Ze continues from where it is. If the software could have crashed or stopped forwarding, Ze reflects it in its own model and makes sure IGP and BGP peers are updated. R-4 to R-7 narrow it: its continue branch holds only inside the single timer (form 1 of R-7), and peers are updated only when neither recovery form succeeds |
+| R-4 | Refinement, same day, narrowing R-3's continue branch to the timer. One timer: the alive test and the loss declaration use the same time. A probe missed inside it is not a loss |
+| R-5 | As soon as a loss is declared, Ze makes sure the process is terminal (kill through the retained pidfd, wait for the exit proof), then restarts and reconfigures VPP |
+| R-6 | Blackholing during the restart is accepted. Routes are withdrawn (VPP-backed interfaces down in Ze's model, so IGP and BGP react) only if Ze cannot restart and reconfigure (recover) VPP |
+| R-7 | Clarification, same day, on top of R-4 to R-6. "Recovered" has exactly two forms. (1) Ze reconnected within the time limit (the single alive and loss timer) and checked that everything it configured is still configured: Ze continues, with no kill and no withdrawal. The reconnect must reach the same pidfd-proven process, and a full readback of what Ze installed (interfaces, LCP pairs, owned routes, PPPoE sessions) must match; any mismatch means form (1) failed. (2) A forced restart (kill through the retained pidfd, exit proof) followed by a correct reconfiguration, exactly as at boot. Routes are withdrawn only when neither form succeeds within the recovery deadline and the crash-loop limit |
+| R-8 | Ze is the only restarter: a systemd unit it drives does not restart VPP itself (Restart=no) |
+
+Consequences of R-4 to R-7, recorded with them:
+
+- The adopt path survives only inside the timer (form 1), with option C's
+  identity proof and a full readback (PPPoE spec). After the timer there is
+  no adopt.
+- Ze needs the retained process lease and pidfd: it is the identity proof of
+  form (1), the kill handle and the source of the exit proof (PPPoE F-1 stays;
+  F-2 closes with it; F-3 is fixed for form 1 by PPPoE change 2).
+- No graceful-restart claim on re-open: the F bit stays 0.
+- PPPoE sessions are torn down per OD-2, because their VPP state is gone, and
+  subscribers redial.
+
+Conditions the main session proposed to Thomas. He adopted P-1 to P-3 as
+rules (R-7, R-8); three values stay open:
+
+| # | Proposal | Value |
+|---|----------|-------|
+| P-1 | A recovery deadline. Recovered means VPP restarted, interfaces and LCP pairs applied again, and the FIB replay complete. Past the deadline Ze withdraws (R-6) | Open (the deadline value) |
+| P-2 | A crash-loop limit: N restarts inside a window, then Ze stops restarting, withdraws, and reports through `ze doctor` | Open (N and the window) |
+| P-3 | Ze is the only restarter: the systemd method requires a unit that does not restart VPP itself (Restart=no, as VyOS) | Decided (R-8) |
+| P-4 | The single loss timer of R-4 | Open (today a 1 s probe tick and a 5 s probe timeout) |
 
 ## Task
 
@@ -40,11 +67,15 @@ RSVP-TE, VRRP, static routes, BGP and BFD learn that the data plane died only
 from their own timers or from the kernel removing the linux-cp TAPs.
 
 Goal: one lifecycle for every VPP Ze runs. Ze always holds a restart method
-(R-1, R-2). After an API loss it decides between two verdicts (R-3): adopt a
-VPP it proves alive, forwarding and still holding Ze's state; or declare the
-data plane down, take every VPP-backed interface down in its model, update its
-IGP and BGP peers, kill the process by its pidfd, restart it by the method, and
-rebuild.
+(R-1, R-2). Inside its single timer (R-4), a reconnect to the same
+pidfd-proven process whose full readback matches lets Ze continue with no kill
+and no withdrawal (form 1, R-7). Ze declares a loss when the timer expires or
+form 1 fails. It then kills the process through the retained pidfd, waits for the exit proof,
+restarts VPP by the method and reconfigures it (R-5), accepting the blackhole
+meanwhile (form 2). Only when neither form succeeds within the recovery
+deadline and the crash-loop limit does it take every VPP-backed interface down
+in its model, so IGP and BGP peers are updated (R-6). Ze is the only restarter
+(R-8).
 
 The PPPoE VPP data plane (`plan/post-release/features/spec-pppoe-vpp-dataplane.md`,
 D-1 and OD-2) depends on this spec's decision procedure and events.
@@ -56,7 +87,7 @@ D-1 and OD-2) depends on this spec's decision procedure and events.
 | 1 | Nothing reacts to VPP loss. `vpp/disconnected` has one emitter and no subscriber outside tests. `iface` (`subscribeReconcileOnReady`) and `fib-vpp` (`onVPPReady`) subscribe to connected and reconnected only. The only process-exit observer is PPPoE (`RegisterProcessExitObserver`) | `VPPManager.retireReadiness` (`internal/component/vpp/startup_readiness.go`); `l2tp/pppoe/dataplane/vpp/reconcile.go` |
 | 2 | No interface goes down in Ze's model. The VPP monitor emits `interface/down` only from a VPP `SwInterfaceEvent`. OSPF and IS-IS drop adjacencies only through `Transport.HandleLinkDown` from that bus; LDP, RSVP-TE, VRRP, static (`routeManager.onLinkEvent`) and connected routes read the same bus. So adjacencies and sessions die by timers or by kernel TAP removal | `monitor.handleEvent` (`internal/plugins/iface/vpp/monitor.go`) |
 | 3 | BGP has no link-down reaction: `Reactor.handleAddressRemoved` stops listeners and closes no session. BFD imports no interface events | `internal/component/bgp/reactor/reactor_iface.go` |
-| 4 | Managed mode kills VPP on the first failed probe (1 s tick, 5 s timeout): this contradicts R-3's adopt branch | `waitVPPConnectionWithStop` (`internal/component/vpp/vpp.go`), `startHealth`, `connectionProbeTimeout` (`conn_health.go`) |
+| 4 | Managed mode kills VPP on the first failed probe (1 s tick, 5 s timeout). Any stream error fails a probe at once, so the loss declaration is not R-4's single timer; external mode then never kills (R-5) | `waitVPPConnectionWithStop` (`internal/component/vpp/vpp.go`), `startHealth`, `connectionProbeTimeout` (`conn_health.go`) |
 | 5 | External mode cannot kill or restart. `runOnce` closes the connector; `runWithOps` backs off from 1 s, doubling to 30 s, and reconnects. No `PidfdSendSignal` exists anywhere, though each connection holds the peer pidfd. No systemd unit control exists under `internal/component` or `internal/core` | `captureProcessWitness` (`process_peer_linux.go`, SO_PEERPIDFD) |
 | 6 | Graceful restart is already safe on reconnect: `restartFlagsFor` sets R and F only inside the `ze signal restart` marker window, and `fib-vpp` registers no `PreservesForwardingState` (only `fib/kernel` does). Exposure: a GR-capable peer keeps Ze's routes for its restart time after a silent TCP death | `internal/component/bgp/reactor/peer_gr_flags.go` |
 | 7 | Reconnect already resyncs: `iface` runs `reconcileOnVPPReady`; `fib-vpp` `restart` replays and then sweeps stale routes after `labelSweepDelay`. Unverified: a reloaded iface backend re-creating loopbacks against a same-process VPP | `internal/component/iface/config_apply.go`, `internal/plugins/fib/vpp/` |
@@ -112,52 +143,68 @@ On Ze's own mechanisms. Each step names the open choice it waits on.
    old exit proof, and bind the new peer to the unit (by cgroup, or systemd
    unit-by-pidfd, ASSUMED) as the systemd analogue of `bindManagedProcess`.
    Signal choice: choice 5. Unit policy: choice 4.
-3. **Decision procedure:**
-   1. API loss: fence new mutations, keep the stats connection, sample the
-      worker counters and the heartbeat at each probe interval, and emit a new
-      "API lost, undecided" event (choice 8). `vpp/disconnected` keeps one
-      meaning: the data plane is down.
-   2. Exit proven, or workers stopped: the down path at once.
-   3. Otherwise reconnect within the bound (choice 1). Adopt needs
-      `SameProcess` true, the stats peer of the same identity, worker counters
-      advanced at every sample (choice 2), and a readback equal to what Ze
-      installed: interfaces, LCP pairs, owned routes, PPPoE sessions. Then
-      emit `vpp/reconnected`; `iface` and `fib-vpp` resync as today.
-   4. Any miss, or the bound expiring: emit `vpp/disconnected`; `iface`
-      publishes `interface/down` for every VPP-backed interface; kill, wait
-      for the exit proof, restart by the method, verify the new identity, emit
-      `vpp/connected`, rebuild.
-4. **Peers updated on the down path.** OSPF, IS-IS, LDP, RSVP-TE, VRRP, static
-   and connected routes react through the existing `interface/down`: routes
-   leave sysrib, and BGP stops advertising what it redistributed. BGP sessions
-   over VPP interfaces close locally (the peers detect it by hold timer or
-   BFD). BGP sessions over a path that does not ride VPP: choice 3; where they
-   close, a NOTIFICATION, with an RFC 8538 Hard Reset where negotiated
-   (`bgp/message/notification.go`, not read through). They reopen with R=0 and
-   F=0: the VPP restart path never writes the restart marker. OSPF and IS-IS
-   restart signalling (grace-LSA, RR) stays off (not read). BFD sessions on VPP
-   interfaces go Down locally, which needs a hook. On adopt nothing is
-   announced.
-5. **PPPoE.** The D-1 dead end disappears: a live VPP Ze cannot adopt is
-   killed, so its exit proof always arrives. This needs the PPPoE provider to
-   take a process lease (F-1, F-2 in the PPPoE spec). OD-2's drain runs on the
-   down verdict only; in the undecided window PPPoE fences admission and holds
-   its sessions (choice 6). Adopt keeps the sessions through the PPPoE
-   option C readback. The lab's product-restart SIGSTOP case then asserts
-   either "adopted, sessions survive" or "killed after the bound".
+3. **Loss and recovery (R-4 to R-8; narrows the first draft's adopt verdict
+   to form (1) inside the timer, and moves its down verdict to a failed
+   recovery):**
+   1. One timer (P-4) covers both the alive test and the loss declaration. A
+      probe missed inside it is not a loss and changes nothing. Today a single
+      failed ControlPing declares the loss (`startHealth`), and any stream
+      error fails a probe at once, not only the 5 s timeout.
+   1a. Form (1), inside the timer (R-7): when the API connection is lost Ze
+      fences mutations and reconnects. It continues only when the new peer is
+      the same process (`SameProcess` true on the retained leases) and a full
+      readback of interfaces, LCP pairs, owned routes and PPPoE sessions
+      matches what it installed; then `vpp/reconnected`, with no kill and no
+      withdrawal. A different process, an unprovable comparison or any
+      mismatch fails form (1) and declares the loss.
+   2. On its expiry Ze declares the loss and emits `vpp/disconnected`
+      (event names: choice 8). It fences mutations, kills the process through
+      the retained pidfd at once (SIGKILL, choice 5), and waits for the exit
+      proof.
+   3. Ze restarts VPP by its method, verifies the new process identity
+      (`SameProcess(old, new)` false, old exit proven), applies the interfaces
+      and LCP pairs again, and replays the FIB. That is "recovered" (P-1);
+      then `vpp/connected` or `vpp/reconnected`, as today's resync expects.
+   4. Meanwhile VPP-backed interfaces stay up in Ze's model and nothing is
+      withdrawn: the blackhole is accepted.
+   5. If recovery fails (the start fails, the deadline P-1 passes, or the
+      crash-loop limit P-2 is reached), Ze withdraws: `iface` publishes
+      `interface/down` for every VPP-backed interface, Ze stops restarting,
+      and `ze doctor` reports it.
+4. **Peers updated on withdrawal only.** OSPF, IS-IS, LDP, RSVP-TE, VRRP,
+   static and connected routes react through the existing `interface/down`:
+   routes leave sysrib, and BGP stops advertising what it redistributed. BGP
+   sessions over VPP interfaces close locally (the peers detect it by hold
+   timer or BFD). BGP sessions over a path that does not ride VPP keep running;
+   their routes through VPP leave with the interfaces (choice 3 answered: no
+   withdrawal while recovering). BFD sessions on VPP interfaces go Down locally,
+   which needs a hook. On re-open no graceful-restart claim is made: the F bit
+   stays 0, and the VPP restart path never writes the `ze signal restart`
+   marker. OSPF and IS-IS restart signalling (grace-LSA, RR) stays off (not
+   read).
+5. **PPPoE.** The D-1 dead end disappears: a declared loss always ends in a
+   kill, so the exit proof always arrives. This needs the PPPoE provider to
+   take a process lease (F-1 in the PPPoE spec; F-2 and F-3 close with it).
+   Form (1) keeps the sessions through the PPPoE option C readback, inside the
+   timer only. OD-2's drain runs on every declared loss: after a forced
+   restart VPP's session state is gone, so sessions are torn down and
+   subscribers redial. The lab's product-restart SIGSTOP case asserts: a
+   freeze shorter than the timer ends in form (1), sessions surviving; a longer
+   one ends in a kill, a restart, the OD-2 drain and a redial.
 
 ## Choices the rules do not settle (owner)
 
 | # | Choice | Facts |
 |---|--------|-------|
-| 1 | The bound before an alive, unreachable VPP is killed | Today: 6 s to declare the loss, then 10 connect attempts 1 s apart |
-| 2 | Adopt on an idle box where only the loop counters move: is that enough, or is a surviving BFD or IGP session required | Counters prove workers ran at each sample; a surviving session proves punt and inject |
-| 3 | BGP sessions that do not ride VPP: tear them down, or withdraw only the affected routes | - |
-| 4 | systemd unit policy: require Restart=no (Ze the sole restarter, as VyOS) or tolerate a systemd restart (as osvbng) and detect it by identity; and whether Ze starts an inactive unit at boot | - |
-| 5 | SIGKILL at once (today) or SIGTERM with a grace period | - |
-| 6 | PPPoE sessions held in the undecided window; E-1 (unknown-outcome creations) on adopt | PPPoE spec, "Implementation designs" |
-| 7 | Which method the functional-test VPP stub declares | - |
-| 8 | Event names: a published plugin contract | `docs/architecture/api/process-protocol.md` |
+| 1 | The single loss timer (P-4) | Open value. Today a 1 s probe tick and a 5 s probe timeout |
+| 2 | What proves form (1) | Answered by R-7: same pidfd-proven process and a full readback match; no forwarding sample is required |
+| 3 | BGP sessions that do not ride VPP | Answered: no withdrawal while recovering; on withdrawal their VPP routes leave with the interfaces |
+| 4 | systemd unit policy | Answered by R-8: Restart=no, Ze the only restarter. Still open: whether Ze starts an inactive unit at boot |
+| 5 | SIGKILL or SIGTERM with grace | Answered: kill at once once the loss is declared (R-5) |
+| 6 | PPPoE inside the timer; E-1 on form (1) | Inside the timer PPPoE fences admission and holds its sessions; form (1) keeps them, form (2) drains them per OD-2. E-1 (unknown-outcome creations on form 1) stays open |
+| 7 | Which method the functional-test VPP stub declares | Open |
+| 8 | Event names: a published plugin contract | Open (`docs/architecture/api/process-protocol.md`) |
+| 9 | The recovery deadline (P-1) and the crash-loop limit (P-2) | Open values |
 
 ## Pages this work makes wrong
 
@@ -210,15 +257,15 @@ On Ze's own mechanisms. Each step names the open choice it waits on.
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | VPP supervisor | `internal/component/vpp/vpp.go`, `VPPManager.runWithOps`, `runOnce` | Writes config, binds NICs, runs VPP, connects, restarts with backoff | Extends: gains the decision procedure and the restart method |
 | Operator-supervised mode | `internal/component/vpp/config.go`, `VPPSettings.External` | Ze only connects | Replaces: R-1 refuses an unmanaged VPP; the restart method takes its place |
-| Process witness and lease | `process_peer.go` `ProcessLease.SameProcess`, `process_peer_linux.go` `captureProcessWitness` | Binds each connection to the peer's pidfs identity | Extends: the retained pidfd becomes the kill handle and the adopt proof |
+| Process witness and lease | `process_peer.go` `ProcessLease.SameProcess`, `process_peer_linux.go` `captureProcessWitness` | Binds each connection to the peer's pidfs identity | Extends: `SameProcess` proves form (1)'s reconnect reaches the same process and a restarted VPP is a new one; the retained pidfd is the kill handle |
 | Exit proof | `process_exit.go`, `observeExit`, `notifyProcessExit` | Publishes a proven process exit | Extends: the down path waits on it before restarting |
-| Connection health | `conn_health.go`, `startHealth` | First failed ControlPing reports loss | Extends: loss opens the undecided window instead of an immediate kill |
-| Stats connection | `stats_conn.go`, `runtime_stats.go` | Counters for telemetry and runtime readers | Extends: kept open through the window to sample worker counters and the heartbeat |
-| Readiness events | `internal/core/vpp/events/events.go` | connected, disconnected, reconnected | Extends: adds the undecided event; disconnected means data plane down |
-| Interface events | `internal/plugins/iface/vpp/monitor.go`, the `interface/down` bus | Driven by VPP interface events only | Extends: the down verdict publishes `interface/down` for every VPP-backed interface |
-| BGP interface reaction | `docs/architecture/bgp/interface-event-reactions.md`, `Reactor.handleAddressRemoved` | Stops listeners, closes no session | Extends: the down verdict closes BGP sessions over VPP interfaces |
+| Connection health | `conn_health.go`, `startHealth` | First failed ControlPing reports loss | Extends: one timer (P-4) declares the loss; a probe missed inside it is not one |
+| Stats connection | `stats_conn.go`, `runtime_stats.go` | Counters for telemetry and runtime readers | Does not apply: form (1) is proven by identity and readback, not by a forwarding sample |
+| Readiness events | `internal/core/vpp/events/events.go` | connected, disconnected, reconnected | Extends: disconnected on a declared loss; a new event for a failed recovery (choice 8) |
+| Interface events | `internal/plugins/iface/vpp/monitor.go`, the `interface/down` bus | Driven by VPP interface events only | Extends: a failed recovery publishes `interface/down` for every VPP-backed interface |
+| BGP interface reaction | `docs/architecture/bgp/interface-event-reactions.md`, `Reactor.handleAddressRemoved` | Stops listeners, closes no session | Extends: a failed recovery closes BGP sessions over VPP interfaces |
 | Embedded runtime start | `plan/release/delivery/spec-vpp-embedded-runtime.md` | Starts VPP from the bundle Ze carries | Extends: it is the `exec` method; that spec keeps where the program comes from |
-| PPPoE loss handling | `plan/post-release/features/spec-pppoe-vpp-dataplane.md`, OD-2 and D-1 | Designed, not built | Does not apply here: PPPoE consumes this spec's verdict events |
+| PPPoE loss handling | `plan/post-release/features/spec-pppoe-vpp-dataplane.md`, OD-2 and D-1 | Designed, not built | Does not apply here: PPPoE drains on this spec's declared-loss event |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -227,9 +274,11 @@ On Ze's own mechanisms. Each step names the open choice it waits on.
 - The `vpp` config root, for the restart method
 
 ### Transformation Path
-1. Loss: the VPP component fences mutations and opens the undecided window, sampling stats
-2. Verdict: adopt (reconnect, identity and readback proven) or down
-3. Down: `vpp/disconnected`, then `interface/down` for each VPP-backed interface, then the routing reactions, then kill by pidfd, restart by the method, `vpp/connected`, rebuild
+0. Inside the single timer: the VPP component fences mutations and reconnects; a same-process reconnect whose full readback matches continues (form 1), with no kill and no withdrawal
+1. Loss: the timer expires or form 1 fails; the VPP component declares it, emits `vpp/disconnected` and fences mutations
+2. Terminal: kill through the retained pidfd, wait for the exit proof
+3. Recovery: restart by the method, check the new identity, apply interfaces and LCP pairs, replay the FIB
+4. Withdrawal, only when recovery fails: `interface/down` for each VPP-backed interface, then the routing reactions, and a `ze doctor` report
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -240,23 +289,27 @@ On Ze's own mechanisms. Each step names the open choice it waits on.
 
 ### Integration Points
 - `VPPManager.runOnce` and `waitVPPConnectionWithStop` - the decision procedure replaces the first-probe kill
-- `iface` VPP monitor - publishes `interface/down` on the down verdict
-- `ProcessLease.SameProcess` - the adopt proof
+- `iface` VPP monitor - publishes `interface/down` when recovery fails
+- `ProcessLease.SameProcess` - proves form (1)'s reconnect reaches the same process, and the restarted VPP is a new one
 
 ## Owned journal rows
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| `unwired-feature.md` | 2026-11-23 | Nothing reacts to VPP loss: no `vpp/disconnected` subscriber, VPP-backed interfaces never go down, peers rely on timers |
-| `transient-failure-treated-as-fatal.md` | 2026-11-23 | Managed mode kills VPP on the first failed API probe, against R-3's adopt branch |
+| `unwired-feature.md` | 2026-11-23 | Nothing reacts to VPP loss: no `vpp/disconnected` subscriber, VPP-backed interfaces never go down even when VPP cannot be recovered |
+| `transient-failure-treated-as-fatal.md` | 2026-11-23 | One failed API probe declares the loss, not the single timer R-4 asks for; external mode then never kills |
 
 ## Acceptance Criteria
 
-To be written at design, after the owner choices. Each rule and each verdict
-gets a row: an enabled VPP with no method refused at verify; an alive,
-forwarding, readable VPP adopted with nothing announced; a crashed or stalled
-VPP taken down in Ze's model with IGP and BGP peers updated, killed by pidfd,
-restarted by its method and rebuilt.
+To be written at design, after the owner values. Each rule gets a row: an
+enabled VPP with no method refused at verify; a probe missed inside the timer
+changes nothing; a same-process reconnect inside the timer whose full readback
+matches continues with no kill and no withdrawal, and one that mismatches
+declares the loss; a declared loss ends in a pidfd kill, the exit proof, a
+restart by the method and a reconfiguration, with nothing withdrawn while it
+recovers and no F bit on re-open; a failed recovery (deadline or crash-loop
+limit) takes VPP-backed interfaces down in Ze's model so IGP and BGP peers are
+updated, and `ze doctor` reports it.
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
@@ -278,7 +331,7 @@ restarted by its method and rebuilt.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| [design: a real-VPP lab freezes VPP (SIGSTOP) and kills it, and asserts the adopt and down verdicts and the IGP and BGP reaction] | `internal/le/test/deployment/` | [design] | |
+| [design: a real-VPP lab freezes VPP (SIGSTOP) shorter and longer than the timer, kills it, and blocks its restart; asserts nothing changes inside the timer, a kill and recovery with nothing withdrawn after it, and the IGP and BGP reaction when recovery fails] | `internal/le/test/deployment/` | [design] | |
 
 ## Files to Modify
 
@@ -291,7 +344,7 @@ reactor's interface reaction, BFD, the ten repository users of
 ## Implementation Steps
 
 To be written at design. Phase 1 is wiring: the restart method in YANG and
-verify, and the verdict events with their subscribers.
+verify, and the loss and failed-recovery events with their subscribers.
 
 ## Known Limitations
 
