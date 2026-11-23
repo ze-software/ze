@@ -91,9 +91,10 @@ in the spec or commit it applies to.
   negotiation or fallback is added to keep an old plugin working.
 - The infrastructure that converts a config written in an older format of
   Ze's own syntax is there to stay. The code that converts one format change
-  is written only once Ze has a stable release; before it, a format change
-  converts the configs in the repository directly. The ExaBGP migration is
-  separate and stays.
+  is written only once Ze has a stable release. The configs in the repository
+  always use the latest format: a change to the YANG always converts them, in
+  the same work, before the first stable release and after it. The ExaBGP
+  migration is separate and stays.
 - A change to what Ze does (a default, an enforcement, a refusal, an output
   format) converts or re-validates, in the same work, every user of it the
   repository carries: configs, `.ci` bodies, fixtures, benchmarks, interop
