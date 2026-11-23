@@ -125,8 +125,10 @@ func TestDoctorApplicationOverride(t *testing.T) {
 //
 // VALIDATES: overrideRefusal, set by applyApplicationOverride and read by
 // checkIPsecApplicationOverride; EPERM carries privilege.CapabilityRemedy for
-// CAP_BPF and CAP_NET_ADMIN under both memberships, ErrNoCgroup2 carries the
-// cgroup2 mount command, and any other error carries the allow statement.
+// CAP_BPF and CAP_NET_ADMIN under both memberships, the bare ErrNoCgroup2 that
+// cgroup2RootFrom returns gets the cgroup2 mount command from the refusal's fix
+// (the error itself states only that no cgroup2 is mounted), and any other error
+// carries the allow statement.
 // PREVENTS: IPsec down at boot on such a host with `ze doctor` silent about why,
 // or offering a systemd repair outside ze.service.
 func TestDoctorReportsRefusedDeny(t *testing.T) {
@@ -162,7 +164,7 @@ func TestDoctorReportsRefusedDeny(t *testing.T) {
 		{
 			name:       "no cgroup2 mounted",
 			membership: privilege.MembershipOther,
-			guardErr:   fmt.Errorf("%w (mount -t cgroup2 none /sys/fs/cgroup)", dataplane.ErrNoCgroup2),
+			guardErr:   dataplane.ErrNoCgroup2,
 			wantFix:    overrideGuardFixMount,
 			contains:   []string{"mount -t cgroup2 none /sys/fs/cgroup", "set `vpn ipsec application-override allow`"},
 		},

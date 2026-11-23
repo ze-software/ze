@@ -30,6 +30,8 @@ type guardRecorder struct {
 	publishCount int
 	stamps       []guardStamp
 	failRule     error
+	// failPublish, when set, is what publish answers instead of taking the tables.
+	failPublish error
 	// unguardedAtRuleDelete names a rule deleted while its source BYPASS was still live.
 	unguardedAtRuleDelete []string
 }
@@ -94,6 +96,9 @@ func (r *guardRecorder) deleteRoute(route iprule.Route) error {
 }
 
 func (r *guardRecorder) publish(tables []firewall.Table) error {
+	if r.failPublish != nil {
+		return r.failPublish
+	}
 	r.stamp("publish")
 	r.publishCount++
 	r.terms = nil

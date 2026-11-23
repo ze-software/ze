@@ -1,6 +1,7 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- the IPv6 tunnel-source guard
 // Related: unmatched_xfrm_interface.go -- the source BYPASS entries this guard makes sound
 // Related: established.go -- the Child SA route events that fill the guard tables
+// Related: doctor_source_guard.go -- the ipsec-source-guard check, which reports the refusals recorded here
 // RFC: rfc/short/rfc4301.md -- Section 4.4.1, the SPD selection function of a multi-SPD implementation
 
 package engine
@@ -108,6 +109,12 @@ type guardRouteKey struct {
 	prefix netip.Prefix
 }
 
+// guardSourceKey names one guarded address of one bound interface.
+type guardSourceKey struct {
+	iface string
+	addr  netip.Addr
+}
+
 // sourceGuards is the guard state. The apply path (under applyMu) and the Child SA
 // workers (guardTunnelRoute) both reach it, so mu guards every field. Safe for
 // concurrent use.
@@ -121,6 +128,15 @@ type sourceGuards struct {
 	// tunnels holds, per tunnel route, the peers whose Child SA carries it: the route
 	// leaves a guard table when its last peer goes.
 	tunnels map[guardRouteKey]map[string]bool
+	// ruleRefused holds, per interface and address, what the last attempt to install
+	// that address's source rule answered, while the rule is not installed. The pass
+	// that installs the rule, and the prune that drops the address, remove it. The
+	// ipsec-source-guard doctor check reports it (doctor_source_guard.go).
+	ruleRefused map[guardSourceKey]error
+	// publishRefused is what the last publish of the nft table answered, nil once a
+	// publish succeeds. The held addresses outside published are the ones it leaves
+	// unguarded, and the ipsec-source-guard check reports each of them.
+	publishRefused error
 }
 
 //nolint:gochecknoglobals // One guard per process: the nft table and the fib rules are per namespace.
@@ -128,10 +144,11 @@ var guards = newSourceGuards(kernelGuard{})
 
 func newSourceGuards(kern guardKernel) *sourceGuards {
 	return &sourceGuards{
-		kern:      kern,
-		held:      make(map[string]*heldSourceGuard),
-		published: make(map[netip.Addr]bool),
-		tunnels:   make(map[guardRouteKey]map[string]bool),
+		kern:        kern,
+		held:        make(map[string]*heldSourceGuard),
+		published:   make(map[netip.Addr]bool),
+		tunnels:     make(map[guardRouteKey]map[string]bool),
+		ruleRefused: make(map[guardSourceKey]error),
 	}
 }
 
@@ -255,13 +272,18 @@ func (g *sourceGuards) install(want map[string]sourceGuardSpec, log *slog.Logger
 			if h.rules[addr] {
 				continue
 			}
+			key := guardSourceKey{iface: name, addr: addr}
 			if err := g.kern.addRule(guardRule(addr, h.table)); err != nil {
-				log.Error("ike: could not install the tunnel-source rule; the address's IPv6 source exemption stays uninstalled, "+
-					"so IPv6 host traffic from it routed into the interface meets the DISCARD catch-all; "+
-					"the daemon needs CAP_NET_ADMIN, and the next commit or address change retries it",
-					"interface", name, "address", addr.String(), "table", h.table, "error", err)
+				log.Error("ike: could not install the tunnel-source rule: "+sourceRuleRequest.cause(err)+
+					". The address's IPv6 source exemption stays uninstalled, so IPv6 host traffic from it routed into "+
+					"the interface meets the DISCARD catch-all. The next commit or address change retries it. To fix it: "+
+					sourceRuleRequest.fix(err, ""),
+					"interface", name, "address", addr.String(), "table", h.table, "error", err,
+					"code", codeDoctorIPsecSourceGuardMissing)
+				g.ruleRefused[key] = err
 				continue
 			}
+			delete(g.ruleRefused, key)
 			h.rules[addr] = true
 		}
 	}
@@ -288,6 +310,7 @@ func (g *sourceGuards) prune(want map[string]sourceGuardSpec, log *slog.Logger) 
 				kept = append(kept, addr)
 				continue
 			}
+			delete(g.ruleRefused, guardSourceKey{iface: name, addr: addr})
 			if !h.rules[addr] {
 				continue
 			}
@@ -392,7 +415,8 @@ func (g *sourceGuards) deleteRoute(h *heldSourceGuard, prefix netip.Prefix, log 
 }
 
 // publishHeld publishes the nft table for every held source, or withdraws it when no
-// source is held. A failed publish leaves the last one in the kernel and in published.
+// source is held. A failed publish leaves the last one in the kernel and in published,
+// and is kept in publishRefused until a publish succeeds.
 func (g *sourceGuards) publishHeld(log *slog.Logger) {
 	var terms []firewall.Term
 	next := make(map[netip.Addr]bool)
@@ -410,11 +434,15 @@ func (g *sourceGuards) publishHeld(log *slog.Logger) {
 		tables = []firewall.Table{sourceGuardTable(terms)}
 	}
 	if err := g.kern.publish(tables); err != nil {
-		log.Error("ike: could not publish the tunnel-source guard's nft table; source exemptions it does not cover stay uninstalled; "+
-			"the daemon needs CAP_NET_ADMIN, and the next commit or address change retries it",
-			"table", sourceGuardTableName, "error", err)
+		log.Error("ike: could not publish the tunnel-source guard's nft table: "+nftRequest.cause(err)+
+			". Source exemptions it does not cover stay uninstalled. The next commit or address change retries it. To fix it: "+
+			nftRequest.fix(err, ""),
+			"table", sourceGuardTableName, "error", err,
+			"code", codeDoctorIPsecSourceGuardMissing)
+		g.publishRefused = err
 		return
 	}
+	g.publishRefused = nil
 	g.published = next
 }
 

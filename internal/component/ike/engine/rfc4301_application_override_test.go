@@ -6,12 +6,15 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 // orderedGuardDP is catchAllDP that also notes how many SPD entries were installed
@@ -126,12 +129,18 @@ func TestReloadMovesOverrideGuard(t *testing.T) {
 }
 
 // TestApplyFailsWhenOverrideGuardCannotAttach proves AC-18: under deny a guard the
-// backend refuses fails the apply, and the error names the kernel's reason and the
-// three fixes; a reload that is refused leaves the running catch-all as it was.
+// backend refuses fails the apply, and the error names the kernel's answer, the cause
+// Ze reads from it, that cause's fix and no other cause's, and the allow statement as
+// the way to accept the risk instead; a reload that is refused leaves the running
+// catch-all as it was.
 //
-// VALIDATES: attachOverrideGuard's refusal and its place before every reload change.
-// PREVENTS: a deny that is reported applied while no guard holds.
+// VALIDATES: attachOverrideGuard's refusal, one row per overrideGuardFault class
+// (EPERM, dataplane.ErrNoCgroup2, an answer Ze does not classify), and its place
+// before every reload change.
+// PREVENTS: a deny that is reported applied while no guard holds, and a refusal that
+// lists every cause whatever the kernel answered or names the cgroup2 mount twice.
 func TestApplyFailsWhenOverrideGuardCannotAttach(t *testing.T) {
+	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipOther, nil))
 	dp := &catchAllDP{}
 	loadFailClosedBackend(t, dp)
 	state := applyTestState(t)
@@ -140,25 +149,75 @@ func TestApplyFailsWhenOverrideGuardCannotAttach(t *testing.T) {
 	}
 	installed := len(dp.installed)
 
-	dp.guardErr = errors.New("operation not permitted")
-	err := state.applyConfig(overrideConfig(ipsec.ApplicationOverrideDeny), applyReload)
-	if err == nil {
-		t.Fatal("deny applied with a guard the backend refused")
+	cases := []struct {
+		name     string
+		guardErr error
+		want     []string
+		refuse   []string
+		// mounts is how many times the refusal names the cgroup2 mount command: once
+		// as the fix where it is the fix, and never stated twice.
+		mounts int
+	}{
+		{
+			name:     "capability",
+			guardErr: fmt.Errorf("load the setsockopt guard: %w", syscall.EPERM),
+			want: []string{
+				"operation not permitted", "lacks CAP_BPF or CAP_NET_ADMIN",
+				"To fix it: " + privilege.CapabilityRemedy("CAP_BPF", "CAP_NET_ADMIN") +
+					", then commit again, or set `vpn ipsec application-override allow` to accept that risk",
+			},
+			refuse: []string{"Linux 6.10", "cgroup2 none"},
+		},
+		{
+			name:     "no cgroup2",
+			guardErr: dataplane.ErrNoCgroup2,
+			want: []string{
+				"no cgroup2 file system is mounted",
+				"To fix it: " + overrideGuardFixMount +
+					", then commit again, or set `vpn ipsec application-override allow` to accept that risk",
+			},
+			refuse: []string{"CAP_BPF", "Linux 6.10"},
+			mounts: 1,
+		},
+		{
+			name:     "unknown",
+			guardErr: errors.New("operation not permitted"),
+			want: []string{
+				"operation not permitted", "Ze cannot tell the cause", "Linux 6.10", "security module",
+				"To fix it: set `vpn ipsec application-override allow` to accept that risk, or keep deny on Linux 6.10 or later",
+			},
+			refuse: []string{"CAP_BPF", "cgroup2 none"},
+		},
 	}
-	for _, want := range []string{
-		"operation not permitted",
-		"CAP_BPF",
-		"Linux 6.10 or later",
-		"mount cgroup2 at /sys/fs/cgroup",
-		"set `vpn ipsec application-override allow`",
-	} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("refusal %q does not name %q", err, want)
-		}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dp.guardErr = tc.guardErr
+			err := state.applyConfig(overrideConfig(ipsec.ApplicationOverrideDeny), applyReload)
+			if err == nil {
+				t.Fatal("deny applied with a guard the backend refused")
+			}
+			if !errors.Is(err, tc.guardErr) {
+				t.Errorf("refusal %q does not wrap the backend's answer", err)
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal %q does not name %q", err, want)
+				}
+			}
+			for _, other := range tc.refuse {
+				if strings.Contains(err.Error(), other) {
+					t.Errorf("refusal %q names %q, the fix of another cause", err, other)
+				}
+			}
+			if got := strings.Count(err.Error(), "mount -t cgroup2 none /sys/fs/cgroup"); got != tc.mounts {
+				t.Errorf("refusal %q names the cgroup2 mount %d times, want %d", err, got, tc.mounts)
+			}
+			if len(dp.installed) != installed {
+				t.Fatalf("the refused reload installed %d SPD entries", len(dp.installed)-installed)
+			}
+		})
 	}
-	if len(dp.installed) != installed {
-		t.Fatalf("the refused reload installed %d SPD entries", len(dp.installed)-installed)
-	}
+	dp.guardErr = nil
 
 	// A backend with no guard at all is refused under deny too.
 	if err := applyApplicationOverride(&mockDP{}, ipsec.ApplicationOverrideDeny); err == nil {

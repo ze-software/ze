@@ -409,9 +409,9 @@ func (s *ikeEngineState) placeXFRMInterfaceEntries(dp dataplane.Dataplane, plan 
 				noFinalEntry[entry.iface] = err
 				continue
 			}
-			s.log.Error("ike: could not install an SPD exemption of a bound XFRM interface, so under `unmatched discard` "+
-				"the traffic routed into that interface is dropped at the node-wide catch-all; "+
-				"the daemon needs CAP_NET_ADMIN to install it, and the next commit or address change retries it",
+			s.log.Error("ike: could not install an SPD exemption of a bound XFRM interface: "+xfrmRequest.cause(err)+
+				". Under `unmatched discard` the traffic routed into that interface is dropped at the node-wide catch-all. "+
+				"The next commit or address change retries it. To fix it: "+xfrmRequest.fix(err, ""),
 				"interface", entry.iface, "dir", entry.params.Dir, "error", err,
 				"code", codeDoctorIPsecSPDExemptionMissing)
 			if _, seen := noExemption[entry.iface]; !seen {
@@ -436,14 +436,15 @@ func (s *ikeEngineState) placeXFRMInterfaceEntries(dp dataplane.Dataplane, plan 
 // XFRM interface the backend refused, which the ipsec-spd-install doctor check reports
 // under codeDoctorIPsecSPDExemptionMissing. A reload is not refused for it,
 // because the entry fails closed: the traffic it would hand on is dropped, never passed.
+// The fix is chosen by the dataplane's answer (xfrmRequest.fix) and ends in a restart.
 func interfaceExemptionRefusal(entry *xfrmInterfaceEntry, cause error) *opererr.Error {
 	return opererr.Wrap(cause,
 		"Ze could not install the SPD exemption that hands traffic routed into XFRM interface "+entry.iface+
 			" on to that interface (direction "+dirLabel(entry.params.Dir)+")",
 		"Under `unmatched discard` that traffic meets the node-wide catch-all and is dropped, so the tunnel bound to "+
 			entry.iface+" carries none of it. The next commit or address change retries the entry. "+
-			"Remove the cause the dataplane names (the daemon needs CAP_NET_ADMIN), then restart Ze",
-		spdInstallFixRestart())
+			"The cause: "+xfrmRequest.cause(cause)+". Once it is gone, a restart of Ze installs the entry",
+		xfrmRequest.fix(cause, ""))
 }
 
 // recordInterfaceCatchAllAtStart is what the daemon's start does with the interfaces
@@ -466,7 +467,8 @@ func (s *ikeEngineState) recordInterfaceCatchAllAtStart(noFinalEntry map[string]
 
 // interfaceCatchAllStartRefusal is the operator error for one XFRM interface whose SPD
 // catch-all, always a discard (interfaceSPDCatchAll), the start could not install. The
-// fix is a restart for the reason unmatchedStartRefusal gives.
+// fix is chosen by the dataplane's answer and ends in a restart, for the reason
+// unmatchedStartRefusal gives.
 func interfaceCatchAllStartRefusal(name string, cause error) *opererr.Error {
 	return opererr.Wrap(cause,
 		"The default discard of XFRM interface "+name+" is NOT in force: Ze could not install that interface's SPD catch-all when the daemon started",
@@ -475,8 +477,8 @@ func interfaceCatchAllStartRefusal(name string, cause error) *opererr.Error {
 			"\"If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded.\" "+
 			"The final discard entry that ensures it is a SHOULD (Section 4.4.1). "+
 			"A start never refuses the IPsec block, so Ze installed the rest of the configuration and no entry hands traffic on to that interface. "+
-			"Remove the cause the dataplane names (the daemon needs CAP_NET_ADMIN), then restart Ze",
-		spdInstallFixRestart())
+			"The cause: "+xfrmRequest.cause(cause)+". Once it is gone, a restart of Ze installs the catch-all",
+		xfrmRequest.fix(cause, ""))
 }
 
 // A namespace FWD default also closes every if_id's forward lookup. An explicit
@@ -488,7 +490,9 @@ func interfaceForwardDefault(dp dataplane.Dataplane, entry *xfrmInterfaceEntry) 
 
 // interfaceCatchAllRefused answers the error installXFRMInterfaceEntries returns for
 // the interfaces whose SPD catch-all the backend refused, naming the first in sorted
-// order and how many there are, or nil when there is none.
+// order and how many there are, or nil when there is none. The cause and its fix are
+// the first interface's (xfrmRequest), and the fix ends in a new commit because a
+// refused commit is not kept.
 func interfaceCatchAllRefused(noFinalEntry map[string]error) error {
 	if len(noFinalEntry) == 0 {
 		return nil
@@ -498,9 +502,10 @@ func interfaceCatchAllRefused(noFinalEntry map[string]error) error {
 		names = append(names, name)
 	}
 	slices.Sort(names)
+	first := noFinalEntry[names[0]]
 	return fmt.Errorf("the SPD of XFRM interface %s (one of %d refused) has no final entry: "+
-		"its catch-all could not be installed: %w; the daemon needs CAP_NET_ADMIN to install it, then commit again",
-		names[0], len(names), noFinalEntry[names[0]])
+		"its catch-all could not be installed: %w; %s; to fix it: %s",
+		names[0], len(names), first, xfrmRequest.cause(first), xfrmRequest.fix(first, "commit again"))
 }
 
 // warnNoInterfaceCatchAll says, once per install pass that has one to place, that the

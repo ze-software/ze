@@ -51,20 +51,95 @@ const (
 	overrideGuardFixAllow = "set vpn ipsec application-override allow"
 )
 
-// overrideGuardFix answers the fix for a guard that did not attach with err: the
-// capability remedy for an EPERM, which a process without CAP_BPF or CAP_NET_ADMIN
-// gets from bpf_prog_load for a CGroupSockopt program (kernel/bpf/syscall.c, v7.0),
-// worded for this process by privilege.CapabilityRemedy, so a ze that systemd did not
-// start from ze.service is never told to reinstall the unit; the mount for a host with
-// no cgroup2; otherwise the statement that accepts overrides.
-func overrideGuardFix(err error) string {
+// overrideGuardFault classifies why the guard did not attach, which decides the cause
+// the refusal names and its fix (overrideGuardFaultOf). It is closed: only
+// overrideGuardFaultOf produces it.
+type overrideGuardFault uint8
+
+const (
+	// overrideGuardFaultUnspecified is the zero value, which overrideGuardFaultOf never
+	// answers.
+	overrideGuardFaultUnspecified overrideGuardFault = iota
+	// overrideGuardFaultCapability is a process without CAP_BPF or CAP_NET_ADMIN: EPERM.
+	overrideGuardFaultCapability
+	// overrideGuardFaultNoCgroup2 is a host with no cgroup2 mounted (dataplane.ErrNoCgroup2).
+	overrideGuardFaultNoCgroup2
+	// overrideGuardFaultUnknown is any other answer: Ze cannot tell which cause it is,
+	// and names the ones it knows rather than guess one.
+	overrideGuardFaultUnknown
+)
+
+// overrideGuardFaultOf classifies err, the error AttachOverrideGuard answered
+// (dataplane/override_guard_linux.go, kernel/bpf/syscall.c, Linux master):
+//
+//   - EPERM: bpf_prog_load sets "err = -EPERM;" before its capability checks, and
+//     refuses a program type other than a socket filter or cgroup skb "if (type !=
+//     BPF_PROG_TYPE_SOCKET_FILTER && type != BPF_PROG_TYPE_CGROUP_SKB && !bpf_cap)",
+//     where "bpf_cap = bpf_token_capable(token, CAP_BPF);", then "if
+//     (is_net_admin_prog_type(type) && !bpf_token_capable(token, CAP_NET_ADMIN))",
+//     whose list holds "case BPF_PROG_TYPE_CGROUP_SOCKOPT:". So a ze without CAP_BPF
+//     or CAP_NET_ADMIN gets EPERM for the guard.
+//   - dataplane.ErrNoCgroup2: cgroup2Root found no cgroup2 mounted, so the guard has
+//     no root to attach to and the kernel was not asked.
+//   - Anything else: a kernel before Linux 6.10 refuses the guard's
+//     bpf_get_ns_current_pid_tgid call, and its verifier answers EINVAL as it does for
+//     other programs it refuses; a security module's bpf hook answers EACCES, which
+//     the verifier also answers for a program it refuses. No errno tells these apart,
+//     so the class is Unknown.
+func overrideGuardFaultOf(err error) overrideGuardFault {
 	if errors.Is(err, syscall.EPERM) {
-		return privilege.CapabilityRemedy("CAP_BPF", "CAP_NET_ADMIN")
+		return overrideGuardFaultCapability
 	}
 	if errors.Is(err, dataplane.ErrNoCgroup2) {
-		return overrideGuardFixMount
+		return overrideGuardFaultNoCgroup2
 	}
-	return overrideGuardFixAllow
+	return overrideGuardFaultUnknown
+}
+
+// overrideGuardCause answers, in the operator's words, why the guard did not attach
+// with err. Safe for concurrent use.
+func overrideGuardCause(err error) string {
+	return overrideGuardCauseOf(overrideGuardFaultOf(err))
+}
+
+// overrideGuardCauseOf is overrideGuardCause for one fault.
+func overrideGuardCauseOf(fault overrideGuardFault) string {
+	switch fault {
+	case overrideGuardFaultCapability:
+		return "ze lacks CAP_BPF or CAP_NET_ADMIN, which the kernel asks of a process that loads a cgroup setsockopt program"
+	case overrideGuardFaultNoCgroup2:
+		return "the guard has no cgroup2 hierarchy to attach to"
+	case overrideGuardFaultUnknown:
+		return "Ze cannot tell the cause from the kernel's answer: a kernel before Linux 6.10 refuses the guard's " +
+			"bpf_get_ns_current_pid_tgid call, and a security module (SELinux or AppArmor) can refuse the program"
+	case overrideGuardFaultUnspecified:
+		panic("BUG: engine: overrideGuardFaultOf answered overrideGuardFaultUnspecified")
+	}
+	panic("BUG: engine: undeclared overrideGuardFault")
+}
+
+// overrideGuardFix answers the fix for a guard that did not attach with err: the
+// capability remedy for an EPERM, worded for this process by
+// privilege.CapabilityRemedy, so a ze that systemd did not start from ze.service is
+// never told to reinstall the unit; the mount for a host with no cgroup2; otherwise
+// the statement that accepts overrides. Safe for concurrent use.
+func overrideGuardFix(err error) string {
+	return overrideGuardFixOf(overrideGuardFaultOf(err))
+}
+
+// overrideGuardFixOf is overrideGuardFix for one fault.
+func overrideGuardFixOf(fault overrideGuardFault) string {
+	switch fault {
+	case overrideGuardFaultCapability:
+		return privilege.CapabilityRemedy("CAP_BPF", "CAP_NET_ADMIN")
+	case overrideGuardFaultNoCgroup2:
+		return overrideGuardFixMount
+	case overrideGuardFaultUnknown:
+		return overrideGuardFixAllow
+	case overrideGuardFaultUnspecified:
+		panic("BUG: engine: overrideGuardFaultOf answered overrideGuardFaultUnspecified")
+	}
+	panic("BUG: engine: undeclared overrideGuardFault")
 }
 
 // errOverrideUnspecified refuses a configuration that names no override value. The
@@ -78,8 +153,8 @@ var errOverrideUnspecified = errors.New("vpn ipsec application-override names no
 // RFC 4301 Section 4.4.1: "However, the system administrator MUST be able to specify
 // whether or not a user or application can override (default) system policies."
 //
-// Under deny a guard that cannot be attached fails the apply, with the reason and the
-// three ways out: exact or refuse (ai/rules/architecture.md). The caller MUST call it
+// Under deny a guard that cannot be attached fails the apply, with the cause and its
+// fix (overrideGuardFaultOf): exact or refuse (ai/rules/architecture.md). The caller MUST call it
 // with the catch-all already installed on the first apply, so no IKE socket opens
 // before the guard, and MUST call releaseApplicationOverride after the catch-all
 // leaves (releaseSPD).
@@ -121,15 +196,32 @@ func attachOverrideGuard(dp dataplane.Dataplane) error {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root (%w). "+
+		return fmt.Errorf("vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root: %s (%w). "+
 			"Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. "+
-			"Run ze with CAP_BPF and CAP_NET_ADMIN (%s) "+
-			"on Linux 6.10 or later (an older kernel refuses the guard's "+
-			"bpf_get_ns_current_pid_tgid call), mount cgroup2 at /sys/fs/cgroup, "+
-			"or set `vpn ipsec application-override allow` to accept that risk",
-			err, privilege.CapabilityRemedy("CAP_BPF", "CAP_NET_ADMIN"))
+			"To fix it: %s",
+			overrideGuardCause(err), err, overrideGuardRefusalFix(err))
 	}
 	return nil
+}
+
+// overrideGuardAllowAlternative is the way out the commit refusal offers for every
+// cause: setting allow needs no guard, and accepts the risk the refusal names.
+const overrideGuardAllowAlternative = "set `vpn ipsec application-override allow` to accept that risk"
+
+// overrideGuardRefusalFix is the fix the commit refusal names for err: the cause's own
+// fix (overrideGuardFix), then commit again, or overrideGuardAllowAlternative. The fix of
+// an Unknown cause is that statement itself, so the refusal names it first and then the
+// kernel Ze needs to keep deny.
+func overrideGuardRefusalFix(err error) string {
+	switch overrideGuardFaultOf(err) {
+	case overrideGuardFaultCapability, overrideGuardFaultNoCgroup2:
+		return overrideGuardFix(err) + ", then commit again, or " + overrideGuardAllowAlternative
+	case overrideGuardFaultUnknown:
+		return overrideGuardAllowAlternative + ", or keep deny on Linux 6.10 or later (Ze's own kernel)"
+	case overrideGuardFaultUnspecified:
+		panic("BUG: engine: overrideGuardRefusalFix read overrideGuardFaultUnspecified from overrideGuardFaultOf")
+	}
+	panic("BUG: engine: overrideGuardRefusalFix met an undeclared overrideGuardFault")
 }
 
 // detachOverrideGuard detaches the guard where the backend can hold one.

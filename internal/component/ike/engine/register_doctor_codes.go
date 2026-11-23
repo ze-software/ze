@@ -23,6 +23,7 @@ const (
 	codeDoctorIPsecSPDInstallRefused     = "doctor-ipsec-spd-install-refused"
 	codeDoctorIPsecSPDCatchAllMissing    = "doctor-ipsec-spd-catch-all-missing"
 	codeDoctorIPsecSPDExemptionMissing   = "doctor-ipsec-spd-exemption-missing"
+	codeDoctorIPsecSourceGuardMissing    = "doctor-ipsec-source-guard-missing"
 	codeDoctorIPsecSPDForwardBypass      = "doctor-ipsec-spd-forward-bypass" //nolint:gosec // G101: a doctor diagnostic code, not a credential
 	codeDoctorIPsecSPDUndoIncomplete     = "doctor-ipsec-spd-undo-incomplete"
 	codeDoctorIPsecSPDWriter             = "doctor-ipsec-spd-writer"
@@ -223,10 +224,11 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"IPsec block, so Ze installed every catch-all entry the dataplane accepted and the rest of the " +
 			"configuration, and logged the refusal at Error. Under `discard` the default discard is NOT in " +
 			"force: traffic no SPD entry matches is passed in the clear by the kernel instead of being " +
-			"discarded (RFC 4301 Section 4.4.1). The usual cause is a daemon without CAP_NET_ADMIN or a kernel " +
-			"without XFRM (CONFIG_XFRM_USER). Remove the cause, then restart Ze: the finding's fix gives the " +
-			"restart for this process, a systemd command only when ze runs under ze.service, otherwise the " +
-			"steps for a ze started another way. A commit that " +
+			"discarded (RFC 4301 Section 4.4.1). The finding names the cause the kernel's answer gives: EPERM " +
+			"is a daemon without CAP_NET_ADMIN, EPROTONOSUPPORT a kernel without XFRM (CONFIG_XFRM_USER), " +
+			"EACCES a security module's denial, and any other answer is named as one Ze does not classify. " +
+			"Its fix is that cause's, and ends in the restart for this process, a systemd command only when " +
+			"ze runs under ze.service, otherwise the steps for a ze started another way. A commit that " +
 			"changes `vpn ipsec` installs the catch-all again too, and is refused if the dataplane still refuses " +
 			"it. The same holds for the final entry of each XFRM interface a peer binds with `vti bind`, " +
 			"which is always a discard: the finding then names the interface whose default discard is not in " +
@@ -241,11 +243,32 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"if_id 0 exemptions that hand the traffic routed into that interface on to the interface's own SPD. " +
 			"The dataplane refused one, so that traffic meets the node-wide catch-all and is dropped: the tunnel " +
 			"carries none of it. The entry fails closed, so no commit is refused for it. The next commit or " +
-			"address change retries it, and the finding clears when it goes in. The usual cause is a daemon " +
-			"without CAP_NET_ADMIN. Remove the cause, then restart Ze. The doctor finding names the interface, " +
-			"the direction and the dataplane's answer, and its fix gives the restart for this process: a " +
+			"address change retries it, and the finding clears when it goes in. The finding names the cause " +
+			"the kernel's answer gives (EPERM a daemon without CAP_NET_ADMIN, EPROTONOSUPPORT a kernel without " +
+			"CONFIG_XFRM_USER, EACCES a security module's denial) and that cause's fix. The doctor finding names the interface, " +
+			"the direction and the dataplane's answer, and its fix ends in the restart for this process: a " +
 			"systemd command only when ze runs under ze.service, otherwise the steps for a ze started another way.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-exemption-missing"},
+	},
+	{
+		Code:  codeDoctorIPsecSourceGuardMissing,
+		Title: "A tunnel-source guard is not installed, so its IPv6 source exemption is not either",
+		Description: "Under `unmatched discard` Ze gives each IPv6 address of an XFRM interface a peer binds with " +
+			"`vti bind` an if_id 0 source exemption, which hands IPv6 host traffic from that address on to the " +
+			"interface's own SPD. Ze installs that exemption only while the address's tunnel-source guard holds: " +
+			"a rule `from <address>/128` into a routing table Ze owns for the interface, and the address's terms " +
+			"in the nft table ze_ipsec_source_guard. The kernel refused one of the two, so the exemption stays " +
+			"uninstalled, and IPv6 host traffic from that address routed into the interface meets the node-wide " +
+			"DISCARD catch-all: the tunnel carries none of it. The entry fails closed, so no commit is refused for " +
+			"it. The next commit or address change retries the refused step, and the finding clears when it goes " +
+			"in. The finding names the interface, the address, the refused step and the cause the kernel's answer " +
+			"gives (EPERM a daemon without CAP_NET_ADMIN; EAFNOSUPPORT for the rule a kernel without " +
+			"CONFIG_IPV6_MULTIPLE_TABLES; EPROTONOSUPPORT or EOPNOTSUPP for the nft table a kernel without " +
+			"CONFIG_NF_TABLES; EACCES a security module's denial), and that cause's fix, which ends in the " +
+			"restart for this process: a systemd command only when ze runs under ze.service, otherwise the steps " +
+			"for a ze started another way.",
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-source-guard-missing"},
+		RelatedCodes: []string{codeDoctorIPsecSPDExemptionMissing},
 	},
 	{
 		Code:  codeDoctorIPsecSPDForwardBypass,

@@ -18,7 +18,6 @@ import (
 	"slices"
 	"sort"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -52,11 +51,15 @@ var observeDataplane = engine.ObserveDataplane
 // dataplaneReadError turns a failed dataplane read into an error RESPONSE that
 // names its cause.
 //
-// The three causes are distinct and an operator acts differently on each, so
-// none of them may collapse into the others and NONE of them may become an empty
-// list. An empty table answers "is my tunnel programmed?" with "no", and that is
-// a wrong answer whenever the truth is "nobody asked the kernel"
-// (ai/rules/evidence.md).
+// The causes are distinct and an operator acts differently on each, so none of
+// them may collapse into the others and NONE of them may become an empty list. An
+// empty table answers "is my tunnel programmed?" with "no", and that is a wrong
+// answer whenever the truth is "nobody asked the kernel" (ai/rules/evidence.md).
+// A read the kernel refused is classified by its errno (engine.XFRMRequestCause):
+// EPERM is the CAP_NET_ADMIN xfrm_user_rcv_msg asks even of a dump, EACCES a
+// security module, EPROTONOSUPPORT a kernel without CONFIG_XFRM_USER; any other
+// answer is named as one Ze does not classify. The handler runs in the daemon, so
+// the fix is the daemon's.
 func dataplaneReadError(what string, err error) *plugin.Response {
 	var b textbuf.Buffer
 	switch {
@@ -66,10 +69,9 @@ func dataplaneReadError(what string, err error) *plugin.Response {
 		b.Str("the active dataplane backend cannot enumerate the ").Str(what)
 		b.Str(": ").Err(err)
 		b.Str("; this reports nothing about what the kernel holds, so it is not the same answer as an empty ").Str(what)
-	case errors.Is(err, syscall.EPERM), errors.Is(err, syscall.EACCES):
-		b.Str("reading the ").Str(what).Str(" needs CAP_NET_ADMIN, and this process does not have it: ").Err(err)
 	default:
-		b.Str("cannot read the ").Str(what).Str(": ").Err(err)
+		b.Str("cannot read the ").Str(what).Str(": ").Str(engine.XFRMRequestCause(err)).Str(": ").Err(err)
+		b.Str("; to fix it: ").Str(engine.XFRMRequestFix(err, "run the command again"))
 	}
 	return &plugin.Response{Status: plugin.StatusError, Error: b.String()}
 }

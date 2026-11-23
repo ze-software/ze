@@ -12,6 +12,7 @@ package cmd
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -889,6 +890,43 @@ func TestDataplaneReadErrorKeepsCausesDistinct(t *testing.T) {
 	require.Contains(t, other.Error, "netlink socket closed")
 	require.NotContains(t, other.Error, "CAP_NET_ADMIN")
 	require.NotContains(t, unsupported.Error, "CAP_NET_ADMIN")
+}
+
+// TestDataplaneReadErrorNamesTheKernelAnswer proves a refused read is read by the
+// kernel's errno, as engine.XFRMRequestCause classifies it: EPERM names the
+// capability and its remedy, EACCES a security module and the journal command with
+// no capability, EPROTONOSUPPORT a kernel without CONFIG_XFRM_USER, and any other
+// answer neither.
+//
+// VALIDATES: dataplaneReadError's default branch over each class.
+// PREVENTS: an EACCES, which a security module answers and no capability changes,
+// reported as a missing CAP_NET_ADMIN.
+func TestDataplaneReadErrorNamesTheKernelAnswer(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		contains []string
+		absent   []string
+	}{
+		{"EPERM", fmt.Errorf("xfrm: state list: %w", syscall.EPERM), []string{"lacks CAP_NET_ADMIN", "to fix it: "}, []string{"security module", "CONFIG_XFRM_USER"}},
+		{"EACCES", fmt.Errorf("xfrm: state list: %w", syscall.EACCES), []string{"security module", "journalctl", "then run the command again"}, []string{"CAP_NET_ADMIN"}},
+		{"EPROTONOSUPPORT", fmt.Errorf("xfrm: state list: %w", syscall.EPROTONOSUPPORT), []string{"built without CONFIG_XFRM_USER", "boot a kernel"}, []string{"CAP_NET_ADMIN"}},
+		{"EINVAL", fmt.Errorf("xfrm: state list: %w", syscall.EINVAL), []string{"the error is the only account", "remove the cause the error names, then run the command again"}, []string{"CAP_NET_ADMIN", "journalctl"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := dataplaneReadError("SAD", tc.err)
+			require.Equal(t, plugin.StatusError, resp.Status)
+			require.Contains(t, resp.Error, "cannot read the SAD")
+			require.Contains(t, resp.Error, tc.err.Error())
+			for _, want := range tc.contains {
+				require.Contains(t, resp.Error, want)
+			}
+			for _, other := range tc.absent {
+				require.NotContains(t, resp.Error, other)
+			}
+		})
+	}
 }
 
 // The same SPI on another destination must keep its own counters and cannot

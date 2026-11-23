@@ -1592,7 +1592,18 @@ leaves encrypted. Without that term the drop took every IPv6 packet from the
 tunnel address into the tunnel: `vti0` counted a transmit error with no carrier
 error and the outbound SA encrypted nothing. A guard address that is also a peer's IKE local address is
 skipped with a warning, and the same configuration is refused at verify
-(`refuseTunnelAddressAsIKEEndpoint`).
+(`refuseTunnelAddressAsIKEEndpoint`). A source rule or an nft publish the kernel
+refuses is logged at Error and kept in the guard's own record
+(`sourceGuards.ruleRefused` per interface and address, `publishRefused` for
+the table), because the source BYPASS it holds back never reaches the
+dataplane and so never reaches `interfaceExemptionRefused`. The
+`ipsec-source-guard` doctor check reports each address it leaves unguarded
+under `doctor-ipsec-source-guard-missing`, with the cause and fix of the same
+classifier (`sourceRuleRequest`, `nftRequest`); the pass that installs the
+step, or the prune that drops the address, clears it.
+<!-- source: internal/component/ike/engine/doctor_source_guard.go -- answerSourceGuard, sourceGuards.findings -->
+<!-- source: internal/component/ike/engine/source_guard.go -- sourceGuards.install, sourceGuards.prune, sourceGuards.publishHeld -->
+
 
 Ze's SPD is one unit with a lifetime of [first apply, exit]. `applyConfig`
 installs the catch-all first; engine start installs nothing. Every exit of
@@ -2602,10 +2613,13 @@ handler, and any attached program that answers 0 turns the call into `EPERM`.
 after the if_id 0 catch-all is first installed, moves
 it on a reload, and `releaseApplicationOverride` detaches it after the catch-all
 leaves. A guard that cannot attach under `deny` fails the apply, records its
-refusal and cause-specific fix (`overrideGuardFix`, using
+refusal and cause-specific fix (`overrideGuardFaultOf` classifies the answer, and
+`overrideGuardFix` answers
 `privilege.CapabilityRemedy("CAP_BPF", "CAP_NET_ADMIN")` on `EPERM`, the
 cgroup2 mount on `ErrNoCgroup2`, and `set vpn ipsec application-override allow`
-otherwise), and the `ipsec-application-override` runtime doctor check
+otherwise; the commit refusal names the same cause and fix, no other cause's, and
+`overrideGuardRefusalFix` adds setting `allow` as the way to accept the risk), and the
+`ipsec-application-override` runtime doctor check
 (`doctor_application_override.go`, declared in `engineDoctorChecks`) reports it
 from the engine's own process. The seam is
 `dataplane.OverrideGuard` (`override_guard.go`); the XFRM backend implements it

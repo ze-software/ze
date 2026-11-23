@@ -168,6 +168,7 @@ plugin's process:
 | `fib-vpp-stale-routes` | `fib-vpp` | an IP route or labeled push a previous run left in VPP that could not be removed, IP tables that could not be read, or no FIB source to mark routes with | `doctor-fib-vpp-stale-route` |
 | `ipsec-state-scope` | `ike` | a missing, partial or unreadable complete state-scope receipt with configured IPsec peers, before a Child SA attempt; the finding retains the shared installation validator's cause and native kernel-build repair commands | `doctor-ipsec-state-scope` |
 | `ipsec-spd-install` | `ike` | the SPD catch-all (`vpn ipsec unmatched`), or a bound XFRM interface's own final entry, the dataplane refused at start, so that default discard is not in force; an if_id 0 exemption of a bound XFRM interface the dataplane refused on the last install pass, so the traffic routed into that interface is dropped; an operator SPD entry the dataplane refused at start; a selector where a failed undo or removal left the dataplane disagreeing with the running configuration, with its direction, selector, priority and the dataplane's answer | `doctor-ipsec-spd-catch-all-missing`, `doctor-ipsec-spd-exemption-missing`, `doctor-ipsec-spd-install-refused`, `doctor-ipsec-spd-undo-incomplete` |
+| `ipsec-source-guard` | `ike` | an IPv6 address of a bound XFRM interface whose tunnel-source guard the kernel refused, its source rule or the publish of the nft table `ze_ipsec_source_guard`, so its if_id 0 source exemption stays uninstalled and IPv6 host traffic from it routed into the interface is dropped at the DISCARD catch-all, with the interface, the address, the refused step, the cause the kernel's answer gives and that cause's fix | `doctor-ipsec-source-guard-missing` |
 | `ipsec-spd-forward-bypass` | `ike` | an installed operator SPD bypass with a port, on a dataplane with a forward lookup (XFRM) whose kernel does not reassemble forwarded fragments first (no capability bit 3, or a receipt Ze could not read), whose local prefix is not one address the host holds now, so forwarded traffic on its ports misses it (RFC 4301 Section 7.4); a commit refuses such an entry and a start installs and logs it. Ze's runtime kernel gathers fragments, so the entry is projected and nothing is reported | `doctor-ipsec-spd-forward-bypass` |
 | `ipsec-ike-socket-bypass` | `ike` | an IKE socket the engine holds whose per-socket IPsec bypass the kernel refused, with the socket and the kernel's answer | `doctor-ipsec-ike-socket-bypass` |
 
@@ -182,6 +183,7 @@ sweep behind `doctor-fib-vpp-stale-route` is in
 <!-- source: internal/plugins/fib/vpp/doctor_route.go -- staleRoutesCheckDecl -->
 <!-- source: internal/component/ike/engine/doctor_state_scope.go -- stateScopeCheckDecl, answerStateScope -->
 <!-- source: internal/component/ike/engine/doctor_spd_install.go -- spdInstallCheckDecl -->
+<!-- source: internal/component/ike/engine/doctor_source_guard.go -- sourceGuardCheckDecl -->
 <!-- source: internal/component/ike/engine/doctor_ike_socket_bypass.go -- ikeSocketBypassCheckDecl -->
 <!-- source: internal/component/ike/engine/doctor_runtime.go -- engineDoctorChecks -->
 
@@ -848,7 +850,16 @@ interface with an if_id 0 exemption the last install pass could not place
 (`interfaceExemptionRefused`, rebuilt by every pass at start, reload or address
 event), with the direction, the dataplane's answer and the same restart; the
 pass that places the exemption clears it. No commit is refused for it, because
-the entry fails closed. The same
+the entry fails closed. A source exemption whose tunnel-source guard the kernel
+refused never reaches the dataplane, so it is not in that record: the
+`ipsec-source-guard` check reports it under `doctor-ipsec-source-guard-missing`,
+one finding per interface and address, from the guard's own record
+(`sourceGuards.ruleRefused`, the last refused source rule, and
+`publishRefused`, the last refused publish of the nft table, which leaves
+unguarded each held address the table does not cover). The cause and fix come
+from the classifier the Error line uses (`sourceRuleRequest`, `nftRequest`),
+so the log and the doctor say the same thing; the pass that installs the step
+clears it, and so does the prune that drops the address. The same
 check reports, under `doctor-ipsec-spd-undo-incomplete`, each selector at which
 a failed reconcile step left the dataplane disagreeing with the running
 configuration: the undo of a refused install that could not restore or remove a
@@ -885,6 +896,7 @@ as a bind failure. `plan/release/validation/spec-doctor-coverage-11-hub-engine.m
 <!-- source: internal/component/ike/engine/doctor_runtime.go -- engineDoctorChecks, answerDoctorCheck, answerESPFormFastPath -->
 <!-- source: internal/component/ike/engine/doctor_child_install.go -- childInstallCheckDecl, recordChildRefused -->
 <!-- source: internal/component/ike/engine/doctor_spd_install.go -- spdInstallCheckDecl, answerSPDInstall, recordSPDReconcile -->
+<!-- source: internal/component/ike/engine/doctor_source_guard.go -- sourceGuardCheckDecl, answerSourceGuard, sourceGuards.findings -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- installSPDPoliciesAtStart, reconcileSPDPolicies, spdReconcile, undoSPDInstall, removeReplacedSPDPolicies -->
 <!-- source: internal/component/ike/engine/doctor_ike_socket_bypass.go -- ikeSocketBypassCheckDecl, answerIKESocketBypass, checkIKESocketBypass -->
 <!-- source: internal/component/ike/transport/udp.go -- exemptFromIPsec, BypassError -->

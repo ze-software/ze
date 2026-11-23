@@ -2635,8 +2635,9 @@ result.
 
 A backend that cannot enumerate the dataplane, VPP and the noop backend among
 them, reports that it cannot rather than rendering an empty table. So does a
-process without CAP_NET_ADMIN, and so does a daemon that loaded no dataplane
-backend at all. An empty table would answer "nothing is installed" to a question
+process without CAP_NET_ADMIN, a security module's denial (`EACCES`), a kernel
+built without `CONFIG_XFRM_USER`, and a daemon that loaded no dataplane backend
+at all, each with its own fix. An empty table would answer "nothing is installed" to a question
 nobody asked the kernel.
 
 RFC 4303 Section 2.1 reserves SPI 0, so the `spi` selector refuses it rather

@@ -33,12 +33,9 @@ const espFormSocketWhy = "Ze reads, through a raw ESP socket, the bare ESP the k
 // (privilege.CapabilityRemedy, for the capability each operation needs), the file
 // limit's (espFormFixFileLimit) and the dataplane's warnings (ESPFormFixLog).
 const (
-	// espFormFixSecurityModule lists this boot's denials by SELinux (an "avc:" record)
-	// and AppArmor (apparmor="DENIED"). Both are audit records: where auditd does not run
-	// the kernel logs them, and where it does, journald reads the audit stream too on a
-	// standard systemd host, so the journal holds them either way, where ausearch needs
-	// the audit package and dmesg misses what auditd took.
-	espFormFixSecurityModule = `sudo journalctl -b --grep 'avc:|apparmor="DENIED"'`
+	// espFormFixSecurityModule lists this boot's denials by SELinux and AppArmor
+	// (SecurityModuleDenials).
+	espFormFixSecurityModule = SecurityModuleDenials
 	// espFormFixFileTable raises the host's table of open files to the value systemd
 	// sets at boot, the largest the kernel takes.
 	espFormFixFileTable = "sudo sysctl -w fs.file-max=9223372036854775807"

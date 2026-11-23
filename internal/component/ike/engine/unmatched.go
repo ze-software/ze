@@ -225,7 +225,7 @@ func installUnmatchedEntries(dp dataplane.Dataplane, action dataplane.SPAction, 
 				continue
 			}
 			refusal := fmt.Errorf("ike: install the SPD catch-all %s entry (dir %d): %w; %s",
-				unmatchedActionName(action), p.Dir, installErr, catchAllInstallHint(installErr))
+				unmatchedActionName(action), p.Dir, installErr, catchAllInstallHint(installErr, phase))
 			if phase == applyReload {
 				return refusal
 			}
@@ -236,22 +236,30 @@ func installUnmatchedEntries(dp dataplane.Dataplane, action dataplane.SPAction, 
 }
 
 // catchAllInstallHint is what the operator is told beside a catch-all entry the
-// dataplane refused, by who refused it.
+// dataplane refused, by who refused it and why.
 //
-// The kernel refuses for want of CAP_NET_ADMIN or of XFRM. The XFRM backend's ownership
-// ledger refuses without asking the kernel (dataplane.PolicyOwnedError), and a
-// capability changes nothing there. A peer's PROTECT policy on the catch-all's selector
-// is not such a refusal: the backend keeps it as the lookup's final entry and answers
-// success (dataplane policyOwners.yieldFinal). What is left is a peer's template-free
-// allow on the wildcard, which no Child SA builds and the ledger refuses to install.
-// A restart rebuilds the SPD, worded for this process by spdInstallFixRestart.
-func catchAllInstallHint(cause error) string {
+// The XFRM backend's ownership ledger refuses without asking the kernel
+// (dataplane.PolicyOwnedError), and nothing on the host changes that. A peer's PROTECT
+// policy on the catch-all's selector is not such a refusal: the backend keeps it as
+// the lookup's final entry and answers success (dataplane policyOwners.yieldFinal).
+// What is left is a peer's template-free allow on the wildcard, which no Child SA
+// builds and the ledger refuses to install. A restart rebuilds the SPD, worded for
+// this process by spdInstallFixRestart.
+//
+// The kernel's own refusals are classified by its errno (xfrmRequest.faultOf). A
+// reload is refused with the cause and its fix, which ends in a new commit because a
+// refused commit is not kept. The start's refusal names the cause alone: it is joined
+// into unmatchedStartRefusal, which carries the fix.
+func catchAllInstallHint(cause error, phase applyPhase) string {
 	if _, owned := errors.AsType[*dataplane.PolicyOwnedError](cause); owned {
 		return "the kernel was not asked: Ze's own record names another entry on the catch-all's selector, one that passes traffic " +
 			"and so cannot stand in for the catch-all; this is a Ze defect to report, and a restart of Ze rebuilds the SPD: " +
 			spdInstallFixRestart()
 	}
-	return "the daemon needs CAP_NET_ADMIN and a kernel with XFRM (CONFIG_XFRM_USER) to hold it"
+	if phase == applyReload {
+		return xfrmRequest.cause(cause) + "; to fix it: " + xfrmRequest.fix(cause, "commit again")
+	}
+	return xfrmRequest.cause(cause)
 }
 
 // unmatchedStartRefusal is the operator error for a catch-all the start could not
@@ -259,9 +267,12 @@ func catchAllInstallHint(cause error) string {
 // carry it, under codeDoctorIPsecSPDCatchAllMissing. cause is what
 // installUnmatchedAtStart answered.
 //
-// The fix is a restart: a reload reaches the engine only when `vpn` changed, so the
-// running configuration is installed again by a restart (or by any commit that changes
-// `vpn ipsec`, which re-asserts the catch-all and refuses itself if it fails again).
+// The fix is chosen by the kernel's answer (xfrmRequest.fix) and ends in a restart: a
+// reload reaches the engine only when `vpn` changed, so the running configuration is
+// installed again by a restart (or by any commit that changes `vpn ipsec`, which
+// re-asserts the catch-all and refuses itself if it fails again). cause joins every
+// refused entry, and errors.Is reads each, so a missing capability is named when any
+// entry was refused for it.
 func unmatchedStartRefusal(action dataplane.SPAction, cause error) *opererr.Error {
 	name := unmatchedActionName(action)
 	problem := "The SPD catch-all `vpn ipsec unmatched " + name + "` is NOT in force: Ze could not install it when the daemon started"
@@ -273,8 +284,8 @@ func unmatchedStartRefusal(action dataplane.SPAction, cause error) *opererr.Erro
 			"traffic), the packet MUST be discarded.\" The final discard entry that ensures it is a SHOULD (Section 4.4.1)"
 	}
 	why += ". A start never refuses the IPsec block, so Ze installed the rest of the configuration and every catch-all entry the dataplane accepted. " +
-		"Remove the cause the dataplane names (the daemon needs CAP_NET_ADMIN and a kernel with XFRM), then restart Ze"
-	return opererr.Wrap(cause, problem, why, spdInstallFixRestart())
+		"The cause: " + xfrmRequest.cause(cause) + ". Once it is gone, a restart of Ze installs the catch-all"
+	return opererr.Wrap(cause, problem, why, xfrmRequest.fix(cause, ""))
 }
 
 // Wrappers may expose this optional interface even when their wrapped backend does

@@ -13,6 +13,14 @@ import (
 	"time"
 )
 
+// SecurityModuleDenials is the command that lists this boot's denials by SELinux (an
+// "avc:" record) and AppArmor (apparmor="DENIED"), the fix step of every IPsec refusal
+// a security module answered with EACCES. Both are audit records: where auditd does
+// not run the kernel logs them, and where it does, journald reads the audit stream too
+// on a standard systemd host, so the journal holds them either way, where ausearch
+// needs the audit package and dmesg misses what auditd took.
+const SecurityModuleDenials = `sudo journalctl -b --grep 'avc:|apparmor="DENIED"'`
+
 var (
 	ErrNotRegistered = errors.New("dataplane: no backend registered")
 	ErrNotSupported  = errors.New("dataplane: operation not supported on this platform")
@@ -26,9 +34,10 @@ var (
 
 	// ErrNoCgroup2 is the override guard's answer when no cgroup2 file system is
 	// mounted, so it has no cgroup root to attach to (cgroup2Root,
-	// override_guard_linux.go). It is declared on every platform so the engine names
-	// the mount as the fix of that refusal.
-	ErrNoCgroup2 = errors.New("no cgroup2 file system is mounted (mount -t cgroup2 none /sys/fs/cgroup)")
+	// override_guard_linux.go). It is declared on every platform so the engine can
+	// recognize it: the engine's refusal names the mount as the fix, so the error
+	// states the fact alone.
+	ErrNoCgroup2 = errors.New("no cgroup2 file system is mounted")
 )
 
 // SAIdentity is the destination-qualified SAD key, including the XFRM interface.

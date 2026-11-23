@@ -64,8 +64,8 @@ func answerApplicationOverride(_ *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 // itself (a warning: one set before the guard attached, or while `allow` held, lives
 // until its socket closes, and the kernel cannot remove it). An apply that asked for
 // `deny` and could not attach the guard is an error too, carrying the apply's refusal,
-// which names the cause and the three ways out, and the fix for its cause
-// (overrideGuardFix).
+// which names the cause Ze reads from the kernel's answer and that cause's fix, and
+// the same fix (overrideGuardFix).
 func checkIPsecApplicationOverride(_ registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	if refusal := overrideRefusal.Load(); refusal != nil {
 		return []rpc.DoctorCheckDiagnostic{{

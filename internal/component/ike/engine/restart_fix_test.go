@@ -81,7 +81,7 @@ func TestIPsecRestartFixNamesTheRestartForThisProcess(t *testing.T) {
 		{
 			name: "owned catch-all hint",
 			text: func() string {
-				return catchAllInstallHint(&dataplane.PolicyOwnedError{HeldBy: "peer-a", Wanted: "catch-all"})
+				return catchAllInstallHint(&dataplane.PolicyOwnedError{HeldBy: "peer-a", Wanted: "catch-all"}, applyReload)
 			},
 		},
 		{

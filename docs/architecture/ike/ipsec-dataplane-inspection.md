@@ -34,17 +34,23 @@ operator their traffic is encrypted while it is being dropped.
 ## Decision: a failed read is an error, never an empty table
 
 An empty list answers "is my tunnel programmed?" with "no". That answer is wrong
-whenever the truth is "nobody asked the kernel". Three causes are distinct and an
+whenever the truth is "nobody asked the kernel". The causes are distinct and an
 operator acts differently on each, so each one gets its own message and none of
-them collapses into an empty result.
+them collapses into an empty result. A read the kernel refused is classified by
+its errno, the same way every NETLINK_XFRM refusal of the engine is
+(`engine.XFRMRequestCause`), and the message ends with the fix for that cause.
 
 | Cause | What the operator sees |
 |-------|------------------------|
 | No backend is loaded | the ike component never started, or no backend registered |
 | `ErrNotSupported` | the active backend cannot enumerate this table |
-| `EPERM` or `EACCES` | the read needs CAP_NET_ADMIN and this process does not have it |
+| `EPERM` | ze lacks CAP_NET_ADMIN, which `xfrm_user_rcv_msg` asks of every NETLINK_XFRM request, dumps included; the fix is the capability remedy for this process |
+| `EACCES` | a security module (SELinux or AppArmor) refused the request, which no capability changes; the fix lists the denials in the journal, then repeats the command |
+| `EPROTONOSUPPORT` | the kernel is built without `CONFIG_XFRM_USER`; the fix boots a kernel with it, then restarts Ze |
+| any other answer | the read failed for a cause Ze does not classify; the message names the kernel's error and says to remove that cause, then repeat the command |
 
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- activeDataplane, dataplaneReadError -->
+<!-- source: internal/component/ike/engine/netlink_refusal.go -- netlinkRequest.faultOf, XFRMRequestCause, XFRMRequestFix -->
 
 The Linux backend also reads each SA's complete directional state scope into
 `SAInfo.Scope`. `StateScopeRead` distinguishes a read legacy state, whose scope

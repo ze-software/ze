@@ -251,10 +251,10 @@ func bypassFaultOf(err error) bypassFault {
 	return bypassFaultUnknown
 }
 
-// bypassFixSecurityModule lists this boot's denials by SELinux (an "avc:" record) and
-// AppArmor (apparmor="DENIED"), the same command espFormFixSecurityModule
-// (dataplane/espform_open_linux.go) gives for the same option's EACCES.
-const bypassFixSecurityModule = `sudo journalctl -b --grep 'avc:|apparmor="DENIED"'` //nolint:gosec // G101: an operator fix command, not a credential
+// bypassFixSecurityModule lists this boot's denials by SELinux and AppArmor, the one
+// command every IPsec refusal a security module answered names
+// (dataplane.SecurityModuleDenials).
+const bypassFixSecurityModule = dataplane.SecurityModuleDenials
 
 // bypassFixKernel is the kernel fix, which the restart for this process completes.
 const bypassFixKernel = "boot a kernel built with CONFIG_XFRM (Ze's own kernel carries it), then restart ze: " //nolint:gosec // G101: an operator fix text, not a credential
