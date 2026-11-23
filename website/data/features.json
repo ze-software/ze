@@ -270,6 +270,7 @@
       ],
       "bullets": [
         "**Access concentrator** with PPPoE discovery",
+        "Kernel or **VPP** session data plane",
         "Shared **PPP driver** with L2TP",
         "**PAP**, **CHAP-MD5**, and **MS-CHAPv2** authentication"
       ]
