@@ -8,11 +8,28 @@
 | Release reason | 58 findings of the full lint in the test harness, `le` and the chaos tooling; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 5/5: bounded CI repair continues, including native replacements for four interpreted helpers in three plugin functional tests; closure and further Review Gate rounds remain unauthorized |
+| Phase | 5/5: all committed scoped lint findings cleared (`5140e76eca`, `76e5705254`), independently reviewed CLEAN; awaiting owner terminal `owner-authorised` review record and Commits A & B |
 | Handoff | - |
-| Updated | 2026-11-15 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Remaining closure work (2026-11-23 update)
+
+Since the 2026-11-12/15 records below, all implementation and scoped-lint work
+has landed in `HEAD`:
+
+- `c45ab7dced`: fixed `internal/test/editorcase/parent_test.go` arm64 build (`unix.Dup2`).
+- `621cb99bab`: landed the `internal/le/repo/inventory` lexical declaration identities migration and updated `docs/architecture/plugin/feature-gates.md`.
+- `80da927767`: landed AC-4 (native compiled Go fixtures replacing the interpreted helpers in `ddos-flowspec-orphan-doctor`, `ddos-flowspec-removed-section-orphan-cleared`, and `doctor-plugin-fatal-stop`, independently judged).
+- `5140e76eca` (124 files, `Weakening-approved: coupling.rootExists`, `Spec-work: lint-backlog-3-test-tooling`) and `76e5705254` (5 `hookSourcePackages` files + `changechecks_test.go`, `Spec-work: lint-backlog-3-test-tooling`): cleared all 220 remaining committed scoped lint findings across `internal/le`, `internal/test`, and `internal/chaos`.
+- **AC-1 verified**: `./le go lint run scope "./internal/test/... ./internal/le/... ./internal/chaos/... ./tools/freertr-entrypoint/..."` ran to completion across all 8 build flavors (`host`, `linux/integration`, `darwin`, `freebsd`, `openbsd`, `dragonfly`, `capability`, `compile-out`), followed by `./le go lint run scope "./internal/test/fixture"` (`0 issues` across host, linux/integration, darwin). Committed findings in scope: **0**. Foreign uncommitted findings (owner ruling of 2026-11-12): 3 `goconst: "eval"` hits in `internal/le/hookruntime/{session.go,testdeletion.go,worktreecopy.go}` (only 2 occurrences at HEAD; the 3rd is in another session's uncommitted `testdeletion.go`).
+- **AC-2 verified for changed packages**: tagged race runs passed across all 28 passing/4 no-test changed packages, `internal/le/rfc` `TestRename`, targeted `internal/le/site`, and `internal/test/fixture` `TestDaemonAwait`. Disclosed unrelated HEAD reds: whole `internal/le/rfc` timed out at 20m (`job-unit-pkg-8d3bfa6d.log`) with 4 failures from recent RFC counting/profile commits (`60fa95675f`, `f249e6fb96`), plus pre-existing reds in `internal/le/arch/fspersistence` (`devppp_linux.go` allowlist), `internal/le/interoplab/topology` (`ze-l2tp-kl2tpd` image list), `internal/test/peer` (`critical_test.go`), and `hookSourcesDigest` already drifted across 8 prior commits since `bf127d164a` while `internal/le/ai/hooks/fixtures.go` and `internal/le/hookruntime/*` carry another session's uncommitted edits.
+- **AC-3 & independent review verified**: an independent read-only reviewer checked `5140e76eca` and `76e5705254` across both lenses (behavior/assertion preservation and producer verification of all 21 added `//nolint` directives): **CLEAN: 0 BLOCKER, 0 ISSUE, 0 NOTE**.
+
+**Only two closure steps remain:**
+1. Owner records the closing review artifact from an interactive terminal (`owner-authorised "<words>"`) covering the 19 `Spec-work: lint-backlog-3-test-tooling` commits (255 reviewable files).
+2. Land Commit A (repointing citations in `plan/release/validation/spec-lint-backlog-0-umbrella.md` and `plan/release/fixes/spec-rfc-proof-debt-outside-filter-wire.md`) and Commit B (removing this spec). Side finding (`checkFixtureCategory` in `internal/le/ai/hooks/fixtures.go`) still awaits an owner-chosen spec for its journal row.
 
 ## Remaining closure work (2026-11-12)
 
