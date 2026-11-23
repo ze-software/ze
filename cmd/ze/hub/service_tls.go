@@ -1,26 +1,40 @@
-//go:build ze_lg || ze_web
-
 // Design: docs/architecture/pki/tls-listeners.md -- one precedence rule for every hub TLS listener
 //
-// The build constraint is the DISJUNCTION of its two consumers'. service_web.go
-// (ze_web) and service_lg.go (ze_lg) each ask this file for the material their
-// listener serves, and nothing else does. A daemon with neither listener serves
-// no TLS from the hub.
+// Always on, although its startup consumers are tagged. service_web.go (ze_web)
+// and service_lg.go (ze_lg) ask this file for the material their listener
+// serves at start, and the reload hooks in listener_migrate.go, which are
+// always-on hub code, ask it for the material a reloaded config describes. One
+// function answers both, so a restart and a reload cannot disagree about which
+// certificate one config asks for.
 //
 // Related: cert_store.go -- the live store the self-signed branch persists into
+// Related: listener_migrate.go -- updateWebCertificate and updateLGCertificate
 
 package hub
 
 import (
 	zepki "github.com/ze-software/ze/internal/component/pki"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/selfcert"
+)
+
+// errSelfSignedNeedsStore refuses the self-signed branch for a listener that has
+// no store to keep the pair in. Startup never reaches it: the web server is
+// disabled without a store, and the looking glass decides plaintext or an error
+// before it asks (service_lg.go). A reload does, when it drops the certificate
+// name of a looking glass that started on a named certificate without a store.
+var errSelfSignedNeedsStore = opererr.New(
+	"The listener cannot return to its self-signed certificate.",
+	"No certificate is named, and the self-signed certificate is kept in the database store, which this daemon runs without.",
+	"Name a pki certificate in the listener's certificate leaf, or run `ze init` and restart ze.",
 )
 
 // listenerTLSMaterial returns the PEM material a hub TLS listener serves.
 //
 // It is the one place the precedence between a named certificate and the
 // self-signed pair is decided. The web and API listener and the looking glass
-// both call it, so the two surfaces cannot disagree about that rule.
+// both call it at start, and both reload hooks call it, so neither two surfaces
+// nor a start and a reload can disagree about that rule.
 //
 // certName is the operator's certificate leaf. The web listener reads
 // environment.web.certificate. The looking glass reads
@@ -40,10 +54,15 @@ import (
 // (docs/architecture/pki/tls-listeners.md, "a named certificate fails closed").
 //
 // The caller decides whether certStore is reachable. Self-signed certificates
-// require the daemon's live store. Named certificates do not use that store.
+// require the daemon's live store. Named certificates do not use that store. A
+// nil certStore with an empty name is refused rather than answered with no
+// material: the listener has no certificate the config describes.
 func listenerTLSMaterial(certName string, certStore selfcert.CertStore, listenAddr string) (certPEM, keyPEM []byte, err error) {
 	if certName != "" {
 		return zepki.ServerTLSMaterial(certName)
+	}
+	if certStore == nil {
+		return nil, nil, errSelfSignedNeedsStore
 	}
 	return selfcert.LoadOrGenerateCert(certStore, listenAddr)
 }

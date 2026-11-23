@@ -76,6 +76,7 @@ environment {
 | Default | No `certificate` leaf means Ze generates and serves a self-signed certificate, which is the behavior of every release before this leaf existed. |
 | Fail closed | A name the store does not hold, or an entry with no `private { key }`, refuses the start: Ze exits and names the missing certificate. A reload that names one is rejected as a whole, and the running looking glass keeps the chain it is serving. Ze never falls back to a self-signed certificate for a name you configured. |
 | Rotation | Load new material under the same name and reload: the listener serves the new chain from the next handshake, with no rebind, so a viewer's open connection survives. |
+| Removal | Delete the `certificate` leaf and reload: the listener serves its self-signed certificate from the next handshake, with no rebind, as a restart would. Without a `database/` store there is no self-signed certificate to return to, so that reload is refused; run `ze init` and restart. |
 | TLS off | `tls false` serves no certificate, so the leaf is inert. Neither the start nor a reload reads the name. |
 | Plaintext by downgrade | A storeless stdin daemon took the TLS default and started the looking glass in plaintext. A later certificate name does not enable TLS; restart to serve the named chain. |
 | No live store needed | A named certificate comes from the `pki {}` container. Only the self-signed certificate needs the live store. |

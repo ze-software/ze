@@ -23,16 +23,35 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/lg"
+	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // lgService adapts *lg.LGServer to the Service interface (it already satisfies
-// Reconfigurable + Shutdown; only Name is added).
+// Reconfigurable + Shutdown; Name is added), and carries what a reload needs to
+// return the listener to its self-signed pair (selfSignedSource).
 type lgService struct {
 	*lg.LGServer
+	// certStore is the store the self-signed pair lives in. Nil when the daemon
+	// runs without one: a looking glass that started on a named certificate
+	// needs none, and a reload that drops the name is then refused.
+	certStore selfcert.CertStore
+	// sanHint is the first address the looking glass was built with.
+	sanHint string
 }
 
 func (lgService) Name() string { return "looking-glass" }
+
+// The reload migrator installs the certificate a reloaded config describes
+// through this seam (listener_migrate.go, updateLGCertificate).
+var _ tlsUpdatable = lgService{}
+
+// selfSignedSource answers the store and the SAN hint the looking glass's
+// self-signed pair comes from (tlsUpdatable). The hint names a SAN only when
+// the store holds no pair yet.
+func (s lgService) selfSignedSource() (certStore selfcert.CertStore, listenAddr string) {
+	return s.certStore, s.sanHint
+}
 
 // The reload migrator replaces the named next-hop ranges through this seam. A
 // change to the method on *lg.LGServer that broke it would otherwise leave
@@ -119,7 +138,13 @@ func buildLGService(deps *serviceDeps) (Service, error) {
 	for _, addr := range srv.Addresses() {
 		fmt.Fprintf(os.Stderr, "looking glass listening on %s://%s/\n", scheme, addr)
 	}
-	return lgService{srv}, nil
+	service := lgService{LGServer: srv, sanHint: deps.LGAddrs[0]}
+	// A typed nil store would read as a store, so the field stays an untyped
+	// nil when the daemon has none (listenerTLSMaterial refuses on nil).
+	if deps.Store != nil {
+		service.certStore = &blobCertStore{store: deps.Store}
+	}
+	return service, nil
 }
 
 // serveLG runs the LG server's ListenAndServe in a background goroutine.

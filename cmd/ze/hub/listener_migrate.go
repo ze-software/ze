@@ -14,8 +14,8 @@ import (
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
-	zepki "github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -45,6 +45,11 @@ type Reconfigurable interface {
 // (//go:build ze_web).
 type tlsUpdatable interface {
 	UpdateTLSCertificate(certPEM, keyPEM []byte) error
+	// selfSignedSource answers where this listener's self-signed pair is kept,
+	// and the address its SAN hint names: the inputs listenerTLSMaterial needs
+	// for a config that names no certificate. A nil store means the listener
+	// runs without one, and listenerTLSMaterial then refuses the empty name.
+	selfSignedSource() (certStore selfcert.CertStore, listenAddr string)
 }
 
 // nextHopRangesUpdatable is implemented by a server that can replace, whole
@@ -255,27 +260,52 @@ func (m *listenerMigrator) setWeb(web Reconfigurable) {
 // package, the same reason setLG takes Reconfigurable.
 func (m *listenerMigrator) setWebTLS(s tlsUpdatable) { m.webTLS = s }
 
-// updateWebCertificate re-resolves certName in the PKI store and installs the
-// resulting chain on the running web server, without rebinding its listeners.
-// Called on reload AFTER the new store is installed, so a commit that rotates
-// the certificate's material takes effect on the next handshake (AC-9).
+// updateWebCertificate resolves the certificate the reloaded config describes
+// for the web server and installs it on the running server, without rebinding
+// its listeners. Called on reload AFTER the new store is installed, so a commit
+// that rotates the certificate's material takes effect on the next handshake
+// (AC-9).
 //
-// An empty certName means the operator configured no reference: the self-signed
-// certificate keeps serving and nothing is touched. A non-empty name that no
-// longer resolves is an ERROR that fails the reload, never a silent downgrade to
-// the self-signed certificate the listener may still be holding (R-5).
+// The certificate is the one a restart with the same config would serve:
+// listenerTLSMaterial decides it, as it does at start. A set certName installs
+// the named chain. An empty certName installs the self-signed pair, so a commit
+// that removes environment.web.certificate stops the listener presenting the
+// chain the config dropped. A name that does not resolve is an ERROR that fails
+// the reload, never a silent downgrade to the self-signed certificate (R-5).
+//
+// With no handle no web server is running, and there is nothing to install.
 func (m *listenerMigrator) updateWebCertificate(certName string) error {
-	if m.webTLS == nil || certName == "" {
+	if m.webTLS == nil {
 		return nil
 	}
-	certPEM, keyPEM, err := zepki.ServerTLSMaterial(certName)
+	return installListenerCertificate(m.webTLS, "web", certName)
+}
+
+// installListenerCertificate resolves certName through listenerTLSMaterial
+// against the listener's own self-signed source and installs the result on that
+// listener. Unresolvable material installs nothing: the listener keeps what it
+// was serving and the error fails the reload. surface names the listener in
+// that error.
+func installListenerCertificate(listener tlsUpdatable, surface, certName string) error {
+	certStore, listenAddr := listener.selfSignedSource()
+	certPEM, keyPEM, err := listenerTLSMaterial(certName, certStore, listenAddr)
 	if err != nil {
-		return fmt.Errorf("web tls certificate %q: %w", certName, err)
+		return listenerCertificateError(surface, certName, err)
 	}
-	if err := m.webTLS.UpdateTLSCertificate(certPEM, keyPEM); err != nil {
-		return fmt.Errorf("web tls certificate %q: %w", certName, err)
+	if err := listener.UpdateTLSCertificate(certPEM, keyPEM); err != nil {
+		return listenerCertificateError(surface, certName, err)
 	}
 	return nil
+}
+
+// listenerCertificateError names the listener and the certificate a failed
+// install was for. An empty name is the self-signed certificate, which has no
+// name an operator could recognize.
+func listenerCertificateError(surface, certName string, err error) error {
+	if certName == "" {
+		return fmt.Errorf("%s tls self-signed certificate: %w", surface, err)
+	}
+	return fmt.Errorf("%s tls certificate %q: %w", surface, certName, err)
 }
 
 // setLG updates the looking glass server reference.
@@ -319,47 +349,45 @@ func (m *listenerMigrator) updateLGNextHopRanges(ranges map[netip.Prefix]string)
 	return restore, nil
 }
 
-// updateLGCertificate re-resolves certName in the PKI store and installs the
-// resulting chain on the running looking glass, without rebinding its
-// listeners. Called on reload AFTER the new store is installed, so a commit
-// that rotates the certificate's material takes effect on the next handshake
-// (AC-6).
+// updateLGCertificate resolves the certificate the reloaded config describes
+// for the looking glass and installs it on the running looking glass, without
+// rebinding its listeners. Called on reload AFTER the new store is installed,
+// so a commit that rotates the certificate's material takes effect on the next
+// handshake (AC-6).
 //
 // It reads its OWN handle and its OWN name. The web listener and the looking
 // glass hold separate certificates, and one migrator carries both, so a method
 // that shared either would serve one listener's identity on the other (R-1).
 //
-// An empty certName means the operator named no certificate: the self-signed
-// certificate keeps serving and nothing is touched. A non-empty name that no
-// longer resolves is an ERROR that fails the reload, never a silent downgrade
-// to the self-signed certificate the listener may still be holding (R-5).
+// The certificate is the one a restart with the same config would serve:
+// listenerTLSMaterial decides it, as it does at start. A set certName installs
+// the named chain. An empty certName installs the self-signed pair, so a commit
+// that removes environment.looking-glass.certificate stops the listener
+// presenting the chain the config dropped. A name that does not resolve is an
+// ERROR that fails the reload, never a silent downgrade to the self-signed
+// certificate (R-5). So is an empty name on a looking glass that runs without a
+// store, which has no self-signed pair to return to: a reload never rebinds a
+// listener to plaintext.
 //
-// The two reasons to do nothing are reported apart, because they are not the
-// same answer to the operator. No name is the ordinary case and says nothing.
-// A name with no handle means the looking glass serves plaintext, so this
+// With no handle the looking glass serves plaintext and holds no certificate,
+// and two cases are reported apart, because they are not the same answer to the
+// operator. No name is the ordinary case and says nothing. A name means this
 // commit is accepted and the certificate it names reaches no listener until a
 // restart. Nothing else on this path would tell the operator that, and a
 // configuration change that takes no effect in silence is the failure this
 // separation exists to prevent (ai/rules/principles.md).
 func (m *listenerMigrator) updateLGCertificate(certName string) error {
+	if m.lgTLS != nil {
+		return installListenerCertificate(m.lgTLS, "looking glass", certName)
+	}
 	if certName == "" {
 		return nil
 	}
-	if m.lgTLS == nil {
-		m.log().Warn("looking glass certificate not applied: the listener serves plaintext",
-			"leaf", "environment.looking-glass.certificate",
-			"certificate", certName,
-			"remedy", "restart ze to serve this certificate over TLS",
-		)
-		return nil
-	}
-	certPEM, keyPEM, err := zepki.ServerTLSMaterial(certName)
-	if err != nil {
-		return fmt.Errorf("looking glass tls certificate %q: %w", certName, err)
-	}
-	if err := m.lgTLS.UpdateTLSCertificate(certPEM, keyPEM); err != nil {
-		return fmt.Errorf("looking glass tls certificate %q: %w", certName, err)
-	}
+	m.log().Warn("looking glass certificate not applied: the listener serves plaintext",
+		"leaf", "environment.looking-glass.certificate",
+		"certificate", certName,
+		"remedy", "restart ze to serve this certificate over TLS",
+	)
 	return nil
 }
 

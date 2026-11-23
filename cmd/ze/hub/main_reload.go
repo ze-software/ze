@@ -690,6 +690,19 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		}
 	}
 
+	// The certificate each hub TLS listener serves under the running config,
+	// read before this reload changes anything. A reload that installs the
+	// reloaded config's certificate on a listener and then fails puts these
+	// back, once rollbackReload has put the running store back (R-3).
+	var priorCertificates *listenerCertificateNames
+	if priorProvider != nil {
+		names, namesErr := runningListenerCertificates(priorProvider)
+		if namesErr != nil {
+			return withUnwind(fmt.Errorf("reload: read the running listener certificates: %w", namesErr), unwindStep{unwindCandidateCleanup, clearCandidate()})
+		}
+		priorCertificates = names
+	}
+
 	// Capture the PKI config the store currently holds, so any failure after the
 	// install below can put it back. Without this, a rejected reload would leave
 	// the daemon serving the NEW certificates under the OLD config (R-3).
@@ -880,12 +893,21 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 	// candidate whose promotion fails is rolled back after the names changed,
 	// and the page must not keep the names of a config that is not in force.
 	restoreLGNextHopRanges := func() {}
+	// restoreCertificates puts back the certificate each listener served before
+	// this reload installed the reloaded config's. It does nothing until an
+	// install succeeds. Every return that leaves the reload unapplied after an
+	// install calls rollbackReload first, so the running store is back when it
+	// runs and the names resolve to the running config's material.
+	restoreCertificates := func() error { return nil }
 	reloadApplied := false
 	defer func() {
 		if reloadApplied {
 			return
 		}
 		restoreLGNextHopRanges()
+		if restoreErr := restoreCertificates(); restoreErr != nil {
+			result = withUnwind(result, unwindStep{unwindCertificateRestore, restoreErr})
+		}
 		if restoreErr := restoreListeners(); restoreErr != nil {
 			slogutil.Logger("hub.reload").Error("listener rollback failed", "error", restoreErr)
 			return
@@ -902,16 +924,35 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		}
 	}
 
-	// The store is already installed (above). Push the possibly-rotated material
-	// onto each running TLS listener, which serves it from the next handshake
-	// with no rebind, so open SSE streams survive the rotation (AC-9).
+	// The store is already installed (above). Push the certificate the reloaded
+	// config describes onto each running TLS listener: the named chain, possibly
+	// rotated, or the self-signed pair when the config names none. The listener
+	// serves it from the next handshake with no rebind, so open SSE streams
+	// survive the rotation (AC-9).
 	if lm != nil {
 		// Each listener takes its OWN name onto its OWN handle, so rotating one
 		// can never install the other's identity (R-1). A viewer holding an
 		// open looking-glass connection keeps it across the swap (AC-6).
-		err := lm.updateWebCertificate(webCertName)
-		if err == nil {
-			err = lm.updateLGCertificate(lgCertName)
+		//
+		// Only for a reload that parsed a tree, as for the next-hop ranges
+		// below: a reload with no tree says nothing about either leaf, and an
+		// empty name now installs the self-signed pair, so pushing it would
+		// replace a named chain the config still describes.
+		//
+		// A listener whose install succeeded gets its running certificate back
+		// when a later step fails: the deferred rollback above calls
+		// restoreCertificates. A failed install leaves that listener on what it
+		// was serving, so only the installs before it are undone.
+		var err error
+		if parsedTree != nil {
+			err = lm.updateWebCertificate(webCertName)
+			if err == nil {
+				restoreCertificates = priorCertificates.restoreOn(lm, false)
+				err = lm.updateLGCertificate(lgCertName)
+			}
+			if err == nil {
+				restoreCertificates = priorCertificates.restoreOn(lm, true)
+			}
 		}
 		// Last of the three, and only for a reload that parsed a tree: a
 		// reload with no tree says nothing about the list, and handing the
@@ -1122,6 +1163,52 @@ func restorePKI(priorPKI *zepki.PKIConfig) error {
 func restorePKIAfter(priorPKI *zepki.PKIConfig, clearCandidate func() error, cause error) error {
 	return withUnwind(cause,
 		unwindStep{unwindPKIRestore, restorePKI(priorPKI)}, unwindStep{unwindCandidateCleanup, clearCandidate()})
+}
+
+// listenerCertificateNames is the certificate name one config gives each hub
+// TLS listener. An empty name is the listener's self-signed pair, as it is for
+// listenerTLSMaterial.
+type listenerCertificateNames struct {
+	web string
+	lg  string
+}
+
+// runningListenerCertificates answers the certificate names of the running
+// config, read from the provider snapshot runReloadContext takes before it
+// applies anything. It reads them through the readers the reload uses for the
+// reloaded config (reloadWebCertificate, lgCertificateName), so a rollback
+// returns each listener to the certificate a restart with the running config
+// would serve.
+func runningListenerCertificates(prior map[string]map[string]any) (*listenerCertificateNames, error) {
+	roots := make(map[string]any, 1)
+	if environment, ok := prior["environment"]; ok {
+		roots["environment"] = environment
+	}
+	tree, err := zeconfig.TreeFromPluginMap(roots)
+	if err != nil {
+		return nil, err
+	}
+	return &listenerCertificateNames{web: reloadWebCertificate(tree), lg: lgCertificateName(tree)}, nil
+}
+
+// restoreOn answers the undo of the certificate installs a reload made on lm:
+// it reinstalls these names on the web listener, and on the looking glass too
+// when lookingGlass is set. The reload installs the web listener's certificate
+// first and stops at the first install that fails, so those are the two sets
+// of installs it can have made. The caller MUST run the undo after the running
+// store is back, or the names resolve to the refused commit's material.
+func (names *listenerCertificateNames) restoreOn(lm *listenerMigrator, lookingGlass bool) func() error {
+	// refuse-by-default: guards runReloadContext -- no names means no provider snapshot, so rollbackReload restores no store either and there is no running certificate to return to
+	if names == nil {
+		return func() error { return nil }
+	}
+	return func() error {
+		err := lm.updateWebCertificate(names.web)
+		if !lookingGlass {
+			return err
+		}
+		return errors.Join(err, lm.updateLGCertificate(names.lg))
+	}
 }
 
 // reloadWebCertificate returns the environment.web.certificate name the reloaded

@@ -17,22 +17,29 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zepki "github.com/ze-software/ze/internal/component/pki"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/env"
-
-	"github.com/stretchr/testify/require"
+	"github.com/ze-software/ze/internal/core/selfcert"
 )
 
 // fakeTLSUpdatable records the material handed to the rotation seam. It lives
-// in an untagged file because tlsUpdatable is always-on hub code.
+// in an untagged file because tlsUpdatable is always-on hub code. certStore is
+// the listener's self-signed store, nil for a listener that runs without one.
 type fakeTLSUpdatable struct {
-	certPEM []byte
-	keyPEM  []byte
-	calls   int
-	err     error
+	certPEM   []byte
+	keyPEM    []byte
+	calls     int
+	err       error
+	certStore selfcert.CertStore
+}
+
+func (f *fakeTLSUpdatable) selfSignedSource() (certStore selfcert.CertStore, listenAddr string) {
+	return f.certStore, "127.0.0.1:3443"
 }
 
 func (f *fakeTLSUpdatable) UpdateTLSCertificate(certPEM, keyPEM []byte) error {
@@ -536,6 +543,64 @@ func TestRollbackReloadRestoresPriorPKIStore(t *testing.T) {
 
 	require.Equal(t, "old cert", zepki.CertCN("rolled-back"),
 		"rollback must reinstall the certificate material the prior config described")
+}
+
+func TestRollbackReloadRestoresInstalledListenerCertificate(t *testing.T) {
+	// VALIDATES: R-3 on the listener -- a reload that installed the reloaded
+	// config's certificate on the web listener and then failed puts the
+	// certificate the running config names back on that listener.
+	// PREVENTS: the rolled-back daemon presenting, from its next handshake on,
+	// the certificate of a commit that was refused, under a config that names
+	// another one. Restoring the store alone does not do it: the listener holds
+	// the parsed pair it was handed, not a name it re-reads.
+	//
+	// Method: the running config serves "web-a" (leaf A). The reload rotates the
+	// web listener to "web-b" (leaf B), which succeeds, and then fails at the
+	// looking glass, which runs without a store and so has no self-signed pair
+	// for the reloaded config's empty name. The web listener's last install must
+	// be leaf A again.
+	resetAAABundleForTest(t)
+	t.Cleanup(func() { _ = zepki.Load(nil) })
+
+	caA, certA, keyA := caSignedB64(t, "web leaf A")
+	caB, certB, keyB := caSignedB64(t, "web leaf B")
+
+	running := pkiWebTree(caA, certA, keyA, "web-a", "web-a")
+	runningPKI, err := preparePKIConfig(treeFromMap(running))
+	require.NoError(t, err)
+	require.NoError(t, zepki.Load(runningPKI))
+
+	reloaded := pkiWebTree(caB, certB, keyB, "web-b", "web-b")
+	srv, cp := reloadDriver(t, reloaded)
+	for _, root := range []string{"pki", "environment"} {
+		subtree, ok := running[root].(map[string]any)
+		require.True(t, ok)
+		cp.SetRoot(root, subtree)
+	}
+
+	web := &fakeTLSUpdatable{}
+	lookingGlass := &fakeTLSUpdatable{} // no certStore: a looking glass that runs without a store
+	lm := &listenerMigrator{}
+	lm.setWebTLS(web)
+	lm.setLGTLS(lookingGlass)
+
+	load := func() (map[string]any, *zeconfig.Tree, error) {
+		return reloaded, treeFromMap(reloaded), nil
+	}
+
+	err = runReload(srv, cp, load, lm)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errSelfSignedNeedsStore,
+		"the reload must fail at the looking glass, after the web listener took leaf B")
+	require.Zero(t, lookingGlass.calls, "the looking glass refuses before it installs anything")
+	require.Equal(t, 2, web.calls, "the web listener takes leaf B, then leaf A back")
+
+	pair, err := tls.X509KeyPair(web.certPEM, web.keyPEM)
+	require.NoError(t, err)
+	leaf, err := x509.ParseCertificate(pair.Certificate[0])
+	require.NoError(t, err)
+	require.Equal(t, "web leaf A", leaf.Subject.CommonName,
+		"the refused reload must leave the web listener on the running config's certificate")
 }
 
 func TestReloadWebCertificateReadsSettingsNotAddresses(t *testing.T) {

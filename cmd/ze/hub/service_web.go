@@ -36,6 +36,7 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	internalresolve "github.com/ze-software/ze/internal/core/resolve"
+	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -49,6 +50,19 @@ type webService struct {
 	stopped    chan struct{}
 	stopError  error
 	drainLimit time.Duration
+	// certStore and sanHint are what the web server's self-signed pair was
+	// loaded from at start. A reload that drops environment.web.certificate
+	// returns the listener to that pair through selfSignedSource. Nil and empty
+	// on a service no builder gave a store, which then refuses that reload.
+	certStore selfcert.CertStore
+	sanHint   string
+}
+
+// selfSignedSource answers the store and the SAN hint the web server's
+// self-signed pair comes from (tlsUpdatable). The hint is the first address the
+// server was built with. It names a SAN only when the store holds no pair yet.
+func (s *webService) selfSignedSource() (certStore selfcert.CertStore, listenAddr string) {
+	return s.certStore, s.sanHint
 }
 
 // webDrainLimit reserves the same share of the process teardown margin as SSH
@@ -146,7 +160,13 @@ func buildWebService(deps *serviceDeps) (Service, error) {
 		ring.Append("web", "server.started")
 		wireEventRingToBroker(ring, broker)
 	}
-	return newWebService(webSrv, broker, editors), nil
+	service := newWebService(webSrv, broker, editors)
+	// startWebServer returned a server, so deps.Store is set: it disables the
+	// web server without one. This is the store and the first address its
+	// self-signed pair came from, for a reload that drops the certificate name.
+	service.certStore = &blobCertStore{store: deps.Store}
+	service.sanHint = webAddrs[0]
+	return service, nil
 }
 
 func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) (exit int) {

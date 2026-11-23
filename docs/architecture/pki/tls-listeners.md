@@ -39,13 +39,16 @@ self-signed certificate while the config names a real one looks like a working
 deployment until a client rejects it.
 
 An EMPTY name is a different case: it means the operator configured no
-reference, and the established self-signed path is used unchanged.
+reference, and the established self-signed path is used unchanged. That holds
+at a reload too. A commit that removes the leaf returns the listener to its
+self-signed pair, the one a restart with that config would serve, rather than
+leaving it on the chain the config dropped.
 
-The hub declares that precedence once, in `listenerTLSMaterial`, and both hub
-listeners call it. Its build constraint is the disjunction `ze_lg || ze_web`,
-because either listener alone is a shipped build. A second copy of the rule
-would be a future disagreement between the two surfaces with nothing to
-arbitrate it.
+The hub declares that precedence once, in `listenerTLSMaterial`. Both hub
+listeners call it at start, and both reload hooks call it, so neither two
+surfaces nor a start and a reload can disagree about which certificate one
+config asks for. It is always-on code, because the reload hooks are. A second
+copy of the rule would be a future disagreement with nothing to arbitrate it.
 
 The self-signed branch alone needs the `database/` store, because that is where
 the generated pair is persisted. The looking glass therefore applies its
@@ -78,8 +81,22 @@ its name through `lgCertificateName`, which the startup gate calls too, so a
 restart and a reload cannot disagree about which certificate one config asks
 for.
 
+A reload can also fail after a listener took the reloaded config's
+certificate: the looking glass refuses its install, its next-hop ranges are
+refused, or the candidate cannot be promoted. Putting the prior store back is
+not enough then, because the listener holds the pair it was handed and never
+re-reads a name. Before it changes anything, the reload reads the name each
+listener has under the running config, through the same two readers
+(`runningListenerCertificates`). Once `rollbackReload` has put the prior store
+back, it reinstalls those names on every listener whose install succeeded, so
+the listener serves the certificate of the config that stays in force. A
+listener whose install failed kept what it was serving, so nothing is
+reinstalled on it. A reinstall that fails is reported with the refusal as a
+failed `certificate restore`.
+
 <!-- source: cmd/ze/hub/main_reload.go -- the web and environment.looking-glass.certificate reference checks, restorePKIAfter -->
 <!-- source: cmd/ze/hub/main_reload.go -- lgCertificateName -->
+<!-- source: cmd/ze/hub/main_reload.go -- runningListenerCertificates, restoreOn, the restoreCertificates undo -->
 
 ## Decision: a listener that serves no TLS makes the leaf inert
 
@@ -114,12 +131,27 @@ on a name the store does not hold.
 
 ## Decision: rotation does not rebind the hub listeners
 
-A hub listener re-resolves the name in the new store. It installs the chain on
-the running server through `UpdateTLSCertificate`. That method parses the
-material first, then stores the parsed pair in an
-`atomic.Pointer[tls.Certificate]` the handshake reads. Unparseable material
-leaves the previous certificate serving. The listeners keep their sockets, and
-the next handshake serves the new chain.
+On every reload a hub listener resolves the certificate the reloaded config
+describes through `listenerTLSMaterial`: the named chain from the new store, or
+the self-signed pair when the config names none. Each listener's handle carries
+its own self-signed store and SAN hint (`selfSignedSource`), the ones it was
+built with. It installs the result on the running server through
+`UpdateTLSCertificate`. That method parses the material first, then stores the
+parsed pair in an `atomic.Pointer[tls.Certificate]` the handshake reads.
+Unparseable material leaves the previous certificate serving. The listeners
+keep their sockets, and the next handshake serves the new certificate.
+
+A reload never rebinds a listener to plaintext. A looking glass that started on
+a named certificate with no `database/` store has no self-signed pair to return
+to, so a reload that drops its name is refused, and the listener keeps the
+chain of the config that stays in force.
+
+| Reloaded config | What the next handshake presents |
+|-----------------|----------------------------------|
+| A name the new store defines | that chain |
+| A name the new store does not define | the reload is refused, the previous certificate stays |
+| No name, a store | the self-signed pair, loaded from the store or generated into it |
+| No name, no store (looking glass only) | the reload is refused, the previous certificate stays |
 
 | Consumer | Reload hook | Running server |
 |----------|-------------|----------------|
@@ -135,7 +167,8 @@ wire disagree.
 Each hook takes its own server handle, so rotating one listener cannot install
 the other listener's chain.
 
-<!-- source: cmd/ze/hub/listener_migrate.go -- updateWebCertificate, updateLGCertificate -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- updateWebCertificate, updateLGCertificate, installListenerCertificate -->
+<!-- source: cmd/ze/hub/service_tls.go -- listenerTLSMaterial, errSelfSignedNeedsStore -->
 <!-- source: internal/component/web/server.go -- UpdateTLSCertificate, getCertificate -->
 <!-- source: internal/component/lg/server.go -- UpdateTLSCertificate, getCertificate -->
 <!-- source: internal/core/dnsserver/secure.go -- the listener signature folds in the certificate fingerprint -->

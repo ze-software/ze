@@ -60,7 +60,8 @@ func TestRunReloadDefersHostMutationsUntilAfterPromotion(t *testing.T) {
 	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, oldStamp)
 	loadTree := func(tree *zeconfig.Tree) func() (map[string]any, *zeconfig.Tree, error) {
 		return func() (map[string]any, *zeconfig.Tree, error) {
-			return tree.ToPluginMap(), tree, nil
+			pluginMap := tree.ToPluginMap()
+			return pluginMap, tree, nil
 		}
 	}
 

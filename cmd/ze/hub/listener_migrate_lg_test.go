@@ -5,12 +5,14 @@ package hub
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"log/slog"
 	"maps"
+	"strings"
 	"testing"
 
-	zepki "github.com/ze-software/ze/internal/component/pki"
-
 	"github.com/stretchr/testify/require"
+
+	zepki "github.com/ze-software/ze/internal/component/pki"
 )
 
 // mergePKIBlocks returns one pki root holding every ca and certificate of the
@@ -112,19 +114,21 @@ func TestListenerMigratorUpdateLGCertificateFailsClosed(t *testing.T) {
 }
 
 func TestListenerMigratorUpdateLGCertificateNoOp(t *testing.T) {
-	// VALIDATES: the two cases that are not a rotation -- the operator named no
-	// certificate, and the looking glass is not in this build.
-	// PREVENTS: a reload failing on a deployment that never asked for a named
-	// certificate, and a nil handle panicking the daemon on a build without the
-	// ze_lg tag, where nothing ever calls setLGTLS.
+	// VALIDATES: the cases that are not a rotation -- no looking glass holds a
+	// TLS handle, because it serves plaintext or is not in this build, whether
+	// or not the operator names a certificate.
+	// PREVENTS: a reload failing on a deployment whose looking glass presents
+	// no certificate, and a nil handle panicking the daemon on a build without
+	// the ze_lg tag, where nothing ever calls setLGTLS.
+	//
+	// An empty name on a looking glass that DOES hold a handle is not a no-op:
+	// it returns the listener to its self-signed pair
+	// (TestReloadDroppingLGCertificateNameServesSelfSigned, ze_lg).
 	loadTwoCertStore(t)
 
-	lgFake := &fakeTLSUpdatable{}
-	lm := &listenerMigrator{}
-	lm.setLGTLS(lgFake)
-	require.NoError(t, lm.updateLGCertificate(""))
-	require.Zero(t, lgFake.calls)
-
-	noHandle := &listenerMigrator{}
+	var logged strings.Builder
+	noHandle := &listenerMigrator{logger: slog.New(slog.NewTextHandler(&logged, nil))}
+	require.NoError(t, noHandle.updateLGCertificate(""))
+	require.Empty(t, logged.String(), "no name on a plaintext looking glass is the ordinary case and says nothing")
 	require.NoError(t, noHandle.updateLGCertificate("lg-cert"))
 }

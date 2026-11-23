@@ -5,6 +5,7 @@
 package hub
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -267,15 +268,26 @@ func TestListenerMigratorUpdateWebCertificate(t *testing.T) {
 	})
 
 	t.Run("no certificate configured leaves the self-signed cert alone", func(t *testing.T) {
-		fake := &fakeTLSUpdatable{}
+		// The established pair is what a restart with this config serves, so it
+		// is what the listener holds after the reload: the same bytes, loaded,
+		// never regenerated.
+		established := &memCertStore{}
+		if _, _, err := listenerTLSMaterial("", established, "127.0.0.1:3443"); err != nil {
+			t.Fatalf("establish the self-signed pair: %v", err)
+		}
+		established.generated = false
+		fake := &fakeTLSUpdatable{certStore: established}
 		lm := &listenerMigrator{}
 		lm.setWebTLS(fake)
 
 		if err := lm.updateWebCertificate(""); err != nil {
 			t.Fatalf("updateWebCertificate: %v", err)
 		}
-		if fake.calls != 0 {
-			t.Fatal("an unset reference must not touch the served certificate")
+		if !bytes.Equal(fake.certPEM, established.cert) {
+			t.Fatal("an unset reference must serve the established self-signed certificate")
+		}
+		if established.generated {
+			t.Fatal("an unset reference must not replace the established self-signed pair")
 		}
 	})
 
@@ -295,4 +307,75 @@ func TestListenerMigratorUpdateWebCertificate(t *testing.T) {
 			t.Fatal("a refused rotation must surface to the reload")
 		}
 	})
+}
+
+func TestReloadDroppingWebCertificateNameServesSelfSigned(t *testing.T) {
+	// VALIDATES: a reload whose config no longer names environment.web.certificate
+	// installs the web server's self-signed pair, the certificate a restart with
+	// that config would serve (docs/architecture/pki/tls-listeners.md, "a named
+	// certificate fails closed" and "rotation does not rebind the hub listeners").
+	// PREVENTS: the listener presenting the named chain the operator removed from
+	// the config, which is what an empty name used to do: it touched nothing, so
+	// a certificate dropped because its key leaked kept serving until a restart.
+	loadWebPKIStore(t)
+
+	established := &memCertStore{}
+	if _, _, err := listenerTLSMaterial("", established, "127.0.0.1:3443"); err != nil {
+		t.Fatalf("establish the self-signed pair: %v", err)
+	}
+	established.generated = false
+	fake := &fakeTLSUpdatable{certStore: established}
+	lm := &listenerMigrator{}
+	lm.setWebTLS(fake)
+
+	if err := lm.updateWebCertificate("web-cert"); err != nil {
+		t.Fatalf("install the named certificate: %v", err)
+	}
+	if got := servedLeaf(t, fake.certPEM).Subject.CommonName; got != "hub web leaf" {
+		t.Fatalf("before the name is dropped the listener holds %q, want the PKI store leaf", got)
+	}
+
+	if err := lm.updateWebCertificate(""); err != nil {
+		t.Fatalf("dropping the certificate name must be accepted: %v", err)
+	}
+	if fake.calls != 2 {
+		t.Fatalf("seam called %d times, want 2: dropping the name must install a certificate", fake.calls)
+	}
+	leaf := servedLeaf(t, fake.certPEM)
+	if leaf.Subject.CommonName == "hub web leaf" {
+		t.Fatal("the listener still holds the named chain the config dropped")
+	}
+	// The selfcert leaf is not a CA, so CheckSignatureFrom refuses it as a
+	// parent. Self-signed is checked as its two facts: it names itself as
+	// issuer, and its own key verifies its signature.
+	if !bytes.Equal(leaf.RawIssuer, leaf.RawSubject) {
+		t.Fatalf("the installed certificate names issuer %q, not itself", leaf.Issuer)
+	}
+	if err := leaf.CheckSignature(leaf.SignatureAlgorithm, leaf.RawTBSCertificate, leaf.Signature); err != nil {
+		t.Fatalf("the installed certificate is not signed by its own key: %v", err)
+	}
+	if !bytes.Equal(fake.certPEM, established.cert) {
+		t.Fatal("the installed certificate is not the established self-signed pair")
+	}
+	if established.generated {
+		t.Fatal("the established self-signed pair must be reused, not regenerated")
+	}
+	if _, err := tls.X509KeyPair(fake.certPEM, fake.keyPEM); err != nil {
+		t.Fatalf("installed material is not a usable key pair: %v", err)
+	}
+}
+
+// servedLeaf parses the first CERTIFICATE block of the material handed to the
+// rotation seam, which is the leaf the next handshake presents.
+func servedLeaf(t *testing.T, certPEM []byte) *x509.Certificate {
+	t.Helper()
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		t.Fatal("installed certificate PEM did not decode")
+	}
+	leaf, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("parse installed leaf: %v", err)
+	}
+	return leaf
 }

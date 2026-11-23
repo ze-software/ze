@@ -58,8 +58,7 @@ func fence(owner *configMutationOwner) <-chan struct{} {
 // daemon's stop interrupted: the problem, and the fix alone on the last line.
 func requireStopAnswer(t *testing.T, err error) {
 	t.Helper()
-	var answer *opererr.Error
-	if !errors.As(err, &answer) {
+	if _, ok := errors.AsType[*opererr.Error](err); !ok {
 		t.Fatalf("answer = %v, want an operator error", err)
 	}
 	text := err.Error()
@@ -302,8 +301,7 @@ func TestCommitFailureBeforeTheStopKeepsItsOwnAnswer(t *testing.T) {
 	if err.Error() != refusal.Error() {
 		t.Fatalf("answer text = %q, want the refusal's own text %q", err, refusal)
 	}
-	var answer *opererr.Error
-	if errors.As(err, &answer) {
+	if _, ok := errors.AsType[*opererr.Error](err); ok {
 		t.Fatalf("an ordinary failure was answered as an operator stop refusal: %v", err)
 	}
 }

@@ -14,10 +14,11 @@ import (
 
 // Unwind step names, as each one reads before "failed" in the refusal.
 const (
-	unwindCandidateCleanup = "candidate cleanup"
-	unwindListenerRollback = "listener rollback"
-	unwindPKIRestore       = "pki restore"
-	unwindRollback         = "rollback"
+	unwindCandidateCleanup   = "candidate cleanup"
+	unwindCertificateRestore = "certificate restore"
+	unwindListenerRollback   = "listener rollback"
+	unwindPKIRestore         = "pki restore"
+	unwindRollback           = "rollback"
 )
 
 // unwindStep is one step that undid part of a refused reload: its name and

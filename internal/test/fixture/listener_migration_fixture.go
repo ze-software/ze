@@ -159,11 +159,8 @@ func assertListenerMigrated(ctx context.Context, service *listenerMigrationServi
 // authenticate, and the three services on their before or after ports.
 func listenerMigrationConfig(services []*listenerMigrationService, moved bool) string {
 	var tb textbuf.Buffer
-	tb.Str("system {\n\tauthentication {\n\t\tuser webadmin {\n")
-	// bcrypt cost-4 hash of "testpass", the hash test/plugin/authz-allow.ci uses.
-	tb.Str("\t\t\tpassword \"$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO\"\n")
-	tb.Str("\t\t\tprofile [ admin ]\n\t\t}\n\t}\n")
-	tb.Str("\tauthorization {\n\t\tprofile admin { run { default-action allow; } edit { default-action allow; } }\n\t}\n}\n\nenvironment {\n")
+	writeWebAdminSystem(&tb)
+	tb.Str("\nenvironment {\n")
 	for _, service := range services {
 		port := service.before
 		if moved {
@@ -174,6 +171,17 @@ func listenerMigrationConfig(services []*listenerMigrationService, moved bool) s
 	}
 	tb.Str("}\n")
 	return tb.String()
+}
+
+// writeWebAdminSystem renders the system container a web server needs before
+// it serves: one user it can authenticate, with an allow-all profile. The web
+// server stays disabled while nobody can log in.
+func writeWebAdminSystem(tb *textbuf.Buffer) {
+	tb.Str("system {\n\tauthentication {\n\t\tuser webadmin {\n")
+	// bcrypt cost-4 hash of "testpass", the hash test/plugin/authz-allow.ci uses.
+	tb.Str("\t\t\tpassword \"$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO\"\n")
+	tb.Str("\t\t\tprofile [ admin ]\n\t\t}\n\t}\n")
+	tb.Str("\tauthorization {\n\t\tprofile admin { run { default-action allow; } edit { default-action allow; } }\n\t}\n}\n")
 }
 
 // startListenerMigrationDaemon writes the config, starts ze, and returns once

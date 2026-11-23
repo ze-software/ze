@@ -50,6 +50,7 @@ kill -HUP $(pidof ze)               # Direct signal
 | An API token added, rotated, or removed | The running REST and gRPC servers rebuild their credentials without rebinding |
 | A web `certificate` reference changed | The listener serves the new chain on the next handshake with no rebind |
 | A looking-glass `certificate` reference changed | The same, on the looking-glass listener. A name the new store does not define refuses the whole commit and puts the prior store back |
+| A web or looking-glass `certificate` reference removed | The listener serves its self-signed certificate from the next handshake with no rebind, as a restart would. A looking glass running without a `database/` store has no self-signed certificate to return to: the commit is refused, the web listener keeps the certificate of the running config even when the same commit changed it, and `ze init` then a restart lets the looking glass serve one |
 
 <!-- source: internal/component/config/transaction/orchestrator.go -- brokenRollbackLine -->
 <!-- source: internal/component/cmd/show/system.go -- handleShowSystemSubsystemList -->

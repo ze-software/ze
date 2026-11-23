@@ -1,0 +1,32 @@
+# Test: a reload that removes environment.web.certificate returns the web
+# server to its self-signed certificate, on the socket it already had.
+#
+# QUESTION: after a SIGHUP reload drops the certificate leaf, which certificate
+# does the next handshake present? The config then names no certificate, so a
+# restart serves the self-signed pair and the reload must too
+# (docs/architecture/pki/tls-listeners.md, "a named certificate fails closed").
+# A unit test drives the reload hook against a fake server; this proves the
+# same answer through `ze start`, the config file, SIGHUP and the real web
+# server's handshake.
+#
+# VALIDATES: the reload is accepted, the next handshake presents a self-signed
+# certificate that is not the store leaf and was not issued by the operator's
+# root, and the listener banner count is unchanged (no rebind).
+# PREVENTS: updateWebCertificate treating an empty name as "touch nothing",
+# which left the web server presenting the chain the operator removed, a key
+# that may have been dropped because it leaked, until a restart.
+#
+# The chain assertions are in the compiled fixture
+# (internal/test/fixture/pki_reference_dropped_fixture.go): the observer sandbox
+# cannot drive a TLS handshake, and insecure-tls=true accepts a chain without
+# reading it. The fixture listens on the runner's $PORT and returns an error, reported
+# through ZE-OBSERVER-FAIL, at the first assertion that does not hold.
+
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=le test fixture reload/web-pki-reference-dropped $PORT:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: web serves the named store leaf, verified against the operator root
+expect=stderr:contains=OK: web presents its self-signed certificate once the name is dropped
+expect=stderr:contains=OK: web kept its socket: the certificate changed without a rebind
+expect=stderr:contains=sighup reload complete

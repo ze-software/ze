@@ -14,6 +14,7 @@ import (
 	"crypto/x509/pkix"
 	"log/slog"
 	"math/big"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -402,4 +403,105 @@ func TestPlaintextLGHoldsNoRotationHandle(t *testing.T) {
 			t.Fatalf("rotating onto a TLS looking glass: %v", err)
 		}
 	})
+}
+
+// lgMigratorServedChain handshakes with the looking glass a migrator holds.
+func lgMigratorServedChain(t *testing.T, lm *listenerMigrator) []*x509.Certificate {
+	t.Helper()
+	svc, ok := lm.lg.(Service)
+	if !ok {
+		t.Fatalf("the migrator's looking glass %T is not a Service", lm.lg)
+	}
+	return lgServedChain(t, svc)
+}
+
+func TestReloadDroppingLGCertificateNameServesSelfSigned(t *testing.T) {
+	// VALIDATES: a reload whose config no longer names
+	// environment.looking-glass.certificate makes the next handshake present the
+	// looking glass's self-signed certificate, on the socket it already had: the
+	// certificate a restart with that config would serve
+	// (docs/architecture/pki/tls-listeners.md, "a named certificate fails closed"
+	// and "rotation does not rebind the hub listeners").
+	// PREVENTS: the looking glass presenting the named chain the operator removed
+	// from the config, which is what an empty name used to do: it touched
+	// nothing, so a certificate dropped because its key leaked kept serving to
+	// the public until a restart.
+	loadLGPKIStore(t)
+
+	lm := lgMigratorFor(t, &serviceDeps{
+		Dispatch:      lgTestDispatch(),
+		LGAddrs:       []string{"127.0.0.1:0"},
+		LGTLS:         true,
+		LGTLSExplicit: true,
+		LGCertificate: "lg-cert",
+		Store:         lgBlobStorage(t),
+	})
+	if lm.lgTLS == nil {
+		t.Fatal("a looking glass serving TLS must hold the certificate-rotation handle")
+	}
+	before := lgMigratorServedChain(t, lm)
+	if before[0].Subject.CommonName != lgLeafCommonName {
+		t.Fatalf("before the name is dropped the looking glass presents %q, want the PKI store leaf", before[0].Subject.CommonName)
+	}
+	addressesBefore := lm.lg.Addresses()
+
+	if err := lm.updateLGCertificate(""); err != nil {
+		t.Fatalf("dropping the certificate name must be accepted: %v", err)
+	}
+
+	after := lgMigratorServedChain(t, lm)
+	if after[0].Subject.CommonName == lgLeafCommonName {
+		t.Fatal("the next handshake still presents the named chain the config dropped")
+	}
+	if len(after) != 1 {
+		t.Fatalf("the self-signed certificate travels alone, got %d certificates", len(after))
+	}
+	// The selfcert leaf is not a CA, so CheckSignatureFrom refuses it as a
+	// parent. Self-signed is checked as its two facts: it names itself as
+	// issuer, and its own key verifies its signature.
+	if after[0].Issuer.String() != after[0].Subject.String() {
+		t.Fatalf("the presented certificate names issuer %q, not itself %q", after[0].Issuer, after[0].Subject)
+	}
+	if err := after[0].CheckSignature(after[0].SignatureAlgorithm, after[0].RawTBSCertificate, after[0].Signature); err != nil {
+		t.Fatalf("the presented certificate is not signed by its own key: %v", err)
+	}
+	if got := lm.lg.Addresses(); !slices.Equal(got, addressesBefore) {
+		t.Fatalf("the looking glass moved from %v to %v: a certificate change must not rebind", addressesBefore, got)
+	}
+}
+
+func TestReloadDroppingLGCertificateNameWithoutStoreRefuses(t *testing.T) {
+	// VALIDATES: a looking glass that started on a named certificate with no
+	// blob store has no self-signed pair to return to, so a reload that drops the
+	// name is refused, and the listener keeps the chain of the config that stays
+	// in force.
+	// PREVENTS: the refusal turning into a silent keep of the dropped chain (the
+	// defect this guards against), or into a listener left with no certificate.
+	loadLGPKIStore(t)
+
+	lm := lgMigratorFor(t, &serviceDeps{
+		Dispatch:      lgTestDispatch(),
+		LGAddrs:       []string{"127.0.0.1:0"},
+		LGTLS:         true,
+		LGTLSExplicit: true,
+		LGCertificate: "lg-cert",
+		Store:         nil,
+	})
+	if lm.lgTLS == nil {
+		t.Fatal("a looking glass serving a named certificate must hold the certificate-rotation handle")
+	}
+
+	err := lm.updateLGCertificate("")
+	if err == nil {
+		t.Fatal("dropping the name with no store to hold a self-signed pair must refuse the reload")
+	}
+	for _, want := range []string{"looking glass", "self-signed", "ze init"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("the refusal must say what failed and how to fix it: %q missing from %q", want, err)
+		}
+	}
+	served := lgMigratorServedChain(t, lm)
+	if served[0].Subject.CommonName != lgLeafCommonName {
+		t.Fatalf("after the refused reload the looking glass presents %q, want the chain it had", served[0].Subject.CommonName)
+	}
 }

@@ -241,7 +241,25 @@ func lgPKIIssueLeaf(commonName string, serial int64, issuer *x509.Certificate, i
 // does with the reference.
 func lgPKIConfig(chain *lgPKIChain, storeNames []string, certificate, token string, port int) string {
 	var tb textbuf.Buffer
-	tb.Str("plugin {\n}\n\npki {\n\tca lg-root {\n\t\tcertificate ").Str(chain.RootB64).Str("\n\t}\n")
+	tb.Str("plugin {\n}\n\n")
+	writeLGPKIStore(&tb, chain, storeNames)
+	tb.Str("\nenvironment {\n\tlooking-glass {\n\t\tenabled true\n")
+	// An empty certificate leaves the leaf out: the looking glass then serves
+	// its self-signed pair (reload/lg-pki-reference-dropped).
+	if certificate != "" {
+		tb.Str("\t\tcertificate ").Str(certificate).Byte('\n')
+	}
+	if token != "" {
+		tb.Str("\t\ttoken ").Str(token).Byte('\n')
+	}
+	tb.Str("\t\tserver main {\n\t\t\tip 127.0.0.1;\n\t\t\tport ").Int(int64(port)).Str(";\n\t\t}\n\t}\n}\n")
+	return tb.String()
+}
+
+// writeLGPKIStore renders the pki container: the chain's root CA, and one
+// device certificate for each leaf under its index-aligned store name.
+func writeLGPKIStore(tb *textbuf.Buffer, chain *lgPKIChain, storeNames []string) {
+	tb.Str("pki {\n\tca lg-root {\n\t\tcertificate ").Str(chain.RootB64).Str("\n\t}\n")
 	for index, leaf := range chain.Leaves {
 		tb.Str("\tcertificate ").Str(storeNames[index]).Str(" {\n")
 		tb.Str("\t\tcertificate ").Str(leaf.CertB64).Byte('\n')
@@ -250,13 +268,7 @@ func lgPKIConfig(chain *lgPKIChain, storeNames []string, certificate, token stri
 		}
 		tb.Str("\t\tprivate {\n\t\t\tkey ").Str(leaf.KeyB64).Str("\n\t\t}\n\t}\n")
 	}
-	tb.Str("}\n\nenvironment {\n\tlooking-glass {\n\t\tenabled true\n")
-	tb.Str("\t\tcertificate ").Str(certificate).Byte('\n')
-	if token != "" {
-		tb.Str("\t\ttoken ").Str(token).Byte('\n')
-	}
-	tb.Str("\t\tserver main {\n\t\t\tip 127.0.0.1;\n\t\t\tport ").Int(int64(port)).Str(";\n\t\t}\n\t}\n}\n")
-	return tb.String()
+	tb.Str("}\n")
 }
 
 // lgPKIDaemon is one running ze these fixtures signal and read.
@@ -277,9 +289,15 @@ type lgPKIDaemon struct {
 // startLGPKIDaemon writes the config, starts ze, and returns once the looking
 // glass has announced its HTTPS listener.
 //
-// No `ze init` runs, so the deployment has no blob storage. A named certificate
-// must serve there anyway, because its material comes from the pki container.
+// No `ze init` runs. A named certificate must serve anyway, because its
+// material comes from the pki container.
 func startLGPKIDaemon(ctx context.Context, path, config string, port int) (*lgPKIDaemon, error) {
+	return startTLSFixtureDaemon(ctx, path, config, port, lgPKIListenBanner)
+}
+
+// startTLSFixtureDaemon writes the config, starts ze, and returns once the
+// listener whose bind line starts with banner has announced HTTPS on port.
+func startTLSFixtureDaemon(ctx context.Context, path, config string, port int, banner string) (*lgPKIDaemon, error) {
 	if err := os.WriteFile(path, []byte(config), 0o600); err != nil {
 		return nil, err
 	}
@@ -303,9 +321,9 @@ func startLGPKIDaemon(ctx context.Context, path, config string, port int) (*lgPK
 	// exactly once, and stop() reads the channel it sends to.
 	go daemon.reap()
 
-	var banner textbuf.Buffer
-	banner.Str(lgPKIListenBanner).Str(" https://127.0.0.1:").Int(int64(port)).Byte('/')
-	needle := banner.String()
+	var announced textbuf.Buffer
+	announced.Str(banner).Str(" https://127.0.0.1:").Int(int64(port)).Byte('/')
+	needle := announced.String()
 	attempts := lgPKIStartAttempts()
 	ready := Poll(ctx, attempts, lgPKIPollDelay, func() bool {
 		return strings.Contains(daemon.output.String(), needle)
@@ -313,7 +331,7 @@ func startLGPKIDaemon(ctx context.Context, path, config string, port int) (*lgPK
 	if !ready {
 		daemon.stop()
 		waited := time.Duration(attempts) * lgPKIPollDelay
-		return nil, fmt.Errorf("the looking glass never announced %q within %s:\n%s", needle, waited, daemon.output.String())
+		return nil, fmt.Errorf("the daemon never announced %q within %s:\n%s", needle, waited, daemon.output.String())
 	}
 	return daemon, nil
 }
