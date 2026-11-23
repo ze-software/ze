@@ -243,6 +243,9 @@ in the spec or commit it applies to.
 - Every message a user sees, on every interface (CLI, web, `ze doctor`, logs,
   `./le`, API and gNMI), says what is wrong in plain words, why, and the exact
   command that fixes it (`ai/rules/user-facing-errors.md`).
+- Every command given to Thomas to run in his terminal is written ready to
+  paste verbatim, with concrete values filled in and no placeholders to edit
+  before running.
 
 ## How agents work
 
