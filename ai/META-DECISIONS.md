@@ -827,6 +827,12 @@ OSPF, or any other protocol).
   authoritative text for it, only a reconstruction the project wrote, and a
   requirement list drawn from that reconstruction proves nothing about the
   standard.
+- Internet-Drafts (`draft-*`) are not RFCs and are not RFC requirements, so
+  they do not count in RFC conformance figures, RFC targets, or
+  release-profile obligations. Ze may still implement, summarize, and test a
+  draft feature, and track draft conformance separately, without mixing
+  `draft-*` documents into RFC conformance counts until they are published as
+  RFCs.
 - Ze's TFTP server accepting uploads (write requests) is in scope, so the
   RFC 1350, 2347, 2348, 2349 and 7440 requirements that bind a receiver are
   owed work, never declined.

@@ -13,4 +13,5 @@ directives ## Directives
   a-requirement-list-is-a-claim-until-it-is-walked
   quote-each-requirement-row-verbatim
   treat-conformance-as-non-negotiable
+  separate-drafts-from-rfc-conformance
   read-the-rfc-text-before-claiming-conformance
