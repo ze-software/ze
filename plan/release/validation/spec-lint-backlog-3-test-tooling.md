@@ -8,7 +8,7 @@
 | Release reason | 58 findings of the full lint in the test harness, `le` and the chaos tooling; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 5/5: all committed scoped lint findings cleared (`5140e76eca`, `76e5705254`), independently reviewed CLEAN; awaiting owner terminal `owner-authorised` review record and Commits A & B |
+| Phase | 5/5: closed — all committed scoped lint findings cleared (`5140e76eca`, `76e5705254`), independently reviewed CLEAN, owner-authorised review artifact recorded (255 files, rounds=17) |
 | Handoff | - |
 | Updated | 2026-11-23 |
 
@@ -27,9 +27,9 @@ has landed in `HEAD`:
 - **AC-2 verified for changed packages**: tagged race runs passed across all 28 passing/4 no-test changed packages, `internal/le/rfc` `TestRename`, targeted `internal/le/site`, and `internal/test/fixture` `TestDaemonAwait`. Disclosed unrelated HEAD reds: whole `internal/le/rfc` timed out at 20m (`job-unit-pkg-8d3bfa6d.log`) with 4 failures from recent RFC counting/profile commits (`60fa95675f`, `f249e6fb96`), plus pre-existing reds in `internal/le/arch/fspersistence` (`devppp_linux.go` allowlist), `internal/le/interoplab/topology` (`ze-l2tp-kl2tpd` image list), `internal/test/peer` (`critical_test.go`), and `hookSourcesDigest` already drifted across 8 prior commits since `bf127d164a` while `internal/le/ai/hooks/fixtures.go` and `internal/le/hookruntime/*` carry another session's uncommitted edits.
 - **AC-3 & independent review verified**: an independent read-only reviewer checked `5140e76eca` and `76e5705254` across both lenses (behavior/assertion preservation and producer verification of all 21 added `//nolint` directives): **CLEAN: 0 BLOCKER, 0 ISSUE, 0 NOTE**.
 
-**Only two closure steps remain:**
-1. Owner records the closing review artifact from an interactive terminal (`owner-authorised "<words>"`) covering the 19 `Spec-work: lint-backlog-3-test-tooling` commits (255 reviewable files).
-2. Land Commit A (repointing citations in `plan/release/validation/spec-lint-backlog-0-umbrella.md` and `plan/release/fixes/spec-rfc-proof-debt-outside-filter-wire.md`) and Commit B (removing this spec). Side finding (`checkFixtureCategory` in `internal/le/ai/hooks/fixtures.go`) still awaits an owner-chosen spec for its journal row.
+**Closure completed (2026-11-23):**
+1. Owner recorded the closing review artifact from an interactive terminal: `tmp/review/lint-backlog-3-test-tooling-27fb0cc0-6879-45be-bd90-51ace914c59e.md` (255 files across all 19 `Spec-work: lint-backlog-3-test-tooling` commits, `verdict=clean`, `rounds=17`, `owner-authorised`).
+2. Live citations repointed in `plan/release/validation/spec-lint-backlog-0-umbrella.md` and `plan/release/fixes/spec-rfc-proof-debt-outside-filter-wire.md` in Commit A; this spec removed in Commit B. Side finding (`checkFixtureCategory` in `internal/le/ai/hooks/fixtures.go`) remains unjournaled pending owner selection of an owning spec.
 
 ## Remaining closure work (2026-11-12)
 

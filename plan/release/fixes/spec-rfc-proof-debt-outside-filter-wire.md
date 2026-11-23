@@ -149,7 +149,7 @@ Not an owner decision, and why:
 - [ ] `internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go` `TestRFC5176ProxyStateContentIsNeverRead` - asserts a Disconnect-NAK, the same Error-Cause with and without a session-shaped Proxy-State, and zero teardowns, for an unknown session
 - [ ] `internal/component/bgp/reactor/session_write.go` `writeUpdateBody`, `session_ownership.go` `adjOutWrite.section` - read for AC-27 only (see its section)
 - [ ] 6c22530c23 commit body - three `RFC-approval-owed:` lines, for `storage.TestRFC4271PartialBitSurvivesLengthReframing`, `reactor.TestRFC4271PartialNotSetOnRecognizedOrNonTransitive` and `attribute.TestRFC4271PartialNotStampedOnExcludedClasses`
-- [ ] `internal/le/rfc/selftest_test.go` `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` - hit its limit under load twice with no failing assertion; no run of it alone on a quiet host is on record (`plan/release/validation/spec-lint-backlog-3-test-tooling.md` records the loaded runs)
+- [ ] `internal/le/rfc/selftest_test.go` `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` - hit its limit under load twice with no failing assertion; no run of it alone on a quiet host is on record (closed `spec-lint-backlog-3-test-tooling` at `948f5717a9` records the loaded runs)
 
 **Behavior to preserve:**
 - Every requirement's level, text, tags and claim prose. A record or verdict is retaken against the unit as it is; no tag, claim or assertion is edited to make a record or verdict pass
