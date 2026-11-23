@@ -455,10 +455,10 @@ format for them.
 <!-- source: internal/component/plugin/types.go -- ResponseData, Records -->
 <!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog, PipeClass -->
 
-**A pipe is a display limit.** It narrows an answer that already exists, and it
-never chooses what a command ACTS on. A view narrows with a pipe. An action
-narrows with a positional selector before the verb, because an action produces
-no answer to narrow.
+**A pipe modifies an answer.** It may narrow the answer, extend it, or
+transform it, and it never chooses what a command ACTS on. A view is shaped
+with a pipe. An action selects what it acts on with a positional selector
+before the verb, because an action produces no answer to modify.
 
 Three operator classes exist, and the class decides which commands owe the
 operator.
