@@ -8,7 +8,7 @@
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
 | Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-9-device-command-relay.md |
-| Phase | 4/6 |
+| Phase | 4/8 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-18 |
 

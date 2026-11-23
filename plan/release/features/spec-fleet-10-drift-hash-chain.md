@@ -4,11 +4,11 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | protocol, plugin, config, cli |
-| Priority | P3 |
-| Release reason | Adds a post-release fleet capability (managed config delta sync with SHA-1 hash-chain drift detection and diff/replay resync); existing first-release managed behavior and fleet-6/fleet-7 hold guarantees remain required. |
+| Priority | P2 |
+| Release reason | Thomas put this fleet capability (configuration drift detection by SHA-1 hash chain, repaired by the hub with a diff resync and a full replay fallback) in the first release; existing first-release managed behavior and the fleet-6/fleet-7 hold guarantees remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-1-device-registry.md, spec-fleet-7-config-reconnect-resolution (closed 2026-11-19: the hold, adopt and revert this spec preserves, documented in `docs/architecture/fleet-config.md`, "The baseline and the hold"), spec-fleet-ui-5-tasks-alarms-notifications.md, spec-fleet-ui-8-alarm-causes.md |
-| Phase | 10/10 of spec-fleet-0-umbrella.md |
+| Depends | plan/release/features/spec-fleet-1-device-registry.md, spec-fleet-7-config-reconnect-resolution (closed 2026-11-19: the hold, adopt and revert this spec preserves, documented in `docs/architecture/fleet-config.md`, "The baseline and the hold"), plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md, plan/release/features/spec-fleet-ui-8-alarm-causes.md |
+| Phase | 10/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
@@ -27,7 +27,7 @@ Add continuous drift detection by SHA-1 hash chain for managed fleet configurati
 | What is folded and synced | Managed config deltas: fold each applied config change into the chain, compare on every reply, diff-based resync first, full config replay fallback |
 | Interaction with `fleet-6`/`fleet-7` hold | Preserve `fleet-6`/`fleet-7` hold: auto-resync repairs missed/diverged hub changes, while a local device edit (`active != baseline`) still holds for operator `adopt`/`revert` |
 | Hash algorithm | SHA-1 chain as requested (non-adversarial sync checksum over authenticated TLS 1.3) |
-| Spec bucket and path | `plan/post-release/features/spec-fleet-10-drift-hash-chain.md` (phase 10 of `spec-fleet-0-umbrella.md`) |
+| Spec bucket and path | `plan/release/features/spec-fleet-10-drift-hash-chain.md` (phase 10 of `plan/post-release/features/spec-fleet-0-umbrella.md`). Confirmed at the gate under `plan/post-release/features/`; moved the same day, when Thomas put drift detection with hub repair in the first release |
 
 ### The Configuration resync failed alarm
 
@@ -66,13 +66,13 @@ own package.
 - [ ] `docs/architecture/config/syntax.md`, `docs/architecture/config/yang-config-design.md` - serialization, comments, schema stamp, inactive nodes, `UserOrdered` lists, `$9$` secrets, external-plugin schemas
   → Constraint: `ze:sensitive` leaves encode cleartext with a random salt (`secret.Encode`) on `Serialize`/`SerializeSet`; `$9$` strings round-trip identically only when preserved via `Tree.storedSecrets`.
   → Constraint: a hub never executes a client's external plugin binary (`SchemaWithDeclaredPlugins`), so hub-side YANG parsing fails on `unchecked-plugins` sections — diff-based resync must fall back to full replay whenever a tree parse/diff cannot cover a client's config.
-- [ ] `plan/post-release/features/spec-fleet-1-device-registry.md` - ready sibling spec lifting the 128-client cap to 2,000+ devices
+- [ ] `plan/release/features/spec-fleet-1-device-registry.md` - ready sibling spec lifting the 128-client cap to 2,000+ devices
   → Constraint: hub-side read limit will drop to ~1.4 MiB (`base64(HeldConfigMax) + 64 KiB`), while client-side read stays 16 MiB; do not depend on `ManagedConfigService.connected`; do not do synchronous fsync store writes on every 30s `ping`; do not install a second `store.SetWriteObserver`.
 - [ ] `plan/post-release/features/spec-fleet-0-umbrella.md` - Out of Scope row "Bidirectional config sync", and the Direction Update of 2026-11-19
   → Constraint: "full bidirectional sync stays out of scope"; this spec's sync runs hub to client only, and a local edit still holds for `fleet-7`'s adopt or revert (Design documents)
-- [ ] `plan/post-release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` - "Alarms": the alarm kind registry
+- [ ] `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` - "Alarms": the alarm kind registry
   → Constraint: an alarm is derived from a fact the hub holds, never a stored event; a kind is a registered entry with condition, severity and sentence, so this spec registers Configuration resync failed and edits no list
-- [ ] `plan/post-release/features/spec-fleet-ui-8-alarm-causes.md` - the Causes part of a kind's registration
+- [ ] `plan/release/features/spec-fleet-ui-8-alarm-causes.md` - the Causes part of a kind's registration
   → Constraint: a kind names its own causes in its own registration; a cause must not be less severe than the kind it hides
 
 **Key insights:**
@@ -123,7 +123,7 @@ own package.
 | Display divergence diff | `internal/component/config/infra/diff.go` (`DiffConfigs`), `internal/component/managed/cmd_divergence_show.go` | Operator-facing diff with resolved BGP inheritance and masked secrets | Does not apply for wire resync: lossy (flattens BGP groups, masks secrets) and cannot reconstruct a target configuration |
 | Legacy `KeyConfigActiveHash` | `pkg/zefs/keys.go` (`meta/config/active-hash`), `cmd/ze/pushed_config.go` (`writeConfigActiveHash`) | Written once on unmanaged boot, never read in managed code | Does not apply: legacy unmanaged key; managed fleet uses `meta/managed/` keys |
 | Fleet doctor and CLI status | `internal/component/managed/doctor.go`, `register_doctor_codes.go`, `cmd_fleet.go` (`show fleet status`), `internal/component/plugin/server/managed_doctor.go` | Reports managed client/hub health and `show fleet status` | Extends: surfaces chain head, sync/resync status, and doctor codes for drift/fallback/unreadable chain state |
-| Alarm kind registry | `plan/post-release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`, "Alarms"; Causes from `spec-fleet-ui-8-alarm-causes.md` | Planned, not built: each alarm kind is a registered entry with its condition, severity and sentence, derived from what the hub holds | Extends: registers one kind, Configuration resync failed, with Device offline as its cause; no second alarm mechanism |
+| Alarm kind registry | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`, "Alarms"; Causes from `plan/release/features/spec-fleet-ui-8-alarm-causes.md` | Planned, not built: each alarm kind is a registered entry with its condition, severity and sentence, derived from what the hub holds | Extends: registers one kind, Configuration resync failed, with Device offline as its cause; no second alarm mechanism |
 | Alarm tab registry | `internal/component/web/fleetui/handler_alarms.go` `mustRegisterAlarmTab` | Maps an alarm kind to the device tab where it is examined | Extends: `config-resync-failed` registers the Config tab from this spec's own register file |
 
 ## Design documents
@@ -132,7 +132,7 @@ own package.
 |----------|---------|--------------|-------------------|---------|-----------------------------------|
 | `docs/architecture/fleet-config.md` | Non-Goals | The `// Design:` page of `pkg/fleet/envelope.go` and `internal/component/managed/client.go` | "Full config on change; configs are small (< 10KB typically)" | departs | This spec sends a diff first and a full replay only as fallback, on a hub change and on a chain mismatch. Presented to Thomas at design approval; the row is corrected in this work once he agrees |
 | `plan/post-release/features/spec-fleet-0-umbrella.md` | Out of Scope, row "Bidirectional config sync" | The umbrella of this spec's set | "Continuous two-way merge. Replaced for now by single-writer plus an operator-gated `config-push` at divergence (`fleet-7`); full bidirectional sync stays out of scope" | agrees | The sync is continuous but one way: the hub's configuration repairs a client that missed or diverged from a hub change. A client's own change never flows to the hub by it: a local edit (`active != baseline`) still holds, and only `fleet-7`'s operator-gated adopt brings it up. Shown to Thomas beside the departure above, because "continuous sync" reads close to the row |
-| `plan/post-release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` | Alarms | The alarm list this spec's alarm joins | "an alarm kind is a registered entry with its condition, its severity and its sentence, so a later feature adds one without editing the list" | agrees | Configuration resync failed is registered from this spec's package, derived from the chain state the hub already holds |
+| `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` | Alarms | The alarm list this spec's alarm joins | "an alarm kind is a registered entry with its condition, its severity and its sentence, so a later feature adds one without editing the list" | agrees | Configuration resync failed is registered from this spec's package, derived from the chain state the hub already holds |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -178,7 +178,7 @@ own package.
 | A-3 | Delta application must produce active config bytes whose `fleet.VersionHash` matches the hub's served `client-<name>.conf` bytes (or canonical agreement must be established on both ends) | Verified in `internal/component/plugin/server/managed.go` (`HandleConfigFetch` compares `req.Version == fleet.VersionHash(data)`) and `baseline.go` (`ActiveVersion`) | Next `config-fetch` or `fleet-7` `adopt`/`revert` sees a false version mismatch and loops or falsely holds | Round-trip test asserting `fleet.VersionHash(reconstructed) == fleet.VersionHash(hubTarget)` across hierarchical, set-meta, comments, and `$9$` secrets | unvalidated |
 | A-4 | Hub cannot parse external-plugin config sections for plugins the hub itself did not start (`unchecked-plugins`) | Verified in `internal/component/managed/cmd_divergence_show.go` (`divergenceParseRefusal`) and `ai/doors/config-yang.md` | A YANG-tree diff path would fail permanently for clients with external plugins unless full replay fallback handles it | Unit test with an unknown external-plugin root proving fallback to full replay | unvalidated |
 | A-5 | `rpc.MuxConn` callers can upgrade empty `SendOK` replies (`ping`, `config-ack`, `config-held`, `config-changed`) to `SendResult` JSON replies with optional `chain-hash` while tolerating empty replies from older peers | Verified in `pkg/plugin/rpc/mux.go` (`SendOK` vs `SendResult`, `CallRPC` returning `json.RawMessage`) and `docs/architecture/fleet-config.md` ("RPCs") | Older peer or test fixture expecting empty reply could fail decoding | Unit test verifying both new JSON replies and legacy empty `ok` replies decode cleanly | unvalidated |
-| A-6 | `fleet-1` (`spec-fleet-1-device-registry.md`, Status: `ready`) will lower hub managed read bound to ~1.4 MiB and target 2,000+ connected clients | Verified in `plan/post-release/features/spec-fleet-1-device-registry.md` (lines 47, 152, 230, 286) | Large client-to-hub payloads or per-ping synchronous fsyncs would break scale or hit the lowered read bound | Unit test checking all client→hub messages stay small and `ping` performs zero store writes | unvalidated |
+| A-6 | `fleet-1` (`plan/release/features/spec-fleet-1-device-registry.md`, Status: `ready`) will lower hub managed read bound to ~1.4 MiB and target 2,000+ connected clients | Verified in `plan/release/features/spec-fleet-1-device-registry.md` (lines 47, 152, 230, 286) | Large client-to-hub payloads or per-ping synchronous fsyncs would break scale or hit the lowered read bound | Unit test checking all client→hub messages stay small and `ping` performs zero store writes | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -304,7 +304,7 @@ own package.
 ### Documents departed from
 
 - `docs/architecture/fleet-config.md`, "Non-Goals", the row "Incremental config updates": "Full config on change; configs are small (< 10KB typically)". After this work the row is removed and "Protocol" describes the hash chain, the diff resync and the full replay fallback. [pending design: the before and after the operator sees]
-- Not a departure, presented with it: `spec-fleet-0-umbrella.md`, Out of Scope, "Bidirectional config sync". The sync this spec adds runs hub to client only, and a local edit still holds (Design documents).
+- Not a departure, presented with it: `plan/post-release/features/spec-fleet-0-umbrella.md`, Out of Scope, "Bidirectional config sync". The sync this spec adds runs hub to client only, and a local edit still holds (Design documents).
 
 ### Choices for Thomas
 

@@ -3,11 +3,11 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Priority | P3 |
-| Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
-| Depends | spec-fleet-1-device-registry |
-| Phase | - |
-| Updated | 2026-05-15 |
+| Priority | P2 |
+| Release reason | Thomas put this fleet capability (device health and inventory reports to the hub) in the first release; existing supported behavior and its obligations remain required. |
+| Depends | plan/release/features/spec-fleet-1-device-registry.md |
+| Phase | 4/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
+| Updated | 2026-11-23 |
 
 ## Post-Compaction Recovery
 
@@ -17,8 +17,8 @@
 3. `internal/component/managed/client.go` -- RunManagedClient (add reporting here)
 4. `internal/core/health/` -- health registry (source data)
 5. `internal/component/host/inventory.go` -- hardware inventory (source data)
-6. `spec-fleet-0-umbrella.md` -- umbrella design decisions
-7. `spec-fleet-1-device-registry.md` -- device registry (dependency)
+6. `plan/post-release/features/spec-fleet-0-umbrella.md` -- umbrella design decisions
+7. `plan/release/features/spec-fleet-1-device-registry.md` -- device registry (dependency)
 
 ## Task
 
@@ -270,7 +270,7 @@ continues operating normally and lets the existing reconnect logic recover).
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `./le verify worktree` passes
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 
 ### Design

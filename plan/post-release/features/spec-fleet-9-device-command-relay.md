@@ -7,8 +7,8 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-1-device-registry.md |
-| Phase | - |
+| Depends | plan/release/features/spec-fleet-1-device-registry.md |
+| Phase | 9/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-18 |
 
@@ -88,7 +88,7 @@ The two sides, as an operator sees them:
 |---------|------|
 | A dispatcher bound to one device | The same type as the existing command dispatcher, so anything written against a dispatcher (the web command line, the workbench page builders that read only through one, the related tools) works against a device unchanged |
 | A hub command | Runs one command on one named device and answers its data, so pipes and formats apply on the hub |
-| A hub command over several devices | Runs one read-only command on a set and answers one result per device, as a task (`spec-fleet-ui-5-tasks-alarms-notifications.md`) |
+| A hub command over several devices | Runs one read-only command on a set and answers one result per device, as a task (`plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`) |
 | Completion and help | Answered by the device, so they match the device's software and build |
 
 The command grammar for these is fixed at design, following the keyword-first
@@ -107,7 +107,7 @@ rule: the device is named by a keyword, never by position.
 The hub holds each managed connection for its life under a cap of 128
 (`managedMaxConns`). An estate larger than that cannot connect, whatever the
 interface shows. Lifting that cap belongs to the registry work
-(`spec-fleet-1-device-registry.md`); this spec states the dependency and adds
+(`plan/release/features/spec-fleet-1-device-registry.md`); this spec states the dependency and adds
 its own per-device and hub-wide bounds on relayed commands.
 
 ### Key design decisions (to confirm at the design gate)

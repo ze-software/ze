@@ -10,7 +10,7 @@
 | Depends | spec-fleet-0-umbrella.md |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-18 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -49,7 +49,7 @@ components it composes.
 | Estate tree | Built by grouping devices on flat key=value labels. No hierarchy is added to the data model |
 | Device commands through the hub | In scope. The hub relays operator commands to a selected device over the existing managed channel (`spec-fleet-9-device-command-relay.md`) |
 | Relay identity | A relayed command runs under an authorization profile that the device's own configuration names. With no such line the device refuses every relayed command and names the line that adds it. The hub user's name travels with the command for the device's audit log |
-| Hub-side metric history | In scope, persisted and bounded: about a week of what devices report, kept across a hub restart (`spec-fleet-8-metric-history.md`) |
+| Hub-side metric history | In scope, persisted and bounded: about a week of what devices report, kept across a hub restart (`plan/release/features/spec-fleet-8-metric-history.md`) |
 | Browser CLI per device | In scope: the existing web CLI opened against a chosen device through the relay |
 | Compile tag | The whole interface is one compiled-out feature under the tag `ze_fleet_ui`, declared in `feature-gates.txt` and dependent on `ze_web`. A build without the tag has no fleet route, no Fleet mode, no fleet asset and no fleet command. The prototype's sample dispatcher sits behind a second, development-only tag, `ze_fleet_ui_sample`, which no shipped flavour sets |
 | Prototype first | The first deliverable is an interactive prototype of the whole interface on sample data, for the owner to review and correct. No child after `fleet-ui-1` starts until he has approved it. The prototype is built from the real shell, components and pages, so later children make it functional by replacing its data, never by rewriting it |
@@ -62,18 +62,18 @@ components it composes.
 | 2 | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` | Tree views built from labels, the devices table, the filter language, saved filters, selection and bulk actions, the device side panel | fleet-ui-1 (approved), fleet-1 |
 | 3 | `plan/post-release/features/spec-fleet-ui-3-dashboards-and-charts.md` | Estate, group and device dashboards, their cards and charts | fleet-ui-2, fleet-4, fleet-8 |
 | 4 | `plan/post-release/features/spec-fleet-ui-4-device-tabs-and-console.md` | The device tabs that show live device state through the relay, and the per-device browser CLI | fleet-ui-2, fleet-9 |
-| 5 | `plan/post-release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` | The hub task model and its panel, the alarm list, toasts and the live event stream | fleet-ui-1 (approved), fleet-1, fleet-4 |
+| 5 | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` | The hub task model and its panel, the alarm list, toasts and the live event stream | fleet-ui-1 (approved), fleet-1, fleet-4 |
 | 6 | `plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md` | Per-device config view and diff, divergence resolution, rollouts, the audit trail and the administration pages | fleet-ui-2, fleet-ui-5, fleet-2, fleet-3, fleet-5, fleet-7 |
 | 7 | `spec-fleet-ui-7-recorded-demonstration` (closed 2026-11-19) | A recorded demonstration of the interface on the sample estate, played from the website checkout with no daemon, written where the site does not publish it, for the owner's review. It is rendered on request by `./le site fleet-demo render`, never by the site build, into the output's unpublished `tmp/fleet-demo/` (`docs/contributing/gh-pages.md`, "Render the fleet demonstration") | fleet-ui-1 |
-| 8 | `plan/post-release/features/spec-fleet-ui-8-alarm-causes.md` | Alarm causes: an alarm kind names the kinds that cause it in its own registration; an alarm whose cause is open on its device is hidden behind it, listed under its cause, and shown again with its original `Since` when the cause clears. Narrows `fleet-ui-5` AC-4 for a hidden alarm and adds the `has:cause` filter and the `hidden-behind` field of `show fleet alarm` | fleet-ui-5, fleet-1, fleet-4, fleet-8 |
+| 8 | `plan/release/features/spec-fleet-ui-8-alarm-causes.md` | Alarm causes: an alarm kind names the kinds that cause it in its own registration; an alarm whose cause is open on its device is hidden behind it, listed under its cause, and shown again with its original `Since` when the cause clears. Narrows `fleet-ui-5` AC-4 for a hidden alarm and adds the `has:cause` filter and the `hidden-behind` field of `show fleet alarm` | fleet-ui-5, fleet-1, fleet-4, fleet-8 |
 
 Back-end work the interface needs, owned by the `fleet` set:
 
 | Spec | What the interface needs from it |
 |------|----------------------------------|
-| `plan/post-release/features/spec-fleet-1-device-registry.md` | The persistent registry, labels, groups, `show fleet` commands. Every page reads it |
-| `plan/post-release/features/spec-fleet-4-inventory-health.md` | Inventory and health per device. Dashboards, alarms and the System tab read it |
-| `plan/post-release/features/spec-fleet-8-metric-history.md` | The sample reports and the bounded history every chart reads |
+| `plan/release/features/spec-fleet-1-device-registry.md` | The persistent registry, labels, groups, `show fleet` commands. Every page reads it |
+| `plan/release/features/spec-fleet-4-inventory-health.md` | Inventory and health per device. Dashboards, alarms and the System tab read it |
+| `plan/release/features/spec-fleet-8-metric-history.md` | The sample reports and the bounded history every chart reads |
 | `plan/post-release/features/spec-fleet-9-device-command-relay.md` | The relay every device tab and the per-device CLI use |
 | `plan/post-release/features/spec-fleet-2-config-templates.md`, `spec-fleet-3-audit-trail.md`, `spec-fleet-5-staged-rollout.md`, `spec-fleet-7-config-reconnect-resolution` | The data behind the config, rollout and audit pages of `fleet-ui-6` |
 
@@ -414,9 +414,11 @@ empty state naming what is missing and the next action.
 This umbrella changes no wire. It specifies markup, URLs and the composition of
 pages over commands. The wires the interface depends on are changed and
 censused in the specs that own them: the report and history verbs in
-`spec-fleet-8-metric-history.md`, the relay verbs in
-`spec-fleet-9-device-command-relay.md`, and the `show fleet` answer shapes in
-`spec-fleet-1-device-registry.md` and `spec-fleet-4-inventory-health.md`.
+`plan/release/features/spec-fleet-8-metric-history.md`, the relay verbs in
+`plan/post-release/features/spec-fleet-9-device-command-relay.md`, and the
+`show fleet` answer shapes in
+`plan/release/features/spec-fleet-1-device-registry.md` and
+`plan/release/features/spec-fleet-4-inventory-health.md`.
 
 **Search evidence:** `pkg/fleet/envelope.go` was read whole and holds four verb constants (`config-fetch`, `config-changed`, `config-ack`, `ping`); a search of `internal` and `pkg` for `fleet` in YANG files returns nothing, so no fleet command or answer shape exists yet for this set to change. Positive control: the same search for `managed` finds the client and server packages.
 

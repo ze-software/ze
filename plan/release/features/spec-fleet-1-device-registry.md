@@ -4,21 +4,21 @@
 |-------|-------|
 | Status | ready |
 | Scope | plugin, cli, config |
-| Priority | P3 |
-| Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
+| Priority | P2 |
+| Release reason | Thomas put this fleet capability (the hub's device registry) in the first release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
 | Depends | spec-fleet-7-config-reconnect-resolution (closed 2026-11-19: the held record, `KeyConfigHeld`, `HeldClients`, documented in `docs/architecture/fleet-config.md`, "The hub's copy of a hold") |
-| Phase | 1/9 of spec-fleet-0-umbrella.md |
+| Phase | 1/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-19 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Re-read after compaction:** this file, `docs/architecture/fleet-config.md`,
-`docs/architecture/fleet-interface.md`, `spec-fleet-0-umbrella.md` (its three
-Direction Update sections), `spec-fleet-ui-2-estate-tree-and-device-tables.md`,
+`docs/architecture/fleet-interface.md`, `plan/post-release/features/spec-fleet-0-umbrella.md` (its three
+Direction Update sections), `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`,
 `spec-fleet-7-config-reconnect-resolution`.
 
 ## Task
@@ -568,7 +568,7 @@ Columns in order: `name`, `connected`, `config-state`, `labels`, `hub-version`, 
 | 13 | Route metadata keys added/changed? | N/A | No route metadata |
 | 14 | Prometheus counters added/changed? | Yes | `docs/guide/monitoring.md` managed metrics section, `docs/plugin-development/metrics.md` (it mentions `managed_serve.go`) |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/guide/status.md` command inventory rows |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Run `./le spec citation anchors spec plan/post-release/features/spec-fleet-1-device-registry.md` at each phase; the `// Design:` docs of the changed files are `docs/architecture/fleet-config.md`, `docs/architecture/fleet-interface.md`, `docs/architecture/api/commands.md`, `docs/architecture/zefs-format.md`, plus three the anchors report found on 2026-11-19: `docs/architecture/api/ipc_protocol.md` (declared by `pkg/plugin/rpc/framing.go`: updated, the bounded reader is a framing change), `docs/architecture/hub-architecture.md` (declared by `cmd/ze/hub/main.go` and `main_reload.go`: updated, "What the daemon does at start" and reload now carry the managed client set), `ai/rules/repo-maintenance.md` (declared by `internal/component/managed/register.go`: unaffected, it governs the doctor check registration this spec follows without changing the rule). Advisory mentions (`docs/plugin-development/metrics.md` for `managed_serve.go`, `docs/why-ze.md` for `framing.go`, the radius, tacacs and install guides for the hub files) are checked at each phase and edited only where a stated fact changes |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Run `./le spec citation anchors spec plan/release/features/spec-fleet-1-device-registry.md` at each phase; the `// Design:` docs of the changed files are `docs/architecture/fleet-config.md`, `docs/architecture/fleet-interface.md`, `docs/architecture/api/commands.md`, `docs/architecture/zefs-format.md`, plus three the anchors report found on 2026-11-19: `docs/architecture/api/ipc_protocol.md` (declared by `pkg/plugin/rpc/framing.go`: updated, the bounded reader is a framing change), `docs/architecture/hub-architecture.md` (declared by `cmd/ze/hub/main.go` and `main_reload.go`: updated, "What the daemon does at start" and reload now carry the managed client set), `ai/rules/repo-maintenance.md` (declared by `internal/component/managed/register.go`: unaffected, it governs the doctor check registration this spec follows without changing the rule). Advisory mentions (`docs/plugin-development/metrics.md` for `managed_serve.go`, `docs/why-ze.md` for `framing.go`, the radius, tacacs and install guides for the hub files) are checked at each phase and edited only where a stated fact changes |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/fleet-config.md` examples of `server central { client ... }` gain a label; `docs/architecture/fleet-config.md` "Roles" and "Per-Client Secrets" tables checked against the YANG |
 
 ### Repo-maintenance discovery
@@ -629,23 +629,23 @@ answers every method today) registers itself as every part from
 
 | Part (interface) | Method: inputs → answer, bound | Owner |
 |------------------|-------------------------------|-------|
-| `EstatePart` | `Now(ctx)` → `time.Time`; `Estate(ctx)` → `Estate`; `Devices(ctx)` → `[]Device`, at most `DevicesMax` (4,096), each with `Labels` at most `LabelsMax` (32); `Device(ctx, name)` → `Device`, an unknown name is `DeviceUnknownError`. The estate part fills only `Name`, `Labels`, `SecretSet`, `Connection.Connected`, `Since`, `EverConnected`, `LastSeen`, `SourceAddr`, and `Config.State`, `HubVersion`, `DeviceVersion`, `Fetched`, `LastFetch`, `LastFetchResult` | `plan/post-release/features/spec-fleet-1-device-registry.md` |
+| `EstatePart` | `Now(ctx)` → `time.Time`; `Estate(ctx)` → `Estate`; `Devices(ctx)` → `[]Device`, at most `DevicesMax` (4,096), each with `Labels` at most `LabelsMax` (32); `Device(ctx, name)` → `Device`, an unknown name is `DeviceUnknownError`. The estate part fills only `Name`, `Labels`, `SecretSet`, `Connection.Connected`, `Since`, `EverConnected`, `LastSeen`, `SourceAddr`, and `Config.State`, `HubVersion`, `DeviceVersion`, `Fetched`, `LastFetch`, `LastFetchResult` | `plan/release/features/spec-fleet-1-device-registry.md` |
 | `ViewsPart` | `TreeViews(ctx)` → `[]TreeView`, at most `TreeViewsMax` (32), each at most `TreeLevelsMax` (8) levels; `SavedFilters(ctx, user)` → `[]SavedFilter`, at most `SavedFiltersMax` (64) | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` |
-| `InventoryHealthPart` (device facts) | `InventoryHealth(ctx)` → one entry per device name holding `Inventory`, `HealthReported`, `Health` (at most `HealthComponentsMax`, 32) and the hardware list of `DeviceSystem.Hardware` (at most `HardwareItemsMax`, 64), at most `DevicesMax` entries; `InventoryHealthOf(ctx, name)` → the same entry for one device, an absent device answering the entry with `Reported` and `HealthReported` false | `plan/post-release/features/spec-fleet-4-inventory-health.md` |
-| `LatestSamplePart` (device facts) | `LatestSamples(ctx)` → one `LatestSample` per device name, at most `DevicesMax`; `LatestSampleOf(ctx, name)` → `LatestSample` | `plan/post-release/features/spec-fleet-8-metric-history.md` |
+| `InventoryHealthPart` (device facts) | `InventoryHealth(ctx)` → one entry per device name holding `Inventory`, `HealthReported`, `Health` (at most `HealthComponentsMax`, 32) and the hardware list of `DeviceSystem.Hardware` (at most `HardwareItemsMax`, 64), at most `DevicesMax` entries; `InventoryHealthOf(ctx, name)` → the same entry for one device, an absent device answering the entry with `Reported` and `HealthReported` false | `plan/release/features/spec-fleet-4-inventory-health.md` |
+| `LatestSamplePart` (device facts) | `LatestSamples(ctx)` → one `LatestSample` per device name, at most `DevicesMax`; `LatestSampleOf(ctx, name)` → `LatestSample` | `plan/release/features/spec-fleet-8-metric-history.md` |
 | `RelayGrantPart` (device facts) | `RelayGrants(ctx)` → per device name `RelayGranted` and `RelayProfile`, at most `DevicesMax`; `RelayGrantOf(ctx, name)` → the same for one | `plan/post-release/features/spec-fleet-9-device-command-relay.md` |
 | `AssignmentPart` (device facts) | `Assignments(ctx)` → per device name `Group` and `Config.Template`, at most `DevicesMax`; `AssignmentOf(ctx, name)` → the same for one | `plan/post-release/features/spec-fleet-2-config-templates.md` |
-| `HistoryPart` | `DeviceSeries(ctx, device, metric Metric, span TimeSpan)` → `Series`, at most `SeriesPointsMax` (20,160) points; `EstateSeries(ctx, devices []string, metric, span)` → `Series`, at most `SeriesPointsMax`, `devices` at most `DevicesMax`; `HistoryUsage(ctx)` → `HistoryUsage`, `Largest` at most `HistoryDevicesMax` (10) | `plan/post-release/features/spec-fleet-8-metric-history.md` |
-| `ActivityPart` | `Alarms(ctx)` → `[]Alarm`, at most `AlarmsMax` (1,024); `AlarmHistory(ctx, device)` → `[]AlarmEvent`, at most `AlarmHistoryMax` (512), newest first; `Tasks(ctx)` → `[]Task`, at most `TasksMax` (512), newest first; `Task(ctx, id)` → `TaskDetail`, each answer at most `TaskAnswerBytesMax` (16,384), an unknown id wraps `ErrObjectUnknown` | `plan/post-release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` |
+| `HistoryPart` | `DeviceSeries(ctx, device, metric Metric, span TimeSpan)` → `Series`, at most `SeriesPointsMax` (20,160) points; `EstateSeries(ctx, devices []string, metric, span)` → `Series`, at most `SeriesPointsMax`, `devices` at most `DevicesMax`; `HistoryUsage(ctx)` → `HistoryUsage`, `Largest` at most `HistoryDevicesMax` (10) | `plan/release/features/spec-fleet-8-metric-history.md` |
+| `ActivityPart` | `Alarms(ctx)` → `[]Alarm`, at most `AlarmsMax` (1,024); `AlarmHistory(ctx, device)` → `[]AlarmEvent`, at most `AlarmHistoryMax` (512), newest first; `Tasks(ctx)` → `[]Task`, at most `TasksMax` (512), newest first; `Task(ctx, id)` → `TaskDetail`, each answer at most `TaskAnswerBytesMax` (16,384), an unknown id wraps `ErrObjectUnknown` | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` |
 | `DeviceConfigPart` | `DeviceConfig(ctx, device)` → `DeviceConfig`, `Text` at most `ConfigTextBytesMax` (1 MiB) | `plan/post-release/features/spec-fleet-2-config-templates.md` (the source comment names `fleet-1` and `fleet-2`; the owner gave `fleet-1` the estate part only, so `fleet-2`, which renders what the hub serves, owns it) |
 | `ConfigHistoryPart` | `ConfigVersions(ctx, device)` → `[]ConfigVersion`, at most `ConfigVersionsMax` (100), newest first; `ConfigText(ctx, device, version)` → text, at most `ConfigTextBytesMax`, an unknown version wraps `ErrObjectUnknown`; `AuditEntries(ctx)` → `[]AuditEntry`, at most `AuditEntriesMax` (1,000), newest first | `plan/post-release/features/spec-fleet-3-audit-trail.md` |
 | `DivergencePart` | `Divergence(ctx, device)` → `Divergence`, texts at most `ConfigTextBytesMax`; a device that is not diverged wraps `ErrObjectUnknown` | `spec-fleet-7-config-reconnect-resolution` |
 | `RolloutPart` | `Rollouts(ctx)` → `[]Rollout`, at most `RolloutsMax` (128), newest first; `Rollout(ctx, name)` → `RolloutDetail`, at most `RolloutBatchesMax` (100) batches, an unknown name wraps `ErrObjectUnknown` | `plan/post-release/features/spec-fleet-5-staged-rollout.md` |
 | `TemplatePart` | `Templates(ctx)` → `[]Template`, at most `TemplatesMax` (256) | `plan/post-release/features/spec-fleet-2-config-templates.md` |
 | `AccessPart` | `AccessProfiles(ctx)` → `[]AccessProfile`, at most `AccessProfilesMax` (64) | `plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md` (the source comment names `fleet-1`; the access administration page is `fleet-ui-6`'s) |
-| `SettingsPart` | `Settings(ctx)` → `Settings` | `plan/post-release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` |
+| `SettingsPart` | `Settings(ctx)` → `Settings` | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` |
 | `DeviceViewPart` | `DeviceSystem(ctx, device)` → `DeviceSystem` (`Resources`, `Time`; `Hardware` comes from `InventoryHealthPart` by the join); `DeviceInterfaces(ctx, device)` → `[]Interface`, at most `InterfacesMax` (1,024); `DevicePeers(ctx, device)` → `[]Peer`, at most `PeersMax` (4,096); `DeviceFamilies(ctx, device)` → `[]FamilySummary`, at most `FamiliesMax` (64); `DeviceAdjacencies(ctx, device)` → `[]ProtocolAdjacencies`, at most `ProtocolsMax` (16) of at most `AdjacenciesMax` (1,024) rows; `DeviceLogs(ctx, device)` → `[]LogLine`, at most `LogLinesMax` (500), newest first; `Console(ctx, device, user, command)` → `ConsoleAnswer`, at most `ConsoleOutputBytesMax` (65,536) | `plan/post-release/features/spec-fleet-9-device-command-relay.md` |
-| `EventPart` | `Subscribe(ctx)` → `*Subscription`, at most `EventSubscriptionsMax` (64) at once, each holding at most `EventBufferSize` (64) unread events; beyond the maximum wraps `ErrStreamsFull` | `plan/post-release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` |
+| `EventPart` | `Subscribe(ctx)` → `*Subscription`, at most `EventSubscriptionsMax` (64) at once, each holding at most `EventBufferSize` (64) unread events; beyond the maximum wraps `ErrStreamsFull` | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` |
 
 **The join by device name.** `fleetui` answers a page's `Devices` and
 `Device` by asking the estate part first: its answer is the set of devices
@@ -877,4 +877,4 @@ thread runs this one locally as an owed command.
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec
-- [ ] **Commit B:** `remove plan/post-release/features/spec-fleet-1-device-registry.md` only
+- [ ] **Commit B:** `remove plan/release/features/spec-fleet-1-device-registry.md` only

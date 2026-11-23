@@ -7,15 +7,15 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-1-device-registry.md |
-| Phase | 2/6 |
+| Depends | plan/release/features/spec-fleet-1-device-registry.md |
+| Phase | 2/8 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Re-read after compaction:** this file, `spec-fleet-ui-0-umbrella.md`,
-`spec-fleet-1-device-registry.md`.
+`plan/release/features/spec-fleet-1-device-registry.md`.
 
 ## Task
 
@@ -162,7 +162,7 @@ seam and the sample build are described in `docs/architecture/fleet-interface.md
 | Item | What the prototype does | What this spec owes |
 |------|-------------------------|---------------------|
 | Fleet as a web mode | Fleet is reached at `/fleet/` and through its portal entry only | Make Fleet a selectable web mode in the existing shells' mode switch, with their markup and fixtures |
-| The real enabling condition | The fleet routes mount only when a data source is registered, and the only source is the sample one, which no shipped build links (`sourceRegistered` in `internal/component/web/fleetui/register.go`) | Register the real source, built over the command dispatcher, and mount the routes when the daemon serves managed devices. Amended 2026-11-19 (owner decision at `fleet-1`'s gates): `spec-fleet-1-device-registry.md` splits the `Source` contract into one part per back end and registers the estate part (`Now`, `Estate`, `Devices`, `Device`) over the dispatcher, and the routes mount while the estate part is registered. This spec still owes the views part (`TreeViews`, `SavedFilters`), the filter grammar, sort and page over the estate rows, the web mode, sign-out and the CI stage below; `fleet-1`'s section "The fleet interface parts after the split" names the owner of every other part |
+| The real enabling condition | The fleet routes mount only when a data source is registered, and the only source is the sample one, which no shipped build links (`sourceRegistered` in `internal/component/web/fleetui/register.go`) | Register the real source, built over the command dispatcher, and mount the routes when the daemon serves managed devices. Amended 2026-11-19 (owner decision at `fleet-1`'s gates): `plan/release/features/spec-fleet-1-device-registry.md` splits the `Source` contract into one part per back end and registers the estate part (`Now`, `Estate`, `Devices`, `Device`) over the dispatcher, and the routes mount while the estate part is registered. This spec still owes the views part (`TreeViews`, `SavedFilters`), the filter grammar, sort and page over the estate rows, the web mode, sign-out and the CI stage below; `fleet-1`'s section "The fleet interface parts after the split" names the owner of every other part |
 | Sign out | The account menu holds the theme switch and the link to the other web modes. The web server has no sign-out route in any mode | Add the sign-out entry the umbrella's header row names, over a sign-out route of the web package's session handling |
 | Side panel and a later sort | Opening a row asks for the side panel fragment alone, so the table's sort and page links keep the address they were drawn with, and following one closes the panel (`PanelLink` paragraph of `docs/architecture/fleet-interface.md`). Approved as built | Decide with the owner whether a sort keeps the open row, when the table becomes functional |
 | Fleet browser tests in CI | The thirteen `test/web/fleet-*.wb` cases declare `option=needs-build-tag:value=ze_fleet_ui_sample:state=present`, and no CI run builds `ze` with that tag, so every CI run skips them; they pass only when run locally (`runWebTests`, `internal/test/cli/cmd_web.go`) | The owner decided on 2026-11-19 that CI runs them. Add a verifier stage (the native verifier owns CI's stage population, `internal/le/verify/engine/stages.go`) that builds `ze` with `ze_fleet_ui_sample` and runs the fleet browser suite on a change that touches the fleet interface, with failure text naming the case and the rerun command |

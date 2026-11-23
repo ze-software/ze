@@ -4,17 +4,17 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | web, fleet |
-| Priority | P3 |
-| Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
+| Priority | P2 |
+| Release reason | Thomas put this fleet capability (the alarm list, with the task model, notifications and live updates it is specified with) in the first release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-1-device-registry.md, spec-fleet-4-inventory-health.md |
-| Phase | 5/6 |
+| Depends | plan/release/features/spec-fleet-1-device-registry.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
+| Phase | 5/8 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-**Re-read after compaction:** this file, `spec-fleet-ui-0-umbrella.md`,
+**Re-read after compaction:** this file, `plan/post-release/features/spec-fleet-ui-0-umbrella.md`,
 `internal/component/web/sse.go`, `internal/core/report/report.go`.
 
 ## Task
@@ -87,7 +87,7 @@ The list is open: an alarm kind is a registered entry with its condition, its
 severity and its sentence, so a later feature adds one without editing the list.
 
 Alarm causes, which hide an alarm while the alarm that causes it is open, are
-specified in `plan/post-release/features/spec-fleet-ui-8-alarm-causes.md`.
+specified in `plan/release/features/spec-fleet-ui-8-alarm-causes.md`.
 
 Where alarms appear:
 

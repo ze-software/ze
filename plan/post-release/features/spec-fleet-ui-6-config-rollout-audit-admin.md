@@ -7,8 +7,8 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-ui-5-tasks-alarms-notifications.md, spec-fleet-2-config-templates.md, spec-fleet-3-audit-trail.md, spec-fleet-5-staged-rollout.md, spec-fleet-7-config-reconnect-resolution |
-| Phase | 6/6 |
+| Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md, spec-fleet-2-config-templates.md, spec-fleet-3-audit-trail.md, spec-fleet-5-staged-rollout.md, spec-fleet-7-config-reconnect-resolution |
+| Phase | 6/8 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-18 |
 

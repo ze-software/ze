@@ -7,7 +7,7 @@
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-05-15 |
+| Updated | 2026-11-23 |
 
 ## Post-Compaction Recovery
 
@@ -18,7 +18,7 @@
 4. `internal/component/plugin/server/managed.go` -- hub-side managed config service
 5. `internal/component/managed/` -- client-side managed lifecycle
 6. `pkg/fleet/` -- shared RPC types and version hashing
-7. Child specs: `spec-fleet-1-*` through `spec-fleet-5-*`
+7. Child specs: the Phase rows of the two Child Specs tables below, phases 1 to 10, each named by its path (`plan/release/features/` holds phases 1, 4, 8 and 10, `plan/post-release/features/` phases 2, 3, 5 and 9; phases 6 and 7 are closed)
 
 ## Task
 
@@ -95,18 +95,23 @@ spec building on the previous.
 
 ### Child Specs
 
-The 2026-08-29 move treated the fleet set as optional capability. The current
-child table separates that capability from child 6, which is in
-`plan/immediate/` and owns configuration freeze and reconnect safety.
-Children 1 to 5 and 7 remain optional; child 6's first-release safety work must
-remain visible in the release rollup. This umbrella stays in `plan/`.
+The 2026-08-29 move treated the fleet set as optional capability. Fleet
+management now ships in the first release (`ai/META-DECISIONS.md`, "Goal and
+scope"): the device registry (phase 1), device health reports (phase 4),
+metric history (phase 8) and configuration drift detection with repair by the
+hub (phase 10) live in `plan/release/features/`, beside the fleet interface's
+alarm list (`plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`)
+and alarm causes (`plan/release/features/spec-fleet-ui-8-alarm-causes.md`).
+Phases 2, 3, 5 and 9 stay in `plan/post-release/features/`. Phases 6 and 7,
+the configuration freeze and the reconnect resolution, are closed. This
+umbrella stays in `plan/post-release/features/`.
 
 | Phase | Spec | Scope | Depends |
 |-------|------|-------|---------|
-| 1 | `plan/post-release/features/spec-fleet-1-device-registry.md` | Hub-side persistent device registry. `show fleet` CLI. Web fleet dashboard. Device metadata (name, config version, health, last-seen, labels). YANG schema for fleet config | - |
+| 1 | `plan/release/features/spec-fleet-1-device-registry.md` | Hub-side persistent device registry. `show fleet` CLI. Web fleet dashboard. Device metadata (name, config version, health, last-seen, labels). YANG schema for fleet config | - |
 | 2 | `plan/post-release/features/spec-fleet-2-config-templates.md` | Named config templates with variable substitution. Group-based assignment. Template rendering at config-fetch time. YANG schema for templates and groups | fleet-1 |
 | 3 | `plan/post-release/features/spec-fleet-3-audit-trail.md` | Centralized audit log for fleet operations: config push/ack/reject, device connect/disconnect, template changes. CLI and web views. Structured log entries in ZeFS | fleet-1 |
-| 4 | `plan/post-release/features/spec-fleet-4-inventory-health.md` | New `inventory-report` and `health-report` RPC verbs. Devices push on connect and periodically. Hub stores per-device inventory and health. CLI and web aggregated views | fleet-1 |
+| 4 | `plan/release/features/spec-fleet-4-inventory-health.md` | New `inventory-report` and `health-report` RPC verbs. Devices push on connect and periodically. Hub stores per-device inventory and health. CLI and web aggregated views | fleet-1 |
 | 5 | `plan/post-release/features/spec-fleet-5-staged-rollout.md` | Percentage-based config push targeting device groups. Rollout state machine (pending, rolling, paused, complete, failed). Automatic pause on ACK failure threshold. CLI rollout commands | fleet-2, fleet-4 |
 | 6 | `spec-fleet-6-config-freeze` (closed 2026-11-19; design in `docs/architecture/fleet-config.md`, "The baseline and the hold" and "The freeze") | Persisted baseline and reconnect hold (no silent stomp); `request fleet disable` and `enable` with immediate sever, `show fleet status`; best-effort freeze of operator edits on a managed device; declared-client guard on every hub writer. See the Direction Update of 2026-11-19 | - |
 | 7 | `spec-fleet-7-config-reconnect-resolution` | Resolve a `diverged` device: an up-verb on the existing TLS channel, a diff at the hub (Local=hub, Remote=router), adopt or revert, and its own per-client record of the pushed config. Closed 2026-11-19; design in `docs/architecture/fleet-config.md`, "The baseline and the hold" ("The hub's copy of a hold") | fleet-6 |
@@ -173,9 +178,9 @@ Out of Scope table above are superseded, and two children are added to this set.
 
 | Phase | Spec | Scope | Depends |
 |-------|------|-------|---------|
-| 8 | `plan/post-release/features/spec-fleet-8-metric-history.md` | Devices report a fixed sample set; the hub keeps a bounded, persisted history and answers series, latest-value and ranking queries | fleet-4 |
+| 8 | `plan/release/features/spec-fleet-8-metric-history.md` | Devices report a fixed sample set; the hub keeps a bounded, persisted history and answers series, latest-value and ranking queries | fleet-4 |
 | 9 | `plan/post-release/features/spec-fleet-9-device-command-relay.md` | The hub relays an operator's command to a device over the managed channel, under a profile the device grants, with streaming, deadline, cancellation and audit on both sides | fleet-1 |
-| 10 | `plan/post-release/features/spec-fleet-10-drift-hash-chain.md` | Added 2026-11-23. Hub and client fold every applied hub change into a SHA-1 chain and compare its head on every reply; a mismatch on a client that holds no local edit resyncs by diff, with a full replay as fallback. A local edit still holds for `fleet-7`'s adopt or revert. When both fail, a Configuration resync failed alarm opens through `fleet-ui-5`'s alarm kind registry | fleet-1, fleet-7, fleet-ui-5, fleet-ui-8 |
+| 10 | `plan/release/features/spec-fleet-10-drift-hash-chain.md` | Added 2026-11-23. Hub and client fold every applied hub change into a SHA-1 chain and compare its head on every reply; a mismatch on a client that holds no local edit resyncs by diff, with a full replay as fallback. A local edit still holds for `fleet-7`'s adopt or revert. When both fail, a Configuration resync failed alarm opens through `fleet-ui-5`'s alarm kind registry | fleet-1, fleet-7, fleet-ui-5, fleet-ui-8 |
 
 The command answers the interface reads are proposed by the sample answers of
 the fleet interface's sample source, `internal/component/web/fleetui/sample`
@@ -421,32 +426,53 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 
 ### Implementation Phases
 
-Each phase corresponds to a child spec. Phases are ordered by dependency.
+Each phase corresponds to a child spec. Phases are ordered by dependency. A
+child spec's own Implementation Steps, Files and test tables are the
+authority for its phase; where this list names a file or a test the child no
+longer plans, the child wins.
 
-1. **Phase: Device Registry (fleet-1)** -- persistent device state, fleet CLI, web dashboard
-   - Tests: `TestDeviceRegistryRegister`, `TestDeviceRegistryLabels`, `fleet-device-register.ci`, `fleet-show-devices.ci`
-   - Files: `registry.go`, `managed.go`, `cmd/ze/hub/main.go`, `page_fleet.go`
-   - Verify: devices appear in registry on connect, queryable via CLI and web
+1. **Phase: Device Registry (fleet-1, `plan/release/features/spec-fleet-1-device-registry.md`, ready)** -- persistent device record, `show fleet devices` and `show fleet device name <name>`, labels in config, the reload apply, the connection bound, the estate part of the fleet interface (the `/fleet` pages belong to `fleet-ui`)
+   - Tests: `TestRegistryFirstConnectRecordsConnected` and the other `managed_registry_test.go` tests, `fleet-devices-connect.ci`, `fleet-device-detail.ci`, `fleet-devices-restart.ci`, `fleet-devices-reload-add.ci`, `fleet-devices-label.ci`
+   - Files: `managed_registry.go`, `managed_apply.go`, `managed.go`, `managed_serve.go`, `internal/component/managed/cmd_devices.go`, `cmd/ze/hub/main_reload.go`
+   - Verify: devices appear in the registry on connect, survive a hub restart as offline, and are queryable on every command surface
 
-2. **Phase: Config Templates (fleet-2)** -- template rendering, group assignment
+2. **Phase: Config Templates (fleet-2, `plan/post-release/features/spec-fleet-2-config-templates.md`, skeleton)** -- template rendering, group assignment
    - Tests: `TestConfigTemplateRender`, `fleet-template-fetch.ci`
    - Files: `template.go`, `managed.go` (HandleConfigFetch intercept)
    - Verify: group members receive rendered config, template change triggers config-changed
 
-3. **Phase: Audit Trail (fleet-3)** -- centralized fleet operation logging
+3. **Phase: Audit Trail (fleet-3, `plan/post-release/features/spec-fleet-3-audit-trail.md`, skeleton)** -- centralized fleet operation logging
    - Tests: `TestAuditLogAppend`, `fleet-audit-log.ci`
    - Files: `audit.go`, `managed.go` (hook audit on connect/config-ack/disconnect)
    - Verify: audit entries queryable via CLI and web
 
-4. **Phase: Inventory + Health (fleet-4)** -- device reporting, hub aggregation
+4. **Phase: Inventory + Health (fleet-4, `plan/release/features/spec-fleet-4-inventory-health.md`, skeleton)** -- device reporting, hub aggregation
    - Tests: `TestInventoryReportHandler`, `TestHealthReportHandler`, `fleet-inventory-report.ci`
    - Files: `fleet_report.go`, `report.go`, `client.go` (add reporting to client loop)
    - Verify: device inventory and health visible on hub via CLI and web
 
-5. **Phase: Staged Rollout (fleet-5)** -- orchestrated config push with failure gates
+5. **Phase: Staged Rollout (fleet-5, `plan/post-release/features/spec-fleet-5-staged-rollout.md`, skeleton)** -- orchestrated config push with failure gates
    - Tests: `TestRolloutStateMachine`, `TestRolloutPauseOnFailure`, `fleet-staged-rollout.ci`
    - Files: `rollout.go`, `managed.go` (rollout-aware config-changed dispatch)
    - Verify: rollout progresses through group, pauses on failure threshold
+
+6. **Phase: Config Freeze (fleet-6, closed 2026-11-19)** -- persisted baseline, reconnect hold, `request fleet disable` and `enable`, `show fleet status`
+   - Design: `docs/architecture/fleet-config.md`, "The baseline and the hold" and "The freeze"
+
+7. **Phase: Reconnect Resolution (fleet-7, closed 2026-11-19)** -- the `config-held` up-verb, the hub's held record, adopt or revert of a diverged device
+   - Design: `docs/architecture/fleet-config.md`, "The baseline and the hold" ("The hub's copy of a hold")
+
+8. **Phase: Metric History (fleet-8, `plan/release/features/spec-fleet-8-metric-history.md`, skeleton)** -- devices report a fixed sample set; the hub keeps a bounded, persisted history and answers series, latest-value and ranking queries
+   - Depends: phase 4
+   - Tests and files: settled by the child's design
+
+9. **Phase: Device Command Relay (fleet-9, `plan/post-release/features/spec-fleet-9-device-command-relay.md`, skeleton)** -- the hub relays an operator's command to a device over the managed channel, under a profile the device grants
+   - Depends: phase 1
+   - Tests and files: settled by the child's design
+
+10. **Phase: Drift Hash Chain (fleet-10, `plan/release/features/spec-fleet-10-drift-hash-chain.md`, skeleton)** -- hub and client fold every applied hub change into a chain, compare its head on every reply, resync a client that holds no local edit, and open a Configuration resync failed alarm when repair fails
+   - Depends: phases 1 and 7, `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`, `plan/release/features/spec-fleet-ui-8-alarm-causes.md`
+   - Tests and files: settled by the child's design
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

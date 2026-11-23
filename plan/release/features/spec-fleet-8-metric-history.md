@@ -4,18 +4,18 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | fleet, protocol |
-| Priority | P3 |
-| Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
+| Priority | P2 |
+| Release reason | Thomas put this fleet capability (the hub's metric history of its devices) in the first release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-4-inventory-health.md |
-| Phase | - |
+| Depends | plan/release/features/spec-fleet-4-inventory-health.md |
+| Phase | 8/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
 | Handoff | - |
-| Updated | 2026-11-18 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-**Re-read after compaction:** this file, `spec-fleet-0-umbrella.md`,
-`spec-fleet-4-inventory-health.md`, `internal/component/l2tp/cqm.go` (the only
+**Re-read after compaction:** this file, `plan/post-release/features/spec-fleet-0-umbrella.md`,
+`plan/release/features/spec-fleet-4-inventory-health.md`, `internal/component/l2tp/cqm.go` (the only
 bounded time series Ze has), `docs/architecture/fleet-config.md`.
 
 ## Task
@@ -26,12 +26,12 @@ bounded store that survives a restart, and answers queries for a series, for
 one device or summed over a set of devices.
 
 This is the data behind every chart and every "latest value" in the fleet web
-interface (`spec-fleet-ui-3-dashboards-and-charts.md`), and behind the resource
-alarms (`spec-fleet-ui-5-tasks-alarms-notifications.md`).
+interface (`plan/post-release/features/spec-fleet-ui-3-dashboards-and-charts.md`), and behind the resource
+alarms (`plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`).
 
 ### What this changes in the fleet umbrella
 
-`spec-fleet-0-umbrella.md` listed "External metrics aggregation" as out of
+`plan/post-release/features/spec-fleet-0-umbrella.md` listed "External metrics aggregation" as out of
 scope: operators use Prometheus, and the fleet provides scrape targets, not a
 metrics store. The owner changed that on 2026-11-18 for one bounded purpose:
 the hub keeps about a week of a fixed sample set so its own dashboards can draw
@@ -121,7 +121,7 @@ surface and to the web pages.
 | Write load | A timer write of every ring must not stall the hub's other use of the store |
 | Query cost | A sum over a thousand devices and a week must answer in bounded time |
 | Clock difference | A device's clock may differ from the hub's. The hub stamps samples on arrival, or corrects by the offset measured at connect |
-| Transport behaviour | The channel enforces a write deadline; a report that cannot be written is a disconnect, handled as one (`spec-fleet-0-umbrella.md`, post-wave corrections) |
+| Transport behaviour | The channel enforces a write deadline; a report that cannot be written is a disconnect, handled as one (`plan/post-release/features/spec-fleet-0-umbrella.md`, post-wave corrections) |
 | Counter figures | Traffic is reported as a rate computed on the device, so a device restart cannot produce a false spike |
 
 ### Draft acceptance criteria

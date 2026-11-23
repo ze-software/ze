@@ -5,9 +5,9 @@
 | Status | skeleton |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
-| Depends | spec-fleet-1-device-registry |
-| Phase | - |
-| Updated | 2026-05-15 |
+| Depends | plan/release/features/spec-fleet-1-device-registry.md |
+| Phase | 2/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
+| Updated | 2026-11-23 |
 
 ## Post-Compaction Recovery
 
@@ -17,7 +17,7 @@
 3. `docs/architecture/fleet-config.md` -- existing fleet config architecture
 4. `internal/component/plugin/server/managed.go` -- ManagedConfigService.HandleConfigFetch
 5. `spec-fleet-0-umbrella.md` -- umbrella design decisions
-6. `spec-fleet-1-device-registry.md` -- device registry (dependency)
+6. `plan/release/features/spec-fleet-1-device-registry.md` -- device registry (dependency)
 
 ## Task
 
@@ -65,8 +65,9 @@ sees templates. Template rendering happens inside HandleConfigFetch on the hub s
   -> Constraint: readConfig interface must accommodate template rendering transparently
 - [ ] `pkg/fleet/envelope.go` -- ConfigFetchResponse with Version, Config (base64), Status
   -> Constraint: response format unchanged
-- [ ] `internal/component/plugin/server/registry.go` -- DeviceRegistry from fleet-1 (dependency)
+- [ ] The device registry from fleet-1 (dependency): not in the tree on 2026-11-23. `plan/release/features/spec-fleet-1-device-registry.md` creates it (its Files to Create); this bullet names its file once it lands
   -> Decision: registry provides device labels and group membership for template variable resolution
+  -> Note (2026-11-23): `fleet-1` keeps labels only; `group` is answered by this spec (`fleet-1`, the row "`group` declared and filtered by `fleet-1`"), so the group half of this decision is this spec's own to design
 
 **Behavior to preserve:**
 - Devices with direct config blobs (no template) work exactly as today
@@ -160,7 +161,7 @@ sees templates. Template rendering happens inside HandleConfigFetch on the hub s
 
 ## Files to Modify
 - `internal/component/plugin/server/managed.go` -- template-aware ConfigReader
-- `internal/component/plugin/server/registry.go` -- group membership queries
+- The device registry file `fleet-1` creates (`plan/release/features/spec-fleet-1-device-registry.md`, Files to Create) -- group membership queries; named here once it lands
 - `internal/component/plugin/yang/ze-plugin-conf.yang` -- template and group YANG containers
 
 ## Files to Create

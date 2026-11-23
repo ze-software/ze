@@ -7,15 +7,15 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-4-inventory-health.md, spec-fleet-8-metric-history.md |
-| Phase | 3/6 |
+| Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
+| Phase | 3/8 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-18 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Re-read after compaction:** this file, `spec-fleet-ui-0-umbrella.md`,
-`spec-fleet-8-metric-history.md`.
+`plan/release/features/spec-fleet-8-metric-history.md`.
 
 ## Task
 

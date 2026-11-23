@@ -5,9 +5,9 @@
 | Status | skeleton |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
-| Depends | spec-fleet-2-config-templates, spec-fleet-4-inventory-health |
-| Phase | - |
-| Updated | 2026-05-15 |
+| Depends | spec-fleet-2-config-templates, plan/release/features/spec-fleet-4-inventory-health.md |
+| Phase | 5/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
+| Updated | 2026-11-23 |
 
 ## Post-Compaction Recovery
 
@@ -16,9 +16,9 @@
 2. `.claude/rules/planning.md` -- workflow rules
 3. `internal/component/plugin/server/managed.go` -- ManagedConfigService (config-changed dispatch)
 4. `spec-fleet-0-umbrella.md` -- umbrella design decisions
-5. `spec-fleet-1-device-registry.md` -- device registry
+5. `plan/release/features/spec-fleet-1-device-registry.md` -- device registry
 6. `spec-fleet-2-config-templates.md` -- config templates and groups (dependency)
-7. `spec-fleet-4-inventory-health.md` -- health reporting (dependency)
+7. `plan/release/features/spec-fleet-4-inventory-health.md` -- health reporting (dependency)
 
 ## Task
 
@@ -66,9 +66,10 @@ which devices get notified and when.
   -> Constraint: rollout wraps existing BuildConfigChanged, does not replace it
 - [ ] `pkg/fleet/envelope.go` -- config-ack has OK bool and Error string
   -> Decision: rollout tracks per-device ack results for pass/fail counting
-- [ ] `internal/component/plugin/server/registry.go` -- DeviceRegistry from fleet-1 (group queries)
+- [ ] The device registry from fleet-1 (group queries): not in the tree on 2026-11-23. `plan/release/features/spec-fleet-1-device-registry.md` creates it (its Files to Create); this bullet names its file once it lands
   -> Decision: rollout targets devices via group membership from registry
-- [ ] `internal/component/plugin/server/template.go` -- template rendering from fleet-2
+  -> Note (2026-11-23): `fleet-1` keeps labels only; `group` is answered by `fleet-2` (`fleet-1`, the row "`group` declared and filtered by `fleet-1`")
+- [ ] Template rendering from fleet-2: not in the tree on 2026-11-23. `plan/post-release/features/spec-fleet-2-config-templates.md` creates it (its Files to Create); this bullet names its file once it lands
   -> Decision: rollout triggers template-based config-changed for group
 
 **Behavior to preserve:**
@@ -168,7 +169,7 @@ which devices get notified and when.
 
 ## Files to Modify
 - `internal/component/plugin/server/managed.go` -- rollout-aware config-changed dispatch
-- `internal/component/plugin/server/registry.go` -- group membership queries for batch partitioning
+- The device registry file `fleet-1` creates (`plan/release/features/spec-fleet-1-device-registry.md`, Files to Create) -- group membership queries for batch partitioning; named here once it lands
 - `cmd/ze/hub/main.go` -- wire rollout orchestrator
 
 ## Files to Create
