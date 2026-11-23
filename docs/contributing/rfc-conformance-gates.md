@@ -57,6 +57,7 @@ claimed test with and without its break.
 | Path | Holds |
 |------|-------|
 | `rfc/full/<stem>.txt`, `rfc/drafts/` | The RFC's own text. The source, and the only thing a conformance claim may quote |
+| `rfc/declined/texts/<stem>.txt`, `rfc/declined/short/<stem>.md` | RFCs and Internet-Drafts that Ze will never implement, kept for historical reference only (`rfc/declined/README.md`) |
 | `rfc/errata/<stem>/<number>.txt` | The verified text of one erratum a row cites: its original and corrected text as the RFC Editor publishes them. A row that cites it is quoted against it ("The row quote") |
 | `rfc/short/<stem>.md` | The extracted summary, and the ONE place every fact about that RFC is declared. One checklist row per requirement, plus the `## Meta` table. That table states whether the RFC is gated, and what the public page claims for it |
 | `rfc/enrolled.txt`, `rfc/not-enrolled.txt` | GENERATED from the Meta tables by `./le rfc update`: which summaries are gated, and the recorded reason for each that is not |
@@ -129,6 +130,13 @@ none under `rfc/full/` or `rfc/drafts/`. It also refuses a summary that cites a
 `reference/` path. Only the owner moves a document into `rfc/full/` or
 `rfc/drafts/`, as `reference/README.md` states.
 <!-- source: internal/le/rfc/check_reference.go -- checkReferenceSources -->
+
+`rfc/declined/` holds RFCs and Internet-Drafts that Ze will never implement
+(`texts/` and `short/`), kept for reference only. `./le rfc check` refuses any
+stem filed under `rfc/declined/` that also appears in `rfc/full/`,
+`rfc/drafts/`, `rfc/short/`, or `rfc/extraction/`, and refuses any summary in
+`rfc/short/` that cites an `rfc/declined/` path (`rfc/declined/README.md`).
+<!-- source: internal/le/rfc/check_declined.go -- checkDeclinedSources -->
 
 Everything in that table is also PUBLISHED, one page per summary stem at
 `/quality/rfc-compliance/<stem>/`. The page carries the same six cells, the

@@ -58,6 +58,10 @@ const (
 	// requirement source; referenceReadmeRel states that rule.
 	referenceRel       = "reference"
 	referenceReadmeRel = "reference/README.md"
+	// declinedRel holds RFCs and Internet-Drafts that Ze will never implement,
+	// along with their summaries; declinedReadmeRel states that rule.
+	declinedRel       = "rfc/declined"
+	declinedReadmeRel = "rfc/declined/README.md"
 )
 
 // specDirNames lists current spec buckets for derived-feed invalidation.

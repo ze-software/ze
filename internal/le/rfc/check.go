@@ -479,6 +479,13 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 		return CheckReport{}, err
 	}
 	findings = append(findings, inGroup(CheckRequirementLists, notes(referenceErrors))...)
+	// A document under rfc/declined/ will never be implemented and must not also
+	// appear in the active corpus or be cited as a source (rfc/declined/README.md).
+	declinedErrors, err := checkDeclinedSources(tree, stems)
+	if err != nil {
+		return CheckReport{}, err
+	}
+	findings = append(findings, inGroup(CheckRequirementLists, notes(declinedErrors))...)
 	findings = append(findings, inGroup(CheckRequirementLists, notes(checkIDAllocation(collected.Requirements, ids, unreadableLevels, retired, levelsKnown)))...)
 	findings = append(findings, inGroup(CheckTestEvidence, evaluate(collected.Requirements, collected.Tags, collected.Enrolled))...)
 	// An {intent} marker on a row Ze does not owe, or on a proven row, says

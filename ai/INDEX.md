@@ -763,7 +763,9 @@ All architecture docs in `docs/architecture/` unless noted.
 | shutdown | `rfc9003` | `rfc8203` |
 | treat-as-withdraw | `rfc7606` | |
 
-RFC summaries: `rfc/short/`. Full RFCs: `rfc/full/`. Non-normative IETF reference
+RFC summaries: `rfc/short/`. Full RFCs: `rfc/full/`. Declined RFCs and drafts that Ze
+will never implement: `rfc/declined/` (`texts/` and `short/`, `rfc/declined/README.md`),
+never in `rfc/full/`, `rfc/drafts/`, or `rfc/short/`. Non-normative IETF reference
 (IDR, GROW and OPSEC BCPs, Informational RFCs, active drafts): `reference/ietf/`, never a
 requirement source (`reference/README.md`), refreshed by `./le data ietf-reference update`. Each summary's `## Meta` table
 declares its own enrolment and its own row on `docs/features/rfc-status.md`.

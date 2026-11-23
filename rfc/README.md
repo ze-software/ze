@@ -5,6 +5,11 @@ Text versions of RFCs relevant to ZeBGP implementation.
 Best-practice and Informational documents that must not create requirements live in
 `reference/ietf/`, not here. See `reference/README.md`.
 
+RFCs and Internet-Drafts that Ze will never implement live in `rfc/declined/`
+(`texts/` and `short/`), outside `rfc/full/`, `rfc/drafts/`, and `rfc/short/`,
+so they never enter the dependency graph or conformance ledger. See
+`rfc/declined/README.md`.
+
 ## Profiles and the priority tree
 
 `rfc/profiles/` holds one file per profile: a use-case profile (its roots and
