@@ -8,7 +8,7 @@
 | Release reason | Security fail-open boundary: every plugin process, a program Ze did not ship included, is stamped with `aaa.ReservedInternalPrefix` on `dispatch-command` and `dispatch-command-args`, which the authorizer allows before any profile lookup, so any configured plugin runs any daemon command; and `route-install`, `route-remove` and `inject-wire-route` check no caller permission at all |
 | RFC gaps | - |
 | Depends | `plan/release/fixes/spec-explicit-plugin-and-attach-config.md` |
-| Phase | Design drafted 2026-11-23 on rulings R6 and R7. Owed before the status moves to design: the per-operation capability table, the fixture command census, the full Design documents verdicts and the changed-wire census |
+| Phase | Design drafted 2026-11-23 on rulings R6 and R7. The check each operation makes today and the static fixture census are recorded (2026-11-23). Owed before the status moves to design: the capability of each operation, the design questions Q-T1 to Q-T4, the runtime capture of the per-fixture command set, the full Design documents verdicts and the changed-wire census |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
@@ -48,7 +48,7 @@ Until this spec lands, Child 1 refuses a `send` list on a plugin that declares a
 
 ### 2. Every engine operation declares what it needs
 
-The first draft listed nine operations by hand. `engineOps` (`internal/component/plugin/server/dispatch_registry.go`) holds more: the five `state-*` operations, `metrics-publish`, `report-issue`, `update-route`, `dispatch-command`, `dispatch-command-args`, `subscribe-events`, `unsubscribe-events`, `emit-event`, `forward-cached`, `release-cached`, `relay-stored-route`, `select-routes`, `cancel-request`, `select-refresh`, `route-install`, `route-remove`, `route-metrics`, `inject-wire-route`, and any entry added later.
+The first draft listed nine operations by hand. `engineOps` (`internal/component/plugin/server/dispatch_registry.go`) holds more: the five `state-*` operations, `metrics-publish`, `report-issue`, `update-route`, `dispatch-command`, `dispatch-command-args`, `subscribe-events`, `unsubscribe-events`, `emit-event`, `forward-cached`, `release-cached`, `relay-stored-route`, `select-routes`, `cancel-request`, `select-refresh`, `route-install`, `route-remove`, `route-metrics`, `inject-wire-route`, `resolve-dns`, `batch-validate`, and any entry added later. Eleven more operations are registered by their owners through `RegisterEngineOp` (`internal/component/plugin/server/register_engine_op.go`) and live in the same lookup: the census report counted 12, and the six registration files hold 11.
 
 | Rule | Design |
 |------|--------|
@@ -59,7 +59,43 @@ The first draft listed nine operations by hand. `engineOps` (`internal/component
 | Commands by path | `dispatch-command` and `dispatch-command-args` need target `cli` and the command's path. The path, not the wire method, is the key |
 | Receiving is not sending | `subscribe-events` and `unsubscribe-events` are bounded by the plugin's `Receives` declaration and the operator's flows, which Child 1 owns. Their entry names that |
 
-The full table, one row per entry with its capability or reason, is owed before the design is presented.
+Every operation and the check it makes today on its caller, read at the handler on 2026-11-23. The capability column is the design's and is still owed: this table records what exists.
+
+| Operation | Handler (file) | Check on the caller today | Capability or reason |
+|-----------|----------------|---------------------------|----------------------|
+| `state-get`, `state-put`, `state-remove`, `state-list`, `state-increment` | `opState*` (`plugin/server/dispatch_state.go`) | State key grants: `statestore.PluginKeyReadable`, `PluginKeyWritable`, `PluginList`, keyed on `proc.Name()`, the operator's alias (Child 1 fixes the keying) | owed |
+| `metrics-publish` | `opMetricsPublish` (`dispatch_metrics.go`) | None on the caller. It acts on the metric set owned by `proc.Name()` | owed |
+| `report-issue` | `opReportIssue` (`dispatch_report.go`) | None on the caller. It reports under `proc.Name()`, rate-limited per owner (`pluginReportRate`) | owed |
+| `update-route` | `opUpdateRoute` (`dispatch_registry.go`), `handleUpdateRouteSelResultDirect` (`dispatch.go`) | `RequirePeerDeclarations` (the reconcile gate), then the command runs under `internalPluginIdentity(proc.Name())`, which `Store.authorize` allows by prefix. The BGP rails then apply the per-peer send grant (`filterPermittedPeers`) | owed |
+| `dispatch-command` | `opDispatchCommand`, `dispatchCommandPeerResponse` (`dispatch.go`) | The AAA prefix bypass: `internalPluginIdentity(proc.Name())`, allowed before any profile | owed |
+| `dispatch-command-args` | `opDispatchCommandArgs`, `dispatchCommandArgsResponse` (`dispatch.go`) | `RequirePeerDeclarations`, then the AAA prefix bypass, as above | owed |
+| `subscribe-events`, `unsubscribe-events` | `opSubscribeEvents`, `opUnsubscribeEvents` (`dispatch_registry.go`) | None at the operation. Delivery stays bounded by the peer's grant (`PeerScopedProcs`) until the next apply | owed (receiving, Child 1) |
+| `emit-event` | `opEmitEvent` (`dispatch_registry.go`) | None. No check that the emitter owns the namespace it emits into | owed (AC-7) |
+| `forward-cached` | `opForwardCached` (`dispatch_cached.go`) | `RequirePeerDeclarations`, then the per-peer send grant on the forward rails (`reactor_api_forward.go`, `reactor_api_forward_batch.go`) | owed |
+| `release-cached` | `opReleaseCached` (`dispatch_cached.go`) | None. It releases cache entries under `proc.Name()` | owed |
+| `relay-stored-route` | `opRelayStoredRoute` (`dispatch_cached.go`) | `RequirePeerDeclarations`, then the per-peer send grant on the relay rail (`reactor_api_relay.go`) | owed |
+| `select-routes` | `opSelectRoutes` (`dispatch_selected.go`) | The caller's `SelectedOwner`, the per-peer send grant (`reactor_api_selected.go`), and for cancellation the destination's `update` grant (`selectedCancellationScope`, `request_cancel.go`) | owed |
+| `cancel-request` | `opCancelRequest` (`request_cancel.go`) | It cancels the caller's own request | owed (`none` proposed in the draft) |
+| `select-refresh` | `opSelectRefresh` (`dispatch_selected_refresh.go`) | The caller's `SelectedOwner`, and `DeliveryGraph.MaySend(destination, proc.Name(), "update")` | owed |
+| `route-install`, `route-remove` | `opRouteInstall`, `opRouteRemove` (`dispatch_route.go`) | None. They decode, apply and count under `proc.Name()` | owed (AC-4) |
+| `route-metrics` | `opRouteMetrics` (`dispatch_route_metrics.go`) | None | owed |
+| `inject-wire-route` | `opInjectWireRoute` (`dispatch_registry.go`) | `RequirePeerDeclarations` only, on both rails | owed (AC-4) |
+| `resolve-dns` | `opResolveDNS` (`dispatch_resolve.go`) | None | owed |
+| `batch-validate` | `opBatchValidate`, `dispatchBatchValidation` (`dispatch_batch_validate.go`) | Dispatches `rpc.BatchValidateCommand` through `dispatchCommandArgs`, so the AAA prefix bypass | owed |
+| `ze-bgp:source-lease` (owner-registered) | `sourceLeaseJSON` (`bgp/reactor/register_source_lease.go`) | Bound to the caller's `SelectedOwner` | owed |
+| `ze-firewall:tables-replace` (owner-registered) | `tablesReplaceHandler` (`firewall/register_contribution.go`, `contribution.go`) | A table reservation keyed on `proc.Name()`, the operator's alias (`refuseOwnerWithoutReservation`) | owed |
+| `ze-sysrib:route-view-open` (owner-registered) | `routeViewOpenHandler` (`sysrib/register_route_view.go`) | `routeViewAuthorize`: the caller's `RegistrationName()` must be the system RIB | owed |
+| `ze-sysrib:route-view-read`, `route-view-close`, `route-view-candidates`, `route-view-distances`, `route-view-publish` (owner-registered) | `sysrib/register_route_view.go`, `register_route_view_policy.go`, `register_route_view_output.go` | Keyed on the caller process; `route-view-distances` acts on a session the caller opened (`withSession`). The others were not read further | owed |
+| `ze-iface:owned-bridges-replace`, `owned-link-create`, `owned-link-remove` (owner-registered) | `iface/cmd/owned_devices.go` | `iface.RefuseUngrantedDeviceOwner(proc.Name())`, keyed on the operator's alias | owed |
+
+Design questions the table forces. None is answered here.
+
+| # | Question | The data that forces it |
+|---|----------|-------------------------|
+| Q-T1 | Does the capability rule, and the walk of AC-9, cover the owner-registered operations? | They are declared through `EngineOperation` (`register_engine_op.go`), which has no capability field, not through an `engineOps` entry |
+| Q-T2 | Which identity do the checks keyed on `proc.Name()` move to? | State grants, the firewall table reservation, the interface device-owner grant, the metric and issue owners, and the cache release all key on the operator's alias. Child 1's identity fix names the state and doctor sites and five siblings; the firewall and interface grants are not among them |
+| Q-T3 | Is `batch-validate` judged as the `cli` path it dispatches, or by a token of its own? | It reaches the dispatcher through `dispatchCommandArgs` with a fixed command |
+| Q-T4 | Is `update-route` judged as `bgp:update`, as the `cli` path of its command text, or both? | It runs its command text under the plugin identity through the dispatcher, then the BGP send rails check the send type |
 
 ### 3. How the AAA bypass closes
 
@@ -103,13 +139,25 @@ Every external test fixture and every in-tree plugin now needs a `Sends` declara
 | Declaration it needs | The `Sends` entries |
 | Tests that run it | The `.ci` files and Go tests |
 
-The census table is added to this spec before the design is presented. It also yields the per-operation table of section 2, because an operation no fixture calls still needs its row.
+The static census, taken 2026-11-23:
+
+| Measure | Result |
+|---------|--------|
+| Fixtures the functional tests start | 827 fixture names, used by 1,093 `.ci` files |
+| Where they are registered | 167 source files under `internal/test/fixture/`; 796 names resolved to their source by name, 31 not resolved statically |
+| SDK calls in the fixture sources | `UpdateRoute` 51, `DispatchCommand` 48, `RouteMetrics` 7, `RouteInstall` 6, `ReleaseCached` 4, `EmitEvent` 4, `ForwardCached` 3, `RouteRemove` 3, the `State*` calls 5, `RaiseIssue` and `ClearIssue` 3 |
+| Literal command prefixes they dispatch | Led by `show bgp` (67), `request shutdown` (22) and `request quiesce` (21) |
+| Why the static census is not the per-fixture set | Most fixtures dispatch through about 25 shared wrapper helpers, so a fixture's source does not show which commands it sends |
+
+The complete per-fixture set comes from a runtime capture through the dispatcher's existing plugin accounting: every command a plugin dispatches already carries the sending plugin (`Username` from `internalPluginIdentity(proc.Name())` and `Sender` from `plugin.ProcessSender(proc.Name())`, set in `dispatchCommandArgsResponse`, `dispatchCommandPeerResponse` and `opUpdateRoute`). A capture over the functional suites that reach the fixtures records, for each plugin name, every command path and engine operation it used. That capture is the "Operations it calls" column, and the declarations are written from it once.
+
+The per-operation table of section 2 holds every operation, including those no fixture calls.
 
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `docs/architecture/api/process-protocol.md` - the plugin RPCs and their descriptions
-  -> Constraint: `internal/core/ipc/yang/ze-plugin-engine.yang` describes `dispatch-command` as running under a trusted internal identity; that description changes with the behavior
+  -> Constraint: `internal/core/ipc/yang/ze-plugin-engine.yang` describes the `command` leaf of `dispatch-command` as "The engine gives the text to the same dispatcher the CLI uses, under the calling plugin's internal identity. It is not prefixed, so the plugin writes the whole command." It says nothing about trust or authorization. The word "trusted" is in the code comments: `aaa.ReservedInternalPrefix` (`internal/component/aaa/reserved.go`), `Store.authorize` (`internal/component/authz/authz.go`) and `opUpdateRoute` (`internal/component/plugin/server/dispatch_registry.go`). The YANG description and those comments change with the behavior
 - [ ] `docs/architecture/api/architecture.md` - "Owner ruling: endpoints and flows on the bus", "Other command transports", "Data Flow: Config to Delivery"
   -> Decision: the endpoint's one send allow-list (`bus { endpoint <name> { send { allow [ ... ]; } } }`) is the permission for every command a plugin sends; a flow carries no send list
   -> Constraint: identity is injected by the transport and never accepted from the payload; the table there calls an internal plugin "engine-trusted", which R7 replaces
@@ -298,7 +346,8 @@ The full verdict table is owed before the status moves to design. The rows alrea
 - `internal/component/bgp/reactor/send_permission.go` - the BGP counter and the rail-level check give way to the shared one
 - `internal/core/ipc/yang/ze-plugin-engine.yang` - the description of `dispatch-command`
 - `internal/plugins/exabgp/bridgerun/script.go` and the bridge's registration - the declared command set
-- Every plugin registration and external fixture the census lists - its `Sends` declaration
+- Every plugin registration and external fixture the census lists - its `Sends` declaration: every in-tree plugin registration, and the 167 fixture source files under `internal/test/fixture/` that register the 827 fixtures the 1,093 `.ci` files start
+- The six files that register owner operations (`bgp/reactor/register_source_lease.go`, `firewall/register_contribution.go`, `sysrib/register_route_view.go`, `register_route_view_policy.go`, `register_route_view_output.go`, `iface/cmd/owned_devices.go`) - their capability, once Q-T1 is answered
 - `docs/architecture/api/process-protocol.md`, `docs/architecture/api/architecture.md`, `docs/plugin-development/`, `docs/plugin-development/metrics.md`, `docs/guide/authorization.md` - the check, the counter, the plugin profile
 
 ## Files to Create
