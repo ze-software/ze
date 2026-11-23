@@ -32,6 +32,10 @@ type SessionCaps struct {
 	// RFC 4724: Graceful Restart Mechanism for BGP.
 	GracefulRestart *GracefulRestart
 
+	// draft-walton-bgp-hostname-capability: Peer's advertised FQDN (code 73).
+	// Display-only troubleshooting metadata; changes no session decision.
+	PeerFQDN *FQDN
+
 	// RFC 5492 Section 3: Capabilities that were not negotiated.
 	// Tracked for logging/reporting purposes.
 	Mismatches []Mismatch

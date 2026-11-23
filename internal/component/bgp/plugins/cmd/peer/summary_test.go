@@ -835,6 +835,8 @@ func TestBgpSummaryColumnsMatchPayload(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
+				PeerHostname:       "edge1",
+				PeerDomainName:     "example.net",
 				PeerAS:             rpc.RemoteASOf(65001),
 				State:              plugin.PeerStateEstablished,
 				NegotiatedFamilies: []family.Family{family.IPv4Unicast},
@@ -882,12 +884,14 @@ func TestBgpPeerListColumnsMatchPayload(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{
-				Address:   netip.MustParseAddr("192.0.2.1"),
-				Name:      "peer1",
-				GroupName: "transit",
-				PeerAS:    rpc.RemoteASOf(65001),
-				State:     plugin.PeerStateEstablished,
-				Uptime:    time.Minute,
+				Address:        netip.MustParseAddr("192.0.2.1"),
+				Name:           "peer1",
+				PeerHostname:   "edge1",
+				PeerDomainName: "example.net",
+				GroupName:      "transit",
+				PeerAS:         rpc.RemoteASOf(65001),
+				State:          plugin.PeerStateEstablished,
+				Uptime:         time.Minute,
 			},
 		},
 		stats: plugin.ReactorStats{PeerCount: 1},
@@ -1188,12 +1192,12 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 		{command: "show bgp irr prefix", orders: []command.ColumnOrder{{"asn", "as-set", "prefixes"}}},
 		{command: "show bgp peer capabilities", orders: []command.ColumnOrder{{"peer", "state", "negotiation-complete", "negotiated"}}},
 		{command: "show bgp peer detail", orders: []command.ColumnOrder{{
-			"name", "group", "remote-as", "local-as", "peer-type", "router-id",
+			"name", "hostname", "domain", "group", "remote-as", "local-as", "peer-type", "router-id",
 			"state", "uptime", "last-notification",
 			"local-ip", "next-hop", "next-hop-address", "timer", "capabilities",
 		}}},
 		{command: "show bgp peer history", orders: []command.ColumnOrder{{"timestamp", "from", "to", "reason"}}},
-		{command: "show bgp peer list", orders: []command.ColumnOrder{{"name", "group", "remote-as", "state", "uptime"}}},
+		{command: "show bgp peer list", orders: []command.ColumnOrder{{"name", "hostname", "domain", "group", "remote-as", "state", "uptime"}}},
 		{command: "show bgp peer rib", orders: []command.ColumnOrder{ribRoutes}},
 		{command: "show bgp peer statistics", orders: []command.ColumnOrder{{
 			"address", "remote-as", "state", "uptime",
@@ -1211,7 +1215,7 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 		// `show bgp peer detail` declares, exactly as the bare spelling does.
 		{command: "show bgp peer 192.0.2.1 capabilities", orders: []command.ColumnOrder{{"peer", "state", "negotiation-complete", "negotiated"}}},
 		{command: "show bgp peer 192.0.2.1 detail", orders: []command.ColumnOrder{{
-			"name", "group", "remote-as", "local-as", "peer-type", "router-id",
+			"name", "hostname", "domain", "group", "remote-as", "local-as", "peer-type", "router-id",
 			"state", "uptime", "last-notification",
 			"local-ip", "next-hop", "next-hop-address", "timer", "capabilities",
 		}}},

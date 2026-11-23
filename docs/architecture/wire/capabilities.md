@@ -517,7 +517,18 @@ draft-walton-bgp-hostname-capability
 | Domain Len | 1 | Length of domain name |
 | Domain Name | Variable | UTF-8 domain name |
 
+Negotiation is unilateral and display-only (Section 4): a peer's advertised
+code 73 is stored on `Negotiated.PeerFQDN` and `SessionCaps.PeerFQDN` even when
+Ze does not advertise code 73, and creates no capability mismatch. Before
+storing for display, `sanitizeFQDN` checks UTF-8 validity and rejects any
+component containing Unicode control (`Cc`) or format (`Cf`) runes so a remote
+peer cannot inject terminal escapes or BiDi overrides into operator output.
+Duplicate code 73 instances follow RFC 5492 last-one-wins semantics. Session
+teardown clears `PeerFQDN` with the rest of `Peer.negotiated`.
+
 <!-- source: internal/core/bgp/capability/capability.go -- FQDN struct, parseFQDN -->
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate, PeerFQDN, sanitizeFQDN -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/fields.go -- addPeerFQDNRowFields, addFQDNFields -->
 
 ---
 
@@ -651,6 +662,7 @@ type Negotiated struct {
     LinkLocalNextHop     bool
     HoldTime             uint16
     GracefulRestart      *GracefulRestart
+    PeerFQDN             *FQDN
 
     // Internal maps
     families        map[Family]bool

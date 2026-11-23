@@ -382,6 +382,13 @@ type DecodedGracefulRestart struct {
 	RestartTime  uint16
 }
 
+// DecodedFQDN holds the peer's advertised FQDN capability (code 73) for API formatting.
+// draft-walton-bgp-hostname-capability Section 4: display-only metadata.
+type DecodedFQDN struct {
+	Hostname   string
+	DomainName string
+}
+
 // DecodedNegotiated holds negotiated capabilities for API formatting.
 // Sent after OPEN exchange to inform plugins of negotiated capabilities.
 type DecodedNegotiated struct {
@@ -407,6 +414,8 @@ type DecodedNegotiated struct {
 	PathsLimitRecv map[string]uint16
 	// GracefulRestart is non-nil when the peer advertised the RFC 4724 Graceful Restart Capability.
 	GracefulRestart *DecodedGracefulRestart
+	// FQDN is non-nil when the peer advertised a valid, non-empty code 73 FQDN capability.
+	FQDN *DecodedFQDN
 }
 
 // NegotiatedToDecoded converts capability.Negotiated to DecodedNegotiated.
@@ -487,6 +496,14 @@ func NegotiatedToDecoded(neg *capability.Negotiated) DecodedNegotiated {
 		}
 	}
 
+	var fqdn *DecodedFQDN
+	if neg.PeerFQDN != nil && (neg.PeerFQDN.Hostname != "" || neg.PeerFQDN.DomainName != "") {
+		fqdn = &DecodedFQDN{
+			Hostname:   neg.PeerFQDN.Hostname,
+			DomainName: neg.PeerFQDN.DomainName,
+		}
+	}
+
 	return DecodedNegotiated{
 		MessageSize:     msgSize,
 		HoldTime:        neg.HoldTime,
@@ -499,5 +516,6 @@ func NegotiatedToDecoded(neg *capability.Negotiated) DecodedNegotiated {
 		PathsLimitSend:  plSend,
 		PathsLimitRecv:  plRecv,
 		GracefulRestart: gr,
+		FQDN:            fqdn,
 	}
 }

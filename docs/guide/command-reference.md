@@ -4256,6 +4256,15 @@ limit is in neither map, because no limit is not a limit of zero. The same
 object appears under `capabilities` on `show bgp peer <sel> detail`.
 <!-- source: internal/component/bgp/plugins/cmd/peer/fields.go -- addPathsLimitFields -->
 
+When a peer advertised a valid FQDN capability (code 73,
+`draft-walton-bgp-hostname-capability`), `show bgp`, `show bgp peer list`, and
+`show bgp peer <sel> detail` include its `hostname` and/or `domain` on the peer
+row, and `show bgp peer <sel> detail` (`capabilities.fqdn`) and
+`show bgp peer <sel> capabilities` (`negotiated.fqdn`) carry the same fields
+under `fqdn`. Empty halves and absent capabilities are omitted, and strings
+containing invalid UTF-8 or control characters are withheld.
+<!-- source: internal/component/bgp/plugins/cmd/peer/fields.go -- addPeerFQDNRowFields, addFQDNFields -->
+
 Until 2026-08 each command answered a bare object for one matched peer and an
 array for several. `show bgp peer * statistics | count` therefore answered on a
 router with three peers, and was refused on a router with one. A script that

@@ -1,0 +1,103 @@
+# Test: BGP peer FQDN capability (code 73) received from a peer reaches operator show commands
+#
+# The one question: when a remote BGP peer advertises capability 73 (FQDN,
+# draft-walton-bgp-hostname-capability) in its OPEN without Ze advertising code 73,
+# does the real daemon propagate the peer's hostname and domain name across the
+# OPEN parser, negotiation, reactor peer snapshot, and SSH CLI dispatch so that
+# `show bgp`, `show bgp peer list`, `show bgp peer <sel> detail`, and
+# `show bgp peer <sel> capabilities` all display them? Unit tests cover each stage
+# separately; only a live daemon proves wire OPEN bytes reach every CLI command.
+#
+# VALIDATES: draft-walton-bgp-hostname-capability Section 4 (unilateral receive
+#   and troubleshooting display on BGP show commands).
+# PREVENTS: received code 73 being dropped between wire parsing, reactor
+#   negotiation, and operator show commands.
+#
+# RFC requirement: DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1 positive -- a peer's
+# advertised code 73 FQDN ("spine-01" / "dc1.example") is displayed by show bgp,
+# show bgp peer list, show bgp peer detail, and show bgp peer capabilities without
+# affecting session establishment.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=80s
+option=linger:value=true
+# Code 73 (FQDN): hostLen=8 "spine-01" + domainLen=11 "dc1.example"
+option=open:value=add-capability:code=73:hex=087370696e652d30310b6463312e6578616d706c65
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=fqdn.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=3:exec=ze start fqdn.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=4:exec=le test fixture daemon/await-answer-all "show bgp peer list" established:timeout=40s:exit=0
+expect=stdout:contains=OK:
+
+cmd=foreground:seq=5:exec=ze cli -c "show bgp | json":exit=0
+expect=stdout:pattern="hostname": ?"spine-01"
+expect=stdout:pattern="domain": ?"dc1\.example"
+
+cmd=foreground:seq=6:exec=ze cli -c "show bgp peer list | json":exit=0
+expect=stdout:pattern="hostname": ?"spine-01"
+expect=stdout:pattern="domain": ?"dc1\.example"
+
+cmd=foreground:seq=7:exec=ze cli -c "show bgp peer peer1 detail | json":exit=0
+expect=stdout:pattern="hostname": ?"spine-01"
+expect=stdout:pattern="domain": ?"dc1\.example"
+expect=stdout:contains="fqdn"
+
+cmd=foreground:seq=8:exec=ze cli -c "show bgp peer peer1 capabilities | json":exit=0
+expect=stdout:contains="fqdn"
+expect=stdout:pattern="hostname": ?"spine-01"
+expect=stdout:pattern="domain": ?"dc1\.example"
+
+cmd=stop:seq=9:name=daemon:signal=term

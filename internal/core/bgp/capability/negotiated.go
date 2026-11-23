@@ -6,6 +6,8 @@ package capability
 import (
 	"maps"
 	"sort"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -97,6 +99,10 @@ type Negotiated struct {
 
 	// RFC 4724: Graceful Restart Mechanism for BGP
 	GracefulRestart *GracefulRestart
+
+	// draft-walton-bgp-hostname-capability: Peer's advertised FQDN (code 73).
+	// Display-only troubleshooting metadata; changes no session decision.
+	PeerFQDN *FQDN
 
 	// Mismatches contains capabilities that were not negotiated.
 	// RFC 5492 Section 3: For logging/reporting purposes.
@@ -226,6 +232,12 @@ func Negotiate(local, remote []Capability, identity PeerIdentity) *Negotiated {
 			remoteLLNH = true
 		case *GracefulRestart:
 			neg.GracefulRestart = cap
+		case *FQDN:
+			// draft-walton-bgp-hostname-capability Section 4: display-only
+			// troubleshooting metadata. Unilateral from peer's OPEN; last
+			// instance wins per RFC 5492. Sanitized against invalid UTF-8
+			// and control/format characters before display.
+			neg.PeerFQDN = sanitizeFQDN(cap)
 		case *ExtendedNextHop:
 			remoteExtNH = cap
 		case *PathsLimit:
@@ -527,8 +539,52 @@ func (n *Negotiated) buildSubComponents() {
 		LinkLocalNextHop:     n.LinkLocalNextHop,
 		HoldTime:             n.HoldTime,
 		GracefulRestart:      n.GracefulRestart,
+		PeerFQDN:             n.PeerFQDN,
 		Mismatches:           n.Mismatches,
 	}
+}
+
+// sanitizeFQDN validates and copies a received FQDN capability for display.
+//
+// draft-walton-bgp-hostname-capability Section 3 encodes both fields as UTF-8
+// and Section 4 restricts the capability to operator troubleshooting display.
+// Rejecting invalid UTF-8 and Unicode control/format runes prevents a remote
+// BGP speaker from injecting terminal escapes, line breaks, or BiDi overrides
+// into operator displays. Returns nil when neither field is usable.
+func sanitizeFQDN(cap *FQDN) *FQDN {
+	if cap == nil {
+		return nil
+	}
+	host := sanitizeFQDNString(cap.Hostname)
+	domain := sanitizeFQDNString(cap.DomainName)
+	if host == "" && domain == "" {
+		return nil
+	}
+	return &FQDN{
+		Hostname:   host,
+		DomainName: domain,
+	}
+}
+
+// sanitizeFQDNString returns s unchanged when it is non-empty valid UTF-8
+// containing no control (Cc), format (Cf), or Unicode line/paragraph separator
+// (Zl, Zp) runes, and "" otherwise.
+func sanitizeFQDNString(s string) string {
+	if s == "" {
+		return ""
+	}
+	if !utf8.ValidString(s) {
+		return ""
+	}
+	for _, r := range s {
+		if unicode.IsControl(r) {
+			return ""
+		}
+		if unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp) {
+			return ""
+		}
+	}
+	return s
 }
 
 // SupportsFamily returns true if the given family was negotiated.
@@ -587,6 +643,7 @@ func (n *Negotiated) CheckRequiredCodes(required []Code) []Code {
 		CodeAddPath:          len(n.addPath) > 0,
 		CodeExtendedNextHop:  len(n.extendedNextHop) > 0,
 		CodeGracefulRestart:  n.GracefulRestart != nil,
+		CodeFQDN:             n.PeerAdvertised(CodeFQDN),
 		CodePathsLimit:       len(n.pathsLimitSend) > 0 || len(n.pathsLimitRecv) > 0,
 	}
 

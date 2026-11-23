@@ -271,6 +271,10 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 				info.GracefulRestart = true
 				info.GRRestartTime = neg.GracefulRestart.RestartTime
 			}
+			if neg.PeerFQDN != nil {
+				info.PeerHostname = neg.PeerFQDN.Hostname
+				info.PeerDomainName = neg.PeerFQDN.DomainName
+			}
 		}
 		result = append(result, info)
 	}
@@ -395,6 +399,12 @@ func (a *reactorAPIAdapter) PeerNegotiatedCapabilities(addr netip.Addr) *plugin.
 		}
 	}
 
+	var peerHostname, peerDomainName string
+	if neg.PeerFQDN != nil {
+		peerHostname = neg.PeerFQDN.Hostname
+		peerDomainName = neg.PeerFQDN.DomainName
+	}
+
 	return &plugin.PeerCapabilitiesInfo{
 		Families:             familyStrs,
 		ExtendedMessage:      neg.ExtendedMessage,
@@ -403,6 +413,8 @@ func (a *reactorAPIAdapter) PeerNegotiatedCapabilities(addr netip.Addr) *plugin.
 		AddPath:              addPath,
 		PathsLimitSend:       maps.Clone(neg.pathsLimitSend),
 		PathsLimitReceive:    maps.Clone(neg.pathsLimitReceive),
+		Hostname:             peerHostname,
+		DomainName:           peerDomainName,
 	}
 }
 

@@ -379,6 +379,11 @@ type PeerInfo struct {
 	GracefulRestart bool
 	GRRestartTime   uint16
 
+	// draft-walton-bgp-hostname-capability: Peer's advertised FQDN (code 73).
+	// Display-only; empty when the peer did not advertise a valid FQDN capability.
+	PeerHostname   string
+	PeerDomainName string
+
 	// NegotiatedFamilies is the list of address families that completed
 	// RFC 4760 multiprotocol negotiation with this peer. Empty until OPEN
 	// exchange finishes. Used by `show bgp <family> summary` to scope the
@@ -420,6 +425,8 @@ type PeerCapabilitiesInfo struct {
 	AddPath              map[string]string // RFC 7911: family -> "send" for families with ADD-PATH (nil if none)
 	PathsLimitSend       map[string]uint16 // Nonzero outbound maximum paths per prefix, from the peer
 	PathsLimitReceive    map[string]uint16 // Locally advertised receive request, not inbound policing
+	Hostname             string            // draft-walton-bgp-hostname-capability: Peer's advertised hostname (code 73)
+	DomainName           string            // draft-walton-bgp-hostname-capability: Peer's advertised domain name (code 73)
 }
 
 // UpdateDelayReasonNotReleased is what the Reason field carries while the hold

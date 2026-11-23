@@ -53,7 +53,15 @@ Capability Code: 73 (0x49). Capability Length: variable.
 
 - Capability code: `capability.CodeFQDN` (73), `internal/core/bgp/capability/capability.go`.
 - Receive: `parseFQDN` (same file) decodes both length-prefixed strings and
-  refuses a truncated value with `ErrShortRead`.
+  refuses a truncated value with `ErrShortRead` or trailing bytes with
+  `ErrInvalidLength`.
+- Negotiation & display sanitization: `capability.Negotiate`
+  (`internal/core/bgp/capability/negotiated.go`) records a peer's advertised
+  code 73 unilaterally on `Negotiated.PeerFQDN` and `SessionCaps.PeerFQDN`
+  without affecting any session, family, or routing decision and without
+  recording mismatches. `sanitizeFQDN` validates UTF-8 (§3) and rejects Unicode
+  control (`Cc`) and format (`Cf`) runes so peer strings cannot inject terminal
+  escapes or BiDi overrides into operator displays.
 - Send: `(*FQDN).WriteTo` (same file) writes the four fields, clamping each
   string at 255 bytes.
 - Advertisement: the `bgp-hostname` plugin builds the payload from per-peer
@@ -62,6 +70,15 @@ Capability Code: 73 (0x49). Capability Length: variable.
   injects it into the OPEN through `Peer.getPluginCapabilities`
   (`internal/component/bgp/reactor/peer.go`), wired at
   `internal/component/bgp/reactor/peer_run.go` `session.SetPluginCapabilityGetter`.
+- Status & display: `reactor.NegotiatedCapabilities.PeerFQDN`
+  (`internal/component/bgp/reactor/negotiated.go`) feeds `plugin.PeerInfo` and
+  `plugin.PeerCapabilitiesInfo` (`internal/component/bgp/reactor/reactor_api.go`),
+  cleared on session teardown. `format.NegotiatedToDecoded` and
+  `(*JSONEncoder).Negotiated` (`internal/component/bgp/format/`) emit `"fqdn"`
+  on `negotiated` events when present. `show bgp`, `show bgp peer list`,
+  `show bgp peer detail`, and `show bgp peer capabilities`
+  (`internal/component/bgp/plugins/cmd/peer/`) display `hostname`, `domain`,
+  and `fqdn` for troubleshooting when present and omit them when absent.
 - Config: `session > capability > hostname > host` and `> domain`.
 
 ## Compliance Checklist

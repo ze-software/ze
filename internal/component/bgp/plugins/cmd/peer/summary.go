@@ -400,6 +400,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, validated command.Valida
 			fieldConnectionsDropped: p.ConnectionsDropped,
 		}
 		setRemoteAS(row, p)
+		addPeerFQDNRowFields(row, p.PeerHostname, p.PeerDomainName)
 		mergeRibRouteCounts(row, p.Address.String(), ribCounts)
 		peerRows = append(peerRows, row)
 	}
@@ -542,6 +543,7 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, validated comma
 				neg["add-path"] = caps.AddPath
 			}
 			addPathsLimitFields(neg, caps.PathsLimitSend, caps.PathsLimitReceive)
+			addFQDNFields(neg, caps.Hostname, caps.DomainName)
 			entry["negotiated"] = neg
 		} else {
 			entry[fieldNegotiationComplete] = false

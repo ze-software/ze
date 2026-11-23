@@ -328,6 +328,19 @@ func (e *JSONEncoder) Negotiated(peer *plugin.PeerInfo, neg DecodedNegotiated) s
 		}
 	}
 
+	if neg.FQDN != nil {
+		fqdn := map[string]any{}
+		if neg.FQDN.Hostname != "" {
+			fqdn["hostname"] = neg.FQDN.Hostname
+		}
+		if neg.FQDN.DomainName != "" {
+			fqdn["domain"] = neg.FQDN.DomainName
+		}
+		if len(fqdn) > 0 {
+			inner["fqdn"] = fqdn
+		}
+	}
+
 	return e.marshal(outer)
 }
 

@@ -38,6 +38,8 @@ const (
 	// What the session IS: who configured it, what it negotiated, how long it
 	// has been up.
 	fieldName                = "name"
+	fieldHostname            = "hostname"
+	fieldDomain              = "domain"
 	fieldDescription         = "description"
 	fieldGroup               = "group"
 	fieldState               = "state"
@@ -90,4 +92,35 @@ func addPathsLimitFields(fields map[string]any, send, receive map[string]uint16)
 		limits["receive"] = receive
 	}
 	fields["paths-limit"] = limits
+}
+
+// addPeerFQDNRowFields writes the peer's advertised hostname and domain name
+// (draft-walton-bgp-hostname-capability, code 73) onto a peer row when present.
+// Absent fields are omitted so a peer that did not advertise code 73 carries
+// no empty keys.
+func addPeerFQDNRowFields(row map[string]any, hostname, domain string) {
+	if hostname != "" {
+		row[fieldHostname] = hostname
+	}
+	if domain != "" {
+		row[fieldDomain] = domain
+	}
+}
+
+// addFQDNFields writes the peer's advertised FQDN capability (code 73) under
+// "fqdn" in a peer capabilities or detail capabilities map when at least one
+// component is non-empty, omitting empty sub-keys and omitting "fqdn" entirely
+// when absent.
+func addFQDNFields(fields map[string]any, hostname, domain string) {
+	if hostname == "" && domain == "" {
+		return
+	}
+	fqdn := make(map[string]any, 2)
+	if hostname != "" {
+		fqdn[fieldHostname] = hostname
+	}
+	if domain != "" {
+		fqdn[fieldDomain] = domain
+	}
+	fields["fqdn"] = fqdn
 }

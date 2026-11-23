@@ -759,8 +759,9 @@ never reaches up.
 
 `message-size` is the largest message this speaker may send (65535 once the
 peer advertised RFC 8654 Extended Message, 4096 otherwise). `route-refresh` is
-`absent`, `normal` or `enhanced` (RFC 7313). `add-path`, `extended-next-hop`
-and `paths-limit` appear only when they hold a family. `families` and the two
+`absent`, `normal` or `enhanced` (RFC 7313). `add-path`, `extended-next-hop`,
+`paths-limit`, `graceful-restart`, and `fqdn` (`{"hostname": "...", "domain": "..."}`,
+omitting empty halves) appear only when present on the session. `families` and the two
 `add-path` lists keep the order the peer's OPEN listed its Multiprotocol
 capabilities in, filtered by what ze sent, the order ExaBGP lists them in; the
 order is the same on every event of one session.

@@ -124,7 +124,7 @@ func registerColumns() {
 	// an "uptime" key: the peer rows, and the record that holds them.
 	command.RegisterColumns([]string{cmdBgp},
 		command.ColumnOrder{
-			fieldAddress, fieldName, fieldDescription, fieldGroup, fieldRemoteAS, fieldPeerType,
+			fieldAddress, fieldName, fieldHostname, fieldDomain, fieldDescription, fieldGroup, fieldRemoteAS, fieldPeerType,
 			fieldState, fieldUptime, "state-changed", "last-error",
 			"routes-received", "routes-accepted", "routes-sent",
 			fieldUpdatesReceived, fieldUpdatesSent,
@@ -141,7 +141,7 @@ func registerColumns() {
 	// `show bgp peer list` indexes its rows by address, so the address is
 	// already the first column and the order carries the fields that follow it.
 	command.RegisterColumns([]string{cmdBgpPeerList},
-		command.ColumnOrder{fieldName, fieldGroup, fieldRemoteAS, fieldState, fieldUptime},
+		command.ColumnOrder{fieldName, fieldHostname, fieldDomain, fieldGroup, fieldRemoteAS, fieldState, fieldUptime},
 	)
 	// `show bgp peer detail` indexes its rows by address as the list does, so
 	// its order carries the fields that follow it, in the four-part sequence
@@ -151,7 +151,7 @@ func registerColumns() {
 	// alphabetically and reading them in that sequence loses nothing.
 	command.RegisterColumns([]string{cmdBgpPeerDetail},
 		command.ColumnOrder{
-			fieldName, fieldGroup, fieldRemoteAS, fieldLocalAS, fieldPeerType, fieldRouterID,
+			fieldName, fieldHostname, fieldDomain, fieldGroup, fieldRemoteAS, fieldLocalAS, fieldPeerType, fieldRouterID,
 			fieldState, fieldUptime, "last-notification",
 			"local-ip", "next-hop", "next-hop-address", "timer", "capabilities",
 		},
@@ -393,6 +393,7 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, validated command.Valid
 		if p.Name != "" {
 			row[fieldName] = p.Name
 		}
+		addPeerFQDNRowFields(row, p.PeerHostname, p.PeerDomainName)
 		if p.GroupName != "" {
 			row[fieldGroup] = p.GroupName
 		}
@@ -470,6 +471,7 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, validated command.Val
 		if p.Name != "" {
 			row[fieldName] = p.Name
 		}
+		addPeerFQDNRowFields(row, p.PeerHostname, p.PeerDomainName)
 		if p.GroupName != "" {
 			row[fieldGroup] = p.GroupName
 		}
@@ -558,6 +560,7 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, validated command.Val
 					"restart-time": p.GRRestartTime,
 				}
 			}
+			addFQDNFields(caps, p.PeerHostname, p.PeerDomainName)
 		}
 		row["capabilities"] = caps
 		if p.PrefixUpdated != "" {

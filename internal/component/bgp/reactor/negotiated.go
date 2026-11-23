@@ -38,6 +38,10 @@ type NegotiatedCapabilities struct {
 
 	// RFC 4724: Graceful Restart. Nil if not negotiated.
 	GracefulRestart *capability.GracefulRestart
+
+	// draft-walton-bgp-hostname-capability: Peer's advertised FQDN (code 73).
+	// Display-only; nil if peer did not advertise a valid, non-empty FQDN.
+	PeerFQDN *capability.FQDN
 }
 
 // NewNegotiatedCapabilities creates from capability negotiation result.
@@ -55,6 +59,7 @@ func NewNegotiatedCapabilities(neg *capability.Negotiated) *NegotiatedCapabiliti
 		LinkLocalNextHop:     neg.LinkLocalNextHop,
 		HoldTime:             neg.HoldTime,
 		GracefulRestart:      neg.GracefulRestart,
+		PeerFQDN:             neg.PeerFQDN,
 	}
 	nc.pathsLimitSend, nc.pathsLimitReceive = negotiatedPathsLimits(neg)
 

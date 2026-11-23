@@ -103,7 +103,7 @@ announcement with no Tunnel Encapsulation attribute is treat-as-withdraw
 | Graceful Restart | 64 | RFC 4724 | Session preservation across restarts (Restarting Speaker: R-bit via zefs marker on `ze signal restart`) |
 | Long-Lived GR | 71 | RFC 9494 | Extended stale route retention with LLGR_STALE community and depreference |
 | BGP Role | 9 | RFC 9234 | Peer relationship role |
-| Hostname | 73 | RFC 8516 | FQDN capability |
+| Hostname | 73 | draft-walton-bgp-hostname-capability | FQDN capability |
 | Software Version | 75 | draft | Software version advertisement |
 | Link-Local Next Hop | 77 | draft-ietf-idr-linklocal-capability | A 16-octet next hop holding one IPv6 link-local address, which RFC 2545 has no form for |
 | PATHS-LIMIT | 76 | draft-abraitis-idr-addpath-paths-limit | Per-family path count limit for ADD-PATH |
