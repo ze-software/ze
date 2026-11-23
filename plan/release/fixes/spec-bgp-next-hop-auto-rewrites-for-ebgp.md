@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | 2/3 |
 | Handoff | - |
-| Updated | 2026-11-16 |
+| Updated | 2026-11-23 |
 
 Bucket: `plan/release/fixes/`, because the default next-hop behavior is a prerequisite of ordinary best-route advertisement.
 
@@ -155,6 +155,21 @@ correct with or without the explicit leaf. The same day Thomas also ruled that
 Ze passes elected best routes between peers by default. The
 [ordinary selected-route path](../../../docs/architecture/rib-transition.md#ordinary-selected-route-advertisement)
 relies on the eBGP next-hop behavior specified here.
+
+Owner decision (Thomas, 2026-11-23, voice-transcribed): unify egress next-hop
+rewriting into the export filter chain and drop the separate `session { next-hop }`
+configuration surface so there is only one place that modifies outbound packets.
+Ze automatically appends `next-hop auto` at the end of the export chain when no
+earlier filter has already selected a next-hop outcome (`self`, `unchanged`, or
+an explicit address), preserving the RFC 4271 Section 5.1.3 default behavior
+(rewrite to self on ordinary eBGP, preserve on iBGP and RS clients). Recorded in
+`docs/architecture/core-design.md` under `## Design decisions`: "I would think
+that all the rewrite should be in the prefix export and not under configuration.
+I believe we should automatically add to the export prefix list the auto at the
+end of the list if not defined with something else. So if no one, for example,
+used a self or unchanged, we should automatically change it on eBGP. Because
+otherwise we have two ways to modify packets on the way out to the peer." —
+"Unify into the export chain it is the way I want it."
 
 ### Owner-approved behaviour table
 
