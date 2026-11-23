@@ -43,10 +43,10 @@ func (n *netlinkBackend) addRichRoute(r RichRoute) error {
 	return wrapSEG6InstallError(r.Prefix, route, n.handle.RouteAdd(route))
 }
 
-func (n *netlinkBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
+func (n *netlinkBackend) delRichRoute(prefix netip.Prefix, tableID uint32) (bool, error) {
 	route, err := ownedRouteKey(prefix.String(), tableID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	return delOwnedRoute(n.handle, route)
 }
@@ -94,6 +94,9 @@ func routeHasSEG6Encap(route *netlink.Route) bool {
 func wrapSEG6InstallError(prefix netip.Prefix, route *netlink.Route, err error) error {
 	if err == nil {
 		return nil
+	}
+	if _, partial := errors.AsType[*supersededDeleteError](err); partial {
+		return err
 	}
 	if !routeHasSEG6Encap(route) {
 		return err

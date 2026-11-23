@@ -832,8 +832,9 @@ route cleanup. Ordinary repair replays still reassert installed routes.
 <!-- test: internal/plugins/fib/kernel/fibkernel_stop_test.go -- TestFIBKernelReplayReassertsInstalledRoutes, TestFIBKernelStopEndsReplayAdmission -->
 
 The cleanup removes every route the writer installed, from the table it was
-installed in, and every route a previous run left that startup retained and
-the sweep has not yet removed, from each table startup listed it in. It then
+installed in, every route a previous run left that startup retained and
+the sweep has not yet removed, from each table startup listed it in, and any
+superseded Ze route whose delete failed during a metric change or table move. It then
 lists the kernel's Ze routes in every table. A delete the kernel refused, or a
 flushed prefix the kernel still lists in any table, raises one
 `doctor-fib-flush-incomplete` error (subject `flush`) and one WARN log line under the same code,
@@ -845,6 +846,17 @@ was taken.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- flushRoutes, flushOneLocked, flushResidueLocked, reportFlushLocked -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_test.go -- TestFIBKernelFlushDeletesInTheInstalledTable, TestFIBKernelFlushReportsRoutesTheKernelKept, TestFIBKernelFlushReportsFailedDeletes, TestFIBKernelFlushRemovesRetainedRoutes -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_list_test.go -- TestFIBKernelFlushReportsUnverifiedKernel, TestFIBKernelFlushCountsNothingItCouldNotList, TestFIBKernelSweepDeletesInTheListedTable -->
+
+A route that fails FIB programming (or leaves a superseded route behind) raises
+`fib-sync-failure` in both the error ring and the active warning set, degrading
+the `fib` health probe. The writer parks the change for bounded exponential
+backoff retry on its event-loop goroutine (up to 10 attempts, doubling from
+500ms to 30s) and also makes one immediate retry pass over earlier pending
+routes whenever another route in a later batch installs cleanly. Withdrawing a
+pending prefix cancels retry immediately, and a clean install, replace, retry,
+or withdraw clears the `fib-sync-failure` warning.
+<!-- source: internal/plugins/fib/kernel/pending_retry.go -- runRetryLoop, retryDuePending, retryPendingAfterProgressLocked -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_journal_fixes_test.go -- TestFIBKernelPendingInstallRetriesAndClearsSyncFailure, TestFIBKernelPendingInstallRetriedAfterCoveringRouteInSameBatch, TestFIBKernelPendingRetryIsBoundedByMaxAttempts, TestFIBKernelWithdrawClearsPendingInstallAndSyncFailure -->
 
 Bus topics in the FIB pipeline:
 

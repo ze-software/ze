@@ -9,14 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/bgp/routeaction"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/test/userns"
@@ -672,7 +671,11 @@ func TestFIBDeleteToleratesESRCH(t *testing.T) {
 
 		nb, ok := backend.(*netlinkBackend)
 		require.True(t, ok)
-		assert.NoError(t, nb.delRoute("10.99.78.0/24"), "delRoute of an absent route")
-		assert.NoError(t, nb.delRichRoute(netip.MustParsePrefix("10.99.78.0/24"), 100), "delRichRoute of an absent route in a named table")
+		removed, err := nb.delRoute("10.99.78.0/24")
+		assert.NoError(t, err, "delRoute of an absent route")
+		assert.False(t, removed, "delRoute of an absent route must not report removed")
+		removed, err = nb.delRichRoute(netip.MustParsePrefix("10.99.78.0/24"), 100)
+		assert.NoError(t, err, "delRichRoute of an absent route in a named table")
+		assert.False(t, removed, "delRichRoute of an absent route in a named table must not report removed")
 	})
 }

@@ -81,7 +81,7 @@ func newBackend() routeBackend {
 type failedBackend struct{ err error }
 
 func (f *failedBackend) addRoute(_, _ string) error              { return f.err }
-func (f *failedBackend) delRoute(_ string) error                 { return f.err }
+func (f *failedBackend) delRoute(_ string) (bool, error)         { return false, f.err }
 func (f *failedBackend) replaceRoute(_, _ string) error          { return f.err }
 func (f *failedBackend) listZeRoutes() ([]installedRoute, error) { return nil, f.err }
 func (f *failedBackend) close() error                            { return nil }
@@ -94,10 +94,10 @@ func (n *netlinkBackend) addRoute(prefix, nextHop string) error {
 	return n.handle.RouteAdd(route)
 }
 
-func (n *netlinkBackend) delRoute(prefix string) error {
+func (n *netlinkBackend) delRoute(prefix string) (bool, error) {
 	route, err := ownedRouteKey(prefix, 0)
 	if err != nil {
-		return err
+		return false, err
 	}
 	return delOwnedRoute(n.handle, route)
 }
@@ -136,19 +136,23 @@ func ownedRouteKey(prefix string, tableID uint32) (*netlink.Route, error) {
 	return route, nil
 }
 
-// delOwnedRoute deletes a route Ze installed and treats ESRCH as done. The
-// route MUST come from ownedRouteKey: only a key that matches every scope makes
-// ESRCH mean absence. ESRCH
-// is the kernel's answer for a route that is not there: when a device is
-// deleted the kernel flushes every route through it, in every table, so the
-// withdraw sysrib sends next finds nothing. The route is gone, which is what
-// the withdraw asked for, so reporting fib-sync-failure for it would be false
-// (the precedent is the mpls context route removal in mplscontext_linux.go).
-func delOwnedRoute(h netlinkHandle, route *netlink.Route) error {
-	if err := h.RouteDel(route); err != nil && !errors.Is(err, unix.ESRCH) {
-		return err
+// delOwnedRoute deletes a route Ze installed and reports whether the kernel
+// actually removed a route. The route MUST come from ownedRouteKey: only a key
+// that matches every scope makes ESRCH mean absence. ESRCH is the kernel's
+// answer for a route that is not there (for example, when a device is deleted
+// the kernel flushes every route through it, so the withdraw sysrib sends next
+// finds nothing). In that case delOwnedRoute returns (false, nil): the route is
+// gone, so no fib-sync-failure is raised, and callers such as the stale sweep
+// do not count it as a route they removed.
+func delOwnedRoute(h netlinkHandle, route *netlink.Route) (bool, error) {
+	err := h.RouteDel(route)
+	if errors.Is(err, unix.ESRCH) {
+		return false, nil
 	}
-	return nil
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (n *netlinkBackend) replaceRoute(prefix, nextHop string) error {
@@ -201,11 +205,33 @@ func (n *netlinkBackend) replaceOwnedRoute(route *netlink.Route) error {
 	if err != nil {
 		return err
 	}
+	var delErr error
+	failed := 0
 	for i := range current {
-		if current[i].Protocol == rtprotZE && current[i].Priority != priority {
-			if err := n.handle.RouteDel(&current[i]); err != nil {
-				return fmt.Errorf("remove superseded route %s priority %d: %w", route.Dst, current[i].Priority, err)
-			}
+		if current[i].Protocol != rtprotZE {
+			continue
+		}
+		if current[i].Priority == priority {
+			continue
+		}
+		err := n.handle.RouteDel(&current[i])
+		if errors.Is(err, unix.ESRCH) {
+			continue
+		}
+		if err != nil {
+			failed++
+			delErr = errors.Join(delErr, fmt.Errorf("remove superseded route %s priority %d: %w", route.Dst, current[i].Priority, err))
+		}
+	}
+	if delErr != nil {
+		fwdTable := uint32(0)
+		if table > 0 && uint64(table) <= math.MaxUint32 {
+			fwdTable = forwardingTable(uint32(table))
+		}
+		return &supersededDeleteError{
+			table: fwdTable,
+			count: failed,
+			err:   delErr,
 		}
 	}
 	return nil

@@ -25,9 +25,9 @@ type deleteLogBackend struct {
 func (backend *deleteLogBackend) addRichRoute(RichRoute) error     { return nil }
 func (backend *deleteLogBackend) replaceRichRoute(RichRoute) error { return nil }
 
-func (backend *deleteLogBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error { //nolint:unparam // richRouteBackend method: the interface returns an error, this double never refuses
+func (backend *deleteLogBackend) delRichRoute(prefix netip.Prefix, tableID uint32) (bool, error) { //nolint:unparam // richRouteBackend method: the interface returns (bool, error), this double never refuses
 	backend.deletes = append(backend.deletes, installedRoute{prefix: prefix.String(), table: tableID})
-	return nil
+	return true, nil
 }
 
 func sweepIssues() []report.Issue {
@@ -233,12 +233,12 @@ type refusingRichBackend struct {
 func (backend *refusingRichBackend) addRichRoute(RichRoute) error     { return nil }
 func (backend *refusingRichBackend) replaceRichRoute(RichRoute) error { return nil }
 
-func (backend *refusingRichBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
+func (backend *refusingRichBackend) delRichRoute(prefix netip.Prefix, tableID uint32) (bool, error) {
 	backend.deletes = append(backend.deletes, installedRoute{prefix: prefix.String(), table: tableID})
 	if backend.onlyTable != 0 && tableID != backend.onlyTable {
-		return nil
+		return true, nil
 	}
-	return errors.New("operation not permitted")
+	return false, errors.New("operation not permitted")
 }
 
 // Goal: a stale route in a named table that the sweep could not delete is
@@ -343,12 +343,12 @@ func (backend *slotBackend) replaceRichRoute(route RichRoute) error { //nolint:u
 	return nil
 }
 
-func (backend *slotBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
+func (backend *slotBackend) delRichRoute(prefix netip.Prefix, tableID uint32) (bool, error) {
 	if tableID == 100 {
-		return errors.New("operation not permitted")
+		return false, errors.New("operation not permitted")
 	}
 	delete(backend.occupied, installedRoute{prefix: prefix.String(), table: tableID})
-	return nil
+	return true, nil
 }
 
 // Goal: a protocol can install a prefix into the table where Ze's own stale

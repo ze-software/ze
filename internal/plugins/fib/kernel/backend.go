@@ -11,7 +11,32 @@ package fibkernel
 
 import (
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// supersededDeleteError reports that replaceOwnedRoute installed the new route
+// in table, but deleting one or more superseded Ze routes at other priorities
+// in that same table failed. The caller MUST record the newly installed route
+// and retain the superseded table entries for retry and flush.
+type supersededDeleteError struct {
+	table uint32 // forwarding table (0 for main)
+	count int    // number of superseded Ze routes whose delete failed
+	err   error
+}
+
+func (e *supersededDeleteError) Error() string {
+	if e.err != nil {
+		return e.err.Error()
+	}
+	var tb textbuf.Buffer
+	tb.Str("remove ").Int(int64(e.count)).Str(" superseded route(s) in table ").Uint(uint64(e.table))
+	return tb.String()
+}
+
+func (e *supersededDeleteError) Unwrap() error {
+	return e.err
+}
 
 // sweepDelay is the time to wait before sweeping stale routes after startup.
 // Allows BGP reconvergence to refresh matching routes.

@@ -9,12 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/bgp/routeaction"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/routewatch"
@@ -44,11 +43,11 @@ func (m *mockBackend) addRoute(prefix, nextHop string) error {
 	return nil
 }
 
-func (m *mockBackend) delRoute(prefix string) error {
+func (m *mockBackend) delRoute(prefix string) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.deleted = append(m.deleted, prefix)
-	return nil
+	return true, nil
 }
 
 func (m *mockBackend) replaceRoute(prefix, nextHop string) error {
@@ -405,9 +404,9 @@ func (m *failingBackend) replaceRoute(prefix, nextHop string) error {
 	return m.mockBackend.replaceRoute(prefix, nextHop)
 }
 
-func (m *failingBackend) delRoute(prefix string) error {
+func (m *failingBackend) delRoute(prefix string) (bool, error) {
 	if m.failDel {
-		return errors.New("netlink: no such process")
+		return false, errors.New("netlink: no such process")
 	}
 	return m.mockBackend.delRoute(prefix)
 }
@@ -642,12 +641,12 @@ func (m *richMockBackend) addRichRoute(r RichRoute) error {
 	return nil
 }
 
-func (m *richMockBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
+func (m *richMockBackend) delRichRoute(prefix netip.Prefix, tableID uint32) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.richDeleted = append(m.richDeleted, prefix)
 	m.richDelTables = append(m.richDelTables, tableID)
-	return nil
+	return true, nil
 }
 
 func (m *richMockBackend) replaceRichRoute(r RichRoute) error {

@@ -12,6 +12,7 @@ package fibkernel
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/ze-software/ze/internal/core/routewatch"
 	"github.com/ze-software/ze/internal/core/rtproto"
@@ -64,6 +65,12 @@ func (f *fibKernel) handleExternalChange(ev routewatch.RouteEvent) {
 	// Reassert all accepted forwarding metadata. The backend checks the current
 	// kernel owner before replacement, including a foreign replacement.
 	reassertErr := f.replaceChange(&change, prefix, f.asRichBackend())
+	if reassertErr == nil {
+		f.forgetSupersededTableLocked(prefix, change.TableID)
+	}
+	if partial, ok := errors.AsType[*supersededDeleteError](reassertErr); ok {
+		f.recordSupersededTableLocked(prefix, partial.table, partial.count)
+	}
 	f.mu.Unlock()
 
 	resolved := "reasserted"

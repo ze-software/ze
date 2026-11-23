@@ -43,6 +43,6 @@ type RichRoute struct {
 // Backends that implement this interface receive full route attributes.
 type richRouteBackend interface {
 	addRichRoute(r RichRoute) error
-	delRichRoute(prefix netip.Prefix, tableID uint32) error
+	delRichRoute(prefix netip.Prefix, tableID uint32) (bool, error)
 	replaceRichRoute(r RichRoute) error
 }

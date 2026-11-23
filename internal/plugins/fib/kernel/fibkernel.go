@@ -5,6 +5,7 @@
 // Detail: monitor.go -- external route change handling
 // Detail: monitor_linux.go -- Linux netlink route monitor
 // Detail: monitor_other.go -- noop monitor for non-Linux
+// Detail: pending_retry.go -- bounded backoff retry for pending FIB installs
 //
 // fib-kernel subscribes to (sysrib, best-change) on the EventBus and
 // programs OS routes via netlink (Linux) or route socket (Darwin). Uses a
@@ -143,8 +144,9 @@ func emitForwardingDefaults() {
 type routeBackend interface {
 	// addRoute installs a route in the OS routing table.
 	addRoute(prefix, nextHop string) error
-	// delRoute removes a route from the OS routing table.
-	delRoute(prefix string) error
+	// delRoute removes a route from the OS routing table and reports whether
+	// the OS actually removed a route (false, nil when already absent).
+	delRoute(prefix string) (bool, error)
 	// replaceRoute atomically replaces a route.
 	replaceRoute(prefix, nextHop string) error
 	// listZeRoutes returns all routes installed by fib-kernel.
@@ -173,6 +175,21 @@ const reportSourceFIB = "fib"
 const reportCodeFIBSyncFailure = "fib-sync-failure"
 const reportCodeFIBOrphan = "fib-orphan"
 const reportCodeFIBProgrammingLag = "fib-programming-lag"
+const exampleShowErrors = "ze show errors"
+
+// fibSyncFailureDiagnosticCode describes reportCodeFIBSyncFailure for
+// `ze show diagnostic`. The event-code registration in register.go requires it
+// to be registered first.
+var fibSyncFailureDiagnosticCode = diagnostic.CodeMeta{
+	Code:  reportCodeFIBSyncFailure,
+	Title: "Kernel FIB failed to program or remove a route",
+	Description: "fib-kernel could not install, replace, or remove a route in the Linux kernel routing table, " +
+		"or could not delete a superseded Ze route left behind by a metric change or table move. " +
+		"Failed installs and replacements are parked for bounded exponential backoff retry and also retried " +
+		"when a later batch makes progress; the active warning clears once the prefix installs or withdraws " +
+		"cleanly. Inspect the failing prefix and kernel error with `ze show errors` and `ze show warnings`.",
+	Examples: []string{exampleShowErrors, "ze show warnings source fib", "ze show diagnostic " + reportCodeFIBSyncFailure},
+}
 
 const fibLagTimeout = 30 * time.Second
 const maxPendingEntries = 10000
@@ -193,6 +210,12 @@ type fibKernel struct {
 	// withdraw drops one listing for the one route it deleted; flushRoutes
 	// deletes what is left and clears the map.
 	staleTables map[string][]uint32
+	// supersededTables records tables where a Ze route for prefix remains after
+	// a partial apply (replaceOwnedRoute installed the new route but could not
+	// delete one or more superseded priorities) or a table move whose old-table
+	// delete failed. sweepStale does not touch this map; retry, withdraw, and
+	// flushRoutes remove every entry recorded here.
+	supersededTables map[string][]uint32
 	// mplsInstalled tracks which installed prefixes carry MPLS labels (push).
 	mplsInstalled map[string]bool
 	// mplsSwaps records the source that owns each AF_MPLS incoming label.
@@ -206,9 +229,16 @@ type fibKernel struct {
 	// pending tracks routes that failed FIB programming with their first
 	// failure time. Used for fib-programming-lag detection (AC-14).
 	pending map[string]time.Time
-	backend routeBackend
-	stopped atomic.Bool
-	mu      sync.RWMutex
+	// pendingChanges holds the latest failed install or replace change for each
+	// pending prefix together with its bounded retry schedule (pending_retry.go).
+	pendingChanges   map[string]*pendingRetry
+	retryBaseDelay   time.Duration
+	retryMaxDelay    time.Duration
+	retryMaxAttempts int
+	retryWake        chan struct{}
+	backend          routeBackend
+	stopped          atomic.Bool
+	mu               sync.RWMutex
 }
 
 // asRichBackend returns the richRouteBackend if the backend supports it.
@@ -221,15 +251,21 @@ func (f *fibKernel) asRichBackend() richRouteBackend {
 
 func newFIBKernel(backend routeBackend) *fibKernel {
 	return &fibKernel{
-		installed:     make(map[string]string),
-		forwarding:    make(map[string]incomingChange),
-		retained:      make(map[string]bool),
-		staleTables:   make(map[string][]uint32),
-		mplsInstalled: make(map[string]bool),
-		mplsSwaps:     make(map[uint32]uint16),
-		backups:       make(map[string]struct{}),
-		pending:       make(map[string]time.Time),
-		backend:       backend,
+		installed:        make(map[string]string),
+		forwarding:       make(map[string]incomingChange),
+		retained:         make(map[string]bool),
+		staleTables:      make(map[string][]uint32),
+		supersededTables: make(map[string][]uint32),
+		mplsInstalled:    make(map[string]bool),
+		mplsSwaps:        make(map[uint32]uint16),
+		backups:          make(map[string]struct{}),
+		pending:          make(map[string]time.Time),
+		pendingChanges:   make(map[string]*pendingRetry),
+		retryBaseDelay:   defaultRetryBaseDelay,
+		retryMaxDelay:    defaultRetryMaxDelay,
+		retryMaxAttempts: defaultRetryMaxAttempts,
+		retryWake:        make(chan struct{}, 1),
+		backend:          backend,
 	}
 }
 
@@ -279,15 +315,122 @@ func cloneForwardingPaths(paths []sysribevents.ECMPPath) []sysribevents.ECMPPath
 
 // ownsSlotLocked reports whether the kernel route an install of pfx into table
 // would meet is Ze's own, so the install may replace it: Ze installed the
-// prefix this run, startup retained it, or a stale route of a previous run is
-// still listed in that very table because the sweep has not run yet or the
-// kernel refused its delete. Anything else in the slot is foreign, and the
-// install stays an exclusive add. Caller MUST hold f.mu.
+// prefix into that table this run (or holds an installed entry without a
+// forwarding record), a stale route of a previous run is listed in that table,
+// a superseded route remains in that table, or startup retained it with no
+// table list. Anything else in the slot is foreign, and the install stays an
+// exclusive add. Caller MUST hold f.mu.
 func (f *fibKernel) ownsSlotLocked(pfx string, table uint32) bool {
-	if _, installed := f.installed[pfx]; installed || f.retained[pfx] {
+	if _, installed := f.installed[pfx]; installed {
+		prev, hasFwd := f.forwarding[pfx]
+		// refuse-by-default: guards addChange -- an installed prefix with no forwarding record still belongs to Ze
+		if !hasFwd {
+			return true
+		}
+		if prev.TableID == table {
+			return true
+		}
+	}
+	if slices.Contains(f.staleTables[pfx], table) {
 		return true
 	}
-	return slices.Contains(f.staleTables[pfx], table)
+	if slices.Contains(f.supersededTables[pfx], table) {
+		return true
+	}
+	if f.retained[pfx] && len(f.staleTables[pfx]) == 0 {
+		return true
+	}
+	return false
+}
+
+// recordSupersededTableLocked replaces prior entries for table in
+// f.supersededTables[pfx] with count copies of table after a partial apply in
+// replaceOwnedRoute. Caller MUST hold f.mu.
+func (f *fibKernel) recordSupersededTableLocked(pfx string, table uint32, count int) {
+	tables := slices.DeleteFunc(slices.Clone(f.supersededTables[pfx]), func(t uint32) bool { return t == table })
+	for range count {
+		tables = append(tables, table)
+	}
+	if len(tables) == 0 {
+		delete(f.supersededTables, pfx)
+		return
+	}
+	f.supersededTables[pfx] = tables
+}
+
+// appendSupersededTableLocked records a previous table whose delete failed
+// after a table move installed the route in its new table. Caller MUST hold
+// f.mu.
+func (f *fibKernel) appendSupersededTableLocked(pfx string, table uint32) {
+	f.supersededTables[pfx] = append(f.supersededTables[pfx], table)
+}
+
+// forgetSupersededTableLocked drops every superseded listing for pfx in table
+// after a clean replace in that table removed all superseded Ze routes there.
+// Caller MUST hold f.mu.
+func (f *fibKernel) forgetSupersededTableLocked(pfx string, table uint32) {
+	tables, listed := f.supersededTables[pfx]
+	if !listed {
+		return
+	}
+	tables = slices.DeleteFunc(slices.Clone(tables), func(t uint32) bool { return t == table })
+	if len(tables) == 0 {
+		delete(f.supersededTables, pfx)
+		return
+	}
+	f.supersededTables[pfx] = tables
+}
+
+// cleanupOtherSupersededTablesLocked deletes every entry in
+// f.supersededTables[pfx] outside currentTable, retaining only failed deletes
+// and any entries in currentTable. Caller MUST hold f.mu.
+func (f *fibKernel) cleanupOtherSupersededTablesLocked(pfx string, currentTable uint32, rb richRouteBackend) error {
+	tables := f.supersededTables[pfx]
+	if len(tables) == 0 {
+		return nil
+	}
+	var errs error
+	var remaining []uint32
+	for _, table := range tables {
+		if table == currentTable {
+			remaining = append(remaining, table)
+			continue
+		}
+		if _, err := f.delListedLocked(pfx, table, rb); err != nil {
+			errs = errors.Join(errs, err)
+			remaining = append(remaining, table)
+		}
+	}
+	if len(remaining) == 0 {
+		delete(f.supersededTables, pfx)
+	} else {
+		f.supersededTables[pfx] = remaining
+	}
+	return errs
+}
+
+// cleanupAllSupersededTablesLocked deletes every entry in
+// f.supersededTables[pfx], retaining only failed deletes. Caller MUST hold
+// f.mu.
+func (f *fibKernel) cleanupAllSupersededTablesLocked(pfx string, rb richRouteBackend) error {
+	tables := f.supersededTables[pfx]
+	if len(tables) == 0 {
+		return nil
+	}
+	var errs error
+	var remaining []uint32
+	for _, table := range tables {
+		if _, err := f.delListedLocked(pfx, table, rb); err != nil {
+			errs = errors.Join(errs, err)
+			remaining = append(remaining, table)
+		}
+	}
+	if len(remaining) == 0 {
+		delete(f.supersededTables, pfx)
+	} else {
+		f.supersededTables[pfx] = remaining
+	}
+	return errs
 }
 
 // forgetStaleTableLocked drops every listing of table from the stale tables
@@ -335,6 +478,9 @@ func (f *fibKernel) addChange(c *incomingChange, pfx string, rb richRouteBackend
 	if rb != nil && hasRichFields(c) {
 		return rb.addRichRoute(changeToRichRoute(c))
 	}
+	if rb == nil && c.TableID != 0 {
+		return fmt.Errorf("route %s in table %d: this backend installs main-table routes only", pfx, c.TableID)
+	}
 	return f.backend.addRoute(pfx, c.NextHop.String())
 }
 
@@ -353,14 +499,129 @@ func (f *fibKernel) replaceChange(c *incomingChange, pfx string, rb richRouteBac
 	if rb != nil && hasRichFields(c) {
 		return rb.replaceRichRoute(changeToRichRoute(c))
 	}
+	if rb == nil && c.TableID != 0 {
+		return fmt.Errorf("route %s in table %d: this backend replaces main-table routes only", pfx, c.TableID)
+	}
 	return f.backend.replaceRoute(pfx, c.NextHop.String())
 }
 
 func (f *fibKernel) delChange(c *incomingChange, pfx string, rb richRouteBackend) error {
 	if rb != nil {
-		return rb.delRichRoute(c.Prefix, c.TableID)
+		_, err := rb.delRichRoute(c.Prefix, c.TableID)
+		return err
 	}
-	return f.backend.delRoute(pfx)
+	if c.TableID != 0 {
+		return fmt.Errorf("route %s in table %d: this backend removes main-table routes only", pfx, c.TableID)
+	}
+	_, err := f.backend.delRoute(pfx)
+	return err
+}
+
+// raiseSyncFailure raises fib-sync-failure in both the error ring (for
+// operator history) and the active warning set (for health probe degradation
+// that clears once the prefix installs or withdraws cleanly).
+func (f *fibKernel) raiseSyncFailure(op, pfx, msg string) {
+	report.RaiseError(reportSourceFIB, reportCodeFIBSyncFailure, pfx, msg,
+		map[string]any{keyOperation: op, keyPrefix: pfx})
+	report.RaiseWarning(reportSourceFIB, reportCodeFIBSyncFailure, pfx, msg,
+		map[string]any{keyOperation: op, keyPrefix: pfx})
+}
+
+// recordInstalledLocked updates fibKernel's ownership state and gauges after a
+// route has been installed in the kernel. countOperation is true only when the
+// install or replace completed without a partial-apply error. Caller MUST hold
+// f.mu.
+func (f *fibKernel) recordInstalledLocked(pfx string, c *incomingChange, isReplace, countOperation bool) {
+	f.installed[pfx] = c.NextHop.String()
+	f.forwarding[pfx] = cloneForwardingChange(c)
+	f.forgetStaleTableLocked(pfx, c.TableID)
+	delete(f.retained, pfx)
+	f.trackBackupLocked(pfx, c)
+	wasMPLS := f.mplsInstalled[pfx]
+	if len(c.Labels) > 0 {
+		f.mplsInstalled[pfx] = true
+	} else if isReplace {
+		delete(f.mplsInstalled, pfx)
+	}
+	m := fibMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	if countOperation {
+		if isReplace {
+			m.routeUpdates.Inc()
+		} else {
+			m.routeInstalls.Inc()
+		}
+		if len(c.Labels) > 0 && (!isReplace || !wasMPLS) {
+			m.mplsInstalls.Inc()
+		}
+	}
+	m.routesInstalled.Set(float64(len(f.installed)))
+	if len(c.Labels) > 0 || isReplace {
+		m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
+	}
+}
+
+// cleanupAfterInstallLocked removes superseded routes in tables other than
+// currentTable and, when the prefix moved tables, deletes the previous table's
+// route (retaining it in supersededTables if the delete fails). Caller MUST
+// hold f.mu.
+func (f *fibKernel) cleanupAfterInstallLocked(pfx string, currentTable uint32, movedTable bool, prevTable uint32, rb richRouteBackend) error {
+	errs := f.cleanupOtherSupersededTablesLocked(pfx, currentTable, rb)
+	if movedTable {
+		if _, err := f.delListedLocked(pfx, prevTable, rb); err != nil {
+			f.appendSupersededTableLocked(pfx, prevTable)
+			errs = errors.Join(errs, fmt.Errorf("remove route %s from previous table %d: %w", pfx, prevTable, err))
+		}
+	}
+	return errs
+}
+
+// programRouteLocked executes an install or replace change using make-before-break
+// ordering across table moves and preserves ownership on partial apply
+// (*supersededDeleteError). Caller MUST hold f.mu.
+func (f *fibKernel) programRouteLocked(c *incomingChange, pfx string, replayID uint64, isReplace bool, rb richRouteBackend) (string, error) {
+	op := "add"
+	if isReplace {
+		op = "replace"
+	}
+	prevFwd, hadPrevFwd := f.forwarding[pfx]
+	_, wasInstalled := f.installed[pfx]
+	movedTable := wasInstalled && hadPrevFwd && prevFwd.TableID != c.TableID
+
+	var err error
+	if isReplace {
+		err = f.replaceChange(c, pfx, rb)
+	} else {
+		handled := false
+		if replayID > 0 {
+			handled, err = f.tryReplay(c, pfx)
+		}
+		if !handled {
+			err = f.addChange(c, pfx, rb)
+		}
+	}
+
+	if err != nil {
+		partial, isPartial := errors.AsType[*supersededDeleteError](err)
+		if !isPartial {
+			return op, err
+		}
+		f.recordInstalledLocked(pfx, c, isReplace, false)
+		f.recordSupersededTableLocked(pfx, partial.table, partial.count)
+		if cleanupErr := f.cleanupAfterInstallLocked(pfx, c.TableID, movedTable, prevFwd.TableID, rb); cleanupErr != nil {
+			err = errors.Join(err, cleanupErr)
+		}
+		return op, err
+	}
+
+	f.recordInstalledLocked(pfx, c, isReplace, true)
+	f.forgetSupersededTableLocked(pfx, c.TableID)
+	if cleanupErr := f.cleanupAfterInstallLocked(pfx, c.TableID, movedTable, prevFwd.TableID, rb); cleanupErr != nil {
+		return "delete", cleanupErr
+	}
+	return op, nil
 }
 
 // processEvent handles a single (system-rib, best-change) payload. The
@@ -379,6 +640,8 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 
 	now := time.Now()
 	rb := f.asRichBackend()
+	batchProgress := false
+	var failedInBatch map[string]bool
 
 	for i := range batch.Changes {
 		if f.stopped.Load() {
@@ -391,86 +654,36 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 		}
 		pfx := c.Prefix.String()
 		switch c.Action.Verb() {
-		case routeaction.VerbInstall:
-			var err error
-			handled := false
-			if batch.ReplayID > 0 {
-				handled, err = f.tryReplay(c, pfx)
-			}
-			if !handled {
-				err = f.addChange(c, pfx, rb)
-			}
+		case routeaction.VerbInstall, routeaction.VerbReplace:
+			isReplace := c.Action.Verb() == routeaction.VerbReplace
+			op, err := f.programRouteLocked(c, pfx, batch.ReplayID, isReplace, rb)
 			if err != nil {
-				logger().Error("fib-kernel: add route failed", "prefix", c.Prefix, "error", err)
+				logger().Error("fib-kernel: "+op+" route failed", "prefix", c.Prefix, "error", err, "code", reportCodeFIBSyncFailure)
 				if m := fibMetricsPtr.Load(); m != nil {
-					m.errors.With("add").Inc()
+					m.errors.With(op).Inc()
 				}
-				report.RaiseError(reportSourceFIB, reportCodeFIBSyncFailure, pfx,
-					"FIB add failed: "+err.Error(), map[string]any{keyOperation: "add", keyPrefix: pfx})
-				f.trackPendingLocked(pfx, now)
+				f.raiseSyncFailure(op, pfx, "FIB "+op+" failed: "+err.Error())
+				f.trackPendingChangeLocked(pfx, c, now)
+				if failedInBatch == nil {
+					failedInBatch = make(map[string]bool)
+				}
+				failedInBatch[pfx] = true
 				continue
 			}
-			f.installed[pfx] = c.NextHop.String()
-			f.forwarding[pfx] = cloneForwardingChange(c)
-			f.forgetStaleTableLocked(pfx, c.TableID)
-			delete(f.retained, pfx)
 			delete(f.pending, pfx)
-			f.trackBackupLocked(pfx, c)
-			if len(c.Labels) > 0 {
-				f.mplsInstalled[pfx] = true
-			}
-			if m := fibMetricsPtr.Load(); m != nil {
-				m.routeInstalls.Inc()
-				m.routesInstalled.Set(float64(len(f.installed)))
-				if len(c.Labels) > 0 {
-					m.mplsInstalls.Inc()
-					m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
-				}
-			}
-		case routeaction.VerbReplace:
-			if err := f.replaceChange(c, pfx, rb); err != nil {
-				logger().Error("fib-kernel: replace route failed", "prefix", c.Prefix, "error", err)
-				if m := fibMetricsPtr.Load(); m != nil {
-					m.errors.With("replace").Inc()
-				}
-				report.RaiseError(reportSourceFIB, reportCodeFIBSyncFailure, pfx,
-					"FIB replace failed: "+err.Error(), map[string]any{keyOperation: "replace", keyPrefix: pfx})
-				f.trackPendingLocked(pfx, now)
-				continue
-			}
-			f.installed[pfx] = c.NextHop.String()
-			f.forwarding[pfx] = cloneForwardingChange(c)
-			f.forgetStaleTableLocked(pfx, c.TableID)
-			delete(f.retained, pfx)
-			delete(f.pending, pfx)
-			f.trackBackupLocked(pfx, c)
-			// A replace may toggle a prefix between labeled and unlabeled;
-			// keep the MPLS membership set in sync so the gauge is accurate.
-			wasMPLS := f.mplsInstalled[pfx]
-			if len(c.Labels) > 0 {
-				f.mplsInstalled[pfx] = true
-			} else {
-				delete(f.mplsInstalled, pfx)
-			}
-			if m := fibMetricsPtr.Load(); m != nil {
-				m.routeUpdates.Inc()
-				// An update installs a prefix that was not installed before
-				// when its first add was refused or it was only retained from
-				// a previous run, so the installed count can change here too.
-				m.routesInstalled.Set(float64(len(f.installed)))
-				if len(c.Labels) > 0 && !wasMPLS {
-					m.mplsInstalls.Inc()
-				}
-				m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
-			}
+			delete(f.pendingChanges, pfx)
+			report.ClearWarning(reportSourceFIB, reportCodeFIBSyncFailure, pfx)
+			batchProgress = true
 		case routeaction.VerbRemove:
+			// Withdraw cancels any parked install/replace retry immediately so
+			// a withdrawn prefix is never resurrected by retry.
+			delete(f.pendingChanges, pfx)
 			if err := f.delChange(c, pfx, rb); err != nil {
-				logger().Error("fib-kernel: del route failed", "prefix", c.Prefix, "error", err)
+				logger().Error("fib-kernel: del route failed", "prefix", c.Prefix, "error", err, "code", reportCodeFIBSyncFailure)
 				if m := fibMetricsPtr.Load(); m != nil {
 					m.errors.With("delete").Inc()
 				}
-				report.RaiseError(reportSourceFIB, reportCodeFIBSyncFailure, pfx,
-					"FIB delete failed: "+err.Error(), map[string]any{keyOperation: "delete", keyPrefix: pfx})
+				f.raiseSyncFailure("delete", pfx, "FIB delete failed: "+err.Error())
 				continue
 			}
 			delete(f.installed, pfx)
@@ -491,6 +704,15 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 					m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
 				}
 			}
+			if supErr := f.cleanupAllSupersededTablesLocked(pfx, rb); supErr != nil {
+				logger().Error("fib-kernel: del superseded route failed", "prefix", c.Prefix, "error", supErr, "code", reportCodeFIBSyncFailure)
+				if m := fibMetricsPtr.Load(); m != nil {
+					m.errors.With("delete").Inc()
+				}
+				f.raiseSyncFailure("delete", pfx, "FIB delete failed: "+supErr.Error())
+				continue
+			}
+			report.ClearWarning(reportSourceFIB, reportCodeFIBSyncFailure, pfx)
 		case routeaction.VerbSkip:
 			logger().Warn("fib-kernel: skipping change with unspecified action", "prefix", c.Prefix)
 		default:
@@ -498,6 +720,9 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 		}
 	}
 
+	if batchProgress && len(f.pendingChanges) > 0 {
+		f.retryPendingAfterProgressLocked(now, rb, failedInBatch)
+	}
 	f.checkPendingLagLocked(now)
 	f.reportBackupsLocked()
 }
@@ -545,7 +770,7 @@ func (f *fibKernel) flushRoutes() {
 	defer f.mu.Unlock()
 
 	rb := f.asRichBackend()
-	owned := make(map[string]struct{}, len(f.installed)+len(f.retained))
+	owned := make(map[string]struct{}, len(f.installed)+len(f.retained)+len(f.staleTables)+len(f.supersededTables))
 	failed := 0
 	var firstFailure string
 	var firstErr error
@@ -562,6 +787,9 @@ func (f *fibKernel) flushRoutes() {
 	for prefix := range f.staleTables {
 		owned[prefix] = struct{}{}
 	}
+	for prefix := range f.supersededTables {
+		owned[prefix] = struct{}{}
+	}
 	for prefix := range owned {
 		if err := f.flushOneLocked(prefix, rb); err != nil {
 			failed++
@@ -573,10 +801,21 @@ func (f *fibKernel) flushRoutes() {
 	residue, residueFirst, listErr := f.flushResidueLocked(owned)
 	f.reportFlushLocked(len(owned), failed, firstFailure, firstErr, residue, residueFirst, listErr)
 
+	for prefix := range f.pending {
+		report.ClearWarning(reportSourceFIB, reportCodeFIBSyncFailure, prefix)
+	}
+	for prefix := range f.pendingChanges {
+		report.ClearWarning(reportSourceFIB, reportCodeFIBSyncFailure, prefix)
+	}
+	report.ClearWarning(reportSourceFIB, reportCodeFIBProgrammingLag, "pending")
+
 	f.installed = make(map[string]string)
 	clear(f.forwarding)
 	clear(f.retained)
 	clear(f.staleTables)
+	clear(f.supersededTables)
+	clear(f.pending)
+	clear(f.pendingChanges)
 	clear(f.backups)
 	f.reportBackupsLocked()
 
@@ -589,7 +828,9 @@ func (f *fibKernel) flushRoutes() {
 // description it was programmed from, so the delete names its table. A route
 // a previous run left is removed from every table still recorded for it (all
 // the listed ones before the sweep, the refused ones after), apart from the
-// one the installed route now holds. Caller MUST hold f.mu.
+// one the installed route now holds. Superseded routes are removed from every
+// recorded table without skipping change.TableID because they are additional
+// Ze routes at other priorities or previous tables. Caller MUST hold f.mu.
 func (f *fibKernel) flushOneLocked(prefix string, rb richRouteBackend) error {
 	change, described := f.forwarding[prefix]
 	var errs error
@@ -597,32 +838,40 @@ func (f *fibKernel) flushOneLocked(prefix string, rb richRouteBackend) error {
 		errs = f.delChange(&change, prefix, rb)
 	}
 	tables, listed := f.staleTables[prefix]
-	if !described && !listed {
-		return f.backend.delRoute(prefix)
+	superseded, hasSuperseded := f.supersededTables[prefix]
+	if !described && !listed && !hasSuperseded {
+		_, err := f.backend.delRoute(prefix)
+		return err
 	}
 	for _, table := range tables {
 		if described && table == change.TableID {
 			continue
 		}
-		errs = errors.Join(errs, f.delListedLocked(prefix, table, rb))
+		_, err := f.delListedLocked(prefix, table, rb)
+		errs = errors.Join(errs, err)
+	}
+	for _, table := range superseded {
+		_, err := f.delListedLocked(prefix, table, rb)
+		errs = errors.Join(errs, err)
 	}
 	return errs
 }
 
 // delListedLocked removes Ze's route for prefix from the table a kernel
-// listing found it in (0 for main). A backend without the rich interface can
-// name no table, so it removes main-table routes only and refuses the rest
-// rather than reporting a delete it did not make. Caller MUST hold f.mu.
-func (f *fibKernel) delListedLocked(prefix string, table uint32, rb richRouteBackend) error {
+// listing found it in (0 for main) and reports whether the backend actually
+// removed a route. A backend without the rich interface can name no table, so
+// it removes main-table routes only and refuses the rest rather than reporting
+// a delete it did not make. Caller MUST hold f.mu.
+func (f *fibKernel) delListedLocked(prefix string, table uint32, rb richRouteBackend) (bool, error) {
 	if rb != nil {
 		parsed, err := netip.ParsePrefix(prefix)
 		if err != nil {
-			return fmt.Errorf("listed route %q: %w", prefix, err)
+			return false, fmt.Errorf("listed route %q: %w", prefix, err)
 		}
 		return rb.delRichRoute(parsed, table)
 	}
 	if table != 0 {
-		return fmt.Errorf("route %s in table %d: this backend removes main-table routes only", prefix, table)
+		return false, fmt.Errorf("route %s in table %d: this backend removes main-table routes only", prefix, table)
 	}
 	return f.backend.delRoute(prefix)
 }
@@ -726,7 +975,7 @@ var fibFlushDiagnosticCode = diagnostic.CodeMeta{
 		"listed to check. Those routes keep forwarding traffic after Ze stopped, towards next hops nothing " +
 		"maintains any more. The detail counts the failed deletes and the routes left, and names the first. " +
 		"Remedy: " + flushFix + ".",
-	Examples: []string{"ze show errors", "ze show diagnostic " + reportCodeFIBFlushIncomplete},
+	Examples: []string{exampleShowErrors, "ze show diagnostic " + reportCodeFIBFlushIncomplete},
 }
 
 // startupSweep implements stale-mark-then-sweep for crash recovery.
@@ -734,6 +983,7 @@ var fibFlushDiagnosticCode = diagnostic.CodeMeta{
 // by incoming sysrib events within the sweep window.
 func (f *fibKernel) startupSweep() map[string]string {
 	routes, err := f.backend.listZeRoutes()
+	// refuse-by-default: guards runFIBKernelPlugin -- listing failure is raised on the report bus; nil stale map skips sweep
 	if err != nil {
 		// Nothing is marked stale, so the sweep removes nothing: every route a
 		// crashed run left stays in the kernel. The operator learns it here.
@@ -772,9 +1022,9 @@ func (f *fibKernel) startupSweep() map[string]string {
 // refused stays recorded for the prefix: the route is still Ze's to remove,
 // and flushRoutes tries it again at stop. Caller MUST hold f.mu.
 func (f *fibKernel) sweepPrefixLocked(prefix string, rb richRouteBackend) (int, error) {
-	tables, listed := f.staleTables[prefix]
+	tables := f.staleTables[prefix]
 	delete(f.staleTables, prefix)
-	if !listed {
+	if len(tables) == 0 {
 		return 0, nil
 	}
 	_, installed := f.installed[prefix]
@@ -786,12 +1036,15 @@ func (f *fibKernel) sweepPrefixLocked(prefix string, rb richRouteBackend) (int, 
 		if installed && table == current.TableID {
 			continue
 		}
-		if err := f.delListedLocked(prefix, table, rb); err != nil {
+		removed, err := f.delListedLocked(prefix, table, rb)
+		if err != nil {
 			errs = errors.Join(errs, err)
 			refused = append(refused, table)
 			continue
 		}
-		swept++
+		if removed {
+			swept++
+		}
 	}
 	if len(refused) > 0 {
 		f.staleTables[prefix] = refused
@@ -822,7 +1075,7 @@ var fibSweepDiagnosticCode = diagnostic.CodeMeta{
 		"error, or the kernel's routes could not be listed at all (operation list), so nothing was swept and " +
 		"the detail carries the listing's error. Each route left keeps forwarding traffic towards a next hop " +
 		"nothing maintains. Remedy: " + sweepFix + ".",
-	Examples: []string{"ze show errors", "ze show diagnostic " + reportCodeFIBSweepIncomplete},
+	Examples: []string{exampleShowErrors, "ze show diagnostic " + reportCodeFIBSweepIncomplete},
 }
 
 // sweepStale removes routes that are still stale (not refreshed by sysrib).
@@ -923,7 +1176,7 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool, ready chan<- erro
 	<-monitorReady
 
 	logger().Info("fib-kernel: running")
-	<-ctx.Done()
+	f.runRetryLoop(ctx)
 	f.beginStop()
 
 	// Wait for monitor to exit before closing backend.

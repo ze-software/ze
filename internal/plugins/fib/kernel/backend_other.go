@@ -27,8 +27,8 @@ func (u *unsupportedBackend) addRoute(_, _ string) error {
 	return errUnsupportedPlatform
 }
 
-func (u *unsupportedBackend) delRoute(_ string) error {
-	return errUnsupportedPlatform
+func (u *unsupportedBackend) delRoute(_ string) (bool, error) {
+	return false, errUnsupportedPlatform
 }
 
 func (u *unsupportedBackend) replaceRoute(_, _ string) error {

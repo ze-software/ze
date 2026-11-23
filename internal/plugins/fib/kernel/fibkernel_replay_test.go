@@ -20,6 +20,11 @@ import (
 	"github.com/ze-software/ze/internal/core/report"
 )
 
+type replayRichDelete struct {
+	prefix netip.Prefix
+	table  uint32
+}
+
 // replayFIBBackend records synchronous processEvent calls. Its constructor
 // supplies the required plain backend; its zero value and nil pointers are
 // invalid. Nil errors mean success; handled=false requests ordinary replacement.
@@ -27,6 +32,7 @@ type replayFIBBackend struct {
 	*mockBackend
 	richAdded    []RichRoute
 	richReplaced []RichRoute
+	richDeleted  []replayRichDelete
 	reasserted   []RichRoute
 	handled      bool
 	reassertErr  error
@@ -42,7 +48,8 @@ func (backend *replayFIBBackend) addRichRoute(route RichRoute) error { //nolint:
 	return nil
 }
 
-func (backend *replayFIBBackend) delRichRoute(prefix netip.Prefix, _ uint32) error {
+func (backend *replayFIBBackend) delRichRoute(prefix netip.Prefix, tableID uint32) (bool, error) {
+	backend.richDeleted = append(backend.richDeleted, replayRichDelete{prefix: prefix, table: tableID})
 	return backend.delRoute(prefix.String())
 }
 
@@ -168,6 +175,22 @@ func TestFIBKernelReplayChangedMetadataUsesFullReplacement(t *testing.T) {
 			processFIBReplay(fib, &change)
 			if len(backend.reasserted) != 0 {
 				t.Errorf("changed forwarding used %d unchanged-route reassertions", len(backend.reasserted))
+			}
+			if test.name == "table" {
+				if len(backend.richReplaced) != 0 {
+					t.Fatalf("table move replay performed %d replacements, want 0", len(backend.richReplaced))
+				}
+				if len(backend.richAdded) != 2 {
+					t.Fatalf("table move replay performed %d rich adds, want 2", len(backend.richAdded))
+				}
+				if got := backend.richAdded[1]; !reflect.DeepEqual(got, changeToRichRoute(&change)) {
+					t.Errorf("table move exclusive add lost changed forwarding metadata: got %+v", got)
+				}
+				wantDeleted := replayRichDelete{prefix: change.Prefix, table: 1000}
+				if len(backend.richDeleted) != 1 || backend.richDeleted[0] != wantDeleted {
+					t.Errorf("table move rich deletes = %+v, want [%+v]", backend.richDeleted, wantDeleted)
+				}
+				return
 			}
 			if len(backend.richReplaced) != 1 {
 				t.Fatalf("changed replay performed %d full replacements, want one", len(backend.richReplaced))

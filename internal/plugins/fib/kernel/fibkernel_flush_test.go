@@ -27,9 +27,9 @@ func newTableRecordingBackend() *tableRecordingBackend {
 func (backend *tableRecordingBackend) addRichRoute(RichRoute) error     { return nil }
 func (backend *tableRecordingBackend) replaceRichRoute(RichRoute) error { return nil }
 
-func (backend *tableRecordingBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error { //nolint:unparam // richRouteBackend method: the interface returns an error, this double never fails
+func (backend *tableRecordingBackend) delRichRoute(prefix netip.Prefix, tableID uint32) (bool, error) { //nolint:unparam // richRouteBackend method: the interface returns (bool, error), this double never fails
 	backend.richDeleted[prefix.String()] = tableID
-	return nil
+	return true, nil
 }
 
 // failingDeleteBackend refuses every plain delete, as a kernel that answers
@@ -39,9 +39,9 @@ type failingDeleteBackend struct {
 	attempts int
 }
 
-func (backend *failingDeleteBackend) delRoute(string) error {
+func (backend *failingDeleteBackend) delRoute(string) (bool, error) {
 	backend.attempts++
-	return errors.New("operation not permitted")
+	return false, errors.New("operation not permitted")
 }
 
 func flushIssues() []report.Issue {

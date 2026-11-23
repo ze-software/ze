@@ -173,6 +173,16 @@ func init() {
 		panic("BUG: register fib-kernel sweep event code: " + err.Error())
 	}
 
+	// The sync-failure code (fibkernel.go, pending_retry.go) degrades the fib
+	// health row above while active and clears once the prefix installs or
+	// withdraws cleanly.
+	if err := diagnostic.Register(fibSyncFailureDiagnosticCode); err != nil {
+		panic("BUG: register fib-kernel sync-failure diagnostic code: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: reportCodeFIBSyncFailure}); err != nil {
+		panic("BUG: register fib-kernel sync-failure event code: " + err.Error())
+	}
+
 	_ = events.RegisterNamespace(fibevents.Namespace, fibevents.EventExternalChange)
 
 	reg := registry.Registration{

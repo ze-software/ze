@@ -37,6 +37,9 @@ func (f *fibKernel) tryReplay(c *incomingChange, pfx string) (bool, error) {
 	if _, pending := f.pending[pfx]; pending {
 		return false, nil
 	}
+	if len(f.supersededTables[pfx]) > 0 {
+		return false, nil
+	}
 	previous, known := f.forwarding[pfx]
 	if !known {
 		return false, nil

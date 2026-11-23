@@ -184,7 +184,7 @@ func (f *fibKernel) delMPLSEntryLocked(e *mplsfibevents.Entry, rb richRouteBacke
 			break
 		}
 		if rb != nil && e.FEC.IsValid() {
-			if err := rb.delRichRoute(e.FEC, 0); err != nil {
+			if _, err := rb.delRichRoute(e.FEC, 0); err != nil {
 				logger().Warn("fib-kernel: mpls push remove failed", "fec", e.FEC, "error", err)
 				return err
 			}
