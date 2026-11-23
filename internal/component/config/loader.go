@@ -29,6 +29,12 @@ type LoadConfigResult struct {
 	Plugins    []plugin.PluginConfig
 	ConfigDir  string
 	CLIPlugins []string
+	// StampRelease is the release in the `# ze-schema:` stamp of the content
+	// LoadConfig parsed, empty when that content carries none. Schema evolution
+	// reads it, never the stamp of the bytes on disk afterwards: RecoverConfig
+	// publishes a recovered rollback re-stamped with this binary's release, so
+	// only this field still says which release saved the rollback.
+	StampRelease string
 }
 
 // LoadConfig parses config with CLI plugin YANG schemas, extracts and resolves
@@ -54,6 +60,7 @@ func ReadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 // LoadRunningConfig reconstructs an already validated canonical running map and
 // resolves its plugins through the ordinary loader finalizer. It MUST NOT parse
 // file bytes, publish environment settings or hash canonical credentials again.
+// No source stamp exists for a map; StampRelease is empty.
 func LoadRunningConfig(running map[string]any, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
 	if running == nil {
 		return nil, errors.New("running configuration authority is missing")
@@ -151,7 +158,12 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 	warnPlaintextOnDisk(configPath, hashed)
 	warnWeakPassword(hashed)
 
-	return finalizeConfigLoad(tree, configPath, cliPlugins)
+	result, err := finalizeConfigLoad(tree, configPath, cliPlugins)
+	if err != nil {
+		return nil, err
+	}
+	result.StampRelease = ScanStampRelease([]byte(input))
+	return result, nil
 }
 
 func finalizeConfigLoad(tree *Tree, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
@@ -234,9 +246,12 @@ func applyParsedEnvironment(tree *Tree) {
 // warning is the only thing that tells the operator the secret stays readable
 // where they wrote it.
 //
-// One boot path DOES rewrite that file afterwards and replaces the plaintext
-// with the hash: RecoverConfig (internal/component/config/stamp.go)
-// re-serializes the loaded tree on the rollback path.
+// Two boot paths DO rewrite that file afterwards, and both replace the plaintext
+// with the hash: applyEvolutions (cmd/ze/hub/main_evolve.go) re-serializes the
+// loaded tree when a schema evolution applies, and RecoverConfig
+// (internal/component/config/stamp.go) does the same on the rollback path.
+// applyEvolutions also calls store.WriteVersion FIRST, so the archived version
+// keeps the ORIGINAL plaintext.
 //
 // The source name is in the MESSAGE rather than an attribute because the log
 // ring keeps only the message: LogEntry (internal/core/slogutil/ring.go) has
@@ -371,8 +386,9 @@ func ParseSetFormat(schema *Schema, input string, format ConfigFormat) (*Tree, e
 // unknown. A build with a feature compiled out (feature-gates.txt) would
 // otherwise boot a committed set-meta config minus its gated blocks:
 // tacacs/radius authentication silently degrading to local auth was the
-// concrete fail-open this closes (feature-gate-12 review). The lenient tree is
-// never returned: the strict parse already refused the config.
+// concrete fail-open this closes (feature-gate-12 review). When the lenient
+// parse finds no unknown field, the registered config migrations rewrite its
+// tree and the migrated tree is answered.
 func parseSetConfig(schema *Schema, input string, hasMeta bool) (*Tree, error) {
 	sp := NewSetParser(schema)
 	var strictErr error
@@ -392,11 +408,12 @@ func parseSetConfig(schema *Schema, input string, hasMeta bool) (*Tree, error) {
 
 	lenient := NewSetParser(schema)
 	lenient.SetPreMigration(true)
+	var tree *Tree
 	var err error
 	if hasMeta {
-		_, _, err = lenient.ParseWithMeta(input)
+		tree, _, err = lenient.ParseWithMeta(input)
 	} else {
-		_, err = lenient.Parse(input)
+		tree, err = lenient.Parse(input)
 	}
 	if err != nil {
 		return nil, err
@@ -411,7 +428,13 @@ func parseSetConfig(schema *Schema, input string, hasMeta bool) (*Tree, error) {
 			"remove or correct each field named above, or rebuild ze with the build tag a field names")
 	}
 
-	return nil, strictErr
+	if fn := getMigrateFunc(); fn != nil {
+		if applied, migrateErr := fn(tree); migrateErr == nil && len(applied) > 0 {
+			loaderLogger().Info("applied config migrations", "count", len(applied), "migrations", applied)
+		}
+	}
+
+	return tree, nil
 }
 
 // detectLegacySyntaxHint checks if a parse error is likely due to ExaBGP syntax
@@ -728,4 +751,28 @@ func MarkInternalPlugin(pc *plugin.PluginConfig) {
 	if resolved.Type == plugin.PluginTypeInternal {
 		pc.Internal = true
 	}
+}
+
+// MigrateFunc applies config migrations to a parsed tree.
+// Returns the list of applied migration names and any error.
+type MigrateFunc func(tree *Tree) (applied []string, err error)
+
+var (
+	migrateMu   sync.RWMutex
+	migrateFunc MigrateFunc
+)
+
+// RegisterMigrateFunc sets the config migration function. Called from
+// config/migration's init() to break the import cycle between config and
+// config/migration (migration imports config for Tree manipulation).
+func RegisterMigrateFunc(fn MigrateFunc) {
+	migrateMu.Lock()
+	defer migrateMu.Unlock()
+	migrateFunc = fn
+}
+
+func getMigrateFunc() MigrateFunc {
+	migrateMu.RLock()
+	defer migrateMu.RUnlock()
+	return migrateFunc
 }

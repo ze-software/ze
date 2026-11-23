@@ -26,7 +26,7 @@ func TestSuppliedConfigMigrationForms(t *testing.T) {
 	file := writeTestConfig(t, showTestConfig)
 	for _, form := range []string{formSet, formHierarchical} {
 		t.Run(form, func(t *testing.T) {
-			want, _, err := configMigrateWithWarnings(file, "", form)
+			want, _, _, err := configMigrateWithWarnings(file, "", form)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -135,7 +135,7 @@ func TestSuppliedConfigMigrationBoundsExpandedOutput(t *testing.T) {
 		t.Fatal("amplification fixture exceeds the input bound")
 	}
 	file := writeTestConfig(t, content)
-	local, _, err := configMigrateWithWarnings(file, "", formSet)
+	local, _, _, err := configMigrateWithWarnings(file, "", formSet)
 	if err != nil {
 		t.Fatal(err)
 	}

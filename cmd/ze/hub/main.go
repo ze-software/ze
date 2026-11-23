@@ -643,10 +643,32 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 
+	// Phase 1b: Schema evolution. Apply registered evolutions newer than the
+	// config's stamped release, then re-stamp and write back. The release is the
+	// stamp of the content LoadConfig parsed: after a recovery, data holds the
+	// rollback re-stamped with this binary's release, and scanning it would skip
+	// every evolution the rollback is owed.
+	evolveLogger := slogutil.Logger("hub.evolve")
+	outcome, evolveErr := applyEvolutions(evolveLogger, store, configPath, data, loadResult.Tree, loadResult.StampRelease)
+	if evolveErr != nil {
+		var b textbuf.Buffer
+		b.Str("error: ").Str(opererr.Wrap(evolveErr, "the config could not be brought to this release's schema",
+			"an older config is rewritten at start before it is applied, and that rewrite failed",
+			"run ze config migrate --dry-run "+configPath+" to see the failing transformation").Error()).Byte('\n')
+		b.StdErr() //nolint:errcheck // terminal output, advisory
+		return 1
+	}
+	loadResult.Tree = outcome.tree
+	data = outcome.data
+
 	// A configuration that uses a subsystem this kernel cannot carry starts a
 	// daemon that comes up and does not work: IPsec that negotiates and encrypts
 	// nothing, MPLS that programs labels the kernel refuses. Refuse instead, and
 	// say which subsystem and which kernel feature.
+	//
+	// The tree read here is the POST-EVOLUTION one. applyEvolutions replaces it,
+	// so reading loadResult.Tree as LoadConfig first returned it would judge a
+	// configuration this daemon is not about to run.
 	//
 	// This sits beside hardSetupFailure and keeps its idiom: one stderr line, one
 	// logStartupFailure with its own stage name, return 1. A capability that
@@ -660,7 +682,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	// show mtu defaults its reference address to the first name server. The
-	// list is published from the loaded tree here, before the API
+	// list is published from the post-evolution tree here, before the API
 	// server starts any plugin, so no command a plugin dispatches at startup
 	// can find it unpublished.
 	publishNameServers(loadResult.Tree)

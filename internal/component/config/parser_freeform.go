@@ -84,7 +84,7 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 
 		if len(words) > 0 {
 			if hadArray && len(words) > 1 {
-				// Array present: "receive [ update ];" -> key="receive", value="update"
+				// Array present: "processes [ watcher ];" -> key="processes", value="watcher"
 				child.Set(words[0], textbuf.Join(words[1:], " "))
 			} else {
 				// No array: "ipv4/unicast;" -> key="ipv4/unicast", value="true"

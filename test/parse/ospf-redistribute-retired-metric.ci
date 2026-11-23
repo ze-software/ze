@@ -1,0 +1,67 @@
+# Test: the retired `ospf redistribute` metric, metric-type and tag leaves.
+#
+# VALIDATES: spec-route-policy-0-umbrella AC-13 -- a config still carrying
+# `ospf redistribute <source> { metric ...; metric-type ...; tag ...; }` is
+# refused, and the refusal names the leaf, what replaces it (a policy modify
+# instance named in ospf filter export) and the `ze config migrate` command that
+# rewrites it. The replacement shape is accepted second.
+# PREVENTS: the leaves silently reappearing, or a refusal that leaves the
+# operator without the fix.
+
+stdin=retired:terminator=EOF_RETIRED
+ospf {
+	router-id 10.0.0.1
+	redistribute {
+		connected {
+			metric 30
+			metric-type type-1
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+}
+EOF_RETIRED
+
+stdin=export:terminator=EOF_EXPORT
+policy {
+	modify ospf-export-connected {
+		match {
+			protocol [ connected ];
+		}
+		set {
+			metric 30;
+			metric-type type-1;
+		}
+	}
+}
+ospf {
+	router-id 10.0.0.1
+	filter {
+		export {
+			filters [ ospf-export-connected ];
+			final accept;
+		}
+	}
+	redistribute {
+		connected {
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+}
+EOF_EXPORT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=retired
+expect=exit:code=1
+# The exit code alone does not say why: any unknown field produces it. These
+# lines come from the retired-leaf registration, not the generic message.
+expect=stdout:contains=metric is no longer a leaf of ospf redistribute
+expect=stdout:contains=ospf filter export
+expect=stdout:contains=fix: ze config migrate -o <new-file> <file>
+cmd=foreground:seq=2:exec=ze config validate -:stdin=export
+expect=exit:code=0
+expect=stdout:contains=configuration valid

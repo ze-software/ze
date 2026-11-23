@@ -1054,14 +1054,34 @@ func parentLabel(schema *Schema, parent Node) string {
 // below it. When the line does not hold name where rest says
 // (keywordsBefore), the position is unknown and the hint is the closest key or
 // a retired keyword's replacement alone (UnknownKeywordHint): a guessed
-// position could name a tag for a plugin that does not own the keyword.
+// position could name a tag for a plugin that does not own the keyword. A
+// block that moved or a leaf that retired answers its own hint first
+// (movedFieldHint).
 func (p *SetParser) unknownFieldHint(name string, parent Node, rest []string) string {
+	if hint := movedFieldHint(name, parent); hint != "" {
+		return hint
+	}
 	known := schemaChildNames(p.schema, parent)
 	before, ok := p.keywordsBefore(name, rest)
 	if !ok {
 		return UnknownKeywordHint(name, known)
 	}
 	return KeywordHint(before, name, known)
+}
+
+// movedFieldHint answers the hint of a block that moved from parent or a leaf
+// retired from it, naming the current form; "" when name is neither.
+func movedFieldHint(name string, parent Node) string {
+	if container, ok := parent.(*ContainerNode); ok {
+		if hint, moved := container.relocatedHint(name); moved {
+			return hint
+		}
+		return container.retiredHint(name)
+	}
+	if list, ok := parent.(*ListNode); ok {
+		return list.retiredHint(name)
+	}
+	return ""
 }
 
 // keywordsBefore answers the tokens of the line being parsed that come before

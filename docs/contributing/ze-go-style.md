@@ -273,8 +273,12 @@ packages (`ai/patterns/registration.md`).
 
 ### Config and schema
 
-YANG schema as sole source of truth, never struct tags plus `json.Unmarshal`
-(`ai/rules/config.md`).
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| Struct tags plus `json.Unmarshal` | YANG schema as the sole source of truth | `ai/rules/config.md` | Schema-driven validation, migration, completion and diff |
+| A config version field | No version numbers; machine-transformable migration | `ai/rules/config.md` | YANG evolution handles schema change |
+| Silent defaults for missing fields | Fail on an unknown key and suggest the closest valid one | `ai/rules/config.md` | Explicit beats implicit |
+| `interface{}` for flexible config | `map[string]any` through one canonical pipeline | `ai/rules/repo-maintenance.md` | File to Tree to `ResolveBGPTree` to `map[string]any` to `PeersFromTree` |
 
 ### Communication and IPC
 

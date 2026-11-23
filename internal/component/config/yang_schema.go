@@ -14,10 +14,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ze-software/ze/internal/component/command"
-
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -369,6 +368,8 @@ func schemaFromResolved(loader *yang.Resolved) (*Schema, error) {
 		return nil, fmt.Errorf("schema build errors: %w", buildErr)
 	}
 
+	markRelocations(schema)
+	markRetiredLeaves(schema)
 	markOtherOSNodes(schema)
 	return schema, nil
 }

@@ -209,9 +209,9 @@ bgp {
 	require.Equal(t, "true", val)
 }
 
-// TestArraySyntax verifies array parsing of a leaf-list in an anonymous block.
+// TestArraySyntax verifies array parsing in old migration syntax.
 //
-// VALIDATES: "receive [ name1 name2 ];" parses as array.
+// VALIDATES: "processes [ name1 name2 ];" parses as array.
 //
 // PREVENTS: Breaking on bracket syntax.
 func TestArraySyntax(t *testing.T) {
@@ -237,7 +237,7 @@ bgp {
             }
         }
         attach process {
-            receive [ update ]
+            processes [ watcher ]
         }
     }
 }
@@ -259,14 +259,14 @@ bgp {
 	processBlock := processList[KeyDefault]
 	require.NotNil(t, processBlock, "anonymous process block should exist")
 
-	items := processBlock.GetSlice("receive")
+	items := processBlock.GetSlice("processes")
 	require.NotEmpty(t, items)
-	require.Equal(t, []string{"update"}, items)
+	require.Equal(t, []string{"watcher"}, items)
 }
 
 // TestArrayMultipleValues verifies multiple array values.
 //
-// VALIDATES: "receive [ a b c ];" parses all values.
+// VALIDATES: "processes [ a b c ];" parses all values.
 //
 // PREVENTS: Lost array elements.
 func TestArrayMultipleValues(t *testing.T) {
@@ -285,7 +285,7 @@ bgp {
             }
         }
         attach process {
-            receive [ update state negotiated ]
+            processes [ watcher announcer receiver ]
         }
     }
 }
@@ -307,9 +307,9 @@ bgp {
 	api := apiList[KeyDefault]
 	require.NotNil(t, api, "anonymous process block should exist")
 
-	items := api.GetSlice("receive")
+	items := api.GetSlice("processes")
 	require.NotEmpty(t, items)
-	require.Equal(t, []string{"update", "state", "negotiated"}, items)
+	require.Equal(t, []string{"watcher", "announcer", "receiver"}, items)
 }
 
 // TestArrayRoundtrip verifies array serialization.
@@ -333,7 +333,7 @@ bgp {
             }
         }
         attach process {
-            receive [ update ]
+            processes [ watcher ]
         }
     }
 }

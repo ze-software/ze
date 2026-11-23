@@ -243,7 +243,7 @@ bgp {
 		t.Fatalf("write config: %v", err)
 	}
 
-	_, _, err := configMigrateWithWarnings(configPath, "", "set")
+	_, _, _, err := configMigrateWithWarnings(configPath, "", "set")
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -264,7 +264,7 @@ invalid { syntax }
 		t.Fatalf("write config: %v", err)
 	}
 
-	_, _, err := configMigrateWithWarnings(configPath, "", "set")
+	_, _, _, err := configMigrateWithWarnings(configPath, "", "set")
 	if err == nil {
 		t.Error("expected error for invalid syntax, got nil")
 	}
@@ -286,7 +286,7 @@ set bgp peer peer1 session asn remote 65001
 		t.Fatalf("write config: %v", err)
 	}
 
-	output, _, err := configMigrateWithWarnings(configPath, "", "set")
+	output, _, _, err := configMigrateWithWarnings(configPath, "", "set")
 	if err != nil {
 		t.Fatalf("unexpected error for set-format input: %v", err)
 	}
@@ -316,7 +316,7 @@ set bgp peer peer1 session asn remote 65001
 		t.Fatalf("write config: %v", err)
 	}
 
-	output, _, err := configMigrateWithWarnings(configPath, "", "hierarchical")
+	output, _, _, err := configMigrateWithWarnings(configPath, "", "hierarchical")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -359,7 +359,7 @@ func TestConfigMigrateOutputToFile(t *testing.T) {
 	}
 	outputPath := filepath.Join(tmpDir, "output.conf")
 
-	_, _, err := configMigrateWithWarnings(configPath, outputPath, "set")
+	_, _, _, err := configMigrateWithWarnings(configPath, outputPath, "set")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

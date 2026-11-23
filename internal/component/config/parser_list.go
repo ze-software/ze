@@ -107,7 +107,11 @@ func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, ke
 			if err := nodeOfAnotherOS(node, name, fieldName, tok.line); err != nil {
 				return err
 			}
-			return unknownNodeLinef(tok.line, "unknown field in %s: %s%s", name, fieldName, KeywordHint(p.path, fieldName, node.Children()))
+			hint := node.retiredHint(fieldName)
+			if hint == "" {
+				hint = KeywordHint(p.path, fieldName, node.Children())
+			}
+			return unknownNodeLinef(tok.line, "unknown field in %s: %s%s", name, fieldName, hint)
 		}
 
 		if markInactive {

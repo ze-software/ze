@@ -5294,9 +5294,9 @@ match criteria, actions, reserved ranges, and CLI usage.
 
 ## ExaBGP Migration
 
-`ze exabgp migrate` converts an ExaBGP configuration file to Ze syntax:
+Ze auto-detects and migrates ExaBGP configuration files:
 
 ```
-ze exabgp migrate exabgp.conf > ze.conf
+ze config migrate exabgp.conf > ze.conf
 ```
-<!-- source: internal/plugins/exabgp/main.go -- cmdMigrate; internal/exabgp/migration/ -- ExaBGP config conversion -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- cmdMigrate; internal/exabgp/migration/ -- ExaBGP config conversion -->

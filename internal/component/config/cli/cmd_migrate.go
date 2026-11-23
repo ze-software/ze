@@ -10,24 +10,27 @@ import (
 	"os"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/migration"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func cmdMigrate(args []string) int {
 	fs := flag.NewFlagSet("config migrate", flag.ExitOnError)
 	outputPath := fs.String("o", "", "write output to file")
+	dryRun := fs.Bool("dry-run", false, "show what would be migrated without making changes")
+	listTransforms := fs.Bool("list", false, "list available transformations")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command:   "ze config migrate",
-			ShortHelp: "Rewrite a configuration in the set or hierarchical form",
+			ShortHelp: "Convert configuration to current format",
 			Usage:     []string{"ze config migrate [options] [format <form>] <config-file>"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionDescription, Entries: []helpfmt.HelpEntry{
-					{Name: "", Desc: "Reads a current config in either form and writes it in the form named, " +
-						"with plaintext passwords hashed. Default output is set format. Use - to read from stdin."},
+					{Name: "", Desc: "Default output is set format. Use - to read from stdin."},
 				}},
 				{Title: "Forms", Entries: []helpfmt.HelpEntry{
 					{Name: "format set", Desc: "Write flat set commands (default)"},
@@ -35,6 +38,8 @@ func cmdMigrate(args []string) int {
 				}},
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "-o <file>", Desc: "Write output to file"},
+					{Name: helpFlagDryRun, Desc: "Show what would be migrated without making changes"},
+					{Name: "--list", Desc: "List available transformations"},
 				}},
 				{Title: helpSectionExitCodes, Entries: []helpfmt.HelpEntry{
 					{Name: "0", Desc: helpDescSuccess},
@@ -45,6 +50,8 @@ func cmdMigrate(args []string) int {
 				"ze config migrate config.conf                          # Convert to set form (stdout)",
 				"ze config migrate -o new.conf config.conf              # Convert to new file",
 				"ze config migrate format hierarchical config.conf      # Explicit hierarchical output",
+				"ze config migrate --dry-run config.conf                # Preview transformations",
+				"ze config migrate --list                               # List available transformations",
 				"cat config.conf | ze config migrate -                  # Read from stdin",
 			},
 		}
@@ -53,6 +60,11 @@ func cmdMigrate(args []string) int {
 
 	if err := fs.Parse(args); err != nil {
 		return exitError
+	}
+
+	if *listTransforms {
+		printTransformationList()
+		return exitOK
 	}
 
 	outputForm, rest, err := parseOutputForm(fs.Args())
@@ -69,17 +81,32 @@ func cmdMigrate(args []string) int {
 
 	configPath := rest[0]
 
-	output, warnings, err := configMigrateWithWarnings(configPath, *outputPath, outputForm)
+	if *dryRun && *outputPath != "" {
+		var b textbuf.Buffer
+		b.Str("error: ").Str(opererr.New("--dry-run cannot be combined with -o",
+			"a dry run writes nothing, so it has no output file",
+			"drop -o to preview, or drop --dry-run to write "+*outputPath).Error()).Byte('\n')
+		b.StdErr() //nolint:errcheck // terminal output, advisory
+		return exitError
+	}
+
+	if *dryRun {
+		return cmdMigrateDryRun(configPath)
+	}
+
+	output, result, warnings, err := configMigrateWithWarnings(configPath, *outputPath, outputForm)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
 
 	if *outputPath == "" {
+		printMigrateResult(result)
 		fmt.Print(output)
 		printMigrateWarnings(warnings)
 	} else {
 		fmt.Fprintf(os.Stderr, "Config migrated: %s\n", *outputPath)
+		printMigrateResult(result)
 		printMigrateWarnings(warnings)
 	}
 
@@ -118,6 +145,114 @@ func parseOutputForm(args []string) (string, []string, error) {
 	return form, args[2:], nil
 }
 
+func printTransformationList() {
+	var b textbuf.Buffer
+	b.Str("Available transformations (in order):\n")
+	for _, t := range migration.ListTransformations() {
+		b.Str("  ").PadRight(t.Name, 25).Byte(' ').Str(t.Description).Byte('\n')
+	}
+	b.StdOut() //nolint:errcheck // terminal output, advisory
+}
+
+func printMigrateResult(result *migration.MigrateResult) {
+	if result == nil {
+		return
+	}
+
+	var b textbuf.Buffer
+	if len(result.Applied) == 0 && len(result.Skipped) > 0 {
+		b.Str("No transformation needed.\n")
+		b.StdErr() //nolint:errcheck // terminal output, advisory
+		return
+	}
+
+	b.Str("Transformations:\n")
+	for _, name := range result.Applied {
+		b.Str("  + ").Str(name).Byte('\n')
+	}
+	for _, name := range result.Skipped {
+		b.Str("  - ").Str(name).Str(" (not needed)\n")
+	}
+	b.Byte('\n').Int(int64(len(result.Applied))).Str(" applied, ").
+		Int(int64(len(result.Skipped))).Str(" skipped.\n")
+	b.StdErr() //nolint:errcheck // terminal output, advisory
+}
+
+func cmdMigrateDryRun(configPath string) int {
+	data, err := cliio.ReadFile(configPath)
+	if err != nil {
+		return dryRunRefusal(opererr.Wrap(err, "the config file could not be read",
+			"the dry run analyses the file's content", "check the path and its permissions: "+configPath))
+	}
+
+	// A file written before a block moved to a top-level root still holds it at
+	// the old position, which only the migration schema parses.
+	schema, err := config.MigrationSchema()
+	if err != nil {
+		return dryRunRefusal(opererr.Wrap(err, "the migration schema could not be built",
+			"this binary's YANG modules failed to load", "rebuild ze; run ze config validate for the module error"))
+	}
+
+	tree, err := config.NewParser(schema).Parse(string(data))
+	if err != nil {
+		return dryRunRefusal(opererr.Wrap(err, "the config could not be parsed",
+			"a dry run analyses a parsed tree", "correct the line the parse error names, then rerun"))
+	}
+
+	result, err := migration.DryRun(tree)
+	if err != nil {
+		return dryRunRefusal(opererr.Wrap(err, "the transformations could not be analysed",
+			"the dry run stopped before every transformation was checked", "run ze config migrate --list and report the failing one"))
+	}
+
+	alreadyDone := make(map[string]bool)
+	wouldApply := make(map[string]bool)
+	for _, name := range result.AlreadyDone {
+		alreadyDone[name] = true
+	}
+	for _, name := range result.WouldApply {
+		wouldApply[name] = true
+	}
+
+	var b textbuf.Buffer
+	b.Str("Transformation analysis:\n")
+	for _, t := range migration.ListTransformations() {
+		switch {
+		case alreadyDone[t.Name]:
+			b.Str("  [done] ").Str(t.Name).Byte('\n')
+		case !wouldApply[t.Name]:
+		case t.Name == result.FailedAt:
+			b.Str("  [fail] ").Str(t.Name).Byte('\n')
+		default:
+			b.Str("  [pending] ").Str(t.Name).Byte('\n')
+		}
+	}
+
+	b.Byte('\n')
+	if !result.WouldSucceed {
+		b.Str("Error: ").Str(result.FailedAt).Str(": ").Str(result.Error.Error()).Byte('\n')
+		b.Str("\nResult: Transformation would fail.\n")
+		b.StdOut() //nolint:errcheck // terminal output, advisory
+		return exitError
+	}
+
+	if len(result.WouldApply) == 0 {
+		b.Str("Result: No transformation needed.\n")
+	} else {
+		b.Str("Result: ").Int(int64(len(result.WouldApply))).Str(" transformation(s) would apply. All would succeed.\n")
+	}
+	b.StdOut() //nolint:errcheck // terminal output, advisory
+	return exitOK
+}
+
+// dryRunRefusal prints a dry-run refusal on stderr and answers the exit code.
+func dryRunRefusal(refusal *opererr.Error) int {
+	var b textbuf.Buffer
+	b.Str("error: ").Str(refusal.Error()).Byte('\n')
+	b.StdErr() //nolint:errcheck // terminal output, advisory
+	return exitError
+}
+
 func printMigrateWarnings(warnings []string) {
 	if len(warnings) > 0 {
 		fmt.Fprintln(os.Stderr)
@@ -128,14 +263,37 @@ func printMigrateWarnings(warnings []string) {
 	}
 }
 
-// findUnsupportedFeatures names, for each BGP peer, the configured features the
-// schema accepts and Ze does not implement.
 func findUnsupportedFeatures(tree *config.Tree) []string {
 	var warnings []string
+
+	for _, entry := range tree.GetListOrdered("peer") {
+		warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
+	}
+
+	for _, entry := range tree.GetListOrdered("neighbor") {
+		warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
+	}
 
 	if bgp := tree.GetContainer("bgp"); bgp != nil {
 		for _, entry := range bgp.GetListOrdered("peer") {
 			warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
+		}
+	}
+
+	if tmpl := tree.GetContainer("template"); tmpl != nil {
+		for _, entry := range tmpl.GetListOrdered("group") {
+			warnings = append(warnings, checkUnsupportedInPeerTree("template/group/"+entry.Key, entry.Value)...)
+		}
+		for _, entry := range tmpl.GetListOrdered("match") {
+			warnings = append(warnings, checkUnsupportedInPeerTree("template/match/"+entry.Key, entry.Value)...)
+		}
+		for _, entry := range tmpl.GetListOrdered("neighbor") {
+			warnings = append(warnings, checkUnsupportedInPeerTree("template/neighbor/"+entry.Key, entry.Value)...)
+		}
+		if bgp := tmpl.GetContainer("bgp"); bgp != nil {
+			for _, entry := range bgp.GetListOrdered("peer") {
+				warnings = append(warnings, checkUnsupportedInPeerTree("template/bgp/peer/"+entry.Key, entry.Value)...)
+			}
 		}
 	}
 
@@ -161,32 +319,32 @@ func checkUnsupportedInPeerTree(path string, tree *config.Tree) []string {
 	return warnings
 }
 
-// configMigrateWithWarnings reads the config at inputPath in either form and
-// answers it in outputForm, with the unsupported features it holds. With an
-// outputPath it writes the file and answers no output.
-func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string, []string, error) {
+func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string, *migration.MigrateResult, []string, error) {
 	data, err := cliio.ReadFile(inputPath)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 	converted, err := configMigrateBytes(data, inputPath, outputForm)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 	printPasswordWeaknesses(converted.weaknesses)
 	if outputPath != "" {
+		// "-o -" writes the migrated config to stdout (result/warnings go to
+		// stderr); an omitted -o already prints to stdout via the caller.
 		if err := cliio.WriteFile(outputPath, []byte(converted.output), 0o600); err != nil {
-			return "", converted.warnings, fmt.Errorf("write output: %w", err)
+			return "", converted.result, converted.warnings, fmt.Errorf("write output: %w", err)
 		}
-		return "", converted.warnings, nil
+		return "", converted.result, converted.warnings, nil
 	}
-	return converted.output, converted.warnings, nil
+	return converted.output, converted.result, converted.warnings, nil
 }
 
 // migratedConfig is the conversion result before a caller chooses its output
 // destination. Warnings stay with the answer and never reach daemon stderr.
 type migratedConfig struct {
 	output     string
+	result     *migration.MigrateResult
 	warnings   []string
 	weaknesses []string
 }
@@ -204,10 +362,15 @@ func configMigrateBytes(data []byte, inputPath, outputForm string) (migratedConf
 	content := string(data)
 
 	// Parse any format: auto-detect and use the appropriate parser.
-	// The schema of this process's module set: with no daemon the compiled-in
-	// one, so a section of an external plugin is refused with the command
-	// that reaches a running ze (config.SchemaWithDeclaredPlugins).
-	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: content, Path: inputPath})
+	// The external plugin sections this config declares are published first,
+	// so a section of an external plugin is refused with the command that
+	// reaches a running ze (config.PublishDeclaredSchemas). The migration
+	// schema also accepts a block at the position it moved from.
+	declared, err := config.PublishDeclaredSchemas(config.ConfigSource{Text: content, Path: inputPath})
+	if err != nil {
+		return migratedConfig{}, fmt.Errorf("YANG schema: %w", err)
+	}
+	schema, err := config.MigrationSchema()
 	if err != nil {
 		return migratedConfig{}, fmt.Errorf("YANG schema: %w", err)
 	}
@@ -226,12 +389,17 @@ func configMigrateBytes(data []byte, inputPath, outputForm string) (migratedConf
 		return migratedConfig{}, fmt.Errorf("parse error: %w", declared.Explain(err))
 	}
 
-	warnings := findUnsupportedFeatures(tree)
+	result, err := migration.Migrate(tree)
+	if err != nil {
+		return migratedConfig{}, fmt.Errorf("migration failed: %w", err)
+	}
+
+	warnings := findUnsupportedFeatures(result.Tree)
 
 	// The plaintext-password leaf is hashed into its canonical leaf first:
 	// unhashed, the hierarchical form skips the ephemeral leaf and loses the
 	// credential, and the set form prints the password in clear.
-	weaknesses, err := hashPlaintextPasswords(tree, schema)
+	weaknesses, err := hashPlaintextPasswords(result.Tree, schema)
 	if err != nil {
 		return migratedConfig{}, err
 	}
@@ -240,10 +408,10 @@ func configMigrateBytes(data []byte, inputPath, outputForm string) (migratedConf
 	// Both printers write each ze:sensitive key in the $9$ form, as fmt does.
 	var output string
 	if outputForm == formHierarchical {
-		output = config.Serialize(tree, schema)
+		output = config.Serialize(result.Tree, schema)
 	} else {
-		output = config.SerializeSet(tree, schema)
+		output = config.SerializeSet(result.Tree, schema)
 	}
 
-	return migratedConfig{output: output, warnings: warnings, weaknesses: weaknesses}, nil
+	return migratedConfig{output: output, result: result, warnings: warnings, weaknesses: weaknesses}, nil
 }

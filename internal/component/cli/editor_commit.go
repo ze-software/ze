@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/migration"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -73,7 +74,19 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
+	// Apply tree structure migrations if the committed config is hierarchical.
 	var warnings []string
+	if config.DetectFormat(committedContent) == config.FormatHierarchical {
+		if migration.NeedsMigration(committedTree) {
+			result, migrateErr := migration.Migrate(committedTree)
+			if migrateErr == nil {
+				committedTree = result.Tree
+			} else {
+				var skipped textbuf.Buffer
+				warnings = append(warnings, skipped.Str("tree migration skipped: ").Str(migrateErr.Error()).String())
+			}
+		}
+	}
 
 	// Read and parse draft (created by SaveDraft above).
 	draftPath := DraftPath(e.originalPath)
@@ -280,6 +293,19 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 		return nil, "", fmt.Errorf("parse config: %w", err)
 	}
 
+	var warnings []string
+	if config.DetectFormat(committedContent) == config.FormatHierarchical {
+		if migration.NeedsMigration(committedTree) {
+			result, migrateErr := migration.Migrate(committedTree)
+			if migrateErr == nil {
+				committedTree = result.Tree
+			} else {
+				var skipped textbuf.Buffer
+				warnings = append(warnings, skipped.Str("tree migration skipped: ").Str(migrateErr.Error()).String())
+			}
+		}
+	}
+
 	draftPath := DraftPath(e.originalPath)
 	draftData, err := guard.ReadFile(draftPath)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -338,7 +364,7 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 	if err != nil {
 		return nil, "", fmt.Errorf("hash password: %w", err)
 	}
-	warnings := config.PasswordWeaknessWarnings(hashed)
+	warnings = append(warnings, config.PasswordWeaknessWarnings(hashed)...)
 	myEntries = dropPlaintextPasswordEntries(myEntries)
 
 	if err := e.validateStagedTree(committedTree); err != nil {

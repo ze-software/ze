@@ -665,7 +665,14 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 			if err := nodeOfAnotherOS(node, name, fieldName, tok.line); err != nil {
 				return err
 			}
-			return unknownNodeLinef(tok.line, "unknown field in %s: %s%s", name, fieldName, KeywordHint(p.path, fieldName, node.Children()))
+			hint, moved := node.relocatedHint(fieldName)
+			if !moved {
+				hint = node.retiredHint(fieldName)
+			}
+			if hint == "" {
+				hint = KeywordHint(p.path, fieldName, node.Children())
+			}
+			return unknownNodeLinef(tok.line, "unknown field in %s: %s%s", name, fieldName, hint)
 		}
 
 		if markInactive {

@@ -8,6 +8,7 @@ const (
 	codeDoctorLocalAdminCredentials = "doctor-local-admin-credentials"
 	codeDoctorWebNetworkCleanup     = "doctor-web-network-cleanup"
 	codeDoctorWebCleanupOverdue     = "doctor-web-cleanup-overdue"
+	codeDoctorConfigEvolved         = "doctor-config-evolved"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -31,6 +32,12 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Title:       "Web cleanup is still waiting",
 		Description: "An admitted web request, an owned route resource or an accepted command-history publication did not finish within the cleanup allowance. The service keeps joining it and retains the borrowed configuration store. Inspect recent web.server errors to locate the blocked work. One recent event per minute covers concurrent shutdown callers without recording commands or user data.",
 		Examples:    []string{"ze show log recent level err component web.server"},
+	},
+	{
+		Code:        codeDoctorConfigEvolved,
+		Title:       "Config rewritten at start changed behavior",
+		Description: "The config was written for an older release, and a schema evolution rewrote it at start in a way that changes how the router behaves. The log line names the evolution, what it wrote and why, and whether the file was saved. Review the change; to keep the old behavior, write the setting the line names explicitly.",
+		Examples:    []string{"ze show log recent level warn component hub.evolve", "ze config migrate --dry-run <file>"},
 	},
 }
 

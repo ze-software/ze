@@ -7,6 +7,7 @@ package policy
 import (
 	"net"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	policyyang "github.com/ze-software/ze/internal/component/policy/yang"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -88,7 +89,14 @@ type routeOriginAS struct {
 	hasOriginAS bool
 }
 
+// relocatedFromBGP is the container the policy root was a child of before it
+// became top-level and shared by every protocol: `bgp { policy { ... } }` is
+// refused naming the new root, and `ze config migrate` moves it.
+const relocatedFromBGP = "bgp"
+
 func init() {
+	config.MustRegisterRelocatedContainer(relocatedFromBGP, RootName)
+
 	if err := diagnostic.RegisterDoctorCheck(igpImportDoctorCheck); err != nil {
 		panic("BUG: policy: doctor check registration refused: " + err.Error())
 	}

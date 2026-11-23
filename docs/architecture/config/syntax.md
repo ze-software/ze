@@ -10,7 +10,7 @@
 | **OSPF Block** | `ospf { areas { area <id> { ... } } interfaces { interface <name> { area <id> } } }` - native OSPFv2 config root |
 | **Inheritance** | 3 levels: bgp globals, group defaults, peer overrides (deep-merge for containers) |
 | **Schema** | YANG-driven: parser dispatches by node type (leaf, container, list, leaf-list) |
-| **Migration** | `ze exabgp migrate` converts an ExaBGP config to Ze syntax; Ze's own pre-release syntax has no rewrite path |
+| **Migration** | `ze config migrate` converts ExaBGP syntax to ze-native |
 
 **When to read full doc:** Config keywords, parsing bugs, new config sections.
 
@@ -71,10 +71,45 @@ uses for a mistyped command, `suggest.Command`.
 <!-- source: internal/component/config/retired.go -- UnknownKeywordHint -->
 <!-- source: internal/core/suggest/suggest.go -- Command -->
 
-A bracket list where the schema expects a container names that path and
-renders the container's immediate fields instead, including enum choices.
-Hierarchical, set and set-meta parsing derive these corrections from schema
-nodes rather than a separate list of feature-specific hints.
+A block that moved out of a container to become a top-level root gets the
+command that rewrites it instead. `bgp { policy { ... } }` is the one such block
+today: the `policy` component registers the move from `init()` with
+`config.MustRegisterRelocatedContainer("bgp", "policy")`, the schema marks the
+old position, and both parsers answer `policy is no longer inside bgp: it is now
+the top-level policy { ... } block`, then `fix: ze config migrate -o <new-file>
+<file>`. No alias accepts the old position.
+<!-- source: internal/component/config/relocated.go -- MustRegisterRelocatedContainer, markRelocations, relocatedHint -->
+<!-- source: internal/component/policy/register.go -- init, relocatedFromBGP -->
+
+`ze config migrate` parses the file with `config.MigrationSchema()`, which
+grafts each relocated root back under its old parent, and its last
+transformation, `relocated-blocks`, moves the block to the top level and merges
+it with any top-level block already there. A list entry written at both
+positions is refused with both locations named, because no merge can choose
+between them.
+<!-- source: internal/component/config/relocated.go -- MigrationSchema, ApplyRelocations, refuseRelocationConflict -->
+<!-- source: internal/component/config/migration/migrate.go -- relocated-blocks -->
+
+A leaf a schema change retired is refused the same way. The package that owns
+the rewrite registers the leaf with `config.MustRegisterRetiredLeaf(path, name,
+node, replacement)`, both parsers answer `<name> is no longer a leaf of <path>:
+write <replacement> instead`, then the `ze config migrate` fix, and
+`MigrationSchema` grafts the old leaf back so the migration can read it. The
+redistribute import `family` and `tag` leaves are the two retired leaves today.
+<!-- source: internal/plugins/redistribute/register_migration.go -- init -->
+<!-- source: internal/component/config/retired_leaf.go -- MustRegisterRetiredLeaf, markRetiredLeaves, graftRetiredLeaves -->
+
+A feature package adds its own transformation with
+`migration.MustRegisterTransformation`, so `migrate.go` never names it. The
+registered ones run after the built-in ones, in registration order, and
+`ze config migrate --list` shows them with the rest.
+<!-- source: internal/component/config/migration/registered.go -- MustRegisterTransformation, allTransformations -->
+
+An enumeration refusal includes its original path, the values it accepts, and
+the leaf statement to write. A bracket list where the schema expects a container
+names that path and renders the container's immediate fields instead, including
+enum choices. Hierarchical, set and set-meta parsing derive these corrections
+from schema nodes rather than a separate list of feature-specific hints.
 <!-- source: internal/component/config/parser.go -- parseNode, parseLeaf, parseContainer -->
 <!-- source: internal/component/config/parser_diagnostics.go -- prependSyntaxPath, containerValueFix, setSyntaxRefusal -->
 
@@ -772,7 +807,7 @@ release that wrote them (`YY.MM.DD`):
 The stamp is a comment (ignored by all parsers). On the first line it is always
 the file's head, so `ze config fmt` keeps it on line 1. `FormatSchemaStamp` builds it
 from `version.Release()` and every persistence site re-emits it: the editor
-commit and downgrade recovery. It is not stored
+commit, schema evolution at startup, and downgrade recovery. It is not stored
 in the YANG tree. A writer of the hierarchical form goes through
 `SerializeStamped`, which replaces the stamp the parsed tree kept as its head
 rather than adding a second one, so a file names one release, the one that
@@ -784,14 +819,39 @@ every dated one, so an unstamped file is never "newer" than the binary.
 <!-- source: internal/component/config/stamp.go -- FormatSchemaStamp, SerializeStamped, ScanStampRelease -->
 <!-- source: internal/core/version/version.go -- CompareReleases, IsNewerRelease -->
 
-#### No Schema Evolution
+#### Schema Evolution
 
-Ze has not been released, so no configuration written by a shipped binary
-exists. The start-up path reads the file as it is: there is no step that
-rewrites an older Ze syntax, and `ze config migrate` does not rewrite one
-either. A file in a form the schema no longer accepts fails to parse with the
-line and the unknown keyword; the fix is editing the file to the current
-syntax. An ExaBGP configuration is converted by `ze exabgp migrate`.
+At start, after the config loads, the hub runs every registered
+`migration.Evolution` whose `Release` is newer than the file's stamp
+(`applyEvolutions`). Each one's `Detect` decides whether the tree needs it, and
+`Apply` changes the tree; when any applied, the result is re-stamped with this
+binary's release and saved back. An unstamped or `dev`-stamped file runs every
+evolution, except one marked `StampedOnly`.
+
+`StampedOnly` exists for an evolution that writes an old default into a file.
+A shape change is safe on any file, because `Detect` sees the old shape. An
+unset leaf looks the same under both defaults, so only a dated stamp says which
+one the file was written under, and a file without one keeps the current
+default. `ipsec-unmatched-keeps-bypass` is one: it writes `vpn ipsec unmatched
+bypass` into a file saved while bypass was the default
+([IPsec guide](../../guide/ipsec.md)).
+
+The stamp is the one on the content the config loader parsed
+(`LoadConfigResult.StampRelease`). After a downgrade recovery (below) that is
+the rollback's own stamp, not the one recovery published over it, so a
+recovered rollback still gets the evolutions it is owed.
+
+An evolution that changes how the router behaves carries a `Notice`: what it
+wrote, why, and the command that undoes it. `applyEvolutions` logs each one at
+Warn, the default level, naming the config file (or stdin) and whether the
+change was saved back. An evolution that only changes a shape leaves `Notice`
+empty and is logged at Info with the others, so the Warn is kept for the
+changes an operator must hear about.
+
+<!-- source: internal/component/config/migration/evolution.go -- Evolution, Evolve, applicableEvolutions -->
+<!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions, warnEvolutionNotices -->
+<!-- source: internal/component/config/loader.go -- LoadConfigResult.StampRelease -->
+<!-- source: internal/component/ike/ipsec/unmatched_evolution.go -- unmatchedBypassEvolution -->
 
 #### Downgrade Recovery
 
@@ -1190,6 +1250,20 @@ bgp {
 | CLI usage | `peer <name> <command>` selects the peer |
 <!-- source: internal/component/bgp/config/resolve.go -- validatePeerName -->
 
+#### Migration
+
+`ze config migrate` converts old syntax:
+- `template { bgp { peer <pattern> { inherit-name X; } } }` becomes `group X { }`
+- `inherit X` in peers moves the peer into `group X`
+- `neighbor` blocks become `peer` blocks inside groups
+- `redistribute destination D import S { family [ ... ]; tag N; }` becomes a
+  `policy { match redistribute-D-S { family [ ... ]; tag [ N ]; } }` instance,
+  named first in the rule's `filters`, and every import rule without a `final`
+  and without `filters` gets `final accept`. `tag 0` stays `tag [ 0 ]`, which
+  selects the untagged routes. A `match` instance already holding that name is
+  refused
+<!-- source: internal/plugins/redistribute/migrate.go -- migrateImportLeaves, migrateImportRule -->
+
 ### bgp
 
 Container for all BGP-related configuration (peers, groups, global settings).
@@ -1241,6 +1315,11 @@ bgp {
 }
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container bgp structure -->
+
+**Migration:** `ze config migrate` converts old syntax:
+- `neighbor` to `bgp { group <name> { peer } }`
+- `template { inherit-name X }` to `group X { }`
+- `inherit X` in peers moves peer into `group X`
 
 ---
 
@@ -1915,7 +1994,7 @@ update {
 
 ### FlowSpec
 
-FlowSpec routes (RFC 8955) use the same `update { nlri { } }` syntax. The legacy `flow { route { match {} then {} } }` block is not supported. An ExaBGP config carrying it is converted by `ze exabgp migrate`.
+FlowSpec routes (RFC 8955) use the same `update { nlri { } }` syntax. The legacy `flow { route { match {} then {} } }` block is not supported -- use `ze config migrate` to convert ExaBGP-format FlowSpec configs.
 
 FlowSpec actions are expressed as extended-community attributes. Match criteria are inline after the family and `add` keyword.
 
