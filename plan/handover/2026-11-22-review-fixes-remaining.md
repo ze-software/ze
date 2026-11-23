@@ -61,7 +61,10 @@ Still red, each waiting on a decision of Thomas's:
 | Test | Decision |
 |------|----------|
 | the 11 `TestConfiguredPluginConformance*` | They drive `request plugin conformance`, a daemon feature deferred on 2026-11-17. Build it now, or keep it deferred (the drafts stay red, or leave the default run with the judge's approval) |
-| `TestTheHomepageRFCCardSaysWhatTheOldFigureCounted` | 7abd87b87f replaced the card's "Counting history" box with "Our testing goal"; the rule requires a corrected figure to say what it replaced. A fix restoring the box, collapsed, is in the working tree of `internal/le/site/homebody.go`, uncommitted: commit it unless the removal was Thomas's ruling |
+
+
+`TestTheHomepageRFCCardSaysWhatTheOldFigureCounted` is fixed (36a009db93):
+the rule recorded in bd6ba7a195 requires the public Counting history note.
 
 ## Open findings, second round
 
@@ -87,7 +90,6 @@ Still open, each waiting on a decision of Thomas's:
 | Finding | Where it is homed | The decision |
 |---------|-------------------|--------------|
 | RFC 9494 4.2 synchronization when the Selection_Deferral_Timer expires (helper side) | `plan/post-release/features/spec-gr-advanced.md` Q-1; journal `plan/journal/state-released-only-by-a-message-the-peer-may-never-send.md` | Which local bound: FRR and BIRD differ |
-| RFC4360-6-1: "The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops." | the row stays `{partial}` | Whether it binds the operator who writes policy |
 | The refusal-advice commit gate matches message wording | its replacement (typed fix lines judged by the guards themselves) needs a spec, likely an amendment to `spec-gates-share-one-semantic-population.md` | Delete the wording gate now or after the spec; whether the retired-names sweep counts as a check of what a thing is |
 
 Another session is building RFC 4724 restarting-speaker selection
@@ -97,12 +99,41 @@ spec-gr-advanced notes it for review.
 
 The two root-only key-file tests skip without root and were not run.
 
+## Waiting on another session's tooling
+
+The rules in bd6ba7a195 exclude, as `{not-applicable}`, a requirement that
+binds only an operator's configuration or IANA. Three rows need that form, and
+HEAD's `le` refuses it: the accepting code (`nonSoftwareRoleAccepted`,
+`nonSoftwareOperatorRoles` in `internal/le/rfc/notapplicable_roles.go`, test
+`TestNotApplicableNonSoftwareAndHeadingForms`) is another session's
+uncommitted work. Once it lands:
+
+- `rfc/short/rfc9234.md` RFC9234-6-1: replace the `{gap: ...}` (and its
+  "owner ruling 2026-11-22" citation) with `{not-applicable: "Roles MUST NOT
+  be configured on an eBGP session with a Complex peering relationship.";
+  binds an operator; the sentence binds the operator's configuration of a
+  peering relationship, which software cannot observe: whether the
+  relationship between two ASes is Complex is a business arrangement no BGP
+  message carries, and Section 6 itself says there are no in-band measures to
+  check the correctness of the peering configuration.
+  internal/component/bgp/plugins/role/config.go::parseRoleContainer accepts
+  the one role the operator configures per peer, and docs/guide/bgp-role.md
+  tells the operator to omit the role on a Complex peering}`; add the meta row
+  `| Ze roles | BGP speaker, route server |`; the enrolment reason becomes
+  `+ 2 gaps (no AS Confederation for 5-7 and 5-8) + 1 not applicable (6-1 binds
+  the operator's configuration of a Complex peering relationship, which Ze
+  cannot observe)`.
+- `rfc/short/rfc4360.md` RFC4360-7-1 and 7-2: `{not-applicable}` binding IANA's
+  type-allocation rules under Section 7 (IANA Considerations); ze allocates no
+  Type value and reads only IANA-assigned codes. The enrolment reason's "Two
+  are gaps" sentence changes to match.
+
+Then `./le rfc update` and `./le rfc check`.
+
 ## For Thomas
 
 | Question | What each answer changes |
 |----------|--------------------------|
-| Is "owner ruling 2026-11-22" the right citation for RFC9234-6-1 returning to a gap? | The coverage ratchet (`ownerRuledMove`) requires a ruling; another wording changes `rfc/short/rfc9234.md` |
-| Did you rule the "document-author" not-applicable form (RFC7606-8-1, RFC5492-4-3)? | It is recorded in the spec and the gates page, not in `ai/META-DECISIONS.md` |
 | May a subagent run `gopls check`? | The ze-work definition says yes; META-DECISIONS says subagents run no code |
 | Which VPP throughput statement is true? | The performance page says throughput backs the guide's numbers; 770170950a had said this lab does not benchmark it |
 | The two update-report summaries exceed the 108-character budget | 2026-10-12 (about 165) and 2026-10-25 (about 152) are in your wording, for you to shorten |
