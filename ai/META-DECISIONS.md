@@ -477,8 +477,11 @@ in the spec or commit it applies to.
   plain sentences in a natural order, one idea in each, in short paragraphs.
   It has a visible structure, with a heading for each part and a list only for
   things that really are a list. It is never compressed notes, fragments, or a
-  dense block that reads as typed in a hurry. A question to him is asked one
-  at a time, with a small example, the choices, and the one recommended.
+  dense block that reads as typed in a hurry. An explanation is given with a
+  concrete example, such as the configuration an operator would write and
+  what then happens, before or beside the general statement. A question to
+  him is asked one at a time, with a small example, the choices, and the one
+  recommended.
 
 ## How agents work
 
