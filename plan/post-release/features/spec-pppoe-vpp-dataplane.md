@@ -279,9 +279,36 @@ decisions" rows of both pages, each naming the earlier row it narrows):
   change the settings so we should detect the settings and adapt". Ze requires
   no unit policy; it reads the unit's effective settings each time it acts and
   adapts (lifecycle R-9, step 2a).
-- Open for Thomas: the single timer, whether he adopts the recovery deadline
-  and the crash-loop limit and their values, and the other lifecycle choices
-  (that spec's "Choices the rules do not settle").
+- Answered by Thomas, still 2026-11-23 (lifecycle A-1 to A-7, R-10 to R-12;
+  VPP page rows 10 to 15, `bng-5-pppoe.md` row 4). Each narrows the bullets
+  above where they differ:
+  - Two limits: a failed alive test is the loss declaration, and a second
+    limit bounds the reconnect-and-verify attempt (form 1) before Ze kills and
+    restarts. Form 1 now runs after the declaration, inside that second
+    limit; "inside the timer" and "a declared loss is never adopted" above
+    read as "inside the reconnect-and-verify limit" and "never adopted once
+    that limit expires".
+  - Form 1 keeps the PPPoE sessions on the presence of data, his words: "We
+    should take the presence of data as a sign that the software is still
+    running and reconciliation may be then happening in the background." The
+    same pidfd-proven process answering with its configured data is adopted;
+    the option C readback below no longer gates the adoption and runs as
+    PPPoE's part of the background reconciliation. A mismatch it finds is
+    repaired, never a loss. Recorder: whether the readback table's "refuse,
+    retain and report" is that repair for a field mismatch, and whether it
+    settles E-1, is for this spec's OD-2 design.
+  - The recovery deadline and the crash-loop limit are adopted; past either,
+    Ze withdraws. After a withdrawal Ze keeps retrying with a growing backoff,
+    and the PPPoE service comes back when VPP recovers (by form 2, so
+    subscribers redial). Ze's own protocol timers keep running.
+  - A foreign process on VPP's API socket (its pidfd does not resolve to the
+    configured unit) is reported by `ze doctor` and neither refused nor
+    killed; Ze keeps working with it. For PPPoE, Recorder: the retained
+    owners of a foreign peer follow E-4 (a different process fails form 1);
+    how they retire when Ze may not kill that process is for the lifecycle
+    design.
+- Open: the values of the two limits, the deadline and the crash-loop limit,
+  and lifecycle choices 4, 7 and 8, all proposed at that spec's design review.
 - F-1 stays a defect to fix; F-2 closes with it; F-3 is fixed for form 1 by
   change 2. E-1 stays open for form 1; E-2, E-3 and E-4 close on form 2. No
   graceful-restart claim on re-open: the F bit stays 0.
@@ -292,12 +319,12 @@ rules and their refinements D-1 resolves on two paths, recorded in
 
 | Path | What PPPoE does |
 |------|-----------------|
-| Form 2: a declared loss (the timer expired, or form 1 failed: a different or unprovable process, or any readback mismatch) | Ze kills VPP through the retained pidfd and restarts it, so its exit proof always arrives and retires the retained owners. OD-2's drain runs here, on every declared loss, and subscribers redial. E-2, E-3 and E-4 close on this path |
-| Form 1: inside the timer (same pidfd-proven process, full readback matches) | Option C: retained owners read back their exact native identity over the new connection of the same process and are cleaned there. Sessions survive. E-1 stays open |
-| Inside the timer, before form 1 succeeds or the loss is declared | Admission is fenced and sessions are held (lifecycle choice 6) |
+| Form 2: a forced restart (the reconnect-and-verify limit expired, or form 1 failed: a different or unprovable process, or no configured data inside the limit) | Ze kills VPP through the retained pidfd and restarts it, so its exit proof always arrives and retires the retained owners. OD-2's drain runs here, on every forced restart, and subscribers redial. E-2, E-3 and E-4 close on this path |
+| Form 1: inside the reconnect-and-verify limit (same pidfd-proven process answering with its configured data) | Sessions survive. Option C runs in the background reconciliation: retained owners read back their exact native identity over the new connection of the same process and are cleaned there; a mismatch is repaired, never a loss. E-1 stays open |
+| After the failed alive test, before form 1 succeeds or the limit expires | Admission is fenced and sessions are held (lifecycle choice 6) |
 
-OD-2 (A) still decides what a declared loss does; it never runs inside the
-timer. The subscription in step 1 of "Subscription and order" maps the
+OD-2 (A) still decides what a forced restart does; it never runs inside the
+reconnect-and-verify limit. The subscription in step 1 of "Subscription and order" maps the
 lifecycle spec's events once that spec names them (its choice 8). This work
 depends on that spec's design.
 

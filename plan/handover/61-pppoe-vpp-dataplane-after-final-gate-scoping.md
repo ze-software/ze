@@ -27,6 +27,7 @@ evidence and both designs in full.
 | the 2026-11-23 recording commit | The owner's VPP rules and D-1 decision, the lifecycle spec skeleton, the shaping research, three journal rows, the digest correction, this update |
 | `179f4d4f03`, `8cf5201adb` | The owner's lifecycle rules and D-1, then his loss refinement with the two recovery forms |
 | the review-recording commit | The lifecycle review applied: his systemd rule (R-9, VPP page row 9), proposals marked, fifteen choices, the questions below |
+| the answers-recording commit | His answers A-1 to A-7: VPP page rows 10 to 15, `bng-5-pppoe.md` row 4, the lifecycle rules and design draft, the PPPoE refinements, his `decision-change` step below |
 
 ## Baseline now
 
@@ -72,8 +73,11 @@ decisions", the PPPoE spec's D-1 section):
   configuration: we can not be sure that an OS update will not change the
   settings so we should detect the settings and adapt". The lifecycle spec
   records it as R-9 and step 2a; the VPP page gained row 9.
-- Value still open for Thomas: the single timer (today a 1 s tick and a 5 s
-  probe timeout).
+- Answered later the same day (see "Owner questions" below): two limits in
+  place of the single timer, adoption on the presence of data with
+  background reconciliation, the deadlines adopted, retrying after a
+  withdrawal, Ze's own timers running, a foreign process reported and not
+  refused, and the spec kept post-release.
 - The first rows written for rule (c) (adopt "when alive, forwarding and
   readable", and "update peers" on a possible crash) are still in the pages'
   tables. A row changes only with Thomas: removing or rewording them needs his
@@ -98,27 +102,62 @@ its section "Independent design review" lists them. The blocking ones: the
 detect-and-adapt mechanism was missing; the recovery deadline, the crash-loop
 limit and "Ze stops restarting" are not in his words.
 
-## Owner questions now open
+## Owner questions (answered 2026-11-23)
 
-| # | Question | Where |
-|---|----------|-------|
-| 1 | Which reading of the one timer: (a) it bounds the alive test, the declaration and the reconnect; (b) a failed alive test is the declaration, and "reconnect within a time limit" is a second value | Lifecycle choice 10 (R-4) |
-| 2 | Whether he adopts the recovery deadline P-1 and the crash-loop limit P-2, and their values (and with P-2, whether a unit at its start limit is reset) | Choice 9 |
-| 3 | The single timer's value | Choice 1 (P-4) |
-| 4 | After a withdrawal: keep retrying, or wait for an operator command | Choice 11 |
-| 5 | The bound on form (1)'s readback: its own bound with mutations fenced, or inside the timer | Choice 12 |
-| 6 | Ze's own BFD, dead and hold timers during recovery: run as the RFCs say, or held | Choice 13 |
-| 7 | A foreign process on the API socket: may Ze kill it | Choice 14 |
-| 8 | The lifecycle spec's bucket: `release/fixes`, a split, or post-release (not moved) | Choice 15 |
-| 9 | Starting an inactive unit at boot; the stub's method; event names | Choices 4, 7, 8 |
-| 10 | `decision-change` from his terminal: VPP page row 6 (its "only restarter" sentence and forbids clause, superseded by row 9), VPP page rows 3 and 4 (rule (c), narrowed), rows 7 and 8 (P-1 and P-2 in the recorder's wording), and `bng-5-pppoe.md` rows 1 and 2 (narrowed by row 3) | Lifecycle "Pages this work makes wrong" |
+Thomas answered them on 2026-11-23. The answers are A-1 to A-7 in the
+lifecycle spec ("His answers to the open choices"), rules R-4 to R-7 and
+R-10 to R-12, VPP page rows 10 to 15, `bng-5-pppoe.md` row 4, and the PPPoE
+spec's "Owner refinements" block.
+
+| # | Question | Answer |
+|---|----------|--------|
+| 1 | Which reading of the one timer | Answered: (b). A failed alive test is the declaration; a second limit bounds the reconnect-and-verify attempt (A-1) |
+| 2 | Adopting the recovery deadline P-1 and the crash-loop limit P-2 | Answered: both adopted (A-2). Default values are proposed at the lifecycle design review. A unit at its start limit is reset before the next retry (recorder, confirm at design) |
+| 3 | The timer values | Answered with question 2: the alive-test time and the reconnect-and-verify limit are proposed at the design review |
+| 4 | After a withdrawal | Answered: keep retrying with a growing backoff; interfaces and routes return by themselves; `ze doctor` reports throughout (A-3) |
+| 5 | The bound on form (1)'s readback | Answered: none. The presence of configured data adopts; reconciliation runs in the background and repairs (A-4, his words in the spec) |
+| 6 | Ze's own BFD, dead and hold timers during recovery | Answered: they run as the RFCs say (A-5) |
+| 7 | A foreign process on the API socket | Answered: reported, never refused or killed; Ze keeps working with it (A-6, his words in the spec) |
+| 8 | The lifecycle spec's bucket | Answered: post-release, not moved (A-7) |
+| 9 | Starting an inactive unit at boot; the stub's method; event names | Not put to him this round: choices 4, 7 and 8 are proposed at the lifecycle design review |
+| 10 | The `decision-change` that removes the superseded rows | His step, below |
+
+## Thomas's step: the decision-change
+
+Rows 10 to 15 of the VPP page and row 4 of `bng-5-pppoe.md` restate
+everything the older rows hold that still stands, so the older rows can go
+whole. Only Thomas can commit that, from his own terminal. The working-tree
+edits are made in the same sitting, just before he runs the command, so no
+other session's commit of these two pages meets them first:
+
+1. `docs/research/vpp-deployment-reference.md`, "Design decisions": delete
+   rows 3 to 8, the rows that open "After a failure, when the VPP process is
+   alive", "When VPP could have crashed", "One timer", "As soon as a loss is
+   declared", "Recovered has exactly two forms" and "Blackholing during the
+   restart is accepted". In the systemd row, delete the sentence that opens
+   "This supersedes the second sentence". In the rows that open "Two
+   limits", "Form (1) adopts", "A recovery deadline" and "After a
+   withdrawal", delete the closing sentence that opens "This supersedes",
+   "This narrows" or "This adopts": each names a row that is gone.
+2. `docs/architecture/l2tp/bng-5-pppoe.md`, "Design decisions": delete rows 1
+   to 3 (the D-1 row, "When Ze adopts the VPP", "Adoption happens only inside
+   the single VPP loss timer"). In the remaining row, delete the closing
+   sentence that opens "This supersedes the row".
+3. From his terminal, with his own words in the last argument (the quoted
+   text is only a suggestion):
+
+   `./le commit create replace subject "docs: drop the VPP lifecycle rows that later rows supersede" file docs/research/vpp-deployment-reference.md file docs/architecture/l2tp/bng-5-pppoe.md decision-change "remove the VPP lifecycle rows of 2026-11-23 that the later rows of the same day supersede"`
+
+   then run the script at the `script=` path it prints. The command refuses a
+   pipe, needs his terminal on stdin and stdout, and writes one
+   `Decision-changed:` trailer per page.
 
 ## Remaining, in order
 
 | # | Work | First action |
 |---|------|--------------|
-| 1 | Owner choices: the lifecycle questions in "Owner questions now open" below, then E-1 (unknown-outcome creations on form 1), C-1 (where a configured VPP rate lives), and the shaping plugin licence route: a Ze-written plugin as an Apache-2.0 diff in the VPP tree or an AGPL-3.0 plugin directory, or carry osvbng's GPL-3.0+ plugin | Present them to Thomas from the two specs |
-| 2 | The lifecycle spec's design | Fresh session, `/ze-spec plan/post-release/features/spec-vpp-failure-lifecycle.md`, after question 8 settles its bucket; read VPP's and systemd's source for the ASSUMED facts first |
+| 1 | Owner choices: the lifecycle questions are answered ("Owner questions" above); his `decision-change` step remains. Still open: E-1 (unknown-outcome creations on form 1), C-1 (where a configured VPP rate lives), and the shaping plugin licence route: a Ze-written plugin as an Apache-2.0 diff in the VPP tree or an AGPL-3.0 plugin directory, or carry osvbng's GPL-3.0+ plugin | Present them to Thomas from the two specs |
+| 2 | The lifecycle spec's design | Fresh session, `/ze-spec plan/post-release/features/spec-vpp-failure-lifecycle.md` (post-release, not moved); read VPP's and systemd's source for the ASSUMED facts first; propose the values of the two limits, the deadline and the crash-loop limit, and choices 4, 7 and 8 at its design review |
 | 3 | The VPP shaping spec | Fresh session, `/ze-spec`; references `~/Code/github.com/veesix-networks/osvbng-vpp` `plugins/osvbng_qos_sched` and VyOS with accel-ppp-ng; the recommendation is in the PPPoE spec's shaping section |
 | 4 | PPPoE OD-2 and the F-1 and F-3 fixes | After the lifecycle spec's design: OD-2's drain runs on every declared loss (form 2), never inside the timer; form (1) keeps the sessions through option C |
 | 5 | The per-session VPP policer wiring | The Filter-Id/RADIUS path needs no decision; the configured rate waits on C-1. This fixes the open defect: VPP subscribers forward unpoliced today |
