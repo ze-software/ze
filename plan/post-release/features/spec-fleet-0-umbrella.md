@@ -304,7 +304,7 @@ frame bound (`pkg/plugin/rpc/framing.go`, enforced at write time in conn.go).
 
 **Behavior to change:**
 - Hub-side ManagedConfigService extended with persistent device registry
-- New YANG `fleet {}` container for fleet configuration (device labels, templates, groups)
+- Device labels as a `label` list on the hub's existing `client` entry in `ze-plugin-conf.yang`, with no `fleet` root (fleet-1); templates and groups in YANG (fleet-2, whose draft places them under a `fleet {}` root)
 - New RPC verbs for inventory and health reporting (fleet-4)
 - Config fetch extended to support template rendering (fleet-2)
 - New commands under `show fleet` and `fleet rollout` (fleet-1, fleet-4, fleet-5), each registered once and reached on every command surface
@@ -362,7 +362,7 @@ current.
 - `ManagedConfigService` -- extend with registry, template lookup, audit logging
 - `PluginAcceptor.handleConn` -- hook device registration on auth success
 - Live page updates -- none in the first release: `fleet-1` emits no EventBus fleet event, and the pages' live updates are the `EventSource` of `fleet-ui-9`, after it
-- YANG schema -- `fleet {}` container alongside existing `plugin { hub {} }`
+- YANG schema -- labels on the existing `plugin { hub { server { client {} } } }` entry (fleet-1); templates and groups as `fleet-2` designs them
 - Command registry -- `show fleet`, `fleet rollout`, registered once and reached on every command surface
 - Web pages -- none in the first release: the estate tree and device tables are `fleet-ui-2`'s, the dashboard `fleet-ui-3`'s, device detail `fleet-ui-4`'s, rollout status `fleet-ui-6`'s, the task, notification and alarm pages `fleet-ui-9`'s, all after the first release
 
@@ -426,7 +426,7 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 - `pkg/fleet/envelope.go` -- add new RPC verb constants (inventory-report, health-report)
 - `internal/component/managed/client.go` -- add inventory and health reporting to client loop (fleet-4)
 - `cmd/ze/hub/main.go` -- wire fleet registry, audit, template, rollout at startup
-- `internal/component/plugin/yang/ze-plugin-conf.yang` -- fleet YANG container
+- `internal/component/plugin/yang/ze-plugin-conf.yang` -- a `label` list on the existing hub `client` entry, `plugin hub server <block> client <name> label <key> { value <v>; }`, at most 32 labels per client (fleet-1); no `fleet` root container, because the client entry already declares the device (`plan/release/features/spec-fleet-1-device-registry.md`). Where templates and groups sit in YANG is `fleet-2`'s to design
 
 ## Files to Create
 - `internal/component/plugin/server/registry.go` -- DeviceRegistry: persistent device state
