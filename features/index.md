@@ -120,6 +120,7 @@ These features have code, but still need production testing or have unfinished p
 *services / Experimental* -- `RFC 2516` `PPP`
 
 - **Access concentrator** with PPPoE discovery
+- Kernel or **VPP** session data plane
 - Shared **PPP driver** with L2TP
 - **PAP**, **CHAP-MD5**, and **MS-CHAPv2** authentication
 

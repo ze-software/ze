@@ -9,7 +9,7 @@ Whether this device follows a hub and matches its last configuration\.
 - Mode: read\-only\, offline
 - Wire method: `ze-managed:show-fleet-status`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

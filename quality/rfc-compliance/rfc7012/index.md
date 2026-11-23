@@ -22,7 +22,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Declared gap or no test | 5 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 4 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -31,7 +31,7 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Out of scope | 0 | of 6 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
-| Not applicable | 0 | of 6 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Not applicable | 1 | of 6 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Met below Ze | 0 | of 6 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 6 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Linux cannot do this | 0 | of 6 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 6 |
 | Mandatory requirements (MUST level) | 6 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 5 |
+| Declared gaps | 4 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
@@ -87,7 +87,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Automatic checks
 
-Included in automatic checks: IPFIX Information Model: exporter role. Six rows after the 2026-09-21 extraction walk: 3 gaps in proof (2.1-2, 2.1-3, 4-2, all enterprise-specific IEs ze never emits), 1 gap for IANA-registry authorship that fits neither not-applicable shape (2.1-1), 1 single-polarity positive (4-1 IE identifier 0 never used) and 1 gap in proof, a MUST NOT added by the walk (2.1-5, a value outside an IE's valid inclusive range must not be exported: no exported IE has a registry Range). The walk deleted six rows that stated RFC 7011 obligations and one SHOULD no sentence of RFC 7012 carries; most of this document's remaining MUSTs bind the author of an IE definition in the IANA registry and are excluded in rfc/extraction/rfc7012.json.
+Included in automatic checks: IPFIX Information Model: exporter role. Six rows after the 2026-09-21 extraction walk: 3 gaps in proof (2.1-2, 2.1-3, 4-2, all enterprise-specific IEs ze never emits), 1 not-applicable for IANA IE-registry specification metadata under Section 2.1 (2.1-1), 1 single-polarity positive (4-1 IE identifier 0 never used) and 1 gap in proof, a MUST NOT added by the walk (2.1-5, a value outside an IE's valid inclusive range must not be exported: no exported IE has a registry Range). The walk deleted six rows that stated RFC 7011 obligations and one SHOULD no sentence of RFC 7012 carries; most of this document's remaining MUSTs bind the author of an IE definition in the IANA registry and are excluded in rfc/extraction/rfc7012.json.
 
 ## Published support status
 
@@ -97,7 +97,7 @@ Included in automatic checks: IPFIX Information Model: exporter role. Six rows a
 
 **Evidence:** unit 1
 
-**Unmet:** RFC7012-2.1-1, RFC7012-2.1-2, RFC7012-2.1-3, RFC7012-2.1-5, RFC7012-4-2
+**Unmet:** RFC7012-2.1-2, RFC7012-2.1-3, RFC7012-2.1-5, RFC7012-4-2
 
 
 ## Coverage
@@ -117,8 +117,8 @@ Included in automatic checks: IPFIX Information Model: exporter role. Six rows a
 
 ## Figures
 
-- **MUST bar**: Ze verified 1, Not built 5
-- **Overview bar**: Ze MUST verified 1, Not built 5
+- **MUST bar**: Ze verified 1, Not built 4
+- **Overview bar**: Ze MUST verified 1, Not owed 1, Not built 4
 
 | Figure | Rows |
 |---|---|
@@ -126,18 +126,18 @@ Included in automatic checks: IPFIX Information Model: exporter role. Six rows a
 | Requirements not reviewed | 0 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 6 |
-| MUST rows kept (the MUST bar) | 6 |
+| MUST rows kept (the MUST bar) | 5 |
 | Ze verified | 1 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 5 |
-| MUST rows not owed | 0 |
+| Not built | 4 |
+| MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 0 |
+| MUST not owed: not-applicable | 1 |
 | SHOULD / MAY rows | 0 |
 | SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
@@ -159,7 +159,7 @@ Source: [data/rfc/rfc7012.json](../../../data/rfc/rfc7012.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7012-2.1-1` | All Information Elements specified for the IPFIX protocol MUST have the following properties defined: name - A unique and meaningful name for the Information Element. elementId - A numeric identifier of the Information Element. If this identifier is used without an enterprise identifier (see [RFC7011] and the definition of enterpriseId listed below), then it is globally unique, and the list of allowed values is administered by IANA. It is used for compact identification of an Information Element when encoding Templates in the protocol. description - The semantics of this Information Element. Describes how this Information Element is derived from the Flow or other information available to the observer. Information Elements of dataType string or octetArray that have length constraints (fixed length, minimum and/or maximum length) MUST note these constraints in their descriptions. dataType - One of the types listed in Section 3.1 of this document or registered in the IANA "IPFIX Information Element Data Types" subregistry. The type space for attributes is constrained to facilitate implementation. The existing type space encompasses most primitive types used in modern programming languages, as well as some derived types (such as ipv4Address) that are common to this domain. status - The status of the specification of this Information Element. Allowed values are 'current' and 'deprecated'. (Section 2.1) | MUST | 2.1 - Information Element properties | **positive:** no positive test. **negative:** no negative test. **{gap}:** the sentence binds whoever specifies an Information Element, the IANA registry and the documents that define IEs, a role ze never fills, and its subject carries a qualifying phrase that fits neither not-applicable shape; ze defines no Information Element and exports only IANA-registered ones (internal/plugins/flowexport/ipfix/ie.go), so it has nothing of its own to test |
+| `RFC7012-2.1-1` | All Information Elements specified for the IPFIX protocol MUST have the following properties defined: name - A unique and meaningful name for the Information Element. elementId - A numeric identifier of the Information Element. If this identifier is used without an enterprise identifier (see [RFC7011] and the definition of enterpriseId listed below), then it is globally unique, and the list of allowed values is administered by IANA. It is used for compact identification of an Information Element when encoding Templates in the protocol. description - The semantics of this Information Element. Describes how this Information Element is derived from the Flow or other information available to the observer. Information Elements of dataType string or octetArray that have length constraints (fixed length, minimum and/or maximum length) MUST note these constraints in their descriptions. dataType - One of the types listed in Section 3.1 of this document or registered in the IANA "IPFIX Information Element Data Types" subregistry. The type space for attributes is constrained to facilitate implementation. The existing type space encompasses most primitive types used in modern programming languages, as well as some derived types (such as ipv4Address) that are common to this domain. status - The status of the specification of this Information Element. Allowed values are 'current' and 'deprecated'. (Section 2.1) | MUST | 2.1 - Information Element properties | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** heading "Information Element Specification Template"; binds IANA; specifying mandatory metadata properties for IPFIX Information Elements binds the IANA registry and IE specification authors; ze is an Exporting Process that defines no Information Element and exports only IANA-registered ones (internal/plugins/flowexport/ipfix/ie.go) |
 | `RFC7012-2.1-2` | Enterprise-specific Information Elements MUST have the following property defined: enterpriseId (Section 2.1) | MUST | 2.1 - Information Element properties | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: internal/plugins/flowexport/ipfix/flow_template.go::BuildFlowTemplate meets it by writing only IANA field specifiers with the Enterprise bit clear, so no enterprise-specific Information Element lacks an enterpriseId; no test asserts it |
 | `RFC7012-2.1-3` | If specifications of enterprise-specific Information Elements are made public and/or if enterprise-specific identifiers are used by the IPFIX protocol outside the enterprise, then the enterprise- specific identifier MUST be made globally unique by combining it with an enterprise identifier. (Section 2.1) | MUST | 2.1 - Information Element properties | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: internal/plugins/flowexport/ipfix/flow_template.go::BuildFlowTemplate meets it by writing only IANA field specifiers with the Enterprise bit clear, so ze uses no enterprise-specific identifier that would need an enterprise number; no test asserts it |
 | `RFC7012-2.1-5` | values for this Information Element outside the range are invalid and MUST NOT be exported. (Section 2.1) | MUST NOT | 2.1 - Information Element properties | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: none of the Information Elements the exporter writes (internal/plugins/flowexport/ipfix/ie.go: elements 1, 2, 4, 7, 8, 10, 11, 12, 14, 16, 17, 27, 28, 85, 86 and 150 to 153) has a Range in the IANA IPFIX registry, so no out-of-range value can be exported; no test asserts it |
@@ -170,7 +170,7 @@ Source: [data/rfc/rfc7012.json](../../../data/rfc/rfc7012.json).
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC7012-2.1-1`](#rfc7012-2.1-1) All Information Elements specified for the IPFIX protocol MUST have the following properties defined: name - A unique and meaningful name for the Information Element. elementId - A numeric identifier of the Information Element. If this identifier is used without an enterprise identifier (see [RFC7011] and the definition of enterpriseId listed below), then it is globally unique, and the list of allowed values is administered by IANA. It is used for compact identification of an Information Element when encoding Templates in the protocol. description - The semantics of this Information Element. Describes how this Information Element is derived from the Flow or other information available to the observer. Information Elements of dataType string or octetArray that have length constraints (fixed length, minimum and/or maximum length) MUST note these constraints in their descriptions. dataType - One of the types listed in Section 3.1 of this document or registered in the IANA "IPFIX Information Element Data Types" subregistry. The type space for attributes is constrained to facilitate implementation. The existing type space encompasses most primitive types used in modern programming languages, as well as some derived types (such as ipv4Address) that are common to this domain. status - The status of the specification of this Information Element. Allowed values are 'current' and 'deprecated'. (Section 2.1) | {gap}, no test | the sentence binds whoever specifies an Information Element, the IANA registry and the documents that define IEs, a role ze never fills, and its subject carries a qualifying phrase that fits neither not-applicable shape; ze defines no Information Element and exports only IANA-registered ones (internal/plugins/flowexport/ipfix/ie.go), so it has nothing of its own to test |
+| [`RFC7012-2.1-1`](#rfc7012-2.1-1) All Information Elements specified for the IPFIX protocol MUST have the following properties defined: name - A unique and meaningful name for the Information Element. elementId - A numeric identifier of the Information Element. If this identifier is used without an enterprise identifier (see [RFC7011] and the definition of enterpriseId listed below), then it is globally unique, and the list of allowed values is administered by IANA. It is used for compact identification of an Information Element when encoding Templates in the protocol. description - The semantics of this Information Element. Describes how this Information Element is derived from the Flow or other information available to the observer. Information Elements of dataType string or octetArray that have length constraints (fixed length, minimum and/or maximum length) MUST note these constraints in their descriptions. dataType - One of the types listed in Section 3.1 of this document or registered in the IANA "IPFIX Information Element Data Types" subregistry. The type space for attributes is constrained to facilitate implementation. The existing type space encompasses most primitive types used in modern programming languages, as well as some derived types (such as ipv4Address) that are common to this domain. status - The status of the specification of this Information Element. Allowed values are 'current' and 'deprecated'. (Section 2.1) | no test | no test carries this requirement id; annotated {not-applicable}: heading "Information Element Specification Template"; binds IANA; specifying mandatory metadata properties for IPFIX Information Elements binds the IANA registry and IE specification authors; ze is an Exporting Process that defines no Information Element and exports only IANA-registered ones (internal/plugins/flowexport/ipfix/ie.go) |
 | [`RFC7012-2.1-2`](#rfc7012-2.1-2) Enterprise-specific Information Elements MUST have the following property defined: enterpriseId (Section 2.1) | {gap}, no test | gap in proof: internal/plugins/flowexport/ipfix/flow_template.go::BuildFlowTemplate meets it by writing only IANA field specifiers with the Enterprise bit clear, so no enterprise-specific Information Element lacks an enterpriseId; no test asserts it |
 | [`RFC7012-2.1-3`](#rfc7012-2.1-3) If specifications of enterprise-specific Information Elements are made public and/or if enterprise-specific identifiers are used by the IPFIX protocol outside the enterprise, then the enterprise- specific identifier MUST be made globally unique by combining it with an enterprise identifier. (Section 2.1) | {gap}, no test | gap in proof: internal/plugins/flowexport/ipfix/flow_template.go::BuildFlowTemplate meets it by writing only IANA field specifiers with the Enterprise bit clear, so ze uses no enterprise-specific identifier that would need an enterprise number; no test asserts it |
 | [`RFC7012-2.1-5`](#rfc7012-2.1-5) values for this Information Element outside the range are invalid and MUST NOT be exported. (Section 2.1) | {gap}, no test | gap in proof: none of the Information Elements the exporter writes (internal/plugins/flowexport/ipfix/ie.go: elements 1, 2, 4, 7, 8, 10, 11, 12, 14, 16, 17, 27, 28, 85, 86 and 150 to 153) has a Range in the IANA IPFIX registry, so no out-of-range value can be exported; no test asserts it |

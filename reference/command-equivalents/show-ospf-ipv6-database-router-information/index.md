@@ -9,7 +9,7 @@ Show the OSPFv3 Router Information LSAs \(RFC 7770\)\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-ospfv3-database-router-information`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

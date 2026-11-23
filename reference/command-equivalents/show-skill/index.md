@@ -9,7 +9,7 @@ Fetch one bundled agent skill by name\.
 - Mode: read\-only\, offline
 - Wire method: `ze-skills:show-skill`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

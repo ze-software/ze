@@ -9,7 +9,7 @@ Show traffic counters for a subscriber\'s PPP interface\.
 - Mode: Read\-only
 - Wire method: `ze-l2tp:session-traffic`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `id`
 - Answer shape: not declared
 - Address fields: none

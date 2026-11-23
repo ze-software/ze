@@ -14,23 +14,23 @@ This file collects information for AI tools in one place. It describes the produ
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 624 CLI commands, 39 config sections, 98 plugin registrations, 66 direct Go dependencies, 46 update reports.
-- Test evidence counts: 53,100+ unit tests, 120+ fuzz targets, 3,200+ end-to-end transcript steps, 420+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
+- Current generated counts: 52 shipped or experimental feature cards, 624 CLI commands, 39 config sections, 98 plugin registrations, 66 direct Go dependencies, 47 update reports.
+- Test evidence counts: 53,500+ unit tests, 120+ fuzz targets, 3,200+ end-to-end transcript steps, 420+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
 - Plans for the release and later improvements (a plan does not mean a feature is ready): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-11-22.
+- Generated date: 2026-11-23.
 
 ## Quality and verification model
 
 Ze tests behavior at several levels because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 53,100+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 53,500+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 120+ fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 422 scenarios across 8 lab suites. The main recorded set has 13 test images; other suites use additional images. Scenarios exchange messages with FRR, BIRD, GoBGP and other real daemons where applicable.
+- Interop: 423 scenarios across 8 lab suites. The main recorded set has 13 test images; other suites use additional images. Scenarios exchange messages with FRR, BIRD, GoBGP and other real daemons where applicable.
 - Verify workflow: `./le verify worktree` runs the whole native verification population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `./le repo` is the narrower handoff gate.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Test at the layer that can observe the behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -60,7 +60,7 @@ These features have code, but still need production testing or have unfinished p
 - PKI Store [secure, experimental]: chips: X.509, TLS; YANG-modelled certificate management; Chain validation, expiry checks; Shared by IPsec, TLS, mutual auth; Local CA issues 24-hour certs to Ze's components; link: https://ze-software.net/reference/feature-status/index.md
 - IPsec VPN [services, experimental]: chips: IKEv2, X.509, EAP; Full IKEv2 engine, rekeying, DPD; NAT-T, keepalive, XFRM interfaces; EAP-MSCHAPv2, EAP-TLS, road warrior; CRL and OCSP revocation checks on EAP-TLS; link: https://ze-software.net/guides/ipsec/index.md
 - L2TPv2 BNG [services, experimental]: chips: PPP, RADIUS, CQM; RFC 2661 LNS and LAC with PPP; RADIUS auth, accounting, CoA; CQM monitoring, shaping, web UI; link: https://ze-software.net/guides/l2tp/index.md
-- PPPoE Access [services, experimental]: chips: RFC 2516, PPP; Access concentrator with PPPoE discovery; Shared PPP driver with L2TP; PAP, CHAP-MD5, and MS-CHAPv2 authentication; link: https://ze-software.net/guides/pppoe/index.md
+- PPPoE Access [services, experimental]: chips: RFC 2516, PPP; Access concentrator with PPPoE discovery; Kernel or VPP session data plane; Shared PPP driver with L2TP; PAP, CHAP-MD5, and MS-CHAPv2 authentication; link: https://ze-software.net/guides/pppoe/index.md
 - Interface Management [services, experimental]: chips: Netlink, DHCP; Ethernet, VLAN, bridge, WireGuard; 8 tunnel kinds, DHCP client; NTP sync, offload tuning, mirroring; Built-in IPv6 Router Advertisements, an alternative to radvd; link: https://ze-software.net/features/interfaces/index.md
 - Firewall [services, experimental]: chips: nftables, NAT; 15 match types, 19 actions; SNAT, DNAT, masquerade; FlowSpec-to-firewall bridge; DNS-sourced address groups, TTL-tracked; link: https://ze-software.net/guides/firewall/index.md
 - VPP Data Plane [services, experimental]: chips: DPDK, GoVPP; FIB programming via GoVPP; MPLS label operations; Per-interface Prometheus metrics; link: https://ze-software.net/guides/vpp/index.md
@@ -109,7 +109,7 @@ Top-level YANG-derived config roots. Child names are direct children only, enoug
 
 - `anomaly`: Behavioral anomaly detection and response subsystem. Two plugins fill this container. anomaly-detect owns the detect subtree and reports incidents on the event bus. anomaly-shape adds the shape subtree and acts on those incidents... Children: detect, observe, shape.
 - `bfd`: BFD control configuration for Ze. The container holds the plugin switch, the reusable profiles, and the sessions an operator pins. A session that BGP or a static route asks for at runtime does not appear here. A... Children: bind-v6, enabled, multi-hop-session, persist-dir, profile, single-hop-session.
-- `bgp`: Border Gateway Protocol routing configuration. A peer inherits from its group defaults. A group inherits from this global level. Children: as-notation, blackhole, bmp, community, defaults, filter, flowspec-redirect-check, group, healthcheck, multipath, peer, rib, route-server, router-id, ....
+- `bgp`: Border Gateway Protocol routing configuration. A peer inherits from its group defaults. A group inherits from this global level. Children: accept-own, aggregate, as-notation, blackhole, bmp, community, defaults, filter, flowspec-redirect-check, group, healthcheck, multipath, peer, rib, ....
 - `bgp-epe`: Instantiate BGP Egress Peer Engineering segments. The internal bgp-epe plugin consumes state events from attached BGP sessions. Each configured peer gets a persistent PeerNode SID index. While its session is established, the... Children: peer, srgb.
 - `bgp-ls-export`: Export native routing state through BGP-LS. Export the running native IGP databases to BGP peers that attach this internal plugin with state/refresh receive and update send grants. Each database snapshot replaces prior... Children: domain.
 - `class-of-service`: Named class-of-service profiles. A profile maps the 3-bit PCP field of an 802.1Q header to an internal priority, in the ingress direction and in the egress direction. An interface leaf and a unit leaf name the... Children: ieee-802.1p.
@@ -127,7 +127,7 @@ Top-level YANG-derived config roots. Child names are direct children only, enoug
 - `kernel`: Kernel route redistribution. Presence enables the plugin. The container carries no leaf, so writing it is the whole configuration. The plugin watches the kernel routing table and emits each route on the redistribute event bus. A route... Children: none.
 - `l2tp`: L2TPv2 tunnel subsystem settings (RFC 2661). L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any content implies the subsystem is enabled. Use 'enabled false' to disable it explicitly, or 'enabled... Children: allow-no-auth, auth, auth-method, authentication, cqm-enabled, enabled, event-ring-size-per-session, hello-interval, hello-retries, lcp, max-logins, max-retransmit, max-sessions, max-tunnels, ....
 - `ldp`: Label Distribution Protocol configuration The engine stays idle until lsr-id carries an address, and it says so in the log. Ze then sends Hello messages to 224.0.0.2 port 646 and opens a TCP session on port 646 to each... Children: hello-hold-time, hello-interval, hop-count-max, interfaces, keepalive-time, lsr-id, transport-address.
-- `mrt`: MRT dump configuration. The container holds the extended-timestamp switch, the add-path switch, the peer filter, the direction, and the three dump streams. Children: add-path, all, direction, extended-timestamp, peer-filter, routes, updates.
+- `mrt`: MRT dump configuration. The container holds the extended-timestamp switch, the peer filter, the direction, and the three dump streams. No leaf chooses the ADD-PATH subtypes of RFC 8050: each record... Children: all, direction, extended-timestamp, peer-filter, routes, updates.
 - `ospf`: OSPFv2 routing instance configuration. The presence of this container starts the OSPFv2 engine, which RFC 2328 defines. The address-family container adds the OSPFv3 families of RFC 5340, and each one runs as a separate... Children: address-family, areas, default-information, extended-link, extended-prefix, fast-reroute, filter, graceful-restart, interfaces, key-chains, max-metric, maximum-paths, opaque, redistribute, ....
 - `pki`: PKI certificate and key store. PKI certificate and key store. Presence of this block enables certificate-based authentication for IPsec VPN, TLS, and other subsystems. Children: ca, certificate.
 - `plugin`: Plugin configuration Declares the plugins this daemon runs, and the hub transport they connect back over. A built-in plugin that claims a configured address family starts with no block here, because... Children: external, hub, internal.
@@ -930,7 +930,7 @@ Vendors: Junos MX (object-rooted), IOS XR (family-rooted-for-routing), SR OS (in
 - BGP: Pause or resume a BGP peer without deleting configuration. Ze: `request peer pause`, `request peer resume`.
 - BGP: Stream live BGP events or updates. Ze: `monitor bgp`.
 - BGP: BMP collector, peer, and session visibility. Ze: `show bmp sessions`, `show bmp peers`, `show bmp collectors`, `show bmp rib`.
-- BGP: RPKI cache and validation session state. Ze: `show bgp rpki`, `show bgp rpki status`, `show bgp rpki summary`, `show bgp rpki cache`, `show bgp rpki roa`, `show bgp rpki aspa`. Junos MX: `show validation session` (operational, verified). IOS XR: `show bgp rpki server summary` (operational, verified). VyOS: `show rpki cache-connection` (operational, verified).
+- BGP: RPKI cache and validation session state. Ze: `show bgp rpki`, `show bgp rpki status`, `show bgp rpki summary`, `show bgp rpki cache`, `show bgp rpki roa`, `show bgp rpki aspa`. Junos MX: `show validation session` (operational, unknown). IOS XR: `show bgp rpki server summary` (operational, unknown). VyOS: `show rpki cache-connection` (operational, verified).
 - Routing: Routing table. Ze: `show route`. Junos MX: `show route` (operational, verified). VyOS: `show ip route` (operational, verified).
 - Routing: Route lookup for a prefix or address. Ze: `show route lookup`. Junos MX: `show route <prefix>` (operational, verified). VyOS: `show ip route <prefix>` (operational, verified).
 - Routing: Static route configuration or state. Ze: `show static`.
@@ -962,14 +962,13 @@ Vendors: Junos MX (object-rooted), IOS XR (family-rooted-for-routing), SR OS (in
 - Diagnostics: Ping reachability check. Ze: `show ping`, `resolve ping`. SR OS: `ping <target>` (operational, verified). VyOS: `ping <target>` (operational, verified).
 - Diagnostics: Traceroute path diagnostic. Ze: `show traceroute`, `resolve traceroute`. VyOS: `traceroute <target>` (operational, verified).
 - Diagnostics: DNS lookup and cache inspection. Ze: `show dns cache list`, `show dns cache record`, `show dns cache stats`, `show dns lookup`, `resolve dns a`, `resolve dns aaaa`, `resolve dns ptr`. VyOS: `show dns` (operational, verified).
-- Configuration: Show running configuration. Ze: `show config dump`. VyOS: `show configuration` (operational, verified).
-- Configuration: Compare candidate and running configuration. Ze: `show config diff`. VyOS: `compare` (configuration, verified).
+- Configuration: Show running, candidate, and diffed configuration. Ze: `show config dump`, `show config diff`, `show config history`, `show config fmt`. VyOS: `show configuration` (operational, verified); `compare` (configuration, verified).
 - Configuration: Validate and commit configuration. Ze: `request commit`. VyOS: `commit` (configuration, verified).
 - Lifecycle: Reload configuration without rebooting. Ze: `request reload`.
 - Lifecycle: Reboot the system. Ze: `request reboot`. VyOS: `reboot` (operational, verified).
 - Lifecycle: Halt or power off the system. Ze: `request halt`, `request shutdown`. VyOS: `poweroff` (operational, verified).
 - Security: Certificate inventory. Ze: `show pki certificates`, `show pki certificate name`.
-- Vendor-only gaps: LLDP neighbor discovery. Ze: . Junos MX: `show lldp neighbors` (operational, verified). IOS XR: `show lldp neighbors` (operational, verified). VyOS: `show lldp neighbors` (operational, verified).
+- Vendor-only gaps: LLDP neighbor discovery. Ze: . Junos MX: `show lldp neighbors` (operational, unknown). IOS XR: `show lldp neighbors` (operational, unknown). VyOS: `show lldp neighbors` (operational, verified).
 - Vendor-only gaps: NAT translations and pools. Ze: . VyOS: `show nat source translations` (operational, verified).
 
 ## Dependency rationale
@@ -1063,7 +1062,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [How Ze is developed with AI](https://ze-software.net/project/ai-development/index.md): Most of Ze's code is written by AI coding agents. I know that makes some people uneasy, and I understand why. (web: https://ze-software.net/project/ai-development/)
 - [Ze Architecture](https://ze-software.net/architecture/index.md): A one-page guide to how Ze is structured. For the full design document with rationale, wire format details, and performance analysis, see DESIGN.md. For the canonical architecture reference, see... (web: https://ze-software.net/architecture/)
 - [API Commands](https://ze-software.net/architecture/api/commands/index.md): Source: ExaBGP `reactor/api/command/`, `reactor/api/dispatch/` Purpose: Document all API commands for compatibility (web: https://ze-software.net/architecture/api/commands/)
-- [Configuration Syntax Changes](https://ze-software.net/reference/deprecations/index.md): Ze has not shipped a release, so there is no deprecation lifecycle for its config syntax and no path that rewrites an older form of it. When the syntax changes, the configurations in the repository are converted in the... (web: https://ze-software.net/reference/deprecations/)
+- [Configuration Syntax Changes](https://ze-software.net/reference/deprecations/index.md): Ze has not shipped a stable release, so there is no deprecation lifecycle for its config syntax. The infrastructure that converts a config written in an older format of Ze's own syntax is kept: `ze config migrate` and... (web: https://ze-software.net/reference/deprecations/)
 - [Interoperability Testing](https://ze-software.net/architecture/testing/interop/index.md): Ze validates protocol correctness against production BGP daemons in two complementary ways: live session interop tests (Docker containers running real daemons) and byte-level wire format validation against ExaBGP (Ze's... (web: https://ze-software.net/architecture/testing/interop/)
 - [Ze Features](https://ze-software.net/reference/feature-status/index.md): Ze is an open-source configuration and protocol engine written in Go. The network operating system built on it runs on any Linux or as a gokrazy appliance. (web: https://ze-software.net/reference/feature-status/)
 - [AI-First Design](https://ze-software.net/features/ai-first/index.md): Ze uses shared registrations to describe commands and configuration. The CLI, MCP and other operator interfaces read this metadata for the surfaces they support. AI tools can discover the command catalog, call daemon... (web: https://ze-software.net/features/ai-first/)
@@ -1187,6 +1186,11 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [FlowSpec Injection](https://ze-software.net/use-cases/flowspec-injection/index.md): Use Ze to inject or relay BGP FlowSpec rules when an automation system must distribute traffic filters to routers. Keep the route source, policy, and withdrawal path explicit because a stale FlowSpec rule can affect... (web: https://ze-software.net/use-cases/flowspec-injection/)
 - [Chaos-Tested BGP Peering](https://ze-software.net/use-cases/chaos-tested-peering/index.md): Use `le chaos run` before deployment to check that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not. (web: https://ze-software.net/use-cases/chaos-tested-peering/)
 - [AS-Path Topology](https://ze-software.net/use-cases/as-path-topology/index.md): Use the built-in Looking Glass to turn the AS paths for a prefix into a topology view. The graph is an operational aid for comparing what different peers advertise, not a complete map of the Internet. (web: https://ze-software.net/use-cases/as-path-topology/)
+- [Home and SMB FTTP CPE](https://ze-software.net/use-cases/fttp-cpe/index.md): Use Ze as a single-box Linux CPE on a PPPoE fiber circuit: terminate PPPoE on the WAN interface, request an IPv6 prefix via DHCPv6-PD, advertise delegated `/64` subnets on the LAN via Router Advertisements, serve DHCPv4... (web: https://ze-software.net/use-cases/fttp-cpe/)
+- [Site-to-site IPsec and WireGuard VPN](https://ze-software.net/use-cases/site-to-site-vpn/index.md): Connect branch offices or cloud sites to a Linux router using Ze's native IKEv2 IPsec stack (programmed directly into Linux XFRM VTI interfaces) or kernel WireGuard interfaces, paired with static or dynamic routing... (web: https://ze-software.net/use-cases/site-to-site-vpn/)
+- [Campus and IGP edge (OSPF, IS-IS, BFD, and VRRP)](https://ze-software.net/use-cases/igp-edge/index.md): Deploy Ze as a campus or distribution router without BGP: pair OSPFv2 (with single-hop BFD fast failure detection) or dual-stack IS-IS with VRRPv3 first-hop redundancy and uplink interface tracking. (web: https://ze-software.net/use-cases/igp-edge/)
+- [Fleet configuration management](https://ze-software.net/use-cases/fleet-management/index.md): Manage a fleet of Ze routers from a central Ze hub over authenticated TLS connections: enroll devices against the hub's CA, push live configuration edits with zero daemon restart, prevent accidental out-of-band drift... (web: https://ze-software.net/use-cases/fleet-management/)
+- [Immutable appliance A/B lifecycle and safe rollback](https://ze-software.net/use-cases/appliance-lifecycle/index.md): Build a self-contained read-only Ze appliance image on gokrazy, deploy OS updates to the inactive A/B root slot with `--testboot` before committing permanently, protect live configuration changes with timed `commit... (web: https://ze-software.net/use-cases/appliance-lifecycle/)
 
 ## Page map
 
@@ -1195,7 +1199,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ## Start
 
 ### Install
-- [Install Ze](https://ze-software.net/guides/ze-install/index.md): Build from source and install with sudo ./ze install, or compare Linux, Docker, VM and lab (web: https://ze-software.net/guides/ze-install/)
+- [Install Ze](https://ze-software.net/guides/ze-install/index.md): One command installs Ze: sudo ze install. Compare Linux, Docker, VM and lab (web: https://ze-software.net/guides/ze-install/)
 - [Quickstart](https://ze-software.net/guides/quickstart/index.md): Two local BGP peers and a received route (web: https://ze-software.net/guides/quickstart/)
 - [Build and install on Linux](https://ze-software.net/guides/ubuntu-build-install/index.md): Build Ze, then install, upgrade or remove it with its own CLI (web: https://ze-software.net/guides/ubuntu-build-install/)
 - [Docker](https://ze-software.net/guides/docker/index.md): Keep configuration and login across container recreation (web: https://ze-software.net/guides/docker/)
@@ -1244,6 +1248,8 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Transit edge with RPKI](https://ze-software.net/use-cases/transit-edge-rpki/index.md): Dual-transit policy and tested failover (web: https://ze-software.net/use-cases/transit-edge-rpki/)
 - [FlowSpec injection](https://ze-software.net/use-cases/flowspec-injection/index.md): Authorized, atomic, reversible mitigation routes (web: https://ze-software.net/use-cases/flowspec-injection/)
 - [ExaBGP migration](https://ze-software.net/use-cases/exabgp-migration/index.md): Migrate process scripts to Ze (web: https://ze-software.net/use-cases/exabgp-migration/)
+- [FTTP CPE](https://ze-software.net/use-cases/fttp-cpe/index.md): PPPoE, DHCPv6-PD, RA, DHCPv4, DNS, and NAT (web: https://ze-software.net/use-cases/fttp-cpe/)
+- [Site-to-site VPN](https://ze-software.net/use-cases/site-to-site-vpn/index.md): Native IKEv2 XFRM and WireGuard tunnels (web: https://ze-software.net/use-cases/site-to-site-vpn/)
 - [Completion by use case](https://ze-software.net/quality/rfc-compliance/profiles/index.md): RFC requirements proven for each use case (web: https://ze-software.net/quality/rfc-compliance/profiles/)
 ### Labs and demonstrations
 - [Testing labs](https://ze-software.net/labs/index.md): Interop labs you can run against real daemons (web: https://ze-software.net/labs/)
@@ -1273,12 +1279,12 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Project overview](https://ze-software.net/project/index.md): Progress, history, talks, and contribution paths (web: https://ze-software.net/project/)
 - [Activity](https://ze-software.net/project/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/project/activity/)
 - [Milestones](https://ze-software.net/project/milestones/index.md): Landmark features, newest to oldest (web: https://ze-software.net/project/milestones/)
-- [Changes](https://ze-software.net/project/changes/index.md): 46 update reports, what shipped (web: https://ze-software.net/project/changes/)
+- [Changes](https://ze-software.net/project/changes/index.md): 47 update reports, what shipped (web: https://ze-software.net/project/changes/)
 - [Project history](https://ze-software.net/project/history/index.md): How ExaBGP's programmable model grew into Ze (web: https://ze-software.net/project/history/)
 - [Roadmap](https://ze-software.net/project/roadmap/index.md): Planned changes and remaining release work, awaiting prioritization (web: https://ze-software.net/project/roadmap/)
 ### Community and notes
 - [FAQ](https://ze-software.net/faq/index.md): Common questions before trying Ze (web: https://ze-software.net/faq/)
-- [Blog](https://ze-software.net/blog/index.md): Engineering essays on architecture, testing, and AI-assisted development (web: https://ze-software.net/blog/)
+- [Blog](https://ze-software.net/blog/index.md): Project notes and release stories (web: https://ze-software.net/blog/)
 - [Talks](https://ze-software.net/talks/index.md): Talk slides and conference material (web: https://ze-software.net/talks/)
 - [Contribute](https://ze-software.net/contribute/index.md): How to send code, reports, and interop results (web: https://ze-software.net/contribute/)
 - [Contributor testing](https://ze-software.net/contribute/testing/index.md): How to choose and run the right test layer (web: https://ze-software.net/contribute/testing/)

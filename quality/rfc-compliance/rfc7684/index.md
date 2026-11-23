@@ -22,7 +22,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Declared gap or no test | 3 | of 9 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 1 | of 9 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -31,7 +31,7 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Out of scope | 0 | of 9 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
-| Not applicable | 0 | of 9 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Not applicable | 2 | of 9 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Met below Ze | 0 | of 9 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 9 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Linux cannot do this | 0 | of 9 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 20 |
 | Mandatory requirements (MUST level) | 9 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 3 |
+| Declared gaps | 1 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
@@ -97,7 +97,7 @@ Included in automatic checks: OSPFv2 Extended Prefix and Extended Link Opaque LS
 
 **Evidence:** unit 4
 
-**Unmet:** RFC7684-4-1, RFC7684-6.5-1, RFC7684-6.5-2
+**Unmet:** RFC7684-4-1
 
 
 ## Coverage
@@ -119,8 +119,8 @@ Included in automatic checks: OSPFv2 Extended Prefix and Extended Link Opaque LS
 
 ## Figures
 
-- **MUST bar**: Ze verified 4, Tests awaiting verification 2, Not built 3
-- **Overview bar**: Ze MUST verified 4, Tests awaiting verification 2, Not assessed 11, Not built 3
+- **MUST bar**: Ze verified 4, Tests awaiting verification 2, Not built 1
+- **Overview bar**: Ze MUST verified 4, Not owed 2, Tests awaiting verification 2, Not assessed 11, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -128,18 +128,18 @@ Included in automatic checks: OSPFv2 Extended Prefix and Extended Link Opaque LS
 | Requirements not reviewed | 0 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 9 |
-| MUST rows kept (the MUST bar) | 9 |
+| MUST rows kept (the MUST bar) | 7 |
 | Ze verified | 4 |
 | OS verified | 0 |
 | Tests awaiting verification | 2 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 3 |
-| MUST rows not owed | 0 |
+| Not built | 1 |
+| MUST rows not owed | 2 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 0 |
+| MUST not owed: not-applicable | 2 |
 | SHOULD / MAY rows | 11 |
 | SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
@@ -168,8 +168,8 @@ Source: [data/rfc/rfc7684.json](../../../data/rfc/rfc7684.json).
 | `RFC7684-3.1-1` | Only one OSPFv2 Extended Link TLV SHALL be advertised in each OSPFv2 Extended Link Opaque LSA (§3.1) -- origination emits one per LSA; decode uses the first and logs extras | SHALL | 3.1 | **positive:** `unit/verify` [`TestExtLinkMirrorsRouterLSALink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_link_origin_test.go#L46). **negative:** `unit/verify` [`TestExtLinkSingleTLVEnforced`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L74) |
 | `RFC7684-4-1` | However, future OSPFv2 applications utilizing these extensions MUST address backward compatibility of the corresponding functionality. (§4) -- containers only; empty-container LSAs are conformant, sub-TLV values left to RFC 8665 | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** an obligation on future OSPFv2 application specifications, which no sentence of Section 4 scopes to a role in a form the gate accepts (the row's own sentence opens with However and a comma); ze originates backward-compatible empty Extended Prefix and Link containers (internal/plugins/ospf/ext_prefix.go::extPrefixOnOriginate, internal/plugins/ospf/ext_link.go), and no test asserts it |
 | `RFC7684-5-1` | Additionally, implementations must assure that malformed TLV and sub-TLV permutations are detected and do not provide a vulnerability for attackers to crash the OSPFv2 router or routing process. (§5) -- bound-checked decode returns an error, never panics; extended in the packet fuzz target | MUST | 5 | **positive:** `unit/verify` [`TestExtLinkTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_link_test.go#L25). **positive:** `unit/verify` [`TestExtPrefixTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go#L28). **positive:** `unit/verify` [`TestRFC7684MalformedPermutationsDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L27). **negative:** `unit/verify` [`FuzzOSPFExtLinkBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L111). **negative:** `unit/verify` [`FuzzOSPFExtPrefixBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_fuzz_test.go#L91). **negative:** `unit/verify` [`TestExtPrefixMalformedCounted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go#L160). **negative:** `unit/verify` [`TestRFC7684MalformedPermutationsDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7684_malformed_test.go#L30) |
-| `RFC7684-6.5-1` | Types in the range 32768-33023 are for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4 | MUST NOT | 6.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** an IANA registry rule with no implementer role the RFC names; ze defines and emits no TLV or sub-TLV type in the 32768-33023 Experimental Use range (internal/plugins/ospf/ext_prefix.go, internal/plugins/ospf/ext_link.go), and no test asserts it |
-| `RFC7684-6.5-2` | Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA considerations covering the range being assigned. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4 | MUST | 6.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** an IANA allocation rule with no implementer role the RFC names; ze assigns and emits no TLV or sub-TLV type in the 33024-65535 range (internal/plugins/ospf/ext_prefix.go, internal/plugins/ospf/ext_link.go), and no test asserts it |
+| `RFC7684-6.5-1` | Types in the range 32768-33023 are for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4 | MUST NOT | 6.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** heading "IANA Considerations"; binds IANA; prohibiting registration or RFC mention of Experimental Use TLV/sub-TLV types 32768-33023 binds IANA and RFC authors; ze is a router and defines or emits no TLV or sub-TLV type in that range (internal/plugins/ospf/ext_prefix.go, internal/plugins/ospf/ext_link.go) |
+| `RFC7684-6.5-2` | Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA considerations covering the range being assigned. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4 | MUST | 6.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** heading "IANA Considerations"; binds IANA; requiring an IETF specification before allocating types in 33024-65535 binds IANA and the IETF assignment process; ze is a router and assigns or emits no TLV or sub-TLV type in that range (internal/plugins/ospf/ext_prefix.go, internal/plugins/ospf/ext_link.go) |
 | `RFC7684-2-1` | If multiple OSPFv2 Extended Prefix Opaque LSAs include the same prefix, the attributes from the Opaque LSA with the lowest Opaque ID SHOULD be used. (§2) -- `extReceiver.applyPrefix` | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7684-2.1-4` | A-Flag (Attach Flag): An Area Border Router (ABR) generating an OSPFv2 Extended Prefix TLV for an inter-area prefix that is locally connected or attached in another connected area SHOULD set this flag. (§2.1) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7684-2.1-5` | If this TLV is advertised multiple times for the same prefix in the same OSPFv2 Extended Prefix Opaque LSA, only the first instance of the TLV is used by receiving OSPFv2 routers. This situation SHOULD be logged as an error. (§2.1) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test |
@@ -187,8 +187,8 @@ Source: [data/rfc/rfc7684.json](../../../data/rfc/rfc7684.json).
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC7684-4-1`](#rfc7684-4-1) However, future OSPFv2 applications utilizing these extensions MUST address backward compatibility of the corresponding functionality. (§4) -- containers only; empty-container LSAs are conformant, sub-TLV values left to RFC 8665 | {gap}, no test | an obligation on future OSPFv2 application specifications, which no sentence of Section 4 scopes to a role in a form the gate accepts (the row's own sentence opens with However and a comma); ze originates backward-compatible empty Extended Prefix and Link containers (internal/plugins/ospf/ext_prefix.go::extPrefixOnOriginate, internal/plugins/ospf/ext_link.go), and no test asserts it |
-| [`RFC7684-6.5-1`](#rfc7684-6.5-1) Types in the range 32768-33023 are for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4 | {gap}, no test | an IANA registry rule with no implementer role the RFC names; ze defines and emits no TLV or sub-TLV type in the 32768-33023 Experimental Use range (internal/plugins/ospf/ext_prefix.go, internal/plugins/ospf/ext_link.go), and no test asserts it |
-| [`RFC7684-6.5-2`](#rfc7684-6.5-2) Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA considerations covering the range being assigned. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4 | {gap}, no test | an IANA allocation rule with no implementer role the RFC names; ze assigns and emits no TLV or sub-TLV type in the 33024-65535 range (internal/plugins/ospf/ext_prefix.go, internal/plugins/ospf/ext_link.go), and no test asserts it |
+| [`RFC7684-6.5-1`](#rfc7684-6.5-1) Types in the range 32768-33023 are for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4 | no test | no test carries this requirement id; annotated {not-applicable}: heading "IANA Considerations"; binds IANA; prohibiting registration or RFC mention of Experimental Use TLV/sub-TLV types 32768-33023 binds IANA and RFC authors; ze is a router and defines or emits no TLV or sub-TLV type in that range (internal/plugins/ospf/ext_prefix.go, internal/plugins/ospf/ext_link.go) |
+| [`RFC7684-6.5-2`](#rfc7684-6.5-2) Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA considerations covering the range being assigned. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4 | no test | no test carries this requirement id; annotated {not-applicable}: heading "IANA Considerations"; binds IANA; requiring an IETF specification before allocating types in 33024-65535 binds IANA and the IETF assignment process; ze is a router and assigns or emits no TLV or sub-TLV type in that range (internal/plugins/ospf/ext_prefix.go, internal/plugins/ospf/ext_link.go) |
 
 ## Test status
 

@@ -9,7 +9,7 @@ Show the OSPFv3 \(IPv6\) neighbors\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-ospfv3-neighbor`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`
 - Answer shape: tab
 - Address fields: none

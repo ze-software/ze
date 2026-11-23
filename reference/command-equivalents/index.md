@@ -1,6 +1,6 @@
 # Command Equivalents
 
-624 live Ze commands. 47 have vendor CLI today. 99 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+624 live Ze commands. 49 have vendor CLI today. 101 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -31,8 +31,10 @@ These rows have at least one listed vendor command.
 | `show bgp rpki roa` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-roa/) |
 | `show bgp rpki status` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-status/) |
 | `show bgp rpki summary` | Read-only | `show validation session` | `show bgp rpki server summary` | - | `show rpki cache-connection` | [details](show-bgp-rpki-summary/) |
-| `show config diff` | read-only, offline | - | - | - | `compare` | [details](show-config-diff/) |
-| `show config dump` | read-only, offline | - | - | - | `show configuration` | [details](show-config-dump/) |
+| `show config diff` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-diff/) |
+| `show config dump` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-dump/) |
+| `show config fmt` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-fmt/) |
+| `show config history` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-history/) |
 | `show dns cache list` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-list/) |
 | `show dns cache record` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-record/) |
 | `show dns cache stats` | Read-only | - | - | - | `show dns` | [details](show-dns-cache-stats/) |
@@ -428,13 +430,13 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show config artifact transfer read` | Read-only | - | - | - | - | [details](show-config-artifact-transfer-read/) |
 | `show config cat` | read-only, offline | - | - | - | - | [details](show-config-cat/) |
 | `show config deactivate` | read-only, offline | - | - | - | - | [details](show-config-deactivate/) |
-| `show config diff` | read-only, offline | - | - | - | `compare` | [details](show-config-diff/) |
-| `show config dump` | read-only, offline | - | - | - | `show configuration` | [details](show-config-dump/) |
+| `show config diff` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-diff/) |
+| `show config dump` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-dump/) |
 | `show config environment-validation` | read-only, offline | - | - | - | - | [details](show-config-environment-validation/) |
 | `show config fix-plan` | read-only, offline | - | - | - | - | [details](show-config-fix-plan/) |
-| `show config fmt` | read-only, offline | - | - | - | - | [details](show-config-fmt/) |
+| `show config fmt` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-fmt/) |
 | `show config graph` | read-only, offline | - | - | - | - | [details](show-config-graph/) |
-| `show config history` | read-only, offline | - | - | - | - | [details](show-config-history/) |
+| `show config history` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-history/) |
 | `show config list` | read-only, offline | - | - | - | - | [details](show-config-list/) |
 | `show config migrate` | read-only, offline | - | - | - | - | [details](show-config-migrate/) |
 | `show config replace` | read-only, offline | - | - | - | - | [details](show-config-replace/) |
@@ -770,4 +772,4 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | Intent | Junos MX | IOS XR | SR OS | VyOS | Notes |
 | --- | --- | --- | --- | --- | --- |
 | LLDP neighbor discovery | `show lldp neighbors` | `show lldp neighbors` | - | `show lldp neighbors` | No Ze LLDP subsystem is present in the live command catalog. |
-| NAT translations and pools | - | - | - | `show nat source translations` | No dedicated Ze NAT translation inspection command is present in the live command catalog; NAT rules live in firewall chains. |
+| NAT translations and pools | - | - | - | `show nat source translations` | No Ze NAT command is present in the live command catalog. |

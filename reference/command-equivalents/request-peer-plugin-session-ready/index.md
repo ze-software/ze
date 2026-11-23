@@ -9,7 +9,7 @@ Signal that per\-peer plugin setup is complete\.
 - Mode: Daemon
 - Wire method: `ze-bgp:plugin-session-peer-ready`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

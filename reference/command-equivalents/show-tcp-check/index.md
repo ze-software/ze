@@ -9,7 +9,7 @@ Test TCP connectivity to a remote host and port\.
 - Mode: Read\-only
 - Wire method: `ze-diag:show-tcp-check`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

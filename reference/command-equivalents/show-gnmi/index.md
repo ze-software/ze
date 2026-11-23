@@ -9,7 +9,7 @@ Show whether the gNMI server is running and how it is configured\.
 - Mode: Read\-only
 - Wire method: `ze-gnmi:show-gnmi`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

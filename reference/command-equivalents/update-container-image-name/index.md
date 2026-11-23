@@ -9,7 +9,7 @@ Fetch the named container\'s image again and move it to a new digest\.
 - Mode: Daemon
 - Wire method: `ze-container:update-image`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

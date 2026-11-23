@@ -9,7 +9,7 @@ Show what log level each subsystem is using\.
 - Mode: Read\-only
 - Wire method: `ze-log:bgp-log-levels`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

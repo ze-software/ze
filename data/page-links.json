@@ -854,6 +854,31 @@
               "href": "use-cases/as-path-topology/",
               "label": "AS-path topology",
               "desc": "Investigate route visibility in the Looking Glass."
+            },
+            {
+              "href": "use-cases/fttp-cpe/",
+              "label": "Home and SMB FTTP CPE",
+              "desc": "PPPoE, DHCPv6-PD, RA, DHCPv4, LAN DNS, and NAT."
+            },
+            {
+              "href": "use-cases/site-to-site-vpn/",
+              "label": "Site-to-site IPsec and WireGuard",
+              "desc": "Route-based IKEv2 XFRM and WireGuard tunnels."
+            },
+            {
+              "href": "use-cases/igp-edge/",
+              "label": "Campus and IGP edge",
+              "desc": "OSPF with BFD or dual-stack IS-IS plus VRRPv3."
+            },
+            {
+              "href": "use-cases/fleet-management/",
+              "label": "Fleet configuration management",
+              "desc": "Central TLS hub, live pushes, and audited divergence."
+            },
+            {
+              "href": "use-cases/appliance-lifecycle/",
+              "label": "Immutable appliance lifecycle",
+              "desc": "Gokrazy A/B testboot, commit confirmed, and ZeFS backup."
             }
           ]
         },

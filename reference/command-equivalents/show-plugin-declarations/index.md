@@ -9,7 +9,7 @@ Show what each plugin declares about its command surface\.
 - Mode: read\-only\, offline
 - Wire method: `ze-plugin:show-declarations`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `config`
 - Answer shape: tab
 - Address fields: none

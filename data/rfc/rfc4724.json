@@ -8,13 +8,13 @@
   "must": {
     "total": 26,
     "kept": 26,
-    "ze-proven": 18,
+    "ze-proven": 26,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 8,
+    "not-built": 0,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -32,16 +32,7 @@
   },
   "proven-by-kind": {
     "interop": 1,
-    "unit": 17
+    "unit": 25
   },
-  "unmet": [
-    "RFC4724-4.1-1",
-    "RFC4724-4.1-2",
-    "RFC4724-4.1-3",
-    "RFC4724-4.1-5",
-    "RFC4724-4.1-6",
-    "RFC4724-4.1-8",
-    "RFC4724-4.2-1",
-    "RFC4724-4.2-2"
-  ]
+  "unmet": []
 }

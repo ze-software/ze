@@ -9,7 +9,7 @@ Watch IPsec SA events as they happen\.
 - Mode: Read\-only
 - Wire method: `ze-ike:monitor-vpn-ipsec`
 - Backends: any backend
-- Task support: required\: the MCP server always answers with a task handle
+- Task support: required: the MCP server always answers with a task handle
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

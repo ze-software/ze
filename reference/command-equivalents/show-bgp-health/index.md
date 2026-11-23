@@ -9,7 +9,7 @@ Quick health check for all your BGP peers\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:show-health`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: peer

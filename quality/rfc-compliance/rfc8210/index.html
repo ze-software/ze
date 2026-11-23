@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8210 requirements and tests - Ze</title>
-        <meta name="description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 59 mandatory requirements included in automatic checks, 25 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 59 mandatory requirements included in automatic checks, 22 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8210 requirements and tests - Ze" />
-        <meta property="og:description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 59 mandatory requirements included in automatic checks, 25 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 59 mandatory requirements included in automatic checks, 22 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8210 requirements and tests - Ze" />
-        <meta name="twitter:description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 59 mandatory requirements included in automatic checks, 25 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 59 mandatory requirements included in automatic checks, 22 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -128,23 +128,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>28</strong><b>of 59 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>30</strong><b>of 59 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5</strong><b>of 59 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 59 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 59 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>76</strong><b>76 of 99 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>88</strong><b>88 of 103 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>23</strong><b>of 59 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>33</strong><b>of 59 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>20</strong><b>of 59 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>35</strong><b>of 59 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 59 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>3</strong><b>of 59 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>4</strong><b>of 59 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 59 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 59 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 59 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
@@ -239,7 +239,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>25</td>
+<td>22</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -251,16 +251,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>104</td>
+<td>108</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>99</td>
+<td>103</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>33</td>
+<td>35</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>84</td>
+<td>88</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8210.md</code></td>
@@ -280,9 +280,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RPKI RTR v1</p>
-<p><strong>Test verification:</strong> 29 of 59 MUST proven</p>
-<p><strong>Evidence:</strong> unit 29</p>
-<p><strong>Unmet:</strong> RFC8210-2-1, RFC8210-4-2, RFC8210-4-3, RFC8210-5.10-1, RFC8210-5.10-2, RFC8210-5.11-2, RFC8210-5.11-3, RFC8210-5.3-1, RFC8210-5.3-2, RFC8210-5.5-1, RFC8210-5.6-1, RFC8210-5.8-1, RFC8210-7-2, RFC8210-9-2, RFC8210-9.1-2, RFC8210-9.1-5, RFC8210-9.2-12, RFC8210-9.2-3, RFC8210-9.2-6, RFC8210-9.2-9, RFC8210-9.3-1, RFC8210-9.3-2, RFC8210-9.4-1, RFC8210-9.4-2, RFC8210-9.4-3</p>
+<p><strong>Test verification:</strong> 35 of 59 MUST proven</p>
+<p><strong>Evidence:</strong> unit 35</p>
+<p><strong>Unmet:</strong> RFC8210-2-1, RFC8210-4-2, RFC8210-4-3, RFC8210-5.10-1, RFC8210-5.11-3, RFC8210-5.3-1, RFC8210-5.3-2, RFC8210-5.5-1, RFC8210-5.6-1, RFC8210-5.8-1, RFC8210-7-2, RFC8210-9.1-2, RFC8210-9.1-5, RFC8210-9.2-12, RFC8210-9.2-3, RFC8210-9.2-6, RFC8210-9.2-9, RFC8210-9.3-1, RFC8210-9.3-2, RFC8210-9.4-1, RFC8210-9.4-2, RFC8210-9.4-3</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -291,11 +291,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>28</strong></td>
+<td><strong>30</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>31</strong></td>
+<td><strong>29</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Only a positive or negative test</td>
@@ -322,14 +322,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (28):</strong> <a href="#rfc8210-5-1"><code>RFC8210-5-1</code></a>, <a href="#rfc8210-5.1-1"><code>RFC8210-5.1-1</code></a>, <a href="#rfc8210-5.1-2"><code>RFC8210-5.1-2</code></a>, <a href="#rfc8210-5.1-3"><code>RFC8210-5.1-3</code></a>, <a href="#rfc8210-5.1-4"><code>RFC8210-5.1-4</code></a>, <a href="#rfc8210-5.1-5"><code>RFC8210-5.1-5</code></a>, <a href="#rfc8210-5.11-1"><code>RFC8210-5.11-1</code></a>, <a href="#rfc8210-6-2"><code>RFC8210-6-2</code></a>, <a href="#rfc8210-7-3"><code>RFC8210-7-3</code></a>, <a href="#rfc8210-5.2-1"><code>RFC8210-5.2-1</code></a>, <a href="#rfc8210-7-4"><code>RFC8210-7-4</code></a>, <a href="#rfc8210-4-1"><code>RFC8210-4-1</code></a>, <a href="#rfc8210-8.3-1"><code>RFC8210-8.3-1</code></a>, <a href="#rfc8210-12-1"><code>RFC8210-12-1</code></a>, <a href="#rfc8210-9-3"><code>RFC8210-9-3</code></a>, <a href="#rfc8210-9.2-1"><code>RFC8210-9.2-1</code></a>, <a href="#rfc8210-9.2-2"><code>RFC8210-9.2-2</code></a>, <a href="#rfc8210-9.2-4"><code>RFC8210-9.2-4</code></a>, <a href="#rfc8210-9.2-5"><code>RFC8210-9.2-5</code></a>, <a href="#rfc8210-10-1"><code>RFC8210-10-1</code></a>, <a href="#rfc8210-7-7"><code>RFC8210-7-7</code></a>, <a href="#rfc8210-9.2-8"><code>RFC8210-9.2-8</code></a>, <a href="#rfc8210-10-2"><code>RFC8210-10-2</code></a>, <a href="#rfc8210-9.2-10"><code>RFC8210-9.2-10</code></a>, <a href="#rfc8210-8.4-1"><code>RFC8210-8.4-1</code></a>, <a href="#rfc8210-3-1"><code>RFC8210-3-1</code></a>, <a href="#rfc8210-8.1-3"><code>RFC8210-8.1-3</code></a>, <a href="#rfc8210-9.2-11"><code>RFC8210-9.2-11</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (31):</strong> <a href="#rfc8210-5.3-1"><code>RFC8210-5.3-1</code></a>, <a href="#rfc8210-5.3-2"><code>RFC8210-5.3-2</code></a>, <a href="#rfc8210-5.5-1"><code>RFC8210-5.5-1</code></a>, <a href="#rfc8210-5.6-1"><code>RFC8210-5.6-1</code></a>, <a href="#rfc8210-5.10-1"><code>RFC8210-5.10-1</code></a>, <a href="#rfc8210-5.10-2"><code>RFC8210-5.10-2</code></a>, <a href="#rfc8210-5.8-1"><code>RFC8210-5.8-1</code></a>, <a href="#rfc8210-5.11-2"><code>RFC8210-5.11-2</code></a>, <a href="#rfc8210-5.11-3"><code>RFC8210-5.11-3</code></a>, <a href="#rfc8210-5.11-4"><code>RFC8210-5.11-4</code></a>, <a href="#rfc8210-6-1"><code>RFC8210-6-1</code></a>, <a href="#rfc8210-7-1"><code>RFC8210-7-1</code></a>, <a href="#rfc8210-7-2"><code>RFC8210-7-2</code></a>, <a href="#rfc8210-8.1-1"><code>RFC8210-8.1-1</code></a>, <a href="#rfc8210-8.2-1"><code>RFC8210-8.2-1</code></a>, <a href="#rfc8210-9-1"><code>RFC8210-9-1</code></a>, <a href="#rfc8210-9-2"><code>RFC8210-9-2</code></a>, <a href="#rfc8210-9.1-1"><code>RFC8210-9.1-1</code></a>, <a href="#rfc8210-9.1-2"><code>RFC8210-9.1-2</code></a>, <a href="#rfc8210-9.2-3"><code>RFC8210-9.2-3</code></a>, <a href="#rfc8210-9.2-6"><code>RFC8210-9.2-6</code></a>, <a href="#rfc8210-9.3-1"><code>RFC8210-9.3-1</code></a>, <a href="#rfc8210-9.4-1"><code>RFC8210-9.4-1</code></a>, <a href="#rfc8210-4-2"><code>RFC8210-4-2</code></a>, <a href="#rfc8210-4-3"><code>RFC8210-4-3</code></a>, <a href="#rfc8210-9.3-2"><code>RFC8210-9.3-2</code></a>, <a href="#rfc8210-9.4-2"><code>RFC8210-9.4-2</code></a>, <a href="#rfc8210-9.4-3"><code>RFC8210-9.4-3</code></a>, <a href="#rfc8210-9.2-9"><code>RFC8210-9.2-9</code></a>, <a href="#rfc8210-8.1-2"><code>RFC8210-8.1-2</code></a>, <a href="#rfc8210-2-1"><code>RFC8210-2-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (30):</strong> <a href="#rfc8210-5-1"><code>RFC8210-5-1</code></a>, <a href="#rfc8210-5.1-1"><code>RFC8210-5.1-1</code></a>, <a href="#rfc8210-5.1-2"><code>RFC8210-5.1-2</code></a>, <a href="#rfc8210-5.1-3"><code>RFC8210-5.1-3</code></a>, <a href="#rfc8210-5.1-4"><code>RFC8210-5.1-4</code></a>, <a href="#rfc8210-5.1-5"><code>RFC8210-5.1-5</code></a>, <a href="#rfc8210-5.10-2"><code>RFC8210-5.10-2</code></a>, <a href="#rfc8210-5.11-1"><code>RFC8210-5.11-1</code></a>, <a href="#rfc8210-5.11-2"><code>RFC8210-5.11-2</code></a>, <a href="#rfc8210-6-2"><code>RFC8210-6-2</code></a>, <a href="#rfc8210-7-3"><code>RFC8210-7-3</code></a>, <a href="#rfc8210-5.2-1"><code>RFC8210-5.2-1</code></a>, <a href="#rfc8210-7-4"><code>RFC8210-7-4</code></a>, <a href="#rfc8210-4-1"><code>RFC8210-4-1</code></a>, <a href="#rfc8210-8.3-1"><code>RFC8210-8.3-1</code></a>, <a href="#rfc8210-12-1"><code>RFC8210-12-1</code></a>, <a href="#rfc8210-9-3"><code>RFC8210-9-3</code></a>, <a href="#rfc8210-9.2-1"><code>RFC8210-9.2-1</code></a>, <a href="#rfc8210-9.2-2"><code>RFC8210-9.2-2</code></a>, <a href="#rfc8210-9.2-4"><code>RFC8210-9.2-4</code></a>, <a href="#rfc8210-9.2-5"><code>RFC8210-9.2-5</code></a>, <a href="#rfc8210-10-1"><code>RFC8210-10-1</code></a>, <a href="#rfc8210-7-7"><code>RFC8210-7-7</code></a>, <a href="#rfc8210-9.2-8"><code>RFC8210-9.2-8</code></a>, <a href="#rfc8210-10-2"><code>RFC8210-10-2</code></a>, <a href="#rfc8210-9.2-10"><code>RFC8210-9.2-10</code></a>, <a href="#rfc8210-8.4-1"><code>RFC8210-8.4-1</code></a>, <a href="#rfc8210-3-1"><code>RFC8210-3-1</code></a>, <a href="#rfc8210-8.1-3"><code>RFC8210-8.1-3</code></a>, <a href="#rfc8210-9.2-11"><code>RFC8210-9.2-11</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (29):</strong> <a href="#rfc8210-5.3-1"><code>RFC8210-5.3-1</code></a>, <a href="#rfc8210-5.3-2"><code>RFC8210-5.3-2</code></a>, <a href="#rfc8210-5.5-1"><code>RFC8210-5.5-1</code></a>, <a href="#rfc8210-5.6-1"><code>RFC8210-5.6-1</code></a>, <a href="#rfc8210-5.10-1"><code>RFC8210-5.10-1</code></a>, <a href="#rfc8210-5.8-1"><code>RFC8210-5.8-1</code></a>, <a href="#rfc8210-5.11-3"><code>RFC8210-5.11-3</code></a>, <a href="#rfc8210-5.11-4"><code>RFC8210-5.11-4</code></a>, <a href="#rfc8210-6-1"><code>RFC8210-6-1</code></a>, <a href="#rfc8210-7-1"><code>RFC8210-7-1</code></a>, <a href="#rfc8210-7-2"><code>RFC8210-7-2</code></a>, <a href="#rfc8210-8.1-1"><code>RFC8210-8.1-1</code></a>, <a href="#rfc8210-8.2-1"><code>RFC8210-8.2-1</code></a>, <a href="#rfc8210-9-1"><code>RFC8210-9-1</code></a>, <a href="#rfc8210-9-2"><code>RFC8210-9-2</code></a>, <a href="#rfc8210-9.1-1"><code>RFC8210-9.1-1</code></a>, <a href="#rfc8210-9.1-2"><code>RFC8210-9.1-2</code></a>, <a href="#rfc8210-9.2-3"><code>RFC8210-9.2-3</code></a>, <a href="#rfc8210-9.2-6"><code>RFC8210-9.2-6</code></a>, <a href="#rfc8210-9.3-1"><code>RFC8210-9.3-1</code></a>, <a href="#rfc8210-9.4-1"><code>RFC8210-9.4-1</code></a>, <a href="#rfc8210-4-2"><code>RFC8210-4-2</code></a>, <a href="#rfc8210-4-3"><code>RFC8210-4-3</code></a>, <a href="#rfc8210-9.3-2"><code>RFC8210-9.3-2</code></a>, <a href="#rfc8210-9.4-2"><code>RFC8210-9.4-2</code></a>, <a href="#rfc8210-9.4-3"><code>RFC8210-9.4-3</code></a>, <a href="#rfc8210-9.2-9"><code>RFC8210-9.2-9</code></a>, <a href="#rfc8210-8.1-2"><code>RFC8210-8.1-2</code></a>, <a href="#rfc8210-2-1"><code>RFC8210-2-1</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8210:must">Ze verified 29, Tests awaiting verification 4, Not built 23</div>
+<div data-ze-rfc-bar="rfc8210:must">Ze verified 35, Not built 20</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8210:overview">Ze MUST verified 29, SHOULD verified 6, Not owed 3, Tests awaiting verification 4, Not assessed 19, Not built 25</div>
+<div data-ze-rfc-bar="rfc8210:overview">Ze MUST verified 35, SHOULD verified 6, Not owed 4, Not assessed 19, Not built 22</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -347,16 +347,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8210:must.total">59</span></td>
 </tr>
 <tr><td>MUST rows kept (the MUST bar)</td>
-<td><span data-ze-rfc="rfc8210:must.kept">56</span></td>
+<td><span data-ze-rfc="rfc8210:must.kept">55</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc8210:must.ze-proven">29</span></td>
+<td><span data-ze-rfc="rfc8210:must.ze-proven">35</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8210:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc8210:must.proof-pending">4</span></td>
+<td><span data-ze-rfc="rfc8210:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc8210:must.os-gap">0</span></td>
@@ -368,10 +368,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8210:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc8210:must.not-built">23</span></td>
+<td><span data-ze-rfc="rfc8210:must.not-built">20</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
-<td><span data-ze-rfc="rfc8210:must.not-owed">3</span></td>
+<td><span data-ze-rfc="rfc8210:must.not-owed">4</span></td>
 </tr>
 <tr><td>MUST not owed: feature-declined</td>
 <td><span data-ze-rfc="rfc8210:must.not-owed-by-kind.feature-declined">0</span></td>
@@ -380,7 +380,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8210:must.not-owed-by-kind.linux-limit">0</span></td>
 </tr>
 <tr><td>MUST not owed: not-applicable</td>
-<td><span data-ze-rfc="rfc8210:must.not-owed-by-kind.not-applicable">3</span></td>
+<td><span data-ze-rfc="rfc8210:must.not-owed-by-kind.not-applicable">4</span></td>
 </tr>
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc8210:should.total">27</span></td>
@@ -538,9 +538,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-5.10-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze performs no Router Key duplicate detection -- handlePDU discards every Router Key PDU (internal/component/bgp/plugins/rpki/rtr_session.go:377-379) and stores neither SKI nor Subject Public Key, so no Subject Public Key comparison happens anywhere</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L40" title="internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go" target="_blank" rel="noopener"><code>TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L41" title="internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go" target="_blank" rel="noopener"><code>TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-5.8-1">RFC8210-5.8-1</code></td><td colspan="3"><span class="rfc-subject">The Session ID and Protocol Version MUST be the same as that of the corresponding Cache Response which began the (possibly null) sequence of payload PDUs. (§5.8)</span></td></tr>
 <tr><td></td>
@@ -565,9 +565,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.11</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-5.11-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> no exclusion shape fits this conditional sentence; ze&#39;s router sends Error Reports always with the offending PDU encapsulated and never a generic one (readLoop in internal/component/bgp/plugins/rpki/rtr_session.go reports a malformed ASPA PDU or an unsupported version through writeErrorReport), so the condition never arises, and no test carries this id</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L210" title="internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go" target="_blank" rel="noopener"><code>TestRFC8210GenericErrorReportHasEmptyErroneousPDU</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L211" title="internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go" target="_blank" rel="noopener"><code>TestRFC8210GenericErrorReportHasEmptyErroneousPDU</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-5.11-3">RFC8210-5.11-3</code></td><td colspan="3"><span class="rfc-subject">If error text is present, it MUST be a string in UTF-8 encoding (see [RFC3629]). (§5.11)</span></td></tr>
 <tr><td></td>
@@ -723,7 +723,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the obligation binds the routers as well as the cache, so it is ze&#39;s; ze cannot see the topology, so parseRPKIConfig in internal/component/bgp/plugins/rpki/rpki_config.go only refuses unprotected TCP unless the cache carries trusted-network true, nothing checks that the network is trusted and controlled, and no test carries this id</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> &#34;If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network.&#34;; binds a network operator; network topology and trust boundary are deployment obligations Ze cannot observe: internal/component/bgp/plugins/rpki/rpki_config.go::parseRPKIConfig refuses unprotected TCP unless trusted-network true is configured</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9-3">RFC8210-9-3</code></td><td colspan="3"><span class="rfc-subject">If available to the operator, caches and routers MUST use one of the following more protected protocols: (§9)</span></td></tr>
 <tr><td></td>
@@ -1258,17 +1258,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>the obligation binds the cache server, but its sentence holds braces, which the annotation&#39;s own braces cannot carry in a quote, so no exclusion shape the gate accepts fits; ze fills only the router role: it parses received PDUs and internal/component/bgp/plugins/rpki/rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport), so it tells no router client what to hold, and the obligation has no producer and no test</td>
 </tr>
-<tr><td><a href="#rfc8210-5.10-2"><code>RFC8210-5.10-2</code></a> For this reason, implementations MUST compare Subject Public Key values as well as SKIs when detecting duplicate PDUs. (§5.10)</td>
-<td>{gap}, no test</td>
-<td>ze performs no Router Key duplicate detection -- handlePDU discards every Router Key PDU (internal/component/bgp/plugins/rpki/rtr_session.go:377-379) and stores neither SKI nor Subject Public Key, so no Subject Public Key comparison happens anywhere</td>
-</tr>
 <tr><td><a href="#rfc8210-5.8-1"><code>RFC8210-5.8-1</code></a> The Session ID and Protocol Version MUST be the same as that of the corresponding Cache Response which began the (possibly null) sequence of payload PDUs. (§5.8)</td>
 <td>{gap}, no test</td>
 <td>the Session ID and Protocol Version rule binds the cache&#39;s End of Data PDU, but its sentence names fields, not a role, and takes no exclusion shape the gate accepts; ze writes no End of Data or Cache Response PDU (internal/component/bgp/plugins/rpki/rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport)), so the obligation has no producer and no test</td>
-</tr>
-<tr><td><a href="#rfc8210-5.11-2"><code>RFC8210-5.11-2</code></a> If the error is generic (e.g., &#34;Internal Error&#34;) and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (§5.11)</td>
-<td>{gap}, no test</td>
-<td>no exclusion shape fits this conditional sentence; ze&#39;s router sends Error Reports always with the offending PDU encapsulated and never a generic one (readLoop in internal/component/bgp/plugins/rpki/rtr_session.go reports a malformed ASPA PDU or an unsupported version through writeErrorReport), so the condition never arises, and no test carries this id</td>
 </tr>
 <tr><td><a href="#rfc8210-5.11-3"><code>RFC8210-5.11-3</code></a> If error text is present, it MUST be a string in UTF-8 encoding (see [RFC3629]). (§5.11)</td>
 <td>{gap}, no test</td>
@@ -1287,8 +1279,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test carries this requirement id; annotated {not-applicable}: &#34;The cache MUST rate-limit Serial Notifies to no more frequently than one per minute.&#34;; binds cache; ze fills only the router role: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go reads a received Serial Notify, and rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport), none of them a Serial Notify</td>
 </tr>
 <tr><td><a href="#rfc8210-9-2"><code>RFC8210-9-2</code></a> If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network. (§9)</td>
-<td>{gap}, no test</td>
-<td>the obligation binds the routers as well as the cache, so it is ze&#39;s; ze cannot see the topology, so parseRPKIConfig in internal/component/bgp/plugins/rpki/rpki_config.go only refuses unprotected TCP unless the cache carries trusted-network true, nothing checks that the network is trusted and controlled, and no test carries this id</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: &#34;If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network.&#34;; binds a network operator; network topology and trust boundary are deployment obligations Ze cannot observe: internal/component/bgp/plugins/rpki/rpki_config.go::parseRPKIConfig refuses unprotected TCP unless trusted-network true is configured</td>
 </tr>
 <tr><td><a href="#rfc8210-9.1-1"><code>RFC8210-9.1-1</code></a> Cache servers supporting SSH transport MUST accept RSA authentication (§9.1)</td>
 <td>no test</td>
@@ -1451,12 +1443,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L34" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRTRTLSSerialResponseSessionIDMismatch</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L33" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRTRTLSSerialResponseSessionIDMismatch</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1471,12 +1463,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L36" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRTRTLSSerialResponseSessionIDMismatch</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L35" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRTRTLSSerialResponseSessionIDMismatch</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1491,12 +1483,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L164" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRFC8210DifferentVersionSameSessionIDIsSeparateSession</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L163" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRFC8210DifferentVersionSameSessionIDIsSeparateSession</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1523,8 +1515,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC8210-5.10-1, so there is no linked test.</p>
 <h3><a href="#rfc8210-5.10-2"><code>RFC8210-5.10-2</code></a></h3>
 <p>For this reason, implementations MUST compare Subject Public Key values as well as SKIs when detecting duplicate PDUs. (§5.10)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC8210-5.10-2, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 8210 Section 5.10 requires implementations to compare Subject Public Key values as well as SKIs when detecting duplicate Router Key PDUs. TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI exercises real TCP RTR sessions over RTRSession.syncOnce -&gt; handlePDU -&gt; parseRouterKeyPDU -&gt; applyStagedRouterKey (which keys on {SKI [20]byte, ASN uint32, SPKI string}). Positive covers both v1 and v2: announces two Router Keys sharing the same SKI and ASN with distinct SPKIs, a third with a different SKI and identical SPKI/ASN, and a fourth with a different ASN and identical SKI/SPKI, asserting clean sync, io.EOF (no Error Report), all 4 keys retained, and an incremental withdrawal removing only the matching {SKI, ASN, SPKI} while preserving its colliding-SKI sibling. Negative proves true duplicate detection on identical {SKI, ASN, SPKI} both within one sync and across a subsequent incremental Serial Query sync, asserting errRtrDuplicateRouterKey, exact Error Report code 7 encapsulating the offending Router Key PDU, and session close. Both polarities carry verified revert discrimination records against applyStagedRouterKey.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L41" title="internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go" target="_blank" rel="noopener"><code>TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L40" title="internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go" target="_blank" rel="noopener"><code>TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8210-5.8-1"><code>RFC8210-5.8-1</code></a></h3>
 <p>The Session ID and Protocol Version MUST be the same as that of the corresponding Cache Response which began the (possibly null) sequence of payload PDUs. (§5.8)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
@@ -1551,8 +1559,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8210-5.11-2"><code>RFC8210-5.11-2</code></a></h3>
 <p>If the error is generic (e.g., &#34;Internal Error&#34;) and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (§5.11)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC8210-5.11-2, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 8210 Section 5.11 requires that when an error is generic (e.g., Internal Error) and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. TestRFC8210GenericErrorReportHasEmptyErroneousPDU tests both polarities over live TCP RTR sessions. Positive triggers a genuine generic Internal Error (panic in onROAChange after valid Cache Response, IPv4 Prefix, and End of Data) through readLoop -&gt; reportInternalError -&gt; writeErrorReport(..., errInternalError, nil) and asserts exact 16-byte wire length (empty Erroneous PDU), PDU type 10, error code 1, header length 16, Length of Encapsulated PDU == 0, and Length of Error Text == 0. Negative triggers a PDU-associated protocol error (unrecognized version 99 in Cache Response) through readLoop -&gt; handleResponseError -&gt; writeErrorReport(..., errUnsupportedVersion, pduBuf) and asserts total length 16+len(badResp), Length of Encapsulated PDU == len(badResp), and exact encapsulation of badResp, ruling out a writer that vacuously drops encapsulated PDUs. reportInternalError is the sole generic Error Report emitter in rpki; both polarities carry verified revert discrimination records.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L211" title="internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go" target="_blank" rel="noopener"><code>TestRFC8210GenericErrorReportHasEmptyErroneousPDU</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L210" title="internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go" target="_blank" rel="noopener"><code>TestRFC8210GenericErrorReportHasEmptyErroneousPDU</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8210-5.11-3"><code>RFC8210-5.11-3</code></a></h3>
 <p>If error text is present, it MUST be a string in UTF-8 encoding (see [RFC3629]). (§5.11)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
@@ -1680,12 +1704,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L121" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRTRTLSSupportedVersionCannotChangeWithinResponse</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L120" title="internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go" target="_blank" rel="noopener"><code>TestRTRTLSSupportedVersionCannotChangeWithinResponse</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2707,7 +2731,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 05:15 UTC</span>
                 </div>
             </div>
         </footer>

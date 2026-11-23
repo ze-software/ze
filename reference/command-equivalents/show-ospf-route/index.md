@@ -9,7 +9,7 @@ Show OSPF\-computed routes\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-route`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `fast-reroute`
 - Answer shape: not declared
 - Address fields: none

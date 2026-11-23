@@ -9,7 +9,7 @@ Show BFD timer profiles with effective values\.
 - Mode: Read\-only
 - Wire method: `ze-bfd:show-profile`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `name`
 - Answer shape: not declared
 - Address fields: none

@@ -9,7 +9,7 @@ Create a dummy \(loopback\-style\) interface\.
 - Mode: Daemon
 - Wire method: `ze-iface:interface-create-dummy`
 - Backends: `netlink`
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `address`, `unit`
 - Answer shape: not declared
 - Address fields: none

@@ -10,19 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 2 | of 3 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 3 | of 3 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 0 | of 3 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 3 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 3 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 10 | 10 of 10 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Declared gap or no test | 1 | of 3 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 0 | of 3 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 12 | 12 of 12 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -55,7 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
 | Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
-| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -73,14 +66,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 3 |
 | Mandatory requirements (MUST level) | 3 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 1 |
+| Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 10 |
-| Tests linked to requirements | 10 |
-| Recorded audit verdicts | 1 |
-| Fault test records | 10 |
+| Test tags | 12 |
+| Tests linked to requirements | 12 |
+| Recorded audit verdicts | 2 |
+| Fault test records | 12 |
 | Summary | `rfc/short/rfc9774.md` |
 | Requirement table | `rfc/requirements/rfc9774.md` |
 | RFC text | `rfc/full/rfc9774.txt` |
@@ -93,19 +86,19 @@ Included in automatic checks: Owner decision 2026-10-18, "Implement RFC 9774", l
 
 **Area:** Deprecation of AS_SET and AS_CONFED_SET
 
-**Test verification:** 2 of 3 MUST proven
+**Test verification:** 3 of 3 MUST proven
 
-**Evidence:** unit 2
+**Evidence:** unit 3
 
-**Unmet:** RFC9774-5.2-1
+**Unmet:** -
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 2 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
+| Positive and negative tests | 3 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -113,29 +106,27 @@ Included in automatic checks: Owner decision 2026-10-18, "Implement RFC 9774", l
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **3** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (2):** [`RFC9774-3-1`](#rfc9774-3-1), [`RFC9774-3-2`](#rfc9774-3-2)
-
-**Annotated (including scoped evidence) (1):** [`RFC9774-5.2-1`](#rfc9774-5.2-1)
+**Positive and negative tests (3):** [`RFC9774-3-1`](#rfc9774-3-1), [`RFC9774-3-2`](#rfc9774-3-2), [`RFC9774-5.2-1`](#rfc9774-5.2-1)
 
 ## Figures
 
-- **MUST bar**: Ze verified 2, Not built 1
-- **Overview bar**: Ze MUST verified 2, Not built 1
+- **MUST bar**: Ze verified 3
+- **Overview bar**: Ze MUST verified 3
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 3 |
 | MUST rows kept (the MUST bar) | 3 |
-| Ze verified | 2 |
+| Ze verified | 3 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 1 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -163,13 +154,11 @@ Source: [data/rfc/rfc9774.json](../../../data/rfc/rfc9774.json).
 |---|---|---|---|---|
 | `RFC9774-3-1` | MUST NOT advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs (§3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestRFC9774SendASSetWrittenAsWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_send_test.go#L49). **negative:** `unit/verify` [`TestRFC9774SendASSetWrittenAsWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_send_test.go#L52) |
 | `RFC9774-3-2` | MUST use the "treat-as-withdraw" error handling behavior per [RFC7606] upon reception of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793] (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC9774ReceiveAS4PathSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L131). **positive:** `unit/verify` [`TestRFC9774ReceiveASSetAcceptedByOperator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_accept_test.go#L45). **positive:** `unit/verify` [`TestRFC9774ReceiveASSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L64). **positive:** `unit/verify` [`TestValidateAS4PathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L121). **positive:** `unit/verify` [`TestValidateASPathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L35). **negative:** `unit/verify` [`TestRFC9774ReceiveAS4PathSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L134). **negative:** `unit/verify` [`TestRFC9774ReceiveASSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L67). **negative:** `unit/verify` [`TestValidateASPathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L38) |
-| `RFC9774-5.2-1` | To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of "brief" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2) | MUST | 5.2 - Consistent brief aggregation | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze implements no route aggregation, brief or consistent brief, so no aggregate route is ever formed and nothing truncates its AS_PATH; aggregation (Sections 5, 5.2, 6.1, 6.2) is an absent feature of an implemented RFC with no owner decision declining it, owed after the first release |
+| `RFC9774-5.2-1` | To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of "brief" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2) | MUST | 5.2 - Consistent brief aggregation | **positive:** `unit/verify` [`TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go#L598). **negative:** `unit/verify` [`TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go#L599) |
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC9774-5.2-1`](#rfc9774-5.2-1) To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of "brief" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2) | {gap}, no test | Ze implements no route aggregation, brief or consistent brief, so no aggregate route is ever formed and nothing truncates its AS_PATH; aggregation (Sections 5, 5.2, 6.1, 6.2) is an absent feature of an implemented RFC with no owner decision declining it, owed after the first release |
+RFC 9774 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Test status
 
@@ -207,9 +196,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of "brief" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged against RFC 9774 Section 5.2: "To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of \"brief\" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate." aggregateBriefASPath finds the right-most instance of rule.BriefOriginAS in the common leading AS_SEQUENCE (truncating all subsequent ASes and marking excluded for ATOMIC_AGGREGATE), supports speaker.LocalAS by emitting an empty AS_PATH that eBGP announcement prepends with the local AS, and refuses synthesis when the desired origin AS is absent. parseASPath4ForAggregate stops immediately on any non-AS_SEQUENCE segment. TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS proves: without brief-origin-as, shared trailing 65030 is kept ([65010,65020,65010,65030]); with brief-origin-as=65010, wire AS_PATH on BestChange (fully decoded as AS_SEQUENCE only) and dispatched update-text command truncate after right-most 65010 to [65010,65020,65010] with length-0 ATOMIC_AGGREGATE and stay stable when p2 withdraws (Appendix B); with brief-origin-as=65000 (local AS), wire AS_PATH is empty with ATOMIC_AGGREGATE (paired with reactor eBGP local-AS prepend verification); and absent origin AS (65999) or origin AS behind AS_SET (65020) suppresses aggregation. Both positive and negative discrimination records in rfc/discrimination/rfc9774/RFC9774-5.2-1.json are current (producer-disable revert records).
 
-No test carries RFC9774-5.2-1, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go#L599) | unit/verify | revert, verified |
+| positive | [`TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go#L598) | unit/verify | revert, verified |
 
 ## Requirement list review
 
@@ -237,10 +229,10 @@ No test carries RFC9774-5.2-1, so there is no linked test.
 | `4` | not stated | 0 | reviewed | Describes how RPKI-ROV, BGPsec and ASPA already treat a route with an AS_SET. Descriptive, no RFC 2119 keyword, and it obliges no BGP speaker beyond the documents it cites. |
 | `5` | Describes brief aggregation | 0 | reviewed | Describes brief aggregation. Its one SHOULD is a quotation of RFC 4271 Section 5.1.6 and belongs to RFC 4271; the section adds no obligation of its own. |
 | `5.1` | not stated | 0 | reviewed | Explains why brief aggregation yields an unpredictable origin AS for RPKI-ROV. Descriptive, no RFC 2119 keyword. |
-| `5.2` | Consistent brief aggregation | 1 | reviewed | Consistent brief aggregation. Its MUST (5.2:1) and its SHOULD to attach ATOMIC_AGGREGATE bind an aggregating implementation; Ze implements no aggregation, so 5.2:1 maps to RFC9774-5.2-1, which carries {gap}. |
+| `5.2` | Consistent brief aggregation | 1 | reviewed | Consistent brief aggregation. Its MUST (5.2:1) maps to RFC9774-5.2-1, implemented in internal/component/bgp/plugins/rib/aggregate.go (aggregateBriefASPath, brief-origin-as in ze-bgp-conf.yang). |
 | `6` | not stated | 0 | reviewed | Section preamble: operator advice on deployment and configuration. No keyword. |
-| `6.1` | not stated | 1 | reviewed | Its MUST (6.1:1) binds an operator that aggregates; excluded as feature-out-of-scope with 5.2:1. |
-| `6.2` | not stated | 0 | reviewed | SHOULD NOT and SHOULD on announcing an aggregate to contributing ASes; recommendations conditional on aggregation, which Ze does not implement. No MUST-level site. |
+| `6.1` | not stated | 1 | reviewed | Its MUST (6.1:1) binds network operators ('When aggregating prefixes, network operators MUST use consistent brief aggregation'), not the BGP speaker software. |
+| `6.2` | not stated | 0 | reviewed | SHOULD NOT and SHOULD on announcing an aggregate to contributing ASes; recommendations on operator export policy. No MUST-level site. |
 | `6.3` | not stated | 0 | reviewed | Reminds that RFC 4632 Section 5.1 Rule 2 binds aggregating implementations; it restates another document and adds no keyword. |
 | `7` | Security Considerations | 0 | reviewed | Security Considerations. Notes the deprecation shrinks the attack surface. No keyword. |
 | `8` | not stated | 0 | skipped (iana) | IANA Considerations: marks segment types 1 and 4 deprecated in the registry. A registry action, no speaker obligation. |
@@ -259,7 +251,7 @@ No test carries RFC9774-5.2-1, so there is no linked test.
 
 | Site | Excluded kind | Reason | Quote |
 |---|---|---|---|
-| `6.1:1` | `feature-out-of-scope` (never bound Ze): the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it | Binds an operator "When aggregating prefixes", which needs an aggregation feature in the speaker. RFC 4271 Section 9.1 makes route aggregation optional: "Route aggregation and information reduction can optionally be performed within this phase." Owner decision 2026-10-18 scoped this work to RFC 9774 and not to an aggregation feature (spec-bgp-rfc9774-as-set-deprecation, Key Design Decisions). Ze has no aggregation code: the AS_PATH parsers (ParseASPathText, internal/core/bgp/attribute/text.go) build only AS_SEQUENCE. | When aggregating prefixes, network operators MUST use consistent brief aggregation as described in Section 5.2. |
+| `6.1:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Binds network operators configuring aggregation policy rather than BGP speaker protocol behavior; the speaker mechanism it relies on is RFC9774-5.2-1. | When aggregating prefixes, network operators MUST use consistent brief aggregation as described in Section 5.2. |
 
 ## Superseded
 

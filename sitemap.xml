@@ -40,6 +40,9 @@
     <loc>https://ze-software.net/blog/how-ze-manages-memory/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/blog/one-engine-any-plugin/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/blog/reference-from-the-system/</loc>
   </url>
   <url>
@@ -587,6 +590,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/project/changes/2026-10-25/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/project/changes/2026-11-09/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/project/history/</loc>
@@ -3679,6 +3685,9 @@
     <loc>https://ze-software.net/use-cases/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/use-cases/appliance-lifecycle/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/use-cases/as-path-topology/</loc>
   </url>
   <url>
@@ -3694,10 +3703,22 @@
     <loc>https://ze-software.net/use-cases/exabgp-migration/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/use-cases/fleet-management/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/use-cases/flowspec-injection/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/use-cases/fttp-cpe/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/use-cases/igp-edge/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/use-cases/route-server/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/use-cases/site-to-site-vpn/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/use-cases/transit-edge-rpki/</loc>

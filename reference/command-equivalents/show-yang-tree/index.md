@@ -9,7 +9,7 @@ Print the YANG tree for a module in a readable hierarchy\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-yang:show-yang-tree`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

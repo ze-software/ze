@@ -2140,17 +2140,17 @@ about non-BGP router OS breadth.</p>
 <tbody>
 <tr>
 <td>Ze</td>
-<td>Typed Go interface backend abstraction. The <code>iface</code> component parses configuration into typed entries and dispatches lifecycle, addressing, routes, link state, tunnels, VLANs, bridge operations, MAC, MTU, and route queries through the active <code>Backend</code> (<code>netlink</code> default, <code>vpp</code> also registered). Some interface kinds and leaves remain Linux/netlink-gated (DHCP client, mirror, veth, bridge, tunnel, WireGuard, XFRM, and PPPoE).</td>
-<td><span class="ev-src"><span class="ev-ref"><code>internal/component/iface/backend.go</code></span><span class="ev-ref"><code>internal/component/iface/register.go</code></span><span class="ev-ref"><code>internal/plugins/iface/vpp/ifacevpp.go</code></span></span></td>
+<td>Typed Go interface backend abstraction. The <code>iface</code> component parses configuration into typed entries, then dispatches lifecycle, addressing, routes, link state, tunnels, VLANs, bridge operations, MAC, MTU, and route queries through the active <code>Backend</code>. <code>netlink</code> is the default backend, <code>vpp</code> is also registered, and <code>OnConfigure</code> loads the configured backend. Some interface leaves and kinds are still explicitly Linux/netlink-gated, including DHCP client, mirror, veth, bridge, tunnel, WireGuard, XFRM, and PPPoE, so Ze is narrower than VyOS/freeRtr in appliance breadth, but its interface control plane is not netlink-only.</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/iface/backend.go</code></span><span class="ev-ref"><code>internal/component/iface/register.go</code></span><span class="ev-ref"><code>internal/plugins/iface/netlink/register.go</code></span><span class="ev-ref"><code>internal/plugins/iface/vpp/register.go</code></span><span class="ev-ref"><code>internal/plugins/iface/vpp/ifacevpp.go</code></span></span></td>
 </tr>
 <tr>
 <td><span class="concept-software">VyOS</span></td>
-<td>Schema-first around interface-definitions XML and Python <code>conf_mode</code> owners. Discrete interface kinds are first-class CLI nodes with shared includes for addressing, DHCP, VRF, MTU, IPv6 ND, mirror, VLAN, QoS, and containers, plus parallel VPP definitions for selected kinds.</td>
+<td>Schema-first around interface-definitions XML and Python <code>conf_mode</code> owners. Feature breadth is high in the inspected source: many discrete interface kinds are first-class CLI nodes, with includes for common addressing, DHCP, VRF, MTU, IPv6 ND, mirror, VLAN, QoS, and containers. VPP has parallel interface definitions for selected kinds.</td>
 <td><span class="ev-src"><span class="ev-ref"><code>interface-definitions/interfaces_*.xml.in</code></span><span class="ev-ref"><code>interface-definitions/include/interface/vif-s.xml.i</code></span></span></td>
 </tr>
 <tr>
 <td><span class="concept-software">freeRtr</span></td>
-<td>Centralizes a broad router-native interface model in <code>cfgIfc.java</code> and related configuration classes, with protocol handlers, VPDN types, service daemons, and native/P4/XDP dataplane backends.</td>
+<td>Centralizes a very large router-native interface model in <code>cfgIfc.java</code> and related configuration classes, with broad protocol handlers and custom dataplane backends. It exposes many interface and tunnel functions through <code>cfgIfc</code> commands, VPDN types, service daemons, and native/P4/XDP dataplane code. It is broad and router-specific, but feature evidence often lives in large Java configuration classes rather than small per-feature files.</td>
 <td><span class="ev-src"><span class="ev-ref"><code>src/org/freertr/cfg/cfgIfc.java</code></span><span class="ev-ref"><code>src/org/freertr/cfg/cfgVpdn.java</code></span><span class="ev-ref"><code>src/org/freertr/cfg/cfgInit.java</code></span><span class="ev-ref"><code>misc/native/p4emu_*.h</code></span><span class="ev-ref"><code>misc/native/p4xdp_*.c</code></span></span></td>
 </tr>
 </tbody>
@@ -3672,7 +3672,7 @@ about non-BGP router OS breadth.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

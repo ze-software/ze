@@ -9,7 +9,7 @@ Send a cached UPDATE to the peers the selector matches\.
 - Mode: Daemon
 - Wire method: `ze-bgp:cache-forward`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

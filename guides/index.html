@@ -66,48 +66,48 @@
 <li><a href="docker/">Docker</a>: build the image, keep state across recreation, and manage it with Compose.</li>
 <li><a href="appliance/">VM and gokrazy appliance</a>: build and boot a disk image or installer ISO.</li>
 <li><a href="netlab/">containerlab and netlab</a>: run the supplied topology with the lab image.</li>
-<li><a href="cli/">CLI tour</a> and <a href="command-reference/">Command reference</a>: use interactive, one-shot, pipe, and runtime commands.</li>
-<li><a href="configuration-model/">Configuration</a>, <a href="config-editor/">Configuration editor</a>, and <a href="config-archive/">Config archive</a>: understand, edit, diff, commit, and archive configuration.</li>
-<li><a href="lifecycle/">Lifecycle and rollback</a>, <a href="operations/">Operations</a>, and <a href="self-update/">Self-update</a>: reload, restart, update, and recover safely.</li>
-<li><a href="environment-variables/">Environment variables</a>: runtime paths, logging overrides, and socket settings.</li>
+<li><a href="cli/">CLI tour</a>: use interactive, one-shot, pipe, and runtime commands.</li>
+<li><a href="configuration-model/">Configuration</a>: understand the hierarchical configuration format.</li>
+<li><a href="lifecycle/">Lifecycle and rollback</a>: reload, restart, archive, update, and recover.</li>
+<li>Also in this section: <a href="command-reference/">Command reference</a>, <a href="config-editor/">Configuration editor</a>, <a href="config-archive/">Config archive</a>, <a href="operations/">Operations</a>, <a href="self-update/">Self-update</a>, and <a href="environment-variables/">Environment variables</a>.</li>
 </ul>
 <h2 id="routing">Routing</h2>
 <ul>
 <li><a href="bgp-peering/">BGP peering</a>: configure peers, groups, families, and capabilities.</li>
-<li><a href="bgp-policy/">BGP policy</a>, <a href="redistribution/">Route filters and redistribution</a>, and <a href="route-injection/">Route injection</a>: build import, export, validation, and redistribution policy.</li>
-<li><a href="rpki/">RPKI origin validation</a> and <a href="irr-filtering/">IRR prefix filtering</a>: validate origins with RTR caches and generate IRR filters from PeeringDB.</li>
-<li><a href="bgp-resilience/">BGP resilience</a>, <a href="graceful-restart/">Graceful restart</a>, <a href="add-path/">ADD-PATH</a>, <a href="bgp-role/">BGP role (RFC 9234)</a>, and <a href="bgp-healthcheck/">BGP healthcheck</a>: configure refresh, graceful restart, persistence, reflection, multipath, and leak prevention.</li>
-<li><a href="ospf/">OSPF</a>, <a href="isis/">IS-IS</a>, <a href="static-routes/">static routes</a>, and <a href="policy-routing/">policy routing</a>: bring IGP, static, and policy-based routing online.</li>
-<li><a href="bfd/">BFD</a> and <a href="vrrp/">VRRP</a>: configure fast failure detection and gateway redundancy.</li>
+<li><a href="bgp-policy/">BGP policy</a>: build import, export, validation, and redistribution policy.</li>
+<li><a href="bgp-resilience/">BGP resilience</a>: configure refresh, graceful restart, persistence, reflection, and multipath.</li>
+<li><a href="ospf/">OSPF</a>, <a href="isis/">IS-IS</a>, and <a href="static-routes/">static routes</a>: bring routing protocols online.</li>
+<li><a href="bfd/">BFD</a>: configure fast failure detection.</li>
 <li><a href="mpls/">MPLS</a> and <a href="rsvp-te/">RSVP-TE</a>: configure label switching and traffic engineering.</li>
+<li>Also in this section: <a href="redistribution/">Route filters and redistribution</a>, <a href="route-injection/">Route injection</a>, <a href="rpki/">RPKI origin validation</a>, <a href="irr-filtering/">IRR prefix filtering</a>, <a href="graceful-restart/">Graceful restart</a>, <a href="add-path/">ADD-PATH</a>, <a href="bgp-role/">BGP role (RFC 9234)</a>, <a href="bgp-healthcheck/">BGP healthcheck</a>, <a href="policy-routing/">Policy routing</a>, and <a href="vrrp/">VRRP</a>.</li>
 </ul>
 <h2 id="services-and-security">Services and security</h2>
 <ul>
-<li><a href="firewall/">Firewall</a>, <a href="traffic-control/">Traffic control</a>, and <a href="vpp/">VPP data plane</a>: protect, shape, and forward traffic.</li>
-<li><a href="flowspec-protected-router/">FlowSpec protected router</a> and <a href="flowspec-route-reflector/">FlowSpec route reflector</a>: relay or translate FlowSpec into local protection.</li>
-<li><a href="ddos-mitigation/">DDoS mitigation</a> and <a href="anomaly/">Behavioral anomaly detection</a>: detect floods and anomalies and respond locally or upstream.</li>
-<li><a href="as112/">AS112</a>: run an anycast AS112 DNS sink.</li>
+<li><a href="firewall/">Firewall and policy routing</a>: protect and steer traffic.</li>
+<li><a href="flowspec-protected-router/">FlowSpec protected router</a>: translate FlowSpec into local protection.</li>
+<li><a href="ddos-mitigation/">DDoS mitigation</a>: detect floods and respond locally or upstream.</li>
 <li><a href="pppoe/">PPPoE</a>, <a href="l2tp/">L2TP</a>, and <a href="ipsec/">IPsec</a>: configure access and tunnel services.</li>
-<li><a href="authentication/">Authentication</a>, <a href="authorization/">authorization</a>, <a href="operator-access-rbac/">Operator access with SSH and RBAC</a>, <a href="radius/">RADIUS</a>, and <a href="tacacs/">TACACS+</a>: secure operator access.</li>
+<li><a href="authentication/">Authentication</a>, <a href="authorization/">authorization</a>, <a href="radius/">RADIUS</a>, and <a href="tacacs/">TACACS+</a>: secure operator access.</li>
+<li>Also in this section: <a href="traffic-control/">Traffic control</a>, <a href="vpp/">VPP data plane</a>, <a href="flowspec-route-reflector/">FlowSpec route reflector</a>, <a href="anomaly/">Behavioral anomaly detection</a>, <a href="as112/">AS112</a>, and <a href="operator-access-rbac/">Operator access with SSH and RBAC</a>.</li>
 </ul>
 <h2 id="interfaces-and-automation">Interfaces and automation</h2>
 <ul>
 <li><a href="ai-agent/">Use Ze with an AI agent</a>: set up Claude Code, Codex, OpenCode or Pi with <code>ze create agent skill</code>.</li>
-<li><a href="plugins/">Plugins</a>: load, attach, and manage built-in and external plugins.</li>
 <li><a href="api/">REST and gRPC</a>: use authenticated management APIs.</li>
 <li><a href="gnmi/">gNMI</a>: use Capabilities, Get, Set, and Subscribe.</li>
-<li><a href="web-interface/">Web interface</a>, <a href="looking-glass/">Looking Glass</a>, and <a href="public-looking-glass/">Public Looking Glass</a>: edit configuration, inspect routes, and publish a read-only looking glass.</li>
+<li><a href="web-interface/">Web interface</a>: edit configuration and run commands in the browser.</li>
 <li><a href="mcp/overview/">MCP</a>: connect tools, resources, and remote clients.</li>
 <li><a href="fleet-config/">Fleet configuration</a>: distribute configuration to managed nodes.</li>
+<li>Also in this section: <a href="plugins/">Plugins</a>, <a href="looking-glass/">Looking Glass</a>, and <a href="public-looking-glass/">Public Looking Glass</a>.</li>
 </ul>
 <h2 id="diagnose-observe-and-test">Diagnose, observe, and test</h2>
 <ul>
 <li><a href="system-readiness/">System readiness</a>: run offline doctor checks and inspect runtime health.</li>
 <li><a href="production-diagnostics/">Production diagnostics</a>: start from symptoms and debug safely.</li>
-<li><a href="monitoring/">Monitoring</a>, <a href="bmp/">BMP</a>, <a href="flow-export/">Flow export</a>, <a href="mrt-analysis/">MRT analysis</a>, and <a href="traffic-usage/">Traffic usage</a>: configure monitoring, telemetry, and packet/route exports.</li>
+<li><a href="monitoring/">Monitoring</a>: configure flow export, MRT, and operational checks.</li>
 <li><a href="debugging-tools/">Debugging tools</a>: trace netlink, capture packets, and inspect state.</li>
 <li><a href="logging/">Logging</a> and <a href="audit/">audit</a>: inspect operational and security history.</li>
-<li><a href="benchmarking/">Benchmarking</a> and <a href="chaos-testing/">Chaos testing</a>: measure BGP performance and run deterministic failure scenarios.</li>
+<li>Also in this section: <a href="bmp/">BMP</a>, <a href="flow-export/">Flow export</a>, <a href="mrt-analysis/">MRT analysis</a>, <a href="traffic-usage/">Traffic usage</a>, <a href="benchmarking/">Benchmarking</a>, and <a href="chaos-testing/">Chaos testing</a>.</li>
 </ul>
 <p>Use <a href="../search/">site search</a> for a specific protocol, command, or configuration leaf.</p>
 </div>
@@ -159,7 +159,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../license/">Ze is AGPLv3 open source.</a>
                     <a href="../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

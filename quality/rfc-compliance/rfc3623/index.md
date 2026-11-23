@@ -22,7 +22,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Declared gap or no test | 4 | of 13 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 3 | of 13 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -31,7 +31,7 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Out of scope | 0 | of 13 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
-| Not applicable | 0 | of 13 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Not applicable | 1 | of 13 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Met below Ze | 0 | of 13 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 13 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Linux cannot do this | 0 | of 13 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 26 |
 | Mandatory requirements (MUST level) | 13 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 4 |
+| Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
@@ -87,7 +87,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Automatic checks
 
-Included in automatic checks: Graceful OSPF Restart (RFC 3623): restarter + helper roles; 4 MET (Grace-LSA mandatory TLVs, shared-media type-3, unplanned toggle) + 5 single-polarity positive + 4 gap (virtual-link V-bit, changed-retx-list refusal, the Appendix A process rule on additional TLVs, the aggregated-adjacency exit ze meets with no test)
+Included in automatic checks: Graceful OSPF Restart (RFC 3623): restarter + helper roles; 4 MET (Grace-LSA mandatory TLVs, shared-media type-3, unplanned toggle) + 5 single-polarity positive + 3 gap (virtual-link V-bit, changed-retx-list refusal, the aggregated-adjacency exit ze meets with no test) + 1 not-applicable (the Appendix A IETF process rule on additional TLVs)
 
 ## Published support status
 
@@ -97,7 +97,7 @@ Included in automatic checks: Graceful OSPF Restart (RFC 3623): restarter + help
 
 **Evidence:** unit 8
 
-**Unmet:** RFC3623-3-1, RFC3623-3.1-1, RFC3623-3.2-1, RFC3623-A-1
+**Unmet:** RFC3623-3-1, RFC3623-3.1-1, RFC3623-3.2-1
 
 
 ## Coverage
@@ -119,8 +119,8 @@ Included in automatic checks: Graceful OSPF Restart (RFC 3623): restarter + help
 
 ## Figures
 
-- **MUST bar**: Ze verified 8, Tests awaiting verification 1, Not built 4
-- **Overview bar**: Ze MUST verified 8, Tests awaiting verification 1, Not assessed 13, Not built 4
+- **MUST bar**: Ze verified 8, Tests awaiting verification 1, Not built 3
+- **Overview bar**: Ze MUST verified 8, Not owed 1, Tests awaiting verification 1, Not assessed 13, Not built 3
 
 | Figure | Rows |
 |---|---|
@@ -128,18 +128,18 @@ Included in automatic checks: Graceful OSPF Restart (RFC 3623): restarter + help
 | Requirements not reviewed | 0 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 13 |
-| MUST rows kept (the MUST bar) | 13 |
+| MUST rows kept (the MUST bar) | 12 |
 | Ze verified | 8 |
 | OS verified | 0 |
 | Tests awaiting verification | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 4 |
-| MUST rows not owed | 0 |
+| Not built | 3 |
+| MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 0 |
+| MUST not owed: not-applicable | 1 |
 | SHOULD / MAY rows | 13 |
 | SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
@@ -161,7 +161,7 @@ Source: [data/rfc/rfc3623.json](../../../data/rfc/rfc3623.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3623-A-1` | Additional Grace-LSA TLVs must be described in an Internet Draft and will be subject to the expert review of the OSPF Working Group. (§A) | MUST | A | **positive:** no positive test. **negative:** no negative test. **{gap}:** an IETF process rule on additional Grace-LSA TLVs with no implementer role the RFC names; ze originates only TLV types 1, 2 and 3 and its decoder skips unknown types (internal/plugins/ospf/packet/grace_lsa.go), and no test asserts that ze emits no other TLV |
+| `RFC3623-A-1` | Additional Grace-LSA TLVs must be described in an Internet Draft and will be subject to the expert review of the OSPF Working Group. (§A) | MUST | A | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** heading "Grace-LSA Format"; binds IETF; describing additional Grace-LSA TLVs in an Internet-Draft for OSPF Working Group expert review is an IETF process rule; ze is an OSPF router that originates only TLV types 1, 2 and 3 and ignores unknown types (internal/plugins/ospf/packet/grace_lsa.go) |
 | `RFC3623-A-2` | Grace Period (Type=1, length=4). The number of seconds that the router's neighbors should continue to advertise the router as fully adjacent, regardless of the state of database synchronization between the router and its neighbors. Since this time period began when grace-LSA's LS age was equal to 0, the grace period terminates when either: a) the LS age of the grace-LSA exceeds the value of a Grace Period or b) the grace-LSA is flushed. See Section 3.2 for other conditions that terminate graceful restart. This TLV must always appear in a grace-LSA. (§A) | MUST | A | **positive:** `unit/verify` [`TestGraceLSARoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go#L13). **positive:** `unit/verify` [`TestRFC3623OriginatedGraceLSATLVOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go#L41). **negative:** `unit/verify` [`TestGraceLSADecodeMissingMandatory`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go#L62). **negative:** `unit/verify` [`TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go#L82) |
 | `RFC3623-A-3` | Graceful restart reason (Type=2, length=1). Encodes the reason for the router restart as one of the following: 0 (unknown), 1 (software restart), 2 (software reload/upgrade) or 3 (switch to redundant control processor). This TLV must always appear in a grace-LSA. (§A) | MUST | A | **positive:** `unit/verify` [`TestGraceLSARoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go#L17). **positive:** `unit/verify` [`TestRFC3623OriginatedGraceLSATLVOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go#L44). **negative:** `unit/verify` [`TestGraceLSADecodeMissingMandatory`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go#L59). **negative:** `unit/verify` [`TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go#L87) |
 | `RFC3623-A-4` | IP interface address (Type=3, length=4). The router's IP interface address on the subnet associated with the grace-LSA. Required on broadcast, NBMA and Point-to-MultiPoint segments, where the helper uses the IP interface address to identify the restarting router (see Section 3.1). (§A) | MUST | A | **positive:** `unit/verify` [`TestGraceLSAv4BodyBuild`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L19). **positive:** `unit/verify` [`TestRFC3623HelperFlushExitsNamedRestarter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_helper_identity_test.go#L201). **positive:** `unit/verify` [`TestRFC3623HelperIdentifiesRestarterByInterfaceAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_helper_identity_test.go#L131). **positive:** `unit/verify` [`TestRFC3623OriginatedGraceLSATLVOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go#L48). **positive:** `unit/verify` [`TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_origination_test.go#L58). **negative:** `unit/verify` [`TestRFC3623GraceLSANeverOmitsAddressOnSharedMedia`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_lsa_test.go#L60). **negative:** `unit/verify` [`TestRFC3623HelperRefusesUnmatchedInterfaceAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_grace_helper_identity_test.go#L169) |
@@ -192,7 +192,7 @@ Source: [data/rfc/rfc3623.json](../../../data/rfc/rfc3623.json).
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC3623-A-1`](#rfc3623-a-1) Additional Grace-LSA TLVs must be described in an Internet Draft and will be subject to the expert review of the OSPF Working Group. (§A) | {gap}, no test | an IETF process rule on additional Grace-LSA TLVs with no implementer role the RFC names; ze originates only TLV types 1, 2 and 3 and its decoder skips unknown types (internal/plugins/ospf/packet/grace_lsa.go), and no test asserts that ze emits no other TLV |
+| [`RFC3623-A-1`](#rfc3623-a-1) Additional Grace-LSA TLVs must be described in an Internet Draft and will be subject to the expert review of the OSPF Working Group. (§A) | no test | no test carries this requirement id; annotated {not-applicable}: heading "Grace-LSA Format"; binds IETF; describing additional Grace-LSA TLVs in an Internet-Draft for OSPF Working Group expert review is an IETF process rule; ze is an OSPF router that originates only TLV types 1, 2 and 3 and ignores unknown types (internal/plugins/ospf/packet/grace_lsa.go) |
 | [`RFC3623-3-1`](#rfc3623-3-1) When helping over a virtual link, the helper must also continue to set bit V in its router-LSA for the virtual link's transit area (Section 12.4.1 of [1]). (§3) | {gap}, no test | the helper role keeps X advertised in Router/Network-LSAs but neither gr_helper.go nor gr.go has any virtual-link/transit-area handling, so the transit-area V-bit is not preserved while helping over a virtual link (internal/plugins/ospf/gr_helper.go:279) |
 | [`RFC3623-3.1-1`](#rfc3623-3.1-1) Router Y examines the link-state retransmission list for X over the associated network segment. - If there are any LSAs with LS types 1-5,7 on the list, then they all must be periodic refreshes. - If there are instead LSAs on the list whose contents have changed (see Section 3.3 of [7]), Y must refuse to enter helper mode. (§3.1) | {gap}, no test | the helper entry decision has an lsdb-changed branch, but the production caller hardcodes lsdbUnchanged=true, so no production path refuses entry on a changed retransmission-list LSA; the permissive entry is only mitigated by the Section 3.2 strict-checking exit (internal/plugins/ospf/gr_helper.go:40, :128) |
 | [`RFC3623-3.2-1`](#rfc3623-3.2-1) If Router Y aggregated adjacencies with Router X when entering helper mode (as described in section 3.1), it must also exit helper mode for all adjacencies with Router X when any one of the exit events occurs for an adjacency with Router X. (§3.2) | {gap}, no test | gap in proof: internal/plugins/ospf/gr.go::helperKey meets it, since ze keys each helper relationship by interface and restarting router and never aggregates adjacencies across segments, so no aggregated exit is owed; no test asserts it |

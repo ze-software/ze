@@ -255,6 +255,7 @@ ask an administrator for a profile whose edit section allows `config set`
 <li>The <code>ze init</code> bootstrap admin carries an internal, reserved recovery profile, so it is never locked out by a strict authorization default.</li>
 <li>Defining <code>set system authentication user admin profile admin</code> (as this guide does) makes <code>admin</code> a normal config account with an explicit profile.</li>
 </ul>
+<p>A logged-in recovery session keeps the recovery profile while the <code>admin</code> account's own record stays the same. Changing the <code>admin</code> password, its profiles or its SSH keys, or removing the account, ends that authority at once; changing, adding or removing any other user does not. The check is the one web sessions use: each local user carries a generation that advances only when that user's own record changes (<code>stampLocalIdentityGeneration</code> in <code>cmd/ze/hub/aaa_lifecycle.go</code>, <code>AuthorizerForResult</code> in <code>internal/component/aaa/login_profiles.go</code>).</p>
 <p>If you never want the bootstrap admin to authenticate, disable it explicitly with <code>meta/instance/admin-disabled</code>; accept that you then depend entirely on your configured accounts for access.</p>
 <figure class="terminal-demo" data-terminal-demo="rbac">
   <div class="terminal-demo__intro">
@@ -407,7 +408,7 @@ list, which never authenticated it.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

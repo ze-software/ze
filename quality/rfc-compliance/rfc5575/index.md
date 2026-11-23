@@ -93,11 +93,11 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 
 **Area:** BGP Flowspec (obsoleted by RFC 8955)
 
-**Test verification:** 8 of 9 MUST proven
+**Test verification:** 9 of 9 MUST proven
 
-**Evidence:** unit 8
+**Evidence:** unit 8, superseded 1
 
-**Unmet:** RFC5575-6-1
+**Unmet:** -
 
 
 ## Coverage
@@ -121,23 +121,23 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 
 ## Figures
 
-- **MUST bar**: Ze verified 8, Not built 1
-- **Overview bar**: Ze MUST verified 8, Not assessed 4, Not built 1
+- **MUST bar**: Ze verified 9
+- **Overview bar**: Ze MUST verified 9, Not assessed 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 9 |
 | MUST rows kept (the MUST bar) | 9 |
-| Ze verified | 8 |
+| Ze verified | 9 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 1 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |

@@ -9,7 +9,7 @@ Send one authoritative query and check the AS112 answer\.
 - Mode: Daemon
 - Wire method: `ze-as112:health`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

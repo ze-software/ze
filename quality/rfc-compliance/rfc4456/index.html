@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 4 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 4 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 4 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>8</strong><b>8 of 22 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>13</strong><b>13 of 22 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -255,7 +255,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>7</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>8</td>
+<td>13</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4456.md</code></td>
@@ -323,7 +323,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>MUST bar</strong></p>
 <div data-ze-rfc-bar="rfc4456:must">Ze verified 4</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc4456:overview">Ze MUST verified 4, Tests awaiting verification 3, Not assessed 2</div>
+<div data-ze-rfc-bar="rfc4456:overview">Ze MUST verified 4, SHOULD verified 3, Not assessed 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -380,7 +380,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4456:should.total">5</span></td>
 </tr>
 <tr><td>SHOULD verified</td>
-<td><span data-ze-rfc="rfc4456:should.proven">0</span></td>
+<td><span data-ze-rfc="rfc4456:should.proven">3</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
 <td><span data-ze-rfc="rfc4456:should.os-verified">0</span></td>
@@ -401,7 +401,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4456:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
 <tr><td>SHOULD tests awaiting verification</td>
-<td><span data-ze-rfc="rfc4456:should.proof-pending">3</span></td>
+<td><span data-ze-rfc="rfc4456:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
 <td><span data-ze-rfc="rfc4456:should.exclusion-unchecked">0</span></td>
@@ -438,7 +438,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>8 - Avoiding Routing Information Loops</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4456-8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L171" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRInjects</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L436" title="internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go" target="_blank" rel="noopener"><code>TestForwardReflectionLeavesAWithdrawalUntouched</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L439" title="internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go" target="_blank" rel="noopener"><code>TestForwardReflectionLeavesAWithdrawalUntouched</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L202" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesOriginator</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L283" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L284" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
@@ -532,14 +532,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L179" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRInjects</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4456-8-1"><code>RFC4456-8-1</code></a></h3>
 <p>This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: &#34;This attribute is 4 bytes long and it will be created by an RR in reflecting a route.&#34; The commit changed checkReflectorWithdrawal (both tags) only in its last failure: the Established re-check now returns interoplab.WithSearchedOutput(errors.New(...), output), which always returns a non-nil error wrapping the same cause (output.go). Every condition is byte-identical: the positive still requires the exact injector-log token 800904&lt;3 octets&gt;03 (flags 0x80, type 9, length 4, the client&#39;s identifier) beside the CLUSTER_LIST token, requireNoEarlyReflectorWithdrawal still refuses a withdrawal before FRR is asked, and the negative still requires the byte-exact withdrawal body :02:0004180A14000000 (withdrawn length 4, 10.20.0.0/24, Total Path Attribute Length 0), so no ORIGINATOR_ID rides the withdrawal. The unit covers TestReactorForwardRRInjects, TestReactorForwardRRPreservesOriginator and TestForwardReflectionLeavesAWithdrawalUntouched are unchanged and keep the 2026-10-06 judgement: absent originator becomes exactly four bytes 10.0.0.1, a present one stays byte-exact, withdrawal and EOR stay untouched with an advertisement control. The interop units carry no discrimination record and the scenario was not rerun for this failure-text change, so question 2 for them rests on reading; the unit tests carry the precise assertions. Verdict unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go::TestForwardReflectionLeavesAWithdrawalUntouched moved. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: &#34;This attribute is 4 bytes long and it will be created by an RR in reflecting a route.&#34; The commit changed checkReflectorWithdrawal (both tags) only in its last failure: the Established re-check now returns interoplab.WithSearchedOutput(errors.New(...), output), which always returns a non-nil error wrapping the same cause (output.go). Every condition is byte-identical: the positive still requires the exact injector-log token 800904&lt;3 octets&gt;03 (flags 0x80, type 9, length 4, the client&#39;s identifier) beside the CLUSTER_LIST token, requireNoEarlyReflectorWithdrawal still refuses a withdrawal before FRR is asked, and the negative still requires the byte-exact withdrawal body :02:0004180A14000000 (withdrawn length 4, 10.20.0.0/24, Total Path Attribute Length 0), so no ORIGINATOR_ID rides the withdrawal. The unit covers TestReactorForwardRRInjects, TestReactorForwardRRPreservesOriginator and TestForwardReflectionLeavesAWithdrawalUntouched are unchanged and keep the 2026-10-06 judgement: absent originator becomes exactly four bytes 10.0.0.1, a present one stays byte-exact, withdrawal and EOR stay untouched with an advertisement control. The interop units carry no discrimination record and the scenario was not rerun for this failure-text change, so question 2 for them rests on reading; the unit tests carry the precise assertions. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -550,7 +550,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L436" title="internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go" target="_blank" rel="noopener"><code>TestForwardReflectionLeavesAWithdrawalUntouched</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L439" title="internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go" target="_blank" rel="noopener"><code>TestForwardReflectionLeavesAWithdrawalUntouched</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
 </tr>
@@ -612,12 +612,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L204" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesOriginator</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L175" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRInjects</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -682,12 +682,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1225" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestBestPath_ClusterListLength</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1219" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestBestPath_ClusterListLength</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1314" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestClusterListEntries</code></a></td>
@@ -961,7 +961,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:28 UTC</span>
                 </div>
             </div>
         </footer>

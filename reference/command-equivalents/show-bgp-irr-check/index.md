@@ -9,7 +9,7 @@ Check if a prefix is accepted by the IRR filter\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:show-irr-check`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

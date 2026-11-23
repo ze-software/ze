@@ -12,9 +12,9 @@ Use the Ze interop harness for protocol assertions, or netlab for reusable multi
 
 ### [Protocol interop scenarios](https://ze-software.net/architecture/testing/interop/)
 
-The shared routing and network-service suite has 258 scenarios, including 154 primary BGP cases. BGP external-peer scenarios start only the required FRR, BIRD, or GoBGP daemons and check behavior through each peer's own CLI.
+The shared routing and network-service suite has 259 scenarios, including 155 primary BGP cases. BGP external-peer scenarios start only the required FRR, BIRD, or GoBGP daemons and check behavior through each peer's own CLI.
 
-`258 shared-suite scenarios` `FRR` `BIRD` `GoBGP` Use the Ze harness scenario assertions
+`259 shared-suite scenarios` `FRR` `BIRD` `GoBGP` Use the Ze harness scenario assertions
 
 **netlab**
 
@@ -26,7 +26,7 @@ Describe a three-node topology in YAML. netlab renders Ze configuration and star
 
 A Docker orchestrator launches Ze and one or more peer daemons on an isolated network, establishes real BGP sessions, and asserts correct behavior through each daemon's own CLI (`vtysh`, `birdc`, `gobgp`). Daemons start conditionally per scenario, so each run only spins up what it needs.
 
-The shared suite’s 258 routing and network-service scenarios include eBGP/iBGP, 4-byte ASN, IPv6, Add-Path, Route Refresh, Graceful Restart, Route Server, standard and extended communities, MD5 auth, BGP Roles, EVPN, VPN, FlowSpec, multihop, BFD and BFD strict mode, update delay, ECMP, SRv6, RPKI, BMP, max-prefix, GTSM, AS112, VRRP against keepalived, and OSPF/IS-IS interop with FRR.
+The shared suite’s 259 routing and network-service scenarios include eBGP/iBGP, 4-byte ASN, IPv6, Add-Path, Route Refresh, Graceful Restart, Route Server, standard and extended communities, MD5 auth, BGP Roles, EVPN, VPN, FlowSpec, multihop, BFD and BFD strict mode, update delay, ECMP, SRv6, RPKI, BMP, max-prefix, GTSM, AS112, VRRP against keepalived, and OSPF/IS-IS interop with FRR.
 
 - **What this lab tests:** BGP session and route behavior observed through the peer daemons' own commands
 - **Peers:** Real FRR, BIRD, and GoBGP, in Docker containers

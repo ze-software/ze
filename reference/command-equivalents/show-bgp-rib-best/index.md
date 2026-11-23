@@ -9,7 +9,7 @@ Show the winning route for each prefix\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:rib-best`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `status`
 - Answer shape: tab
 - Address fields: best\-peer\, next\-hop

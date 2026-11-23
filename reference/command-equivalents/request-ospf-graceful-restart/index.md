@@ -9,7 +9,7 @@ Trigger a planned OSPFv2 graceful restart \(RFC 3623 section 2\.1\)\.
 - Mode: Daemon
 - Wire method: `ze-ospf:graceful-restart-prepare`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

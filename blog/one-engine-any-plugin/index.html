@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>One configuration engine, many protocols - Ze Blog</title>
+        <meta name="description" content="How Ze uses YANG to validate changes across plugins, orders their application and lets operators roll back an unconfirmed remote change." />
+        <meta property="og:title" content="One configuration engine, many protocols - Ze Blog" />
+        <meta property="og:description" content="How Ze uses YANG to validate changes across plugins, orders their application and lets operators roll back an unconfirmed remote change." />
+        <meta property="og:type" content="article" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="One configuration engine, many protocols - Ze Blog" />
+        <meta name="twitter:description" content="How Ze uses YANG to validate changes across plugins, orders their application and lets operators roll back an unconfirmed remote change." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/blog/one-engine-any-plugin/" />
+        <meta property="og:url" content="https://ze-software.net/blog/one-engine-any-plugin/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <meta name="author" content="Thomas Mangin" />
+        <meta property="article:published_time" content="2026-11-22" />
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="site-main-wide" tabindex="-1">
+            <section class="blog-article-shell" aria-labelledby="post-title">
+                <div class="blog-article-heading">
+<div class="journey-hero blog-article-hero reveal">
+    <span class="journey-eyebrow">Article</span>
+    <h1 id="post-title">One configuration engine, many protocols</h1>
+    <p>A remote configuration change needs a way back even after the SSH session drops.</p>
+</div>
+                <div class="blog-article-meta"><time datetime="2026-11-22">2026-11-22</time><span>by Thomas Mangin</span></div>
+                </div>
+            </section>
+            <div class="blog-reading-layout">
+                <aside class="blog-reading-rail" aria-label="Article navigation">
+            <nav class="blog-article-toc reveal" aria-label="Article sections">
+                <details class="reading-outline" open>
+                <summary class="blog-article-toc-label">In this article</summary>
+                <ol>
+                    <li><a href="#confirm-the-change-from-the-network">Confirm the change from the network</a></li>
+                    <li><a href="#what-yang-checks-before-a-commit">What YANG checks before a commit</a></li>
+                    <li><a href="#what-the-engine-does-when-the-change-goes-live">What the engine does when the change goes live</a></li>
+                </ol>
+                </details>
+            </nav>
+                    <nav class="blog-related-links" aria-label="Related links">
+                        <p class="post-back"><a href="../">&larr; All articles</a></p>
+                        <a href="../feed.xml">Subscribe to the blog</a>
+                        <a href="../../docs/">Explore the documentation</a>
+                    </nav>
+                </aside>
+                <div class="blog-reading-body">
+            <section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">
+<p>When you change a router over SSH, the network carrying the session may be the one you’re changing. The proposed configuration can pass validation and still cut off the connection you need to undo it.</p>
+<p><em>This article was drafted with Gemini and revised with Sol. The architecture and design decisions are mine.</em></p>
+<h2 id="confirm-the-change-from-the-network">Confirm the change from the network</h2>
+<p>Junos has a command I like for this. <code>commit confirmed</code> applies the change and gives you time to check the result. If the change cuts off your access, the router can restore its previous configuration when the timer expires. <a href="https://www.juniper.net/documentation/us/en/software/junos/cli/topics/topic-map/junos-configuration-commit.html" target="_blank" rel="noopener">Junos confirmed commits</a></p>
+<p>The same workflow is available in Ze. Use <code>commit confirmed 120</code> to apply the change with a two-minute window, then open a fresh SSH connection from your usual management network. For a routing change, check that the affected peers have returned and that they see the routes you expect before issuing <code>commit accept</code>.</p>
+<p>The Ze daemon owns the timer and starts restoring the previous configuration when the timer expires, even if the SSH client that issued the commit has disconnected. <a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-editor.md#commit-confirmed" target="_blank" rel="noopener">Ze confirmed commits</a> · <a href="https://github.com/ze-software/ze/blob/main/test/plugin/session-editor-commit-confirmed-disconnect.ci" target="_blank" rel="noopener">SSH disconnect test</a></p>
+<h2 id="what-yang-checks-before-a-commit">What YANG checks before a commit</h2>
+<p>Each plugin that supplies a YANG module contributes settings and constraints to Ze’s configuration schema. For example, the BGP listener uses a shared port type whose YANG range is 1 through 65535, so Ze can refuse a port of <code>0</code> before opening a socket. The editor and the configuration loader get that range from the same declaration. <a href="../../guides/configuration-model/">Ze’s configuration model</a></p>
+<p>Ze extends YANG so a schema can name checks registered in the daemon. A setting marked with <code>ze:validate</code> calls a validator by name. BGP uses it to refuse <code>0.0.0.0</code> as a router ID even though it has the form of an IPv4 address. <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#extensions-ze-extensionsyang" target="_blank" rel="noopener">Ze’s validation extensions</a></p>
+<p><code>ze:reference</code> lets a setting name a source of values in the proposed configuration. BGP peers and static next hops both use <code>ze:reference "bfd-profile"</code> to refer to a named Bidirectional Forwarding Detection (BFD) profile. The editor offers the profiles you’ve defined, and Ze refuses a commit that names a missing profile. The two components get the same behaviour from the same lookup. <a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/api/profile_reference.go" target="_blank" rel="noopener">BFD profile lookup</a></p>
+<p>Built-in and external plugins can import the same extension module and reuse the validators and reference sources registered in the running Ze build. Ze refuses a module that names one it cannot find. The engine checks <code>ze:reference</code> across the proposed configuration. The shared <code>ze:validate</code> pass currently covers selected sections, and BGP runs its own validation. An external plugin can enforce additional rules in its verify step before Ze applies its changes. <a href="https://github.com/ze-software/ze/blob/main/docs/plugin-development/schema.md" target="_blank" rel="noopener">Plugin schema guide</a> · <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#where-a-validator-actually-runs" target="_blank" rel="noopener"><code>ze:validate</code> coverage</a></p>
+<h2 id="what-the-engine-does-when-the-change-goes-live">What the engine does when the change goes live</h2>
+<p>Suppose you move an IP address from one interface to another and a BGP peer uses it as its local address. The BGP configuration can stay exactly as it was, yet the live session depends on an address that disappears during the move. The configuration engine orders the work across the two components. Ze stops the session before removing the address and starts it again after assigning the address to the other interface. The test watches the kernel’s address notifications and checks that the peer reconnects and sends its route again. <a href="https://github.com/ze-software/ze/blob/main/test/reload/config-apply-ordering-address-swap.ci" target="_blank" rel="noopener">Address-move test</a></p>
+<p>If a component fails during apply, Ze starts undoing the changes it has already made. In one test a later plugin fails after Ze has removed a BGP peer. The rollback puts the peer back, and the peer has to reconnect and announce its route again. A confirmed commit covers the case where apply succeeds and you still have to see what happened on the network before keeping the change. <a href="https://github.com/ze-software/ze/blob/main/test/reload/config-apply-ordering-mixed-rollback.ci" target="_blank" rel="noopener">Rollback test</a></p>
+            </section>
+                </div>
+            </div>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

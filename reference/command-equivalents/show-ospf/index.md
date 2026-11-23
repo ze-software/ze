@@ -9,7 +9,7 @@ Show the OSPFv2 process summary \(RFC 2328\)\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-ospf`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `border-routers`, `database`, `graceful-restart`, `instance`, `interface`, `ipv6`, `ldp-sync`, `neighbor`, `route`, `segment-routing`, `spf`, `te-database`, `virtual-links`
 - Answer shape: not declared
 - Address fields: none

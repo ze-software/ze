@@ -9,7 +9,7 @@ Show one BFD profile by name\.
 - Mode: Read\-only
 - Wire method: `ze-bfd:show-profile`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

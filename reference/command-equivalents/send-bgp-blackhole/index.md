@@ -9,7 +9,7 @@ Originate a blackhole route on demand\.
 - Mode: Daemon
 - Wire method: `ze-bgp:announce-blackhole`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `for`, `tag`
 - Answer shape: not declared
 - Address fields: none

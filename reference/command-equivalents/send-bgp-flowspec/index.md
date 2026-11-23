@@ -9,7 +9,7 @@ Originate a FlowSpec rule on demand \(RFC 8955\)\.
 - Mode: Daemon
 - Wire method: `ze-bgp:announce-flowspec`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `community`, `destination-ipv4`, `destination-ipv6`, `destination-port`, `discard`, `dscp`, `flow-label`, `for`, `fragment`, `icmp-code`, `icmp-type`, `next-header`, `packet-length`, `port`, `protocol`, `rate-limit`, `rd`, `source-ipv4`, `source-ipv6`, `source-port`, `tag`, `tcp-flags`, `traffic-class`
 - Answer shape: not declared
 - Address fields: none

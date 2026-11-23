@@ -7,17 +7,17 @@
   "implemented": true,
   "must": {
     "total": 59,
-    "kept": 56,
-    "ze-proven": 29,
+    "kept": 55,
+    "ze-proven": 35,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 4,
+    "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 23,
-    "not-owed": 3,
+    "not-built": 20,
+    "not-owed": 4,
     "not-owed-by-kind": {
-      "not-applicable": 3
+      "not-applicable": 4
     }
   },
   "should": {
@@ -33,15 +33,13 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 29
+    "unit": 35
   },
   "unmet": [
     "RFC8210-2-1",
     "RFC8210-4-2",
     "RFC8210-4-3",
     "RFC8210-5.10-1",
-    "RFC8210-5.10-2",
-    "RFC8210-5.11-2",
     "RFC8210-5.11-3",
     "RFC8210-5.3-1",
     "RFC8210-5.3-2",
@@ -49,7 +47,6 @@
     "RFC8210-5.6-1",
     "RFC8210-5.8-1",
     "RFC8210-7-2",
-    "RFC8210-9-2",
     "RFC8210-9.1-2",
     "RFC8210-9.1-5",
     "RFC8210-9.2-12",

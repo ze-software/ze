@@ -152,6 +152,16 @@ Border Gateway Protocol routing configuration.
 
 A peer inherits from its group defaults. A group inherits from this global level.
 
+- **accept-own** `boolean`: Enable RFC 7611 ACCEPT_OWN community handling (disabled by default).
+  RFC 7611 Section 2.3: controls BGP ACCEPT_OWN (65535:1, 0xFFFF0001) handling and the Section 3 VPN-IP best-path preference step. Defaults to false (disabled) per RFC 7611 Section 2.3. When disabled, no special acceptance or decision-process step is applied; Section 2.2 non-RD receive discard still applies.
+- **aggregate <prefix>** `list`: Synthesize an aggregate BGP route from more-specific selected routes.
+  Configured BGP route aggregation (RFC 4271 Section 9.2.2.2 and RFC 9774 Section 5.2). When one or more more-specific selected BGP routes exist in Loc-RIB under this prefix, Ze synthesizes a single aggregate route according to RFC 4271 Section 9.2.2.2: routes with different MULTI_EXIT_DISC attributes are not aggregated; ORIGIN takes the worst of INCOMPLETE, EGP, then IGP; differing NEXT_HOPs resolve to a local speaker interface address; ATOMIC_AGGREGATE is inherited from any contributor or attached when brief aggregation omits AS numbers; contributing AGGREGATOR attributes are discarded; and AGGREGATOR, when enabled, carries this speaker's own local AS and BGP Router ID (RFC 4271 Section 5.1.7). Brief aggregation omits AS_SETs per RFC 9774 Section 3, and brief-origin-as truncates the AS_PATH after the right-most instance of the configured origin AS per RFC 9774 Section 5.2.
+  - **aggregator** `boolean`: Attach this speaker's AGGREGATOR attribute (default true).
+    Attach the AGGREGATOR attribute (RFC 4271 Section 5.1.7) containing this speaker's own local AS number and BGP Router ID. Set false to omit AGGREGATOR.
+  - **brief-origin-as** `asn`: Origin AS after whose right-most instance the aggregate AS_PATH is truncated.
+    Desired origin AS for consistent brief aggregation (RFC 9774 Section 5.2). When set, Ze truncates the aggregated AS_PATH immediately after the right-most instance of this AS number so the aggregate announces a consistent origin AS without using AS_SET.
+  - **next-hop** `ip-address`: Local interface next-hop for the aggregate when contributors differ.
+    Local speaker interface address used as NEXT_HOP when contributing routes carry different NEXT_HOP attributes (RFC 4271 Section 9.2.2.2). Must match an interface address on this BGP speaker; when omitted, Ze selects a local session or interface address for the family or, for IPv4, the BGP Router ID.
 - **as-notation** `enumeration`: How Ze writes an AS number in the output an operator reads.
   RFC 5396 Section 2 names the three notations. Take AS 65546 and AS 100. asplain writes them 65546 and 100. asdot writes 1.10 and 100, leaving an AS number less than 65536 alone, and asdot+ writes 1.10 and 0.100. The leaf changes the text Ze WRITES, and the wire value stays the same 4-octet number (RFC 6793). Ze READS all three notations wherever an AS number is configured, and asplain is the default RFC 5396 Section 3 recommends.
   - `asdot`: An AS number of 65536 or more is X.Y, and a lower one is a decimal integer
@@ -167,6 +177,8 @@ A peer inherits from its group defaults. A group inherits from this global level
   The container holds the sender. The BMP receiver of Ze listens under environment bmp, so a box that only receives BMP writes nothing here.
   - **sender** `container`: Stream BMP data to external collectors
     The container carries presence, so Ze starts the sender when you write it and stops every collector session when you delete it. Ze sends an Initiation message first on each connection, which RFC 7854 Section 4.3 requires.
+    - **adj-rib-out-pre-policy** `boolean`: Stream pre-policy Adj-RIB-Out Route Monitoring messages (O=1, L=0, RFC 8671 Section 5.2)
+      Stream pre-policy Adj-RIB-Out candidate UPDATEs (RFC 8671 Section 5.2) with per-peer flags O=1 and L=0 before outbound policy runs, encoding unknown mandatory attributes such as next hop as zero or empty length. A change to the leaf bounces every monitored peer with a Peer Down and a Peer Up per RFC 8671 Section 7.2.
     - **collector <name>** `list`: BMP collector endpoints to connect to
       Ze dials each collector from its own session. Ze retries a failed connection after 30 seconds, then doubles the wait to a limit of 720 seconds. A collector whose address, port and source-address a reload does not change keeps its session, and keeps everything the collector learned on it.
       - **address** `ip-address`: Collector IP address
@@ -639,6 +651,8 @@ A peer inherits from its group defaults. A group inherits from this global level
         The route carries the RFC 7999 BLACKHOLE community, and a covering VRP allows a shorter prefix than the route announces. RFC 7999 Section 3.3 states that an operator MUST ensure origin validation does not inadvertently block legitimate announcements carrying BLACKHOLE. A blackhole prefix is as long as possible, usually a /32 or a /128. A ROA for the covering block carries its maxLength at the aggregate. RFC 6811 then makes the announcement Invalid, and a session running action invalid reject drops the route before anything can honor it. The exemption is narrow. It applies only when a covering VRP names the route's own origin AS and disagrees on nothing but the length. A wrong origin AS stays Invalid, which is the hijack RFC 6811 exists to catch. A prefix with no covering VRP is NotFound rather than Invalid, so the exemption never reaches it. The default is false. Enable it together with the blackhole honor leaf of the peer, on the same session. On its own it accepts a route it would have rejected, and it discards nothing.
     - **session** `container`: BGP session parameters for this peer or group.
       The container holds the ASN, the capabilities, the address families, the next-hop policy, and the community control. A peer inherits these from its group, and a peer value overrides the group value.
+      - **accept-origin-validation-state** `boolean`: Accept RFC 8097 Origin Validation State extended community from this EBGP peer.
+        RFC 8097 Section 2 requires implementations to drop the BGP Prefix Origin Validation State extended community (type 0x43, sub-type 0x00) when received from an EBGP peer by default, without processing it further. Set this leaf to true only for a trusted EBGP peer (such as a route server or adjacent AS under common administration) to accept and process the community. Has no effect on IBGP sessions, where the community is always processed.
       - **accept-srv6-prefix-sid** `boolean`: Accept the BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.
         RFC 8669 Section 4 states that a PrefixSID from an EBGP peer outside the SR domain MUST be discarded, unless the speaker is configured to accept it. The leaf has no effect on IBGP, where Ze always accepts the attribute.
       - **aigp** `container`: Accumulated IGP metric policy for this session.
@@ -711,16 +725,20 @@ A peer inherits from its group defaults. A group inherits from this global level
           - `enable`: Advertise the capability; no enforcement
           - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
           - `require`: Advertise the capability; refuse the session when the peer does not offer it
-        - **graceful-restart** `container`: Graceful Restart capability configuration.
-          The container carries presence, so writing it makes Ze send the Graceful Restart capability, code 64, to this peer. Ze names every address family the peer carries in that capability, unless the family container below narrows the set, so the peer retains Ze's routes for those families while the session is down (RFC 4724 Section 4.2). The families are the ones the session negotiates, so they include what the peer inherits from its group and exclude any family entry written 'mode disable'. The Forwarding State bit of each family is set at connection time rather than here: it says the routes were still being forwarded while Ze was down, which is true when Ze restarted and the forwarding plane kept them. A container on the peer replaces the container on the group rather than adding to it.
-          - **family** `container`: Address families Ze names in the Graceful Restart capability.
-            The container carries presence, and the three states differ. No container is the default: the capability names every address family the peer carries. The container with one name or more: the capability names those families and no other. The container with no name: the capability names no family at all, which RFC 4724 Section 3 reads as a speaker that supports the Receiving Speaker procedures and preserves nothing of its own. The container governs the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart capability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by omitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64 is how an operator asks for LLGR with no GR phase. In every state the capability names only families the RIB plugin can store, because RFC 4724 Section 4 lets a speaker list a family only when it can preserve it across a restart: a family it cannot store is left out with a warning, and the capability is still sent when none is left.
-            - **name** `address-family[]`: Address family the capability names (e.g. ipv4/unicast).
-              RFC 4724 Section 4: 'The presence and the setting of the Forwarding State bit for an address family depend upon the actual forwarding state and configuration.' The value must name a family the peer's own family list carries. Ze refuses the configuration otherwise, because RFC 4724 Section 3 scopes a tuple to routes 'advertised with the same AFI and SAFI', and a session that carries no such route cannot keep the promise the tuple makes.
-          - **long-lived-stale-time** `uint32`: Long-Lived Stale Time for the peer, in seconds (RFC 9494 Section 3).
-            Long-Lived Stale Time in seconds (RFC 9494 Section 3). When this leaf is set, Ze advertises the LLGR capability (code 71). The maximum value is 16777215, because the field is 24 bits, which is about 194 days. Ze applies the value to every negotiated address family of the peer.
-          - **restart-time** `uint16`: Restart Time in seconds (RFC 4724 Section 3). Maximum value is 4095 (12-bit field).
-            The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer restarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale route of the peer when that timer expires, unless the peer also negotiated LLGR.
+        - **graceful-restart** `container`: Graceful Restart capability configuration (codes 64 and 71).
+          The container carries presence, so writing it makes Ze send the Graceful Restart capability, code 64, to this peer. With no short-lived container, code 64 carries Restart Time 0 and no address family tuple, which RFC 4724 Section 3 reads as a Receiving Speaker that preserves nothing of its own and RFC 9494 Section 4.1 uses to skip the conventional GR phase when long-lived is configured. A container on the peer replaces the container on the group rather than adding to it.
+          - **long-lived** `container`: Long-Lived Graceful Restart phase (RFC 9494, code 71).
+            Configures the Long-Lived Graceful Restart capability (RFC 9494, code 71) per address family. Nested inside graceful-restart so code 71 is never advertised without code 64 (RFC 9494 Section 4.1). LLGR is off by default and requires an explicit family entry with a stale-time for each AFI/SAFI (RFC 9494 Section 5).
+            - **family <name>** `list`: Per-family LLGR stale time configuration (code 71).
+              Address families advertised in the Long-Lived Graceful Restart capability, code 71, each with its own 24-bit Long-Lived Stale Time (RFC 9494 Section 3.1). Every listed family must be one the peer's session carries. Families absent from this list are omitted from code 71 and do not run LLGR procedures even if the remote peer advertises them (RFC 9494 Section 5).
+              - **stale-time** `uint32`: Long-Lived Stale Time in seconds (0..16777215).
+                Long-Lived Stale Time in seconds for this address family (RFC 9494 Section 3.1). The field is 24 bits, so the maximum value is 16777215 (about 194 days). Zero advertises LLGR capability support for this family with a zero-second stale period.
+          - **short-lived** `container`: Conventional Graceful Restart phase (RFC 4724, code 64).
+            Enables the conventional Graceful Restart phase (RFC 4724, code 64) for this peer. Ze names every address family the peer carries in code 64 unless the family list below narrows the set, so the peer retains Ze's routes while the session is down (RFC 4724 Section 4.2). The Forwarding State bit is set at connection time when the forwarding plane kept Ze's routes across a restart. Omitting this container sends code 64 with Restart Time 0 and no family tuples.
+            - **family <name>** `list`: Address families Ze names in the GR capability (code 64).
+              Narrows the address families Ze names in the Graceful Restart capability, code 64. When absent, code 64 names every family the peer carries. When present, code 64 names only the listed families. Every listed family must be one the peer's session carries, and Ze omits any family the RIB plugin cannot store with a warning (RFC 4724 Section 4). This list governs code 64 alone and never affects code 71.
+            - **restart-time** `uint16`: Restart Time in seconds (RFC 4724 Section 3, 0..4095).
+              The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer restarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale route of the peer when that timer expires, unless the peer also negotiated LLGR.
         - **hostname** `container`: FQDN capability configuration.
           Ze sends the FQDN capability, code 73 of draft-walton-bgp-hostname, in the OPEN message. Ze sends no capability when host and domain are both empty. A container on the peer replaces the container on the group rather than adding to it.
           - **domain** `string`: Domain name (max 255 bytes).
@@ -807,6 +825,8 @@ A peer inherits from its group defaults. A group inherits from this global level
             ze:hidden keeps the leaf out of the CLI completion. The peer command reports the date, and it marks the peer prefix-stale when the date is more than 180 days old.
           - **warning** `uint32`: Warning threshold. Defaults to 90% of maximum when not set.
             Crossing the threshold raises a metric and a login-banner warning, and it leaves the session up. Ze refuses a warning value that is not less than maximum.
+      - **flowspec-redirect-next-hop** `boolean`: Carry MP_REACH next hop for 0x0800 FlowSpec redirect (draft-simpson).
+        RFC 8955 Section 4 requires the MP_REACH_NLRI Next-Hop Network Address Length of every advertised Flow Specification to be 0. When false (the default), Ze emits a zero-length next hop on every FlowSpec route, including one carrying the 0x0800 redirect-to-IP-next-hop extended community. Set this leaf to true on a peer that needs the draft-simpson-idr-flowspec-redirect-02 Section 3 extension, where a 0x0800 FlowSpec route carries its redirect target in the MP_REACH_NLRI next-hop field on origination and forwarding. ze exabgp migrate sets this leaf when a migrated neighbor uses a Simpson redirect action or serves an API process on a FlowSpec family.
       - **host-name** `string`: Legacy: Host name for FQDN capability.
         Ze reads the leaf after capability > hostname > host and replaces that value with it, so a peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the host name, which is the 255-byte limit. Write capability > hostname > host in a new config: ze exabgp migrate produces that spelling and never this one.
       - **irr** `container`: Per-peer IRR filter settings.
@@ -978,6 +998,8 @@ A peer inherits from its group defaults. A group inherits from this global level
       The route carries the RFC 7999 BLACKHOLE community, and a covering VRP allows a shorter prefix than the route announces. RFC 7999 Section 3.3 states that an operator MUST ensure origin validation does not inadvertently block legitimate announcements carrying BLACKHOLE. A blackhole prefix is as long as possible, usually a /32 or a /128. A ROA for the covering block carries its maxLength at the aggregate. RFC 6811 then makes the announcement Invalid, and a session running action invalid reject drops the route before anything can honor it. The exemption is narrow. It applies only when a covering VRP names the route's own origin AS and disagrees on nothing but the length. A wrong origin AS stays Invalid, which is the hijack RFC 6811 exists to catch. A prefix with no covering VRP is NotFound rather than Invalid, so the exemption never reaches it. The default is false. Enable it together with the blackhole honor leaf of the peer, on the same session. On its own it accepts a route it would have rejected, and it discards nothing.
   - **session** `container`: BGP session parameters for this peer or group.
     The container holds the ASN, the capabilities, the address families, the next-hop policy, and the community control. A peer inherits these from its group, and a peer value overrides the group value.
+    - **accept-origin-validation-state** `boolean`: Accept RFC 8097 Origin Validation State extended community from this EBGP peer.
+      RFC 8097 Section 2 requires implementations to drop the BGP Prefix Origin Validation State extended community (type 0x43, sub-type 0x00) when received from an EBGP peer by default, without processing it further. Set this leaf to true only for a trusted EBGP peer (such as a route server or adjacent AS under common administration) to accept and process the community. Has no effect on IBGP sessions, where the community is always processed.
     - **accept-srv6-prefix-sid** `boolean`: Accept the BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.
       RFC 8669 Section 4 states that a PrefixSID from an EBGP peer outside the SR domain MUST be discarded, unless the speaker is configured to accept it. The leaf has no effect on IBGP, where Ze always accepts the attribute.
     - **aigp** `container`: Accumulated IGP metric policy for this session.
@@ -1050,16 +1072,20 @@ A peer inherits from its group defaults. A group inherits from this global level
         - `enable`: Advertise the capability; no enforcement
         - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
         - `require`: Advertise the capability; refuse the session when the peer does not offer it
-      - **graceful-restart** `container`: Graceful Restart capability configuration.
-        The container carries presence, so writing it makes Ze send the Graceful Restart capability, code 64, to this peer. Ze names every address family the peer carries in that capability, unless the family container below narrows the set, so the peer retains Ze's routes for those families while the session is down (RFC 4724 Section 4.2). The families are the ones the session negotiates, so they include what the peer inherits from its group and exclude any family entry written 'mode disable'. The Forwarding State bit of each family is set at connection time rather than here: it says the routes were still being forwarded while Ze was down, which is true when Ze restarted and the forwarding plane kept them. A container on the peer replaces the container on the group rather than adding to it.
-        - **family** `container`: Address families Ze names in the Graceful Restart capability.
-          The container carries presence, and the three states differ. No container is the default: the capability names every address family the peer carries. The container with one name or more: the capability names those families and no other. The container with no name: the capability names no family at all, which RFC 4724 Section 3 reads as a speaker that supports the Receiving Speaker procedures and preserves nothing of its own. The container governs the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart capability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by omitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64 is how an operator asks for LLGR with no GR phase. In every state the capability names only families the RIB plugin can store, because RFC 4724 Section 4 lets a speaker list a family only when it can preserve it across a restart: a family it cannot store is left out with a warning, and the capability is still sent when none is left.
-          - **name** `address-family[]`: Address family the capability names (e.g. ipv4/unicast).
-            RFC 4724 Section 4: 'The presence and the setting of the Forwarding State bit for an address family depend upon the actual forwarding state and configuration.' The value must name a family the peer's own family list carries. Ze refuses the configuration otherwise, because RFC 4724 Section 3 scopes a tuple to routes 'advertised with the same AFI and SAFI', and a session that carries no such route cannot keep the promise the tuple makes.
-        - **long-lived-stale-time** `uint32`: Long-Lived Stale Time for the peer, in seconds (RFC 9494 Section 3).
-          Long-Lived Stale Time in seconds (RFC 9494 Section 3). When this leaf is set, Ze advertises the LLGR capability (code 71). The maximum value is 16777215, because the field is 24 bits, which is about 194 days. Ze applies the value to every negotiated address family of the peer.
-        - **restart-time** `uint16`: Restart Time in seconds (RFC 4724 Section 3). Maximum value is 4095 (12-bit field).
-          The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer restarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale route of the peer when that timer expires, unless the peer also negotiated LLGR.
+      - **graceful-restart** `container`: Graceful Restart capability configuration (codes 64 and 71).
+        The container carries presence, so writing it makes Ze send the Graceful Restart capability, code 64, to this peer. With no short-lived container, code 64 carries Restart Time 0 and no address family tuple, which RFC 4724 Section 3 reads as a Receiving Speaker that preserves nothing of its own and RFC 9494 Section 4.1 uses to skip the conventional GR phase when long-lived is configured. A container on the peer replaces the container on the group rather than adding to it.
+        - **long-lived** `container`: Long-Lived Graceful Restart phase (RFC 9494, code 71).
+          Configures the Long-Lived Graceful Restart capability (RFC 9494, code 71) per address family. Nested inside graceful-restart so code 71 is never advertised without code 64 (RFC 9494 Section 4.1). LLGR is off by default and requires an explicit family entry with a stale-time for each AFI/SAFI (RFC 9494 Section 5).
+          - **family <name>** `list`: Per-family LLGR stale time configuration (code 71).
+            Address families advertised in the Long-Lived Graceful Restart capability, code 71, each with its own 24-bit Long-Lived Stale Time (RFC 9494 Section 3.1). Every listed family must be one the peer's session carries. Families absent from this list are omitted from code 71 and do not run LLGR procedures even if the remote peer advertises them (RFC 9494 Section 5).
+            - **stale-time** `uint32`: Long-Lived Stale Time in seconds (0..16777215).
+              Long-Lived Stale Time in seconds for this address family (RFC 9494 Section 3.1). The field is 24 bits, so the maximum value is 16777215 (about 194 days). Zero advertises LLGR capability support for this family with a zero-second stale period.
+        - **short-lived** `container`: Conventional Graceful Restart phase (RFC 4724, code 64).
+          Enables the conventional Graceful Restart phase (RFC 4724, code 64) for this peer. Ze names every address family the peer carries in code 64 unless the family list below narrows the set, so the peer retains Ze's routes while the session is down (RFC 4724 Section 4.2). The Forwarding State bit is set at connection time when the forwarding plane kept Ze's routes across a restart. Omitting this container sends code 64 with Restart Time 0 and no family tuples.
+          - **family <name>** `list`: Address families Ze names in the GR capability (code 64).
+            Narrows the address families Ze names in the Graceful Restart capability, code 64. When absent, code 64 names every family the peer carries. When present, code 64 names only the listed families. Every listed family must be one the peer's session carries, and Ze omits any family the RIB plugin cannot store with a warning (RFC 4724 Section 4). This list governs code 64 alone and never affects code 71.
+          - **restart-time** `uint16`: Restart Time in seconds (RFC 4724 Section 3, 0..4095).
+            The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer restarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale route of the peer when that timer expires, unless the peer also negotiated LLGR.
       - **hostname** `container`: FQDN capability configuration.
         Ze sends the FQDN capability, code 73 of draft-walton-bgp-hostname, in the OPEN message. Ze sends no capability when host and domain are both empty. A container on the peer replaces the container on the group rather than adding to it.
         - **domain** `string`: Domain name (max 255 bytes).
@@ -1146,6 +1172,8 @@ A peer inherits from its group defaults. A group inherits from this global level
           ze:hidden keeps the leaf out of the CLI completion. The peer command reports the date, and it marks the peer prefix-stale when the date is more than 180 days old.
         - **warning** `uint32`: Warning threshold. Defaults to 90% of maximum when not set.
           Crossing the threshold raises a metric and a login-banner warning, and it leaves the session up. Ze refuses a warning value that is not less than maximum.
+    - **flowspec-redirect-next-hop** `boolean`: Carry MP_REACH next hop for 0x0800 FlowSpec redirect (draft-simpson).
+      RFC 8955 Section 4 requires the MP_REACH_NLRI Next-Hop Network Address Length of every advertised Flow Specification to be 0. When false (the default), Ze emits a zero-length next hop on every FlowSpec route, including one carrying the 0x0800 redirect-to-IP-next-hop extended community. Set this leaf to true on a peer that needs the draft-simpson-idr-flowspec-redirect-02 Section 3 extension, where a 0x0800 FlowSpec route carries its redirect target in the MP_REACH_NLRI next-hop field on origination and forwarding. ze exabgp migrate sets this leaf when a migrated neighbor uses a Simpson redirect action or serves an API process on a FlowSpec family.
     - **host-name** `string`: Legacy: Host name for FQDN capability (group default).
       A member peer that states no host-name of its own takes this value. Ze reads the leaf after capability > hostname > host and replaces that value with it. The capability writes a 1-byte length in front of the host name, which is the 255-byte limit. Write capability > hostname > host in a new config: ze exabgp migrate produces that spelling and never this one.
     - **irr** `container`: Per-peer IRR filter settings.
@@ -1524,6 +1552,8 @@ A peer inherits from its group defaults. A group inherits from this global level
       The route carries the RFC 7999 BLACKHOLE community, and a covering VRP allows a shorter prefix than the route announces. RFC 7999 Section 3.3 states that an operator MUST ensure origin validation does not inadvertently block legitimate announcements carrying BLACKHOLE. A blackhole prefix is as long as possible, usually a /32 or a /128. A ROA for the covering block carries its maxLength at the aggregate. RFC 6811 then makes the announcement Invalid, and a session running action invalid reject drops the route before anything can honor it. The exemption is narrow. It applies only when a covering VRP names the route's own origin AS and disagrees on nothing but the length. A wrong origin AS stays Invalid, which is the hijack RFC 6811 exists to catch. A prefix with no covering VRP is NotFound rather than Invalid, so the exemption never reaches it. The default is false. Enable it together with the blackhole honor leaf of the peer, on the same session. On its own it accepts a route it would have rejected, and it discards nothing.
   - **session** `container`: BGP session parameters for this peer or group.
     The container holds the ASN, the capabilities, the address families, the next-hop policy, and the community control. A peer inherits these from its group, and a peer value overrides the group value.
+    - **accept-origin-validation-state** `boolean`: Accept RFC 8097 Origin Validation State extended community from this EBGP peer.
+      RFC 8097 Section 2 requires implementations to drop the BGP Prefix Origin Validation State extended community (type 0x43, sub-type 0x00) when received from an EBGP peer by default, without processing it further. Set this leaf to true only for a trusted EBGP peer (such as a route server or adjacent AS under common administration) to accept and process the community. Has no effect on IBGP sessions, where the community is always processed.
     - **accept-srv6-prefix-sid** `boolean`: Accept the BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.
       RFC 8669 Section 4 states that a PrefixSID from an EBGP peer outside the SR domain MUST be discarded, unless the speaker is configured to accept it. The leaf has no effect on IBGP, where Ze always accepts the attribute.
     - **aigp** `container`: Accumulated IGP metric policy for this session.
@@ -1596,16 +1626,20 @@ A peer inherits from its group defaults. A group inherits from this global level
         - `enable`: Advertise the capability; no enforcement
         - `refuse`: Do not advertise the capability; refuse the session when the peer offers it
         - `require`: Advertise the capability; refuse the session when the peer does not offer it
-      - **graceful-restart** `container`: Graceful Restart capability configuration.
-        The container carries presence, so writing it makes Ze send the Graceful Restart capability, code 64, to this peer. Ze names every address family the peer carries in that capability, unless the family container below narrows the set, so the peer retains Ze's routes for those families while the session is down (RFC 4724 Section 4.2). The families are the ones the session negotiates, so they include what the peer inherits from its group and exclude any family entry written 'mode disable'. The Forwarding State bit of each family is set at connection time rather than here: it says the routes were still being forwarded while Ze was down, which is true when Ze restarted and the forwarding plane kept them. A container on the peer replaces the container on the group rather than adding to it.
-        - **family** `container`: Address families Ze names in the Graceful Restart capability.
-          The container carries presence, and the three states differ. No container is the default: the capability names every address family the peer carries. The container with one name or more: the capability names those families and no other. The container with no name: the capability names no family at all, which RFC 4724 Section 3 reads as a speaker that supports the Receiving Speaker procedures and preserves nothing of its own. The container governs the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart capability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by omitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64 is how an operator asks for LLGR with no GR phase. In every state the capability names only families the RIB plugin can store, because RFC 4724 Section 4 lets a speaker list a family only when it can preserve it across a restart: a family it cannot store is left out with a warning, and the capability is still sent when none is left.
-          - **name** `address-family[]`: Address family the capability names (e.g. ipv4/unicast).
-            RFC 4724 Section 4: 'The presence and the setting of the Forwarding State bit for an address family depend upon the actual forwarding state and configuration.' The value must name a family the peer's own family list carries. Ze refuses the configuration otherwise, because RFC 4724 Section 3 scopes a tuple to routes 'advertised with the same AFI and SAFI', and a session that carries no such route cannot keep the promise the tuple makes.
-        - **long-lived-stale-time** `uint32`: Long-Lived Stale Time for the peer, in seconds (RFC 9494 Section 3).
-          Long-Lived Stale Time in seconds (RFC 9494 Section 3). When this leaf is set, Ze advertises the LLGR capability (code 71). The maximum value is 16777215, because the field is 24 bits, which is about 194 days. Ze applies the value to every negotiated address family of the peer.
-        - **restart-time** `uint16`: Restart Time in seconds (RFC 4724 Section 3). Maximum value is 4095 (12-bit field).
-          The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer restarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale route of the peer when that timer expires, unless the peer also negotiated LLGR.
+      - **graceful-restart** `container`: Graceful Restart capability configuration (codes 64 and 71).
+        The container carries presence, so writing it makes Ze send the Graceful Restart capability, code 64, to this peer. With no short-lived container, code 64 carries Restart Time 0 and no address family tuple, which RFC 4724 Section 3 reads as a Receiving Speaker that preserves nothing of its own and RFC 9494 Section 4.1 uses to skip the conventional GR phase when long-lived is configured. A container on the peer replaces the container on the group rather than adding to it.
+        - **long-lived** `container`: Long-Lived Graceful Restart phase (RFC 9494, code 71).
+          Configures the Long-Lived Graceful Restart capability (RFC 9494, code 71) per address family. Nested inside graceful-restart so code 71 is never advertised without code 64 (RFC 9494 Section 4.1). LLGR is off by default and requires an explicit family entry with a stale-time for each AFI/SAFI (RFC 9494 Section 5).
+          - **family <name>** `list`: Per-family LLGR stale time configuration (code 71).
+            Address families advertised in the Long-Lived Graceful Restart capability, code 71, each with its own 24-bit Long-Lived Stale Time (RFC 9494 Section 3.1). Every listed family must be one the peer's session carries. Families absent from this list are omitted from code 71 and do not run LLGR procedures even if the remote peer advertises them (RFC 9494 Section 5).
+            - **stale-time** `uint32`: Long-Lived Stale Time in seconds (0..16777215).
+              Long-Lived Stale Time in seconds for this address family (RFC 9494 Section 3.1). The field is 24 bits, so the maximum value is 16777215 (about 194 days). Zero advertises LLGR capability support for this family with a zero-second stale period.
+        - **short-lived** `container`: Conventional Graceful Restart phase (RFC 4724, code 64).
+          Enables the conventional Graceful Restart phase (RFC 4724, code 64) for this peer. Ze names every address family the peer carries in code 64 unless the family list below narrows the set, so the peer retains Ze's routes while the session is down (RFC 4724 Section 4.2). The Forwarding State bit is set at connection time when the forwarding plane kept Ze's routes across a restart. Omitting this container sends code 64 with Restart Time 0 and no family tuples.
+          - **family <name>** `list`: Address families Ze names in the GR capability (code 64).
+            Narrows the address families Ze names in the Graceful Restart capability, code 64. When absent, code 64 names every family the peer carries. When present, code 64 names only the listed families. Every listed family must be one the peer's session carries, and Ze omits any family the RIB plugin cannot store with a warning (RFC 4724 Section 4). This list governs code 64 alone and never affects code 71.
+          - **restart-time** `uint16`: Restart Time in seconds (RFC 4724 Section 3, 0..4095).
+            The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer restarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale route of the peer when that timer expires, unless the peer also negotiated LLGR.
       - **hostname** `container`: FQDN capability configuration.
         Ze sends the FQDN capability, code 73 of draft-walton-bgp-hostname, in the OPEN message. Ze sends no capability when host and domain are both empty. A container on the peer replaces the container on the group rather than adding to it.
         - **domain** `string`: Domain name (max 255 bytes).
@@ -1692,6 +1726,8 @@ A peer inherits from its group defaults. A group inherits from this global level
           ze:hidden keeps the leaf out of the CLI completion. The peer command reports the date, and it marks the peer prefix-stale when the date is more than 180 days old.
         - **warning** `uint32`: Warning threshold. Defaults to 90% of maximum when not set.
           Crossing the threshold raises a metric and a login-banner warning, and it leaves the session up. Ze refuses a warning value that is not less than maximum.
+    - **flowspec-redirect-next-hop** `boolean`: Carry MP_REACH next hop for 0x0800 FlowSpec redirect (draft-simpson).
+      RFC 8955 Section 4 requires the MP_REACH_NLRI Next-Hop Network Address Length of every advertised Flow Specification to be 0. When false (the default), Ze emits a zero-length next hop on every FlowSpec route, including one carrying the 0x0800 redirect-to-IP-next-hop extended community. Set this leaf to true on a peer that needs the draft-simpson-idr-flowspec-redirect-02 Section 3 extension, where a 0x0800 FlowSpec route carries its redirect target in the MP_REACH_NLRI next-hop field on origination and forwarding. ze exabgp migrate sets this leaf when a migrated neighbor uses a Simpson redirect action or serves an API process on a FlowSpec family.
     - **host-name** `string`: Legacy: Host name for FQDN capability.
       Ze reads the leaf after capability > hostname > host and replaces that value with it, so a peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the host name, which is the 255-byte limit. Write capability > hostname > host in a new config: ze exabgp migrate produces that spelling and never this one.
     - **irr** `container`: Per-peer IRR filter settings.
@@ -5240,10 +5276,8 @@ The engine stays idle until lsr-id carries an address, and it says so in the log
 
 MRT dump configuration.
 
-The container holds the extended-timestamp switch, the add-path switch, the peer filter, the direction, and the three dump streams.
+The container holds the extended-timestamp switch, the peer filter, the direction, and the three dump streams. No leaf chooses the ADD-PATH subtypes of RFC 8050: each record follows the ADD-PATH state negotiated for the family it holds.
 
-- **add-path** `boolean`: Use ADD-PATH subtypes for RIB snapshots.
-  The default is false. When true, TABLE_DUMP_V2 snapshots use the ADD-PATH RIB subtypes of RFC 8050. BGP4MP and BGP4MP_ET message subtypes always follow the direction-specific negotiated ADD-PATH state of the UPDATE family, independently of this leaf.
 - **all** `container`: All BGP messages and state changes, written as BGP4MP records.
   The stream carries every BGP message: OPEN, UPDATE, NOTIFICATION, KEEPALIVE and ROUTE_REFRESH. It carries the FSM state transitions too. Ze writes them as BGP4MP records.
   - **file** `string`: Output file path, with strftime patterns for rotation.
@@ -5260,9 +5294,45 @@ The container holds the extended-timestamp switch, the add-path switch, the peer
 - **peer-filter** `string[]`: If set, only record messages from/to these peer addresses. Empty list means record all peers.
   Ze compares each entry with the peer address of the message, so a message of another peer reaches no file. The filter reaches the BGP messages alone: Ze writes a state change record for every peer, whatever this list holds.
 - **routes** `container`: Periodic RIB snapshots, written as TABLE_DUMP_V2 records.
-  Each dump writes one PEER_INDEX_TABLE record, and then the RIB entries for every address family. Ze writes them as TABLE_DUMP_V2 records.
+  Each dump writes one PEER_INDEX_TABLE record, and then the RIB entries for every address family. Ze writes them as TABLE_DUMP_V2 records, one route in each. A route of a family whose peer negotiated ADD-PATH is written under the ADD-PATH subtype of RFC 8050 with its Path Identifier; any other route under the base subtype of RFC 6396.
   - **file** `string`: Output file path with strftime patterns.
     The strftime codes in the path name the file Ze opens, exactly as they do in a dump stream. Ze writes this stream only when the path is set and interval is more than 0. A path of - writes to standard output.
+  - **geo** `container`: MRT geo-location extension (RFC 6397).
+    Optional RFC 6397 GEO_PEER_TABLE (TABLE_DUMP_V2 subtype 7) companion record carrying WGS84 coordinates for the collector and its peers, with RFC 6397 Section 6 GEOPRIV privacy controls.
+    - **collector** `container`: Collector geo-location coordinates and privacy policy.
+      Collector WGS84 coordinates and privacy rules (RFC 6397 Sections 4.1 and 6).
+      - **latitude** `string`: Collector WGS84 latitude or NaN.
+        WGS84 decimal degrees in [-90, 90], or NaN for private location.
+      - **longitude** `string`: Collector WGS84 longitude or NaN.
+        WGS84 decimal degrees in [-180, 180], or NaN for private location.
+      - **non-technical-measures** `boolean`: Acknowledge non-technical measures enforcing restrictive privacy rules.
+        Confirm non-technical measures (e.g., contractual agreements) enforce more restrictive privacy rules.
+      - **note-well** `string`: Optional GEOPRIV note-well constraint.
+        GEOPRIV note-well privacy constraint (RFC 6397 Section 6 default: empty).
+      - **retention-years** `uint32`: Location retention horizon in years (default 100).
+        GEOPRIV retention horizon in years (RFC 6397 Section 6 default: 100).
+      - **retransmission-allowed** `boolean`: Whether location retransmission is allowed (default true).
+        GEOPRIV retransmission-allowed rule (RFC 6397 Section 6 default: true).
+      - **ruleset-reference** `string`: Optional GEOPRIV ruleset-reference URI.
+        GEOPRIV ruleset-reference URI (RFC 6397 Section 6 default: empty).
+    - **enabled** `boolean`: Enable RFC 6397 GEO_PEER_TABLE export.
+      Emit a GEO_PEER_TABLE record alongside PEER_INDEX_TABLE in TABLE_DUMP_V2 dumps.
+    - **peer <address>** `list`: Peer geo-location coordinates and privacy policy.
+      Per-peer WGS84 coordinates and privacy rules (RFC 6397 Sections 4.1 and 6).
+      - **latitude** `string`: Peer WGS84 latitude or NaN.
+        WGS84 decimal degrees in [-90, 90], or NaN for private location.
+      - **longitude** `string`: Peer WGS84 longitude or NaN.
+        WGS84 decimal degrees in [-180, 180], or NaN for private location.
+      - **non-technical-measures** `boolean`: Acknowledge non-technical measures enforcing restrictive privacy rules.
+        Confirm non-technical measures (e.g., contractual agreements) enforce more restrictive privacy rules.
+      - **note-well** `string`: Optional GEOPRIV note-well constraint.
+        GEOPRIV note-well privacy constraint (RFC 6397 Section 6 default: empty).
+      - **retention-years** `uint32`: Location retention horizon in years (default 100).
+        GEOPRIV retention horizon in years (RFC 6397 Section 6 default: 100).
+      - **retransmission-allowed** `boolean`: Whether location retransmission is allowed (default true).
+        GEOPRIV retransmission-allowed rule (RFC 6397 Section 6 default: true).
+      - **ruleset-reference** `string`: Optional GEOPRIV ruleset-reference URI.
+        GEOPRIV ruleset-reference URI (RFC 6397 Section 6 default: empty).
   - **interval** `uint32`: RIB dump interval in seconds. Minimum 60.
     The default is 3600 seconds and the range is 60 to 86400. Each dump writes one PEER_INDEX_TABLE record and then the RIB entries of every address family, which RFC 6396 Section 4.3.1 requires in that order.
 - **updates** `container`: BGP UPDATE message stream (BGP4MP records).
@@ -6377,6 +6447,11 @@ Each filter type is a list that its plugin adds through an augment and marks ze:
     - `intra-area`: OSPF intra-area path
     - `nssa-1`: OSPF NSSA type 1 external path
     - `nssa-2`: OSPF NSSA type 2 external path
+  - **rpki-validation-state** `enumeration[]`: Match routes by RPKI origin validation state (valid, not-found, invalid)
+    Match routes whose RPKI Route Origin Validation state (RFC 6811 Section 2, RFC 8893 Section 3) is one of the listed states. Available identically in BGP ingress, redistribution, and BGP egress policy; on egress, the state is determined from the effective origin AS as the route will be announced to the peer after egress configuration and policy.
+    - `invalid`: A covering VRP exists, and none authorizes the prefix length and effective origin AS (RFC 6811).
+    - `not-found`: No covering VRP exists for the prefix (RFC 6811).
+    - `valid`: A covering VRP authorizes the prefix and effective origin AS (RFC 6811).
   - **tag** `uint32[]`: Match routes carrying this tag
     OSPF carries the external route tag and static carries its tag leaf. IS-IS carries no administrative tag in Ze, so a filter reading tag is refused on an IS-IS chain.
 - **modify <name>** `list`: Named route attribute modifier instance.

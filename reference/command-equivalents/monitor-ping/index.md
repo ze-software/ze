@@ -9,7 +9,7 @@ Continuous ping with live loss and RTT statistics\.
 - Mode: read\-only\, offline
 - Wire method: `ze-ping:monitor-ping`
 - Backends: any backend
-- Task support: required\: the MCP server always answers with a task handle
+- Task support: required: the MCP server always answers with a task handle
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: target

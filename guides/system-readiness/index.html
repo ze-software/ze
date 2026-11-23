@@ -280,7 +280,7 @@ the message (JSON carries it under <code>fix</code>):</p>
 </tr>
 <tr>
 <td><code>doctor-gtsm-kernel-state</code></td>
-<td>A BGP peer or dynamic group range with <code>connection ttl</code> (RFC 5082 GTSM) whose kernel state is short: inside the daemon (<code>show doctor</code>), the host route carrying hop limit 255, or a <code>ze_gtsm</code> term the daemon published (the listen-port drop or a related-ICMP drop), is missing from the kernel. The report names each missing term and the fix, <code>ze signal restart</code>, because a reload leaves an unchanged peer set alone. In <code>ze doctor</code>, before a start, the kernel resolves no route to the peer, so that route cannot be installed at apply</td>
+<td>A BGP peer or dynamic group range with <code>connection ttl</code> (RFC 5082 GTSM) whose kernel state is short: inside the daemon (<code>show doctor</code>), the host route carrying hop limit 255, or a <code>ze_gtsm</code> term the daemon published (the listen-port drop or a related-ICMP drop), is missing from the kernel. The report names each missing term and the fix, a restart of Ze worded for this process (<code>sudo systemctl restart ze</code> only when ze runs under ze.service, otherwise <code>ze signal stop</code>, then a start the way ze was started), because a reload leaves an unchanged peer set alone. In <code>ze doctor</code>, before a start, the kernel resolves no route to the peer, so that route cannot be installed at apply</td>
 </tr>
 <tr>
 <td><code>doctor-vpp-unreachable</code></td>
@@ -494,6 +494,18 @@ show warnings source bgp
 <td>The netlink monitor received an address for an interface it had not seen yet, and the kernel lookup of that interface failed, so Ze did not announce the address: its connected route is missing until the address changes. The subject is the address and the interface index, the detail carries the kernel's error; the fix is <code>ip -o addr show to &lt;address&gt;; ip addr del &lt;address&gt; dev &lt;device&gt;; ip addr add &lt;address&gt; dev &lt;device&gt;</code>. Raised once per lost address and never cleared, so not in the <code>iface</code> health row</td>
 </tr>
 <tr>
+<td><code>doctor-iface-state-unread</code></td>
+<td>iface</td>
+<td>warning</td>
+<td>An interface apply could not read a device's current state before it wrote its link settings, or a WireGuard device's keys and peers before it wrote them, so it wrote the configured values without knowing whether they were already in place. The subject is the device (<code>&lt;device&gt; wireguard</code> for a WireGuard read; on Linux that read needs CAP_NET_ADMIN, as the write does), the message carries the backend's answer; the apply reports any write that fails itself. The fix is <code>ze show interface name &lt;device&gt; detail</code>. A backend that is not ready yet, or a device the read does not find by its name, raises nothing. Cleared when a later apply reads that device's state</td>
+</tr>
+<tr>
+<td><code>doctor-iface-backend-close</code></td>
+<td>iface</td>
+<td>error</td>
+<td>Closing the interface backend (the netlink sockets, or the connection to VPP) failed when the interface component stopped. The kernel or VPP keeps what was programmed; the message carries the backend's answer, and the fix is <code>ze start</code>, which opens a fresh backend</td>
+</tr>
+<tr>
 <td><code>doctor-bfd-auth-failed</code></td>
 <td>bfd</td>
 <td>warning</td>
@@ -688,11 +700,16 @@ codes that validator emits: the semantic-validation check in
 because a <code>doctor-</code> alias for them would be a second code for one fact. The
 registry accepts any well-formed lower-kebab code
 (<code>diagnostic.RegisterDoctorCheck</code>).</li>
-<li>Register the code in <code>internal/core/diagnostic/codes.go</code> so
-<code>ze show diagnostic &lt;code&gt;</code> works. The entry names the code through an exported
-constant, and the check that emits it references that constant. A code
-spelled a second time in the emitting package is a second declaration of
-one fact, and <code>./le arch enumeration check</code> refuses it.</li>
+<li>Register the code's metadata (<code>diagnostic.CodeMeta</code>) via
+<code>diagnostic.Register</code> from the owning package's <code>init()</code> (in
+<code>register_doctor_codes.go</code>, or from <code>register.go</code>) so <code>ze show diagnostic &lt;code&gt;</code>
+works. Declare the code
+once as a constant beside that table and reference that constant from the
+check and registration. Only <code>config-*</code> codes, core TLS helpers, and
+cross-cutting <code>doctor-*</code> codes shared across unrelated packages live in
+<code>internal/core/diagnostic/codes.go</code>. A code spelled a second time in the
+emitting package is a second declaration of one fact, and
+<code>./le arch enumeration check</code> refuses it.</li>
 <li>Include a unit test proving the check fires when the relevant config
 is present and emits the registered code.</li>
 </ol>
@@ -745,7 +762,7 @@ is present and emits the registered code.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

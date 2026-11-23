@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8097 requirements and tests - Ze</title>
-        <meta name="description" content="RFC 8097: BGP Prefix Origin Validation State Extended Community. 5 mandatory requirements included in automatic checks, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 8097: BGP Prefix Origin Validation State Extended Community. 5 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8097 requirements and tests - Ze" />
-        <meta property="og:description" content="RFC 8097: BGP Prefix Origin Validation State Extended Community. 5 mandatory requirements included in automatic checks, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 8097: BGP Prefix Origin Validation State Extended Community. 5 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8097 requirements and tests - Ze" />
-        <meta name="twitter:description" content="RFC 8097: BGP Prefix Origin Validation State Extended Community. 5 mandatory requirements included in automatic checks, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 8097: BGP Prefix Origin Validation State Extended Community. 5 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -128,16 +128,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0</strong><b>of 5 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5</strong><b>of 5 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 5 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 5 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 5 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>0</strong><b>0 of 0 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>5</strong><b>of 5 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 5 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>10</strong><b>10 of 10 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>5</strong><b>of 5 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -181,7 +178,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -205,7 +202,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
 </tr>
 <tr><td>Mandatory requirements (MUST level)</td>
@@ -238,7 +235,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>5</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -250,16 +247,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>0</td>
+<td>10</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>0</td>
+<td>10</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>0</td>
+<td>10</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8097.md</code></td>
@@ -275,13 +272,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Automatic checks</h2>
-<p>Included in automatic checks: BGP Prefix Origin Validation State Extended Community: five MUST-level requirements, all gaps. Ze performs local RFC 6811 origin validation (internal/component/bgp/plugins/rpki/validate.go) but does not implement the RFC 8097 origin validation state extended community: it has no encoder or decoder for the type-0x43 community and treats every extended community as an opaque 8-octet value (internal/core/bgp/attribute/community.go, ExtendedCommunity and ParseExtendedCommunities). An operator can still configure one in the 0x hex form with any Reserved value, and one received from an EBGP peer is readvertised unchanged rather than dropped (RFC8097-2-4). No owner decision declines the community, so each row is owed.</p>
+<p>Included in automatic checks: BGP Prefix Origin Validation State Extended Community: five MUST-level requirements implemented across core attribute encoding/decoding (`internal/core/bgp/attribute/origin_validation_state.go`, `extcomm_hex.go`, `community.go`) and reactor receive sanitization (`internal/component/bgp/reactor/session_origin_validation.go`), with `session accept-origin-validation-state` EBGP override (default false) in `ze-bgp-conf.yang`.</p>
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RPKI origin validation state extended community</p>
-<p><strong>Test verification:</strong> 0 of 5 MUST proven</p>
-<p><strong>Evidence:</strong> -</p>
-<p><strong>Unmet:</strong> RFC8097-2-1, RFC8097-2-2, RFC8097-2-3, RFC8097-2-4, RFC8097-2-5</p>
+<p><strong>Test verification:</strong> 5 of 5 MUST proven</p>
+<p><strong>Evidence:</strong> unit 5</p>
+<p><strong>Unmet:</strong> -</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -290,11 +287,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>0</strong></td>
+<td><strong>5</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>5</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Only a positive or negative test</td>
@@ -321,13 +318,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (5):</strong> <a href="#rfc8097-2-1"><code>RFC8097-2-1</code></a>, <a href="#rfc8097-2-2"><code>RFC8097-2-2</code></a>, <a href="#rfc8097-2-3"><code>RFC8097-2-3</code></a>, <a href="#rfc8097-2-4"><code>RFC8097-2-4</code></a>, <a href="#rfc8097-2-5"><code>RFC8097-2-5</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc8097-2-1"><code>RFC8097-2-1</code></a>, <a href="#rfc8097-2-2"><code>RFC8097-2-2</code></a>, <a href="#rfc8097-2-3"><code>RFC8097-2-3</code></a>, <a href="#rfc8097-2-4"><code>RFC8097-2-4</code></a>, <a href="#rfc8097-2-5"><code>RFC8097-2-5</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8097:must">Not built 5</div>
+<div data-ze-rfc-bar="rfc8097:must">Ze verified 5</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8097:overview">Not assessed 5, Not built 5</div>
+<div data-ze-rfc-bar="rfc8097:overview">Ze MUST verified 5, Not assessed 5</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -339,7 +336,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8097:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc8097:register">not complete</span></td>
+<td><span data-ze-rfc="rfc8097:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc8097:must.total">5</span></td>
@@ -348,7 +345,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8097:must.kept">5</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc8097:must.ze-proven">0</span></td>
+<td><span data-ze-rfc="rfc8097:must.ze-proven">5</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8097:must.os-verified">0</span></td>
@@ -366,7 +363,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8097:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc8097:must.not-built">5</span></td>
+<td><span data-ze-rfc="rfc8097:must.not-built">0</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc8097:must.not-owed">0</span></td>
@@ -432,45 +429,45 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8097-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze never builds the community itself, but an operator can configure the community in the 0x hex form with any value (internal/core/bgp/attribute/extcomm_hex.go::ParseExtendedCommunityHex interprets no type octets), so nothing refuses a non-zero Reserved field. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8097_origin_validation_state_test.go#L27" title="internal/component/bgp/message/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097ReservedFieldZeroOnSend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8097_origin_validation_state_test.go#L28" title="internal/component/bgp/message/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097ReservedFieldZeroOnSend</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-2">RFC8097-2-2</code></td><td colspan="3"><span class="rfc-subject">The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8097-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze reads no Reserved field of the community. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L185" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097ReservedFieldIgnoredOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L186" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097ReservedFieldIgnoredOnReceive</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-3">RFC8097-2-3</code></td><td colspan="3"><span class="rfc-subject">However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8097-2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze compares no validation state across instances. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L255" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097MultipleInstancesSelectGreatest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L256" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097MultipleInstancesSelectGreatest</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-4">RFC8097-2-4</code></td><td colspan="3"><span class="rfc-subject">By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8097-2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> a community received from an EBGP peer is kept and readvertised unchanged, to IBGP peers included (internal/core/bgp/attribute/community.go::ExtendedCommunities.WriteTo copies it back out), so the default drop does not happen. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L324" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097EBGPDropsOriginValidationByDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L325" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097EBGPDropsOriginValidationByDefault</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-5">RFC8097-2-5</code></td><td colspan="3"><span class="rfc-subject">If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8097-2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze reads no validation state value, so a value above 2 is neither discarded nor logged. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L402" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097ValueAboveTwoDiscardedAndLogged</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L403" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097ValueAboveTwoDiscardedAndLogged</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-6">RFC8097-2-6</code></td><td colspan="3"><span class="rfc-subject">If the router is configured to support the extensions defined in this document, it SHOULD attach the origin validation state extended community to BGP UPDATE messages sent to IBGP peers by mapping the computed validation state in the last octet of the extended community. (§2)</span></td></tr>
 <tr><td></td>
@@ -522,56 +519,110 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc8097-2-1"><code>RFC8097-2-1</code></a> The Reserved field MUST be set to 0 (§2)</td>
-<td>{gap}, no test</td>
-<td>ze never builds the community itself, but an operator can configure the community in the 0x hex form with any value (internal/core/bgp/attribute/extcomm_hex.go::ParseExtendedCommunityHex interprets no type octets), so nothing refuses a non-zero Reserved field. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it</td>
-</tr>
-<tr><td><a href="#rfc8097-2-2"><code>RFC8097-2-2</code></a> The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2)</td>
-<td>{gap}, no test</td>
-<td>ze reads no Reserved field of the community. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it</td>
-</tr>
-<tr><td><a href="#rfc8097-2-3"><code>RFC8097-2-3</code></a> However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2)</td>
-<td>{gap}, no test</td>
-<td>ze compares no validation state across instances. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it</td>
-</tr>
-<tr><td><a href="#rfc8097-2-4"><code>RFC8097-2-4</code></a> By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2)</td>
-<td>{gap}, no test</td>
-<td>a community received from an EBGP peer is kept and readvertised unchanged, to IBGP peers included (internal/core/bgp/attribute/community.go::ExtendedCommunities.WriteTo copies it back out), so the default drop does not happen. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it</td>
-</tr>
-<tr><td><a href="#rfc8097-2-5"><code>RFC8097-2-5</code></a> If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2)</td>
-<td>{gap}, no test</td>
-<td>ze reads no validation state value, so a value above 2 is neither discarded nor logged. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 8097 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
 <section><h2>Test status</h2>
 <p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc8097-2-1"><code>RFC8097-2-1</code></a></h3>
 <p>The Reserved field MUST be set to 0 (§2)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC8097-2-1, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 8097 Section 2 requires the 5-octet Reserved field [2..6] of the Origin Validation State extended community (0x43/0x00) to be set to 0 on send. Both prior bypasses are now closed: parseExtCommunityTypedHex (internal/core/bgp/attribute/builder_parse.go:322) calls validateOriginValidationStateExtCommunityForSend alongside ParseExtendedCommunityHex, WriteAttributesOrdered (internal/core/bgp/attribute/origin.go:290) calls zeroOriginValidationStateReservedInWireAttr for AttrExtCommunity across all UpdateBuilder variants, and filter_community/handler.go (emitCommunityOp, emitKeptCommunityValue) zeroes dirty Reserved bytes on egress Set/Add/Keep (verified by TestExtCommunityAttrModHandlerZeroesRFC8097Reserved). TestRFC8097ReservedFieldZeroOnSend (internal/component/bgp/message/rfc8097_origin_validation_state_test.go) proves positive zero-Reserved emission through NewOriginValidationStateExtCommunity, ParseSingleExtCommunity (keyword, raw hex, typed hex), ExtendedCommunities.WriteTo, and real UpdateBuilder.BuildUnicast wire PathAttributes (without mutating caller input), and negative rejection across all 5 Reserved positions [2..6] and state &gt; 2 in both raw hex and typed hex while preserving non-0x4300 opaque communities (0x430b) verbatim. Discrimination records verify ZeroOriginValidationStateReservedBytes and parseExtCommunityTypedHex.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8097_origin_validation_state_test.go#L28" title="internal/component/bgp/message/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097ReservedFieldZeroOnSend</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8097_origin_validation_state_test.go#L27" title="internal/component/bgp/message/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097ReservedFieldZeroOnSend</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8097-2-2"><code>RFC8097-2-2</code></a></h3>
 <p>The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC8097-2-2, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 8097 Section 2 requires the 5-octet Reserved field [2..6] to be set to 0 and ignored upon receipt. TestRFC8097ReservedFieldIgnoredOnReceive (internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go) now drives real wire UPDATE frames through Session.ReadAndProcess -&gt; processValidatedMessage -&gt; Session.sanitizeOriginValidationState on an Established iBGP session across all 5 Reserved byte positions [2..6] (individually and all 5 set) for all 3 valid states (0, 1, 2), asserting Established state, zero NOTIFICATIONs, intact NLRI, zero RFC 8097 error logs, canonical delivered 0x43/0x00 with zeroed Reserved octets and matching state, and matching DecodeOriginValidationStateExtCommunity output. Negative assertions isolate the Reserved field by verifying octet [7] changes the delivered state (0, 1, 2 with 0xff Reserved bytes) and sub-type 0x43/0x01 preserves octets [2..6] verbatim. Discrimination records verify Session.sanitizeOriginValidationState for both polarities.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L186" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097ReservedFieldIgnoredOnReceive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L185" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097ReservedFieldIgnoredOnReceive</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8097-2-3"><code>RFC8097-2-3</code></a></h3>
 <p>However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC8097-2-3, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 8097 Section 2 requires disregarding all instances other than the one with the numerically greatest validation state when multiple instances are received. TestRFC8097MultipleInstancesSelectGreatest (internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go) now exercises real wire UPDATE frames through Session.ReadAndProcess on an Established iBGP session. Positive cases cover [0,2,1], [2,0,1], [0,1], [1,0], [1,2], [2,1], and duplicate [2,2] alongside sibling RT, asserting Established state, zero NOTIFICATIONs, intact NLRI, zero error logs, and delivery of sibling RT plus exactly one canonical 0x43/0x00 with the greatest valid state (2 &gt; 1 &gt; 0). Negative cases cover [0,2,5], [0,1,5], and multiple bogus [4,7], proving erroneous &gt;2 instances are discarded and logged (exact error count 1, 1, 2) rather than winning numerically over valid states. Discrimination records verify Session.sanitizeOriginValidationState for both polarities.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L256" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097MultipleInstancesSelectGreatest</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L255" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097MultipleInstancesSelectGreatest</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8097-2-4"><code>RFC8097-2-4</code></a></h3>
 <p>By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC8097-2-4, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 8097 Section 2 requires implementations by default to drop the origin validation state extended community if received from an EBGP peer without processing it further. TestRFC8097EBGPDropsOriginValidationByDefault (internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go) verifies untouched NewPeerSettings defaults AcceptOriginValidationState to false, parses real BGP config trees through PeersFromTree without accept-origin-validation-state (confirming default false), and drives Session.ReadAndProcess on that EBGP session: 0x43/0x00 instances (including invalid state 9) are dropped without processing or logging (zero rfc8097ErrorLines), sibling RT or sole-attribute removal and NLRI/Established state are preserved. Negative cases parse real config trees via PeersFromTree for iBGP (leaf omitted) and EBGP with accept-origin-validation-state=true, proving both retain valid 0x43/0x00 through Session.ReadAndProcess. Companion YANG test TestSchemaAcceptOriginValidationStateDefaultsFalse pins the boolean leaf default to false. Discrimination records verify Session.sanitizeOriginValidationState for both polarities.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L325" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097EBGPDropsOriginValidationByDefault</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L324" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097EBGPDropsOriginValidationByDefault</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8097-2-5"><code>RFC8097-2-5</code></a></h3>
 <p>If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC8097-2-5, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 8097 Section 2 requires discarding any received origin validation state value greater than 2 (attribute-discard strategy per RFC 7606) and logging the error for further analysis. TestRFC8097ValueAboveTwoDiscardedAndLogged (internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go) drives real wire UPDATE frames through Session.ReadAndProcess on an Established iBGP session: positive cases test value 3 (exact lower invalid boundary) alongside sibling RT and sole value 255 (dirty Reserved), asserting Established state, zero NOTIFICATIONs, intact NLRI, erroneous community discarded (preserving sibling RT or cleanly removing the sole attribute), and 1 level=ERROR log per erroneous instance at defaultSessionLogLevel carrying registered code doctor-bgp-origin-validation-state-invalid. Negative cases test every valid state individually — 0 (valid), 1 (not-found), and 2 (invalid, exact upper valid boundary) — closing the &#39;&gt;&#39; vs &#39;&gt;=&#39; boundary mutant and asserting each is retained with zero additional error logs. Discrimination records verify Session.sanitizeOriginValidationState for both polarities.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L403" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097ValueAboveTwoDiscardedAndLogged</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go#L402" title="internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go" target="_blank" rel="noopener"><code>TestRFC8097ValueAboveTwoDiscardedAndLogged</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
@@ -732,7 +783,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:28 UTC</span>
                 </div>
             </div>
         </footer>

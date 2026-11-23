@@ -9,7 +9,7 @@ Show the hash of the certificate\, to verify its identity against the one anothe
 - Mode: Read\-only
 - Wire method: `ze-pki:show-certificate-fingerprint`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

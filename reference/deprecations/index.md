@@ -1,12 +1,18 @@
 # Configuration Syntax Changes
 
-<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate, form conversion only -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate, configMigrateBytes -->
+<!-- source: internal/component/config/migration/migrate.go -- transformations, Migrate -->
 <!-- source: internal/component/config/loader.go -- parseSetConfig, the unknown-field message -->
 
-Ze has not shipped a release, so there is no deprecation lifecycle for its
-config syntax and no path that rewrites an older form of it. When the syntax
-changes, the configurations in the repository are converted in the same
-change, and no other file written in the old form exists to convert.
+Ze has not shipped a stable release, so there is no deprecation lifecycle for
+its config syntax. The infrastructure that converts a config written in an
+older format of Ze's own syntax is kept: `ze config migrate` and the start-time
+schema evolution run every conversion a package registers, and the load
+parsers refuse a registered relocated block or retired leaf naming that fix
+([syntax](https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md), "Schema Evolution and Migration"). The conversion of one
+format change is written only once Ze has a stable release, so none is
+registered today. When the syntax changes, the configurations in the
+repository are converted in the same change.
 
 A config file records the schema stamp of the release that wrote it, and
 recovery after a downgrade chooses the newest rollback file that the running
@@ -73,6 +79,9 @@ ze exabgp migrate exabgp.conf
 
 # Rewrite a current Ze config in the set or hierarchical form
 ze config migrate format hierarchical config.conf
+
+# List the format conversions this binary carries
+ze config migrate --list
 ```
 
 See [Configuration Migration](https://github.com/ze-software/ze/blob/main/docs/config-migration.md) for command details.

@@ -9,7 +9,7 @@ Update a container\'s image\: name \<container\>\, or rollback\.
 - Mode: Daemon
 - Wire method: `not listed`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `name`, `rollback`
 - Answer shape: doc
 - Address fields: none

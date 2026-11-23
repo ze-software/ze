@@ -9,7 +9,7 @@ Watch kernel networking changes in real time\.
 - Mode: Read\-only
 - Wire method: `ze-iface:monitor-system-netlink`
 - Backends: any backend
-- Task support: required\: the MCP server always answers with a task handle
+- Task support: required: the MCP server always answers with a task handle
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

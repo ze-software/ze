@@ -9,7 +9,7 @@ List all RPC methods defined in YANG API modules\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-schema:show-schema-methods`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

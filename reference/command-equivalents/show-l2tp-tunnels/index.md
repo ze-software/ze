@@ -9,7 +9,7 @@ List all active L2TP tunnels\.
 - Mode: Read\-only
 - Wire method: `ze-l2tp:tunnels`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

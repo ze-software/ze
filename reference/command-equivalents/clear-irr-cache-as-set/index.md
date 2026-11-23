@@ -9,7 +9,7 @@ Remove the cached IRR answers of one AS\-SET\.
 - Mode: Daemon
 - Wire method: `ze-resolve:clear-irr-cache-as-set`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

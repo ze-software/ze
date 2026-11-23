@@ -9,7 +9,7 @@ Show routes to OSPF area\-border and AS\-boundary routers\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-border-routers`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

@@ -76,7 +76,7 @@ cannot be read, or when the certificate and key are not a valid pair, gNMI
 does not start: nothing listens on its port, and Ze logs an error naming the
 file, why, and the fix. The rest of the daemon keeps running. Restore the file
 or correct `environment gnmi tls cert` / `key` (or `ze.gnmi.tls.cert` /
-`ze.gnmi.tls.key`), then run `ze signal restart`: a reload does not restart
+`ze.gnmi.tls.key`), then restart ze: `sudo systemctl restart ze` only when ze runs under ze.service, otherwise `ze signal stop`, then a start the way ze was started. A reload does not restart
 gNMI.
 
 The error carries the code `doctor-gnmi-tls-material`, and `ze doctor` reports

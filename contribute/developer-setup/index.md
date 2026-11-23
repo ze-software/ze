@@ -535,12 +535,18 @@ native QEMU actions select the Apple hypervisor (`hvf`) by platform.
 <!-- source: internal/le/test/qemu/actions.go -- Answer -->
 
 **PPP device access.** The L2TP and PPPoE tests open `/dev/ppp` to drive the
-kernel PPP channel. They run as you, in a user namespace of their own
-(`userns.Enter`), where root holds the `CAP_NET_ADMIN` the PPP ioctls need,
-and your supplementary groups still apply to the open. A stock Debian host
-makes the device `root:root` mode 0600, so a test run as you cannot open it,
-and the test fails naming `./le setup install` and `ppp-access`. Setup checks this as `ppp-access` and grants
-the device to the `dip` group. Debian ships `dip` (gid 30) for PPP dial-up,
+kernel PPP channel. The kernel refuses that open unless the caller holds
+`CAP_NET_ADMIN` in its user namespace (`ppp_open`), so no unprivileged process
+opens the device on the host, whatever its mode or group. The tests run as
+you, in a user namespace of their own (`userns.Enter`), where root holds
+`CAP_NET_ADMIN`. The device's owner is not mapped into that namespace, so the
+open still needs the file permission, which you get only through your
+supplementary groups. A stock Debian host makes the device `root:root` mode
+0600, so the open fails there, and the test fails naming `./le setup install`
+and `ppp-access`. Setup checks this as `ppp-access` and grants the device to
+the `dip` group. The grant is what the tests need beside the capability, and
+it does not let you open the device outside such a namespace. Debian ships
+`dip` (gid 30) for PPP dial-up,
 pppd's documentation names it, and you are usually in it already, so a second
 group of Ze's own would grant the same device to the same person under another
 name. A host with no `dip` group gets one as a system group. In install mode
@@ -564,13 +570,16 @@ at boot to the node systemd creates before the module loads (systemd grants
 `chgrp` and `chmod` rather than `udevadm trigger`, because a static node with
 no module loaded has no device udev can act on.
 
-`ppp-access` is `present` when your session can open `/dev/ppp` read-write. It
-is `pending` when the rule, the node and the group database are all in place
-but your session predates the membership: log out and back in, or run
-`sg dip -c '<command>'`. Otherwise `./le setup check` reports it `MISSING`
-with the absent pieces, and `./le setup install` grants them. The check judges
-the device with `access(2)` and does not open it, because opening `/dev/ppp`
-loads `ppp_generic` and a check changes nothing. When root is out of reach, the
+`ppp-access` is `present` when your session holds the grant the tests need:
+it passes the read-write permission check of `/dev/ppp`, so a test it starts
+passes it in its user namespace. It is `pending` when the rule, the node and
+the group database are all in place but your session predates the membership:
+log out and back in, or run `sg dip -c '<command>'`. Otherwise
+`./le setup check` reports it `MISSING` with the absent pieces, and
+`./le setup install` grants them. The check judges the device with `access(2)`
+and does not open it: outside the tests' namespace your open fails for lack of
+`CAP_NET_ADMIN` whatever the grant, opening `/dev/ppp` loads `ppp_generic`,
+and a check changes nothing. When root is out of reach, the
 install prints the commands above with `sudo` instead of running them. macOS
 reports the step `skipped`: it has no `/dev/ppp`, and the PPP tests run in the
 Linux VM.

@@ -7,46 +7,39 @@
   "implemented": true,
   "must": {
     "total": 26,
-    "kept": 26,
-    "ze-proven": 8,
+    "kept": 24,
+    "ze-proven": 17,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 2,
+    "proof-pending": 1,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 16,
-    "not-owed": 0,
-    "not-owed-by-kind": {}
+    "not-built": 6,
+    "not-owed": 2,
+    "not-owed-by-kind": {
+      "not-applicable": 2
+    }
   },
   "should": {
     "total": 26,
-    "proven": 0,
+    "proven": 5,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
     "proof-pending": 0,
     "exclusion-unchecked": 0,
-    "not-assessed": 25,
+    "not-assessed": 20,
     "not-built": 1,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
+    "superseded": 9,
     "unit": 8
   },
   "unmet": [
-    "RFC7752-3.2-2",
-    "RFC7752-3.2-3",
-    "RFC7752-3.2.1-1",
     "RFC7752-3.2.1.1-1",
     "RFC7752-3.2.1.1-2",
-    "RFC7752-3.2.1.4-1",
-    "RFC7752-3.2.1.4-2",
-    "RFC7752-3.2.1.5-1",
-    "RFC7752-3.3-1",
-    "RFC7752-3.3.2.1-1",
-    "RFC7752-3.3.2.2-1",
     "RFC7752-3.3.2.7-1",
-    "RFC7752-3.3.3-1",
     "RFC7752-3.4-1",
     "RFC7752-6.2.2-1",
     "RFC7752-6.2.6-1",

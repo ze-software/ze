@@ -9,7 +9,7 @@ Replace an artifact configuration\.
 - Mode: Daemon
 - Wire method: `ze-config:artifact-replace`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

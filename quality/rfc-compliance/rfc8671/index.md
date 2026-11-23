@@ -10,19 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 7 | of 11 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 9 | of 11 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 2 | of 11 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 11 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 11 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 18 | 18 of 20 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Declared gap or no test | 2 | of 11 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 0 | of 11 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 22 | 22 of 24 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -55,7 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
 | Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
-| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -73,14 +66,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 12 |
 | Mandatory requirements (MUST level) | 11 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 2 |
+| Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 20 |
-| Tests linked to requirements | 20 |
-| Recorded audit verdicts | 7 |
-| Fault test records | 18 |
+| Test tags | 24 |
+| Tests linked to requirements | 24 |
+| Recorded audit verdicts | 9 |
+| Fault test records | 22 |
 | Summary | `rfc/short/rfc8671.md` |
 | Requirement table | `rfc/requirements/rfc8671.md` |
 | RFC text | `rfc/full/rfc8671.txt` |
@@ -93,19 +86,19 @@ Included in automatic checks: Support for Adj-RIB-Out in BMP: three MUSTs over t
 
 **Area:** BMP Adj-RIB-Out
 
-**Test verification:** 9 of 11 MUST proven
+**Test verification:** 11 of 11 MUST proven
 
-**Evidence:** unit 9
+**Evidence:** unit 11
 
-**Unmet:** RFC8671-5.2-1, RFC8671-5.2-2
+**Unmet:** -
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 7 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 4 | one part of the mandatory requirements |
+| Positive and negative tests | 9 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 2 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -113,29 +106,29 @@ Included in automatic checks: Support for Adj-RIB-Out in BMP: three MUSTs over t
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **11** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (7):** [`RFC8671-x-1`](#rfc8671-x-1), [`RFC8671-x-2`](#rfc8671-x-2), [`RFC8671-4-1`](#rfc8671-4-1), [`RFC8671-5.1-1`](#rfc8671-5.1-1), [`RFC8671-6.1-1`](#rfc8671-6.1-1), [`RFC8671-6.3.1-1`](#rfc8671-6.3.1-1), [`RFC8671-7.2-1`](#rfc8671-7.2-1)
+**Positive and negative tests (9):** [`RFC8671-x-1`](#rfc8671-x-1), [`RFC8671-x-2`](#rfc8671-x-2), [`RFC8671-4-1`](#rfc8671-4-1), [`RFC8671-5.1-1`](#rfc8671-5.1-1), [`RFC8671-5.2-1`](#rfc8671-5.2-1), [`RFC8671-5.2-2`](#rfc8671-5.2-2), [`RFC8671-6.1-1`](#rfc8671-6.1-1), [`RFC8671-6.3.1-1`](#rfc8671-6.3.1-1), [`RFC8671-7.2-1`](#rfc8671-7.2-1)
 
-**Annotated (including scoped evidence) (4):** [`RFC8671-x-3`](#rfc8671-x-3), [`RFC8671-5.2-1`](#rfc8671-5.2-1), [`RFC8671-5.2-2`](#rfc8671-5.2-2), [`RFC8671-6.2-1`](#rfc8671-6.2-1)
+**Annotated (including scoped evidence) (2):** [`RFC8671-x-3`](#rfc8671-x-3), [`RFC8671-6.2-1`](#rfc8671-6.2-1)
 
 ## Figures
 
-- **MUST bar**: Ze verified 9, Not built 2
-- **Overview bar**: Ze MUST verified 9, Not assessed 1, Not built 2
+- **MUST bar**: Ze verified 11
+- **Overview bar**: Ze MUST verified 11, Not assessed 1
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 11 |
 | MUST rows kept (the MUST bar) | 11 |
-| Ze verified | 9 |
+| Ze verified | 11 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 2 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -167,8 +160,8 @@ Source: [data/rfc/rfc8671.json](../../../data/rfc/rfc8671.json).
 | `RFC8671-x-5` | Similar to Adj-RIB-In policy validation, pre-policy Adj-RIB-Out can be used to validate and audit outbound policies. (§5.2) | MAY | 5.2 - Pre-policy | **positive:** no positive test. **negative:** no negative test |
 | `RFC8671-4-1` | The existing flags are defined in Section 4.2 of [RFC7854], and the remaining bits are reserved for future use.  They MUST be transmitted as 0, and their values MUST be ignored on receipt. (§4) | MUST | 4 - Per-Peer Header | **positive:** `unit/verify` [`TestRFC8671ReservedPeerFlagsTransmittedAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L66). **negative:** `unit/verify` [`TestRFC8671ReservedPeerFlagsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L108) |
 | `RFC8671-5.1-1` | Post-policy Adj-RIB-Out MUST convey to the BMP receiver what is actually transmitted to the peer (§5.1) | MUST | 5.1 - Post-policy | **positive:** `unit/verify` [`TestRFC8671PostPolicyConveysTransmittedBytes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L164). **negative:** `unit/verify` [`TestRFC8671AdjRIBOutConveysNoUntransmittedUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L229). **negative:** `unit/verify` [`TestRFC8671PostPolicyConveysUnknownAttributeUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L194) |
-| `RFC8671-5.2-1` | The L flag MUST be set to 0 to indicate pre-policy (§5.2) | MUST | 5.2 - Pre-policy | **positive:** no positive test. **negative:** no negative test. **{gap}:** no owner decision declines the pre-policy Adj-RIB-Out view. RFC 8671 Section 5.2 says "Similar to Adj-RIB-In policy validation, pre-policy Adj-RIB-Out can be used to validate and audit outbound policies.", and RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' ze does not build that view: internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so no ze message carries O=1 with L=0. The route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice |
-| `RFC8671-5.2-2` | All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion. (§5.2) | MUST | 5.2 - Pre-policy | **positive:** no positive test. **negative:** no negative test. **{gap}:** no owner decision declines the pre-policy Adj-RIB-Out view, the same absent feature as RFC8671-5.2-1. RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' ze does not build that view, so it never reaches the pre-policy phase completion at which a mandatory attribute unknown there would have to be zero or empty: internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, and the route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers no pre-policy Adj-RIB-Out choice |
+| `RFC8671-5.2-1` | The L flag MUST be set to 0 to indicate pre-policy (§5.2) | MUST | 5.2 - Pre-policy | **positive:** `unit/verify` [`TestRFC8671PrePolicyAdjRIBOutSetsLFlagZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go#L89). **negative:** `unit/verify` [`TestRFC8671PrePolicyAdjRIBOutDistinguishesFromPostPolicyAndDefaultOff`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go#L182) |
+| `RFC8671-5.2-2` | All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion. (§5.2) | MUST | 5.2 - Pre-policy | **positive:** `unit/verify` [`TestRFC8671PrePolicyAdjRIBOutNormalizesUnknownMandatoryAttrs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go#L239). **negative:** `unit/verify` [`TestRFC8671PrePolicyAdjRIBOutPreservesKnownMandatoryAttrsAndWithdrawals`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go#L387) |
 | `RFC8671-6.1-1` | The O flag MUST be set accordingly to indicate if the route monitor or route mirroring message conveys Adj-RIB-In or Adj-RIB-Out. (§6.1) | MUST | 6.1 - Route Monitoring and Route Mirroring | **positive:** `unit/verify` [`TestRFC8671OFlagSetOnAdjRIBOutMessages`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L268). **negative:** `unit/verify` [`TestRFC8671OFlagClearOnAdjRIBInMessages`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L306) |
 | `RFC8671-6.2-1` | Statistics report messages are not specific to Adj-RIB-In or Adj-RIB-Out and MUST have the O flag set to zero. (§6.2) | MUST | 6.2 - Statistics Report | **positive:** `unit/verify` [`TestRFC8671StatisticsReportOnTheWireClearsTheOFlag`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L556). **negative:** no negative test. **{single-polarity}:** the only production encoder of a Statistics Report is `senderSession.writeStatisticsReport` (internal/component/bgp/plugins/bmp/sender.go), which clears PeerFlagO on the header its caller hands in, so there is no valid ze Statistics Report carrying the O flag to reject and no negative case to construct. The positive is TestRFC8671StatisticsReportOnTheWireClearsTheOFlag (internal/component/bgp/plugins/bmp/statistics_test.go), which reports on a peer monitored for Adj-RIB-Out, reads the message off the collector socket after `sendStatisticsReports` produced it, and asserts the L flag survives so a cleared flags byte fails. It was recorded as a gap until 2026-09-06, for the reason the 2026-08-31 owner ruling gave: a green encoder test proves nothing about a requirement no production path exercises, and `statistics.go` is that path |
 | `RFC8671-6.3.1-1` | When multiple Admin Labels are included, the BMP receiver MUST preserve their order (§6.3.1) | MUST | 6.3.1 - Peer Up Information | **positive:** `unit/verify` [`TestRFC8671AdminLabelOrderPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L459). **negative:** `unit/verify` [`TestRFC8671AdminLabelReversedOrderPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L476) |
@@ -176,10 +169,7 @@ Source: [data/rfc/rfc8671.json](../../../data/rfc/rfc8671.json).
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC8671-5.2-1`](#rfc8671-5.2-1) The L flag MUST be set to 0 to indicate pre-policy (§5.2) | {gap}, no test | no owner decision declines the pre-policy Adj-RIB-Out view. RFC 8671 Section 5.2 says "Similar to Adj-RIB-In policy validation, pre-policy Adj-RIB-Out can be used to validate and audit outbound policies.", and RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' ze does not build that view: internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so no ze message carries O=1 with L=0. The route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice |
-| [`RFC8671-5.2-2`](#rfc8671-5.2-2) All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion. (§5.2) | {gap}, no test | no owner decision declines the pre-policy Adj-RIB-Out view, the same absent feature as RFC8671-5.2-1. RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' ze does not build that view, so it never reaches the pre-policy phase completion at which a mandatory attribute unknown there would have to be zero or empty: internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, and the route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers no pre-policy Adj-RIB-Out choice |
+RFC 8671 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Test status
 
@@ -246,17 +236,23 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 The L flag MUST be set to 0 to indicate pre-policy (§5.2)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/bmp/bmp_events.go::BMPPlugin.handleSenderPrePolicyOut moved. Independent audit against RFC 8671 Section 5.2 ('The L flag MUST be set to 0 to indicate pre-policy.') and Section 4 (O=1 indicates Adj-RIB-Out). Production code enforces O=1, L=0 across all three pre-policy Adj-RIB-Out emission paths: live Route Monitoring via peerHeaderFromEvent (EventKindUpdatePrePolicyOut branch sets PeerFlagO and clears PeerFlagL before the DirectionSent branch), cached replay routes via cacheAdjSections/peerHeaderFromEvent/writeAdjRouteLocked, and pre-policy Adj-RIB-Out End-of-RIB markers in replayPeerLocked. Positive test TestRFC8671PrePolicyAdjRIBOutSetsLFlagZero drives the real reload rail (enabling adj-rib-out-pre-policy and asserting the bounced pre-policy Adj-RIB-Out EOR carries exact flags PeerFlagO), live handleStructuredEvent over net.Pipe (asserting O=1, L=0, reserved=0 via decoded RouteMonitoring), and primeSender replay over a fresh pipe (asserting the replayed route carries O=1, L=0). Negative test TestRFC8671PrePolicyAdjRIBOutDistinguishesFromPostPolicyAndDefaultOff verifies the YANG leaf defaults to false, confirms disabled senders emit nothing for pre-policy Adj-RIB-Out events, and proves post-policy Adj-RIB-Out still carries O=1, L=1 and Adj-RIB-In carries O=0, L=0 both with adj-rib-out-pre-policy off and on. Discrimination records in rfc/discrimination/rfc8671/RFC8671-5.2-1.json prove whole-producer dependency on peerHeaderFromEvent; source inspection confirms exact L-flag bit discrimination across live, replayed, and EOR paths.
 
-No test carries RFC8671-5.2-1, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC8671PrePolicyAdjRIBOutDistinguishesFromPostPolicyAndDefaultOff`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go#L182) | unit/verify | revert, verified |
+| positive | [`TestRFC8671PrePolicyAdjRIBOutSetsLFlagZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go#L89) | unit/verify | revert, verified |
 
 ### [`RFC8671-5.2-2`](#rfc8671-5.2-2)
 
 All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion. (§5.2)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/bmp/bmp_events.go::BMPPlugin.handleSenderPrePolicyOut moved. Independent audit against RFC 8671 Section 5.2 ('All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion.'). Production code normalizes pre-policy Adj-RIB-Out announcements in normalizePrePolicyAdjRIBOutBody (invoked both on the live handleSenderPrePolicyOut path and on cacheAdjUpdate before snapshot caching): missing ORIGIN (code 1) and AS_PATH (code 2) are emitted with empty length 0; missing, non-4-byte, or nextHopUnknown IPv4 NEXT_HOP (code 3) for inline NLRI is encoded as 0.0.0.0 (4 zero octets); MP_REACH_NLRI (code 14) with nextHopUnknown encodes Next Hop Network Address Length as 0 (empty length) via appendMPReachEmptyNextHop while preserving AFI/SAFI, reserved=0, and NLRI verbatim; withdrawal-only and End-of-RIB UPDATEs are returned unchanged. In the reactor, emitPrePolicyAdjRIBOut marks PrePolicyNextHopUnknown when transmission-time next-hop rewriting applies (nhSelfWithheld or nhMode != nhModeNone) or when an injected body already carries an unknown/zero next hop. Positive test TestRFC8671PrePolicyAdjRIBOutNormalizesUnknownMandatoryAttrs drives the live BMP sender pipe and replay primeSender across four subtests covering unknown IPv4 NEXT_HOP zeroing to 0.0.0.0 (preserving known ORIGIN/AS_PATH/NLRI), missing ORIGIN/AS_PATH/NEXT_HOP synthesis as empty/zero, unknown IPv6 MP_REACH_NLRI next hop encoded with empty length 0, and replayed snapshot normalization. Negative test TestRFC8671PrePolicyAdjRIBOutPreservesKnownMandatoryAttrsAndWithdrawals proves known IPv4 and IPv6 mandatory attributes are conveyed byte-for-byte verbatim when nextHopUnknown is false and withdrawal-only UPDATEs gain no fabricated mandatory attributes. Discrimination records in rfc/discrimination/rfc8671/RFC8671-5.2-2.json prove whole-producer dependency on normalizePrePolicyAdjRIBOutBody; source inspection confirms exact byte/length discrimination across all subtests.
 
-No test carries RFC8671-5.2-2, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC8671PrePolicyAdjRIBOutPreservesKnownMandatoryAttrsAndWithdrawals`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go#L387) | unit/verify | revert, verified |
+| positive | [`TestRFC8671PrePolicyAdjRIBOutNormalizesUnknownMandatoryAttrs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go#L239) | unit/verify | revert, verified |
 
 ### [`RFC8671-6.1-1`](#rfc8671-6.1-1)
 

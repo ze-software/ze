@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Site-to-site IPsec and WireGuard VPN - Ze</title>
+        <meta name="description" content="Connect sites with native IKEv2 IPsec over Linux XFRM VTI interfaces or WireGuard tunnels and static routing." />
+        <meta property="og:title" content="Site-to-site IPsec and WireGuard VPN - Ze" />
+        <meta property="og:description" content="Connect sites with native IKEv2 IPsec over Linux XFRM VTI interfaces or WireGuard tunnels and static routing." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Site-to-site IPsec and WireGuard VPN - Ze" />
+        <meta name="twitter:description" content="Connect sites with native IKEv2 IPsec over Linux XFRM VTI interfaces or WireGuard tunnels and static routing." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/use-cases/site-to-site-vpn/" />
+        <meta property="og:url" content="https://ze-software.net/use-cases/site-to-site-vpn/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-secure">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Use case</span>
+    <h1 id="site-to-site-ipsec-and-wireguard-vpn">Site-to-site IPsec and WireGuard VPN</h1>
+    <p>Connect branch offices or cloud sites to a Linux router using Ze's native IKEv2 IPsec stack (programmed directly into Linux XFRM VTI interfaces) or kernel WireGuard interfaces, paired with static or dynamic routing through the tunnel interface.</p>
+</div>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#role-and-topology">Role and topology</a></li>
+<li><a href="#ze-configuration-route-based-ipsec-ikev2">Ze configuration: route-based IPsec IKEv2</a></li>
+<li><a href="#ze-configuration-wireguard-site-to-site">Ze configuration: WireGuard site-to-site</a></li>
+<li><a href="#adjacent-peer-configuration-strongswan-610">Adjacent peer configuration (strongSwan 6.1.0)</a></li>
+<li><a href="#verification-commands">Verification commands</a></li>
+<li><a href="#lab-evidence">Lab evidence</a></li>
+<li><a href="#current-limits">Current limits</a></li>
+<li><a href="#related-guides">Related guides</a></li>
+</ol></details></nav><div class="doc-body">
+<h2 id="role-and-topology">Role and topology</h2>
+<pre><code class="language-text">Site A (Ze, 10.78.1.0/24)                  Site B (strongSwan or Ze, 10.78.2.0/24)
+  172.30.0.1 ═══ IKEv2/ESP (XFRM vpn-xfrm) ═══ 172.30.0.2
+  198.51.100.1 ═══ WireGuard (wg0)         ═══ 198.51.100.2
+</code></pre>
+<h2 id="ze-configuration-route-based-ipsec-ikev2">Ze configuration: route-based IPsec IKEv2</h2>
+<p>Route-based IPsec binds an IKEv2 peer to an <code>xfrm</code> interface (<code>if-id 42</code>) and routes remote subnets into that interface (based on <code>demos/terminal/topics/ipsec/</code> and <code>test/interop-ipsec/scenarios/psk-site-to-site/ze.conf</code>):</p>
+<pre><code class="language-text">interface {
+    xfrm vpn-xfrm {
+        if-id 42;
+        mtu 1400;
+    }
+}
+
+static {
+    table default {
+        route 10.78.2.0/24 {
+            next {
+                interface vpn-xfrm {}
+            }
+        }
+    }
+}
+
+vpn {
+    ipsec {
+        interface eth0;
+        ike-group IKE-PSK {
+            key-exchange ikev2;
+            lifetime 28800;
+            proposal 1 {
+                encryption aes256gcm;
+                hash sha256;
+                dh-group 14;
+            }
+            dead-peer-detection { interval 30; timeout 120; }
+        }
+        esp-group ESP-PSK {
+            lifetime 3600;
+            pfs enable;
+            proposal 1 {
+                encryption aes256gcm;
+            }
+        }
+        site-to-site {
+            peer responder {
+                ike-group IKE-PSK;
+                esp-group ESP-PSK;
+                connection-type initiate;
+                mode tunnel;
+                local-address 172.30.0.1;
+                remote-address 172.30.0.2;
+                vti {
+                    bind vpn-xfrm;
+                }
+                traffic-selector 1 {
+                    local { prefix 10.78.1.0/24; }
+                    remote { prefix 10.78.2.0/24; }
+                }
+                authentication {
+                    mode pre-shared-secret;
+                    local-id "172.30.0.1";
+                    remote-id "172.30.0.2";
+                    pre-shared-secret "interop-test-psk";
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<p>X.509 certificate authentication uses <code>pki { ca ...; certificate ...; }</code> with <code>authentication { mode x509; ca-certificate ...; certificate ...; }</code> (see <code>test/interop-topology/cpe/ze-cpe.conf</code>).</p>
+<h2 id="ze-configuration-wireguard-site-to-site">Ze configuration: WireGuard site-to-site</h2>
+<p>For lightweight peer-to-peer tunnels, declare a <code>wireguard</code> interface and point a static route at <code>wg0</code> (generate keys with <code>request wireguard keypair</code>; based on <code>test/reload/tx-iface-wireguard-apply.ci</code>):</p>
+<pre><code class="language-text">interface {
+    wireguard wg0 {
+        listen-port 51820;
+        fwmark 0;
+        private-key "$9$...";
+        peer site2 {
+            public-key "&lt;base64-32-byte-pubkey&gt;";
+            preshared-key "$9$...";
+            endpoint {
+                ip 198.51.100.2;
+                port 51820;
+            }
+            allowed-ips [ 10.0.0.2/32 192.168.10.0/24 ];
+            persistent-keepalive 25;
+        }
+        unit 0 {
+            ipv4 {
+                address [ 10.0.0.1/24 ];
+            }
+        }
+    }
+}
+
+static {
+    table default {
+        route 192.168.10.0/24 {
+            next {
+                interface wg0 {}
+            }
+        }
+    }
+}
+</code></pre>
+<h2 id="adjacent-peer-configuration-strongswan-610">Adjacent peer configuration (strongSwan 6.1.0)</h2>
+<p>Responder configuration tested in <code>test/interop-ipsec/scenarios/psk-site-to-site/swanctl.conf</code>:</p>
+<pre><code class="language-ini">connections {
+    ze {
+        local_addrs = 172.30.0.2
+        remote_addrs = 172.30.0.1
+        local { auth = psk; id = 172.30.0.2 }
+        remote { auth = psk }
+        proposals = aes256gcm16-sha256-modp2048
+        children {
+            ze-child {
+                local_ts = 0.0.0.0/0
+                remote_ts = 0.0.0.0/0
+                esp_proposals = aes256gcm16
+                mode = tunnel
+            }
+        }
+    }
+}
+secrets {
+    ike-ze { secret = "interop-test-psk" }
+}
+</code></pre>
+<h2 id="verification-commands">Verification commands</h2>
+<pre><code class="language-text">show vpn ipsec status
+show vpn ipsec sa
+show vpn ipsec peer name responder
+show vpn ipsec dataplane sa
+show vpn ipsec dataplane policy
+show vpn ipsec dataplane drift
+show interface type wireguard
+show static
+</code></pre>
+<p><code>show vpn ipsec dataplane drift</code> compares the IKE engine's installed state against kernel XFRM SAs and policies and exits non-zero if they diverge.</p>
+<h2 id="lab-evidence">Lab evidence</h2>
+<ul>
+<li><strong>strongSwan 6.1.0 interop (PSK, IPv6-in-IPv4 VTI, Child rekey, MOBIKE, BGP over IPsec, EAP-TLS 1.3):</strong> <code>IPSEC_INTEROP_SCENARIO=psk-site-to-site ./le test integration interop-ipsec</code> and <code>IPSEC_INTEROP_SCENARIO=vti-ipv6-inner-ipv4-outer ./le test integration interop-ipsec</code> (<code>test/interop-ipsec/scenarios/</code>)</li>
+<li><strong>Linux kernel XFRM cipher proof (AES-GCM, AES-CBC/SHA256, ChaCha20-Poly1305):</strong> <code>./le test qemu vpn-kernel</code></li>
+<li><strong>X.509 management tunnel and WireGuard road-warrior topologies:</strong> <code>./le test integration interop-topology scenario mgmt-tunnel</code> and <code>road-warrior</code></li>
+<li><strong>Functional reload and dataplane checks:</strong> <code>test/ipsec/ipsec-sa-installed.ci</code>, <code>test/ipsec/ipsec-child-rekey-xfrm.ci</code>, <code>test/reload/tx-iface-wireguard-apply.ci</code></li>
+</ul>
+<h2 id="current-limits">Current limits</h2>
+<ul>
+<li><strong>Experimental status:</strong> Ze's native IPsec engine is currently marked Experimental / Pre-Alpha.</li>
+<li><strong>Linux netlink only for XFRM:</strong> <code>interface { xfrm }</code> requires Linux with <code>backend netlink</code>. Establishing an IKE and Child SA does not install routes automatically; add a static route or run a routing protocol over the XFRM interface.</li>
+<li><strong>MOBIKE kernel requirement:</strong> MOBIKE address migration requires Linux 7.2's <code>XFRM_MSG_MIGRATE_STATE</code> API (<code>CONFIG_XFRM_MIGRATE</code>).</li>
+<li><strong>WireGuard constraints:</strong> <code>endpoint.ip</code> accepts a numeric IP address only (no DNS resolution). <code>$9$</code> values in configuration files are reversible obfuscation rather than encryption. VPP WireGuard device creation is not wired, and interface-only static next-hops (<code>next { interface wg0 {} }</code>) do not support BFD.</li>
+</ul>
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><a href="../../guides/ipsec/">IPsec VPN guide</a></li>
+<li><a href="../../features/interfaces/">Interfaces</a></li>
+<li><a href="../../labs/ipsec-interop/">IPsec interop lab</a></li>
+</ul>
+</div>
+</div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Use case</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related usage</h2>
+                    <a class="page-sidebar-link" href="../../use-cases/">
+                        <span class="page-sidebar-link-label">All usage examples</span>
+                        <small>Return to the deployment examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to guides and references.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../features/bgp-protocol/">
+                        <span class="page-sidebar-link-label">BGP protocol</span>
+                        <small>Behavior used by the route examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label concept-evidence">Lab evidence</span>
+                        <small>Real-daemon interop evidence.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

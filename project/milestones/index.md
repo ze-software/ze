@@ -2,6 +2,16 @@
 
 Landmark capabilities in Ze's development, newest to oldest.
 
+## November 2026
+
+### Key points
+
+No milestone recorded for this month.
+
+### Update reports
+
+- [9 Nov](../changes/2026-11-09/)
+
 ## October 2026
 
 ### Key points

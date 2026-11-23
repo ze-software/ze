@@ -9,7 +9,7 @@ List the completion candidates for a partial plugin command\.
 - Mode: Read\-only
 - Wire method: `ze-plugin:command-complete`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

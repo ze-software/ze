@@ -158,48 +158,64 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </dl>
 </details>
 </section>
+<section id="how-compliance-is-calculated"><h2>How compliance is calculated</h2>
+<dl class="rfc-glossary">
+<dt>Two headline percentages</dt><dd>Ze publishes two percentages over mandatory (MUST / MUST NOT / SHALL / REQUIRED) requirements of reviewed RFCs it implements. The overall figure is (Ze verified + OS verified) divided by all applicable MUST requirements, including optional or unfinished parts of an RFC Ze does not build yet. The built-features figure leaves out those unbuilt parts, showing (Ze verified + OS verified) divided by (all applicable MUST requirements minus not built).</dd>
+<dt>What counts as verified</dt><dd>A requirement counts as verified only when a test checks it and that test was observed to fail when the underlying behavior was deliberately broken. That fault check runs when the test is written and again whenever the test changes, not on every test run. Behavior handled by the Linux kernel or a linked library counts as OS verified once a test verifies that behavior on the state Ze installs.</dd>
+<dt>Default behavior vs. custom operator configuration</dt><dd>Compliance is judged on Ze&#39;s default configuration path. Operators can still configure custom routing policy, raw wire attributes, or explicit overrides that depart from an RFC; those controls are kept by design and do not count as compliance failures when default behavior follows the standard.</dd>
+<dt>Superseded RFCs</dt><dd>When a newer RFC obsoletes an older one and Ze implements the newer standard, an obsoleted requirement counts as validated and complete once its replacement in the newer RFC is verified (or dropped by the newer RFC). Requirements that are still unimplemented in the newer RFC remain open gaps.</dd>
+<dt>What is left out of the denominator</dt><dd>Requirements that bind a role Ze does not fill (such as a DNSSEC zone signer, an RPKI cache server, or a route reflector), obligations that apply only to a human operator&#39;s deployment or network topology, IANA/IETF registry rules, optional features Ze explicitly declines, and requirements blocked by a documented Linux kernel limit are excluded from the denominator. RFCs whose requirement lists have not yet been reviewed against the original RFC text are excluded until that review is complete.</dd>
+</dl>
+<details class="rfc-glossary-fold"><summary>Counting history</summary>
+<dl class="rfc-glossary">
+<dt>2026-11-23</dt><dd>Superseded requirements whose replacement in an implemented successor RFC is verified (or dropped) now count as validated and complete. Operator-only, topology, IANA/IETF registry, and section-scoped non-Ze role obligations leave the denominator as not applicable. An operator&#39;s ability to configure custom policy or overrides no longer marks a compliant default path as partial.</dd>
+<dt>2026-11-13</dt><dd>OS-verified requirements (behavior provided by Linux or a linked library and verified on state Ze installs) joined the verified numerator, and the built-features percentage was added beside the all-MUSTs share.</dd>
+<dt>Until 2026-10-31</dt><dd>All mandatory rows counted in one total, including annotated rows; summary rows were excluded.</dd>
+</dl>
+</details>
+</section>
 <p class="rfc-lead">Ze&#39;s automatic checks cover the mandatory requirements of the RFCs it implements. For RFCs whose requirement lists have been reviewed, the bars and Total row group those requirements by status: verified by Ze&#39;s tests, verified in the operating system, not applicable, or awaiting implementation or tests. The cards below show how many tests have been shown to detect a deliberate fault and whether the checks pass.</p>
 <div class="rfc-overview" id="rfc-enrolled-sections">
 <h3>Status of the RFC requirements included in automatic checks</h3>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="enrolled:must">Ze verified 2,642, OS verified 3, Tests awaiting verification 417, OS testing gap 232, Exclusion unchecked 28, Not built 1,489</div>
+<div data-ze-rfc-bar="enrolled:must">Ze verified 2,741, OS verified 3, Tests awaiting verification 410, OS testing gap 232, Exclusion unchecked 28, Not built 1,342</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="enrolled:overview">Ze MUST verified 2,642, OS verified 3, SHOULD verified 121, Not owed 19, Tests awaiting verification 431, OS testing gap 233, Exclusion unchecked 30, Not assessed 1,835, Not built 1,525</div>
+<div data-ze-rfc-bar="enrolled:overview">Ze MUST verified 2,741, OS verified 3, SHOULD verified 158, Not owed 74, Tests awaiting verification 417, OS testing gap 233, Exclusion unchecked 30, Not assessed 1,806, Not built 1,377</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Total</th><th>Ze verified</th><th>OS verified</th><th>Tests awaiting verification</th><th>OS testing gap</th><th>Exclusion unchecked</th><th>Not assessed</th><th>Not built</th><th>Not owed</th><th>MUST rows</th></tr></thead>
 <tbody>
 <tr><td>Total</td>
-<td><span data-ze-rfc="enrolled:must.ze-proven">2,642</span></td>
+<td><span data-ze-rfc="enrolled:must.ze-proven">2,741</span></td>
 <td><span data-ze-rfc="enrolled:must.os-verified">3</span></td>
-<td><span data-ze-rfc="enrolled:must.proof-pending">417</span></td>
+<td><span data-ze-rfc="enrolled:must.proof-pending">410</span></td>
 <td><span data-ze-rfc="enrolled:must.os-gap">232</span></td>
 <td><span data-ze-rfc="enrolled:must.exclusion-unchecked">28</span></td>
 <td><span data-ze-rfc="enrolled:must.not-assessed">0</span></td>
-<td><span data-ze-rfc="enrolled:must.not-built">1,489</span></td>
-<td><span data-ze-rfc="enrolled:must.not-owed">19</span></td>
+<td><span data-ze-rfc="enrolled:must.not-built">1,342</span></td>
+<td><span data-ze-rfc="enrolled:must.not-owed">74</span></td>
 <td><span data-ze-rfc="enrolled:must.total">4,830</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p id="rfc-enrolled-check">Check: <span data-ze-rfc="enrolled:must.ze-proven">2,642</span> + <span data-ze-rfc="enrolled:must.os-verified">3</span> + <span data-ze-rfc="enrolled:must.proof-pending">417</span> + <span data-ze-rfc="enrolled:must.os-gap">232</span> + <span data-ze-rfc="enrolled:must.exclusion-unchecked">28</span> + <span data-ze-rfc="enrolled:must.not-assessed">0</span> + <span data-ze-rfc="enrolled:must.not-built">1,489</span> + <span data-ze-rfc="enrolled:must.not-owed">19</span> = <span data-ze-rfc="enrolled:must.total">4,830</span> mandatory requirements: the MUST bar&#39;s sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.</p>
+<p id="rfc-enrolled-check">Check: <span data-ze-rfc="enrolled:must.ze-proven">2,741</span> + <span data-ze-rfc="enrolled:must.os-verified">3</span> + <span data-ze-rfc="enrolled:must.proof-pending">410</span> + <span data-ze-rfc="enrolled:must.os-gap">232</span> + <span data-ze-rfc="enrolled:must.exclusion-unchecked">28</span> + <span data-ze-rfc="enrolled:must.not-assessed">0</span> + <span data-ze-rfc="enrolled:must.not-built">1,342</span> + <span data-ze-rfc="enrolled:must.not-owed">74</span> = <span data-ze-rfc="enrolled:must.total">4,830</span> mandatory requirements: the MUST bar&#39;s sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.</p>
 <p id="rfc-enrolled-scope">Of the <span data-ze-rfc="enrolled:rfcs">206</span> RFCs included in automatic checks, <span data-ze-rfc="enrolled:not-walked">0</span> have not had their requirement lists reviewed, so their requirements are excluded from the figures above. Ze implements <span data-ze-rfc="enrolled:implemented">198</span> of these RFCs, each with a public support entry. The rfc/short/ directory holds <span data-ze-rfc="all:rfcs">243</span> summary files, including RFCs excluded from automatic checks and summaries that list no requirements. They list <span data-ze-rfc="all:requirements">7,859</span> requirements across all levels. These totals describe the requirement inventory. Until 2026-10-31 this page led with a count of mandatory requirements, including requirements with explanatory annotations, and showed the percentage of that total verified by tests. The sections above replace those figures by classifying each mandatory requirement of a reviewed RFC included in automatic checks in exactly one section.</p>
 </div>
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>7,741</strong><b>7,741 of 9,753 tests linked to requirements in RFCs included in automatic checks, 20 without a fault test and 27 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>7,901</strong><b>7,901 of 9,899 tests linked to requirements in RFCs included in automatic checks, 20 without a fault test and 24 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Compliance check result</span><strong>Failed</strong><b>281 unresolved check findings</b><p>whether ./le rfc check passes over this tree</p></article>
+<article class="rfc-card rfc-bad"><span>Compliance check result</span><strong>Failed</strong><b>343 unresolved check findings</b><p>whether ./le rfc check passes over this tree</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Current test reviews</span><strong>2,089</strong><b>73 shifted, 171 stale, 2,497 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
+<article class="rfc-card rfc-neutral"><span>Current test reviews</span><strong>2,090</strong><b>109 shifted, 192 stale, 2,439 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
 </div>
 <p>No card above is a part of a population, so there is nothing to add up.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -226,8 +242,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <div class="rfc-verdict rfc-bad">
 <p><span>Compliance check result</span><strong>Failed</strong></p>
-<p>281 unresolved check findings. Check results below lists them, up to the 25 shown on this page.</p>
-<p>Contributors reproduce it with <code>./le rfc check</code>. The check's original output reads <code>rfc-requirements: 281 violation(s)</code>.</p>
+<p>343 unresolved check findings. Check results below lists them, up to the 25 shown on this page.</p>
+<p>Contributors reproduce it with <code>./le rfc check</code>. The check's original output reads <code>rfc-requirements: 343 violation(s)</code>.</p>
 </div>
 <section><h2>Coverage by profile</h2>
 <p class="rfc-lead">A profile groups the RFCs one kind of deployment needs. If you are evaluating Ze for one role, its profile page gives the figures for that role alone.</p>
@@ -273,10 +289,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Declared gaps</th><th>Count</th></tr></thead>
 <tbody>
 <tr><td>Requirements declared as gaps</td>
-<td><strong>1,450</strong></td>
+<td><strong>1,340</strong></td>
 </tr>
 <tr><td>RFCs declaring a gap</td>
-<td><strong>127</strong></td>
+<td><strong>112</strong></td>
 </tr>
 </tbody>
 </table>
@@ -304,14 +320,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><code>binds-another-role</code></td>
 <td>never bound Ze</td>
-<td><strong>540</strong></td>
-<td>44</td>
+<td><strong>541</strong></td>
+<td>45</td>
 <td>the obligation is addressed to a role Ze never acts as</td>
 </tr>
 <tr><td><code>feature-out-of-scope</code></td>
 <td>never bound Ze</td>
-<td><strong>399</strong></td>
-<td>19</td>
+<td><strong>398</strong></td>
+<td>18</td>
 <td>the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
 </tr>
 <tr><td><code>cross-document</code></td>
@@ -338,8 +354,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <p class="rfc-id-list"><strong>duplicate-of (582):</strong> <a href="draft-ietf-bess-mup-safi/"><code>DRAFT-IETF-BESS-MUP-SAFI</code></a>, <a href="rfc1035/"><code>RFC 1035</code></a>, <a href="rfc1195/"><code>RFC 1195</code></a>, <a href="rfc1661/"><code>RFC 1661</code></a>, <a href="rfc2131/"><code>RFC 2131</code></a>, <a href="rfc2181/"><code>RFC 2181</code></a>, <a href="rfc2205/"><code>RFC 2205</code></a>, <a href="rfc2516/"><code>RFC 2516</code></a>, <a href="rfc2661/"><code>RFC 2661</code></a>, <a href="rfc2759/"><code>RFC 2759</code></a>, <a href="rfc2865/"><code>RFC 2865</code></a>, <a href="rfc2866/"><code>RFC 2866</code></a>, <a href="rfc2869/"><code>RFC 2869</code></a>, <a href="rfc2890/"><code>RFC 2890</code></a>, <a href="rfc2966/"><code>RFC 2966</code></a>, <a href="rfc3031/"><code>RFC 3031</code></a>, <a href="rfc3032/"><code>RFC 3032</code></a>, <a href="rfc3101/"><code>RFC 3101</code></a>, <a href="rfc3209/"><code>RFC 3209</code></a>, <a href="rfc3579/"><code>RFC 3579</code></a>, <a href="rfc3623/"><code>RFC 3623</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc3768/"><code>RFC 3768</code></a>, <a href="rfc3786/"><code>RFC 3786</code></a>, <a href="rfc3948/"><code>RFC 3948</code></a>, <a href="rfc3954/"><code>RFC 3954</code></a>, <a href="rfc4035/"><code>RFC 4035</code></a>, <a href="rfc4090/"><code>RFC 4090</code></a>, <a href="rfc4213/"><code>RFC 4213</code></a>, <a href="rfc4271/"><code>RFC 4271</code></a>, <a href="rfc4301/"><code>RFC 4301</code></a>, <a href="rfc4302/"><code>RFC 4302</code></a>, <a href="rfc4303/"><code>RFC 4303</code></a>, <a href="rfc4364/"><code>RFC 4364</code></a>, <a href="rfc4456/"><code>RFC 4456</code></a>, <a href="rfc4555/"><code>RFC 4555</code></a>, <a href="rfc4577/"><code>RFC 4577</code></a>, <a href="rfc4684/"><code>RFC 4684</code></a>, <a href="rfc4760/"><code>RFC 4760</code></a>, <a href="rfc4787/"><code>RFC 4787</code></a>, <a href="rfc4862/"><code>RFC 4862</code></a>, <a href="rfc5036/"><code>RFC 5036</code></a>, <a href="rfc5072/"><code>RFC 5072</code></a>, <a href="rfc5216/"><code>RFC 5216</code></a>, <a href="rfc5250/"><code>RFC 5250</code></a>, <a href="rfc5280/"><code>RFC 5280</code></a>, <a href="rfc5303/"><code>RFC 5303</code></a>, <a href="rfc5340/"><code>RFC 5340</code></a>, <a href="rfc5382/"><code>RFC 5382</code></a>, <a href="rfc5549/"><code>RFC 5549</code></a>, <a href="rfc5561/"><code>RFC 5561</code></a>, <a href="rfc5798/"><code>RFC 5798</code></a>, <a href="rfc5880/"><code>RFC 5880</code></a>, <a href="rfc5998/"><code>RFC 5998</code></a>, <a href="rfc6549/"><code>RFC 6549</code></a>, <a href="rfc6793/"><code>RFC 6793</code></a>, <a href="rfc6810/"><code>RFC 6810</code></a>, <a href="rfc7011/"><code>RFC 7011</code></a>, <a href="rfc7166/"><code>RFC 7166</code></a>, <a href="rfc7296/"><code>RFC 7296</code></a>, <a href="rfc7311/"><code>RFC 7311</code></a>, <a href="rfc7432/"><code>RFC 7432</code></a>, <a href="rfc7474/"><code>RFC 7474</code></a>, <a href="rfc7854/"><code>RFC 7854</code></a>, <a href="rfc7871/"><code>RFC 7871</code></a>, <a href="rfc8210/"><code>RFC 8210</code></a>, <a href="rfc8221/"><code>RFC 8221</code></a>, <a href="rfc8247/"><code>RFC 8247</code></a>, <a href="rfc8277/"><code>RFC 8277</code></a>, <a href="rfc8414/"><code>RFC 8414</code></a>, <a href="rfc8522/"><code>RFC 8522</code></a>, <a href="rfc8665/"><code>RFC 8665</code></a>, <a href="rfc8669/"><code>RFC 8669</code></a>, <a href="rfc8671/"><code>RFC 8671</code></a>, <a href="rfc8907/"><code>RFC 8907</code></a>, <a href="rfc8950/"><code>RFC 8950</code></a>, <a href="rfc8955/"><code>RFC 8955</code></a>, <a href="rfc9003/"><code>RFC 9003</code></a>, <a href="rfc9012/"><code>RFC 9012</code></a>, <a href="rfc9069/"><code>RFC 9069</code></a>, <a href="rfc9136/"><code>RFC 9136</code></a>, <a href="rfc9190/"><code>RFC 9190</code></a>, <a href="rfc9234/"><code>RFC 9234</code></a>, <a href="rfc9252/"><code>RFC 9252</code></a>, <a href="rfc9494/"><code>RFC 9494</code></a>, <a href="rfc9552/"><code>RFC 9552</code></a>, <a href="rfc9568/"><code>RFC 9568</code></a>, <a href="rfc9728/"><code>RFC 9728</code></a>, <a href="rfc9915/"><code>RFC 9915</code></a>, <a href="sflow-v5/"><code>SFLOW-V5</code></a></p>
 <p class="rfc-id-list"><strong>not-a-requirement (581):</strong> <a href="draft-abraitis-bgp-version-capability/"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</code></a>, <a href="draft-ietf-idr-linklocal-capability/"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</code></a>, <a href="draft-walton-bgp-hostname-capability/"><code>DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY</code></a>, <a href="rfc1035/"><code>RFC 1035</code></a>, <a href="rfc1071/"><code>RFC 1071</code></a>, <a href="rfc1195/"><code>RFC 1195</code></a>, <a href="rfc1332/"><code>RFC 1332</code></a>, <a href="rfc1334/"><code>RFC 1334</code></a>, <a href="rfc1350/"><code>RFC 1350</code></a>, <a href="rfc1661/"><code>RFC 1661</code></a>, <a href="rfc1994/"><code>RFC 1994</code></a>, <a href="rfc2131/"><code>RFC 2131</code></a>, <a href="rfc2132/"><code>RFC 2132</code></a>, <a href="rfc2181/"><code>RFC 2181</code></a>, <a href="rfc2205/"><code>RFC 2205</code></a>, <a href="rfc2328/"><code>RFC 2328</code></a>, <a href="rfc2347/"><code>RFC 2347</code></a>, <a href="rfc2348/"><code>RFC 2348</code></a>, <a href="rfc2349/"><code>RFC 2349</code></a>, <a href="rfc2385/"><code>RFC 2385</code></a>, <a href="rfc2473/"><code>RFC 2473</code></a>, <a href="rfc2516/"><code>RFC 2516</code></a>, <a href="rfc2545/"><code>RFC 2545</code></a>, <a href="rfc2661/"><code>RFC 2661</code></a>, <a href="rfc2759/"><code>RFC 2759</code></a>, <a href="rfc2782/"><code>RFC 2782</code></a>, <a href="rfc2784/"><code>RFC 2784</code></a>, <a href="rfc2865/"><code>RFC 2865</code></a>, <a href="rfc2869/"><code>RFC 2869</code></a>, <a href="rfc2918/"><code>RFC 2918</code></a>, <a href="rfc2966/"><code>RFC 2966</code></a>, <a href="rfc3022/"><code>RFC 3022</code></a>, <a href="rfc3031/"><code>RFC 3031</code></a>, <a href="rfc3032/"><code>RFC 3032</code></a>, <a href="rfc3101/"><code>RFC 3101</code></a>, <a href="rfc3209/"><code>RFC 3209</code></a>, <a href="rfc3579/"><code>RFC 3579</code></a>, <a href="rfc3623/"><code>RFC 3623</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc3765/"><code>RFC 3765</code></a>, <a href="rfc3768/"><code>RFC 3768</code></a>, <a href="rfc3882/"><code>RFC 3882</code></a>, <a href="rfc3948/"><code>RFC 3948</code></a>, <a href="rfc4033/"><code>RFC 4033</code></a>, <a href="rfc4035/"><code>RFC 4035</code></a>, <a href="rfc4271/"><code>RFC 4271</code></a>, <a href="rfc4301/"><code>RFC 4301</code></a>, <a href="rfc4303/"><code>RFC 4303</code></a>, <a href="rfc4360/"><code>RFC 4360</code></a>, <a href="rfc4364/"><code>RFC 4364</code></a>, <a href="rfc4456/"><code>RFC 4456</code></a>, <a href="rfc4552/"><code>RFC 4552</code></a>, <a href="rfc4577/"><code>RFC 4577</code></a>, <a href="rfc4684/"><code>RFC 4684</code></a>, <a href="rfc4724/"><code>RFC 4724</code></a>, <a href="rfc4761/"><code>RFC 4761</code></a>, <a href="rfc4787/"><code>RFC 4787</code></a>, <a href="rfc4861/"><code>RFC 4861</code></a>, <a href="rfc4862/"><code>RFC 4862</code></a>, <a href="rfc5036/"><code>RFC 5036</code></a>, <a href="rfc5176/"><code>RFC 5176</code></a>, <a href="rfc5250/"><code>RFC 5250</code></a>, <a href="rfc5280/"><code>RFC 5280</code></a>, <a href="rfc5282/"><code>RFC 5282</code></a>, <a href="rfc5301/"><code>RFC 5301</code></a>, <a href="rfc5303/"><code>RFC 5303</code></a>, <a href="rfc5310/"><code>RFC 5310</code></a>, <a href="rfc5382/"><code>RFC 5382</code></a>, <a href="rfc5392/"><code>RFC 5392</code></a>, <a href="rfc5443/"><code>RFC 5443</code></a>, <a href="rfc5492/"><code>RFC 5492</code></a>, <a href="rfc5575/"><code>RFC 5575</code></a>, <a href="rfc5625/"><code>RFC 5625</code></a>, <a href="rfc5701/"><code>RFC 5701</code></a>, <a href="rfc5709/"><code>RFC 5709</code></a>, <a href="rfc5798/"><code>RFC 5798</code></a>, <a href="rfc5881/"><code>RFC 5881</code></a>, <a href="rfc5883/"><code>RFC 5883</code></a>, <a href="rfc6071/"><code>RFC 6071</code></a>, <a href="rfc6286/"><code>RFC 6286</code></a>, <a href="rfc6396/"><code>RFC 6396</code></a>, <a href="rfc6482/"><code>RFC 6482</code></a>, <a href="rfc7296/"><code>RFC 7296</code></a>, <a href="rfc7427/"><code>RFC 7427</code></a>, <a href="rfc7454/"><code>RFC 7454</code></a>, <a href="rfc7474/"><code>RFC 7474</code></a>, <a href="rfc7534/"><code>RFC 7534</code></a>, <a href="rfc7535/"><code>RFC 7535</code></a>, <a href="rfc7606/"><code>RFC 7606</code></a>, <a href="rfc7705/"><code>RFC 7705</code></a>, <a href="rfc7854/"><code>RFC 7854</code></a>, <a href="rfc7858/"><code>RFC 7858</code></a>, <a href="rfc7871/"><code>RFC 7871</code></a>, <a href="rfc7911/"><code>RFC 7911</code></a>, <a href="rfc792/"><code>RFC 792</code></a>, <a href="rfc7948/"><code>RFC 7948</code></a>, <a href="rfc7999/"><code>RFC 7999</code></a>, <a href="rfc8050/"><code>RFC 8050</code></a>, <a href="rfc8097/"><code>RFC 8097</code></a>, <a href="rfc8221/"><code>RFC 8221</code></a>, <a href="rfc8247/"><code>RFC 8247</code></a>, <a href="rfc8522/"><code>RFC 8522</code></a>, <a href="rfc8571/"><code>RFC 8571</code></a>, <a href="rfc8654/"><code>RFC 8654</code></a>, <a href="rfc8669/"><code>RFC 8669</code></a>, <a href="rfc8955/"><code>RFC 8955</code></a>, <a href="rfc8956/"><code>RFC 8956</code></a>, <a href="rfc905/"><code>RFC 905</code></a>, <a href="rfc9072/"><code>RFC 9072</code></a>, <a href="rfc9085/"><code>RFC 9085</code></a>, <a href="rfc9086/"><code>RFC 9086</code></a>, <a href="rfc9117/"><code>RFC 9117</code></a>, <a href="rfc9190/"><code>RFC 9190</code></a>, <a href="rfc9252/"><code>RFC 9252</code></a>, <a href="rfc9370/"><code>RFC 9370</code></a>, <a href="rfc9384/"><code>RFC 9384</code></a>, <a href="rfc9494/"><code>RFC 9494</code></a>, <a href="rfc9514/"><code>RFC 9514</code></a>, <a href="rfc9552/"><code>RFC 9552</code></a>, <a href="rfc9568/"><code>RFC 9568</code></a>, <a href="rfc9582/"><code>RFC 9582</code></a>, <a href="rfc9687/"><code>RFC 9687</code></a>, <a href="rfc9830/"><code>RFC 9830</code></a>, <a href="sflow-v5/"><code>SFLOW-V5</code></a></p>
-<p class="rfc-id-list"><strong>binds-another-role (540):</strong> <a href="draft-ietf-bess-mup-safi/"><code>DRAFT-IETF-BESS-MUP-SAFI</code></a>, <a href="draft-ietf-sidrops-aspa-verification/"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION</code></a>, <a href="rfc1035/"><code>RFC 1035</code></a>, <a href="rfc1195/"><code>RFC 1195</code></a>, <a href="rfc1350/"><code>RFC 1350</code></a>, <a href="rfc1661/"><code>RFC 1661</code></a>, <a href="rfc1997/"><code>RFC 1997</code></a>, <a href="rfc2132/"><code>RFC 2132</code></a>, <a href="rfc2545/"><code>RFC 2545</code></a>, <a href="rfc2759/"><code>RFC 2759</code></a>, <a href="rfc2865/"><code>RFC 2865</code></a>, <a href="rfc2866/"><code>RFC 2866</code></a>, <a href="rfc2869/"><code>RFC 2869</code></a>, <a href="rfc3032/"><code>RFC 3032</code></a>, <a href="rfc3579/"><code>RFC 3579</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc4106/"><code>RFC 4106</code></a>, <a href="rfc4301/"><code>RFC 4301</code></a>, <a href="rfc4302/"><code>RFC 4302</code></a>, <a href="rfc4303/"><code>RFC 4303</code></a>, <a href="rfc4360/"><code>RFC 4360</code></a>, <a href="rfc4364/"><code>RFC 4364</code></a>, <a href="rfc4456/"><code>RFC 4456</code></a>, <a href="rfc4761/"><code>RFC 4761</code></a>, <a href="rfc4861/"><code>RFC 4861</code></a>, <a href="rfc5176/"><code>RFC 5176</code></a>, <a href="rfc5280/"><code>RFC 5280</code></a>, <a href="rfc5561/"><code>RFC 5561</code></a>, <a href="rfc5575/"><code>RFC 5575</code></a>, <a href="rfc5685/"><code>RFC 5685</code></a>, <a href="rfc5998/"><code>RFC 5998</code></a>, <a href="rfc6396/"><code>RFC 6396</code></a>, <a href="rfc7011/"><code>RFC 7011</code></a>, <a href="rfc7012/"><code>RFC 7012</code></a>, <a href="rfc7296/"><code>RFC 7296</code></a>, <a href="rfc7854/"><code>RFC 7854</code></a>, <a href="rfc8522/"><code>RFC 8522</code></a>, <a href="rfc8654/"><code>RFC 8654</code></a>, <a href="rfc8907/"><code>RFC 8907</code></a>, <a href="rfc8955/"><code>RFC 8955</code></a>, <a href="rfc9552/"><code>RFC 9552</code></a>, <a href="rfc9728/"><code>RFC 9728</code></a>, <a href="rfc9915/"><code>RFC 9915</code></a>, <a href="sflow-v5/"><code>SFLOW-V5</code></a><br />ai/rules/rfc-compliance.md treats binds-another-role as PRESUMED WRONG until it is justified: Ze rarely implements one side of a protocol, so an obligation addressed to &#34;the sender&#34; or &#34;the receiver&#34; almost always binds it, and the label reads as &#34;not our problem&#34; where the truth is usually &#34;our problem, unbuilt&#34;. Each one is justified on its own RFC&#39;s page, under Extraction sign-off, and the justification MUST name the role, show Ze never acts as it, and cite the producer that would act as it if Ze did.</p>
-<p class="rfc-id-list"><strong>feature-out-of-scope (399):</strong> <a href="rfc1195/"><code>RFC 1195</code></a>, <a href="rfc1332/"><code>RFC 1332</code></a>, <a href="rfc2131/"><code>RFC 2131</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc4090/"><code>RFC 4090</code></a>, <a href="rfc4271/"><code>RFC 4271</code></a>, <a href="rfc5082/"><code>RFC 5082</code></a>, <a href="rfc5176/"><code>RFC 5176</code></a>, <a href="rfc5216/"><code>RFC 5216</code></a>, <a href="rfc5280/"><code>RFC 5280</code></a>, <a href="rfc5305/"><code>RFC 5305</code></a>, <a href="rfc7084/"><code>RFC 7084</code></a>, <a href="rfc7634/"><code>RFC 7634</code></a>, <a href="rfc7950/"><code>RFC 7950</code></a>, <a href="rfc8221/"><code>RFC 8221</code></a>, <a href="rfc8247/"><code>RFC 8247</code></a>, <a href="rfc905/"><code>RFC 905</code></a>, <a href="rfc9069/"><code>RFC 9069</code></a>, <a href="rfc9774/"><code>RFC 9774</code></a></p>
+<p class="rfc-id-list"><strong>binds-another-role (541):</strong> <a href="draft-ietf-bess-mup-safi/"><code>DRAFT-IETF-BESS-MUP-SAFI</code></a>, <a href="draft-ietf-sidrops-aspa-verification/"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION</code></a>, <a href="rfc1035/"><code>RFC 1035</code></a>, <a href="rfc1195/"><code>RFC 1195</code></a>, <a href="rfc1350/"><code>RFC 1350</code></a>, <a href="rfc1661/"><code>RFC 1661</code></a>, <a href="rfc1997/"><code>RFC 1997</code></a>, <a href="rfc2132/"><code>RFC 2132</code></a>, <a href="rfc2545/"><code>RFC 2545</code></a>, <a href="rfc2759/"><code>RFC 2759</code></a>, <a href="rfc2865/"><code>RFC 2865</code></a>, <a href="rfc2866/"><code>RFC 2866</code></a>, <a href="rfc2869/"><code>RFC 2869</code></a>, <a href="rfc3032/"><code>RFC 3032</code></a>, <a href="rfc3579/"><code>RFC 3579</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc4106/"><code>RFC 4106</code></a>, <a href="rfc4301/"><code>RFC 4301</code></a>, <a href="rfc4302/"><code>RFC 4302</code></a>, <a href="rfc4303/"><code>RFC 4303</code></a>, <a href="rfc4360/"><code>RFC 4360</code></a>, <a href="rfc4364/"><code>RFC 4364</code></a>, <a href="rfc4456/"><code>RFC 4456</code></a>, <a href="rfc4761/"><code>RFC 4761</code></a>, <a href="rfc4861/"><code>RFC 4861</code></a>, <a href="rfc5176/"><code>RFC 5176</code></a>, <a href="rfc5280/"><code>RFC 5280</code></a>, <a href="rfc5561/"><code>RFC 5561</code></a>, <a href="rfc5575/"><code>RFC 5575</code></a>, <a href="rfc5685/"><code>RFC 5685</code></a>, <a href="rfc5998/"><code>RFC 5998</code></a>, <a href="rfc6396/"><code>RFC 6396</code></a>, <a href="rfc7011/"><code>RFC 7011</code></a>, <a href="rfc7012/"><code>RFC 7012</code></a>, <a href="rfc7296/"><code>RFC 7296</code></a>, <a href="rfc7854/"><code>RFC 7854</code></a>, <a href="rfc8522/"><code>RFC 8522</code></a>, <a href="rfc8654/"><code>RFC 8654</code></a>, <a href="rfc8907/"><code>RFC 8907</code></a>, <a href="rfc8955/"><code>RFC 8955</code></a>, <a href="rfc9552/"><code>RFC 9552</code></a>, <a href="rfc9728/"><code>RFC 9728</code></a>, <a href="rfc9774/"><code>RFC 9774</code></a>, <a href="rfc9915/"><code>RFC 9915</code></a>, <a href="sflow-v5/"><code>SFLOW-V5</code></a><br />ai/rules/rfc-conformance.md treats binds-another-role as PRESUMED WRONG until it is justified: Ze rarely implements one side of a protocol, so an obligation addressed to &#34;the sender&#34; or &#34;the receiver&#34; almost always binds it, and the label reads as &#34;not our problem&#34; where the truth is usually &#34;our problem, unbuilt&#34;. Each one is justified on its own RFC&#39;s page, under Extraction sign-off, and the justification MUST name the role, show Ze never acts as it, and cite the producer that would act as it if Ze did.</p>
+<p class="rfc-id-list"><strong>feature-out-of-scope (398):</strong> <a href="rfc1195/"><code>RFC 1195</code></a>, <a href="rfc1332/"><code>RFC 1332</code></a>, <a href="rfc2131/"><code>RFC 2131</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc4090/"><code>RFC 4090</code></a>, <a href="rfc4271/"><code>RFC 4271</code></a>, <a href="rfc5082/"><code>RFC 5082</code></a>, <a href="rfc5176/"><code>RFC 5176</code></a>, <a href="rfc5216/"><code>RFC 5216</code></a>, <a href="rfc5280/"><code>RFC 5280</code></a>, <a href="rfc5305/"><code>RFC 5305</code></a>, <a href="rfc7084/"><code>RFC 7084</code></a>, <a href="rfc7634/"><code>RFC 7634</code></a>, <a href="rfc7950/"><code>RFC 7950</code></a>, <a href="rfc8221/"><code>RFC 8221</code></a>, <a href="rfc8247/"><code>RFC 8247</code></a>, <a href="rfc905/"><code>RFC 905</code></a>, <a href="rfc9069/"><code>RFC 9069</code></a></p>
 <p class="rfc-id-list"><strong>cross-document (100):</strong> <a href="draft-abraitis-bgp-version-capability/"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</code></a>, <a href="draft-ietf-sidrops-aspa-verification/"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION</code></a>, <a href="rfc1195/"><code>RFC 1195</code></a>, <a href="rfc1334/"><code>RFC 1334</code></a>, <a href="rfc2205/"><code>RFC 2205</code></a>, <a href="rfc2545/"><code>RFC 2545</code></a>, <a href="rfc2782/"><code>RFC 2782</code></a>, <a href="rfc2869/"><code>RFC 2869</code></a>, <a href="rfc2966/"><code>RFC 2966</code></a>, <a href="rfc3032/"><code>RFC 3032</code></a>, <a href="rfc3101/"><code>RFC 3101</code></a>, <a href="rfc3579/"><code>RFC 3579</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc3948/"><code>RFC 3948</code></a>, <a href="rfc4033/"><code>RFC 4033</code></a>, <a href="rfc4303/"><code>RFC 4303</code></a>, <a href="rfc4364/"><code>RFC 4364</code></a>, <a href="rfc4577/"><code>RFC 4577</code></a>, <a href="rfc4724/"><code>RFC 4724</code></a>, <a href="rfc4761/"><code>RFC 4761</code></a>, <a href="rfc4818/"><code>RFC 4818</code></a>, <a href="rfc5082/"><code>RFC 5082</code></a>, <a href="rfc5176/"><code>RFC 5176</code></a>, <a href="rfc5250/"><code>RFC 5250</code></a>, <a href="rfc5280/"><code>RFC 5280</code></a>, <a href="rfc5282/"><code>RFC 5282</code></a>, <a href="rfc5308/"><code>RFC 5308</code></a>, <a href="rfc5492/"><code>RFC 5492</code></a>, <a href="rfc5575/"><code>RFC 5575</code></a>, <a href="rfc5625/"><code>RFC 5625</code></a>, <a href="rfc6071/"><code>RFC 6071</code></a>, <a href="rfc7474/"><code>RFC 7474</code></a>, <a href="rfc7535/"><code>RFC 7535</code></a>, <a href="rfc7854/"><code>RFC 7854</code></a>, <a href="rfc7950/"><code>RFC 7950</code></a>, <a href="rfc8571/"><code>RFC 8571</code></a>, <a href="rfc8654/"><code>RFC 8654</code></a>, <a href="rfc8955/"><code>RFC 8955</code></a>, <a href="rfc8956/"><code>RFC 8956</code></a>, <a href="rfc9069/"><code>RFC 9069</code></a>, <a href="rfc9085/"><code>RFC 9085</code></a>, <a href="rfc9252/"><code>RFC 9252</code></a></p>
 <p class="rfc-id-list"><strong>advisory-in-context (26):</strong> <a href="rfc1035/"><code>RFC 1035</code></a>, <a href="rfc2866/"><code>RFC 2866</code></a>, <a href="rfc3032/"><code>RFC 3032</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc3948/"><code>RFC 3948</code></a>, <a href="rfc4552/"><code>RFC 4552</code></a>, <a href="rfc4761/"><code>RFC 4761</code></a>, <a href="rfc5176/"><code>RFC 5176</code></a>, <a href="rfc7084/"><code>RFC 7084</code></a>, <a href="rfc7474/"><code>RFC 7474</code></a>, <a href="rfc8221/"><code>RFC 8221</code></a>, <a href="rfc8247/"><code>RFC 8247</code></a>, <a href="rfc8955/"><code>RFC 8955</code></a></p>
 <h3>Obligations relocated to a spec</h3>
@@ -368,11 +384,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Declared gaps</th></tr></thead>
 <tbody>
-<tr><td><code>RFC 4035</code></td>
-<td><strong>94</strong></td>
-</tr>
 <tr><td><code>RFC 7432</code></td>
-<td><strong>90</strong></td>
+<td><strong>89</strong></td>
+</tr>
+<tr><td><code>RFC 4035</code></td>
+<td><strong>67</strong></td>
 </tr>
 <tr><td><code>RFC 5036</code></td>
 <td><strong>59</strong></td>
@@ -429,15 +445,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Test tags</td>
 <td><code>internal/</code>, <code>pkg/</code>, <code>test/</code></td>
-<td>10,085 resolved tags</td>
+<td>10,231 resolved tags</td>
 </tr>
 <tr><td>Public ledger</td>
 <td><code>rfc/short/*.md</code>, the <code>| Support |</code> Meta row</td>
-<td>127 RFCs with gaps</td>
+<td>112 RFCs with gaps</td>
 </tr>
 <tr><td>Semantic audits</td>
 <td><code>rfc/audit/*/*.json</code></td>
-<td>2,089 fresh, 73 shifted, 171 stale, 2,497 missing</td>
+<td>2,090 fresh, 109 shifted, 192 stale, 2,439 missing</td>
 </tr>
 <tr><td>Pre-commit verification</td>
 <td><code>internal/le/verify/engine/stages.go</code></td>
@@ -455,10 +471,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p class="rfc-lead">Compliance is checked in several groups. Each line below says what one group verifies and whether it passed, and for a group that failed, what that means for the figures. The raw findings, written for Ze&#39;s contributors, are in the collapsed block after the list.</p>
 <ul class="rfc-check-groups">
 <li class="rfc-ok"><strong>Requirement lists:</strong> Passed. Each RFC&#39;s requirement list is readable and consistent: requirement identifiers are not reused or lost, each requirement quotes the RFC text it cites, and the links it declares between RFCs and profiles agree with the RFC texts.</li>
-<li class="rfc-bad"><strong>Test evidence:</strong> Failed, 6 problems. Every gated MUST-level requirement has its tests, or an annotation that says why not, test evidence already recorded is not lost, and every test that claims a requirement compiles and is named for what it covers. What this means: The test evidence for a requirement is missing, lost, or not where it is claimed to be.</li>
+<li class="rfc-bad"><strong>Test evidence:</strong> Failed, 9 problems. Every gated MUST-level requirement has its tests, or an annotation that says why not, test evidence already recorded is not lost, and every test that claims a requirement compiles and is named for what it covers. What this means: The test evidence for a requirement is missing, lost, or not where it is claimed to be.</li>
 <li class="rfc-ok"><strong>Requirement annotations:</strong> Passed. Every annotation that excuses a requirement from Ze&#39;s own tests still names code that exists, quotes the RFC sentence it relies on, or names a verified blocking kernel entry in the Linux limitations register with evidence for that exact requirement at the shipped kernel version.</li>
 <li class="rfc-ok"><strong>Published ledger rows:</strong> Passed. Every enrolled RFC with an unmet requirement renders a public row that discloses it, a public row never disappears while its summary remains, and each summary&#39;s enrolment disposition gives a reason a reviewer can check.</li>
-<li class="rfc-bad"><strong>Reviewer verdicts:</strong> Failed, 259 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.</li>
+<li class="rfc-bad"><strong>Reviewer verdicts:</strong> Failed, 318 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.</li>
 <li class="rfc-bad"><strong>Recorded breaks:</strong> Failed, 16 problems. Each recorded break still matches the test, the claim and the code it was recorded against, and no recorded proof is lost. What this means: A test&#39;s proof is missing or no longer matches what it rests on, so it is not counted as proven by a recorded break.</li>
 <li class="rfc-ok"><strong>Reviews of RFC text:</strong> Passed. Each sign-off of a sentence-by-sentence review of an RFC&#39;s text is valid and current.</li>
 </ul>
@@ -500,19 +516,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
+<td>internal/component/bgp/plugins/adj_rib_in/rfc7947_filtered_test.go: test file name: it is named for rfc7947 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- &lt;reason&gt;`, or name it after what it covers: ./le rfc move from internal/component/bgp/plugins/adj_rib_in/rfc7947_filtered_test.go to internal/component/bgp/plugins/adj_rib_in/filtered_test.go</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>internal/component/bgp/plugins/rs/rfc7947_filtered_subscription_test.go: test file name: it is named for rfc7947 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- &lt;reason&gt;`, or name it after what it covers: ./le rfc move from internal/component/bgp/plugins/rs/rfc7947_filtered_subscription_test.go to internal/component/bgp/plugins/rs/filtered_subscription_test.go</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
 <td>internal/component/bgp/reactor/rfc4659_raw_vpnv6_family_admission_test.go: test file name: it is named for rfc4659 and carries no tag for it: tag what it covers, add `// RFC naming: untagged -- &lt;reason&gt;`, or name it after what it covers: ./le rfc move from internal/component/bgp/reactor/rfc4659_raw_vpnv6_family_admission_test.go to internal/component/bgp/reactor/raw_vpnv6_family_admission_test.go</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/audit/rfc5492/RFC5492-4-3.json: RFC5492-4-3 is &#39;not-applicable&#39; but rfc/short/rfc5492.md:256 carries {gap}. Two committed facts must agree, so this verdict is legal only over a {not-applicable} or {feature-declined} checklist line -- the audit record cannot reclassify a requirement on its own</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/audit/rfc7606/RFC7606-8-1.json: RFC7606-8-1 is &#39;not-applicable&#39; but rfc/short/rfc7606.md:365 carries {gap}. Two committed facts must agree, so this verdict is legal only over a {not-applicable} or {feature-declined} checklist line -- the audit record cannot reclassify a requirement on its own</td>
+<td>internal/component/lg/handler_rfc8522_test.go: test file name: every tag in it cites rfc8522, so it is named for that RFC: ./le rfc move from internal/component/lg/handler_rfc8522_test.go to internal/component/lg/rfc8522_handler_test.go</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
@@ -525,6 +547,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><code>-</code></td>
 <td>-</td>
 <td>RFC9252-3.3-2 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/draft-abraitis-idr-addpath-paths-limit.md:81: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimitSingleInstance), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem draft-abraitis-idr-addpath-paths-limit</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/draft-abraitis-idr-addpath-paths-limit.md:87: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimit), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem draft-abraitis-idr-addpath-paths-limit</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
@@ -599,28 +633,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>rfc/short/rfc1661.md:733: RFC1661-4.6-3 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/session_run.go::applyTransition (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc1661.md:736: RFC1661-4.4-2 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/ppp/session_run.go::applyTransition (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc1661 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc2516.md:288: RFC2516-5.4-3 has a STALE audit verdict -- what it judged changed: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADSCarriesTheSessionsID (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2516 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc2516.md:294: RFC2516-7-4 has a STALE audit verdict -- what it judged changed: internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession (func-scoped), internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2516 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
 </tbody>
 </table>
 </div>
-<p>256 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
+<p>318 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
 </details>
 </section>
 <section id="rfc-list"><h2>RFCs included in automatic checks</h2>
@@ -628,28 +644,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-overview" id="rfc-overview">
 <h3 id="rfc-overview-title">Every RFC listed</h3>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="all:must">Ze verified 2,714, OS verified 3, Tests awaiting verification 418, OS testing gap 232, Exclusion unchecked 28, Not assessed 174, Not built 1,599</div>
+<div data-ze-rfc-bar="all:must">Ze verified 2,813, OS verified 3, Tests awaiting verification 411, OS testing gap 232, Exclusion unchecked 28, Not assessed 174, Not built 1,452</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="all:overview">Ze MUST verified 2,714, OS verified 3, SHOULD verified 126, Not owed 20, Tests awaiting verification 432, OS testing gap 233, Exclusion unchecked 30, Not assessed 2,354, Not built 1,635</div>
+<div data-ze-rfc-bar="all:overview">Ze MUST verified 2,813, OS verified 3, SHOULD verified 163, Not owed 75, Tests awaiting verification 418, OS testing gap 233, Exclusion unchecked 30, Not assessed 2,325, Not built 1,487</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Total</th><th>Ze verified</th><th>OS verified</th><th>Tests awaiting verification</th><th>OS testing gap</th><th>Exclusion unchecked</th><th>Not assessed</th><th>Not built</th><th>Not owed</th><th>MUST rows</th></tr></thead>
 <tbody>
 <tr><td>Total</td>
-<td><span data-ze-rfc="all:must.ze-proven">2,714</span></td>
+<td><span data-ze-rfc="all:must.ze-proven">2,813</span></td>
 <td><span data-ze-rfc="all:must.os-verified">3</span></td>
-<td><span data-ze-rfc="all:must.proof-pending">418</span></td>
+<td><span data-ze-rfc="all:must.proof-pending">411</span></td>
 <td><span data-ze-rfc="all:must.os-gap">232</span></td>
 <td><span data-ze-rfc="all:must.exclusion-unchecked">28</span></td>
 <td><span data-ze-rfc="all:must.not-assessed">174</span></td>
-<td><span data-ze-rfc="all:must.not-built">1,599</span></td>
-<td><span data-ze-rfc="all:must.not-owed">20</span></td>
+<td><span data-ze-rfc="all:must.not-built">1,452</span></td>
+<td><span data-ze-rfc="all:must.not-owed">75</span></td>
 <td><span data-ze-rfc="all:must.total">5,188</span></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p id="rfc-overview-check">Check: <span data-ze-rfc="all:must.ze-proven">2,714</span> + <span data-ze-rfc="all:must.os-verified">3</span> + <span data-ze-rfc="all:must.proof-pending">418</span> + <span data-ze-rfc="all:must.os-gap">232</span> + <span data-ze-rfc="all:must.exclusion-unchecked">28</span> + <span data-ze-rfc="all:must.not-assessed">174</span> + <span data-ze-rfc="all:must.not-built">1,599</span> + <span data-ze-rfc="all:must.not-owed">20</span> = <span data-ze-rfc="all:must.total">5,188</span> mandatory requirements: the MUST bar&#39;s sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.</p>
+<p id="rfc-overview-check">Check: <span data-ze-rfc="all:must.ze-proven">2,813</span> + <span data-ze-rfc="all:must.os-verified">3</span> + <span data-ze-rfc="all:must.proof-pending">411</span> + <span data-ze-rfc="all:must.os-gap">232</span> + <span data-ze-rfc="all:must.exclusion-unchecked">28</span> + <span data-ze-rfc="all:must.not-assessed">174</span> + <span data-ze-rfc="all:must.not-built">1,452</span> + <span data-ze-rfc="all:must.not-owed">75</span> = <span data-ze-rfc="all:must.total">5,188</span> mandatory requirements: the MUST bar&#39;s sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.</p>
 <p id="rfc-overview-scope"><span data-ze-rfc="all:rfcs">243</span> RFCs, of which <span data-ze-rfc="all:not-walked">13</span> have not had their requirement lists reviewed and are excluded from the figures.</p>
 </div>
 <div class="rfc-filter" id="rfc-filter" hidden>
@@ -763,7 +779,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr data-rfc="rfc1334"><td><a href="rfc1334/"><code>RFC 1334</code></a> PPP Authentication Protocols</td>
 <td>PAP</td>
 <td><div data-ze-rfc-bar="rfc1334:must">Ze verified 13</div></td>
-<td><div data-ze-rfc-bar="rfc1334:overview">Ze MUST verified 13, Not assessed 3</div></td>
+<td><div data-ze-rfc-bar="rfc1334:overview">Ze MUST verified 13, SHOULD verified 3</div></td>
 <td>13</td>
 <td>0</td>
 <td>0</td>
@@ -1086,19 +1102,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc3623"><td><a href="rfc3623/"><code>RFC 3623</code></a> Graceful OSPF Restart</td>
 <td>OSPFv2 Graceful Restart</td>
-<td><div data-ze-rfc-bar="rfc3623:must">Ze verified 8, Tests awaiting verification 1, Not built 4</div></td>
-<td><div data-ze-rfc-bar="rfc3623:overview">Ze MUST verified 8, Tests awaiting verification 1, Not assessed 13, Not built 4</div></td>
+<td><div data-ze-rfc-bar="rfc3623:must">Ze verified 8, Tests awaiting verification 1, Not built 3</div></td>
+<td><div data-ze-rfc-bar="rfc3623:overview">Ze MUST verified 8, Not owed 1, Tests awaiting verification 1, Not assessed 13, Not built 3</div></td>
 <td>13</td>
-<td>4</td>
+<td>3</td>
 <td>0</td>
 <td>0</td>
 </tr>
 <tr data-rfc="rfc3630"><td><a href="rfc3630/"><code>RFC 3630</code></a> Traffic Engineering (TE) Extensions to OSPF Version 2</td>
 <td>OSPFv2 Traffic Engineering LSA</td>
-<td><div data-ze-rfc-bar="rfc3630:must">Tests awaiting verification 1, Not built 4</div></td>
-<td><div data-ze-rfc-bar="rfc3630:overview">Tests awaiting verification 1, Not assessed 5, Not built 4</div></td>
+<td><div data-ze-rfc-bar="rfc3630:must">Tests awaiting verification 1</div></td>
+<td><div data-ze-rfc-bar="rfc3630:overview">Not owed 4, Tests awaiting verification 1, Not assessed 5</div></td>
 <td>5</td>
-<td>4</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1122,8 +1138,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc3768"><td><a href="rfc3768/"><code>RFC 3768</code></a> Virtual Router Redundancy Protocol (VRRP)</td>
 <td>VRRPv2 (IPv4 only)</td>
-<td><div data-ze-rfc-bar="rfc3768:must">Ze verified 31, Tests awaiting verification 7, Not built 3</div></td>
-<td><div data-ze-rfc-bar="rfc3768:overview">Ze MUST verified 31, Tests awaiting verification 7, Not assessed 11, Not built 3</div></td>
+<td><div data-ze-rfc-bar="rfc3768:must">Ze verified 36, Tests awaiting verification 4, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc3768:overview">Ze MUST verified 36, SHOULD verified 3, Tests awaiting verification 4, Not assessed 8, Not built 1</div></td>
 <td>41</td>
 <td>3</td>
 <td>0</td>
@@ -1158,19 +1174,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc3954"><td><a href="rfc3954/"><code>RFC 3954</code></a> Cisco Systems NetFlow Services Export Version 9</td>
 <td>NetFlow v9</td>
-<td><div data-ze-rfc-bar="rfc3954:must">Ze verified 4, Not built 6</div></td>
-<td><div data-ze-rfc-bar="rfc3954:overview">Ze MUST verified 4, Not owed 4, Not assessed 12, Not built 6</div></td>
+<td><div data-ze-rfc-bar="rfc3954:must">Ze verified 4, Not built 5</div></td>
+<td><div data-ze-rfc-bar="rfc3954:overview">Ze MUST verified 4, Not owed 5, Not assessed 12, Not built 5</div></td>
 <td>14</td>
-<td>6</td>
+<td>5</td>
 <td>0</td>
 <td>0</td>
 </tr>
 <tr data-rfc="rfc4035"><td><a href="rfc4035/"><code>RFC 4035</code></a> Protocol Modifications for the DNS Security Extensions</td>
 <td>DNSSEC protocol modifications</td>
-<td><div data-ze-rfc-bar="rfc4035:must">Ze verified 4, Tests awaiting verification 10, Not built 94</div></td>
-<td><div data-ze-rfc-bar="rfc4035:overview">Ze MUST verified 4, Tests awaiting verification 10, Not assessed 50, Not built 94</div></td>
+<td><div data-ze-rfc-bar="rfc4035:must">Ze verified 4, Tests awaiting verification 10, Not built 67</div></td>
+<td><div data-ze-rfc-bar="rfc4035:overview">Ze MUST verified 4, Not owed 27, Tests awaiting verification 10, Not assessed 50, Not built 67</div></td>
 <td>108</td>
-<td>94</td>
+<td>67</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1203,10 +1219,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc4271"><td><a href="rfc4271/"><code>RFC 4271</code></a> A Border Gateway Protocol 4 (BGP-4)</td>
 <td>BGP-4 base protocol</td>
-<td><div data-ze-rfc-bar="rfc4271:must">Ze verified 119, Tests awaiting verification 1, Not built 13</div></td>
-<td><div data-ze-rfc-bar="rfc4271:overview">Ze MUST verified 119, SHOULD verified 3, Tests awaiting verification 2, Not assessed 30, Not built 13</div></td>
+<td><div data-ze-rfc-bar="rfc4271:must">Ze verified 126, Not built 7</div></td>
+<td><div data-ze-rfc-bar="rfc4271:overview">Ze MUST verified 126, SHOULD verified 4, Not assessed 30, Not built 7</div></td>
 <td>133</td>
-<td>9</td>
+<td>3</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1239,10 +1255,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc4360"><td><a href="rfc4360/"><code>RFC 4360</code></a> BGP Extended Communities Attribute</td>
 <td>Extended communities</td>
-<td><div data-ze-rfc-bar="rfc4360:must">Ze verified 3, Not built 2</div></td>
-<td><div data-ze-rfc-bar="rfc4360:overview">Ze MUST verified 3, Not assessed 4, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc4360:must">Ze verified 3</div></td>
+<td><div data-ze-rfc-bar="rfc4360:overview">Ze MUST verified 3, Not owed 2, Not assessed 4</div></td>
 <td>5</td>
-<td>2</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1258,7 +1274,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr data-rfc="rfc4456"><td><a href="rfc4456/"><code>RFC 4456</code></a> BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP)</td>
 <td>Route Reflection</td>
 <td><div data-ze-rfc-bar="rfc4456:must">Ze verified 4</div></td>
-<td><div data-ze-rfc-bar="rfc4456:overview">Ze MUST verified 4, Tests awaiting verification 3, Not assessed 2</div></td>
+<td><div data-ze-rfc-bar="rfc4456:overview">Ze MUST verified 4, SHOULD verified 3, Not assessed 2</div></td>
 <td>4</td>
 <td>0</td>
 <td>0</td>
@@ -1267,7 +1283,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr data-rfc="rfc4486"><td><a href="rfc4486/"><code>RFC 4486</code></a> Subcodes for BGP Cease NOTIFICATION Message</td>
 <td>BGP Cease subcodes and prefix maximum</td>
 <td><div data-ze-rfc-bar="rfc4486:must">Ze verified 1</div></td>
-<td><div data-ze-rfc-bar="rfc4486:overview">Ze MUST verified 1, Tests awaiting verification 1, Not assessed 9</div></td>
+<td><div data-ze-rfc-bar="rfc4486:overview">Ze MUST verified 1, SHOULD verified 1, Not assessed 9</div></td>
 <td>1</td>
 <td>0</td>
 <td>0</td>
@@ -1347,10 +1363,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc4724"><td><a href="rfc4724/"><code>RFC 4724</code></a> Graceful Restart Mechanism for BGP</td>
 <td>Graceful Restart</td>
-<td><div data-ze-rfc-bar="rfc4724:must">Ze verified 18, Not built 8</div></td>
-<td><div data-ze-rfc-bar="rfc4724:overview">Ze MUST verified 18, SHOULD verified 1, Not assessed 4, Not built 8</div></td>
+<td><div data-ze-rfc-bar="rfc4724:must">Ze verified 26</div></td>
+<td><div data-ze-rfc-bar="rfc4724:overview">Ze MUST verified 26, SHOULD verified 1, Not assessed 4</div></td>
 <td>26</td>
-<td>8</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1599,17 +1615,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc5492"><td><a href="rfc5492/"><code>RFC 5492</code></a> Capabilities Advertisement with BGP-4</td>
 <td>BGP capability advertisement</td>
-<td><div data-ze-rfc-bar="rfc5492:must">Ze verified 8, Not built 1</div></td>
-<td><div data-ze-rfc-bar="rfc5492:overview">Ze MUST verified 8, Not assessed 7, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc5492:must">Ze verified 8</div></td>
+<td><div data-ze-rfc-bar="rfc5492:overview">Ze MUST verified 8, Not owed 1, Not assessed 7</div></td>
 <td>9</td>
-<td>1</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
 <tr data-rfc="rfc5549"><td><a href="rfc5549/"><code>RFC 5549</code></a> Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop</td>
 <td>Legacy extended next-hop encoding</td>
 <td><div data-ze-rfc-bar="rfc5549:must">Ze verified 6</div></td>
-<td><div data-ze-rfc-bar="rfc5549:overview">Ze MUST verified 6, Not assessed 3</div></td>
+<td><div data-ze-rfc-bar="rfc5549:overview">Ze MUST verified 6, SHOULD verified 1, Not assessed 2</div></td>
 <td>6</td>
 <td>0</td>
 <td>0</td>
@@ -1626,8 +1642,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc5575"><td><a href="rfc5575/"><code>RFC 5575</code></a> Dissemination of Flow Specification Rules</td>
 <td>BGP Flowspec (obsoleted by RFC 8955)</td>
-<td><div data-ze-rfc-bar="rfc5575:must">Ze verified 8, Not built 1</div></td>
-<td><div data-ze-rfc-bar="rfc5575:overview">Ze MUST verified 8, Not assessed 4, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc5575:must">Ze verified 9</div></td>
+<td><div data-ze-rfc-bar="rfc5575:overview">Ze MUST verified 9, Not assessed 4</div></td>
 <td>9</td>
 <td>1</td>
 <td>0</td>
@@ -1671,8 +1687,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc5798"><td><a href="rfc5798/"><code>RFC 5798</code></a> Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6</td>
 <td>VRRPv3 (obsoleted by RFC 9568)</td>
-<td><div data-ze-rfc-bar="rfc5798:must">Ze verified 49, OS testing gap 3, Not built 7</div></td>
-<td><div data-ze-rfc-bar="rfc5798:overview">Ze MUST verified 49, SHOULD verified 1, OS testing gap 3, Not assessed 24, Not built 8</div></td>
+<td><div data-ze-rfc-bar="rfc5798:must">Ze verified 51, OS testing gap 3, Not built 5</div></td>
+<td><div data-ze-rfc-bar="rfc5798:overview">Ze MUST verified 51, SHOULD verified 6, OS testing gap 3, Not assessed 20, Not built 5</div></td>
 <td>59</td>
 <td>7</td>
 <td>0</td>
@@ -1680,10 +1696,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc5838"><td><a href="rfc5838/"><code>RFC 5838</code></a> Support of Address Families in OSPFv3</td>
 <td>OSPFv3 multiple address families</td>
-<td><div data-ze-rfc-bar="rfc5838:must">Ze verified 4, Tests awaiting verification 3, Not built 9</div></td>
-<td><div data-ze-rfc-bar="rfc5838:overview">Ze MUST verified 4, Tests awaiting verification 3, Not assessed 11, Not built 9</div></td>
+<td><div data-ze-rfc-bar="rfc5838:must">Ze verified 4, Tests awaiting verification 3, Not built 8</div></td>
+<td><div data-ze-rfc-bar="rfc5838:overview">Ze MUST verified 4, Not owed 1, Tests awaiting verification 3, Not assessed 11, Not built 8</div></td>
 <td>16</td>
-<td>9</td>
+<td>8</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1761,19 +1777,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc6396"><td><a href="rfc6396/"><code>RFC 6396</code></a> Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format</td>
 <td>MRT</td>
-<td><div data-ze-rfc-bar="rfc6396:must">Ze verified 12, Not built 1</div></td>
-<td><div data-ze-rfc-bar="rfc6396:overview">Ze MUST verified 12, Not assessed 12, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc6396:must">Ze verified 12</div></td>
+<td><div data-ze-rfc-bar="rfc6396:overview">Ze MUST verified 12, Not owed 1, Not assessed 12</div></td>
 <td>13</td>
-<td>1</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
 <tr data-rfc="rfc6397"><td><a href="rfc6397/"><code>RFC 6397</code></a> Multi-Threaded Routing Toolkit (MRT) Border Gateway Protocol (BGP) Routing Information Export Format with Geo-Location Extensions</td>
 <td>MRT geo-location</td>
-<td><div data-ze-rfc-bar="rfc6397:must">Not built 4</div></td>
-<td><div data-ze-rfc-bar="rfc6397:overview">Not assessed 1, Not built 4</div></td>
+<td><div data-ze-rfc-bar="rfc6397:must">Ze verified 4</div></td>
+<td><div data-ze-rfc-bar="rfc6397:overview">Ze MUST verified 4, Not assessed 1</div></td>
 <td>4</td>
-<td>4</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1806,8 +1822,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc6810"><td><a href="rfc6810/"><code>RFC 6810</code></a> The Resource Public Key Infrastructure (RPKI) to Router Protocol</td>
 <td>RPKI-to-Router Protocol v0 (RPKI-RTR), not spoken: ze speaks versions 1 and 2 only (RFC 8210)</td>
-<td><div data-ze-rfc-bar="rfc6810:must">Not built 38</div></td>
-<td><div data-ze-rfc-bar="rfc6810:overview">Not owed 2, Not assessed 28, Not built 38</div></td>
+<td><div data-ze-rfc-bar="rfc6810:must">Ze verified 20, Not built 17</div></td>
+<td><div data-ze-rfc-bar="rfc6810:overview">Ze MUST verified 20, SHOULD verified 8, Not owed 3, Not assessed 20, Not built 17</div></td>
 <td>40</td>
 <td>38</td>
 <td>0</td>
@@ -1842,10 +1858,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc7012"><td><a href="rfc7012/"><code>RFC 7012</code></a> Information Model for IP Flow Information Export (IPFIX)</td>
 <td>IPFIX Information Model</td>
-<td><div data-ze-rfc-bar="rfc7012:must">Ze verified 1, Not built 5</div></td>
-<td><div data-ze-rfc-bar="rfc7012:overview">Ze MUST verified 1, Not built 5</div></td>
+<td><div data-ze-rfc-bar="rfc7012:must">Ze verified 1, Not built 4</div></td>
+<td><div data-ze-rfc-bar="rfc7012:overview">Ze MUST verified 1, Not owed 1, Not built 4</div></td>
 <td>6</td>
-<td>5</td>
+<td>4</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1887,10 +1903,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc7313"><td><a href="rfc7313/"><code>RFC 7313</code></a> Enhanced Route Refresh Capability for BGP-4</td>
 <td>Enhanced Route Refresh</td>
-<td><div data-ze-rfc-bar="rfc7313:must">Ze verified 6, Not built 5</div></td>
-<td><div data-ze-rfc-bar="rfc7313:overview">Ze MUST verified 6, Not assessed 6, Not built 5</div></td>
+<td><div data-ze-rfc-bar="rfc7313:must">Ze verified 11</div></td>
+<td><div data-ze-rfc-bar="rfc7313:overview">Ze MUST verified 11, Not assessed 6</div></td>
 <td>11</td>
-<td>5</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1905,10 +1921,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc7432"><td><a href="rfc7432/"><code>RFC 7432</code></a> BGP MPLS-Based Ethernet VPN</td>
 <td>EVPN</td>
-<td><div data-ze-rfc-bar="rfc7432:must">Ze verified 11, Tests awaiting verification 2, Not built 90</div></td>
-<td><div data-ze-rfc-bar="rfc7432:overview">Ze MUST verified 11, Tests awaiting verification 2, Not assessed 17, Not built 90</div></td>
+<td><div data-ze-rfc-bar="rfc7432:must">Ze verified 11, Tests awaiting verification 2, Not built 89</div></td>
+<td><div data-ze-rfc-bar="rfc7432:overview">Ze MUST verified 11, Not owed 1, Tests awaiting verification 2, Not assessed 17, Not built 89</div></td>
 <td>103</td>
-<td>90</td>
+<td>89</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1950,10 +1966,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc7606"><td><a href="rfc7606/"><code>RFC 7606</code></a> Revised Error Handling for BGP UPDATE Messages</td>
 <td>Revised UPDATE error handling</td>
-<td><div data-ze-rfc-bar="rfc7606:must">Ze verified 52, Not built 1</div></td>
-<td><div data-ze-rfc-bar="rfc7606:overview">Ze MUST verified 52, Not assessed 4, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc7606:must">Ze verified 52</div></td>
+<td><div data-ze-rfc-bar="rfc7606:overview">Ze MUST verified 52, Not owed 1, Not assessed 4</div></td>
 <td>53</td>
-<td>1</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1968,10 +1984,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc7611"><td><a href="rfc7611/"><code>RFC 7611</code></a> BGP ACCEPT_OWN Community Attribute</td>
 <td>ACCEPT_OWN community</td>
-<td><div data-ze-rfc-bar="rfc7611:must">Ze verified 3, Not built 2</div></td>
-<td><div data-ze-rfc-bar="rfc7611:overview">Ze MUST verified 3, Not assessed 3, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc7611:must">Ze verified 5</div></td>
+<td><div data-ze-rfc-bar="rfc7611:overview">Ze MUST verified 5, Not assessed 3</div></td>
 <td>5</td>
-<td>2</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1986,10 +2002,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc7684"><td><a href="rfc7684/"><code>RFC 7684</code></a> OSPFv2 Prefix/Link Attribute Advertisement</td>
 <td>OSPF Extended Prefix and Link LSAs</td>
-<td><div data-ze-rfc-bar="rfc7684:must">Ze verified 4, Tests awaiting verification 2, Not built 3</div></td>
-<td><div data-ze-rfc-bar="rfc7684:overview">Ze MUST verified 4, Tests awaiting verification 2, Not assessed 11, Not built 3</div></td>
+<td><div data-ze-rfc-bar="rfc7684:must">Ze verified 4, Tests awaiting verification 2, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc7684:overview">Ze MUST verified 4, Not owed 2, Tests awaiting verification 2, Not assessed 11, Not built 1</div></td>
 <td>9</td>
-<td>3</td>
+<td>1</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -2004,8 +2020,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc7752"><td><a href="rfc7752/"><code>RFC 7752</code></a> North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP</td>
 <td>BGP-LS</td>
-<td><div data-ze-rfc-bar="rfc7752:must">Ze verified 8, Tests awaiting verification 2, Not built 16</div></td>
-<td><div data-ze-rfc-bar="rfc7752:overview">Ze MUST verified 8, Tests awaiting verification 2, Not assessed 25, Not built 17</div></td>
+<td><div data-ze-rfc-bar="rfc7752:must">Ze verified 17, Tests awaiting verification 1, Not built 6</div></td>
+<td><div data-ze-rfc-bar="rfc7752:overview">Ze MUST verified 17, SHOULD verified 5, Not owed 2, Tests awaiting verification 1, Not assessed 20, Not built 7</div></td>
 <td>26</td>
 <td>16</td>
 <td>0</td>
@@ -2013,17 +2029,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc7770"><td><a href="rfc7770/"><code>RFC 7770</code></a> Extensions to OSPF for Advertising Optional Router Capabilities</td>
 <td>OSPF Router Information LSA</td>
-<td><div data-ze-rfc-bar="rfc7770:must">Ze verified 1, Tests awaiting verification 3, Not built 6</div></td>
-<td><div data-ze-rfc-bar="rfc7770:overview">Ze MUST verified 1, SHOULD verified 1, Not owed 1, Tests awaiting verification 3, Not assessed 13, Not built 6</div></td>
+<td><div data-ze-rfc-bar="rfc7770:must">Ze verified 1, Tests awaiting verification 3, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc7770:overview">Ze MUST verified 1, SHOULD verified 1, Not owed 6, Tests awaiting verification 3, Not assessed 13, Not built 1</div></td>
 <td>11</td>
-<td>6</td>
+<td>1</td>
 <td>0</td>
 <td>0</td>
 </tr>
 <tr data-rfc="rfc7854"><td><a href="rfc7854/"><code>RFC 7854</code></a> BGP Monitoring Protocol (BMP)</td>
 <td>BMP v3</td>
 <td><div data-ze-rfc-bar="rfc7854:must">Ze verified 39</div></td>
-<td><div data-ze-rfc-bar="rfc7854:overview">Ze MUST verified 39, SHOULD verified 3, Tests awaiting verification 1, Not assessed 5</div></td>
+<td><div data-ze-rfc-bar="rfc7854:overview">Ze MUST verified 39, SHOULD verified 4, Not assessed 5</div></td>
 <td>39</td>
 <td>0</td>
 <td>0</td>
@@ -2067,10 +2083,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc7947"><td><a href="rfc7947/"><code>RFC 7947</code></a> Internet Exchange BGP Route Server</td>
 <td>BGP Route Server</td>
-<td><div data-ze-rfc-bar="rfc7947:must">Ze verified 2, Not built 1</div></td>
-<td><div data-ze-rfc-bar="rfc7947:overview">Ze MUST verified 2, SHOULD verified 4, Tests awaiting verification 1, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc7947:must">Ze verified 3</div></td>
+<td><div data-ze-rfc-bar="rfc7947:overview">Ze MUST verified 3, SHOULD verified 5</div></td>
 <td>3</td>
-<td>1</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -2112,10 +2128,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc8097"><td><a href="rfc8097/"><code>RFC 8097</code></a> BGP Prefix Origin Validation State Extended Community</td>
 <td>RPKI origin validation state extended community</td>
-<td><div data-ze-rfc-bar="rfc8097:must">Not built 5</div></td>
-<td><div data-ze-rfc-bar="rfc8097:overview">Not assessed 5, Not built 5</div></td>
+<td><div data-ze-rfc-bar="rfc8097:must">Ze verified 5</div></td>
+<td><div data-ze-rfc-bar="rfc8097:overview">Ze MUST verified 5, Not assessed 5</div></td>
 <td>5</td>
-<td>5</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -2139,10 +2155,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc8210"><td><a href="rfc8210/"><code>RFC 8210</code></a> The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1</td>
 <td>RPKI RTR v1</td>
-<td><div data-ze-rfc-bar="rfc8210:must">Ze verified 29, Tests awaiting verification 4, Not built 23</div></td>
-<td><div data-ze-rfc-bar="rfc8210:overview">Ze MUST verified 29, SHOULD verified 6, Not owed 3, Tests awaiting verification 4, Not assessed 19, Not built 25</div></td>
+<td><div data-ze-rfc-bar="rfc8210:must">Ze verified 35, Not built 20</div></td>
+<td><div data-ze-rfc-bar="rfc8210:overview">Ze MUST verified 35, SHOULD verified 6, Not owed 4, Not assessed 19, Not built 22</div></td>
 <td>59</td>
-<td>25</td>
+<td>22</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -2202,10 +2218,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc8522"><td><a href="rfc8522/"><code>RFC 8522</code></a> Looking Glass Command Set</td>
 <td>Looking Glass command set API</td>
-<td><div data-ze-rfc-bar="rfc8522:must">Not built 18</div></td>
-<td><div data-ze-rfc-bar="rfc8522:overview">Not assessed 5, Not built 18</div></td>
+<td><div data-ze-rfc-bar="rfc8522:must">Ze verified 18</div></td>
+<td><div data-ze-rfc-bar="rfc8522:overview">Ze MUST verified 18, SHOULD verified 5</div></td>
 <td>18</td>
-<td>18</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -2256,10 +2272,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc8671"><td><a href="rfc8671/"><code>RFC 8671</code></a> Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP)</td>
 <td>BMP Adj-RIB-Out</td>
-<td><div data-ze-rfc-bar="rfc8671:must">Ze verified 9, Not built 2</div></td>
-<td><div data-ze-rfc-bar="rfc8671:overview">Ze MUST verified 9, Not assessed 1, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc8671:must">Ze verified 11</div></td>
+<td><div data-ze-rfc-bar="rfc8671:overview">Ze MUST verified 11, Not assessed 1</div></td>
 <td>11</td>
-<td>2</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -2274,10 +2290,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc8893"><td><a href="rfc8893/"><code>RFC 8893</code></a> Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export</td>
 <td>RPKI origin validation on export</td>
-<td><div data-ze-rfc-bar="rfc8893:must">Not built 4</div></td>
-<td><div data-ze-rfc-bar="rfc8893:overview">Not assessed 2, Not built 4</div></td>
+<td><div data-ze-rfc-bar="rfc8893:must">Ze verified 2, Tests awaiting verification 2</div></td>
+<td><div data-ze-rfc-bar="rfc8893:overview">Ze MUST verified 2, Tests awaiting verification 2, Not assessed 2</div></td>
 <td>4</td>
-<td>4</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -2301,8 +2317,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc8955"><td><a href="rfc8955/"><code>RFC 8955</code></a> Dissemination of Flow Specification Rules</td>
 <td>IPv4 FlowSpec</td>
-<td><div data-ze-rfc-bar="rfc8955:must">Ze verified 27, Not built 1</div></td>
-<td><div data-ze-rfc-bar="rfc8955:overview">Ze MUST verified 27, SHOULD verified 6, Not owed 1, Not assessed 14, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc8955:must">Ze verified 28</div></td>
+<td><div data-ze-rfc-bar="rfc8955:overview">Ze MUST verified 28, SHOULD verified 6, Not owed 1, Not assessed 14</div></td>
 <td>29</td>
 <td>0</td>
 <td>0</td>
@@ -2400,8 +2416,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc9234"><td><a href="rfc9234/"><code>RFC 9234</code></a> Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages</td>
 <td>BGP Role and OTC</td>
-<td><div data-ze-rfc-bar="rfc9234:must">Ze verified 17, Not built 2</div></td>
-<td><div data-ze-rfc-bar="rfc9234:overview">Ze MUST verified 17, SHOULD verified 1, Not assessed 4, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc9234:must">Ze verified 16, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc9234:overview">Ze MUST verified 16, SHOULD verified 1, Not owed 1, Not assessed 4, Not built 2</div></td>
 <td>19</td>
 <td>2</td>
 <td>0</td>
@@ -2427,10 +2443,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc9494"><td><a href="rfc9494/"><code>RFC 9494</code></a> Long-Lived Graceful Restart for BGP</td>
 <td>Long-Lived Graceful Restart</td>
-<td><div data-ze-rfc-bar="rfc9494:must">Ze verified 22, Not built 3</div></td>
-<td><div data-ze-rfc-bar="rfc9494:overview">Ze MUST verified 22, SHOULD verified 1, Not assessed 10, Not built 3</div></td>
+<td><div data-ze-rfc-bar="rfc9494:must">Ze verified 23, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc9494:overview">Ze MUST verified 23, SHOULD verified 1, Not assessed 10, Not built 2</div></td>
 <td>25</td>
-<td>3</td>
+<td>2</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -2445,10 +2461,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc9552"><td><a href="rfc9552/"><code>RFC 9552</code></a> Distribution of Link-State and Traffic Engineering Information Using BGP</td>
 <td>BGP-LS (obsoletes RFC 7752)</td>
-<td><div data-ze-rfc-bar="rfc9552:must">Ze verified 44, Tests awaiting verification 7, Not built 7</div></td>
-<td><div data-ze-rfc-bar="rfc9552:overview">Ze MUST verified 44, SHOULD verified 1, Not owed 1, Tests awaiting verification 7, Not assessed 28, Not built 8</div></td>
+<td><div data-ze-rfc-bar="rfc9552:must">Ze verified 44, Tests awaiting verification 7, Not built 5</div></td>
+<td><div data-ze-rfc-bar="rfc9552:overview">Ze MUST verified 44, SHOULD verified 1, Not owed 3, Tests awaiting verification 7, Not assessed 28, Not built 6</div></td>
 <td>59</td>
-<td>7</td>
+<td>5</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -2490,10 +2506,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr data-rfc="rfc9774"><td><a href="rfc9774/"><code>RFC 9774</code></a> Deprecation of AS_SET and AS_CONFED_SET in BGP</td>
 <td>Deprecation of AS_SET and AS_CONFED_SET</td>
-<td><div data-ze-rfc-bar="rfc9774:must">Ze verified 2, Not built 1</div></td>
-<td><div data-ze-rfc-bar="rfc9774:overview">Ze MUST verified 2, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc9774:must">Ze verified 3</div></td>
+<td><div data-ze-rfc-bar="rfc9774:overview">Ze MUST verified 3</div></td>
 <td>3</td>
-<td>1</td>
+<td>0</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -2885,7 +2901,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 05:55 UTC</span>
                 </div>
             </div>
         </footer>

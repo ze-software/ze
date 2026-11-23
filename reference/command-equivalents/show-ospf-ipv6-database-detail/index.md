@@ -9,7 +9,7 @@ Decode every OSPFv3 LSA body with its scope\-aware header \(RFC 5340 section A\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-ospfv3-database-detail`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

@@ -9,7 +9,7 @@ What differs for a managed client that holds\.
 - Mode: read\-only\, offline
 - Wire method: `ze-managed:fleet-divergence-show`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

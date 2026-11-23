@@ -9,7 +9,7 @@ PPPoE session and protocol state\.
 - Mode: Read\-only
 - Wire method: `ze-l2tp:pppoe-summary`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `interfaces`, `session`, `sessions`, `statistics`
 - Answer shape: not declared
 - Address fields: none

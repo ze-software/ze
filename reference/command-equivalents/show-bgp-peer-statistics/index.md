@@ -9,7 +9,7 @@ Show UPDATE throughput for your peers\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:peer-statistics`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: address

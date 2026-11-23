@@ -535,6 +535,47 @@
   "bgp": {
     "children": [
       {
+        "description": "RFC 7611 Section 2.3: controls BGP ACCEPT_OWN (65535:1, 0xFFFF0001) handling\nand the Section 3 VPN-IP best-path preference step. Defaults to false (disabled) per\nRFC 7611 Section 2.3. When disabled, no special acceptance or decision-process step\nis applied; Section 2.2 non-RD receive discard still applies.",
+        "kind": "leaf",
+        "name": "accept-own",
+        "short-help": "Enable RFC 7611 ACCEPT_OWN community handling (disabled by default).",
+        "source": "config",
+        "type": "boolean"
+      },
+      {
+        "children": [
+          {
+            "description": "Attach the AGGREGATOR attribute (RFC 4271 Section 5.1.7) containing this speaker's\nown local AS number and BGP Router ID. Set false to omit AGGREGATOR.",
+            "kind": "leaf",
+            "name": "aggregator",
+            "short-help": "Attach this speaker's AGGREGATOR attribute (default true).",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "description": "Desired origin AS for consistent brief aggregation (RFC 9774 Section 5.2).\nWhen set, Ze truncates the aggregated AS_PATH immediately after the right-most instance\nof this AS number so the aggregate announces a consistent origin AS without using AS_SET.",
+            "kind": "leaf",
+            "name": "brief-origin-as",
+            "short-help": "Origin AS after whose right-most instance the aggregate AS_PATH is truncated.",
+            "source": "config",
+            "type": "asn"
+          },
+          {
+            "description": "Local speaker interface address used as NEXT_HOP when contributing routes carry\ndifferent NEXT_HOP attributes (RFC 4271 Section 9.2.2.2). Must match an interface address\non this BGP speaker; when omitted, Ze selects a local session or interface address for the\nfamily or, for IPv4, the BGP Router ID.",
+            "kind": "leaf",
+            "name": "next-hop",
+            "short-help": "Local interface next-hop for the aggregate when contributors differ.",
+            "source": "config",
+            "type": "ip-address"
+          }
+        ],
+        "description": "Configured BGP route aggregation (RFC 4271 Section 9.2.2.2 and RFC 9774 Section 5.2).\nWhen one or more more-specific selected BGP routes exist in Loc-RIB under this prefix, Ze\nsynthesizes a single aggregate route according to RFC 4271 Section 9.2.2.2: routes with\ndifferent MULTI_EXIT_DISC attributes are not aggregated; ORIGIN takes the worst of\nINCOMPLETE, EGP, then IGP; differing NEXT_HOPs resolve to a local speaker interface address;\nATOMIC_AGGREGATE is inherited from any contributor or attached when brief aggregation omits\nAS numbers; contributing AGGREGATOR attributes are discarded; and AGGREGATOR, when enabled,\ncarries this speaker's own local AS and BGP Router ID (RFC 4271 Section 5.1.7). Brief\naggregation omits AS_SETs per RFC 9774 Section 3, and brief-origin-as truncates the AS_PATH\nafter the right-most instance of the configured origin AS per RFC 9774 Section 5.2.",
+        "kind": "list[prefix]",
+        "name": "aggregate",
+        "short-help": "Synthesize an aggregate BGP route from more-specific selected routes.",
+        "source": "config"
+      },
+      {
         "description": "RFC 5396 Section 2 names the three notations. Take AS 65546 and AS 100. asplain\nwrites them 65546 and 100. asdot writes 1.10 and 100, leaving an AS number less than 65536\nalone, and asdot+ writes 1.10 and 0.100. The leaf changes the text Ze WRITES, and the\nwire value stays the same 4-octet number (RFC 6793). Ze READS all three notations wherever\nan AS number is configured, and asplain is the default RFC 5396 Section 3 recommends.",
         "kind": "leaf",
         "name": "as-notation",
@@ -585,6 +626,14 @@
         "children": [
           {
             "children": [
+              {
+                "description": "Stream pre-policy Adj-RIB-Out candidate UPDATEs (RFC 8671 Section 5.2) with per-peer\nflags O=1 and L=0 before outbound policy runs, encoding unknown mandatory attributes such as\nnext hop as zero or empty length. A change to the leaf bounces every monitored peer with a\nPeer Down and a Peer Up per RFC 8671 Section 7.2.",
+                "kind": "leaf",
+                "name": "adj-rib-out-pre-policy",
+                "short-help": "Stream pre-policy Adj-RIB-Out Route Monitoring messages (O=1, L=0, RFC 8671 Section 5.2)",
+                "source": "config",
+                "type": "boolean"
+              },
               {
                 "children": [
                   {
@@ -2581,6 +2630,14 @@
               {
                 "children": [
                   {
+                    "description": "RFC 8097 Section 2 requires implementations to drop the BGP Prefix Origin Validation State\nextended community (type 0x43, sub-type 0x00) when received from an EBGP peer by default, without\nprocessing it further. Set this leaf to true only for a trusted EBGP peer (such as a route server\nor adjacent AS under common administration) to accept and process the community. Has no effect on\nIBGP sessions, where the community is always processed.",
+                    "kind": "leaf",
+                    "name": "accept-origin-validation-state",
+                    "short-help": "Accept RFC 8097 Origin Validation State extended community from this EBGP peer.",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
                     "description": "RFC 8669 Section 4 states that a PrefixSID from an EBGP peer outside the SR domain MUST be\ndiscarded, unless the speaker is configured to accept it. The leaf has no effect on IBGP, where Ze\nalways accepts the attribute.",
                     "kind": "leaf",
                     "name": "accept-srv6-prefix-sid",
@@ -2887,41 +2944,58 @@
                           {
                             "children": [
                               {
-                                "description": "RFC 4724 Section 4: 'The presence and the setting of the Forwarding State bit\nfor an address family depend upon the actual forwarding state and configuration.' The\nvalue must name a family the peer's own family list carries. Ze refuses the\nconfiguration otherwise, because RFC 4724 Section 3 scopes a tuple to routes 'advertised\nwith the same AFI and SAFI', and a session that carries no such route cannot keep the\npromise the tuple makes.",
-                                "kind": "leaf-list",
-                                "name": "name",
-                                "short-help": "Address family the capability names (e.g. ipv4/unicast).",
-                                "source": "config",
-                                "type": "address-family"
+                                "children": [
+                                  {
+                                    "description": "Long-Lived Stale Time in seconds for this address family (RFC 9494 Section 3.1).\nThe field is 24 bits, so the maximum value is 16777215 (about 194 days). Zero advertises\nLLGR capability support for this family with a zero-second stale period.",
+                                    "kind": "leaf",
+                                    "name": "stale-time",
+                                    "short-help": "Long-Lived Stale Time in seconds (0..16777215).",
+                                    "source": "config",
+                                    "type": "uint32"
+                                  }
+                                ],
+                                "description": "Address families advertised in the Long-Lived Graceful Restart capability, code 71,\neach with its own 24-bit Long-Lived Stale Time (RFC 9494 Section 3.1). Every listed family must\nbe one the peer's session carries. Families absent from this list are omitted from code 71 and\ndo not run LLGR procedures even if the remote peer advertises them (RFC 9494 Section 5).",
+                                "kind": "list[name]",
+                                "name": "family",
+                                "short-help": "Per-family LLGR stale time configuration (code 71).",
+                                "source": "config"
                               }
                             ],
-                            "description": "The container carries presence, and the three states differ. No container is the\ndefault: the capability names every address family the peer carries. The container with one\nname or more: the capability names those families and no other. The container with no name:\nthe capability names no family at all, which RFC 4724 Section 3 reads as a speaker that\nsupports the Receiving Speaker procedures and preserves nothing of its own. The container\ngoverns the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart\ncapability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by\nomitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64\nis how an operator asks for LLGR with no GR phase. In every state the capability names only\nfamilies the RIB plugin can store, because RFC 4724 Section 4 lets a speaker list a family\nonly when it can preserve it across a restart: a family it cannot store is left out with a\nwarning, and the capability is still sent when none is left.",
+                            "description": "Configures the Long-Lived Graceful Restart capability (RFC 9494, code 71) per address\nfamily. Nested inside graceful-restart so code 71 is never advertised without code 64 (RFC 9494\nSection 4.1). LLGR is off by default and requires an explicit family entry with a stale-time for\neach AFI/SAFI (RFC 9494 Section 5).",
                             "kind": "container",
-                            "name": "family",
-                            "short-help": "Address families Ze names in the Graceful Restart capability.",
+                            "name": "long-lived",
+                            "short-help": "Long-Lived Graceful Restart phase (RFC 9494, code 71).",
                             "source": "config"
                           },
                           {
-                            "description": "Long-Lived Stale Time in seconds (RFC 9494 Section 3). When this leaf is set, Ze advertises the LLGR\ncapability (code 71). The maximum value is 16777215, because the field is 24 bits, which is about\n194 days. Ze applies the value to every negotiated address family of the peer.",
-                            "kind": "leaf",
-                            "name": "long-lived-stale-time",
-                            "short-help": "Long-Lived Stale Time for the peer, in seconds (RFC 9494 Section 3).",
-                            "source": "config",
-                            "type": "uint32"
-                          },
-                          {
-                            "description": "The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer\nrestarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale\nroute of the peer when that timer expires, unless the peer also negotiated LLGR.",
-                            "kind": "leaf",
-                            "name": "restart-time",
-                            "short-help": "Restart Time in seconds (RFC 4724 Section 3).\nMaximum value is 4095 (12-bit field).",
-                            "source": "config",
-                            "type": "uint16"
+                            "children": [
+                              {
+                                "description": "Narrows the address families Ze names in the Graceful Restart capability, code 64.\nWhen absent, code 64 names every family the peer carries. When present, code 64 names only the\nlisted families. Every listed family must be one the peer's session carries, and Ze omits any\nfamily the RIB plugin cannot store with a warning (RFC 4724 Section 4). This list governs code\n64 alone and never affects code 71.",
+                                "kind": "list[name]",
+                                "name": "family",
+                                "short-help": "Address families Ze names in the GR capability (code 64).",
+                                "source": "config"
+                              },
+                              {
+                                "description": "The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer\nrestarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale\nroute of the peer when that timer expires, unless the peer also negotiated LLGR.",
+                                "kind": "leaf",
+                                "name": "restart-time",
+                                "short-help": "Restart Time in seconds (RFC 4724 Section 3, 0..4095).",
+                                "source": "config",
+                                "type": "uint16"
+                              }
+                            ],
+                            "description": "Enables the conventional Graceful Restart phase (RFC 4724, code 64) for this peer. Ze\nnames every address family the peer carries in code 64 unless the family list below narrows the\nset, so the peer retains Ze's routes while the session is down (RFC 4724 Section 4.2). The\nForwarding State bit is set at connection time when the forwarding plane kept Ze's routes across a\nrestart. Omitting this container sends code 64 with Restart Time 0 and no family tuples.",
+                            "kind": "container",
+                            "name": "short-lived",
+                            "short-help": "Conventional Graceful Restart phase (RFC 4724, code 64).",
+                            "source": "config"
                           }
                         ],
-                        "description": "The container carries presence, so writing it makes Ze send the Graceful Restart capability,\ncode 64, to this peer. Ze names every address family the peer carries in that capability, unless the\nfamily container below narrows the set, so the peer\nretains Ze's routes for those families while the session is down (RFC 4724 Section 4.2). The\nfamilies are the ones the session negotiates, so they include what the peer inherits from its\ngroup and exclude any family entry written 'mode disable'. The Forwarding State bit of each\nfamily is set at connection time rather than here: it says the routes were still being forwarded\nwhile Ze was down, which is true when Ze restarted and the forwarding plane kept them. A\ncontainer on the peer replaces the container on the group rather than adding to it.",
+                        "description": "The container carries presence, so writing it makes Ze send the Graceful Restart capability,\ncode 64, to this peer. With no short-lived container, code 64 carries Restart Time 0 and no address\nfamily tuple, which RFC 4724 Section 3 reads as a Receiving Speaker that preserves nothing of its own\nand RFC 9494 Section 4.1 uses to skip the conventional GR phase when long-lived is configured. A\ncontainer on the peer replaces the container on the group rather than adding to it.",
                         "kind": "container",
                         "name": "graceful-restart",
-                        "short-help": "Graceful Restart capability configuration.",
+                        "short-help": "Graceful Restart capability configuration (codes 64 and 71).",
                         "source": "config"
                       },
                       {
@@ -3300,6 +3374,14 @@
                     "name": "family",
                     "short-help": "Address families to negotiate",
                     "source": "config"
+                  },
+                  {
+                    "description": "RFC 8955 Section 4 requires the MP_REACH_NLRI Next-Hop Network Address Length of every\nadvertised Flow Specification to be 0. When false (the default), Ze emits a zero-length next hop on\nevery FlowSpec route, including one carrying the 0x0800 redirect-to-IP-next-hop extended community.\nSet this leaf to true on a peer that needs the draft-simpson-idr-flowspec-redirect-02 Section 3\nextension, where a 0x0800 FlowSpec route carries its redirect target in the MP_REACH_NLRI next-hop\nfield on origination and forwarding. ze exabgp migrate sets this leaf when a migrated neighbor uses\na Simpson redirect action or serves an API process on a FlowSpec family.",
+                    "kind": "leaf",
+                    "name": "flowspec-redirect-next-hop",
+                    "short-help": "Carry MP_REACH next hop for 0x0800 FlowSpec redirect (draft-simpson).",
+                    "source": "config",
+                    "type": "boolean"
                   },
                   {
                     "description": "Ze reads the leaf after capability \u003e hostname \u003e host and replaces that value with it, so a\npeer that writes both leaves sends this one. The capability writes a 1-byte length in front of the\nhost name, which is the 255-byte limit. Write capability \u003e hostname \u003e host in a new config:\nze exabgp migrate produces that spelling and never this one.",
@@ -4027,6 +4109,14 @@
           {
             "children": [
               {
+                "description": "RFC 8097 Section 2 requires implementations to drop the BGP Prefix Origin Validation State\nextended community (type 0x43, sub-type 0x00) when received from an EBGP peer by default, without\nprocessing it further. Set this leaf to true only for a trusted EBGP peer (such as a route server\nor adjacent AS under common administration) to accept and process the community. Has no effect on\nIBGP sessions, where the community is always processed.",
+                "kind": "leaf",
+                "name": "accept-origin-validation-state",
+                "short-help": "Accept RFC 8097 Origin Validation State extended community from this EBGP peer.",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
                 "description": "RFC 8669 Section 4 states that a PrefixSID from an EBGP peer outside the SR domain MUST be\ndiscarded, unless the speaker is configured to accept it. The leaf has no effect on IBGP, where Ze\nalways accepts the attribute.",
                 "kind": "leaf",
                 "name": "accept-srv6-prefix-sid",
@@ -4333,41 +4423,58 @@
                       {
                         "children": [
                           {
-                            "description": "RFC 4724 Section 4: 'The presence and the setting of the Forwarding State bit\nfor an address family depend upon the actual forwarding state and configuration.' The\nvalue must name a family the peer's own family list carries. Ze refuses the\nconfiguration otherwise, because RFC 4724 Section 3 scopes a tuple to routes 'advertised\nwith the same AFI and SAFI', and a session that carries no such route cannot keep the\npromise the tuple makes.",
-                            "kind": "leaf-list",
-                            "name": "name",
-                            "short-help": "Address family the capability names (e.g. ipv4/unicast).",
-                            "source": "config",
-                            "type": "address-family"
+                            "children": [
+                              {
+                                "description": "Long-Lived Stale Time in seconds for this address family (RFC 9494 Section 3.1).\nThe field is 24 bits, so the maximum value is 16777215 (about 194 days). Zero advertises\nLLGR capability support for this family with a zero-second stale period.",
+                                "kind": "leaf",
+                                "name": "stale-time",
+                                "short-help": "Long-Lived Stale Time in seconds (0..16777215).",
+                                "source": "config",
+                                "type": "uint32"
+                              }
+                            ],
+                            "description": "Address families advertised in the Long-Lived Graceful Restart capability, code 71,\neach with its own 24-bit Long-Lived Stale Time (RFC 9494 Section 3.1). Every listed family must\nbe one the peer's session carries. Families absent from this list are omitted from code 71 and\ndo not run LLGR procedures even if the remote peer advertises them (RFC 9494 Section 5).",
+                            "kind": "list[name]",
+                            "name": "family",
+                            "short-help": "Per-family LLGR stale time configuration (code 71).",
+                            "source": "config"
                           }
                         ],
-                        "description": "The container carries presence, and the three states differ. No container is the\ndefault: the capability names every address family the peer carries. The container with one\nname or more: the capability names those families and no other. The container with no name:\nthe capability names no family at all, which RFC 4724 Section 3 reads as a speaker that\nsupports the Receiving Speaker procedures and preserves nothing of its own. The container\ngoverns the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart\ncapability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by\nomitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64\nis how an operator asks for LLGR with no GR phase. In every state the capability names only\nfamilies the RIB plugin can store, because RFC 4724 Section 4 lets a speaker list a family\nonly when it can preserve it across a restart: a family it cannot store is left out with a\nwarning, and the capability is still sent when none is left.",
+                        "description": "Configures the Long-Lived Graceful Restart capability (RFC 9494, code 71) per address\nfamily. Nested inside graceful-restart so code 71 is never advertised without code 64 (RFC 9494\nSection 4.1). LLGR is off by default and requires an explicit family entry with a stale-time for\neach AFI/SAFI (RFC 9494 Section 5).",
                         "kind": "container",
-                        "name": "family",
-                        "short-help": "Address families Ze names in the Graceful Restart capability.",
+                        "name": "long-lived",
+                        "short-help": "Long-Lived Graceful Restart phase (RFC 9494, code 71).",
                         "source": "config"
                       },
                       {
-                        "description": "Long-Lived Stale Time in seconds (RFC 9494 Section 3). When this leaf is set, Ze advertises the LLGR\ncapability (code 71). The maximum value is 16777215, because the field is 24 bits, which is about\n194 days. Ze applies the value to every negotiated address family of the peer.",
-                        "kind": "leaf",
-                        "name": "long-lived-stale-time",
-                        "short-help": "Long-Lived Stale Time for the peer, in seconds (RFC 9494 Section 3).",
-                        "source": "config",
-                        "type": "uint32"
-                      },
-                      {
-                        "description": "The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer\nrestarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale\nroute of the peer when that timer expires, unless the peer also negotiated LLGR.",
-                        "kind": "leaf",
-                        "name": "restart-time",
-                        "short-help": "Restart Time in seconds (RFC 4724 Section 3).\nMaximum value is 4095 (12-bit field).",
-                        "source": "config",
-                        "type": "uint16"
+                        "children": [
+                          {
+                            "description": "Narrows the address families Ze names in the Graceful Restart capability, code 64.\nWhen absent, code 64 names every family the peer carries. When present, code 64 names only the\nlisted families. Every listed family must be one the peer's session carries, and Ze omits any\nfamily the RIB plugin cannot store with a warning (RFC 4724 Section 4). This list governs code\n64 alone and never affects code 71.",
+                            "kind": "list[name]",
+                            "name": "family",
+                            "short-help": "Address families Ze names in the GR capability (code 64).",
+                            "source": "config"
+                          },
+                          {
+                            "description": "The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer\nrestarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale\nroute of the peer when that timer expires, unless the peer also negotiated LLGR.",
+                            "kind": "leaf",
+                            "name": "restart-time",
+                            "short-help": "Restart Time in seconds (RFC 4724 Section 3, 0..4095).",
+                            "source": "config",
+                            "type": "uint16"
+                          }
+                        ],
+                        "description": "Enables the conventional Graceful Restart phase (RFC 4724, code 64) for this peer. Ze\nnames every address family the peer carries in code 64 unless the family list below narrows the\nset, so the peer retains Ze's routes while the session is down (RFC 4724 Section 4.2). The\nForwarding State bit is set at connection time when the forwarding plane kept Ze's routes across a\nrestart. Omitting this container sends code 64 with Restart Time 0 and no family tuples.",
+                        "kind": "container",
+                        "name": "short-lived",
+                        "short-help": "Conventional Graceful Restart phase (RFC 4724, code 64).",
+                        "source": "config"
                       }
                     ],
-                    "description": "The container carries presence, so writing it makes Ze send the Graceful Restart capability,\ncode 64, to this peer. Ze names every address family the peer carries in that capability, unless the\nfamily container below narrows the set, so the peer\nretains Ze's routes for those families while the session is down (RFC 4724 Section 4.2). The\nfamilies are the ones the session negotiates, so they include what the peer inherits from its\ngroup and exclude any family entry written 'mode disable'. The Forwarding State bit of each\nfamily is set at connection time rather than here: it says the routes were still being forwarded\nwhile Ze was down, which is true when Ze restarted and the forwarding plane kept them. A\ncontainer on the peer replaces the container on the group rather than adding to it.",
+                    "description": "The container carries presence, so writing it makes Ze send the Graceful Restart capability,\ncode 64, to this peer. With no short-lived container, code 64 carries Restart Time 0 and no address\nfamily tuple, which RFC 4724 Section 3 reads as a Receiving Speaker that preserves nothing of its own\nand RFC 9494 Section 4.1 uses to skip the conventional GR phase when long-lived is configured. A\ncontainer on the peer replaces the container on the group rather than adding to it.",
                     "kind": "container",
                     "name": "graceful-restart",
-                    "short-help": "Graceful Restart capability configuration.",
+                    "short-help": "Graceful Restart capability configuration (codes 64 and 71).",
                     "source": "config"
                   },
                   {
@@ -4746,6 +4853,14 @@
                 "name": "family",
                 "short-help": "Address families to negotiate",
                 "source": "config"
+              },
+              {
+                "description": "RFC 8955 Section 4 requires the MP_REACH_NLRI Next-Hop Network Address Length of every\nadvertised Flow Specification to be 0. When false (the default), Ze emits a zero-length next hop on\nevery FlowSpec route, including one carrying the 0x0800 redirect-to-IP-next-hop extended community.\nSet this leaf to true on a peer that needs the draft-simpson-idr-flowspec-redirect-02 Section 3\nextension, where a 0x0800 FlowSpec route carries its redirect target in the MP_REACH_NLRI next-hop\nfield on origination and forwarding. ze exabgp migrate sets this leaf when a migrated neighbor uses\na Simpson redirect action or serves an API process on a FlowSpec family.",
+                "kind": "leaf",
+                "name": "flowspec-redirect-next-hop",
+                "short-help": "Carry MP_REACH next hop for 0x0800 FlowSpec redirect (draft-simpson).",
+                "source": "config",
+                "type": "boolean"
               },
               {
                 "description": "A member peer that states no host-name of its own takes this value. Ze reads the leaf after\ncapability \u003e hostname \u003e host and replaces that value with it. The capability writes a 1-byte length\nin front of the host name, which is the 255-byte limit. Write capability \u003e hostname \u003e host in a new\nconfig: ze exabgp migrate produces that spelling and never this one.",
@@ -6333,6 +6448,14 @@
           {
             "children": [
               {
+                "description": "RFC 8097 Section 2 requires implementations to drop the BGP Prefix Origin Validation State\nextended community (type 0x43, sub-type 0x00) when received from an EBGP peer by default, without\nprocessing it further. Set this leaf to true only for a trusted EBGP peer (such as a route server\nor adjacent AS under common administration) to accept and process the community. Has no effect on\nIBGP sessions, where the community is always processed.",
+                "kind": "leaf",
+                "name": "accept-origin-validation-state",
+                "short-help": "Accept RFC 8097 Origin Validation State extended community from this EBGP peer.",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
                 "description": "RFC 8669 Section 4 states that a PrefixSID from an EBGP peer outside the SR domain MUST be\ndiscarded, unless the speaker is configured to accept it. The leaf has no effect on IBGP, where Ze\nalways accepts the attribute.",
                 "kind": "leaf",
                 "name": "accept-srv6-prefix-sid",
@@ -6639,41 +6762,58 @@
                       {
                         "children": [
                           {
-                            "description": "RFC 4724 Section 4: 'The presence and the setting of the Forwarding State bit\nfor an address family depend upon the actual forwarding state and configuration.' The\nvalue must name a family the peer's own family list carries. Ze refuses the\nconfiguration otherwise, because RFC 4724 Section 3 scopes a tuple to routes 'advertised\nwith the same AFI and SAFI', and a session that carries no such route cannot keep the\npromise the tuple makes.",
-                            "kind": "leaf-list",
-                            "name": "name",
-                            "short-help": "Address family the capability names (e.g. ipv4/unicast).",
-                            "source": "config",
-                            "type": "address-family"
+                            "children": [
+                              {
+                                "description": "Long-Lived Stale Time in seconds for this address family (RFC 9494 Section 3.1).\nThe field is 24 bits, so the maximum value is 16777215 (about 194 days). Zero advertises\nLLGR capability support for this family with a zero-second stale period.",
+                                "kind": "leaf",
+                                "name": "stale-time",
+                                "short-help": "Long-Lived Stale Time in seconds (0..16777215).",
+                                "source": "config",
+                                "type": "uint32"
+                              }
+                            ],
+                            "description": "Address families advertised in the Long-Lived Graceful Restart capability, code 71,\neach with its own 24-bit Long-Lived Stale Time (RFC 9494 Section 3.1). Every listed family must\nbe one the peer's session carries. Families absent from this list are omitted from code 71 and\ndo not run LLGR procedures even if the remote peer advertises them (RFC 9494 Section 5).",
+                            "kind": "list[name]",
+                            "name": "family",
+                            "short-help": "Per-family LLGR stale time configuration (code 71).",
+                            "source": "config"
                           }
                         ],
-                        "description": "The container carries presence, and the three states differ. No container is the\ndefault: the capability names every address family the peer carries. The container with one\nname or more: the capability names those families and no other. The container with no name:\nthe capability names no family at all, which RFC 4724 Section 3 reads as a speaker that\nsupports the Receiving Speaker procedures and preserves nothing of its own. The container\ngoverns the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart\ncapability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by\nomitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64\nis how an operator asks for LLGR with no GR phase. In every state the capability names only\nfamilies the RIB plugin can store, because RFC 4724 Section 4 lets a speaker list a family\nonly when it can preserve it across a restart: a family it cannot store is left out with a\nwarning, and the capability is still sent when none is left.",
+                        "description": "Configures the Long-Lived Graceful Restart capability (RFC 9494, code 71) per address\nfamily. Nested inside graceful-restart so code 71 is never advertised without code 64 (RFC 9494\nSection 4.1). LLGR is off by default and requires an explicit family entry with a stale-time for\neach AFI/SAFI (RFC 9494 Section 5).",
                         "kind": "container",
-                        "name": "family",
-                        "short-help": "Address families Ze names in the Graceful Restart capability.",
+                        "name": "long-lived",
+                        "short-help": "Long-Lived Graceful Restart phase (RFC 9494, code 71).",
                         "source": "config"
                       },
                       {
-                        "description": "Long-Lived Stale Time in seconds (RFC 9494 Section 3). When this leaf is set, Ze advertises the LLGR\ncapability (code 71). The maximum value is 16777215, because the field is 24 bits, which is about\n194 days. Ze applies the value to every negotiated address family of the peer.",
-                        "kind": "leaf",
-                        "name": "long-lived-stale-time",
-                        "short-help": "Long-Lived Stale Time for the peer, in seconds (RFC 9494 Section 3).",
-                        "source": "config",
-                        "type": "uint32"
-                      },
-                      {
-                        "description": "The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer\nrestarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale\nroute of the peer when that timer expires, unless the peer also negotiated LLGR.",
-                        "kind": "leaf",
-                        "name": "restart-time",
-                        "short-help": "Restart Time in seconds (RFC 4724 Section 3).\nMaximum value is 4095 (12-bit field).",
-                        "source": "config",
-                        "type": "uint16"
+                        "children": [
+                          {
+                            "description": "Narrows the address families Ze names in the Graceful Restart capability, code 64.\nWhen absent, code 64 names every family the peer carries. When present, code 64 names only the\nlisted families. Every listed family must be one the peer's session carries, and Ze omits any\nfamily the RIB plugin cannot store with a warning (RFC 4724 Section 4). This list governs code\n64 alone and never affects code 71.",
+                            "kind": "list[name]",
+                            "name": "family",
+                            "short-help": "Address families Ze names in the GR capability (code 64).",
+                            "source": "config"
+                          },
+                          {
+                            "description": "The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer\nrestarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale\nroute of the peer when that timer expires, unless the peer also negotiated LLGR.",
+                            "kind": "leaf",
+                            "name": "restart-time",
+                            "short-help": "Restart Time in seconds (RFC 4724 Section 3, 0..4095).",
+                            "source": "config",
+                            "type": "uint16"
+                          }
+                        ],
+                        "description": "Enables the conventional Graceful Restart phase (RFC 4724, code 64) for this peer. Ze\nnames every address family the peer carries in code 64 unless the family list below narrows the\nset, so the peer retains Ze's routes while the session is down (RFC 4724 Section 4.2). The\nForwarding State bit is set at connection time when the forwarding plane kept Ze's routes across a\nrestart. Omitting this container sends code 64 with Restart Time 0 and no family tuples.",
+                        "kind": "container",
+                        "name": "short-lived",
+                        "short-help": "Conventional Graceful Restart phase (RFC 4724, code 64).",
+                        "source": "config"
                       }
                     ],
-                    "description": "The container carries presence, so writing it makes Ze send the Graceful Restart capability,\ncode 64, to this peer. Ze names every address family the peer carries in that capability, unless the\nfamily container below narrows the set, so the peer\nretains Ze's routes for those families while the session is down (RFC 4724 Section 4.2). The\nfamilies are the ones the session negotiates, so they include what the peer inherits from its\ngroup and exclude any family entry written 'mode disable'. The Forwarding State bit of each\nfamily is set at connection time rather than here: it says the routes were still being forwarded\nwhile Ze was down, which is true when Ze restarted and the forwarding plane kept them. A\ncontainer on the peer replaces the container on the group rather than adding to it.",
+                    "description": "The container carries presence, so writing it makes Ze send the Graceful Restart capability,\ncode 64, to this peer. With no short-lived container, code 64 carries Restart Time 0 and no address\nfamily tuple, which RFC 4724 Section 3 reads as a Receiving Speaker that preserves nothing of its own\nand RFC 9494 Section 4.1 uses to skip the conventional GR phase when long-lived is configured. A\ncontainer on the peer replaces the container on the group rather than adding to it.",
                     "kind": "container",
                     "name": "graceful-restart",
-                    "short-help": "Graceful Restart capability configuration.",
+                    "short-help": "Graceful Restart capability configuration (codes 64 and 71).",
                     "source": "config"
                   },
                   {
@@ -7052,6 +7192,14 @@
                 "name": "family",
                 "short-help": "Address families to negotiate",
                 "source": "config"
+              },
+              {
+                "description": "RFC 8955 Section 4 requires the MP_REACH_NLRI Next-Hop Network Address Length of every\nadvertised Flow Specification to be 0. When false (the default), Ze emits a zero-length next hop on\nevery FlowSpec route, including one carrying the 0x0800 redirect-to-IP-next-hop extended community.\nSet this leaf to true on a peer that needs the draft-simpson-idr-flowspec-redirect-02 Section 3\nextension, where a 0x0800 FlowSpec route carries its redirect target in the MP_REACH_NLRI next-hop\nfield on origination and forwarding. ze exabgp migrate sets this leaf when a migrated neighbor uses\na Simpson redirect action or serves an API process on a FlowSpec family.",
+                "kind": "leaf",
+                "name": "flowspec-redirect-next-hop",
+                "short-help": "Carry MP_REACH next hop for 0x0800 FlowSpec redirect (draft-simpson).",
+                "source": "config",
+                "type": "boolean"
               },
               {
                 "description": "Ze reads the leaf after capability \u003e hostname \u003e host and replaces that value with it, so a\npeer that writes both leaves sends this one. The capability writes a 1-byte length in front of the\nhost name, which is the 255-byte limit. Write capability \u003e hostname \u003e host in a new config:\nze exabgp migrate produces that spelling and never this one.",
@@ -21341,14 +21489,6 @@
   "mrt": {
     "children": [
       {
-        "description": "The default is false. When true, TABLE_DUMP_V2 snapshots use\nthe ADD-PATH RIB subtypes of RFC 8050. BGP4MP and BGP4MP_ET\nmessage subtypes always follow the direction-specific negotiated\nADD-PATH state of the UPDATE family, independently of this leaf.",
-        "kind": "leaf",
-        "name": "add-path",
-        "short-help": "Use ADD-PATH subtypes for RIB snapshots.",
-        "source": "config",
-        "type": "boolean"
-      },
-      {
         "children": [
           {
             "description": "The strftime codes in the path decide when Ze opens a new file.\nThe supported codes are %Y (year), %m (month), %d (day),\n%H (hour), %M (minute), %S (second), %s (unix timestamp) and\n%N (table name).",
@@ -21422,6 +21562,153 @@
             "type": "string"
           },
           {
+            "children": [
+              {
+                "children": [
+                  {
+                    "description": "WGS84 decimal degrees in [-90, 90], or NaN for private location.",
+                    "kind": "leaf",
+                    "name": "latitude",
+                    "short-help": "Collector WGS84 latitude or NaN.",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "WGS84 decimal degrees in [-180, 180], or NaN for private location.",
+                    "kind": "leaf",
+                    "name": "longitude",
+                    "short-help": "Collector WGS84 longitude or NaN.",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Confirm non-technical measures (e.g., contractual agreements) enforce more restrictive privacy rules.",
+                    "kind": "leaf",
+                    "name": "non-technical-measures",
+                    "short-help": "Acknowledge non-technical measures enforcing restrictive privacy rules.",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
+                    "description": "GEOPRIV note-well privacy constraint (RFC 6397 Section 6 default: empty).",
+                    "kind": "leaf",
+                    "name": "note-well",
+                    "short-help": "Optional GEOPRIV note-well constraint.",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "GEOPRIV retention horizon in years (RFC 6397 Section 6 default: 100).",
+                    "kind": "leaf",
+                    "name": "retention-years",
+                    "short-help": "Location retention horizon in years (default 100).",
+                    "source": "config",
+                    "type": "uint32"
+                  },
+                  {
+                    "description": "GEOPRIV retransmission-allowed rule (RFC 6397 Section 6 default: true).",
+                    "kind": "leaf",
+                    "name": "retransmission-allowed",
+                    "short-help": "Whether location retransmission is allowed (default true).",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
+                    "description": "GEOPRIV ruleset-reference URI (RFC 6397 Section 6 default: empty).",
+                    "kind": "leaf",
+                    "name": "ruleset-reference",
+                    "short-help": "Optional GEOPRIV ruleset-reference URI.",
+                    "source": "config",
+                    "type": "string"
+                  }
+                ],
+                "description": "Collector WGS84 coordinates and privacy rules (RFC 6397 Sections 4.1 and 6).",
+                "kind": "container",
+                "name": "collector",
+                "short-help": "Collector geo-location coordinates and privacy policy.",
+                "source": "config"
+              },
+              {
+                "description": "Emit a GEO_PEER_TABLE record alongside PEER_INDEX_TABLE in TABLE_DUMP_V2 dumps.",
+                "kind": "leaf",
+                "name": "enabled",
+                "short-help": "Enable RFC 6397 GEO_PEER_TABLE export.",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
+                "children": [
+                  {
+                    "description": "WGS84 decimal degrees in [-90, 90], or NaN for private location.",
+                    "kind": "leaf",
+                    "name": "latitude",
+                    "short-help": "Peer WGS84 latitude or NaN.",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "WGS84 decimal degrees in [-180, 180], or NaN for private location.",
+                    "kind": "leaf",
+                    "name": "longitude",
+                    "short-help": "Peer WGS84 longitude or NaN.",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Confirm non-technical measures (e.g., contractual agreements) enforce more restrictive privacy rules.",
+                    "kind": "leaf",
+                    "name": "non-technical-measures",
+                    "short-help": "Acknowledge non-technical measures enforcing restrictive privacy rules.",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
+                    "description": "GEOPRIV note-well privacy constraint (RFC 6397 Section 6 default: empty).",
+                    "kind": "leaf",
+                    "name": "note-well",
+                    "short-help": "Optional GEOPRIV note-well constraint.",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "GEOPRIV retention horizon in years (RFC 6397 Section 6 default: 100).",
+                    "kind": "leaf",
+                    "name": "retention-years",
+                    "short-help": "Location retention horizon in years (default 100).",
+                    "source": "config",
+                    "type": "uint32"
+                  },
+                  {
+                    "description": "GEOPRIV retransmission-allowed rule (RFC 6397 Section 6 default: true).",
+                    "kind": "leaf",
+                    "name": "retransmission-allowed",
+                    "short-help": "Whether location retransmission is allowed (default true).",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
+                    "description": "GEOPRIV ruleset-reference URI (RFC 6397 Section 6 default: empty).",
+                    "kind": "leaf",
+                    "name": "ruleset-reference",
+                    "short-help": "Optional GEOPRIV ruleset-reference URI.",
+                    "source": "config",
+                    "type": "string"
+                  }
+                ],
+                "description": "Per-peer WGS84 coordinates and privacy rules (RFC 6397 Sections 4.1 and 6).",
+                "kind": "list[address]",
+                "name": "peer",
+                "short-help": "Peer geo-location coordinates and privacy policy.",
+                "source": "config"
+              }
+            ],
+            "description": "Optional RFC 6397 GEO_PEER_TABLE (TABLE_DUMP_V2 subtype 7)\ncompanion record carrying WGS84 coordinates for the collector\nand its peers, with RFC 6397 Section 6 GEOPRIV privacy controls.",
+            "kind": "container",
+            "name": "geo",
+            "short-help": "MRT geo-location extension (RFC 6397).",
+            "source": "config"
+          },
+          {
             "description": "The default is 3600 seconds and the range is 60 to 86400. Each dump\nwrites one PEER_INDEX_TABLE record and then the RIB entries of\nevery address family, which RFC 6396 Section 4.3.1 requires in that\norder.",
             "kind": "leaf",
             "name": "interval",
@@ -21430,7 +21717,7 @@
             "type": "uint32"
           }
         ],
-        "description": "Each dump writes one PEER_INDEX_TABLE record, and then the RIB\nentries for every address family. Ze writes them as\nTABLE_DUMP_V2 records.",
+        "description": "Each dump writes one PEER_INDEX_TABLE record, and then the RIB\nentries for every address family. Ze writes them as\nTABLE_DUMP_V2 records, one route in each. A route of a\nfamily whose peer negotiated ADD-PATH is written under the\nADD-PATH subtype of RFC 8050 with its Path Identifier; any\nother route under the base subtype of RFC 6396.",
         "kind": "container",
         "name": "routes",
         "short-help": "Periodic RIB snapshots, written as TABLE_DUMP_V2 records.",
@@ -21462,7 +21749,7 @@
         "source": "config"
       }
     ],
-    "description": "The container holds the extended-timestamp switch, the add-path\nswitch, the peer filter, the direction, and the three dump streams.",
+    "description": "The container holds the extended-timestamp switch, the peer\nfilter, the direction, and the three dump streams. No leaf\nchooses the ADD-PATH subtypes of RFC 8050: each record follows\nthe ADD-PATH state negotiated for the family it holds.",
     "kind": "container",
     "name": "mrt",
     "short-help": "MRT dump configuration.",
@@ -25999,6 +26286,28 @@
               {
                 "name": "nssa-2",
                 "short-help": "OSPF NSSA type 2 external path"
+              }
+            ]
+          },
+          {
+            "description": "Match routes whose RPKI Route Origin Validation state (RFC 6811 Section 2, RFC 8893 Section 3) is one of the listed states. Available identically in BGP ingress, redistribution, and BGP egress policy; on egress, the state is determined from the effective origin AS as the route will be announced to the peer after egress configuration and policy.",
+            "kind": "leaf-list",
+            "name": "rpki-validation-state",
+            "short-help": "Match routes by RPKI origin validation state (valid, not-found, invalid)",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "invalid",
+                "short-help": "A covering VRP exists, and none authorizes the prefix length and effective origin AS (RFC 6811)."
+              },
+              {
+                "name": "not-found",
+                "short-help": "No covering VRP exists for the prefix (RFC 6811)."
+              },
+              {
+                "name": "valid",
+                "short-help": "A covering VRP authorizes the prefix and effective origin AS (RFC 6811)."
               }
             ]
           },

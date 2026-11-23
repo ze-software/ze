@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 4 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 4 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 4 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 8 | 8 of 22 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 13 | 13 of 22 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 22 |
 | Tests linked to requirements | 22 |
 | Recorded audit verdicts | 7 |
-| Fault test records | 8 |
+| Fault test records | 13 |
 | Summary | `rfc/short/rfc4456.md` |
 | Requirement table | `rfc/requirements/rfc4456.md` |
 | RFC text | `rfc/full/rfc4456.txt` |
@@ -111,7 +111,7 @@ Included in automatic checks: BGP Route Reflection: four MUST-level requirements
 ## Figures
 
 - **MUST bar**: Ze verified 4
-- **Overview bar**: Ze MUST verified 4, Tests awaiting verification 3, Not assessed 2
+- **Overview bar**: Ze MUST verified 4, SHOULD verified 3, Not assessed 2
 
 | Figure | Rows |
 |---|---|
@@ -132,14 +132,14 @@ Included in automatic checks: BGP Route Reflection: four MUST-level requirements
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 5 |
-| SHOULD verified | 0 |
+| SHOULD verified | 3 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 3 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 2 |
 | SHOULD not built | 0 |
@@ -153,7 +153,7 @@ Source: [data/rfc/rfc4456.json](../../../data/rfc/rfc4456.json).
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC4456-x-1` | In addition, when a RR reflects a route, it SHOULD NOT modify the following path attributes: NEXT_HOP, AS_PATH, LOCAL_PREF, and MED. (§10) | SHOULD NOT | 10 - Implementation Considerations | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L179). **negative:** no negative test. **{single-polarity}:** on reflection the RR forwarding path emits only ORIGINATOR_ID and CLUSTER_LIST modifications (internal/component/bgp/reactor/forward_rs.go:337-339) and never a NEXT_HOP/AS_PATH/LOCAL_PREF/MED op, so those four are always carried through in the verbatim wire; there is no RR scenario that modifies them to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRInjects |
-| `RFC4456-8-1` | This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L171). **negative:** `unit/verify` [`TestForwardReflectionLeavesAWithdrawalUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L436). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L202). **positive:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L283). **negative:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L284) |
+| `RFC4456-8-1` | This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L171). **negative:** `unit/verify` [`TestForwardReflectionLeavesAWithdrawalUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L439). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L202). **positive:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L283). **negative:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L284) |
 | `RFC4456-8-2` | When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L173). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L206). **positive:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L285). **negative:** `interop/nightly` [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L286) |
 | `RFC4456-8-3` | A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute if one already exists. (§8) | SHOULD NOT | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L175). **negative:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L204) |
 | `RFC4456-8-4` | This attribute will carry the BGP Identifier of the originator of the route in the local AS. (§8) | MUST | 8 - Avoiding Routing Information Loops | **positive:** `unit/verify` [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L30). **positive:** `unit/verify` [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L200). **negative:** `unit/verify` [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L31). **negative:** `unit/verify` [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L177) |
@@ -178,18 +178,18 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L179) | unit/verify | not verified |
+| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L179) | unit/verify | revert, verified |
 
 ### [`RFC4456-8-1`](#rfc4456-8-1)
 
 This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: "This attribute is 4 bytes long and it will be created by an RR in reflecting a route." The commit changed checkReflectorWithdrawal (both tags) only in its last failure: the Established re-check now returns interoplab.WithSearchedOutput(errors.New(...), output), which always returns a non-nil error wrapping the same cause (output.go). Every condition is byte-identical: the positive still requires the exact injector-log token 800904<3 octets>03 (flags 0x80, type 9, length 4, the client's identifier) beside the CLUSTER_LIST token, requireNoEarlyReflectorWithdrawal still refuses a withdrawal before FRR is asked, and the negative still requires the byte-exact withdrawal body :02:0004180A14000000 (withdrawn length 4, 10.20.0.0/24, Total Path Attribute Length 0), so no ORIGINATOR_ID rides the withdrawal. The unit covers TestReactorForwardRRInjects, TestReactorForwardRRPreservesOriginator and TestForwardReflectionLeavesAWithdrawalUntouched are unchanged and keep the 2026-10-06 judgement: absent originator becomes exactly four bytes 10.0.0.1, a present one stays byte-exact, withdrawal and EOR stay untouched with an advertisement control. The interop units carry no discrimination record and the scenario was not rerun for this failure-text change, so question 2 for them rests on reading; the unit tests carry the precise assertions. Verdict unchanged.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go::TestForwardReflectionLeavesAWithdrawalUntouched moved. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: "This attribute is 4 bytes long and it will be created by an RR in reflecting a route." The commit changed checkReflectorWithdrawal (both tags) only in its last failure: the Established re-check now returns interoplab.WithSearchedOutput(errors.New(...), output), which always returns a non-nil error wrapping the same cause (output.go). Every condition is byte-identical: the positive still requires the exact injector-log token 800904<3 octets>03 (flags 0x80, type 9, length 4, the client's identifier) beside the CLUSTER_LIST token, requireNoEarlyReflectorWithdrawal still refuses a withdrawal before FRR is asked, and the negative still requires the byte-exact withdrawal body :02:0004180A14000000 (withdrawn length 4, 10.20.0.0/24, Total Path Attribute Length 0), so no ORIGINATOR_ID rides the withdrawal. The unit covers TestReactorForwardRRInjects, TestReactorForwardRRPreservesOriginator and TestForwardReflectionLeavesAWithdrawalUntouched are unchanged and keep the 2026-10-06 judgement: absent originator becomes exactly four bytes 10.0.0.1, a present one stays byte-exact, withdrawal and EOR stay untouched with an advertisement control. The interop units carry no discrimination record and the scenario was not rerun for this failure-text change, so question 2 for them rests on reading; the unit tests carry the precise assertions. Verdict unchanged.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L202) | unit/verify | revert, verified |
-| negative | [`TestForwardReflectionLeavesAWithdrawalUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L436) | unit/verify | not verified |
+| negative | [`TestForwardReflectionLeavesAWithdrawalUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L439) | unit/verify | not verified |
 | negative | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L284) | interop/nightly | not verified |
 | positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L171) | unit/verify | revert, verified |
 | positive | [`checkReflectorWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L283) | interop/nightly | not verified |
@@ -215,8 +215,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. nega
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L204) | unit/verify | not verified |
-| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L175) | unit/verify | not verified |
+| negative | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L204) | unit/verify | revert, verified |
+| positive | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L175) | unit/verify | revert, verified |
 
 ### [`RFC4456-8-4`](#rfc4456-8-4)
 
@@ -250,8 +250,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestBestPath_ClusterListLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1225) | unit/verify | not verified |
-| positive | [`TestBestPath_ClusterListLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1219) | unit/verify | not verified |
+| negative | [`TestBestPath_ClusterListLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1225) | unit/verify | revert, verified |
+| positive | [`TestBestPath_ClusterListLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1219) | unit/verify | revert, verified |
 | positive | [`TestClusterListEntries`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1314) | unit/verify | not verified |
 | positive | [`checkClusterListLengthTieBreak`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc4456.go#L48) | interop/nightly | not verified |
 

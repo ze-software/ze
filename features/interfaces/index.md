@@ -221,6 +221,57 @@ partial device behind, and the undo deletes only the devices the apply created.
 <!-- source: internal/component/iface/config_apply.go — applyConfig create steps, interfaceExists -->
 <!-- source: internal/component/iface/backend.go — Backend.GetLink -->
 
+### Writing only what differs
+
+An interface in the config can name a device ze did not make and whose
+settings already match, such as a Docker host bridge `docker0` with no `stp`
+leaf. Each apply reads the device's current state and writes a link setting
+only when the device holds another value, so an unprivileged ze applies such
+a config: every one of these writes needs CAP_NET_ADMIN, even one that changes
+nothing.
+
+| Setting | Read from | Skipped when |
+|---------|-----------|--------------|
+| Bridge STP | `GetLink`, the bridge's `IFLA_BR_STP_STATE` | the bridge reports the state the `stp` leaf asks for (absent means off; kernel or user-space STP both count as on) |
+| MTU | `GetLink` | the device holds the configured MTU (VLAN units already compared) |
+| MAC address | `GetMACAddress` | the device holds the same address, whatever its spelling |
+| Admin state | `GetLink`, the administrative state (`IFF_UP`), never the operational one | the device is administratively up, with or without a carrier |
+| Bridge member | `GetLink` of the bridge and the port | the port is already a member of that bridge |
+| VLAN QoS maps | `GetLink` of the VLAN | the VLAN holds maps that program the same translation (an entry at 0 equals an absent one) |
+| `dhcp-auto` interface up | `GetLink` | the interface is administratively up |
+| WireGuard keys and peers | `GetWireguardDevice` (wgctrl on netlink), when the device existed before the apply | the device holds the private key and fwmark, the listen port when the leaf is set, and exactly the enabled peers, each with the configured preshared key, endpoint, keepalive and allowed-IP set and nothing else (the write replaces the peer set, so an extra peer, a learned endpoint or a disabled peer still present is a difference; allowed IPs compare as masked prefixes in any order) |
+
+A state that cannot be read is written, never taken for one that matches, and
+a backend that does not report a setting (the VPP backend reports no STP state,
+no QoS maps, and no WireGuard fwmark or preshared key) keeps writing it. A
+failed read of a device's link state is logged at warning and raised on the
+report bus under `doctor-iface-state-unread`, so `show doctor` names the
+device, the backend's answer and `ze show interface name <device> detail`; a
+later apply whose read of that device answers clears it. A failed read of a
+WireGuard device's keys and peers is raised the same way under the subject
+`<device> wireguard`, so the link read of the same device does not clear it.
+On Linux the kernel answers a WireGuard read only to a process with
+CAP_NET_ADMIN, as it does a write, so an unprivileged ze cannot read the
+device: the read is reported and the write that follows fails with the
+capability named. A privileged start over a device that already holds its
+config no longer replaces its peers, which kept each peer's session. A backend that is not ready yet (the VPP
+startup path) and a device the read does not find by its name are logged at
+debug only, because the write that follows reports them. A skipped setting adds no step to the apply
+journal, so a failed commit does not undo with a write what it did not change:
+the bridge keeps its STP state and its ports, and a device that was up stays
+up. A write that is needed still fails without CAP_NET_ADMIN, with the
+capability named in the error.
+
+Devices are still created on every apply, and a create refused for a device
+that existed is ignored, as above.
+
+<!-- source: internal/component/iface/config_apply_held.go -- linkFacts, logUnreadState, logUnreadStateAs, sameMAC, vlanQoSNeedsWrite, portInBridge, adminUpHeld, wireguardNeedsWrite, wireguardHolds -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfigPass STP, MTU, MAC, QoS, admin and WireGuard steps -->
+<!-- source: internal/plugins/iface/netlink/wireguard_linux.go -- GetWireguardDevice, deviceToSpec, buildWireguardConfig -->
+<!-- source: internal/plugins/iface/vpp/wireguard.go -- GetWireguardDevice -->
+<!-- source: internal/plugins/iface/netlink/bridge_linux.go -- bridgeSTPFromAttrs -->
+<!-- source: internal/plugins/iface/netlink/show_linux.go -- linkToInfo AdminState, QoSMapsRead -->
+
 ### Unnumbered IPv4 units
 
 A unit can borrow the IPv4 address of another interface instead of holding a
@@ -325,7 +376,8 @@ Subscribers -- BGP reactor (starts/stops listeners on address changes)
 ## Interface Discovery
 
 During `ze init`, Ze discovers OS network interfaces and generates initial configuration
-entries. The `DiscoverInterfaces` function enumerates interfaces via `ListInterfaces`
+entries, written after the SSH listener the CLI reaches the daemon through. The
+`DiscoverInterfaces` function enumerates interfaces via `ListInterfaces`
 (netlink on Linux, stdlib on other platforms) and classifies each by Ze type: ethernet,
 bridge, veth, dummy, or loopback. On Linux, the netlink `device` type maps to ethernet
 (except `lo`, which maps to loopback). Results are sorted by type then name.
@@ -334,7 +386,29 @@ A managed client (`ze init --managed`) and an appliance seed (`ze init --seed`) 
 discovery and write no initial config: the managed client takes its first config from
 its hub, and the appliance discovers on the device at first boot.
 
-<!-- source: internal/plugins/init/main.go -- runInitPublished -->
+By default `ze init` writes every device discovery finds, including the ones another
+program owns (`docker0`, `br-*`, `virbr0`, container veths, `wg-quick` devices), and a
+root ze then manages each of them. `ze init --confirm` asks about each device the config
+can hold, the loopback included, and writes only the ones answered yes. Each question
+shows the device's kind and name, its MAC address, the bridge or bond it is a member of,
+and its kernel alias: the hints that name the program that owns it. Devices are asked in
+the order `ze interface scan` lists them, and only an explicit answer decides: `yes` or `y`
+writes the device, and `no` or `n` leaves it out, in any case. The prompt shows no default.
+An empty line or any other answer is not accepted: `ze init` writes one notice line on
+stderr naming the four answers and asks about the same device again, reading the next
+line, until it gets one of them. Input that ends before every device is answered is
+refused before the store is published. A script works the same as a terminal: on a pipe a
+line that is not accepted is consumed and noted, and the next line answers the same
+device. When discovery fails, `--confirm` asks nothing and `ze init` warns as it does
+without the flag. `--confirm` is refused with `--seed`, `--managed` and `--from`, which
+write no discovered interface.
+
+A kept ethernet's selector is still judged against every discovered device: when two
+NICs report one factory address and only one is kept, the kept entry binds by `os-name`,
+because a `mac { match }` on that address would name both devices and refuse the commit.
+
+<!-- source: internal/plugins/init/main.go -- runInitPublished, writeInitialConfig, profileFromFlags, confirmInterfaces, describeDevice, readAnswer, writeNotAccepted -->
+<!-- source: internal/component/iface/emit.go -- Emits, EmitConfigKept -->
 
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces, infoToZeType -->
 
@@ -421,6 +495,13 @@ device appears, and a config is validated on machines that will never run it.
 
 <!-- source: internal/component/config/validators.go -- MACAddressValidator, CompleteFn -->
 <!-- source: internal/component/config/validators_register.go -- mac-address registration -->
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| `ze init` claims every discovered device by default, including the ones another program owns. `ze init --confirm` asks about each discovered device and writes only the ones the operator confirms | Leaving a discovered device out of the default `ze init` config by kind, membership, alias or any other ownership guess; asking about devices without `--confirm`; writing a device `--confirm` did not get a yes for | plan/records/ruling-ze-init-claims-discovered-devices.md | 2026-11-22 |
+| `ze init --confirm` takes only an explicit answer: `yes`, `y`, `no` or `n`. Anything else, an empty line included, is not accepted, and the same device is asked again | A default answer, an empty line read as no, refusing the whole init over an answer that is not accepted, and moving on to the next device before an explicit answer | plan/records/ruling-ze-init-claims-discovered-devices.md | 2026-11-22 |
 
 ## Key Design Decisions
 
@@ -867,14 +948,19 @@ MD5 passwords, SSH secrets, MCP tokens, and API tokens.
 
 On reload, `applyConfig` compares the new spec to the previously
 applied spec via `wireguardSpecEqual`. Unchanged entries are a no-op; the
-kernel is not touched and peer handshake state is preserved. Changed
-entries trigger a single `ConfigureWireguardDevice` call with
-`wgtypes.Config{ReplacePeers: true}` -- the kernel matches unchanged peers
-by public-key and preserves their handshake state, so "apply entire spec
-on every change" is functionally equivalent to a per-peer diff at a tiny
-fraction of the code. New wireguard entries get a `CreateWireguardDevice`
-(netlink) before the Configure call. Wireguard list entries removed from
-config are deleted by Phase 4 reconciliation, same as tunnels.
+kernel is not touched and peer handshake state is preserved. A changed
+entry, and every entry at the first apply after start, is then compared
+with what the device holds, read through `GetWireguardDevice`: a device
+that already holds the spec gets no write ("Writing only what differs"
+above). Otherwise a single `ConfigureWireguardDevice` call sends the whole
+spec with `wgtypes.Config{ReplacePeers: true}`, which makes the kernel
+remove every current peer before it adds the configured ones
+(`WGDEVICE_F_REPLACE_PEERS`): each peer starts again with no session and
+no learned endpoint until its next handshake. New wireguard entries get a
+`CreateWireguardDevice` (netlink) before the Configure call, and a device
+the apply has just created is written without a read. Wireguard list
+entries removed from config are deleted by Phase 4 reconciliation, same as
+tunnels.
 
 Peer names in config (`peer site2 { ... }`) are operator-chosen labels.
 The kernel tracks peers only by public key, so the label can change
@@ -883,6 +969,7 @@ with synthetic names (`peer0`, `peer1`, ...) which operators typically
 rename via `ze config edit`.
 
 <!-- source: internal/component/iface/config_apply.go -- wireguardSpecEqual, wireguardPeerEqual -->
+<!-- source: internal/component/iface/config_apply_held.go -- wireguardNeedsWrite, wireguardHolds -->
 <!-- source: internal/component/iface/backend.go -- CreateWireguardDevice, ConfigureWireguardDevice, GetWireguardDevice interface methods -->
 
 ### Port conflict detection
@@ -1657,7 +1744,10 @@ digest and preserves the native errno. It proves a terminal kernel response;
 an operation may have changed state before returning an error. The caller MUST
 retain its effect and cleanup receipts after transport settlement. Historical
 unknown-outcome errors remain available after successful physical socket Close
-and permit final backend cleanup. A failed physical socket Close retains the
+and permit final backend cleanup. A delayed settlement through `Settle` keeps
+the causes its earlier waits met, and its matched NACK, as that history: every
+later `Settle`, writer Close and backend Close returns them. A response the
+write itself received is returned once and is not retained. A failed physical socket Close retains the
 writer, backend resources and original cause. Close is attempted only once;
 neither a later `os.ErrClosed` nor the socket number authorizes another close
 or proves release.

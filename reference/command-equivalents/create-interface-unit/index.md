@@ -9,7 +9,7 @@ Add a VLAN sub\-interface \(802\.1Q tagged\)\.
 - Mode: Daemon
 - Wire method: `ze-iface:interface-unit-add`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Home and SMB FTTP CPE - Ze</title>
+        <meta name="description" content="Deploy Ze as a Linux FTTP CPE with PPPoE, DHCPv6-PD, Router Advertisements, DHCPv4, LAN DNS forwarding, and nftables NAT." />
+        <meta property="og:title" content="Home and SMB FTTP CPE - Ze" />
+        <meta property="og:description" content="Deploy Ze as a Linux FTTP CPE with PPPoE, DHCPv6-PD, Router Advertisements, DHCPv4, LAN DNS forwarding, and nftables NAT." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Home and SMB FTTP CPE - Ze" />
+        <meta name="twitter:description" content="Deploy Ze as a Linux FTTP CPE with PPPoE, DHCPv6-PD, Router Advertisements, DHCPv4, LAN DNS forwarding, and nftables NAT." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/use-cases/fttp-cpe/" />
+        <meta property="og:url" content="https://ze-software.net/use-cases/fttp-cpe/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-services">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Use case</span>
+    <h1 id="home-and-smb-fttp-cpe">Home and SMB FTTP CPE</h1>
+    <p>Use Ze as a single-box Linux CPE on a PPPoE fiber circuit: terminate PPPoE on the WAN interface, request an IPv6 prefix via DHCPv6-PD, advertise delegated <code>/64</code> subnets on the LAN via Router Advertisements, serve DHCPv4 leases, forward LAN DNS queries to upstream resolvers learned over PPPoE, and enforce TCP MSS clamping and source NAT with nftables.</p>
+</div>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#role-and-topology">Role and topology</a></li>
+<li><a href="#ze-configuration">Ze configuration</a></li>
+<li><a href="#access-concentrator-configuration-accel-ppp">Access concentrator configuration (accel-ppp)</a></li>
+<li><a href="#verification-commands">Verification commands</a></li>
+<li><a href="#lab-evidence">Lab evidence</a></li>
+<li><a href="#current-limits">Current limits</a></li>
+<li><a href="#related-guides">Related guides</a></li>
+</ol></details></nav><div class="doc-body">
+<h2 id="role-and-topology">Role and topology</h2>
+<pre><code class="language-text">ISP / BNG (accel-ppp)
+       │ PPPoE + IPv6CP + DHCPv6-PD (/56 or /60)
+       ▼ eth1 -&gt; pppoe0 (MTU 1492)
+   Ze CPE (Linux, netlink backend)
+       │ lan0 / br0 (192.168.50.1/24 + delegated /64)
+       ▼
+  LAN hosts (DHCPv4 + IPv6 SLAAC + local caching DNS)
+</code></pre>
+<h2 id="ze-configuration">Ze configuration</h2>
+<p>WAN PPPoE client with IPv6CP, DHCPv6-PD, and LAN delegated-prefix Router Advertisements (based on <code>test/interop-topology/scenarios/pppoe-dhcpv6-pd-ze-client/ze-cpe.conf</code>):</p>
+<pre><code class="language-text">interface {
+    ethernet eth1 {
+    }
+    ethernet lan0 {
+        unit 0 {
+            ipv6 {
+                forwarding true;
+                delegated-prefix pppoe0 {
+                    subnet-id 1;
+                }
+                router-advertisement {
+                    enabled true;
+                    maximum-interval 4;
+                    minimum-interval 3;
+                    router-lifetime 1800;
+                }
+            }
+        }
+    }
+    pppoe-client pppoe0 {
+        source-interface eth1;
+        mtu 1492;
+        service-name internet;
+        authentication {
+            username alice;
+            password s3cr3t;
+        }
+        ipv6 {
+            enabled true;
+            accept-ra 2;
+            autoconf true;
+            forwarding true;
+            dhcpv6 {
+                enabled true;
+                pd {
+                    length 56;
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<p>Default IPv4 route, nftables TCP MSS clamping (avoiding PMTUD blackholes across the 1492-byte PPPoE MTU), IPv4 NAT masquerade, LAN DHCPv4 server, and LAN caching DNS resolver forwarding to PPPoE-learned upstream resolvers with a static fallback (based on <code>test/interop-topology/cpe/ze-cpe.conf</code> and <code>test/pppoe/dns-resolver-forward-ppp-lease.ci</code>):</p>
+<pre><code class="language-text">static {
+    table default {
+        route 0.0.0.0/0 {
+            distance 10;
+            next {
+                interface pppoe0 {
+                }
+            }
+        }
+    }
+}
+
+firewall {
+    backend nft;
+    table wan-mss {
+        family ip;
+        chain mss {
+            type filter;
+            hook postrouting;
+            priority -300;
+            policy accept;
+            term pppoe0-mss {
+                from { output-interface pppoe0; protocol tcp; }
+                then { tcp-mss-set 1400; }
+            }
+        }
+    }
+    table nat-source {
+        family ip;
+        chain postrouting {
+            type nat;
+            hook postrouting;
+            priority 100;
+            policy accept;
+            term rule-100-a {
+                from { output-interface pppoe0; source-address 192.168.50.0/24; }
+                then { masquerade; }
+            }
+        }
+    }
+}
+
+service {
+    dhcp-server {
+        enabled true;
+        listen-interface br0;
+        shared-network LAN {
+            subnet 192.168.50.0/24 {
+                range 0 {
+                    start 192.168.50.100;
+                    stop 192.168.50.199;
+                }
+                lease-time 86400;
+                default-router 192.168.50.1;
+                dns-source {
+                    source self;
+                }
+                static-mapping res-a {
+                    mac-address 02:00:5e:50:00:30;
+                    ip-address 192.168.50.30;
+                }
+            }
+        }
+    }
+
+    dns-resolver {
+        enabled true;
+        listener lan {
+            ip 192.168.50.1;
+            port 53;
+        }
+        allow-from [ 192.168.50.0/24 127.0.0.0/8 ];
+        forward {
+            server 192.0.2.53 {
+                port 53;
+            }
+            dns-source {
+                source [ received configured ];
+                received-interface [ pppoe0 ];
+                mode first-usable;
+            }
+        }
+    }
+}
+</code></pre>
+<h2 id="access-concentrator-configuration-accel-ppp">Access concentrator configuration (accel-ppp)</h2>
+<p>Tested against accel-ppp 1.14.0 (<code>test/interop-topology/scenarios/pppoe-dhcpv6-pd-ze-client/accel-ppp.conf</code>):</p>
+<pre><code class="language-ini">[modules]
+log_file
+cli
+pppoe
+auth_pap
+chap-secrets
+ippool
+ipv6pool
+ipv6_nd
+ipv6_dhcp
+
+[pppoe]
+interface=eth1
+ac-name=ze-pd-ac
+service-name=internet
+verbose=1
+
+[ppp]
+mtu=1492
+mru=1492
+ipv4=require
+ipv6=allow
+ipv6-intf-id=0:0:0:1
+ipv6-accept-peer-intf-id=1
+lcp-echo-interval=30
+lcp-echo-failure=3
+mppe=deny
+
+[ip-pool]
+gw-ip-address=10.198.0.1
+10.198.0.2-10
+
+[ipv6-pool]
+2001:db8:198::/48,64
+delegate=2001:db8:2000::/40,60
+
+[ipv6-nd]
+AdvAutonomousFlag=1
+
+[ipv6-dhcp]
+pref-lifetime=60
+valid-lifetime=120
+route-via-gw=1
+</code></pre>
+<h2 id="verification-commands">Verification commands</h2>
+<pre><code class="language-text">show interface pppoe-client
+show interface delegated-prefix
+show system dns
+show dns resolver
+show route
+ze doctor
+</code></pre>
+<ul>
+<li><code>show interface pppoe-client</code> reports session state, negotiated addresses, learned WAN DNS servers, and delegated IPv6 prefixes with remaining lifetimes.</li>
+<li><code>show interface delegated-prefix</code> reports each LAN unit's delegated <code>/64</code>, interface address, and prefix lifetimes.</li>
+<li><code>show system dns</code> shows learned WAN DNS records alongside the upstream server selected by <code>dns-resolver</code> and the local address advertised by <code>dhcp-server</code>.</li>
+</ul>
+<h2 id="lab-evidence">Lab evidence</h2>
+<ul>
+<li><strong>PPPoE + DHCPv6-PD + RA against accel-ppp:</strong> <code>./le test integration interop-topology scenario pppoe-dhcpv6-pd-ze-client</code> (<code>test/interop-topology/scenarios/pppoe-dhcpv6-pd-ze-client/</code>)</li>
+<li><strong>Full CPE over PPPoE -&gt; LAC -&gt; L2TP -&gt; LNS with DHCP, NAT, and MSS:</strong> <code>./le test integration interop-topology scenario access-up</code>, <code>access-reconnect</code>, and <code>lan-services</code> (<code>test/interop-topology/cpe/ze-cpe.conf</code>)</li>
+<li><strong>PPPoE client interop against accel-ppp:</strong> <code>ZE_PPPOE_INTEROP_SCENARIO=01-pppoe-chap-ipv4 ./le test deployment docker-pppoe-accel</code> (and <code>./le test qemu pppoe-accel</code>)</li>
+<li><strong>WAN DNS lease forwarding and DHCP self-DNS:</strong> <code>test/pppoe/dns-resolver-forward-ppp-lease.ci</code>, <code>test/dhcp/dhcp-server-dns-source-self.ci</code>, <code>test/plugin/show-interface-pppoe-client.ci</code>, and <code>test/plugin/show-system-dns.ci</code></li>
+</ul>
+<h2 id="current-limits">Current limits</h2>
+<ul>
+<li><strong>WAN client is PPPoE only:</strong> Ze has <code>interface { pppoe-client }</code> for CPE WANs. Ze's L2TP implementation is an RFC 2661 BNG LNS/LAC rather than a CPE L2TP client.</li>
+<li><strong>DHCPv4 server only:</strong> <code>service { dhcp-server }</code> serves IPv4 leases; LAN IPv6 hosts autoconfigure via SLAAC and Router Advertisements. There is no <code>show dhcp</code> lease table command yet.</li>
+<li><strong>Linux netlink backend required:</strong> <code>pppoe-client</code> and <code>router-advertisement</code> require Linux with <code>backend netlink</code>, and Router Advertisements require <code>ipv6 { forwarding true; }</code>.</li>
+<li><strong>Forwarding DNS resolver:</strong> <code>service { dns-resolver }</code> operates in forwarding mode over plain UDP/TCP only (no full root recursion, DNSSEC validation, DoT/DoH, or wildcard <code>0.0.0.0</code>/<code>::</code> listeners).</li>
+</ul>
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><a href="../../guides/pppoe/">PPPoE guide</a></li>
+<li><a href="../../guides/dns-resolver/">DNS resolver guide</a></li>
+<li><a href="../../features/interfaces/">Interfaces</a></li>
+<li><a href="../../labs/pppoe-interop/">PPPoE interop lab</a></li>
+</ul>
+</div>
+</div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Use case</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related usage</h2>
+                    <a class="page-sidebar-link" href="../../use-cases/">
+                        <span class="page-sidebar-link-label">All usage examples</span>
+                        <small>Return to the deployment examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to guides and references.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../features/bgp-protocol/">
+                        <span class="page-sidebar-link-label">BGP protocol</span>
+                        <small>Behavior used by the route examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label concept-evidence">Lab evidence</span>
+                        <small>Real-daemon interop evidence.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

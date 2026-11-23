@@ -9,7 +9,7 @@ Check environment values the answering process cannot use\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-cli:show-config-environment-validation`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

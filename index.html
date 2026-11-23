@@ -162,22 +162,22 @@
                                     </a>
                                     <p>
                                         <strong class="hero-release-title">Planned release</strong>
-                                        <span>Initial version</span><br /><span>Q4 2026</span>
+                                        <span>Initial version</span><br /><span>December 2026</span>
                                     </p>
                                 </div>
                             </div>
                             <div class="hero-project-metrics" aria-label="Project size and scope">
                                 <div class="hero-metrics-grid">
                                     <a class="hero-project-metric" href="project/activity/">
-                                        <strong><span data-ze-stat="repo.go_source_lines_display">1.96 million</span></strong>
+                                        <strong><span data-ze-stat="repo.go_source_lines_display">1.99 million</span></strong>
                                         <span>lines of Go source code</span>
                                     </a>
                                     <a class="hero-project-metric" href="project/activity/">
-                                        <strong><span data-ze-stat="repo.go_test_lines_display">2.37 million</span></strong>
+                                        <strong><span data-ze-stat="repo.go_test_lines_display">2.41 million</span></strong>
                                         <span>lines of Go test code</span>
                                     </a>
                                     <a class="hero-project-metric" href="project/activity/">
-                                        <strong><span data-ze-stat="repo.go_vendor_lines_display">2.06 million</span></strong>
+                                        <strong><span data-ze-stat="repo.go_vendor_lines_display">2.07 million</span></strong>
                                         <span>lines of third-party Go code</span>
                                     </a>
                                 </div>
@@ -198,7 +198,7 @@
             <section id="try" class="home-section-panel home-section-panel-try" aria-labelledby="try-title">
                 <div class="section-head reveal cat-meta">
                     <h2 id="try-title">Getting started with Ze.</h2>
-                    <p>Run the <a href="guides/quickstart/">two-peer BGP quickstart</a> by hand, or ask Claude Code or Codex to run it with Ze’s bundled skill. Works on a Linux or macOS development host with Go and Git.</p>
+                    <p>Run the <a href="guides/quickstart/">two-peer BGP quickstart</a> by hand, or ask Claude Code or Codex to run it with Ze’s bundled skill. Both paths start on a Linux lab host with Go and Git.</p>
                 </div>
                 <div class="terminal-panel reveal">
                     <div class="terminal" aria-label="Quick start commands">
@@ -207,7 +207,7 @@
                             <h3 class="terminal-title">By hand</h3>
                         </div>
                         <div class="terminal-body">
-                            <pre><code><span class="term-comment"># build from source (first run compiles bin/ze)</span>
+                            <pre><code><span class="term-comment"># build from source</span>
 <span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
 <span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze &amp;&amp; ./ze version
 
@@ -220,7 +220,7 @@
 <span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r1/ze.conf
 <span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r2/ze.conf
 
-<span class="term-comment"># inspect received routes (expects 198.51.100.0/24 on r1)</span>
+<span class="term-comment"># inspect received routes from a third terminal</span>
 <span class="term-prompt">$</span> ZE_SSH_PASSWORD=lab ./ze <span class="term-cmd">cli</span> --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"</code></pre>
                         </div>
                     </div>
@@ -439,24 +439,28 @@ Keep the logs if a check fails.</code></pre>
                     <div><span class="index4-badge">By use case</span><h3>Start with the role you have in mind.</h3>
                         <p>Inspect the requirements and remaining gaps for your network role, alongside the feature maturity information.</p></div>
                     <div class="index4-role-actions"><a class="button" href="quality/rfc-compliance/profiles/">See completion by use case →</a>
-                        <a href="compare/">Compare with BIRD, FRR and VyOS</a><a href="performance/">BGP benchmarks</a><a href="quality/">How Ze is tested</a></div>
+                        <a href="compare/">Compare with BIRD, FRR and VyOS</a><a href="performance/">BGP benchmarks</a><a href="quality/">How Ze is tested</a><a href="#why-ze">Watch the configuration demo</a></div>
                 </div>
                 <div class="index4-evidence-top">
                     <article class="index4-metric-panel" aria-labelledby="index4-rfc-title">
                         <span class="index4-badge concept-evidence">Standards requirements</span>
                         <h3 id="index4-rfc-title">Mandatory RFC requirements proven</h3>
-                        <p class="index4-big-figure"><span data-ze-stat="rfc.proven_percent">54.9</span><span class="index4-percent">%</span></p>
-                        <p><span data-ze-stat="rfc.proven_display">2,626</span> of <span data-ze-stat="rfc.must_kept_display">4,779</span> requirements for Ze or the OS.</p>
+                        <p class="index4-big-figure"><span data-ze-stat="rfc.proven_percent">57.7</span><span class="index4-percent">%</span></p>
+                        <p><span data-ze-stat="rfc.proven_display">2,725</span> of all <span data-ze-stat="rfc.must_kept_display">4,724</span> MUSTs for Ze or the OS, including the <span data-ze-stat="rfc.must_not_built_display">1,342</span> for parts of an RFC Ze does not build today, which need no test until they are built.</p>
+                        <p class="index4-big-figure"><span data-ze-stat="rfc.proven_built_percent">80.6</span><span class="index4-percent">%</span></p>
+                        <p><span data-ze-stat="rfc.proven_display">2,725</span> of the <span data-ze-stat="rfc.must_built_display">3,382</span> MUSTs for what Ze builds. This shows how well the features Ze ships are tested.</p>
                         <div class="index4-small-figures"><div><b><span data-ze-stat="rfc.implemented_display">198</span></b><span>RFCs implemented</span></div>
                             <div><b><span data-ze-stat="rfc.not_walked_display">0</span></b><span>unreviewed requirement lists excluded</span></div></div>
                         <p class="index4-panel-note">Each test identifies the requirement it checks. The ledger names the evidence and missing coverage.</p>
-                        <details class="index4-method" open><summary>Our testing goal</summary><p>We want the strongest testing possible to catch bugs and prevent regressions. Our goal is to test every applicable MUST requirement in the RFCs Ze implements, wherever testing is possible, and to prove that those tests detect a broken implementation.</p><p>Later RFCs can update or replace earlier requirements, so our tests must follow the standards as they apply today. The figure above shows how much of that goal we have proven so far.</p></details>
+                        <details class="index4-method" open><summary>Our testing goal</summary><p>We want the strongest testing possible to catch bugs and prevent regressions. Our goal is to test every applicable MUST requirement in the RFCs Ze implements, wherever testing is possible, and to prove that those tests detect a broken implementation.</p><p>Later RFCs can update or replace earlier requirements, so our tests must follow the standards as they apply today. The first figure above shows how much of that goal we have proven so far.</p></details>
+                        <details class="index4-method"><summary>Counting history</summary><p>2026-11-23: superseded requirements satisfied by an implemented successor count as complete; operator, topology, IANA/IETF, and section-scoped non-Ze role rules leave the denominator; custom operator overrides do not mark a compliant default path partial.</p><p>2026-11-13: OS-verified requirements joined the verified numerator and the built-features percentage was added.</p><p>Until 2026-10-31: all mandatory rows counted, including annotated rows; summary rows excluded.</p></details>
                         <a class="index4-evidence-link" href="quality/rfc-compliance/">Standards requirements and test results →</a>
+                        <p class="index4-panel-note">The <a href="quality/rfc-map/">RFC dependency map</a> shows each standard and its coverage visually.</p>
                     </article>
                     <article class="index4-metric-panel" aria-labelledby="index4-interop-title">
                         <span class="index4-badge concept-evidence">Tests with other implementations</span>
                         <h3 id="index4-interop-title">Interoperability scenarios</h3>
-                        <p class="index4-big-figure"><span data-ze-stat="interop.scenarios">422</span></p>
+                        <p class="index4-big-figure"><span data-ze-stat="interop.scenarios">423</span></p>
                         <p>BGP sessions, routes, policy and recovery, alongside routing, VPN, access and multi-node cases.</p>
                         <div class="index4-small-figures"><div><b><span data-ze-stat="interop.suite_count">8</span></b><span>lab suites</span></div>
                             <div><b><span data-ze-stat="interop.target_display">13</span></b><span>test images listed</span></div></div>
@@ -473,13 +477,13 @@ Keep the logs if a check fails.</code></pre>
                     </article>
                 </div>
                 <section class="index4-scenario-panel" aria-labelledby="index4-scenario-title">
-                    <div class="index4-scenario-heading"><div><span class="index4-kicker">The scenarios behind the figure</span><h3 id="index4-scenario-title">Where the <span data-ze-stat="interop.scenarios">422</span> scenarios are defined.</h3></div>
+                    <div class="index4-scenario-heading"><div><span class="index4-kicker">The scenarios behind the figure</span><h3 id="index4-scenario-title">Where the <span data-ze-stat="interop.scenarios">423</span> scenarios are defined.</h3></div>
                         <a href="labs/bgp-interop/">Explore the BGP lab →</a></div>
                     <table class="index4-scenario-table" role="table">
                         <caption>Scenario inventory across <span data-ze-stat="interop.suite_count">8</span> lab suites. The shared suite is split by primary protocol; the two RADIUS suites are combined.</caption>
                         <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Protocol or test area</th><th scope="col" role="columnheader">Scenarios</th><th scope="col" role="columnheader">What the cases cover</th></tr></thead>
                         <tbody role="rowgroup">
-                            <tr role="row"><th scope="row" role="rowheader">BGP</th><td role="cell"><span data-ze-stat="interop.protocols.bgp">154</span></td><td role="cell">Route exchange, path attributes, graceful restart, route reflection, route-server and session cases.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">BGP</th><td role="cell"><span data-ze-stat="interop.protocols.bgp">155</span></td><td role="cell">Route exchange, path attributes, graceful restart, route reflection, route-server and session cases.</td></tr>
                             <tr role="row"><th scope="row" role="rowheader">OSPFv2</th><td role="cell"><span data-ze-stat="interop.protocols.ospfv2">36</span></td><td role="cell">Adjacencies, authentication, areas, LSAs, route policy and recovery.</td></tr>
                             <tr role="row"><th scope="row" role="rowheader">OSPFv3</th><td role="cell"><span data-ze-stat="interop.protocols.ospfv3">20</span></td><td role="cell">IPv6 adjacencies, address families, IPv4 over OSPFv3, IPsec protection and recovery.</td></tr>
                             <tr role="row"><th scope="row" role="rowheader">IS-IS</th><td role="cell"><span data-ze-stat="interop.protocols.isis">16</span></td><td role="cell">Adjacencies, authentication, levels, metrics, route policy and convergence.</td></tr>
@@ -501,11 +505,11 @@ Keep the logs if a check fails.</code></pre>
                             <tr role="row"><th scope="row" role="rowheader">Multi-node topologies</th><td role="cell"><span data-ze-stat="interop.protocols.topology">18</span></td><td role="cell">Links, routes and service interactions between nodes.</td></tr>
                             <tr role="row"><th scope="row" role="rowheader">Other protocols</th><td role="cell"><span data-ze-stat="interop.protocols.other">1</span></td><td role="cell">Scenarios whose primary protocol is outside the named rows.</td></tr>
                         </tbody>
-                        <tfoot role="rowgroup"><tr role="row"><th scope="row" role="rowheader">All scenarios</th><td role="cell"><span data-ze-stat="interop.scenarios">422</span></td><td role="cell">Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests.</td></tr></tfoot>
+                        <tfoot role="rowgroup"><tr role="row"><th scope="row" role="rowheader">All scenarios</th><td role="cell"><span data-ze-stat="interop.scenarios">423</span></td><td role="cell">Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests.</td></tr></tfoot>
                     </table>
                 </section>
                 <div class="index4-test-grid" aria-label="Other test layers">
-                    <article><span class="index4-badge concept-evidence">Package behavior</span><h3>Go tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.unit_display">53,100+</span></p>
+                    <article><span class="index4-badge concept-evidence">Package behavior</span><h3>Go tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.unit_display">53,500+</span></p>
                         <p>Check encoded bytes and parsed values. Verify configuration, state transitions and plugins.
                             Mutation checks with gomu examine whether tests catch code changes.</p><a href="quality/unit-fuzz-mutation/">Go tests and mutation checks →</a></article>
                     <article><span class="index4-badge concept-evidence">Visible behavior</span><h3>End-to-end tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.e2e_display">3,200+</span></p>
@@ -520,10 +524,10 @@ Keep the logs if a check fails.</code></pre>
                 <div class="interop-strip" aria-label="Implementations Ze is tested against">
                     <span class="interop-strip-label concept-evidence">Tested against</span>
                     <div class="interop-groups">
-                        <span class="interop-group"><b>BGP</b><a class="concept-software" href="labs/bgp-interop/">FRR</a><a class="concept-software" href="labs/bgp-interop/">BIRD</a><a class="concept-software" href="labs/bgp-interop/">GoBGP</a><a class="concept-software" href="labs/bgp-interop/">OpenBGPd</a><a class="concept-software" href="labs/bgp-interop/">FreeRtr</a><a class="concept-software" href="labs/bgp-interop/">RustyBGP</a><a class="concept-software" href="labs/bgp-interop/">rustbgpd</a><a class="concept-software" href="features/exabgp-compatibility/">ExaBGP</a></span>
+                        <span class="interop-group"><b>BGP</b><a class="concept-software" href="labs/bgp-interop/">FRR</a><a class="concept-software" href="labs/bgp-interop/">BIRD</a><a class="concept-software" href="labs/bgp-interop/">GoBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">OpenBGPd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRtr</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">RustyBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">rustbgpd</a><a class="concept-software" href="features/exabgp-compatibility/">ExaBGP</a></span>
                         <span class="interop-group"><b>BGP support</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">StayRTR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">pmacct</a></span>
                         <span class="interop-group"><b>VPN</b><a class="concept-software" href="labs/ipsec-interop/">strongSwan</a></span>
-                        <span class="interop-group"><b>Access</b><a class="concept-software" href="labs/pppoe-interop/">accel-ppp</a><a class="concept-software" href="labs/l2tp-interop/">xl2tpd</a><a class="concept-software" href="labs/l2tp-interop/">kl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
+                        <span class="interop-group"><b>Access</b><a class="concept-software" href="labs/pppoe-interop/">accel-ppp</a><a class="concept-software" href="labs/l2tp-interop/">xl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">kl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
                         <span class="interop-group"><b>Redundancy</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">keepalived</a></span>
                     </div>
                 </div>
@@ -665,8 +669,22 @@ Keep the logs if a check fails.</code></pre>
                             <span class="cat">Update</span>
                             <span class="home-update-number">01</span>
                         </div>
+                        <p class="home-update-date">2026-11-09 – 2026-11-23 (15 days)</p>
+                        <h3><a href="project/changes/2026-11-09/">BGP accepts RPKI Invalid routes unless told otherwise and sets itself as next hop towards eBGP peers, gNMI…</a></h3>
+                        <div class="home-update-tags">
+                            <span class="home-update-tag cat-routing">BGP</span>
+                            <span class="home-update-tag cat-services">IPsec</span>
+                            <span class="home-update-tag cat-automate">gNMI</span>
+                            <span class="home-update-tag cat-platform">Appliance</span>
+                        </div>
+                    </article>
+                    <article class="card card-post home-update-card cat-meta">
+                        <div class="home-update-head">
+                            <span class="cat">Update</span>
+                            <span class="home-update-number">02</span>
+                        </div>
                         <p class="home-update-date">2026-10-25 – 2026-11-09 (16 days)</p>
-                        <h3><a href="project/changes/2026-10-25/">RFC 8212 eBGP default-reject, shared multi-protocol policy, signed RADIUS answers and home FTTP CPE support.</a></h3>
+                        <h3><a href="project/changes/2026-10-25/">eBGP now rejects by default, routing policy is one shared tree for every protocol, RADIUS answers must be…</a></h3>
                         <div class="home-update-tags">
                             <span class="home-update-tag cat-routing">BGP</span>
                             <span class="home-update-tag cat-services">CPE</span>
@@ -677,27 +695,13 @@ Keep the logs if a check fails.</code></pre>
                     <article class="card card-post home-update-card cat-meta">
                         <div class="home-update-head">
                             <span class="cat">Update</span>
-                            <span class="home-update-number">02</span>
+                            <span class="home-update-number">03</span>
                         </div>
                         <p class="home-update-date">2026-10-12 – 2026-10-25 (2 weeks)</p>
-                        <h3><a href="project/changes/2026-10-12/">Stricter config validation, IPsec drop-by-default, BGP filter updates, OSPF unnumbered links and DHCP fixes.</a></h3>
+                        <h3><a href="project/changes/2026-10-12/">Two weeks of stricter configuration, an IPsec drop-by-default policy and BGP filter changes, plus BGP…</a></h3>
                         <div class="home-update-tags">
                             <span class="home-update-tag cat-routing">BGP</span>
                             <span class="home-update-tag cat-services">DHCP</span>
-                            <span class="home-update-tag cat-operate">Config</span>
-                            <span class="home-update-tag cat-automate">API</span>
-                        </div>
-                    </article>
-                    <article class="card card-post home-update-card cat-meta">
-                        <div class="home-update-head">
-                            <span class="cat">Update</span>
-                            <span class="home-update-number">03</span>
-                        </div>
-                        <p class="home-update-date">2026-10-05 – 2026-10-11 (1 week)</p>
-                        <h3><a href="project/changes/2026-10-05/">Safer configuration commits, API changes and a new appliance kernel, plus BGP, RSVP-TE and IPsec fixes.</a></h3>
-                        <div class="home-update-tags">
-                            <span class="home-update-tag cat-routing">BGP</span>
-                            <span class="home-update-tag cat-services">IPsec</span>
                             <span class="home-update-tag cat-operate">Config</span>
                             <span class="home-update-tag cat-automate">API</span>
                         </div>
@@ -721,7 +725,7 @@ Keep the logs if a check fails.</code></pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="license/">Ze is AGPLv3 open source.</a>
                     <a href="legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 05:55 UTC</span>
                 </div>
             </div>
         </footer>

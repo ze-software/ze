@@ -5,7 +5,15 @@
         <link>https://ze-software.net/blog/</link>
         <description>Editorial articles on Ze.</description>
         <language>en</language>
-        <lastBuildDate>Sat, 22 Aug 2026 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Sun, 22 Nov 2026 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>One configuration engine, many protocols</title>
+            <link>https://ze-software.net/blog/one-engine-any-plugin/</link>
+            <guid isPermaLink="true">https://ze-software.net/blog/one-engine-any-plugin/</guid>
+            <pubDate>Sun, 22 Nov 2026 00:00:00 +0000</pubDate>
+            <dc:creator>Thomas Mangin</dc:creator>
+            <description>How Ze uses YANG to validate changes across plugins, orders their application and lets operators roll back an unconfirmed remote change.</description>
+        </item>
         <item>
             <title>Keeping documentation in step with the code</title>
             <link>https://ze-software.net/blog/reference-from-the-system/</link>

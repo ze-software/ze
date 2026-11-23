@@ -337,12 +337,12 @@ per-identity tokens:</p>
 <td><code>bind-remote requires auth-mode != none</code></td>
 </tr>
 <tr>
-<td><code>auth-mode bearer</code> + non-loopback listener without TLS</td>
-<td><code>auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners</code></td>
+<td>Any non-loopback listener without TLS (<code>bearer</code>, <code>bearer-list</code>, <code>oauth</code>, or a token alone)</td>
+<td><code>refusing to start MCP on non-loopback listener "&lt;addr&gt;" without TLS</code>, fix <code>set environment mcp tls cert &lt;cert.pem&gt; and set environment mcp tls key &lt;key.pem&gt;</code></td>
 </tr>
 <tr>
-<td><code>auth-mode bearer-list</code> + non-loopback listener without TLS</td>
-<td><code>auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners</code></td>
+<td>A non-loopback listener whose mode does not authenticate</td>
+<td><code>refusing to start MCP on non-loopback listener "&lt;addr&gt;" without authentication</code></td>
 </tr>
 <tr>
 <td><code>auth-mode oauth</code> without <code>oauth.authorization-server</code></td>
@@ -351,10 +351,6 @@ per-identity tokens:</p>
 <tr>
 <td><code>auth-mode oauth</code> without <code>oauth.audience</code></td>
 <td><code>auth-mode=oauth requires oauth.audience</code></td>
-</tr>
-<tr>
-<td><code>auth-mode oauth</code> + non-loopback listener without TLS</td>
-<td><code>auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners</code></td>
 </tr>
 <tr>
 <td><code>auth-mode bearer-list</code> without any <code>identity</code> entries</td>
@@ -374,10 +370,13 @@ per-identity tokens:</p>
 </tr>
 </tbody>
 </table>
-<p>These checks run before MCP starts, and live address migration (<code>Reconfigure</code>)
-refuses to move a plaintext <code>bearer</code>, <code>bearer-list</code>, or <code>oauth</code> listener off
-loopback. A remote authenticated listener cannot silently fall back to
-plaintext, and a partial TLS configuration is never ignored.</p>
+<p>The two exposure rows are the management-listener rule gNMI follows
+(<a href="../../authentication/#remote-management-listener-guard">Remote management listener guard</a>).
+The daemon applies them at start to the address it actually binds, from the
+config, <code>--mcp</code> or <code>ze.mcp.listen</code>, and refuses to start, so <code>ze config validate</code>, <code>ze doctor</code> and <code>ze start</code> agree. Live address migration
+(<code>Reconfigure</code>) refuses to move a listener off loopback without them. A
+remote authenticated listener cannot silently fall back to plaintext, and a
+partial TLS configuration is never ignored.</p>
 <h2 id="security-notes">Security Notes</h2>
 <ul>
 <li>With <code>bind-remote false</code> (default), every server entry is force-rewritten
@@ -450,7 +449,7 @@ spray cannot trigger a JWKS-fetch flood against the AS.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

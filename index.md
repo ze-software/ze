@@ -56,16 +56,16 @@ A frame from the published terminal recording. Explore the recordings in the dem
  [![Zeledon, the Ze bird mascot](https://ze-software.net/assets/zeledon.svg)](https://ze-software.net/zeledon/)
 
 **Planned release** Initial version
-Q4 2026
+December 2026
 
- [**1.96 million** lines of Go source code](https://ze-software.net/project/activity/) [**2.37 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.06 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/cli-commands/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
+ [**1.99 million** lines of Go source code](https://ze-software.net/project/activity/) [**2.41 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.07 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/cli-commands/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
 
 ## Getting started with Ze.
 
-Run the [two-peer BGP quickstart](https://ze-software.net/guides/quickstart/) by hand, or ask Claude Code or Codex to run it with Ze’s bundled skill. Works on a Linux or macOS development host with Go and Git.
+Run the [two-peer BGP quickstart](https://ze-software.net/guides/quickstart/) by hand, or ask Claude Code or Codex to run it with Ze’s bundled skill. Both paths start on a Linux lab host with Go and Git.
 
 ```
-# build from source (first run compiles bin/ze)
+# build from source
 $ git clone https://github.com/ze-software/ze.git
 $ cd ze && ./ze version
 
@@ -78,7 +78,7 @@ $ cp examples/quickstart/r2.conf lab/r2/ze.conf
 $ ./ze start lab/r1/ze.conf
 $ ./ze start lab/r2/ze.conf
 
-# inspect received routes (expects 198.51.100.0/24 on r1)
+# inspect received routes from a third terminal
 $ ZE_SSH_PASSWORD=lab ./ze cli --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"
 ```
 
@@ -212,13 +212,17 @@ Go tests, complete operator scenarios, generated inputs and exchanges with other
 
 Inspect the requirements and remaining gaps for your network role, alongside the feature maturity information.
 
- [See completion by use case →](https://ze-software.net/quality/rfc-compliance/profiles/) [Compare with BIRD, FRR and VyOS](https://ze-software.net/compare/)[BGP benchmarks](https://ze-software.net/performance/)[How Ze is tested](https://ze-software.net/quality/) Standards requirements
+ [See completion by use case →](https://ze-software.net/quality/rfc-compliance/profiles/) [Compare with BIRD, FRR and VyOS](https://ze-software.net/compare/)[BGP benchmarks](https://ze-software.net/performance/)[How Ze is tested](https://ze-software.net/quality/)Watch the configuration demo Standards requirements
 
 ### Mandatory RFC requirements proven
 
-54.9%
+57.7%
 
-2,626 of 4,779 requirements for Ze or the OS.
+2,725 of all 4,724 MUSTs for Ze or the OS, including the 1,342 for parts of an RFC Ze does not build today, which need no test until they are built.
+
+80.6%
+
+2,725 of the 3,382 MUSTs for what Ze builds. This shows how well the features Ze ships are tested.
 
 **198**RFCs implemented **0**unreviewed requirement lists excluded
 
@@ -228,13 +232,25 @@ Each test identifies the requirement it checks. The ledger names the evidence an
 
 We want the strongest testing possible to catch bugs and prevent regressions. Our goal is to test every applicable MUST requirement in the RFCs Ze implements, wherever testing is possible, and to prove that those tests detect a broken implementation.
 
-Later RFCs can update or replace earlier requirements, so our tests must follow the standards as they apply today. The figure above shows how much of that goal we have proven so far.
+Later RFCs can update or replace earlier requirements, so our tests must follow the standards as they apply today. The first figure above shows how much of that goal we have proven so far.
 
- [Standards requirements and test results →](https://ze-software.net/quality/rfc-compliance/) Tests with other implementations
+**Counting history**
+
+2026-11-23: superseded requirements satisfied by an implemented successor count as complete; operator, topology, IANA/IETF, and section-scoped non-Ze role rules leave the denominator; custom operator overrides do not mark a compliant default path partial.
+
+2026-11-13: OS-verified requirements joined the verified numerator and the built-features percentage was added.
+
+Until 2026-10-31: all mandatory rows counted, including annotated rows; summary rows excluded.
+
+ [Standards requirements and test results →](https://ze-software.net/quality/rfc-compliance/)
+
+The [RFC dependency map](https://ze-software.net/quality/rfc-map/) shows each standard and its coverage visually.
+
+ Tests with other implementations
 
 ### Interoperability scenarios
 
-422
+423
 
 BGP sessions, routes, policy and recovery, alongside routing, VPN, access and multi-node cases.
 
@@ -246,13 +262,13 @@ A scenario can contain many checks, and many scenarios reuse the same peer imple
 
  [Docker scenarios and peer checks →](https://ze-software.net/quality/qemu-interop-release/#docker-interop) The scenarios behind the figure
 
-### Where the 422 scenarios are defined.
+### Where the 423 scenarios are defined.
 
  [Explore the BGP lab →](https://ze-software.net/labs/bgp-interop/)
 
 | Protocol or test area | Scenarios | What the cases cover |
 | --- | --- | --- |
-| BGP | 154 | Route exchange, path attributes, graceful restart, route reflection, route-server and session cases. |
+| BGP | 155 | Route exchange, path attributes, graceful restart, route reflection, route-server and session cases. |
 | OSPFv2 | 36 | Adjacencies, authentication, areas, LSAs, route policy and recovery. |
 | OSPFv3 | 20 | IPv6 adjacencies, address families, IPv4 over OSPFv3, IPsec protection and recovery. |
 | IS-IS | 16 | Adjacencies, authentication, levels, metrics, route policy and convergence. |
@@ -273,13 +289,13 @@ A scenario can contain many checks, and many scenarios reuse the same peer imple
 | RSVP-TE | 10 | Transit, label and signaling scenarios. |
 | Multi-node topologies | 18 | Links, routes and service interactions between nodes. |
 | Other protocols | 1 | Scenarios whose primary protocol is outside the named rows. |
-| All scenarios | 422 | Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests. |
+| All scenarios | 423 | Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests. |
 
  Package behavior
 
 ### Go tests
 
-53,100+
+53,500+
 
 Check encoded bytes and parsed values. Verify configuration, state transitions and plugins. Mutation checks with gomu examine whether tests catch code changes.
 
@@ -303,7 +319,7 @@ Generate inputs for parsers and decoders. Probe packets and configuration text f
 
 Ze is written with AI agents working under a quality process based on ISO management systems. [How Ze is developed with AI](https://ze-software.net/project/ai-development/) explains the process.
 
- Tested against **BGP**[FRR](https://ze-software.net/labs/bgp-interop/)[BIRD](https://ze-software.net/labs/bgp-interop/)[GoBGP](https://ze-software.net/labs/bgp-interop/)[OpenBGPd](https://ze-software.net/labs/bgp-interop/)[FreeRtr](https://ze-software.net/labs/bgp-interop/)[RustyBGP](https://ze-software.net/labs/bgp-interop/)[rustbgpd](https://ze-software.net/labs/bgp-interop/)[ExaBGP](https://ze-software.net/features/exabgp-compatibility/) **BGP support**[StayRTR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[pmacct](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **VPN**[strongSwan](https://ze-software.net/labs/ipsec-interop/) **Access**[accel-ppp](https://ze-software.net/labs/pppoe-interop/)[xl2tpd](https://ze-software.net/labs/l2tp-interop/)[kl2tpd](https://ze-software.net/labs/l2tp-interop/)[FreeRADIUS](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Redundancy**[keepalived](https://ze-software.net/quality/qemu-interop-release/#docker-interop)
+ Tested against **BGP**[FRR](https://ze-software.net/labs/bgp-interop/)[BIRD](https://ze-software.net/labs/bgp-interop/)[GoBGP](https://ze-software.net/labs/bgp-interop/)[OpenBGPd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRtr](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[RustyBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[rustbgpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[ExaBGP](https://ze-software.net/features/exabgp-compatibility/) **BGP support**[StayRTR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[pmacct](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **VPN**[strongSwan](https://ze-software.net/labs/ipsec-interop/) **Access**[accel-ppp](https://ze-software.net/labs/pppoe-interop/)[xl2tpd](https://ze-software.net/labs/l2tp-interop/)[kl2tpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRADIUS](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Redundancy**[keepalived](https://ze-software.net/quality/qemu-interop-release/#docker-interop)
 
 ## Capabilities and current limitations.
 
@@ -375,30 +391,30 @@ The update reports describe changes recorded in git and shared in Discord's `ze-
 
  01
 
-2026-10-25 – 2026-11-09 (16 days)
+2026-11-09 – 2026-11-23 (15 days)
 
-### [RFC 8212 eBGP default-reject, shared multi-protocol policy, signed RADIUS answers and home FTTP CPE support.](https://ze-software.net/project/changes/2026-10-25/)
+### [BGP accepts RPKI Invalid routes unless told otherwise and sets itself as next hop towards eBGP peers, gNMI…](https://ze-software.net/project/changes/2026-11-09/)
 
- BGP CPE gNMI Config
+ BGP IPsec gNMI Appliance
 
 **Update**
 
  02
 
-2026-10-12 – 2026-10-25 (2 weeks)
+2026-10-25 – 2026-11-09 (16 days)
 
-### [Stricter config validation, IPsec drop-by-default, BGP filter updates, OSPF unnumbered links and DHCP fixes.](https://ze-software.net/project/changes/2026-10-12/)
+### [eBGP now rejects by default, routing policy is one shared tree for every protocol, RADIUS answers must be…](https://ze-software.net/project/changes/2026-10-25/)
 
- BGP DHCP Config API
+ BGP CPE gNMI Config
 
 **Update**
 
  03
 
-2026-10-05 – 2026-10-11 (1 week)
+2026-10-12 – 2026-10-25 (2 weeks)
 
-### [Safer configuration commits, API changes and a new appliance kernel, plus BGP, RSVP-TE and IPsec fixes.](https://ze-software.net/project/changes/2026-10-05/)
+### [Two weeks of stricter configuration, an IPsec drop-by-default policy and BGP filter changes, plus BGP…](https://ze-software.net/project/changes/2026-10-12/)
 
- BGP IPsec Config API - [See all updates](https://ze-software.net/project/changes/)
+ BGP DHCP Config API - [See all updates](https://ze-software.net/project/changes/)
 - [Read the engineering blog](https://ze-software.net/blog/)
 - [View the release roadmap](https://ze-software.net/project/roadmap/)

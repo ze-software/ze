@@ -9,7 +9,7 @@ List every event type you can subscribe to\.
 - Mode: Read\-only
 - Wire method: `ze-meta:bgp-event-list`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

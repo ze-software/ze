@@ -9,7 +9,7 @@ Get a quick RIB overview without dumping routes\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:rib-status`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

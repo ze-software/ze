@@ -9,7 +9,7 @@ Print the agent reference this binary builds from its own registries\.
 - Mode: Read\-only
 - Wire method: `ze-help:show-command-reference`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: blob
 - Address fields: none

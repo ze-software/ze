@@ -9,7 +9,7 @@ Show the startup convergence hold and what it waits for\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:update-delay`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

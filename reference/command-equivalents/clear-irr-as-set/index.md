@@ -9,7 +9,7 @@ Remove the stored IRR dataset of an AS\-SET\.
 - Mode: Daemon
 - Wire method: `ze-irr:clear-irr-as-set`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

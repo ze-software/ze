@@ -9,7 +9,7 @@ Show the Router Information LSAs \(RFC 7770\) for both address families\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-database-router-information`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

@@ -9,7 +9,7 @@ Look up which route the kernel would use for a given IP\.
 - Mode: Read\-only
 - Wire method: `ze-iface:show-route-lookup`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

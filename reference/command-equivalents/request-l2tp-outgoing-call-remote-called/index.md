@@ -9,7 +9,7 @@ Place an LNS\-side outgoing call \(RFC 2661 S10\.4\)\.
 - Mode: Daemon
 - Wire method: `ze-l2tp:outgoing-call`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

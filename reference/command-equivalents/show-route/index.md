@@ -9,7 +9,7 @@ Show the kernel routing table\.
 - Mode: Read\-only
 - Wire method: `ze-iface:show-route`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `lookup`
 - Answer shape: not declared
 - Address fields: none

@@ -9,7 +9,7 @@ Collect logs\, config\, state and diagnostics into one archive\.
 - Mode: daemon\, offline
 - Wire method: `ze-support:request-support-archive`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

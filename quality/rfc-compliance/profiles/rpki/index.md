@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 
 ## Figures
 
-- **MUST bar**: Ze verified 34, Tests awaiting verification 4, Not built 99
-- **Overview bar**: Ze MUST verified 34, SHOULD verified 6, Not owed 5, Tests awaiting verification 4, Not assessed 72, Not built 101
+- **MUST bar**: Ze verified 67, Tests awaiting verification 2, Not built 66
+- **Overview bar**: Ze MUST verified 67, SHOULD verified 14, Not owed 7, Tests awaiting verification 2, Not assessed 64, Not built 68
 
 | Figure | Rows |
 |---|---|
@@ -19,20 +19,20 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 | Requirements not reviewed | 1 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 142 |
-| MUST rows kept (the MUST bar) | 137 |
-| Ze verified | 34 |
+| MUST rows kept (the MUST bar) | 135 |
+| Ze verified | 67 |
 | OS verified | 0 |
-| Tests awaiting verification | 4 |
+| Tests awaiting verification | 2 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 99 |
-| MUST rows not owed | 5 |
+| Not built | 66 |
+| MUST rows not owed | 7 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 5 |
+| MUST not owed: not-applicable | 7 |
 | SHOULD / MAY rows | 80 |
-| SHOULD verified | 6 |
+| SHOULD verified | 14 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -41,7 +41,7 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
-| SHOULD not assessed | 72 |
+| SHOULD not assessed | 64 |
 | SHOULD not built | 2 |
 
 The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
@@ -72,16 +72,16 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6810](../../rfc6810/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol | Not built 38 | Not owed 2, Not assessed 28, Not built 38 |
-| [RFC 8097](../../rfc8097/) | BGP Prefix Origin Validation State Extended Community | Not built 5 | Not assessed 5, Not built 5 |
-| [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | Not built 4 | Not assessed 2, Not built 4 |
+| [RFC 6810](../../rfc6810/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol | Ze verified 20, Not built 17 | Ze MUST verified 20, SHOULD verified 8, Not owed 3, Not assessed 20, Not built 17 |
+| [RFC 8097](../../rfc8097/) | BGP Prefix Origin Validation State Extended Community | Ze verified 5 | Ze MUST verified 5, Not assessed 5 |
+| [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | Ze verified 2, Tests awaiting verification 2 | Ze MUST verified 2, Tests awaiting verification 2, Not assessed 2 |
 | [RFC 9319](../../rfc9319/) | The Use of maxLength in the Resource Public Key Infrastructure (RPKI) | Not built 4 | Not assessed 7, Not built 4 |
 
 ### Level 9
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | Ze verified 29, Tests awaiting verification 4, Not built 23 | Ze MUST verified 29, SHOULD verified 6, Not owed 3, Tests awaiting verification 4, Not assessed 19, Not built 25 |
+| [RFC 8210](../../rfc8210/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1 | Ze verified 35, Not built 20 | Ze MUST verified 35, SHOULD verified 6, Not owed 4, Not assessed 19, Not built 22 |
 
 ### Level 10
 

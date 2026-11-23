@@ -9,7 +9,7 @@ Check the integrity of the store\'s entries and config history\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-storage:show-data-check`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

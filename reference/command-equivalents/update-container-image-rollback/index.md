@@ -9,7 +9,7 @@ Return a container to its previous image\: name \<container\>\.
 - Mode: Daemon
 - Wire method: `not listed`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `name`
 - Answer shape: doc
 - Address fields: none

@@ -9,7 +9,7 @@ Show which handler serves each YANG module\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-schema:show-schema-handlers`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

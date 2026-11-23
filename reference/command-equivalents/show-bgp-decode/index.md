@@ -9,7 +9,7 @@ Decode a hex\-encoded BGP message into readable JSON\.
 - Mode: read\-only\, offline
 - Wire method: `ze-bgp:show-decode`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

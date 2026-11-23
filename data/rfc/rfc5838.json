@@ -7,16 +7,18 @@
   "implemented": true,
   "must": {
     "total": 16,
-    "kept": 16,
+    "kept": 15,
     "ze-proven": 4,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 3,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 9,
-    "not-owed": 0,
-    "not-owed-by-kind": {}
+    "not-built": 8,
+    "not-owed": 1,
+    "not-owed-by-kind": {
+      "not-applicable": 1
+    }
   },
   "should": {
     "total": 11,
@@ -41,7 +43,6 @@
     "RFC5838-2.7-3",
     "RFC5838-2.7-4",
     "RFC5838-2.7-8",
-    "RFC5838-4-1",
-    "RFC5838-5-3"
+    "RFC5838-4-1"
   ]
 }

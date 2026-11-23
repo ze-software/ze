@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-communities-polic
 
 ## Figures
 
-- **MUST bar**: Ze verified 43, Not built 6
-- **Overview bar**: Ze MUST verified 43, SHOULD verified 4, Not assessed 33, Not built 6
+- **MUST bar**: Ze verified 44, Not built 2
+- **Overview bar**: Ze MUST verified 44, SHOULD verified 4, Not owed 3, Not assessed 33, Not built 2
 
 | Figure | Rows |
 |---|---|
@@ -17,18 +17,18 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-communities-polic
 | Requirements not reviewed | 1 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 49 |
-| MUST rows kept (the MUST bar) | 49 |
-| Ze verified | 43 |
+| MUST rows kept (the MUST bar) | 46 |
+| Ze verified | 44 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 6 |
-| MUST rows not owed | 0 |
+| Not built | 2 |
+| MUST rows not owed | 3 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 0 |
+| MUST not owed: not-applicable | 3 |
 | SHOULD / MAY rows | 37 |
 | SHOULD verified | 4 |
 | SHOULD OS verified | 0 |
@@ -71,7 +71,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 3765](../../rfc3765/) | NOPEER Community for Border Gateway Protocol (BGP) Route Scope Control | no rows | Not assessed 2 |
-| [RFC 4360](../../rfc4360/) | BGP Extended Communities Attribute | Ze verified 3, Not built 2 | Ze MUST verified 3, Not assessed 4, Not built 2 |
+| [RFC 4360](../../rfc4360/) | BGP Extended Communities Attribute | Ze verified 3 | Ze MUST verified 3, Not owed 2, Not assessed 4 |
 
 ### Level 6
 
@@ -83,10 +83,10 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7611](../../rfc7611/) | BGP ACCEPT_OWN Community Attribute | Ze verified 3, Not built 2 | Ze MUST verified 3, Not assessed 3, Not built 2 |
+| [RFC 7611](../../rfc7611/) | BGP ACCEPT_OWN Community Attribute | Ze verified 5 | Ze MUST verified 5, Not assessed 3 |
 | [RFC 7999](../../rfc7999/) | BLACKHOLE Community | Ze verified 4 | Ze MUST verified 4, SHOULD verified 3, Not assessed 9 |
 | [RFC 8092](../../rfc8092/) | BGP Large Communities Attribute | Ze verified 7 | Ze MUST verified 7, Not assessed 4 |
-| [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | Ze verified 17, Not built 2 | Ze MUST verified 17, SHOULD verified 1, Not assessed 4, Not built 2 |
+| [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | Ze verified 16, Not built 2 | Ze MUST verified 16, SHOULD verified 1, Not owed 1, Not assessed 4, Not built 2 |
 
 ### Level 9
 

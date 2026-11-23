@@ -828,6 +828,11 @@ delivered to a new peer.</p>
 <td>The draft-simpson-idr-flowspec-redirect-02 Section 3 check on a FlowSpec rule from an EBGP peer that carries a redirect-to-IP action (0x0800) to next hop X. Ze finds the longest unicast match for X in the rule's own domain (a flow-vpn rule's Route Distinguisher); when its origin AS is not the peer's AS, Ze keeps the rule but drops the action: it installs the rule without 0x0800 and forwards it without 0x0800 and with a zero next-hop length. <code>false</code> turns the check off for the session. Also settable at the bgp and group levels; the peer's value beats the group's, and the group's beats the bgp level's</td>
 <td class="cell-no">✕</td>
 </tr>
+<tr>
+<td><code>session { flowspec-redirect-next-hop; }</code></td>
+<td>Enable the draft-simpson-idr-flowspec-redirect-02 Section 3 extension on this peer or group: carry a 4- or 16-octet MP_REACH_NLRI next hop when advertising or forwarding a FlowSpec route that carries the 0x0800 redirect/copy-to-IP-next-hop community. When <code>false</code> (the default), Ze enforces RFC 8955 Section 4 unconditionally and emits a zero-length next hop on every FlowSpec route. <code>ze exabgp migrate</code> enables this leaf automatically for migrated neighbors with Simpson redirect routes or an API process on a FlowSpec family</td>
+<td class="cell-no">✕</td>
+</tr>
 </tbody>
 </table>
 <p>For example, <code>timer { delay-open 5; }</code> holds the local OPEN for up to five
@@ -1399,7 +1404,7 @@ migrates to this container.</p>
 </tr>
 <tr>
 <td>Graceful Restart</td>
-<td><code>graceful-restart { restart-time 120; }</code></td>
+<td><code>graceful-restart { short-lived { restart-time 120; } }</code></td>
 <td>See <a href="../graceful-restart/">Graceful Restart guide</a></td>
 </tr>
 <tr>
@@ -2940,8 +2945,39 @@ the NIC it was written for. Discovery writes no override on an ethernet for this
 <p>Running <code>ze init</code> discovers OS interfaces via netlink (Linux) or stdlib (other platforms)
 and writes initial config to <code>&lt;name&gt;.conf</code>, named after the instance name it asked for, which
 is the file a bare <code>ze start</code> on that store reads. An instance name that is not a valid file
-stem (letters, digits and hyphens, up to 64) falls back to <code>ze.conf</code>, as <code>ze start</code> does.
-Each discovered interface gets an entry named
+stem (letters, digits and hyphens, up to 64) falls back to <code>ze.conf</code>, as <code>ze start</code> does.</p>
+<p>The config opens with the SSH listener on the host and port <code>ze init</code> asked for, the
+endpoint it also saves for <code>ze cli</code>, so the CLI reaches the daemon a bare <code>ze start</code>
+runs. With the defaults:</p>
+<pre><code>environment {
+    ssh {
+        enabled true;
+        server local {
+            ip 127.0.0.1;
+            port 2222;
+        }
+    }
+}
+</code></pre>
+<p>The discovered interfaces follow it: every one discovery finds, including the ones another
+program owns, such as <code>docker0</code> or a container's veth. A root ze then manages each of them.
+When discovery fails, <code>ze init</code> warns and still writes the listener.</p>
+<p>To choose, run <code>ze init --confirm</code>. After the instance name it asks about each discovered
+interface the config can hold, the loopback included, and writes only the ones answered
+yes. Each question names the kind and the device, then its MAC address, the bridge or bond
+it is a member of, and its kernel alias, the hints that say which program owns it:</p>
+<pre><code>veth veth1a2b (mac 0e:00:00:00:00:02, member of docker0, alias "container web"): write it into the config? yes/no:
+</code></pre>
+<p>Only an explicit answer decides: <code>yes</code> or <code>y</code> writes the device, and <code>no</code> or <code>n</code> leaves it
+out, in any case. There is no default. An empty line, or any other answer, is not
+accepted: <code>ze init</code> prints one line on stderr naming the answers it takes and asks about
+the same device again, until it gets one of the four. Piped input gives one line per
+answer in <code>ze interface scan</code> order, after the five credential lines, and a line that is
+not accepted is read the same way: the notice is printed and the next line answers the
+same device. Input that ends before every device is answered is refused and no store is
+written. The status line then reads <code>discovered &lt;n&gt; interface(s), wrote the &lt;m&gt; confirmed into the initial config</code>. <code>--confirm</code> is refused with <code>--seed</code>, <code>--managed</code> and
+<code>--from</code>, which write no discovered interface.</p>
+<p>Each discovered interface gets an entry named
 after its OS name, carrying one selector that binds it back to the device:</p>
 <table>
 <thead>
@@ -2974,10 +3010,11 @@ because it is the address the NIC already has. The created kinds keep the overri
 it is an instruction, and it pins the kernel's random choice across a recreate.</p>
 <p>The same selectors are written by the appliance's first boot, which merges the config
 template with its own on-device discovery.</p>
-<p>The <code>--seed</code> flag skips this discovery entirely: an appliance-image seed database must not
-bake the build host's interfaces into the active config (they belong to the wrong machine
-and would shadow the appliance's first-boot template). The appliance discovers its own
-interfaces at first boot instead.</p>
+<p>The <code>--seed</code> flag skips this discovery and writes no initial config at all, listener
+included: an appliance-image seed database must not bake the build host's interfaces into
+the active config (they belong to the wrong machine and would shadow the appliance's
+first-boot template). The appliance discovers its own interfaces at first boot instead.
+<code>--managed</code> writes none either: a managed client's first config comes from its hub.</p>
 <h3 id="example">Example</h3>
 <pre><code>interface {
     ethernet uplink {
@@ -6170,7 +6207,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 05:43 UTC</span>
                 </div>
             </div>
         </footer>

@@ -9,7 +9,7 @@ Show only area\-scope \(S2\/S1 \= 01\) LSAs\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-ospfv3-database-scope-area`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

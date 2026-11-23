@@ -9,7 +9,7 @@ Compare two configuration versions side by side\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-cli:show-config-diff`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
@@ -29,7 +29,7 @@ No command-specific arguments listed.
 
 ## Mapping intents
 
-### Compare candidate and running configuration
+### Show running\, candidate\, and diffed configuration
 
 Category: Configuration
 
@@ -49,4 +49,6 @@ No equivalent listed.
 
 ### VyOS
 - `compare` (verified, vyos\-cli)
-  - Intent: Compare candidate and running configuration
+  - Intent: Show running\, candidate\, and diffed configuration
+- `show configuration` (verified, vyos\-cli)
+  - Intent: Show running\, candidate\, and diffed configuration

@@ -6,7 +6,7 @@
             "columns": [
                 [
                     {"label_only": "Install"},
-                    {"href": "guides/ze-install/", "icon": "💿", "title": "Install Ze", "desc": "Build from source and install with sudo ./ze install, or compare Linux, Docker, VM and lab", "feature": true},
+                    {"href": "guides/ze-install/", "icon": "💿", "title": "Install Ze", "desc": "One command installs Ze: sudo ze install. Compare Linux, Docker, VM and lab", "feature": true},
                     {"href": "guides/quickstart/", "icon": "🚀", "title": "Quickstart", "desc": "Two local BGP peers and a received route"},
                     {"href": "guides/ubuntu-build-install/", "icon": "\ud83d\udc27", "title": "Build and install on Linux", "desc": "Build Ze, then install, upgrade or remove it with its own CLI"},
                     {"href": "guides/docker/", "icon": "📦", "title": "Docker", "desc": "Keep configuration and login across container recreation"},
@@ -73,6 +73,8 @@
                     {"href": "use-cases/transit-edge-rpki/", "icon": "🔏", "title": "Transit edge with RPKI", "desc": "Dual-transit policy and tested failover"},
                     {"href": "use-cases/flowspec-injection/", "icon": "🛡️", "title": "FlowSpec injection", "desc": "Authorized, atomic, reversible mitigation routes"},
                     {"href": "use-cases/exabgp-migration/", "icon": "🔀", "title": "ExaBGP migration", "desc": "Migrate process scripts to Ze"},
+                    {"href": "use-cases/fttp-cpe/", "icon": "🏠", "title": "FTTP CPE", "desc": "PPPoE, DHCPv6-PD, RA, DHCPv4, DNS, and NAT"},
+                    {"href": "use-cases/site-to-site-vpn/", "icon": "🔒", "title": "Site-to-site VPN", "desc": "Native IKEv2 XFRM and WireGuard tunnels"},
                     {"href": "quality/rfc-compliance/profiles/", "icon": "📈", "title": "Completion by use case", "desc": "RFC requirements proven for each use case"}
                 ],
                 [
@@ -121,7 +123,7 @@
                 [
                     {"label_only": "Community and notes"},
                     {"href": "faq/", "icon": "?", "title": "FAQ", "desc": "Common questions before trying Ze", "feature": true},
-                    {"href": "blog/", "icon": "✍", "title": "Blog", "desc": "Engineering essays on architecture, testing, and AI-assisted development"},
+                    {"href": "blog/", "icon": "✍", "title": "Blog", "desc": "Project notes and release stories"},
                     {"href": "talks/", "icon": "🎤", "title": "Talks", "desc": "Talk slides and conference material"},
                     {"href": "contribute/", "icon": "🤝", "title": "Contribute", "desc": "How to send code, reports, and interop results"},
                     {"href": "contribute/testing/", "icon": "✅", "title": "Contributor testing", "desc": "How to choose and run the right test layer"}

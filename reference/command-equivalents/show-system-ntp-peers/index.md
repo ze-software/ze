@@ -9,7 +9,7 @@ Show NTP peers with offset\, RTT\, stratum\, and reachability\.
 - Mode: Read\-only
 - Wire method: `ze-ntp:show-system-ntp-peers`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

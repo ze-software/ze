@@ -9,7 +9,7 @@ Show the routes held for each peer\, with the wire bytes and validation state of
 - Mode: Read\-only
 - Wire method: `not listed`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: map
 - Address fields: none

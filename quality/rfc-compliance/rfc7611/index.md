@@ -10,19 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 3 | of 5 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 5 | of 5 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 0 | of 5 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 5 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 5 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 6 | 6 of 8 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Declared gap or no test | 2 | of 5 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 0 | of 5 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 10 | 10 of 12 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -55,7 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
 | Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
-| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -73,39 +66,39 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 8 |
 | Mandatory requirements (MUST level) | 5 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 2 |
+| Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 8 |
-| Tests linked to requirements | 8 |
-| Recorded audit verdicts | 2 |
-| Fault test records | 6 |
+| Test tags | 12 |
+| Tests linked to requirements | 12 |
+| Recorded audit verdicts | 4 |
+| Fault test records | 10 |
 | Summary | `rfc/short/rfc7611.md` |
 | Requirement table | `rfc/requirements/rfc7611.md` |
 | RFC text | `rfc/full/rfc7611.txt` |
 
 ## Automatic checks
 
-Included in automatic checks: Ze recognizes ACCEPT_OWN and implements the Section 2.2 discard for families without a Route Distinguisher. Optional re-import under Section 2.1 is disabled; normal loop checks remain active and the Section 3 VPN-IP decision step is not invoked. Conditional requirement scope follows that disabled mode, not an exemption from the non-RD receive rule. No decision of Thomas's declines ACCEPT_OWN configuration, so RFC7611-2.3-1 is a `{gap}`.
+Included in automatic checks: Ze recognizes ACCEPT_OWN, implements the Section 2.2 non-RD receive discard, exposes the `bgp accept-own` boolean configuration leaf defaulting to disabled (false) per Section 2.3, keeps Section 2.1 re-import disabled by default (normal loop checks remain active), and implements the Section 3 decision-process preference step strictly gated to RFC 4364 VPN-IP routes when configured.
 
 ## Published support status
 
 **Area:** ACCEPT_OWN community
 
-**Test verification:** 3 of 5 MUST proven
+**Test verification:** 5 of 5 MUST proven
 
-**Evidence:** unit 3
+**Evidence:** unit 5
 
-**Unmet:** RFC7611-2.3-1, RFC7611-3-1
+**Unmet:** -
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 3 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 2 | one part of the mandatory requirements |
+| Positive and negative tests | 5 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -113,29 +106,27 @@ Included in automatic checks: Ze recognizes ACCEPT_OWN and implements the Sectio
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **5** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (3):** [`RFC7611-2.1-1`](#rfc7611-2.1-1), [`RFC7611-2.2-1`](#rfc7611-2.2-1), [`RFC7611-2.3-2`](#rfc7611-2.3-2)
-
-**Annotated (including scoped evidence) (2):** [`RFC7611-2.3-1`](#rfc7611-2.3-1), [`RFC7611-3-1`](#rfc7611-3-1)
+**Positive and negative tests (5):** [`RFC7611-2.1-1`](#rfc7611-2.1-1), [`RFC7611-2.2-1`](#rfc7611-2.2-1), [`RFC7611-2.3-1`](#rfc7611-2.3-1), [`RFC7611-2.3-2`](#rfc7611-2.3-2), [`RFC7611-3-1`](#rfc7611-3-1)
 
 ## Figures
 
-- **MUST bar**: Ze verified 3, Not built 2
-- **Overview bar**: Ze MUST verified 3, Not assessed 3, Not built 2
+- **MUST bar**: Ze verified 5
+- **Overview bar**: Ze MUST verified 5, Not assessed 3
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 5 |
 | MUST rows kept (the MUST bar) | 5 |
-| Ze verified | 3 |
+| Ze verified | 5 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 2 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -164,18 +155,15 @@ Source: [data/rfc/rfc7611.json](../../../data/rfc/rfc7611.json).
 | `RFC7611-2.1-1` | A route MUST NOT ever be accepted back into its source VRF, even if it carries one or more RTs that match that VRF (§2.1) | MUST NOT | 2.1 | **positive:** `unit/verify` [`TestRFC7611OwnRouteNeverReacceptedIntoSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L184). **negative:** `unit/verify` [`TestRFC7611OwnRouteNeverReacceptedIntoSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L180) |
 | `RFC7611-2.2-1` | Likewise, if a route carrying the ACCEPT_OWN community is received in an address family that does not allow the source VRF to be looked up, the ACCEPT_OWN community MUST be discarded. (§2.2) | MUST | 2.2 | **positive:** `unit/verify` [`TestACCEPTOwnFamilyBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L17). **positive:** `unit/verify` [`TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_reactor_b_test.go#L71). **negative:** `unit/verify` [`TestACCEPTOwnFamilyBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L18). **negative:** `unit/verify` [`TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_reactor_b_test.go#L72) |
 | `RFC7611-2.2-2` | As such, it SHOULD NOT be attached to any routes that cannot be associated with a source VRF. This implies that when propagating routes into a VRF, the ACCEPT_OWN community SHOULD NOT be propagated. (§2.2) | SHOULD NOT | 2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7611-2.3-1` | ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled (§2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no owner decision declines ACCEPT_OWN configuration. RFC 7611 Section 2.3 says "ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled.", and ze offers no ACCEPT_OWN configuration and never applies the Section 2.1 acceptance: internal/component/bgp/reactor/loopdetect/loop.go::LoopIngress refuses an own-ORIGINATOR_ID route whatever community it carries |
+| `RFC7611-2.3-1` | ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRFC7611AcceptOwnConfigDefaultsDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go#L82). **negative:** `unit/verify` [`TestRFC7611AcceptOwnConfigDefaultsDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go#L83) |
 | `RFC7611-2.3-2` | When ACCEPT_OWN is disabled by configuration (either explicitly or by default), the router MUST NOT apply the special route acceptance rules detailed in Section 2.1. (§2.3) | MUST NOT | 2.3 | **positive:** `unit/verify` [`TestACCEPTOwnDoesNotEnableAcceptanceImplicitly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L57). **negative:** `unit/verify` [`TestACCEPTOwnDoesNotEnableAcceptanceImplicitly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7611_receive_test.go#L58) |
-| `RFC7611-3-1` | This extra step MUST only be invoked during the best path selection process of VPN-IP routes [RFC4364] (i.e., it MUST NOT be invoked for the best path selection of imported IP routes in a VRF). (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no ACCEPT_OWN decision-process step and no owner decision declines it, so the step is never invoked, for VPN-IP routes or for imported routes in a VRF; ordinary ORIGINATOR_ID, NEXT_HOP and AS_PATH loop checks stay active, the non-RD receive rule lives in internal/component/bgp/reactor/session_accept_own.go, and no test asserts the step is never invoked for an imported route |
+| `RFC7611-3-1` | This extra step MUST only be invoked during the best path selection process of VPN-IP routes [RFC4364] (i.e., it MUST NOT be invoked for the best path selection of imported IP routes in a VRF). (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC7611DecisionStepOnlyForVPNIPRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go#L164). **negative:** `unit/verify` [`TestRFC7611DecisionStepOnlyForVPNIPRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go#L165) |
 | `RFC7611-2-1` | Processing of the ACCEPT_OWN community SHOULD be controlled by configuration. The functionality SHOULD default to being disabled, as further specified in Section 2.3. (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7611-5-1` | This approach may also be relevant in other scenarios where a BGP speaker maintains multiple routing contexts using an approach different from that of [RFC4364], as long as the specific approach in use has the property that the BGP speaker originates and receives routes within a particular context. In such a case, "VRF" in this document should be understood to mean whatever construct provides a routing context in the specific technology under consideration. Likewise, "Route Distinguisher" should be understood to mean whatever construct allows a route's originator to associate that route with its source context, and "Route Target" should be understood to mean whatever construct allows a route to be targeted for import into a context other than its source. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC7611-2.3-1`](#rfc7611-2.3-1) ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled (§2.3) | {gap}, no test | no owner decision declines ACCEPT_OWN configuration. RFC 7611 Section 2.3 says "ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled.", and ze offers no ACCEPT_OWN configuration and never applies the Section 2.1 acceptance: internal/component/bgp/reactor/loopdetect/loop.go::LoopIngress refuses an own-ORIGINATOR_ID route whatever community it carries |
-| [`RFC7611-3-1`](#rfc7611-3-1) This extra step MUST only be invoked during the best path selection process of VPN-IP routes [RFC4364] (i.e., it MUST NOT be invoked for the best path selection of imported IP routes in a VRF). (§3) | {gap}, no test | ze implements no ACCEPT_OWN decision-process step and no owner decision declines it, so the step is never invoked, for VPN-IP routes or for imported routes in a VRF; ordinary ORIGINATOR_ID, NEXT_HOP and AS_PATH loop checks stay active, the non-RD receive rule lives in internal/component/bgp/reactor/session_accept_own.go, and no test asserts the step is never invoked for an imported route |
+RFC 7611 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Test status
 
@@ -209,9 +197,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled (§2.3)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent audit against RFC 7611 Section 2.3 (configuration control MUST default to disabled). TestRFC7611AcceptOwnConfigDefaultsDisabled covers both polarities on the runtime RIBManager/ConfigTx boundary: positive proves an unconfigured RIBManager and Stage 2 Configure omitting bgp/accept-own default acceptOwn to false and select the shorter-AS_PATH VPN-IPv4 path over an ACCEPT_OWN candidate, reload omitting accept-own restores false, and explicit string "false" disables it; negative proves Verify/Apply with accept-own:true enables acceptOwn and flips VPN-IPv4 SelectBest to prefer the ACCEPT_OWN path, Rollback restores the prior running state (note: lines 135-141 roll back true->false back to true, whereas the tag comment says 'rollback restores disabled'), and invalid non-boolean values ("maybe", 123, []) are refused at Verify without mutating running state and fail Apply with ErrConfigApplyUnverified. YANG schema default (bgp/accept-own boolean default false in ze-bgp-conf.yang) is verified separately by untagged TestSchemaAcceptOwnDefaultsDisabled; the raw config tree omits unset leaves so extractAcceptOwnConfig and RIBManager.acceptOwn enforce the runtime default. Both discrimination records in rfc/discrimination/rfc7611/RFC7611-2.3-1.json are body-panic reverts on extractAcceptOwnConfig (proving producer reachability, not normal-return semantic mutation); semantic enforcement is established by source review.
 
-No test carries RFC7611-2.3-1, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC7611AcceptOwnConfigDefaultsDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go#L83) | unit/verify | revert, verified |
+| positive | [`TestRFC7611AcceptOwnConfigDefaultsDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go#L82) | unit/verify | revert, verified |
 
 ### [`RFC7611-2.3-2`](#rfc7611-2.3-2)
 
@@ -228,9 +219,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 This extra step MUST only be invoked during the best path selection process of VPN-IP routes [RFC4364] (i.e., it MUST NOT be invoked for the best path selection of imported IP routes in a VRF). (§3)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent audit against RFC 7611 Section 3 (post-LOCAL_PREF ACCEPT_OWN preference step MUST only be invoked for RFC 4364 VPN-IP routes, never for imported IP routes in a VRF). Source review confirms extractCandidate is the sole production Candidate constructor, isVPNIPFamily strictly gates on SAFI 128 (SAFIVPN) with AFI IPv4 or IPv6 only, and compareAcceptOwn sits immediately after Step 1 LOCAL_PREF and before compareAIGP/Step 2 AS_PATH across compareBeforeMED, comparePairWithReason, and multipathEqual. TestRFC7611DecisionStepOnlyForVPNIPRoutes covers both polarities with bgp/accept-own enabled: positive tests both ipv4/vpn and ipv6/vpn, proving an ACCEPT_OWN route with tied LOCAL_PREF beats a shorter-AS_PATH candidate in SelectBest, explains as BestStepAcceptOwn in SelectBestExplain, excludes the non-ACCEPT_OWN sibling in SelectMultipath, and still loses to a higher LOCAL_PREF=200 non-ACCEPT_OWN candidate (confirming placement after LOCAL_PREF); negative tests ipv4/unicast, ipv6/unicast (representing imported IP routes in a VRF), and l2vpn/evpn with ACCEPT_OWN directly in RIB storage, proving the step is not invoked (shorter AS_PATH wins in SelectBest and SelectBestExplain as BestStepASPathLen, and equal-attribute paths remain multipath siblings). Both discrimination records in rfc/discrimination/rfc7611/RFC7611-3-1.json are body-panic reverts on compareAcceptOwn (proving producer reachability, not normal-return semantic mutation); semantic enforcement is established by source review.
 
-No test carries RFC7611-3-1, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC7611DecisionStepOnlyForVPNIPRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go#L165) | unit/verify | revert, verified |
+| positive | [`TestRFC7611DecisionStepOnlyForVPNIPRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go#L164) | unit/verify | revert, verified |
 
 ## Requirement list review
 

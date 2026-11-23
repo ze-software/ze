@@ -9,7 +9,7 @@ Show LCP echo health for a subscriber session\.
 - Mode: Read\-only
 - Wire method: `ze-l2tp:echo`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

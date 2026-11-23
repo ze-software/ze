@@ -9,7 +9,7 @@ Remove a private transfer and its retained bytes\.
 - Mode: Daemon
 - Wire method: `ze-config:artifact-upload-abort`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

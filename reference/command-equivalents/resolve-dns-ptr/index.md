@@ -9,7 +9,7 @@ Reverse\-lookup an IP address to its hostname \(PTR\)\.
 - Mode: Read\-only
 - Wire method: `ze-resolve:dns-ptr`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

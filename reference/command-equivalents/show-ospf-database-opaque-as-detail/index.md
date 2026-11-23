@@ -9,7 +9,7 @@ Decode each AS\-scope opaque LSA body \(RFC 5250\)\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-database-opaque-as-detail`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

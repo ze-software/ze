@@ -9,7 +9,7 @@ Show whether the ze skill is set up for each agent harness\.
 - Mode: read\-only\, offline
 - Wire method: `ze-skills:show-agent-skill`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

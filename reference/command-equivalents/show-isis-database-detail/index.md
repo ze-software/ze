@@ -9,7 +9,7 @@ Show the IS\-IS link\-state database with TLV detail\.
 - Mode: Read\-only
 - Wire method: `ze-isis:show-database-detail`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

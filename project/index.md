@@ -14,11 +14,11 @@ Recent work
 
 ## Latest development
 
-2026-10-25 – 2026-11-09 (16 days)
+2026-11-09 – 2026-11-23 (15 days)
 
-RFC 8212 eBGP default-reject, shared multi-protocol policy, signed RADIUS answers and home FTTP CPE support.
+BGP accepts RPKI Invalid routes unless told otherwise and sets itself as next hop towards eBGP peers, gNMI…
 
- [Read the latest update](https://ze-software.net/project/changes/2026-10-25/)
+ [Read the latest update](https://ze-software.net/project/changes/2026-11-09/)
 
 [Browse all update reports](https://ze-software.net/project/changes/)
 

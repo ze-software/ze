@@ -9,7 +9,7 @@ List raw artifact keys\.
 - Mode: Read\-only
 - Wire method: `ze-config:artifact-key-list`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

@@ -9,7 +9,7 @@ Show one Prometheus metric by name\.
 - Mode: Read\-only
 - Wire method: `ze-cmd:show-metrics-query`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `label`
 - Answer shape: not declared
 - Address fields: none

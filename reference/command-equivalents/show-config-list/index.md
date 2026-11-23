@@ -9,7 +9,7 @@ List all configuration files stored in the database\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-cli:show-config-list`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

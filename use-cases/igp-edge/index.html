@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Campus and IGP edge (OSPF, IS-IS, BFD, and VRRP) - Ze</title>
+        <meta name="description" content="Run OSPFv2 with BFD or dual-stack IS-IS alongside VRRPv3 first-hop redundancy and uplink tracking." />
+        <meta property="og:title" content="Campus and IGP edge (OSPF, IS-IS, BFD, and VRRP) - Ze" />
+        <meta property="og:description" content="Run OSPFv2 with BFD or dual-stack IS-IS alongside VRRPv3 first-hop redundancy and uplink tracking." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Campus and IGP edge (OSPF, IS-IS, BFD, and VRRP) - Ze" />
+        <meta name="twitter:description" content="Run OSPFv2 with BFD or dual-stack IS-IS alongside VRRPv3 first-hop redundancy and uplink tracking." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/use-cases/igp-edge/" />
+        <meta property="og:url" content="https://ze-software.net/use-cases/igp-edge/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-routing">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Use case</span>
+    <h1 id="campus-and-igp-edge-ospf-is-is-bfd-and-vrrp">Campus and IGP edge (OSPF, IS-IS, BFD, and VRRP)</h1>
+    <p>Deploy Ze as a campus or distribution router without BGP: pair OSPFv2 (with single-hop BFD fast failure detection) or dual-stack IS-IS with VRRPv3 first-hop redundancy and uplink interface tracking.</p>
+</div>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#role-and-topology">Role and topology</a></li>
+<li><a href="#ze-configuration-ospfv2-with-bfd">Ze configuration: OSPFv2 with BFD</a></li>
+<li><a href="#ze-configuration-dual-stack-is-is-alternative">Ze configuration: dual-stack IS-IS alternative</a></li>
+<li><a href="#ze-configuration-vrrpv3-with-uplink-tracking">Ze configuration: VRRPv3 with uplink tracking</a></li>
+<li><a href="#adjacent-peer-configurations">Adjacent peer configurations</a></li>
+<li><a href="#verification-commands">Verification commands</a></li>
+<li><a href="#lab-evidence">Lab evidence</a></li>
+<li><a href="#current-limits">Current limits</a></li>
+<li><a href="#related-guides">Related guides</a></li>
+</ol></details></nav><div class="doc-body">
+<h2 id="role-and-topology">Role and topology</h2>
+<pre><code class="language-text">          Upstream core (FRR: OSPF+BFD or dual-stack IS-IS)
+                         │ eth1 (point-to-point)
+                         ▼
+   Ze Router A (VRRP prio 200) ─── eth0 (VIP 172.30.0.100/24) ─── keepalived / Ze Router B (prio 100)
+                                        │
+                                  Access VLAN hosts
+</code></pre>
+<h2 id="ze-configuration-ospfv2-with-bfd">Ze configuration: OSPFv2 with BFD</h2>
+<p>Both the top-level <code>bfd { enabled true; }</code> container and the per-interface <code>bfd</code> block under <code>ospf</code> are required so the BFD plugin starts and registers sessions (based on <code>test/interop/scenarios/ospf-bfd-frr/ze.conf</code>):</p>
+<pre><code class="language-text">bfd {
+    enabled true;
+}
+
+ospf {
+    router-id 172.30.0.2;
+    areas {
+        area 0.0.0.0 {
+            area-type normal;
+        }
+    }
+    interfaces {
+        interface eth1 {
+            area 0.0.0.0;
+            network-type point-to-point;
+            hello-interval 10;
+            dead-interval 40;
+            cost 10;
+            bfd {
+                enabled true;
+                min-tx 300;
+                min-rx 300;
+                multiplier 3;
+            }
+        }
+        interface lo {
+            area 0.0.0.0;
+            passive true;
+        }
+    }
+}
+</code></pre>
+<p>Note the unit difference: inline <code>ospf ... bfd { min-tx; min-rx; }</code> timers are in <strong>milliseconds</strong>, while named profiles under <code>bfd { profile &lt;name&gt; { desired-min-tx-us; required-min-rx-us; } }</code> are in <strong>microseconds</strong>.</p>
+<h2 id="ze-configuration-dual-stack-is-is-alternative">Ze configuration: dual-stack IS-IS alternative</h2>
+<p>For IS-IS networks carrying IPv4 and IPv6 together on point-to-point links (based on <code>test/interop/scenarios/isis-dualstack-frr/ze.conf</code>):</p>
+<pre><code class="language-text">isis {
+    net 49.0001.0000.0000.0000.0002.00;
+    level l1-l2;
+    hostname ze-ds;
+    interfaces {
+        interface eth1 {
+            metric 10;
+            level l1-l2;
+            circuit-type point-to-point;
+            address-family ipv4-unicast {}
+            address-family ipv6-unicast {}
+        }
+        interface lo {
+            passive true;
+            address-family ipv4-unicast {}
+            address-family ipv6-unicast {}
+        }
+    }
+}
+</code></pre>
+<h2 id="ze-configuration-vrrpv3-with-uplink-tracking">Ze configuration: VRRPv3 with uplink tracking</h2>
+<p>VRRPv3 runs on the access-facing interface and decrements priority by <code>150</code> if uplink <code>eth1</code> goes down, triggering deterministic failover to the standby router (based on <code>test/interop/scenarios/vrrp-mastership-keepalived/ze.conf</code> and <code>docs/guide/vrrp.md</code>):</p>
+<pre><code class="language-text">interface {
+    backend netlink;
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 172.30.0.2/24 ];
+                vrrp {
+                    group vip {
+                        vrid 10;
+                        virtual-address [ 172.30.0.100 ];
+                        priority 200;
+                        preempt true;
+                        checksum rfc5798-compatible;
+                        advertise-interval-milliseconds 1000;
+                        track {
+                            interface eth1 {
+                                priority-decrement 150;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+</code></pre>
+<h2 id="adjacent-peer-configurations">Adjacent peer configurations</h2>
+<p><strong>FRR OSPFv2 + BFD (<code>test/interop/scenarios/ospf-bfd-frr/frr.conf</code>):</strong></p>
+<pre><code class="language-text">interface eth1
+ ip ospf network point-to-point
+ ip ospf area 0.0.0.0
+ ip ospf bfd
+!
+interface lo
+ ip ospf area 0.0.0.0
+!
+router ospf
+ ospf router-id 172.30.0.3
+ passive-interface lo
+!
+bfd
+ profile ospf-fast
+  transmit-interval 300
+  receive-interval 300
+  detect-multiplier 3
+ !
+!
+</code></pre>
+<p><strong>FRR dual-stack IS-IS (<code>test/interop/scenarios/isis-dualstack-frr/frr.conf</code>):</strong></p>
+<pre><code class="language-text">interface eth1
+ ip router isis ZE
+ ipv6 router isis ZE
+ isis circuit-type level-1-2
+ isis network point-to-point
+!
+interface lo
+ ip router isis ZE
+ ipv6 router isis ZE
+ isis passive
+!
+router isis ZE
+ net 49.0001.0000.0000.0000.0003.00
+ is-type level-1-2
+ metric-style wide
+!
+</code></pre>
+<p><strong>keepalived 2.4.3 VRRPv3 standby (<code>test/interop/scenarios/vrrp-mastership-keepalived/keepalived.conf</code>):</strong></p>
+<pre><code class="language-text">global_defs {
+    vrrp_garp_master_refresh 0
+}
+
+vrrp_instance VI_1 {
+    state BACKUP
+    interface eth0
+    virtual_router_id 10
+    priority 100
+    advert_int 1
+    version 3
+    virtual_ipaddress {
+        172.30.0.100/24
+    }
+}
+</code></pre>
+<h2 id="verification-commands">Verification commands</h2>
+<pre><code class="language-text">show ospf neighbor detail
+show ospf route
+show isis neighbor
+show isis route
+show bfd sessions
+show vrrp
+show vrrp statistics
+</code></pre>
+<h2 id="lab-evidence">Lab evidence</h2>
+<ul>
+<li><strong>OSPF + BFD against FRR:</strong> <code>INTEROP_SCENARIO=ospf-bfd-frr ./le test integration interop</code> (also <code>ospfv3-bfd-frr</code>, <code>ospf-multiarea-frr</code>, <code>ospf-lfa-frr</code>, <code>ospf-gr-frr</code>)</li>
+<li><strong>Dual-stack IS-IS against FRR:</strong> <code>INTEROP_SCENARIO=isis-dualstack-frr ./le test integration interop</code> (also <code>isis-p2p-frr</code>, <code>isis-lan-dis-frr</code>, <code>isis-auth-frr</code>)</li>
+<li><strong>BFD against FRR and BIRD:</strong> <code>INTEROP_SCENARIO=bfd-frr ./le test integration interop</code> and <code>bfd-simple-password-bird</code></li>
+<li><strong>VRRPv3 against keepalived:</strong> <code>INTEROP_SCENARIO=vrrp-mastership-keepalived ./le test integration interop</code> and QEMU lab <code>./le test qemu vrrp-keepalived</code></li>
+</ul>
+<h2 id="current-limits">Current limits</h2>
+<ul>
+<li><strong>BFD is not wired to IS-IS yet:</strong> Ze wires BFD session notifications to BGP, OSPF, and static routes; IS-IS does not yet consume BFD events.</li>
+<li><strong>Experimental status:</strong> OSPF and VRRP are currently marked Experimental.</li>
+<li><strong>VRRP interoperability details:</strong> VRRP requires Linux <code>backend netlink</code> (not VPP), <code>CAP_NET_RAW</code>, <code>CAP_NET_ADMIN</code>, and <code>net.ipv4.ip_forward=1</code>. Against keepalived on IPv4 VRRPv3, set <code>checksum rfc5798-compatible</code> in Ze and <code>version 3</code> in keepalived. <code>accept-mode</code> defaults to <code>false</code> (RFC 9568), so non-owner Active routers drop pings to the VIP unless <code>accept-mode true</code> is configured. <code>track</code> monitors interface operational state only (route and script tracking are not implemented).</li>
+</ul>
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><a href="../../guides/ospf/">OSPF guide</a></li>
+<li><a href="../../guides/isis/">IS-IS guide</a></li>
+<li><a href="../../guides/bfd/">BFD guide</a></li>
+<li><a href="../../guides/vrrp/">VRRP guide</a></li>
+</ul>
+</div>
+</div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Use case</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related usage</h2>
+                    <a class="page-sidebar-link" href="../../use-cases/">
+                        <span class="page-sidebar-link-label">All usage examples</span>
+                        <small>Return to the deployment examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to guides and references.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../features/bgp-protocol/">
+                        <span class="page-sidebar-link-label">BGP protocol</span>
+                        <small>Behavior used by the route examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label concept-evidence">Lab evidence</span>
+                        <small>Real-daemon interop evidence.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -94,11 +94,11 @@ Included in automatic checks: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): 
 
 **Area:** RPKI-to-Router Protocol v0 (RPKI-RTR), not spoken: ze speaks versions 1 and 2 only (RFC 8210)
 
-**Test verification:** 0 of 40 MUST proven
+**Test verification:** 20 of 40 MUST proven
 
-**Evidence:** -
+**Evidence:** superseded 20
 
-**Unmet:** RFC6810-2-1, RFC6810-3-1, RFC6810-4-1, RFC6810-4-2, RFC6810-5-1, RFC6810-5.1-1, RFC6810-5.1-2, RFC6810-5.1-3, RFC6810-5.10-1, RFC6810-5.10-2, RFC6810-5.10-3, RFC6810-5.10-4, RFC6810-5.5-1, RFC6810-5.6-1, RFC6810-5.8-1, RFC6810-6.1-1, RFC6810-6.3-1, RFC6810-6.4-1, RFC6810-7-1, RFC6810-7-2, RFC6810-7-3, RFC6810-7.1-2, RFC6810-7.2-1, RFC6810-7.2-2, RFC6810-7.2-3, RFC6810-7.2-4, RFC6810-7.2-5, RFC6810-7.2-6, RFC6810-7.2-7, RFC6810-7.2-8, RFC6810-7.3-1, RFC6810-7.3-2, RFC6810-7.4-1, RFC6810-7.4-2, RFC6810-7.4-3, RFC6810-7.4-4, RFC6810-8-1, RFC6810-8-2
+**Unmet:** RFC6810-2-1, RFC6810-3-1, RFC6810-4-2, RFC6810-5.10-3, RFC6810-5.5-1, RFC6810-5.6-1, RFC6810-5.8-1, RFC6810-7.1-2, RFC6810-7.2-3, RFC6810-7.2-5, RFC6810-7.2-6, RFC6810-7.3-1, RFC6810-7.3-2, RFC6810-7.4-1, RFC6810-7.4-2, RFC6810-7.4-3, RFC6810-7.4-4
 
 
 ## Coverage
@@ -118,8 +118,8 @@ Included in automatic checks: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): 
 
 ## Figures
 
-- **MUST bar**: Not built 38
-- **Overview bar**: Not owed 2, Not assessed 28, Not built 38
+- **MUST bar**: Ze verified 20, Not built 17
+- **Overview bar**: Ze MUST verified 20, SHOULD verified 8, Not owed 3, Not assessed 20, Not built 17
 
 | Figure | Rows |
 |---|---|
@@ -127,20 +127,20 @@ Included in automatic checks: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): 
 | Requirements not reviewed | 0 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 40 |
-| MUST rows kept (the MUST bar) | 38 |
-| Ze verified | 0 |
+| MUST rows kept (the MUST bar) | 37 |
+| Ze verified | 20 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 38 |
-| MUST rows not owed | 2 |
+| Not built | 17 |
+| MUST rows not owed | 3 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 2 |
+| MUST not owed: not-applicable | 3 |
 | SHOULD / MAY rows | 28 |
-| SHOULD verified | 0 |
+| SHOULD verified | 8 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -149,7 +149,7 @@ Included in automatic checks: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): 
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
-| SHOULD not assessed | 28 |
+| SHOULD not assessed | 20 |
 | SHOULD not built | 0 |
 
 The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
@@ -290,7 +290,7 @@ No test carries RFC6810-5-1, so there is no linked test.
 
 Max Length: An 8-bit unsigned integer denoting the longest prefix allowed by the prefix. This MUST NOT be less than the Prefix Length element. (Section 5.1)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent rejudgment 2026-11-15 after the RTR response-identity and sequence changes. RFC 6810 Section 5.1 defines Protocol Version as 'currently 0' and says of Max Length: 'This MUST NOT be less than the Prefix Length element.' The current handlePDU still refuses an initial version-0 Prefix PDU before parseIPv4Prefix or parseIPv6Prefix; its Error Report code-4 branch refuses an advertised version below rtrVersionMin=1, and syncOnce retries only the supported version range 1 through 2. No version-0 Prefix exchange reaches the shared length validator. The new response-identity check can classify a version change within an established response as error 8 instead of initial unsupported-version error 4; it does not enable version 0. This row has no tagged tests and remains an owed version-0 implementation gap. Shared version-1/2 parser behavior gives this row no enforcement credit.
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent rejudgment 2026-11-22 after Router Key (type 9) handling was added to RTRSession.handlePDU. RFC 6810 Section 5.1 defines Protocol Version as 0 and states of Max Length: 'This MUST NOT be less than the Prefix Length element.' Current handlePDU still refuses initial version-0 data PDUs before parseIPv4Prefix or parseIPv6Prefix because rtrVersionMin remains 1 (rtr_pdu.go); its Unsupported Protocol Version branch refuses downgrade below rtrVersionMin=1, and syncOnce retries only versions 1 through 2. Adding pduRouterKey staging (a v1/v2 PDU unassigned in v0) does not enable version 0. No test carries this id; the row remains an owed version-0 implementation gap with no credit from v1/v2 parser behavior.
 
 No test carries RFC6810-5.1-1, so there is no linked test.
 
@@ -298,7 +298,7 @@ No test carries RFC6810-5.1-1, so there is no linked test.
 
 The value of such a field MUST be ignored on receipt. (Section 5.1)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent rejudgment 2026-11-15. RFC 6810 Section 5.1 states: 'Zero: Fields shown as zero or reserved MUST be zero. The value of such a field MUST be ignored on receipt.' Its PDU version is 0. Current handlePDU refuses initial version-0 data PDUs before their reserved-field tolerance can run, refuses negotiation to version 0 in its Unsupported Protocol Version Error Report branch, and syncOnce cannot retry below rtrVersionMin=1. Ignoring a startup Serial Notify regardless of version, or reading an Error Report without answering it, does not establish a usable version-0 protocol session or prove reserved-field tolerance across its PDUs. The response-identity repair changes the classification of a version change after Cache Response, not the supported version floor. No test carries this id. The row remains an owed version-0 implementation gap, with no credit borrowed from version-1/2 tests.
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent rejudgment 2026-11-22 after Router Key (type 9) handling was added to RTRSession.handlePDU. RFC 6810 Section 5.1 requires: 'Zero: Fields shown as zero or reserved MUST be zero. The value of such a field MUST be ignored on receipt.' Its PDU version is 0. Current handlePDU still rejects initial version-0 data PDUs (rtrVersionMin=1), refuses downgrade to version 0 in its code-4 branch, and syncOnce never retries below version 1. Adding pduRouterKey handling in handlePDU does not lower the supported version floor or establish a version-0 session. No test carries this id; the row remains an owed version-0 implementation gap.
 
 No test carries RFC6810-5.1-3, so there is no linked test.
 
@@ -386,7 +386,7 @@ No test carries RFC6810-4-1, so there is no linked test.
 
 To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour. (Section 6.1, Section 6.2)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent rejudgment 2026-11-15. RFC 6810 Section 6.1 requires: 'To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour.' Section 6.2 repeats the hourly obligation. These are version-0 queries in this RFC. New sessions still begin at rtrVersionMax=2; current handlePDU can lower the session version only to a cache-advertised supported version at least rtrVersionMin=1, and syncOnce bounds retries to that supported range. A version-0 cache cannot establish the protocol session being polled. The response-identity and fatal-cleanup repairs add no version-0 query or polling path. This untagged row remains an owed implementation gap; cache-signalled Refresh/Retry behavior in version-1/2 sessions proves neither version-0 operation nor this fixed-hour requirement.
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent rejudgment 2026-11-22 after Router Key (type 9) handling was added to RTRSession.handlePDU. RFC 6810 Sections 6.1 and 6.2 require the router to send either a Serial Query or a Reset Query no less frequently than once an hour using version-0 PDUs. New sessions still open at rtrVersionMax=2, handlePDU refuses any downgrade below rtrVersionMin=1, and syncOnce retries only versions 1 through 2. Adding pduRouterKey staging in handlePDU introduces no version-0 query or polling path. No test carries this id; this row remains an owed version-0 implementation gap.
 
 No test carries RFC6810-6.1-1, so there is no linked test.
 
@@ -402,7 +402,7 @@ No test carries RFC6810-6.2-1, so there is no linked test.
 
 If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache. (Section 6.3)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent rejudgment 2026-11-15. Following a Cache Reset, RFC 6810 Section 6.3 says: 'If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.' The diagrams and Section 5 define these as version-0 PDUs. Current handlePDU refuses a version-0 Cache Reset rather than entering its Cache Reset recovery branch; its version-negotiation branch rejects version 0, and syncOnce never retries below rtrVersionMin=1. An initial unsupported version and a version change within an established response now have distinct errors, but neither reaches version-0 recovery. The version-1/2 whole-set replacement path does not meet the version-0 exchange. No test carries this id; its declared version-0 gap remains unimplemented.
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent rejudgment 2026-11-22 after Router Key (type 9) handling was added to RTRSession.handlePDU. RFC 6810 Section 6.3 requires that on Cache Reset, if there are no more preferred caches, the router MUST issue a Reset Query and get an entire new load from the cache in protocol version 0. Current handlePDU still rejects a version-0 Cache Reset before entering its pduCacheReset branch (rtrVersionMin=1), rejects version-0 downgrade in its code-4 branch, and syncOnce retries only versions 1 through 2. Adding pduRouterKey staging does not reach version-0 Cache Reset recovery. No test carries this id; the declared version-0 gap remains unimplemented.
 
 No test carries RFC6810-6.3-1, so there is no linked test.
 
@@ -410,7 +410,7 @@ No test carries RFC6810-6.3-1, so there is no linked test.
 
 If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache. (Section 6.4)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent rejudgment 2026-11-15. After No Data Available, RFC 6810 Section 6.4 requires: 'If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache.' The protocol version in this RFC is 0. handlePDU can read an Error Report with that header version before a response is established and set fullSync after No Data Available, but it never adopts version 0: its code-4 downgrade branch refuses values below rtrVersionMin=1, and syncOnce permits only versions 1 through 2. Any subsequent Reset Query therefore remains version 1 or 2, not this RFC's query, and no version-0 load can become usable. The new Error Report suppression and fatal-cleanup behavior do not close that gap. No test carries this id. The row remains unimplemented rather than receiving credit for later-version recovery tests.
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent rejudgment 2026-11-22 after Router Key (type 9) handling was added to RTRSession.handlePDU. RFC 6810 Section 6.4 requires that after No Data Available, if no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache in protocol version 0. While handlePDU accepts a version-0 Error Report header before response establishment, it never adopts version 0 (rtrVersionMin=1) and syncOnce never retries below version 1, so subsequent Reset Queries stay v1/v2 and no version-0 load can succeed. Adding pduRouterKey staging does not change version-0 support. No test carries this id; the row remains unimplemented.
 
 No test carries RFC6810-6.4-1, so there is no linked test.
 
@@ -434,7 +434,7 @@ No test carries RFC6810-4-2, so there is no linked test.
 
 Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12. (Section 7)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent rejudgment 2026-11-15. RFC 6810 Section 7 states: 'Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12.' The same section defines the persistent transport as the carrier of this document's binary PDUs, whose Section 5.1 protocol version is 0. Ze has the TCP transport and default port 323, but current handlePDU still rejects initial version-0 data and refuses a version-0 downgrade; syncOnce never establishes a version below rtrVersionMin=1. A TCP connection that cannot exchange the defined version-0 protocol does not discharge this version-0 transport obligation. The new response-identity checks and later-version TCP tests add no version-0 support. No test carries this id. Under the existing router-role version-0 gap, the verdict remains unimplemented, not not-applicable or enforced.
+Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent rejudgment 2026-11-22 after Router Key (type 9) handling was added to RTRSession.handlePDU. RFC 6810 Section 7 requires unprotected TCP transport on port rpki-rtr (323) carrying this document's version-0 binary PDUs. Ze implements unprotected TCP defaulting to port 323, but current handlePDU still rejects initial version-0 PDUs and refuses version-0 downgrade (rtrVersionMin=1), and syncOnce never establishes a version below 1. Adding pduRouterKey handling in handlePDU adds no version-0 protocol support. No test carries this id; the row remains unimplemented.
 
 No test carries RFC6810-7-1, so there is no linked test.
 

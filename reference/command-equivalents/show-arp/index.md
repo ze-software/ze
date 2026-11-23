@@ -9,7 +9,7 @@ Show the IPv4 ARP table \(shortcut for \'show neighbor ipv4\'\)\.
 - Mode: Read\-only
 - Wire method: `ze-iface:show-arp`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

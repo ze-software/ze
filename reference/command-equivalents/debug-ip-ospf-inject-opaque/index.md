@@ -9,7 +9,7 @@ Inject a crafted IPv4 opaque LSA into the local LSDB \(RFC 5250\)\.
 - Mode: Daemon
 - Wire method: `ze-ospf:debug-inject`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `hex`, `id`, `scope`, `tlv`, `type`, `withdraw`
 - Answer shape: not declared
 - Address fields: none

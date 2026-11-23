@@ -9,7 +9,7 @@ Install the ze skill for the operator\'s agent harnesses\.
 - Mode: daemon\, offline
 - Wire method: `ze-skills:create-agent-skill`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

@@ -9,7 +9,7 @@ Show every reject\-asn list\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:show-reject-asn`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `known`, `name`
 - Answer shape: tab
 - Address fields: none

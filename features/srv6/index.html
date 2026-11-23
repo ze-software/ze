@@ -376,14 +376,31 @@ width bound, 20 bits on VPN and 24 on EVPN, is <code>nlrisplit.TranspositionLabe
 <p>Routes with SRv6 SID are installed with SEG6 lightweight tunnel encapsulation:</p>
 <pre><code>ip route add &lt;prefix&gt; via &lt;nexthop&gt; encap seg6 mode encap segs &lt;SID&gt;
 </code></pre>
-<p>Implemented via <code>netlink.SEG6Encap</code> in <code>buildRichRoute</code>. A valid SRv6 Service SID
-selects IPv6 encapsulation even when the NLRI carries labels. Those fields can
-contain transposed SID bits and are not MPLS forwarding labels.</p>
-<p>The kernel needs <code>CONFIG_IPV6_SEG6_LWTUNNEL</code>. Ze's runtime kernel builds it in,
-and <code>gokrazy/kernel/runtime.require</code> fails the kernel build if it stops
-resolving to <code>=y</code>. A kernel without it refuses the install with EOPNOTSUPP.
-Linux's seg6 encapsulation does not lower the inner TTL or Hop Limit, which
-RFC 8986 Section 5.1 H.Encaps requires; that gap is open.</p>
+<p>Implemented with <code>netlink.SEG6Encap</code> in <code>buildRichRoute</code> and <code>buildSEG6Encap</code>. A
+valid SRv6 Service SID selects IPv6 encapsulation even when the NLRI carries
+labels. Those fields can contain transposed SID bits and are not MPLS forwarding
+labels.</p>
+<p>The kernel needs <code>CONFIG_IPV6_SEG6_LWTUNNEL</code>. Ze's runtime kernel builds it in
+and carries <code>gokrazy/kernel/patches/0014-seg6-forward-ttl.patch</code>
+(<code>CONFIG_IPV6_SEG6_FORWARD_TTL=y</code>) and
+<code>gokrazy/kernel/patches/0015-seg6-forward-df-clear-frag.patch</code>
+(<code>CONFIG_IPV6_SEG6_FORWARD_FRAG=y</code>), and <code>gokrazy/kernel/runtime.require</code> pins
+all three. On Ze's kernel, forwarded packets traverse <code>ip_forward</code> or
+<code>ip6_forward</code> before encapsulation: the inner IPv4 TTL or IPv6 Hop Limit
+decrements once (RFC 8986 Section 5.1 H.Encaps S05), expiry at 1 returns ICMP
+Time Exceeded, and forwarded DF-clear IPv4 packets exceeding the egress MTU
+minus seg6 headroom are fragmented at the inner IPv4 layer before encapsulation
+so every emitted outer IPv6+SRH packet fits within the egress MTU.</p>
+<p>On a stock kernel with seg6 but without patch 0014, forwarded packets leave with
+their inner TTL or Hop Limit unchanged (<code>LL-SEG6-HEADEND-NO-TTL-DECREMENT</code> in
+<code>docs/architecture/linux-limitations.md</code>), and without patch 0015 oversized
+DF-clear IPv4 packets are dropped after encapsulation
+(<code>LL-SEG6-HEADEND-NO-DF-CLEAR-FRAG</code>). <code>ze doctor</code> reports those gaps as
+warnings under <code>doctor-srv6-forward-ttl-not-decremented</code> and
+<code>doctor-srv6-forward-frag-unavailable</code>, and reports missing
+<code>CONFIG_IPV6_SEG6_LWTUNNEL</code> under <code>doctor-srv6-encap-unavailable</code>. On a kernel
+without <code>CONFIG_IPV6_SEG6_LWTUNNEL</code>, an install fails with an error naming the
+prefix, the missing option, and <code>ze doctor</code>.</p>
 <h3 id="vpp">VPP</h3>
 <p>Routes with SRv6 SID are steered via VPP's SR policy infrastructure:</p>
 <pre><code>sr_steering_add_del bsid=&lt;SID&gt; prefix=&lt;prefix&gt; traffic_type=IPv4|IPv6
@@ -581,7 +598,7 @@ propagates without negotiation. Ze does not signal SRv6 support via capabilities
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 01:40 UTC</span>
                 </div>
             </div>
         </footer>

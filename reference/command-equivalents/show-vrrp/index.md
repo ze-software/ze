@@ -9,7 +9,7 @@ Show every VRRP virtual router\.
 - Mode: Read\-only
 - Wire method: `ze-vrrp:show-vrrp`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `interface`, `statistics`
 - Answer shape: not declared
 - Address fields: none

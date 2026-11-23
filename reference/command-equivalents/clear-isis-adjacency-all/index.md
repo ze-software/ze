@@ -9,7 +9,7 @@ Tear down every IS\-IS adjacency so neighbors re\-form\.
 - Mode: Daemon
 - Wire method: `ze-isis:clear-adjacency`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

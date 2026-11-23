@@ -9,7 +9,7 @@ Show how long the daemon has been running\.
 - Mode: Read\-only
 - Wire method: `ze-cmd:show-uptime`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

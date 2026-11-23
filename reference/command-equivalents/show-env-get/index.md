@@ -9,7 +9,7 @@ Show one environment variable in detail\.
 - Mode: read\-only\, offline
 - Wire method: `ze-env:show-get`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

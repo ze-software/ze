@@ -9,7 +9,7 @@ Show captured control\-plane messages\.
 - Mode: Read\-only
 - Wire method: `ze-diag:show-capture`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `interface`, `raw`
 - Answer shape: not declared
 - Address fields: none

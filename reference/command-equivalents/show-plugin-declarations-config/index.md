@@ -9,7 +9,7 @@ Read the plugin blocks of a config file as well\.
 - Mode: read\-only\, offline
 - Wire method: `ze-plugin:show-declarations-config`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

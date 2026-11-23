@@ -9,7 +9,7 @@ Save the current debug state as a named profile\.
 - Mode: daemon\, offline
 - Wire method: `ze-debug:set-profile-name`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

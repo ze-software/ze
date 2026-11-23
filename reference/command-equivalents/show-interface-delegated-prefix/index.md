@@ -9,7 +9,7 @@ Show the \/64 each LAN unit takes from a delegated prefix\, and its source\.
 - Mode: Read\-only
 - Wire method: `ze-iface:show-interface-delegated-prefix`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

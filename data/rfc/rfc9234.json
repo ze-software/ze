@@ -7,16 +7,18 @@
   "implemented": true,
   "must": {
     "total": 19,
-    "kept": 19,
-    "ze-proven": 17,
+    "kept": 18,
+    "ze-proven": 16,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 2,
-    "not-owed": 0,
-    "not-owed-by-kind": {}
+    "not-owed": 1,
+    "not-owed-by-kind": {
+      "not-applicable": 1
+    }
   },
   "should": {
     "total": 5,
@@ -33,7 +35,7 @@
   "proven-by-kind": {
     "functional": 5,
     "interop": 1,
-    "unit": 11
+    "unit": 10
   },
   "unmet": [
     "RFC9234-5-7",

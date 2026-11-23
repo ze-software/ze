@@ -9,7 +9,7 @@ Decode each OSPFv3 Router\-LSA body\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-ospfv3-database-router-detail`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

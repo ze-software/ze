@@ -9,7 +9,7 @@ Show BGP peers as seen through BMP monitoring\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:show-bmp-peers`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

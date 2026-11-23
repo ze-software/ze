@@ -9,7 +9,7 @@ Print the curated transit\-free ASNs as a config block\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:show-reject-asn-known-transit-free`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

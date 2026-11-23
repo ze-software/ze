@@ -9,7 +9,7 @@ Delete the stored image a digest names\.
 - Mode: Daemon
 - Wire method: `ze-container:delete-image`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

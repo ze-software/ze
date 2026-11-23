@@ -112,8 +112,16 @@ running any command or starting a background task: `mcp.read` authorizes
 read-only tools and commands, `mcp.write` authorizes mutating tools and
 commands, and `mcp.admin` authorizes both. A call lacking the required scope
 returns HTTP `403` with `WWW-Authenticate: Bearer ... error="insufficient_scope"`.
-An identity with no `scope` entries imposes no scope restriction. Changing an
-identity, its token or its scopes requires a daemon restart.
+An identity with no `scope` entries imposes no scope restriction. The
+`oauth required-scopes` list applies in `oauth` mode only, and it never gates a
+bearer-list identity. Changing an identity, its token or its scopes requires a
+daemon restart.
+
+Ze decides the scope from the command the call runs. For a generated tool that
+is the tool's command with its `action`, its parameters, its free-text
+`arguments` and its `pipe` list. An `arguments` value that turns a read-only
+command into a mutating one, a `| save`, or a command Ze does not recognize
+needs `mcp.write`.
 
 ### oauth (OAuth 2.1 resource server)
 
@@ -176,7 +184,9 @@ only the older appended discovery path cannot be used with this configuration.
 `ze config validate` rejects internally inconsistent configurations (`bearer`,
 `bearer-list`, or `oauth` without TLS on a remote bind, `oauth` without
 `authorization-server`, `bind-remote` without auth, etc.) before the daemon
-starts. See [`rules/exact-or-reject.md`](https://github.com/ze-software/ze/blob/main/ai/rules/protocol.md) for the
+starts. A remote listener without authentication or TLS also refuses daemon
+start, with the same message, whatever supplied its address
+([Remote management listener guard](../../authentication/index.md#remote-management-listener-guard)). See [`rules/exact-or-reject.md`](https://github.com/ze-software/ze/blob/main/ai/rules/protocol.md) for the
 contract.
 
 RFC 9728 metadata: when `auth-mode oauth`, the server publishes a document
@@ -496,7 +506,7 @@ of pipe operations applied to the answer, each `{"name": ..., "args": [...]}`.
 `ze_show_bgp` answers what `ze_execute` answers for
 `show bgp rib | received | count`. A name that is not one of the command's
 pipe operations is refused with the valid list.
-<!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
+<!-- source: internal/component/mcp/tools.go -- generatedCommand -->
 
 Ze cannot advertise a single answer here, because the two clients get different
 behaviour. A schema-validating host would otherwise refuse to make the very call

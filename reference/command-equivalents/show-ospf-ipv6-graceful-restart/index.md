@@ -9,7 +9,7 @@ Show OSPFv3 \(IPv6\) Graceful Restart state \(RFC 5187\)\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-ipv6-graceful-restart`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

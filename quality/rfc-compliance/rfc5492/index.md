@@ -14,16 +14,9 @@ what Ze has
 | One polarity plus reason | 4 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 9 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 | Tests shown to detect a fault | 19 | 19 of 26 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 | Audit verdicts | 9 | of 9 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Declared gap or no test | 1 | of 9 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -32,7 +25,7 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Out of scope | 0 | of 9 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
-| Not applicable | 0 | of 9 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Not applicable | 1 | of 9 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Met below Ze | 0 | of 9 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 9 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Linux cannot do this | 0 | of 9 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
@@ -56,7 +49,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
 | Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
-| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -74,7 +67,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 16 |
 | Mandatory requirements (MUST level) | 9 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 1 |
+| Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
@@ -88,7 +81,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Automatic checks
 
-Included in automatic checks: BGP Capabilities Advertisement: nine MUST-level requirements. 3-1 (Unsupported-Capability NOTIFICATION carries the offending capabilities), 5-1 (each capability encoded code+length+value as in OPEN), 4-2 (every Type-2 Optional Parameter processed), and 3-2 (unknown capability preserved without error) carry positive+negative tags in internal/core/bgp/capability and internal/component/bgp/reactor. The MUST NOTs 3-3/3-4/5-2 have justified single-polarity positive coverage in TestOpenIgnoresUnknownCapability: valid unknown capabilities provide no conforming rejection case under these prohibitions. The required-capability rejection test retains separate policy and payload assertions without claiming negative coverage of those prohibitions. 4-1 (accept multiple identical capability instances) is {single-polarity: positive} bound to a parser test. 4-3 is a gap: it obliges the author of a capability-defining specification to describe its error handling, which the gate cannot bind to a role, and no test ties ze's capability decoding to those documents.
+Included in automatic checks: BGP Capabilities Advertisement: nine MUST-level requirements. 3-1 (Unsupported-Capability NOTIFICATION carries the offending capabilities), 5-1 (each capability encoded code+length+value as in OPEN), 4-2 (every Type-2 Optional Parameter processed), and 3-2 (unknown capability preserved without error) carry positive+negative tags in internal/core/bgp/capability and internal/component/bgp/reactor. The MUST NOTs 3-3/3-4/5-2 have justified single-polarity positive coverage in TestOpenIgnoresUnknownCapability: valid unknown capabilities provide no conforming rejection case under these prohibitions. The required-capability rejection test retains separate policy and payload assertions without claiming negative coverage of those prohibitions. 4-1 (accept multiple identical capability instances) is {single-polarity: positive} bound to a parser test. 4-3 is {not-applicable}: it obliges the document introducing a new capability to describe how multiple instances are processed, not a running BGP speaker.
 
 ## Published support status
 
@@ -98,7 +91,7 @@ Included in automatic checks: BGP Capabilities Advertisement: nine MUST-level re
 
 **Evidence:** unit 8
 
-**Unmet:** RFC5492-4-3
+**Unmet:** -
 
 
 ## Coverage
@@ -120,27 +113,27 @@ Included in automatic checks: BGP Capabilities Advertisement: nine MUST-level re
 
 ## Figures
 
-- **MUST bar**: Ze verified 8, Not built 1
-- **Overview bar**: Ze MUST verified 8, Not assessed 7, Not built 1
+- **MUST bar**: Ze verified 8
+- **Overview bar**: Ze MUST verified 8, Not owed 1, Not assessed 7
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 9 |
-| MUST rows kept (the MUST bar) | 9 |
+| MUST rows kept (the MUST bar) | 8 |
 | Ze verified | 8 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 1 |
-| MUST rows not owed | 0 |
+| Not built | 0 |
+| MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 0 |
+| MUST not owed: not-applicable | 1 |
 | SHOULD / MAY rows | 7 |
 | SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
@@ -167,7 +160,7 @@ Source: [data/rfc/rfc5492.json](../../../data/rfc/rfc5492.json).
 | `RFC5492-4-1` | Note, however, that processing of multiple instances of such capability does not require special handling, as additional instances do not change the meaning of the announced capability; thus, a BGP speaker MUST be prepared to accept such multiple instances. (§4) | MUST | 4 - Capabilities Optional Parameter (Parameter Type 2) | **positive:** `unit/verify` [`TestParseAcceptsMultipleIdenticalCapabilityInstances`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L310). **positive:** `unit/verify` [`TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L147). **negative:** no negative test. **{single-polarity}:** ze's capability parser appends every capability TLV without dedup or reject (internal/core/bgp/capability/capability.go:177), so multiple identical instances are all accepted; there is no reject path, so no negative case exists |
 | `RFC5492-4-2` | However, for backward compatibility, a BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters, each of which contains one or more capabilities TLVs. (§4) | MUST | 4 - Capabilities Optional Parameter (Parameter Type 2) | **positive:** `unit/verify` [`TestParseFromOptionalParamsMultipleCapabilitiesParameters`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L341). **positive:** `unit/verify` [`TestRFC5492CapabilitiesSpreadOverSeveralParameters`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L177). **negative:** `unit/verify` [`TestOptionalParamRejectsTruncatedCapabilityTLV`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L267). **negative:** `unit/verify` [`TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L205) |
 | `RFC5492-3-2` | If a BGP speaker receives from its peer a capability that it does not itself support or recognize, it MUST ignore that capability. (§3) | MUST | 3 - Overview of Operations | **positive:** `unit/verify` [`TestParseUnknownCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L184). **positive:** `unit/verify` [`TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L94). **negative:** `unit/verify` [`TestParseRejectsMalformedKnownCapabilityLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L233). **negative:** `unit/verify` [`TestRFC5492UnrecognizedCapabilityNeverReadAsKnown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L121) |
-| `RFC5492-4-3` | Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability. (§4) | MUST | 4 - Capabilities Optional Parameter (Parameter Type 2) | **positive:** no positive test. **negative:** no negative test. **{gap}:** an obligation on the document that introduces a capability, which no sentence of Section 4 scopes to a role in a form the gate accepts; ze writes no such document, and no test asserts that each capability ze decodes (internal/core/bgp/capability) follows its own document's multiple-instance rule |
+| `RFC5492-4-3` | Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability. (§4) | MUST | 4 - Capabilities Optional Parameter (Parameter Type 2) | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** "Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability."; binds the document; ze is a BGP speaker and authors no capability specification |
 | `RFC5492-3-3` | the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker. (§3) | MUST NOT | 3 - Overview of Operations | **positive:** `unit/verify` [`TestOpenIgnoresUnknownCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L123). **negative:** no negative test. **{single-polarity}:** a valid unknown capability has no conforming termination case under this prohibition; TestOpenIgnoresUnknownCapability exercises handleOpen and completes establishment, while rejection for a missing required capability is separate local policy |
 | `RFC5492-3-4` | In particular, the Unsupported Capability NOTIFICATION message MUST NOT be generated and the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker. (§3) | MUST NOT | 3 - Overview of Operations | **positive:** `unit/verify` [`TestOpenIgnoresUnknownCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L126). **negative:** no negative test. **{single-polarity}:** this prohibition defines no input for which an unknown capability warrants Unsupported Capability; TestOpenIgnoresUnknownCapability observes the outgoing KEEPALIVE and absence of NOTIFICATION, while a missing required capability invokes a separate permitted response |
 | `RFC5492-5-2` | It MUST NOT be used when a BGP speaker receives a capability that it does not understand; such capabilities MUST be ignored. (§5) | MUST NOT | 5 - Extensions to Error Handling | **positive:** `unit/verify` [`TestOpenIgnoresUnknownCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L128). **negative:** no negative test. **{single-polarity}:** valid unknown capabilities must all be ignored, so this rule has no conforming reject case; TestOpenIgnoresUnknownCapability checks known-capability negotiation and the session response, while malformed encodings and absent required capabilities exercise different rules |
@@ -183,7 +176,7 @@ Source: [data/rfc/rfc5492.json](../../../data/rfc/rfc5492.json).
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5492-4-3`](#rfc5492-4-3) Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability. (§4) | {gap}, no test | an obligation on the document that introduces a capability, which no sentence of Section 4 scopes to a role in a form the gate accepts; ze writes no such document, and no test asserts that each capability ze decodes (internal/core/bgp/capability) follows its own document's multiple-instance rule |
+| [`RFC5492-4-3`](#rfc5492-4-3) Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability. (§4) | no test | no test carries this requirement id; annotated {not-applicable}: "Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability."; binds the document; ze is a BGP speaker and authors no capability specification |
 
 ## Test status
 

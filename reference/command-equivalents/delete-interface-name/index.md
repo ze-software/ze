@@ -9,7 +9,7 @@ Delete an interface from the kernel\.
 - Mode: Daemon
 - Wire method: `ze-iface:interface-delete`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `address`, `unit`
 - Answer shape: not declared
 - Address fields: none

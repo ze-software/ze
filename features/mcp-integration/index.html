@@ -125,6 +125,7 @@ ze --mcp 8080 config.conf      # start from a config file
 }
 </code></pre>
 <p>Environment variable overrides: <code>ze.mcp.listen=ip:port</code>, <code>ze.mcp.enabled=true</code>, <code>ze.mcp.token=&lt;secret&gt;</code>. Defaults to <code>127.0.0.1:8080</code> (security: local-only unless explicitly overridden via <code>ze.mcp.listen</code>). Bearer token auth available via <code>--mcp-token</code> flag, <code>ze.mcp.token</code> env var, or the config <code>token</code> leaf.</p>
+<p>A token is not enough for a listener off loopback. A non-loopback MCP listener needs authentication (<code>auth-mode</code> <code>bearer</code>, <code>bearer-list</code> or <code>oauth</code>; a token alone selects <code>bearer</code>) and TLS: set <code>tls cert</code> and <code>tls key</code> in the <code>environment mcp</code> block. The rule is the one gNMI follows: the daemon refuses to start on such a listener without TLS, before anything binds, and <code>ze config validate</code> and <code>ze doctor</code> print the same refusal and fix for the same config. With <code>auth-mode bearer-list</code>, an identity that lists <code>scopes</code> may call only what they grant (an identity with no scopes is not restricted): <code>mcp.read</code> allows read-only commands and <code>ze_reference</code>, <code>mcp.write</code> allows commands that change state and provider tools, and <code>mcp.admin</code> allows everything, including any tool with no scope rule of its own. <code>mcp.write</code> does not include <code>mcp.read</code>, so an identity that both reads and writes lists both.</p>
 <h2 id="ai-command-reference">AI Command Reference</h2>
 <pre><code>ze help ai              # summary
 ze help ai all          # detailed listings and authored guidance
@@ -276,7 +277,7 @@ that prints a violation.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

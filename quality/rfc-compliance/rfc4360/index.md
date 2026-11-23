@@ -14,15 +14,8 @@ what Ze has
 | One polarity plus reason | 0 | of 5 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 5 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 5 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 5 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 | Tests shown to detect a fault | 6 | 6 of 10 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Declared gap or no test | 2 | of 5 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -31,7 +24,7 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Out of scope | 0 | of 5 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
-| Not applicable | 0 | of 5 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Not applicable | 2 | of 5 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Met below Ze | 0 | of 5 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 5 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Linux cannot do this | 0 | of 5 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
@@ -55,7 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
 | Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
-| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -73,7 +66,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 9 |
 | Mandatory requirements (MUST level) | 5 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 2 |
+| Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
@@ -87,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Automatic checks
 
-Included in automatic checks: BGP Extended Communities: five MUST-level requirements. Three are tested with both polarities: RFC4360-2-1 (equal only when all 8 octets match) via ExtendedCommunity [8]byte equality, RFC4360-x-1 (length a multiple of 8) via ParseExtendedCommunities (wired at wire.go:412), and RFC4360-6-1 (decision process does not use Extended Communities to modify best-path selection, internal/component/bgp/plugins/rib/bestpath.go::comparePair). Two are gaps: RFC4360-7-1 and 7-2, IANA type-allocation rules no sentence scopes to a role, which no test checks against ze's type table. A non-supporting speaker's pass-through is RFC 4271's rule (RFC4271-5-3), so no RFC 4360 row carries it (rfc/corrections/rfc4360.md). The 6-2 SHOULD, 6-3 SHOULD NOT and 6-4/6-5 MAYs are not gated.
+Included in automatic checks: BGP Extended Communities: five MUST-level requirements. Three are tested with both polarities: RFC4360-2-1 (equal only when all 8 octets match) via ExtendedCommunity [8]byte equality, RFC4360-x-1 (length a multiple of 8) via ParseExtendedCommunities (wired at wire.go:412), and RFC4360-6-1 on the default configuration path, where the decision process (internal/component/bgp/plugins/rib/bestpath.go::comparePair) reads no Extended Community, as TestRFC4360ExtendedCommunitiesDoNotAlterBestPath asserts. An operator may still write explicit policy that steers selection from an Extended Community (filter_community_match matches one, filter_modify then sets local-preference); that configuration is the operator's, outside the default path, and does not make 6-1 partial. Two are not-applicable: RFC4360-7-1 and 7-2, IANA type-allocation rules under §7 IANA Considerations (binds IANA). A non-supporting speaker's pass-through is RFC 4271's rule (RFC4271-5-3), so no RFC 4360 row carries it (rfc/corrections/rfc4360.md). The 6-2 SHOULD, 6-3 SHOULD NOT and 6-4/6-5 MAYs are not gated.
 
 ## Published support status
 
@@ -97,7 +90,7 @@ Included in automatic checks: BGP Extended Communities: five MUST-level requirem
 
 **Evidence:** unit 3
 
-**Unmet:** RFC4360-7-1, RFC4360-7-2
+**Unmet:** -
 
 
 ## Coverage
@@ -119,27 +112,27 @@ Included in automatic checks: BGP Extended Communities: five MUST-level requirem
 
 ## Figures
 
-- **MUST bar**: Ze verified 3, Not built 2
-- **Overview bar**: Ze MUST verified 3, Not assessed 4, Not built 2
+- **MUST bar**: Ze verified 3
+- **Overview bar**: Ze MUST verified 3, Not owed 2, Not assessed 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 5 |
-| MUST rows kept (the MUST bar) | 5 |
+| MUST rows kept (the MUST bar) | 3 |
 | Ze verified | 3 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 2 |
-| MUST rows not owed | 0 |
+| Not built | 0 |
+| MUST rows not owed | 2 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 0 |
+| MUST not owed: not-applicable | 2 |
 | SHOULD / MAY rows | 4 |
 | SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
@@ -162,8 +155,8 @@ Source: [data/rfc/rfc4360.json](../../../data/rfc/rfc4360.json).
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC4360-6-1` | The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6) | MUST NOT | 6 - Operations | **positive:** `unit/verify` [`TestRFC4360ExtendedCommunitiesDoNotAlterBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4360_bestpath_test.go#L31). **negative:** `unit/verify` [`TestRFC4360ExtendedCommunitiesDoNotAlterBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4360_bestpath_test.go#L35) |
-| `RFC4360-7-1` | The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7) | MUST NOT | 7 - IANA Considerations | **positive:** no positive test. **negative:** no negative test. **{gap}:** an IANA allocation rule with no implementer role the RFC names; ze allocates no Type value, and its codec (internal/core/bgp/attribute/community.go) reads only codes IANA assigned; no test pins ze's type table against the registry, so nothing proves ze treats no regular Type as an extended Type's high-order octet |
-| `RFC4360-7-2` | The value of the high-order octet allocated for an extended Type MUST NOT be reused when allocating a regular Type (§7) | MUST NOT | 7 - IANA Considerations | **positive:** no positive test. **negative:** no negative test. **{gap}:** the converse IANA allocation rule of RFC4360-7-1, with no implementer role the RFC names; ze allocates no Type value, and no test pins the high-order octets of the extended Types ze decodes (internal/core/bgp/attribute/community.go) against the registry's regular Types |
+| `RFC4360-7-1` | The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7) | MUST NOT | 7 - IANA Considerations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** heading "IANA Considerations"; binds IANA; ze is a BGP speaker that allocates no Extended Community Type value and decodes only IANA-assigned codes (internal/core/bgp/attribute/community.go) |
+| `RFC4360-7-2` | The value of the high-order octet allocated for an extended Type MUST NOT be reused when allocating a regular Type (§7) | MUST NOT | 7 - IANA Considerations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** heading "IANA Considerations"; binds IANA; ze is a BGP speaker that allocates no Extended Community Type value and decodes only IANA-assigned codes (internal/core/bgp/attribute/community.go) |
 | `RFC4360-2-1` | Two extended communities are declared equal only when all 8 octets of the community are equal. (§2) | MUST | 2 - BGP Extended Communities Attribute | **positive:** `unit/verify` [`TestExtendedCommunityEquality`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L300). **positive:** `unit/verify` [`TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4360_equality_test.go#L22). **negative:** `unit/verify` [`TestExtendedCommunityEquality`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L302). **negative:** `unit/verify` [`TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4360_equality_test.go#L23) |
 | `RFC4360-x-1` | The attribute consists of a set of "extended communities". All routes with the Extended Communities attribute belong to the communities listed in the attribute. Each Extended Community is encoded as an 8-octet quantity (§2) | MUST | 2 - BGP Extended Communities Attribute | **positive:** `unit/verify` [`TestExtendedCommunitiesParse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L280). **positive:** `unit/verify` [`TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4360_length_test.go#L20). **negative:** `unit/verify` [`TestExtendedCommunitiesParseRejectsBadLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L290). **negative:** `unit/verify` [`TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4360_length_test.go#L21) |
 | `RFC4360-6-2` | If a route has a non-transitivity extended community, then before advertising the route across the Autonomous System boundary the community SHOULD be removed from the route. (§6) | SHOULD | 6 - Operations | **positive:** no positive test. **negative:** no negative test |
@@ -175,8 +168,8 @@ Source: [data/rfc/rfc4360.json](../../../data/rfc/rfc4360.json).
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC4360-7-1`](#rfc4360-7-1) The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7) | {gap}, no test | an IANA allocation rule with no implementer role the RFC names; ze allocates no Type value, and its codec (internal/core/bgp/attribute/community.go) reads only codes IANA assigned; no test pins ze's type table against the registry, so nothing proves ze treats no regular Type as an extended Type's high-order octet |
-| [`RFC4360-7-2`](#rfc4360-7-2) The value of the high-order octet allocated for an extended Type MUST NOT be reused when allocating a regular Type (§7) | {gap}, no test | the converse IANA allocation rule of RFC4360-7-1, with no implementer role the RFC names; ze allocates no Type value, and no test pins the high-order octets of the extended Types ze decodes (internal/core/bgp/attribute/community.go) against the registry's regular Types |
+| [`RFC4360-7-1`](#rfc4360-7-1) The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7) | no test | no test carries this requirement id; annotated {not-applicable}: heading "IANA Considerations"; binds IANA; ze is a BGP speaker that allocates no Extended Community Type value and decodes only IANA-assigned codes (internal/core/bgp/attribute/community.go) |
+| [`RFC4360-7-2`](#rfc4360-7-2) The value of the high-order octet allocated for an extended Type MUST NOT be reused when allocating a regular Type (§7) | no test | no test carries this requirement id; annotated {not-applicable}: heading "IANA Considerations"; binds IANA; ze is a BGP speaker that allocates no Extended Community Type value and decodes only IANA-assigned codes (internal/core/bgp/attribute/community.go) |
 
 ## Test status
 

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 6396 requirements and tests - Ze</title>
-        <meta name="description" content="RFC 6396: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format. 13 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 6396: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format. 13 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 6396 requirements and tests - Ze" />
-        <meta property="og:description" content="RFC 6396: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format. 13 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 6396: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format. 13 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 6396 requirements and tests - Ze" />
-        <meta name="twitter:description" content="RFC 6396: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format. 13 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 6396: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format. 13 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -132,18 +132,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7</strong><b>of 13 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 13 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 13 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 13 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 <article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>23</strong><b>23 of 27 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>1</strong><b>of 13 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 13 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 13 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>1</strong><b>of 13 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 13 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 13 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
 <article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 13 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
@@ -181,7 +177,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -238,7 +234,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -275,13 +271,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Automatic checks</h2>
-<p>Included in automatic checks: MRT Routing Information Export Format (RFC 6396): both-way encoder/decoder; 7 single-polarity positive + 3 gaps (BGP4MP_MESSAGE_AS4 mislabels 2-byte-peer AS_PATH; RIB entries carry no abbreviated MP_REACH_NLRI next hop; Type Code allocation binds IANA) + 3 gaps in proof (no TABLE_DUMP, no 2-byte BGP4MP_MESSAGE, no informational types)</p>
+<p>Included in automatic checks: MRT Routing Information Export Format (RFC 6396): both-way encoder/decoder; 7 single-polarity positive + 2 gaps (BGP4MP_MESSAGE_AS4 mislabels 2-byte-peer AS_PATH; RIB entries carry no abbreviated MP_REACH_NLRI next hop) + 1 not-applicable (Type Code allocation starting at 65 binds IANA under Section 5) + 3 gaps in proof (no TABLE_DUMP, no 2-byte BGP4MP_MESSAGE, no informational types)</p>
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> MRT</p>
 <p><strong>Test verification:</strong> 12 of 13 MUST proven</p>
 <p><strong>Evidence:</strong> unit 12</p>
-<p><strong>Unmet:</strong> RFC6396-5.1-1</p>
+<p><strong>Unmet:</strong> -</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -326,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc6396:must">Ze verified 12, Not built 1</div>
+<div data-ze-rfc-bar="rfc6396:must">Ze verified 12</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc6396:overview">Ze MUST verified 12, Not assessed 12, Not built 1</div>
+<div data-ze-rfc-bar="rfc6396:overview">Ze MUST verified 12, Not owed 1, Not assessed 12</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -340,13 +336,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc6396:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc6396:register">not complete</span></td>
+<td><span data-ze-rfc="rfc6396:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc6396:must.total">13</span></td>
 </tr>
 <tr><td>MUST rows kept (the MUST bar)</td>
-<td><span data-ze-rfc="rfc6396:must.kept">13</span></td>
+<td><span data-ze-rfc="rfc6396:must.kept">12</span></td>
 </tr>
 <tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc6396:must.ze-proven">12</span></td>
@@ -367,10 +363,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc6396:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc6396:must.not-built">1</span></td>
+<td><span data-ze-rfc="rfc6396:must.not-built">0</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
-<td><span data-ze-rfc="rfc6396:must.not-owed">0</span></td>
+<td><span data-ze-rfc="rfc6396:must.not-owed">1</span></td>
 </tr>
 <tr><td>MUST not owed: feature-declined</td>
 <td><span data-ze-rfc="rfc6396:must.not-owed-by-kind.feature-declined">0</span></td>
@@ -379,7 +375,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc6396:must.not-owed-by-kind.linux-limit">0</span></td>
 </tr>
 <tr><td>MUST not owed: not-applicable</td>
-<td><span data-ze-rfc="rfc6396:must.not-owed-by-kind.not-applicable">0</span></td>
+<td><span data-ze-rfc="rfc6396:must.not-owed-by-kind.not-applicable">1</span></td>
 </tr>
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc6396:should.total">12</span></td>
@@ -502,8 +498,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4.4.2 - BGP4MP_MESSAGE Subtype</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L139" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L140" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L140" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L141" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.4.2-2">RFC6396-4.4.2-2</code></td><td colspan="3"><span class="rfc-subject">Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype. (§4.4.2)</span></td></tr>
@@ -522,8 +518,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4.4.3 - BGP4MP_MESSAGE_AS4 Subtype</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.4.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L141" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L142" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L142" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L143" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-1-1">RFC6396-1-1</code></td><td colspan="3"><span class="rfc-subject">Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet. (§1)</span></td></tr>
@@ -544,7 +540,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-5.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the sentence binds the IANA registry that allocates MRT Type Codes, a role ze never fills, and its passive subject fits neither not-applicable shape; ze allocates no Type Code, so it has no behaviour to test</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> heading &#34;IANA Considerations&#34;; binds IANA; allocating new MRT Type Codes starting at 65 binds the IANA registry; ze allocates no Type Code and only encodes and decodes assigned MRT types</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-b.1-1">RFC6396-B.1-1</code></td><td colspan="3"><span class="rfc-subject">The message string encoding MUST follow the UTF-8 transformation format [RFC3629]. (§B.1)</span></td></tr>
 <tr><td></td>
@@ -673,8 +669,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc6396-5.1-1"><code>RFC6396-5.1-1</code></a> New Type Codes MUST be allocated starting at 65. (§5.1)</td>
-<td>{gap}, no test</td>
-<td>the sentence binds the IANA registry that allocates MRT Type Codes, a role ze never fills, and its passive subject fits neither not-applicable shape; ze allocates no Type Code, so it has no behaviour to test</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: heading &#34;IANA Considerations&#34;; binds IANA; allocating new MRT Type Codes starting at 65 binds the IANA registry; ze allocates no Type Code and only encodes and decodes assigned MRT types</td>
 </tr>
 </tbody>
 </table>
@@ -699,7 +695,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc6396-4.2-2"><code>RFC6396-4.2-2</code></a></h3>
 <p>The TABLE_DUMP Type does not permit 4-byte Peer AS numbers, nor does it allow the AFI of the peer IP to differ from the AFI of the Prefix field.  The TABLE_DUMP_V2 Type MUST be used in these situations. (§4.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 6396 Section 4.2 (&#34;The TABLE_DUMP Type does not permit 4-byte Peer AS numbers, nor does it allow the AFI of the peer IP to differ from the AFI of the Prefix field.  The TABLE_DUMP_V2 Type MUST be used in these situations.&#34;). Re-read writeTableDumpV2 and writePeerIndexTable after commits d07e4dc944 and 4db24861ee: both OnRoute and OnRouteAddPath share the single writeRoute closure, which unconditionally stamps TypeTableDumpV2 for every PEER_INDEX_TABLE and RIB record (unicast, multicast, generic, with or without ADD-PATH) and encodes every peer entry with PeerAS4 (plus PeerIPv6 when IPv6). Both tagged tests (TestDumpV2PeerWidthAndPrefixFamily and supplementary TestRibSubtype) remain strong: TestDumpV2PeerWidthAndPrefixFamily drives Component.writeTableDumpV2 end-to-end across all eight combinations of IPv4/IPv6 peer, IPv4/IPv6 prefix, and 2-byte/4-byte peer ASN (65001 / 0x01020304), asserting TypeTableDumpV2 on every MRT header before body dispatch, exact PIT/RIB counts and subtypes, exact 4-byte ASN/IP/BGPID in the decoded PIT, and exact sequence/prefix/peer index/attributes in the decoded RIB. The {single-polarity: positive} annotation remains justified because Ze&#39;s RIB dump path never emits deprecated TABLE_DUMP (Type 12). Verdict: enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/plugins/mrt/dump.go::writePeerIndexTable moved. Independent re-judgment after 381e927417 against RFC 6396 Section 4.2 (&#34;The TABLE_DUMP Type does not permit 4-byte Peer AS numbers, nor does it allow the AFI of the peer IP to differ from the AFI of the Prefix field.  The TABLE_DUMP_V2 Type MUST be used in these situations.&#34;). writeTableDumpV2 now sends both visitor callbacks through one writeRoute closure whose writeHeader stamps mrtfmt.TypeTableDumpV2 for every subtype it can pick (2-5, 6, 8-12); writePeerIndexTable stamps TypeTableDumpV2, and every OnPeer entry is PeerAS4 (plus PeerIPv6 for an IPv6 peer). No writer in internal/plugins/mrt or internal/mrt emits TypeTableDump (12): it appears only in types.go and the reader. TestDumpV2PeerWidthAndPrefixFamily (unchanged) drives writeTableDumpV2 over all eight IPv4/IPv6 peer x IPv4/IPv6 prefix x 2-/4-octet ASN combinations and fails on the first header that is not TABLE_DUMP_V2, then pins the PIT peer type, 4-octet ASN, address and BGP ID and the RIB prefix, peer index and attributes. It drives OnRoute only; OnRouteAddPath shares the same closure and type constant. TestRibSubtype is supplementary (subtype mapping only, not the Type). Stale prose, not a verdict change: TestRibSubtype&#39;s comment cites dump.go:206-219, :171,200 and :133-135, and the {single-polarity} annotation cites dump.go:113 and :206; none of those lines holds what it names any more. The annotation&#39;s argument still holds: no Ze path emits TABLE_DUMP, so there is no violating output to refuse.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -840,12 +836,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L140" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L141" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L139" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L140" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -885,12 +881,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L142" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L143" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L141" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_invariants_test.go#L142" title="internal/plugins/mrt/rfc6396_invariants_test.go" target="_blank" rel="noopener"><code>TestRFC6396BGP4MPSubtypeMatchesSessionASWidth</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1416,7 +1412,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 05:15 UTC</span>
                 </div>
             </div>
         </footer>

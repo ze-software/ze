@@ -67,6 +67,7 @@
 <li><a href="#live-updates-and-what-is-public">Live updates and what is public</a></li>
 </ol></li>
 <li><a href="#birdwatcher-rest-api">Birdwatcher REST API</a></li>
+<li><a href="#rfc-8522-looking-glass-command-set-api">RFC 8522 Looking Glass Command Set API</a></li>
 <li><a href="#alice-lg-integration">Alice-LG Integration</a></li>
 <li><a href="#security">Security</a></li>
 </ol></details></nav><div class="doc-body">
@@ -705,6 +706,65 @@ paths). A client that shows an age reads <code>age_available</code> first, and n
 takes an <code>age</code> of <code>0</code> on its own for a route learned this second. Ages start
 again from zero when the daemon restarts. The normative statement is Section
 6.2 of the same page.</p>
+<h2 id="rfc-8522-looking-glass-command-set-api">RFC 8522 Looking Glass Command Set API</h2>
+<p>The looking glass also implements the <a href="https://www.rfc-editor.org/info/rfc8522" target="_blank" rel="noopener">RFC 8522</a> Looking Glass Command Set under <code>/.well-known/looking-glass/v1/</code>, answering every request in JSend JSON (<code>status</code> of <code>"success"</code>, <code>"fail"</code>, or <code>"error"</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Requirement</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /.well-known/looking-glass/v1/ping/{host}</code></td>
+<td>Mandatory</td>
+<td>Runs <code>show ping</code> from the router and returns RTT statistics and output.</td>
+</tr>
+<tr>
+<td><code>GET /.well-known/looking-glass/v1/traceroute/{host}</code></td>
+<td>Optional</td>
+<td>Runs <code>show traceroute</code> from the router.</td>
+</tr>
+<tr>
+<td><code>GET /.well-known/looking-glass/v1/show/route/{addr}</code></td>
+<td>Mandatory</td>
+<td>Queries <code>show route &lt;cidr&gt;</code> or <code>show route lookup &lt;ip&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>GET /.well-known/looking-glass/v1/show/bgp/{addr}</code></td>
+<td>Optional</td>
+<td>Queries received BGP routes for a prefix or covering address.</td>
+</tr>
+<tr>
+<td><code>GET /.well-known/looking-glass/v1/show/bgp/summary</code></td>
+<td>Optional</td>
+<td>Returns BGP peer summary (<code>show bgp</code>).</td>
+</tr>
+<tr>
+<td><code>GET /.well-known/looking-glass/v1/show/bgp/neighbors/{addr}</code></td>
+<td>Optional</td>
+<td>Returns BGP peer details (<code>show bgp peer &lt;addr&gt; detail</code>).</td>
+</tr>
+<tr>
+<td><code>GET /.well-known/looking-glass/v1/routers</code></td>
+<td>Mandatory</td>
+<td>Lists the router available on this looking glass.</td>
+</tr>
+<tr>
+<td><code>GET /.well-known/looking-glass/v1/routers/{number}</code></td>
+<td>Mandatory</td>
+<td>Returns router details (<code>id</code>, <code>name</code>, supported <code>format</code>, <code>vendor</code>, <code>autonomous_system</code>).</td>
+</tr>
+<tr>
+<td><code>GET /.well-known/looking-glass/v1/cmd</code></td>
+<td>Mandatory</td>
+<td>Lists all supported commands and their URI templates.</td>
+</tr>
+</tbody>
+</table>
+<p>HTTPS is required for <code>/.well-known/looking-glass/</code> per RFC 8522 Section 6: plaintext HTTP requests are refused with HTTP <code>400</code> and a JSend error envelope, while <code>/api/looking-glass/</code> and <code>/lg/</code> continue to honor <code>tls false</code>. Requests are rate-limited per client IP (default 60 requests per minute, HTTP <code>429</code> when exceeded). Supported query parameters are <code>protocol</code>, <code>router</code>, <code>routerindex</code>, <code>random</code> (ignored), <code>vrf</code>, <code>runtime</code> (seconds, default 30, 0 disables), and <code>format</code> (<code>text/plain</code> or <code>application/json</code>).</p>
 <h2 id="alice-lg-integration">Alice-LG Integration</h2>
 <p>To use Ze as a data source for <a href="https://github.com/alice-lg/alice-lg" target="_blank" rel="noopener">Alice-LG</a>, point Alice-LG's birdwatcher source configuration at the looking glass API:</p>
 <pre><code class="language-yaml">sources:
@@ -776,7 +836,7 @@ serves a self-signed certificate when that leaf is unset.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

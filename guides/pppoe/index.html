@@ -170,6 +170,11 @@ VPP access loads <code>pppoe_plugin.so</code> and selects
 <code>pppoe { enable-pass-nd-and-dhcpv6 }</code>. There is no second PPPoE plugin toggle.
 These settings carry discovery and PPP control frames to Ze; the startup flag
 also punts subscriber IPv6 control traffic.</p>
+<p>Subscribers on the VPP provider are not rate limited yet. Session-up hands
+each session to the subscriber shaper, whose upload policer the VPP traffic
+backend refuses, and the shaper only logs the failure, so neither the default
+nor the RADIUS rate is enforced. A CoA rate change for such a session is
+answered with a CoA-NAK, because the shaper holds no confirmed state for it.</p>
 <h3 id="changing-the-configuration">Changing the configuration</h3>
 <p>A committed change to the <code>pppoe</code> block applies to the running access
 concentrator as below. The backend's startup requirements must already be
@@ -655,7 +660,7 @@ ID for L2TP) and SessionID.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 05:15 UTC</span>
                 </div>
             </div>
         </footer>

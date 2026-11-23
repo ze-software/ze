@@ -9,7 +9,7 @@ Check if a firmware update is available\.
 - Mode: Read\-only
 - Wire method: `ze-update:show-system-update`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `history`
 - Answer shape: not declared
 - Address fields: none

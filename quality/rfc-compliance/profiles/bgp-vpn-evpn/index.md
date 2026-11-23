@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-vpn-evpn.json](..
 
 ## Figures
 
-- **MUST bar**: Ze verified 31, Tests awaiting verification 6, Not built 165
-- **Overview bar**: Ze MUST verified 31, SHOULD verified 1, Tests awaiting verification 6, Not assessed 53, Not built 165
+- **MUST bar**: Ze verified 31, Tests awaiting verification 6, Not built 164
+- **Overview bar**: Ze MUST verified 31, SHOULD verified 1, Not owed 1, Tests awaiting verification 6, Not assessed 53, Not built 164
 
 | Figure | Rows |
 |---|---|
@@ -17,18 +17,18 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-vpn-evpn.json](..
 | Requirements not reviewed | 2 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 202 |
-| MUST rows kept (the MUST bar) | 202 |
+| MUST rows kept (the MUST bar) | 201 |
 | Ze verified | 31 |
 | OS verified | 0 |
 | Tests awaiting verification | 6 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 165 |
-| MUST rows not owed | 0 |
+| Not built | 164 |
+| MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 0 |
+| MUST not owed: not-applicable | 1 |
 | SHOULD / MAY rows | 54 |
 | SHOULD verified | 1 |
 | SHOULD OS verified | 0 |
@@ -68,7 +68,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7432](../../rfc7432/) | BGP MPLS-Based Ethernet VPN | Ze verified 11, Tests awaiting verification 2, Not built 90 | Ze MUST verified 11, Tests awaiting verification 2, Not assessed 17, Not built 90 |
+| [RFC 7432](../../rfc7432/) | BGP MPLS-Based Ethernet VPN | Ze verified 11, Tests awaiting verification 2, Not built 89 | Ze MUST verified 11, Not owed 1, Tests awaiting verification 2, Not assessed 17, Not built 89 |
 
 ### Level 10
 

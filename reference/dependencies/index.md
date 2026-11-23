@@ -7,7 +7,7 @@ Ze uses 66 direct Go dependencies. The list and versions come from `go.mod`, and
 | Module | Version | Licence | Copyright | Why we use it |
 | --- | --- | --- | --- | --- |
 | `charm.land/bubbletea/v2` | `v2.1.1` | `MIT` | Charmbracelet, Inc. | The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session. |
-| `charm.land/bubbles/v2` | `v2.2.1` | `MIT` | Charmbracelet, Inc. | Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens. |
+| `charm.land/bubbles/v2` | `v2.2.2` | `MIT` | Charmbracelet, Inc. | Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens. |
 | `charm.land/lipgloss/v2` | `v2.1.1` | `MIT` | Charmbracelet, Inc. | Styling and layout for the CLI's colors, borders, and widths. |
 | `charm.land/wish/v2` | `v2.0.5` | `MIT` | Charmbracelet, Inc | SSH server middleware that wires each incoming session to run the CLI's Bubbletea program. |
 | `charm.land/ssh` | `v0.4.3` | `BSD-3-Clause` | Glider Labs | SSH session and public-key types that the wish server and the CLI's key-based auth build on. |
@@ -153,7 +153,7 @@ The shipped `ze` binary also carries these works: the Go modules the direct depe
 | [`github.com/pandatix/go-abnf`](https://github.com/pandatix/go-abnf) | `v0.5.5` | `MIT` | Lucas TESSON - PandatiX <lucastesson@protonmail.com> |
 | [`github.com/pierrec/lz4/v4`](https://github.com/pierrec/lz4/v4) | `v4.1.33` | `BSD-3-Clause` | Pierre Curto |
 | [`github.com/pires/go-proxyproto`](https://github.com/pires/go-proxyproto) | `v0.16.0` | `Apache-2.0` | Paulo Pires |
-| [`github.com/rivo/uniseg`](https://github.com/rivo/uniseg) | `v0.4.7` | `MIT` | Oliver Kuederle |
+| [`github.com/rivo/uniseg`](https://github.com/rivo/uniseg) | `v0.4.8-0.20261110175422-3a370411ca06` | `MIT` | Oliver Kuederle |
 | [`github.com/spf13/cobra`](https://github.com/spf13/cobra) | `v1.10.2` | `Apache-2.0` | The Cobra Authors |
 | [`github.com/spf13/pflag`](https://github.com/spf13/pflag) | `v1.1.0` | `BSD-3-Clause` | Alex Ogier, The Go Authors |
 | [`github.com/u-root/uio`](https://github.com/u-root/uio) | `v0.0.0-20240224005618-d2acac8f3701` | `BSD-3-Clause` | u-root Authors |

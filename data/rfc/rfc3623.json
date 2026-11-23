@@ -7,16 +7,18 @@
   "implemented": true,
   "must": {
     "total": 13,
-    "kept": 13,
+    "kept": 12,
     "ze-proven": 8,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 1,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 4,
-    "not-owed": 0,
-    "not-owed-by-kind": {}
+    "not-built": 3,
+    "not-owed": 1,
+    "not-owed-by-kind": {
+      "not-applicable": 1
+    }
   },
   "should": {
     "total": 13,
@@ -36,7 +38,6 @@
   "unmet": [
     "RFC3623-3-1",
     "RFC3623-3.1-1",
-    "RFC3623-3.2-1",
-    "RFC3623-A-1"
+    "RFC3623-3.2-1"
   ]
 }

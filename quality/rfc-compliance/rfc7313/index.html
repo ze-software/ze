@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7313 requirements and tests - Ze</title>
-        <meta name="description" content="RFC 7313: Enhanced Route Refresh Capability for BGP-4. 11 mandatory requirements included in automatic checks, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 7313: Enhanced Route Refresh Capability for BGP-4. 11 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7313 requirements and tests - Ze" />
-        <meta property="og:description" content="RFC 7313: Enhanced Route Refresh Capability for BGP-4. 11 mandatory requirements included in automatic checks, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 7313: Enhanced Route Refresh Capability for BGP-4. 11 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7313 requirements and tests - Ze" />
-        <meta name="twitter:description" content="RFC 7313: Enhanced Route Refresh Capability for BGP-4. 11 mandatory requirements included in automatic checks, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 7313: Enhanced Route Refresh Capability for BGP-4. 11 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -128,16 +128,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>4</strong><b>of 11 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>9</strong><b>of 11 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 11 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 11 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 11 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>12</strong><b>12 of 31 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>5</strong><b>of 11 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 11 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>23</strong><b>23 of 42 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -181,7 +177,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -238,7 +234,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>5</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -250,16 +246,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>31</td>
+<td>42</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>31</td>
+<td>42</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>5</td>
+<td>10</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>12</td>
+<td>23</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7313.md</code></td>
@@ -275,13 +271,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Automatic checks</h2>
-<p>Included in automatic checks: Enhanced Route Refresh Capability for BGP-4: eleven MUST-level requirements. Six are met in internal/component/bgp: 4-3 (the ROUTE-REFRESH Message Subtype selects normal/BoRR/EoRR handling), 5-1 (an invalid-length ROUTE-REFRESH is a NOTIFICATION Route-Refresh Error), and 5-3 (an unknown Message Subtype is ignored and the session stays Established) carry positive+negative tags; 4-1 (send a BoRR before re-advertising), 4-2 (send an EoRR after re-advertising), and 5-2 (the NOTIFICATION data carries the complete ROUTE-REFRESH message) are {single-polarity: positive}. Five are {gap}: 4-4 and 4-5 (a received BoRR/EoRR is log-only, so ze marks no Adj-RIB-In routes stale and purges none), 4-6 and 4-7 (no Graceful-Restart End-of-RIB gate on BoRR emission or acceptance), and 4-13 (ze starts no locally initiated route refresh, and no decision of Thomas&#39;s declines one). Disclosed in the docs/features/rfc-status.md RFC 7313 row.</p>
+<p>Included in automatic checks: Enhanced Route Refresh Capability for BGP-4: all eleven MUST-level requirements are met in internal/component/bgp: 4-3 (Message Subtype selects normal/BoRR/EoRR handling), 4-4 (received BoRR marks all routes of &lt;AFI, SAFI&gt; from that peer stale in bgp-rib), 4-5 (received EoRR immediately purges remaining stale routes of &lt;AFI, SAFI&gt; from that peer and reconciles best-path/Loc-RIB), 4-6 (Graceful-Restart EoR gate blocks BoRR emission before EoR for &lt;AFI, SAFI&gt;), 4-7 (received BoRR from a Graceful-Restart peer is ignored and logged before EoR for &lt;AFI, SAFI&gt;), 4-13 (locally initiated outbound refresh via clear bgp rib out brackets Adj-RIB-Out re-advertisement with BoRR and EoRR), 5-1 (invalid-length BoRR/EoRR sends NOTIFICATION 7/1), and 5-3 (unknown Message Subtype ignored, session stays Established) carry positive+negative proofs; 4-1, 4-2, and 5-2 carry {single-polarity: positive}.</p>
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Enhanced Route Refresh</p>
-<p><strong>Test verification:</strong> 6 of 11 MUST proven</p>
-<p><strong>Evidence:</strong> unit 6</p>
-<p><strong>Unmet:</strong> RFC7313-4-13, RFC7313-4-4, RFC7313-4-5, RFC7313-4-6, RFC7313-4-7</p>
+<p><strong>Test verification:</strong> 11 of 11 MUST proven</p>
+<p><strong>Evidence:</strong> unit 11</p>
+<p><strong>Unmet:</strong> -</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -290,11 +286,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>4</strong></td>
+<td><strong>9</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>7</strong></td>
+<td><strong>2</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Only a positive or negative test</td>
@@ -321,14 +317,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc7313-4-2"><code>RFC7313-4-2</code></a>, <a href="#rfc7313-4-3"><code>RFC7313-4-3</code></a>, <a href="#rfc7313-5-1"><code>RFC7313-5-1</code></a>, <a href="#rfc7313-5-3"><code>RFC7313-5-3</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (7):</strong> <a href="#rfc7313-4-13"><code>RFC7313-4-13</code></a>, <a href="#rfc7313-4-1"><code>RFC7313-4-1</code></a>, <a href="#rfc7313-4-4"><code>RFC7313-4-4</code></a>, <a href="#rfc7313-4-5"><code>RFC7313-4-5</code></a>, <a href="#rfc7313-5-2"><code>RFC7313-5-2</code></a>, <a href="#rfc7313-4-6"><code>RFC7313-4-6</code></a>, <a href="#rfc7313-4-7"><code>RFC7313-4-7</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (9):</strong> <a href="#rfc7313-4-13"><code>RFC7313-4-13</code></a>, <a href="#rfc7313-4-2"><code>RFC7313-4-2</code></a>, <a href="#rfc7313-4-3"><code>RFC7313-4-3</code></a>, <a href="#rfc7313-4-4"><code>RFC7313-4-4</code></a>, <a href="#rfc7313-4-5"><code>RFC7313-4-5</code></a>, <a href="#rfc7313-5-1"><code>RFC7313-5-1</code></a>, <a href="#rfc7313-5-3"><code>RFC7313-5-3</code></a>, <a href="#rfc7313-4-6"><code>RFC7313-4-6</code></a>, <a href="#rfc7313-4-7"><code>RFC7313-4-7</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (2):</strong> <a href="#rfc7313-4-1"><code>RFC7313-4-1</code></a>, <a href="#rfc7313-5-2"><code>RFC7313-5-2</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7313:must">Ze verified 6, Not built 5</div>
+<div data-ze-rfc-bar="rfc7313:must">Ze verified 11</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7313:overview">Ze MUST verified 6, Not assessed 6, Not built 5</div>
+<div data-ze-rfc-bar="rfc7313:overview">Ze MUST verified 11, Not assessed 6</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -340,7 +336,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7313:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc7313:register">not complete</span></td>
+<td><span data-ze-rfc="rfc7313:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc7313:must.total">11</span></td>
@@ -349,7 +345,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7313:must.kept">11</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc7313:must.ze-proven">6</span></td>
+<td><span data-ze-rfc="rfc7313:must.ze-proven">11</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7313:must.os-verified">0</span></td>
@@ -367,7 +363,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7313:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc7313:must.not-built">5</span></td>
+<td><span data-ze-rfc="rfc7313:must.not-built">0</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc7313:must.not-owed">0</span></td>
@@ -433,9 +429,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-13">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> no owner decision declines a locally initiated route refresh. RFC 7313 Section 4 says &#34;When a route entry in the &#34;Adj-RIB-Out&#34; changes, only the modified route entry needs to be advertised.&#34;, which makes a whole-table refresh unnecessary, not declined. ze starts no such refresh: internal/component/bgp/plugins/rib/rib.go::handleRefresh and internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured are the only producers of a BoRR and of a whole-table re-advertisement, and each runs only on a received ROUTE-REFRESH subtype 0 from the peer; internal/component/bgp/reactor/reactor_api.go::SoftClearPeer, ze&#39;s one operator refresh, sends the peer an inbound ROUTE-REFRESH request and re-advertises nothing. The peer-requested clause of the same sentence is RFC7313-4-1</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go#L265" title="internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7313LocallyInitiatedRouteRefreshSendsBoRRBeforeRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go#L266" title="internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7313LocallyInitiatedRouteRefreshSendsBoRRBeforeRoutes</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-1">RFC7313-4-1</code></td><td colspan="3"><span class="rfc-subject">or in response to a &#34;normal route refresh request&#34; from the peer, the speaker MUST send a BoRR message. (§4)</span></td></tr>
 <tr><td></td>
@@ -447,7 +443,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_test.go#L63" title="internal/component/bgp/plugins/rib/rfc7313_test.go" target="_blank" rel="noopener"><code>TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L139" title="internal/component/bgp/message/routerefresh_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshSubtypes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> both refresh producers, RIBManager.handleRefresh (internal/component/bgp/plugins/rib/rib.go) and handleRefreshStructured (rib_structured.go), dispatch the BoRR before sendRoutes in one straight-line path with no input that selects a re-advertisement without it, so no refusal path exists to drive a negative; the reading that takes the negative from a peer&#39;s re-advertisement lacking the BoRR has nothing to test either, because ze&#39;s receipt of BoRR/EoRR is log-only (RFC7313-4-4/4-5 gaps)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> both refresh producers, RIBManager.handleRefresh (internal/component/bgp/plugins/rib/rib.go) and handleRefreshStructured (rib_structured.go), dispatch the BoRR before sendRoutes in one straight-line path with no input that selects a re-advertisement without it, so no refusal path exists to drive a negative</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-2">RFC7313-4-2</code></td><td colspan="3"><span class="rfc-subject">After the speaker completes the re-advertisement of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message. (§4)</span></td></tr>
 <tr><td></td>
@@ -480,18 +476,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze logs a received BoRR but does not mark the peer&#39;s Adj-RIB-In routes stale -- internal/component/bgp/plugins/rib/rib.go:751-753 handles a received BoRR as log-only and rib_structured.go:506 returns early for a non-zero subtype, so no stale-marking occurs</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go#L63" title="internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go#L64" title="internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go#L179" title="internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go" target="_blank" rel="noopener"><code>TestRFC7313RxNonEnhancedPeerReservedOctetNotBoRR</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-5">RFC7313-4-5</code></td><td colspan="3"><span class="rfc-subject">When a BGP speaker receives an EoRR message from a peer, it MUST immediately remove any routes from the peer that are still marked as stale for that &lt;AFI, SAFI&gt;. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze logs a received EoRR but performs no stale-route removal -- internal/component/bgp/plugins/rib/rib.go:754-756 handles it as log-only, and because no BoRR stale-marking exists (RFC7313-4-4) there is nothing to purge</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go#L65" title="internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go#L66" title="internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-5-1">RFC7313-5-1</code></td><td colspan="3"><span class="rfc-subject">If the length, excluding the fixed-size message header, of the received ROUTE-REFRESH message with Message Subtype 1 and 2 is not 4, then the BGP speaker MUST send a NOTIFICATION message with the Error Code of &#34;ROUTE-REFRESH Message Error&#34; and the subcode of &#34;Invalid Message Length&#34;. (§5)</span></td></tr>
 <tr><td></td>
@@ -535,18 +532,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s sendRouteRefresh (internal/component/bgp/reactor/reactor_api_forward.go:112) applies no Graceful-Restart End-of-RIB gate, and rib.go:1008-1013 emits the BoRR without checking End-of-RIB state, so the GR/EoR interaction is not enforced</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go#L41" title="internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go" target="_blank" rel="noopener"><code>TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go#L42" title="internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go" target="_blank" rel="noopener"><code>TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-7">RFC7313-4-7</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that has received the Graceful Restart Capability from its neighbor MUST ignore any BoRRs for an &lt;AFI, SAFI&gt; from the neighbor before the speaker receives the EoR for the given &lt;AFI, SAFI&gt; from the neighbor. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the received-BoRR path is log-only (internal/component/bgp/plugins/rib/rib.go:751-753) with no Graceful-Restart End-of-RIB gating, and it depends on the unimplemented stale-marking of RFC7313-4-4</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go#L258" title="internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go" target="_blank" rel="noopener"><code>TestRFC7313RxBoRRIgnoredBeforeEoRFromGRPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go#L259" title="internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go" target="_blank" rel="noopener"><code>TestRFC7313RxBoRRIgnoredBeforeEoRFromGRPeer</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-8">RFC7313-4-8</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that supports the message subtypes for the ROUTE- REFRESH message and the related procedures SHOULD advertise the &#34;Enhanced Route Refresh Capability&#34;. (§4)</span></td></tr>
 <tr><td></td>
@@ -607,43 +604,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc7313-4-13"><code>RFC7313-4-13</code></a> Before the speaker starts a route refresh that is either initiated locally (§4)</td>
-<td>{gap}, no test</td>
-<td>no owner decision declines a locally initiated route refresh. RFC 7313 Section 4 says &#34;When a route entry in the &#34;Adj-RIB-Out&#34; changes, only the modified route entry needs to be advertised.&#34;, which makes a whole-table refresh unnecessary, not declined. ze starts no such refresh: internal/component/bgp/plugins/rib/rib.go::handleRefresh and internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured are the only producers of a BoRR and of a whole-table re-advertisement, and each runs only on a received ROUTE-REFRESH subtype 0 from the peer; internal/component/bgp/reactor/reactor_api.go::SoftClearPeer, ze&#39;s one operator refresh, sends the peer an inbound ROUTE-REFRESH request and re-advertises nothing. The peer-requested clause of the same sentence is RFC7313-4-1</td>
-</tr>
-<tr><td><a href="#rfc7313-4-4"><code>RFC7313-4-4</code></a> When a BGP speaker receives a BoRR message from a peer, it MUST mark all the routes with the given Address Family Identifier and Subsequent Address Family Identifier, &lt;AFI, SAFI&gt; [RFC2918], from that peer as stale. (§4)</td>
-<td>{gap}, no test</td>
-<td>ze logs a received BoRR but does not mark the peer&#39;s Adj-RIB-In routes stale -- internal/component/bgp/plugins/rib/rib.go:751-753 handles a received BoRR as log-only and rib_structured.go:506 returns early for a non-zero subtype, so no stale-marking occurs</td>
-</tr>
-<tr><td><a href="#rfc7313-4-5"><code>RFC7313-4-5</code></a> When a BGP speaker receives an EoRR message from a peer, it MUST immediately remove any routes from the peer that are still marked as stale for that &lt;AFI, SAFI&gt;. (§4)</td>
-<td>{gap}, no test</td>
-<td>ze logs a received EoRR but performs no stale-route removal -- internal/component/bgp/plugins/rib/rib.go:754-756 handles it as log-only, and because no BoRR stale-marking exists (RFC7313-4-4) there is nothing to purge</td>
-</tr>
-<tr><td><a href="#rfc7313-4-6"><code>RFC7313-4-6</code></a> For a BGP speaker that supports the BGP Graceful Restart, it MUST NOT send a BoRR for an &lt;AFI, SAFI&gt; to a neighbor before it sends the EoR for the &lt;AFI, SAFI&gt; to the neighbor. (§4)</td>
-<td>{gap}, no test</td>
-<td>ze&#39;s sendRouteRefresh (internal/component/bgp/reactor/reactor_api_forward.go:112) applies no Graceful-Restart End-of-RIB gate, and rib.go:1008-1013 emits the BoRR without checking End-of-RIB state, so the GR/EoR interaction is not enforced</td>
-</tr>
-<tr><td><a href="#rfc7313-4-7"><code>RFC7313-4-7</code></a> A BGP speaker that has received the Graceful Restart Capability from its neighbor MUST ignore any BoRRs for an &lt;AFI, SAFI&gt; from the neighbor before the speaker receives the EoR for the given &lt;AFI, SAFI&gt; from the neighbor. (§4)</td>
-<td>{gap}, no test</td>
-<td>the received-BoRR path is log-only (internal/component/bgp/plugins/rib/rib.go:751-753) with no Graceful-Restart End-of-RIB gating, and it depends on the unimplemented stale-marking of RFC7313-4-4</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 7313 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
 <section><h2>Test status</h2>
 <p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc7313-4-13"><code>RFC7313-4-13</code></a></h3>
 <p>Before the speaker starts a route refresh that is either initiated locally (§4)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC7313-4-13, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7313 Section 4 requires sending BoRR before starting a locally initiated route refresh and EoRR after completing Adj-RIB-Out re-advertisement. RIBManager.outboundResend (internal/component/bgp/plugins/rib/rib_commands.go) excludes meta.refreshOrdinary peers from legacy resendFamiliesBracketed (preventing double refresh), snapshots matching up ordinary destinations and their config-static SENT families under r.peerMu.RLock() before releasing peerMu, and invokes selectedDispatch.requestLocalRefresh (rib_selected_refresh.go) which requires non-empty haveFamilies (configured, current, scoped, or acknowledged) so empty/unnegotiated families are never queued and lock ordering (never d.mu -&gt; peerMu) is preserved. TestRFC7313LocallyInitiatedRouteRefreshSendsBoRRBeforeRoutes (internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go) verifies positive BoRR -&gt; routes -&gt; EoRR ordering on both legacy (decoding actual re-advertised prefixes 10.0.0.0/24 and 10.0.1.0/24 via consumeRefreshCommand/consumedRefreshRoutes) and ordinary destinations (with ribOut populated and refreshOrdinary=true, asserting zero legacy duplicate dispatch and peers==1), plus negative controls (non-matching selector, empty family, down peer) on both legacy and ordinary destinations.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go#L266" title="internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7313LocallyInitiatedRouteRefreshSendsBoRRBeforeRoutes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go#L265" title="internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7313LocallyInitiatedRouteRefreshSendsBoRRBeforeRoutes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7313-4-1"><code>RFC7313-4-1</code></a></h3>
 <p>or in response to a &#34;normal route refresh request&#34; from the peer, the speaker MUST send a BoRR message. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent current-source rejudgment against RFC 7313 Sections 3.2 and 4, preserving enforced at the existing peer-requested refresh scope. Read every current tagged root and its actual fixture/observer. The changed RIB roots now first observe a real UP control tuple (PeerOwner 1, DestinationSession 11, attached legacy/non-selected recipient) and preserve that same tuple on JSON and DirectBridge refresh inputs. This repairs admission at the current queueSelectedRefresh/currentRefreshSession boundary; it changes no expected route, family, marker order or absence control. Both rails enter replayLegacyRefresh, which snapshots the existing SENT inventory under peerMu, releases it, then emits BoRR, sendRoutes, EoRR in order. The sequence observer combines marker and update hooks in one ordered log, passes update commands through the actual text/hex/b64 production consumers, rejects EOR and withdrawals, decodes real NLRI family/prefix, and requires exactly 10.0.0.0/24 plus 10.0.1.0/24 with no IPv6 route. The marker-only root separately requires the two exact family markers on both rails; its untagged down-peer/received-BoRR controls remain source-reviewed supplementary controls, not new recorded covers. Subtype pack/unpack and command-dispatch roots remain supplementary encoding/dispatch witnesses, not end-to-end route output. This legacy SENT-inventory path and its hook output do not establish the new ordinary selected-refresh worker&#39;s final receipt/Session authority or external acceptance. Separate manuscript gaps for received BoRR/EoRR stale processing and GR/EOR interaction remain untouched. The 4-1 single-positive annotation remains appropriate for the peer-requested clause: each admitted replay brackets its routes with BoRR and there is no alternate re-advertisement input that omits it. Locally initiated refresh is the current separate 4-13 gap, not feature-declined; the old upgrade_reason&#39;s feature-declined wording is historical and is not repeated as current fact. Native job-advertiser-rib-refresh-proof-renewal-58f7d364.log184-186 observes the whole sequence root and both rails PASS; replacing handleRefresh with a body panic stops the first JSON-rail invocation at192-206 and records the current positive at213. The panic precedes all sequence assertions and prevents the structured child from running in the broken process. It proves dependence on that producer, not a selective BoRR omission/reordering fault or broken-run structured-rail ordering. The actual clean sequence assertions and straight-line current legacy producer supply the ordering judgment.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/rib/rib_selected_refresh.go::RIBManager.queueSelectedRefresh, internal/component/bgp/plugins/rib/rib_selected_refresh.go::RIBManager.replayLegacyRefresh, internal/component/bgp/plugins/rib/rib_structured.go::RIBManager.handleRefreshStructured moved. Independent current-source rejudgment against RFC 7313 Sections 3.2 and 4, preserving enforced at the existing peer-requested refresh scope. Read every current tagged root and its actual fixture/observer. The changed RIB roots now first observe a real UP control tuple (PeerOwner 1, DestinationSession 11, attached legacy/non-selected recipient) and preserve that same tuple on JSON and DirectBridge refresh inputs. This repairs admission at the current queueSelectedRefresh/currentRefreshSession boundary; it changes no expected route, family, marker order or absence control. Both rails enter replayLegacyRefresh, which snapshots the existing SENT inventory under peerMu, releases it, then emits BoRR, sendRoutes, EoRR in order. The sequence observer combines marker and update hooks in one ordered log, passes update commands through the actual text/hex/b64 production consumers, rejects EOR and withdrawals, decodes real NLRI family/prefix, and requires exactly 10.0.0.0/24 plus 10.0.1.0/24 with no IPv6 route. The marker-only root separately requires the two exact family markers on both rails; its untagged down-peer/received-BoRR controls remain source-reviewed supplementary controls, not new recorded covers. Subtype pack/unpack and command-dispatch roots remain supplementary encoding/dispatch witnesses, not end-to-end route output. This legacy SENT-inventory path and its hook output do not establish the new ordinary selected-refresh worker&#39;s final receipt/Session authority or external acceptance. Separate manuscript gaps for received BoRR/EoRR stale processing and GR/EOR interaction remain untouched. The 4-1 single-positive annotation remains appropriate for the peer-requested clause: each admitted replay brackets its routes with BoRR and there is no alternate re-advertisement input that omits it. Locally initiated refresh is the current separate 4-13 gap, not feature-declined; the old upgrade_reason&#39;s feature-declined wording is historical and is not repeated as current fact. Native job-advertiser-rib-refresh-proof-renewal-58f7d364.log184-186 observes the whole sequence root and both rails PASS; replacing handleRefresh with a body panic stops the first JSON-rail invocation at192-206 and records the current positive at213. The panic precedes all sequence assertions and prevents the structured child from running in the broken process. It proves dependence on that producer, not a selective BoRR omission/reordering fault or broken-run structured-rail ordering. The actual clean sequence assertions and straight-line current legacy producer supply the ordering judgment.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -673,7 +660,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7313-4-2"><code>RFC7313-4-2</code></a></h3>
 <p>After the speaker completes the re-advertisement of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent current-source rejudgment against RFC 7313 Sections 3.2 and 4, preserving enforced at the existing peer-requested refresh scope. Read every current tagged root and its actual fixture/observer. The changed RIB roots now first observe a real UP control tuple (PeerOwner 1, DestinationSession 11, attached legacy/non-selected recipient) and preserve that same tuple on JSON and DirectBridge refresh inputs. This repairs admission at the current queueSelectedRefresh/currentRefreshSession boundary; it changes no expected route, family, marker order or absence control. Both rails enter replayLegacyRefresh, which snapshots the existing SENT inventory under peerMu, releases it, then emits BoRR, sendRoutes, EoRR in order. The sequence observer combines marker and update hooks in one ordered log, passes update commands through the actual text/hex/b64 production consumers, rejects EOR and withdrawals, decodes real NLRI family/prefix, and requires exactly 10.0.0.0/24 plus 10.0.1.0/24 with no IPv6 route. The marker-only root separately requires the two exact family markers on both rails; its untagged down-peer/received-BoRR controls remain source-reviewed supplementary controls, not new recorded covers. Subtype pack/unpack and command-dispatch roots remain supplementary encoding/dispatch witnesses, not end-to-end route output. This legacy SENT-inventory path and its hook output do not establish the new ordinary selected-refresh worker&#39;s final receipt/Session authority or external acceptance. Separate manuscript gaps for received BoRR/EoRR stale processing and GR/EOR interaction remain untouched. For 4-2 additionally read the entire unchanged reactor TestRFC7313EoRRFollowsTheRoutesItCloses and recording-session/initial-sync helpers. Its production SendBoRR/AnnounceNLRIBatch/SendEoRR calls require [eor,borr,route,eorr] outside sync; while the initial-sync gate is held it requires no early output and zero marker count, then [borr,route,eorr,eor] and exactly two markers after drain. Its label helper calls every non-EOR UPDATE &#39;route&#39;: the recorded wire-order witness establishes frame order and counters, not exact useful NLRI/attributes on that recording connection. The earlier selected marker regression receipt bbb32f70:25-32 passes both children while logging an AS-zero withdrawal conversion; that limitation does not become useful-announcement proof. Exact advertised prefix/no-withdrawal evidence comes from the distinct RIB sequence consumer above. Retain the two existing reactor positive/negative records on sendQueuedRefreshMarker and sendRefreshMarker as prior evidence, not fresh runs in this renewal; the initial freshness gate did not mark either record stale. The current additional RIB record is actual job-advertiser-rib-refresh-proof-renewal-58f7d364.log244-246 clean PASS on both rails; disabling sendRoutes panics at252-272 in the first JSON child, after BoRR but before route/EoRR sequence assertions, and records positive279. This is a whole-producer dependency cut, not selective early-EoRR evidence. The old wire-order records remain the complementary queue-order witnesses. No stale-session drop or new selected-refresh completion proof is inferred.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/rib/rib_selected_refresh.go::RIBManager.queueSelectedRefresh, internal/component/bgp/plugins/rib/rib_selected_refresh.go::RIBManager.replayLegacyRefresh, internal/component/bgp/plugins/rib/rib_structured.go::RIBManager.handleRefreshStructured, internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.sendRouteRefreshContext moved. Independent current-source rejudgment against RFC 7313 Sections 3.2 and 4, preserving enforced at the existing peer-requested refresh scope. Read every current tagged root and its actual fixture/observer. The changed RIB roots now first observe a real UP control tuple (PeerOwner 1, DestinationSession 11, attached legacy/non-selected recipient) and preserve that same tuple on JSON and DirectBridge refresh inputs. This repairs admission at the current queueSelectedRefresh/currentRefreshSession boundary; it changes no expected route, family, marker order or absence control. Both rails enter replayLegacyRefresh, which snapshots the existing SENT inventory under peerMu, releases it, then emits BoRR, sendRoutes, EoRR in order. The sequence observer combines marker and update hooks in one ordered log, passes update commands through the actual text/hex/b64 production consumers, rejects EOR and withdrawals, decodes real NLRI family/prefix, and requires exactly 10.0.0.0/24 plus 10.0.1.0/24 with no IPv6 route. The marker-only root separately requires the two exact family markers on both rails; its untagged down-peer/received-BoRR controls remain source-reviewed supplementary controls, not new recorded covers. Subtype pack/unpack and command-dispatch roots remain supplementary encoding/dispatch witnesses, not end-to-end route output. This legacy SENT-inventory path and its hook output do not establish the new ordinary selected-refresh worker&#39;s final receipt/Session authority or external acceptance. Separate manuscript gaps for received BoRR/EoRR stale processing and GR/EOR interaction remain untouched. For 4-2 additionally read the entire unchanged reactor TestRFC7313EoRRFollowsTheRoutesItCloses and recording-session/initial-sync helpers. Its production SendBoRR/AnnounceNLRIBatch/SendEoRR calls require [eor,borr,route,eorr] outside sync; while the initial-sync gate is held it requires no early output and zero marker count, then [borr,route,eorr,eor] and exactly two markers after drain. Its label helper calls every non-EOR UPDATE &#39;route&#39;: the recorded wire-order witness establishes frame order and counters, not exact useful NLRI/attributes on that recording connection. The earlier selected marker regression receipt bbb32f70:25-32 passes both children while logging an AS-zero withdrawal conversion; that limitation does not become useful-announcement proof. Exact advertised prefix/no-withdrawal evidence comes from the distinct RIB sequence consumer above. Retain the two existing reactor positive/negative records on sendQueuedRefreshMarker and sendRefreshMarker as prior evidence, not fresh runs in this renewal; the initial freshness gate did not mark either record stale. The current additional RIB record is actual job-advertiser-rib-refresh-proof-renewal-58f7d364.log244-246 clean PASS on both rails; disabling sendRoutes panics at252-272 in the first JSON child, after BoRR but before route/EoRR sequence assertions, and records positive279. This is a whole-producer dependency cut, not selective early-EoRR evidence. The old wire-order records remain the complementary queue-order witnesses. No stale-session drop or new selected-refresh completion proof is inferred.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -753,12 +740,49 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7313-4-4"><code>RFC7313-4-4</code></a></h3>
 <p>When a BGP speaker receives a BoRR message from a peer, it MUST mark all the routes with the given Address Family Identifier and Subsequent Address Family Identifier, &lt;AFI, SAFI&gt; [RFC2918], from that peer as stale. (§4)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC7313-4-4, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7313 Section 4 requires marking all &lt;AFI, SAFI&gt; routes from a peer stale upon receiving BoRR, applicable only when the speaker has received the Enhanced Route Refresh Capability (code 70) from that peer. RIBManager.handleBoRRForPeer (internal/component/bgp/plugins/rib/rib_refresh_rx.go) calls PeerRIB.MarkFamilyStale, and Session.normalizeReceivedRouteRefresh (internal/component/bgp/reactor/selected_refresh_eor.go) wired via Reactor.messageReceiverForPeer (source_session.go, used by both static and dynamic peers) normalizes octet 2 of a 4-byte ROUTE-REFRESH to 0 when the peer did not advertise Cap 70. TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale (internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go) exercises both DirectBridge structured and real JSONEncoder.Message -&gt; ParseEvent rails: positive proves all three IPv4 unicast routes from peer 1 are marked stale on BoRR; negative proves subtype-0 normal refresh leaves routes fresh and peer 1&#39;s IPv6 unicast and peer 2&#39;s IPv4 unicast routes remain fresh. TestRFC7313RxNonEnhancedPeerReservedOctetNotBoRR (internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go) proves via Session.ReadAndProcess + messageReceiverForPeer that an RFC-2918-only peer&#39;s Reserved=1 delivers subtype 0 (&#39;refresh&#39;), while a Cap-70 peer delivers BoRR (&#39;borr&#39;).</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go#L64" title="internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go#L179" title="internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go" target="_blank" rel="noopener"><code>TestRFC7313RxNonEnhancedPeerReservedOctetNotBoRR</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go#L63" title="internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7313-4-5"><code>RFC7313-4-5</code></a></h3>
 <p>When a BGP speaker receives an EoRR message from a peer, it MUST immediately remove any routes from the peer that are still marked as stale for that &lt;AFI, SAFI&gt;. (§4)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC7313-4-5, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7313 Section 4 requires immediately removing routes from the peer that are still marked stale for &lt;AFI, SAFI&gt; on EoRR. RIBManager.handleEoRRForPeer (internal/component/bgp/plugins/rib/rib_refresh_rx.go) gates on per-(peer, family) borrActive, purges remaining stale routes of (peerOwner, fam) via PeerRIB.RemoveFamilyMatching, withdraws sent copies, and reconciles Loc-RIB/BestChange. TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale (internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go) exercises both DirectBridge structured and real JSONEncoder.Message / AppendMessage -&gt; ParseEvent rails: positive proves EoRR immediately purges still-stale pDrop and pBackup from peer 1&#39;s Adj-RIB-In, removes pDrop from Loc-RIB with BestChangeWithdraw, and fails pBackup over to peer 2; negative proves unsolicited EoRR without prior BoRR does not purge already-stale routes, re-advertising pKeep through production UPDATE ingest (handleReceivedStructured / handleReceived -&gt; InsertEntry) clears its stale mark so it survives EoRR, and simultaneously-stale routes in peer 1&#39;s sibling family (IPv6) and peer 2&#39;s Adj-RIB-In survive peer 1&#39;s IPv4 EoRR still marked stale.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go#L66" title="internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go#L65" title="internal/component/bgp/plugins/rib/rfc7313_borr_eorr_and_local_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7313BoRRMarksStaleAndEoRRPurgesRemainingStale</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7313-5-1"><code>RFC7313-5-1</code></a></h3>
 <p>If the length, excluding the fixed-size message header, of the received ROUTE-REFRESH message with Message Subtype 1 and 2 is not 4, then the BGP speaker MUST send a NOTIFICATION message with the Error Code of &#34;ROUTE-REFRESH Message Error&#34; and the subcode of &#34;Invalid Message Length&#34;. (§5)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent current-source rejudgment of this advertiser&#39;s callback-only migration after reading Main&#39;s actual four-root healthy receipt. Git attributes the precise changed lines to ba0f3a3a7d, adapting the MessageCallback signature introduced by a27a951239 (Spec-work: bgp-best-route-advertised-to-peers). The only changed text in the four selected whole test roots is an unused first *Session parameter in the existing observer callback. Every input, callback count, exact wire-byte/error/state assertion, bound and tag remains intact. Session.deliverReceivedMessage passes the actual producing Session before the original arguments; ignoring that added argument leaves the original observer meaningful and does not replace protocol processing. No receiver fixture becomes a claim of BGP plugin authorization, selected output or external peer acceptance. Read RFC7313&#39;s own Section5 including both capability70 and Message Subtype1/2 scope, all seven current tag bindings across six whole root functions, and actual exchange/NOTIFICATION helpers. Preserve enforced. TestRouteRefreshBadLengthByMessageSubtype sends too-short/too-long BoRR and EoRR and requires exact error7/subcode1 with complete original frame as data, zero deliveries and ErrInvalidMessage; its normal-subtype and missing-subtype controls instead require header error1/subcode2 with erroneous length data. TestRouteRefreshBadLengthWithoutCapability70 actually negotiates only RFC2918 and varies malformed lengths/reserved values, requiring header error1/2 rather than7/1. Its well-formed control requires no error/notification, Established and exactly one delivery on both callbacks. Unknown subtype5/255 at well-formed and malformed lengths must be ignored with no notification/error/delivery and Established, not converted into a length failure. The migrated TestRouteRefreshInvalidLengthNotDelivered still drives malformed BoRR/EoRR through the full net.Pipe receive path, requires refusal before both callbacks and exact NOTIFICATION7/1 plus the complete original frame. The migrated TestRouteRefreshValidLengthDelivered still drives a valid advertised IPv4 request and requires exact body, one message and refresh callback, no error and Established; explicit peer-side silence is supplied by the separate exchange controls, not invented in this root. Length validation still precedes delivery; capability70 absence and unknown subtypes remain distinct boundary controls. Preserve the sole existing canonical negative discrimination record on validateRouteRefreshLength for TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength; initial native freshness did not mark it stale, and no new producer-break run is inferred. Actual native job-unit-pkg-59a2fc52.log observes TestRouteRefreshInvalidLengthNotDelivered and both malformed-marker children PASS at21-23, TestRouteRefreshValidLengthDelivered PASS at25, then package PASS at26-27 (3.696s). Main&#39;s retained batch custody identifies this as the unmodified race run. All fourteen reviewed source/requirement/proof file pins remain unchanged at receipt-time check. No new producer-break proof is credited by this healthy rerun.</p>
@@ -866,12 +890,44 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7313-4-6"><code>RFC7313-4-6</code></a></h3>
 <p>For a BGP speaker that supports the BGP Graceful Restart, it MUST NOT send a BoRR for an &lt;AFI, SAFI&gt; to a neighbor before it sends the EoR for the &lt;AFI, SAFI&gt; to the neighbor. (§4)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC7313-4-6, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7313 Section 4 forbids a BGP speaker supporting Graceful Restart from sending BoRR for an &lt;AFI, SAFI&gt; before sending EoR for that &lt;AFI, SAFI&gt;. All production BoRR senders now enforce Session.checkBoRRAllowedHeld (internal/component/bgp/reactor/selected_refresh_eor.go) atomically under s.writeMu on the target session: reactorAPIAdapter.sendRouteRefreshContext (reactor_api_forward.go) plus Session.checkRawBoRRAllowedHeld inside Session.SendRawMessage (session_write.go, closing any TOCTOU across session replacement or opQueue drain), reactorAPIAdapter.SelectRefresh (selected_refresh.go), and Session.sendBoundMarker (destination_marker.go). TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported (internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go) exercises all three paths (unbound_and_raw, select_refresh_with_gr, select_refresh_without_gr, bound_marker): positive proves localGR=true refuses IPv4 BoRR with errBoRRBeforeEOR and writes zero BoRR frames before IPv4 EoR (even after IPv6 EoR, proving per-&lt;AFI, SAFI&gt; scoping); negative proves IPv4 BoRR is written once IPv4 EoR reaches observedBGPWriter, and localGR=false allows BoRR before EoR.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go#L42" title="internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go" target="_blank" rel="noopener"><code>TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go#L41" title="internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go" target="_blank" rel="noopener"><code>TestRFC7313TxBoRRBlockedBeforeEoRWhenGRSupported</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7313-4-7"><code>RFC7313-4-7</code></a></h3>
 <p>A BGP speaker that has received the Graceful Restart Capability from its neighbor MUST ignore any BoRRs for an &lt;AFI, SAFI&gt; from the neighbor before the speaker receives the EoR for the given &lt;AFI, SAFI&gt; from the neighbor. (§4)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC7313-4-7, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7313 Section 4 requires a speaker that received the Graceful Restart Capability from its neighbor to ignore any BoRR for an &lt;AFI, SAFI&gt; before receiving the EoR for that &lt;AFI, SAFI&gt;. Session.processValidatedMessage (internal/component/bgp/reactor/session_read.go:618-643, also reached by session_coalesce.go) records per-family received EoR in Session.recordReceivedEOR and gates BoRR via Session.routeRefreshBoRRBeforeEOR (selected_refresh_eor.go:48-95) on PeerAdvertised(CodeGracefulRestart) and PeerAdvertised(CodeEnhancedRouteRefresh) before plugin delivery, logging codeDoctorBGPBoRRBeforeEOR. TestRFC7313RxBoRRIgnoredBeforeEoRFromGRPeer (rfc7313_gr_eor_gate_test.go) feeds real wire frames through Session.ReadAndProcess: positive proves IPv4 BoRR is ignored before IPv4 EoR even after IPv6 EoR (per-&lt;AFI, SAFI&gt; scoping), sends no NOTIFICATION, and keeps the session Established (without requiring local GR); negative proves IPv4 BoRR is delivered once IPv4 EoR arrives and is delivered immediately before EoR from a non-GR peer.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go#L259" title="internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go" target="_blank" rel="noopener"><code>TestRFC7313RxBoRRIgnoredBeforeEoRFromGRPeer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go#L258" title="internal/component/bgp/reactor/rfc7313_gr_eor_gate_test.go" target="_blank" rel="noopener"><code>TestRFC7313RxBoRRIgnoredBeforeEoRFromGRPeer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
@@ -1033,7 +1089,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:28 UTC</span>
                 </div>
             </div>
         </footer>

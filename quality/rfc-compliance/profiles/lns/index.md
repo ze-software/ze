@@ -9,7 +9,7 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 ## Figures
 
 - **MUST bar**: Ze verified 305, Tests awaiting verification 21, OS testing gap 94, Not built 39
-- **Overview bar**: Ze MUST verified 305, SHOULD verified 11, Tests awaiting verification 22, OS testing gap 94, Not assessed 149, Not built 39
+- **Overview bar**: Ze MUST verified 305, SHOULD verified 14, Tests awaiting verification 22, OS testing gap 94, Not assessed 146, Not built 39
 
 | Figure | Rows |
 |---|---|
@@ -30,7 +30,7 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 161 |
-| SHOULD verified | 11 |
+| SHOULD verified | 14 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -39,7 +39,7 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD tests awaiting verification | 1 |
 | SHOULD exclusion unchecked | 0 |
-| SHOULD not assessed | 149 |
+| SHOULD not assessed | 146 |
 | SHOULD not built | 0 |
 
 The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
@@ -67,7 +67,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze verified 8 | Ze MUST verified 8, Not assessed 6 | lns: required by rfc/short/rfc1332.md |
-| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | Ze verified 13 | Ze MUST verified 13, Not assessed 3 | lns: required by rfc/short/rfc1334.md |
+| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | Ze verified 13 | Ze MUST verified 13, SHOULD verified 3 | lns: required by rfc/short/rfc1334.md |
 | [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | Ze verified 30, OS testing gap 91, Not built 17 | Ze MUST verified 30, OS testing gap 91, Not assessed 79, Not built 17 | lns: required by rfc/short/rfc4861.md |
 
 ### Level 3

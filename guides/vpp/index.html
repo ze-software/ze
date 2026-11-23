@@ -326,6 +326,11 @@ no NIC unbind, no <code>exec vpp</code>, no NIC restoration writes on shutdown. 
 connects via GoVPP at step 7, opens statistics and optional telemetry at
 step 8, then emits lifecycle events and completes readiness at step 9.
 It blocks on context cancellation instead of <code>cmd.Wait</code> at step 10.</p>
+<p>This mode is going away. The owner decided on 2026-11-23 that Ze refuses to
+run VPP unmanaged: with an external VPP the operator accepts that Ze may stop
+and restart it, through its systemd unit or by starting the binary directly
+(<code>docs/research/vpp-deployment-reference.md</code>, "Design decisions"). That is not
+built yet; <code>plan/post-release/features/spec-vpp-failure-lifecycle.md</code> owns it.</p>
 <p>Typical configurations:</p>
 <pre><code>vpp {
   enabled  true;
@@ -842,7 +847,7 @@ and converging sub-second on a full table.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 01:40 UTC</span>
                 </div>
             </div>
         </footer>

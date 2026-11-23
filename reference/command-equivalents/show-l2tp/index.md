@@ -9,7 +9,7 @@ L2TP tunnel\, session\, and subscriber state\.
 - Mode: Read\-only
 - Wire method: `ze-l2tp:summary`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `config`, `cqm`, `echo`, `health`, `listeners`, `observer`, `reliable`, `session`, `sessions`, `statistics`, `tunnel`, `tunnels`
 - Answer shape: not declared
 - Address fields: none

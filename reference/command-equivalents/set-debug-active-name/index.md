@@ -9,7 +9,7 @@ Load a named debug profile and apply it to the running daemon\.
 - Mode: daemon\, offline
 - Wire method: `ze-debug:set-active-name`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

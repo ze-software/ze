@@ -93,11 +93,11 @@ Included in automatic checks: VRRPv2 advertisement format, election and timers, 
 
 **Area:** VRRPv2 (IPv4 only)
 
-**Test verification:** 31 of 41 MUST proven
+**Test verification:** 36 of 41 MUST proven
 
-**Evidence:** unit 31
+**Evidence:** unit 31, superseded 5
 
-**Unmet:** RFC3768-5.2.2-1, RFC3768-8.3-1, RFC3768-9.2-1
+**Unmet:** RFC3768-5.2.2-1
 
 
 ## Coverage
@@ -119,8 +119,8 @@ Included in automatic checks: VRRPv2 advertisement format, election and timers, 
 
 ## Figures
 
-- **MUST bar**: Ze verified 31, Tests awaiting verification 7, Not built 3
-- **Overview bar**: Ze MUST verified 31, Tests awaiting verification 7, Not assessed 11, Not built 3
+- **MUST bar**: Ze verified 36, Tests awaiting verification 4, Not built 1
+- **Overview bar**: Ze MUST verified 36, SHOULD verified 3, Tests awaiting verification 4, Not assessed 8, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -129,19 +129,19 @@ Included in automatic checks: VRRPv2 advertisement format, election and timers, 
 | Mandatory requirements complete | not complete |
 | MUST rows | 41 |
 | MUST rows kept (the MUST bar) | 41 |
-| Ze verified | 31 |
+| Ze verified | 36 |
 | OS verified | 0 |
-| Tests awaiting verification | 7 |
+| Tests awaiting verification | 4 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 3 |
+| Not built | 1 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 11 |
-| SHOULD verified | 0 |
+| SHOULD verified | 3 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -150,7 +150,7 @@ Included in automatic checks: VRRPv2 advertisement format, election and timers, 
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
-| SHOULD not assessed | 11 |
+| SHOULD not assessed | 8 |
 | SHOULD not built | 0 |
 
 The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.

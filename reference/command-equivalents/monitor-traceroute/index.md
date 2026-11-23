@@ -9,7 +9,7 @@ Live mtr\-style traceroute that updates continuously\.
 - Mode: read\-only\, offline
 - Wire method: `ze-traceroute:monitor-traceroute`
 - Backends: any backend
-- Task support: required\: the MCP server always answers with a task handle
+- Task support: required: the MCP server always answers with a task handle
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: addr

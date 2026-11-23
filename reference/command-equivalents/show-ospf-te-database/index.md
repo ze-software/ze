@@ -9,7 +9,7 @@ Show the OSPF Traffic Engineering Database \(RFC 3630 \/ RFC 5392\)\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-te-database`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

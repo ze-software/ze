@@ -9,7 +9,7 @@ Show OSPF LDP\-IGP synchronization state \(RFC 5443\, RFC 6138\)\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-ldp-sync`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

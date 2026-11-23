@@ -9,7 +9,7 @@ Resolve a domain group\'s DNS names now and program its set\.
 - Mode: Daemon
 - Wire method: `ze-firewall:update-domain-group`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

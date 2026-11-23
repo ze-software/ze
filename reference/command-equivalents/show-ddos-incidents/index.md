@@ -9,7 +9,7 @@ Show the recent DDoS incident ring \(newest first\)\.
 - Mode: Read\-only
 - Wire method: `ze-ddos:show-incidents`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

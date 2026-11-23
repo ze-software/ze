@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/dns.json](../../../..
 
 ## Figures
 
-- **MUST bar**: Ze verified 97, Tests awaiting verification 22, Not assessed 60, Not built 144
-- **Overview bar**: Ze MUST verified 97, SHOULD verified 1, Not owed 5, Tests awaiting verification 23, Not assessed 289, Not built 146
+- **MUST bar**: Ze verified 97, Tests awaiting verification 22, Not assessed 60, Not built 117
+- **Overview bar**: Ze MUST verified 97, SHOULD verified 1, Not owed 32, Tests awaiting verification 23, Not assessed 289, Not built 119
 
 | Figure | Rows |
 |---|---|
@@ -19,18 +19,18 @@ Figures as of the last build, read from [data/rfc/profiles/dns.json](../../../..
 | Requirements not reviewed | 0 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 328 |
-| MUST rows kept (the MUST bar) | 323 |
+| MUST rows kept (the MUST bar) | 296 |
 | Ze verified | 97 |
 | OS verified | 0 |
 | Tests awaiting verification | 22 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 60 |
-| Not built | 144 |
-| MUST rows not owed | 5 |
+| Not built | 117 |
+| MUST rows not owed | 32 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 5 |
+| MUST not owed: not-applicable | 32 |
 | SHOULD / MAY rows | 233 |
 | SHOULD verified | 1 |
 | SHOULD OS verified | 0 |
@@ -75,7 +75,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 |---|---|---|---|
 | [RFC 4033](../../rfc4033/) (cycle with rfc4034, rfc4035) | DNS Security Introduction and Requirements | no rows | no rows |
 | [RFC 4034](../../rfc4034/) (cycle with rfc4033, rfc4035) | Resource Records for the DNS Security Extensions | Not assessed 59 | Not assessed 59 |
-| [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | Ze verified 4, Tests awaiting verification 10, Not built 94 | Ze MUST verified 4, Tests awaiting verification 10, Not assessed 50, Not built 94 |
+| [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | Ze verified 4, Tests awaiting verification 10, Not built 67 | Ze MUST verified 4, Not owed 27, Tests awaiting verification 10, Not assessed 50, Not built 67 |
 | [RFC 8484](../../rfc8484/) | DNS Queries over HTTPS (DoH) | Ze verified 2, Tests awaiting verification 8, Not built 5 | Ze MUST verified 2, Not owed 1, Tests awaiting verification 8, Not assessed 11, Not built 5 |
 
 ### Level 6

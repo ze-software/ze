@@ -9,7 +9,7 @@ List available configuration rollback points\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-cli:show-config-history`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
@@ -31,7 +31,9 @@ Shows revisions with timestamps and commit metadata\. Pair with \'show config di
 
 ## Mapping intents
 
-No vendor equivalent has been curated yet for this Ze command.
+### Show running\, candidate\, and diffed configuration
+
+Category: Configuration
 
 ## Vendor equivalents
 
@@ -48,5 +50,7 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-
-No equivalent listed.
+- `compare` (verified, vyos\-cli)
+  - Intent: Show running\, candidate\, and diffed configuration
+- `show configuration` (verified, vyos\-cli)
+  - Intent: Show running\, candidate\, and diffed configuration

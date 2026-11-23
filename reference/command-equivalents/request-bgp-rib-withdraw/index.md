@@ -9,7 +9,7 @@ Withdraw a route from the Adj\-RIB\-In\.
 - Mode: Daemon
 - Wire method: `ze-bgp:rib-withdraw`
 - Backends: any backend
-- Task support: forbidden\: the MCP server never answers with a task handle
+- Task support: forbidden: the MCP server never answers with a task handle
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

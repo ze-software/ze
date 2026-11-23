@@ -8,32 +8,30 @@
   "must": {
     "total": 3,
     "kept": 3,
-    "ze-proven": 2,
+    "ze-proven": 3,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 1,
+    "not-built": 0,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
   "should": {
     "total": 5,
-    "proven": 4,
+    "proven": 5,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
-    "proof-pending": 1,
+    "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 0,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 2
+    "unit": 3
   },
-  "unmet": [
-    "RFC7947-2.1-1"
-  ]
+  "unmet": []
 }

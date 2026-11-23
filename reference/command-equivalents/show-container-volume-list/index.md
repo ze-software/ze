@@ -9,7 +9,7 @@ Show the stored volumes\, their size and their use\.
 - Mode: Read\-only
 - Wire method: `ze-container:show-volume-list`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

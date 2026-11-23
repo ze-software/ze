@@ -7,17 +7,17 @@
   "implemented": true,
   "must": {
     "total": 11,
-    "kept": 10,
+    "kept": 5,
     "ze-proven": 1,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 3,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 6,
-    "not-owed": 1,
+    "not-built": 1,
+    "not-owed": 6,
     "not-owed-by-kind": {
-      "not-applicable": 1
+      "not-applicable": 6
     }
   },
   "should": {
@@ -36,11 +36,6 @@
     "unit": 1
   },
   "unmet": [
-    "RFC7770-2-1",
-    "RFC7770-2.3-1",
-    "RFC7770-2.7-1",
-    "RFC7770-5.2-1",
-    "RFC7770-5.2-2",
-    "RFC7770-5.3-1"
+    "RFC7770-5.2-1"
   ]
 }

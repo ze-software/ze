@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 39 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 39 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 39 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 79 | 79 of 99 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 80 | 80 of 99 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 99 |
 | Tests linked to requirements | 99 |
 | Recorded audit verdicts | 43 |
-| Fault test records | 79 |
+| Fault test records | 80 |
 | Summary | `rfc/short/rfc7854.md` |
 | Requirement table | `rfc/requirements/rfc7854.md` |
 | RFC text | `rfc/full/rfc7854.txt` |
@@ -113,7 +113,7 @@ Included in automatic checks: Ze implements the BMP sender and receiver under in
 ## Figures
 
 - **MUST bar**: Ze verified 39
-- **Overview bar**: Ze MUST verified 39, SHOULD verified 3, Tests awaiting verification 1, Not assessed 5
+- **Overview bar**: Ze MUST verified 39, SHOULD verified 4, Not assessed 5
 
 | Figure | Rows |
 |---|---|
@@ -134,14 +134,14 @@ Included in automatic checks: Ze implements the BMP sender and receiver under in
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 9 |
-| SHOULD verified | 3 |
+| SHOULD verified | 4 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 1 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 5 |
 | SHOULD not built | 0 |
@@ -332,12 +332,12 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 The router MAY send a Termination message prior to closing the session. (§3.3, Lifecycle of a BMP Session)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29: the stale unit TestSenderStopSendsTerminationToCollector changed only by an added RFC7854-4.5-5 tag comment; body unchanged. It still requires the collector to read a Termination through stop() racing holdConnection, and the writeTerminationLocked break recorded under RFC7854-4.5-5 on this same unit was observed red. sender_test.go::TestBMPSenderTermination covers the encoder, no record. {single-polarity: positive} holds for a MAY that ze always exercises.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go::TestSenderStopSendsTerminationToCollector moved. Re-judged 2026-09-29: the stale unit TestSenderStopSendsTerminationToCollector changed only by an added RFC7854-4.5-5 tag comment; body unchanged. It still requires the collector to read a Termination through stop() racing holdConnection, and the writeTerminationLocked break recorded under RFC7854-4.5-5 on this same unit was observed red. sender_test.go::TestBMPSenderTermination covers the encoder, no record. {single-polarity: positive} holds for a MAY that ze always exercises.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestSenderStopSendsTerminationToCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L562) | unit/verify | not verified |
-| positive | [`TestBMPSenderTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L363) | unit/verify | not verified |
+| positive | [`TestBMPSenderTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L363) | unit/verify | revert, verified |
 
 ### [`RFC7854-x-12`](#rfc7854-x-12)
 
@@ -558,7 +558,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Firs
 
 Although use of this message is RECOMMENDED, a monitoring station must always be prepared for the session to terminate with no message. (§4.5, Termination Message)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Station clause: termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination sends Initiation + Peer Up, confirms one router and one peer held, closes the pipe with no Termination, and requires handleSession to return with zero routers and zero peers (record: removeRouter break observed red). RECOMMENDED clause: sender_queue_test.go::TestSenderStopSendsTerminationToCollector reads a Termination on the collector side through stop() racing holdConnection (record: writeTerminationLocked break observed red). {single-polarity: positive} holds: the sentence permits the no-message close, so no non-compliant router input exists for the station to refuse.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go::TestSenderStopSendsTerminationToCollector moved. Station clause: termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination sends Initiation + Peer Up, confirms one router and one peer held, closes the pipe with no Termination, and requires handleSession to return with zero routers and zero peers (record: removeRouter break observed red). RECOMMENDED clause: sender_queue_test.go::TestSenderStopSendsTerminationToCollector reads a Termination on the collector side through stop() racing holdConnection (record: writeTerminationLocked break observed red). {single-polarity: positive} holds: the sentence permits the no-message close, so no non-compliant router input exists for the station to refuse.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

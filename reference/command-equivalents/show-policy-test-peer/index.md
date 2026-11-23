@@ -9,7 +9,7 @@ Test what your policy does to a specific UPDATE\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:show-policy-test`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `filter`, `route-kind`, `source-asn4`, `update`
 - Answer shape: not declared
 - Address fields: none

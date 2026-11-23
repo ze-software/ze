@@ -9,7 +9,7 @@ Show OSPFv3 \(IPv6\) Segment Routing state \(RFC 8666\)\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-ipv6-segment-routing`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

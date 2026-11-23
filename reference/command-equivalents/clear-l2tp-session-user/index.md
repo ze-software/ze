@@ -9,7 +9,7 @@ Disconnect the subscriber session of one user name\.
 - Mode: Daemon
 - Wire method: `ze-l2tp:session-teardown-user`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

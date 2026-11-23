@@ -9,7 +9,7 @@ Show the kernel connection tracking table\.
 - Mode: Read\-only
 - Wire method: `ze-firewall:show-system-conntrack`
 - Backends: `nft`
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

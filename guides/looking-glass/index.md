@@ -431,6 +431,26 @@ again from zero when the daemon restarts. The normative statement is Section
 <!-- source: internal/component/lg/handler_api.go -- API handlers and birdwatcher transform -->
 <!-- source: internal/component/lg/handler_api.go -- routeCountsAvailable -->
 
+## RFC 8522 Looking Glass Command Set API
+
+The looking glass also implements the [RFC 8522](https://www.rfc-editor.org/info/rfc8522) Looking Glass Command Set under `/.well-known/looking-glass/v1/`, answering every request in JSend JSON (`status` of `"success"`, `"fail"`, or `"error"`).
+
+| Endpoint | Requirement | Description |
+|----------|-------------|-------------|
+| `GET /.well-known/looking-glass/v1/ping/{host}` | Mandatory | Runs `show ping` from the router and returns RTT statistics and output. |
+| `GET /.well-known/looking-glass/v1/traceroute/{host}` | Optional | Runs `show traceroute` from the router. |
+| `GET /.well-known/looking-glass/v1/show/route/{addr}` | Mandatory | Queries `show route <cidr>` or `show route lookup <ip>`. |
+| `GET /.well-known/looking-glass/v1/show/bgp/{addr}` | Optional | Queries received BGP routes for a prefix or covering address. |
+| `GET /.well-known/looking-glass/v1/show/bgp/summary` | Optional | Returns BGP peer summary (`show bgp`). |
+| `GET /.well-known/looking-glass/v1/show/bgp/neighbors/{addr}` | Optional | Returns BGP peer details (`show bgp peer <addr> detail`). |
+| `GET /.well-known/looking-glass/v1/routers` | Mandatory | Lists the router available on this looking glass. |
+| `GET /.well-known/looking-glass/v1/routers/{number}` | Mandatory | Returns router details (`id`, `name`, supported `format`, `vendor`, `autonomous_system`). |
+| `GET /.well-known/looking-glass/v1/cmd` | Mandatory | Lists all supported commands and their URI templates. |
+
+HTTPS is required for `/.well-known/looking-glass/` per RFC 8522 Section 6: plaintext HTTP requests are refused with HTTP `400` and a JSend error envelope, while `/api/looking-glass/` and `/lg/` continue to honor `tls false`. Requests are rate-limited per client IP (default 60 requests per minute, HTTP `429` when exceeded). Supported query parameters are `protocol`, `router`, `routerindex`, `random` (ignored), `vrf`, `runtime` (seconds, default 30, 0 disables), and `format` (`text/plain` or `application/json`).
+
+<!-- source: internal/component/lg/handler_rfc8522.go -- handleRFC8522, rfc8522RateLimiter -->
+
 ## Alice-LG Integration
 
 To use Ze as a data source for [Alice-LG](https://github.com/alice-lg/alice-lg), point Alice-LG's birdwatcher source configuration at the looking glass API:

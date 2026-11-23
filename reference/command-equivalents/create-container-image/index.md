@@ -9,7 +9,7 @@ Fetch an image\: reference \<image\>\.
 - Mode: Daemon
 - Wire method: `not listed`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `reference`
 - Answer shape: doc
 - Address fields: none

@@ -7,16 +7,18 @@
   "implemented": true,
   "must": {
     "total": 53,
-    "kept": 53,
+    "kept": 52,
     "ze-proven": 52,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 1,
-    "not-owed": 0,
-    "not-owed-by-kind": {}
+    "not-built": 0,
+    "not-owed": 1,
+    "not-owed-by-kind": {
+      "not-applicable": 1
+    }
   },
   "should": {
     "total": 4,
@@ -35,7 +37,5 @@
     "interop": 2,
     "unit": 45
   },
-  "unmet": [
-    "RFC7606-8-1"
-  ]
+  "unmet": []
 }

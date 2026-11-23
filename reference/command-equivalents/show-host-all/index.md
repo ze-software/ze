@@ -9,7 +9,7 @@ Show the full hardware inventory in one shot\.
 - Mode: Read\-only
 - Wire method: `ze-host:show-all`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

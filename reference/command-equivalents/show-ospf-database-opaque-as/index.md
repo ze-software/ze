@@ -9,7 +9,7 @@ Show only AS\-scope opaque\-LSAs \(Type 11\, RFC 5250\)\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-database-opaque-as`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`
 - Answer shape: not declared
 - Address fields: none

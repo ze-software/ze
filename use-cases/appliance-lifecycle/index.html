@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Immutable appliance A/B lifecycle and safe rollback - Ze</title>
+        <meta name="description" content="Build immutable gokrazy Ze appliances, push A/B testboot updates, guard edits with commit confirmed, and back up live ZeFS state." />
+        <meta property="og:title" content="Immutable appliance A/B lifecycle and safe rollback - Ze" />
+        <meta property="og:description" content="Build immutable gokrazy Ze appliances, push A/B testboot updates, guard edits with commit confirmed, and back up live ZeFS state." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Immutable appliance A/B lifecycle and safe rollback - Ze" />
+        <meta name="twitter:description" content="Build immutable gokrazy Ze appliances, push A/B testboot updates, guard edits with commit confirmed, and back up live ZeFS state." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/use-cases/appliance-lifecycle/" />
+        <meta property="og:url" content="https://ze-software.net/use-cases/appliance-lifecycle/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-operate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Use case</span>
+    <h1 id="immutable-appliance-ab-lifecycle-and-safe-rollback">Immutable appliance A/B lifecycle and safe rollback</h1>
+    <p>Build a self-contained read-only Ze appliance image on gokrazy, deploy OS updates to the inactive A/B root slot with <code>--testboot</code> before committing permanently, protect live configuration changes with timed <code>commit confirmed</code> rollback windows, and back up both the live ZeFS store and encrypted bastion state.</p>
+</div>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#role-and-topology">Role and topology</a></li>
+<li><a href="#appliance-manifest-appliancejson">Appliance manifest (appliance.json)</a></li>
+<li><a href="#automatic-config-archiving-on-commit">Automatic config archiving on commit</a></li>
+<li><a href="#build-ab-testboot-and-promote-workflow">Build, A/B testboot, and promote workflow</a></li>
+<li><a href="#safe-live-config-changes-commit-confirmed">Safe live config changes (commit confirmed)</a></li>
+<li><a href="#lab-evidence">Lab evidence</a></li>
+<li><a href="#current-limits">Current limits</a></li>
+<li><a href="#related-guides">Related guides</a></li>
+</ol></details></nav><div class="doc-body">
+<h2 id="role-and-topology">Role and topology</h2>
+<pre><code class="language-text">Operator workstation (./ze-host)                Ze gokrazy appliance (10.12.104.10)
+  ├── appliance.json + encrypted DR export        ├── Root slot A (active, read-only)
+  ├── HTTPS OTA push (--testboot / permanent) ──► ├── Root slot B (inactive, next image)
+  └── SSH config-push + commit confirmed      ──► └── /perm (persistent ZeFS store &amp; certs)
+</code></pre>
+<h2 id="appliance-manifest-appliancejson">Appliance manifest (<code>appliance.json</code>)</h2>
+<p>Define credentials, management listeners, TLS identity, target device address, and image geometry in one manifest (based on <code>docs/guide/appliance.md</code>):</p>
+<pre><code class="language-json">{
+    "credentials": { "username": "exa", "admin-enabled": true },
+    "ssh":   { "host": "0.0.0.0", "port": "2222" },
+    "web":   { "enabled": true, "host": "0.0.0.0", "port": "8080" },
+    "tls":   { "cert-name": "router.local", "validity-years": 10 },
+    "identity": { "hostname": "ze-prod" },
+    "device": { "address": "10.12.104.10", "update-port": 443 },
+    "image": { "arch": "amd64", "size-bytes": 2147483648, "kernel-profile": "hardware-kms" }
+}
+</code></pre>
+<h2 id="automatic-config-archiving-on-commit">Automatic config archiving on commit</h2>
+<p>Retain local commit history and ship snapshots to <code>/perm</code> or an HTTPS archive endpoint automatically on every commit (based on <code>docs/guide/config-archive.md</code>):</p>
+<pre><code class="language-text">system {
+    host router1;
+    domain dc1.example.com;
+    commit-revisions 20;
+
+    archive local-backup {
+        location file:///perm/backups/ze;
+        trigger commit;
+    }
+
+    archive offsite {
+        location https://archive.example.com/configs;
+        trigger daily;
+        on-change true;
+        timeout 10s;
+        filename "{host}-{date}-{time}";
+    }
+}
+</code></pre>
+<p><em>(For writable Linux/systemd hosts rather than read-only gokrazy appliances, Ze also supports <code>system { update-check { url ...; maintenance-window { ... }; } }</code> with <code>update system firmware check|download|apply|restart|rollback</code>; see the <a href="../../guides/self-update/">self-update guide</a>.)</em></p>
+<h2 id="build-ab-testboot-and-promote-workflow">Build, A/B testboot, and promote workflow</h2>
+<ol>
+<li>Build the host driver and appliance disk/ISO image from your workstation:</li>
+</ol>
+<pre><code class="language-bash">./le build host-driver
+./ze-host appliance init ze-prod
+./ze-host appliance build ze-prod
+./ze-host appliance iso ze-prod
+</code></pre>
+<ol start="2">
+<li>Take a live ZeFS backup on the appliance before upgrading:</li>
+</ol>
+<pre><code class="language-text">request data backup path /perm/ze/pre-upgrade.zefs
+</code></pre>
+<ol start="3">
+<li>Push the new image to the inactive root slot as a one-shot testboot (a subsequent reboot falls back to the previous root slot automatically):</li>
+</ol>
+<pre><code class="language-bash">./ze-host appliance push --testboot ze-prod
+</code></pre>
+<ol start="4">
+<li>Verify health and running version over SSH before making the new slot permanent:</li>
+</ol>
+<pre><code class="language-text">show version --extended
+show system platform
+show doctor
+show config running
+</code></pre>
+<ol start="5">
+<li>Promote the tested slot permanently (or push across a fleet with <code>--all --parallel 4</code>):</li>
+</ol>
+<pre><code class="language-bash">./ze-host appliance push ze-prod
+</code></pre>
+<h2 id="safe-live-config-changes-commit-confirmed">Safe live config changes (<code>commit confirmed</code>)</h2>
+<p>In the SSH or web configuration editor, bare <code>commit</code> is refused. Use <code>commit confirmed &lt;seconds&gt;</code> (1 to 3600 seconds) so a bad change that locks out management reverts automatically when the timer expires:</p>
+<pre><code class="language-text">commit verify
+commit confirmed 120
+# Verify connectivity and routing, then confirm permanently:
+commit accept
+# Or revert immediately:
+commit abort
+</code></pre>
+<p>To restore a previous store snapshot on the running appliance:</p>
+<pre><code class="language-text">request data restore path /perm/ze/pre-upgrade.zefs config
+# Or replace the full store (clean shutdown + restart):
+request data restore path /perm/ze/pre-upgrade.zefs full
+</code></pre>
+<p>For workstation disaster recovery of the appliance credentials and manifest, export an Argon2id + XChaCha20-Poly1305 encrypted bundle:</p>
+<pre><code class="language-bash">./ze-host appliance export ze-prod
+# Restore on another workstation:
+./ze-host appliance import ze-prod.ze.enc
+</code></pre>
+<h2 id="lab-evidence">Lab evidence</h2>
+<ul>
+<li><strong>Real gokrazy A/B OTA in QEMU (image build, HTTPS push, reboot, version check, <code>/perm</code> persistence):</strong> <code>./le test qemu appliance-ota</code> (<code>internal/le/test/qemu/install_ota.go</code>)</li>
+<li><strong>SSH <code>config-push</code> + reboot persistence in QEMU:</strong> <code>./le test qemu appliance-config</code> (<code>internal/le/test/qemu/install_config_push.go</code>)</li>
+<li><strong>Appliance functional tests:</strong> <code>./le test functional appliance</code> (<code>test/appliance/</code>)</li>
+<li><strong>Commit-confirmed timeout, accept, abort, disconnect, and restart tests:</strong> <code>./le test bgp plugin --pattern session-editor-commit-confirmed</code> (<code>test/plugin/session-editor-commit-confirmed-*.ci</code>)</li>
+<li><strong>Live and offline backup/restore tests:</strong> <code>test/plugin/data-backup.ci</code>, <code>test/plugin/data-backup-live.ci</code>, <code>test/plugin/data-backup-refused-live.ci</code></li>
+</ul>
+<h2 id="current-limits">Current limits</h2>
+<ul>
+<li><strong>Shared boot partition and persistent <code>/perm</code>:</strong> Gokrazy maintains two root slots, while the boot partition is shared and <code>/perm</code> persists across root-slot rollbacks. Rolling back a <code>--testboot</code> image does not revert config edits saved in <code>/perm</code>.</li>
+<li><strong>Operator verification required on <code>--testboot</code> and <code>config-push</code>:</strong> Neither <code>--testboot</code> nor <code>./ze-host appliance config-push</code> runs automatic routing health checks; operators verify SSH and routing state before promoting.</li>
+<li><strong>No external shell plugins on gokrazy:</strong> Read-only gokrazy images have no <code>/bin/sh</code> or <code>PATH</code>, so only built-in internal plugins run on the appliance.</li>
+<li><strong>Separate backups for workstation vs. live store:</strong> <code>./ze-host appliance export</code> backs up the bastion manifest and keys, not disk images or the appliance's live ZeFS database (keep <code>request data backup</code> separately).</li>
+<li><strong><code>update system firmware</code> is Linux/systemd only:</strong> Self-update is not supported on read-only gokrazy filesystems; use <code>./ze-host appliance push</code>.</li>
+</ul>
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><a href="../../guides/appliance/">Appliance guide</a></li>
+<li><a href="../../labs/appliance-install/">Appliance install lab</a></li>
+<li><a href="../../guides/config-editor/">Config editor guide</a></li>
+<li><a href="../../guides/config-archive/">Config archive guide</a></li>
+<li><a href="../../guides/self-update/">Self-update guide</a></li>
+</ul>
+</div>
+</div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Use case</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related usage</h2>
+                    <a class="page-sidebar-link" href="../../use-cases/">
+                        <span class="page-sidebar-link-label">All usage examples</span>
+                        <small>Return to the deployment examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to guides and references.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../features/bgp-protocol/">
+                        <span class="page-sidebar-link-label">BGP protocol</span>
+                        <small>Behavior used by the route examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label concept-evidence">Lab evidence</span>
+                        <small>Real-daemon interop evidence.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

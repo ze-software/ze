@@ -9,7 +9,7 @@ Show the DNS cache hit\, miss\, eviction\, expiry\, and hit\-rate counters\.
 - Mode: Read\-only
 - Wire method: `ze-resolve:show-dns-cache-stats`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

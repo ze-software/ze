@@ -9,7 +9,7 @@ Show YANG paths available for tab completion\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-yang:show-yang-completion`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

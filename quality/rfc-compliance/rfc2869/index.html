@@ -486,8 +486,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.1 - Acct-Input-Gigawords</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-x-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go#L324" title="internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go#L21" title="internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2869GigawordsAbsentOnStart</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go#L313" title="internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go#L20" title="internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2869GigawordsAbsentOnStart</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-5.2-1">RFC2869-5.2-1</code></td><td colspan="3"><span class="rfc-subject">This attribute indicates how many times the Acct-Output-Octets counter has wrapped around 2^32 in the course of delivering this service, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update. (§5.2)</span></td></tr>
@@ -495,8 +495,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.2 - Acct-Output-Gigawords</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-5.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go#L25" title="internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go" target="_blank" rel="noopener"><code>TestRFC2869OutputGigawordsOnInterimUpdate</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go#L55" title="internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go" target="_blank" rel="noopener"><code>TestRFC2869OutputGigawordsAbsentOnStart</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go#L24" title="internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go" target="_blank" rel="noopener"><code>TestRFC2869OutputGigawordsOnInterimUpdate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go#L45" title="internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go" target="_blank" rel="noopener"><code>TestRFC2869OutputGigawordsAbsentOnStart</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-5.14-1">RFC2869-5.14-1</code></td><td colspan="3"><span class="rfc-subject">A RADIUS Client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent. (§5.14)</span></td></tr>
@@ -659,18 +659,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2869-x-2"><code>RFC2869-x-2</code></a></h3>
 <p>This attribute indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim- Update. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go::TestBuildAcctPacketGigawords moved. Re-judged 2026-09-30: only the tag comment on TestBuildAcctPacketGigawords changed (it absorbed the wrap-count wording of the retired RFC2869-x-5); the body is unchanged. Clause 1 forbidden: a Gigawords value other than the wrap count; TestBuildAcctPacketGigawords asserts Acct-Input-Gigawords 2 and Acct-Output-Gigawords 3 for 0x200000064 and 0x3000000C8 octets on a Stop, positive re-recorded against acct.go::splitGigawords and observed red. Clause 2 forbidden: Gigawords in a record other than Stop or Interim-Update; TestRFC2869GigawordsAbsentOnStart fails if an Accounting-Start built from &gt;4GB counters carries either attribute. The NAS emits only Start, Interim-Update and Stop (authradius), so Start is the only other status it can send.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go::TestRFC2869GigawordsAbsentOnStart, internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go::TestBuildAcctPacketGigawords moved. Re-judged 2026-09-30: only the tag comment on TestBuildAcctPacketGigawords changed (it absorbed the wrap-count wording of the retired RFC2869-x-5); the body is unchanged. Clause 1 forbidden: a Gigawords value other than the wrap count; TestBuildAcctPacketGigawords asserts Acct-Input-Gigawords 2 and Acct-Output-Gigawords 3 for 0x200000064 and 0x3000000C8 octets on a Stop, positive re-recorded against acct.go::splitGigawords and observed red. Clause 2 forbidden: Gigawords in a record other than Stop or Interim-Update; TestRFC2869GigawordsAbsentOnStart fails if an Accounting-Start built from &gt;4GB counters carries either attribute. The NAS emits only Start, Interim-Update and Stop (authradius), so Start is the only other status it can send.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go#L21" title="internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2869GigawordsAbsentOnStart</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go#L20" title="internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2869GigawordsAbsentOnStart</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go#L324" title="internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go#L313" title="internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -679,18 +679,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2869-5.2-1"><code>RFC2869-5.2-1</code></a></h3>
 <p>This attribute indicates how many times the Acct-Output-Octets counter has wrapped around 2^32 in the course of delivering this service, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update. (§5.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent judgment 2026-10-11 (judge did not author a0a101e5ad). RFC 2869 Section 5.2: &#34;This attribute indicates how many times the Acct-Output-Octets counter has wrapped around 2^32 in the course of delivering this service, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update.&#34; Positive TestRFC2869OutputGigawordsOnInterimUpdate stubs TxBytes at 3*2^32+200 and requires exact Acct-Output-Octets 200 and Acct-Output-Gigawords 3 on an Interim-Update built by buildAcctPacket: a wrong split (splitGigawords) or a missing attribute fails it. Negative TestRFC2869OutputGigawordsAbsentOnStart builds a Start over the same wrapped counter and requires no attribute 53. Isolation holds: counterDelta is stateless over the session baseline (zero here), so if the Stop/Interim-Update guard in buildAcctPacket admitted Start, the delta would carry 3 gigawords and the attribute would appear; the negative is not passing because counters are unavailable. buildAcctPacket&#39;s only callers are the Start, Stop and Interim-Update senders, so Start is the only disallowed status the producer can reach. Stop, also permitted, is untested here but is not an obligation. Both clauses (wrap-count value, presence restricted to Stop/Interim-Update) are asserted exactly. Verdict enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go::TestRFC2869OutputGigawordsAbsentOnStart, internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go::TestRFC2869OutputGigawordsOnInterimUpdate moved. Independent judgment 2026-10-11 (judge did not author a0a101e5ad). RFC 2869 Section 5.2: &#34;This attribute indicates how many times the Acct-Output-Octets counter has wrapped around 2^32 in the course of delivering this service, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update.&#34; Positive TestRFC2869OutputGigawordsOnInterimUpdate stubs TxBytes at 3*2^32+200 and requires exact Acct-Output-Octets 200 and Acct-Output-Gigawords 3 on an Interim-Update built by buildAcctPacket: a wrong split (splitGigawords) or a missing attribute fails it. Negative TestRFC2869OutputGigawordsAbsentOnStart builds a Start over the same wrapped counter and requires no attribute 53. Isolation holds: counterDelta is stateless over the session baseline (zero here), so if the Stop/Interim-Update guard in buildAcctPacket admitted Start, the delta would carry 3 gigawords and the attribute would appear; the negative is not passing because counters are unavailable. buildAcctPacket&#39;s only callers are the Start, Stop and Interim-Update senders, so Start is the only disallowed status the producer can reach. Stop, also permitted, is untested here but is not an obligation. Both clauses (wrap-count value, presence restricted to Stop/Interim-Update) are asserted exactly. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go#L55" title="internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go" target="_blank" rel="noopener"><code>TestRFC2869OutputGigawordsAbsentOnStart</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go#L45" title="internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go" target="_blank" rel="noopener"><code>TestRFC2869OutputGigawordsAbsentOnStart</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go#L25" title="internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go" target="_blank" rel="noopener"><code>TestRFC2869OutputGigawordsOnInterimUpdate</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go#L24" title="internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go" target="_blank" rel="noopener"><code>TestRFC2869OutputGigawordsOnInterimUpdate</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1306,7 +1306,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 01:40 UTC</span>
                 </div>
             </div>
         </footer>

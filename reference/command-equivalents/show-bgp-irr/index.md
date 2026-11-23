@@ -9,7 +9,7 @@ Show IRR filter status per ASN\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:show-irr-status`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `check`, `prefix`
 - Answer shape: tab
 - Address fields: none

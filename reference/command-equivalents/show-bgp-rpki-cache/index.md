@@ -9,7 +9,7 @@ Show RTR cache server sessions with protocol details
 - Mode: Read\-only
 - Wire method: `not listed`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: address
@@ -34,11 +34,11 @@ Category: BGP
 ## Vendor equivalents
 
 ### Junos MX
-- `show validation session` (verified, junos\-bgp)
+- `show validation session` (unknown, no source ref)
   - Intent: RPKI cache and validation session state
 
 ### IOS XR
-- `show bgp rpki server summary` (verified, iosxr\-bgp)
+- `show bgp rpki server summary` (unknown, no source ref)
   - Intent: RPKI cache and validation session state
 
 ### SR OS

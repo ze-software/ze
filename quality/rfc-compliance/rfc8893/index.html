@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8893 requirements and tests - Ze</title>
-        <meta name="description" content="RFC 8893: Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export. 4 mandatory requirements included in automatic checks, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 8893: Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export. 4 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8893 requirements and tests - Ze" />
-        <meta property="og:description" content="RFC 8893: Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export. 4 mandatory requirements included in automatic checks, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 8893: Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export. 4 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8893 requirements and tests - Ze" />
-        <meta name="twitter:description" content="RFC 8893: Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export. 4 mandatory requirements included in automatic checks, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 8893: Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export. 4 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -128,16 +128,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0</strong><b>of 4 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>4</strong><b>of 4 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 4 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 4 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 4 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>0</strong><b>0 of 0 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>4</strong><b>of 4 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 4 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>3</strong><b>3 of 11 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -181,7 +177,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -238,7 +234,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>4</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -250,16 +246,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>0</td>
+<td>11</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>0</td>
+<td>11</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>0</td>
+<td>11</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8893.md</code></td>
@@ -279,9 +275,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RPKI origin validation on export</p>
-<p><strong>Test verification:</strong> 0 of 4 MUST proven</p>
-<p><strong>Evidence:</strong> -</p>
-<p><strong>Unmet:</strong> RFC8893-1-1, RFC8893-1-2, RFC8893-3-1, RFC8893-3-2</p>
+<p><strong>Test verification:</strong> 2 of 4 MUST proven</p>
+<p><strong>Evidence:</strong> unit 2</p>
+<p><strong>Unmet:</strong> -</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -290,11 +286,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>0</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>4</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Only a positive or negative test</td>
@@ -321,13 +317,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (4):</strong> <a href="#rfc8893-1-1"><code>RFC8893-1-1</code></a>, <a href="#rfc8893-1-2"><code>RFC8893-1-2</code></a>, <a href="#rfc8893-3-1"><code>RFC8893-3-1</code></a>, <a href="#rfc8893-3-2"><code>RFC8893-3-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc8893-1-1"><code>RFC8893-1-1</code></a>, <a href="#rfc8893-1-2"><code>RFC8893-1-2</code></a>, <a href="#rfc8893-3-1"><code>RFC8893-3-1</code></a>, <a href="#rfc8893-3-2"><code>RFC8893-3-2</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8893:must">Not built 4</div>
+<div data-ze-rfc-bar="rfc8893:must">Ze verified 2, Tests awaiting verification 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8893:overview">Not assessed 2, Not built 4</div>
+<div data-ze-rfc-bar="rfc8893:overview">Ze MUST verified 2, Tests awaiting verification 2, Not assessed 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -348,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8893:must.kept">4</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc8893:must.ze-proven">0</span></td>
+<td><span data-ze-rfc="rfc8893:must.ze-proven">2</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8893:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc8893:must.proof-pending">0</span></td>
+<td><span data-ze-rfc="rfc8893:must.proof-pending">2</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc8893:must.os-gap">0</span></td>
@@ -366,7 +362,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8893:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc8893:must.not-built">4</span></td>
+<td><span data-ze-rfc="rfc8893:must.not-built">0</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc8893:must.not-owed">0</span></td>
@@ -432,36 +428,39 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8893-1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze validates only at ingress -- internal/component/bgp/plugins/rpki/rpki.go::handleStructuredUpdate validates the received origin, and internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChain runs no validation after egress policy</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L150" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8893_policy_seam_test.go#L16" title="internal/component/bgp/plugins/rpki/rfc8893_policy_seam_test.go" target="_blank" rel="noopener"><code>TestRPKIPluginPublishesOriginValidatorSeam</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L311" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8893-1-2">RFC8893-1-2</code></td><td colspan="3"><span class="rfc-subject">Any AS_PATH modifications resulting in effective origin AS change MUST be taken into account. (§1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8893-1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> no validation runs on the AS_PATH as sent -- internal/component/bgp/plugins/rpki/rpki.go::rpkiOriginASFromASPath reads the received AS_PATH only</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L425" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893ASPathModificationsChangingEffectiveOriginAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L548" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8893-3-1">RFC8893-3-1</code></td><td colspan="3"><span class="rfc-subject">BGP implementations supporting RPKI-based origin validation MUST provide the same policy configuration primitives for decisions based on the validation state available for use in ingress, redistribution, and egress policies. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8893-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the per-state action exists at ingress only (internal/component/bgp/plugins/rpki/rpki_config.go::OriginInvalidAction); no redistribution or export filter reads a validation state</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/redistribute/rfc8893_redistribute_validation_test.go#L24" title="internal/plugins/redistribute/rfc8893_redistribute_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893RedistributePolicyFiltersByRPKIValidationState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L623" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893SamePolicyPrimitiveAcrossIngressRedistributionAndEgress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/redistribute/rfc8893_redistribute_validation_test.go#L113" title="internal/plugins/redistribute/rfc8893_redistribute_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893RedistributeInactiveValidatorRefusesValidMatch</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L693" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893ValidationStatePrimitiveRefusesInvalidConfigAndInactiveValidator</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8893-3-2">RFC8893-3-2</code></td><td colspan="3"><span class="rfc-subject">When applied to egress policy, validation state MUST be determined using the effective origin AS of the route as it will (or would) be announced to the peer. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8893-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> there is no egress validation, so no effective origin AS is computed -- internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChain</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L758" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L845" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8893-4-1">RFC8893-4-1</code></td><td colspan="3"><span class="rfc-subject">It SHOULD be possible to specify a selective origin validation policy to be applied after any existing non-validating outbound policies. (§4)</span></td></tr>
 <tr><td></td>
@@ -486,48 +485,105 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc8893-1-1"><code>RFC8893-1-1</code></a> A validating BGP speaker MUST apply Route Origin Validation policy semantics (see Section 2 of [RFC6811] and Section 4 of [RFC8481]) after applying any egress configuration and policy. (§1)</td>
-<td>{gap}, no test</td>
-<td>Ze validates only at ingress -- internal/component/bgp/plugins/rpki/rpki.go::handleStructuredUpdate validates the received origin, and internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChain runs no validation after egress policy</td>
-</tr>
-<tr><td><a href="#rfc8893-1-2"><code>RFC8893-1-2</code></a> Any AS_PATH modifications resulting in effective origin AS change MUST be taken into account. (§1)</td>
-<td>{gap}, no test</td>
-<td>no validation runs on the AS_PATH as sent -- internal/component/bgp/plugins/rpki/rpki.go::rpkiOriginASFromASPath reads the received AS_PATH only</td>
-</tr>
-<tr><td><a href="#rfc8893-3-1"><code>RFC8893-3-1</code></a> BGP implementations supporting RPKI-based origin validation MUST provide the same policy configuration primitives for decisions based on the validation state available for use in ingress, redistribution, and egress policies. (§3)</td>
-<td>{gap}, no test</td>
-<td>the per-state action exists at ingress only (internal/component/bgp/plugins/rpki/rpki_config.go::OriginInvalidAction); no redistribution or export filter reads a validation state</td>
-</tr>
-<tr><td><a href="#rfc8893-3-2"><code>RFC8893-3-2</code></a> When applied to egress policy, validation state MUST be determined using the effective origin AS of the route as it will (or would) be announced to the peer. (§3)</td>
-<td>{gap}, no test</td>
-<td>there is no egress validation, so no effective origin AS is computed -- internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChain</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 8893 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
 <section><h2>Test status</h2>
 <p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc8893-1-1"><code>RFC8893-1-1</code></a></h3>
 <p>A validating BGP speaker MUST apply Route Origin Validation policy semantics (see Section 2 of [RFC6811] and Section 4 of [RFC8481]) after applying any egress configuration and policy. (§1)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC8893-1-1, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/filter_library.go::Reactor.runPostEgressRPKIValidation, internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4, internal/component/bgp/reactor/policy_dryrun_library.go::Reactor.traceLibraryChain, internal/component/bgp/reactor/stale_readvertise_chain.go::Reactor.runStaleChain moved. Independent re-judgment against RFC 8893 Section 1 (&#39;A validating BGP speaker MUST apply Route Origin Validation policy semantics (see Section 2 of [RFC6811] and Section 4 of [RFC8481]) after applying any egress configuration and policy.&#39;). All prior audit findings are resolved: (1) stale_readvertise_chain.go::Reactor.runStaleChain (when judgeAll re-evaluates a reloaded export chain) and policy_dryrun_library.go::Reactor.traceLibraryChain now defer rpki-validation-state via skipRPKIValidation and run runPostEgressRPKIValidation (resetting intent.readvertise=false) after non-validating egress policy and final judges; (2) PeerSettings.SessionFacts and egress_inject_filter.go::Peer.captureOriginatedFacts now populate ASOverride and SecondaryAS consistently with buildForwardFacts; (3) bgp-rpki&#39;s policy_seam_test.go::TestRPKIPluginPublishesOriginValidatorSeam is tagged RFC8893-1-1 positive and verifies real ROACache + validateOriginForPolicy RFC 6811 Section 2 / RFC 8481 Section 4 semantics (Valid, Invalid, NotFound, maxLength, AS 0 VRP, OriginNone for AS_SET, and inactive fail-closed to ValidationNotValidated) with a fresh revert discrimination record on rPKIPlugin.validateOriginForPolicy; (4) TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy and TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy compile against real &#34;bgp export&#34; and verify post-egress ordering across runEgressPolicyChainASN4 (remove-private-as, multi-prefix partial drop, AS_SET), live forwarding with newAIGPReplayFixture + refreshForwardFacts + as-override, runStaleChain(judgeAll=true), traceLibraryChain (checking exact trace order), and SessionFacts/captureOriginatedFacts, with fresh revert discrimination records on Reactor.runPostEgressRPKIValidation. All scoped tests PASS.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L311" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8893_policy_seam_test.go#L16" title="internal/component/bgp/plugins/rpki/rfc8893_policy_seam_test.go" target="_blank" rel="noopener"><code>TestRPKIPluginPublishesOriginValidatorSeam</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L150" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8893-1-2"><code>RFC8893-1-2</code></a></h3>
 <p>Any AS_PATH modifications resulting in effective origin AS change MUST be taken into account. (§1)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC8893-1-2, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected, internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationsChangingEffectiveOriginAS moved. Independent re-judgment against RFC 8893 Section 1 (&#39;Any AS_PATH modifications resulting in effective origin AS change MUST be taken into account.&#39;). All prior audit findings are resolved: positive TestRFC8893ASPathModificationsChangingEffectiveOriginAS now matches its claim verbatim across all five effective-origin-changing mechanisms—remove-private-as stripping to empty (LocalAS becomes origin), remove-private-as peer-as replacement (PeerAS becomes origin), live-forwarded as-override via newAIGPReplayFixture + refreshForwardFacts (PeerAS -&gt; LocalAS), RFC 7705 SecondaryAS via PeerSettings.SessionFacts on empty AS_PATH, and external raw AS_PATH rewrite. Negative TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected rejects live-forwarded as-override flipping Valid PeerAS to unauthorized LocalAS and unauthorized RFC 7705 SecondaryAS via PeerSettings.SessionFacts, while retaining the transit-only as-override control keeping a Valid rightmost origin unchanged. Both units carry fresh revert discrimination records on View.EffectiveOriginAS and PASS.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L548" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L425" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893ASPathModificationsChangingEffectiveOriginAS</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8893-3-1"><code>RFC8893-3-1</code></a></h3>
 <p>BGP implementations supporting RPKI-based origin validation MUST provide the same policy configuration primitives for decisions based on the validation state available for use in ingress, redistribution, and egress policies. (§3)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC8893-3-1, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893SamePolicyPrimitiveAcrossIngressRedistributionAndEgress, internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ValidationStatePrimitiveRefusesInvalidConfigAndInactiveValidator moved. Independent re-judgment against RFC 8893 Section 3 (&#39;BGP implementations supporting RPKI-based origin validation MUST provide the same policy configuration primitives for decisions based on the validation state available for use in ingress, redistribution, and egress policies.&#39;). All prior audit findings are resolved: (1) TestRFC8893RedistributePolicyFiltersByRPKIValidationState now compiles the identical rpki-validation-state match filter against &#34;redistribute import&#34; via policy.CompileRouteChain and executes real configredist.NewEvaluator + handleBatch + BGP consumer for both BGP per-entry OriginAS and non-BGP static routes (which now fall back to BGP&#39;s published ribpolicy.LocalOriginAS() via applyBatchOriginAS, published by reactor.New and reload_globals.go::setGlobals), asserting exact injected prefixes; (2) TestRFC8893RedistributeInactiveValidatorRefusesValidMatch proves inactive-validator rejection through handleBatch; (3) TestRFC8893SamePolicyPrimitiveAcrossIngressRedistributionAndEgress and TestRFC8893ValidationStatePrimitiveRefusesInvalidConfigAndInactiveValidator compile against real &#34;bgp import&#34; and &#34;bgp export&#34; attachments (no test-only attachments) and verify unknown/empty state refusal and inactive-validator refusal across all three policy points (BGP ingress, route/redistribution, BGP egress). Ze&#39;s unified policy configuration primitive (policy match rpki-validation-state [ valid | not-found | invalid ]) is identical across ingress, redistribution, and egress (bgp rpki action is the separate RFC 6811 Section 3 Adj-RIB-In eligibility gate outside the policy engine). All four units carry fresh revert discrimination records on ParseRPKIValidationStates and compileRouteRPKIValidationState and PASS.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L693" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893ValidationStatePrimitiveRefusesInvalidConfigAndInactiveValidator</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/redistribute/rfc8893_redistribute_validation_test.go#L113" title="internal/plugins/redistribute/rfc8893_redistribute_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893RedistributeInactiveValidatorRefusesValidMatch</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L623" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893SamePolicyPrimitiveAcrossIngressRedistributionAndEgress</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/redistribute/rfc8893_redistribute_validation_test.go#L24" title="internal/plugins/redistribute/rfc8893_redistribute_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893RedistributePolicyFiltersByRPKIValidationState</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8893-3-2"><code>RFC8893-3-2</code></a></h3>
 <p>When applied to egress policy, validation state MUST be determined using the effective origin AS of the route as it will (or would) be announced to the peer. (§3)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC8893-3-2, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/filter_library.go::Reactor.runPostEgressRPKIValidation, internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4 moved. Independent re-judgment against RFC 8893 Section 3 (&#39;When applied to egress policy, validation state MUST be determined using the effective origin AS of the route as it will (or would) be announced to the peer.&#39;) after adding intent.readvertise = false to Reactor.runPostEgressRPKIValidation and updating sibling tests in rfc8893_egress_validation_test.go. Positive TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS drives a live forwarding fixture (newAIGPReplayFixture) with real buildOrderedEgressSteps, peer.refreshForwardFacts, ASOverride=true, and live Session socket writes, unpacking the actual transmitted wire UPDATE ([65000, 65001, 65000]) and asserting the validator queried originAS equals wireASNs[len-1] (65000); a second subtest verifies 2-octet destination body reconstruction from AS4_PATH yields 4-octet origin 4200000100. Negative TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS drives the same live forwarding fixture where only stale received origin 65002 is authorized by VRP and post-as-override origin 65000 is unauthorized, asserting zero transmitted wire UPDATEs and asserting every validator query passed 65000 and never queried 65002, plus a control verifying withdrawal-only UPDATEs pass unblocked. Both units carry fresh revert discrimination records on View.EffectiveOriginAS and PASS; the one-line intent.readvertise=false reset in runPostEgressRPKIValidation preserves all egress validation semantics.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L845" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L758" title="internal/component/bgp/reactor/rfc8893_egress_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
@@ -677,7 +733,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 05:55 UTC</span>
                 </div>
             </div>
         </footer>

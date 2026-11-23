@@ -14,15 +14,8 @@ what Ze has
 | One polarity plus reason | 5 | of 53 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 53 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 53 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 53 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 | Tests shown to detect a fault | 135 | 135 of 232 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Declared gap or no test | 1 | of 53 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -31,7 +24,7 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Out of scope | 0 | of 53 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
-| Not applicable | 0 | of 53 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Not applicable | 1 | of 53 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Met below Ze | 0 | of 53 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 53 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Linux cannot do this | 0 | of 53 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
@@ -55,7 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
 | Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
-| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -73,7 +66,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 57 |
 | Mandatory requirements (MUST level) | 53 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 1 |
+| Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
@@ -97,7 +90,7 @@ Included in automatic checks: Revised UPDATE error handling: the error-handling 
 
 **Evidence:** interop 2, functional 5, unit 45
 
-**Unmet:** RFC7606-8-1
+**Unmet:** -
 
 
 ## Coverage
@@ -119,27 +112,27 @@ Included in automatic checks: Revised UPDATE error handling: the error-handling 
 
 ## Figures
 
-- **MUST bar**: Ze verified 52, Not built 1
-- **Overview bar**: Ze MUST verified 52, Not assessed 4, Not built 1
+- **MUST bar**: Ze verified 52
+- **Overview bar**: Ze MUST verified 52, Not owed 1, Not assessed 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 53 |
-| MUST rows kept (the MUST bar) | 53 |
+| MUST rows kept (the MUST bar) | 52 |
 | Ze verified | 52 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 1 |
-| MUST rows not owed | 0 |
+| Not built | 0 |
+| MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 0 |
+| MUST not owed: not-applicable | 1 |
 | SHOULD / MAY rows | 4 |
 | SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
@@ -203,7 +196,7 @@ Source: [data/rfc/rfc7606.json](../../../data/rfc/rfc7606.json).
 | `RFC7606-4-3` | the Total Attribute Length MUST be relied upon to enable the beginning of the NLRI field to be located. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC7606NLRILocatedByTotalAttributeLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_nlri_locate_test.go#L23). **negative:** `unit/verify` [`TestRFC7606NLRILocatedByTotalAttributeLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_nlri_locate_test.go#L24) |
 | `RFC7606-4-2` | For all path attributes other than those specified as having an attribute length that may be zero, it SHALL be considered a syntax error for the attribute to have a length of zero. Of the path attributes considered in this specification, only AS_PATH and ATOMIC_AGGREGATE may validly have an attribute length of zero. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC7606SystematicLengthCorruption`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1637). **positive:** `unit/verify` [`TestRFC7606ValidUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L194). **negative:** `unit/verify` [`TestRFC7606ZeroLengthAttributeMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L278) |
 | `RFC7606-3.g-2` | If any other attribute (whether recognized or unrecognized) appears more than once in an UPDATE message, then all the occurrences of the attribute other than the first one SHALL be discarded and the UPDATE message will continue to be processed. (§3.g) | MUST | 3.g | **positive:** `unit/verify` [`TestRFC7606DuplicateAttributeFirstOccurrenceWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L547). **positive:** `unit/verify` [`TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L89). **negative:** `unit/verify` [`TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L568). **negative:** `unit/verify` [`TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L91) |
-| `RFC7606-8-1` | A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled. (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** an obligation on a document that specifies a new BGP attribute, whose subject carries a relative clause no role binding can name; ze writes no such document, and no test asserts that each attribute ze decodes is handled as its own document's error rules say |
+| `RFC7606-8-1` | A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled. (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** "A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled."; binds a document; ze is a BGP speaker and authors no BGP attribute specification |
 | `RFC7606-6-1` | Because of these potential issues, a BGP speaker must provide debugging facilities to permit issues caused by a malformed attribute to be diagnosed. At a minimum, such facilities must include logging an error listing the NLRI involved and containing the entire malformed UPDATE message when such an attribute is detected. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC7606DiagnosticWireAndMPNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_receive_boundary_test.go#L203). **positive:** `unit/verify` [`TestRFC7606DiagnosticsCoverSessionReset`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go#L107). **positive:** `unit/verify` [`TestRFC7606DiagnosticsListNLRIAndUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go#L64). **negative:** `unit/verify` [`TestRFC7606DiagnosticWireAndMPNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_receive_boundary_test.go#L204). **negative:** `unit/verify` [`TestRFC7606DiagnosticsCostsNothingWhenDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_diag_cost_test.go#L26). **negative:** `unit/verify` [`TestRFC7606DiagnosticsSilentWhenDebugDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go#L89) |
 | `RFC7606-7.2-2` | A BGP implementation SHOULD also handle routes that violate this check using "treat-as-withdraw" (§7.2) | SHOULD | 7.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7606-8-2` | The document SHOULD also provide consideration of what debugging facilities may be required to permit issues caused by a malformed attribute to be diagnosed. (§8) | SHOULD | 8 | **positive:** no positive test. **negative:** no negative test |
@@ -223,7 +216,7 @@ Source: [data/rfc/rfc7606.json](../../../data/rfc/rfc7606.json).
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC7606-8-1`](#rfc7606-8-1) A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled. (§8) | {gap}, no test | an obligation on a document that specifies a new BGP attribute, whose subject carries a relative clause no role binding can name; ze writes no such document, and no test asserts that each attribute ze decodes is handled as its own document's error rules say |
+| [`RFC7606-8-1`](#rfc7606-8-1) A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled. (§8) | no test | no test carries this requirement id; annotated {not-applicable}: "A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled."; binds a document; ze is a BGP speaker and authors no BGP attribute specification |
 
 ## Test status
 
@@ -846,7 +839,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 thus causing them to be removed from the Adj-RIB-In according to the procedures of [RFC4271]. (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go::TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute, internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go::TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute#2 moved. Independently rejudged 2026-11-19 against the complete RFC 7606 Section 2 treat-as-withdraw bullet and the unchanged extracted removal clause. Retain enforced at the existing Adj-RIB-In storage scope. There is one current whole test, TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute, with positive and negative tag bindings; the #2 audit key is the second tag in that same function, not another root. A valid legacy IPv4 UPDATE installs 10.0.0.0/8 and require.Equal demands exactly one stored route before the negative input can run. The same prefix with malformed ORIGIN is passed to the production message.SynthesizeWithdraw helper with ADD-PATH false; changed must be true, and feeding its result through handleReceivedStructured must leave exactly zero entries in the same received-source inventory. The source trace reaches installStructuredNLRIs for the useful baseline, then removeStructuredNLRIs and removeReceivedLocked for the synthesized withdrawal. The test's unrecorded observational source remains explicitly owner/connection zero; it neither invents nor claims physical-session authorization. Selected commit 0e34a62474 changed only this root's two map lookup expressions from the address key to receivedPeer{address: peer}, matching the source-key migration. It preserved both input buffers, prefix, synthesis call, required setup, exact 1-to-0 assertions and both tag claims. The native closure finding is therefore selected function-unit drift, not a line shift to reseal or foreign RFC scope. Independently read the actual prior selected proof receipts: job-advertiser-provider-rfc7606-store-proof-0be214be.log has named clean PASS and a normal-return install mutation replacing Put with Delete, failing the initial required 1-versus-0 assertion before the negative is reached; job-advertiser-provider-rfc7606-remove-proof-fc8fee24.log has named clean PASS, preserves the useful installation, then omits removeReceivedLocked and fails the final 0-versus-1 removal assertion. These are the existing distinct positive installation and negative removal records, unchanged by this audit write. The witness proves actual received storage removal rather than a withdrawal-shaped dispatch proxy. It calls the synthesis helper directly and does not additionally prove automatic malformed-attribute detection or transport dispatch. Its unchanged input scope is legacy IPv4 body NLRI, not the MP_UNREACH parenthetical or a new all-family/ADD-PATH matrix. No requirement text, annotation, claim, carrier body or discrimination record is changed by this rejudgment.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/adj_rib_in/rib.go::AdjRIBInManager.installStructuredNLRIs moved. Independently rejudged 2026-11-19 against the complete RFC 7606 Section 2 treat-as-withdraw bullet and the unchanged extracted removal clause. Retain enforced at the existing Adj-RIB-In storage scope. There is one current whole test, TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute, with positive and negative tag bindings; the #2 audit key is the second tag in that same function, not another root. A valid legacy IPv4 UPDATE installs 10.0.0.0/8 and require.Equal demands exactly one stored route before the negative input can run. The same prefix with malformed ORIGIN is passed to the production message.SynthesizeWithdraw helper with ADD-PATH false; changed must be true, and feeding its result through handleReceivedStructured must leave exactly zero entries in the same received-source inventory. The source trace reaches installStructuredNLRIs for the useful baseline, then removeStructuredNLRIs and removeReceivedLocked for the synthesized withdrawal. The test's unrecorded observational source remains explicitly owner/connection zero; it neither invents nor claims physical-session authorization. Selected commit 0e34a62474 changed only this root's two map lookup expressions from the address key to receivedPeer{address: peer}, matching the source-key migration. It preserved both input buffers, prefix, synthesis call, required setup, exact 1-to-0 assertions and both tag claims. The native closure finding is therefore selected function-unit drift, not a line shift to reseal or foreign RFC scope. Independently read the actual prior selected proof receipts: job-advertiser-provider-rfc7606-store-proof-0be214be.log has named clean PASS and a normal-return install mutation replacing Put with Delete, failing the initial required 1-versus-0 assertion before the negative is reached; job-advertiser-provider-rfc7606-remove-proof-fc8fee24.log has named clean PASS, preserves the useful installation, then omits removeReceivedLocked and fails the final 0-versus-1 removal assertion. These are the existing distinct positive installation and negative removal records, unchanged by this audit write. The witness proves actual received storage removal rather than a withdrawal-shaped dispatch proxy. It calls the synthesis helper directly and does not additionally prove automatic malformed-attribute detection or transport dispatch. Its unchanged input scope is legacy IPv4 body NLRI, not the MP_UNREACH parenthetical or a new all-family/ADD-PATH matrix. No requirement text, annotation, claim, carrier body or discrimination record is changed by this rejudgment.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

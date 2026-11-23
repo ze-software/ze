@@ -9,7 +9,7 @@ Show IS\-IS\-computed routes\.
 - Mode: Read\-only
 - Wire method: `ze-isis:show-route`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `ipv6`
 - Answer shape: not declared
 - Address fields: none

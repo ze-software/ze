@@ -9,7 +9,7 @@ Disable debug for a subsystem\, or remove one of its flags or scopes\.
 - Mode: daemon\, offline
 - Wire method: `ze-debug:delete-module`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `scope`
 - Answer shape: not declared
 - Address fields: none

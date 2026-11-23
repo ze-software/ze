@@ -9,7 +9,7 @@ Rejoin the fleet\: follow the hub again\.
 - Mode: daemon\, offline
 - Wire method: `ze-managed:fleet-enable`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

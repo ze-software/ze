@@ -9,7 +9,7 @@ Look up a DNS name from the router\.
 - Mode: Read\-only
 - Wire method: `ze-resolve:show-dns-lookup`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

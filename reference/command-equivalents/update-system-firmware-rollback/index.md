@@ -9,7 +9,7 @@ Roll back to the previous firmware and restart\.
 - Mode: Daemon
 - Wire method: `ze-update:system-firmware-rollback`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

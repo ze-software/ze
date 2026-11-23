@@ -9,7 +9,7 @@ Show the fully resolved configuration tree of a file\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-cli:show-config-dump`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
@@ -31,7 +31,7 @@ Parses the config and outputs it after includes\, defaults\, and group inheritan
 
 ## Mapping intents
 
-### Show running configuration
+### Show running\, candidate\, and diffed configuration
 
 Category: Configuration
 
@@ -50,5 +50,7 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
+- `compare` (verified, vyos\-cli)
+  - Intent: Show running\, candidate\, and diffed configuration
 - `show configuration` (verified, vyos\-cli)
-  - Intent: Show running configuration
+  - Intent: Show running\, candidate\, and diffed configuration

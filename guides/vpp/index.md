@@ -140,7 +140,7 @@ wedged VPP. A zero exit counts as an answer only when the output carries the
 output lists no plugin at all, so it is a WARNING too. None of those is evidence
 about which plugins VPP loaded.
 <!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO, vppctlPluginsHeader -->
-<!-- source: internal/core/diagnostic/codes.go -- doctor-vpp-lcp-plugin -->
+<!-- source: internal/plugins/iface/vpp/register_doctor_codes.go -- doctor-vpp-lcp-plugin -->
 
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- lcp container netns default "dataplane" -->
 <!-- source: internal/core/network/network.go -- RealListenerFactory.Listen binds via net.ListenConfig, no netns awareness -->
@@ -280,6 +280,12 @@ connects via GoVPP at step 7, opens statistics and optional telemetry at
 step 8, then emits lifecycle events and completes readiness at step 9.
 It blocks on context cancellation instead of `cmd.Wait` at step 10.
 <!-- source: internal/component/vpp/vpp.go -- External branch in Run and runOnce -->
+
+This mode is going away. The owner decided on 2026-11-23 that Ze refuses to
+run VPP unmanaged: with an external VPP the operator accepts that Ze may stop
+and restart it, through its systemd unit or by starting the binary directly
+(`docs/research/vpp-deployment-reference.md`, "Design decisions"). That is not
+built yet; `plan/post-release/features/spec-vpp-failure-lifecycle.md` owns it.
 
 Typical configurations:
 

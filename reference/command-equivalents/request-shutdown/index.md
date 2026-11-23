@@ -9,7 +9,7 @@ Gracefully shutdown\: drain connections\, close peers\, exit\.
 - Mode: Daemon
 - Wire method: `ze-plugin:system-daemon-shutdown`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

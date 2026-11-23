@@ -134,6 +134,15 @@ These settings carry discovery and PPP control frames to Ze; the startup flag
 also punts subscriber IPv6 control traffic.
 <!-- source: internal/component/l2tp/plugins/pppoe-vpp/startup.go -- registerStartup -->
 
+Subscribers on the VPP provider are not rate limited yet. Session-up hands
+each session to the subscriber shaper, whose upload policer the VPP traffic
+backend refuses, and the shaper only logs the failure, so neither the default
+nor the RADIUS rate is enforced. A CoA rate change for such a session is
+answered with a CoA-NAK, because the shaper holds no confirmed state for it.
+<!-- source: internal/component/l2tp/plugins/shaper/shaper.go -- handleSubscriberSessionUp, applyTC -->
+<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- applyInterface -->
+<!-- source: internal/component/l2tp/plugins/shaper/rate_transaction.go -- prepareRate -->
+
 ### Changing the configuration
 
 A committed change to the `pppoe` block applies to the running access

@@ -9,7 +9,7 @@ Show the IS\-IS dynamic\-hostname mapping \(RFC 5301\)\.
 - Mode: Read\-only
 - Wire method: `ze-isis:show-hostname`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

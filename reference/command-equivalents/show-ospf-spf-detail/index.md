@@ -9,7 +9,7 @@ Explain why each route won the SPF calculation \(spec\-ospf\-ext\-14\)\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-spf-detail`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

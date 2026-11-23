@@ -9,7 +9,7 @@ Show RSVP\-TE Fast Reroute \(RFC 4090\) protection state\.
 - Mode: Read\-only
 - Wire method: `ze-rsvpte:show-rsvp-te-fast-reroute`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

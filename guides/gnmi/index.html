@@ -119,7 +119,7 @@ cannot be read, or when the certificate and key are not a valid pair, gNMI
 does not start: nothing listens on its port, and Ze logs an error naming the
 file, why, and the fix. The rest of the daemon keeps running. Restore the file
 or correct <code>environment gnmi tls cert</code> / <code>key</code> (or <code>ze.gnmi.tls.cert</code> /
-<code>ze.gnmi.tls.key</code>), then run <code>ze signal restart</code>: a reload does not restart
+<code>ze.gnmi.tls.key</code>), then restart ze: <code>sudo systemctl restart ze</code> only when ze runs under ze.service, otherwise <code>ze signal stop</code>, then a start the way ze was started. A reload does not restart
 gNMI.</p>
 <p>The error carries the code <code>doctor-gnmi-tls-material</code>, and <code>ze doctor</code> reports
 the same cause before the daemon starts: its <code>gnmi-tls-material</code> check loads
@@ -294,7 +294,7 @@ and <code>ze_gnmi_errors_total{code="Internal"}</code>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

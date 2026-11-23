@@ -9,7 +9,7 @@ Convert supplied ExaBGP configuration to Ze configuration\.
 - Mode: read\-only\, offline
 - Wire method: `ze-exabgp:show-exabgp-migration-config`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: blob
 - Address fields: none

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9774 requirements and tests - Ze</title>
-        <meta name="description" content="RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP. 3 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP. 3 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9774 requirements and tests - Ze" />
-        <meta property="og:description" content="RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP. 3 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP. 3 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9774 requirements and tests - Ze" />
-        <meta name="twitter:description" content="RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP. 3 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 9774: Deprecation of AS_SET and AS_CONFED_SET in BGP. 3 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -128,16 +128,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>2</strong><b>of 3 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>3</strong><b>of 3 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 3 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 3 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 3 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>10</strong><b>10 of 10 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>1</strong><b>of 3 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 3 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>12</strong><b>12 of 12 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -181,7 +177,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -238,7 +234,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -250,16 +246,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>10</td>
+<td>12</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>10</td>
+<td>12</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>1</td>
+<td>2</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>10</td>
+<td>12</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9774.md</code></td>
@@ -279,9 +275,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Deprecation of AS_SET and AS_CONFED_SET</p>
-<p><strong>Test verification:</strong> 2 of 3 MUST proven</p>
-<p><strong>Evidence:</strong> unit 2</p>
-<p><strong>Unmet:</strong> RFC9774-5.2-1</p>
+<p><strong>Test verification:</strong> 3 of 3 MUST proven</p>
+<p><strong>Evidence:</strong> unit 3</p>
+<p><strong>Unmet:</strong> -</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -290,11 +286,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>2</strong></td>
+<td><strong>3</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>1</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Only a positive or negative test</td>
@@ -321,14 +317,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc9774-3-1"><code>RFC9774-3-1</code></a>, <a href="#rfc9774-3-2"><code>RFC9774-3-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (1):</strong> <a href="#rfc9774-5.2-1"><code>RFC9774-5.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc9774-3-1"><code>RFC9774-3-1</code></a>, <a href="#rfc9774-3-2"><code>RFC9774-3-2</code></a>, <a href="#rfc9774-5.2-1"><code>RFC9774-5.2-1</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc9774:must">Ze verified 2, Not built 1</div>
+<div data-ze-rfc-bar="rfc9774:must">Ze verified 3</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc9774:overview">Ze MUST verified 2, Not built 1</div>
+<div data-ze-rfc-bar="rfc9774:overview">Ze MUST verified 3</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -340,7 +335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc9774:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc9774:register">not complete</span></td>
+<td><span data-ze-rfc="rfc9774:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc9774:must.total">3</span></td>
@@ -349,7 +344,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc9774:must.kept">3</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc9774:must.ze-proven">2</span></td>
+<td><span data-ze-rfc="rfc9774:must.ze-proven">3</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc9774:must.os-verified">0</span></td>
@@ -367,7 +362,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc9774:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc9774:must.not-built">1</span></td>
+<td><span data-ze-rfc="rfc9774:must.not-built">0</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc9774:must.not-owed">0</span></td>
@@ -457,26 +452,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.2 - Consistent brief aggregation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9774-5.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze implements no route aggregation, brief or consistent brief, so no aggregate route is ever formed and nothing truncates its AS_PATH; aggregation (Sections 5, 5.2, 6.1, 6.2) is an absent feature of an implemented RFC with no owner decision declining it, owed after the first release</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go#L598" title="internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go" target="_blank" rel="noopener"><code>TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go#L599" title="internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go" target="_blank" rel="noopener"><code>TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS</code></a></span></div>
+</div></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc9774-5.2-1"><code>RFC9774-5.2-1</code></a> To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of &#34;brief&#34; BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2)</td>
-<td>{gap}, no test</td>
-<td>Ze implements no route aggregation, brief or consistent brief, so no aggregate route is ever formed and nothing truncates its AS_PATH; aggregation (Sections 5, 5.2, 6.1, 6.2) is an absent feature of an implemented RFC with no owner decision declining it, owed after the first release</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 9774 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
 <section><h2>Test status</h2>
 <p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
@@ -552,8 +537,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc9774-5.2-1"><code>RFC9774-5.2-1</code></a></h3>
 <p>To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of &#34;brief&#34; BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC9774-5.2-1, so there is no linked test.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged against RFC 9774 Section 5.2: &#34;To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of \&#34;brief\&#34; BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate.&#34; aggregateBriefASPath finds the right-most instance of rule.BriefOriginAS in the common leading AS_SEQUENCE (truncating all subsequent ASes and marking excluded for ATOMIC_AGGREGATE), supports speaker.LocalAS by emitting an empty AS_PATH that eBGP announcement prepends with the local AS, and refuses synthesis when the desired origin AS is absent. parseASPath4ForAggregate stops immediately on any non-AS_SEQUENCE segment. TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS proves: without brief-origin-as, shared trailing 65030 is kept ([65010,65020,65010,65030]); with brief-origin-as=65010, wire AS_PATH on BestChange (fully decoded as AS_SEQUENCE only) and dispatched update-text command truncate after right-most 65010 to [65010,65020,65010] with length-0 ATOMIC_AGGREGATE and stay stable when p2 withdraws (Appendix B); with brief-origin-as=65000 (local AS), wire AS_PATH is empty with ATOMIC_AGGREGATE (paired with reactor eBGP local-AS prepend verification); and absent origin AS (65999) or origin AS behind AS_SET (65020) suppresses aggregation. Both positive and negative discrimination records in rfc/discrimination/rfc9774/RFC9774-5.2-1.json are current (producer-disable revert records).</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go#L599" title="internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go" target="_blank" rel="noopener"><code>TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go#L598" title="internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go" target="_blank" rel="noopener"><code>TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
@@ -644,7 +645,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Consistent brief aggregation</td>
 <td>1</td>
 <td>reviewed</td>
-<td>Consistent brief aggregation. Its MUST (5.2:1) and its SHOULD to attach ATOMIC_AGGREGATE bind an aggregating implementation; Ze implements no aggregation, so 5.2:1 maps to RFC9774-5.2-1, which carries {gap}.</td>
+<td>Consistent brief aggregation. Its MUST (5.2:1) maps to RFC9774-5.2-1, implemented in internal/component/bgp/plugins/rib/aggregate.go (aggregateBriefASPath, brief-origin-as in ze-bgp-conf.yang).</td>
 </tr>
 <tr><td><code>6</code></td>
 <td>not stated</td>
@@ -656,13 +657,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 <td>1</td>
 <td>reviewed</td>
-<td>Its MUST (6.1:1) binds an operator that aggregates; excluded as feature-out-of-scope with 5.2:1.</td>
+<td>Its MUST (6.1:1) binds network operators (&#39;When aggregating prefixes, network operators MUST use consistent brief aggregation&#39;), not the BGP speaker software.</td>
 </tr>
 <tr><td><code>6.2</code></td>
 <td>not stated</td>
 <td>0</td>
 <td>reviewed</td>
-<td>SHOULD NOT and SHOULD on announcing an aggregate to contributing ASes; recommendations conditional on aggregation, which Ze does not implement. No MUST-level site.</td>
+<td>SHOULD NOT and SHOULD on announcing an aggregate to contributing ASes; recommendations on operator export policy. No MUST-level site.</td>
 </tr>
 <tr><td><code>6.3</code></td>
 <td>not stated</td>
@@ -751,8 +752,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
 <tbody>
 <tr><td><code>6.1:1</code></td>
-<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
-<td>Binds an operator &#34;When aggregating prefixes&#34;, which needs an aggregation feature in the speaker. RFC 4271 Section 9.1 makes route aggregation optional: &#34;Route aggregation and information reduction can optionally be performed within this phase.&#34; Owner decision 2026-10-18 scoped this work to RFC 9774 and not to an aggregation feature (spec-bgp-rfc9774-as-set-deprecation, Key Design Decisions). Ze has no aggregation code: the AS_PATH parsers (ParseASPathText, internal/core/bgp/attribute/text.go) build only AS_SEQUENCE.</td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds network operators configuring aggregation policy rather than BGP speaker protocol behavior; the speaker mechanism it relies on is RFC9774-5.2-1.</td>
 <td>When aggregating prefixes, network operators MUST use consistent brief aggregation as described in Section 5.2.</td>
 </tr>
 </tbody>
@@ -798,7 +799,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:28 UTC</span>
                 </div>
             </div>
         </footer>

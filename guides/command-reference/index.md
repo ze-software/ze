@@ -280,7 +280,13 @@ configuration valid: router.conf
 
 Warnings:
   warning: peer transit-a: RFC 8212: this EBGP peer has no import policy, so Ze uses none of the routes it receives from it; to exchange routes, run `set bgp peer transit-a filter import final accept`, then `commit now`
+    fix: set bgp peer transit-a filter import final accept
 ```
+
+Every finding that carries a fix prints it on a line of its own under the
+message, after `fix:`. A finding that also says why it matters prints that line
+first, as an operator error does: problem, why, then the fix.
+<!-- source: internal/component/config/cli/cmd_validate.go -- writeFindingDetail -->
 
 Validation also warns when an IBGP peer has an eligible ordinary selecting
 owner and no export policy. Ze sends that peer no routes learned from other
@@ -470,9 +476,11 @@ ze config migrate <file>                        # Rewrite in the set form
 ze config migrate format hierarchical <file>    # Rewrite as nested blocks
 ```
 
-`ze config migrate` reads a current config in either form; it does not rewrite
-an older pre-release syntax. An ExaBGP config is converted by
-`ze exabgp migrate` (below).
+`ze config migrate` reads a config in either form and applies the format
+conversions `--list` names; Ze writes the conversion of one format change only
+once it has a stable release, so none is registered today. An ExaBGP config is
+converted by `ze exabgp migrate` (below).
+<!-- source: internal/component/config/cli/cmd_migrate.go -- cmdMigrate, printTransformationList, cmdMigrateDryRun -->
 <!-- source: internal/component/config/cli/main.go -- subcommandHandlers, storageHandlers -->
 
 | Flag | Purpose |
@@ -480,6 +488,8 @@ an older pre-release syntax. An ExaBGP config is converted by
 | `-f` | Edit a loose file offline without bypassing store ownership |
 | `-o <output>` | Output file (migrate) |
 | `format <form>` | Output form, typed before the file: `set` (default) or `hierarchical` (migrate) |
+| `--dry-run` | Show which conversions the file needs without writing (migrate) |
+| `--list` | List the format conversions this binary carries (migrate) |
 
 ### ze secret
 
@@ -1098,12 +1108,14 @@ would start it again, because the late cleanup would remove what a new process
 registered under the same name. Once the call returns, the restart works
 again. A call that never returns ends only when ze restarts, so the answer and
 the `doctor-plugin-stopped` row name the restart once the call has returned,
-and `ze signal restart` if it never does.
+and a restart of the ze daemon if it never does: `sudo systemctl restart ze`
+only when ze runs under ze.service, otherwise `ze signal stop`, then a start
+the way ze was started.
 
 Each refusal the command itself answers says why and names the command that
 helps: `ze show doctor`, except for the missing server (`ze start`), a pending
 removal (`ze request reload`), an unfinished cleanup (the restart once the
-call has returned, or `ze signal restart`), and a self-restart or a
+call has returned, or that restart of the ze daemon), and a self-restart or a
 transaction in flight, which name the same restart command to run again.
 
 In the interactive CLI (SSH and `ze cli`), Tab after `request plugin restart`
@@ -1387,10 +1399,15 @@ only the running hub records the decision in its audit log and offers it.
 
 Host hardware inventory. Read-only. Walks sysfs/procfs (and issues best-effort
 `ethtool` ioctls for NIC firmware/rings) to produce a structured JSON description
-of the machine. Served by the daemon when reachable; when no daemon is running it
-falls back to the same in-process detection library, so `show host` works whether
-or not the daemon is up. JSON output for pipeline consumption (`jq`, Prometheus
-scrapers, SNMP shims).
+of the machine. Served by the daemon when reachable; when the daemon gives no
+answer it falls back to the same in-process detection library, so `show host`
+works whether or not the daemon is up. The fallback then adds a note on stderr
+that says this `ze` process answered, why the daemon did not (nothing listens, or
+this account has no credentials for it), and the command that gets the daemon's
+answer; stdout holds the inventory alone. A daemon that refuses the login is
+reported as a refused login, and nothing is answered. `show host trend` has no
+local answer: with no daemon answer it refuses, naming the same cause and its fix.
+JSON output for pipeline consumption (`jq`, Prometheus scrapers, SNMP shims).
 
 ```
 ze show host all                   # Full inventory (all sections), JSON
@@ -1501,8 +1518,8 @@ The answer is one object per rule under `rules`:
 
 A figure the rule does not have is absent, never `0`: a rule still warming up
 shows its observed duration and no projection. When the trend monitor is not
-running the command refuses, says why that matters, and names the fix,
-`ze signal restart`; it never answers an empty list. With no daemon reachable
+running the command refuses, says why that matters, and names the fix, the
+restart for this ze: `sudo systemctl restart ze` only when ze runs under ze.service, otherwise `ze signal stop`, then a start the way ze was started; it never answers an empty list. With no daemon reachable
 it says the daemon is needed, because the history lives in the daemon.
 
 <!-- source: internal/plugins/host-cmd/cmd/show_trend.go -- handleShowTrend, trendRuleOf -->
@@ -3201,6 +3218,7 @@ are durable. An existing tree or blob refuses initialization.
 
 ```
 ze init                          # Interactive setup
+ze init --confirm                # Ask before writing each discovered interface
 ze init --managed                # Fleet mode
 ze init --managed --hub-ca hub-root.pem   # Fleet mode, with the hub's root
 ze init --force --yes             # Replace an unowned store with a backup
@@ -3213,7 +3231,13 @@ Input fields are username, password, host, port, and instance name. With
 `--managed` two more follow: the hub address as `host:port`, and this client's
 secret on the hub. Both may be empty ([Fleet configuration](../fleet-config/index.md)).
 The default host is `127.0.0.1`, the port is `2222`, and the name is the hostname.
-Normal initialization discovers interfaces and stores their initial config.
+Normal initialization discovers interfaces and stores their initial config, every
+discovered interface included. With `--confirm`, one more answer follows per
+discovered interface the config can hold, in `ze interface scan` order: `yes` or
+`y` writes it, and `no` or `n` leaves it out. An empty line or any other answer is
+not accepted: a notice on stderr names the accepted answers and the same interface
+is asked again, from the next line. Input that ends early is refused before a store
+is written.
 
 | Flag | Purpose |
 |------|---------|
@@ -3225,6 +3249,7 @@ Normal initialization discovers interfaces and stores their initial config.
 | `--web-cert <address>` | Generate a web TLS certificate |
 | `--web-cert-name <name>` | Add a DNS name to that certificate |
 | `--seed` | Build a `database.zefs` appliance seed without host interface discovery |
+| `--confirm` | Ask about each discovered interface, showing its kind, name, MAC address, the bridge or bond it is a member of and its alias, and write only the ones answered yes. Only `yes`, `y`, `no` or `n` answers, and anything else is asked again. Refused with `--seed`, `--managed` and `--from`, which write no discovered interface |
 | `--from <source>` | Import a blob from a local path or an `http`, `https` or `tftp` URL into the live store; reads no credentials; refuses `--seed`; with `--force --yes` replaces an existing store. A local blob is retired as `.replaced-<stamp>`. A URL is fetched into a `database.fetch-*` folder beside the store, and that folder is removed after the import |
 | `--sha256 <hex>` | Refuse the `--from` source unless its bytes have this SHA-256, 64 hex digits; the check runs before a key is written |
 

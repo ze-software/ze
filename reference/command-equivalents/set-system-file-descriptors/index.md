@@ -9,7 +9,7 @@ Raise the file descriptor limit for the daemon process\.
 - Mode: Daemon
 - Wire method: `ze-host:set-system-file-descriptors`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

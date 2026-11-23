@@ -1931,14 +1931,14 @@ so the traffic a discard entry names stays dropped while the edit lands. The
 configuration the daemon starts with is never refused: an entry the kernel
 refuses at start is left out, logged at Error, and reported by <code>ze doctor</code>
 (<code>ipsec-spd-install</code>, code <code>doctor-ipsec-spd-install-refused</code>) with
-<code>ze signal restart</code> as the retry; any commit that changes <code>vpn ipsec</code> retries it
+a restart of Ze (<code>sudo systemctl restart ze</code> under ze.service, otherwise <code>ze signal stop</code>, then start ze again the way it was started) as the retry; any commit that changes <code>vpn ipsec</code> retries it
 too. When the kernel also refuses a step that puts things back (the old form of
 an entry after a refused commit, or a half written before the refusal), or a
 commit cannot remove the old form of an entry it changed or removed, the kernel
 is left holding something the running configuration does not: <code>ze doctor</code>
 reports it under the same check, code <code>doctor-ipsec-spd-undo-incomplete</code>, with
 the direction, the prefixes, the priority and the kernel's answer, until a
-commit rewrites that entry or <code>ze signal restart</code> rebuilds the SPD. A tie the start finds is installed as it stands, logged at Error, and
+commit rewrites that entry or a restart of Ze rebuilds the SPD. A tie the start finds is installed as it stands, logged at Error, and
 reported by <code>ze doctor</code> under <code>config-plugin-verify</code>.</p>
 <p>These rules are refused at commit rather than approximated at install time,
 because a widened selector fails in both directions: a widened bypass passes
@@ -2145,10 +2145,12 @@ fires only when the commit would turn the discard on: a written <code>unmatched<
 leaf, either value, always passes, and so does a commit to a box whose catch-all
 already discards.</p>
 <p>The check runs on commit only. A configuration the daemon starts with is not
-verified, and start-up reads <code>unmatched</code> as the file states it: unset means
-discard, the default, with the error log below, whichever release saved the
-file. Write <code>unmatched bypass</code> into a file to keep passing unmatched traffic,
-and <code>unmatched discard</code> to say the discard is meant.</p>
+verified, so a file that leaves <code>unmatched</code> unset starts with the discard, the
+default, whichever release saved it: write <code>unmatched bypass</code> into it to keep
+passing unmatched traffic, or <code>unmatched discard</code> to state the default.
+Ze writes the conversion of an older config format only once it has a stable
+release, so no start-time step writes the former bypass default into a file
+(<a href="https://github.com/ze-software/ze/blob/main/docs/config-migration.md" target="_blank" rel="noopener">config migration</a>).</p>
 <p>When the daemon starts with the discard in force by default, it logs it at
 error level, with the same facts and commands as the refusal, so the console
 says why BGP or SSH went quiet:</p>
@@ -2166,11 +2168,18 @@ directions, which the kernel consults before any SPD entry. It covers only
 datagrams that start or end on those sockets, so a host behind Ze that sends
 from port 500 or 4500 is still protected by the tunnel, and the bypass goes
 with its socket. <code>show vpn ipsec dataplane policy</code> lists each one with SPD
-<code>socket</code> and role <code>ike-bypass</code>. When the kernel refuses that bypass (Ze runs
-without <code>CAP_NET_ADMIN</code>, or the kernel lacks <code>CONFIG_XFRM</code>), Ze keeps the socket
-and <code>ze doctor</code> reports it under <code>ipsec-ike-socket-bypass</code>, code
-<code>doctor-ipsec-ike-socket-bypass</code>: run ze with <code>CAP_NET_ADMIN</code> on a kernel with
-<code>CONFIG_XFRM</code>, then <code>ze signal restart</code>. Ze's SPD entries appear on the first apply,
+<code>socket</code> and role <code>ike-bypass</code>. When the kernel refuses that bypass, Ze keeps
+the socket and <code>ze doctor</code> reports it under <code>ipsec-ike-socket-bypass</code>, code
+<code>doctor-ipsec-ike-socket-bypass</code>, with the cause the kernel's answer shows and
+its fix. <code>EPERM</code>: Ze runs without <code>CAP_NET_ADMIN</code>; under ze.service run
+<code>sudo systemctl stop ze &amp;&amp; sudo ze install systemd --force --start</code>, otherwise
+restart ze as root or holding <code>CAP_NET_ADMIN</code>. <code>ENOPROTOOPT</code>: the kernel lacks
+<code>CONFIG_XFRM</code>; boot a kernel built with it (Ze's own kernel carries it), then
+restart Ze. <code>EACCES</code>: SELinux or AppArmor refused the socket option; find the
+denial with <code>sudo journalctl -b --grep 'avc:|apparmor="DENIED"'</code>, allow it, then
+restart Ze. Any other answer names both causes. Restart Ze with
+<code>sudo systemctl restart ze</code> under ze.service, otherwise <code>ze signal stop</code>, then
+start ze again the way it was started. Ze's SPD entries appear on the first apply,
 the catch-all first. The catch-all is re-asserted on every apply. When the
 engine stops, every tunnel is torn down first, then your <code>policy</code> entries are
 removed, and the catch-all goes last, so no Ze entry is ever in
@@ -2190,7 +2199,7 @@ never refused for it: Ze installs every catch-all entry the kernel accepts and
 the rest of the block, logs the failure at Error, and <code>ze doctor</code>
 (<code>ipsec-spd-install</code>, code <code>doctor-ipsec-spd-catch-all-missing</code>) says the
 catch-all, under <code>discard</code> the default discard, is not in force, with the
-kernel's answer and <code>ze signal restart</code> as the retry. The one exception is the
+kernel's answer and a restart of Ze (<code>sudo systemctl restart ze</code> under ze.service, otherwise <code>ze signal stop</code>, then start ze again the way it was started) as the retry. The one exception is the
 VPP backend:</p>
 <table>
 <thead>
@@ -2219,7 +2228,7 @@ VPP backend:</p>
 <tr>
 <td>The install itself fails when the configuration is applied, which includes a daemon without <code>CAP_NET_ADMIN</code>: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install</td>
 <td>A commit fails with the error and is not reported applied. A start installs every entry the kernel accepts, logs the failure at Error, and <code>ze doctor</code> reports that the default discard is not in force</td>
-<td>Same as <code>discard</code>, the finding naming the bypass entry. Fix: give the daemon <code>CAP_NET_ADMIN</code>, then <code>ze signal restart</code></td>
+<td>Same as <code>discard</code>, the finding naming the bypass entry. Fix: give the daemon <code>CAP_NET_ADMIN</code>, then a restart of Ze (<code>sudo systemctl restart ze</code> under ze.service, otherwise <code>ze signal stop</code>, then start ze again the way it was started)</td>
 </tr>
 <tr>
 <td>Before the first configuration is applied, and after the engine stops</td>
@@ -3603,7 +3612,7 @@ request reached (RFC 7296 Section 2.11; tracked by
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 05:43 UTC</span>
                 </div>
             </div>
         </footer>

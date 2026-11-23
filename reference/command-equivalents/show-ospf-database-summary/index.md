@@ -9,7 +9,7 @@ Show only Summary\-LSAs \(Type 3\, inter\-area network\)\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-database-summary`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

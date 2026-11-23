@@ -9,7 +9,7 @@ Explain one diagnostic code Ze printed\.
 - Mode: read\-only\, offline
 - Wire method: `ze-explain:show-diagnostic`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

@@ -190,12 +190,44 @@ Some read-only `show` commands are useful when the daemon is unreachable:
 `show crashes` helps investigate a stopped daemon, and `show host` provides
 hardware inventory before startup. Their owner registers an in-process handler with
 `command.MustRegisterOfflineFallback(path, handler)` from its `init()`. The CLI serves the command from the
-daemon when it is reachable and calls the fallback **only after a connection failure**,
+daemon when it is reachable and calls the fallback **only after its ask of the daemon failed**,
 so the fallback never shadows the daemon. A daemon that answers and refuses the login is
-not a connection failure: its SSH server presented a host key the client accepted, so the
+not such a failure: its SSH server presented a host key the client accepted, so the
 dial answers `sshclient.LoginRefused`, and `ze cli` prints that the daemon refused the
-login, with the login fix, and never calls the fallback, whose answer would claim no
-daemon ran. `cmdutil.RunCommand` sends a path that has a
+login, with the login fix, and never calls the fallback, which stands in only for a
+daemon that gave no answer. A fallback answers from this host's own files, so
+`ze cli --remote <host:port>` never calls one either: its answer would be this host's,
+read as the other's.
+
+**The fallback is handed why the daemon did not answer.** The handler is a
+`command.OfflineHandler`: it takes the judged arguments and a
+`command.DaemonUnanswered`, which carries why no daemon answered (`Why`) and the one
+command that gets the daemon's answer (`Fix`). The route that asked the daemon builds
+it, and a fallback never words a cause of its own, because only the route knows which
+failure it met. `ze cli` classifies its failure with the walk every command that asks
+a running ze takes (`sshclient.Unreached` and its steps, worded by
+`Unreached.Explain`):
+
+| What `ze cli` met | `Why` | `Fix` |
+|-------------------|-------|-------|
+| The address of the daemon's SSH listener cannot be read | the address of ze's SSH listener could not be read | `ze status` |
+| Nothing accepts a connection at the address (the credentials loaded or not) | no ze listens at `<address>` | `ze start` |
+| A daemon listens, and the credentials that reach it cannot be loaded | a ze listens at `<address>`, but this account has no credentials to log in to it | `ze cli --user <name> -c "<command>"` |
+| Something listens, and the connection to it failed before a login was judged (an untrusted host key, a handshake cut short) | something listens at `<address>`, but the connection to it failed | the failure's own fix when it is an operator error (the host-key repair), `ze status` otherwise |
+
+Credentials that cannot be loaded do not say whether a daemon runs, so the listener is
+probed (`sshclient.ProbeDaemon`) before the cause is named, as the local `ze doctor`
+probes it.
+
+A fallback is one of two kinds, and the route treats them by what they return.
+One that holds the answer in this process (`show host`, `show crashes`) prints it and
+exits 0; `command.InvokeOfflineFallback` then writes a note on stderr that says this
+process answered, why the daemon gave no answer, and the fix, so a local answer is
+never read as the daemon's. One whose answer only the daemon holds (`show host trend`,
+registered because the `show host` fallback would otherwise take it as an inventory
+section) refuses with exit 1, and its refusal names `Why` and ends on `Fix`.
+
+`cmdutil.RunCommand` sends a path that has a
 registered fallback down the daemon path even when the CLI binary's tree does not hold it,
 so the fallback is reachable with no daemon; any other path the tree does not hold takes
 the route of the next section. Output is identical to the daemon RPC (both read the same detection library
@@ -205,9 +237,14 @@ identity to one call on each side: both build their rows from
 the answer cannot vary with the health of the box being diagnosed.
 <!-- source: internal/core/crashlog/list.go -- CrashListFields, the one row builder -->
 <!-- source: internal/plugins/crashes/readiness.go -- Readiness, the one readiness answer -->
-<!-- source: internal/component/command/local.go -- RegisterOfflineFallback, MustRegisterOfflineFallback, LookupOfflineFallback -->
+<!-- source: internal/component/command/local.go -- RegisterOfflineFallback, MustRegisterOfflineFallback, LookupOfflineFallback, OfflineHandler, DaemonUnanswered, InvokeOfflineFallback, offlineAnswerNote -->
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
-<!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
+<!-- source: internal/component/cli/client/main.go -- runOfflineFallback, endFailedAsk (the fallback is run after a failed ask of the local daemon) -->
+<!-- source: internal/component/cli/client/daemon_unanswered.go -- unansweredWithoutCredentials, unansweredAfterConnect, unansweredAtStep -->
+<!-- source: internal/component/cli/sshclient/reach.go -- UnreachedWithoutCredentials, FixAskAsAccount, Unreached.Explain -->
+<!-- source: internal/plugins/host/trend_offline.go -- trendOfflineRefusal, the refusing kind -->
+<!-- test: internal/component/cli/client/daemon_unanswered_test.go TestOfflineCauseNoListenerIsAStart, TestOfflineCauseCredentialsUnavailableFollowsTheListener, TestOfflineCauseFailedConnectionToAListenerIsNotAStart, TestFailedAskRefusedLoginRunsNoFallback, TestOfflineFallbackNeverStandsInForARemoteDaemon -->
+<!-- test: internal/component/command/offline_fallback_test.go TestOfflineFallbackReceivesTheCause, TestOfflineFallbackAnswerIsMarkedAsThisProcess, TestOfflineFallbackRefusalGetsNoNote -->
 <!-- source: internal/component/cli/sshclient/answer.go -- dialDaemon, which answers LoginRefused after an accepted host key -->
 <!-- source: internal/component/cli/sshclient/refusal.go -- LoginRefused, LoginRefusal -->
 
@@ -1051,7 +1088,7 @@ handler runs and name the command's help.
 <!-- source: internal/component/command/invocation_flags.go -- NormalizeInvocationFlags -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocation, WriteInvocationValue -->
 <!-- source: internal/component/api/requests.go -- ValidateParams -->
-<!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
+<!-- source: internal/component/mcp/tools.go -- generatedCommand -->
 <!-- source: internal/component/web/graphical_supplied.go -- suppliedInspectionCommand.invocation -->
 <!-- source: internal/component/web/handler_admin.go -- commandArguments -->
 
@@ -2910,7 +2947,7 @@ than dropped.
 <!-- source: internal/component/command/pipe_list.go -- WritePipeList -->
 <!-- source: internal/component/command/pipe_list.go -- PipeListSchema -->
 <!-- source: internal/component/api/invocation.go -- appendPipeList -->
-<!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
+<!-- source: internal/component/mcp/tools.go -- generatedCommand -->
 <!-- test: internal/component/api/invocation_pipe_list_test.go TestPipeListElementCannotOpenAChain -->
 <!-- test: internal/component/mcp/tools_pipe_list_test.go TestDerivedToolPipeList -->
 <!-- source: internal/component/api/invocation.go -- buildInvocation -->
@@ -3133,11 +3170,11 @@ process that seeds nothing loads the model on its first call.
 |-------|-------|-------------|
 | R1 daemon dispatcher | `Dispatcher.Dispatch` | the matched command's `ArgDefs`, inline selectors pre-matched |
 | R2 in-process local data (`ze cli -c`) | `command.ServeLocal` | the model, by path |
-| R3 the plain handler `RegisterLocalData` builds | the R6 and R7 routes that run it | the model, through `command.InvokeLocal` |
+| R3 the plain handler `RegisterLocalData` builds | the R6 routes that run it | the model, through `command.InvokeLocal` |
 | R4 RPC wrapper | `Server.wrapHandler` | the model, the params' selector pre-matched |
 | R5 ensure-exists steps | `wrapWithEnsureChain` | the ancestor node's `ArgDefs`, the dispatcher's selectors pre-matched |
 | R6 `ze <verb>` local handlers | `cmd/ze` dispatch (`invokeRootLocalHandler`, `dispatchHelp`), `cmdutil.invokeLocalHandler` | the model, through `command.InvokeLocal` |
-| R7 offline fallback | `client.runOfflineFallback` | the model, through `command.InvokeLocal` |
+| R7 offline fallback | `client.runOfflineFallback` | the model, through `command.InvokeOfflineFallback` |
 | R8 streaming (`monitor ...`) | `GetStreamingHandlerForCommand` | the model, by the streaming prefix |
 | R9 plugin process and forked subsystem | `Dispatcher.routeToProcess`, `Dispatcher.dispatchSubsystem` | the model, by the plugin's command, the dispatcher's selectors pre-matched |
 
@@ -3155,22 +3192,26 @@ plugin sends on the args route, and with the selector also pre-matched R9
 would judge the positional one as the family.
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- ribClearHandoff -->
 
-R6 and R7 run their handler through `command.InvokeLocal(path, handler, args)`,
-which judges the tokens with `ValidateModelArgs` and runs the handler on the
-value it returned; a process that registered no definition source refuses both.
+R6 runs its handler through `command.InvokeLocal(path, handler, args)`, and R7
+through `command.InvokeOfflineFallback(path, handler, args, unanswered)`. Both
+judge the tokens with `ValidateModelArgs` and run the handler on the value it
+returned; a process that registered no definition source refuses both. R7 also
+hands the fallback why the daemon did not answer ("Offline fallback" above).
 
 Every handler type takes the `command.ValidatedArgs` itself: a daemon handler
 (`pluginserver.Handler`, which is also the type of an ensure-exists step's
 creation and rollback handlers), a streaming handler
-(`pluginserver.StreamingHandler`), a data handler (`command.LocalDataHandler`)
-and a local handler or offline fallback (`command.LocalHandler`). No route can
+(`pluginserver.StreamingHandler`), a data handler (`command.LocalDataHandler`),
+a local handler (`command.LocalHandler`) and an offline fallback
+(`command.OfflineHandler`). No route can
 declare or invoke one with a token slice: R1 hands a daemon handler the value
 `Dispatch` judged, R4 the value `wrapHandler` judged, R5 hands an ensure step
 and its rollback the value judged against the ancestor's definitions, R8 hands
 a streaming handler the value `GetStreamingHandlerForCommand` answered, R2
-hands a data handler the value it judged, R6 and R7 hand a local handler, and
+hands a data handler the value it judged, R6 hands a local handler, and
 through it the plain form of a data handler (R3), the value `InvokeLocal`
-judged, and the handler reads `Tokens()`, `Positional(leaf)` or `Value(leaf)`.
+judged, R7 hands an offline fallback the value `InvokeOfflineFallback` judged,
+and the handler reads `Tokens()`, `Positional(leaf)` or `Value(leaf)`.
 `Positional` answers only a leaf the lone spare token filled; `Value` also
 answers a leaf typed after its own keyword (`peer name site-b`) or bound by the
 token matcher, so a handler reading a leaf by name accepts both spellings the
@@ -3186,7 +3227,7 @@ bypass, and the ruleguard rule `commandtestInTestsOnly` refuses a call to
 <!-- source: internal/component/plugin/server/ensure.go -- EnsureStep, wrapWithEnsureChain -->
 <!-- source: internal/component/command/argbind.go -- ValidatedArgs, MissingArgumentError, ValidateArgs -->
 <!-- source: internal/component/command/local_data.go -- ValidateModelArgs, RegisterArgDefSource, LocalDataHandler -->
-<!-- source: internal/component/command/local.go -- LocalHandler, InvokeLocal, LookupLocal, LookupOfflineFallback -->
+<!-- source: internal/component/command/local.go -- LocalHandler, OfflineHandler, InvokeLocal, InvokeOfflineFallback, LookupLocal, LookupOfflineFallback -->
 <!-- source: internal/component/command/commandtest/commandtest.go -- Args -->
 <!-- source: .golangci/ruleguard/modern.go -- commandtestInTestsOnly -->
 <!-- source: internal/component/plugin/server/command.go -- Dispatch, adoptablePositional, routeToProcess, dispatchSubsystem -->
@@ -3886,7 +3927,10 @@ identity, and the key names each row: `show bgp peer list` maps a peer address
 to that peer's record, and `show bgp adj-rib-in` maps a peer address to that
 peer's routes. A row operator keeps the spelling it was given, so
 `show bgp adj-rib-in | first 1` answers one peer's routes under that peer's
-address. A map that mixes an object with a list under different keys is one
+address. Each route object carries `filtered` (`bool`) and, when denied on
+ingress for an `rs-client` peer, `filter-step` (the denying ingress step name);
+`show bgp adj-rib-in status` reports `filtered-routes` alongside `total-routes`.
+A map that mixes an object with a list under different keys is one
 document, because its keys are field names rather than identities.
 <!-- source: internal/component/command/answer_shape.go -- rowSet, identityValuesShareOneShape, selectRows -->
 

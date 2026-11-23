@@ -9,7 +9,7 @@ BGP peers\, sessions\, RIB\, and protocol tools\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:overview`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `decode`, `encode`, `health`, `irr`, `peer`, `reject-asn`, `rib`, `update-delay`
 - Answer shape: tab
 - Address fields: address

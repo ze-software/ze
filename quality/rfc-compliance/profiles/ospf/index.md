@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/ospf.json](../../../.
 
 ## Figures
 
-- **MUST bar**: Ze verified 152, Tests awaiting verification 119, OS testing gap 7, Not built 81
-- **Overview bar**: Ze MUST verified 152, SHOULD verified 9, Not owed 1, Tests awaiting verification 120, OS testing gap 7, Not assessed 210, Not built 83
+- **MUST bar**: Ze verified 152, Tests awaiting verification 119, OS testing gap 7, Not built 68
+- **Overview bar**: Ze MUST verified 152, SHOULD verified 9, Not owed 14, Tests awaiting verification 120, OS testing gap 7, Not assessed 210, Not built 70
 
 | Figure | Rows |
 |---|---|
@@ -17,18 +17,18 @@ Figures as of the last build, read from [data/rfc/profiles/ospf.json](../../../.
 | Requirements not reviewed | 3 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 360 |
-| MUST rows kept (the MUST bar) | 359 |
+| MUST rows kept (the MUST bar) | 346 |
 | Ze verified | 152 |
 | OS verified | 0 |
 | Tests awaiting verification | 119 |
 | OS testing gap | 7 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 81 |
-| MUST rows not owed | 1 |
+| Not built | 68 |
+| MUST rows not owed | 14 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 1 |
+| MUST not owed: not-applicable | 14 |
 | SHOULD / MAY rows | 222 |
 | SHOULD verified | 9 |
 | SHOULD OS verified | 0 |
@@ -60,8 +60,8 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 3623](../../rfc3623/) | Graceful OSPF Restart | Ze verified 8, Tests awaiting verification 1, Not built 4 | Ze MUST verified 8, Tests awaiting verification 1, Not assessed 13, Not built 4 |
-| [RFC 3630](../../rfc3630/) | Traffic Engineering (TE) Extensions to OSPF Version 2 | Tests awaiting verification 1, Not built 4 | Tests awaiting verification 1, Not assessed 5, Not built 4 |
+| [RFC 3623](../../rfc3623/) | Graceful OSPF Restart | Ze verified 8, Tests awaiting verification 1, Not built 3 | Ze MUST verified 8, Not owed 1, Tests awaiting verification 1, Not assessed 13, Not built 3 |
+| [RFC 3630](../../rfc3630/) | Traffic Engineering (TE) Extensions to OSPF Version 2 | Tests awaiting verification 1 | Not owed 4, Tests awaiting verification 1, Not assessed 5 |
 | [RFC 5709](../../rfc5709/) | OSPFv2 HMAC-SHA Cryptographic Authentication | Ze verified 5, Tests awaiting verification 10 | Ze MUST verified 5, SHOULD verified 2, Tests awaiting verification 10, Not assessed 5 |
 
 ### Level 6
@@ -69,7 +69,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 7474](../../rfc7474/) | Security Extensions for OSPFv2 when Using Manual Key Management | Ze verified 7, Tests awaiting verification 4, Not built 1 | Ze MUST verified 7, SHOULD verified 1, Tests awaiting verification 4, Not assessed 3, Not built 1 |
-| [RFC 7684](../../rfc7684/) | OSPFv2 Prefix/Link Attribute Advertisement | Ze verified 4, Tests awaiting verification 2, Not built 3 | Ze MUST verified 4, Tests awaiting verification 2, Not assessed 11, Not built 3 |
+| [RFC 7684](../../rfc7684/) | OSPFv2 Prefix/Link Attribute Advertisement | Ze verified 4, Tests awaiting verification 2, Not built 1 | Ze MUST verified 4, Not owed 2, Tests awaiting verification 2, Not assessed 11, Not built 1 |
 
 ### Level 9
 
@@ -84,11 +84,11 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 |---|---|---|---|
 | [RFC 5187](../../rfc5187/) | OSPFv3 Graceful Restart | Ze verified 4 | Ze MUST verified 4 |
 | [RFC 5392](../../rfc5392/) | OSPF Extensions in Support of Inter-Autonomous System (AS) MPLS and GMPLS Traffic Engineering | Ze verified 5, Tests awaiting verification 4, Not built 5 | Ze MUST verified 5, Tests awaiting verification 4, Not assessed 18, Not built 5 |
-| [RFC 5838](../../rfc5838/) | Support of Address Families in OSPFv3 | Ze verified 4, Tests awaiting verification 3, Not built 9 | Ze MUST verified 4, Tests awaiting verification 3, Not assessed 11, Not built 9 |
+| [RFC 5838](../../rfc5838/) | Support of Address Families in OSPFv3 | Ze verified 4, Tests awaiting verification 3, Not built 8 | Ze MUST verified 4, Not owed 1, Tests awaiting verification 3, Not assessed 11, Not built 8 |
 | [RFC 6549](../../rfc6549/) | OSPFv2 Multi-Instance Extensions | Tests awaiting verification 1 | Tests awaiting verification 1, Not assessed 3 |
 | [RFC 6987](../../rfc6987/) | OSPF Stub Router Advertisement | requirements not reviewed | requirements not reviewed |
 | [RFC 7166](../../rfc7166/) | Supporting Authentication Trailer for OSPFv3 | Not built 17 | Not assessed 15, Not built 19 |
-| [RFC 7770](../../rfc7770/) | Extensions to OSPF for Advertising Optional Router Capabilities | Ze verified 1, Tests awaiting verification 3, Not built 6 | Ze MUST verified 1, SHOULD verified 1, Not owed 1, Tests awaiting verification 3, Not assessed 13, Not built 6 |
+| [RFC 7770](../../rfc7770/) | Extensions to OSPF for Advertising Optional Router Capabilities | Ze verified 1, Tests awaiting verification 3, Not built 1 | Ze MUST verified 1, SHOULD verified 1, Not owed 6, Tests awaiting verification 3, Not assessed 13, Not built 1 |
 
 ### Level 11
 

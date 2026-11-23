@@ -9,7 +9,7 @@ Start streaming traffic monitor \(per\-second snapshots\)\.
 - Mode: Read\-only
 - Wire method: `ze-trafficstat:monitor-traffic-stat`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

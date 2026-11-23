@@ -9,7 +9,7 @@ Finish an Enhanced Route Refresh cycle \(RFC 7313\)\.
 - Mode: Daemon
 - Wire method: `ze-bgp:peer-eorr`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

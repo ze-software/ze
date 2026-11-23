@@ -10,19 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 1 | of 3 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 2 | of 3 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 1 | of 3 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 3 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 3 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 17 | 17 of 26 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Declared gap or no test | 1 | of 3 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 0 | of 3 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 20 | 20 of 28 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -55,7 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
 | Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
-| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -73,14 +66,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 8 |
 | Mandatory requirements (MUST level) | 3 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 1 |
+| Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 26 |
-| Tests linked to requirements | 26 |
-| Recorded audit verdicts | 7 |
-| Fault test records | 17 |
+| Test tags | 28 |
+| Tests linked to requirements | 28 |
+| Recorded audit verdicts | 8 |
+| Fault test records | 20 |
 | Summary | `rfc/short/rfc7947.md` |
 | Requirement table | `rfc/requirements/rfc7947.md` |
 | RFC text | `rfc/full/rfc7947.txt` |
@@ -93,19 +86,19 @@ Included in automatic checks: BGP Route Server: two MUST-level transparency requ
 
 **Area:** BGP Route Server
 
-**Test verification:** 2 of 3 MUST proven
+**Test verification:** 3 of 3 MUST proven
 
-**Evidence:** unit 2
+**Evidence:** unit 3
 
-**Unmet:** RFC7947-2.1-1
+**Unmet:** -
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 1 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 2 | one part of the mandatory requirements |
+| Positive and negative tests | 2 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -113,42 +106,42 @@ Included in automatic checks: BGP Route Server: two MUST-level transparency requ
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **3** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (1):** [`RFC7947-2.2.2.2-1`](#rfc7947-2.2.2.2-1)
+**Positive and negative tests (2):** [`RFC7947-2.2.2.2-1`](#rfc7947-2.2.2.2-1), [`RFC7947-2.1-1`](#rfc7947-2.1-1)
 
-**Annotated (including scoped evidence) (2):** [`RFC7947-x-2`](#rfc7947-x-2), [`RFC7947-2.1-1`](#rfc7947-2.1-1)
+**Annotated (including scoped evidence) (1):** [`RFC7947-x-2`](#rfc7947-x-2)
 
 ## Figures
 
-- **MUST bar**: Ze verified 2, Not built 1
-- **Overview bar**: Ze MUST verified 2, SHOULD verified 4, Tests awaiting verification 1, Not built 1
+- **MUST bar**: Ze verified 3
+- **Overview bar**: Ze MUST verified 3, SHOULD verified 5
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 3 |
 | MUST rows kept (the MUST bar) | 3 |
-| Ze verified | 2 |
+| Ze verified | 3 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 1 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 5 |
-| SHOULD verified | 4 |
+| SHOULD verified | 5 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 1 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 0 |
 | SHOULD not built | 0 |
@@ -161,20 +154,18 @@ Source: [data/rfc/rfc7947.json](../../../data/rfc/rfc7947.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7947-x-1` | the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way. (§2.2.2.1) | SHOULD NOT | 2.2.2.1 - Route Server AS_PATH Management | **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L452). **positive:** `unit/verify` [`TestRelayStoredRouteRSClientPreservesASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L223). **negative:** `unit/verify` [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L330). **negative:** `unit/verify` [`TestRelayStoredRoutePlainEBGPPrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L259). **positive:** `functional/verify` [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L4). **negative:** `functional/verify` [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L8). **positive:** `interop/nightly` [`checkRouteServerASPath`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L980) |
+| `RFC7947-x-1` | the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way. (§2.2.2.1) | SHOULD NOT | 2.2.2.1 - Route Server AS_PATH Management | **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L452). **positive:** `unit/verify` [`TestRelayStoredRouteRSClientPreservesASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L225). **negative:** `unit/verify` [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L330). **negative:** `unit/verify` [`TestRelayStoredRoutePlainEBGPPrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L261). **positive:** `functional/verify` [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L4). **negative:** `functional/verify` [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L8). **positive:** `interop/nightly` [`checkRouteServerASPath`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L980) |
 | `RFC7947-x-2` | As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the "third-party" next-hop feature described in Section 5.1.3. of [RFC4271]. (§2.2.1) | MUST | 2.2.1 - NEXT_HOP Attribute | **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L457). **negative:** no negative test. **{single-polarity}:** NEXT_HOP transparency is not RS-specific -- every forwarded route preserves it by default (nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go:147), so unlike x-1's AS-path prepend there is no "confined" negative where a comparable non-RS peer rewrites NEXT_HOP; the only rewrite is an explicit per-peer next-hop-self/explicit override, which exercises the override feature rather than the RS-transparency MUST-NOT. The positive is proven byte-identical in TestReactorForwardRSTransparent |
 | `RFC7947-x-3` | Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value. (§2.2.3) | SHOULD | 2.2.3 - MULTI_EXIT_DISC Attribute | **positive:** `unit/verify` [`TestForwardKeepsMEDForRouteServerClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L349). **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L459). **positive:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L11). **negative:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L15) |
 | `RFC7947-x-4` | The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy. (§2.1) | SHOULD | 2.1 - Client UPDATE Messages | **positive:** `unit/verify` [`TestRFC7947ClientPolicyControlsWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L94). **negative:** `unit/verify` [`TestRFC7947ClientPolicyControlsWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L95) |
-| `RFC7947-x-5` | The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1. (§2.1) | SHOULD | 2.1 - Client UPDATE Messages | **positive:** `unit/verify` [`TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L28). **positive:** `unit/verify` [`TestRSAnnouncementAddPathClientGetsEveryPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go#L638). **positive:** `unit/verify` [`TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go#L503). **negative:** `unit/verify` [`TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L86) |
+| `RFC7947-x-5` | The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1. (§2.1) | SHOULD | 2.1 - Client UPDATE Messages | **positive:** `unit/verify` [`TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L28). **positive:** `unit/verify` [`TestRSAnnouncementAddPathClientGetsEveryPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go#L664). **positive:** `unit/verify` [`TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go#L503). **negative:** `unit/verify` [`TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L86) |
 | `RFC7947-2.2-1` | Therefore, contrary to what is specified in Section 5 of [RFC4271], route servers SHOULD NOT by default (unless explicitly configured) update well-known BGP attributes received from route server clients before redistributing them to their other route server clients. Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients. (§2.2) | SHOULD NOT | 2.2 - Attribute Transparency | **positive:** `unit/verify` [`TestRFC7947AllAttributesReachClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L35). **negative:** `unit/verify` [`TestRouteServerTransparencyStopsAtOrdinaryPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L60). **positive:** `functional/verify` [`bgp-rs-opaque-transparency-forked.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-opaque-transparency-forked.ci#L35). **positive:** `functional/verify` [`bgp-rs-opaque-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-opaque-transparency.ci#L28). **negative:** `functional/verify` [`bgp-rs-opaque-transparency-forked.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-opaque-transparency-forked.ci#L39). **negative:** `functional/verify` [`bgp-rs-opaque-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-opaque-transparency.ci#L32) |
 | `RFC7947-2.2.2.2-1` | In contrast to what is recommended in Section 6.3 of [RFC4271], route server clients need to be able to accept UPDATE messages where the leftmost AS in the AS_PATH attribute is not equal to the AS number of the route server that sent the UPDATE message. If the route server client BGP system has implemented a check for this, the BGP implementation MUST allow this check to be disabled and SHOULD allow the check to be disabled on a per-peer basis. (§2.2.2.2) | MUST | 2.2.2.2 - Route Server client AS_PATH Management | **positive:** `unit/verify` [`TestSessionASPAFirstASRoles`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_session_first_as_test.go#L185). **negative:** `unit/verify` [`TestSessionASPAFirstASRoles`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_session_first_as_test.go#L190) |
-| `RFC7947-2.1-1` | A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In. (§2.1) | MUST | 2.1 - Client UPDATE Messages | **positive:** no positive test. **negative:** no negative test. **{gap}:** an UPDATE an ingress filter denies is never stored: internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver returns at the ordered ingress step loop's non-accept branch, ahead of the Adj-RIB-In cache add, so a denied UPDATE is absent from show bgp adj-rib-in, and LoopIngress denies with no operator configuration; the fix (store first, mark the entry filtered) is owned by plan/release/fixes/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md |
+| `RFC7947-2.1-1` | A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In. (§2.1) | MUST | 2.1 - Client UPDATE Messages | **positive:** `unit/verify` [`TestRFC7947ClientDeniedUpdateRetainedInAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_filtered_conformance_test.go#L32). **negative:** `unit/verify` [`TestRFC7947OrdinaryPeerDeniedUpdateAbsentFromAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_filtered_conformance_test.go#L109) |
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC7947-2.1-1`](#rfc7947-2.1-1) A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In. (§2.1) | {gap}, no test | an UPDATE an ingress filter denies is never stored: internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver returns at the ordered ingress step loop's non-accept branch, ahead of the Adj-RIB-In cache add, so a denied UPDATE is absent from show bgp adj-rib-in, and LoopIngress denies with no operator configuration; the fix (store first, mark the entry filtered) is owned by plan/release/fixes/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md |
+RFC 7947 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Test status
 
@@ -184,15 +175,15 @@ A test reads not verified when no record shows it failing after a deliberate fau
 
 the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way. (§2.2.2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend, internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent moved. Re-judged 2026-11-03 by an independent auditor who authored none of ee1025b381. RFC 7947 Section 2.2.2.1 read: "As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way." The only unit change is one claim line on TestReactorForwardRSTransparent: the deleted ExtractASPathPrependOps is replaced by its live successor prependASPathOps (aspath_edit.go, called from filter_library.go), a parenthetical naming the operator-policy path the test does not exercise; the body, its RS-client destination and its byte-identical assertion are unchanged, so the claim states no more than the test checks. Its positive discrimination record is new: a hand-written PAIRED break in reactorForwardRSSection, line 582 '!facts.rsClient' -> true with line 594 'facts.rsClient && communityPolicy != nil' -> false. Read against the producer, the pair is a faithful break: the first guard alone lets the automatic local-AS prepend be set for an RS client but the RS branch overwrites intent.Prepend with RSPrepend (empty without a community request), the second alone leaves no prepend set; together the route server prepends AS 65000 toward the RS client, exactly the behaviour the sentence advises against, and nothing else changes for this input (non-RS peers already took the first branch; the unit carries no prepend community). Solo greens are recorded beside the paired red. Negative TestReactorForwardRSEBGPPrepend (record at line 582 -> false), the RelayStoredRoute pair, bgp-rs-relay-aspath-transparency.ci (exact bytes for rs-client and non-RS receivers) and the BIRD-side checkRouteServerASPath are unchanged. The EBGPPrepend unit's growth-only assertion remains weaker than an exact path oracle, covered exactly by the .ci and the relay pair. Verdict unchanged: enforced.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend, internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent, internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRoutePlainEBGPPrependsLocalAS, internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRouteRSClientPreservesASPath moved. Re-judged 2026-11-03 by an independent auditor who authored none of ee1025b381. RFC 7947 Section 2.2.2.1 read: "As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way." The only unit change is one claim line on TestReactorForwardRSTransparent: the deleted ExtractASPathPrependOps is replaced by its live successor prependASPathOps (aspath_edit.go, called from filter_library.go), a parenthetical naming the operator-policy path the test does not exercise; the body, its RS-client destination and its byte-identical assertion are unchanged, so the claim states no more than the test checks. Its positive discrimination record is new: a hand-written PAIRED break in reactorForwardRSSection, line 582 '!facts.rsClient' -> true with line 594 'facts.rsClient && communityPolicy != nil' -> false. Read against the producer, the pair is a faithful break: the first guard alone lets the automatic local-AS prepend be set for an RS client but the RS branch overwrites intent.Prepend with RSPrepend (empty without a community request), the second alone leaves no prepend set; together the route server prepends AS 65000 toward the RS client, exactly the behaviour the sentence advises against, and nothing else changes for this input (non-RS peers already took the first branch; the unit carries no prepend community). Solo greens are recorded beside the paired red. Negative TestReactorForwardRSEBGPPrepend (record at line 582 -> false), the RelayStoredRoute pair, bgp-rs-relay-aspath-transparency.ci (exact bytes for rs-client and non-RS receivers) and the BIRD-side checkRouteServerASPath are unchanged. The EBGPPrepend unit's growth-only assertion remains weaker than an exact path oracle, covered exactly by the .ci and the relay pair. Verdict unchanged: enforced.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L330) | unit/verify | mutant, verified |
-| negative | [`TestRelayStoredRoutePlainEBGPPrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L259) | unit/verify | not verified |
+| negative | [`TestRelayStoredRoutePlainEBGPPrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L261) | unit/verify | not verified |
 | negative | [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L8) | functional/verify | not verified |
 | positive | [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L452) | unit/verify | mutant, verified |
-| positive | [`TestRelayStoredRouteRSClientPreservesASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L223) | unit/verify | not verified |
+| positive | [`TestRelayStoredRouteRSClientPreservesASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L225) | unit/verify | not verified |
 | positive | [`checkRouteServerASPath`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L980) | interop/nightly | not verified |
 | positive | [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L4) | functional/verify | not verified |
 
@@ -215,7 +206,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L15) | functional/verify | not verified |
-| positive | [`TestForwardKeepsMEDForRouteServerClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L349) | unit/verify | not verified |
+| positive | [`TestForwardKeepsMEDForRouteServerClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L349) | unit/verify | revert, verified |
 | positive | [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L459) | unit/verify | not verified |
 | positive | [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L11) | functional/verify | not verified |
 
@@ -234,12 +225,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1. (§2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): "The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1." be95c10053 wraps the settings of TestRSAnnouncementAddPathClientGetsEveryPath (and the shared fixture builders) in acceptingPolicies (FinalAccept import and export, no refs) because every peer is EBGP. An accepting policy removes no path, so every path the ADD-PATH client must receive is still selected by the route server's own election. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history. Independent companion-fixture rejudgment against RFC 7947 Section 2.1, all four tagged entries and their assertion-producing helpers: the complete current non-ADD-PATH controls still require an inferior later arrival to send nothing and a worsened owner reannouncement to select the other source's exact route after causal settled TCP fences. The ADD-PATH carrier still requires two distinct identifiers and both exact paths; the client-policy carrier still refuses a denied survivor and selects the next permitted one or withdraws when none remains. The shared extendedRecoveryPeers helper now supplies terminal interior host routes for the scenario's next hops, proves their resolution through the real Loc-RIB, and registers cleanup. These prerequisite routes do not insert or remove any BGP prefix under judgment. lowLiveReconnect retains its complete establishment-and-initial-sync wait after the extracted same handshake. Only the deliberately held, untagged peer-up replay carrier moves that settlement observation after its release; its EOR, route order, elected attributes and no-withdrawal assertions stay intact. The exact existing advisory-level requirement, four-entry population and enforced verdict remain; this source judgment claims no new execution.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go::TestRSAnnouncementAddPathClientGetsEveryPath moved. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): "The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1." be95c10053 wraps the settings of TestRSAnnouncementAddPathClientGetsEveryPath (and the shared fixture builders) in acceptingPolicies (FinalAccept import and export, no refs) because every peer is EBGP. An accepting policy removes no path, so every path the ADD-PATH client must receive is still selected by the route server's own election. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history. Independent companion-fixture rejudgment against RFC 7947 Section 2.1, all four tagged entries and their assertion-producing helpers: the complete current non-ADD-PATH controls still require an inferior later arrival to send nothing and a worsened owner reannouncement to select the other source's exact route after causal settled TCP fences. The ADD-PATH carrier still requires two distinct identifiers and both exact paths; the client-policy carrier still refuses a denied survivor and selects the next permitted one or withdraws when none remains. The shared extendedRecoveryPeers helper now supplies terminal interior host routes for the scenario's next hops, proves their resolution through the real Loc-RIB, and registers cleanup. These prerequisite routes do not insert or remove any BGP prefix under judgment. lowLiveReconnect retains its complete establishment-and-initial-sync wait after the extracted same handshake. Only the deliberately held, untagged peer-up replay carrier moves that settlement observation after its release; its EOR, route order, elected attributes and no-withdrawal assertions stay intact. The exact existing advisory-level requirement, four-entry population and enforced verdict remain; this source judgment claims no new execution.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L86) | unit/verify | mutant, verified |
-| positive | [`TestRSAnnouncementAddPathClientGetsEveryPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go#L638) | unit/verify | mutant, verified |
+| positive | [`TestRSAnnouncementAddPathClientGetsEveryPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go#L664) | unit/verify | mutant, verified |
 | positive | [`TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L28) | unit/verify | mutant, verified |
 | positive | [`TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go#L503) | unit/verify | mutant, verified |
 
@@ -273,9 +264,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In. (§2.1)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc7947_filtered_conformance_test.go::TestRFC7947ClientDeniedUpdateRetainedInAdjRIBIn, internal/component/bgp/reactor/rfc7947_filtered_conformance_test.go::TestRFC7947OrdinaryPeerDeniedUpdateAbsentFromAdjRIBIn moved. Independent audit of RFC 7947 Section 2.1: "A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In." (followed by: "These UPDATE messages MAY be omitted from the route server's Loc-RIB or Loc-RIBs, due to filters configured for the purpose of implementing routing policy."). Summary row RFC7947-2.1-1 quotes the MUST verbatim at [MUST] with no annotation. Production path: on ingress denial (or mixed-UPDATE denied announcements via filter_ordered.go::ingressPolicyWithdrawals) for an rs-client peer (reactor_notify.go::retainDeniedIngress: hasPeer && src.RSClient), enqueueFilteredIngress queues withdrawals on the ordinary update rail followed in FIFO order by the original pre-policy UPDATE bytes on update-filtered (EventKindUpdateFiltered), skipping recentUpdates caching, RS fast path, AIGP and EventBus; bgp-adj-rib-in is the sole subscriber, storing ImportFiltered:true and FilterStep independently of RPKI Ineligible, while walkReplayRoutes, replayPathCommand, routeEligible and applyToInstalled withhold ImportFiltered entries unconditionally and session_prefix.go bounds unique retained keys in offered mode. Positive (TestRFC7947ClientDeniedUpdateRetainedInAdjRIBIn) drives real TCP sessions in lowLiveRouter with the registered bgp-adj-rib-in plugin across both ingress-denial rails -- LoopIngress (loop-denial: AS_PATH [65002, 65000] under FinalAccept) and peer-policy-chain (import-policy-denial: clean AS_PATH [65002] under FinalReject) -- asserting exact pre-policy AttrHex (and NLRIHex in loop-denial), filtered:true, filter-step, status counts (total-routes=2, filtered-routes=1) and withholding on both ReplayRoutesCommand and ReplayPathCommand while keeping an accepted rs-client control route (203.0.113.0/24) stored and replayable. Negative (TestRFC7947OrdinaryPeerDeniedUpdateAbsentFromAdjRIBIn) uses the identical fixture, loop-denied UPDATE and live control route, flipping only source.RSClient to false, and asserts absence from show bgp adj-rib-in and replay withholding (role confinement matching RFC 7947's negative polarity). Inputs isolate the exact rule with well-formed attributes and valid first AS; both tags carry revert discrimination records (enqueueFilteredIngress positive, retainDeniedIngress negative), and semantically removing enqueueFilteredIngress fails positive require.Len(rows, 1) while dropping the RSClient gate in retainDeniedIngress fails negative requireAbsent. Minor scope notes: newFilteredReceivedLive grants bgp-adj-rib-in wildcard "*" rather than an explicit update-filtered token (validated separately by TestReceiveGrantAcceptsUpdateFilteredToken); loop-denial asserts FilterStep NotEmpty rather than pinning "loop", and import-policy-denial omits a direct NLRIHex check (unambiguous via len(rows)==1 + ReplayPathCommand); mixed UPDATEs, denied replacements, Loc-RIB/wire exclusion, RPKI independence and unique-retained prefix bounds are covered in untagged sibling tests; OutcomeWithdraw (e.g. RFC 9234 OTC treat-as-withdraw/leak) follows ingressChainWithdrawal rather than update-filtered.
 
-No test carries RFC7947-2.1-1, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC7947OrdinaryPeerDeniedUpdateAbsentFromAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_filtered_conformance_test.go#L109) | unit/verify | revert, verified |
+| positive | [`TestRFC7947ClientDeniedUpdateRetainedInAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_filtered_conformance_test.go#L32) | unit/verify | revert, verified |
 
 ## Requirement list review
 

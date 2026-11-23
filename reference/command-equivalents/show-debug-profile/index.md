@@ -9,7 +9,7 @@ Show stored debug profiles\, one by name\, or one filtered to a module subtree\.
 - Mode: read\-only\, offline
 - Wire method: `ze-debug:show-profile`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

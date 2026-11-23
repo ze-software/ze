@@ -9,7 +9,7 @@ Inject a crafted OSPFv3 LSA into the local LSDB \(RFC 5340\)\.
 - Mode: Daemon
 - Wire method: `ze-ospf:debug-ospfv3-inject`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `address-family`, `hex`, `id`, `scope`, `type`, `withdraw`
 - Answer shape: not declared
 - Address fields: none

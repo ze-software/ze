@@ -9,7 +9,7 @@ Reverse\-path forwarding lookup in the Loc\-RIB\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:rib-rpf`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: source\, next\-hop

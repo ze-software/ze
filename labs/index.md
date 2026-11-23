@@ -13,7 +13,7 @@ Labs run against real third-party daemons (xl2tpd, accel-ppp, strongSwan), or bo
 `Daemon` `Docker`
 
 - BGP sessions with **FRR, BIRD, and GoBGP**
-- 422 scenarios across core protocol and **extensions**
+- 423 scenarios across core protocol and **extensions**
 
 ### [netlab Topology Lab](https://ze-software.net/labs/netlab/)
 
@@ -54,8 +54,8 @@ Labs run against real third-party daemons (xl2tpd, accel-ppp, strongSwan), or bo
 
 `Daemon` `Browsable`
 
-- Interactive **browser replay** recorded from an 11-speaker simulated network
-- Inspect prefixes, AS paths, and route graphs without installing anything
+- Realistic UK topology, real external **ASNs**
+- A **browser graph** for inspecting AS paths
 
 ### [Appliance Installer Evidence](https://ze-software.net/labs/appliance-install/)
 

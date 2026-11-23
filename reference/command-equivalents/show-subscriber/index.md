@@ -9,7 +9,7 @@ Show a summary of all subscriber sessions\.
 - Mode: Read\-only
 - Wire method: `ze-l2tp:subscriber-summary`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `id`
 - Answer shape: not declared
 - Address fields: none

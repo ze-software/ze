@@ -2,6 +2,12 @@
 
 What shipped in Ze, newest first: update reports, mined from git history and posted to Discord's `ze-news`. Each update lists the areas it touched; click an update for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the [roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a timeline, see [Milestones](../milestones/).
 
+## [2026-11-09 – 2026-11-23 (15 days)](2026-11-09/index.md)
+
+This update covers two weeks, and several BGP defaults changed to follow the RFCs, so please read the changes below before upgrading. The work left is kept as a list of items, each either required before the first release or planned for after it. 307 items are now required, up from 298, and 373 are planned for later, up from 348. 49 required items were added, 39 left the list and one moved to the later list. The numbers compare both ends of the period, so an item added and completed in between is not counted, and they count work items, not how close the release is: https://ze-software.net/project/roadmap/
+
+Areas: BGP, RPKI, Graceful Restart, IPsec, L2TP, PPPoE, RADIUS, VPP, gNMI, MCP, Fleet, Appliance, Firewall, Config, CLI, Security, RFC Compliance
+
 ## [2026-10-25 – 2026-11-09 (16 days)](2026-10-25/index.md)
 
 This update covers two weeks, and a number of the changes can break a working configuration. Following RFC 8212, an eBGP peer with no policy configured no longer receives or announces any route, and the routing policy which lived under BGP is now shared by every protocol. Please read the changes below before upgrading. The work left is kept as a list of items, each either required before the first release or planned for after it. 298 items are now required, up from 240, and 348 are planned for later, up from 273. Most of the 71 new required items came from searching the code for errors which were ignored rather than reported, and 12 left the list. The numbers compare both ends of the period, so an item added and completed in between is not counted, and they count work items, not how close the release is: https://ze-software.net/project/roadmap/

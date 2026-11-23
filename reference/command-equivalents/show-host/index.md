@@ -9,7 +9,7 @@ Hardware inventory for this box\.
 - Mode: Read\-only
 - Wire method: `ze-host:show-all`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `all`, `cpu`, `dmi`, `kernel`, `memory`, `nic`, `platform`, `storage`, `thermal`, `trend`
 - Answer shape: not declared
 - Address fields: none

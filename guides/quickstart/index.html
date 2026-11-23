@@ -157,9 +157,14 @@ you do not have another router.</p>
 <pre><code class="language-bash">export ZE_CONFIG_DIR="$PWD"
 ./ze init
 </code></pre>
-<p>This prompts for username, password, SSH host (default <code>127.0.0.1</code>), port (default <code>2222</code>), and node name (default: hostname). Credentials are stored locally with bcrypt-hashed passwords. For scripting (later fields fall back to their defaults):</p>
+<p>This prompts for username, password, SSH host (default <code>127.0.0.1</code>), port (default <code>2222</code>), and node name (default: hostname). Credentials are stored locally with bcrypt-hashed passwords. The host must be an IP address: <code>ze init</code> also writes the initial config a bare <code>ze start</code> reads, which opens with the SSH listener on that host and port, followed by the discovered interfaces, so <code>ze cli</code> reaches the daemon it starts. For scripting (later fields fall back to their defaults):</p>
 <pre><code class="language-bash">printf 'admin\nREPLACE_WITH_A_STRONG_PASSWORD\n' | ./ze init
 </code></pre>
+<p>The initial config holds every interface discovery finds, including the ones another
+program owns, such as Docker's <code>docker0</code>. To decide one by one, run <code>./ze init --confirm</code>:
+after the node name it asks about each interface, and writes only the ones you answer
+<code>yes</code>. Only <code>yes</code>, <code>y</code>, <code>no</code> or <code>n</code> answers: an empty line or anything else asks
+the same question again.</p>
 <p>Initialization creates a private <code>database/</code> tree in the selected folder.
 Every directory under the store is 0700 and every frame file 0600, owned by the
 caller. Running <code>ze init</code> a second time refuses either an existing tree or a
@@ -244,7 +249,17 @@ $ ze cli -c &#39;show bgp | raw&#39; | ze pipe text
 </figure>
 <h2 id="minimal-config">Minimal Config</h2>
 <p>Save as <code>example.conf</code>:</p>
-<pre><code>static {
+<pre><code>environment {
+    ssh {
+        enabled true;
+        server local {
+            ip 127.0.0.1;
+            port 2222;
+        }
+    }
+}
+
+static {
     table default {
         route 172.16.0.0/24 {
             next {
@@ -311,6 +326,11 @@ bgp {
     }
 }
 </code></pre>
+<p>The <code>environment</code> block is the SSH listener <code>ze init</code> wrote into its own initial config,
+on the endpoint it saved for the CLI. <code>ze start example.conf</code> reads this file instead of
+that config, so the file carries the listener itself; without it the daemon starts no SSH
+server and every <code>ze cli</code> command below is refused. Change both if you gave <code>ze init</code>
+another host or port.</p>
 <p>This advertises two prefixes to <code>test-peer</code>, one by each of the routes Ze gives you to get
 a prefix into BGP:</p>
 <ul>
@@ -463,7 +483,7 @@ announce a route; the address split is what keeps it working when you do.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

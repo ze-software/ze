@@ -1,5 +1,101 @@
 [
   {
+    "slug": "2026-11-09",
+    "coverage_start": "2026-11-09",
+    "coverage_end": "2026-11-23",
+    "duration_days": 15,
+    "duration": "15 days",
+    "intro": "This update covers two weeks, and several BGP defaults changed to follow the RFCs, so please read the changes below before upgrading.\n\nThe work left is kept as a list of items, each either required before the first release or planned for after it. 307 items are now required, up from 298, and 373 are planned for later, up from 348. 49 required items were added, 39 left the list and one moved to the later list. The numbers compare both ends of the period, so an item added and completed in between is not counted, and they count work items, not how close the release is: https://ze-software.net/project/roadmap/",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "RPKI",
+        "category": "routing",
+        "key": "RPKI"
+      },
+      {
+        "label": "Graceful Restart",
+        "category": "routing",
+        "key": "Graceful Restart"
+      },
+      {
+        "label": "IPsec",
+        "category": "services",
+        "key": "IPsec"
+      },
+      {
+        "label": "L2TP",
+        "category": "services",
+        "key": "L2TP"
+      },
+      {
+        "label": "PPPoE",
+        "category": "services",
+        "key": "PPPoE"
+      },
+      {
+        "label": "RADIUS",
+        "category": "services",
+        "key": "RADIUS"
+      },
+      {
+        "label": "VPP",
+        "category": "services",
+        "key": "VPP"
+      },
+      {
+        "label": "gNMI",
+        "category": "automate",
+        "key": "gNMI"
+      },
+      {
+        "label": "MCP",
+        "category": "automate",
+        "key": "MCP"
+      },
+      {
+        "label": "Fleet",
+        "category": "automate",
+        "key": "Fleet"
+      },
+      {
+        "label": "Appliance",
+        "category": "platform",
+        "key": "Appliance"
+      },
+      {
+        "label": "Firewall",
+        "category": "services",
+        "key": "Firewall"
+      },
+      {
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
+      },
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "Security",
+        "category": "secure",
+        "key": "Security"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      }
+    ]
+  },
+  {
     "slug": "2026-10-25",
     "coverage_start": "2026-10-25",
     "coverage_end": "2026-11-09",

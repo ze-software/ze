@@ -9,7 +9,7 @@ Show recent events for a session \(debug aid\)\.
 - Mode: Read\-only
 - Wire method: `ze-l2tp:observer`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `all`, `id`
 - Answer shape: not declared
 - Address fields: none

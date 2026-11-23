@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/flow-telemetry.json](
 
 ## Figures
 
-- **MUST bar**: Ze verified 22, Tests awaiting verification 1, Not built 43
-- **Overview bar**: Ze MUST verified 22, Not owed 4, Tests awaiting verification 1, Not assessed 19, Not built 43
+- **MUST bar**: Ze verified 22, Tests awaiting verification 1, Not built 41
+- **Overview bar**: Ze MUST verified 22, Not owed 6, Tests awaiting verification 1, Not assessed 19, Not built 41
 
 | Figure | Rows |
 |---|---|
@@ -17,18 +17,18 @@ Figures as of the last build, read from [data/rfc/profiles/flow-telemetry.json](
 | Requirements not reviewed | 0 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 70 |
-| MUST rows kept (the MUST bar) | 66 |
+| MUST rows kept (the MUST bar) | 64 |
 | Ze verified | 22 |
 | OS verified | 0 |
 | Tests awaiting verification | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 43 |
-| MUST rows not owed | 4 |
+| Not built | 41 |
+| MUST rows not owed | 6 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 4 |
+| MUST not owed: not-applicable | 6 |
 | SHOULD / MAY rows | 19 |
 | SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
@@ -52,11 +52,11 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 3954](../../rfc3954/) | Cisco Systems NetFlow Services Export Version 9 | Ze verified 4, Not built 6 | Ze MUST verified 4, Not owed 4, Not assessed 12, Not built 6 |
+| [RFC 3954](../../rfc3954/) | Cisco Systems NetFlow Services Export Version 9 | Ze verified 4, Not built 5 | Ze MUST verified 4, Not owed 5, Not assessed 12, Not built 5 |
 
 ### Level 5
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 7011](../../rfc7011/) (cycle with rfc7012) | Specification of the IP Flow Information Export (IPFIX) Protocol for the Exchange of Flow Information | Ze verified 17, Tests awaiting verification 1, Not built 32 | Ze MUST verified 17, Tests awaiting verification 1, Not assessed 7, Not built 32 |
-| [RFC 7012](../../rfc7012/) (cycle with rfc7011) | Information Model for IP Flow Information Export (IPFIX) | Ze verified 1, Not built 5 | Ze MUST verified 1, Not built 5 |
+| [RFC 7012](../../rfc7012/) (cycle with rfc7011) | Information Model for IP Flow Information Export (IPFIX) | Ze verified 1, Not built 4 | Ze MUST verified 1, Not owed 1, Not built 4 |

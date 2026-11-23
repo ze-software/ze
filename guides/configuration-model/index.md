@@ -613,6 +613,7 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `behavior { rs-fast-path; }` | Enable reactor-native RS forwarding, which bypasses plugin dispatch for UPDATE forwarding. The fast path runs each destination's active export filters itself, not a bypass. Destinations with an effective export reject, including absent EBGP export policy, or whose export filters could not run, or whose export filters refused an UPDATE that must be withdrawn one address family at a time, return on the skipped list, and `bgp-rs` applies policy to them on the cached path. Both peers must attach that plugin: the source grants `receive [ update-received ]`, and the destination grants `send [ update ]` ([Route Reflection, Plugin Bindings](https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#plugin-bindings)) | No (default: `false`) |
 | `blackhole { }` | Honor RFC 7999's BLACKHOLE community from this peer. See [Blackhole Honoring](#blackhole-honoring-rfc-7999) | No (default: off) |
 | `flowspec-redirect-check { enabled }` | The draft-simpson-idr-flowspec-redirect-02 Section 3 check on a FlowSpec rule from an EBGP peer that carries a redirect-to-IP action (0x0800) to next hop X. Ze finds the longest unicast match for X in the rule's own domain (a flow-vpn rule's Route Distinguisher); when its origin AS is not the peer's AS, Ze keeps the rule but drops the action: it installs the rule without 0x0800 and forwards it without 0x0800 and with a zero next-hop length. `false` turns the check off for the session. Also settable at the bgp and group levels; the peer's value beats the group's, and the group's beats the bgp level's | No (default: the check runs) |
+| `session { flowspec-redirect-next-hop; }` | Enable the draft-simpson-idr-flowspec-redirect-02 Section 3 extension on this peer or group: carry a 4- or 16-octet MP_REACH_NLRI next hop when advertising or forwarding a FlowSpec route that carries the 0x0800 redirect/copy-to-IP-next-hop community. When `false` (the default), Ze enforces RFC 8955 Section 4 unconditionally and emits a zero-length next hop on every FlowSpec route. `ze exabgp migrate` enables this leaf automatically for migrated neighbors with Simpson redirect routes or an API process on a FlowSpec family | No (default: `false`) |
 <!-- source: internal/component/bgp/reactor/config.go -- parsePeerFromTree, parsePeerSettings; internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, container timer -->
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect.go -- parseFlowSpecRedirectConfig, flowSpecRedirectRefused -->
@@ -1177,7 +1178,7 @@ Configure capabilities under `session { capability { } }` on a peer or group.
 | Route Refresh | `route-refresh` | `enable`, `disable`, `require`, `refuse`; absent means not advertised |
 | Extended Message | `extended-message` | `enable`, `disable`, `require`, `refuse`; absent means not advertised |
 | Link-Local Next Hop | `link-local-nexthop` | `enable`, `disable` |
-| Graceful Restart | `graceful-restart { restart-time 120; }` | See [Graceful Restart guide](../graceful-restart/index.md) |
+| Graceful Restart | `graceful-restart { short-lived { restart-time 120; } }` | See [Graceful Restart guide](../graceful-restart/index.md) |
 | ADD-PATH | `add-path { direction send/receive; limit { receive 10; } }` | See [ADD-PATH guide](../add-path/index.md) |
 | Extended Next Hop | `nexthop { ipv4/unicast ipv6; }` | Per-family NH mapping |
 | BGP Role | `role provider` | provider, customer, rs, rs-client, peer |
@@ -2717,6 +2718,47 @@ Running `ze init` discovers OS interfaces via netlink (Linux) or stdlib (other p
 and writes initial config to `<name>.conf`, named after the instance name it asked for, which
 is the file a bare `ze start` on that store reads. An instance name that is not a valid file
 stem (letters, digits and hyphens, up to 64) falls back to `ze.conf`, as `ze start` does.
+
+The config opens with the SSH listener on the host and port `ze init` asked for, the
+endpoint it also saves for `ze cli`, so the CLI reaches the daemon a bare `ze start`
+runs. With the defaults:
+
+```
+environment {
+    ssh {
+        enabled true;
+        server local {
+            ip 127.0.0.1;
+            port 2222;
+        }
+    }
+}
+```
+
+The discovered interfaces follow it: every one discovery finds, including the ones another
+program owns, such as `docker0` or a container's veth. A root ze then manages each of them.
+When discovery fails, `ze init` warns and still writes the listener.
+
+To choose, run `ze init --confirm`. After the instance name it asks about each discovered
+interface the config can hold, the loopback included, and writes only the ones answered
+yes. Each question names the kind and the device, then its MAC address, the bridge or bond
+it is a member of, and its kernel alias, the hints that say which program owns it:
+
+```
+veth veth1a2b (mac 0e:00:00:00:00:02, member of docker0, alias "container web"): write it into the config? yes/no:
+```
+
+Only an explicit answer decides: `yes` or `y` writes the device, and `no` or `n` leaves it
+out, in any case. There is no default. An empty line, or any other answer, is not
+accepted: `ze init` prints one line on stderr naming the answers it takes and asks about
+the same device again, until it gets one of the four. Piped input gives one line per
+answer in `ze interface scan` order, after the five credential lines, and a line that is
+not accepted is read the same way: the notice is printed and the next line answers the
+same device. Input that ends before every device is answered is refused and no store is
+written. The status line then reads `discovered <n> interface(s), wrote the <m>
+confirmed into the initial config`. `--confirm` is refused with `--seed`, `--managed` and
+`--from`, which write no discovered interface.
+
 Each discovered interface gets an entry named
 after its OS name, carrying one selector that binds it back to the device:
 
@@ -2738,12 +2780,13 @@ it is an instruction, and it pins the kernel's random choice across a recreate.
 The same selectors are written by the appliance's first boot, which merges the config
 template with its own on-device discovery.
 
-The `--seed` flag skips this discovery entirely: an appliance-image seed database must not
-bake the build host's interfaces into the active config (they belong to the wrong machine
-and would shadow the appliance's first-boot template). The appliance discovers its own
-interfaces at first boot instead.
+The `--seed` flag skips this discovery and writes no initial config at all, listener
+included: an appliance-image seed database must not bake the build host's interfaces into
+the active config (they belong to the wrong machine and would shadow the appliance's
+first-boot template). The appliance discovers its own interfaces at first boot instead.
+`--managed` writes none either: a managed client's first config comes from its hub.
 
-<!-- source: internal/plugins/init/main.go -- runInit interface discovery, seedFlag -->
+<!-- source: internal/plugins/init/main.go -- writeInitialConfig, writeSSHListener, discoverInterfaces, confirmInterfaces, readAnswer, profileFromFlags, seedFlag -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 <!-- source: internal/component/iface/emit.go -- matchMACFor, emitSelectorBlock, emitSelectorSet -->
 <!-- source: cmd/ze/ze_core_start.go -- bootstrapConfigFromTemplate, bootstrapFromDiscovery -->

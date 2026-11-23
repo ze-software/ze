@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 1 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 1 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 1 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 2 | 2 of 4 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 3 | 3 of 4 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 4 |
 | Tests linked to requirements | 4 |
 | Recorded audit verdicts | 0 |
-| Fault test records | 2 |
+| Fault test records | 3 |
 | Summary | `rfc/short/rfc4486.md` |
 | Requirement table | `rfc/requirements/rfc4486.md` |
 | RFC text | `rfc/full/rfc4486.txt` |
@@ -111,7 +111,7 @@ Included in automatic checks: Subcodes for BGP Cease NOTIFICATION Message: one M
 ## Figures
 
 - **MUST bar**: Ze verified 1
-- **Overview bar**: Ze MUST verified 1, Tests awaiting verification 1, Not assessed 9
+- **Overview bar**: Ze MUST verified 1, SHOULD verified 1, Not assessed 9
 
 | Figure | Rows |
 |---|---|
@@ -132,14 +132,14 @@ Included in automatic checks: Subcodes for BGP Cease NOTIFICATION Message: one M
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 10 |
-| SHOULD verified | 0 |
+| SHOULD verified | 1 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 1 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 9 |
 | SHOULD not built | 0 |
@@ -192,7 +192,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestPrefixNotificationDataCarriesTheConfiguredUpperBound`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_prefix_test.go#L240) | unit/verify | not verified |
+| positive | [`TestPrefixNotificationDataCarriesTheConfiguredUpperBound`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_prefix_test.go#L240) | unit/verify | revert, verified |
 
 ## Requirement list review
 

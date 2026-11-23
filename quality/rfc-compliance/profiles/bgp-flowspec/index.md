@@ -8,23 +8,23 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-flowspec.json](..
 
 ## Figures
 
-- **MUST bar**: Ze verified 46, Not built 2
-- **Overview bar**: Ze MUST verified 46, SHOULD verified 6, Not owed 1, Not assessed 26, Not built 2
+- **MUST bar**: Ze verified 48
+- **Overview bar**: Ze MUST verified 48, SHOULD verified 6, Not owed 1, Not assessed 26
 
 | Figure | Rows |
 |---|---|
 | RFCs | 4 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 49 |
 | MUST rows kept (the MUST bar) | 48 |
-| Ze verified | 46 |
+| Ze verified | 48 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 2 |
+| Not built | 0 |
 | MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -52,12 +52,12 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8955](../../rfc8955/) | Dissemination of Flow Specification Rules | Ze verified 27, Not built 1 | Ze MUST verified 27, SHOULD verified 6, Not owed 1, Not assessed 14, Not built 1 |
+| [RFC 8955](../../rfc8955/) | Dissemination of Flow Specification Rules | Ze verified 28 | Ze MUST verified 28, SHOULD verified 6, Not owed 1, Not assessed 14 |
 
 ### Level 9
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5575](../../rfc5575/) | Dissemination of Flow Specification Rules | Ze verified 8, Not built 1 | Ze MUST verified 8, Not assessed 4, Not built 1 |
+| [RFC 5575](../../rfc5575/) | Dissemination of Flow Specification Rules | Ze verified 9 | Ze MUST verified 9, Not assessed 4 |
 | [RFC 8956](../../rfc8956/) | Dissemination of Flow Specification Rules for IPv6 | Ze verified 9 | Ze MUST verified 9, Not assessed 5 |
 | [RFC 9117](../../rfc9117/) | Revised Validation Procedure for BGP Flow Specifications | Ze verified 2 | Ze MUST verified 2, Not assessed 3 |

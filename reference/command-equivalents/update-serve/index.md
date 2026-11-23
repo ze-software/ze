@@ -9,7 +9,7 @@ Show the update server\'s status\, or start\, stop and pause it\.
 - Mode: daemon\, offline
 - Wire method: `ze-update:update-serve`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `pause`, `start`, `stop`
 - Answer shape: not declared
 - Address fields: none

@@ -9,7 +9,7 @@ Fetch the named image into the store\.
 - Mode: Daemon
 - Wire method: `ze-container:create-image`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

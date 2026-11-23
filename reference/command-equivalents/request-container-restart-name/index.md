@@ -9,7 +9,7 @@ Stop the named container\, then start it again\.
 - Mode: Daemon
 - Wire method: `ze-container:request-restart`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

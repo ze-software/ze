@@ -949,10 +949,24 @@ sent no Calling Number AVP has no station id, and RFC 2866 Section 5 forbids
 sending text of length zero. NAS-Port-Id is added when the operator configured a
 template. Stop and Interim-Update add Acct-Session-Time. Their traffic counters
 measure the current network lifetime, excluding traffic from an earlier
-lifetime on the same PPP unit. Display-counter clears do not change them.
-RFC 2869 gigaword counters carry the upper 32 bits when nonzero. If the counter
-baseline or a later snapshot is unavailable, Ze logs the failure and omits the
-traffic counters instead of reporting zero.</p>
+lifetime on the same PPP unit. They are read from the PPP unit Ze created for
+the session, never by interface name, so renaming the pppN device or a later
+session reusing its name cannot change them. Display-counter clears do not
+change them. A Stop waits up to 10 seconds for PPP's final measurement of the
+session's network. RFC 2869 gigaword counters carry the upper 32 bits when
+nonzero. If the counter baseline or a later snapshot is unavailable, or the
+final measurement does not arrive within those 10 seconds, Ze logs the failure
+and omits the traffic counters instead of reporting zero.</p>
+<p>A record sent without its traffic counters is also a
+<code>doctor-radius-accounting-counters</code> finding of the runtime doctor check
+<code>l2tp-radius-accounting</code>, one per session, named by its tunnel, session and
+Acct-Session-Id, with the cause. The billing record is then incomplete, never
+wrong. The counters are cumulative, so a later record of the same session that
+carries them clears the finding. A missing baseline, a reading below the
+baseline and a network that could not be captured last for the session, and a
+Stop without counters stays until the plugin stops. Read the cause with
+<code>show warnings</code>, then inspect the session with <code>show l2tp session id &lt;id&gt;</code>;
+<code>show diagnostic doctor-radius-accounting-counters</code> explains each cause.</p>
 <p>The Acct-Session-Id is <code>tunnelID-sessionID-boottag-sequence</code>, and the Start,
 Interim-Update and Stop records of one session carry the same one. The sequence
 restarts with the process, so the boot tag keeps ids from repeating across a
@@ -2296,7 +2310,7 @@ goroutine-per-tunnel.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 01:40 UTC</span>
                 </div>
             </div>
         </footer>

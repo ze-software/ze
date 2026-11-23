@@ -23,6 +23,14 @@ ze init                        # interactive: prompts for username, password, ho
 
 Defaults: `127.0.0.1:2222`, ED25519 host key auto-generated.
 
+The host and port are where `ze cli` connects. `ze init` writes the same
+endpoint as the SSH listener at the top of the initial config, followed by
+the discovered interfaces, so a bare `ze start` listens where the CLI looks.
+The host must therefore be an IP address and the port a number from 1 through
+65535; `ze init` refuses anything else before it creates the store. `--seed`
+and `--managed` write no initial config, so they also take a host name.
+<!-- source: internal/plugins/init/main.go -- checkListenerEndpoint, writeInitialConfig, writeSSHListener -->
+
 Credentials are stored under `database/` in the resolved configuration folder,
 with bcrypt-hashed passwords. Initialization seeds every key before publishing
 the directory, so an interrupted initialization cannot expose partial credentials.
@@ -36,7 +44,19 @@ the directory, so an interrupted initialization cannot expose partial credential
 | `--web-cert <address>` | Generate a web TLS certificate for the listen address |
 | `--web-cert-name <name>` | Add a DNS name to the generated certificate |
 | `--seed` | Build `database.zefs` as an appliance seed artifact, without build-host interface discovery |
-<!-- source: internal/plugins/init/main.go -- Run -->
+| `--confirm` | Ask about each discovered interface and write only the ones answered yes; only `yes`, `y`, `no` or `n` answers, and anything else is asked again; refused with `--seed`, `--managed` and `--from` |
+<!-- source: internal/plugins/init/main.go -- Run, profileFromFlags -->
+
+Without `--confirm`, the initial config holds every discovered interface,
+including the ones another program owns (`docker0`, a container's veth), and a
+root ze manages each of them. With it, `ze init` asks one question per interface
+after the instance name, showing its kind, name, MAC address, the bridge or bond
+it is a member of, and its kernel alias. `yes` or `y` writes it, and `no` or `n`
+leaves it out. Nothing else decides: an empty line or any other answer prints a
+notice on stderr and asks about the same interface again. Input that ends
+before every interface is answered is refused, and no store is written
+([Discovery During Init](../configuration-model/index.md#discovery-during-init)).
+<!-- source: internal/plugins/init/main.go -- confirmInterfaces, readAnswer -->
 
 ### Reinitializing
 
@@ -58,8 +78,8 @@ any process owns the store, including a web-only daemon. Changing the SSH target
 does not bypass this protection.
 <!-- source: internal/plugins/init/main.go -- Run, runInit -->
 
-The initial config is written under the name the store's instance name gives it. When that name cannot be read, `ze init` fails with `name initial config: ...` and closes the interface backend it opened, rather than writing the config under `ze.conf`.
-<!-- source: internal/plugins/init/main.go -- runInitPublished -->
+The initial config is written under the name the store's instance name gives it. When that name cannot be read, `ze init` fails with `name initial config: ...` before it opens the interface backend, rather than writing the config under `ze.conf`.
+<!-- source: internal/plugins/init/main.go -- writeInitialConfig -->
 
 ### Store folder and ownership
 

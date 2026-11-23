@@ -9,7 +9,7 @@ Show each next hop the resolver tracks and the direct next hop it resolves to\.
 - Mode: Read\-only
 - Wire method: `not listed`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

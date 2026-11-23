@@ -9,7 +9,7 @@ Show the box\'s identity from SMBIOS\/DMI\.
 - Mode: Read\-only
 - Wire method: `ze-host:show-dmi`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

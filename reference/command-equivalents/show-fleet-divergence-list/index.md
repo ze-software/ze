@@ -9,7 +9,7 @@ The managed clients that hold\, and what the hub keeps for each\.
 - Mode: read\-only\, offline
 - Wire method: `ze-managed:fleet-divergence-list`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

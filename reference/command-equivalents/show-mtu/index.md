@@ -9,7 +9,7 @@ Measure the path MTU and size the IPsec tunnels from it\.
 - Mode: Read\-only
 - Wire method: `ze-mtu:show-mtu`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

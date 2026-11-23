@@ -9,7 +9,7 @@ Run a parallel traceroute probe round to a target\.
 - Mode: Read\-only
 - Wire method: `ze-traceroute:show-probe-round`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

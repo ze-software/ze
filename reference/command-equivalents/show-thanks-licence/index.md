@@ -9,7 +9,7 @@ Print the licence texts of the third\-party works this binary carries\.
 - Mode: Read\-only
 - Wire method: `ze-thanks:show-licence`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: blob
 - Address fields: none

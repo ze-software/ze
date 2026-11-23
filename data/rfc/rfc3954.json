@@ -7,17 +7,17 @@
   "implemented": true,
   "must": {
     "total": 14,
-    "kept": 10,
+    "kept": 9,
     "ze-proven": 4,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 6,
-    "not-owed": 4,
+    "not-built": 5,
+    "not-owed": 5,
     "not-owed-by-kind": {
-      "not-applicable": 4
+      "not-applicable": 5
     }
   },
   "should": {
@@ -40,7 +40,6 @@
     "RFC3954-x-22",
     "RFC3954-x-23",
     "RFC3954-x-5",
-    "RFC3954-x-6",
     "RFC3954-x-7"
   ]
 }

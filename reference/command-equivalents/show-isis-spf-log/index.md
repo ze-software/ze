@@ -9,7 +9,7 @@ Show recent IS\-IS SPF runs\.
 - Mode: Read\-only
 - Wire method: `ze-isis:show-spf-log`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

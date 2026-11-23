@@ -9,7 +9,7 @@ Originate a unicast route on demand\.
 - Mode: Daemon
 - Wire method: `ze-bgp:announce-unicast`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `community`, `for`, `next-hop`, `tag`
 - Answer shape: not declared
 - Address fields: none

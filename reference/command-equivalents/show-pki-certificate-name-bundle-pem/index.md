@@ -9,7 +9,7 @@ Export the certificate\, its intermediates and its private key as one PEM stream
 - Mode: Read\-only
 - Wire method: `ze-pki:show-certificate-bundle-pem`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

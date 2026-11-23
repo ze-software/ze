@@ -9,7 +9,7 @@ Stop receiving events you previously subscribed to\.
 - Mode: Daemon
 - Wire method: `ze-cmd:bgp-unsubscribe`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

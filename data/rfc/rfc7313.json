@@ -8,13 +8,13 @@
   "must": {
     "total": 11,
     "kept": 11,
-    "ze-proven": 6,
+    "ze-proven": 11,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 5,
+    "not-built": 0,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -31,13 +31,7 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 6
+    "unit": 11
   },
-  "unmet": [
-    "RFC7313-4-13",
-    "RFC7313-4-4",
-    "RFC7313-4-5",
-    "RFC7313-4-6",
-    "RFC7313-4-7"
-  ]
+  "unmet": []
 }

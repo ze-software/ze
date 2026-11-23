@@ -9,7 +9,7 @@ Show the IRR lists the firewall enforces\.
 - Mode: Read\-only
 - Wire method: `ze-firewall:show-irr-status`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `prefix`
 - Answer shape: not declared
 - Address fields: none

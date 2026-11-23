@@ -85,6 +85,7 @@
 <ol>
 <li><a href="#automatic-source-lifecycle-arguments">Automatic source lifecycle arguments</a></li>
 </ol></li>
+<li><a href="#design-decisions">Design decisions</a></li>
 </ol></details></nav><div class="doc-body">
 <h2 id="configuration">Configuration</h2>
 <pre><code>plugin {
@@ -102,7 +103,9 @@ bgp {
         ...
         capability {
             graceful-restart {
-                restart-time 120;
+                short-lived {
+                    restart-time 120;
+                }
             }
         }
 
@@ -129,16 +132,22 @@ bgp {
 </thead>
 <tbody>
 <tr>
-<td><code>graceful-restart / restart-time</code></td>
+<td><code>graceful-restart / short-lived / restart-time</code></td>
 <td>uint16</td>
 <td>120</td>
-<td>Seconds to hold stale routes during restart (0-4095)</td>
+<td>Seconds to hold stale routes during conventional GR (0-4095); omitting <code>short-lived</code> sends code 64 with Restart Time 0 and no family tuples</td>
 </tr>
 <tr>
-<td><code>graceful-restart / family / name</code></td>
-<td>leaf-list</td>
+<td><code>graceful-restart / short-lived / family</code></td>
+<td>list (<code>name</code>)</td>
 <td>--</td>
-<td>Address families the capability names. The container carries presence: absent, Ze names every family the peer carries; present and empty, Ze names none; present and filled, Ze names those</td>
+<td>Address families code 64 names when <code>short-lived</code> is present. Absent: every family the peer carries; present: only the listed families</td>
+</tr>
+<tr>
+<td><code>graceful-restart / long-lived / family / stale-time</code></td>
+<td>uint32</td>
+<td>--</td>
+<td>Per-family Long-Lived Stale Time in seconds (0-16777215, mandatory per entry) advertised in code 71</td>
 </tr>
 </tbody>
 </table>
@@ -147,9 +156,10 @@ bgp {
 <p>The code-64 capability Ze sends carries the Restart Time, then one
 <code>&lt;AFI, SAFI, Flags&gt;</code> tuple for each address family the peer carries. A peer
 configured for <code>ipv4/unicast</code> and <code>ipv6/unicast</code> with the default restart time
-receives <code>0078 00010100 00020100</code>. The family list is the peer's own <code>family</code>
-configuration, which the code-71 (LLGR) capability lists too. RFC 9494 Section
-4.2 reads a family that code 64 omits as a Restart Time of zero.</p>
+receives <code>0078 00010100 00020100</code>. The family list defaults to the peer's own
+<code>family</code> configuration (narrowed when <code>short-lived / family</code> is written);
+code 71 (LLGR) is configured separately under <code>long-lived / family</code>. RFC 9494
+Section 4.2 reads a family that code 64 omits as a Restart Time of zero.</p>
 <p>A tuple tells the peer that Ze can preserve that family across a restart, and
 what Ze keeps is the RIB plugin's copy of the routes, which it sends again once
 the session is back. RFC 4724 Section 4: "A BGP speaker MAY advertise the
@@ -162,36 +172,41 @@ removes nothing from a stock build. A family an external plugin registers at
 runtime with no splitter is left out, and Ze logs a warning naming the peer and
 the family. When no family is left, Ze still sends the capability, with no
 tuple.</p>
-<p>The <code>graceful-restart family</code> container narrows that list, and it governs code
-64 alone:</p>
+<p>The <code>graceful-restart short-lived family</code> list narrows code 64 alone:</p>
 <pre><code>capability {
     graceful-restart {
-        family {
-            name ipv6/unicast
+        short-lived {
+            restart-time 120;
+            family {
+                ipv6/unicast
+            }
         }
     }
 }
 </code></pre>
 <p>That peer receives <code>0078 00020100</code>, whatever else its <code>family</code> configuration
-carries. Writing the container with no <code>name</code> in it makes Ze name no address
-family at all, which RFC 4724 Section 3 reads as a speaker that runs the
-Receiving Speaker procedures and preserves nothing of its own. Writing no
-container is the default, and the default names every family the peer carries.
-The container only narrows: a <code>name</code> the RIB plugin cannot store is left out
-with the same warning, never added.</p>
-<p>A <code>name</code> the peer's own <code>family</code> list does not carry is refused, because RFC
-4724 Section 3 scopes a tuple to routes "advertised with the same AFI and SAFI"
-and the session carries none of them. Ze names the family in the error. The
-refusal runs at <code>config commit</code>, so the commit fails and the running router is
-untouched; a configuration that reaches startup carrying one stops the daemon
-rather than leaving it running without Graceful Restart.</p>
+carries. Omitting <code>short-lived</code> altogether (writing <code>graceful-restart { }</code> or
+configuring only <code>long-lived { ... }</code>) makes Ze send code 64 with Restart Time
+0 and no address family tuple (<code>0000</code>), which RFC 4724 Section 3 reads as a
+speaker that runs the Receiving Speaker procedures and preserves nothing of its
+own, and RFC 9494 Section 4.1 uses to skip the conventional GR phase. Writing
+<code>short-lived</code> with no <code>family</code> list is the default for conventional GR, naming
+every family the peer carries. The list only narrows: a family the RIB plugin
+cannot store is left out with the same warning, never added.</p>
+<p>A family under <code>short-lived family</code> or <code>long-lived family</code> that the peer's own
+<code>family</code> list does not carry is refused, because RFC 4724 Section 3 and RFC
+9494 Section 3.1 scope a tuple to routes "advertised with the same AFI and
+SAFI" and the session carries none of them. Ze names the family in the error.
+The refusal runs at offline <code>ze config validate</code>, at <code>config commit</code>, and at
+startup rather than leaving the daemon running without Graceful Restart.</p>
 <p>The families the peer carries include the ones it inherits from its group, and
 exclude any entry written <code>mode disable</code>. Both are what the session really
 negotiates.</p>
-<p>Narrowing code 64 is how an operator asks for LLGR with no conventional GR
-phase. RFC 9494 Section 4.1: "the conventional GR phase can be skipped by
-omitting all AFIs/SAFIs from the GR Capability, advertising a Restart Time of
-zero, or both". So the container never touches the code-71 list.</p>
+<p>Omitting <code>short-lived</code> while configuring <code>long-lived</code> is how an operator asks
+for LLGR with no conventional GR phase. RFC 9494 Section 4.1: "the conventional
+GR phase can be skipped by omitting all AFIs/SAFIs from the GR Capability,
+advertising a Restart Time of zero, or both". <code>short-lived family</code> and
+<code>long-lived family</code> govern code 64 and code 71 independently.</p>
 <h3 id="the-two-bits-ze-sets-at-connection-time">The Two Bits Ze Sets at Connection Time</h3>
 <p>The payload above is built when the configuration is loaded, so it carries what
 the operator configured and nothing about a restart. Two bits say what happened
@@ -248,7 +263,14 @@ connection or a different configured Peer at the same address.</p>
 <p>Retention uses the existing active GR state and original source leases. Family
 cleanup can empty that cycle before LLGR's next operation; its active state
 remains until explicit release, safety expiry or replacement by a new current
-cycle. There is no completed-source ledger. Cleanup joins captured selected
+cycle. A replacement keeps, as earlier connections of the new cycle, the
+connections of the old one that still own a route. This happens when a peer in
+its LLGR period reconnects and drops again before End-of-RIB. The
+<code>retain-routes</code> answer lists them under <code>earlier-connections</code>, as decimal
+strings, and the list is empty for a first restart. An earlier connection
+stays addressable by its own <code>owner</code> and <code>connection</code> until it is released,
+even after a family purge has removed its last route. There is no
+completed-source ledger. Cleanup joins captured selected
 output and original lease releases before answering; a refused join reports the
 unfinished work. The public peer-wide commands below retain their operator
 scope.</p>
@@ -342,13 +364,20 @@ boundary, so <code>bgp-gr</code>, <code>bgp-rs</code> and <code>bgp-rr</code> ma
 # Shows routes with stale flag when applicable
 </code></pre>
 <h2 id="long-lived-graceful-restart-rfc-9494">Long-Lived Graceful Restart (RFC 9494)</h2>
-<p>LLGR extends standard GR with a second, much longer stale period. When the GR restart-time expires without the peer reconnecting, instead of purging all stale routes, LLGR keeps them for up to ~194 days with reduced priority. The stale time a peer advertises can differ per family; the one Ze advertises is a single value for every family of the session.</p>
+<p>LLGR extends standard GR with a second, much longer stale period. When the GR restart-time expires without the peer reconnecting, instead of purging all stale routes, LLGR keeps them for up to ~194 days with reduced priority. Both the stale time Ze advertises and the stale time a peer advertises are configured and tracked per address family.</p>
 <h3 id="configuration_1">Configuration</h3>
-<p>Add <code>long-lived-stale-time</code> under the <code>graceful-restart</code> block:</p>
+<p>Add <code>long-lived</code> with per-family stale times under the <code>graceful-restart</code> block:</p>
 <pre><code>capability {
     graceful-restart {
-        restart-time 120;
-        long-lived-stale-time 3600;    # LLGR period in seconds (0-16777215)
+        short-lived {
+            restart-time 120;
+        }
+        long-lived {
+            family {
+                ipv4/unicast 3600    # LLGR period in seconds (0-16777215)
+                ipv6/unicast 86400
+            }
+        }
     }
 }
 </code></pre>
@@ -363,23 +392,20 @@ boundary, so <code>bgp-gr</code>, <code>bgp-rs</code> and <code>bgp-rr</code> ma
 </thead>
 <tbody>
 <tr>
-<td><code>graceful-restart / long-lived-stale-time</code></td>
+<td><code>graceful-restart / long-lived / family / stale-time</code></td>
 <td>uint32</td>
 <td>--</td>
-<td>LLST Ze advertises for every family of this peer (0-16777215, 24-bit); received peer values govern Ze's helper timers</td>
+<td>Per-family LLST Ze advertises in code 71 (0-16777215, 24-bit, mandatory per entry); received peer values govern Ze's helper timers</td>
 </tr>
 </tbody>
 </table>
-<p>LLGR is off unless you configure it. Ze advertises the LLGR capability (code 71) in its OPEN only when <code>long-lived-stale-time</code> is configured for the peer, and then for every family the peer's session carries.</p>
-<p>This is one peer-level leaf, not a per-family configuration list. The
-<code>graceful-restart family</code> container selects code-64 tuples only; it does not
-select LLGR families or assign different LLST values to them. Received code-71
-tuples can still carry different times, and Ze tracks those timers by family.</p>
+<p>LLGR is off unless you configure it per address family. Ze advertises the LLGR capability (code 71) in its OPEN only for families listed under <code>graceful-restart long-lived family</code>, each with its own <code>stale-time</code> (RFC 9494 Section 5). Nesting <code>long-lived</code> inside <code>graceful-restart</code> ensures code 71 is never advertised without code 64 (RFC 9494 Section 4.1).</p>
+<p>The <code>short-lived family</code> and <code>long-lived family</code> lists are independent: omitting <code>short-lived</code> skips the conventional GR phase while still sending code 64 with Restart Time 0 and no tuples, and naming a family only in <code>short-lived</code> keeps LLGR off for it. Received code-71 tuples are tracked per family and honored only for families Ze also declared in its sent OPEN.</p>
 <p>LLGR is only active for a family when both OPENs of the session list it in their LLGR capability. A peer that advertises LLGR for a family Ze did not advertise it for gets the base GR treatment for that family: its routes are kept for the Restart Time and no longer (RFC 9494 Section 5 requires configuration per AFI/SAFI before the procedures run). LLGR also requires the GR capability (code 64) in the same OPEN: LLGR without GR is ignored, as RFC 9494 Section 4.5 requires.</p>
 <h3 id="how-it-works_1">How It Works</h3>
 <ol>
 <li><strong>GR period expires</strong> -- peer has not reconnected within <code>restart-time</code> seconds</li>
-<li><strong>LLGR begins</strong> -- for each family with <code>long-lived-stale-time &gt; 0</code>:
+<li><strong>LLGR begins</strong> -- for each family with a nonzero received Long-Lived Stale Time (<code>stale-time &gt; 0</code>):
 <ul>
 <li>Routes carrying the NO_LLGR community (0xFFFF0007) are deleted</li>
 <li>LLGR_STALE community (0xFFFF0006) is attached to remaining stale routes</li>
@@ -390,9 +416,10 @@ tuples can still carry different times, and Ze tracks those timers by family.</p
 <li><strong>During LLGR</strong> -- LLGR-stale routes lose to any non-stale route in best-path selection. Between two LLGR-stale routes, normal tiebreaking applies.</li>
 <li><strong>LLST timer expires</strong> -- stale routes for that family are purged</li>
 <li><strong>Peer reconnects during LLGR</strong> -- standard RFC 4724 procedures apply; families with F-bit=0 or missing from the new OPEN are purged. A family whose LLGR period has begun must also pass the new LLGR Capability: if that capability clears the family's F bit, omits the family, or is absent, the family's stale routes are purged at once, whatever the GR Capability says (RFC 9494 Section 4.2). A family still in its conventional GR period is judged by the GR Capability alone. A configuration with a Restart Time of zero therefore keeps its stale routes across a reconnect only when the new GR Capability also lists the family with its F bit set</li>
+<li><strong>Peer drops again before End-of-RIB</strong> -- a family whose LLST timer is running keeps that timer, unchanged, and keeps its stale routes (RFC 9494 Section 4.2: "in the case of consecutive restarts, the previously marked stale routes MUST NOT be deleted before the timer for the Long-Lived Stale Time expires."). The routes the second session delivered for that family are retained too: they are raised to stale level 2 and get LLGR_STALE at once, and those carrying NO_LLGR are deleted. They start no Restart Time period of their own. When the timer expires, or a later session sends End-of-RIB for the family, the stale routes of every connection are deleted. A family still in its conventional GR period follows RFC 4724 instead: its previously stale routes are deleted at the second drop and the routes of the second session start a new Restart Time</li>
 </ol>
 <p>The LLST expiry uses the time in the <strong>remote peer's received OPEN</strong>, not the
-<code>long-lived-stale-time</code> Ze advertises from its local configuration. Different
+per-family <code>stale-time</code> Ze advertises from its local configuration. Different
 peers can therefore expire at different times even when their local
 configuration is identical. Retention means routes in the received RIB:
 replaying a locally configured static route after reconnect does not demonstrate
@@ -520,13 +547,14 @@ listed under "Readvertising a Stale Route" below. The <code>show bgp rib</code> 
 level still shows only the retention mark.</p>
 <h3 id="long-lived-stale-routes-in-the-filter-lists">Long-Lived Stale Routes in the Filter Lists</h3>
 <p>Both LLGR decisions are members of the peers' filter lists, which <code>bgp-gr</code>
-inserts itself. On every peer whose <code>long-lived-stale-time</code> is set, the leaf
-that makes Ze advertise the LLGR Capability, <code>bgp-gr:llgr-ingress</code> runs on
-import, ahead of every member the operator names in the import chain, and
-marks a received LLGR_STALE route as described above. While any peer sets
-the leaf, <code>bgp-gr:llgr-egress</code> runs on every peer's export list, ahead of the
-operator's members: RFC 9494 Section 4.3 binds the routes of the neighbor
-Ze advertised the capability to, and they can leave toward any peer. It
+inserts itself. On every peer whose <code>graceful-restart long-lived family</code> is
+configured, the list that makes Ze advertise the LLGR Capability,
+<code>bgp-gr:llgr-ingress</code> runs on import, ahead of every member the operator names
+in the import chain, and marks a received LLGR_STALE route as described above.
+While any peer configures <code>graceful-restart long-lived family</code>,
+<code>bgp-gr:llgr-egress</code> runs on every peer's export list, ahead of the operator's
+members: RFC 9494 Section 4.3 binds the routes of the neighbor Ze advertised
+the capability to, and they can leave toward any peer. It
 declares <code>readvertise</code>, so the stale readvertise rail runs it too, and
 <code>judges-final</code>, so it runs again over a body the export chain rewrote: that is what
 keeps LLGR_STALE, its NO_EXPORT and its LOCAL_PREF 0 on a route whatever a member
@@ -627,6 +655,19 @@ The <code>request bgp rib source</code> commands carry <code>owner N connection 
 original received routes. These identifiers narrow existing rights and grant
 no additional permission. A successor's EOR removes the original connection's
 retained stale routes; a delayed original release does not erase fresh routes.</p>
+<p>After a consecutive restart during the LLGR period, one retained cycle holds
+routes of more than one connection: the stale routes an earlier connection
+delivered and the later one did not refresh, and the routes the later one
+delivered. The RIB names the earlier connections in its <code>retain-routes</code>
+answer. GR then sends each purge and each release once per connection, the
+earlier ones first, and the <code>validation-cleanup</code> event with it, so every store
+keyed by connection is told about each one. At the second drop the NO_LLGR
+deletion and the LLGR_STALE attachment also go to each connection, so every
+earlier route carries the community whichever connection delivered it. Stale
+marking goes to the latest
+connection only: the earlier routes were marked when their own connection
+went down. If the answer names no list, GR keeps
+addressing every connection the cycle already held and logs a warning.</p>
 <p>The <code>bgp-gr/retention</code> event carries <code>peer-owner</code> as an unsigned integer and
 <code>connection-id</code> as a decimal unsigned integer string. The forwarding owner's
 ledger admits one connection per owner. A verdict or DOWN for an old connection
@@ -638,12 +679,18 @@ exists. GR handles this terminal owner separately, before physical-source
 validation. The forwarding ledger's <code>End</code> closes that owner's lifetime; zero
 is never accepted as a wildcard for a transport DOWN or a lifecycle command.</p>
 <p>An LLGR callback checks that its captured state still owns the family's timer.
-A reconnect cancels queued callbacks and deferred entry completions, even when
-some old families remain retained. An LLGR entry that has begun a blocking RIB
-RPC rechecks its timer before it sends the next mutation. An already-dispatched
-original cleanup remains scoped to its original physical connection.</p>
+An LLGR entry already being applied when the peer reconnects runs to its end:
+the NO_LLGR deletion, the LLGR_STALE attachment, stale level 2 and the
+readvertisement all still go to the original connection, and the LLST timer is
+neither restarted nor updated (RFC 9494 Section 4.2). Routes the new connection
+sends are stored under that connection, so the entry never marks them. An entry
+stops only when its family's LLST timer is gone (End-of-RIB, expiry, a purge on
+reconnect) or a later session-down changes the cycle's source, which completes
+it. A reconnect still cancels deferred entry completions. An LLGR entry that
+has begun a blocking RIB RPC rechecks its timer before it sends the next
+mutation.</p>
 <h3 id="special-case-skip-gr">Special Case: Skip GR</h3>
-<p>If <code>restart-time</code> is 0 but <code>long-lived-stale-time</code> is nonzero, the GR period is skipped entirely. On session drop, LLGR begins immediately, after the routes are retained and marked stale: the LLGR steps above run last, so the routes they mark LLGR-stale are the retained ones. When both times are 0 the peer's routes are released at once, as in base BGP.</p>
+<p>If <code>restart-time</code> is 0 (or <code>short-lived</code> is omitted) while <code>stale-time</code> is nonzero, the GR period is skipped entirely. On session drop, LLGR begins immediately, after the routes are retained and marked stale: the LLGR steps above run last, so the routes they mark LLGR-stale are the retained ones. When both times are 0 the peer's routes are released at once, as in base BGP.</p>
 <p>A family can also skip GR when the received code-64 capability omits it.
 RFC 9494 Section 4.2: "If the Graceful Restart Capability that was received
 does not list all AFIs/SAFIs supported by the session, then the GR Restart Time
@@ -662,8 +709,8 @@ A family omitted from GR with zero or unexchanged LLST is not retained.</p>
 <table>
 <thead>
 <tr>
-<th>restart-time</th>
-<th>long-lived-stale-time</th>
+<th><code>restart-time</code></th>
+<th><code>stale-time</code> (LLST)</th>
 <th>Behavior</th>
 </tr>
 </thead>
@@ -737,6 +784,25 @@ joins already dispatched decisions before acknowledging cleanup. Adj-RIB-In
 accepts retained-route revalidation without permitting an absent source to
 recreate early decisions. <code>retention.Ledger.Active</code> reads only an admitted
 current lifetime and creates no record.</p>
+<h2 id="design-decisions">Design decisions</h2>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>It forbids</th>
+<th>Source</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Graceful Restart and Long-Lived Graceful Restart use symmetric <code>short-lived</code> and <code>long-lived</code> containers inside <code>graceful-restart</code>, both carrying keyed <code>list family</code> (<code>restart-time</code> inside <code>short-lived</code>; mandatory <code>stale-time</code> per family inside <code>long-lived</code>), with legacy <code>long-lived-stale-time</code>, top-level <code>restart-time</code>, and <code>family { name [...] }</code> removed</td>
+<td>Putting <code>long-lived</code> outside <code>graceful-restart</code> (which would allow code 71 without code 64), using different <code>family</code> syntax between short-lived and long-lived, adding a <code>helper-only</code> flag when omitting <code>short-lived</code> already sends <code>0000</code>, or keeping a legacy fallback for <code>long-lived-stale-time</code></td>
+<td>3c2a055fd9, plan/records/rfc-verdict-test-fix-pass-rulings.md</td>
+<td>2026-11-22</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
             </section>
@@ -786,7 +852,7 @@ current lifetime and creates no record.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 05:15 UTC</span>
                 </div>
             </div>
         </footer>

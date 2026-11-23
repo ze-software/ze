@@ -9,7 +9,7 @@ Get all prefixes announced by an AS\-SET\'s members\.
 - Mode: Read\-only
 - Wire method: `ze-resolve:irr-prefix`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

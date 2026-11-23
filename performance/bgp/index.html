@@ -55,6 +55,7 @@
 <li><a href="#dut-setup">DUT Setup</a></li>
 <li><a href="#results">Results</a>
 <ol>
+<li><a href="#ipv4unicast-2026-11-22-8-gb-vm-commit-6803c60c8a-live-forwarding">ipv4/unicast (2026-11-22, 8 GB VM, commit 6803c60c8a, live-forwarding)</a></li>
 <li><a href="#ipv4unicast-2026-06-05-4-gb-vm">ipv4/unicast (2026-06-05, 4 GB VM)</a></li>
 <li><a href="#ipv4unicast-2026-06-05-4-gb-vm-pre-fixes">ipv4/unicast (2026-06-05, 4 GB VM, pre-fixes)</a></li>
 <li><a href="#ipv4unicast-2026-05-24-post-optimization">ipv4/unicast (2026-05-24, post-optimization)</a></li>
@@ -102,11 +103,19 @@ rule does not retrospectively establish the provenance of historical figures.</p
 </tr>
 <tr>
 <td>Virtualization</td>
-<td>Docker (Colima VM)</td>
+<td>Docker (Colima VM, 8 GB RAM / 4 vCPU)</td>
 </tr>
 <tr>
 <td>Date</td>
-<td>2026-06-05</td>
+<td>2026-11-22</td>
+</tr>
+<tr>
+<td>Commit</td>
+<td><code>6803c60c8a</code></td>
+</tr>
+<tr>
+<td>Pass</td>
+<td><code>live-forwarding</code></td>
 </tr>
 <tr>
 <td>Routes</td>
@@ -154,6 +163,91 @@ virtual interface layer) -- adds latency vs kernel TCP used by other DUTs.</li>
 </ul>
 <p>Config files: <code>test/perf/configs/</code></p>
 <h2 id="results">Results</h2>
+<h3 id="ipv4unicast-2026-11-22-8-gb-vm-commit-6803c60c8a-live-forwarding">ipv4/unicast (2026-11-22, 8 GB VM, commit <code>6803c60c8a</code>, <code>live-forwarding</code>)</h3>
+<p>Measured on <code>main</code> commit <code>6803c60c8a</code> (<code>2026-11-22</code>, <code>darwin/arm64</code>, Docker Colima 8 GB / 4 vCPU). All six DUTs below completed the <code>live-forwarding</code> pass with 0 routes lost (<code>100,000</code> sent, <code>100,000</code> received, <code>3</code> measured iterations kept). <code>rustbgpd</code> (out of memory during <code>cargo build</code> inside the 8 GB VM) and <code>freertr</code> (external <code>../rtr</code> checkout not present beside the detached worktree) were not built in this run; Ze's separate <code>rib-propagation</code> pass lost routes (<code>0/100,000</code> received) and is excluded under the zero-loss comparison rule.</p>
+<table>
+<thead>
+<tr>
+<th>DUT</th>
+<th>Convergence</th>
+<th>+/-</th>
+<th>Throughput (r/s)</th>
+<th>+/-</th>
+<th>p99</th>
+<th>+/-</th>
+<th>Withdrawal</th>
+<th>+/-</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bird</td>
+<td>101ms</td>
+<td>3ms</td>
+<td>990,099</td>
+<td>29,408</td>
+<td>67ms</td>
+<td>2ms</td>
+<td>545ms</td>
+<td>1ms</td>
+</tr>
+<tr>
+<td>ze</td>
+<td>103ms</td>
+<td>3ms</td>
+<td>970,873</td>
+<td>28,277</td>
+<td>63ms</td>
+<td>2ms</td>
+<td>592ms</td>
+<td>1ms</td>
+</tr>
+<tr>
+<td>rustybgp</td>
+<td>129ms</td>
+<td>5ms</td>
+<td>775,193</td>
+<td>30,046</td>
+<td>106ms</td>
+<td>3ms</td>
+<td>571ms</td>
+<td>0ms</td>
+</tr>
+<tr>
+<td>gobgp</td>
+<td>635ms</td>
+<td>8ms</td>
+<td>157,480</td>
+<td>1,984</td>
+<td>599ms</td>
+<td>9ms</td>
+<td>1,146ms</td>
+<td>31ms</td>
+</tr>
+<tr>
+<td>openbgpd</td>
+<td>645ms</td>
+<td>46ms</td>
+<td>155,038</td>
+<td>11,056</td>
+<td>616ms</td>
+<td>46ms</td>
+<td>1,037ms</td>
+<td>21ms</td>
+</tr>
+<tr>
+<td>frr</td>
+<td>847ms</td>
+<td>12ms</td>
+<td>118,063</td>
+<td>1,672</td>
+<td>826ms</td>
+<td>12ms</td>
+<td>663ms</td>
+<td>2ms</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ipv4unicast-2026-06-05-4-gb-vm">ipv4/unicast (2026-06-05, 4 GB VM)</h3>
 <p>Fixed RPKI validation gate (was adding 30s pending delay without cache servers)
 and throughput stddev (now derived from convergence via error propagation).</p>
@@ -507,7 +601,7 @@ for details on environment variables (<code>DUT_ROUTES</code>, <code>DUT_REPEAT<
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

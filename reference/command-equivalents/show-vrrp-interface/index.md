@@ -9,7 +9,7 @@ Show the VRRP virtual routers hosted on one interface\.
 - Mode: Read\-only
 - Wire method: `not listed`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `name`
 - Answer shape: not declared
 - Address fields: none

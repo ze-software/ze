@@ -7,16 +7,18 @@
   "implemented": true,
   "must": {
     "total": 9,
-    "kept": 9,
+    "kept": 7,
     "ze-proven": 4,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 2,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 3,
-    "not-owed": 0,
-    "not-owed-by-kind": {}
+    "not-built": 1,
+    "not-owed": 2,
+    "not-owed-by-kind": {
+      "not-applicable": 2
+    }
   },
   "should": {
     "total": 11,
@@ -34,8 +36,6 @@
     "unit": 4
   },
   "unmet": [
-    "RFC7684-4-1",
-    "RFC7684-6.5-1",
-    "RFC7684-6.5-2"
+    "RFC7684-4-1"
   ]
 }

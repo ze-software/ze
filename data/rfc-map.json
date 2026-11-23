@@ -4,13 +4,13 @@
     {
       "label": "RFC requirement ledger",
       "path": "data/rfc-requirements.json",
-      "sha256": "f76cdd4edfafcd9fa5e3f9de6e74d5ccf0b3e3eb6c984fe66ad92e235c73cba7"
+      "sha256": "c7f5f3a891514b83253d1b36abedb904a37ca82e8241375005e8822f9aca317e"
     },
     {
       "label": "Committed spec roadmap",
       "path": "data/release-roadmap.json",
-      "sha256": "1b40e95f7067da583c63a55ba71340582678ff47e85f25c4bb4d9db6229f63bc",
-      "revision": "827c73e9e131702d2815e3fd46ad302cb2db5ea3"
+      "sha256": "5a002145e612c8c43906c610f1e84bc62d2cd8061f20de68ee30fef89d5943c0",
+      "revision": "a218ade1720eea26081ba93b99e2e445fd294880"
     },
     {
       "label": "Proposed release layers",
@@ -22993,8 +22993,8 @@
         "text": "Additional Grace-LSA TLVs must be described in an Internet Draft and will be subject to the expert review of the OSPF Working Group. (§A)",
         "section": "A",
         "annotation": {
-          "kind": "gap",
-          "reason": "an IETF process rule on additional Grace-LSA TLVs with no implementer role the RFC names; ze originates only TLV types 1, 2 and 3 and its decoder skips unknown types (internal/plugins/ospf/packet/grace_lsa.go), and no test asserts that ze emits no other TLV"
+          "kind": "not-applicable",
+          "reason": "heading \"Grace-LSA Format\"; binds IETF; describing additional Grace-LSA TLVs in an Internet-Draft for OSPF Working Group expert review is an IETF process rule; ze is an OSPF router that originates only TLV types 1, 2 and 3 and ignores unknown types (internal/plugins/ospf/packet/grace_lsa.go)"
         }
       },
       {
@@ -23225,8 +23225,8 @@
         "text": "o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6)",
         "section": "6",
         "annotation": {
-          "kind": "gap",
-          "reason": "the sentence binds the authors of RFCs, a role ze never fills, and its passive subject fits neither not-applicable shape; ze mentions no experimental top-level Type and has no behaviour to test"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds RFC author; prohibiting RFCs from mentioning experimental top-level TE LSA Types 32768-32777 binds future RFC authors; ze is a router and writes no RFC"
         }
       },
       {
@@ -23236,8 +23236,8 @@
         "text": "Here are the guidelines (using terms defined in [10]) for the assignment of top level Types in TE LSAs: o Types in the range 3-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6)",
         "section": "6",
         "annotation": {
-          "kind": "gap",
-          "reason": "the sentences bind IANA and the Standards Track documents that assign top-level TE LSA Types, roles ze never fills, and their passive subjects fit neither not-applicable shape; ze assigns no Type and has no behaviour to test"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds IANA; top-level TE LSA Type allocation guidelines for ranges 3-32767 and 32778-65535 bind IANA and the IETF standards process; ze is a router and allocates no Type value"
         }
       },
       {
@@ -23247,8 +23247,8 @@
         "text": "o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6)",
         "section": "6",
         "annotation": {
-          "kind": "gap",
-          "reason": "the sentence binds the authors of RFCs, a role ze never fills, and its passive subject fits neither not-applicable shape; ze mentions no experimental sub-TLV Type and has no behaviour to test"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds RFC author; prohibiting RFCs from mentioning experimental TE LSA sub-TLV Types 32768-32777 binds future RFC authors; ze is a router and writes no RFC"
         }
       },
       {
@@ -23258,8 +23258,8 @@
         "text": "The guidelines for the assignment of types for sub-TLVs in a TE LSA are as follows: o Types in the range 10-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6)",
         "section": "6",
         "annotation": {
-          "kind": "gap",
-          "reason": "the sentences bind IANA and the Standards Track documents that assign TE LSA sub-TLV Types, roles ze never fills, and their passive subjects fit neither not-applicable shape; ze assigns no Type and has no behaviour to test"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds IANA; TE LSA sub-TLV Type allocation guidelines for ranges 10-32767 and 32778-65535 bind IANA and the IETF standards process; ze is a router and allocates no sub-TLV Type value"
         }
       },
       {
@@ -24567,8 +24567,8 @@
         "text": "Finally, note that the Collector MUST accept padding in the Data FlowSet and Options Template FlowSet, which means for the Flow Data Records, the Options Data Records and the Template Records. (§9)",
         "section": "9",
         "annotation": {
-          "kind": "gap",
-          "reason": "a NetFlow v9 Collector obligation, and ze fills only the Exporter role: the flowexport plugin's one transport is the connected UDP socket NewSender dials towards the collector (internal/plugins/flowexport/sender.go), it opens no listening socket, and no Go file in the tree decodes a v9 Export Packet; the sentence names the Collector after an introductory clause (“Finally, note that”), so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test until ze builds a collector"
+          "kind": "not-applicable",
+          "reason": "heading \"The Collector Side\"; binds the Collector; ze fills only the Exporter role: the flowexport plugin's one transport is the connected UDP socket NewSender dials towards the collector (internal/plugins/flowexport/sender.go), it opens no listening socket, and no Go file in the tree decodes a v9 Export Packet"
         }
       },
       {
@@ -25165,8 +25165,8 @@
         "text": "A zone key DNSKEY RR MUST have the Zone Key bit of the flags RDATA field set (§2.1)",
         "section": "2.1",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword is the record A zone key DNSKEY RR, not a role, and Section 2.1 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25176,8 +25176,8 @@
         "text": "Public keys associated with other DNS operations MAY be stored in DNSKEY RRs that are not marked as zone keys but MUST NOT be used to verify RRSIGs. (§2.1)",
         "section": "2.1",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the sentence's first keyword is MAY, not the row's MUST NOT, and its subject, Public keys associated with other DNS operations, is not a role, and Section 2.1 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25187,8 +25187,8 @@
         "text": "If the zone administrator intends a signed zone to be usable other than as an island of security, the zone apex MUST contain at least one DNSKEY RR to act as a secure entry point into the zone. (§2.1)",
         "section": "2.1",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the words before its keyword hold a comma, the clause If the zone administrator intends ..., and end in the zone apex, not a role, and Section 2.1 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; unmet: ze never serves a signed zone, since it signs none: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record; DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25198,8 +25198,8 @@
         "text": "For each authoritative RRset in a signed zone, there MUST be at least one RRSIG record that meets the following requirements (§2.2)",
         "section": "2.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the words before its keyword hold a comma and end in there, which names no party, and Section 2.2 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25209,8 +25209,8 @@
         "text": "An RRSIG RR itself MUST NOT be signed (§2.2)",
         "section": "2.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword is the record An RRSIG RR itself, not a role, and Section 2.2 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25220,8 +25220,8 @@
         "text": "The NS RRset that appears at the zone apex name MUST be signed (§2.2)",
         "section": "2.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword is The NS RRset that appears at the zone apex name, a record set held by that, and Section 2.2 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25231,8 +25231,8 @@
         "text": "The NS RRset that appears at the zone apex name MUST be signed, but the NS RRsets that appear at delegation points (that is, the NS RRsets in the parent zone that delegate the name to the child zone's name servers) MUST NOT be signed. (§2.2)",
         "section": "2.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the sentence's first keyword is the MUST of the apex clause, not the row's MUST NOT, and its subject is a record set, and Section 2.2 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25242,8 +25242,8 @@
         "text": "Glue address RRsets associated with delegations MUST NOT be signed (§2.2)",
         "section": "2.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword is Glue address RRsets associated with delegations, a record set, and Section 2.2 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25253,8 +25253,8 @@
         "text": "There MUST be an RRSIG for each RRset using at least one DNSKEY of each algorithm in the zone apex DNSKEY RRset (§2.2)",
         "section": "2.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword is There, which names no party, and Section 2.2 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25264,8 +25264,8 @@
         "text": "The apex DNSKEY RRset itself MUST be signed by each algorithm appearing in the DS RRset located at the delegating parent (if any). (§2.2)",
         "section": "2.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword is The apex DNSKEY RRset itself, a record set, and Section 2.2 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25275,8 +25275,8 @@
         "text": "Each owner name in the zone that has authoritative data or a delegation point NS RRset MUST have an NSEC resource record (§2.3)",
         "section": "2.3",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword is Each owner name in the zone that ..., a name held by in and that, and Section 2.3 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25286,8 +25286,8 @@
         "text": "An NSEC record (and its associated RRSIG RRset) MUST NOT be the only RRset at any particular owner name. (§2.3)",
         "section": "2.3",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword is An NSEC record and its associated RRSIG RRset, records joined by and, and Section 2.3 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25297,8 +25297,8 @@
         "text": "That is, the signing process MUST NOT create NSEC or RRSIG RRs for owner name nodes that were not the owner name of any RRset before the zone was signed. (§2.3)",
         "section": "2.3",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the words before its keyword, That is, the signing process, hold a comma, and Section 2.3 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25308,8 +25308,8 @@
         "text": "The type bitmap of every NSEC resource record in a signed zone MUST indicate the presence of both the NSEC record itself and its corresponding RRSIG record. (§2.3)",
         "section": "2.3",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword is The type bitmap of every NSEC resource record in a signed zone, a field, and Section 2.3 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25319,8 +25319,8 @@
         "text": "Bits corresponding to the delegation NS RRset and any RRsets for which the parent zone has authoritative data MUST be set (§2.3)",
         "section": "2.3",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword is Bits corresponding to the delegation NS RRset ..., a field, and Section 2.3 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25330,8 +25330,8 @@
         "text": "bits corresponding to any non-NS RRset for which the parent is not authoritative MUST be clear. (§2.3)",
         "section": "2.3",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the sentence's first keyword is the MUST of the clause before it, and its subject, bits corresponding to any non-NS RRset ..., is a field, and Section 2.3 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25341,8 +25341,8 @@
         "text": "All DS RRsets in a zone MUST be signed (§2.4)",
         "section": "2.4",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword is All DS RRsets in a zone, a record set, and Section 2.4 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25352,8 +25352,8 @@
         "text": "DS RRsets MUST NOT appear at a zone's apex (§2.4)",
         "section": "2.4",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the sentence's first keyword is the MUST of the clause before it, not the row's MUST NOT, and its subject is a record set, and Section 2.4 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25363,8 +25363,8 @@
         "text": "If a CNAME RRset is present at a name in a signed zone, appropriate RRSIG and NSEC RRsets are REQUIRED at that name (§2.5)",
         "section": "2.5",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: its keyword is an adjective, are REQUIRED, after a conditional clause that holds a comma, and Section 2.5 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; unmet: ze never serves a signed zone, since it signs none: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record; DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25374,8 +25374,8 @@
         "text": "If a CNAME RRset is present at a name in a signed zone, appropriate RRSIG and NSEC RRsets are REQUIRED at that name. A KEY RRset at that name for secure dynamic update purposes is also allowed ([RFC3007]). Other types MUST NOT be present at that name. (§2.5)",
         "section": "2.5",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword is Other types, which names no party, and Section 2.5 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25385,8 +25385,8 @@
         "text": "At the parental side of a zone cut (that is, at a delegation point), NSEC RRs are REQUIRED at the owner name. (§2.6)",
         "section": "2.6",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds a zone signer, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: its keyword is an adjective, are REQUIRED, after a clause that holds a comma, and Section 2.6 holds no keyword-less sentence that scopes it to the signer with apply, only or limited to; ze signs no zone (internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, never a DNSSEC record, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined"
+          "kind": "not-applicable",
+          "reason": "heading \"Zone Signing\"; binds a zone signer; ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, internal/plugins/as112/zones.go::answerQuestions answers with SOA, NS, the hostname TXT or a negative answer, and no producer under internal/, pkg/ or cmd/ creates an RRSIG, DNSKEY, NSEC or DS record"
         }
       },
       {
@@ -25671,8 +25671,8 @@
         "text": "An authoritative name server that chooses to perform its own zone validation MUST NOT selectively reject some RRs and accept others. (§3.1.5)",
         "section": "3.1.5",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds an authoritative name server that validates a zone it receives by zone transfer, the secondary-server role, a role neither ze's resolver nor GeoDNS or AS112 fills, and stays a gap only because no not-applicable shape fits: the subject of its keyword, An authoritative name server that chooses to perform its own zone validation, is held by that, and Section 3.1.5 holds no keyword-less sentence that scopes it to that server with apply, only or limited to; unmet: ze never performs its own zone validation: internal/component/resolve/dns/resolver.go::dnssecDecision inspects the upstream rcode alone, with no signature check, trust-anchor store, DS chain or NSEC proof anywhere in ze, and internal/plugins/dnsresolver/forward.go::upstreamQuery asks every upstream with the DO bit clear; DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined, and ze serves no zone transfer"
+          "kind": "not-applicable",
+          "reason": "heading \"Responding to Queries for Type AXFR or IXFR\"; binds a zone-transfer server; DNS zone transfer is not required (ai/META-DECISIONS.md): ze serves no zone transfer, internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions route AXFR/IXFR to their default arm, and internal/core/dnsserver/handler.go::Authoritative answers non-QUERY opcodes with NOTIMP"
         }
       },
       {
@@ -25682,8 +25682,8 @@
         "text": "As with any other authoritative RRset, the DS RRset MUST be included in zone transfers of the zone in which the RRset is authoritative data. (§3.1.5)",
         "section": "3.1.5",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds the primary or secondary zone-transfer server role, which no part of ze fills (owner rule in ai/META-DECISIONS.md: DNS zone transfer is not required), but no exclusion shape fits: the subject of this sentence is a record, not a role; no keyword-less sentence of Section 3.1.5 scopes it to a role, and the one role the section names is the authoritative name server, which ze fills through internal/plugins/geodns and internal/plugins/as112; RFC 4035 names no primary or secondary server anywhere. ze serves no zone transfer: internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions send an AXFR or IXFR qtype to their default arm, internal/core/dnsserver/handler.go::Authoritative answers a non-QUERY opcode with NOTIMP, grep -rniwE 'axfr|ixfr' over internal/ finds no producer, and ze holds no DNSSEC record a transfer could carry"
+          "kind": "not-applicable",
+          "reason": "heading \"Responding to Queries for Type AXFR or IXFR\"; binds a zone-transfer server; DNS zone transfer is not required (ai/META-DECISIONS.md): ze serves no zone transfer, internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions route AXFR/IXFR to their default arm, and internal/core/dnsserver/handler.go::Authoritative answers non-QUERY opcodes with NOTIMP"
         }
       },
       {
@@ -25693,8 +25693,8 @@
         "text": "NSEC RRs MUST be included in zone transfers of the zone in which they are authoritative data (§3.1.5)",
         "section": "3.1.5",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds the primary or secondary zone-transfer server role, which no part of ze fills (owner rule in ai/META-DECISIONS.md: DNS zone transfer is not required), but no exclusion shape fits: the subject of this sentence is a record, not a role; no keyword-less sentence of Section 3.1.5 scopes it to a role, and the one role the section names is the authoritative name server, which ze fills through internal/plugins/geodns and internal/plugins/as112; RFC 4035 names no primary or secondary server anywhere. ze serves no zone transfer: internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions send an AXFR or IXFR qtype to their default arm, internal/core/dnsserver/handler.go::Authoritative answers a non-QUERY opcode with NOTIMP, grep -rniwE 'axfr|ixfr' over internal/ finds no producer, and ze holds no DNSSEC record a transfer could carry"
+          "kind": "not-applicable",
+          "reason": "heading \"Responding to Queries for Type AXFR or IXFR\"; binds a zone-transfer server; DNS zone transfer is not required (ai/META-DECISIONS.md): ze serves no zone transfer, internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions route AXFR/IXFR to their default arm, and internal/core/dnsserver/handler.go::Authoritative answers non-QUERY opcodes with NOTIMP"
         }
       },
       {
@@ -25704,8 +25704,8 @@
         "text": "The parental NSEC RR at a zone cut MUST be included in zone transfers of the parent zone (§3.1.5)",
         "section": "3.1.5",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds the primary or secondary zone-transfer server role, which no part of ze fills (owner rule in ai/META-DECISIONS.md: DNS zone transfer is not required), but no exclusion shape fits: the subject of this sentence is a record, not a role; no keyword-less sentence of Section 3.1.5 scopes it to a role, and the one role the section names is the authoritative name server, which ze fills through internal/plugins/geodns and internal/plugins/as112; RFC 4035 names no primary or secondary server anywhere. ze serves no zone transfer: internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions send an AXFR or IXFR qtype to their default arm, internal/core/dnsserver/handler.go::Authoritative answers a non-QUERY opcode with NOTIMP, grep -rniwE 'axfr|ixfr' over internal/ finds no producer, and ze holds no DNSSEC record a transfer could carry"
+          "kind": "not-applicable",
+          "reason": "heading \"Responding to Queries for Type AXFR or IXFR\"; binds a zone-transfer server; DNS zone transfer is not required (ai/META-DECISIONS.md): ze serves no zone transfer, internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions route AXFR/IXFR to their default arm, and internal/core/dnsserver/handler.go::Authoritative answers non-QUERY opcodes with NOTIMP"
         }
       },
       {
@@ -25715,8 +25715,8 @@
         "text": "the NSEC at the zone apex of the child zone MUST be included in zone transfers of the child zone. (§3.1.5)",
         "section": "3.1.5",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds the primary or secondary zone-transfer server role, which no part of ze fills (owner rule in ai/META-DECISIONS.md: DNS zone transfer is not required), but no exclusion shape fits: the subject of this sentence is a record, not a role; no keyword-less sentence of Section 3.1.5 scopes it to a role, and the one role the section names is the authoritative name server, which ze fills through internal/plugins/geodns and internal/plugins/as112; RFC 4035 names no primary or secondary server anywhere. ze serves no zone transfer: internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions send an AXFR or IXFR qtype to their default arm, internal/core/dnsserver/handler.go::Authoritative answers a non-QUERY opcode with NOTIMP, grep -rniwE 'axfr|ixfr' over internal/ finds no producer, and ze holds no DNSSEC record a transfer could carry"
+          "kind": "not-applicable",
+          "reason": "heading \"Responding to Queries for Type AXFR or IXFR\"; binds a zone-transfer server; DNS zone transfer is not required (ai/META-DECISIONS.md): ze serves no zone transfer, internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions route AXFR/IXFR to their default arm, and internal/core/dnsserver/handler.go::Authoritative answers non-QUERY opcodes with NOTIMP"
         }
       },
       {
@@ -25726,8 +25726,8 @@
         "text": "RRSIG RRs MUST be included in zone transfers of the zone in which they are authoritative data (§3.1.5)",
         "section": "3.1.5",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds the primary or secondary zone-transfer server role, which no part of ze fills (owner rule in ai/META-DECISIONS.md: DNS zone transfer is not required), but no exclusion shape fits: the subject of this sentence is a record, not a role; no keyword-less sentence of Section 3.1.5 scopes it to a role, and the one role the section names is the authoritative name server, which ze fills through internal/plugins/geodns and internal/plugins/as112; RFC 4035 names no primary or secondary server anywhere. ze serves no zone transfer: internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions send an AXFR or IXFR qtype to their default arm, internal/core/dnsserver/handler.go::Authoritative answers a non-QUERY opcode with NOTIMP, grep -rniwE 'axfr|ixfr' over internal/ finds no producer, and ze holds no DNSSEC record a transfer could carry"
+          "kind": "not-applicable",
+          "reason": "heading \"Responding to Queries for Type AXFR or IXFR\"; binds a zone-transfer server; DNS zone transfer is not required (ai/META-DECISIONS.md): ze serves no zone transfer, internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions route AXFR/IXFR to their default arm, and internal/core/dnsserver/handler.go::Authoritative answers non-QUERY opcodes with NOTIMP"
         }
       },
       {
@@ -28204,11 +28204,7 @@
         "level": "SHALL",
         "gated": true,
         "text": "A BGP speaker that performs route aggregation MAY add the AGGREGATOR attribute, which SHALL contain its own AS number and IP address. (§5.1.7)",
-        "section": "5.1.7",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze performs no route aggregation, so it forms no AGGREGATOR of its own. The aggregator leaf of a static route (internal/component/bgp/yang/ze-bgp-conf.yang, read in internal/component/bgp/config/bgp_routes.go) sends any AS:IP the operator writes with no check against the local AS or address, so the knob can emit an AGGREGATOR that is not the speaker's own. No owner decision declines aggregation, so this is owed with it"
-        }
+        "section": "5.1.7"
       },
       {
         "rid": "RFC4271-6.7-4",
@@ -28398,55 +28394,35 @@
         "level": "SHALL NOT",
         "gated": true,
         "text": "Routes that have different MULTI_EXIT_DISC attributes SHALL NOT be aggregated. (§9.2.2.2)",
-        "section": "9.2.2.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze implements no route aggregation (Section 9.2.2.2): no code forms an aggregate from contributing routes, and internal/component/bgp/message/update_build_grouped.go::BuildGroupedUnicast packing several prefixes into one UPDATE is not aggregation. An operator can configure a covering prefix on a static route with any ORIGIN, NEXT_HOP, ATOMIC_AGGREGATE and AGGREGATOR (internal/component/bgp/config/bgp_routes.go), and nothing relates it to the routes it covers. No owner decision declines aggregation, so this is owed with it"
-        }
+        "section": "9.2.2.2"
       },
       {
         "rid": "RFC4271-9.2.2.2-2",
         "level": "MUST",
         "gated": true,
         "text": "ORIGIN attribute: If at least one route among routes that are aggregated has ORIGIN with the value INCOMPLETE, then the aggregated route MUST have the ORIGIN attribute with the value INCOMPLETE. Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP. (§9.2.2.2)",
-        "section": "9.2.2.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze implements no route aggregation (Section 9.2.2.2): no code forms an aggregate from contributing routes, and internal/component/bgp/message/update_build_grouped.go::BuildGroupedUnicast packing several prefixes into one UPDATE is not aggregation. An operator can configure a covering prefix on a static route with any ORIGIN, NEXT_HOP, ATOMIC_AGGREGATE and AGGREGATOR (internal/component/bgp/config/bgp_routes.go), and nothing relates it to the routes it covers. No owner decision declines aggregation, so this is owed with it"
-        }
+        "section": "9.2.2.2"
       },
       {
         "rid": "RFC4271-9.2.2.2-3",
         "level": "SHALL",
         "gated": true,
         "text": "NEXT_HOP: When aggregating routes that have different NEXT_HOP attributes, the NEXT_HOP attribute of the aggregated route SHALL identify an interface on the BGP speaker that performs the aggregation. (§9.2.2.2)",
-        "section": "9.2.2.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze implements no route aggregation (Section 9.2.2.2): no code forms an aggregate from contributing routes, and internal/component/bgp/message/update_build_grouped.go::BuildGroupedUnicast packing several prefixes into one UPDATE is not aggregation. An operator can configure a covering prefix on a static route with any ORIGIN, NEXT_HOP, ATOMIC_AGGREGATE and AGGREGATOR (internal/component/bgp/config/bgp_routes.go), and nothing relates it to the routes it covers. No owner decision declines aggregation, so this is owed with it"
-        }
+        "section": "9.2.2.2"
       },
       {
         "rid": "RFC4271-9.2.2.2-4",
         "level": "SHALL",
         "gated": true,
         "text": "ATOMIC_AGGREGATE: If at least one of the routes to be aggregated has ATOMIC_AGGREGATE path attribute, then the aggregated route SHALL have this attribute as well. (§9.2.2.2)",
-        "section": "9.2.2.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze implements no route aggregation (Section 9.2.2.2): no code forms an aggregate from contributing routes, and internal/component/bgp/message/update_build_grouped.go::BuildGroupedUnicast packing several prefixes into one UPDATE is not aggregation. An operator can configure a covering prefix on a static route with any ORIGIN, NEXT_HOP, ATOMIC_AGGREGATE and AGGREGATOR (internal/component/bgp/config/bgp_routes.go), and nothing relates it to the routes it covers. No owner decision declines aggregation, so this is owed with it"
-        }
+        "section": "9.2.2.2"
       },
       {
         "rid": "RFC4271-9.2.2.2-5",
         "level": "MUST NOT",
         "gated": true,
         "text": "AGGREGATOR: Any AGGREGATOR attributes from the routes to be aggregated MUST NOT be included in the aggregated route. (§9.2.2.2)",
-        "section": "9.2.2.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze implements no route aggregation (Section 9.2.2.2): no code forms an aggregate from contributing routes, and internal/component/bgp/message/update_build_grouped.go::BuildGroupedUnicast packing several prefixes into one UPDATE is not aggregation. An operator can configure a covering prefix on a static route with any ORIGIN, NEXT_HOP, ATOMIC_AGGREGATE and AGGREGATOR (internal/component/bgp/config/bgp_routes.go), and nothing relates it to the routes it covers. No owner decision declines aggregation, so this is owed with it"
-        }
+        "section": "9.2.2.2"
       },
       {
         "rid": "RFC4271-Security-1",
@@ -30533,8 +30509,8 @@
         "text": "The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7)",
         "section": "7",
         "annotation": {
-          "kind": "gap",
-          "reason": "an IANA allocation rule with no implementer role the RFC names; ze allocates no Type value, and its codec (internal/core/bgp/attribute/community.go) reads only codes IANA assigned; no test pins ze's type table against the registry, so nothing proves ze treats no regular Type as an extended Type's high-order octet"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds IANA; ze is a BGP speaker that allocates no Extended Community Type value and decodes only IANA-assigned codes (internal/core/bgp/attribute/community.go)"
         }
       },
       {
@@ -30544,8 +30520,8 @@
         "text": "The value of the high-order octet allocated for an extended Type MUST NOT be reused when allocating a regular Type (§7)",
         "section": "7",
         "annotation": {
-          "kind": "gap",
-          "reason": "the converse IANA allocation rule of RFC4360-7-1, with no implementer role the RFC names; ze allocates no Type value, and no test pins the high-order octets of the extended Types ze decodes (internal/core/bgp/attribute/community.go) against the registry's regular Types"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds IANA; ze is a BGP speaker that allocates no Extended Community Type value and decodes only IANA-assigned codes (internal/core/bgp/attribute/community.go)"
         }
       },
       {
@@ -32807,22 +32783,14 @@
         "level": "MUST",
         "gated": true,
         "text": "When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB (Section 4.1)",
-        "section": "4.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze's Restarting Speaker path implements only GR signaling -- it writes a restart marker and sets the R bit (internal/component/bgp/grmarker/grmarker.go, internal/component/bgp/reactor/peer.go:574) -- and does not retain its own in-memory Loc-RIB forwarding state across a process restart within the bgp packages; the Loc-RIB is rebuilt from scratch on restart"
-        }
+        "section": "4.1"
       },
       {
         "rid": "RFC4724-4.1-2",
         "level": "MUST",
         "gated": true,
         "text": "When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB and MUST mark them as stale. (Section 4.1)",
-        "section": "4.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "because ze does not retain its own Loc-RIB across a restart (see RFC4724-4.1-1), there is no retained own-forwarding state to mark stale; the stale-marking machinery (internal/component/bgp/plugins/rib/rib_commands.go:817 markStaleCommand) applies to routes received from a restarting peer, not to ze's own routes on ze's restart"
-        }
+        "section": "4.1"
       },
       {
         "rid": "RFC4724-4.1-3",
@@ -32831,8 +32799,9 @@
         "text": "It MUST NOT differentiate between stale and other information during forwarding. (Section 4.1)",
         "section": "4.1",
         "annotation": {
-          "kind": "gap",
-          "reason": "this governs forwarding over ze's own retained stale Loc-RIB, which ze does not build on restart (see RFC4724-4.1-1); the generic non-differentiation of level-1 stale in best-path selection (internal/component/bgp/plugins/rib/bestpath.go:308) is the Receiving Speaker path for peer routes, not ze's own routes as a Restarting Speaker"
+          "kind": "single-polarity",
+          "polarity": "positive",
+          "reason": "fib-kernel's startupSweep (internal/plugins/fib/kernel/fibkernel.go) retains every surviving kernel route in place with zero backend modifications, replacements, or metric downgrades, so stale routes forward identically to fresh routes with no code path that differentiates stale forwarding entries"
         }
       },
       {
@@ -32847,22 +32816,14 @@
         "level": "MUST",
         "gated": true,
         "text": "However, it MUST defer route selection for an address family until it either (a) receives the End-of-RIB marker from all its peers (excluding the ones with the \"Restart State\" bit set in the received capability and excluding the ones that do not advertise the graceful restart capability) or (b) the Selection_Deferral_Timer referred to below has expired. (Section 4.1)",
-        "section": "4.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze runs best-path selection as updates arrive and has no selection-deferral path keyed on End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and does not gate route selection"
-        }
+        "section": "4.1"
       },
       {
         "rid": "RFC4724-4.1-6",
         "level": "MUST",
         "gated": true,
         "text": "After the BGP speaker performs route selection, the forwarding state of the speaker MUST be updated and any previously marked stale information MUST be removed. (Section 4.1)",
-        "section": "4.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "this is the completion step of the deferred-selection cycle ze does not run (see RFC4724-4.1-5); with no own-Loc-RIB stale state (RFC4724-4.1-1) there is no post-selection stale removal on ze's own restart"
-        }
+        "section": "4.1"
       },
       {
         "rid": "RFC4724-4.1-7",
@@ -32876,33 +32837,21 @@
         "level": "MUST",
         "gated": true,
         "text": "To put an upper bound on the amount of time a router defers its route selection, an implementation MUST support a (configurable) timer that imposes this upper bound. (Section 4.1)",
-        "section": "4.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze exposes no Selection_Deferral_Timer configuration -- the GR YANG model (internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang) carries restart-time and long-lived-stale-time only, and no code defers selection (see RFC4724-4.1-5)"
-        }
+        "section": "4.1"
       },
       {
         "rid": "RFC4724-4.2-1",
         "level": "MUST",
         "gated": true,
         "text": "In case it does not detect the termination of the old TCP session and still considers the BGP session as being established, it MUST treat the subsequent open connection from the peer as an indication of the termination of the old TCP session and act accordingly (when the Graceful Restart Capability has been received from the peer). (Section 4.2)",
-        "section": "4.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze follows plain RFC 4271 Section 6.8 collision detection -- a new inbound connection while the session is Established is rejected with Cease/Connection Collision (internal/component/bgp/reactor/reactor_connection.go:134-136), with no GR-capability branch that treats the new OPEN as terminating the old session"
-        }
+        "section": "4.2"
       },
       {
         "rid": "RFC4724-4.2-2",
         "level": "MUST",
         "gated": true,
         "text": "\"Acting accordingly\" in this context means that the previous TCP session MUST be closed, and the new one retained. (Section 4.2)",
-        "section": "4.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "the same RFC 4271 collision path closes the NEW connection and keeps the existing Established session (internal/component/bgp/reactor/reactor_connection.go:134-136 rejectConnectionCollisionWithSettings), the opposite of the RFC 4724 Section 4.2 override that closes the previous session and retains the new one"
-        }
+        "section": "4.2"
       },
       {
         "rid": "RFC4724-4.2-3",
@@ -42248,8 +42197,8 @@
         "text": "Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability. (§4)",
         "section": "4",
         "annotation": {
-          "kind": "gap",
-          "reason": "an obligation on the document that introduces a capability, which no sentence of Section 4 scopes to a role in a form the gate accepts; ze writes no such document, and no test asserts that each capability ze decodes (internal/core/bgp/capability) follows its own document's multiple-instance rule"
+          "kind": "not-applicable",
+          "reason": "\"Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability.\"; binds the document; ze is a BGP speaker and authors no capability specification"
         }
       },
       {
@@ -44390,8 +44339,8 @@
         "text": "Instance IDs in the range 128-255 are not assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned. (§5)",
         "section": "5",
         "annotation": {
-          "kind": "gap",
-          "reason": "an IANA assignment rule with no implementer role the RFC names; ze assigns no AF Instance ID and refuses one above 127 for AF use (internal/plugins/ospf/multiaf.go, ErrInstanceIDRange in config.go), and no test ties that refusal to this requirement"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds IANA; requiring a Standards Track RFC before assigning AF Instance IDs 128-255 binds IANA and the IETF process; ze is an OSPFv3 router, assigns no Instance ID, and refuses values above 127 for AF use (internal/plugins/ospf/multiaf.go, ErrInstanceIDRange in config.go)"
         }
       },
       {
@@ -46627,8 +46576,8 @@
         "text": "New Type Codes MUST be allocated starting at 65. (§5.1)",
         "section": "5.1",
         "annotation": {
-          "kind": "gap",
-          "reason": "the sentence binds the IANA registry that allocates MRT Type Codes, a role ze never fills, and its passive subject fits neither not-applicable shape; ze allocates no Type Code, so it has no behaviour to test"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds IANA; allocating new MRT Type Codes starting at 65 binds the IANA registry; ze allocates no Type Code and only encodes and decodes assigned MRT types"
         }
       },
       {
@@ -46734,44 +46683,28 @@
         "level": "MUST NOT",
         "gated": true,
         "text": "The Collector Latitude and Collector Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values. (§4.1)",
-        "section": "4.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze does not implement the RFC 6397 geo-location extension: its MRT writer emits TABLE_DUMP_V2 with a PEER_INDEX_TABLE and RIB entries (internal/plugins/mrt/dump.go::writePeerIndexTable) and no GEO_PEER_TABLE, so it writes no Collector Latitude or Longitude; owed with the extension"
-        }
+        "section": "4.1"
       },
       {
         "rid": "RFC6397-4.1-2",
         "level": "MUST NOT",
         "gated": true,
         "text": "The Peer Latitude and Peer Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values for a single peer. (§4.1)",
-        "section": "4.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze does not implement the RFC 6397 geo-location extension: it writes no GEO_PEER_TABLE (internal/plugins/mrt/dump.go::writePeerIndexTable writes only the RFC 6396 PEER_INDEX_TABLE), so it writes no Peer Latitude or Longitude; owed with the extension"
-        }
+        "section": "4.1"
       },
       {
         "rid": "RFC6397-4.1-3",
         "level": "MUST",
         "gated": true,
         "text": "The order of the Peer Entries in the GEO_PEER_TABLE MUST match the order and number as existing in the PEER_INDEX_TABLE. (§4.1)",
-        "section": "4.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze does not implement the RFC 6397 geo-location extension: it writes no GEO_PEER_TABLE beside the PEER_INDEX_TABLE of internal/plugins/mrt/dump.go::writePeerIndexTable, so no Peer Entry order is kept; owed with the extension"
-        }
+        "section": "4.1"
       },
       {
         "rid": "RFC6397-6-1",
         "level": "MUST NOT",
         "gated": true,
         "text": "Location information derived from a location object with more restrictive privacy rules MUST NOT be included in an MRT geo-location record unless there are non-technical measures in place that enforce and communicate the constraints on the use of the location information in the MRT geo-location format (e.g., contractual agreements between peers). (§6)",
-        "section": "6",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze does not implement the RFC 6397 geo-location extension: internal/plugins/mrt writes no geo-location record and reads no location object, so no privacy rule is applied to one; owed with the extension"
-        }
+        "section": "6"
       },
       {
         "rid": "RFC6397-4.1-4",
@@ -49990,8 +49923,8 @@
         "text": "All Information Elements specified for the IPFIX protocol MUST have the following properties defined: name - A unique and meaningful name for the Information Element. elementId - A numeric identifier of the Information Element. If this identifier is used without an enterprise identifier (see [RFC7011] and the definition of enterpriseId listed below), then it is globally unique, and the list of allowed values is administered by IANA. It is used for compact identification of an Information Element when encoding Templates in the protocol. description - The semantics of this Information Element. Describes how this Information Element is derived from the Flow or other information available to the observer. Information Elements of dataType string or octetArray that have length constraints (fixed length, minimum and/or maximum length) MUST note these constraints in their descriptions. dataType - One of the types listed in Section 3.1 of this document or registered in the IANA \"IPFIX Information Element Data Types\" subregistry. The type space for attributes is constrained to facilitate implementation. The existing type space encompasses most primitive types used in modern programming languages, as well as some derived types (such as ipv4Address) that are common to this domain. status - The status of the specification of this Information Element. Allowed values are 'current' and 'deprecated'. (Section 2.1)",
         "section": "2.1",
         "annotation": {
-          "kind": "gap",
-          "reason": "the sentence binds whoever specifies an Information Element, the IANA registry and the documents that define IEs, a role ze never fills, and its subject carries a qualifying phrase that fits neither not-applicable shape; ze defines no Information Element and exports only IANA-registered ones (internal/plugins/flowexport/ipfix/ie.go), so it has nothing of its own to test"
+          "kind": "not-applicable",
+          "reason": "heading \"Information Element Specification Template\"; binds IANA; specifying mandatory metadata properties for IPFIX Information Elements binds the IANA registry and IE specification authors; ze is an Exporting Process that defines no Information Element and exports only IANA-registered ones (internal/plugins/flowexport/ipfix/ie.go)"
         }
       },
       {
@@ -52929,11 +52862,7 @@
         "level": "MUST",
         "gated": true,
         "text": "Before the speaker starts a route refresh that is either initiated locally (§4)",
-        "section": "4",
-        "annotation": {
-          "kind": "gap",
-          "reason": "no owner decision declines a locally initiated route refresh. RFC 7313 Section 4 says \"When a route entry in the \"Adj-RIB-Out\" changes, only the modified route entry needs to be advertised.\", which makes a whole-table refresh unnecessary, not declined. ze starts no such refresh: internal/component/bgp/plugins/rib/rib.go::handleRefresh and internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured are the only producers of a BoRR and of a whole-table re-advertisement, and each runs only on a received ROUTE-REFRESH subtype 0 from the peer; internal/component/bgp/reactor/reactor_api.go::SoftClearPeer, ze's one operator refresh, sends the peer an inbound ROUTE-REFRESH request and re-advertises nothing. The peer-requested clause of the same sentence is RFC7313-4-1"
-        }
+        "section": "4"
       },
       {
         "rid": "RFC7313-4-1",
@@ -52944,7 +52873,7 @@
         "annotation": {
           "kind": "single-polarity",
           "polarity": "positive",
-          "reason": "both refresh producers, RIBManager.handleRefresh (internal/component/bgp/plugins/rib/rib.go) and handleRefreshStructured (rib_structured.go), dispatch the BoRR before sendRoutes in one straight-line path with no input that selects a re-advertisement without it, so no refusal path exists to drive a negative; the reading that takes the negative from a peer's re-advertisement lacking the BoRR has nothing to test either, because ze's receipt of BoRR/EoRR is log-only (RFC7313-4-4/4-5 gaps)"
+          "reason": "both refresh producers, RIBManager.handleRefresh (internal/component/bgp/plugins/rib/rib.go) and handleRefreshStructured (rib_structured.go), dispatch the BoRR before sendRoutes in one straight-line path with no input that selects a re-advertisement without it, so no refusal path exists to drive a negative"
         }
       },
       {
@@ -52966,22 +52895,14 @@
         "level": "MUST",
         "gated": true,
         "text": "When a BGP speaker receives a BoRR message from a peer, it MUST mark all the routes with the given Address Family Identifier and Subsequent Address Family Identifier, \u003cAFI, SAFI\u003e [RFC2918], from that peer as stale. (§4)",
-        "section": "4",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze logs a received BoRR but does not mark the peer's Adj-RIB-In routes stale -- internal/component/bgp/plugins/rib/rib.go:751-753 handles a received BoRR as log-only and rib_structured.go:506 returns early for a non-zero subtype, so no stale-marking occurs"
-        }
+        "section": "4"
       },
       {
         "rid": "RFC7313-4-5",
         "level": "MUST",
         "gated": true,
         "text": "When a BGP speaker receives an EoRR message from a peer, it MUST immediately remove any routes from the peer that are still marked as stale for that \u003cAFI, SAFI\u003e. (§4)",
-        "section": "4",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze logs a received EoRR but performs no stale-route removal -- internal/component/bgp/plugins/rib/rib.go:754-756 handles it as log-only, and because no BoRR stale-marking exists (RFC7313-4-4) there is nothing to purge"
-        }
+        "section": "4"
       },
       {
         "rid": "RFC7313-5-1",
@@ -53014,22 +52935,14 @@
         "level": "MUST NOT",
         "gated": true,
         "text": "For a BGP speaker that supports the BGP Graceful Restart, it MUST NOT send a BoRR for an \u003cAFI, SAFI\u003e to a neighbor before it sends the EoR for the \u003cAFI, SAFI\u003e to the neighbor. (§4)",
-        "section": "4",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze's sendRouteRefresh (internal/component/bgp/reactor/reactor_api_forward.go:112) applies no Graceful-Restart End-of-RIB gate, and rib.go:1008-1013 emits the BoRR without checking End-of-RIB state, so the GR/EoR interaction is not enforced"
-        }
+        "section": "4"
       },
       {
         "rid": "RFC7313-4-7",
         "level": "MUST",
         "gated": true,
         "text": "A BGP speaker that has received the Graceful Restart Capability from its neighbor MUST ignore any BoRRs for an \u003cAFI, SAFI\u003e from the neighbor before the speaker receives the EoR for the given \u003cAFI, SAFI\u003e from the neighbor. (§4)",
-        "section": "4",
-        "annotation": {
-          "kind": "gap",
-          "reason": "the received-BoRR path is log-only (internal/component/bgp/plugins/rib/rib.go:751-753) with no Graceful-Restart End-of-RIB gating, and it depends on the unimplemented stale-marking of RFC7313-4-4"
-        }
+        "section": "4"
       },
       {
         "rid": "RFC7313-4-8",
@@ -54149,8 +54062,8 @@
         "text": "If the CE(s) constituting an Ethernet segment is (are) managed by the network operator, then ESI uniqueness should be guaranteed; however, if the CE(s) is (are) not managed, then the operator MUST configure a network-wide unique ESI for that Ethernet segment. (§5)",
         "section": "5",
         "annotation": {
-          "kind": "gap",
-          "reason": "the obligation binds the operator, but its sentence takes no exclusion shape the gate accepts, and ze offers the operator no help: internal/component/bgp/plugins/nlri/evpn/types.go holds the ESI as ten opaque octets and no code checks that a configured ESI is unique across the network"
+          "kind": "not-applicable",
+          "reason": "\"If the CE(s) constituting an Ethernet segment is (are) managed by the network operator, then ESI uniqueness should be guaranteed; however, if the CE(s) is (are) not managed, then the operator MUST configure a network-wide unique ESI for that Ethernet segment.\"; binds an operator; network-wide ESI uniqueness across unmanaged CEs is an operator configuration obligation Ze cannot observe across the network: internal/component/bgp/plugins/nlri/evpn/types.go holds the configured ten-octet ESI verbatim"
         }
       },
       {
@@ -55789,8 +55702,8 @@
         "text": "A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled. (§8)",
         "section": "8",
         "annotation": {
-          "kind": "gap",
-          "reason": "an obligation on a document that specifies a new BGP attribute, whose subject carries a relative clause no role binding can name; ze writes no such document, and no test asserts that each attribute ze decodes is handled as its own document's error rules say"
+          "kind": "not-applicable",
+          "reason": "\"A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled.\"; binds a document; ze is a BGP speaker and authors no BGP attribute specification"
         }
       },
       {
@@ -55956,11 +55869,7 @@
         "level": "MUST",
         "gated": true,
         "text": "ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled (§2.3)",
-        "section": "2.3",
-        "annotation": {
-          "kind": "gap",
-          "reason": "no owner decision declines ACCEPT_OWN configuration. RFC 7611 Section 2.3 says \"ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled.\", and ze offers no ACCEPT_OWN configuration and never applies the Section 2.1 acceptance: internal/component/bgp/reactor/loopdetect/loop.go::LoopIngress refuses an own-ORIGINATOR_ID route whatever community it carries"
-        }
+        "section": "2.3"
       },
       {
         "rid": "RFC7611-2.3-2",
@@ -55974,11 +55883,7 @@
         "level": "MUST",
         "gated": true,
         "text": "This extra step MUST only be invoked during the best path selection process of VPN-IP routes [RFC4364] (i.e., it MUST NOT be invoked for the best path selection of imported IP routes in a VRF). (§3)",
-        "section": "3",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze implements no ACCEPT_OWN decision-process step and no owner decision declines it, so the step is never invoked, for VPN-IP routes or for imported routes in a VRF; ordinary ORIGINATOR_ID, NEXT_HOP and AS_PATH loop checks stay active, the non-RD receive rule lives in internal/component/bgp/reactor/session_accept_own.go, and no test asserts the step is never invoked for an imported route"
-        }
+        "section": "3"
       },
       {
         "rid": "RFC7611-2-1",
@@ -56289,8 +56194,8 @@
         "text": "Types in the range 32768-33023 are for Experimental Use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4",
         "section": "6.5",
         "annotation": {
-          "kind": "gap",
-          "reason": "an IANA registry rule with no implementer role the RFC names; ze defines and emits no TLV or sub-TLV type in the 32768-33023 Experimental Use range (internal/plugins/ospf/ext_prefix.go, internal/plugins/ospf/ext_link.go), and no test asserts it"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds IANA; prohibiting registration or RFC mention of Experimental Use TLV/sub-TLV types 32768-33023 binds IANA and RFC authors; ze is a router and defines or emits no TLV or sub-TLV type in that range (internal/plugins/ospf/ext_prefix.go, internal/plugins/ospf/ext_link.go)"
         }
       },
       {
@@ -56300,8 +56205,8 @@
         "text": "Before any assignments can be made in the 33024-65535 range, there MUST be an IETF specification that specifies IANA considerations covering the range being assigned. (§6.5) -- the same sentence governs the Extended Prefix Opaque LSA TLVs, Extended Prefix TLV Sub-TLVs and Extended Link Opaque LSA TLVs registries of sections 6.1, 6.2 and 6.4",
         "section": "6.5",
         "annotation": {
-          "kind": "gap",
-          "reason": "an IANA allocation rule with no implementer role the RFC names; ze assigns and emits no TLV or sub-TLV type in the 33024-65535 range (internal/plugins/ospf/ext_prefix.go, internal/plugins/ospf/ext_link.go), and no test asserts it"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds IANA; requiring an IETF specification before allocating types in 33024-65535 binds IANA and the IETF assignment process; ze is a router and assigns or emits no TLV or sub-TLV type in that range (internal/plugins/ospf/ext_prefix.go, internal/plugins/ospf/ext_link.go)"
         }
       },
       {
@@ -56996,8 +56901,8 @@
         "text": "When a new Router Information LSA TLV is defined, the specification MUST explicitly state whether the TLV is applicable to OSPFv2 only, OSPFv3 only, or both OSPFv2 and OSPFv3. (§2.3)",
         "section": "2.3",
         "annotation": {
-          "kind": "gap",
-          "reason": "the obligation falls on the specification that defines a new Router Information LSA TLV, and ze writes none; the sentence names its party after a conditional clause, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test"
+          "kind": "not-applicable",
+          "reason": "heading \"OSPF Router Information LSA TLV Format\"; binds RFC author; stating OSPFv2/OSPFv3 applicability when defining a new Router Information LSA TLV binds future specification authors; ze is an OSPF router and defines no new TLV specification"
         }
       },
       {
@@ -57018,8 +56923,8 @@
         "text": "TLV flooding-scope rules will be specified on a per- TLV basis and MUST be specified in the accompanying specifications for future Router Information LSA TLVs. (§2.7)",
         "section": "2.7",
         "annotation": {
-          "kind": "gap",
-          "reason": "the obligation falls on the specifications that define future Router Information LSA TLVs, and ze writes none; the sentence is in the passive voice, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test"
+          "kind": "not-applicable",
+          "reason": "\"TLV flooding-scope rules will be specified on a per-TLV basis and MUST be specified in the accompanying specifications for future Router Information LSA TLVs.\"; binds RFC author; specifying flooding-scope rules for future Router Information LSA TLVs binds future RFC authors; ze is an OSPF router and writes no TLV specification"
         }
       },
       {
@@ -57040,8 +56945,8 @@
         "text": "If a new LSA Function Code is documented, the documentation MUST include the valid combinations of the U, S2, and S1 bits for the LSA. (§5.2) -- U=1 with S2/S1 = link/area/AS, 0x800C/0xA00C/0xC00C, documented in docs/architecture/wire/ospf.md",
         "section": "5.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "the obligation falls on whoever documents a new OSPFv3 LSA function code, and ze implements the existing function code 12 and documents no new one; the sentence names its party after a conditional clause, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds RFC author; documenting valid U/S2/S1 bit combinations for a new OSPFv3 LSA Function Code binds future RFC authors; ze is an OSPF router implementing existing function code 12 and documents no new code"
         }
       },
       {
@@ -57051,8 +56956,8 @@
         "text": "Types in the range 32778-65535 are reserved and are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that cover the range being assigned. (§5.3)",
         "section": "5.3",
         "annotation": {
-          "kind": "gap",
-          "reason": "the obligation falls on the IETF and IANA assignment process for the reserved range 32778-65535, and ze registers no TLV type; the sentence names no party that could be quoted, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds IANA; requiring a Standards Track RFC before assigning RI TLV types 32778-65535 binds IANA and the IETF assignment process; ze is an OSPF router and registers no TLV type"
         }
       },
       {
@@ -57062,8 +56967,8 @@
         "text": "New values are assigned through RFCs that have been shepherded through the IESG as AD-Sponsored or IETF WG documents [IANA-GUIDE]. o OSPFv3 LSA function codes in the range 8176-8183 are for experimental use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§5.2)",
         "section": "5.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "the obligation falls on RFCs, which may not mention the experimental function codes 8176-8183, and ze writes no RFC; the sentence is in the passive voice, so neither evidence shape admits a not-applicable quote, and the row stays a gap with no ze producer to test"
+          "kind": "not-applicable",
+          "reason": "heading \"IANA Considerations\"; binds RFC author; prohibiting RFCs from mentioning experimental OSPFv3 LSA function codes 8176-8183 binds future RFC authors; ze is an OSPF router and writes no RFC"
         }
       },
       {
@@ -58890,11 +58795,7 @@
         "level": "MUST",
         "gated": true,
         "text": "A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In. (§2.1)",
-        "section": "2.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "an UPDATE an ingress filter denies is never stored: internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver returns at the ordered ingress step loop's non-accept branch, ahead of the Adj-RIB-In cache add, so a denied UPDATE is absent from show bgp adj-rib-in, and LoopIngress denies with no operator configuration; the fix (store first, mark the entry filtered) is owned by plan/release/fixes/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md"
-        }
+        "section": "2.1"
       }
     ],
     "rfc7948": [
@@ -60146,55 +60047,35 @@
         "level": "MUST",
         "gated": true,
         "text": "The Reserved field MUST be set to 0 (§2)",
-        "section": "2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze never builds the community itself, but an operator can configure the community in the 0x hex form with any value (internal/core/bgp/attribute/extcomm_hex.go::ParseExtendedCommunityHex interprets no type octets), so nothing refuses a non-zero Reserved field. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it"
-        }
+        "section": "2"
       },
       {
         "rid": "RFC8097-2-2",
         "level": "MUST",
         "gated": true,
         "text": "The Reserved field MUST be set to 0 and ignored upon the receipt of this community. (§2)",
-        "section": "2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze reads no Reserved field of the community. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it"
-        }
+        "section": "2"
       },
       {
         "rid": "RFC8097-2-3",
         "level": "MUST",
         "gated": true,
         "text": "However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2)",
-        "section": "2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze compares no validation state across instances. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it"
-        }
+        "section": "2"
       },
       {
         "rid": "RFC8097-2-4",
         "level": "MUST",
         "gated": true,
         "text": "By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2)",
-        "section": "2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "a community received from an EBGP peer is kept and readvertised unchanged, to IBGP peers included (internal/core/bgp/attribute/community.go::ExtendedCommunities.WriteTo copies it back out), so the default drop does not happen. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it"
-        }
+        "section": "2"
       },
       {
         "rid": "RFC8097-2-5",
         "level": "MUST",
         "gated": true,
         "text": "If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2)",
-        "section": "2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze reads no validation state value, so a value above 2 is neither discarded nor logged. ze implements no origin validation state extended community: internal/core/bgp/attribute/community.go::ParseExtendedCommunities keeps every extended community as eight opaque octets and nothing reads type 0x43 sub-type 0x00. No owner decision declines the community, so this is owed with it"
-        }
+        "section": "2"
       },
       {
         "rid": "RFC8097-2-6",
@@ -60622,11 +60503,7 @@
         "level": "MUST",
         "gated": true,
         "text": "For this reason, implementations MUST compare Subject Public Key values as well as SKIs when detecting duplicate PDUs. (§5.10)",
-        "section": "5.10",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze performs no Router Key duplicate detection -- handlePDU discards every Router Key PDU (internal/component/bgp/plugins/rpki/rtr_session.go:377-379) and stores neither SKI nor Subject Public Key, so no Subject Public Key comparison happens anywhere"
-        }
+        "section": "5.10"
       },
       {
         "rid": "RFC8210-5.8-1",
@@ -60651,11 +60528,7 @@
         "level": "MUST",
         "gated": true,
         "text": "If the error is generic (e.g., \"Internal Error\") and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (§5.11)",
-        "section": "5.11",
-        "annotation": {
-          "kind": "gap",
-          "reason": "no exclusion shape fits this conditional sentence; ze's router sends Error Reports always with the offending PDU encapsulated and never a generic one (readLoop in internal/component/bgp/plugins/rpki/rtr_session.go reports a malformed ASPA PDU or an unsupported version through writeErrorReport), so the condition never arises, and no test carries this id"
-        }
+        "section": "5.11"
       },
       {
         "rid": "RFC8210-5.11-3",
@@ -60805,8 +60678,8 @@
         "text": "If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network. (§9)",
         "section": "9",
         "annotation": {
-          "kind": "gap",
-          "reason": "the obligation binds the routers as well as the cache, so it is ze's; ze cannot see the topology, so parseRPKIConfig in internal/component/bgp/plugins/rpki/rpki_config.go only refuses unprotected TCP unless the cache carries trusted-network true, nothing checks that the network is trusted and controlled, and no test carries this id"
+          "kind": "not-applicable",
+          "reason": "\"If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network.\"; binds a network operator; network topology and trust boundary are deployment obligations Ze cannot observe: internal/component/bgp/plugins/rpki/rpki_config.go::parseRPKIConfig refuses unprotected TCP unless trusted-network true is configured"
         }
       },
       {
@@ -62916,33 +62789,21 @@
         "level": "MUST",
         "gated": true,
         "text": "The path component of the resource URI must use the prefix of \".well- known/looking-glass\" (see Section 5.1) to stay namespace neutral. (§2)",
-        "section": "2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "Ze's looking glass registers its API under /api/looking-glass/ and nothing under /.well-known/looking-glass -- internal/component/lg/server.go::registerRoutes"
-        }
+        "section": "2"
       },
       {
         "rid": "RFC8522-2-2",
         "level": "MUST NOT",
         "gated": true,
         "text": "The client must not be able to execute random commands on the targeting router. (§2)",
-        "section": "2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "Ze implements no RFC 8522 API, so no RFC 8522 call exists to restrict; Ze's own looking glass serves fixed handlers only -- internal/component/lg/server.go::registerRoutes"
-        }
+        "section": "2"
       },
       {
         "rid": "RFC8522-2-3",
         "level": "MUST NOT",
         "gated": true,
         "text": "There must not be any direct communication between the client and the router. (§2)",
-        "section": "2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "Ze implements no RFC 8522 API -- internal/component/lg/server.go::registerRoutes"
-        }
+        "section": "2"
       },
       {
         "rid": "RFC8522-2.2-1",
@@ -62951,8 +62812,9 @@
         "text": "The server must ignore its value. (§2.2)",
         "section": "2.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "no RFC 8522 query parameter is parsed, `random` included -- internal/component/lg/server.go::registerRoutes"
+          "kind": "single-polarity",
+          "polarity": "positive",
+          "reason": "the server unconditionally ignores the cache-buster random query parameter in parseRFC8522Query (internal/component/lg/handler_rfc8522.go) so no value of random is invalid or rejected; positive verifies empty, alphanumeric, and special-character values dispatch the identical command and return identical data to a baseline request without random"
         }
       },
       {
@@ -62962,8 +62824,9 @@
         "text": "The response text must comply with the JSON syntax specification JSend, which is briefly explained in Appendix A. (§2.3)",
         "section": "2.3",
         "annotation": {
-          "kind": "gap",
-          "reason": "Ze's looking-glass API answers in the birdwatcher shape, not JSend -- internal/component/lg/handler_api.go"
+          "kind": "single-polarity",
+          "polarity": "positive",
+          "reason": "this is a server output-format invariant whose only emitters (writeRFC8522Success, writeRFC8522Fail, writeRFC8522Error in internal/component/lg/handler_rfc8522.go and the 401 branch in auth.go) always write JSend JSON with Content-Type application/json; there is no non-JSend branch to trigger negatively"
         }
       },
       {
@@ -62973,8 +62836,9 @@
         "text": "Consequently, every response must contain a \"status\" field of either \"success\", \"fail\", or \"error\" as explained in the following sections. (§2.3)",
         "section": "2.3",
         "annotation": {
-          "kind": "gap",
-          "reason": "no JSend status field is produced -- internal/component/lg/handler_api.go"
+          "kind": "single-polarity",
+          "polarity": "positive",
+          "reason": "all RFC 8522 emitters set status from the closed three-value set (\"success\", \"fail\", \"error\") with no code path that omits or alters status"
         }
       },
       {
@@ -62982,11 +62846,7 @@
         "level": "MUST",
         "gated": true,
         "text": "A successful response must set the \"status\" field to \"success\". (§2.3.1)",
-        "section": "2.3.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "no JSend envelope is produced -- internal/component/lg/handler_api.go"
-        }
+        "section": "2.3.1"
       },
       {
         "rid": "RFC8522-2.3.1-2",
@@ -62995,8 +62855,9 @@
         "text": "It must also contain a \"data\" object including the following information: (§2.3.1)",
         "section": "2.3.1",
         "annotation": {
-          "kind": "gap",
-          "reason": "no JSend envelope is produced -- internal/component/lg/handler_api.go"
+          "kind": "single-polarity",
+          "polarity": "positive",
+          "reason": "writeRFC8522Success and rfc8522BaseData (internal/component/lg/handler_rfc8522.go) unconditionally emit a non-null data object on every successful response, leaving no non-conformant input path to reject"
         }
       },
       {
@@ -63006,8 +62867,9 @@
         "text": "Combined date and time in UTC ISO 8601 [iso8601] indicating when the operation finished. This information must be present. (§2.3.1)",
         "section": "2.3.1",
         "annotation": {
-          "kind": "gap",
-          "reason": "no performed_at field is produced -- internal/component/lg/handler_api.go"
+          "kind": "single-polarity",
+          "polarity": "positive",
+          "reason": "rfc8522BaseData (internal/component/lg/handler_rfc8522.go) always stamps performed_at with time.Now().UTC().Format(time.RFC3339) at command completion, with no input that can omit or non-UTC-format it"
         }
       },
       {
@@ -63017,8 +62879,9 @@
         "text": "Amount of seconds (wallclock) used to run the command. This information must be present. (§2.3.1)",
         "section": "2.3.1",
         "annotation": {
-          "kind": "gap",
-          "reason": "no runtime field is produced -- internal/component/lg/handler_api.go"
+          "kind": "single-polarity",
+          "polarity": "positive",
+          "reason": "rfc8522BaseData (internal/component/lg/handler_rfc8522.go) always computes runtime from time.Since(start).Seconds() with no input that omits it; positive verifies real elapsed wallclock duration on a 15ms delayed command"
         }
       },
       {
@@ -63028,8 +62891,9 @@
         "text": "Adding more information to the response is permitted and must be placed inside the \"data\" object. (§2.3.1)",
         "section": "2.3.1",
         "annotation": {
-          "kind": "gap",
-          "reason": "no JSend envelope is produced -- internal/component/lg/handler_api.go"
+          "kind": "single-polarity",
+          "polarity": "positive",
+          "reason": "writeRFC8522Success and writeRFC8522Fail accept only a data map and emit a fixed two-key top-level object with \"status\" and \"data\", so no code path emits extra top-level keys"
         }
       },
       {
@@ -63037,77 +62901,49 @@
         "level": "MUST",
         "gated": true,
         "text": "The response message must set the \"status\" field to \"fail\" and must contain the \"data\" object with command-specific content listed in Section 2.3.1. (§2.3.2)",
-        "section": "2.3.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "no JSend fail response is produced -- internal/component/lg/handler_api.go"
-        }
+        "section": "2.3.2"
       },
       {
         "rid": "RFC8522-2.3.3-1",
         "level": "MUST",
         "gated": true,
         "text": "The response message must set the \"status\" field to \"error\" and must contain the \"message\" key, which keeps a meaningful message, explaining what went wrong. (§2.3.3)",
-        "section": "2.3.3",
-        "annotation": {
-          "kind": "gap",
-          "reason": "no JSend error response is produced -- internal/component/lg/handler_api.go"
-        }
+        "section": "2.3.3"
       },
       {
         "rid": "RFC8522-3.1.1-1",
         "level": "REQUIRED",
         "gated": true,
         "text": "Implementation of the ping command is mandatory. (§3.1.1)",
-        "section": "3.1.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "no /.well-known/looking-glass/v1/ping endpoint exists -- internal/component/lg/server.go::registerRoutes"
-        }
+        "section": "3.1.1"
       },
       {
         "rid": "RFC8522-3.2.1-1",
         "level": "REQUIRED",
         "gated": true,
         "text": "Implementation of the \"show route\" command is mandatory. (§3.2.1)",
-        "section": "3.2.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "no /.well-known/looking-glass/v1/show/route endpoint exists -- internal/component/lg/server.go::registerRoutes"
-        }
+        "section": "3.2.1"
       },
       {
         "rid": "RFC8522-3.3-1",
         "level": "MUST",
         "gated": true,
         "text": "The following organizational commands must be included in the implementation. (§3.3)",
-        "section": "3.3",
-        "annotation": {
-          "kind": "gap",
-          "reason": "none of the routers, router details or cmd endpoints exists -- internal/component/lg/server.go::registerRoutes"
-        }
+        "section": "3.3"
       },
       {
         "rid": "RFC8522-3.3.2-1",
         "level": "MUST",
         "gated": true,
         "text": "The response must contain the router's hostname and router index. (§3.3.2)",
-        "section": "3.3.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "no router details endpoint exists -- internal/component/lg/server.go::registerRoutes"
-        }
+        "section": "3.3.2"
       },
       {
         "rid": "RFC8522-6-1",
         "level": "REQUIRED",
         "gated": true,
         "text": "The use of HTTPS is required to ensure a high level of security, privacy, and confidentiality during transit. (§6)",
-        "section": "6",
-        "annotation": {
-          "kind": "gap",
-          "reason": "Ze's looking glass can serve TLS, but no RFC 8522 API exists for it to protect -- internal/component/lg/server.go::registerRoutes"
-        }
+        "section": "6"
       },
       {
         "rid": "RFC8522-2.3.1-6",
@@ -63142,7 +62978,12 @@
         "level": "MAY",
         "gated": false,
         "text": "The response may contain the \"data\" key with required values listed in Section 2.3.1. (§2.3.3)",
-        "section": "2.3.3"
+        "section": "2.3.3",
+        "annotation": {
+          "kind": "single-polarity",
+          "polarity": "positive",
+          "reason": "optional permission to include data with performed_at and runtime on error responses; positive verifies router-failure and timeout error responses include valid performed_at and elapsed runtime"
+        }
       }
     ],
     "rfc8538": [],
@@ -64848,22 +64689,14 @@
         "level": "MUST",
         "gated": true,
         "text": "The L flag MUST be set to 0 to indicate pre-policy (§5.2)",
-        "section": "5.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "no owner decision declines the pre-policy Adj-RIB-Out view. RFC 8671 Section 5.2 says \"Similar to Adj-RIB-In policy validation, pre-policy Adj-RIB-Out can be used to validate and audit outbound policies.\", and RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' ze does not build that view: internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so no ze message carries O=1 with L=0. The route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice"
-        }
+        "section": "5.2"
       },
       {
         "rid": "RFC8671-5.2-2",
         "level": "MUST",
         "gated": true,
         "text": "All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion. (§5.2)",
-        "section": "5.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "no owner decision declines the pre-policy Adj-RIB-Out view, the same absent feature as RFC8671-5.2-1. RFC 7854 Section 5, which this document updates, leaves the choice to the implementation: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' ze does not build that view, so it never reaches the pre-policy phase completion at which a mandatory attribute unknown there would have to be zero or empty: internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent is the only producer that sets the O flag, and it sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, and the route-monitoring-policy leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) offers no pre-policy Adj-RIB-Out choice"
-        }
+        "section": "5.2"
       },
       {
         "rid": "RFC8671-6.1-1",
@@ -64976,44 +64809,28 @@
         "level": "MUST",
         "gated": true,
         "text": "A validating BGP speaker MUST apply Route Origin Validation policy semantics (see Section 2 of [RFC6811] and Section 4 of [RFC8481]) after applying any egress configuration and policy. (§1)",
-        "section": "1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "Ze validates only at ingress -- internal/component/bgp/plugins/rpki/rpki.go::handleStructuredUpdate validates the received origin, and internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChain runs no validation after egress policy"
-        }
+        "section": "1"
       },
       {
         "rid": "RFC8893-1-2",
         "level": "MUST",
         "gated": true,
         "text": "Any AS_PATH modifications resulting in effective origin AS change MUST be taken into account. (§1)",
-        "section": "1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "no validation runs on the AS_PATH as sent -- internal/component/bgp/plugins/rpki/rpki.go::rpkiOriginASFromASPath reads the received AS_PATH only"
-        }
+        "section": "1"
       },
       {
         "rid": "RFC8893-3-1",
         "level": "MUST",
         "gated": true,
         "text": "BGP implementations supporting RPKI-based origin validation MUST provide the same policy configuration primitives for decisions based on the validation state available for use in ingress, redistribution, and egress policies. (§3)",
-        "section": "3",
-        "annotation": {
-          "kind": "gap",
-          "reason": "the per-state action exists at ingress only (internal/component/bgp/plugins/rpki/rpki_config.go::OriginInvalidAction); no redistribution or export filter reads a validation state"
-        }
+        "section": "3"
       },
       {
         "rid": "RFC8893-3-2",
         "level": "MUST",
         "gated": true,
         "text": "When applied to egress policy, validation state MUST be determined using the effective origin AS of the route as it will (or would) be announced to the peer. (§3)",
-        "section": "3",
-        "annotation": {
-          "kind": "gap",
-          "reason": "there is no egress validation, so no effective origin AS is computed -- internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChain"
-        }
+        "section": "3"
       },
       {
         "rid": "RFC8893-4-1",
@@ -65601,14 +65418,7 @@
         "level": "MUST",
         "gated": true,
         "text": "Length of the Next-Hop Network Address MUST be set to 0 (§4)",
-        "section": "4",
-        "annotation": {
-          "kind": "partial",
-          "reason": "tested \"MUST be set to 0\"; gap \"Length of the Next-Hop Network Address\"; internal/component/bgp/message/update_build_plugin.go::MPReachCarriesNextHop is the boundary: Tested covers every FlowSpec advertisement that carries no redirect-to-IP-next-hop (0x0800) community, which every rail encodes with a zero-length next hop. The gap is a route carrying the 0x0800 community: MPReachCarriesNextHop returns true for it, so its MP_REACH_NLRI carries the redirect address as the next hop with a non-zero length, an owner-approved deviation of 2026-10-20/21 for draft-simpson-idr-flowspec-redirect-02 Section 3 and ExaBGP compatibility, never counted conformant. internal/component/bgp/reactor/peer_forward_facts.go::precomputeRedirectNextHop is the second producer of the same deviation, on the forward rails: a received route carrying the 0x0800 community and a 4- or 16-octet next hop leaves with that address kept or reset per destination (applyRedirectNextHop), and with length 0 only where the action does not leave with it",
-          "tested": "MUST be set to 0",
-          "gap": "Length of the Next-Hop Network Address",
-          "producer": "internal/component/bgp/message/update_build_plugin.go::MPReachCarriesNextHop"
-        }
+        "section": "4"
       },
       {
         "rid": "RFC8955-4-4",
@@ -68816,7 +68626,11 @@
         "level": "MUST NOT",
         "gated": true,
         "text": "Roles MUST NOT be configured on an eBGP session with a Complex peering relationship. (S6)",
-        "section": "6"
+        "section": "6",
+        "annotation": {
+          "kind": "not-applicable",
+          "reason": "\"Roles MUST NOT be configured on an eBGP session with a Complex peering relationship.\"; binds an operator; this obligation binds the operator's peering-relationship configuration, which Ze cannot observe: internal/component/bgp/plugins/role/config.go::parseRoleContainer reads the configured role per peer, and docs/guide/bgp-role.md and the ze-role YANG description instruct operators to omit BGP Roles on Complex peering sessions"
+        }
       },
       {
         "rid": "RFC9234-3.1-1",
@@ -70929,11 +70743,7 @@
         "level": "MUST",
         "gated": true,
         "text": "They MUST require affirmative configuration per AFI/SAFI in order to enable them. (§5)",
-        "section": "5",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze requires affirmative configuration, but its granularity is the peer, not the AFI/SAFI -- parseLLGRCapValue reads a single long-lived-stale-time from the peer's (or group's) graceful-restart container and stamps that same LLST onto every negotiated family (internal/component/bgp/plugins/gr/gr_llgr.go:130-171), and the YANG leaf sits in the per-peer capability container with the description \"Applied to all negotiated address families for the peer\" (internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang), so an operator cannot enable LLGR for one address family and leave another off"
-        }
+        "section": "5"
       },
       {
         "rid": "RFC9494-4.2-10",
@@ -71301,8 +71111,8 @@
         "text": "Unique BGP-LS Instance-IDs MUST be assigned to routing protocol instances operating in different IGP domains (§5.2)",
         "section": "5.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "the passive sentence names no party, so neither not-applicable shape takes it. The assignment is the operator's, and ze holds the half it can see without checking it: internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig refuses a duplicate native domain mapping but not one Instance-ID configured for two of ze's own IGP domains, so ze can emit the same Instance-ID for different domains; no test asserts either"
+          "kind": "not-applicable",
+          "reason": "\"Unique BGP-LS Instance-IDs MUST be assigned to routing protocol instances operating in different IGP domains.\"; binds an operator; assigning distinct BGP-LS Instance-IDs across separate IGP domains is an operator configuration obligation Ze cannot verify network-wide: internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig carries each configured per-domain Instance-ID verbatim"
         }
       },
       {
@@ -71615,8 +71425,8 @@
         "text": "An operator MUST define an import policy to limit inbound updates as follows: * Drop all updates from peers that are only serving BGP-LS Consumers. (§8.2.6)",
         "section": "8.2.6",
         "annotation": {
-          "kind": "gap",
-          "reason": "binds an operator, a role ze never fills, but the sentence runs on into a list, so it is no whole sentence either not-applicable shape takes, and the row takes the gap outlet. ze is a BGP-LS Producer and Propagator, and its own share, the means to limit inbound updates, is RFC9552-8.2.6-1, which a bgp/policy/family-filter naming bgp-ls with action remove meets (internal/component/bgp/plugins/filter_family/config.go::parseFamilyFilters)"
+          "kind": "not-applicable",
+          "reason": "heading \"Security Management\"; binds an operator; defining an import policy to drop updates from BGP-LS Consumer peers is an operator policy obligation; ze is a BGP-LS Producer and Propagator, and its own share, the means to limit inbound updates, is RFC9552-8.2.6-1 via bgp/policy/family-filter with action remove (internal/component/bgp/plugins/filter_family/config.go::parseFamilyFilters)"
         }
       },
       {
@@ -73308,11 +73118,7 @@
         "level": "MUST",
         "gated": true,
         "text": "To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of \"brief\" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate. (§5.2)",
-        "section": "5.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "Ze implements no route aggregation, brief or consistent brief, so no aggregate route is ever formed and nothing truncates its AS_PATH; aggregation (Sections 5, 5.2, 6.1, 6.2) is an absent feature of an implemented RFC with no owner decision declining it, owed after the first release"
-        }
+        "section": "5.2"
       }
     ],
     "rfc9830": [
@@ -76256,20 +76062,6 @@
       "source": "plan/release/fixes/spec-network-services-one-off-defects.md"
     },
     {
-      "spec": "bgp-next-hop-reachability-admission",
-      "stem": "rfc4271",
-      "rid": "RFC4271-3.1-2",
-      "kind": "declared-requirement",
-      "source": "plan/release/fixes/spec-bgp-next-hop-reachability-admission.md"
-    },
-    {
-      "spec": "bgp-next-hop-reachability-admission",
-      "stem": "rfc4271",
-      "rid": "RFC4271-9.1.2.1-2",
-      "kind": "declared-requirement",
-      "source": "plan/release/fixes/spec-bgp-next-hop-reachability-admission.md"
-    },
-    {
       "spec": "bgp-otc-internet-facing-edge",
       "stem": "rfc9234",
       "rid": "RFC9234-5-9",
@@ -76492,6 +76284,118 @@
       "rid": "RFC4861-11.2-2",
       "kind": "declared-requirement",
       "source": "plan/release/fixes/spec-rfc4861-ze-owned-must-gaps.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-3-1",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-4.1-1",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-4.3.1-1",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-4.3.1-2",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-4.3.1-3",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-4.3.1-4",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-4.3.2.2-1",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-5-1",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-5-2",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-5-3",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-5-4",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-5-5",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-5-6",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-5-7",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-6-1",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
+    },
+    {
+      "spec": "rfc-external-program-verification",
+      "stem": "rfc9582",
+      "rid": "RFC9582-6-2",
+      "kind": "declared-requirement",
+      "source": "plan/release/validation/spec-rfc-external-program-verification.md"
     },
     {
       "spec": "rfc-weak-verdict-proof-gaps",
@@ -77600,174 +77504,6 @@
     {
       "spec": "dns-resolver-dnssec-validation",
       "stem": "rfc4035",
-      "rid": "RFC4035-2.1-2",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.1-4",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.1-5",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.2-1",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.2-3",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.2-4",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.2-5",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.2-6",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.2-7",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.2-8",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.3-1",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.3-3",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.3-4",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.3-5",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.3-6",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.3-7",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.4-3",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.4-4",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.5-1",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.5-2",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-2.6-1",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
       "rid": "RFC4035-3.1-1",
       "kind": "summary-gap-citation",
       "source": "rfc/short/rfc4035.md",
@@ -77913,14 +77649,6 @@
       "spec": "dns-resolver-dnssec-validation",
       "stem": "rfc4035",
       "rid": "RFC4035-3.1.4-3",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4035.md",
-      "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "dns-resolver-dnssec-validation",
-      "stem": "rfc4035",
-      "rid": "RFC4035-3.1.5-2",
       "kind": "summary-gap-citation",
       "source": "rfc/short/rfc4035.md",
       "note": "Named as plan/post-release/features/spec-dns-resolver-dnssec-validation.md; this citation does not establish sole implementation ownership."
@@ -79148,14 +78876,6 @@
       "kind": "summary-partial-citation",
       "source": "rfc/short/rfc7752.md",
       "note": "Named as plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md; this citation does not establish sole implementation ownership."
-    },
-    {
-      "spec": "rfc7947-adj-rib-in-accepts-filtered-updates",
-      "stem": "rfc7947",
-      "rid": "RFC7947-2.1-1",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc7947.md",
-      "note": "Named as plan/release/fixes/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md; this citation does not establish sole implementation ownership."
     },
     {
       "spec": "config-yang-when-unique-choice",
@@ -80787,5 +80507,5 @@
     }
   ],
   "default-layer": "base-ipv4-bgp",
-  "roadmap-revision": "827c73e9e131702d2815e3fd46ad302cb2db5ea3"
+  "roadmap-revision": "a218ade1720eea26081ba93b99e2e445fd294880"
 }

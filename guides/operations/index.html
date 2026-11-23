@@ -108,6 +108,12 @@ logged, crash recorded, and counted in
 <pre><code class="language-bash">ze init                        # interactive: prompts for username, password, host, port
 </code></pre>
 <p>Defaults: <code>127.0.0.1:2222</code>, ED25519 host key auto-generated.</p>
+<p>The host and port are where <code>ze cli</code> connects. <code>ze init</code> writes the same
+endpoint as the SSH listener at the top of the initial config, followed by
+the discovered interfaces, so a bare <code>ze start</code> listens where the CLI looks.
+The host must therefore be an IP address and the port a number from 1 through
+65535; <code>ze init</code> refuses anything else before it creates the store. <code>--seed</code>
+and <code>--managed</code> write no initial config, so they also take a host name.</p>
 <p>Credentials are stored under <code>database/</code> in the resolved configuration folder,
 with bcrypt-hashed passwords. Initialization seeds every key before publishing
 the directory, so an interrupted initialization cannot expose partial credentials.</p>
@@ -143,8 +149,21 @@ the directory, so an interrupted initialization cannot expose partial credential
 <td><code>--seed</code></td>
 <td>Build <code>database.zefs</code> as an appliance seed artifact, without build-host interface discovery</td>
 </tr>
+<tr>
+<td><code>--confirm</code></td>
+<td>Ask about each discovered interface and write only the ones answered yes; only <code>yes</code>, <code>y</code>, <code>no</code> or <code>n</code> answers, and anything else is asked again; refused with <code>--seed</code>, <code>--managed</code> and <code>--from</code></td>
+</tr>
 </tbody>
 </table>
+<p>Without <code>--confirm</code>, the initial config holds every discovered interface,
+including the ones another program owns (<code>docker0</code>, a container's veth), and a
+root ze manages each of them. With it, <code>ze init</code> asks one question per interface
+after the instance name, showing its kind, name, MAC address, the bridge or bond
+it is a member of, and its kernel alias. <code>yes</code> or <code>y</code> writes it, and <code>no</code> or <code>n</code>
+leaves it out. Nothing else decides: an empty line or any other answer prints a
+notice on stderr and asks about the same interface again. Input that ends
+before every interface is answered is refused, and no store is written
+(<a href="../configuration-model/#discovery-during-init">Discovery During Init</a>).</p>
 <h3 id="reinitializing">Reinitializing</h3>
 <p>Running <code>ze init</code> a second time fails with <code>error: database already exists</code>. This is intentional -- it prevents accidental credential loss.</p>
 <p>To reinitialize:</p>
@@ -158,7 +177,7 @@ and configs. Confirmation requires a terminal unless <code>--yes</code> is suppl
 Replacement acquires the same ownership lock as the daemon and refuses while
 any process owns the store, including a web-only daemon. Changing the SSH target
 does not bypass this protection.</p>
-<p>The initial config is written under the name the store's instance name gives it. When that name cannot be read, <code>ze init</code> fails with <code>name initial config: ...</code> and closes the interface backend it opened, rather than writing the config under <code>ze.conf</code>.</p>
+<p>The initial config is written under the name the store's instance name gives it. When that name cannot be read, <code>ze init</code> fails with <code>name initial config: ...</code> before it opens the interface backend, rather than writing the config under <code>ze.conf</code>.</p>
 <h3 id="store-folder-and-ownership">Store folder and ownership</h3>
 <p>An explicit config path selects its parent folder. Without one, clients and
 daemons use <code>ze.config.dir</code>, then the binary's default configuration folder.
@@ -1086,7 +1105,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

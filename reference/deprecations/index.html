@@ -47,10 +47,15 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Architecture</span>
     <h1 id="configuration-syntax-changes">Configuration Syntax Changes</h1>
-    <p>Ze has not shipped a release, so there is no deprecation lifecycle for its
-config syntax and no path that rewrites an older form of it. When the syntax
-changes, the configurations in the repository are converted in the same
-change, and no other file written in the old form exists to convert.</p>
+    <p>Ze has not shipped a stable release, so there is no deprecation lifecycle for
+its config syntax. The infrastructure that converts a config written in an
+older format of Ze's own syntax is kept: <code>ze config migrate</code> and the start-time
+schema evolution run every conversion a package registers, and the load
+parsers refuse a registered relocated block or retired leaf naming that fix
+(<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md" target="_blank" rel="noopener">syntax</a>, "Schema Evolution and Migration"). The conversion of one
+format change is written only once Ze has a stable release, so none is
+registered today. When the syntax changes, the configurations in the
+repository are converted in the same change.</p>
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
@@ -174,6 +179,9 @@ ze exabgp migrate exabgp.conf
 
 # Rewrite a current Ze config in the set or hierarchical form
 ze config migrate format hierarchical config.conf
+
+# List the format conversions this binary carries
+ze config migrate --list
 </code></pre>
 <p>See <a href="https://github.com/ze-software/ze/blob/main/docs/config-migration.md" target="_blank" rel="noopener">Configuration Migration</a> for command details.</p>
 </div>
@@ -189,7 +197,7 @@ ze config migrate format hierarchical config.conf
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 05:43 UTC</span>
                 </div>
             </div>
         </footer>

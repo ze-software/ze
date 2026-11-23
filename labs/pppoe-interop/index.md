@@ -21,6 +21,10 @@ $ ./le test deployment docker-pppoe-accel
 
 # native Linux network-namespace path
 $ ./le test qemu pppoe-accel
+
+# Ze as the access concentrator on VPP, in a Ze-kernel guest
+$ ./le --name session test qemu docker-lab \
+  lab "test deployment vpp-pppoe product" timeout 3600s
 ```
 
 `Prerequisites`

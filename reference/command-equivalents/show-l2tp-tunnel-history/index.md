@@ -9,7 +9,7 @@ Show state transitions for a tunnel over time\.
 - Mode: Read\-only
 - Wire method: `ze-l2tp:tunnel-history`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

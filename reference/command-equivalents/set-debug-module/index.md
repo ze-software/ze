@@ -9,7 +9,7 @@ Enable debug output for one subsystem\.
 - Mode: daemon\, offline
 - Wire method: `ze-debug:set-module`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `scope`
 - Answer shape: not declared
 - Address fields: none

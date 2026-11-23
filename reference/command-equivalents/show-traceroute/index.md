@@ -9,7 +9,7 @@ Trace the network path from this router to a target\.
 - Mode: read\-only\, offline
 - Wire method: `ze-traceroute:show-traceroute`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

@@ -9,7 +9,7 @@ Activate a saved artifact candidate path\.
 - Mode: Daemon
 - Wire method: `ze-config:artifact-session-activate`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none

@@ -9,7 +9,7 @@ Inspect a specific certificate in detail\.
 - Mode: Read\-only
 - Wire method: `ze-pki:show-certificate`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `bundle`, `fingerprint`, `pem`
 - Answer shape: not declared
 - Address fields: none

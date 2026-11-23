@@ -9,7 +9,7 @@ Show RIB data scoped to one peer\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:peer-rib`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: peer\, next\-hop

@@ -9,7 +9,7 @@ Export the root certificate of the local certificate authority as PEM\.
 - Mode: Read\-only
 - Wire method: `ze-pki:show-local-ca-pem`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

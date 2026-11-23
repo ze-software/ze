@@ -9,7 +9,7 @@ Show OSPFv3 \(IPv6\-family\) interfaces and their RFC 4552 IPsec status\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-ipv6-interface`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`
 - Answer shape: tab
 - Address fields: none

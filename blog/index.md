@@ -2,6 +2,7 @@
 
 Design notes, deep dives, and engineering essays on how Ze is built. For week-by-week shipping notes, read the [changelog](../project/changes/).
 
+- [One configuration engine, many protocols](one-engine-any-plugin/index.md) (2026-11-22): How Ze uses YANG to validate changes across plugins, orders their application and lets operators roll back an unconfirmed remote change.
 - [Keeping documentation in step with the code](reference-from-the-system/index.md) (2026-08-22): Ze generates public reference from its code and records, with links to the decisions behind them. Operators and future AI sessions can use the same maintained account of the system.
 - [AI coding has not had its Rails moment](ai-coding-has-not-had-its-rails-moment/index.md) (2026-08-10): AI coding needs shared conventions for connecting requirements and design decisions to their implementation, and for keeping those relationships current.
 - [The repository is half the AI harness](the-repository-is-the-ai-harness/index.md) (2026-08-09): Ze's development rules define what an AI agent must achieve and how to check the result, including the qualities a working demonstration can leave untested.

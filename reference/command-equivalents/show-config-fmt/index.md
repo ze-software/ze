@@ -9,7 +9,7 @@ Pretty\-print the configuration with consistent formatting\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-cli:show-config-fmt`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: blob
 - Address fields: none
@@ -32,7 +32,9 @@ Normalizes indentation and ordering\. Output goes to stdout \(read\-only\)\. To 
 
 ## Mapping intents
 
-No vendor equivalent has been curated yet for this Ze command.
+### Show running\, candidate\, and diffed configuration
+
+Category: Configuration
 
 ## Vendor equivalents
 
@@ -49,5 +51,7 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-
-No equivalent listed.
+- `compare` (verified, vyos\-cli)
+  - Intent: Show running\, candidate\, and diffed configuration
+- `show configuration` (verified, vyos\-cli)
+  - Intent: Show running\, candidate\, and diffed configuration

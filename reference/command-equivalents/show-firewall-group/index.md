@@ -9,7 +9,7 @@ Show members of a firewall address\/port group\.
 - Mode: Read\-only
 - Wire method: `ze-firewall:show-group`
 - Backends: `nft`
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

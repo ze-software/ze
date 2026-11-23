@@ -9,7 +9,7 @@ Find the IRR AS\-SET registered for an ASN in PeeringDB\.
 - Mode: Read\-only
 - Wire method: `ze-resolve:peeringdb-as-set`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

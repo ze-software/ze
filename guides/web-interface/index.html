@@ -342,7 +342,7 @@ cleanup succeeds; existing workspace inspection remains available.</p>
 <li>Enter username and password. On success, a <code>ze-session</code> cookie is set.</li>
 <li>The cookie is <code>Secure</code>, <code>HttpOnly</code>, and <code>SameSite=Strict</code>.</li>
 <li>Each user can have one active session. Logging in again invalidates the previous session.</li>
-<li>A session lasts 24 hours, and ends earlier if the configuration stops declaring the user or rotates local credentials (such as a password change). Remove a user or rotate their password and reload, and their open browser tab is refused on its next request while unrelated config reloads leave the session intact. No daemon restart is necessary.</li>
+<li>A session lasts 24 hours, and ends earlier if the configuration stops declaring the user or changes that user's own password, profiles or SSH keys. Remove a user or change their password and reload, and their open browser tab is refused on its next request. A reload that changes only other users (adding a user, changing another user's password) leaves the session intact. No daemon restart is necessary.</li>
 </ol>
 <p>A user authenticated by RADIUS or TACACS+ keeps their session: the local user list did not grant it and does not end it.</p>
 <h3 id="json-api">JSON API</h3>
@@ -997,7 +997,7 @@ other changes.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

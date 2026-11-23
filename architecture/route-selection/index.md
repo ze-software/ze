@@ -9,14 +9,22 @@ explaining why it was not selected.
 
 ## Design: Unified Rejection Reason
 
-Each non-best route carries a single reason (`uint8`) recording why it was not selected.
-The reason is set once: either during validation (the route is ineligible) or during
-best-path comparison (the route lost to a better candidate). The winning route has
-reason `none` (0).
+The unified-reason target is a single `uint8` value per non-best route recording why
+it was not selected (set once during validation or best-path comparison, with `none`
+(0) for the winning route).
 
-This is a single mechanism, not two separate ones. Whether a route was disqualified
-before the race or lost at step N of the race, the answer is the same type of value
-on the same field.
+In the current `bgp-rib` implementation, these two surfaces are exposed separately
+rather than unified into one `uint8` field on `storage.RouteEntry`:
+
+- **Phase 2 ranking losses** are reported by `show bgp rib best | reason` through
+  `BestStep` (`SelectBestExplain`).
+- **Pre-ranking unresolved next-hop exclusions** are annotated on `show bgp rib`
+  received rows (`"next-hop-resolvable": false`,
+  `"ineligible-reason": "next-hop-unresolvable"`) and tracked in memory by
+  `unresolvedNextHopTracker` for runtime doctor reporting.
+<!-- source: internal/component/bgp/plugins/rib/bestpath.go -- BestStep, SelectBestExplain -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_bestfact.go -- markNextHopFacts, writeNextHopIneligible -->
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop_doctor.go -- unresolvedNextHopTracker -->
 
 ## Phase 1: Validation
 
@@ -135,29 +143,62 @@ changes.
 <!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- prospectiveDistance, prospectiveMetricKey -->
 
 Each engine metric request has a five-second response bound. A failed lookup
-leaves its candidate ineligible and is not cached. The existing remote-metric
-worker coalesces lookup failures into one `doctor-bgp-next-hop-metrics` warning,
-through the SDK report bus, and clears it after a successful retry. Report calls
-run outside peer admission and the remote cache lock. A revision-feed failure
-raises a bounded error report before closing the plugin, retaining the feed's
-mandatory-dependency behavior.
-<!-- source: internal/component/bgp/plugins/rib/rib_remote.go -- runRemoteMetrics, reportRemoteMetricIssue, reportRemoteMetricFailure -->
+leaves its candidate ineligible (`Resolved: false`) and is not cached. Both
+`remoteRIB.prospectiveDistance` and `RIBManager.igpDistance` coalesce
+`logger().Error` onto `noteMetricFailure` state transitions (`false -> true`)
+so an engine outage does not flood logs while keeping fail-closed lookups
+uncached. The remote-metric worker also coalesces lookup failures into one
+`doctor-bgp-next-hop-metrics` warning through the SDK report bus and clears it
+after a successful retry; report calls run outside peer admission and the
+remote cache lock. A revision-feed failure raises a bounded error report before
+closing the plugin, retaining the feed's mandatory-dependency behavior.
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- prospectiveDistance -->
+<!-- source: internal/component/bgp/plugins/rib/rib_remote.go -- igpDistance, noteMetricFailure, metricFailureActive, runRemoteMetrics, reportRemoteMetricIssue, reportRemoteMetricFailure -->
 
-Validation of this admission change is still in progress. The native RIB package
-run exposes existing fixture topologies with no route to their next hops, plus
-concurrency fixtures that need their controlled resolver seam revalidated.
-Those failures have not been cleared by changing expected selections.
+Excluded routes remain visible to operators rather than disappearing silently:
 
-The promoted internal and forked Linux tests verify kernel installation,
-reselection and removal after reachability loss, recovery without another
-UPDATE, and preservation of a directly reachable control. Native producer
-faults exercise the kernel-removal assertions after BGP and Loc-RIB clear.
+- **`show bgp rib` received rows:** When serializing stored received routes
+  without holding write locks, `markNextHopFacts`, `entryNextHopResolvedForShow`,
+  and `writeNextHopIneligible` annotate non-best rows whose address next hop
+  fails forwarding admission (unresolved or prospectively self-capturing) with
+  `"next-hop-resolvable": false` and
+  `"ineligible-reason": "next-hop-unresolvable"`. Resolvable rows and routes
+  with no address next hop omit both keys. During an active forked
+  `route-metrics` outage (`metricFailureActive`), `entryNextHopResolvedForShow`
+  reads cached results fail-closed (`prospectiveDistanceCached`,
+  `igpDistanceCached`) without issuing blocking per-row RPCs. Operators filter
+  excluded routes through existing pipes
+  (`show bgp rib | match next-hop-unresolvable`).
+- **`request bgp rib inject`:** An inject naming an unresolvable next hop
+  retains the route in Adj-RIB-In so later interior reachability selects it
+  automatically, returns `"next-hop-resolvable": false` alongside `"warning"`
+  naming the next hop and remedy (`ze show rib` /
+  `ze show bgp rib | match next-hop-unresolvable`), and writes one `WARN` log
+  carrying `doctor-bgp-next-hop-unresolvable`.
+- **Runtime doctor checks:** `bgp-rib` tracks unresolved forwarding exclusions
+  in a bounded per-RIB `unresolvedNextHopTracker`
+  (`maxTrackedUnresolvedNextHops = 4096`, cleared on resolution, withdrawal, or
+  peer teardown) and declares two `runtime`-phase checks in Stage 1
+  `sdk.Registration.DoctorChecks` answered by `OnDoctorCheck` in both internal
+  and forked placements: `bgp-rib-unresolved-next-hop`
+  (`doctor-bgp-next-hop-unresolvable`, warning) and `bgp-rib-next-hop-metrics`
+  (`doctor-bgp-next-hop-metrics`, warning over live `metricFailureActive`).
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- inboundSource.Next, showRow, serializeRouteItem -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_bestfact.go -- markNextHopFacts, entryNextHopResolvedForShow, writeNextHopIneligible -->
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- prospectiveDistanceCached, entryNextHopResolvedCached -->
+<!-- source: internal/component/bgp/plugins/rib/rib_remote.go -- igpDistanceCached -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute -->
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop_doctor.go -- maxTrackedUnresolvedNextHops, unresolvedNextHopTracker, unresolvedNextHopDoctorDeclaration, nextHopMetricsDoctorDeclaration, doctorCheck, unresolvedNextHopDoctorCheck, nextHopMetricsDoctorCheck -->
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- runRIBPlugin -->
+
+The promoted internal and forked Linux tests (`rfc4271-next-hop-kernel*.ci` and
+`rfc4271-prospective-next-hop-kernel*.ci`) verify ordinary reachability,
+prospective self-dependency exclusion, kernel installation, reselection and
+removal after reachability loss, recovery without another UPDATE, and
+preservation of a directly reachable control. Native producer faults exercise
+the kernel-removal assertions after BGP and Loc-RIB clear.
 <!-- source: internal/test/fixture/rfc4271_next_hop_daemon_fixture.go -- rfc4271NextHopWinner, rfc4271NextHopAbsent, rfc4271NextHopSurvivor -->
 <!-- source: rfc/discrimination/rfc4271/RFC4271-9.1.2.1-2.json -- native kernel removal records -->
-
-Live proof of prospective self-dependency remains incomplete. The daemon tests
-do not exercise that condition; broader RIB fixture review also remains open.
-<!-- source: plan/release/fixes/spec-bgp-next-hop-reachability-admission.md -- Current Evidence, Remaining Work for Review -->
 
 Eligible routes are removed from consideration in criterion order. Before later
 tie-breaks, MED removes each route whose MED exceeds another surviving route's

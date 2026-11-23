@@ -57,6 +57,7 @@
 <li><a href="#multipath-installation">Multipath installation</a></li>
 <li><a href="#ordinary-bgp-transit">Ordinary BGP transit</a></li>
 <li><a href="#startup-convergence-hold-update-delay">Startup convergence hold (update-delay)</a></li>
+<li><a href="#route-aggregation-bgp-aggregate">Route aggregation (bgp aggregate)</a></li>
 <li><a href="#long-lived-graceful-restart-readvertisement">Long-Lived Graceful Restart readvertisement</a></li>
 <li><a href="#egress-attribute-rules">Egress attribute rules</a></li>
 <li><a href="#unrecognized-nlri-types-in-a-typed-family">Unrecognized NLRI types in a typed family</a></li>
@@ -543,6 +544,33 @@ ended it, and how many expected peers have converged.</p>
 and Ze keeps the hold it already armed, or none: re-arming would withhold routes
 from a neighbor that already has them.</p>
 <p>An absent <code>max-delay</code>, or <code>max-delay 0</code>, is the default and holds nothing.</p>
+<p>With <code>max-delay</code> set, <code>bgp-rib</code> also defers best-path selection per address
+family when Ze starts, as RFC 4724 Section 4.1 requires of a restarting
+speaker. A family is selected once every configured peer has negotiated and
+each one that advertised Graceful Restart without the Restart State bit has
+sent its End-of-RIB marker for that family, or once <code>max-delay</code> expires. A peer
+that advertised no graceful-restart capability, and a peer whose capability
+carries the Restart State bit because it is restarting itself, are not waited
+for. The deferral is armed once per daemon start, and a reload does not arm it
+again.</p>
+<h3 id="route-aggregation-bgp-aggregate">Route aggregation (<code>bgp aggregate</code>)</h3>
+<p><code>bgp aggregate &lt;prefix&gt;</code> makes <code>bgp-rib</code> synthesize one IPv4 or IPv6
+aggregate route while selected routes more specific than the prefix exist,
+following RFC 4271 Section 9.2.2.2, install it in the Loc-RIB and announce it.
+Routes whose MULTI_EXIT_DISC differs are not aggregated: the aggregate is
+suppressed and a warning names the prefix. ORIGIN is the worst of the
+contributors (INCOMPLETE, then EGP, then IGP). When the contributors'
+NEXT_HOPs differ, <code>next-hop</code> names the local address to use, and the
+aggregate is suppressed when that address is not local; without it Ze picks a
+local session or interface address of the family. The AS_PATH is the
+contributors' common leading AS_SEQUENCE and never holds an AS_SET, and
+ATOMIC_AGGREGATE is set when a contributor carries it or when AS numbers were
+left out. The contributors' AGGREGATOR attributes are discarded, and Ze
+attaches its own (local AS and router ID) unless <code>aggregator false</code>.
+<code>brief-origin-as &lt;asn&gt;</code> truncates the AS_PATH after the right-most instance of
+that AS, the consistent brief aggregation of RFC 9774 Section 5.2. Unit tests
+cover the synthesis; no functional test or interop scenario configures
+aggregation yet.</p>
 <h3 id="long-lived-graceful-restart-readvertisement">Long-Lived Graceful Restart readvertisement</h3>
 <p>RFC 9494 stale-route handling is applied per destination on both normal
 forwarding and RIB readvertisement. An LLGR-capable peer receives the stale
@@ -925,7 +953,7 @@ whether an enabled peer's capture directory is usable
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 05:15 UTC</span>
                 </div>
             </div>
         </footer>

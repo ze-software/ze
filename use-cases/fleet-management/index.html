@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Fleet configuration management - Ze</title>
+        <meta name="description" content="Enroll managed Ze devices to a central TLS hub, push live config changes, and resolve local divergence with audit logs." />
+        <meta property="og:title" content="Fleet configuration management - Ze" />
+        <meta property="og:description" content="Enroll managed Ze devices to a central TLS hub, push live config changes, and resolve local divergence with audit logs." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Fleet configuration management - Ze" />
+        <meta name="twitter:description" content="Enroll managed Ze devices to a central TLS hub, push live config changes, and resolve local divergence with audit logs." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/use-cases/fleet-management/" />
+        <meta property="og:url" content="https://ze-software.net/use-cases/fleet-management/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-automate">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Use case</span>
+    <h1 id="fleet-configuration-management">Fleet configuration management</h1>
+    <p>Manage a fleet of Ze routers from a central Ze hub over authenticated TLS connections: enroll devices against the hub's CA, push live configuration edits with zero daemon restart, prevent accidental out-of-band drift while managed, and resolve emergency local edits through audited adopt or revert workflows.</p>
+</div>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#role-and-topology">Role and topology</a></li>
+<li><a href="#hub-configuration">Hub configuration</a></li>
+<li><a href="#managed-client-configuration-stored-on-the-hub">Managed client configuration (stored on the hub)</a></li>
+<li><a href="#enrollment-and-live-rollout-workflow">Enrollment and live rollout workflow</a></li>
+<li><a href="#emergency-local-edits-and-divergence-resolution">Emergency local edits and divergence resolution</a></li>
+<li><a href="#verification-commands">Verification commands</a></li>
+<li><a href="#lab-evidence">Lab evidence</a></li>
+<li><a href="#current-limits">Current limits</a></li>
+<li><a href="#related-guides">Related guides</a></li>
+</ol></details></nav><div class="doc-body">
+<h2 id="role-and-topology">Role and topology</h2>
+<pre><code class="language-text">                    Central Ze Hub (10.0.0.1:1791, TLS)
+                    stores client-edge-01.conf, client-edge-02.conf
+                          /                              \
+       TLS + per-client secret                    TLS + per-client secret
+                        /                                  \
+                 edge-01 (managed)                   edge-02 (managed)
+                 local edits frozen                  local edits frozen
+                 boots from cache if hub down        boots from cache if hub down
+</code></pre>
+<h2 id="hub-configuration">Hub configuration</h2>
+<p>The hub exposes a dedicated <code>server</code> listener for managed clients on a separate port from its local plugin listener. Every secret must be at least 32 characters (based on <code>docs/guide/fleet-config.md</code>):</p>
+<pre><code class="language-text">plugin {
+    hub {
+        server local {
+            ip 127.0.0.1;
+            port 1790;
+            secret "local-plugin-secret-of-32-characters";
+        }
+        server central {
+            ip 0.0.0.0;
+            port 1791;
+            secret "remote-plugin-secret-of-32-character";
+            client edge-01 { secret "edge-01-secret-of-at-least-32-chars"; }
+            client edge-02 { secret "edge-02-secret-of-at-least-32-chars"; }
+        }
+    }
+}
+</code></pre>
+<h2 id="managed-client-configuration-stored-on-the-hub">Managed client configuration (stored on the hub)</h2>
+<p>Save each device's full configuration on the hub as <code>client-&lt;name&gt;.conf</code> (for example <code>client-edge-01.conf</code>). Keep the <code>client edge-01</code> block inside the pushed config so the device stays bound to the hub after applying updates:</p>
+<pre><code class="language-text">plugin {
+    hub {
+        server local {
+            ip 127.0.0.1;
+            port 1790;
+            secret "local-secret-of-at-least-32-characters";
+        }
+        client edge-01 {
+            host 10.0.0.1;
+            port 1791;
+            secret "edge-01-secret-of-at-least-32-chars";
+        }
+    }
+}
+
+bgp {
+    ...
+}
+</code></pre>
+<h2 id="enrollment-and-live-rollout-workflow">Enrollment and live rollout workflow</h2>
+<ol>
+<li>Export the hub's local CA certificate and import the client configuration on the running hub:</li>
+</ol>
+<pre><code class="language-bash">ze show pki local-ca pem &gt; hub-root.pem
+ze data import client-edge-01.conf
+</code></pre>
+<ol start="2">
+<li>Provision and start the managed device (or pass <code>--hub-trust-first-use</code> for initial lab setup):</li>
+</ol>
+<pre><code class="language-bash">ze init --managed --hub-ca hub-root.pem
+ze start
+</code></pre>
+<ol start="3">
+<li>Edit and push live configuration changes from the hub without restarting the remote daemon:</li>
+</ol>
+<pre><code class="language-bash">ze config edit client-edge-01.conf
+# or re-import an updated file:
+ze data import client-edge-01.conf
+</code></pre>
+<p>Committing on the hub sends <code>config-changed</code> over TLS to <code>edge-01</code>, which validates and applies the new running configuration immediately. If the hub is unreachable at boot, the managed device boots from its last cached configuration.</p>
+<h2 id="emergency-local-edits-and-divergence-resolution">Emergency local edits and divergence resolution</h2>
+<p>While a device is managed, local commits, imports, restores, and rollbacks are frozen and refused. During an incident where the hub cannot be reached, an operator can unfreeze the device locally, make an emergency change, and reconnect later:</p>
+<pre><code class="language-bash"># On edge-01: leave managed mode to unfreeze local edits, then rejoin when ready
+ze request fleet disable
+# ... emergency local edit ...
+ze request fleet enable
+</code></pre>
+<p>When <code>edge-01</code> reconnects with a different active hash, the hub holds automatic pushes and records the divergence for explicit resolution:</p>
+<pre><code class="language-bash"># On the hub: inspect the masked diff and device/hub versions
+ze show fleet divergence list
+ze show fleet divergence name edge-01
+
+# Either adopt the device's emergency edit into the hub's authoritative copy:
+ze update fleet divergence name edge-01 adopt version &lt;device-version&gt;
+
+# Or revert the device back to the hub's authoritative copy:
+ze request fleet divergence name edge-01 revert version &lt;device-version&gt; hub-version &lt;hub-version&gt;
+</code></pre>
+<p>Both <code>adopt</code> and <code>revert</code> are hash-pinned against concurrent edits and recorded in <code>show audit</code>.</p>
+<h2 id="verification-commands">Verification commands</h2>
+<pre><code class="language-text">ze show fleet status
+ze show fleet divergence list
+ze show fleet divergence name edge-01
+ze config history client-edge-01.conf
+ze doctor
+</code></pre>
+<h2 id="lab-evidence">Lab evidence</h2>
+<ul>
+<li><strong>Managed fleet functional suite (<code>test/managed/</code>, 32 <code>.ci</code> tests):</strong> <code>./le test functional managed</code></li>
+<li>Key scenarios include <code>client-first-boot.ci</code>, <code>client-cached-boot-hub-down.ci</code>, <code>fleet-config-change-live.ci</code>, <code>fleet-freeze-refuses-commit.ci</code>, <code>fleet-divergence-adopt.ci</code>, <code>fleet-divergence-revert.ci</code>, <code>fleet-status.ci</code>, and <code>data-restore-client-live.ci</code>.</li>
+</ul>
+<h2 id="current-limits">Current limits</h2>
+<ul>
+<li><strong>Full per-device files (no templates or canary waves):</strong> Each managed client has its own complete <code>client-&lt;name&gt;.conf</code>; Ze does not render config templates or run staged canary rollouts across groups.</li>
+<li><strong>1 MiB divergence upload cap:</strong> Configurations larger than 1 MiB are not uploaded automatically on divergence and must be reconciled manually via <code>ze data cat</code> and <code>ze data import</code>.</li>
+<li><strong>Running hub required for adopt/revert:</strong> Divergence resolution commands require a running hub so audit records are always written.</li>
+<li><strong>Keep the client block in pushed configs:</strong> Pushing a configuration that omits <code>plugin { hub { client &lt;name&gt; { ... } } }</code> disconnects the device from future hub updates.</li>
+</ul>
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><a href="../../features/fleet-management/">Fleet management</a></li>
+<li><a href="../../guides/fleet-config/">Fleet configuration guide</a></li>
+<li><a href="../../guides/audit/">Audit log guide</a></li>
+</ul>
+</div>
+</div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Use case</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Related usage</h2>
+                    <a class="page-sidebar-link" href="../../use-cases/">
+                        <span class="page-sidebar-link-label">All usage examples</span>
+                        <small>Return to the deployment examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to guides and references.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../features/bgp-protocol/">
+                        <span class="page-sidebar-link-label">BGP protocol</span>
+                        <small>Behavior used by the route examples.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../labs/">
+                        <span class="page-sidebar-link-label concept-evidence">Lab evidence</span>
+                        <small>Real-daemon interop evidence.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

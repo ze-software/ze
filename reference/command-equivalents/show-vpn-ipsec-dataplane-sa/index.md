@@ -9,7 +9,7 @@ Show the Security Association Database the kernel holds\.
 - Mode: Read\-only
 - Wire method: `ze-ike:show-vpn-ipsec-dataplane-sa`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

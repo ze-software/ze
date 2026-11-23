@@ -9,7 +9,7 @@ Import one config into the daemon\'s store as a new version\.
 - Mode: Daemon
 - Wire method: `ze-config:data-config-update`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

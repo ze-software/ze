@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 28 | of 59 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 30 | of 59 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 5 | of 59 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 59 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 59 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 76 | 76 of 99 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 88 | 88 of 103 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -22,8 +22,8 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Declared gap or no test | 23 | of 59 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Audit verdicts | 33 | of 59 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
+| Declared gap or no test | 20 | of 59 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Audit verdicts | 35 | of 59 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -32,7 +32,7 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Out of scope | 0 | of 59 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
-| Not applicable | 3 | of 59 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Not applicable | 4 | of 59 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Met below Ze | 0 | of 59 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 59 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Linux cannot do this | 0 | of 59 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
@@ -74,14 +74,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 86 |
 | Mandatory requirements (MUST level) | 59 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 25 |
+| Declared gaps | 22 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 104 |
-| Tests linked to requirements | 99 |
-| Recorded audit verdicts | 33 |
-| Fault test records | 84 |
+| Test tags | 108 |
+| Tests linked to requirements | 103 |
+| Recorded audit verdicts | 35 |
+| Fault test records | 88 |
 | Summary | `rfc/short/rfc8210.md` |
 | Requirement table | `rfc/requirements/rfc8210.md` |
 | RFC text | `rfc/full/rfc8210.txt` |
@@ -94,19 +94,19 @@ Included in automatic checks: RPKI to Router Protocol, Version 1
 
 **Area:** RPKI RTR v1
 
-**Test verification:** 29 of 59 MUST proven
+**Test verification:** 35 of 59 MUST proven
 
-**Evidence:** unit 29
+**Evidence:** unit 35
 
-**Unmet:** RFC8210-2-1, RFC8210-4-2, RFC8210-4-3, RFC8210-5.10-1, RFC8210-5.10-2, RFC8210-5.11-2, RFC8210-5.11-3, RFC8210-5.3-1, RFC8210-5.3-2, RFC8210-5.5-1, RFC8210-5.6-1, RFC8210-5.8-1, RFC8210-7-2, RFC8210-9-2, RFC8210-9.1-2, RFC8210-9.1-5, RFC8210-9.2-12, RFC8210-9.2-3, RFC8210-9.2-6, RFC8210-9.2-9, RFC8210-9.3-1, RFC8210-9.3-2, RFC8210-9.4-1, RFC8210-9.4-2, RFC8210-9.4-3
+**Unmet:** RFC8210-2-1, RFC8210-4-2, RFC8210-4-3, RFC8210-5.10-1, RFC8210-5.11-3, RFC8210-5.3-1, RFC8210-5.3-2, RFC8210-5.5-1, RFC8210-5.6-1, RFC8210-5.8-1, RFC8210-7-2, RFC8210-9.1-2, RFC8210-9.1-5, RFC8210-9.2-12, RFC8210-9.2-3, RFC8210-9.2-6, RFC8210-9.2-9, RFC8210-9.3-1, RFC8210-9.3-2, RFC8210-9.4-1, RFC8210-9.4-2, RFC8210-9.4-3
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 28 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 31 | one part of the mandatory requirements |
+| Positive and negative tests | 30 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 29 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -114,14 +114,14 @@ Included in automatic checks: RPKI to Router Protocol, Version 1
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **59** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (28):** [`RFC8210-5-1`](#rfc8210-5-1), [`RFC8210-5.1-1`](#rfc8210-5.1-1), [`RFC8210-5.1-2`](#rfc8210-5.1-2), [`RFC8210-5.1-3`](#rfc8210-5.1-3), [`RFC8210-5.1-4`](#rfc8210-5.1-4), [`RFC8210-5.1-5`](#rfc8210-5.1-5), [`RFC8210-5.11-1`](#rfc8210-5.11-1), [`RFC8210-6-2`](#rfc8210-6-2), [`RFC8210-7-3`](#rfc8210-7-3), [`RFC8210-5.2-1`](#rfc8210-5.2-1), [`RFC8210-7-4`](#rfc8210-7-4), [`RFC8210-4-1`](#rfc8210-4-1), [`RFC8210-8.3-1`](#rfc8210-8.3-1), [`RFC8210-12-1`](#rfc8210-12-1), [`RFC8210-9-3`](#rfc8210-9-3), [`RFC8210-9.2-1`](#rfc8210-9.2-1), [`RFC8210-9.2-2`](#rfc8210-9.2-2), [`RFC8210-9.2-4`](#rfc8210-9.2-4), [`RFC8210-9.2-5`](#rfc8210-9.2-5), [`RFC8210-10-1`](#rfc8210-10-1), [`RFC8210-7-7`](#rfc8210-7-7), [`RFC8210-9.2-8`](#rfc8210-9.2-8), [`RFC8210-10-2`](#rfc8210-10-2), [`RFC8210-9.2-10`](#rfc8210-9.2-10), [`RFC8210-8.4-1`](#rfc8210-8.4-1), [`RFC8210-3-1`](#rfc8210-3-1), [`RFC8210-8.1-3`](#rfc8210-8.1-3), [`RFC8210-9.2-11`](#rfc8210-9.2-11)
+**Positive and negative tests (30):** [`RFC8210-5-1`](#rfc8210-5-1), [`RFC8210-5.1-1`](#rfc8210-5.1-1), [`RFC8210-5.1-2`](#rfc8210-5.1-2), [`RFC8210-5.1-3`](#rfc8210-5.1-3), [`RFC8210-5.1-4`](#rfc8210-5.1-4), [`RFC8210-5.1-5`](#rfc8210-5.1-5), [`RFC8210-5.10-2`](#rfc8210-5.10-2), [`RFC8210-5.11-1`](#rfc8210-5.11-1), [`RFC8210-5.11-2`](#rfc8210-5.11-2), [`RFC8210-6-2`](#rfc8210-6-2), [`RFC8210-7-3`](#rfc8210-7-3), [`RFC8210-5.2-1`](#rfc8210-5.2-1), [`RFC8210-7-4`](#rfc8210-7-4), [`RFC8210-4-1`](#rfc8210-4-1), [`RFC8210-8.3-1`](#rfc8210-8.3-1), [`RFC8210-12-1`](#rfc8210-12-1), [`RFC8210-9-3`](#rfc8210-9-3), [`RFC8210-9.2-1`](#rfc8210-9.2-1), [`RFC8210-9.2-2`](#rfc8210-9.2-2), [`RFC8210-9.2-4`](#rfc8210-9.2-4), [`RFC8210-9.2-5`](#rfc8210-9.2-5), [`RFC8210-10-1`](#rfc8210-10-1), [`RFC8210-7-7`](#rfc8210-7-7), [`RFC8210-9.2-8`](#rfc8210-9.2-8), [`RFC8210-10-2`](#rfc8210-10-2), [`RFC8210-9.2-10`](#rfc8210-9.2-10), [`RFC8210-8.4-1`](#rfc8210-8.4-1), [`RFC8210-3-1`](#rfc8210-3-1), [`RFC8210-8.1-3`](#rfc8210-8.1-3), [`RFC8210-9.2-11`](#rfc8210-9.2-11)
 
-**Annotated (including scoped evidence) (31):** [`RFC8210-5.3-1`](#rfc8210-5.3-1), [`RFC8210-5.3-2`](#rfc8210-5.3-2), [`RFC8210-5.5-1`](#rfc8210-5.5-1), [`RFC8210-5.6-1`](#rfc8210-5.6-1), [`RFC8210-5.10-1`](#rfc8210-5.10-1), [`RFC8210-5.10-2`](#rfc8210-5.10-2), [`RFC8210-5.8-1`](#rfc8210-5.8-1), [`RFC8210-5.11-2`](#rfc8210-5.11-2), [`RFC8210-5.11-3`](#rfc8210-5.11-3), [`RFC8210-5.11-4`](#rfc8210-5.11-4), [`RFC8210-6-1`](#rfc8210-6-1), [`RFC8210-7-1`](#rfc8210-7-1), [`RFC8210-7-2`](#rfc8210-7-2), [`RFC8210-8.1-1`](#rfc8210-8.1-1), [`RFC8210-8.2-1`](#rfc8210-8.2-1), [`RFC8210-9-1`](#rfc8210-9-1), [`RFC8210-9-2`](#rfc8210-9-2), [`RFC8210-9.1-1`](#rfc8210-9.1-1), [`RFC8210-9.1-2`](#rfc8210-9.1-2), [`RFC8210-9.2-3`](#rfc8210-9.2-3), [`RFC8210-9.2-6`](#rfc8210-9.2-6), [`RFC8210-9.3-1`](#rfc8210-9.3-1), [`RFC8210-9.4-1`](#rfc8210-9.4-1), [`RFC8210-4-2`](#rfc8210-4-2), [`RFC8210-4-3`](#rfc8210-4-3), [`RFC8210-9.3-2`](#rfc8210-9.3-2), [`RFC8210-9.4-2`](#rfc8210-9.4-2), [`RFC8210-9.4-3`](#rfc8210-9.4-3), [`RFC8210-9.2-9`](#rfc8210-9.2-9), [`RFC8210-8.1-2`](#rfc8210-8.1-2), [`RFC8210-2-1`](#rfc8210-2-1)
+**Annotated (including scoped evidence) (29):** [`RFC8210-5.3-1`](#rfc8210-5.3-1), [`RFC8210-5.3-2`](#rfc8210-5.3-2), [`RFC8210-5.5-1`](#rfc8210-5.5-1), [`RFC8210-5.6-1`](#rfc8210-5.6-1), [`RFC8210-5.10-1`](#rfc8210-5.10-1), [`RFC8210-5.8-1`](#rfc8210-5.8-1), [`RFC8210-5.11-3`](#rfc8210-5.11-3), [`RFC8210-5.11-4`](#rfc8210-5.11-4), [`RFC8210-6-1`](#rfc8210-6-1), [`RFC8210-7-1`](#rfc8210-7-1), [`RFC8210-7-2`](#rfc8210-7-2), [`RFC8210-8.1-1`](#rfc8210-8.1-1), [`RFC8210-8.2-1`](#rfc8210-8.2-1), [`RFC8210-9-1`](#rfc8210-9-1), [`RFC8210-9-2`](#rfc8210-9-2), [`RFC8210-9.1-1`](#rfc8210-9.1-1), [`RFC8210-9.1-2`](#rfc8210-9.1-2), [`RFC8210-9.2-3`](#rfc8210-9.2-3), [`RFC8210-9.2-6`](#rfc8210-9.2-6), [`RFC8210-9.3-1`](#rfc8210-9.3-1), [`RFC8210-9.4-1`](#rfc8210-9.4-1), [`RFC8210-4-2`](#rfc8210-4-2), [`RFC8210-4-3`](#rfc8210-4-3), [`RFC8210-9.3-2`](#rfc8210-9.3-2), [`RFC8210-9.4-2`](#rfc8210-9.4-2), [`RFC8210-9.4-3`](#rfc8210-9.4-3), [`RFC8210-9.2-9`](#rfc8210-9.2-9), [`RFC8210-8.1-2`](#rfc8210-8.1-2), [`RFC8210-2-1`](#rfc8210-2-1)
 
 ## Figures
 
-- **MUST bar**: Ze verified 29, Tests awaiting verification 4, Not built 23
-- **Overview bar**: Ze MUST verified 29, SHOULD verified 6, Not owed 3, Tests awaiting verification 4, Not assessed 19, Not built 25
+- **MUST bar**: Ze verified 35, Not built 20
+- **Overview bar**: Ze MUST verified 35, SHOULD verified 6, Not owed 4, Not assessed 19, Not built 22
 
 | Figure | Rows |
 |---|---|
@@ -129,18 +129,18 @@ Included in automatic checks: RPKI to Router Protocol, Version 1
 | Requirements not reviewed | 0 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 59 |
-| MUST rows kept (the MUST bar) | 56 |
-| Ze verified | 29 |
+| MUST rows kept (the MUST bar) | 55 |
+| Ze verified | 35 |
 | OS verified | 0 |
-| Tests awaiting verification | 4 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 23 |
-| MUST rows not owed | 3 |
+| Not built | 20 |
+| MUST rows not owed | 4 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 3 |
+| MUST not owed: not-applicable | 4 |
 | SHOULD / MAY rows | 27 |
 | SHOULD verified | 6 |
 | SHOULD OS verified | 0 |
@@ -173,10 +173,10 @@ Source: [data/rfc/rfc8210.json](../../../data/rfc/rfc8210.json).
 | `RFC8210-5.5-1` | When replying to a Reset Query (Section 5.4), the cache sends the set of all data records it has; in this case, the withdraw/announce field in the payload PDUs MUST have the value 1 (announce). (§5.5) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the obligation binds the cache's payload PDUs, but its sentence opens with a clause and takes no exclusion shape the gate accepts; ze is the router and writes no payload PDU (internal/component/bgp/plugins/rpki/rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport)), so the obligation has no producer and no test |
 | `RFC8210-5.6-1` | The cache server MUST ensure that it has told the router client to have one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time. (§5.6) | MUST | 5.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the obligation binds the cache server, but its sentence holds braces, which the annotation's own braces cannot carry in a quote, so no exclusion shape the gate accepts fits; ze fills only the router role: it parses received Prefix PDUs (parseIPv4Prefix, parseIPv6Prefix) and internal/component/bgp/plugins/rpki/rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport), so it tells no router client what to hold, and the obligation has no producer and no test |
 | `RFC8210-5.10-1` | The cache server MUST ensure that it has told the router client to have one and only one Router Key PDU for a unique {SKI, ASN, Subject Public Key} at any one point in time. (§5.10) | MUST | 5.10 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the obligation binds the cache server, but its sentence holds braces, which the annotation's own braces cannot carry in a quote, so no exclusion shape the gate accepts fits; ze fills only the router role: it parses received PDUs and internal/component/bgp/plugins/rpki/rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport), so it tells no router client what to hold, and the obligation has no producer and no test |
-| `RFC8210-5.10-2` | For this reason, implementations MUST compare Subject Public Key values as well as SKIs when detecting duplicate PDUs. (§5.10) | MUST | 5.10 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze performs no Router Key duplicate detection -- handlePDU discards every Router Key PDU (internal/component/bgp/plugins/rpki/rtr_session.go:377-379) and stores neither SKI nor Subject Public Key, so no Subject Public Key comparison happens anywhere |
+| `RFC8210-5.10-2` | For this reason, implementations MUST compare Subject Public Key values as well as SKIs when detecting duplicate PDUs. (§5.10) | MUST | 5.10 | **positive:** `unit/verify` [`TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L40). **negative:** `unit/verify` [`TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L41) |
 | `RFC8210-5.8-1` | The Session ID and Protocol Version MUST be the same as that of the corresponding Cache Response which began the (possibly null) sequence of payload PDUs. (§5.8) | MUST | 5.8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the Session ID and Protocol Version rule binds the cache's End of Data PDU, but its sentence names fields, not a role, and takes no exclusion shape the gate accepts; ze writes no End of Data or Cache Response PDU (internal/component/bgp/plugins/rpki/rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport)), so the obligation has no producer and no test |
 | `RFC8210-5.11-1` | An Error Report PDU MUST NOT be sent for an Error Report PDU. (§5.11) | MUST NOT | 5.11 | **positive:** `unit/verify` [`TestRTRErrorReportIsNotAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L186). **negative:** `unit/verify` [`TestASPAProviderListErrorOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L148) |
-| `RFC8210-5.11-2` | If the error is generic (e.g., "Internal Error") and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (§5.11) | MUST | 5.11 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no exclusion shape fits this conditional sentence; ze's router sends Error Reports always with the offending PDU encapsulated and never a generic one (readLoop in internal/component/bgp/plugins/rpki/rtr_session.go reports a malformed ASPA PDU or an unsupported version through writeErrorReport), so the condition never arises, and no test carries this id |
+| `RFC8210-5.11-2` | If the error is generic (e.g., "Internal Error") and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (§5.11) | MUST | 5.11 | **positive:** `unit/verify` [`TestRFC8210GenericErrorReportHasEmptyErroneousPDU`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L210). **negative:** `unit/verify` [`TestRFC8210GenericErrorReportHasEmptyErroneousPDU`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L211) |
 | `RFC8210-5.11-3` | If error text is present, it MUST be a string in UTF-8 encoding (see [RFC3629]). (§5.11) | MUST | 5.11 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no exclusion shape fits this conditional sentence; writeErrorReport in internal/component/bgp/plugins/rpki/rtr_pdu.go takes no text argument, so ze never sends error text and the condition never arises, and no test carries this id |
 | `RFC8210-5.11-4` | The diagnostic text is optional; if not present, the Length of Error Text field MUST be zero. (§5.11) | MUST | 5.11 | **positive:** `unit/verify` [`TestASPAProviderListErrorOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L149). **negative:** no negative test. **{single-polarity}:** ze never emits diagnostic text: internal/component/bgp/plugins/rpki/rtr_pdu.go::writeErrorReport takes no text argument and always writes a zero Length of Error Text, so no input makes ze send a report with text to contrast against |
 | `RFC8210-6-1` | Caches MUST set Expire Interval to a value larger than either Refresh Interval or Retry Interval. (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** "Caches MUST set Expire Interval to a value larger than either Refresh Interval or Retry Interval."; binds caches; ze fills only the router role: parseEndOfData in internal/component/bgp/plugins/rpki/rtr_pdu.go reads the intervals a cache sends, and ze writes no End of Data PDU (rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport)) |
@@ -192,7 +192,7 @@ Source: [data/rfc/rfc8210.json](../../../data/rfc/rfc8210.json).
 | `RFC8210-12-1` | Errors which are considered fatal MUST cause the session to be dropped. (§12) | MUST | 12 | **positive:** `unit/verify` [`TestHandlePDUVersionDowngrade`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L83). **positive:** `unit/verify` [`TestRTRFatalErrorReportDropsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L143). **negative:** `unit/verify` [`TestIsFatalError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L200). **negative:** `unit/verify` [`TestRTRFatalErrorReportDropsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L172) |
 | `RFC8210-8.2-1` | The cache MUST rate-limit Serial Notifies to no more frequently than one per minute. (§8.2) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** "The cache MUST rate-limit Serial Notifies to no more frequently than one per minute."; binds cache; ze fills only the router role: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go reads a received Serial Notify, and rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport), none of them a Serial Notify |
 | `RFC8210-9-1` | Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 14. (§9) | MUST | 9 | **positive:** `unit/verify` [`TestParseRPKIConfigDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rpki_config_test.go#L88). **positive:** `unit/verify` [`TestRTRUnprotectedTCPFromConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_transport_test.go#L25). **negative:** no negative test. **{single-polarity}:** Ze offers unprotected TCP with explicit trusted-network true and defaults that transport to port 323 (internal/component/bgp/plugins/rpki/rpki_config.go; internal/component/bgp/plugins/rpki/rtr_session.go) |
-| `RFC8210-9-2` | If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network. (§9) | MUST | 9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the obligation binds the routers as well as the cache, so it is ze's; ze cannot see the topology, so parseRPKIConfig in internal/component/bgp/plugins/rpki/rpki_config.go only refuses unprotected TCP unless the cache carries trusted-network true, nothing checks that the network is trusted and controlled, and no test carries this id |
+| `RFC8210-9-2` | If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network. (§9) | MUST | 9 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** "If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network."; binds a network operator; network topology and trust boundary are deployment obligations Ze cannot observe: internal/component/bgp/plugins/rpki/rpki_config.go::parseRPKIConfig refuses unprotected TCP unless trusted-network true is configured |
 | `RFC8210-9-3` | If available to the operator, caches and routers MUST use one of the following more protected protocols: (§9) | MUST | 9 | **positive:** `unit/verify` [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L34). **negative:** `unit/verify` [`TestRTRTLSNoPlaintextFallback`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L182) |
 | `RFC8210-9.1-1` | Cache servers supporting SSH transport MUST accept RSA authentication (§9.1) | MUST | 9.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** "Cache servers supporting SSH transport MUST accept RSA authentication and SHOULD accept Elliptic Curve Digital Signature Algorithm (ECDSA) authentication."; binds cache servers supporting SSH transport; ze fills only the router role and accepts no RTR connection on any transport: connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials out to each configured cache |
 | `RFC8210-9.1-2` | User authentication MUST be supported (§9.1) | MUST | 9.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no RTR SSH transport (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS); SSHv2 is a MAY transport in Section 9 and the owner declined no SSH feature, so the obligation has no producer and no test |
@@ -258,14 +258,12 @@ Source: [data/rfc/rfc8210.json](../../../data/rfc/rfc8210.json).
 | [`RFC8210-5.5-1`](#rfc8210-5.5-1) When replying to a Reset Query (Section 5.4), the cache sends the set of all data records it has; in this case, the withdraw/announce field in the payload PDUs MUST have the value 1 (announce). (§5.5) | {gap}, no test | the obligation binds the cache's payload PDUs, but its sentence opens with a clause and takes no exclusion shape the gate accepts; ze is the router and writes no payload PDU (internal/component/bgp/plugins/rpki/rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport)), so the obligation has no producer and no test |
 | [`RFC8210-5.6-1`](#rfc8210-5.6-1) The cache server MUST ensure that it has told the router client to have one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time. (§5.6) | {gap}, no test | the obligation binds the cache server, but its sentence holds braces, which the annotation's own braces cannot carry in a quote, so no exclusion shape the gate accepts fits; ze fills only the router role: it parses received Prefix PDUs (parseIPv4Prefix, parseIPv6Prefix) and internal/component/bgp/plugins/rpki/rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport), so it tells no router client what to hold, and the obligation has no producer and no test |
 | [`RFC8210-5.10-1`](#rfc8210-5.10-1) The cache server MUST ensure that it has told the router client to have one and only one Router Key PDU for a unique {SKI, ASN, Subject Public Key} at any one point in time. (§5.10) | {gap}, no test | the obligation binds the cache server, but its sentence holds braces, which the annotation's own braces cannot carry in a quote, so no exclusion shape the gate accepts fits; ze fills only the router role: it parses received PDUs and internal/component/bgp/plugins/rpki/rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport), so it tells no router client what to hold, and the obligation has no producer and no test |
-| [`RFC8210-5.10-2`](#rfc8210-5.10-2) For this reason, implementations MUST compare Subject Public Key values as well as SKIs when detecting duplicate PDUs. (§5.10) | {gap}, no test | ze performs no Router Key duplicate detection -- handlePDU discards every Router Key PDU (internal/component/bgp/plugins/rpki/rtr_session.go:377-379) and stores neither SKI nor Subject Public Key, so no Subject Public Key comparison happens anywhere |
 | [`RFC8210-5.8-1`](#rfc8210-5.8-1) The Session ID and Protocol Version MUST be the same as that of the corresponding Cache Response which began the (possibly null) sequence of payload PDUs. (§5.8) | {gap}, no test | the Session ID and Protocol Version rule binds the cache's End of Data PDU, but its sentence names fields, not a role, and takes no exclusion shape the gate accepts; ze writes no End of Data or Cache Response PDU (internal/component/bgp/plugins/rpki/rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport)), so the obligation has no producer and no test |
-| [`RFC8210-5.11-2`](#rfc8210-5.11-2) If the error is generic (e.g., "Internal Error") and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (§5.11) | {gap}, no test | no exclusion shape fits this conditional sentence; ze's router sends Error Reports always with the offending PDU encapsulated and never a generic one (readLoop in internal/component/bgp/plugins/rpki/rtr_session.go reports a malformed ASPA PDU or an unsupported version through writeErrorReport), so the condition never arises, and no test carries this id |
 | [`RFC8210-5.11-3`](#rfc8210-5.11-3) If error text is present, it MUST be a string in UTF-8 encoding (see [RFC3629]). (§5.11) | {gap}, no test | no exclusion shape fits this conditional sentence; writeErrorReport in internal/component/bgp/plugins/rpki/rtr_pdu.go takes no text argument, so ze never sends error text and the condition never arises, and no test carries this id |
 | [`RFC8210-6-1`](#rfc8210-6-1) Caches MUST set Expire Interval to a value larger than either Refresh Interval or Retry Interval. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: "Caches MUST set Expire Interval to a value larger than either Refresh Interval or Retry Interval."; binds caches; ze fills only the router role: parseEndOfData in internal/component/bgp/plugins/rpki/rtr_pdu.go reads the intervals a cache sends, and ze writes no End of Data PDU (rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport)) |
 | [`RFC8210-7-2`](#rfc8210-7-2) If a cache which supports version 1 receives a query from a router which specifies version 0, the cache MUST downgrade to protocol version 0 [RFC6810] or send a version 1 Error Report PDU with Error Code 4 ("Unsupported Protocol Version") and terminate the connection. (§7) | {gap}, no test | the obligation binds a cache, but its subject carries a which clause, so no exclusion shape the gate accepts fits; ze is the router, sends its queries at version 1 or 2 and receives none (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials out), so the obligation has no producer and no test |
 | [`RFC8210-8.2-1`](#rfc8210-8.2-1) The cache MUST rate-limit Serial Notifies to no more frequently than one per minute. (§8.2) | no test | no test carries this requirement id; annotated {not-applicable}: "The cache MUST rate-limit Serial Notifies to no more frequently than one per minute."; binds cache; ze fills only the router role: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go reads a received Serial Notify, and rtr_pdu.go writes only Reset Query, Serial Query and Error Report PDUs (writeResetQuery, writeSerialQuery, writeErrorReport), none of them a Serial Notify |
-| [`RFC8210-9-2`](#rfc8210-9-2) If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network. (§9) | {gap}, no test | the obligation binds the routers as well as the cache, so it is ze's; ze cannot see the topology, so parseRPKIConfig in internal/component/bgp/plugins/rpki/rpki_config.go only refuses unprotected TCP unless the cache carries trusted-network true, nothing checks that the network is trusted and controlled, and no test carries this id |
+| [`RFC8210-9-2`](#rfc8210-9-2) If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network. (§9) | no test | no test carries this requirement id; annotated {not-applicable}: "If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network."; binds a network operator; network topology and trust boundary are deployment obligations Ze cannot observe: internal/component/bgp/plugins/rpki/rpki_config.go::parseRPKIConfig refuses unprotected TCP unless trusted-network true is configured |
 | [`RFC8210-9.1-1`](#rfc8210-9.1-1) Cache servers supporting SSH transport MUST accept RSA authentication (§9.1) | no test | no test carries this requirement id; annotated {not-applicable}: "Cache servers supporting SSH transport MUST accept RSA authentication and SHOULD accept Elliptic Curve Digital Signature Algorithm (ECDSA) authentication."; binds cache servers supporting SSH transport; ze fills only the router role and accepts no RTR connection on any transport: connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials out to each configured cache |
 | [`RFC8210-9.1-2`](#rfc8210-9.1-2) User authentication MUST be supported (§9.1) | {gap}, no test | ze implements no RTR SSH transport (connectAndSync in internal/component/bgp/plugins/rpki/rtr_session.go dials TCP and optionally starts TLS); SSHv2 is a MAY transport in Section 9 and the owner declined no SSH feature, so the obligation has no producer and no test |
 | [`RFC8210-9.2-3`](#rfc8210-9.2-3) when authenticating the router's certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities (§9.2) | {gap}, no test | the check binds the cache, but the sentence's first MUST binds the router's certificate, so no exclusion shape the gate accepts fits the row; ze is the TLS client and authenticates no connecting router (startTLS in internal/component/bgp/plugins/rpki/rtr_tls.go dials out), so the obligation has no producer and no test |
@@ -332,8 +330,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRTLSSerialResponseSessionIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L34) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRTRTLSSerialResponseSessionIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L33) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRTRTLSSerialResponseSessionIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L34) | unit/verify | revert, verified |
+| positive | [`TestRTRTLSSerialResponseSessionIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L33) | unit/verify | revert, verified |
 
 ### [`RFC8210-5.1-4`](#rfc8210-5.1-4)
 
@@ -343,8 +341,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRTLSSerialResponseSessionIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L36) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRTRTLSSerialResponseSessionIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L35) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRTRTLSSerialResponseSessionIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L36) | unit/verify | revert, verified |
+| positive | [`TestRTRTLSSerialResponseSessionIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L35) | unit/verify | revert, verified |
 
 ### [`RFC8210-5.1-5`](#rfc8210-5.1-5)
 
@@ -354,8 +352,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8210DifferentVersionSameSessionIDIsSeparateSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L164) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC8210DifferentVersionSameSessionIDIsSeparateSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L163) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC8210DifferentVersionSameSessionIDIsSeparateSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L164) | unit/verify | revert, verified |
+| positive | [`TestRFC8210DifferentVersionSameSessionIDIsSeparateSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L163) | unit/verify | revert, verified |
 
 ### [`RFC8210-5.3-1`](#rfc8210-5.3-1)
 
@@ -401,9 +399,12 @@ No test carries RFC8210-5.10-1, so there is no linked test.
 
 For this reason, implementations MUST compare Subject Public Key values as well as SKIs when detecting duplicate PDUs. (§5.10)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 8210 Section 5.10 requires implementations to compare Subject Public Key values as well as SKIs when detecting duplicate Router Key PDUs. TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI exercises real TCP RTR sessions over RTRSession.syncOnce -> handlePDU -> parseRouterKeyPDU -> applyStagedRouterKey (which keys on {SKI [20]byte, ASN uint32, SPKI string}). Positive covers both v1 and v2: announces two Router Keys sharing the same SKI and ASN with distinct SPKIs, a third with a different SKI and identical SPKI/ASN, and a fourth with a different ASN and identical SKI/SPKI, asserting clean sync, io.EOF (no Error Report), all 4 keys retained, and an incremental withdrawal removing only the matching {SKI, ASN, SPKI} while preserving its colliding-SKI sibling. Negative proves true duplicate detection on identical {SKI, ASN, SPKI} both within one sync and across a subsequent incremental Serial Query sync, asserting errRtrDuplicateRouterKey, exact Error Report code 7 encapsulating the offending Router Key PDU, and session close. Both polarities carry verified revert discrimination records against applyStagedRouterKey.
 
-No test carries RFC8210-5.10-2, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L41) | unit/verify | revert, verified |
+| positive | [`TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L40) | unit/verify | revert, verified |
 
 ### [`RFC8210-5.8-1`](#rfc8210-5.8-1)
 
@@ -428,9 +429,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 If the error is generic (e.g., "Internal Error") and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. (§5.11)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 8210 Section 5.11 requires that when an error is generic (e.g., Internal Error) and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. TestRFC8210GenericErrorReportHasEmptyErroneousPDU tests both polarities over live TCP RTR sessions. Positive triggers a genuine generic Internal Error (panic in onROAChange after valid Cache Response, IPv4 Prefix, and End of Data) through readLoop -> reportInternalError -> writeErrorReport(..., errInternalError, nil) and asserts exact 16-byte wire length (empty Erroneous PDU), PDU type 10, error code 1, header length 16, Length of Encapsulated PDU == 0, and Length of Error Text == 0. Negative triggers a PDU-associated protocol error (unrecognized version 99 in Cache Response) through readLoop -> handleResponseError -> writeErrorReport(..., errUnsupportedVersion, pduBuf) and asserts total length 16+len(badResp), Length of Encapsulated PDU == len(badResp), and exact encapsulation of badResp, ruling out a writer that vacuously drops encapsulated PDUs. reportInternalError is the sole generic Error Report emitter in rpki; both polarities carry verified revert discrimination records.
 
-No test carries RFC8210-5.11-2, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC8210GenericErrorReportHasEmptyErroneousPDU`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L211) | unit/verify | revert, verified |
+| positive | [`TestRFC8210GenericErrorReportHasEmptyErroneousPDU`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go#L210) | unit/verify | revert, verified |
 
 ### [`RFC8210-5.11-3`](#rfc8210-5.11-3)
 
@@ -520,8 +524,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRTLSSupportedVersionCannotChangeWithinResponse`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L121) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRTRTLSSupportedVersionCannotChangeWithinResponse`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L120) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRTRTLSSupportedVersionCannotChangeWithinResponse`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L121) | unit/verify | revert, verified |
+| positive | [`TestRTRTLSSupportedVersionCannotChangeWithinResponse`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go#L120) | unit/verify | revert, verified |
 
 ### [`RFC8210-4-1`](#rfc8210-4-1)
 

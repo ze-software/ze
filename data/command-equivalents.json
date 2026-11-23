@@ -454,20 +454,16 @@
           {
             "command": "show validation session",
             "mode": "operational",
-            "confidence": "verified",
-            "source-refs": [
-              "junos-bgp"
-            ]
+            "confidence": "unknown",
+            "source-refs": []
           }
         ],
         "cisco-ios-xr": [
           {
             "command": "show bgp rpki server summary",
             "mode": "operational",
-            "confidence": "verified",
-            "source-refs": [
-              "iosxr-bgp"
-            ]
+            "confidence": "unknown",
+            "source-refs": []
           }
         ],
         "nokia-sros": [],
@@ -1130,9 +1126,12 @@
     {
       "id": "config-show-diff",
       "category": "Configuration",
-      "intent": "Show running configuration",
+      "intent": "Show running, candidate, and diffed configuration",
       "ze": [
-        "show config dump"
+        "show config dump",
+        "show config diff",
+        "show config history",
+        "show config fmt"
       ],
       "vendors": {
         "junos-mx": [],
@@ -1146,22 +1145,7 @@
             "source-refs": [
               "vyos-cli"
             ]
-          }
-        ]
-      }
-    },
-    {
-      "id": "config-diff",
-      "category": "Configuration",
-      "intent": "Compare candidate and running configuration",
-      "ze": [
-        "show config diff"
-      ],
-      "vendors": {
-        "junos-mx": [],
-        "cisco-ios-xr": [],
-        "nokia-sros": [],
-        "vyos": [
+          },
           {
             "command": "compare",
             "mode": "configuration",
@@ -1283,20 +1267,16 @@
           {
             "command": "show lldp neighbors",
             "mode": "operational",
-            "confidence": "verified",
-            "source-refs": [
-              "junos-route"
-            ]
+            "confidence": "unknown",
+            "source-refs": []
           }
         ],
         "cisco-ios-xr": [
           {
             "command": "show lldp neighbors",
             "mode": "operational",
-            "confidence": "verified",
-            "source-refs": [
-              "iosxr-bgp"
-            ]
+            "confidence": "unknown",
+            "source-refs": []
           }
         ],
         "nokia-sros": [],
@@ -1333,7 +1313,7 @@
           }
         ]
       },
-      "notes": "No dedicated Ze NAT translation inspection command is present in the live command catalog; NAT rules live in firewall chains."
+      "notes": "No Ze NAT command is present in the live command catalog."
     }
   ]
 }

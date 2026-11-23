@@ -9,7 +9,7 @@ Reboot into the already\-staged firmware\.
 - Mode: Daemon
 - Wire method: `ze-update:system-firmware-restart`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

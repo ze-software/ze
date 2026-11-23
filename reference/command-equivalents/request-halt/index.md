@@ -9,7 +9,7 @@ Dump goroutine stacks to stderr\, then shut down as \'request shutdown\' does\.
 - Mode: Daemon
 - Wire method: `ze-plugin:system-daemon-quit`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

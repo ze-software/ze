@@ -9,7 +9,7 @@ Show the OSPF link\-state database\.
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-database`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `asbr-summary`, `external`, `network`, `nssa-external`, `opaque-area`, `opaque-as`, `opaque-link`, `router`, `router-information`, `summary`
 - Answer shape: not declared
 - Address fields: none

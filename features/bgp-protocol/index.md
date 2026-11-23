@@ -291,6 +291,41 @@ An absent `max-delay`, or `max-delay 0`, is the default and holds nothing.
 <!-- source: internal/component/bgp/reactor/update_delay.go -- updateDelayHold, Peer.startInitialRoutes -->
 <!-- source: internal/component/bgp/config/update_delay.go -- ParseUpdateDelay -->
 
+With `max-delay` set, `bgp-rib` also defers best-path selection per address
+family when Ze starts, as RFC 4724 Section 4.1 requires of a restarting
+speaker. A family is selected once every configured peer has negotiated and
+each one that advertised Graceful Restart without the Restart State bit has
+sent its End-of-RIB marker for that family, or once `max-delay` expires. A peer
+that advertised no graceful-restart capability, and a peer whose capability
+carries the Restart State bit because it is restarting itself, are not waited
+for. The deferral is armed once per daemon start, and a reload does not arm it
+again.
+
+<!-- source: internal/component/bgp/plugins/rib/selection_deferral.go -- selectionDeferral, onPeerNegotiated, evaluateReleasesLocked, parseSelectionDeferralConfig -->
+
+### Route aggregation (`bgp aggregate`)
+
+`bgp aggregate <prefix>` makes `bgp-rib` synthesize one IPv4 or IPv6
+aggregate route while selected routes more specific than the prefix exist,
+following RFC 4271 Section 9.2.2.2, install it in the Loc-RIB and announce it.
+Routes whose MULTI_EXIT_DISC differs are not aggregated: the aggregate is
+suppressed and a warning names the prefix. ORIGIN is the worst of the
+contributors (INCOMPLETE, then EGP, then IGP). When the contributors'
+NEXT_HOPs differ, `next-hop` names the local address to use, and the
+aggregate is suppressed when that address is not local; without it Ze picks a
+local session or interface address of the family. The AS_PATH is the
+contributors' common leading AS_SEQUENCE and never holds an AS_SET, and
+ATOMIC_AGGREGATE is set when a contributor carries it or when AS numbers were
+left out. The contributors' AGGREGATOR attributes are discarded, and Ze
+attaches its own (local AS and router ID) unless `aggregator false`.
+`brief-origin-as <asn>` truncates the AS_PATH after the right-most instance of
+that AS, the consistent brief aggregation of RFC 9774 Section 5.2. Unit tests
+cover the synthesis; no functional test or interop scenario configures
+aggregation yet.
+
+<!-- source: internal/component/bgp/plugins/rib/aggregate.go -- parseAggregateRule, synthesizeAggregate, aggregateCheckMED, aggregateOrigin, aggregateNextHop, aggregateBriefASPath, aggregateAtomic, aggregateOwnAggregator, recomputeAggregateRule, publishAggregateRoute -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- list aggregate -->
+
 ### Long-Lived Graceful Restart readvertisement
 
 RFC 9494 stale-route handling is applied per destination on both normal

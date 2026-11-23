@@ -9,7 +9,7 @@ Explain why each OSPFv3 route won \(spec\-ospf\-ext\-14\)\, AF\/Instance\-ID tag
 - Mode: Read\-only
 - Wire method: `ze-ospf:show-ospfv3-spf-detail`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

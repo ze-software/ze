@@ -9,7 +9,7 @@ Choose sync or async event delivery\.
 - Mode: Read\-only
 - Wire method: `ze-meta:bgp-plugin-ack`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

@@ -14,15 +14,8 @@ what Ze has
 | One polarity plus reason | 0 | of 5 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 5 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 5 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 5 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 | Tests shown to detect a fault | 0 | 0 of 2 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Declared gap or no test | 4 | of 5 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -31,7 +24,7 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Out of scope | 0 | of 5 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
-| Not applicable | 0 | of 5 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Not applicable | 4 | of 5 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Met below Ze | 0 | of 5 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 5 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Linux cannot do this | 0 | of 5 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
@@ -55,7 +48,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
 | Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
-| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -73,7 +66,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 10 |
 | Mandatory requirements (MUST level) | 5 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 4 |
+| Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
@@ -87,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Automatic checks
 
-Included in automatic checks: OSPF Traffic Engineering (TE) LSA -- the Type 10 area-local Opaque LSA (Opaque type 1). Five MUST-level requirements gated: one tested, four gaps. RFC3630-1-1 (non-TE-capable nodes flood TE LSAs as ordinary Type-10 area-local Opaque LSAs) is covered by TestRFC3630NonTECapableFloodsTELSAByScope in internal/plugins/ospf/lsdb/rfc3630_te_test.go: positive, the consumer-agnostic LSDB carrier floods a Type-10 opaque type-1 (packet.TEOpaqueType) LSA to a Flood-eligible same-area neighbor purely by area scope with no TE code in the path (producer eligibleInterface default iface.AreaID==area at flooding.go:401, floodExcept at flooding.go:318 whose only opaque gate is the RFC 5250 O-bit at flooding.go:369, never a TE-type check); negative, the same area-local LSA is NOT flooded out an interface in a different area, bounding it exactly like any other Type-10 opaque LSA. RFC3630-6-1..6-4 (top-level and sub-TLV Type ranges 32768-32777 experimental / 32778-65535 reserved pending a Standards Track RFC) are gaps: they bind IANA and RFC authors, not an implementation, but their passive subjects fit neither not-applicable shape; ze neither allocates nor documents these type ranges. The 2.4.1/2.5.7/3/2.5.4 SHOULDs and MAYs are not gated.
+Included in automatic checks: OSPF Traffic Engineering (TE) LSA -- the Type 10 area-local Opaque LSA (Opaque type 1). Five MUST-level requirements gated: one tested, four not-applicable. RFC3630-1-1 (non-TE-capable nodes flood TE LSAs as ordinary Type-10 area-local Opaque LSAs) is covered by TestRFC3630NonTECapableFloodsTELSAByScope in internal/plugins/ospf/lsdb/rfc3630_te_test.go: positive, the consumer-agnostic LSDB carrier floods a Type-10 opaque type-1 (packet.TEOpaqueType) LSA to a Flood-eligible same-area neighbor purely by area scope with no TE code in the path (producer eligibleInterface default iface.AreaID==area at flooding.go:401, floodExcept at flooding.go:318 whose only opaque gate is the RFC 5250 O-bit at flooding.go:369, never a TE-type check); negative, the same area-local LSA is NOT flooded out an interface in a different area, bounding it exactly like any other Type-10 opaque LSA. RFC3630-6-1..6-4 (top-level and sub-TLV Type ranges 32768-32777 experimental / 32778-65535 reserved pending a Standards Track RFC) are not-applicable under Section 6 (IANA Considerations): they bind RFC authors and IANA rather than a router; ze neither allocates nor documents these type ranges. The 2.4.1/2.5.7/3/2.5.4 SHOULDs and MAYs are not gated.
 
 ## Published support status
 
@@ -97,7 +90,7 @@ Included in automatic checks: OSPF Traffic Engineering (TE) LSA -- the Type 10 a
 
 **Evidence:** -
 
-**Unmet:** RFC3630-6-1, RFC3630-6-2, RFC3630-6-3, RFC3630-6-4
+**Unmet:** -
 
 
 ## Coverage
@@ -119,8 +112,8 @@ Included in automatic checks: OSPF Traffic Engineering (TE) LSA -- the Type 10 a
 
 ## Figures
 
-- **MUST bar**: Tests awaiting verification 1, Not built 4
-- **Overview bar**: Tests awaiting verification 1, Not assessed 5, Not built 4
+- **MUST bar**: Tests awaiting verification 1
+- **Overview bar**: Not owed 4, Tests awaiting verification 1, Not assessed 5
 
 | Figure | Rows |
 |---|---|
@@ -128,18 +121,18 @@ Included in automatic checks: OSPF Traffic Engineering (TE) LSA -- the Type 10 a
 | Requirements not reviewed | 0 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 5 |
-| MUST rows kept (the MUST bar) | 5 |
+| MUST rows kept (the MUST bar) | 1 |
 | Ze verified | 0 |
 | OS verified | 0 |
 | Tests awaiting verification | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 4 |
-| MUST rows not owed | 0 |
+| Not built | 0 |
+| MUST rows not owed | 4 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 0 |
+| MUST not owed: not-applicable | 4 |
 | SHOULD / MAY rows | 5 |
 | SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
@@ -162,10 +155,10 @@ Source: [data/rfc/rfc3630.json](../../../data/rfc/rfc3630.json).
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC3630-1-1` | if non-TE capable nodes exist in the topology, they MUST flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (see [3]). (§1) | MUST | 1 | **positive:** `unit/verify` [`TestRFC3630NonTECapableFloodsTELSAByScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3630_te_test.go#L23). **negative:** `unit/verify` [`TestRFC3630NonTECapableFloodsTELSAByScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3630_te_test.go#L28) |
-| `RFC3630-6-1` | o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the sentence binds the authors of RFCs, a role ze never fills, and its passive subject fits neither not-applicable shape; ze mentions no experimental top-level Type and has no behaviour to test |
-| `RFC3630-6-2` | Here are the guidelines (using terms defined in [10]) for the assignment of top level Types in TE LSAs: o Types in the range 3-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the sentences bind IANA and the Standards Track documents that assign top-level TE LSA Types, roles ze never fills, and their passive subjects fit neither not-applicable shape; ze assigns no Type and has no behaviour to test |
-| `RFC3630-6-3` | o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the sentence binds the authors of RFCs, a role ze never fills, and its passive subject fits neither not-applicable shape; ze mentions no experimental sub-TLV Type and has no behaviour to test |
-| `RFC3630-6-4` | The guidelines for the assignment of types for sub-TLVs in a TE LSA are as follows: o Types in the range 10-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the sentences bind IANA and the Standards Track documents that assign TE LSA sub-TLV Types, roles ze never fills, and their passive subjects fit neither not-applicable shape; ze assigns no Type and has no behaviour to test |
+| `RFC3630-6-1` | o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** heading "IANA Considerations"; binds RFC author; prohibiting RFCs from mentioning experimental top-level TE LSA Types 32768-32777 binds future RFC authors; ze is a router and writes no RFC |
+| `RFC3630-6-2` | Here are the guidelines (using terms defined in [10]) for the assignment of top level Types in TE LSAs: o Types in the range 3-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** heading "IANA Considerations"; binds IANA; top-level TE LSA Type allocation guidelines for ranges 3-32767 and 32778-65535 bind IANA and the IETF standards process; ze is a router and allocates no Type value |
+| `RFC3630-6-3` | o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** heading "IANA Considerations"; binds RFC author; prohibiting RFCs from mentioning experimental TE LSA sub-TLV Types 32768-32777 binds future RFC authors; ze is a router and writes no RFC |
+| `RFC3630-6-4` | The guidelines for the assignment of types for sub-TLVs in a TE LSA are as follows: o Types in the range 10-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** heading "IANA Considerations"; binds IANA; TE LSA sub-TLV Type allocation guidelines for ranges 10-32767 and 32778-65535 bind IANA and the IETF standards process; ze is a router and allocates no sub-TLV Type value |
 | `RFC3630-2.4.1-1` | If a router advertises BGP routes with the BGP next hop attribute set to the BGP router ID, then the Router Address SHOULD be the same as the BGP router ID. (§2.4.1) | SHOULD | 2.4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3630-2.5.7-1` | This SHOULD be user-configurable; the default value should be the Maximum Bandwidth. (§2.5.7) -- Ze: `max-reservable-bandwidth` leaf, defaulting to `max-bandwidth`, in applyTELinkAttributes | SHOULD | 2.5.7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3630-3-1` | In any case, the origination of Traffic Engineering LSAs SHOULD be rate-limited to at most one every MinLSInterval [1]. (§3) -- Ze reuses the carrier's MinLSInterval rate-limit in OriginateSelf; a pull-model unchanged body floods nothing | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
@@ -176,10 +169,10 @@ Source: [data/rfc/rfc3630.json](../../../data/rfc/rfc3630.json).
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC3630-6-1`](#rfc3630-6-1) o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | {gap}, no test | the sentence binds the authors of RFCs, a role ze never fills, and its passive subject fits neither not-applicable shape; ze mentions no experimental top-level Type and has no behaviour to test |
-| [`RFC3630-6-2`](#rfc3630-6-2) Here are the guidelines (using terms defined in [10]) for the assignment of top level Types in TE LSAs: o Types in the range 3-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6) | {gap}, no test | the sentences bind IANA and the Standards Track documents that assign top-level TE LSA Types, roles ze never fills, and their passive subjects fit neither not-applicable shape; ze assigns no Type and has no behaviour to test |
-| [`RFC3630-6-3`](#rfc3630-6-3) o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | {gap}, no test | the sentence binds the authors of RFCs, a role ze never fills, and its passive subject fits neither not-applicable shape; ze mentions no experimental sub-TLV Type and has no behaviour to test |
-| [`RFC3630-6-4`](#rfc3630-6-4) The guidelines for the assignment of types for sub-TLVs in a TE LSA are as follows: o Types in the range 10-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6) | {gap}, no test | the sentences bind IANA and the Standards Track documents that assign TE LSA sub-TLV Types, roles ze never fills, and their passive subjects fit neither not-applicable shape; ze assigns no Type and has no behaviour to test |
+| [`RFC3630-6-1`](#rfc3630-6-1) o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: heading "IANA Considerations"; binds RFC author; prohibiting RFCs from mentioning experimental top-level TE LSA Types 32768-32777 binds future RFC authors; ze is a router and writes no RFC |
+| [`RFC3630-6-2`](#rfc3630-6-2) Here are the guidelines (using terms defined in [10]) for the assignment of top level Types in TE LSAs: o Types in the range 3-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: heading "IANA Considerations"; binds IANA; top-level TE LSA Type allocation guidelines for ranges 3-32767 and 32778-65535 bind IANA and the IETF standards process; ze is a router and allocates no Type value |
+| [`RFC3630-6-3`](#rfc3630-6-3) o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: heading "IANA Considerations"; binds RFC author; prohibiting RFCs from mentioning experimental TE LSA sub-TLV Types 32768-32777 binds future RFC authors; ze is a router and writes no RFC |
+| [`RFC3630-6-4`](#rfc3630-6-4) The guidelines for the assignment of types for sub-TLVs in a TE LSA are as follows: o Types in the range 10-32767 are to be assigned via Standards Action. o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. o Types in the range 32778-65535 are not to be assigned at this time. Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that covers the range being assigned. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: heading "IANA Considerations"; binds IANA; TE LSA sub-TLV Type allocation guidelines for ranges 10-32767 and 32778-65535 bind IANA and the IETF standards process; ze is a router and allocates no sub-TLV Type value |
 
 ## Test status
 

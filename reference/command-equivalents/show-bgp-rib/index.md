@@ -9,7 +9,7 @@ Query routes in the BGP RIB\.
 - Mode: Read\-only
 - Wire method: `ze-bgp:rib-routes`
 - Backends: any backend
-- Task support: required\: the MCP server always answers with a task handle
+- Task support: required: the MCP server always answers with a task handle
 - Subcommands: `best`, `protocol`, `rpf`, `status`
 - Answer shape: tab
 - Address fields: peer\, next\-hop

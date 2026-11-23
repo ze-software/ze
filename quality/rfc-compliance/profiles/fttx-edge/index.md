@@ -107,8 +107,8 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own bars and figures follow.
 
-- **MUST bar**: Ze verified 9, Tests awaiting verification 10, Not assessed 59, Not built 114
-- **Overview bar**: Ze MUST verified 9, SHOULD verified 2, Tests awaiting verification 10, Not assessed 123, Not built 114
+- **MUST bar**: Ze verified 9, Tests awaiting verification 10, Not assessed 59, Not built 87
+- **Overview bar**: Ze MUST verified 9, SHOULD verified 2, Not owed 27, Tests awaiting verification 10, Not assessed 123, Not built 87
 
 | Figure | Rows |
 |---|---|
@@ -116,18 +116,18 @@ RFCs this use case lists as optional, each declared by the Optional use cases ro
 | Requirements not reviewed | 0 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 192 |
-| MUST rows kept (the MUST bar) | 192 |
+| MUST rows kept (the MUST bar) | 165 |
 | Ze verified | 9 |
 | OS verified | 0 |
 | Tests awaiting verification | 10 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 59 |
-| Not built | 114 |
-| MUST rows not owed | 0 |
+| Not built | 87 |
+| MUST rows not owed | 27 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 0 |
+| MUST not owed: not-applicable | 27 |
 | SHOULD / MAY rows | 66 |
 | SHOULD verified | 2 |
 | SHOULD OS verified | 0 |
@@ -150,4 +150,4 @@ The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and S
 | [RFC 8106](../../rfc8106/) | IPv6 Router Advertisement Options for DNS Configuration | Ze verified 5, Not built 6 | Ze MUST verified 5, SHOULD verified 2, Not assessed 11, Not built 6 | fttx-edge: optional in rfc/short/rfc8106.md |
 | [RFC 4033](../../rfc4033/) (cycle with rfc4034, rfc4035) | DNS Security Introduction and Requirements | no rows | no rows | fttx-edge: optional in rfc/short/rfc4033.md |
 | [RFC 4034](../../rfc4034/) (cycle with rfc4033, rfc4035) | Resource Records for the DNS Security Extensions | Not assessed 59 | Not assessed 59 | fttx-edge: optional in rfc/short/rfc4034.md |
-| [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | Ze verified 4, Tests awaiting verification 10, Not built 94 | Ze MUST verified 4, Tests awaiting verification 10, Not assessed 50, Not built 94 | fttx-edge: optional in rfc/short/rfc4035.md |
+| [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | Ze verified 4, Tests awaiting verification 10, Not built 67 | Ze MUST verified 4, Not owed 27, Tests awaiting verification 10, Not assessed 50, Not built 67 | fttx-edge: optional in rfc/short/rfc4035.md |

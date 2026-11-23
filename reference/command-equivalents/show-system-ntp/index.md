@@ -9,7 +9,7 @@ NTP clock synchronization status\.
 - Mode: Read\-only
 - Wire method: `ze-ntp:show-system-ntp`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `peers`
 - Answer shape: doc
 - Address fields: none

@@ -9,7 +9,7 @@ Group route changes into named atomic commits\.
 - Mode: Daemon
 - Wire method: `ze-bgp:commit`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

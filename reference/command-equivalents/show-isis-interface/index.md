@@ -9,7 +9,7 @@ Show IS\-IS\-enabled circuits\.
 - Mode: Read\-only
 - Wire method: `ze-isis:show-interface`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

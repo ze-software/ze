@@ -9,7 +9,7 @@ Show CPU utilization context for the daemon\.
 - Mode: Read\-only
 - Wire method: `ze-cmd:show-system-cpu`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

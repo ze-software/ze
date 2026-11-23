@@ -200,6 +200,8 @@ The `admin` account created by `ze init` is the break-glass identity. It always 
 - The `ze init` bootstrap admin carries an internal, reserved recovery profile, so it is never locked out by a strict authorization default.
 - Defining `set system authentication user admin profile admin` (as this guide does) makes `admin` a normal config account with an explicit profile.
 
+A logged-in recovery session keeps the recovery profile while the `admin` account's own record stays the same. Changing the `admin` password, its profiles or its SSH keys, or removing the account, ends that authority at once; changing, adding or removing any other user does not. The check is the one web sessions use: each local user carries a generation that advances only when that user's own record changes (`stampLocalIdentityGeneration` in `cmd/ze/hub/aaa_lifecycle.go`, `AuthorizerForResult` in `internal/component/aaa/login_profiles.go`).
+
 If you never want the bootstrap admin to authenticate, disable it explicitly with `meta/instance/admin-disabled`; accept that you then depend entirely on your configured accounts for access.
 
 ### Demo: Prove read-only RBAC enforcement

@@ -9,7 +9,7 @@ Print the full text of a stored configuration snapshot\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-cli:show-config-cat`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: blob
 - Address fields: none

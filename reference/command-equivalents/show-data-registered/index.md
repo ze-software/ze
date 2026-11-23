@@ -9,7 +9,7 @@ List the key patterns registered by all subsystems\.
 - Mode: read\-only\, offline
 - Wire method: `ze-config-storage:show-data-registered`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none

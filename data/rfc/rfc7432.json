@@ -7,16 +7,18 @@
   "implemented": true,
   "must": {
     "total": 103,
-    "kept": 103,
+    "kept": 102,
     "ze-proven": 11,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 2,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 90,
-    "not-owed": 0,
-    "not-owed-by-kind": {}
+    "not-built": 89,
+    "not-owed": 1,
+    "not-owed-by-kind": {
+      "not-applicable": 1
+    }
   },
   "should": {
     "total": 17,
@@ -76,7 +78,6 @@
     "RFC7432-5-10",
     "RFC7432-5-11",
     "RFC7432-5-12",
-    "RFC7432-5-13",
     "RFC7432-5-3",
     "RFC7432-5-4",
     "RFC7432-5-5",

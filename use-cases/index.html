@@ -115,13 +115,44 @@
 <td>Authenticated workbench or public Looking Glass clients</td>
 <td>Peer, prefix, route, and graph inspection before and after changes</td>
 </tr>
+<tr>
+<td><a href="fttp-cpe/">Home and SMB FTTP CPE</a></td>
+<td>PPPoE WAN client, DHCPv6-PD + RA, DHCPv4 server, LAN DNS forwarding, nftables MSS/NAT</td>
+<td>ISP access concentrator (<code>accel-ppp</code>) and LAN hosts</td>
+<td>Topology interop against <code>accel-ppp</code> plus PPPoE, DHCP, and DNS <code>.ci</code> tests</td>
+</tr>
+<tr>
+<td><a href="site-to-site-vpn/">Site-to-site IPsec and WireGuard VPN</a></td>
+<td>Route-based IKEv2 IPsec on Linux XFRM VTI interfaces or kernel WireGuard tunnels</td>
+<td>strongSwan 6.1.0 responder or WireGuard peer</td>
+<td>strongSwan interop scenarios, QEMU kernel cipher proofs, and reload <code>.ci</code> tests</td>
+</tr>
+<tr>
+<td><a href="igp-edge/">Campus and IGP edge</a></td>
+<td>OSPFv2 + single-hop BFD or dual-stack IS-IS with VRRPv3 and uplink tracking</td>
+<td>FRR IGP peers and keepalived VRRPv3 standby router</td>
+<td>FRR OSPF/IS-IS/BFD interop and keepalived VRRPv3 Docker and QEMU labs</td>
+</tr>
+<tr>
+<td><a href="fleet-management/">Fleet configuration management</a></td>
+<td>Central TLS hub enrolling managed devices, pushing live configs, and resolving divergence</td>
+<td>Managed Ze devices booting from hub or local cache</td>
+<td>32 managed-fleet <code>.ci</code> tests covering enrollment, freeze, live push, adopt, and revert</td>
+</tr>
+<tr>
+<td><a href="appliance-lifecycle/">Immutable appliance A/B lifecycle</a></td>
+<td>Gokrazy read-only appliance with <code>--testboot</code> A/B OTA, <code>commit confirmed</code>, and ZeFS backups</td>
+<td>Operator workstation running over HTTPS and SSH. <span class="ev-src"><span class="ev-ref"><code>./ze-host</code></span></span></td>
+<td>QEMU <code>appliance-ota</code> and <code>appliance-config</code> labs plus commit-confirmed and backup <code>.ci</code> tests</td>
+</tr>
 </tbody>
 </table>
 <h2 id="what-belongs-here">What belongs here</h2>
-<p>Each use case documents:</p>
+<p>Each use case includes:</p>
 <ul>
-<li>The role, addressing, or scenario parameters.</li>
-<li>A runnable Ze configuration or tooling command for the role (and neighboring router configs where applicable).</li>
+<li>A topology with clear addresses and ASNs.</li>
+<li>A full Ze config for the role.</li>
+<li>The neighboring router or daemon config.</li>
 <li>The verification command or lab scenario that tests the important behavior.</li>
 </ul>
 <p>Reference-only material stays in <a href="../docs/">Documentation</a>. Raw interop evidence stays in <a href="../labs/">Labs</a>.</p>
@@ -165,6 +196,26 @@
                         <span class="page-sidebar-link-label">AS-path topology</span>
                         <small>Investigate route visibility in the Looking Glass.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../use-cases/fttp-cpe/">
+                        <span class="page-sidebar-link-label">Home and SMB FTTP CPE</span>
+                        <small>PPPoE, DHCPv6-PD, RA, DHCPv4, LAN DNS, and NAT.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../use-cases/site-to-site-vpn/">
+                        <span class="page-sidebar-link-label">Site-to-site IPsec and WireGuard</span>
+                        <small>Route-based IKEv2 XFRM and WireGuard tunnels.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../use-cases/igp-edge/">
+                        <span class="page-sidebar-link-label">Campus and IGP edge</span>
+                        <small>OSPF with BFD or dual-stack IS-IS plus VRRPv3.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../use-cases/fleet-management/">
+                        <span class="page-sidebar-link-label">Fleet configuration management</span>
+                        <small>Central TLS hub, live pushes, and audited divergence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../use-cases/appliance-lifecycle/">
+                        <span class="page-sidebar-link-label">Immutable appliance lifecycle</span>
+                        <small>Gokrazy A/B testboot, commit confirmed, and ZeFS backup.</small>
+                    </a>
                 </section>
                 <section class="page-sidebar-group">
                     <h2>Reference nearby</h2>
@@ -193,7 +244,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../license/">Ze is AGPLv3 open source.</a>
                     <a href="../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

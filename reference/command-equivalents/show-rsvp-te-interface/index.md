@@ -9,7 +9,7 @@ Show RSVP\-TE bandwidth allocation per interface\.
 - Mode: Read\-only
 - Wire method: `ze-rsvpte:show-rsvp-te-interface`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

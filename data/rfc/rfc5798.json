@@ -8,39 +8,37 @@
   "must": {
     "total": 59,
     "kept": 59,
-    "ze-proven": 49,
+    "ze-proven": 51,
     "os-verified": 0,
     "os-gap": 3,
     "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 7,
+    "not-built": 5,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
   "should": {
     "total": 26,
-    "proven": 1,
+    "proven": 6,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
     "proof-pending": 0,
     "exclusion-unchecked": 0,
-    "not-assessed": 24,
-    "not-built": 1,
+    "not-assessed": 20,
+    "not-built": 0,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
+    "superseded": 2,
     "unit": 49
   },
   "unmet": [
     "RFC5798-6.4.3-4",
-    "RFC5798-7.1-3",
     "RFC5798-8.2.2-2",
     "RFC5798-8.2.2-3",
     "RFC5798-8.2.3-1",
-    "RFC5798-8.4.2-1",
-    "RFC5798-A.2-1",
-    "RFC5798-A.2-3"
+    "RFC5798-8.4.2-1"
   ]
 }

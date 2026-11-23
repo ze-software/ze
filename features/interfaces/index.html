@@ -55,11 +55,13 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 <li><a href="#capability-table">Capability Table</a>
 <ol>
 <li><a href="#creating-a-device">Creating a device</a></li>
+<li><a href="#writing-only-what-differs">Writing only what differs</a></li>
 <li><a href="#unnumbered-ipv4-units">Unnumbered IPv4 units</a></li>
 <li><a href="#reverse-path-check">Reverse-path check</a></li>
 </ol></li>
 <li><a href="#architecture">Architecture</a></li>
 <li><a href="#interface-discovery">Interface Discovery</a></li>
+<li><a href="#design-decisions">Design decisions</a></li>
 <li><a href="#key-design-decisions">Key Design Decisions</a></li>
 <li><a href="#tunnel-configuration">Tunnel Configuration</a>
 <ol>
@@ -997,6 +999,86 @@ creating a present device again. A device that existed is kept,
 and the undo of a failed apply leaves it in place. A create that fails for a
 device that did not exist fails the commit, even when the backend left a
 partial device behind, and the undo deletes only the devices the apply created.</p>
+<h3 id="writing-only-what-differs">Writing only what differs</h3>
+<p>An interface in the config can name a device ze did not make and whose
+settings already match, such as a Docker host bridge <code>docker0</code> with no <code>stp</code>
+leaf. Each apply reads the device's current state and writes a link setting
+only when the device holds another value, so an unprivileged ze applies such
+a config: every one of these writes needs CAP_NET_ADMIN, even one that changes
+nothing.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Read from</th>
+<th>Skipped when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bridge STP</td>
+<td><code>GetLink</code>, the bridge's <code>IFLA_BR_STP_STATE</code></td>
+<td>the bridge reports the state the <code>stp</code> leaf asks for (absent means off; kernel or user-space STP both count as on)</td>
+</tr>
+<tr>
+<td>MTU</td>
+<td><code>GetLink</code></td>
+<td>the device holds the configured MTU (VLAN units already compared)</td>
+</tr>
+<tr>
+<td>MAC address</td>
+<td><code>GetMACAddress</code></td>
+<td>the device holds the same address, whatever its spelling</td>
+</tr>
+<tr>
+<td>Admin state</td>
+<td><code>GetLink</code>, the administrative state (<code>IFF_UP</code>), never the operational one</td>
+<td>the device is administratively up, with or without a carrier</td>
+</tr>
+<tr>
+<td>Bridge member</td>
+<td><code>GetLink</code> of the bridge and the port</td>
+<td>the port is already a member of that bridge</td>
+</tr>
+<tr>
+<td>VLAN QoS maps</td>
+<td><code>GetLink</code> of the VLAN</td>
+<td>the VLAN holds maps that program the same translation (an entry at 0 equals an absent one)</td>
+</tr>
+<tr>
+<td><code>dhcp-auto</code> interface up</td>
+<td><code>GetLink</code></td>
+<td>the interface is administratively up</td>
+</tr>
+<tr>
+<td>WireGuard keys and peers</td>
+<td><code>GetWireguardDevice</code> (wgctrl on netlink), when the device existed before the apply</td>
+<td>the device holds the private key and fwmark, the listen port when the leaf is set, and exactly the enabled peers, each with the configured preshared key, endpoint, keepalive and allowed-IP set and nothing else (the write replaces the peer set, so an extra peer, a learned endpoint or a disabled peer still present is a difference; allowed IPs compare as masked prefixes in any order)</td>
+</tr>
+</tbody>
+</table>
+<p>A state that cannot be read is written, never taken for one that matches, and
+a backend that does not report a setting (the VPP backend reports no STP state,
+no QoS maps, and no WireGuard fwmark or preshared key) keeps writing it. A
+failed read of a device's link state is logged at warning and raised on the
+report bus under <code>doctor-iface-state-unread</code>, so <code>show doctor</code> names the
+device, the backend's answer and <code>ze show interface name &lt;device&gt; detail</code>; a
+later apply whose read of that device answers clears it. A failed read of a
+WireGuard device's keys and peers is raised the same way under the subject
+<code>&lt;device&gt; wireguard</code>, so the link read of the same device does not clear it.
+On Linux the kernel answers a WireGuard read only to a process with
+CAP_NET_ADMIN, as it does a write, so an unprivileged ze cannot read the
+device: the read is reported and the write that follows fails with the
+capability named. A privileged start over a device that already holds its
+config no longer replaces its peers, which kept each peer's session. A backend that is not ready yet (the VPP
+startup path) and a device the read does not find by its name are logged at
+debug only, because the write that follows reports them. A skipped setting adds no step to the apply
+journal, so a failed commit does not undo with a write what it did not change:
+the bridge keeps its STP state and its ports, and a device that was up stays
+up. A write that is needed still fails without CAP_NET_ADMIN, with the
+capability named in the error.</p>
+<p>Devices are still created on every apply, and a create refused for a device
+that existed is ignored, as above.</p>
 <h3 id="unnumbered-ipv4-units">Unnumbered IPv4 units</h3>
 <p>A unit can borrow the IPv4 address of another interface instead of holding a
 subnet of its own (Cisco <code>ip unnumbered</code>, Junos <code>unnumbered-address</code>):</p>
@@ -1091,13 +1173,33 @@ Subscribers -- BGP reactor (starts/stops listeners on address changes)
 </code></pre>
 <h2 id="interface-discovery">Interface Discovery</h2>
 <p>During <code>ze init</code>, Ze discovers OS network interfaces and generates initial configuration
-entries. The <code>DiscoverInterfaces</code> function enumerates interfaces via <code>ListInterfaces</code>
+entries, written after the SSH listener the CLI reaches the daemon through. The
+<code>DiscoverInterfaces</code> function enumerates interfaces via <code>ListInterfaces</code>
 (netlink on Linux, stdlib on other platforms) and classifies each by Ze type: ethernet,
 bridge, veth, dummy, or loopback. On Linux, the netlink <code>device</code> type maps to ethernet
 (except <code>lo</code>, which maps to loopback). Results are sorted by type then name.</p>
 <p>A managed client (<code>ze init --managed</code>) and an appliance seed (<code>ze init --seed</code>) skip
 discovery and write no initial config: the managed client takes its first config from
 its hub, and the appliance discovers on the device at first boot.</p>
+<p>By default <code>ze init</code> writes every device discovery finds, including the ones another
+program owns (<code>docker0</code>, <code>br-*</code>, <code>virbr0</code>, container veths, <code>wg-quick</code> devices), and a
+root ze then manages each of them. <code>ze init --confirm</code> asks about each device the config
+can hold, the loopback included, and writes only the ones answered yes. Each question
+shows the device's kind and name, its MAC address, the bridge or bond it is a member of,
+and its kernel alias: the hints that name the program that owns it. Devices are asked in
+the order <code>ze interface scan</code> lists them, and only an explicit answer decides: <code>yes</code> or <code>y</code>
+writes the device, and <code>no</code> or <code>n</code> leaves it out, in any case. The prompt shows no default.
+An empty line or any other answer is not accepted: <code>ze init</code> writes one notice line on
+stderr naming the four answers and asks about the same device again, reading the next
+line, until it gets one of them. Input that ends before every device is answered is
+refused before the store is published. A script works the same as a terminal: on a pipe a
+line that is not accepted is consumed and noted, and the next line answers the same
+device. When discovery fails, <code>--confirm</code> asks nothing and <code>ze init</code> warns as it does
+without the flag. <code>--confirm</code> is refused with <code>--seed</code>, <code>--managed</code> and <code>--from</code>, which
+write no discovered interface.</p>
+<p>A kept ethernet's selector is still judged against every discovered device: when two
+NICs report one factory address and only one is kept, the kept entry binds by <code>os-name</code>,
+because a <code>mac { match }</code> on that address would name both devices and refuse the commit.</p>
 <p>The generated config uses descriptive names as YANG list keys (the OS interface name at
 discovery time). The MAC address serves as the physical binding between configuration and
 hardware. For ethernet, veth, and bridge interfaces, the MAC address (<code>mac { address }</code>) is
@@ -1157,6 +1259,31 @@ selector carries the sibling validator <code>ze:validate "os-device-name"</code>
 FORM of a kernel device name and completes to the device names present on the box. It
 does not check that the device exists: the YANG promises a binding that defers until its
 device appears, and a config is validated on machines that will never run it.</p>
+<h2 id="design-decisions">Design decisions</h2>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>It forbids</th>
+<th>Source</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze init</code> claims every discovered device by default, including the ones another program owns. <code>ze init --confirm</code> asks about each discovered device and writes only the ones the operator confirms</td>
+<td>Leaving a discovered device out of the default <code>ze init</code> config by kind, membership, alias or any other ownership guess; asking about devices without <code>--confirm</code>; writing a device <code>--confirm</code> did not get a yes for</td>
+<td>plan/records/ruling-ze-init-claims-discovered-devices.md</td>
+<td>2026-11-22</td>
+</tr>
+<tr>
+<td><code>ze init --confirm</code> takes only an explicit answer: <code>yes</code>, <code>y</code>, <code>no</code> or <code>n</code>. Anything else, an empty line included, is not accepted, and the same device is asked again</td>
+<td>A default answer, an empty line read as no, refusing the whole init over an answer that is not accepted, and moving on to the next device before an explicit answer</td>
+<td>plan/records/ruling-ze-init-claims-discovered-devices.md</td>
+<td>2026-11-22</td>
+</tr>
+</tbody>
+</table>
 <h2 id="key-design-decisions">Key Design Decisions</h2>
 <ul>
 <li><strong>Descriptive names as keys, MAC as binding.</strong> Interface names in config are user-chosen
@@ -1591,14 +1718,19 @@ MD5 passwords, SSH secrets, MCP tokens, and API tokens.</p>
 <h3 id="reconciliation">Reconciliation</h3>
 <p>On reload, <code>applyConfig</code> compares the new spec to the previously
 applied spec via <code>wireguardSpecEqual</code>. Unchanged entries are a no-op; the
-kernel is not touched and peer handshake state is preserved. Changed
-entries trigger a single <code>ConfigureWireguardDevice</code> call with
-<code>wgtypes.Config{ReplacePeers: true}</code> -- the kernel matches unchanged peers
-by public-key and preserves their handshake state, so "apply entire spec
-on every change" is functionally equivalent to a per-peer diff at a tiny
-fraction of the code. New wireguard entries get a <code>CreateWireguardDevice</code>
-(netlink) before the Configure call. Wireguard list entries removed from
-config are deleted by Phase 4 reconciliation, same as tunnels.</p>
+kernel is not touched and peer handshake state is preserved. A changed
+entry, and every entry at the first apply after start, is then compared
+with what the device holds, read through <code>GetWireguardDevice</code>: a device
+that already holds the spec gets no write ("Writing only what differs"
+above). Otherwise a single <code>ConfigureWireguardDevice</code> call sends the whole
+spec with <code>wgtypes.Config{ReplacePeers: true}</code>, which makes the kernel
+remove every current peer before it adds the configured ones
+(<code>WGDEVICE_F_REPLACE_PEERS</code>): each peer starts again with no session and
+no learned endpoint until its next handshake. New wireguard entries get a
+<code>CreateWireguardDevice</code> (netlink) before the Configure call, and a device
+the apply has just created is written without a read. Wireguard list
+entries removed from config are deleted by Phase 4 reconciliation, same as
+tunnels.</p>
 <p>Peer names in config (<code>peer site2 { ... }</code>) are operator-chosen labels.
 The kernel tracks peers only by public key, so the label can change
 freely without affecting the handshake. <code>ze init</code> emits discovered peers
@@ -2715,7 +2847,10 @@ digest and preserves the native errno. It proves a terminal kernel response;
 an operation may have changed state before returning an error. The caller MUST
 retain its effect and cleanup receipts after transport settlement. Historical
 unknown-outcome errors remain available after successful physical socket Close
-and permit final backend cleanup. A failed physical socket Close retains the
+and permit final backend cleanup. A delayed settlement through <code>Settle</code> keeps
+the causes its earlier waits met, and its matched NACK, as that history: every
+later <code>Settle</code>, writer Close and backend Close returns them. A response the
+write itself received is returned once and is not retained. A failed physical socket Close retains the
 writer, backend resources and original cause. Close is attempted only once;
 neither a later <code>os.ErrClosed</code> nor the socket number authorizes another close
 or proves release.</p>
@@ -2872,7 +3007,7 @@ available through ordinary interface discovery without gaining this lease.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

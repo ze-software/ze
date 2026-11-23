@@ -328,7 +328,7 @@ has a third of the hold time, between 10s and 30s. Raise
 a longer budget keeps a dead session up for longer.
 <!-- source: internal/component/bgp/reactor/session_write_budget.go -- recordWriteFailure, reportWriteBudgetExpiry, writeBudgetExpiryFix -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- lastErrorString, closedWithoutNotification -->
-<!-- source: internal/core/diagnostic/codes.go -- CodeDoctorBGPPeerNotReading -->
+<!-- source: internal/component/bgp/reactor/doctor_codes.go -- codeDoctorBGPPeerNotReading -->
 
 ### 4. Test Failures
 

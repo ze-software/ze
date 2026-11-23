@@ -9,7 +9,7 @@ Disconnect every L2TP session on this box\.
 - Mode: Daemon
 - Wire method: `ze-l2tp:session-teardown-all`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none

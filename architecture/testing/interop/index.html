@@ -53,6 +53,7 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#design-decisions">Design decisions</a></li>
 <li><a href="#the-suites-one-per-protocol-area">The suites, one per protocol area</a>
 <ol>
 <li><a href="#marked-raw-policy-output-at-a-native-receiver">Marked raw policy output at a native receiver</a></li>
@@ -156,6 +157,25 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <p>For BGP terminology used in this document, see <a href="../../../features/bgp-protocol/">BGP protocol</a>.</p>
 <p><code>ai/rules/interop-and-goal-validation.md</code> states when an interop test is owed.
 This page is the infrastructure it is owed against.</p>
+<h2 id="design-decisions">Design decisions</h2>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>It forbids</th>
+<th>Source</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Each Docker interop suite and scenario checks only the kernel capabilities it actually requires (<code>Suite.KernelCapabilities</code> unioned with selected <code>ScenarioPlan.KernelCapabilities</code>); suites whose selected scenarios require none run without unrelated kernel features (such as SRv6 or IPsec)</td>
+<td>Refusing a pure-BGP or other unrelated interop suite because the host kernel lacks an unrelated enrolled capability (for example SRv6 forwarding patches); leaving a suite's unset <code>KernelCapabilities</code> to skip checks instead of failing closed to all capabilities; silently ignoring an unknown subsystem selector</td>
+<td>plan/records/ruling-interop-scoped-kernel-capabilities.md</td>
+<td>2026-11-23</td>
+</tr>
+</tbody>
+</table>
 <h2 id="the-suites-one-per-protocol-area">The suites, one per protocol area</h2>
 <table>
 <thead>
@@ -1403,30 +1423,43 @@ removal failed, naming the failing command. <code>./le test integration clean dr
 <code>ze-interop-retained:</code> tags left from before the labels existed, which no mode
 removes. Both render through <code>| json</code>.</p>
 <h3 id="the-docker-host-kernel-check">The Docker host kernel check</h3>
-<p>A container runs on the Docker daemon's kernel, so a kernel feature Ze needs and
-that kernel lacks fails scenarios for a fact about the host. <code>mobike-initiator</code>
-and <code>mobike-responder</code> showed the cost: on a 6.8 kernel they spent fifteen
-minutes and reported two protocol failures that were the missing
+<p>A container runs on the Docker daemon's kernel, so a kernel feature a scenario
+needs and that kernel lacks fails scenarios for a fact about the host.
+<code>mobike-initiator</code> and <code>mobike-responder</code> showed the cost: on a 6.8 kernel they
+spent fifteen minutes and reported two protocol failures that were the missing
 <code>XFRM_MSG_MIGRATE_STATE</code>. Every Docker run that runs Ze therefore checks the
-daemon's kernel first, and refuses a kernel that lacks any feature. The owner's
-ruling is that a wrong kernel "should not be possible - fail": there is no skip,
-no warning mode and no exemption.</p>
-<p>The required set is not listed in le. <code>Suite.Run</code> starts the ze the lab staged
-for the daemon's architecture (<code>Suite.StagedZe</code>, from <code>StagedZePath</code>) in a
-throwaway container and reads its answer:</p>
+daemon's kernel first for the capabilities that suite and its selected scenarios
+actually require, and refuses a kernel that lacks any required feature. The
+owner's ruling is that a wrong kernel for a required feature "should not be
+possible - fail": there is no skip, no warning mode and no exemption, while
+unrelated kernel features (for example SRv6 patches during a pure-BGP run) do
+not block suites that do not use them.</p>
+<p>Full-host checks (<code>./le setup docker kernel check</code>,
+<code>./le verify evidence release-candidate</code>, and any suite that leaves
+<code>Suite.KernelCapabilities</code> unset) probe every enrolled capability. A suite that
+declares <code>Suite.KernelCapabilities</code> (<code>KernelCapabilitiesNone</code> or
+<code>KernelCapabilitiesRequired(...)</code>) unions its selectors with each selected
+<code>ScenarioPlan.KernelCapabilities</code>: when the union is empty no kernel-capabilities
+probe container runs, and when non-empty <code>Suite.Run</code> starts the staged ze
+(<code>Suite.StagedZe</code>, from <code>StagedZePath</code>) in a throwaway container naming only
+those selectors:</p>
 <pre><code class="language-bash">docker run --rm --cap-add NET_ADMIN --cap-add SYS_ADMIN --network none \
-  -v &lt;staged ze&gt;:/ze:ro alpine:3.24.3 /ze doctor --json kernel-capabilities
+  -v &lt;staged ze&gt;:/ze:ro alpine:3.24.3 /ze doctor --json kernel-capabilities [subsystem &lt;selector&gt; ...]
 </code></pre>
 <p><code>ze doctor kernel-capabilities</code> probes every capability a package enrolls in
-<code>internal/component/kernelcap</code>, with configuration ignored
-(<code>docs/architecture/doctor-and-health-checks.md</code>). A capability enrolled later
-is required of every Docker host with no le change. <code>NET_ADMIN</code> lets the
-netlink probes ask; <code>SYS_ADMIN</code> lets the xfrm-interface probe unshare a network
-namespace. Without it that row reads <code>unknown</code>, which also refuses.</p>
+<code>internal/component/kernelcap</code> when no <code>subsystem</code> selector is passed, or only
+the exact/trailing-wildcard selectors requested (<code>kernelcap.ProbeSubsystems</code>),
+refusing any selector that matches no enrolled capability
+(<code>docs/architecture/doctor-and-health-checks.md</code>). <code>NET_ADMIN</code> lets the netlink
+probes ask, and <code>SYS_ADMIN</code> lets namespace probes unshare a network namespace.
+<code>TUNDeviceArguments</code> (<code>--device /dev/net/tun</code>, from
+<code>internal/le/interoplab/tundevice.go</code>) is added when probing all capabilities or
+any <code>srv6*</code> selector so the SRv6 behavioral probe can open a TUN device inside
+Docker. Without those grants a probe answers <code>unknown</code>, which also refuses.</p>
 <p>On a daemon whose <code>docker info</code> security options list <code>name=apparmor</code>, the
 probe container runs under Ze's AppArmor profile instead of <code>docker-default</code>
-(<code>--security-opt apparmor=ze-kernel-probe</code>): docker-default denies the MPLS
-transit MTU probe's mount and its <code>/proc/sys</code> write, and that row would read
+(<code>--security-opt apparmor=ze-kernel-probe</code>): docker-default denies the namespace
+probes' private <code>/proc/sys</code> mount and sysctl writes, and those rows would read
 <code>denied</code> (owner D-7: the host is set up for Ze, never unconfined). On a Linux
 client whose <code>/sys/kernel/security/apparmor/profiles</code> lacks the profile, the
 check refuses before any container starts and names
@@ -1518,7 +1551,7 @@ and no PPPoE image installs <code>kmod</code> or runs <code>modprobe</code>. The
 grants ze and its LAC the same two and FreeRADIUS neither.</p>
 <p>The <code>/dev/ppp</code> half of those preflights is declared once, in
 <code>internal/le/interoplab/pppdevice.go</code>, because the Docker host kernel check
-below cannot see a character device. Each lab still runs one preflight
+below passes only <code>/dev/net/tun</code> and does not attach <code>/dev/ppp</code>. Each lab still runs one preflight
 container: it puts <code>PPPDeviceProbe</code> (the line printing <code>DEV_PPP=ok</code> or
 <code>DEV_PPP=missing</code>) first in its <code>sh -c</code> command and adds its own probes, parses
 the output with <code>ParsePreflight</code>, takes the device entry of its refusal from
@@ -1526,9 +1559,10 @@ the output with <code>ParsePreflight</code>, takes the device entry of its refus
 <code>PPPPreflightRunRefusal</code>. That refusal always wraps Docker's error, keeping the
 operation, exit code, stderr and cause, and adds <code>sudo modprobe ppp_generic</code>
 only when Docker's stderr names <code>/dev/ppp</code>.</p>
-<p>The TUN clone device every lab Ze running IPsec holds is declared once too,
-as <code>TUNDevice</code> and <code>TUNDeviceArguments</code> in <code>internal/le/interoplab/tundevice.go</code>;
-the IPsec lab's ze and the home-CPE lab's CPE take it from there. It has no
+<p>The TUN clone device is declared once too, as <code>TUNDevice</code> and
+<code>TUNDeviceArguments</code> in <code>internal/le/interoplab/tundevice.go</code>. The kernel probe
+container (<code>kernelProbeContainer</code>), the IPsec lab's ze, and the home-CPE lab's
+CPE all take it from there. It has no
 preflight: Ze's kernel builds <code>tun</code> in (<code>CONFIG_TUN=y</code>,
 <code>gokrazy/kernel/runtime.config</code>), so a Docker host on Ze's kernel always has
 the node, and on any other host Docker refuses the container start with an
@@ -6321,7 +6355,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 01:40 UTC</span>
                 </div>
             </div>
         </footer>

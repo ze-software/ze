@@ -181,8 +181,15 @@ running any command or starting a background task: <code>mcp.read</code> authori
 read-only tools and commands, <code>mcp.write</code> authorizes mutating tools and
 commands, and <code>mcp.admin</code> authorizes both. A call lacking the required scope
 returns HTTP <code>403</code> with <code>WWW-Authenticate: Bearer ... error="insufficient_scope"</code>.
-An identity with no <code>scope</code> entries imposes no scope restriction. Changing an
-identity, its token or its scopes requires a daemon restart.</p>
+An identity with no <code>scope</code> entries imposes no scope restriction. The
+<code>oauth required-scopes</code> list applies in <code>oauth</code> mode only, and it never gates a
+bearer-list identity. Changing an identity, its token or its scopes requires a
+daemon restart.</p>
+<p>Ze decides the scope from the command the call runs. For a generated tool that
+is the tool's command with its <code>action</code>, its parameters, its free-text
+<code>arguments</code> and its <code>pipe</code> list. An <code>arguments</code> value that turns a read-only
+command into a mutating one, a <code>| save</code>, or a command Ze does not recognize
+needs <code>mcp.write</code>.</p>
 <h3 id="oauth-oauth-21-resource-server">oauth (OAuth 2.1 resource server)</h3>
 <pre><code>environment {
     mcp {
@@ -227,7 +234,9 @@ only the older appended discovery path cannot be used with this configuration.</
 <p><code>ze config validate</code> rejects internally inconsistent configurations (<code>bearer</code>,
 <code>bearer-list</code>, or <code>oauth</code> without TLS on a remote bind, <code>oauth</code> without
 <code>authorization-server</code>, <code>bind-remote</code> without auth, etc.) before the daemon
-starts. See <a href="https://github.com/ze-software/ze/blob/main/ai/rules/protocol.md" target="_blank" rel="noopener"><code>rules/exact-or-reject.md</code></a> for the
+starts. A remote listener without authentication or TLS also refuses daemon
+start, with the same message, whatever supplied its address
+(<a href="../../authentication/#remote-management-listener-guard">Remote management listener guard</a>). See <a href="https://github.com/ze-software/ze/blob/main/ai/rules/protocol.md" target="_blank" rel="noopener"><code>rules/exact-or-reject.md</code></a> for the
 contract.</p>
 <p>RFC 9728 metadata: when <code>auth-mode oauth</code>, the server publishes a document
 listing the authorization server(s) and supported scopes. Its path is the
@@ -893,7 +902,7 @@ keeps naming the taskId that <code>task-call</code> produced.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
                 </div>
             </div>
         </footer>

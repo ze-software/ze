@@ -9,7 +9,7 @@ Show the IS\-IS link\-state database\.
 - Mode: Read\-only
 - Wire method: `ze-isis:show-database`
 - Backends: any backend
-- Task support: optional\: the MCP call is synchronous\, which is the default
+- Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: `detail`
 - Answer shape: not declared
 - Address fields: none
