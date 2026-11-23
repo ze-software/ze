@@ -89,8 +89,10 @@ func espFormSocketRefusal(err error) error {
 
 // espFormBypassRefusal maps the error of the reader socket's exemption from the inbound
 // policy check (IP_XFRM_POLICY). EPERM is a process without CAP_NET_ADMIN, which the
-// kernel asks of a caller that sets a socket policy (xfrm_user_policy), and EACCES a
-// security module that refuses the policy (security_xfrm_policy_alloc). Any other answer
+// kernel asks of a caller that sets a socket policy (do_ip_setsockopt, net/ipv4/
+// ip_sockglue.c, before it calls xfrm_user_policy), and EACCES a security module that
+// refuses the socket option (security_socket_setsockopt, which do_sock_setsockopt in
+// net/socket.c runs first). Any other answer
 // is the host's limit or a cause Ze does not know (espFormOpenFailure).
 func espFormBypassRefusal(err error) error {
 	cause := fmt.Errorf("setsockopt IP_XFRM_POLICY: %w", err)

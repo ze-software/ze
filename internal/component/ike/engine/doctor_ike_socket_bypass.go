@@ -28,12 +28,13 @@ var ikeSocketBypassCheckDecl = rpc.DoctorCheckDecl{
 }
 
 // ikeSocketBypassFailure is one open IKE socket the kernel refused its per-socket
-// bypass, as a value: the address it listens on, whether it is the NAT-T socket, and
-// the kernel's answer.
+// bypass: the address it listens on, whether it is the NAT-T socket, and the kernel's
+// answer as the transport recorded it (BypassError), which decides the finding's cause
+// and fix.
 type ikeSocketBypassFailure struct {
 	address string
 	natT    bool
-	cause   string
+	err     error
 }
 
 // answerIKESocketBypass answers ipsec-ike-socket-bypass from the engine's process: one
@@ -72,7 +73,7 @@ func (s *ikeEngineState) ikeSocketBypassFailuresRead(read func(*transport.UDPTra
 		if err == nil {
 			return
 		}
-		out = append(out, ikeSocketBypassFailure{address: t.LocalAddr().String(), natT: t.IsNATT(), cause: err.Error()})
+		out = append(out, ikeSocketBypassFailure{address: t.LocalAddr().String(), natT: t.IsNATT(), err: err})
 	}
 	collect(s.listeners.ike)
 	collect(s.listeners.natt)
@@ -87,15 +88,13 @@ func (s *ikeEngineState) ikeSocketBypassFailuresRead(read func(*transport.UDPTra
 	return out
 }
 
-// checkIKESocketBypass turns each refused bypass into its finding. Its fix is the
-// transport's own (transport.BypassFix), the one the socket's Warn line names: the
-// bypass is set when a socket opens, so only a socket opened again carries it.
+// checkIKESocketBypass turns each refused bypass into its finding. Its cause and fix
+// are the transport's own for the kernel's answer (transport.BypassCause,
+// transport.BypassFix), the ones the socket's Warn line names: a missing capability, a
+// kernel without XFRM and a security module each have their own fix, and the bypass is
+// set when a socket opens, so only a socket opened again carries it.
 func checkIKESocketBypass(failures []ikeSocketBypassFailure) []rpc.DoctorCheckDiagnostic {
 	out := make([]rpc.DoctorCheckDiagnostic, 0, len(failures))
-	if len(failures) == 0 {
-		return out
-	}
-	fix := transport.BypassFix()
 	for _, f := range failures {
 		socket := "IKE socket"
 		if f.natT {
@@ -105,10 +104,11 @@ func checkIKESocketBypass(failures []ikeSocketBypassFailure) []rpc.DoctorCheckDi
 			Code:     transport.CodeDoctorIPsecIKESocketBypass,
 			Severity: severityError,
 			Message: "The " + socket + " at " + f.address + " is not exempt from IPsec: the kernel refused its " +
-				"per-socket bypass (" + f.cause + "). Under `vpn ipsec unmatched discard`, or a traffic " +
+				"per-socket bypass (" + f.err.Error() + "): " + transport.BypassCause(f.err) +
+				". Under `vpn ipsec unmatched discard`, or a traffic " +
 				"selector covering a peer's IKE address, the SPD captures Ze's own IKE on it and the tunnel " +
 				"cannot be negotiated, rekeyed or torn down.",
-			Fix: fix,
+			Fix: transport.BypassFix(f.err),
 		})
 	}
 	return out

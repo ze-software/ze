@@ -1797,10 +1797,34 @@ leaf, either value, always passes, and so does a commit to a box whose catch-all
 already discards.
 
 The check runs on commit only. A configuration the daemon starts with is not
-verified, and start-up reads `unmatched` as the file states it: unset means
-discard, the default, with the error log below, whichever release saved the
-file. Write `unmatched bypass` into a file to keep passing unmatched traffic,
-and `unmatched discard` to say the discard is meant.
+verified, so start-up decides from the file's schema stamp (its first line,
+`# ze-schema: YY.MM.DD`, naming the release that saved it) which default the
+file was written under:
+
+| The file | At start |
+|---|---|
+| Stamped 26.10.18 or earlier, `vpn ipsec` present, `unmatched` unset | The schema evolution `ipsec-unmatched-keeps-bypass` writes `unmatched bypass` into it. A config file is saved back, re-stamped; a config piped on stdin is changed in memory only, so the evolution runs again at every start. The router keeps the catch-all it ran with, and the start log says so at warning level |
+| Stamped 26.10.19 or later, `unmatched` unset | Discard, the default, with the error log below |
+| No stamp (written by hand, piped on stdin), or a dev build's `dev` stamp | Discard, the default, with the error log below |
+| `unmatched` written, either value | As written |
+
+A file with no stamp proves no release, so it gets the RFC default rather than
+a guess: write `unmatched bypass` into it to keep passing unmatched traffic. The
+release is the build date, so a binary built on 2026-10-18 may hold either
+default; every build made that day stamps 26.10.18, and every file it saved is
+read as old. The cost falls on one
+case: a file a 26.10.18 build saved with the leaf unset while the discard was
+already in force also gains `unmatched bypass`, so write `unmatched discard` in
+it to keep the discard. The evolution runs at start only, never on a reload.
+After a downgrade recovers a rollback from history, the evolution reads the
+stamp the rollback was saved with, not the one recovery writes over it.
+
+When the evolution applies, the start log says so at warning level, which the
+default log level shows:
+
+```
+level=WARN msg="config evolution changed behavior" config=/etc/ze/ze.conf evolution=ipsec-unmatched-keeps-bypass change="wrote `vpn ipsec unmatched bypass`: ... then run `set vpn ipsec unmatched discard` and commit" saved="saved: ..."
+```
 
 When the daemon starts with the discard in force by default, it logs it at
 error level, with the same facts and commands as the refusal, so the console
@@ -1825,11 +1849,18 @@ directions, which the kernel consults before any SPD entry. It covers only
 datagrams that start or end on those sockets, so a host behind Ze that sends
 from port 500 or 4500 is still protected by the tunnel, and the bypass goes
 with its socket. `show vpn ipsec dataplane policy` lists each one with SPD
-`socket` and role `ike-bypass`. When the kernel refuses that bypass (Ze runs
-without `CAP_NET_ADMIN`, or the kernel lacks `CONFIG_XFRM`), Ze keeps the socket
-and `ze doctor` reports it under `ipsec-ike-socket-bypass`, code
-`doctor-ipsec-ike-socket-bypass`: run ze with `CAP_NET_ADMIN` on a kernel with
-`CONFIG_XFRM`, then restart Ze: `sudo systemctl restart ze` under ze.service, otherwise `ze signal stop`, then start ze again the way it was started. Ze's SPD entries appear on the first apply,
+`socket` and role `ike-bypass`. When the kernel refuses that bypass, Ze keeps
+the socket and `ze doctor` reports it under `ipsec-ike-socket-bypass`, code
+`doctor-ipsec-ike-socket-bypass`, with the cause the kernel's answer shows and
+its fix. `EPERM`: Ze runs without `CAP_NET_ADMIN`; under ze.service run
+`sudo systemctl stop ze && sudo ze install systemd --force --start`, otherwise
+restart ze as root or holding `CAP_NET_ADMIN`. `ENOPROTOOPT`: the kernel lacks
+`CONFIG_XFRM`; boot a kernel built with it (Ze's own kernel carries it), then
+restart Ze. `EACCES`: SELinux or AppArmor refused the socket option; find the
+denial with `sudo journalctl -b --grep 'avc:|apparmor="DENIED"'`, allow it, then
+restart Ze. Any other answer names both causes. Restart Ze with
+`sudo systemctl restart ze` under ze.service, otherwise `ze signal stop`, then
+start ze again the way it was started. Ze's SPD entries appear on the first apply,
 the catch-all first. The catch-all is re-asserted on every apply. When the
 engine stops, every tunnel is torn down first, then your `policy` entries are
 removed, and the catch-all goes last, so no Ze entry is ever in
@@ -1964,6 +1995,7 @@ interface instead.
 
 <!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
 <!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable, refuseImplicitDiscard, warnImplicitDiscardAtStart -->
+<!-- source: internal/component/ike/ipsec/unmatched_evolution.go -- unmatchedBypassEvolution -->
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- CatchAllInstaller -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->

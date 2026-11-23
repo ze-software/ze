@@ -188,21 +188,123 @@ func (t *UDPTransport) exemptFromIPsec(localAddr string, bypass func(*net.UDPCon
 	if t.bypassErr == nil {
 		return
 	}
-	t.logger.Warn("ike: could not exempt the IKE socket from IPsec; under `vpn ipsec unmatched discard`, "+
-		"or a traffic selector covering the peer's IKE address, the SPD captures ze's own IKE and the "+
-		"tunnel cannot be rekeyed or torn down. "+BypassFix(),
+	t.logger.Warn("ike: could not exempt the IKE socket from IPsec: "+BypassCause(t.bypassErr)+
+		". Under `vpn ipsec unmatched discard`, or a traffic selector covering the peer's IKE address, "+
+		"the SPD captures ze's own IKE and the tunnel cannot be rekeyed or torn down. To fix it: "+
+		BypassFix(t.bypassErr),
 		"code", CodeDoctorIPsecIKESocketBypass, "address", localAddr, "error", t.bypassErr)
 }
 
-// BypassFix answers the fix for a socket whose BypassError is not nil. The bypass is
-// set when a socket opens, so only a socket opened again carries it: the fix is a
-// restart once the cause is gone. `ze signal restart` exits without starting a new
-// process, so privilege.RestartRemedy words the restart for this process: systemctl
-// only under ze.service, the stop-and-start steps otherwise. The Warn line above and
-// the engine's ipsec-ike-socket-bypass doctor finding both call it, so the two say the
-// same thing. Safe for concurrent use.
-func BypassFix() string {
-	return "Run ze with CAP_NET_ADMIN on a kernel with CONFIG_XFRM, then restart it: " + privilege.RestartRemedy()
+// bypassFault classifies why the kernel refused an IKE socket its bypass, which decides
+// the fix (bypassFaultOf). It is closed: only bypassFaultOf produces it.
+type bypassFault uint8
+
+const (
+	// bypassFaultUnspecified is the zero value, which bypassFaultOf never answers.
+	bypassFaultUnspecified bypassFault = iota
+	// bypassFaultCapability is a process without CAP_NET_ADMIN: EPERM.
+	bypassFaultCapability
+	// bypassFaultKernel is a kernel built without CONFIG_XFRM: ENOPROTOOPT.
+	bypassFaultKernel
+	// bypassFaultSecurityModule is a security module that refused the option: EACCES.
+	bypassFaultSecurityModule
+	// bypassFaultUnknown is any other answer: Ze cannot tell which fix applies, and says
+	// so rather than name one that may not.
+	bypassFaultUnknown
+)
+
+// bypassFaultOf classifies the error dataplane.BypassIKESocket answered, by the errno
+// its setsockopt(IP_XFRM_POLICY) returned (net/ipv4/ip_sockglue.c and
+// net/xfrm/xfrm_state.c, Linux master):
+//
+//   - EPERM: do_ip_setsockopt asks CAP_NET_ADMIN before anything else, "err = -EPERM;
+//     if (!sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) break;", so a
+//     process without it gets EPERM whatever the kernel was built with.
+//   - ENOPROTOOPT: a kernel built without CONFIG_XFRM compiles xfrm_user_policy as the
+//     include/net/xfrm.h stub, which answers "return -ENOPROTOOPT;". The capability is
+//     asked first, so ENOPROTOOPT also proves ze holds CAP_NET_ADMIN.
+//   - EACCES: neither the capability check nor xfrm_user_policy answers it. The security
+//     module's hook does, before the option reaches IP: do_sock_setsockopt (net/socket.c)
+//     runs "err = security_socket_setsockopt(sock, level, optname); if (err) goto
+//     out_put;", SELinux's selinux_socket_setsockopt answers sock_has_perm(sock->sk,
+//     SOCKET__SETOPT), whose avc_denied answers "return -EACCES;" (security/selinux/
+//     avc.c), and AppArmor's apparmor_socket_setsockopt answers aa_sock_opt_perm, whose
+//     aa_check_perms sets "error = -EACCES;" (security/apparmor/lib.c). So it is SELinux
+//     or AppArmor, which no capability changes. espFormBypassRefusal
+//     (dataplane/espform_open_linux.go) reads the same option's EACCES the same way.
+//   - Anything else, EINVAL above all: xfrm_user_policy starts from -EINVAL and keeps it
+//     when no key manager compiles the policy, which is a kernel with CONFIG_XFRM but no
+//     xfrm_user, or a policy the kernel refused. Ze cannot tell which: Unknown.
+//
+// The errno constants come from syscall, so the classifier builds on every platform;
+// off Linux BypassIKESocket never refuses, so it is never asked there.
+func bypassFaultOf(err error) bypassFault {
+	if errors.Is(err, syscall.EPERM) {
+		return bypassFaultCapability
+	}
+	if errors.Is(err, syscall.ENOPROTOOPT) {
+		return bypassFaultKernel
+	}
+	if errors.Is(err, syscall.EACCES) {
+		return bypassFaultSecurityModule
+	}
+	return bypassFaultUnknown
+}
+
+// bypassFixSecurityModule lists this boot's denials by SELinux (an "avc:" record) and
+// AppArmor (apparmor="DENIED"), the same command espFormFixSecurityModule
+// (dataplane/espform_open_linux.go) gives for the same option's EACCES.
+const bypassFixSecurityModule = `sudo journalctl -b --grep 'avc:|apparmor="DENIED"'` //nolint:gosec // G101: an operator fix command, not a credential
+
+// bypassFixKernel is the kernel fix, which the restart for this process completes.
+const bypassFixKernel = "boot a kernel built with CONFIG_XFRM (Ze's own kernel carries it), then restart ze: " //nolint:gosec // G101: an operator fix text, not a credential
+
+// BypassCause answers, in the operator's words, why the kernel refused a socket the
+// bypass with err, a BypassError that is not nil: a clause the Warn line and the
+// engine's ipsec-ike-socket-bypass finding each put after their own subject. Safe for
+// concurrent use.
+func BypassCause(err error) string {
+	switch bypassFaultOf(err) {
+	case bypassFaultCapability:
+		return "ze lacks CAP_NET_ADMIN, which the kernel asks of a process that sets a socket's IPsec policy"
+	case bypassFaultKernel:
+		return "the kernel is built without CONFIG_XFRM, so it has no IPsec socket policy to set"
+	case bypassFaultSecurityModule:
+		return "a security module (SELinux or AppArmor) refused ze the IP_XFRM_POLICY socket option"
+	case bypassFaultUnknown:
+		return "Ze could not tell why from the kernel's answer: ze may lack CAP_NET_ADMIN, " +
+			"or the kernel may be built without CONFIG_XFRM"
+	case bypassFaultUnspecified:
+		panic("BUG: transport: bypassFaultOf answered bypassFaultUnspecified")
+	}
+	panic("BUG: transport: undeclared bypassFault")
+}
+
+// BypassFix answers the fix for a socket whose BypassError is err, not nil, chosen by
+// its cause (bypassFaultOf). The bypass is set when a socket opens, so only a socket
+// opened again carries it: every fix ends in a restart once the cause is gone.
+// privilege.CapabilityRemedy words the capability fix for this process, the unit
+// reinstall that also starts ze again only under ze.service. `ze signal restart` exits
+// without starting a new process, so privilege.RestartRemedy words every other restart:
+// systemctl only under ze.service, the stop-and-start steps otherwise. The Warn line
+// above and the engine's ipsec-ike-socket-bypass doctor finding both call it, so the
+// two say the same thing. Safe for concurrent use.
+func BypassFix(err error) string {
+	switch bypassFaultOf(err) {
+	case bypassFaultCapability:
+		return privilege.CapabilityRemedy("CAP_NET_ADMIN")
+	case bypassFaultKernel:
+		return bypassFixKernel + privilege.RestartRemedy()
+	case bypassFaultSecurityModule:
+		return "find the denial with " + bypassFixSecurityModule + ", allow ze the IP_XFRM_POLICY " +
+			"socket option in that policy, then restart ze: " + privilege.RestartRemedy()
+	case bypassFaultUnknown:
+		return "if ze lacks CAP_NET_ADMIN: " + privilege.CapabilityRemedy("CAP_NET_ADMIN") +
+			"; if the kernel lacks CONFIG_XFRM: " + bypassFixKernel + privilege.RestartRemedy()
+	case bypassFaultUnspecified:
+		panic("BUG: transport: bypassFaultOf answered bypassFaultUnspecified")
+	}
+	panic("BUG: transport: undeclared bypassFault")
 }
 
 // BypassError answers why the kernel refused this socket its per-socket IPsec bypass

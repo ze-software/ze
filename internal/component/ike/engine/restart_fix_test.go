@@ -8,7 +8,9 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -22,7 +24,9 @@ import (
 // way, with no systemctl. Neither ever names `ze signal restart`, which exits without
 // starting a new process.
 // METHOD: fix the membership through privilege.SetServiceMembershipForTest, then read
-// each producer's text: the ipsec-ike-socket-bypass finding, the SPD start refusals
+// each producer's text: the ipsec-ike-socket-bypass finding for each cause that ends in
+// a restart (a missing capability ends in the unit reinstall, which
+// TestRefusedIKESocketBypassNamesTheRestartForThisProcess pins), the SPD start refusals
 // (catch-all, interface catch-all), the override-guard finding, the MOBIKE shared-socket
 // failure, the owned catch-all hint and the forward-bypass refusal whose read failed.
 // PREVENTS: an operator whose ze runs outside a supervisor told to run a command that
@@ -37,11 +41,22 @@ func TestIPsecRestartFixNamesTheRestartForThisProcess(t *testing.T) {
 		text  func() string
 	}{
 		{
-			name:  "ipsec-ike-socket-bypass finding",
-			exact: "Run ze with CAP_NET_ADMIN on a kernel with CONFIG_XFRM, then restart it: sudo systemctl restart ze",
-			text: func() string {
-				return checkIKESocketBypass([]ikeSocketBypassFailure{{address: "192.0.2.1:500", cause: cause.Error()}})[0].Fix
-			},
+			name:  "ipsec-ike-socket-bypass finding, kernel without XFRM",
+			exact: "boot a kernel built with CONFIG_XFRM (Ze's own kernel carries it), then restart ze: sudo systemctl restart ze",
+			text:  func() string { return ikeSocketBypassFix(syscall.ENOPROTOOPT) },
+		},
+		{
+			name: "ipsec-ike-socket-bypass finding, security module",
+			exact: "find the denial with sudo journalctl -b --grep 'avc:|apparmor=\"DENIED\"', allow ze the " +
+				"IP_XFRM_POLICY socket option in that policy, then restart ze: sudo systemctl restart ze",
+			text: func() string { return ikeSocketBypassFix(syscall.EACCES) },
+		},
+		{
+			name: "ipsec-ike-socket-bypass finding, unclassified",
+			exact: "if ze lacks CAP_NET_ADMIN: sudo systemctl stop ze && sudo ze install systemd --force --start; " +
+				"if the kernel lacks CONFIG_XFRM: boot a kernel built with CONFIG_XFRM (Ze's own kernel carries it), " +
+				"then restart ze: sudo systemctl restart ze",
+			text: func() string { return ikeSocketBypassFix(syscall.EINVAL) },
 		},
 		{
 			name:  "SPD catch-all start refusal",
@@ -107,4 +122,12 @@ func TestIPsecRestartFixNamesTheRestartForThisProcess(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ikeSocketBypassFix answers the fix of the ipsec-ike-socket-bypass finding for one IKE
+// socket whose bypass the kernel refused with errno, wrapped as
+// dataplane.BypassIKESocket wraps it.
+func ikeSocketBypassFix(errno syscall.Errno) string {
+	refusal := fmt.Errorf("transport: setsockopt IP_XFRM_POLICY, direction 1: %w", errno)
+	return checkIKESocketBypass([]ikeSocketBypassFailure{{address: "192.0.2.1:500", err: refusal}})[0].Fix
 }

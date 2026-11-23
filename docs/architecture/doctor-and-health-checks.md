@@ -656,7 +656,7 @@ rule over the package's source.
 | Caller | Where | What it does |
 |--------|-------|--------------|
 | `ze doctor` | the registered check, run by `runChecks` | renders the diagnostic; `Run` already exits 1 on any `SeverityError` |
-| daemon start | `runYANGConfig`, after the config load and any downgrade recovery, before `EnsureActiveVersion` | one stderr line, one `logStartupFailure`, `return 1` |
+| daemon start | `runYANGConfig`, after `applyEvolutions` and before `EnsureActiveVersion` | one stderr line, one `logStartupFailure`, `return 1` |
 | config reload | `runReloadContext`, before `ReloadConfig` | refuses with the running configuration still serving |
 | `ze config validate` | `runValidation` | `config-kernel-capability` at error severity |
 
@@ -860,9 +860,12 @@ until the same restart rebuilds the SPD. `ipsec-ike-socket-bypass` is a
 fourth: it reports each IKE socket the engine holds whose per-socket IPsec
 bypass the kernel refused, which the transport records when it opens the socket
 (`exemptFromIPsec`, read through `BypassError`), with
-`doctor-ipsec-ike-socket-bypass` and the capability-and-restart fix
-(`transport.BypassFix`, which the socket's Warn line names too, its restart
-worded by `privilege.RestartRemedy`).
+`doctor-ipsec-ike-socket-bypass`, the cause and the fix for the kernel's
+answer (`transport.BypassCause`, `transport.BypassFix`, which the socket's Warn
+line names too): `EPERM` is a missing `CAP_NET_ADMIN`, fixed by
+`privilege.CapabilityRemedy`; `ENOPROTOOPT` a kernel without `CONFIG_XFRM`;
+`EACCES` a security module; any other answer is named as unclassified with both
+fixes. Every restart in them is worded by `privilege.RestartRemedy`.
 None of these checks probes the host: the TUN device outcome is recorded by the apply
 (`recordESPFormTUN`), because opening `/dev/net/tun` may create the node, and
 the fast path's readiness is likewise recorded at apply (`recordESPFormFastPath`)

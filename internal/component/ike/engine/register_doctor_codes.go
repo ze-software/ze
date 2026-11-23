@@ -23,7 +23,7 @@ const (
 	codeDoctorIPsecSPDInstallRefused     = "doctor-ipsec-spd-install-refused"
 	codeDoctorIPsecSPDCatchAllMissing    = "doctor-ipsec-spd-catch-all-missing"
 	codeDoctorIPsecSPDExemptionMissing   = "doctor-ipsec-spd-exemption-missing"
-	codeDoctorIPsecSPDForwardBypass      = "doctor-ipsec-spd-forward-bypass"
+	codeDoctorIPsecSPDForwardBypass      = "doctor-ipsec-spd-forward-bypass" //nolint:gosec // G101: a doctor diagnostic code, not a credential
 	codeDoctorIPsecSPDUndoIncomplete     = "doctor-ipsec-spd-undo-incomplete"
 	codeDoctorIPsecSPDWriter             = "doctor-ipsec-spd-writer"
 	codeDoctorIPsecSPDWriterUnknown      = "doctor-ipsec-spd-writer-unknown"

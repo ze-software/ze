@@ -3072,11 +3072,18 @@ or exit, and `ip xfrm policy flush` does not touch it. Its priority carries
 `dataplane.PriorityIKESocket` as a mark the kernel never matches, so the
 listing names the row `ike-bypass` with SPD `socket`, and the application override
 doctor check does not report it. The guard admits the `setsockopt` because Ze's own
-process makes it. A failed `setsockopt` (no `CAP_NET_ADMIN`, no `CONFIG_XFRM`) is
-logged at Warn and the socket is kept, as strongSwan does; the transport keeps the
-refusal (`exemptFromIPsec`, `BypassError`), and the engine's `ipsec-ike-socket-bypass`
-doctor check reports each socket it holds that carries one, under
-`doctor-ipsec-ike-socket-bypass`.
+process makes it. A failed `setsockopt` is logged at Warn and the socket is kept,
+as strongSwan does; the transport keeps the refusal (`exemptFromIPsec`,
+`BypassError`), and the engine's `ipsec-ike-socket-bypass` doctor check reports
+each socket it holds that carries one, under `doctor-ipsec-ike-socket-bypass`.
+The errno names the cause, and both texts take it from the transport
+(`bypassFaultOf`, `BypassCause`, `BypassFix`): `do_ip_setsockopt`
+(`net/ipv4/ip_sockglue.c`) answers `EPERM` to a process without `CAP_NET_ADMIN`
+before anything else; a kernel without `CONFIG_XFRM` answers `ENOPROTOOPT` from
+the `xfrm_user_policy` stub in `include/net/xfrm.h`; `EACCES` comes from the
+security module's `security_socket_setsockopt`; any other answer, such as the
+`EINVAL` `xfrm_user_policy` keeps when no key manager compiles the policy, is
+reported as unclassified with both fixes.
 
 On VPP the kernel socket policy decides nothing: VPP's SPD lives in VPP and never
 reads it. The VPP backend carries the bypass in its own SPD instead

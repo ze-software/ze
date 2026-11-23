@@ -6,24 +6,32 @@ package engine
 import (
 	"cmp"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // VALIDATES: an IKE socket whose per-socket bypass the kernel refused is reported by
 // ipsec-ike-socket-bypass as an error naming the socket, its role and the kernel's
-// answer, with the capability-and-restart fix; a socket that carries its bypass is not.
+// answer, with the fix the transport gives for that answer; a socket that carries its
+// bypass is not.
 // METHOD: judge two refused sockets, one of them NAT-T, and read each finding.
 // PREVENTS: a refused bypass living only in a Warn log line, while the SPD can capture
 // Ze's own IKE.
 func TestIKESocketBypassRefusalIsReportedByDoctor(t *testing.T) {
+	refusals := []error{
+		fmt.Errorf("setsockopt IP_XFRM_POLICY: %w", syscall.EPERM),
+		fmt.Errorf("setsockopt IP_XFRM_POLICY: %w", syscall.ENOPROTOOPT),
+	}
 	findings := checkIKESocketBypass([]ikeSocketBypassFailure{
-		{address: "192.0.2.1:500", cause: "setsockopt IP_XFRM_POLICY: operation not permitted"},
-		{address: "0.0.0.0:4500", natT: true, cause: "setsockopt IP_XFRM_POLICY: protocol not available"},
+		{address: "192.0.2.1:500", err: refusals[0]},
+		{address: "0.0.0.0:4500", natT: true, err: refusals[1]},
 	})
 	if len(findings) != 2 {
 		t.Fatalf("the check answered %d findings, want 2: %+v", len(findings), findings)
@@ -39,8 +47,8 @@ func TestIKESocketBypassRefusalIsReportedByDoctor(t *testing.T) {
 		if !strings.HasPrefix(f.Message, want.socket+" at "+want.address) || !strings.Contains(f.Message, want.cause) {
 			t.Fatalf("finding %d does not name the socket, its address and the kernel's answer: %q", i, f.Message)
 		}
-		if f.Fix != transport.BypassFix() {
-			t.Fatalf("finding %d's fix is %q, want %q", i, f.Fix, transport.BypassFix())
+		if f.Fix != transport.BypassFix(refusals[i]) {
+			t.Fatalf("finding %d's fix is %q, want %q", i, f.Fix, transport.BypassFix(refusals[i]))
 		}
 	}
 	if findings := checkIKESocketBypass(nil); len(findings) != 0 {
@@ -76,7 +84,7 @@ func TestIKESocketBypassReadsEverySocketOnce(t *testing.T) {
 	if len(failures) != 1 {
 		t.Fatalf("the check found %d refused sockets, want the one socket once: %+v", len(failures), failures)
 	}
-	if !failures[0].natT || failures[0].address != natt.LocalAddr().String() || failures[0].cause != refused.Error() {
+	if !failures[0].natT || failures[0].address != natt.LocalAddr().String() || failures[0].err != refused { //nolint:errorlint // identity: a re-wrapped error changes the finding text
 		t.Fatalf("the check read %+v, want the NAT-T socket at %s refused with %q", failures[0], natt.LocalAddr(), refused)
 	}
 }
@@ -105,20 +113,72 @@ func TestIKESocketBypassRefusedEverywhereIsReportedOncePerSocket(t *testing.T) {
 	state.sharedNATT = natt
 
 	reads := make(map[*transport.UDPTransport]int)
-	refusal := "setsockopt IP_XFRM_POLICY: operation not permitted"
+	refusal := errors.New("setsockopt IP_XFRM_POLICY: operation not permitted")
 	failures := state.ikeSocketBypassFailuresRead(func(socket *transport.UDPTransport) error {
 		reads[socket]++
-		return errors.New(refusal)
+		return refusal
 	})
 	if len(reads) != 2 || reads[ike] != 1 || reads[natt] != 1 {
 		t.Fatalf("the check read the sockets %v, want the IKE and the NAT-T socket once each", reads)
 	}
 	want := []ikeSocketBypassFailure{
-		{address: ike.LocalAddr().String(), cause: refusal},
-		{address: natt.LocalAddr().String(), natT: true, cause: refusal},
+		{address: ike.LocalAddr().String(), err: refusal},
+		{address: natt.LocalAddr().String(), natT: true, err: refusal},
 	}
 	slices.SortFunc(want, func(a, b ikeSocketBypassFailure) int { return cmp.Compare(a.address, b.address) })
 	if !slices.Equal(failures, want) {
 		t.Fatalf("the check found %+v, want each held socket once %+v", failures, want)
+	}
+}
+
+// VALIDATES: each finding names the cause and the fix of its own socket's refusal, under
+// both memberships: two sockets refused for different causes, a missing CAP_NET_ADMIN
+// (EPERM) and a kernel without CONFIG_XFRM (ENOPROTOOPT), carry different causes and
+// different fixes, each the transport's text for that errno (BypassCause, BypassFix),
+// so the finding and the socket's Warn line say the same thing.
+// METHOD: fix the membership through privilege.SetServiceMembershipForTest, judge one
+// socket of each cause and read each finding's Message and Fix.
+// PREVENTS: one fix for every cause, which told an operator whose ze.service unit lacks
+// CAP_NET_ADMIN to restart ze, and one on a kernel without XFRM about a capability.
+func TestIKESocketBypassFindingNamesItsOwnCause(t *testing.T) {
+	for _, member := range []privilege.ServiceMembership{privilege.MembershipZeService, privilege.MembershipOther} {
+		t.Run(member.String(), func(t *testing.T) {
+			t.Cleanup(privilege.SetServiceMembershipForTest(member, nil))
+			capability := fmt.Errorf("setsockopt IP_XFRM_POLICY: %w", syscall.EPERM)
+			kernel := fmt.Errorf("setsockopt IP_XFRM_POLICY: %w", syscall.ENOPROTOOPT)
+			findings := checkIKESocketBypass([]ikeSocketBypassFailure{
+				{address: "192.0.2.1:500", err: capability},
+				{address: "192.0.2.2:500", err: kernel},
+			})
+			if len(findings) != 2 {
+				t.Fatalf("the check answered %d findings, want 2: %+v", len(findings), findings)
+			}
+			for i, refusal := range []error{capability, kernel} {
+				f := findings[i]
+				if !strings.Contains(f.Message, transport.BypassCause(refusal)) {
+					t.Errorf("finding %d does not name its cause %q: %q", i, transport.BypassCause(refusal), f.Message)
+				}
+				if f.Fix != transport.BypassFix(refusal) {
+					t.Errorf("finding %d's fix is %q, want %q", i, f.Fix, transport.BypassFix(refusal))
+				}
+			}
+			if findings[0].Fix == findings[1].Fix {
+				t.Errorf("a missing capability and a kernel without XFRM share the fix %q", findings[0].Fix)
+			}
+			// Under ze.service the capability fix is the unit reinstall, which names no
+			// capability (privilege.DaemonCapabilitiesFix), so the cause names it there.
+			if !strings.Contains(findings[0].Message, "CAP_NET_ADMIN") {
+				t.Errorf("the capability finding does not name CAP_NET_ADMIN as its cause: %q", findings[0].Message)
+			}
+			if member == privilege.MembershipOther && !strings.Contains(findings[0].Fix, "CAP_NET_ADMIN") {
+				t.Errorf("outside ze.service the capability fix does not name CAP_NET_ADMIN: %q", findings[0].Fix)
+			}
+			if strings.Contains(findings[0].Fix, "CONFIG_XFRM") {
+				t.Errorf("the capability fix names CONFIG_XFRM: %q", findings[0].Fix)
+			}
+			if !strings.Contains(findings[1].Fix, "CONFIG_XFRM") || strings.Contains(findings[1].Fix, "CAP_NET_ADMIN") {
+				t.Errorf("the kernel fix does not name CONFIG_XFRM alone: %q", findings[1].Fix)
+			}
+		})
 	}
 }
