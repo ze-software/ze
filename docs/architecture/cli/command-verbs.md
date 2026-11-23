@@ -455,8 +455,9 @@ format for them.
 <!-- source: internal/component/plugin/types.go -- ResponseData, Records -->
 <!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog, PipeClass -->
 
-**A pipe modifies an answer.** It may narrow the answer, extend it, or
-transform it, and it never chooses what a command ACTS on. A view is shaped
+**A pipe works on an answer.** It may narrow the answer, extend it, transform
+it, or deliver it somewhere, such as saving it to a file, and it never chooses
+what a command ACTS on. A view is shaped
 with a pipe. An action selects what it acts on with a positional selector
 before the verb, because an action produces no answer to modify.
 
