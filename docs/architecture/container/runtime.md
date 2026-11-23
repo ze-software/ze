@@ -19,9 +19,16 @@ error are captured into a bounded buffer, and a container that ends on its
 own with a failure is reported by doctor with its last lines ("The output",
 below). What is not built yet: the device filter, the limit and grant nodes,
 the restart policy, the `log` setting and the commands that read the output,
-and the state view. No
-shipped build holds an image store yet, so only the test build's store
-(below) answers a start. This page states what exists and grows with the work.
+and the state view. A build with `ze_container`, the default daemon build and
+the appliance build included, links the image store package, so its store
+answers a start; a `zetest` build answers with the test store instead when its
+key is set (below). That store fetches and lists images and refuses its other
+operations, and a container that declares volumes, as not implemented in this
+build ([image-store.md](image-store.md)). This page states what exists and
+grows with the work.
+<!-- source: internal/component/plugin/all/all_ze_container.go -- imagestore import -->
+<!-- source: internal/plugins/container/storeseam_engine.go -- engineStoreFactory -->
+<!-- source: internal/plugins/container/imagestore/resolve.go -- Resolve, volumesNotImplemented -->
 
 ## Why the library needs a diff
 

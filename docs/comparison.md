@@ -373,9 +373,11 @@ serves REST and gRPC. It runs once, after every address and credential is
 resolved and before anything binds, so a refusal leaves nothing bound and the
 process exits 1. A wildcard address, an empty address, a DNS name, and
 `localhost` all count as non-loopback, and a surface that declares itself
-unauthenticated with no resolved address is refused rather than passed. A reload
-re-runs the same check against the rebuilt authentication and rejects an unsafe
-migration.
+unauthenticated with no resolved address is refused rather than passed. A
+non-loopback MCP or gNMI listener must also serve TLS: without both TLS files it
+is refused even when it authenticates. A reload re-runs the same check against
+the rebuilt authentication and rejects an unsafe migration.
+<!-- source: internal/component/config/loader_extract.go -- MCPExposure, GNMIExposure -->
 
 The web listener also serves a certificate named in the PKI store rather than a
 self-signed one. It sends the leaf certificate and every stored intermediate, it
@@ -753,7 +755,7 @@ Lazy-parsed wire format and pool-based attribute deduplication reduce memory ove
 encoding contexts match, UPDATEs are forwarded without re-parsing. Written in Go with an
 estimated 10-15% overhead vs. C/Rust (not yet benchmarked at scale; see
 [Performance Trade-offs](DESIGN.md#performance-trade-offs)). ExaBGP configuration files can be
-migrated via `ze exabgp migrate`. Built-in RPKI validation, policy filters (prefix-list,
+migrated via `ze config migrate`. Built-in RPKI validation, policy filters (prefix-list,
 AS-path regex, community matching, attribute modification), Prometheus metrics, and structured
 JSON logging. The web UI automatically enriches displayed values using YANG-declared decorators
 (e.g., AS numbers annotated with organization names via Team Cymru DNS). External process
@@ -763,7 +765,7 @@ plugins extend policy further via the JSON event and text command protocol.
 <!-- source: internal/core/bgp/context/registry.go -- ContextID encoding context matching -->
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- RPKI validation plugin -->
 <!-- source: internal/component/web/decorator.go -- DecoratorRegistry, YANG decorator framework -->
-<!-- source: internal/plugins/exabgp/main.go -- cmdMigrate, ze exabgp migrate -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate -->
 
 **ExaBGP** is the automation specialist. It pioneered the external-process model where BGP events
 are delivered as JSON to stdin/stdout of user scripts in any language. Deployed worldwide for
