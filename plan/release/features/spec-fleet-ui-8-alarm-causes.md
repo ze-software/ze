@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Thomas put this fleet capability (alarm causes: an alarm hidden while the alarm that causes it is open) in the first release, reached through `show fleet alarm` on every command surface (`ai/META-DECISIONS.md`, "Goal and scope"); existing supported behavior and its obligations remain required. How the pages show a hidden alarm comes after the first release, in `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`. |
 | RFC gaps | - |
-| Depends | plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md, plan/release/features/spec-fleet-1-device-registry.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
+| Depends | plan/release/features/spec-fleet-ui-5-alarm-list.md, plan/release/features/spec-fleet-1-device-registry.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
 | Phase | 8/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Design tier | strongest tier |
@@ -176,7 +176,7 @@ stay here are unchanged.
 - [ ] `ai/doors/system.md`, `ai/doors/api-surfaces.md`, `ai/doors/commands-cli.md`, `ai/doors/hub-engine.md`, `ai/doors/core.md` - the web surface, the command registry, the managed hub, the report bus
   → Constraint: a feature registers and is discovered; the causes live on each kind's own registration, never in a central list
   → Constraint: a declaration that crosses a process boundary is a pure value
-- [ ] `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` - the alarm list this spec refines
+- [ ] `plan/release/features/spec-fleet-ui-5-alarm-list.md` - the alarm list this spec refines
   → Decision: alarms are derived from what the hub holds, never stored events; no acknowledgement
   → Constraint: an alarm kind is a registered entry with its condition, severity and sentence
 - [ ] `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md` - the pages that show what this spec computes
@@ -217,7 +217,7 @@ stay here are unchanged.
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| The alarm-kind registry of `fleet-ui-5` | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`, "Alarms": a registered entry with its condition, severity and sentence | Planned, not built. Makes the list of kinds open | Extends: two more parts on the same entry, Causes and Settles. No second registry |
+| The alarm-kind registry of `fleet-ui-5` | `plan/release/features/spec-fleet-ui-5-alarm-list.md`, "Alarms": a registered entry with its condition, severity and sentence | Planned, not built. Makes the list of kinds open | Extends: two more parts on the same entry, Causes and Settles. No second registry |
 | The alarm tab registry | `internal/component/web/fleetui/handler_alarms.go` `mustRegisterAlarmTab`, filled by `register_activity_pages.go` `registerAlarmTabs` | Maps a kind's name to the device tab where it is examined. Keyed by kind name, panics on a kind registered twice | Does not apply: it answers a page question for a kind and stays the page's. The causes belong to the hub's kind entry, because `show fleet alarm` answers them with no page |
 | `ActivitySource`, `Alarm`, `AlarmEvent` | `internal/component/web/fleetui/source_activity.go`; the same methods as `ActivityPart` in `plan/release/features/spec-fleet-1-device-registry.md` | `Alarms` answers the open alarms, at most `AlarmsMax`. `Alarm` holds one device and no cause | Does not apply here: carrying the hidden-behind fact to the pages is `fleet-ui-9`'s (its "Existing Mechanisms"). This spec makes the hub answer the fact in `show fleet alarm` |
 | The display state precedence | `internal/component/web/fleetui/state.go` `DeviceDisplayState` | One state per device, by precedence: offline, diverged, down, degraded. An offline device already shows as offline whatever its last health report says | Does not apply, and agrees with it: the alarm list will say what the state mark already says. The precedence is a fixed order of one device's states. The causes are declared per kind, because the kinds are an open set |
@@ -281,7 +281,7 @@ stay here are unchanged.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The hub keeps the last health report and the last sample of a device that is offline | Neither `plan/release/features/spec-fleet-4-inventory-health.md` nor `plan/release/features/spec-fleet-8-metric-history.md` says so today | If either drops them when the device disconnects, the alarms read from them clear at that moment and the matching cause row has nothing to hide | Settled with `fleet-4` and `fleet-8` at their design; a unit test in each that a disconnect keeps the last report and sample | unvalidated |
-| A-2 | `fleet-ui-5` builds the alarm kinds as registered entries, as it plans | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`, "Alarms": "an alarm kind is a registered entry" | Causes have no entry to live on | `fleet-ui-5`'s implementation, read before this spec's design | unvalidated |
+| A-2 | `fleet-ui-5` builds the alarm kinds as registered entries, as it plans | `plan/release/features/spec-fleet-ui-5-alarm-list.md`, "Alarms": "an alarm kind is a registered entry" | Causes have no entry to live on | `fleet-ui-5`'s implementation, read before this spec's design | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

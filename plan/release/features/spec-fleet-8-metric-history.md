@@ -27,7 +27,7 @@ one device or summed over a set of devices, as commands on every command
 surface (CLI, SSH, MCP, REST, gRPC, the web command line).
 
 This is the data behind the resource alarms
-(`plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`) and,
+(`plan/release/features/spec-fleet-ui-5-alarm-list.md`) and,
 after the first release, behind every chart and every "latest value" in the
 fleet web interface.
 

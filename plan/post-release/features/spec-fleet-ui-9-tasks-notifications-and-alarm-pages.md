@@ -5,9 +5,9 @@
 | Status | skeleton |
 | Scope | web, fleet, cli |
 | Priority | P3 |
-| Release reason | Thomas ruled on 2026-11-23 that the fleet features of the first release are reached through commands on every command surface, and that their web pages, the hub's task model and panel, notifications and live page updates come after the first release (`ai/META-DECISIONS.md`, "Goal and scope"). Split out of `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` and `plan/release/features/spec-fleet-ui-8-alarm-causes.md`, which keep the alarm model and its commands; existing supported behavior and its obligations remain required. |
+| Release reason | Thomas ruled on 2026-11-23 that the fleet features of the first release are reached through commands on every command surface, and that their web pages, the hub's task model and panel, notifications and live page updates come after the first release (`ai/META-DECISIONS.md`, "Goal and scope"). Split out of `plan/release/features/spec-fleet-ui-5-alarm-list.md` and `plan/release/features/spec-fleet-ui-8-alarm-causes.md`, which keep the alarm model and its commands; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md, plan/release/features/spec-fleet-ui-8-alarm-causes.md, plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md, plan/release/features/spec-fleet-1-device-registry.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
+| Depends | plan/release/features/spec-fleet-ui-5-alarm-list.md, plan/release/features/spec-fleet-ui-8-alarm-causes.md, plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md, plan/release/features/spec-fleet-1-device-registry.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
 | Phase | 9/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-23 |
@@ -15,7 +15,7 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Re-read after compaction:** this file, `plan/post-release/features/spec-fleet-ui-0-umbrella.md`,
-`plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`,
+`plan/release/features/spec-fleet-ui-5-alarm-list.md`,
 `plan/release/features/spec-fleet-ui-8-alarm-causes.md`,
 `docs/architecture/fleet-interface.md`, `internal/component/web/sse.go`.
 
@@ -104,7 +104,7 @@ Where tasks appear:
 
 ### Alarm pages
 
-The alarms are `fleet-ui-5`'s (`plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`,
+The alarms are `fleet-ui-5`'s (`plan/release/features/spec-fleet-ui-5-alarm-list.md`,
 "Alarms"): derived on the hub, answered by `show fleet alarm` and
 `show fleet alarm history device <name>`. The pages read them from the hub.
 
@@ -219,7 +219,7 @@ command first and a page second.
   → Constraint: markup is `.templ`, with no inline script or style
 - [ ] `plan/post-release/features/spec-fleet-ui-0-umbrella.md` - the shell, the table stack, the side panel, the states, the URL scheme
   → Constraint: every page reads through the command dispatcher; the browser holds no model of the estate
-- [ ] `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` - the alarm model and its commands
+- [ ] `plan/release/features/spec-fleet-ui-5-alarm-list.md` - the alarm model and its commands
   → Decision: alarms are derived from what the hub holds, never stored events; no acknowledgement
 - [ ] `plan/release/features/spec-fleet-ui-8-alarm-causes.md` - which alarm is hidden behind which cause
   → Constraint: the hiding is computed on the hub and answered as `hidden-behind`; the pages compute none

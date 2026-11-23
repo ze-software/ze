@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Thomas put this fleet capability (configuration drift detection by SHA-1 hash chain, repaired by the hub with a diff resync and a full replay fallback) in the first release; existing first-release managed behavior and the fleet-6/fleet-7 hold guarantees remain required. |
 | RFC gaps | - |
-| Depends | plan/release/features/spec-fleet-1-device-registry.md, spec-fleet-7-config-reconnect-resolution (closed 2026-11-19: the hold, adopt and revert this spec preserves, documented in `docs/architecture/fleet-config.md`, "The baseline and the hold"), plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md, plan/release/features/spec-fleet-ui-8-alarm-causes.md |
+| Depends | plan/release/features/spec-fleet-1-device-registry.md, spec-fleet-7-config-reconnect-resolution (closed 2026-11-19: the hold, adopt and revert this spec preserves, documented in `docs/architecture/fleet-config.md`, "The baseline and the hold"), plan/release/features/spec-fleet-ui-5-alarm-list.md, plan/release/features/spec-fleet-ui-8-alarm-causes.md |
 | Phase | 10/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
 | Handoff | - |
 | Design tier | strongest tier |
@@ -70,7 +70,7 @@ own package.
   → Constraint: hub-side read limit will drop to ~1.4 MiB (`base64(HeldConfigMax) + 64 KiB`), while client-side read stays 16 MiB; do not depend on `ManagedConfigService.connected`; do not do synchronous fsync store writes on every 30s `ping`; do not install a second `store.SetWriteObserver`.
 - [ ] `plan/post-release/features/spec-fleet-0-umbrella.md` - Out of Scope row "Bidirectional config sync", and the Direction Update of 2026-11-19
   → Constraint: "full bidirectional sync stays out of scope"; this spec's sync runs hub to client only, and a local edit still holds for `fleet-7`'s adopt or revert (Design documents)
-- [ ] `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` - "Alarms": the alarm kind registry
+- [ ] `plan/release/features/spec-fleet-ui-5-alarm-list.md` - "Alarms": the alarm kind registry
   → Constraint: an alarm is derived from a fact the hub holds, never a stored event; a kind is a registered entry with condition, severity and sentence, so this spec registers Configuration resync failed and edits no list
 - [ ] `plan/release/features/spec-fleet-ui-8-alarm-causes.md` - the Causes part of a kind's registration
   → Constraint: a kind names its own causes in its own registration; a cause must not be less severe than the kind it hides
@@ -123,7 +123,7 @@ own package.
 | Display divergence diff | `internal/component/config/infra/diff.go` (`DiffConfigs`), `internal/component/managed/cmd_divergence_show.go` | Operator-facing diff with resolved BGP inheritance and masked secrets | Does not apply for wire resync: lossy (flattens BGP groups, masks secrets) and cannot reconstruct a target configuration |
 | Legacy `KeyConfigActiveHash` | `pkg/zefs/keys.go` (`meta/config/active-hash`), `cmd/ze/pushed_config.go` (`writeConfigActiveHash`) | Written once on unmanaged boot, never read in managed code | Does not apply: legacy unmanaged key; managed fleet uses `meta/managed/` keys |
 | Fleet doctor and CLI status | `internal/component/managed/doctor.go`, `register_doctor_codes.go`, `cmd_fleet.go` (`show fleet status`), `internal/component/plugin/server/managed_doctor.go` | Reports managed client/hub health and `show fleet status` | Extends: surfaces chain head, sync/resync status, and doctor codes for drift/fallback/unreadable chain state |
-| Alarm kind registry | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`, "Alarms"; Causes from `plan/release/features/spec-fleet-ui-8-alarm-causes.md` | Planned, not built: each alarm kind is a registered entry with its condition, severity and sentence, derived from what the hub holds | Extends: registers one kind, Configuration resync failed, with Device offline as its cause; no second alarm mechanism |
+| Alarm kind registry | `plan/release/features/spec-fleet-ui-5-alarm-list.md`, "Alarms"; Causes from `plan/release/features/spec-fleet-ui-8-alarm-causes.md` | Planned, not built: each alarm kind is a registered entry with its condition, severity and sentence, derived from what the hub holds | Extends: registers one kind, Configuration resync failed, with Device offline as its cause; no second alarm mechanism |
 | Alarm tab registry | `internal/component/web/fleetui/handler_alarms.go` `mustRegisterAlarmTab` | Maps an alarm kind to the device tab where it is examined | Extends: `config-resync-failed` registers the Config tab from this spec's own register file |
 
 ## Design documents
@@ -132,7 +132,7 @@ own package.
 |----------|---------|--------------|-------------------|---------|-----------------------------------|
 | `docs/architecture/fleet-config.md` | Non-Goals | The `// Design:` page of `pkg/fleet/envelope.go` and `internal/component/managed/client.go` | "Full config on change; configs are small (< 10KB typically)" | departs | This spec sends a diff first and a full replay only as fallback, on a hub change and on a chain mismatch. Presented to Thomas at design approval; the row is corrected in this work once he agrees |
 | `plan/post-release/features/spec-fleet-0-umbrella.md` | Out of Scope, row "Bidirectional config sync" | The umbrella of this spec's set | "Continuous two-way merge. Replaced for now by single-writer plus an operator-gated `config-push` at divergence (`fleet-7`); full bidirectional sync stays out of scope" | agrees | The sync is continuous but one way: the hub's configuration repairs a client that missed or diverged from a hub change. A client's own change never flows to the hub by it: a local edit (`active != baseline`) still holds, and only `fleet-7`'s operator-gated adopt brings it up. Shown to Thomas beside the departure above, because "continuous sync" reads close to the row |
-| `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` | Alarms | The alarm list this spec's alarm joins | "an alarm kind is a registered entry with its condition, its severity and its sentence, so a later feature adds one without editing the list" | agrees | Configuration resync failed is registered from this spec's package, derived from the chain state the hub already holds |
+| `plan/release/features/spec-fleet-ui-5-alarm-list.md` | Alarms | The alarm list this spec's alarm joins | "an alarm kind is a registered entry with its condition, its severity and its sentence, so a later feature adds one without editing the list" | agrees | Configuration resync failed is registered from this spec's package, derived from the chain state the hub already holds |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
