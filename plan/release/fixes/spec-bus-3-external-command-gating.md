@@ -128,6 +128,10 @@ The two reasons a send is refused, and what the operator reads:
 
 The bridge relays each line a script writes through `DispatchCommand` (`internal/plugins/exabgp/bridgerun/script.go`), so every script command arrives as a `cli` send of the bridge plugin. Under R5 the bridge declares the whole ExaBGP API command set: every command path its translator can emit, derived from the translator's own table so the two cannot drift. The check then applies to the bridge as to any plugin. A script cannot make the bridge send a command the bridge did not declare, and an operator's allow-list on the bridge narrows every script at once.
 
+Two scopes apply to a script's command, and they are not the same check. The send allow-list is this spec's: one list for the bridge plugin, for every script. The per-neighbor scope of one script (a command with no neighbor selector reaches the neighbors that named the script, and a selector outside them reaches none) is the bridge's own translation, as it is today through `feedPeers`. Under Child 1 a script is a receiver the bridge registers, and the bridge takes that scope from the subjects its flows relate to the script (Child 1, "ExaBGP scripts are receivers", open as Q-P3 and Q-P4). This spec adds no per-script list and no per-peer permission.
+
+Child 1 puts a proposal to Thomas as Q-R1: a send that belongs to a role a plugin claims (`Registration.Claims`) is refused from a plugin that does not hold the role on that peer. It is not decided. If he adopts it, the role is a third reason a send is refused, checked in this spec's one check and reported through section 4's one message shape, counter and doctor code; the ten `send refused` detector tests of Child 1's census then discriminate on it.
+
 ### 6. The fixture command census
 
 Every external test fixture and every in-tree plugin now needs a `Sends` declaration that covers what it sends, or its tests fail closed. The census is taken once, before any fixture is edited, so each declaration and each test config is written once.
@@ -299,7 +303,7 @@ The full verdict table is owed before the status moves to design. The rows alrea
 | AC-7 | A plugin calls `emit-event` for an event it did not register as a publication | Refused. With the publication registered, delivered | None |
 | AC-8 | A reload removes a token from an allow-list while the plugin runs | The next send of that token is refused. A reload that adds it back makes the next send succeed | None |
 | AC-9 | Every entry of `engineOps` | Each carries a capability or `none` with a reason. A test entry with neither fails the walk | None |
-| AC-10 | An ExaBGP script, through the bridge, sends a line the translator turns into a command the bridge declares, then the operator narrows the bridge's allow-list | The first succeeds with no list written. After the narrowing the script's line is refused and the script receives the error ExaBGP's API contract gives for a failed command | None |
+| AC-10 | An ExaBGP script, through the bridge, sends a line the translator turns into a command the bridge declares, then the operator narrows the bridge's allow-list | The first succeeds with no list written. After the narrowing the script's line is refused and the script receives the error ExaBGP's API contract gives for a failed command | A line a script addresses to a neighbor outside its own scope reaches no peer, as today: that is the bridge's translation, not a refusal of this check, and it raises no refusal count |
 | AC-11 | The plugin-less in-process RPC identity | Still allowed, and every caller of it is listed with its reason | None |
 | AC-12 | A plugin that declares sends toward `bgp` and toward `cli`, with one list `send { allow [ bgp:update ]; }` | The commit loads (the interim refusal of Child 1 is gone), `bgp:update` passes, and every `cli` command the plugin declared is refused with the allow-list message | None: one list speaks for every component |
 | AC-13 | `ze config validate` with no daemon running, on a config whose endpoint lists a `send` entry an external program did not declare | Refused, with what the program declared, taken from the program in query mode | None |
@@ -379,7 +383,7 @@ The row was written on 2026-11-23, after a search of `plan/journal/` for `Reserv
 | Capability tokens toward a subsystem, path prefixes toward `cli` (Q6 Option A) | Tokens for every command; prefixes everywhere | Short lists for typed operations; no token invented per command |
 
 ## Known Limitations
-- A send cannot be limited to some peers or tags: the allow-list is one list per plugin (R7). A route server serves every peer connected to it (RFC 7947 Section 1), and export policy is what limits an advertisement per peer.
+- A send cannot be limited to some peers or paths: the allow-list is one list per plugin (R7). Child 1's configuration paths name what receives an event and what an event concerns; they scope no send. A route server serves every peer connected to it (RFC 7947 Section 1), and export policy is what limits an advertisement per peer.
 - A plugin that builds a command path from run-time data must declare the prefix it builds under.
 
 ## Checklist

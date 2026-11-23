@@ -8,14 +8,14 @@
 | Release reason | Configuration correctness and identity integrity of shipped behavior: replaces the ExaBGP-derived `plugin { }` and per-peer `attach process` grammar with the protocol-agnostic `bus { endpoint, flow, hub }` model in which every plugin registers what it publishes, receives and sends, converts all repository configs/tests/docs cleanly with no hybrid layering, and fixes aliased plugin state-key and doctor snapshot keying |
 | RFC gaps | - |
 | Depends | - |
-| Phase | Design reworked 2026-11-23 on rulings R1 to R7; awaits the design judge and owner approval |
+| Phase | Design reworked 2026-11-23 on rulings R1 to R7, then moved from generic tags to configuration paths on owner words W1 to W6 the same day; awaits `./le spec design check`, the design judge and owner approval. Open for Thomas: Q-P1 to Q-P5 and Q-R1 under "Choices for Thomas" |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
 | Updated | 2026-11-23 |
 
 Bucket: `plan/release/fixes/`. Child 1 of 3 (split per R-8 on 2026-11-23):
-- **Child 1 (this spec):** `bus { endpoint, flow, hub }` grammar cutover (pure bus, zero `flow` in `bgp {}`); the registration every plugin makes of what it publishes (events and their tag keys), what it receives by default, and what it sends; generic message tags on the receive side of a flow; the plugin-wide send allow-list for the BGP send types that are enforced today; a compiled-in plugin run as a separate process under its own identity; `ze exabgp migrate` and `create bgp peer` cutover; parsed-tree conversion of all repository configs/tests/docs; and the owned alias-keying journal row plus 5 sibling alias-keying defects.
+- **Child 1 (this spec):** `bus { endpoint, flow, hub }` grammar cutover (pure bus, zero `flow` in `bgp {}`); the registration every plugin makes of what it publishes (events and the configuration nodes they concern), what can receive events (its endpoint, and any configured object it names as a receiver), and what it sends; configuration paths as the one way a flow names a destination and a subject; the plugin-wide send allow-list for the BGP send types that are enforced today; a compiled-in plugin run as a separate process under its own identity; `ze exabgp migrate` and `create bgp peer` cutover; parsed-tree conversion of all repository configs/tests/docs; and the owned alias-keying journal row plus 5 sibling alias-keying defects.
 - **Child 2:** `plan/release/fixes/spec-bus-2-implied-display-and-grant-refusals.md`: the `| implied` display of every registered default beside what the operator wrote, the feature requirements a plugin registers and the refusal of an operator allow-list narrower than a configured feature needs, the AIGP trigger, and the `origin` of each edge on `show event delivery`.
 - **Child 3 (P0):** `plan/release/fixes/spec-bus-3-external-command-gating.md`: one check, for every engine operation and every plugin of either kind, that a plugin sends only what it declared and the operator's allow-list keeps, which closes the live `ReservedInternalPrefix` AAA bypass on `dispatch-command`.
 
@@ -23,7 +23,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Replace `plugin { internal ...; external ...; hub ...; }` and BGP's `attach process <name> { ... }` (including inline `run`/`use` and the dead `content` container) with one protocol-agnostic `bus { endpoint ...; flow ...; hub ...; }` configuration block. `bgp { }` stays pure BGP. Every plugin, compiled-in or a program Ze did not ship, registers the same three things through the same API: the events it publishes with the tag keys they carry, the events it receives by default, and the commands it sends to another component. With nothing written by the operator, those registrations are what runs. An operator flow narrows what an endpoint receives, and the one send allow-list on the endpoint narrows what it sends. Neither ever widens them. The work also fixes the aliased-plugin identity defects on the state and doctor surfaces.
+Replace `plugin { internal ...; external ...; hub ...; }` and BGP's `attach process <name> { ... }` (including inline `run`/`use` and the dead `content` container) with one protocol-agnostic `bus { endpoint ...; flow ...; hub ...; }` configuration block. `bgp { }` stays pure BGP. Every plugin, compiled-in or a program Ze did not ship, registers the same three things through the same API: the events it publishes with the configuration nodes they concern, the events it receives by default with the configured objects that receive them, and the commands it sends to another component. The bus addresses everything by configuration path and learns no word of any protocol. With nothing written by the operator, those registrations are what runs. An operator flow narrows what an endpoint receives, and the one send allow-list on the endpoint narrows what it sends. Neither ever widens them. The work also fixes the aliased-plugin identity defects on the state and doctor surfaces.
 
 ### Owner rulings governing this spec
 
@@ -34,7 +34,7 @@ Thomas speaks through voice transcription. Each row gives the reading the main s
 | D-4 | The config states an `endpoint` (who is on the bus) apart from a `flow` (what moves between two parties). `attach process` is replaced whole, its inline `run`/`use` and dead `content` block included | Landed here |
 | D-5 (reversed 2026-11-23) | Pure protocol-agnostic bus and pure BGP: no flow inside `bgp { }`, no BGP keyword (`peer`, `group`) inside `bus { }` | Landed here |
 | D-7 / Q3 | `plugin { }` becomes `bus { }`, and `hub` moves under it. The listener service `plugin-hub` becomes `bus-hub`. Repository configs are converted directly | Landed here |
-| R1 | Every plugin registers the flows it wants to receive by default: a publisher and tags. With no operator flow those defaults apply. Publishers tag every message, and filtering is on generic tags only. A peer added later is covered with no config change | Landed here. The display of the defaults (`\| implied`) is Child 2 |
+| R1 | Every plugin registers the flows it wants to receive by default: a publisher and tags. With no operator flow those defaults apply. Publishers tag every message, and filtering is on generic tags only. A peer added later is covered with no config change | Landed here. The tags of this ruling are configuration paths since W2: a publisher attaches the path of the object a message concerns, and a flow matches on it. The display of the defaults (`\| implied`) is Child 2 |
 | R2 | A plugin registers the events it publishes. Every publication registration completes before any reception registration, so a receiver can learn what is on the bus. A reception that names something nobody publishes yet is valid and dormant | Landed here |
 | R3 | A compiled-in plugin runs in the daemon by default. Running it as a separate process is an operator option on its endpoint, and it keeps the same identity, state grants and default flows | Landed here. Replaces the refusal of state to such a process in the first design |
 | R4 | The API for a compiled-in plugin and for a program Ze did not ship is the same. No rule applies to one kind alone without a transport reason | Landed here. Reverses "built-in publishers only in `from`" and "built-in only on `ze start --plugin`" of the first design (A-Q2, A-Q3) |
@@ -59,15 +59,28 @@ Thomas then answered the seven questions the first rework put to him, the same d
 
 Thomas also confirmed R7's default (a plugin sends what it declared with nothing written), and that A-Q7 changes behavior for existing configs with no exception, ExaBGP configs included. `ai/META-DECISIONS.md` ("CLI, config, and daemon surfaces") now records the rule this design rests on: "What a plugin registers is not such a choice: a configured plugin receives and sends what it registered, shown as implied, and the operator writes an allow-list only to narrow it."
 
+Thomas then spoke about how a flow names things, the same day. These are transcribed words. Each row gives the reading this design takes and what the reading was checked against. Only W5 is his closing statement; the others are steps of the discussion, and every reading that goes beyond his words is listed under "Choices for Thomas".
+
+| # | His words, as transcribed | Reading taken | Checked against |
+|---|---------------------------|---------------|-----------------|
+| W1 | "a match statement should not match a peer but something able to receive the event" | A flow names no BGP word. Its destination is an object able to receive events. Read by the letter, W1 speaks of the destination alone; that the subject side is a path too rests on W2 | D-5 (no BGP keyword in `bus { }`): agrees |
+| W2 | "we should have a way to create tags for each of the part of the configuration so we can dispatch using that .. perhaps a path like /bgp/peer/<ip>" | The tag of a part of the configuration is its configuration path. A message carries the path of the object it concerns, and a flow matches on that path. This replaces the registered tag keys of the first rework | `ze-bgp-conf.yang`: a peer is keyed by `name`, not by address, and a grouped peer sits under its group. The path of a peer therefore holds its name. Conflict C-1 |
+| W3 | "is there a way to express a path in yang ?" | Answered in the discussion: `instance-identifier` (RFC 7950 Section 9.13), and RFC 8341's node-instance-identifier where a key is left out | `validator_reference.go` already parses and checks instance-identifier values. RFC 8341 is not in `rfc/full/`; its text was read at rfc-editor.org |
+| W4 | "that seems like a way to send event to an object in the configuration which can receive it. How do you make sure we can validate the destination is a valid path, that it can receive events ?" | The destination of a flow is a path to a configured object. Commit proves four things about it: the path resolves in the schema, the instance exists, the node is registered as a receiver, and the receiver accepts the event | "How a path is validated" |
+| W5 | "a plugin can name what can receive event so the bus can route it" | The plugin that owns a configuration node registers it as a receiver. The bus routes to it and never learns what it is | The registration every plugin already makes, extended ("What a plugin registers") |
+| W6 | On ExaBGP's per-neighbor script scoping: "yes [the bridge keeps passing each script only the neighbors that named it], and i am not sure how we express this with the bus" | A bridge script is a receiver the bridge registers, and the scoping is written as flows. What cannot be a flow stays in the bridge. He stated the requirement and no mechanism: Q-P3 | `ze-exabgp-bridge-conf.yang` (`process`, `feed`), `parseFeeds`, `grantSet`, `feedPeers`. Conflict C-3 |
+
 ### What a plugin registers
 
-One registration carries three declarations. A compiled-in plugin makes it on its `registry.Registration` from `init()`. A program Ze did not ship makes it in its Stage 1 `declare-registration` message. The same code judges both.
+One registration carries three declarations. A compiled-in plugin makes it on its `registry.Registration` from `init()`. A program Ze did not ship makes it in its Stage 1 `declare-registration` message. The same code judges both. This registration is the single declaration of what publishes and what can receive. No `ze:` YANG extension marks a node as a subject or a receiver: the events a receiver accepts are stated here, and a marker in the module would be a second copy of the same fact.
 
 | Declaration | What it states | Fields |
 |-------------|----------------|--------|
-| Publishes | The events this party puts on the bus | Namespace, event types, and for each the tag keys every message carries |
-| Receives | The events this party wants by default | Publisher namespace, event types, and an optional tag match |
+| Publishes | The events this party puts on the bus | Namespace, event types, and for each the subject nodes: the schema nodes whose configured instances a message can concern. A publisher that names no subject node publishes about its own root: a component's configuration root, or a plugin's endpoint entry. Message properties that differ per message are named here too ("Message properties") |
+| Receives | The events this party wants by default, and what receives them | The receiver node (a schema node of the plugin's own module; absent means the plugin's endpoint entry), the publisher namespace, the event types that node accepts, and an optional default match path |
 | Sends | The commands this party issues to another component | Target component, and the command tokens that component registered |
+
+A subject node or a receiver node is named by its schema path, the way a filter insertion already names the configuration that places it (`rpc.FilterInsertion`, judged by `config.CheckFilterInsertionPaths`). Stage 1 refuses a node that is not in the compiled schema, and refuses a receiver node outside the modules the registering plugin owns.
 
 A component that is not a plugin (BGP, the interface component, the system RIB) registers its publications and the command tokens it accepts the same way, from its own `init()`.
 
@@ -76,7 +89,7 @@ A component that is not a plugin (BGP, the interface component, the system RIB) 
 | Publications first | Compiled-in publications exist at `init()`. A declared external program's publications are read when `ze` starts, before the full parse. So the publication set is complete before any reception is resolved |
 | The catalog is delivered | The union of publications in the startup set reaches every plugin in its Stage 2 configure message, beside `Claims`, so a plugin can decide what it accepts |
 | A dormant reception is valid | A registered reception whose publisher is absent (a build without BGP, a plugin configured later) resolves to nothing, is not an error, and is shown as dormant |
-| An unknown name the operator wrote is refused | A flow the operator wrote that names an unknown publisher, event, tag or command is refused at commit with the accepted values. Ze never loads it to do nothing |
+| An unknown name the operator wrote is refused | A flow the operator wrote that names a path that does not resolve, an object that cannot receive, or an unknown event, property or command is refused at commit with the accepted values. Ze never loads it to do nothing |
 
 ### Target `bus { }` configuration model
 
@@ -107,28 +120,97 @@ Fields of `bus { flow <name> { ... } }`:
 | Field | Type | Description |
 |-------|------|-------------|
 | `name` | string (key) | Unique flow name |
-| `from` | string | The publisher: a registered publisher namespace, or an endpoint name of either kind |
-| `namespace` | string (optional) | Chooses the namespace when `from` owns several (`l2tp` and `subscriber`). Refused when `from` does not own it |
-| `to` | string | The endpoint this flow narrows: a `bus { endpoint }` name or a compiled-in plugin's registry name |
-| `event` | leaf-list of string | The event types `to` receives from `from`. Each MUST be one the publisher registered and one `to` registered a reception for. The flow itself is the presence: a flow with no `event` entry delivers nothing |
-| `match` | list keyed by `tag` (`tag` string, `value` leaf-list of string) | A message matches when every listed tag carries one of its values. No `match` means every message |
+| `to` | `instance-identifier`, `require-instance true` | The receiver: the path of a configured object whose node a plugin registered as a receiver. The simplest one is an endpoint entry. To narrow a plugin Ze loaded with no `endpoint` written, the operator writes its endpoint first, as for the send list |
+| `match` | leaf-list of node path (the instance-identifier rules, key predicates optional), at least one | What the messages concern. A message matches when its subject path is one of these paths or lies under one. A path with a list key left out covers every entry of that list. The publisher of the flow is the party that registered the subject nodes these paths reach: all the paths of one flow MUST reach one publisher. `match` takes the place of the `from` leaf of the first rework, because a path already says whose object it is |
+| `namespace` | string (optional) | Chooses the namespace when the publisher owns several (`l2tp` and `subscriber`). Refused when the publisher does not own it |
+| `event` | leaf-list of string | The event types the receiver gets. Each MUST be one the publisher registered for the matched subject nodes and one the receiver node accepts. The flow itself is the presence: a flow with no `event` entry delivers nothing |
+| `property` | list keyed by `name` (`name` string, `value` leaf-list of string) | A filter on a property of the message itself, which is not a configured object ("Message properties"). No `property` means every message |
 
-Semantics of flows and of the send list:
+Semantics of flows and of the send list. A pair is one publisher and one receiver instance:
 
 | Case | Result |
 |------|--------|
-| No flow for a pair (publisher, endpoint) | The endpoint's registered receptions from that publisher apply, for every peer |
+| No flow for a pair | The receiver's registered receptions from that publisher apply, for every subject |
 | One or more flows for the pair | They replace the registered reception for that pair: only what they list is delivered (A-Q1). A flow that lists `event [ state ]` delivers peer state and nothing else |
-| A flow for the pair with no `event` entry | The reception from that publisher is off |
-| Two flows for one pair with different `match` | Each delivers its own events to its own matching messages. A message that matches both is delivered once |
-| A `match` tag the publisher did not register | Refused, listing the tag keys that publisher registered |
-| A `match group` value that names no configured group | Refused, listing the configured groups. The publisher registers a validator for the values of a tag whose set the config holds |
-| A `match peer` value | Checked for form only. A dynamic peer arrives later under an address no config names |
+| A flow for the pair with no `event` entry | The reception from that publisher is off. The flow still states that its subjects and its receiver are related, which the ExaBGP bridge reads ("ExaBGP scripts are receivers") |
+| Two flows for one pair with different `match` | Each delivers its own events for its own subjects. A message that matches both is delivered once |
+| A `match` path that names a group | Covers every peer configured under that group, and every dynamic peer that group admitted ("Dynamic subjects") |
+| A `to` or `match` value that fails a check | Refused at commit with what is valid ("How a path is validated") |
 | No `send` container on the endpoint | The plugin sends everything it declared, to every peer |
 | `send { allow [ ... ]; }` | The plugin sends the listed entries only |
 | `send { }` | The plugin sends nothing |
 | A `send` entry the plugin did not declare, or whose component or token is not registered | Refused, listing what the plugin declared |
 | A `send` container on a plugin that declares a send toward a component whose commands are not enforced yet | Refused until Child 3 lands, naming those components. One list speaks for every component, so a list that is present promises that everything it omits is refused, and before Child 3 that holds for the BGP send types only. A plugin that declares sends toward `bgp` alone can be narrowed as soon as this spec lands |
+
+### Paths: how the bus names things
+
+| Term | Meaning | Who declares it |
+|------|---------|-----------------|
+| Subject | The configured object a message concerns. BGP's subjects are its peers | The publisher, as subject nodes in `Publishes`. BGP registers the standalone peer list, the peer list of a group, and the group list (for a dynamic peer) |
+| Receiver | A configured object able to receive events | The plugin that owns the node, as the receiver node of a `Receives` entry. The bus component registers the endpoint list for every plugin, so an endpoint is a receiver with nothing declared |
+| Path | The configuration path of one instance, or of a set of instances when a key is left out | Written by the operator in `to` and `match`; attached to a subject by its publisher when the delivery index is built |
+
+The written form, decided here and put to Thomas as Q-P1:
+
+| Point | Decision | Reason |
+|-------|----------|--------|
+| Stored form | The RFC 7950 instance-identifier text: `/bgp:bgp/bgp:group[bgp:name='transit']`. One form is stored, shown by `show config`, and compared | It is the form `parseInstanceIdentifier` and the reference walk (`ValidateReferences`) already read. RFC 7950 Section 9.13.2: "All node names in an instance-identifier value MUST be qualified with explicit namespace prefixes" |
+| `to` | The standard type, `instance-identifier` with `require-instance true` | RFC 7950 Section 9.13: "each key MUST have a corresponding predicate". A destination is one object. `rfc/short/rfc7950.md` records that no Ze module uses the type today; this is its first user |
+| `match` | A Ze type with the node-instance-identifier rules | RFC 8341, typedef `node-instance-identifier` (read at rfc-editor.org; the RFC is not in `rfc/full/`): "All the same rules as an instance-identifier apply, except that predicates for keys are optional. If a key predicate is missing, then the node-instance-identifier represents all possible server instances for that key." |
+| Short form on input | The slash form of an edit path is accepted wherever a path is typed, and is stored as the bracket form: `/bgp/group/transit` becomes `/bgp:bgp/bgp:group[bgp:name='transit']`. Keys follow their list name in order, as in `set bgp group transit` | It is the form Thomas gave (W2) and the form an operator already types in `set` and `edit`. Ze's configuration text carries no module prefix, so a node name is unique under its parent without one. A key value that holds `/`, or a key left out in the middle of a path, is written in the bracket form |
+| Module prefixes | A prefix becomes text an operator reads and saves. The prefix of `ze-plugin-conf` changes from `plug` to `bus` with the container it holds | `validator_reference.go` (`entryPrefixed`) accepts the prefix or the module name; the stored form uses the prefix |
+
+### How a path is validated
+
+Thomas asked how Ze makes sure a destination is a valid path that can receive events (W4). Every check below runs at `ze config validate`, editor commit, reload and `ze start`, with one verdict, and every refusal lists what is valid.
+
+| # | Check | On | Mechanism | Refusal names |
+|---|-------|----|-----------|---------------|
+| 1 | The value is a path | `to`, `match` | `parseInstanceIdentifier`, with key predicates optional for `match` | The form to write, with the value converted where it was a legal short form |
+| 2 | Every step is a node of the schema | `to`, `match` | `Validator.instanceSchema` | The step that names no node, and the nodes its parent holds |
+| 3 | The instance exists | `to`, and each key a `match` path gives | The reference walk (`ValidateReferences`, `checkInstanceIdentifierInstance`), extended to the `match` type. RFC 7950 Section 9.9.3: "If "require-instance" is "true", it means that the instance being referred to MUST exist for the data to be valid." | The flow leaf, the path, and the configured entries of that list |
+| 4 | The node can receive | `to` | The node is the receiver node of a registration in the startup set | The receiver nodes that are registered, with the plugin that registered each |
+| 5 | The node is a subject | `match` | The node is a subject node a publisher registered, or an ancestor of one | The subject nodes that are registered |
+| 6 | The event fits both ends | `event` | Published for the matched subject nodes, and accepted by the receiver node | The events the publisher registered, and the events the receiver accepts |
+| 7 | One flow, one publisher | `match` | Every path of the flow reaches subject nodes of one publisher | The two publishers, and that the flow is written as two flows |
+| 8 | Nothing a flow names is deleted | A commit that removes an entry a `to` or a `match` names | Check 3, on the candidate configuration | The flow and its leaf, so the operator removes or changes the flow first |
+
+A program Ze did not ship is checked the same way. Its receiver nodes, its subject nodes and the YANG module that defines them arrive in its Stage 1 declaration, and with no daemon running the same declaration is taken in query mode ("Offline validation asks the program").
+
+### Dynamic subjects
+
+A dynamic peer has no entry in the configuration: a group whose `connection { remote { ip dynamic; range ...; } }` admits its address creates it when the peer connects.
+
+| Point | Design |
+|-------|--------|
+| The path of a dynamic peer | The path of the entry that admitted it: its group. BGP attaches that path when it publishes the peer as a subject, on the rebuild `createDynamicPeer` already triggers |
+| What matches it | A `match` on that group, on the group list with no key, or on `/bgp:bgp`. A flow written before the peer connects covers it with no config change |
+| What cannot name it | A path with the dynamic peer's own name or address: no such entry exists, so check 3 refuses it and names the admitting group as what to write |
+| What tells two dynamic peers apart | The event itself, which carries the peer's address as today. The path decides routing; it is not the peer's identity |
+
+### Message properties
+
+A property of the message, such as the source protocol of a route change, is not a configured object, so it is not a path and `match` does not carry it. Thomas named this case earlier and gave no ruling on its form: Q-P2.
+
+| Point | Design |
+|-------|--------|
+| Declaration | A publisher names, in `Publishes`, each property an event carries per message, and the values it can take |
+| In a flow | `property <name> { value [ ... ]; }`. A message passes when every listed property carries one of its values |
+| Validation | A property the publisher did not register, or a value outside its set, is refused with the registered ones |
+| Cost | Only a flow or reception that names a property pays: one comparison of interned ids per such entry and message. An event with no such entry pays nothing |
+
+### ExaBGP scripts are receivers
+
+ExaBGP relates a neighbor and a process in the neighbor's `api { processes [ ... ] }` block. That one relation decides which neighbor's events a script is written, and which neighbors a script's commands reach: `feedPeers` (`bridgerun/script.go`) records that ExaBGP's `Reactor.peers(service)` reads `api['processes']` and never the per-message grants.
+
+| Point | Today | Design |
+|-------|-------|--------|
+| Which peers feed a script, with which events | `exabgp { bridge { process <name> { feed <address> { event [ ... ]; } } } }`, read by `parseFeeds` into `grantSet` | The bridge registers its `process` list as a receiver node. Each relation is a flow: `to` the script's entry, `match` the neighbor's peer path, `event` the bus events the ExaBGP words stand for. `ze exabgp migrate` writes these flows |
+| A script no neighbor names | No `feed` block: every peer, every event | No flow to that script: the bridge's registered reception applies, for every peer |
+| A neighbor that names a script and no message kind | A `feed` block with an empty `event` list | A flow with the `match` and no `event` entry |
+| The form words `parsed`, `packets` and `consolidate`, per neighbor and per script | Entries of the `feed` block's `event` list (`bridge.FormsFor`) | They are no bus event and stay in the bridge: the `feed` list is kept for the form words alone, keyed by the peer's path. The bridge refuses at commit a `feed` entry that no flow relates to the script. Conflict C-3 |
+| A command with no neighbor selector, and a selector outside the script's neighbors | Scoped by `feedPeers` in the translator | Unchanged in effect, and still inside the bridge: the bridge scopes each script's commands to the subjects that its flows relate to it. This is the bridge translating one script's commands. It is not a send permission, and the send allow-list stays one list for the bridge plugin |
+| How the bridge learns the relation | It reads its own `feed` list | The bus hands a plugin, at Stage 2 beside the publication catalog and again after a commit changes it, the subjects related to each of its receiver instances. Open: Q-P4 |
 
 ### Which peers a forwarding role serves
 
@@ -140,6 +222,8 @@ The per-peer `send [ update ]` grant also decided, until now, which peers a rout
 | Route reflector | RFC 4456 Section 5: "The internal peers of an RR are divided into two groups: 1) Client peers 2) Non-Client peers". Section 6: a route from a non-client is reflected "to all the Clients", and a route from a client "to all the Non-Client peers and also to the Client peers" | Client or non-client is BGP configuration of the peer. It changes the reflection rule the plugin applies. It never decides whether the plugin may talk to the peer |
 
 A configuration that mixes route-server sessions with other sessions on one box, and used the per-peer grant to keep the route server away from the others, converts to export policy on those peers. The per-peer send census finds each such config.
+
+Paths give the operator a second tool for that mixed box, on the receive side. A flow whose `match` is the route-server group feeds the route server those peers alone. The route server builds its targets from the peers it knows (`routeServer.selectForwardTargets` walks `rs.peers`), so a peer whose `state` it is never fed is neither heard nor served (assumption A-6). The exclusive role claim the route server holds (`Registration.Claims`, `bgp-peer-up-replay`) is already retracted per peer for a peer its claimant is not fed (`Server.UnheldRoles`), so another plugin replays to that peer. This changes nothing in A-Q4: among the peers a role is connected to, it serves all of them, and export policy limits an advertisement.
 
 ### Offline validation asks the program
 
@@ -165,7 +249,11 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 - [ ] `ai/doors/plugin-infra.md` - `plugin/registry`, `plugin/server`, `plugin/process`, `HoldDeclaredPlugins`, Stage 1 checks
   -> Constraint: "A compiled-in and an external plugin differ only in how they reach the bus. A rule for external plugins alone needs a transport reason or an arrival-order reason"
 - [ ] `ai/doors/bgp-engine.md` - BGP reactor, `PeerSettings`, `DeliveryGraph` publication, `send_permission.go`
-  -> Constraint: BGP stays isolated; it registers the `peer` and `group` tag keys and attaches them, and the bus learns no BGP word
+  -> Constraint: BGP stays isolated; it registers its peer lists and its group list as subject nodes and attaches each peer's path, and the bus learns no BGP word
+- [ ] `internal/component/config/yang/validator_reference.go`, `validator_instance.go`, `reference_source.go` - the instance-identifier parser, the reference walk, `ze:reference`
+  -> Constraint: an instance-identifier value needs a predicate for every key and a prefix on every node (RFC 7950 Section 9.13); the `match` type relaxes the first rule only, as RFC 8341 does
+- [ ] `internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang`, `bridgeplugin/config.go` (`parseFeeds`), `bridgerun/script.go` (`grantSet`, `receives`, `forms`, `feedPeers`)
+  -> Constraint: ExaBGP 6.0, 5.0 and 4.2 compatibility is agreed (`ai/META-DECISIONS.md`): per neighbor and per process, the events, the form words and the command scope all stay
 - [ ] `ai/doors/core.md` - `internal/core/events`, `internal/core/statestore`
   -> Constraint: `internal/core/` never imports upward
 - [ ] `ai/doors/hub-engine.md` - `cmd/ze/hub` startup, `FirstPass`, managed server/client, listener discovery
@@ -241,7 +329,14 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 | Event types a plugin produces | `registry.Registration.EventTypes`; `internal/component/plugin/resolve.go` (`RegisterPluginEventTypes`, `registerEventTypesOnce`) | A list of type names registered lazily, once, into the default namespace | Deleted: replaced by the `Publishes` declaration, which names its namespace and tag keys and registers at `init()` |
 | Send types a plugin enables | `registry.Registration.SendTypes`; `resolve.go` (`RegisterPluginSendTypes`, `registerSendTypesOnce`); `internal/core/events/events.go` (`ValidSendTypes`, `RegisterSendType`) | A flat global set of send type names, filled lazily, once | Deleted: replaced by command tokens registered under the component that executes them. `route_refresh` registers `enhanced-refresh` under `bgp` from its own `init()` |
 | Default event namespace | `resolve.go` (`RegisterDefaultEventNamespace`, `DefaultEventNamespace`) | The namespace a namespace-less declaration or subscription resolves to (`bgp` today) | Deleted: every publication and reception names its namespace |
-| Event namespace registry | `internal/core/events/events.go` (`RegisterNamespace`, `RegisterEventType`, `AllEventTypes`) | Holds namespaces and their event types with interned ids | Extends: a namespace's registration also holds the tag keys of each event type and the owner that publishes it |
+| Event namespace registry | `internal/core/events/events.go` (`RegisterNamespace`, `RegisterEventType`, `AllEventTypes`) | Holds namespaces and their event types with interned ids | Extends: a namespace's registration also holds the subject nodes and the per-message properties of each event type, and the owner that publishes it |
+| Instance-identifier values | `internal/component/config/yang/validator_reference.go` (`parseInstanceIdentifier`, `validateInstanceIdentifier`, `instanceSchema`, `checkInstanceKeys`) | Parses a value, resolves each step in the schema, checks its prefix and requires a predicate for every key. No Ze module uses the type (`rfc/short/rfc7950.md`) | Extends: `to` is the first user. The `match` type reuses the parser and the schema resolution with the key rule relaxed, and adds the read of the short form |
+| Reference walk | `internal/component/config/yang/validator_instance.go` (`ValidateReferences`, `checkInstanceIdentifierInstance`) | At commit, refuses a leafref or instance-identifier whose `require-instance` is true and whose instance is absent, naming the referring leaf | Extends: it is what refuses a flow whose receiver or subject does not exist, and a commit that deletes an entry a flow names. It gains the `match` type |
+| Named references no path expresses | `internal/component/config/yang/reference_source.go` (`ze:reference`, `RegisterReferenceSource`) | A leaf names a configured entry through a source a component registers; completion and commit read the one source | Does not apply to `to` and `match`: a path fits, and the extension's own text says to use the standard type wherever one does. Its completion contract is the model for path completion |
+| A node marked by a `ze:` extension | `ze-extensions.yang` (`ze:listener`, read by `CollectListeners`); `ze:required`, `ze:suggest` | A module marks a list as a listener, or names a path under a list entry | Does not apply: a `ze:` marker for a receiver or a subject would state in the module what the registration already states (the events accepted). The registration is the single declaration |
+| A registration that names a schema path | `pkg/plugin/rpc/types.go` (`FilterInsertion.Config`); `registry.CheckFilterInsertions`, `config.CheckFilterInsertionPaths` | A plugin names configuration by path words in its registration, and Stage 1 refuses a path that is not a compiled schema node | Extends: subject nodes and receiver nodes are declared and judged the same way |
+| Exclusive role claims | `registry.Registration.Claims`; `rpc.ConfigureInput.Claims`; `sdk.Plugin.ClaimActive`; `pluginserver.Server.UnheldRoles`; `bgp/server/events.go` (`peerStateUnheldRoles`) | A plugin claims a role another performs by default (`bgp-rs` and `bgp-rr` claim `bgp-peer-up-replay`). The claim is daemon-wide and is retracted per peer when no claimant fed that peer's `state` can send `update` to it (`graph.MaySend`) | Extends: the retraction reads the plugin-wide send in place of the per-peer grant, and "fed that peer's `state`" follows the flows. Whether claims also choose the relay sender, the policy-replay owner and the initial-update reporters is Q-R1 |
+| ExaBGP per-neighbor feeds | `ze-exabgp-bridge-conf.yang` (`process > feed`); `bridgeplugin/config.go` (`parseFeeds`); `bridgerun/script.go` (`grantSet`, `receives`, `forms`, `feedPeers`) | One block per peer address and script: the ExaBGP event words that peer feeds the script, the form words, and through `feedPeers` the peers a script's commands reach | Replaces in part: the relation and its events become flows to the script's receiver entry. The form words stay in `feed`. The command scope stays in the bridge and reads the relation from the bus |
 | Claims delivered at Stage 2 | `registry.Registration.Claims`; `rpc.ConfigureInput.Claims` | The engine unions a declaration over the startup set and delivers it before any runtime event | Extends: the publication catalog is delivered the same way |
 | External declarations read before the full parse | `pluginserver.HoldDeclaredPlugins`, `Manager.StartDeclared`; `config.SchemaWithDeclaredPlugins`, `DeclaredSchemas.ParseRefusal` | Each declared external program runs before the full parse and its Stage 1 declaration is kept. With no daemon, a section only its module defines is refused with a fix that reaches a running Ze | Extends: the same read supplies an external program's publications, receptions and sends. With no daemon, the commands that parse a config stop refusing and ask the program instead (next row) |
 | Query mode | `docs/architecture/api/process-protocol.md` ("Query Mode: Stage 1 and No Stage 2"); `sdk.RunOrDeclare`; `rpc.WriteDeclaration`; `show plugin declarations`; the conformance check | A program started with `ZE_PLUGIN_MODE=declare` writes its Stage 1 line to stdout and exits 0, with no connection and no run loop. Only two commands use it | Extends: every command that parses a config with no daemon runs each declared external program this way and validates against the answer (A-Q2). `ParseRefusal` keeps its message for a program that cannot be asked |
@@ -268,12 +363,14 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 
 | Question | Answer |
 |----------|--------|
-| Does `DeliveryGraph` index by tags or project onto peers? | It projects. A publisher hands the graph its subjects, each with a key and its stable tags. BGP hands one subject per peer: the address as key, and the tags `peer` and `group`. The graph resolves every reception and flow against each subject's tags when it is built, and stores the receivers per subject and event |
+| Does `DeliveryGraph` match paths per message? | No. It projects. A publisher hands the graph its subjects, each with the key the publisher already uses on its delivery path and the configuration path of the object. BGP hands one subject per peer: the address as key, and the peer's path (the admitting group's path for a dynamic peer). The graph resolves every reception and flow against each subject's path when it is built, and stores the receivers per subject and event |
+| What is a path at that point? | A sequence of steps (schema node, key values) parsed once: an operator's path at commit, a subject's path when its publisher hands it over. A `match` covers a subject when its steps are a prefix of the subject's steps, a step with no key matching any key. No path text exists on the delivery path, and a message carries its subject key, never its path |
 | When is it built? | Where it is built today: after every peer change (`AddPeer`, `createDynamicPeer`, `completeRemovals`, the end of a config apply). A peer added later is covered by that rebuild with no config change |
-| What does one delivery cost? | One map read on the subject and one on the event key, as today, with no allocation. `match` adds nothing per message for a stable tag |
-| What about a tag that differs per message? | A publisher registers such a tag as per-message (`source` on a route change). Only a flow or reception that matches on it pays: one comparison of interned ids per such entry. An event with no such entry pays nothing |
-| What proves it? | A benchmark of `Receivers` and of the per-message path reports allocations per operation, and the test fails above zero. Allocation figures are valid on any host |
-| Does the bus learn a BGP word? | No. Subjects, tag keys and value validators are registered by the publisher |
+| What does one delivery cost? | One map read on the subject key and one on the event key, as today (`deliveryKey`), with no allocation. A path in `to` or `match` adds nothing per message |
+| How does a receiver that is not an endpoint get its event? | The stored value for a subject and an event names, for each process, the receiver instances of that process the event is for: a slice built with the index and shared by every delivery. A process whose only receiver is its endpoint has none. The instances travel beside the event in the delivery, never inside the formatted event text, so the per-format cache one event's receivers share stays shared (assumption A-7) |
+| What about a property that differs per message? | A publisher registers it ("Message properties"). Only a flow or reception that names it pays: one comparison of interned ids per such entry. An event with no such entry pays nothing |
+| What proves it? | A benchmark of `Receivers`, of a delivery that names receiver instances, and of the per-message property path reports allocations per operation, and the test fails above zero. Allocation figures are valid on any host |
+| Does the bus learn a BGP word? | No. Subject nodes, receiver nodes and properties are registered by their owners, and a path is resolved against the schema |
 
 ## Design documents
 
@@ -283,14 +380,14 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 | `ai/doors/plugin-infra.md` | Who depends on it from outside | covering door for `internal/component/plugin/` | "`plugin { external <name> { run ...; } }` (`internal/component/plugin/yang/ze-plugin-conf.yang`)" | departs | Replaces `plugin { external }` with `bus { endpoint <name> { external { run ...; } } }`; door updated in the same work |
 | `ai/doors/bgp-engine.md` | Who depends on it from outside | covering door for `internal/component/bgp/` | "Which process sees which peer is the peer's `attach process` block" | departs | Removes `attach process` from `bgp { }`; a plugin's registered receptions and `bus { flow }` decide; door updated in the same work |
 | `ai/doors/bgp-plugins.md` | Who depends on it from outside | covering door for `internal/component/bgp/plugins/cmd/peer/` | "and the alias form `internal rs { use bgp-rs }`" | departs | Replaces `internal rs { use bgp-rs }` with `bus { endpoint rs { internal bgp-rs; } }`; door updated in the same work |
-| `ai/doors/core.md` | Boundaries | covering door for `internal/core/events/` | "Never import upward." | agrees | `internal/core/events` stays leaf-only; components register namespaces, tag keys and command tokens into core from `init()` |
+| `ai/doors/core.md` | Boundaries | covering door for `internal/core/events/` | "Never import upward." | agrees | `internal/core/events` stays leaf-only; components register namespaces, subject nodes, properties and command tokens into core from `init()` |
 | `ai/doors/config-yang.md` | Boundaries | covering door for `internal/component/config/` | "Config text changes through a parsed tree or `set` lines only." | agrees | The repository-wide conversion uses a parsed `*config.Tree` converter |
 | `ai/doors/system-plugins.md` | Boundaries | covering door for `internal/exabgp/` and `internal/plugins/ddos/flowspec/` | "A plugin owns its whole surface." | agrees | The ExaBGP migration and bridge and the `ddos-flowspec` doctor stay inside their own packages |
 | `ai/doors/hub-engine.md` | Boundaries | covering door for `cmd/ze/` and `internal/component/managed/` | "The hub and the Engine carry no BGP knowledge." | agrees | The bus, the hub and the engine stay free of BGP concepts |
 | `ai/doors/le-tooling.md` | Boundaries | covering door for `test/` `.ci` files | "Never import `internal/le` from product code" | agrees | Product packages import nothing from `internal/le`; new tests live under `test/` |
 | `docs/architecture/plugin/plugin-system.md` | One plugin, two ways to reach the bus | page the brief and the plugin door name | "A behaviour that differs between the two kinds with no reason of this kind is a defect." | agrees | Publications, receptions and sends are declared and judged alike for both kinds. The differences that remain are transport reasons and are stated: an external declaration is taken by running the program in query mode where a compiled-in one is read from the registry, and `RunsInProcessOnly` |
 | `docs/architecture/plugin/plugin-system.md` | One plugin, two ways to reach the bus | same page | "With no daemon running, no command starts it, and a config section only its module defines is not available" | departs | Reversed by Thomas on 2026-11-23, confirmed as intended: with no daemon, a command that parses a config starts the program in query mode, takes its declaration and validates against it; page updated in the same work |
-| `docs/architecture/api/architecture.md` | Owner ruling: endpoints and flows on the bus | `// Design:` page of `plugin/registry`, `bgp/config`, `bgp/reactor`, `plugin/server`; modified page | "A BGP group or peer takes part in a flow by listing its name, and the list merges through groups as every list does." | departs | Reversed by Thomas on 2026-11-23: no flow in `bgp { }`, no BGP concept in `bus { }`, a flow narrows the receptions a plugin registered and matches generic tags, and sends are narrowed by one allow-list on the endpoint; page updated in the same work |
+| `docs/architecture/api/architecture.md` | Owner ruling: endpoints and flows on the bus | `// Design:` page of `plugin/registry`, `bgp/config`, `bgp/reactor`, `plugin/server`; modified page | "A BGP group or peer takes part in a flow by listing its name, and the list merges through groups as every list does." | departs | Reversed by Thomas on 2026-11-23: no flow in `bgp { }`, no BGP concept in `bus { }`, a flow narrows the receptions a plugin registered and names its receiver and its subjects by configuration path, and sends are narrowed by one allow-list on the endpoint; page updated in the same work |
 | `docs/architecture/api/architecture.md` | Owner ruling: implied and shown, or written | same page | "Where the operator has a choice, which program watches a peer and what it may send, the operator writes it, and silence stays the default." | departs | Reversed by R1 and R7 on 2026-11-23: a configured plugin receives what it registered and sends what it declared, shown by `\| implied`, until the operator writes an allow-list; page updated in the same work |
 | `docs/architecture/api/architecture.md` | What the Plugin Declares and What the Peer Grants | same page | "A plugin declares what it CAN handle, in its ready RPC." | departs | The declaration moves to the registration and becomes the default delivery, not the upper bound of a peer's grant; page updated in the same work |
 | `docs/architecture/api/architecture.md` | Data Flow: Config to Delivery | same page | "A relay is judged on the grant of the process that sends it, and on nothing else: no process lends its grant to another." | departs | The grant becomes plugin-wide: a relay is judged on the sender's declaration and allow-list, with no per-peer part. A forwarder serves every peer connected to it, as RFC 7947 Section 1 states for a route server; page updated in the same work |
@@ -380,6 +477,20 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 | `docs/architecture/appliance/kernel-profiles.md` | Go owns the guarantee | anchored to `cmd/ze/ze_core_start.go` | - | silent | Covers appliance kernel profiles; silent on `bus` config syntax |
 | `docs/architecture/fleet-interface.md` | The package | anchored to `cmd/ze/ze_core_start.go` | - | silent | Covers `pkg/fleet` wire envelopes; silent on `bus` config syntax |
 | `docs/architecture/config/exabgp-syntax.md` | Static Routes | anchored to `exabgp/migration/migrate.go` | - | silent | Covers ExaBGP static route syntax; silent on `bus` config syntax |
+| `docs/architecture/bgp/egress-attribute-rules.md` | The two rules | anchored to `bgp/reactor/reactor_api_forward.go` | - | silent | Covers attribute provenance and final wire admission on egress; holds no statement on which plugin is fed a peer or may send to it |
+| `docs/architecture/bgp/fanout-dedup.md` | The decisions | anchored to `bgp/reactor/reactor_api_forward.go` | - | silent | Covers sharing the rebuild plan across forward destinations; the set of destinations grows to every connected peer, and the page states nothing about how that set is chosen |
+| `docs/architecture/forward-congestion-pool.md` | Invariant | anchored to `bgp/reactor/reactor_api_forward.go`, `reactor_api_relay.go` | - | silent | Covers forward buffer pools and congestion response; silent on plugin delivery and send permission |
+| `docs/architecture/memory/lifetime-contracts.md` | The four contracts | anchored to `bgp/reactor/peer_run.go`, `reactor_api_forward.go` | "The source lease RPC checks the exact original Peer's explicit receive grant for the authenticated configured process." | departs | No per-peer grant exists after this work. The lease check reads whether the process is fed that peer's subject (its registered reception, or the flow that keeps it), under the registration identity for a compiled-in plugin; page updated in the same work |
+| `docs/architecture/behavior/fsm-idle.md` | TL;DR | anchored to `bgp/reactor/peer_run.go` | - | silent | Covers the Idle state of the BGP FSM; silent on plugin delivery and `bus` config |
+| `docs/architecture/behavior/fsm-connect.md` | TL;DR | anchored to `bgp/reactor/peer_run.go` | - | silent | Covers the Connect state; silent on plugin delivery and `bus` config |
+| `docs/architecture/behavior/fsm-active.md` | TL;DR | anchored to `bgp/reactor/peer_run.go` | - | silent | Covers the Active state; silent on plugin delivery and `bus` config |
+| `docs/architecture/behavior/fsm-open-sent.md` | TL;DR | anchored to `bgp/reactor/peer_run.go` | - | silent | Covers the OpenSent state; its mention of the report bus concerns connection diagnostics, not event delivery to plugins |
+| `docs/architecture/behavior/fsm-open-confirm.md` | TL;DR | named by the design check beside its sibling state pages | - | silent | Covers the OpenConfirm state; silent on plugin delivery and `bus` config |
+| `docs/architecture/behavior/fsm-established.md` | TL;DR | anchored to `bgp/reactor/peer_run.go` | - | silent | Covers the Established state. Its compatibility note says per-peer KEEPALIVE receive events are not published on the plugin bus; this design publishes no new event |
+| `docs/architecture/bgp/protocol-event-capture.md` | Enabling it | anchored to `bgp/reactor/peer_run.go` | - | silent | The capture is enabled by a `capture` block on the peer and tees the session; it is not an event delivery and names no plugin |
+| `docs/architecture/diagnostics/event-history-rings.md` | The decisions | anchored to `bgp/reactor/peer_run.go`, `plugin/server/dispatch.go` | "The global ring taps `deliverEvent()`, the single dispatch point for every event." | agrees | The path-resolved index changes which receivers an event has, not where it is dispatched: one dispatch point stays, and the ring still appends there once per event |
+| `docs/architecture/edge-cases/extended-message.md` | TL;DR | anchored to `bgp/reactor/peer_run.go` | - | silent | Covers RFC 8654 message sizes; silent on plugin delivery and `bus` config |
+| `docs/architecture/mrt.md` | Daemon Component (`internal/plugins/mrt`) | anchored to `bgp/reactor/peer_run.go` | "Registers as a Ze component. Subscribes to:" | agrees | The MRT plugin keeps receiving BGP update and state events for every peer; it states them as `Receives` in its registration in place of a subscription call, and the page's wording follows |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -387,23 +498,25 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 - Config file, stdin, editor commit and SIGHUP reload (`bus { endpoint ...; flow ...; hub ...; }`, `bgp { ... }`), `ze start --plugin <name-or-program>`, `ze exabgp migrate`, the Stage 1 declaration of an external program, and the runtime plugin RPCs (`state-*`, the doctor snapshot, the BGP send commands).
 
 ### Transformation Path
-1. **Registration at `init()`:** each component and compiled-in plugin registers its namespaces, event types and tag keys, the command tokens it accepts, and its three declarations. Nothing is registered lazily.
+1. **Registration at `init()`:** each component and compiled-in plugin registers its namespaces, event types, subject nodes and message properties, its receiver nodes, the command tokens it accepts, and its three declarations. Nothing is registered lazily.
 2. **First pass (`config.FirstPass`):** the roots read before any plugin runs are derived from the modules that declare them (`bus`, `environment`). The owner of `bus` extracts the endpoints through the `RegisterPluginExtractor` seam. `MergeCliPlugins` adds each `--plugin` as an endpoint of the kind it names.
 3. **External declarations:** `HoldDeclaredPlugins` runs each declared external program and keeps its Stage 1 declaration, as today for its YANG modules. Its publications join the registry. The publication set is now complete.
-4. **Full parse and validation (`config.LoadConfig`, `ze config validate`):** `ValidateCustomSections` judges `bus`: `from` and `to` are known parties, `namespace` is owned by `from`, each `event` is published by `from` and received by `to`, each `match` tag is registered for those events and its values pass the publisher's validator, and each `send` entry of an endpoint is a send that plugin declared. With no daemon running, the command takes each external program's declaration in query mode first, and fails with the endpoint and the cause when a program cannot be asked.
+4. **Full parse and validation (`config.LoadConfig`, `ze config validate`):** `ValidateCustomSections` and the reference walk judge `bus` by the eight checks of "How a path is validated": `to` is the path of an existing instance of a registered receiver node, each `match` path reaches subject nodes of one publisher and names existing entries, `namespace` is owned by that publisher, each `event` is published for those subjects and accepted by the receiver, each `property` is registered, and each `send` entry of an endpoint is a send that plugin declared. A short-form path is rewritten to the stored form when the value is read. With no daemon running, the command takes each external program's declaration in query mode first, and fails with the endpoint and the cause when a program cannot be asked.
 5. **Resolution:** the bus builds the effective edges: for each pair, the registered receptions, replaced by the operator's flows where the operator wrote any; for each plugin, the declared sends, cut down to its one allow-list where one is present. A reception with no publisher is recorded as dormant.
 6. **Catalog delivery:** Stage 2 configure carries the publication catalog to each plugin, beside `Claims`. The ready RPC then subscribes from the plugin's declaration.
-7. **Delivery index:** each publisher hands the graph its subjects and their stable tags. BGP republishes after every peer change. The graph projects the edges onto the subjects.
+7. **Delivery index:** each publisher hands the graph its subjects, each with its key and its configuration path. BGP republishes after every peer change. The graph matches the parsed paths of every flow and reception against each subject's path once, and stores the receivers, and the receiver instances of each process, per subject and event.
 8. **Send check:** a BGP send command asks the graph once whether the sending plugin holds the send type, in place of asking every peer. Child 3 moves the same question to every engine operation.
 9. **Process identity:** `process.Process` answers three things apart: the endpoint name, the registration name of a compiled-in plugin, and the transport. State, doctor and lifecycle sites key on the registration name for a compiled-in plugin on either transport, and on an identity no registry name can take for a foreign program.
-10. **ExaBGP migration:** emits the bridge endpoint, no flow and no send list, and pure `bgp { }`. The bridge declares its receptions and the whole ExaBGP command set. Which neighbor feeds which script stays in the bridge's own `exabgp { bridge { process { feed } } }` blocks, which the migration already writes.
+10. **ExaBGP migration:** emits the bridge endpoint, no send list, and pure `bgp { }`. The bridge declares its receptions, its `process` list as a receiver node, and the whole ExaBGP command set. For each neighbor that names a process in its `api` block the migration writes one flow to that script's entry, matching the neighbor's peer path, with the bus events its ExaBGP words stand for. A `feed` entry is written only where the block holds a form word. A script no neighbor names gets no flow.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | `internal/core/events` <-> `internal/component/config` | Registries filled at `init()` and read by the `bus` validators | No |
 | `internal/component/plugin` <-> `internal/component/config` | The `bus` reader registered through `RegisterPluginExtractor`; roots declared on the module | No |
-| `internal/component/bgp` <-> `internal/component/plugin/server` | BGP registers tag keys and a value validator, and publishes subjects with their tags | No |
+| `internal/component/bgp` <-> `internal/component/plugin/server` | BGP registers subject nodes, and publishes each subject with its key and its configuration path | No |
+| `internal/component/config/yang` <-> `internal/component/plugin` | The path types are validated by the config validator and its reference walk; the receiver and subject checks read the registrations | No |
+| `internal/plugins/exabgp` <-> the bus | The bridge registers a receiver node; a delivery names the script entries it is for; the related subjects of each entry reach the bridge at Stage 2 | No |
 | Engine <-> plugin process, either kind | Stage 1 carries `publishes`, `receives` and `sends`; Stage 2 carries the catalog | No |
 
 ### Changed-Wire Census
@@ -420,18 +533,23 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 | Query-mode declaration line | reader | `internal/component/plugin/declarations.go` (`QueryDeclaration`; `queryChildEnv` sets `ZE_PLUGIN_MODE=declare` from `sdk.EnvPluginMode`; `declarationFromStdout` decodes through `rpc.DecodeDeclaration`). Readers today: `show plugin declarations` (`queriedDeclarationRow`) and the conformance check (`internal/component/plugin/conformance/conformance.go`). Added here: every command that parses a config with no daemon, through `config.SchemaWithDeclaredPlugins` and `PublishDeclaredSchemas` | Read at `queryChildEnv` and `declarationFromStdout` | New consumer in the same work (A-Q2). It reads the line through the decoder the daemon's Stage 1 uses, so the offline and daemon readers cannot accept different declarations |
 | Stage 2 configure | writer | `internal/component/plugin/server` (the configure stage, where `rpc.ConfigureInput.Claims` is filled) | `Claims` comment in `registry.go` | Additive field for the publication catalog, same work |
 | Stage 2 configure | reader | `pkg/plugin/sdk` configure callback; a third-party plugin in any language | `Claims` comment in `pkg/plugin/rpc/types.go` | Additive field; a plugin that ignores it is unaffected |
-| Ready RPC startup subscriptions | writer | `sdk.Plugin.SetStartupSubscriptions`, `SetStartupSubscriptionsIn`, `AddStartupSubscriptionsIn` (19 call sites) | `pkg/plugin/sdk/sdk_callbacks.go` | The event and tag part is replaced by the `Receives` declaration; the calls are deleted; the format stays |
+| Ready RPC startup subscriptions | writer | `sdk.Plugin.SetStartupSubscriptions`, `SetStartupSubscriptionsIn`, `AddStartupSubscriptionsIn` (19 call sites) | `pkg/plugin/sdk/sdk_callbacks.go` | The event and peer-selection part is replaced by the `Receives` declaration; the calls are deleted; the format stays |
 | Ready RPC startup subscriptions | reader | `internal/component/plugin/server/dispatch.go` (`registerSubscriptions`) | Named in the `delivery_graph.go` comment on the wildcard expansion | Reads the declaration held from Stage 1; same work |
 | create bgp peer command | writer | `internal/exabgp/bridge/bridge_neighbor.go` (`convertNeighborCreate`), operators, tests | `convertNeighborCreate` emits `attach exabgp-bridge` | Changed in the same work: the keyword is dropped |
 | create bgp peer command | reader | `internal/component/bgp/plugins/cmd/peer/create.go` (`peerCreateKeywords`, `setAttach`), `ze-peer-cmd.yang` | `setAttach` writes `attach.process.<name>` | Changed in the same work: `attach` and `setAttach` are removed |
 | Listener service name | writer | `internal/component/config/listener.go` (`DiscoverListenerServices`), `graph.go` (`listenerSectionName`) | Derives `<top>-<child>`: `plugin-hub` becomes `bus-hub` | Changed in the same work |
 | Listener service name | reader | `internal/component/config/cli/` (`show listeners`), `internal/component/managed/doctor.go`, `internal/component/plugin/doctor/check_managed_listener.go` | Phase 1 audit | Changed in the same work |
+| Event delivery to a plugin | writer | `internal/component/plugin/process/` (the delivery pipeline, `delivery.go`); `internal/component/bgp/server/events.go` (`deliverPeerState` and its siblings) | `peerStateRecipients` and `deliverPeerState` read on 2026-11-23; the delivery envelope itself was not read (assumption A-7) | Additive: a delivery to a process that registered a receiver node names the receiver instances it is for. A process with its endpoint alone sees no change |
+| Event delivery to a plugin | reader | `pkg/plugin/sdk` event callback; the ExaBGP bridge fan-out (`bridgerun`, where `script.receives` decides today); a third-party plugin in any language | `script.receives` read at the producer | The bridge reads the named instances in place of `grantSet`; a plugin that ignores the field is unaffected |
+| ExaBGP bridge config (`exabgp > bridge > process > feed`) | writer | `internal/exabgp/migration/migrate.go` and `migrate_serialize.go` (the migration), operators, the tracked configs under `test/exabgp*` | `ze-exabgp-bridge-conf.yang` revision 2026-09-06 | Changed in the same work: the relation and its events move to flows; `feed` keeps the form words, keyed by the peer's path |
+| ExaBGP bridge config (`exabgp > bridge > process > feed`) | reader | `internal/plugins/exabgp/bridgeplugin/config.go` (`parseFeeds`), `bridgerun/script.go` (`grantSet`, `forms`, `feedPeers`), `bridgerun/fleet.go` (`Translator.Peers`) | Read at each producer | Changed in the same work; `grantSet` and `feedPeers` are deleted first, and the relation comes from the bus |
 | Send refusal text | writer | `internal/component/bgp/reactor/send_permission.go` (`sendPermissionDenied`, `errSendNotPermitted`) | Read at the producer | Text changes to bus syntax here; Child 3 owns the counter's generalization |
 | Send refusal text | reader | The `.ci` files that match the text (34 files name the refusal), operators and their log matchers | Grep of `test/` for the refusal strings | Each matching `.ci` is converted with the text, through the test judge where it proves the per-peer refusal |
 
 ### Integration Points
 - `internal/component/plugin/registry/registry.go` (`Registration`) - the three declarations replace `EventTypes` and `SendTypes`.
-- `internal/core/events/events.go` - a namespace's registration holds tag keys and its publisher; command tokens are registered per accepting component.
+- `internal/core/events/events.go` - a namespace's registration holds subject nodes, message properties and its publisher; command tokens are registered per accepting component.
+- `internal/component/config/yang/validator_reference.go`, `validator_instance.go` - the `match` type beside `instance-identifier`, the short form, and the reference walk over both.
 - `internal/component/config/yang/join.go` (`FirstPassRoots`) - derived from a declaration on the root.
 - `internal/component/config/validate_sections.go` (`validatedSections`) - `bus` replaces `plugin`.
 - `internal/component/plugin/server/delivery_graph.go` (`DeliveryGraph`) - built from subjects, receptions and flows.
@@ -441,10 +559,10 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes | One config path through `FirstPass` and `LoadConfig`; one resolution of edges feeds delivery, the send check and the reconcile |
-| No unintended coupling (components stay isolated) | Yes | `bus` carries no BGP keyword; tag keys, subjects and validators are registered by the publisher; `internal/core/events` stays a leaf |
+| No unintended coupling (components stay isolated) | Yes | `bus` carries no BGP keyword; subject nodes, receiver nodes and properties are registered by their owners, and a path is resolved against the schema alone; `internal/core/events` stays a leaf |
 | No duplicated functionality (extends existing, does not recreate) | Yes | The reception a plugin declares, the claims delivery, the held external declarations, the alias resolution and the foreign identity are each extended. Every replaced declaration is deleted, listed under Existing Mechanisms |
 | Zero-copy preserved where applicable (refs, not copies) | Yes | UPDATE buffers and `RawMessage` lifetime are untouched; the index stores receivers per subject, and the benchmark asserts no allocation |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Plugins and components register publications, tag keys, value validators, command tokens and declarations from `init()`; the bus validates from those registries |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Plugins and components register publications, subject nodes, receiver nodes, message properties, command tokens and declarations from `init()`; the bus validates from those registries |
 | Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | `firstPassRoots` (`config/yang/join.go`) is a literal list that would learn `bus`; this design derives it. `validatedSections`, `retiredKeywords`, `listenerSectionName` and `peerCreateKeywords` were searched. `requireRIBDelivery` keeps three plugin-name literals until Child 2. The row turns Yes when the derived list is built and Child 2 lands |
 
 ## Risks & Assumptions
@@ -456,7 +574,11 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 | A-2 | No repository test or scenario depends on a program not seeing a peer, apart from the tests that prove that silence itself | Measured by the receive census (2026-11-23): 186 files attach a program to some peers only (125) or with different `receive` lists (109), and 673 files declare an external plugin no peer attaches. The tests that depend on the silence are listed under "Receive census"; one of them (`adj-rib-in-replay-unowned-peer`) cannot have its setup built under the new model | A scenario's result changes because a program now receives a peer's events | The receive census under "Receive census" | measured: holds only with the listed tests routed to the judge |
 | A-3 | The events a compiled-in plugin subscribes to are a constant of the plugin, not a function of its config | 19 call sites of the three subscription calls; `internal/plugins/redistribute/register.go` subscribes to `bgp` `state` only when the namespace exists, which the dormant rule covers; the ExaBGP bridge varies only the format | A plugin whose reception depends on its config cannot declare it as a pure value | Read of all 19 call sites at implementation start | unvalidated |
 | A-4 | No repository test or scenario depends on a plugin being refused a send toward one peer while it is allowed toward another, apart from the tests that prove that refusal itself | Measured by the per-peer send census (2026-11-23): 193 files carry a per-peer send asymmetry. Beyond the two tests that prove the refusal, ten `.ci` files use the refusal as a detector (`reject=stderr:pattern=send refused`), and about 40 route-server and reflector tests rely on a receive-only source peer getting no relayed UPDATE, which `le test peer` in check mode fails on (`Checker.expectedOrKeepalive`, `internal/test/peer/checker.go`) | A scenario's routing depends on the per-peer refusal | The census under "Per-peer send census" | invalidated: the dependent tests are listed under "Per-peer send census" and risk R-9 |
-| A-5 | Every event a publisher emits can carry the tag keys it registers | BGP peer-scoped delivery already carries the peer address and name (`PeerScopedProcs`) | A publisher has no stable subject | Design read of each registering publisher | unvalidated |
+| A-5 | Every event a publisher emits concerns one configured object whose path the publisher knows, or the publisher's own root | BGP peer-scoped delivery already carries the peer address and name (`PeerScopedProcs`), and a peer's name is its list key | A publisher has events about an object with no configuration entry and no admitting entry | Design read of each registering publisher | unvalidated |
+| A-6 | A route server learns its peers from the `state` events it is fed, so a peer outside its flows is neither heard nor served | `routeServer.selectForwardTargets` walks `rs.peers`; how `rs.peers` is filled was not read | A route server kept to one group by a flow still forwards to peers outside it, and the mixed-box case needs export policy alone | Read of the route server's peer-up handling at implementation start | unvalidated |
+| A-7 | A delivery has an envelope apart from the formatted event text, where the receiver instances can travel | `deliverPeerState` formats once per format and shares the text (`formatCache`); the envelope was not read | Naming instances inside the text would break the shared format cache; the fallback is the Stage 2 relation alone, applied by the plugin as `grantSet` is today | Read of `plugin/process/delivery.go` at implementation start | unvalidated |
+| A-8 | The config parser can rewrite a value of a path type when it reads it | The parser is schema-directed and knows a leaf's type; no existing rewrite of a value on read was found or searched for | The short form cannot be stored as the bracket form; the fallback is to refuse it with the bracket form printed as the fix (Q-P1 option a) | Read of the value reader in `internal/component/config` at implementation start | unvalidated |
+| A-9 | A peer created at run time by `create bgp peer` is a configuration entry with a path of its own | `create.go` calls `AddDynamicPeer`; whether it writes the running tree was not read | Such a peer has no path, and it needs an admitting entry as a range-admitted peer does | Read of `AddDynamicPeer` and `convertNeighborCreate` at implementation start | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -470,6 +592,10 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 | R-7 | An offline `ze config validate` accepts a flow the daemon refuses | `test/plugin/config-validate-agrees-with-boot.ci` | Offline validation takes the program's declaration in query mode and fails when it cannot, so it never accepts what it did not check |
 | R-8 | `ze config validate` now executes the programs a config names | A validate run on an untrusted file starts a program | The bus configuration is the trust boundary (R6), and query mode starts nothing: a declaration is a pure value. The message of a validate run names each program it asked |
 | R-9 | A converted route-server or reflector test goes red because a peer that held no `send [ update ]` grant now receives relayed routes, and a `le test peer` in check mode fails on any UPDATE it did not expect (`Checker.expectedOrKeepalive`, `internal/test/peer/checker.go`) | About 40 RS/RR `.ci` files whose source peer is receive-only today (per-peer send census) fail with an unexpected UPDATE after conversion | Each such test is listed before the converter runs. Its new expectations (the relayed routes RFC 7947 Section 1 and RFC 4456 Section 6 require) or an export policy on that peer go to the test judge with the test; which of the two a test gets is an open design question (Q-C2 under "Per-peer send census") |
+
+| R-10 | A module prefix becomes text an operator saves, so renaming a prefix breaks saved flows | A YANG change to a `prefix` statement fails `TestRepositoryConfigsValidate` on a flow | The stored form uses the prefix, the validator also accepts the module name, and a prefix rename converts the tracked configs in the same work, as any YANG change does |
+| R-11 | Path matching leaks onto the delivery path | The benchmark reports an allocation, or a profile shows path text compared per message | Paths are parsed at commit and matched when the index is built; the benchmark of AC-13 fails above zero allocations |
+| R-12 | An ExaBGP script loses or gains a neighbor in the move from `feed` to flows | A case of `./le test functional exabgp` changes its output | The migration writes one flow per `api` relation, the bridge refuses a `feed` entry with no flow, and AC-9 runs the per-neighbor cases, the command scope included |
 
 ## Blast Radius
 
@@ -492,27 +618,35 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 | `ze start` of `bus { endpoint rs { internal bgp-rs; } }` with three connected peers, no per-peer line and no send list | -> | Registered reception of `bgp-rs` -> `selectForwardTargets` -> plugin-wide send check -> the peer's export policy -> forward to each other connected peer | `test/plugin/bus-rs-serves-every-peer.ci` (new) |
 | `ze start` of `bus { endpoint rr { internal bgp-rr; } }` with one client and one non-client, no per-peer line | -> | Registered reception of `bgp-rr` -> reflection by the peer's client setting (RFC 4456 Section 6) -> plugin-wide send check | `test/plugin/bus-rr-client-rule.ci` (new) |
 | `ze start` of a config with a flow `event [ state ]` for one pair and a flow with no `event` entry for another | -> | Edge resolution (a flow replaces the registered reception of its pair) -> `DeliveryGraph` -> delivery | `test/plugin/bus-flow-replaces-reception.ci` (new) |
+| `ze config validate` and an editor commit of flows whose `to` or `match` fails each of the eight checks, and of a commit that deletes a group a flow names | -> | Path types in `validator_reference.go` -> the reference walk -> the receiver and subject checks | `test/parse/bus-path-validation-refusals.ci`, `test/editor/bus-flow-path-commit.et` (new) |
+| `ze start` with a dynamic group, a flow matching the group's path, and a peer that connects from the group's range | -> | BGP publishes the dynamic peer with its group's path -> index rebuild -> delivery | `test/plugin/bus-dynamic-peer-by-group-path.ci` (new) |
+| `ze exabgp migrate` of a config with two processes and per-neighbor `api` blocks, then `ze start` and a script command with no neighbor selector | -> | Migration writes flows -> bridge receiver node -> delivery names the script entry -> the bridge's command scope | `test/exabgp/bridge-script-flows.ci` (new) |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | `bus { endpoint collector { external { run ...; } } }`, pure `bgp { }`, no flow. The program registers the reception of `update-received` and `state` from `bgp` and declares no send | The config validates and boots. `collector` receives both event types for every peer, including a peer added by a later reload. A send of `update` is refused because it was not declared | An event the program registered no reception for is never delivered |
-| AC-2 | The same endpoint with a flow that lists `event [ state ]` and `match group { value [ customers ]; }` | Only `state` of peers in group `customers` is delivered. A second flow for the same pair with another `match` delivers its own events to its own peers, and a message matching both is delivered once | No `match` means every message |
-| AC-3 | A flow with an unknown `from` or `to`, a `namespace` that `from` does not own, an `event` the publisher did not register or the endpoint does not receive, a `match` tag the publisher did not register, a `match group` value that names no group, or a `send` entry the endpoint's plugin did not declare | Each is refused at `ze config validate`, editor commit and `ze start`, naming the flow or endpoint, the offending token and the accepted values. An external endpoint in `from` is accepted from its declaration | A `match peer` value is checked for form only |
+| AC-2 | The same endpoint with a flow whose `to` is the endpoint's path, whose `match` is the path of group `customers`, and which lists `event [ state ]` | Only `state` of the peers configured under group `customers` is delivered; a standalone peer and a peer of another group deliver nothing. A second flow for the same pair with another `match` delivers its own events for its own peers, and a message matching both is delivered once. A `match` of the group list with no key covers every grouped peer, and a `match` of `/bgp:bgp` covers every peer | A peer under the matched group that is added by a later reload is covered with no flow change |
+| AC-3 | A flow that fails each check of "How a path is validated": a `to` or `match` that is no path; a step that names no node; a `to` whose instance does not exist; a `to` on a node no plugin registered as a receiver (a BGP peer); a `match` on a node that is no subject and has none under it; a `match` whose key names no configured entry; an `event` the publisher did not register or the receiver does not accept; `match` paths of two publishers in one flow; a `namespace` the publisher does not own; a `property` the publisher did not register; a `send` entry the endpoint's plugin did not declare | Each is refused at `ze config validate`, editor commit and `ze start`, with one verdict, naming the flow and its leaf, the offending value and what is valid: the registered receiver nodes, the subject nodes, the configured entries, or the events. A receiver or subject node of an external program is accepted from its declaration | A `match` with a key left out names no instance and is checked for its node alone |
 | AC-4 | A plugin that declares the sends `update` and `refresh` toward `bgp`, under three configs: no `send` container on its endpoint, `send { allow [ bgp:update ]; }`, and an empty `send { }` | With none, both sends succeed toward every peer. With `allow [ bgp:update ]`, `update` succeeds and `refresh` is refused. With the empty container, both are refused. Each refusal names the endpoint, the token and the allow-list line that admits it, and counts once | The config text and `show config` keep the empty container distinct from an absent one |
 | AC-5 | A reception registered for a publisher that is absent: a build without BGP, or an endpoint not configured | The config loads, nothing is delivered, and `show doctor` and the reconcile name the reception as dormant. Configuring the publisher later, by reload, starts the delivery | An operator-written flow naming an unknown publisher is still refused (AC-3) |
 | AC-6 | Config moves `hub { server ...; client ...; }` under `bus { hub { ... } }` | The managed hub listener binds and validates, `show listeners` reports `bus-hub`, `config graph` links `bus` to `bus-hub`, and the managed doctor checks pass | None |
 | AC-7 | Config uses the retired `plugin { }`, `attach process`, or `process` under `bgp` | Refused at parse with `RetiredKeywordHint` pointing to `bus { endpoint; flow; hub; }` | None |
 | AC-8 | `ze --plugin ze.bgp-bmp -` and `ze --plugin "<program>" -` | Both start the plugin they name. The program's module is joined before the full parse and its declarations are honored as a config endpoint's are | Offline `ze bgp decode --plugin` and `ze plugin test --plugin` keep accepting external decoders |
-| AC-9 | An ExaBGP config with `process`, `api { processes [...] }`, and a script that creates a neighbor at run time, through `ze exabgp migrate` and the bridge | The migration emits a complete config with its `bus` section (the bridge endpoint, no flow, no send list) and pure `bgp { }` that loads with no edit. Each script may send the whole ExaBGP API command set, because the bridge declares it and no list narrows it. A neighbor created at run time is fed to its script and takes its announcements with no `attach` | `exabgp { bridge { process { encoder; feed; } } }` stays, and is where ExaBGP's per-neighbor `api { processes }` scoping lives: a script with `feed` blocks is fed by those peers alone, and a command that names no neighbor reaches those peers alone |
+| AC-9 | An ExaBGP config with `process`, `api { processes [...] }`, and a script that creates a neighbor at run time, through `ze exabgp migrate` and the bridge | The migration emits a complete config with its `bus` section (the bridge endpoint, no send list, and one flow per neighbor and process an `api` block relates) and pure `bgp { }` that loads with no edit. Each script may send the whole ExaBGP API command set, because the bridge declares it and no list narrows it. A script is written the events of the neighbors that named it and of no other; a command that names no neighbor reaches those neighbors alone, and a selector outside them reaches none; a neighbor that names a script and no message kind feeds it no event and still takes its routes; the `parsed`, `packets` and `consolidate` words keep their per-neighbor effect. A script no neighbor names is fed every peer. A neighbor created at run time is fed to its script and takes its announcements with no `attach` | `exabgp { bridge { process { encoder; feed; } } }` stays; `feed` holds the form words alone. Every case of `./le test functional exabgp` that covers per-neighbor scoping keeps its expectations |
 | AC-10 | `bus { endpoint my-ddos { internal ddos-flowspec; } }`, the same with `process separate;`, and `bus { endpoint ddos-flowspec { external { run ...; } } }` | Both compiled endpoints read and write the plugin's state key, report healthy in `show doctor`, hold the same default flows, and block `ze data rm` while running. The foreign program named `ddos-flowspec` holds none of the compiled plugin's grants, and `show doctor` reports the compiled plugin as not running. The five sibling sites (`RequiresPeerUpBarrier`, `configRefusalIsFatal`, `isPluginLoaded`, `collectOrphanedDependencies`, `appendHeldNeedProviders`) resolve by registration name | `process separate` on a plugin whose registration sets `RunsInProcessOnly` is refused at commit with that reason |
 | AC-11 | A config with a redistribution rule importing from BGP, a FlowSpec family, an iBGP peer, and a filter member owned by a plugin, first with no flow, then with a flow that narrows the Loc-RIB's or the filter owner's events below what the feature needs | With no flow, redistribution, FlowSpec authorization, AIGP selection and the filter owner's cleanup on peer removal all work. With the narrow flow, FlowSpec and AIGP are refused with the `bus { flow }` line that completes the list, and the filter owner still receives `state`, marked implicit | Redistribution with a narrow flow loads and moves nothing from that peer, with its log line, until Child 2 adds the refusal |
 | AC-12 | Every tracked `.conf`, `.ci`, `.et`, interop scenario, fixture, doc and website example | None keeps `plugin {` or `attach process` outside `plan/` history. `TestRepositoryConfigsValidate` and the scoped functional suites pass. The converted interop scenarios pass against their peers | History under `plan/journal/`, `plan/learned/`, `plan/handover/` and `plan/records/` may quote the old syntax |
-| AC-13 | `Receivers` and the per-message tag path under a benchmark | Zero allocations per operation on both | None |
+| AC-13 | `Receivers`, a delivery that names receiver instances, and the per-message property path, under a benchmark, with flows whose `match` paths are a full peer path, a group path and a path with a key left out | Zero allocations per operation on each. No path text is parsed or compared on the delivery path: the benchmark's flows are resolved when the index is built | None |
 | AC-14 | `ze config validate` with no daemon running, on a config with an external endpoint and a flow that names it: with a program that answers in query mode, with a flow naming an event that program does not publish, and with a `run` line that names no program | The first validates. The second is refused with the events the program declared. The third fails naming the endpoint, the `run` line, the cause, and `ze show plugin conformance run "<run line>"`. The program's run loop never starts in any of them | A running daemon is still asked first and answers from the declarations it started with |
 | AC-15 | A route server with three connected peers and no send list, and a reflector with a client and a non-client | The route server forwards a peer's routes to every other connected peer, with no per-peer line written. The reflector applies RFC 4456 Section 6 by the peer's client setting. An export policy on one peer is what keeps a route from it | None: no peer is skipped for lack of a grant |
 | AC-16 | A flow for a pair that lists `event [ state ]`, and a flow for a pair with no `event` entry, for a plugin that registered `update-received` and `state` | The first delivers `state` only. The second delivers nothing from that publisher | A pair with no flow keeps the registered reception |
+| AC-17 | A commit that deletes a group, a peer or an endpoint that a flow's `match` or `to` names, in the editor, by reload and by `ze config validate` of the candidate | Refused. The message names the flow and its leaf and the deleted entry, and says to remove or change the flow first. Removing the flow in the same commit makes it pass | Deleting an entry no flow names is not refused |
+| AC-18 | A dynamic group, a flow whose `match` is that group's path, and a peer that connects from the group's range after start; then a flow whose `match` names the dynamic peer itself | The dynamic peer's events reach the receiver with no config change, and a dynamic peer of another group delivers nothing. The second flow is refused, naming the admitting group as the path to write | The event still carries the peer's address |
+| AC-19 | A path typed in the short form (`/bgp/group/customers`, `/bus/endpoint/collector`) in a config file, in `set` and in the editor; the same path in the bracket form | Both load and give the same flow. `show config` prints the bracket form for both. A short form that is ambiguous or illegal (a key value holding `/`) is refused with the bracket form to write | One form is stored |
+| AC-20 | A program Ze did not ship that declares a receiver node in its own YANG module and a subject node for an event it publishes; flows that name them; validation with a daemon and with none | The flows validate and deliver. A flow to an instance of that node that does not exist, or with an event the node does not accept, is refused with what is valid. With no daemon the declaration is taken in query mode and the verdicts are the same | A receiver node outside the program's own module is refused at Stage 1 |
+| AC-21 | An endpoint `collector` and a flow whose `to` names a plugin Ze loaded with no `endpoint` written | Refused: no such endpoint entry exists. The message gives the line that writes the endpoint, and with it the flow loads | None |
 
 ## End-to-End User Stories
 
@@ -531,7 +665,13 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 |------|------|-----------|--------|
 | `TestBusFlowValidationRefusals` | `internal/component/plugin/bus_validate_test.go` | AC-3: one case per refusal, each asserting the accepted values in the message | |
 | `TestBusEdgeResolution` | `internal/component/plugin/server/bus_edges_test.go` | AC-1, AC-2, AC-4, AC-5: default, narrowed, two flows with `match`, absent and empty allow-list, dormant | |
-| `TestDeliveryGraphProjectsSubjects` | `internal/component/plugin/server/delivery_graph_test.go` | AC-2: a subject added later is covered; per-message tag matching | |
+| `TestDeliveryGraphProjectsSubjects` | `internal/component/plugin/server/delivery_graph_test.go` | AC-2, AC-18: a subject added later is covered; a full path, a group path and a path with a key left out each cover the right subjects; a dynamic subject is covered through its admitting entry's path. Negatives: a standalone peer is not covered by a group path, and a peer of another group is not | |
+| `TestNodePathParsing` | `internal/component/config/yang/validator_reference_test.go` | AC-3, AC-19: the `match` type accepts a path with a key left out and `instance-identifier` refuses it; the short form converts to the bracket form; each malformed value is refused with the form to write. Negative: the short form with a key value holding `/` is refused | |
+| `TestFlowPathReferenceWalk` | `internal/component/config/yang/validator_instance_test.go` | AC-3, AC-17: through `ValidateReferences` on a whole tree, a `to` or `match` naming an absent entry is refused with the referring flow leaf; deleting the entry from a tree that held it yields the same refusal. Negative: a `match` with a key left out names no instance and is not refused | |
+| `TestReceiverAndSubjectNodeChecks` | `internal/component/plugin/bus_validate_test.go` | AC-3, AC-20, AC-21: a `to` on a node no registration names as a receiver, a `match` on a node that is no subject, an event one end does not hold, two publishers in one flow, each refused with the valid set; a receiver node declared at Stage 1 by a fixture program is accepted, and one outside its module is refused | |
+| `TestDeliveryNamesReceiverInstances` | `internal/component/plugin/server/delivery_graph_test.go` | AC-9, AC-13: for a process with two receiver instances, each delivery names exactly the instances its flows relate to the subject; a process with its endpoint alone is named none | |
+| `TestBridgeScriptsAreReceivers` | `internal/plugins/exabgp/bridgerun/script_receiver_test.go` | AC-9: a script is written only the events of the subjects its flows relate to it; a command with no selector reaches those subjects alone and a selector outside them reaches none; a flow with no `event` entry relates and feeds nothing; the form words keep their per-neighbor effect. Negative: a `feed` entry with no flow is refused at verify | |
+| `TestMigrateWritesScriptFlows` | `internal/exabgp/migration/migrate_bus_test.go` | AC-9: one flow per neighbor and process an `api` block relates, with the bus events its ExaBGP words stand for; no flow for a process no neighbor names; a `feed` entry only for a block with a form word; the result loads through `LoadConfig` unchanged | |
 | `BenchmarkDeliveryReceivers`, `TestDeliveryReceiversAllocatesNothing` | `internal/component/plugin/server/delivery_graph_test.go` | AC-13 | |
 | `TestPublicationsCompleteBeforeReceptions` | `internal/component/plugin/server/startup_bus_test.go` | R2: a reception resolved at startup sees a held external program's publication; the catalog reaches Stage 2 | |
 | `TestRegistrationCarriesNoSecondDeclaration` | `internal/component/plugin/all/all_test.go` | No registration in the tree keeps a subscription call beside its `Receives` declaration | |
@@ -572,6 +712,11 @@ Ruled by A-Q2 and confirmed by Thomas as an intended reversal of the earlier rul
 | `bus-offline-validate-query-mode` | `test/parse/` | AC-14 through `ze config validate` with no daemon: a fixture program built on `sdk.RunOrDeclare`, whose activation writes a marker file. The valid config passes; the flow naming an event the program does not publish is refused with the events it declared; the `run` line naming no program fails with the endpoint, the `run` line, the cause and the conformance command. Negative: the marker file is never written | |
 | `bus-rs-serves-every-peer` | `test/plugin/` | AC-15, route server: three connected peers, no per-peer line, no send list; a route from one peer reaches the other two. Negative: with an export policy on one peer that rejects the route, that peer receives nothing and the other still does | |
 | `bus-rr-client-rule` | `test/plugin/` | AC-15, reflector: one client and one non-client, no per-peer line; the non-client's route reaches the client and the client's route reaches the non-client, by the client setting alone | |
+| `bus-path-validation-refusals` | `test/parse/` | AC-3, AC-17, AC-21 through `ze config validate`: one config per failed check, each asserting the refusal text and the valid set it lists; a config that deletes a group a flow names. Negative control: the corrected config of each case validates | |
+| `bus-flow-path-commit` | `test/editor/` | AC-17, AC-19 through the editor: a short-form path typed with `set` is shown in the bracket form; a commit that deletes a matched group is refused naming the flow, and passes once the flow is removed | |
+| `bus-dynamic-peer-by-group-path` | `test/plugin/` | AC-18 through the running daemon: a peer connecting from a dynamic group's range is delivered to the receiver its group's flow names. Negative: a second receiver whose flow matches another group receives nothing | |
+| `bridge-script-flows` | `test/exabgp/` | AC-9 through `ze exabgp migrate` and `ze start`: two scripts and two neighbors, each neighbor naming one script. Each script sees its neighbor alone, and a route announced with no selector reaches that neighbor alone. Negative: the other neighbor receives no UPDATE | |
+| `bus-external-receiver-node` | `test/plugin/` | AC-20: a fixture program that declares a receiver node and a subject node, run by the daemon and validated offline in query mode | |
 | `bus-flow-replaces-reception` | `test/plugin/` | AC-16: a plugin that registered `update-received` and `state` under a flow `event [ state ]` receives `state` and no `update-received`; under a flow with no `event` entry it receives nothing from `bgp`; with no flow it receives both. The two negatives are the events that never arrive | |
 
 ### Tests routed through the test judge
@@ -643,6 +788,8 @@ Design questions the census forces. None is answered here.
 | Q-C4 | When several plugins declare `bgp:update` (`bgp-rs`, `bgp-rr`, `bgp-adj-rib-in`), which one replays to a peer that comes up, which one is a relay's sender, and which owns a policy replay? | The peer-up replay role (`bgp/server/events.go`), `rsRelaySendProcessName` and `policyReplayOwner` pick one process per peer by its grant. With no per-peer grant every declaring plugin qualifies on every peer. The setup of `adj-rib-in-replay-unowned-peer.ci` (a peer no forwarder owns) cannot be built |
 | Q-C5 | Who reports a session's initial update? | `initialUpdateReporters` credits a process by its per-peer push grant. With plugin-wide sends, every plugin that declares `update` or `raw`, receives `state` and signals session-ready becomes a reporter on every peer, and the replay fence waits for each of them |
 
+What the move to paths changes for these questions. Q-C3 is answered in part: a script under the bridge keeps its scope through flows to its receiver entry, and a plain external script is one endpoint and has one scope. Q-C1, Q-C4 and Q-C5 share one cause, which the path design does not remove: the per-peer send grant also chose which plugin does a job. A mechanism that carries roles exists (`Registration.Claims`, `Server.UnheldRoles`, `rpc.DisseminationDecl`), and the proposal that extends it is put to Thomas as Q-R1 under "Choices for Thomas". Nothing here decides it.
+
 ### Receive census
 
 The converter writes no narrowing flow, so every program that was attached to some peers only sees every peer after conversion (A-Q7). Taken 2026-11-23 with the per-peer send census, over the same files.
@@ -660,12 +807,12 @@ The census names no other test that depends on the difference, so the remaining 
 |------|----------------------|------------------|
 | `test/plugin/attach-process-unattached-is-silent.ci` | An unattached program receives nothing | A flow with no `event` entry for the pair (AC-16) |
 | `test/plugin/attach-process-receive-filter.ci`, `redistribute-explicit-attach-kept.ci`, `bgp-best-route-attach-isolation.ci`, `bgp-best-route-start-destination-send-only.ci` | A program is fed only the events or peers its attachment names | A flow listing those events, with a `match` on the peers (AC-2) |
-| `test/plugin/attach-process-dynamic-group.ci` | A dynamic peer is fed to a program through its group's attachment | A flow with `match group` (AC-2); the later peer is covered by the rebuild |
+| `test/plugin/attach-process-dynamic-group.ci` | A dynamic peer is fed to a program through its group's attachment | A flow whose `match` is the group's path (AC-18); the later peer is covered by the rebuild |
 | `test/plugin/attach-process-delivery-graph.ci` | The graph holds one edge per attached peer | `TestDeliveryGraphProjectsSubjects` and a flow with `match` |
 | `test/plugin/attach-process-runtime-subscribe.ci` | `request subscribe` adds a type only inside the peer's grant | Bounded by the registration and the flows instead |
 | `test/plugin/attach-process-send-permission.ci` (its AC-11) | An unattached process is silent | As the first row |
 | `test/plugin/bgp-rs-fastpath-relay-grants.ci` (peer N) | A receive-only peer feeds the route server | A flow for the pair |
-| `test/plugin/adj-rib-in-replay-unowned-peer.ci` | `bgp-adj-rib-in` replays to a peer no forwarder owns | None: the setup cannot be built, because no peer is unowned once a role serves every connected peer. Design question Q-C4 |
+| `test/plugin/adj-rib-in-replay-unowned-peer.ci` | `bgp-adj-rib-in` replays to a peer no forwarder owns | A flow that keeps the forwarder to the paths of the other peers: the forwarder is then not fed this peer's `state`, its replay claim is retracted for this peer (`Server.UnheldRoles`), and `bgp-adj-rib-in` replays. The setup can be built again under paths, subject to assumption A-6 and to Q-R1 |
 | `test/reload/bgp-attach-receive-only-live.ci`, `bgp-attach-dynamic-receive-only-live.ci`, `bgp-attach-grant-change-live.ci`, `bgp-attach-no-route-refresh-restarts.ci`, `bgp-attach-sent-direction-restarts.ci`, `bgp-rpki-attach-live.ci` | A reload that changes a peer's attachment changes delivery live, or restarts the session where it must | A reload that changes a flow |
 | `test/interop/scenarios/bgp-attach-receive-only-live-frr` | The same against FRR | A reload that changes a flow, rerun against FRR |
 
@@ -688,7 +835,10 @@ No wire format changes. Which plugin sees and sends what does change, so the con
 - `internal/component/plugin/registry/registry.go` - the three declarations replace `EventTypes` and `SendTypes`
 - `pkg/plugin/rpc/types.go`, `internal/core/ipc/yang/ze-plugin-engine.yang` - Stage 1 fields and the Stage 2 catalog
 - `pkg/plugin/sdk/sdk_callbacks.go` - subscribe from the declaration; delete the three subscription calls
-- `internal/core/events/events.go` - tag keys and publisher per namespace; command tokens per accepting component; delete `ValidSendTypes` and `RegisterSendType`
+- `internal/core/events/events.go` - subject nodes, message properties and publisher per namespace; command tokens per accepting component; delete `ValidSendTypes` and `RegisterSendType`
+- `internal/component/config/yang/validator_reference.go`, `validator_instance.go`, `modules/ze-types.yang` - the node path type for `match` (key predicates optional), the short form read into the stored form, and the reference walk over `to` and `match`
+- `internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang`, `bridgeplugin/config.go`, `bridgeplugin/register.go`, `bridgerun/script.go`, `bridgerun/fleet.go` - the `process` list registered as a receiver node; `feed` keyed by the peer's path and kept for the form words; `grantSet` and `feedPeers` replaced by the instances a delivery names and the relation the bus hands over
+- `rfc/short/rfc7950.md` - the `instance-identifier` row, which says no Ze module uses the type
 - `internal/component/plugin/resolve.go` - delete `RegisterPluginEventTypes`, `RegisterPluginSendTypes`, both `sync.Once`, the default event namespace and the `ze plugin X` branch of `deriveName`
 - `internal/component/plugin/types.go` - identity and transport as two questions in place of `RunsExternalProgram`; its ten callers
 - `internal/component/plugin/process/process.go` - fork of Ze's own binary for `process separate`
@@ -710,17 +860,18 @@ No wire format changes. Which plugin sees and sends what does change, so the con
 ## Files to Create
 - `internal/component/plugin/bus_validate_test.go`, `internal/component/plugin/server/bus_edges_test.go`, `startup_bus_test.go`, `startup_alias_test.go` - unit tests
 - `internal/exabgp/migration/migrate_bus_test.go`, `internal/component/bgp/plugins/rs/server_forward_test.go` - unit tests
-- `test/plugin/bus-registered-default-delivery.ci`, `test/plugin/bus-flow-narrows.ci`, `test/plugin/bus-aliased-forked-state-doctor.ci`, `test/plugin/bus-feature-requirements-survive.ci`, `test/parse/bus-flow-validation-refusals.ci`, `test/managed/bus-hub-listener.ci`, `test/exabgp/bridge-dynamic-peer-covered.ci`, `test/parse/bus-offline-validate-query-mode.ci`, `test/plugin/bus-rs-serves-every-peer.ci`, `test/plugin/bus-rr-client-rule.ci`, `test/plugin/bus-flow-replaces-reception.ci` - functional tests
+- `test/plugin/bus-registered-default-delivery.ci`, `test/plugin/bus-flow-narrows.ci`, `test/plugin/bus-aliased-forked-state-doctor.ci`, `test/plugin/bus-feature-requirements-survive.ci`, `test/parse/bus-flow-validation-refusals.ci`, `test/managed/bus-hub-listener.ci`, `test/exabgp/bridge-dynamic-peer-covered.ci`, `test/parse/bus-offline-validate-query-mode.ci`, `test/plugin/bus-rs-serves-every-peer.ci`, `test/plugin/bus-rr-client-rule.ci`, `test/plugin/bus-flow-replaces-reception.ci`, `test/parse/bus-path-validation-refusals.ci`, `test/editor/bus-flow-path-commit.et`, `test/plugin/bus-dynamic-peer-by-group-path.ci`, `test/exabgp/bridge-script-flows.ci`, `test/plugin/bus-external-receiver-node.ci` - functional tests
+- `internal/plugins/exabgp/bridgerun/script_receiver_test.go` - unit test
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
 | YANG schema (new RPCs/config) | Yes | `ze-plugin-conf.yang` (`bus`), `ze-bgp-conf.yang` (remove `attach`), `ze-peer-cmd.yang` (remove `attach`), `ze-plugin-engine.yang` (Stage 1 and Stage 2 fields); regenerate glue with `./le yang glue update` |
 | YANG validation constraints | Yes | `enumeration` on `encoding` and `process`, mutual exclusion of `internal` and `external`, `process` valid with `internal` only, presence on the endpoint's `send`, `range` on `timeout` and hub ports |
-| YANG custom validators | Yes | `ze:validate` for the endpoint names, for the `send` entries, and for `from`, `namespace`, `to`, `event` and `match`, each reading a registry filled at `init()` or the held external declarations |
+| YANG custom validators | Yes | `ze:validate` for the endpoint names, for the `send` entries, and for `namespace`, `event` and `property`, each reading a registry filled at `init()` or the held external declarations. `to` is a standard `instance-identifier` with `require-instance true`, and `match` a typedef of `ze-types` with the same rules and optional keys; the receiver and subject checks read the registrations |
 | CLI commands/flags | Yes | `cmd/peer/create.go` (drop `attach`); `--plugin` unchanged in what it accepts |
 | CLI grammar (keyword before value) | Yes | `bus { endpoint <name> ...; flow <name> ...; }` and `create bgp peer` obey R1 to R9 (`./le cli grammar`) |
-| Editor autocomplete | Yes | Automatic for enums and containers; completion for `internal`, `from`, `namespace`, `to`, `event`, `match` tags and values, and `send` entries from the plugin's declaration |
+| Editor autocomplete | Yes | Automatic for enums and containers; completion for `internal`, `namespace`, `event`, `property`, and `send` entries from the plugin's declaration. For `to` it offers the configured instances of the registered receiver nodes, and for `match` the registered subject nodes and their configured entries, each step of the path in turn |
 | Functional test for new RPC/API | Yes | The functional tests above |
 | Pipe completeness | N-A | No new operational command here (`\| implied` is Child 2) |
 | Env var registration | N-A | No new env var |
@@ -740,7 +891,7 @@ No wire format changes. Which plugin sees and sends what does change, so the con
 | 6 | Has a user guide page? | Yes | `docs/guide/plugins.md`, `docs/guide/route-reflection.md`, `docs/guide/fleet-config.md` |
 | 7 | Wire format changed? | No | BGP and IGP wire formats unchanged |
 | 8 | Plugin SDK/protocol changed? | Yes | `ai/rules/plugins.md`, `docs/plugin-development/handlers.md`: a plugin declares instead of calling a subscription setter |
-| 9 | RFC behavior implemented, changed, or newly proven? | No | Config and bus registration only |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc7950.md`: the `instance-identifier` row ("no Ze module uses one") names `bus > flow > to` as its user, and the tests of requirement RFC7950-9.13-1 gain the flow cases. RFC 8341 is not an RFC Ze implements: the `match` type borrows one typedef's rule and is recorded as a Ze type |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, `docs/architecture/testing/ci-format.md` examples |
 | 11 | Affects daemon comparison? | No | `docs/comparison.md` holds no dependency on `attach process` |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/api/architecture.md`, `docs/architecture/plugin/plugin-system.md`, `docs/architecture/core-design.md`, `docs/architecture/exabgp-bridge.md` |
@@ -756,7 +907,7 @@ No wire format changes. Which plugin sees and sends what does change, so the con
 
 Today an operator names a program under `plugin { }` and then, on every BGP peer, writes an `attach process` block that says which events the program is fed and which messages it may send. A program nobody attaches receives nothing and sends nothing.
 
-After this work a plugin states for itself what it publishes, what it wants to receive and what it sends. It states this in its registration, and a compiled-in plugin and a program Ze did not ship use the same registration. The operator writes `bus { endpoint }` to put a party on the bus. With nothing more written, that party receives what it registered and sends what it declared, on every peer, including a peer added later. The operator writes `bus { flow }` only to narrow what a party receives: a list of events and a match on generic tags that the publisher attaches to its messages. To narrow what it sends, the operator writes one send allow-list on its endpoint, `send { allow [ ... ]; }`, which applies to the whole plugin and to every component it sends to. An allow-list that is present and empty means the plugin sends nothing. `bgp { }` holds BGP settings and nothing about the bus.
+After this work a plugin states for itself what it publishes, what it wants to receive and what it sends. It states this in its registration, and a compiled-in plugin and a program Ze did not ship use the same registration. The operator writes `bus { endpoint }` to put a party on the bus. With nothing more written, that party receives what it registered and sends what it declared, on every peer, including a peer added later. The operator writes `bus { flow }` only to narrow what a party receives. A flow names two things by their configuration path: the object that receives, and the objects the messages concern. A path that stops at a group covers every peer of that group, and a shorter path covers everything under it. The plugin that owns a part of the configuration says that it can receive events, or that events concern it, and the bus routes on the path without knowing what the object is. Commit refuses a path that does not exist, an object that cannot receive, and an event the receiver does not accept, and it lists what is valid. To narrow what it sends, the operator writes one send allow-list on its endpoint, `send { allow [ ... ]; }`, which applies to the whole plugin and to every component it sends to. An allow-list that is present and empty means the plugin sends nothing. `bgp { }` holds BGP settings and nothing about the bus.
 
 A compiled-in plugin runs in the daemon unless its endpoint says `process separate`. It then runs as a process of its own and stays the same plugin: same identity, same state, same defaults. `hub` moves under `bus`. The aliased-plugin identity defects are fixed. Every config, test and page in the repository is converted in the same work.
 
@@ -793,13 +944,48 @@ The collector now receives those events for every peer, not only for group `tran
 bus {
     endpoint collector { external { run ./collector.py; } encoding json; }
     flow watch {
-        from bgp;
-        to collector;
-        match group { value [ transit ]; }
+        to /bus/endpoint/collector;
+        match [ /bgp/group/transit ];
         event [ update-received state ];
     }
 }
 ```
+That is what the operator types. Ze stores and shows the same two paths in the standard form:
+```
+        to "/bus:bus/bus:endpoint[bus:name='collector']";
+        match [ "/bgp:bgp/bgp:group[bgp:name='transit']" ];
+```
+In the first rework the same flow read `from bgp; to collector; match group { value [ transit ]; }`: the word `group` was a tag BGP registered, and `collector` a name. Now both are paths into the configuration.
+
+1b. **What an operator reads when a path is wrong.** A flow sent to a BGP peer, which nothing registered as able to receive:
+```
+flow watch: to /bgp:bgp/bgp:peer[bgp:name='edge1'] cannot receive events: no plugin registered the BGP peer list as a receiver
+These can receive: /bus:bus/bus:endpoint (every endpoint), /exabgp-bridge:exabgp/exabgp-bridge:bridge/exabgp-bridge:process (exabgp-bridge)
+fix: set bus flow watch to /bus/endpoint/collector
+```
+Deleting a group that a flow names:
+```
+delete bgp group transit: flow watch matches it (bus flow watch match)
+fix: delete bus flow watch
+```
+
+1c. **An ExaBGP script that one neighbor names.** Before, the migration wrote the scoping inside the bridge:
+```
+exabgp { bridge { process watcher { run ./watcher.py; feed 198.51.100.1 { event [ receive-update neighbor-changes ]; } } } }
+```
+After, the script is a receiver and the scoping is a flow like any other:
+```
+exabgp { bridge { process watcher { run ./watcher.py; } } }
+bus {
+    endpoint exabgp-bridge { internal exabgp-bridge; }
+    flow watcher-edge1 {
+        to /exabgp/bridge/process/watcher;
+        match [ /bgp/peer/edge1 ];
+        event [ update-received state ];
+    }
+}
+```
+The script is written the events of `edge1` alone, and a route it announces with no neighbor named goes to `edge1` alone, as under ExaBGP.
 
 2. **A plugin that may announce routes, and one that must not.**
 
@@ -849,7 +1035,15 @@ After: `bus { endpoint rib { internal bgp-rib; process separate; } }` forks Ze's
 | Alternative | Why set aside |
 |-------------|---------------|
 | Keep `flow [ ... ]` inside `bgp { group; peer; }` (2026-11-17 D-5) | Puts bus wiring in `bgp { }`; reversed by Thomas on 2026-11-23 |
-| BGP `group` and `peer` leaves on `bus { flow }` | Puts BGP concepts in the bus; replaced by generic tags the publisher registers |
+| BGP `group` and `peer` leaves on `bus { flow }` | Puts BGP concepts in the bus; replaced by configuration paths |
+| Generic tags the publisher registers, matched as `match <tag> { value [ ... ]; }` (the first rework) | A tag such as `group` was a second name for something the configuration already names, with a value validator per tag. A path needs no registry of names: the schema is the registry, and the reference walk already checks that the entry exists. Tags stay only for what is not a configured object ("Message properties") |
+| A `ze:` YANG extension that marks a node as a receiver or a subject | It would be a second declaration beside the registration, which must state the accepted events in any case. An external program's module arrives inside its declaration, so the registration reaches both kinds of plugin |
+| A `ze:reference` leaf with a registered source for `to` | The extension's own rule is to use a standard type wherever a path fits, and a path fits |
+| The bracket form alone, with no short form on input | The operator would type module prefixes and quoted keys by hand; Thomas's own example is the short form (Q-P1 option a) |
+| The short form as the stored form | Two forms would need comparing wherever a path is checked, and the short form cannot write a key left out in the middle of a path or a key value that holds `/` (Q-P1 option c) |
+| Matching path text for each message | Breaks the delivery cost: the peer path must stay one index read with no allocation |
+| The whole per-neighbor scoping left inside the bridge's `feed` list (the first rework) | It works today and is the fallback of Q-P3. It keeps a second place, with its own words, that says which peer feeds which receiver, beside the flows that say it for every other plugin |
+| A dynamic peer given a path of its own | No configuration entry exists for it, so the instance check could never pass; its admitting group is the entry the operator wrote |
 | Silence by default, every flow written by the operator (the first design) | Reversed by R1 and R7: a plugin receives what it registered and sends what it declared |
 | Built-in publishers only in `from` (the first design) | Reversed by R4 and R6: no rule separates the kinds on trust. The one transport difference, an external declaration unknown offline, is stated and handled by the existing offline route |
 | Built-in plugins only on `ze start --plugin` (the first design) | Contradicts R4, and removes what `test/plugin/external-yang-command-line.ci` and `TestFirstPassMergesCommandLinePlugins` prove and `yang-config-design.md` records |
@@ -868,7 +1062,7 @@ After: `bus { endpoint rib { internal bgp-rib; process separate; } }` forks Ze's
 ### Documents departed from
 
 1. `docs/architecture/api/architecture.md` ("Owner ruling: implied and shown, or written"): "Where the operator has a choice, which program watches a peer and what it may send, the operator writes it, and silence stays the default." Before: a program nobody attaches receives and sends nothing. After: a configured endpoint receives what it registered and sends what it declared, and `| implied` shows it. Example 1 and example 2 above. Ruled by R1 and R7.
-2. `docs/architecture/api/architecture.md` ("Owner ruling: endpoints and flows on the bus"): "A BGP group or peer takes part in a flow by listing its name, and the list merges through groups as every list does." Replaced by flows that match generic tags. Example 1.
+2. `docs/architecture/api/architecture.md` ("Owner ruling: endpoints and flows on the bus"): "A BGP group or peer takes part in a flow by listing its name, and the list merges through groups as every list does." Replaced by flows that name their receiver and their subjects by configuration path. Examples 1, 1b and 1c.
 3. `docs/architecture/api/architecture.md` ("What the Plugin Declares and What the Peer Grants"): "A plugin declares what it CAN handle, in its ready RPC." The declaration moves to the registration and becomes the default.
 4. `docs/architecture/api/architecture.md` ("Data Flow: Config to Delivery"): "A relay is judged on the grant of the process that sends it, and on nothing else: no process lends its grant to another." The grant becomes plugin-wide, and a route server or reflector serves every peer connected to it (RFC 7947 Section 1, RFC 4456 Section 6). Examples 2 and 2b.
 4b. `docs/architecture/plugin/plugin-system.md` ("One plugin, two ways to reach the bus"): "With no daemon running, no command starts it, and a config section only its module defines is not available". Before: offline validation refuses that section and names a running Ze. After: it starts the program in query mode, takes its declaration and validates. Example 2c. Confirmed by Thomas as intended. `ai/doors/config-yang.md` and `ai/doors/plugin-infra.md` restate the old rule and are corrected with the page.
@@ -881,7 +1075,7 @@ After: `bus { endpoint rib { internal bgp-rib; process separate; } }` forks Ze's
 
 ### Choices for Thomas
 
-Decided on 2026-11-23 and written into this design: C-1 the three-child split, C-2 the pure bus with generic tags, C-3 the optional `namespace` leaf, C-5 `hub` under `bus`, and R1 to R7 as read above. C-4 of the first design (built-in only on `--plugin` and in `from`) is withdrawn by R4 and R6 and returns as Q-3.
+Decided on 2026-11-23 and written into this design: C-1 the three-child split, C-2 the pure bus (its generic tags are replaced by configuration paths on W1 to W5, the same day), C-3 the optional `namespace` leaf, C-5 `hub` under `bus`, and R1 to R7 as read above. C-4 of the first design (built-in only on `--plugin` and in `from`) is withdrawn by R4 and R6 and returns as Q-3.
 
 The seven questions the first rework put to Thomas are answered, and each answer is written into this design.
 
@@ -900,6 +1094,12 @@ Still waiting for Thomas. Each row gives what happens today and what each answer
 | # | Item | Today | Options and what each changes | Assumed until answered |
 |---|------|-------|-------------------------------|------------------------|
 | P-3 | Before Child 3 lands, a `send` list on a plugin that also sends to a component not yet enforced is refused. Is that acceptable, or does Child 3 land together with this spec? | Only BGP send types are enforced | (a) Refuse until Child 3: the list is usable at once for plugins that send to `bgp` alone. (b) Land Child 3 with Child 1: no interim refusal, one larger change | (a) |
+| Q-P1 | Which form of a path is stored, and is the short form accepted? | No path leaf exists. `parseInstanceIdentifier` reads the bracket form with a prefix on every node | (a) Bracket form only; a short form is refused with the bracket form to paste. (b) Bracket form stored and shown; the short form `/bgp/group/transit` accepted on input and rewritten. (c) Short form stored. (b) costs a rewrite when a value is read (assumption A-8) and makes module prefixes text an operator sees | (b) |
+| Q-P2 | How is a property of the message, such as the source protocol of a route change, written in a flow? | No flow exists | (a) A `property <name> { value [ ... ]; }` list, with names the publisher registers, costing one comparison per message for a flow that uses it. (b) Not in a flow: the receiver filters for itself, and the leaf waits for a need. (c) As a path, where the property is itself a part of the configuration (`/bgp:bgp` for a route BGP sourced) | (a) |
+| Q-P3 | Is an ExaBGP bridge script a bus receiver, with its per-neighbor scoping written as flows? | The scoping is the bridge's own `feed` list, per peer address and script | (a) Yes: flows carry which neighbor feeds which script and with which events; the form words `parsed`, `packets` and `consolidate` stay in `feed`, because they are no bus event; the bridge keeps scoping a script's commands, from the relation the bus hands it. (b) No: `feed` stays whole inside the bridge, the bus feeds the bridge every peer, and a script is no receiver. Both keep ExaBGP's behavior. (a) splits one ExaBGP `api` block over a flow and a `feed` entry (conflict C-3) | (a) |
+| Q-P4 | How does a plugin that scopes its own commands by receiver learn which subjects are related to each of its receiver instances? | The bridge reads its `feed` list | (a) The bus delivers the relation at Stage 2 beside the publication catalog, and again when a commit changes it. (b) The plugin asks the bus when it needs it and caches the answer. (c) The plugin declares that it reads the `bus` root (`ConfigReads`) and resolves the flows itself, which makes it repeat the bus's matching | (a) |
+| Q-P5 | W2 gives `/bgp/peer/<ip>`. A peer is keyed by its name, and its address is a leaf under it. Is a path by name what he means? | `ze-bgp-conf.yang`: `list peer { key "name"; unique "connection/remote/ip"; }` | (a) The path holds the name, as the configuration does. (b) A path may also select a peer by its address, which is a second way to name one entry and is no instance-identifier | (a) |
+| Q-R1 | Proposal, not a decision: does the role a plugin claims, in place of the per-peer send grant, choose which plugin does a job, and is a send refused when the plugin does not hold the role? | The per-peer grant does four jobs beside permission. `peerStateUnheldRoles` retracts the `bgp-peer-up-replay` claim on a peer whose claimant cannot send `update` to it. `rsRelaySendProcessName` and `Peer.policyReplayOwner` pick the one process that holds `send [ update ]` and the peer's `state`. `Peer.initialUpdateReporters` credits a process by its push grant. The ten detector tests fail on `send refused` when the wrong plugin relays (Q-C1, Q-C4, Q-C5). A role mechanism exists: `Registration.Claims` (`bgp-rs` and `bgp-rr` both claim `bgp-peer-up-replay` and a dissemination role), `ConfigureInput.Claims`, `ClaimActive`, `Server.UnheldRoles`, `rpc.DisseminationDecl`, `CheckDisseminationSource` | (a) Extend claims: a plugin registers the roles it plays; a role is held on a peer by the claimant that is fed that peer's `state`; two configured plugins that claim one exclusive role over the same peer are refused at commit, naming both; the four producers read the role holder; a send that belongs to a role is refused from a plugin that does not hold it, which is what the ten detector tests then catch. (b) Keep claims as they are and let every plugin that declares `bgp:update` qualify on every peer: the detectors stop discriminating and the replay fence waits for more reporters. (c) Another rule Thomas names | None: the four producers have no successor in this design until he answers |
 
 ## Implementation Steps
 
@@ -913,7 +1113,8 @@ Still waiting for Thomas. Each row gives what happens today and what each answer
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-1 to AC-16 has an implementation and a passing test |
+| Completeness | Every AC-1 to AC-21 has an implementation and a passing test |
+| Paths off the hot path | No path text is parsed, built or compared on a delivery; `match` and `to` are resolved at commit and at index build |
 | No layering | No acceptance of `plugin {` or `attach process` remains; no subscription call, `EventTypes`, `SendTypes` or lazy registrar remains beside the declarations |
 | Pure bus isolation | `internal/component/plugin/` and `internal/component/config/` hold no BGP import and no `peer` or `group` word |
 | One API for both kinds | Every rule that differs for an external program names its transport or arrival-order reason on `plugin-system.md` |
@@ -960,13 +1161,17 @@ Still waiting for Thomas. Each row gives what happens today and what each answer
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Pure `bus { endpoint, flow, hub }`, no flow in `bgp { }`, generic tags (2026-11-23) | Flow lists in `bgp { }`; BGP leaves in `bus { }` | Keeps `bgp { }` pure and the bus protocol-agnostic |
+| Pure `bus { endpoint, flow, hub }`, no flow in `bgp { }`, no protocol word in `bus { }` (2026-11-23) | Flow lists in `bgp { }`; BGP leaves in `bus { }` | Keeps `bgp { }` pure and the bus protocol-agnostic |
 | One registration of publications, receptions and sends for both kinds of plugin (R1, R2, R4, R7) | Operator-written flows only; a declaration for compiled-in plugins alone | Thomas's rulings; one API; an offline reader can show the defaults |
 | A flow narrows the registered receptions and carries no send list; the send list is one per plugin, on its endpoint, and presence-bearing (R7, A-Q5) | Deny list; per-peer list; bare leaf-list | Thomas's rulings, and "present and empty" must be stateable |
 | Identity and transport are two leaves (R3) | One predicate; a `run` line that names a compiled plugin | A compiled-in plugin keeps its identity on either transport, and a `run` line is never ambiguous |
 | `--plugin` keeps starting an external program (R4) | Built-in only | Same API; keeps a tested feature |
 | `hub` under `bus` (`bus-hub`) | Top-level `hub { }` | Follows D-7 |
-| The graph projects edges onto publisher subjects | Tag matching per message | Keeps the peer path at one index read with no allocation |
+| The graph projects edges onto publisher subjects | Path or tag matching per message | Keeps the peer path at one index read with no allocation |
+| A flow names its receiver and its subjects by configuration path (W1 to W5, 2026-11-23) | Registered tag keys with a validator per tag; names of endpoints and publishers | The configuration already names every object; the schema and the reference walk already validate a path; the bus needs no word of any protocol |
+| The registration is the single declaration of receiver nodes and subject nodes (W5) | A `ze:` YANG extension on the node | The accepted events are in the registration in any case, and it reaches a compiled-in plugin and an external program alike |
+| `to` is a standard `instance-identifier`; `match` takes the same rules with optional keys | One Ze string type for both; a registered reference source | A destination is one existing object, which the standard type and its instance check already state; a subject set needs the wildcard RFC 8341 defines |
+| A dynamic subject carries the path of the entry that admitted it | A synthetic path per dynamic peer | Only a configured entry has a path, and the group is what the operator wrote |
 | Three child specs | One spec | The cutover lands first |
 
 ## Known Limitations
@@ -974,6 +1179,10 @@ Still waiting for Thomas. Each row gives what happens today and what each answer
 - The check on every engine operation other than the BGP send types, and the closure of the `ReservedInternalPrefix` AAA bypass, are owned by `plan/release/fixes/spec-bus-3-external-command-gating.md`. Until it lands, a `send` list on a plugin that declares a send toward a component other than BGP is refused (P-3).
 - A send cannot be limited to some peers, and a route server serves every peer connected to it. Export policy is what limits an advertisement per peer.
 - A program that was attached to some peers sees every peer after conversion, unless the operator writes a flow with a `match`.
+- A flow cannot name one dynamic peer: it names the group that admits it.
+- A flow toward a plugin Ze loaded with no `endpoint` written needs that endpoint written first, because a destination is an existing configuration entry.
+- A module prefix is part of a stored path, so a prefix rename is a configuration change that converts the saved flows.
+- Which plugin replays to a peer, sends a relay, owns a policy replay and reports the initial update has no successor to the per-peer grant until Q-R1 is answered.
 - FlowSpec authorization refuses a Loc-RIB that runs as a separate process, because its lookups are process-local. That is a transport reason and is stated on `plugin-system.md`.
 
 ## Checklist
@@ -991,7 +1200,7 @@ Still waiting for Thomas. Each row gives what happens today and what each answer
 - [x] The per-peer send census table is recorded in this spec (2026-11-23; design questions Q-C1 to Q-C5 open)
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-16 all demonstrated
+- [ ] AC-1..AC-21 all demonstrated
 - [x] The receive census table is recorded in this spec (2026-11-23)
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred

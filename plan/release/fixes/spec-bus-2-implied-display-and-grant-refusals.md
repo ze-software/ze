@@ -31,6 +31,7 @@ Rulings R1 and R7 turned "implied flows" from something this spec computed into 
 | The three declarations on the registration (publishes, receives, sends) | Child 1 |
 | Resolving the edges that run: registered defaults, replaced or narrowed by the operator's flows | Child 1 |
 | The delivery index (`DeliveryGraph`) | Child 1 |
+| Configuration paths: a flow names its receiver (`to`) and its subjects (`match`) by path; receiver nodes and subject nodes are registered; the eight commit checks on a path (owner words W1 to W6, 2026-11-23) | Child 1 |
 | The `origin` of each edge and every display of it | This spec |
 | The `\| implied` view of the configuration | This spec |
 | The requirement a feature's config places on a plugin, declared by that plugin, and the refusal of an allow-list that removes it | This spec |
@@ -47,7 +48,7 @@ Every implied kind comes from a registration. None is computed from a name in en
 | Implied kind | Registered by | Implied by (shown) |
 |--------------|---------------|--------------------|
 | Endpoint: a plugin Ze loads with no `endpoint` written | The plugin's `ConfigRoots`, `Families`, `Dependencies`, `ConfigNeeds`, `DataPlane`, or a publication a written flow names | The config path, family, dependent plugin or flow |
-| Reception: an event delivery with no flow written | The receiving plugin's `Receives` declaration | The endpoint, written or implied |
+| Reception: an event delivery with no flow written | The receiving plugin's `Receives` declaration, one per receiver instance: an endpoint, or an entry of a receiver node the plugin registered (an ExaBGP bridge script) | The receiver's configuration path, written or implied. The item is printed as the flow that would state it: `to` the receiver's path, `match` the publisher's root path, `event` the registered list, in the stored path form of Child 1, so an operator can copy it and narrow it |
 | Send: a command a plugin may issue with no allow-list written | The plugin's `Sends` declaration | The endpoint |
 | Filter member a plugin inserted in a peer's filter list | The plugin's `FilterInsertions` | The config path that meets the insertion's condition |
 | The `state` delivery to the owner of a filter member, where the operator's flow omits it | The filter owner's registration | The filter member and the peer |
@@ -101,7 +102,7 @@ Child 1 builds the index. This spec adds one field to each edge and shows it.
 | `required` | A feature's active requirement, including the implicit `state` delivery. Replaces `ProcessEdges.Implicit` |
 | `dormant` | Registered, with no publisher present |
 
-`show event delivery` lists every namespace, not BGP alone, and `ze config graph` draws the same edges with the same origins. Lifecycle deliveries that bypass the grant today (`SubscribedProcsNamed`, the removal notice to an OPEN validator declared by `wants-validate-open`) are registered receptions under Child 1 and appear here like any other.
+`show event delivery` lists every namespace, not BGP alone, and `ze config graph` draws the same edges with the same origins. Each edge names its subject and its receiver by the configuration paths Child 1 resolved it from (the admitting group's path for a dynamic peer), beside the subject key the publisher uses, so an operator can tell which `match` path covered a peer. Lifecycle deliveries that bypass the grant today (`SubscribedProcsNamed`, the removal notice to an OPEN validator declared by `wants-validate-open`) are registered receptions under Child 1 and appear here like any other.
 
 ## Required Reading
 
@@ -270,6 +271,7 @@ The full verdict table is owed before the status moves to design. The rows alrea
 | AC-10 | A dynamic group whose members need an implied endpoint | The endpoint is loaded and shown | None |
 | AC-11 | An endpoint with an empty `send { }`, and a flow with no `event` entry, viewed with `\| implied` in text and JSON | Each is shown as written, distinct from an absent one. No send is shown as implied for that plugin, and no reception for that pair | None |
 | AC-12 | A route server with no send list and three connected peers, viewed with `\| implied` and `show event delivery` | Its send toward `bgp` is shown once, as registered, for the plugin, not once per peer, and every connected peer appears as a subject it serves | None |
+| AC-13 | A plugin with a registered reception and no flow, and an ExaBGP bridge with two scripts of which one has a flow, viewed with `\| implied` in text and JSON; then the implied flow text pasted back as a written flow | Each implied reception is printed as a flow with `to` and `match` in the stored path form. The script with a flow shows that flow as written and no implied reception; the other script shows its implied reception under its own path. The pasted flow commits, and the item is then shown once, as written. `show event delivery` names the receiver path and the matched path on each edge | A dynamic peer's edge shows its admitting group's path |
 
 ## End-to-End User Stories
 
@@ -289,6 +291,7 @@ The full verdict table is owed before the status moves to design. The rows alrea
 | `TestAIGPDefaultPathStillSelectsByAIGP` | the Loc-RIB plugin's package | AC-5 companion assertion on the default configuration | |
 | `TestNoPluginNameLiteralInBGPConfig` | `internal/component/bgp/config` | The three literals are gone; `./le arch enumeration check` judges the same | |
 | `TestDeliveryEdgeOrigins` | `internal/component/plugin/server` | AC-7 | |
+| `TestImpliedReceptionPrintsAsPathFlow` | `internal/component/config/cli` | AC-13: an implied reception renders as a flow in the stored path form, per receiver instance, and the rendered text parses and commits as a written flow. Negative: a receiver instance with a written flow shows no implied reception | |
 | `TestImpliedEnvelopeKeepsConfigPure` | `internal/component/config/cli` | AC-9, the JSON negative | |
 | `TestImpliedTextRoundTrips` | `internal/component/config` | R-3: the text with comments parses back to the written config | |
 | `TestOfflineImpliedRefusesUnknownDeclaration` | `internal/component/config/cli` | AC-8 | |
@@ -351,7 +354,7 @@ The full verdict table is owed before the status moves to design. The rows alrea
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-12 all demonstrated
+- [ ] AC-1..AC-13 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: scoped package tests with `./le test unit pkg`, and `./le test functional parse`, `plugin`, `editor`, `web`
 - [ ] `./le arch enumeration check` finds no plugin-name literal in `internal/component/bgp/config/`
