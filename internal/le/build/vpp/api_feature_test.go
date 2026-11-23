@@ -184,17 +184,18 @@ func (p *apiFeatureProcessFixture) Run(ctx context.Context, command interoplab.P
 		return result, nil
 	}
 	for _, argument := range command.Arguments {
-		if strings.HasPrefix(argument, "--input=") {
-			data, err := os.ReadFile(filepath.Join(strings.TrimPrefix(argument, "--input="), "VPP_VERSION"))
+		if input, ok := strings.CutPrefix(argument, "--input="); ok {
+			data, err := os.ReadFile(filepath.Join(input, "VPP_VERSION"))
 			if err != nil {
 				return result, err
 			}
 			p.sourceVersion = string(data)
 		}
-		if !strings.HasPrefix(argument, "--output-dir=") {
+		outputDir, ok := strings.CutPrefix(argument, "--output-dir=")
+		if !ok {
 			continue
 		}
-		output := filepath.Join(strings.TrimPrefix(argument, "--output-dir="), "feature")
+		output := filepath.Join(outputDir, "feature")
 		if err := os.MkdirAll(output, 0o750); err != nil {
 			return result, err
 		}

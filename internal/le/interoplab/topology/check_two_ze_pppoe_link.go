@@ -25,19 +25,19 @@ func checkPPPoELink(ctx context.Context, check *interoplab.CheckContext) error {
 		Timeout: 90 * time.Second, Interval: time.Second,
 		Description: "ze-client IPCP address from ze-server's pool",
 	}, func(probe context.Context) (string, error) {
-		return check.Lab.Query(probe, "ze-client", []string{"ip", "-o", "-4", "address", "show"}, nil)
+		return check.Lab.Query(probe, "ze-client", []string{"ip", "-o", "-4", ipWordAddress, wordShow}, nil)
 	}, pppAddressFromPool)
 	if err != nil {
 		return fmt.Errorf("ze-client never held an address from 10.20.0.0/24 on a ppp device (last answer %q): %w", addresses, err)
 	}
-	sessions, err := check.Lab.Query(ctx, "ze-server", []string{"cat", "/proc/net/pppoe"}, nil)
+	sessions, err := check.Lab.Query(ctx, "ze-server", []string{commandCat, "/proc/net/pppoe"}, nil)
 	if err != nil {
 		return fmt.Errorf("read ze-server's PPPoE session table: %w", err)
 	}
 	if !sessionOnDevice(sessions, access.Device) {
 		return fmt.Errorf("ze-server's /proc/net/pppoe holds no session on %s, the access link:\n%s", access.Device, sessions)
 	}
-	frames, err := check.Lab.Exec(ctx, "observer", []string{"tcpdump", "-e", "-n", "-r", observerCapture}, nil)
+	frames, err := check.Lab.Exec(ctx, "observer", []string{commandTcpdump, "-e", "-n", "-r", observerCapture}, nil)
 	if err != nil {
 		return fmt.Errorf("read observer's capture: %w", err)
 	}

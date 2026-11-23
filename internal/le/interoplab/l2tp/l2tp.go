@@ -53,6 +53,7 @@ const (
 	commandLink  = "link"
 	commandRoute = "route"
 	commandType  = "type"
+	commandL2TP  = "l2tp"
 	commandVTYSH = "vtysh"
 	commandCat   = "cat"
 
@@ -76,6 +77,11 @@ const (
 	// PPPIOCNEWUNIT. The modules themselves are the host's: a lab container
 	// never loads one (spec-lab-containers-least-privilege, D-7).
 	netAdminCapability = "NET_ADMIN"
+
+	// kernelCapL2TP and kernelCapL2TPPPP are the kernel capabilities standard
+	// L2TP scenarios require from the Docker host.
+	kernelCapL2TP    = "l2tp"
+	kernelCapL2TPPPP = "l2tp-ppp"
 )
 
 // ScenarioNames returns every typed L2TP scenario in lexical selection order.
@@ -164,7 +170,7 @@ func plansAt(root, selector string, environment interoplab.Environment) ([]inter
 		plan := scenarioPlan(root, source, environment)
 		if scenarioRegistrations[source.Name].needsKernel {
 			standardFlow = true
-			plan.KernelCapabilities = []string{"l2tp", "l2tp-ppp"}
+			plan.KernelCapabilities = []string{kernelCapL2TP, kernelCapL2TPPPP}
 		}
 		plans = append(plans, plan)
 	}

@@ -16,7 +16,7 @@ const (
 	Local   = "100.64.45.0/24"
 	Protect = "100.64.46.0/24"
 	Discard = "100.64.47.0/24"
-	Bypass  = "100.64.48.0/24"
+	Bypass  = "100.64.48.0/24" //nolint:gosec // G101: IPsec SPD BYPASS policy IPv4 test prefix, not a credential.
 )
 
 // The inbound tunnel-mode SA the PROTECT entry names.

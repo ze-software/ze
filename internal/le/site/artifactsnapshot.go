@@ -101,7 +101,7 @@ func removeAbandonedSnapshot(path string) error {
 // without waiting. held is false when another open file holds the lock; the
 // handle is then still open and the caller MUST close it.
 func holdDirectory(path string) (handle *os.File, held bool, err error) {
-	handle, err = os.Open(path)
+	handle, err = os.Open(path) //nolint:gosec // path is a .site-artifact-* snapshot directory under the build output parent.
 	if err != nil {
 		return nil, false, err
 	}

@@ -21,7 +21,7 @@ import (
 // Standard-library provenance is the exact toolchain pin and stdpatch inputs;
 // nonstandard dependencies MUST be local vendored source, so no source read
 // from an arbitrary module cache can disappear from the manifest.
-func DaemonInputs(ctx context.Context, root string) (paths []string, tags []string, pin string, err error) {
+func DaemonInputs(ctx context.Context, root string) (paths, tags []string, pin string, err error) {
 	tc, err := gotoolchain.New(root)
 	if err != nil {
 		return nil, nil, "", err
@@ -32,8 +32,8 @@ func DaemonInputs(ctx context.Context, root string) (paths []string, tags []stri
 	}
 	selected := map[string]bool{}
 	for _, arch := range []string{"amd64", "arm64"} {
-		environ := previewEnvironment(tc.EnvironmentContext(ctx, gotoolchain.EnvOptions{GOOS: "linux", GOARCH: arch}))
-		command := exec.CommandContext(ctx, "go", "list", "-mod=vendor", "-deps", "-json", "-tags", tagText, "./cmd/ze")
+		environ := previewEnvironment(tc.EnvironmentContext(ctx, gotoolchain.EnvOptions{GOOS: linuxOS, GOARCH: arch}))
+		command := exec.CommandContext(ctx, "go", "list", "-mod=vendor", "-deps", "-json", goTagsFlag, tagText, "./cmd/ze") //nolint:gosec // G204: fixed go list argv; tagText comes from the checkout's feature-gates.txt via repofeaturetags.DaemonBuildTags.
 		command.Dir, command.Env = root, environ
 		var stderr bytes.Buffer
 		command.Stderr = &stderr

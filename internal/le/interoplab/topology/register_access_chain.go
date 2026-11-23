@@ -134,6 +134,10 @@ func accessUpChain() scenario {
 	return chain
 }
 
+// l2tpReadyCommand probes UDP port 1701 to confirm an L2TP node (LAC or LNS)
+// has bound its listener.
+const l2tpReadyCommand = "ss -lun | grep -q ':1701 '"
+
 // dialChain answers the access chain with subscriber dialing PPPoE on link
 // access. The LAC relays the empty Service-Name and terminates nothing, so
 // LCP, CHAP and IPCP run between the subscriber and the LNS across the LAC's
@@ -143,7 +147,7 @@ func accessUpChain() scenario {
 func dialChain(checker interoplab.Checker, subscriber node) scenario {
 	lns := zeNode(nodeLNS, 3, "ze-lns.conf", interoplab.PPPDeviceArguments()...)
 	lns.prestart = captureStart("eth1", coreCapture, "udp port 1701")
-	lns.ready = []string{"sh", "-c", "ss -lun | grep -q ':1701 '"}
+	lns.ready = []string{"sh", "-c", l2tpReadyCommand}
 	return scenario{
 		nodes: []node{accessRADIUS(""), lns, accessLAC(), subscriber},
 		links: []interoplab.Link{
@@ -151,7 +155,7 @@ func dialChain(checker interoplab.Checker, subscriber node) scenario {
 			{Name: coreLink, VLAN: 192, IPv4: netip.MustParsePrefix("192.0.2.0/24"), Members: []string{nodeLAC, nodeLNS, nodeRADIUS}},
 		},
 		checker:            checker,
-		kernelCapabilities: []string{"pppoe", "l2tp", "l2tp-ppp"},
+		kernelCapabilities: []string{kernelCapPPPoE, kernelCapL2TP, kernelCapL2TPPPP},
 	}
 }
 
@@ -198,7 +202,7 @@ func accessLAC() node {
 		arguments: interoplab.PPPDeviceArguments(),
 		shared:    []sharedFile{{source: accessChainDirectory + "/ze-lac.conf", target: zeMountedConfig}},
 		prestart:  captureStart("eth1", accessCapture, "ether proto 0x8863"),
-		ready:     []string{"sh", "-c", "ss -lun | grep -q ':1701 '"}}
+		ready:     []string{"sh", "-c", l2tpReadyCommand}}
 }
 
 // captureStart is the prestart that records filter on device into file from

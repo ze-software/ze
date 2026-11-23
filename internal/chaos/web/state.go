@@ -388,7 +388,7 @@ const maxPendingToasts = 5
 
 // DashboardState holds all mutable state for the web dashboard, protected by a RWMutex.
 type DashboardState struct {
-	mu sync.RWMutex
+	mu    sync.RWMutex
 	clock clock.Clock
 
 	// Per-peer state, indexed by peer index.

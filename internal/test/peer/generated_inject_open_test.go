@@ -94,11 +94,11 @@ func runGeneratedInjectOPEN(t *testing.T, family, session, rail string) {
 		}
 	}()
 	var conn net.Conn
-	if config.Dial != "" {
-		conn, err = listener.Accept()
-	} else {
+	if config.Dial == "" {
 		var dialer net.Dialer
 		conn, err = dialer.DialContext(ctx, network, listener.Addr().String())
+	} else {
+		conn, err = listener.Accept()
 	}
 	if err != nil {
 		t.Fatal(err)
@@ -112,12 +112,12 @@ func runGeneratedInjectOPEN(t *testing.T, family, session, rail string) {
 	}
 	remoteOpen := bulkOPENMessage(family)
 	var peerOpen []byte
-	if config.Dial != "" {
-		peerOpen = readBulkOPENFrame(t, conn)
+	if config.Dial == "" {
 		writeBulkOPENFrame(t, conn, remoteOpen)
+		peerOpen = readBulkOPENFrame(t, conn)
 	} else {
-		writeBulkOPENFrame(t, conn, remoteOpen)
 		peerOpen = readBulkOPENFrame(t, conn)
+		writeBulkOPENFrame(t, conn, remoteOpen)
 	}
 	peerAS := bulkOPENReadAS(t, peerOpen)
 	remoteAS := bulkOPENReadAS(t, remoteOpen)

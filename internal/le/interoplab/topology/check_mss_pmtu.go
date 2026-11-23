@@ -43,12 +43,12 @@ func checkMSSPMTU(ctx context.Context, check *interoplab.CheckContext) error {
 		Timeout: 90 * time.Second, Interval: time.Second,
 		Description: "ze-cpe pppoe0 holding an IPCP address from accel-ppp's pool",
 	}, func(probe context.Context) (string, error) {
-		return check.Lab.Query(probe, nodeCPE, []string{"ip", "-o", "-4", "address", "show", "dev", "pppoe0"}, nil)
+		return check.Lab.Query(probe, nodeCPE, []string{"ip", "-o", "-4", ipWordAddress, wordShow, ipWordDev, cpeDevice}, nil)
 	}, func(answer string) bool { return strings.Contains(answer, " 10.184.0.") })
 	if err != nil {
 		return fmt.Errorf("ze-cpe's pppoe0 never held an address from 10.184.0.0/24 (last answer %q): %w", link, err)
 	}
-	device, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", "link", "show", "dev", "pppoe0"}, nil)
+	device, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", ipWordLink, wordShow, ipWordDev, cpeDevice}, nil)
 	if err != nil {
 		return fmt.Errorf("read ze-cpe's pppoe0: %w", err)
 	}
@@ -79,7 +79,7 @@ func checkMSSPMTU(ctx context.Context, check *interoplab.CheckContext) error {
 // device. The default route stays on the lab's eth0, so without this the SYN
 // would leave on eth0 and never meet the term.
 func cpeRoutesServer(ctx context.Context, check *interoplab.CheckContext) error {
-	result, err := check.Lab.Exec(ctx, nodeCPE, []string{"ip", "route", "replace", serverNetwork, "dev", "pppoe0"}, nil)
+	result, err := check.Lab.Exec(ctx, nodeCPE, []string{"ip", ipWordRoute, ipWordReplace, serverNetwork, ipWordDev, cpeDevice}, nil)
 	if err != nil {
 		return fmt.Errorf("route %s through ze-cpe's pppoe0: %w", serverNetwork, err)
 	}
@@ -95,7 +95,7 @@ func cpeRoutesServer(ctx context.Context, check *interoplab.CheckContext) error 
 // the server listens on nothing, and only the SYN is read.
 func sendMSSProbe(ctx context.Context, check *interoplab.CheckContext, lanDevice string, probe mssProbe) error {
 	offered := decimal(probe.offered)
-	route := []string{"ip", "route", "replace", serverNetwork, "via", cpeLANAddress, "dev", lanDevice, "advmss", offered}
+	route := []string{"ip", ipWordRoute, ipWordReplace, serverNetwork, "via", cpeLANAddress, ipWordDev, lanDevice, "advmss", offered}
 	result, err := check.Lab.Exec(ctx, nodeLANHost, route, nil)
 	if err != nil {
 		return fmt.Errorf("set lan-host's route to %s with advmss %s: %w", serverNetwork, offered, err)
@@ -114,7 +114,7 @@ func sendMSSProbe(ctx context.Context, check *interoplab.CheckContext, lanDevice
 		Timeout: 20 * time.Second, Interval: time.Second,
 		Description: "the server's capture of the SYN to port " + port,
 	}, func(wait context.Context) (string, error) {
-		capture, err := check.Lab.Exec(wait, nodeServer, []string{"tcpdump", "-n", "-r", serverCapture}, nil)
+		capture, err := check.Lab.Exec(wait, nodeServer, []string{commandTcpdump, "-n", "-r", serverCapture}, nil)
 		if err != nil {
 			return "", err
 		}

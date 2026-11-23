@@ -134,7 +134,7 @@ func TestParallelPlanMatchesSequentialAndRefusesDrift(t *testing.T) {
 		if drifted.Load() {
 			generation = "after"
 		}
-		return generationChanges(&generation, "pkg/p00/file.go")(root, start, reaches)
+		return generationChanges(&generation)(root, start, reaches)
 	}
 	var queries atomic.Int64
 	driftOps.capture = func(ctx context.Context, argv []string, dir string, environment []string) commandResult {

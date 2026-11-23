@@ -595,7 +595,8 @@ func groupMilestones(milestones []milestone, reports []changeWeek) ([]milestoneM
 		month.Items = append(month.Items, item)
 	}
 	seen := make(map[string]bool, len(reports))
-	for _, report := range reports {
+	for i := range reports {
+		report := &reports[i]
 		if seen[report.Slug] {
 			continue
 		}
@@ -604,7 +605,7 @@ func groupMilestones(milestones []milestone, reports []changeWeek) ([]milestoneM
 			return nil, fmt.Errorf("update report %q: %w", report.Slug, err)
 		}
 		seen[report.Slug] = true
-		month.Reports = append(month.Reports, report)
+		month.Reports = append(month.Reports, *report)
 	}
 	ordered := make([]milestoneMonth, 0, len(months))
 	for _, month := range months {
@@ -618,7 +619,7 @@ func groupMilestones(milestones []milestone, reports []changeWeek) ([]milestoneM
 
 // milestoneReportLabel keeps footer links short; the full coverage range is
 // carried by the link's accessible label and title.
-func milestoneReportLabel(report changeWeek) (string, error) {
+func milestoneReportLabel(report *changeWeek) (string, error) {
 	parsed, err := time.Parse(dataDateLayout, report.CoverageStart)
 	if err != nil {
 		return "", fmt.Errorf("update report %q: %w", report.Slug, err)
@@ -856,7 +857,8 @@ func milestoneMonthHTML(month milestoneMonth) (string, error) {
 	}
 	if len(month.Reports) > 0 {
 		out.Str("                    <footer class=\"tl-reports\"><span class=\"tl-reports-label\">Update reports</span>\n")
-		for _, report := range month.Reports {
+		for i := range month.Reports {
+			report := &month.Reports[i]
 			label, err := milestoneReportLabel(report)
 			if err != nil {
 				return "", err
@@ -886,7 +888,8 @@ func milestonesMirror(data milestoneData, months []milestoneMonth) (string, erro
 		}
 		if len(month.Reports) > 0 {
 			mirror.Str("\n### Update reports\n\n")
-			for _, report := range month.Reports {
+			for i := range month.Reports {
+				report := &month.Reports[i]
 				label, err := milestoneReportLabel(report)
 				if err != nil {
 					return "", err

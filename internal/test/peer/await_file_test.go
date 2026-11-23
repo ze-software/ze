@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -270,7 +271,7 @@ func TestAwaitFileServesTheSessionWhileWaiting(t *testing.T) {
 				if err != nil {
 					t.Fatalf("frame %d after the wait: %v", index+1, err)
 				}
-				if got := append(header, body...); !bytes.Equal(got, want) {
+				if got := slices.Concat(header, body); !bytes.Equal(got, want) {
 					t.Fatalf("frame %d after the wait is %X, want %X", index+1, got, want)
 				}
 			}

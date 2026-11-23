@@ -49,7 +49,7 @@ func PrepareExtraction(ctx context.Context, root, file, tags string) (report Ext
 	if err != nil {
 		return report, fmt.Errorf("resolve CodeQL manifest: %w", err)
 	}
-	manifest, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	manifest, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // caller-chosen manifest output path created exclusively with O_CREATE|O_EXCL.
 	if err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return report, fmt.Errorf("CodeQL manifest already exists: %s; choose a new task-owned evidence file", file)
@@ -175,7 +175,7 @@ func requireAuthoredSentinel(ctx context.Context, root, file string) error {
 }
 
 func extractionSourceHash(file string) (digest string, err error) {
-	source, err := os.Open(file)
+	source, err := os.Open(file) //nolint:gosec // callers validate file as the tracked authored sentinel or an owned regular file inside gokrazy/modcache.
 	if err != nil {
 		return "", fmt.Errorf("open CodeQL sentinel: %w", err)
 	}

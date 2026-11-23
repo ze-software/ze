@@ -89,7 +89,7 @@ func TestEditorSuiteNativeCapabilityTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 	var effective string
-	for _, line := range strings.Split(string(status), "\n") {
+	for line := range strings.SplitSeq(string(status), "\n") {
 		if value, found := strings.CutPrefix(line, "CapEff:"); found {
 			effective = strings.TrimSpace(value)
 		}
@@ -110,7 +110,7 @@ func TestEditorSuiteNativeCapabilityTarget(t *testing.T) {
 	}
 	report := suite.requireReport(t, "VERIFY STEP: ")
 	passed := false
-	for _, line := range strings.Split(report, "\n") {
+	for line := range strings.SplitSeq(report, "\n") {
 		payload, found := strings.CutPrefix(line, "VERIFY STEP: ")
 		if !found {
 			continue

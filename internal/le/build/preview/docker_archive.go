@@ -111,7 +111,7 @@ func checkDockerArchive(filename string, image Image) error {
 	if !validImageDigest(image.ID) {
 		return errors.New("invalid recorded image digest")
 	}
-	file, err := os.Open(filename)
+	file, err := os.Open(filename) //nolint:gosec // G304: check joins a manifest name safeName confines to the caller's bundle directory after Lstat proved a regular file.
 	if err != nil {
 		return err
 	}

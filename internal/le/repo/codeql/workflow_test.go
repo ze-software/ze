@@ -202,7 +202,7 @@ func workflowSteps(t *testing.T) []workflowStep {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(root, ".github/workflows/codeql.yml")
+	path := filepath.Join(root, ".github", "workflows", "codeql.yml")
 	source, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

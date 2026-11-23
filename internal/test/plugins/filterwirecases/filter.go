@@ -4,6 +4,7 @@
 package filterwirecases
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -15,16 +16,25 @@ import (
 
 const filterWireCasesName = "filter-wire-cases"
 
+// Filter route field names shared across declarations and test cases.
+const (
+	fieldAtomicAggregate = "atomic-aggregate"
+	fieldCommunity       = "community"
+	fieldLocalPreference = "local-preference"
+	fieldMED             = "med"
+	fieldPrefix          = "prefix"
+)
+
 // Both startup declarations MUST use this list, so config verification and
 // the SDK's live declaration judge the same filters.
 func filterWireCasesDecls() []sdk.FilterDecl {
 	return []sdk.FilterDecl{
-		{Name: "fields-all", Direction: sdk.FilterImport, Reads: []string{"atomic-aggregate", "aggregator", "originator-id", "cluster-list"}, OnError: sdk.OnErrorReject},
-		{Name: "fields-only", Direction: sdk.FilterImport, Reads: []string{"atomic-aggregate"}, OnError: sdk.OnErrorReject},
-		{Name: "actions", Direction: sdk.FilterImport, Reads: []string{"prefix", "community", "med", "local-preference"}, Sets: []string{"community", "med", "local-preference"}, OnError: sdk.OnErrorReject},
-		{Name: "invalid", Direction: sdk.FilterImport, Reads: []string{"prefix", "med"}, Sets: []string{"med"}, OnError: sdk.OnErrorAccept},
-		{Name: "check-invalid", Direction: sdk.FilterImport, Reads: []string{"prefix", "med", "local-preference"}, OnError: sdk.OnErrorReject},
-		{Name: "check-batch", Direction: sdk.FilterImport, Reads: []string{"prefix", "med"}, OnError: sdk.OnErrorReject},
+		{Name: "fields-all", Direction: sdk.FilterImport, Reads: []string{fieldAtomicAggregate, "aggregator", "originator-id", "cluster-list"}, OnError: sdk.OnErrorReject},
+		{Name: "fields-only", Direction: sdk.FilterImport, Reads: []string{fieldAtomicAggregate}, OnError: sdk.OnErrorReject},
+		{Name: "actions", Direction: sdk.FilterImport, Reads: []string{fieldPrefix, fieldCommunity, fieldMED, fieldLocalPreference}, Sets: []string{fieldCommunity, fieldMED, fieldLocalPreference}, OnError: sdk.OnErrorReject},
+		{Name: "invalid", Direction: sdk.FilterImport, Reads: []string{fieldPrefix, fieldMED}, Sets: []string{fieldMED}, OnError: sdk.OnErrorAccept},
+		{Name: "check-invalid", Direction: sdk.FilterImport, Reads: []string{fieldPrefix, fieldMED, fieldLocalPreference}, OnError: sdk.OnErrorReject},
+		{Name: "check-batch", Direction: sdk.FilterImport, Reads: []string{fieldPrefix, fieldMED}, OnError: sdk.OnErrorReject},
 	}
 }
 
@@ -64,7 +74,7 @@ func filterWireCasesEvaluate(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, e
 	if err := json.Unmarshal(raw, &fields); err != nil {
 		return nil, fmt.Errorf("decode new fields: %w", err)
 	}
-	wants := map[string]string{"atomic-aggregate": "true"}
+	wants := map[string]string{fieldAtomicAggregate: "true"}
 	if route.Filter() == "fields-all" {
 		wants["aggregator"] = `"65010:192.0.2.9"`
 		wants["originator-id"] = `"192.0.2.8"`
@@ -89,7 +99,7 @@ func filterWireCasesEvaluate(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, e
 		if err != nil {
 			return nil, fmt.Errorf("encode expected %s: %w", field, err)
 		}
-		if string(gotJSON) != string(wantJSON) {
+		if !bytes.Equal(gotJSON, wantJSON) {
 			return nil, fmt.Errorf("%s is %s, want %s", field, gotJSON, wantJSON)
 		}
 	}
@@ -105,14 +115,14 @@ func filterWireCasesEvaluate(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, e
 // and community 65001:1 is replaced by 65000:99.
 func filterWireCasesActions() *sdk.FilterUpdateOutput {
 	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: []rpc.FilterSet{
-		{Field: "community", Action: rpc.FilterSetActionAdd, Value: json.RawMessage(`"65000:99"`)},
-		{Field: "community", Action: rpc.FilterSetActionRemove, Value: json.RawMessage(`"65001:1"`)},
-		{Field: "med", Action: rpc.FilterSetActionSet, Value: json.RawMessage(`40`)},
-		{Field: "med", Action: rpc.FilterSetActionIncrement, Value: json.RawMessage(`9`)},
-		{Field: "med", Action: rpc.FilterSetActionDecrement, Value: json.RawMessage(`3`)},
-		{Field: "local-preference", Action: rpc.FilterSetActionSet, Value: json.RawMessage(`200`)},
-		{Field: "local-preference", Action: rpc.FilterSetActionIncrement, Value: json.RawMessage(`20`)},
-		{Field: "local-preference", Action: rpc.FilterSetActionDecrement, Value: json.RawMessage(`5`)},
+		{Field: fieldCommunity, Action: rpc.FilterSetActionAdd, Value: json.RawMessage(`"65000:99"`)},
+		{Field: fieldCommunity, Action: rpc.FilterSetActionRemove, Value: json.RawMessage(`"65001:1"`)},
+		{Field: fieldMED, Action: rpc.FilterSetActionSet, Value: json.RawMessage(`40`)},
+		{Field: fieldMED, Action: rpc.FilterSetActionIncrement, Value: json.RawMessage(`9`)},
+		{Field: fieldMED, Action: rpc.FilterSetActionDecrement, Value: json.RawMessage(`3`)},
+		{Field: fieldLocalPreference, Action: rpc.FilterSetActionSet, Value: json.RawMessage(`200`)},
+		{Field: fieldLocalPreference, Action: rpc.FilterSetActionIncrement, Value: json.RawMessage(`20`)},
+		{Field: fieldLocalPreference, Action: rpc.FilterSetActionDecrement, Value: json.RawMessage(`5`)},
 	}}
 }
 

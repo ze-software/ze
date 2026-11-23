@@ -7,7 +7,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -522,12 +521,4 @@ func vppAddress(family byte, data []byte) string {
 		return net.IP(data[:16]).String()
 	}
 	return "<invalid>"
-}
-func hexBytePairs(data []byte) []string {
-	encoded := hex.EncodeToString(data)
-	pairs := make([]string, 0, len(data))
-	for index := range data {
-		pairs = append(pairs, encoded[index*2:index*2+2])
-	}
-	return pairs
 }

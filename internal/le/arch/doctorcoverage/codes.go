@@ -65,8 +65,15 @@ type eventPool struct {
 	declarers []string
 }
 
+// diagnosticDir is the tree directory of the diagnostic package, whose check,
+// event-code and finding types the gate reads.
+const diagnosticDir = "internal/core/diagnostic"
+
 // checkNameField is the field most declaration types name their check in.
 const checkNameField = "Name"
+
+// codeField is the struct field carrying a single doctor code.
+const codeField = "Code"
 
 // codesField is the list field every declaration type but kernelcap names its codes in.
 var codesField = []string{"Codes"}
@@ -80,11 +87,11 @@ var checkDeclarations = []checkDeclaration{
 	// An in-tree check, given to diagnostic.RegisterDoctorCheck. One that
 	// sets DeclaresEventCodes (the recent-events check) also declares every
 	// event code below.
-	{dir: "internal/core/diagnostic", name: "DoctorCheck", nameField: checkNameField, listFields: codesField, eventFlagField: "DeclaresEventCodes"},
+	{dir: diagnosticDir, name: "DoctorCheck", nameField: checkNameField, listFields: codesField, eventFlagField: "DeclaresEventCodes"},
 	// A transient code an owner raises on the report bus, given to
 	// diagnostic.RegisterEventCode: declared by the checks above that set
 	// DeclaresEventCodes, because the registry lists it in their Codes.
-	{dir: "internal/core/diagnostic", name: "EventCode", codeFields: []string{"Code"}, eventCodes: true},
+	{dir: diagnosticDir, name: "EventCode", codeFields: []string{codeField}, eventCodes: true},
 	// A plugin's check, in registry.Registration.DoctorChecks.
 	{dir: "internal/component/plugin/registry", name: "DoctorCheckDef", nameField: checkNameField, listFields: codesField},
 	// An SDK plugin's declaration, sent at startup, and its SDK alias.
@@ -95,7 +102,7 @@ var checkDeclarations = []checkDeclaration{
 	{dir: "internal/component/kernelcap", name: "Capability", nameField: "Subsystem", namePrefix: "kernel-capability-", codeFields: []string{"CodeAbsent", "CodeUnknown"}, addedCodes: []string{"doctor-kernel-capability-forced"}},
 	// A VPP startup runtime feature: vpp.RegisterStartupFeature registers the
 	// doctor check vpp-startup-<name>, which declares Runtime.Code.
-	{dir: "internal/component/vpp", name: "StartupRuntime", codeFields: []string{"Code"}},
+	{dir: "internal/component/vpp", name: "StartupRuntime", codeFields: []string{codeField}},
 }
 
 // coveredCodes reads the covered set from every doctor check declaration in
@@ -178,9 +185,9 @@ func (index *treeIndex) declarationOf(file *sourceFile, expr ast.Expr) (checkDec
 	default:
 		return checkDeclaration{}, false
 	}
-	for _, declaration := range checkDeclarations {
-		if declaration.typeRef == ref {
-			return declaration, true
+	for i := range checkDeclarations {
+		if checkDeclarations[i].typeRef == ref {
+			return checkDeclarations[i], true
 		}
 	}
 	return checkDeclaration{}, false

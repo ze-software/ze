@@ -36,7 +36,7 @@ func TestRootAuthorizationPrecedesStartupWrites(t *testing.T) {
 		{"rfc-owner-ruling", []string{"rfc", "approve", "unit", "pkg.TestX", "reason", "owner ruling 2026-11-03 accepts this fixture"}},
 		{"commit-attestation", []string{"commit", "create", "subject", "owner authorization fixture", "attest", strings.Repeat("1", 40), "Thomas reviewed this fixture"}},
 		{"push-authorization", []string{"commit", "push", "the owner ordered this push in the fixture"}},
-		{"owner-review", []string{"spec", "review", "record", "spec", "demo", "verdict", "clean", "rounds", "1", "file", "pkg/a.go", "owner-authorised", "Thomas asked for this pass"}},
+		{"owner-review", []string{"spec", "review", "record", "spec", "demo", "verdict", "clean", "rounds", "1", "file", "pkg/a.go", "owner-authorised", "Thomas asked for this pass"}}, //nolint:misspell // owner-authorised is the CLI keyword contract
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {

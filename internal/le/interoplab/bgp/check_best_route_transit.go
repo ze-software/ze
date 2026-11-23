@@ -196,7 +196,7 @@ func (bestRouteTransitFRRNative) version(ctx context.Context, lab interoplab.Che
 func (bestRouteTransitBIRDNative) observe(ctx context.Context, check *interoplab.CheckContext, sink, path string) error {
 	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 60 * time.Second, Interval: time.Second, Description: "BIRD ordinary transit path " + path},
 		func(probe context.Context) (bestRouteTransitSnapshot, error) {
-			return bestRouteTransitRead(probe, check.Lab, sink, path, []string{cmdBirdc, "show route all"},
+			return bestRouteTransitRead(probe, check.Lab, sink, path, []string{cmdBirdc, birdShowRouteAll},
 				func(prefix string) []string { return []string{cmdBirdc, "show route for " + prefix + " all"} })
 		}, func(reading bestRouteTransitSnapshot) bool { return requireBestRouteTransitBIRD(reading, path) == nil })
 	if err != nil {

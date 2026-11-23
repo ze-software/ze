@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -77,10 +78,8 @@ func daemonAwaitAnswerAll(ctx context.Context, args []string) error {
 	}
 	command := args[0]
 	needles := args[1:]
-	for _, needle := range needles {
-		if needle == "" {
-			return errors.New("daemon/await-answer-all: an empty needle matches any answer")
-		}
+	if slices.Contains(needles, "") {
+		return errors.New("daemon/await-answer-all: an empty needle matches any answer")
 	}
 	waitCtx, cancel := context.WithTimeout(ctx, WaitBudget(50, 30*time.Second))
 	defer cancel()

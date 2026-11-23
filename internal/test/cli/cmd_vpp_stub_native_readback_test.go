@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"testing"
 
@@ -329,7 +330,11 @@ func vppStubNativeExchange(t *testing.T, state *vppStubState, requests ...vppStu
 	for _, request := range requests {
 		body := request.body
 		if body == nil {
-			encoded, err := request.message.(interface{ Marshal([]byte) ([]byte, error) }).Marshal(nil)
+			marshaler, ok := request.message.(interface{ Marshal([]byte) ([]byte, error) })
+			if !ok {
+				t.Fatalf("%s (%T) does not implement Marshal", request.message.GetMessageName(), request.message)
+			}
+			encoded, err := marshaler.Marshal(nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -349,7 +354,7 @@ func vppStubNativeExchange(t *testing.T, state *vppStubState, requests ...vppStu
 	var frames []vppStubNativeFrame
 	for {
 		frame, err := readVPPFrame(reader)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return frames, dispatchError
 		}
 		if err != nil {

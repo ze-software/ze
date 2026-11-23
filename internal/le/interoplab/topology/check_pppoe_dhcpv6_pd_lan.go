@@ -53,7 +53,7 @@ func checkDelegatedLAN(ctx context.Context, check *interoplab.CheckContext, dele
 	}
 	unitAddress := netip.PrefixFrom(subnetHost(subnet, 1), 64)
 	if err := pollUntil(ctx, pdWait, pdLANDevice+" holds "+unitAddress.String(), func() error {
-		answer, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", "-6", ipWordAddress, wordShow, ipWordDev, pdLANDevice, "scope", "global"}, nil)
+		answer, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", "-6", ipWordAddress, wordShow, ipWordDev, pdLANDevice, ipWordScope, ipWordGlobal}, nil)
 		if err != nil {
 			return err
 		}
@@ -89,7 +89,7 @@ func checkSLAACHost(ctx context.Context, check *interoplab.CheckContext, device 
 		return fmt.Errorf("start dhcpcd on %s: %w", nodeSLAACHost, err)
 	}
 	if err := pollUntil(ctx, pdWait, nodeSLAACHost+" holds a SLAAC address in "+subnet.String(), func() error {
-		answer, err := check.Lab.Query(ctx, nodeSLAACHost, []string{"ip", "-o", "-6", ipWordAddress, wordShow, ipWordDev, device, "scope", "global"}, nil)
+		answer, err := check.Lab.Query(ctx, nodeSLAACHost, []string{"ip", "-o", "-6", ipWordAddress, wordShow, ipWordDev, device, ipWordScope, ipWordGlobal}, nil)
 		if err != nil {
 			return err
 		}
@@ -98,7 +98,7 @@ func checkSLAACHost(ctx context.Context, check *interoplab.CheckContext, device 
 		return err
 	}
 	if err := pollUntil(ctx, pdWait, nodeSLAACHost+"'s ::/0 via "+router.String(), func() error {
-		answer, err := check.Lab.Query(ctx, nodeSLAACHost, []string{"ip", "-6", ipWordRoute, wordShow, "default"}, nil)
+		answer, err := check.Lab.Query(ctx, nodeSLAACHost, []string{"ip", "-6", ipWordRoute, wordShow, ipWordDefault}, nil)
 		if err != nil {
 			return err
 		}
@@ -116,7 +116,7 @@ func checkSLAACHost(ctx context.Context, check *interoplab.CheckContext, device 
 		return err
 	}
 	return pollUntil(ctx, pdWait, nodeSLAACHost+" pings "+pdAccelTarget+" through the CPE", func() error {
-		_, err := execOK(ctx, check, nodeSLAACHost, []string{"ping", "-c", "1", "-W", "2", pdAccelTarget})
+		_, err := execOK(ctx, check, nodeSLAACHost, []string{commandPing, "-c", "1", "-W", "2", pdAccelTarget})
 		return err
 	})
 }
@@ -150,7 +150,7 @@ func checkSessionEndWithdrawsRouter(ctx context.Context, check *interoplab.Check
 		// An empty answer is the state this wait looks for, so the read uses
 		// execOK (exit 0, any output) rather than Lab.Query, which refuses an
 		// empty answer as a failed query.
-		answer, err := execOK(ctx, check, nodeSLAACHost, []string{"ip", "-6", ipWordRoute, wordShow, "default"})
+		answer, err := execOK(ctx, check, nodeSLAACHost, []string{"ip", "-6", ipWordRoute, wordShow, ipWordDefault})
 		if err != nil {
 			return err
 		}
@@ -192,7 +192,7 @@ func advertisedLifetimes(ctx context.Context, check *interoplab.CheckContext, su
 // cpeLANLinkLocal answers lan0's link-local address: the RA's source, so
 // the LAN host's default router.
 func cpeLANLinkLocal(ctx context.Context, check *interoplab.CheckContext) (netip.Addr, error) {
-	answer, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", "-6", ipWordAddress, wordShow, ipWordDev, pdLANDevice, "scope", "link"}, nil)
+	answer, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", "-6", ipWordAddress, wordShow, ipWordDev, pdLANDevice, ipWordScope, ipWordLink}, nil)
 	if err != nil {
 		return netip.Addr{}, err
 	}
@@ -227,7 +227,7 @@ func cpeClock(ctx context.Context, check *interoplab.CheckContext) (time.Time, e
 
 // readLANAdvertisements answers every RA the CPE has sent on lan0.
 func readLANAdvertisements(ctx context.Context, check *interoplab.CheckContext) ([]advertisement, error) {
-	capture, err := check.Lab.Query(ctx, nodeCPE, []string{"tcpdump", "-n", "-tt", "-v", "-r", pdLANCapture}, nil)
+	capture, err := check.Lab.Query(ctx, nodeCPE, []string{commandTcpdump, "-n", "-tt", "-v", "-r", pdLANCapture}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -693,7 +693,7 @@ func pdLANEvidence(ctx context.Context, check *interoplab.CheckContext) string {
 		{nodeCPE, []string{"sh", "-c", "for f in /proc/sys/net/ipv6/conf/all/forwarding /proc/sys/net/ipv6/conf/pppoe0/accept_ra /proc/sys/net/ipv6/conf/pppoe0/forwarding /proc/sys/net/ipv6/conf/lan0/forwarding; do echo \"$f $(cat $f)\"; done"}},
 		{nodeCPE, interoplab.ZeCLICommand("show interface delegated-prefix")},
 		{nodeCPE, interoplab.ZeCLICommand("show interface pppoe-client")},
-		{nodeCPE, []string{"tcpdump", "-n", "-tt", "-v", "-r", pdLANCapture}},
+		{nodeCPE, []string{commandTcpdump, "-n", "-tt", "-v", "-r", pdLANCapture}},
 		{nodeSLAACHost, []string{"ip", "-6", ipWordRoute, wordShow}},
 		{nodeSLAACHost, []string{commandCat, pdDHCPCDLog}},
 	}

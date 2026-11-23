@@ -122,7 +122,7 @@ func TestExtractionProofChecksEveryDatabaseRow(t *testing.T) {
 			switch test.kind {
 			case "valid":
 			case "missing":
-				ordinary := filepath.Join(root, "authored/base.go")
+				ordinary := filepath.Join(root, "authored", "base.go")
 				rows = [][]string{{"authored/base.go", ordinary}}
 			case "cache":
 				rows = append(rows, cache)
@@ -249,7 +249,7 @@ func extractionProofFixture(t *testing.T) (string, string, map[string]string) {
 	proof := map[string]string{
 		"source-root": root, "tags": "ze_setup",
 		"authored-file": filepath.Join(root, extractionAuthoredFixture),
-		"cache-file":    filepath.Join(root, "gokrazy/modcache/extraction-fixture/sentinel.go"),
+		"cache-file":    filepath.Join(root, "gokrazy", "modcache", "extraction-fixture", "sentinel.go"),
 		"cache-refusal": "CodeQL refuses gokrazy/modcache path",
 	}
 	for _, field := range []string{"authored", "cache"} {

@@ -68,7 +68,7 @@ const (
 // its SDK alias. collectDoctorChecksFrom (internal/component/doctor/cmd)
 // carries the plugin finding's Fix to the operator, so both are judged alike.
 var findingTypes = []typeRef{
-	{dir: "internal/core/diagnostic", name: "Diagnostic"},
+	{dir: diagnosticDir, name: "Diagnostic"},
 	{dir: "pkg/plugin/rpc", name: "DoctorCheckDiagnostic"},
 	{dir: "pkg/plugin/sdk", name: "DoctorCheckDiagnostic"},
 }
@@ -204,7 +204,7 @@ func (index *treeIndex) findingSite(file *sourceFile, lit *ast.CompositeLit, typ
 		switch key.Name {
 		case "Message":
 			site.Message = index.text(file, pair.Value)
-		case "Code":
+		case codeField:
 			site.CodeExpr = types.ExprString(pair.Value)
 			site.Code, _ = index.resolve(file, pair.Value, 0)
 		case "Fix":

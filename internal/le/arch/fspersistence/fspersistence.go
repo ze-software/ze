@@ -80,24 +80,24 @@ func exemptionRules() map[string]string {
 // would have passed every one of them.
 var fileAllowlist = map[string]string{
 	// --- kernel / device control interfaces (must stay raw) ---
-	"internal/plugins/ntp/clock_linux.go":                            "writes the /dev/rtc0 hardware clock",
-	"internal/component/host/tuning_linux.go":                        "sysfs cpu governor + procfs IRQ affinity",
-	"internal/component/iface/offload_linux.go":                      "sysfs/ethtool offload knobs",
-	"internal/component/sysctl/backend_linux.go":                     "/proc/sys sysctl writes",
-	"internal/component/ike/dataplane/espform_tun_linux.go":          "ze-espform procfs disable_policy/rp_filter kernel controls; the conf/default write-access probe opens and closes without changing a value",
-	"internal/plugins/vrrp/dataplane_linux.go":                       "/proc/sys/net/ipv4/conf arp_ignore/arp_filter/rp_filter knobs for the virtual-MAC dataplane; procfs scalars, no runtime state",
-	"internal/plugins/iface/netlink/addr_primary.go":                 "/proc/sys/net/ipv4/conf promote_secondaries knob so deleting a primary IPv4 address does not flush its same-subnet secondaries; procfs scalar, no runtime state",
-	"internal/plugins/flowexport/conntrack_setup_appliance_linux.go": "procfs nf_conntrack_acct sysctl on the appliance (ze_appliance conntrack init)",
-	"internal/plugins/fib/kernel/labelspace_linux.go":                "writes /proc/sys/net/mpls/platform_labels (via writeFile test seam) to enable the kernel MPLS label table before programming the first label; procfs scalar, no runtime state",
-	"internal/component/kernelcap/probe_linux.go":                    "writes /proc/sys/net/mpls/platform_labels (via writeFile test seam) inside a throwaway mount+network namespace to probe kernel MPLS support; procfs scalar, no runtime state",
-	"internal/component/vpp/dpdk.go":                                 "sysfs PCI/VFIO/hugepage knobs",
+	"internal/plugins/ntp/clock_linux.go":                             "writes the /dev/rtc0 hardware clock",
+	"internal/component/host/tuning_linux.go":                         "sysfs cpu governor + procfs IRQ affinity",
+	"internal/component/iface/offload_linux.go":                       "sysfs/ethtool offload knobs",
+	"internal/component/sysctl/backend_linux.go":                      "/proc/sys sysctl writes",
+	"internal/component/ike/dataplane/espform_tun_linux.go":           "ze-espform procfs disable_policy/rp_filter kernel controls; the conf/default write-access probe opens and closes without changing a value",
+	"internal/plugins/vrrp/dataplane_linux.go":                        "/proc/sys/net/ipv4/conf arp_ignore/arp_filter/rp_filter knobs for the virtual-MAC dataplane; procfs scalars, no runtime state",
+	"internal/plugins/iface/netlink/addr_primary.go":                  "/proc/sys/net/ipv4/conf promote_secondaries knob so deleting a primary IPv4 address does not flush its same-subnet secondaries; procfs scalar, no runtime state",
+	"internal/plugins/flowexport/conntrack_setup_appliance_linux.go":  "procfs nf_conntrack_acct sysctl on the appliance (ze_appliance conntrack init)",
+	"internal/plugins/fib/kernel/labelspace_linux.go":                 "writes /proc/sys/net/mpls/platform_labels (via writeFile test seam) to enable the kernel MPLS label table before programming the first label; procfs scalar, no runtime state",
+	"internal/component/kernelcap/probe_linux.go":                     "writes /proc/sys/net/mpls/platform_labels (via writeFile test seam) inside a throwaway mount+network namespace to probe kernel MPLS support; procfs scalar, no runtime state",
+	"internal/component/vpp/dpdk.go":                                  "sysfs PCI/VFIO/hugepage knobs",
 	"internal/component/l2tp/ppp/kernel/devppp_linux.go":              "opens the /dev/ppp kernel device",
 	"internal/component/l2tp/ppp/kernel/created_channel_linux.go":     "opens the /dev/ppp kernel device for original PPP channel capture",
 	"internal/component/l2tp/ppp/kernel/created_unit_linux.go":        "opens the /dev/ppp kernel device for original PPP unit creation",
 	"internal/component/l2tp/ppp/kernel/original_attachment_linux.go": "opens the /dev/ppp kernel device to probe kernel PPP attachment support",
-	"internal/component/cli/client/main.go":                          "opens /dev/tty (operator terminal)",
-	"internal/component/cli/sshclient/terminal.go":                   "opens /dev/tty (operator terminal, moved from internal/core/ssh/client in the storage-1 cutover)",
-	"internal/component/command/pipe_save.go":                        "`| save <path>` writes ONE answer to a path the operator typed, in the operator's own process. It is not daemon state and it never goes through the storage layer: the point of the operator is to put a rendering where the operator asked for it. It is refused where the daemon expands the chain, so a remote caller cannot reach this write (see the file header)",
+	"internal/component/cli/client/main.go":                           "opens /dev/tty (operator terminal)",
+	"internal/component/cli/sshclient/terminal.go":                    "opens /dev/tty (operator terminal, moved from internal/core/ssh/client in the storage-1 cutover)",
+	"internal/component/command/pipe_save.go":                         "`| save <path>` writes ONE answer to a path the operator typed, in the operator's own process. It is not daemon state and it never goes through the storage layer: the point of the operator is to put a rendering where the operator asked for it. It is refused where the daemon expands the chain, so a remote caller cannot reach this write (see the file header)",
 	// --- ephemeral scratch (pid/socket/probe/ready files, temp stores) ---
 	"cmd/ze/hub/pidfile.go":     "runtime pidfile",
 	"cmd/ze/hub/service_ssh.go": "ephemeral ssh listen-address handoff file",
@@ -120,12 +120,15 @@ var fileAllowlist = map[string]string{
 	"internal/component/config/artifact/store.go":    "ephemeral private backup-workspace staging rename under MkdirTemp",
 	"internal/component/config/artifact/transfer.go": "ephemeral private backup-upload staging file under MkdirTemp (0700)",
 	"internal/component/config/provider.go":          "config file save/serialize machinery",
-	"internal/component/config/cli/cmd_edit.go": "creates the config file / ephemeral ssh addr",
-	"internal/component/cli/editor.go":          "generic atomic-write util (config editor)",
+	"internal/component/config/cli/cmd_edit.go":      "creates the config file / ephemeral ssh addr",
+	"internal/component/cli/editor.go":               "generic atomic-write util (config editor)",
 }
 
 // zefsPkg names pkg/zefs in a Finding, and is its default import name.
 const zefsPkg = "zefs"
+
+// writeFileFunc is the WriteFile selector shared by os and io/ioutil.
+const writeFileFunc = "WriteFile"
 
 // zefsConstructors names every pkg/zefs entry point that opens a blob handle.
 var zefsConstructors = map[string]bool{
@@ -135,7 +138,7 @@ var zefsConstructors = map[string]bool{
 // osWriteFuncs are the os functions that indicate persistence. os.OpenFile is
 // handled separately, and is flagged only with a write flag.
 var osWriteFuncs = map[string]bool{
-	"WriteFile": true, "Create": true, "Rename": true, "Symlink": true, "Link": true,
+	writeFileFunc: true, "Create": true, "Rename": true, "Symlink": true, "Link": true,
 }
 
 // readSafeFlags are the os.OpenFile flag terms that cannot open a file for
@@ -353,7 +356,7 @@ func ScanFile(fset *token.FileSet, path, rel string) ([]Finding, error) {
 					}
 				}
 				if ioutilNames[selPkg] {
-					if selFn == "WriteFile" {
+					if selFn == writeFileFunc {
 						matchPos = selector.Pos()
 						pkg = selPkg
 						fn = selFn
@@ -395,7 +398,7 @@ func ScanFile(fset *token.FileSet, path, rel string) ([]Finding, error) {
 				matchPos = call.Pos()
 				pkg = callPkg
 				fn = callFn
-			case ioutilNames[callPkg] && callFn == "WriteFile":
+			case ioutilNames[callPkg] && callFn == writeFileFunc:
 				handledSelectors[selector] = true
 				matchPos = call.Pos()
 				pkg = callPkg

@@ -27,8 +27,8 @@ func TestHeroKeyPointsUseApprovedTicks(t *testing.T) {
 			strings.Contains(rule.body, `content: "✓"`) && strings.Contains(rule.body, "color: #87d5fa") {
 			tick = true
 		}
-		// The ruled tick colour holds in every theme: any rule that reaches the
-		// tick and states a colour of its own must state #87d5fa, so an override
+		// The ruled tick color holds in every theme: any rule that reaches the
+		// tick and states a color of its own must state #87d5fa, so an override
 		// for one theme, a breakpoint or a more specific selector goes red.
 		for _, selector := range rule.selectors {
 			if !heroTickSelector(selector) {
@@ -58,7 +58,7 @@ func heroTickSelector(selector string) bool {
 }
 
 // heroTickColorKept reports whether one declaration on a tick rule keeps the
-// ruled colour. The text fill may follow the colour (currentColor) or name it;
+// ruled color. The text fill may follow the color (currentColor) or name it;
 // every other property is outside the ruling.
 func heroTickColorKept(declaration [2]string) bool {
 	value := strings.ToLower(declaration[1])

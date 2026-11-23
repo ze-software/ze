@@ -35,8 +35,8 @@ func checkStaticLinkChain(ctx context.Context, check *interoplab.CheckContext) e
 	// The flush makes ze-a ARP again for ze-b, a broadcast the bridge floods
 	// to outside's port, so outside's capture holds a tagged frame of link
 	// a-b and its verdict is not vacuous.
-	if _, err := check.Lab.Exec(ctx, nodeA, []string{"ip", "neigh", "flush", "dev", near.Device}, nil); err != nil {
-		return fmt.Errorf("flush ze-a's neighbours on %s: %w", near.Device, err)
+	if _, err := check.Lab.Exec(ctx, nodeA, []string{"ip", "neigh", "flush", ipWordDev, near.Device}, nil); err != nil {
+		return fmt.Errorf("flush ze-a's neighbors on %s: %w", near.Device, err)
 	}
 	far, err := check.Member(nodeC, "b-c")
 	if err != nil {
@@ -57,7 +57,7 @@ func linkABSeparate(ctx context.Context, check *interoplab.CheckContext) error {
 		Timeout: 20 * time.Second, Interval: time.Second,
 		Description: "outside's capture holding a tagged frame of link a-b",
 	}, func(probe context.Context) (string, error) {
-		return check.Lab.Query(probe, "outside", []string{"tcpdump", "-e", "-n", "-r", outsideCapture}, nil)
+		return check.Lab.Query(probe, "outside", []string{commandTcpdump, "-e", "-n", "-r", outsideCapture}, nil)
 	}, func(answer string) bool { return strings.Contains(answer, "802.1Q") })
 	if err != nil {
 		return fmt.Errorf("outside's capture never held a tagged frame of link a-b, so it cannot judge the link (last reading %q): %w", reading, err)
@@ -109,7 +109,7 @@ func waitPing(ctx context.Context, check *interoplab.CheckContext, peer, address
 		Timeout: 60 * time.Second, Interval: time.Second,
 		Description: peer + " ping " + address,
 	}, func(probe context.Context) (interoplab.CommandResult, error) {
-		return check.Lab.Exec(probe, peer, []string{"ping", "-c", "2", "-W", "2", address}, nil)
+		return check.Lab.Exec(probe, peer, []string{commandPing, "-c", "2", "-W", "2", address}, nil)
 	}, func(result interoplab.CommandResult) bool {
 		return result.ExitCode == 0
 	})

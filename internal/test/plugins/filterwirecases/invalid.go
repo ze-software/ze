@@ -5,6 +5,7 @@ package filterwirecases
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -18,20 +19,20 @@ func filterWireCasesInvalid(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, er
 		return nil, err
 	}
 	bad := map[string]rpc.FilterSet{
-		"10.0.1.0/24": {Field: "local-preference", Action: rpc.FilterSetActionSet, Value: json.RawMessage(`999`)},
+		"10.0.1.0/24": {Field: fieldLocalPreference, Action: rpc.FilterSetActionSet, Value: json.RawMessage(`999`)},
 		"10.0.2.0/24": {Field: "not-a-route-field", Action: rpc.FilterSetActionSet, Value: json.RawMessage(`999`)},
-		"10.0.3.0/24": {Field: "prefix", Action: rpc.FilterSetActionSet, Value: json.RawMessage(`"10.9.0.0/24"`)},
-		"10.0.4.0/24": {Field: "med", Action: rpc.FilterSetActionSet, Value: json.RawMessage(`{"not":"a number"}`)},
+		"10.0.3.0/24": {Field: fieldPrefix, Action: rpc.FilterSetActionSet, Value: json.RawMessage(`"10.9.0.0/24"`)},
+		"10.0.4.0/24": {Field: fieldMED, Action: rpc.FilterSetActionSet, Value: json.RawMessage(`{"not":"a number"}`)},
 	}
 	if prefix == "10.0.5.0/24" {
-		return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: []rpc.FilterSet{{Field: "med", Action: rpc.FilterSetActionSet, Value: json.RawMessage(`9`)}}}, nil
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: []rpc.FilterSet{{Field: fieldMED, Action: rpc.FilterSetActionSet, Value: json.RawMessage(`9`)}}}, nil
 	}
 	set, exists := bad[prefix]
 	if !exists {
 		return nil, fmt.Errorf("invalid-set case for unexpected prefix %s", prefix)
 	}
 	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: []rpc.FilterSet{
-		{Field: "med", Action: rpc.FilterSetActionSet, Value: json.RawMessage(`999`)}, set,
+		{Field: fieldMED, Action: rpc.FilterSetActionSet, Value: json.RawMessage(`999`)}, set,
 	}}, nil
 }
 

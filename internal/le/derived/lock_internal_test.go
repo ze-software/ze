@@ -145,16 +145,16 @@ func TestAPermissionRefusalNamesWhichSideRefused(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(path, 0o600) })
-	var lockErr *LockError
-	if _, err := lock(refusedRoot, time.Time{}); !errors.As(err, &lockErr) {
-		t.Errorf("a lock file of mode 0000 answered %v, want a *LockError", err)
-	} else {
+	_, err := lock(refusedRoot, time.Time{})
+	if lockErr, ok := errors.AsType[*LockError](err); ok {
 		if lockErr.Cause != LockCauseFileRefused {
 			t.Errorf("a lock file of mode 0000 has cause %d, want LockCauseFileRefused (%d)", lockErr.Cause, LockCauseFileRefused)
 		}
 		if message := lockErr.Error(); !strings.Contains(message, "chmod u+rw "+path) {
 			t.Errorf("the refusal does not carry the fix of the lock file's mode: %s", message)
 		}
+	} else {
+		t.Errorf("a lock file of mode 0000 answered %v, want a *LockError", err)
 	}
 
 	createRoot := t.TempDir()
@@ -163,16 +163,16 @@ func TestAPermissionRefusalNamesWhichSideRefused(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(tmp, 0o750) })
-	lockErr = nil
-	if _, err := lock(createRoot, time.Time{}); !errors.As(err, &lockErr) {
-		t.Errorf("a read-only tmp/ answered %v, want a *LockError", err)
-	} else {
+	_, err = lock(createRoot, time.Time{})
+	if lockErr, ok := errors.AsType[*LockError](err); ok {
 		if lockErr.Cause != LockCausePermission {
 			t.Errorf("a read-only tmp/ has cause %d, want LockCausePermission (%d)", lockErr.Cause, LockCausePermission)
 		}
 		if message := lockErr.Error(); !strings.Contains(message, "chmod u+rwx "+tmp+"/") {
 			t.Errorf("the refusal does not carry the fix of the directory: %s", message)
 		}
+	} else {
+		t.Errorf("a read-only tmp/ answered %v, want a *LockError", err)
 	}
 }
 

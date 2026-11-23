@@ -165,7 +165,7 @@ func leMenuAndPromptMenu(ctx context.Context, dir string, env []string, lePath, 
 		// The renderer redraws only the cells that changed, so each step
 		// matches text the step newly draws, never the cursor marker.
 		// The filtered spec row carries what the namespace is for (AC-53).
-		{"spec", regexp.MustCompile(`(?s)filter: spec.*the spec workflow|the spec workflow.*filter: spec`)},
+		{areaSpec, regexp.MustCompile(`(?s)filter: spec.*the spec workflow|the spec workflow.*filter: spec`)},
 		// Enter opens spec's members under a header holding its long
 		// description (D-P7-short-long). The capital T is the long text's:
 		// the short in the row above reads "the spec workflow".
@@ -208,7 +208,7 @@ func leMenuAndPromptQuit(ctx context.Context, dir string, env []string, lePath, 
 // leMenuAndPromptClaim checks AC-44: `le spec claim` asks for its spec, Tab
 // completes the file path, and Enter echoes the full line and runs it.
 func leMenuAndPromptClaim(ctx context.Context, dir string, env []string, lePath, _ string) error {
-	run, err := leMenuAndPromptStart(ctx, dir, env, lePath, "spec", "claim")
+	run, err := leMenuAndPromptStart(ctx, dir, env, lePath, areaSpec, "claim")
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func leMenuAndPromptClaim(ctx context.Context, dir string, env []string, lePath,
 // leMenuAndPromptCancel checks AC-46: Ctrl-C at the prompt runs nothing and
 // exits 2.
 func leMenuAndPromptCancel(ctx context.Context, dir string, env []string, lePath, _ string) error {
-	run, err := leMenuAndPromptStart(ctx, dir, env, lePath, "spec", "claim")
+	run, err := leMenuAndPromptStart(ctx, dir, env, lePath, areaSpec, "claim")
 	if err != nil {
 		return err
 	}

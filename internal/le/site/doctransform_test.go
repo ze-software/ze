@@ -146,15 +146,15 @@ func TestACrossDocumentLinkResolvesToThePublishedPage(t *testing.T) {
 	const docRel = "guide/anomaly.md"
 
 	body := map[string]string{
-		`<a href="rpki.md">RPKI</a>`:                                 `<a href="../rpki/">RPKI</a>`,
-		`<a href="rpki.md#caches">caches</a>`:                        `<a href="../rpki/#caches">caches</a>`,
-		`<a href="../features/srv6.md">SRv6</a>`:                     `<a href="../../features/srv6/">SRv6</a>`,
-		`<a href="../../docs/guide/rpki.md">RPKI via root</a>`:       `<a href="../rpki/">RPKI via root</a>`,
-		`<a href="../../third_party/vpp-patches/README.md">VPP</a>`:  `<a href="` + codeHostBlob + `third_party/vpp-patches/README.md" target="_blank" rel="noopener">VPP</a>`,
-		`<a href="unpublished.md">gone</a>`:                          `<a href="` + codeHostBlob + `docs/guide/unpublished.md" target="_blank" rel="noopener">gone</a>`, // <!-- doc-links: ignore (the page this case needs the manifest NOT to publish, so a link to it must reach the code host; a resolvable path would test nothing) -->
-		`<a href="mcp/">MCP</a>`:                                     `<a href="` + codeHostTree + `docs/guide/mcp" target="_blank" rel="noopener">MCP</a>`,
-		`<a href="https://example.test/">out</a>`:                    `<a href="https://example.test/">out</a>`,
-		`<a href="#section">here</a>`:                                `<a href="#section">here</a>`,
+		`<a href="rpki.md">RPKI</a>`:                                `<a href="../rpki/">RPKI</a>`,
+		`<a href="rpki.md#caches">caches</a>`:                       `<a href="../rpki/#caches">caches</a>`,
+		`<a href="../features/srv6.md">SRv6</a>`:                    `<a href="../../features/srv6/">SRv6</a>`,
+		`<a href="../../docs/guide/rpki.md">RPKI via root</a>`:      `<a href="../rpki/">RPKI via root</a>`,
+		`<a href="../../third_party/vpp-patches/README.md">VPP</a>`: `<a href="` + codeHostBlob + `third_party/vpp-patches/README.md" target="_blank" rel="noopener">VPP</a>`,
+		`<a href="unpublished.md">gone</a>`:                         `<a href="` + codeHostBlob + `docs/guide/unpublished.md" target="_blank" rel="noopener">gone</a>`, // <!-- doc-links: ignore (the page this case needs the manifest NOT to publish, so a link to it must reach the code host; a resolvable path would test nothing) -->
+		`<a href="mcp/">MCP</a>`:                                    `<a href="` + codeHostTree + `docs/guide/mcp" target="_blank" rel="noopener">MCP</a>`,
+		`<a href="https://example.test/">out</a>`:                   `<a href="https://example.test/">out</a>`,
+		`<a href="#section">here</a>`:                               `<a href="#section">here</a>`,
 	}
 	for link, want := range body {
 		if got := rewriteDocLinks(link, docRel, manifest, from); got != want {

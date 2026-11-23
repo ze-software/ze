@@ -228,10 +228,6 @@ func appArmorProfileLoaded(profiles, name string) bool {
 	return false
 }
 
-// kernelProbeCommand is what the probe container runs. It is named in every
-// refusal, so an operator can run the same question by hand.
-var kernelProbeCommand = slices.Concat([]string{kernelProbeMount}, kernelProbeArguments)
-
 // kernelProbeArguments is what the staged ze is asked, after its own path.
 var kernelProbeArguments = []string{"doctor", "--json", "kernel-capabilities"}
 

@@ -88,11 +88,10 @@ func Complete(words []string) ([]leaction.Candidate, error) {
 				}
 			}
 		}
-		nextPath := append(path, word)
-		if !pathHasVisibleNode(commands, nextPath) {
-			return nil, unknownWord(path, word)
+		path = append(path, word)
+		if !pathHasVisibleNode(commands, path) {
+			return nil, unknownWord(path[:len(path)-1], word)
 		}
-		path = nextPath
 	}
 	name := strings.Join(path, " ")
 	if name != "" {

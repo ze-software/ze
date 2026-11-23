@@ -14,11 +14,11 @@ import (
 func TestGatedRowsKeepTheCommittedManifest(t *testing.T) {
 	root := t.TempDir()
 	files := map[string]string{
-		"go.mod": "module github.com/ze-software/ze\n\ngo 1.26\n",
+		"go.mod":            "module github.com/ze-software/ze\n\ngo 1.26\n",
 		"feature-gates.txt": "ze_example internal/plugins/example\n",
-		"cmd/ze/main.go": "package main\nimport _ \"github.com/ze-software/ze/internal/plugins/example\"\nfunc main() {}\n",
+		"cmd/ze/main.go":    "package main\nimport _ \"github.com/ze-software/ze/internal/plugins/example\"\nfunc main() {}\n",
 		"internal/component/plugin/registry/registry.go": "package registry\ntype Registration struct { Name, Description string; RunEngine func(); ConfigRoots []string }\nfunc Register(Registration) error { return nil }\n",
-		"internal/plugins/example/register_linux.go": "package example\nimport r \"github.com/ze-software/ze/internal/component/plugin/registry\"\nfunc init() { _ = r.Register(r.Registration{Name: \"example\", Description: \"committed\", ConfigRoots: []string{\"example-root\"}, RunEngine: func(){}}) }\n",
+		"internal/plugins/example/register_linux.go":     "package example\nimport r \"github.com/ze-software/ze/internal/component/plugin/registry\"\nfunc init() { _ = r.Register(r.Registration{Name: \"example\", Description: \"committed\", ConfigRoots: []string{\"example-root\"}, RunEngine: func(){}}) }\n",
 	}
 	for name, body := range files {
 		file := filepath.Join(root, filepath.FromSlash(name))
@@ -41,7 +41,7 @@ func TestGatedRowsKeepTheCommittedManifest(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "feature-gates.txt"), []byte("ze_dirty internal/plugins/example\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "internal/plugins/example/register_linux.go"), []byte("package example\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "internal", "plugins", "example", "register_linux.go"), []byte("package example\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	rows, err := Derive(root)

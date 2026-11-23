@@ -224,7 +224,7 @@ func TestVPPAPIPreservesOtherPackageFiles(t *testing.T) {
 
 func TestVPPAPIPinsRejectAmbiguousSource(t *testing.T) {
 	root, _ := apiFixture(t)
-	apiWriteFixture(t, filepath.Join(root, "third_party/vpp-patches/Dockerfile"), "ARG VPP_COMMIT=first\nARG VPP_COMMIT=second\nARG VPP_SHA256=digest\n")
+	apiWriteFixture(t, filepath.Join(root, "third_party", "vpp-patches", "Dockerfile"), "ARG VPP_COMMIT=first\nARG VPP_COMMIT=second\nARG VPP_SHA256=digest\n")
 	if _, err := apiSourcePins(root); err == nil {
 		t.Fatal("duplicate source commit accepted")
 	}
@@ -285,10 +285,10 @@ func TestVPPAPIRefusesSymlinkOutputDirectory(t *testing.T) {
 func apiFixture(t *testing.T) (string, string) {
 	t.Helper()
 	root := t.TempDir()
-	apiWriteFixture(t, filepath.Join(root, "third_party/vpp-patches/Dockerfile"), "ARG VPP_COMMIT=fixture-commit\nARG VPP_SHA256=fixture-sha\n")
-	apiWriteFixture(t, filepath.Join(root, "third_party/vpp-patches/Dockerfile.api"), "FROM fixture\n")
+	apiWriteFixture(t, filepath.Join(root, "third_party", "vpp-patches", "Dockerfile"), "ARG VPP_COMMIT=fixture-commit\nARG VPP_SHA256=fixture-sha\n")
+	apiWriteFixture(t, filepath.Join(root, "third_party", "vpp-patches", "Dockerfile.api"), "FROM fixture\n")
 	for _, name := range []string{"0001-fixture.patch", "ze/0001-fixture.patch"} {
-		apiWriteFixture(t, filepath.Join(root, "third_party/vpp-patches", name), "fixture patch\n")
+		apiWriteFixture(t, filepath.Join(root, "third_party", "vpp-patches", name), "fixture patch\n")
 	}
 	return root, t.TempDir()
 }

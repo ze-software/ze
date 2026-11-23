@@ -307,7 +307,7 @@ func TestTheLeFeederFlagsAHyphenatedObjectRoot(t *testing.T) {
 // VALIDATES: spec-le-subject-first-command-tree AC-19. The retired hyphenated
 // roots (`test-unit`, `test-chaos`) remain absent from leNamespaceExempt and
 // are flagged with zero exemptions counted, while the closed set of indivisible
-// compounds in leNamespaceExempt is honoured and counted.
+// compounds in leNamespaceExempt is honored and counted.
 // PREVENTS: an exemption that silently excuses a retired split, or an
 // exemption valve that stops counting what it excuses.
 func TestTheLeExemptionIsHonouredAndCounted(t *testing.T) {

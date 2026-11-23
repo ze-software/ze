@@ -12,13 +12,16 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
+// actionArgTags names the build-tags parameter shared by the CodeQL actions.
+const actionArgTags = "tags"
+
 var actions = leaction.New(area, leaction.Action{
 	Verb:    "packages",
 	Does:    "list",
 	Summary: "list tracked packages after cache dependency admission",
 	Why:     "the exact roots of the next traced build, derived from tracked Go in its actual tag context; errors never widen to ./...",
 	Parameters: []leaction.Parameter{
-		{Keyword: "tags", Kind: leaction.KindString, Value: "tags", Help: "the actual traced go build tag argument", Requirement: leaction.Required},
+		{Keyword: actionArgTags, Kind: leaction.KindString, Value: actionArgTags, Help: "the actual traced go build tag argument", Requirement: leaction.Required},
 	},
 	AnswerArgs: packagesHere,
 }, leaction.Action{
@@ -29,7 +32,7 @@ var actions = leaction.New(area, leaction.Action{
 	Why:     "bind the later database check to exact authored and excluded cache source bytes",
 	Parameters: []leaction.Parameter{
 		{Keyword: "file", Kind: leaction.KindPath, Value: "manifest", Help: "a new proof manifest in an existing task-owned directory", Requirement: leaction.Required},
-		{Keyword: "tags", Kind: leaction.KindString, Value: "tags", Help: "the actual Go build context for the explicit cache refusal", Requirement: leaction.Required},
+		{Keyword: actionArgTags, Kind: leaction.KindString, Value: actionArgTags, Help: "the actual Go build context for the explicit cache refusal", Requirement: leaction.Required},
 	},
 	AnswerArgs: prepareExtractionHere,
 }, leaction.Action{
@@ -66,7 +69,7 @@ func (report PackageReport) Text() string {
 }
 
 func packagesHere(arguments leaction.Arguments) (any, int) {
-	if !arguments.Has("tags") {
+	if !arguments.Has(actionArgTags) {
 		leaction.ReportError(errors.New("CodeQL packages requires tags '<actual go build tags>'"))
 		return nil, 2
 	}
@@ -77,7 +80,7 @@ func packagesHere(arguments leaction.Arguments) (any, int) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	target, err := BuildContext(ctx, root, arguments.One("tags"))
+	target, err := BuildContext(ctx, root, arguments.One(actionArgTags))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
@@ -100,7 +103,7 @@ func prepareExtractionHere(arguments leaction.Arguments) (any, int) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	report, err := PrepareExtraction(ctx, root, arguments.One("file"), arguments.One("tags"))
+	report, err := PrepareExtraction(ctx, root, arguments.One("file"), arguments.One(actionArgTags))
 	if err != nil {
 		leaction.ReportError(opererr.Wrap(err, "the CodeQL extraction proof could not be prepared",
 			"the later database check is bound to the sentinels and the cache refusal this step records, so without them the extraction has no proof",

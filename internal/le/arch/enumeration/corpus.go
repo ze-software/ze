@@ -186,6 +186,9 @@ func checkFloors(corpora []Corpus) error {
 	return nil
 }
 
+// pluginNamesCorpus is the name of the registered-plugin-names corpus.
+const pluginNamesCorpus = "plugin names"
+
 // pluginNames is every registered plugin name.
 func pluginNames() Corpus {
 	registrations := registry.All()
@@ -194,7 +197,7 @@ func pluginNames() Corpus {
 		names = append(names, registration.Name)
 	}
 	return Corpus{
-		Name:     "plugin names",
+		Name:     pluginNamesCorpus,
 		Producer: "registry.All()",
 		Floor:    floorPlugins,
 		// No hand-written Go literal declares this set. Each plugin's package registers
@@ -203,7 +206,7 @@ func pluginNames() Corpus {
 		// names. verifiedPluginCorpora adds the generated compile-out tables
 		// only after their native producer proves their complete content.
 		WrittenWhole: true,
-		Groups:       []Group{{Name: "plugin names", Keys: names}},
+		Groups:       []Group{{Name: pluginNamesCorpus, Keys: names}},
 	}
 }
 

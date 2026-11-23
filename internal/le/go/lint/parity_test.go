@@ -141,9 +141,11 @@ func unchangedInputs(string, job.InputSnapshot, func(string) bool) ([]job.InputC
 }
 
 // generationChanges is the input seam of a fixture that moves one input: once
-// generation reads "after", edited has changed. It is reported only when the
-// plan's population reaches it, exactly as job.ChangedInputs asks reaches.
-func generationChanges(generation *string, edited string) func(string, job.InputSnapshot, func(string) bool) ([]job.InputChange, error) {
+// generation reads "after", pkg/p00/file.go has changed. It is reported only
+// when the plan's population reaches it, exactly as job.ChangedInputs asks
+// reaches.
+func generationChanges(generation *string) func(string, job.InputSnapshot, func(string) bool) ([]job.InputChange, error) {
+	const edited = "pkg/p00/file.go"
 	return func(_ string, _ job.InputSnapshot, reaches func(string) bool) ([]job.InputChange, error) {
 		if *generation == "after" && reaches(edited) {
 			return []job.InputChange{{Path: edited, Kind: job.ChangedContent}}, nil
@@ -365,7 +367,7 @@ func TestPlanRefusesInputChangesBetweenFlavors(t *testing.T) {
 				root, tracked := lintFixture(t)
 				ops, calls := fixtureOps(root, tracked)
 				generation := "before"
-				ops.inputChanges = generationChanges(&generation, "pkg/p00/file.go")
+				ops.inputChanges = generationChanges(&generation)
 				capture := ops.capture
 				queries := 0
 				ops.capture = func(ctx context.Context, argv []string, dir string, environment []string) commandResult {
@@ -451,7 +453,7 @@ func TestPlanInputDriftPreservesQueryErrors(t *testing.T) {
 	root, tracked := lintFixture(t)
 	ops, _ := fixtureOps(root, tracked)
 	generation := "before"
-	ops.inputChanges = generationChanges(&generation, "pkg/p00/file.go")
+	ops.inputChanges = generationChanges(&generation)
 	want := errors.New("fixture go-list failure")
 	ops.capture = func(context.Context, []string, string, []string) commandResult {
 		generation = "after"
@@ -476,7 +478,7 @@ func TestPlanRefusesCoverageInputDrift(t *testing.T) {
 	root, tracked := lintFixture(t)
 	ops, _ := fixtureOps(root, tracked)
 	generation := "before"
-	ops.inputChanges = generationChanges(&generation, "pkg/p00/file.go")
+	ops.inputChanges = generationChanges(&generation)
 	capture := ops.capture
 	ops.capture = func(ctx context.Context, argv []string, dir string, environment []string) commandResult {
 		result := capture(ctx, argv, dir, environment)

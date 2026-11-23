@@ -107,7 +107,7 @@ func pdCPE() node {
 func init() {
 	scenarios[pppoeDHCPv6PDScenario] = scenario{
 		nodes: []node{
-			{name: nodeAccel, image: accelImage, host: 2, config: "accel-ppp.conf", mountedAt: "/etc/accel-ppp.conf",
+			{name: nodeAccel, image: accelImage, host: 2, config: accelConfigFile, mountedAt: accelConfigMount,
 				capabilities: []string{capabilityNetAdmin},
 				arguments:    append(interoplab.PPPDeviceArguments(), ipv6On...),
 				prestart: "mkdir -p /etc/accel-ppp /var/log; printf '%s\\n' '" + pdAccelChapLines + "' > /etc/accel-ppp/chap-secrets\n" +
@@ -122,6 +122,6 @@ func init() {
 				Devices: map[string]string{nodeCPE: pdLANDevice}},
 		},
 		checker:            checkPPPoEDHCPv6PD,
-		kernelCapabilities: []string{"pppoe"},
+		kernelCapabilities: []string{kernelCapPPPoE},
 	}
 }

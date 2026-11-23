@@ -92,6 +92,15 @@ const (
 	commandSleep = "sleep"
 	// dockerEntrypoint is the docker run flag that replaces the image entrypoint.
 	dockerEntrypoint = "--entrypoint"
+	// sysctlIPv4Forward enables IPv4 forwarding in a container namespace.
+	sysctlIPv4Forward = "net.ipv4.ip_forward=1"
+	// Kernel capabilities the topology scenarios require from the Docker host.
+	kernelCapPPPoE   = "pppoe"
+	kernelCapL2TP    = "l2tp"
+	kernelCapL2TPPPP = "l2tp-ppp"
+	// accelConfigFile and accelConfigMount are accel-ppp's scenario file and container mount path.
+	accelConfigFile  = "accel-ppp.conf"
+	accelConfigMount = "/etc/accel-ppp.conf"
 )
 
 // subscriberRoutes is the prestart line that sends the subscriber prefixes to
@@ -121,26 +130,28 @@ type homeOptions struct {
 // the internet nodes the LNS routes. The CPE starts after every server, so
 // what it dials is listening; the LAN nodes start last.
 func homeLab(checker interoplab.Checker, options homeOptions) scenario {
-	lns := zeNode(nodeLNS, 3, "", append(interoplab.PPPDeviceArguments(), dockerSysctl, "net.ipv4.ip_forward=1")...)
+	lns := zeNode(nodeLNS, 3, "", append(interoplab.PPPDeviceArguments(), dockerSysctl, sysctlIPv4Forward)...)
 	lns.config = ""
 	lns.shared = []sharedFile{{source: "test/interop-topology/scenarios/access-up/ze-lns.conf", target: zeMountedConfig}}
-	lns.ready = []string{"sh", "-c", "ss -lun | grep -q ':1701 '"}
+	lns.ready = []string{"sh", "-c", l2tpReadyCommand}
 	nodes := []node{accessRADIUS(options.usersCopy), lns, accessLAC()}
 	core := []string{nodeLAC, nodeLNS, nodeRADIUS}
 	if options.dns != nil {
 		nodes = append(nodes, *options.dns)
 		core = append(core, nodeDNS)
 	}
-	internet := []string{nodeLNS}
-	for _, member := range options.internet {
-		nodes = append(nodes, member)
-		internet = append(internet, member.name)
+	internet := make([]string, 0, 1+len(options.internet))
+	internet = append(internet, nodeLNS)
+	for i := range options.internet {
+		nodes = append(nodes, options.internet[i])
+		internet = append(internet, options.internet[i].name)
 	}
 	nodes = append(nodes, convertedCPE())
-	lan := []string{nodeCPE}
-	for _, member := range options.lan {
-		nodes = append(nodes, member)
-		lan = append(lan, member.name)
+	lan := make([]string, 0, 1+len(options.lan))
+	lan = append(lan, nodeCPE)
+	for i := range options.lan {
+		nodes = append(nodes, options.lan[i])
+		lan = append(lan, options.lan[i].name)
 	}
 	links := []interoplab.Link{
 		{Name: homeAccessLink, VLAN: 193, Members: []string{nodeLAC, nodeCPE}},
@@ -156,7 +167,7 @@ func homeLab(checker interoplab.Checker, options homeOptions) scenario {
 		links:              links,
 		checker:            checker,
 		prepare:            prepareHomeCPE(options.cpeKey),
-		kernelCapabilities: []string{"pppoe", "l2tp", "l2tp-ppp", "wireguard", "ipsec", "ipsec-esp-*", "ipsec-transform-*", "xfrm-interface"},
+		kernelCapabilities: []string{kernelCapPPPoE, kernelCapL2TP, kernelCapL2TPPPP, "wireguard", "ipsec", "ipsec-esp-*", "ipsec-transform-*", "xfrm-interface"},
 	}
 }
 
@@ -185,7 +196,7 @@ func homeLab(checker interoplab.Checker, options homeOptions) scenario {
 func convertedCPE() node {
 	arguments := append(interoplab.PPPDeviceArguments(), interoplab.TUNDeviceArguments()...)
 	cpe := zeNode(nodeCPE, 5, "", append(arguments,
-		dockerSysctl, "net.ipv4.ip_forward=1", dockerSysctl, "net.ipv6.conf.all.disable_ipv6=0")...)
+		dockerSysctl, sysctlIPv4Forward, dockerSysctl, "net.ipv6.conf.all.disable_ipv6=0")...)
 	cpe.config = ""
 	// ze-cpe.conf carries `vpn ipsec` with no application-override, so the
 	// default deny attaches the override guard (capabilityBPF).

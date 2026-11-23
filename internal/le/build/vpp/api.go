@@ -157,7 +157,7 @@ func apiRunGenerator(ctx context.Context, process interoplab.ProcessRunner,
 }
 
 func apiReadJSON(ctx context.Context, docker apiDocker, image, input, name string) (retErr error) {
-	file, err := os.OpenFile(filepath.Join(input, name+".api.json"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	file, err := os.OpenFile(filepath.Join(input, name+".api.json"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // G304: input is our freshly created temp directory and name is a fixed package literal from generateAPI.
 	if err != nil {
 		return err
 	}

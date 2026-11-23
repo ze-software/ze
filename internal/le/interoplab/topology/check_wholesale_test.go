@@ -16,11 +16,11 @@ func TestRenegotiatedVerdict(t *testing.T) {
 		detail proxyLCPDetail
 		want   string
 	}{
-		{"renegotiated", proxyLCPDetail{l2tpSession: l2tpSession{Auth: chap}, ProxyLCP: text("renegotiated")}, ""},
-		{"accepted", proxyLCPDetail{l2tpSession: l2tpSession{Auth: chap}, ProxyLCP: text("accepted")}, "want renegotiated"},
-		{"none", proxyLCPDetail{l2tpSession: l2tpSession{Auth: chap}, ProxyLCP: text("none")}, "want renegotiated"},
-		{"null", proxyLCPDetail{l2tpSession: l2tpSession{Auth: chap}}, "proxy-lcp null"},
-		{"pap", proxyLCPDetail{l2tpSession: l2tpSession{Auth: text("pap")}, ProxyLCP: text("renegotiated")}, "want chap-md5"},
+		{"renegotiated", proxyLCPDetail{Auth: chap, ProxyLCP: text("renegotiated")}, ""},
+		{"accepted", proxyLCPDetail{Auth: chap, ProxyLCP: text("accepted")}, "want renegotiated"},
+		{"none", proxyLCPDetail{Auth: chap, ProxyLCP: text("none")}, "want renegotiated"},
+		{"null", proxyLCPDetail{Auth: chap}, "proxy-lcp null"},
+		{"pap", proxyLCPDetail{Auth: text("pap"), ProxyLCP: text("renegotiated")}, "want chap-md5"},
 	} {
 		err := renegotiatedVerdict(tc.detail)
 		if tc.want == "" {

@@ -357,19 +357,22 @@ func minifyJS(content []byte) ([]byte, error) {
 					i += min(2, len(content)-i)
 					continue
 				}
-				if c == '[' {
-					inClass = true
-				} else if c == ']' {
-					inClass = false
-				} else if c == '/' && !inClass {
+				if c == '\n' {
+					break
+				}
+				if c == '/' && !inClass {
 					i++
 					for i < len(content) && isJSIdentPart(content[i]) {
 						i++
 					}
 					closed = true
 					break
-				} else if c == '\n' {
-					break
+				}
+				switch c {
+				case '[':
+					inClass = true
+				case ']':
+					inClass = false
 				}
 				i++
 			}

@@ -151,17 +151,17 @@ func TestReservationVerdict(t *testing.T) {
 func TestDropCounter(t *testing.T) {
 	ruleset := `{"nftables":[{"metainfo":{}},{"rule":{"expr":[{"counter":{"packets":7,"bytes":420}},` +
 		`{"log":{"prefix":"[ipv4-input-default-D]"}},{"drop":null}]}}]}`
-	count, err := dropCounter(ruleset, defaultDropPrefix)
+	count, err := dropCounter(ruleset)
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
 	if count != 7 {
 		t.Fatalf("read %d, want 7", count)
 	}
-	if _, err := dropCounter(`{"nftables":[]}`, defaultDropPrefix); err == nil {
+	if _, err := dropCounter(`{"nftables":[]}`); err == nil {
 		t.Error("a ruleset with no default term was accepted")
 	}
-	if _, err := dropCounter(`{"nftables":[{"rule":{"expr":[{"log":{"prefix":"[ipv4-input-default-D]"}}]}}]}`, defaultDropPrefix); err == nil {
+	if _, err := dropCounter(`{"nftables":[{"rule":{"expr":[{"log":{"prefix":"[ipv4-input-default-D]"}}]}}]}`); err == nil {
 		t.Error("a default term with no counter was read as zero")
 	}
 }

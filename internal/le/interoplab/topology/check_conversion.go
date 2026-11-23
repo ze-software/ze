@@ -50,8 +50,8 @@ func checkConversion(ctx context.Context, check *interoplab.CheckContext) error 
 	if _, err := waitCPEAddress(ctx, check, subscriberAddress, func(held netip.Addr) bool { return held.String() == subscriberAddress }); err != nil {
 		return err
 	}
-	for _, device := range []string{"br0", "wg0", "vti0"} {
-		if _, err := execOK(ctx, check, nodeCPE, []string{"ip", "-o", "link", "show", "dev", device}); err != nil {
+	for _, device := range []string{"br0", wgDevice, "vti0"} {
+		if _, err := execOK(ctx, check, nodeCPE, []string{"ip", "-o", ipWordLink, wordShow, ipWordDev, device}); err != nil {
 			return fmt.Errorf("the kernel holds no %s although Ze started with the conversion: %w", device, err)
 		}
 	}

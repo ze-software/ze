@@ -226,7 +226,7 @@ var vtiIPv6EvidenceReads = slices.Concat(
 	[]vtiIPv6Read{{zePeer, pingCommand(pingProbe{peer: zePeer, target: vtiIPv6SwanInner, source: vtiIPv6ZeInner}, 1)}},
 	vtiIPv6PeerReads(zePeer, vtiIPv6Interface),
 	[]vtiIPv6Read{
-		{zePeer, []string{"ip", "-d", "-s", "-s", "link", ipWordShow, vtiIPv6Interface}},
+		{zePeer, []string{"ip", "-d", "-s", "-s", ipObjectLink, ipWordShow, vtiIPv6Interface}},
 		{zePeer, []string{"nft", "-a", "list", "ruleset"}},
 	},
 	vtiIPv6PeerReads(swanPeer, containerInterface),

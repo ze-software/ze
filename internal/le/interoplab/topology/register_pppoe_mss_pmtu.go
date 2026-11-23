@@ -43,26 +43,26 @@ const (
 func init() {
 	scenarios[pppoeMSSPMTUScenario] = scenario{
 		nodes: []node{
-			{name: nodeAccel, image: accelImage, host: 2, config: "accel-ppp.conf", mountedAt: "/etc/accel-ppp.conf",
+			{name: nodeAccel, image: accelImage, host: 2, config: accelConfigFile, mountedAt: accelConfigMount,
 				capabilities: []string{capabilityNetAdmin},
-				arguments:    append(interoplab.PPPDeviceArguments(), "--sysctl", "net.ipv4.ip_forward=1"),
+				arguments:    append(interoplab.PPPDeviceArguments(), dockerSysctl, sysctlIPv4Forward),
 				prestart:     "mkdir -p /etc/accel-ppp; printf '%s\\n' '" + accelChapLines + "' > /etc/accel-ppp/chap-secrets"},
 			{name: nodeServer, image: zeImage, host: 5,
 				capabilities: []string{capabilityNetAdmin},
-				arguments:    []string{"--entrypoint", "tcpdump"},
+				arguments:    []string{dockerEntrypoint, commandTcpdump},
 				command:      []string{"-p", "-n", "-U", "-i", "eth1", "-w", serverCapture, "tcp[tcpflags] & tcp-syn != 0"},
 				prestart:     "ip route add " + sessionPool + " via " + accelCoreHop + " dev eth1"},
-			zeNode(nodeCPE, 3, "ze-cpe.conf", append(interoplab.PPPDeviceArguments(), "--sysctl", "net.ipv4.ip_forward=1")...),
+			zeNode(nodeCPE, 3, "ze-cpe.conf", append(interoplab.PPPDeviceArguments(), dockerSysctl, sysctlIPv4Forward)...),
 			{name: nodeLANHost, image: zeImage, host: 4,
 				capabilities: []string{capabilityNetAdmin},
-				arguments:    []string{"--entrypoint", "sleep"}, command: []string{"infinity"}},
+				arguments:    []string{dockerEntrypoint, commandSleep}, command: []string{sleepForever}},
 		},
 		links: []interoplab.Link{
-			{Name: "access", VLAN: 184, Members: []string{nodeAccel, nodeCPE}},
+			{Name: accessLink, VLAN: 184, Members: []string{nodeAccel, nodeCPE}},
 			{Name: "lan", VLAN: 185, IPv4: netip.MustParsePrefix("10.185.1.0/24"), Members: []string{nodeCPE, nodeLANHost}},
 			{Name: "core", VLAN: 186, IPv4: netip.MustParsePrefix("10.186.1.0/24"), Members: []string{nodeAccel, nodeServer}},
 		},
 		checker:            checkMSSPMTU,
-		kernelCapabilities: []string{"pppoe"},
+		kernelCapabilities: []string{kernelCapPPPoE},
 	}
 }

@@ -36,11 +36,11 @@ func init() {
 	scenarios[staticLinkChainScenario] = scenario{
 		nodes: []node{
 			zeNode(nodeA, 2, "ze-a.conf"),
-			zeNode(nodeB, 3, "ze-b.conf", "--sysctl", "net.ipv4.ip_forward=1"),
+			zeNode(nodeB, 3, "ze-b.conf", dockerSysctl, sysctlIPv4Forward),
 			zeNode(nodeC, 4, "ze-c.conf"),
 			{name: "outside", image: zeImage, host: 5,
-				arguments: []string{"--entrypoint", "tcpdump"},
-				command: []string{"-p", "-n", "-U", "-i", "eth0", "-w", outsideCapture,
+				arguments: []string{dockerEntrypoint, commandTcpdump},
+				command: []string{"-p", "-n", "-U", "-i", containerInterface, "-w", outsideCapture,
 					"ip net " + linkABPrefix.String() + " or arp net " + linkABPrefix.String()}},
 		},
 		links: []interoplab.Link{

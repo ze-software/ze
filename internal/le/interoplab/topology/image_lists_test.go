@@ -26,7 +26,8 @@ type buildShape struct {
 
 func shapes(builds []interoplab.ImageBuild) []buildShape {
 	out := make([]buildShape, 0, len(builds))
-	for _, build := range builds {
+	for i := range builds {
+		build := &builds[i]
 		out = append(out, buildShape{Tag: build.Tag, Dockerfile: build.Dockerfile, Context: build.Context,
 			Required: build.Required, Pull: build.Pull})
 	}

@@ -46,7 +46,7 @@ func checkPPPoEDHCPv6PD(ctx context.Context, check *interoplab.CheckContext) err
 		return err
 	}
 	if err := pollUntil(ctx, pdWait, "::/0 via "+pdAccelLinkLocal+" on "+cpeDevice, func() error {
-		answer, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-6", ipWordRoute, wordShow, "default"}, nil)
+		answer, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-6", ipWordRoute, wordShow, ipWordDefault}, nil)
 		if err != nil {
 			return err
 		}
@@ -55,7 +55,7 @@ func checkPPPoEDHCPv6PD(ctx context.Context, check *interoplab.CheckContext) err
 		return err
 	}
 	if err := pollUntil(ctx, pdWait, cpeDevice+" holds a SLAAC address in "+pdSLAACPool, func() error {
-		answer, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", "-6", ipWordAddress, wordShow, ipWordDev, cpeDevice, "scope", "global"}, nil)
+		answer, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", "-6", ipWordAddress, wordShow, ipWordDev, cpeDevice, ipWordScope, ipWordGlobal}, nil)
 		if err != nil {
 			return err
 		}
@@ -168,7 +168,7 @@ func defaultRouterVerdict(answer, router, device string) error {
 		if len(fields) < 5 {
 			continue
 		}
-		if fields[0] != "default" {
+		if fields[0] != ipWordDefault {
 			continue
 		}
 		if strings.Join(fields[1:5], " ") == "via "+router+" "+ipWordDev+" "+device {

@@ -24,6 +24,16 @@ func parsedBindingFiles(t *testing.T, sources ...string) []*ast.File {
 	return files
 }
 
+// mustAs asserts that value has concrete type T in a parsed fixture AST.
+func mustAs[T any](t *testing.T, value any) T {
+	t.Helper()
+	got, ok := value.(T)
+	if !ok {
+		t.Fatalf("unexpected AST node type %T", value)
+	}
+	return got
+}
+
 // TestParsedBindingsRetainDeclarationIdentity compares authored definitions
 // and uses across files, local shadows and package-initializer closures.
 func TestParsedBindingsRetainDeclarationIdentity(t *testing.T) {
@@ -34,7 +44,7 @@ var prepared = func() int { first = 3; return first }()
 func use() { first := second; first = 4; _ = first }
 `)
 	view := NewParsedBindings(files, ParsedBindingOptions{})
-	group := files[0].Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec)
+	group := mustAs[*ast.ValueSpec](t, mustAs[*ast.GenDecl](t, files[0].Decls[0]).Specs[0])
 	first, known := view.Binding(files[0], group.Names[0])
 	if !known {
 		t.Fatal("package definition is unknown")
@@ -58,8 +68,9 @@ func use() { first := second; first = 4; _ = first }
 	if first.Kind() != ParsedBindingVariable {
 		t.Fatal("variable kind was lost")
 	}
-	closure := files[0].Decls[1].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0].(*ast.CallExpr).Fun.(*ast.FuncLit)
-	write := closure.Body.List[0].(*ast.AssignStmt).Lhs[0].(*ast.Ident)
+	prepared := mustAs[*ast.ValueSpec](t, mustAs[*ast.GenDecl](t, files[0].Decls[1]).Specs[0])
+	closure := mustAs[*ast.FuncLit](t, mustAs[*ast.CallExpr](t, prepared.Values[0]).Fun)
+	write := mustAs[*ast.Ident](t, mustAs[*ast.AssignStmt](t, closure.Body.List[0]).Lhs[0])
 	bound, known := view.Binding(files[0], write)
 	if !known {
 		t.Fatal("initializer closure write is unknown")
@@ -67,16 +78,16 @@ func use() { first := second; first = 4; _ = first }
 	if bound != first {
 		t.Fatal("initializer closure write lost package ownership")
 	}
-	function := files[1].Decls[0].(*ast.FuncDecl)
-	local := function.Body.List[0].(*ast.AssignStmt)
-	bound, known = view.Binding(files[1], local.Rhs[0].(*ast.Ident))
+	function := mustAs[*ast.FuncDecl](t, files[1].Decls[0])
+	local := mustAs[*ast.AssignStmt](t, function.Body.List[0])
+	bound, known = view.Binding(files[1], mustAs[*ast.Ident](t, local.Rhs[0]))
 	if !known {
 		t.Fatal("cross-file reference is unknown")
 	}
 	if bound != second {
 		t.Fatal("cross-file reference borrowed another declaration")
 	}
-	shadow, known := view.Binding(files[1], local.Lhs[0].(*ast.Ident))
+	shadow, known := view.Binding(files[1], mustAs[*ast.Ident](t, local.Lhs[0]))
 	if !known {
 		t.Fatal("local definition is unknown")
 	}
@@ -86,8 +97,8 @@ func use() { first := second; first = 4; _ = first }
 	if shadow.Package() {
 		t.Fatal("local shadow became package-scoped")
 	}
-	assignment := function.Body.List[1].(*ast.AssignStmt)
-	bound, known = view.Binding(files[1], assignment.Lhs[0].(*ast.Ident))
+	assignment := mustAs[*ast.AssignStmt](t, function.Body.List[1])
+	bound, known = view.Binding(files[1], mustAs[*ast.Ident](t, assignment.Lhs[0]))
 	if !known {
 		t.Fatal("local write is unknown")
 	}
@@ -215,14 +226,15 @@ var unknown = foreign.Fields{key: 1}
 		}
 		return ParsedKeysUnknown
 	}})
-	definition := files[0].Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Names[0]
+	definition := mustAs[*ast.ValueSpec](t, mustAs[*ast.GenDecl](t, files[0].Decls[0]).Specs[0]).Names[0]
 	want, known := view.Binding(files[0], definition)
 	if !known {
 		t.Fatal("constant definition is unknown")
 	}
 	for index, state := range []string{"map", "struct", "unknown"} {
-		literal := files[0].Decls[index+4].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0].(*ast.CompositeLit)
-		key := literal.Elts[0].(*ast.KeyValueExpr).Key.(*ast.Ident)
+		valueSpec := mustAs[*ast.ValueSpec](t, mustAs[*ast.GenDecl](t, files[0].Decls[index+4]).Specs[0])
+		literal := mustAs[*ast.CompositeLit](t, valueSpec.Values[0])
+		key := mustAs[*ast.Ident](t, mustAs[*ast.KeyValueExpr](t, literal.Elts[0]).Key)
 		binding, known := view.Binding(files[0], key)
 		switch state {
 		case "map":
@@ -252,8 +264,8 @@ var unknown = foreign.Fields{key: 1}
 func TestParsedBindingsRefuseForeignSyntax(t *testing.T) {
 	files := parsedBindingFiles(t, "package example; var value = 1; func use() { _ = value }")
 	view := NewParsedBindings(files, ParsedBindingOptions{})
-	assignment := files[0].Decls[1].(*ast.FuncDecl).Body.List[0].(*ast.AssignStmt)
-	blank := assignment.Lhs[0].(*ast.Ident)
+	assignment := mustAs[*ast.AssignStmt](t, mustAs[*ast.FuncDecl](t, files[0].Decls[1]).Body.List[0])
+	blank := mustAs[*ast.Ident](t, assignment.Lhs[0])
 	bound, known := view.Binding(files[0], blank)
 	if !known {
 		t.Fatal("blank identifier is not classified")
@@ -265,7 +277,8 @@ func TestParsedBindingsRefuseForeignSyntax(t *testing.T) {
 		t.Fatal("fabricated syntax acquired a declaration")
 	}
 	foreign := parsedBindingFiles(t, "package example; var value = 1")[0]
-	if _, known := view.Binding(foreign, assignment.Rhs[0].(*ast.Ident)); known {
+	valueRef := mustAs[*ast.Ident](t, assignment.Rhs[0])
+	if _, known := view.Binding(foreign, valueRef); known {
 		t.Fatal("foreign file acquired a declaration")
 	}
 	for _, test := range []struct {
@@ -276,7 +289,7 @@ func TestParsedBindingsRefuseForeignSyntax(t *testing.T) {
 		{name: "zero", view: &ParsedBindings{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			binding, known := test.view.Binding(files[0], assignment.Rhs[0].(*ast.Ident))
+			binding, known := test.view.Binding(files[0], valueRef)
 			if known {
 				t.Fatal("an uninitialized view classified retained syntax")
 			}
@@ -298,8 +311,8 @@ var codes = 1
 func use() { _ = codes; _ = append; _ = named.Value }
 `)
 	view := NewParsedBindings(files, ParsedBindingOptions{})
-	body := files[0].Decls[3].(*ast.FuncDecl).Body
-	use := body.List[0].(*ast.AssignStmt).Rhs[0].(*ast.Ident)
+	body := mustAs[*ast.FuncDecl](t, files[0].Decls[3]).Body
+	use := mustAs[*ast.Ident](t, mustAs[*ast.AssignStmt](t, body.List[0]).Rhs[0])
 	bound, known := view.Binding(files[0], use)
 	if !known {
 		t.Fatal("unknown import hid a valid package declaration")
@@ -307,12 +320,13 @@ func use() { _ = codes; _ = append; _ = named.Value }
 	if !bound.Package() {
 		t.Fatal("package reference became local")
 	}
-	builtin := body.List[1].(*ast.AssignStmt).Rhs[0].(*ast.Ident)
+	builtin := mustAs[*ast.Ident](t, mustAs[*ast.AssignStmt](t, body.List[1]).Rhs[0])
 	if _, known := view.Binding(files[0], builtin); known {
 		t.Fatal("unknown import borrowed universe append")
 	}
-	selected := body.List[2].(*ast.AssignStmt).Rhs[0].(*ast.SelectorExpr)
-	bound, known = view.Binding(files[0], selected.X.(*ast.Ident))
+	selected := mustAs[*ast.SelectorExpr](t, mustAs[*ast.AssignStmt](t, body.List[2]).Rhs[0])
+	selectedRoot := mustAs[*ast.Ident](t, selected.X)
+	bound, known = view.Binding(files[0], selectedRoot)
 	if !known {
 		t.Fatal("explicit import alias became unknown")
 	}
@@ -337,7 +351,7 @@ func use() { _ = codes; _ = append; _ = named.Value }
 	if bound.Kind() != ParsedBindingUniverse {
 		t.Fatal("resolved imports lost universe provenance")
 	}
-	definition := files[0].Decls[2].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Names[0]
+	definition := mustAs[*ast.ValueSpec](t, mustAs[*ast.GenDecl](t, files[0].Decls[2]).Specs[0]).Names[0]
 	for _, test := range []struct {
 		name        string
 		packageName string
@@ -370,7 +384,7 @@ func use() { _ = codes; _ = append; _ = named.Value }
 			if binding.Ident() != definition {
 				t.Fatal("the package reference lost its authored declaration")
 			}
-			binding, known = candidate.Binding(files[0], selected.X.(*ast.Ident))
+			binding, known = candidate.Binding(files[0], selectedRoot)
 			if !known {
 				t.Fatal("an unresolved import callback hid the explicit alias")
 			}

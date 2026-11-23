@@ -44,7 +44,7 @@ func accelLNS() node {
 // UDP socket table: 06A5 is port 1701.
 func accelLNSFor(chapLines string) node {
 	return node{name: nodeAccelLNS, image: accelImage, host: 3,
-		config: "accel-ppp.conf", mountedAt: "/etc/accel-ppp.conf",
+		config: accelConfigFile, mountedAt: accelConfigMount,
 		capabilities: []string{capabilityNetAdmin},
 		arguments:    interoplab.PPPDeviceArguments(),
 		prestart:     "mkdir -p /etc/accel-ppp /var/log; printf '%s\\n' '" + chapLines + "' > /etc/accel-ppp/chap-secrets",
@@ -58,14 +58,14 @@ func accelLNSFor(chapLines string) node {
 func wholesaleAccelChain(checker interoplab.Checker) scenario {
 	chain := wholesaleChain(accessChain(checker))
 	nodes := make([]node, 0, len(chain.nodes))
-	for _, member := range chain.nodes {
-		switch member.name {
+	for i := range chain.nodes {
+		switch chain.nodes[i].name {
 		case nodeRADIUS:
 			continue
 		case nodeLNS:
 			nodes = append(nodes, accelLNS())
 		default:
-			nodes = append(nodes, member)
+			nodes = append(nodes, chain.nodes[i])
 		}
 	}
 	chain.nodes = nodes

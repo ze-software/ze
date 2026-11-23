@@ -35,11 +35,18 @@ const (
 
 // The argv words the access checkers repeat across their state reads.
 const (
-	ipWordAddress = "address"
-	ipWordRoute   = "route"
-	ipWordDev     = "dev"
-	commandCat    = "cat"
-	commandPing   = "ping"
+	containerInterface = "eth0"
+	ipWordAddress      = "address"
+	ipWordDefault      = "default"
+	ipWordDev          = "dev"
+	ipWordGlobal       = "global"
+	ipWordLink         = "link"
+	ipWordReplace      = "replace"
+	ipWordRoute        = "route"
+	ipWordScope        = "scope"
+	commandCat         = "cat"
+	commandPing        = "ping"
+	commandTcpdump     = "tcpdump"
 )
 
 // sessionUpTimeout bounds discovery, the L2TP dial, LCP, CHAP through
@@ -81,7 +88,7 @@ func checkAccessUp(ctx context.Context, check *interoplab.CheckContext) error {
 	if err := checkOption6PassThrough(ctx, check); err != nil {
 		return err
 	}
-	return checkPingAcross(ctx, check, nodeLNS, subscriber, pingCount)
+	return checkPingAcross(ctx, check, nodeLNS, subscriber)
 }
 
 // checkAccessPool proves access-pool: the subscriber's Access-Accept carries
@@ -135,7 +142,7 @@ func checkAccessAccounting(ctx context.Context, check *interoplab.CheckContext) 
 	if err := waitAccounting(ctx, check, statusStart, 30*time.Second); err != nil {
 		return err
 	}
-	if err := checkPingAcross(ctx, check, nodeLNS, subscriber, pingCount, "-s", strconv.Itoa(pingPayload)); err != nil {
+	if err := checkPingAcross(ctx, check, nodeLNS, subscriber, "-s", strconv.Itoa(pingPayload)); err != nil {
 		return err
 	}
 	// RFC 2869 Section 5.16: "The value MUST NOT be smaller than 60." The
@@ -157,7 +164,7 @@ func waitCPEAddress(ctx context.Context, check *interoplab.CheckContext, want st
 		Timeout: sessionUpTimeout, Interval: 2 * time.Second,
 		Description: "ze-cpe " + cpeDevice + " holding " + want,
 	}, func(probe context.Context) (string, error) {
-		return check.Lab.Query(probe, nodeCPE, []string{"ip", "-o", "-4", ipWordAddress, "show", ipWordDev, cpeDevice}, nil)
+		return check.Lab.Query(probe, nodeCPE, []string{"ip", "-o", "-4", ipWordAddress, wordShow, ipWordDev, cpeDevice}, nil)
 	}, func(answer string) bool {
 		held, err := pppAddressOn(answer, cpeDevice)
 		if err != nil {
@@ -228,7 +235,7 @@ func checkLACRelays(ctx context.Context, check *interoplab.CheckContext) error {
 	if !sessionOnDevice(table, access.Device) {
 		return fmt.Errorf("ze-lac's /proc/net/pppoe holds no session on %s, the access link:\n%s", access.Device, table)
 	}
-	addresses, err := check.Lab.Query(ctx, nodeLAC, []string{"ip", "-o", "-4", ipWordAddress, "show"}, nil)
+	addresses, err := check.Lab.Query(ctx, nodeLAC, []string{"ip", "-o", "-4", ipWordAddress, wordShow}, nil)
 	if err != nil {
 		return fmt.Errorf("read ze-lac's addresses: %w", err)
 	}
@@ -321,7 +328,7 @@ func checkNegotiated(ctx context.Context, check *interoplab.CheckContext, sessio
 	if *detail.Auth != "chap-md5" {
 		return fmt.Errorf("ze-lns's session detail reports auth-method %s, want chap-md5", *detail.Auth)
 	}
-	device, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", "link", "show", ipWordDev, cpeDevice}, nil)
+	device, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", ipWordLink, wordShow, ipWordDev, cpeDevice}, nil)
 	if err != nil {
 		return fmt.Errorf("read ze-cpe's %s: %w", cpeDevice, err)
 	}
@@ -421,12 +428,12 @@ func waitResolvers(ctx context.Context, check *interoplab.CheckContext) error {
 // route to the LNS's PPP address leaves on the PPPoE device, it pings that
 // address with no loss, and the LNS's PPP interface toward the subscriber
 // received at least the pings sent, so the pings crossed the LAC's bridge.
-func checkPingAcross(ctx context.Context, check *interoplab.CheckContext, lns string, subscriber netip.Addr, count int, extra ...string) error {
+func checkPingAcross(ctx context.Context, check *interoplab.CheckContext, lns string, subscriber netip.Addr, extra ...string) error {
 	// Exec, not Query: an eth0 with no IPv4 address is the answer this clause
 	// wants, and `ip` prints nothing for it with exit 0, which Query refuses as
 	// unmeasured (EmptyAnswerError). Exec still fails on a non-zero exit, so a
 	// missing device or a dead container is not read as "no address".
-	eth0, err := check.Lab.Exec(ctx, nodeCPE, []string{"ip", "-o", "-4", ipWordAddress, "show", ipWordDev, "eth0"}, nil)
+	eth0, err := check.Lab.Exec(ctx, nodeCPE, []string{"ip", "-o", "-4", ipWordAddress, wordShow, ipWordDev, containerInterface}, nil)
 	if err != nil {
 		return fmt.Errorf("read ze-cpe's eth0: %w", err)
 	}
@@ -444,21 +451,21 @@ func checkPingAcross(ctx context.Context, check *interoplab.CheckContext, lns st
 	if err != nil {
 		return err
 	}
-	argv := append([]string{commandPing, "-c", strconv.Itoa(count), "-W", "2"}, extra...)
+	argv := append([]string{commandPing, "-c", strconv.Itoa(pingCount), "-W", "2"}, extra...)
 	result, err := check.Lab.Exec(ctx, nodeCPE, append(argv, poolGateway), nil)
 	if err != nil {
 		return fmt.Errorf("ping %s from ze-cpe: %w", poolGateway, err)
 	}
-	if err := pingVerdict(result.Stdout, count); err != nil {
+	if err := pingVerdict(result.Stdout); err != nil {
 		return err
 	}
 	_, after, err := lnsReceived(ctx, check, lns, subscriber)
 	if err != nil {
 		return err
 	}
-	if after < before+uint64(count) {
+	if after < before+uint64(pingCount) {
 		return fmt.Errorf("%s's %s received %d packets during %d pings, so the replies did not come from the session", lns,
-			device, after-before, count)
+			device, after-before, pingCount)
 	}
 	return nil
 }
@@ -466,7 +473,7 @@ func checkPingAcross(ctx context.Context, check *interoplab.CheckContext, lns st
 // lnsReceived answers the PPP device of LNS node lns toward subscriber and its
 // received-packet counter.
 func lnsReceived(ctx context.Context, check *interoplab.CheckContext, lns string, subscriber netip.Addr) (string, uint64, error) {
-	addresses, err := check.Lab.Query(ctx, lns, []string{"ip", "-o", "-4", ipWordAddress, "show"}, nil)
+	addresses, err := check.Lab.Query(ctx, lns, []string{"ip", "-o", "-4", ipWordAddress, wordShow}, nil)
 	if err != nil {
 		return "", 0, fmt.Errorf("read %s's addresses: %w", lns, err)
 	}

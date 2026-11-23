@@ -48,8 +48,8 @@ func rewriteDocLinks(body, docRel string, manifest map[string]string, destinatio
 			return attribute
 		}
 		resolved := path.Join(sourceDirectory, target)
-		if strings.HasPrefix(resolved, "../docs/") {
-			resolved = strings.TrimPrefix(resolved, "../docs/")
+		if trimmed, ok := strings.CutPrefix(resolved, "../docs/"); ok {
+			resolved = trimmed
 		}
 		if strings.HasSuffix(target, "/") {
 			return `href="` + codeHostTree + docHostPath(resolved) + `" target="_blank" rel="noopener"`
@@ -92,8 +92,8 @@ func rewriteDocLinksMarkdown(source, docRel string, manifest map[string]string, 
 			return link
 		}
 		resolved := path.Join(sourceDirectory, target)
-		if strings.HasPrefix(resolved, "../docs/") {
-			resolved = strings.TrimPrefix(resolved, "../docs/")
+		if trimmed, ok := strings.CutPrefix(resolved, "../docs/"); ok {
+			resolved = trimmed
 		}
 		if strings.HasSuffix(target, "/") {
 			return "[" + label + "](" + codeHostTree + docHostPath(resolved) + ")"

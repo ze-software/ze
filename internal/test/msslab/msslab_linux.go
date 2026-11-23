@@ -318,7 +318,7 @@ func addVethPair(name string, mac, peerMAC net.HardwareAddr) error {
 }
 
 // address gives the router its two sides and the egress side its permanent
-// neighbour. IPv6 addresses skip DAD, so the router forwards from the first
+// neighbor. IPv6 addresses skip DAD, so the router forwards from the first
 // probe rather than after a tentative period.
 func (l *Lab) address() error {
 	sides := []struct {
@@ -356,7 +356,7 @@ func (l *Lab) address() error {
 			HardwareAddr: targetMAC,
 		}
 		if err := netlink.NeighAdd(neigh); err != nil {
-			return fmt.Errorf("msslab: neighbour %s on %s: %w", target.ip, l.egress, err)
+			return fmt.Errorf("msslab: neighbor %s on %s: %w", target.ip, l.egress, err)
 		}
 	}
 	return nil

@@ -169,7 +169,7 @@ var retiredExceptions = [...]retiredException{
 		why:   "the ze-test skill required before authoring a functional test, not the retired binary",
 	},
 	{
-		file:  "internal/le/hookruntime/bash_test.go",
+		file:  retiredHookBashTestFile,
 		old:   retiredLeTest,
 		lines: []string{`[]string{"./le job run label le-test quiet command ./le test functional gating\n"}},`},
 		why:   "le-test is the job label; the actual command is le test functional",
@@ -239,8 +239,8 @@ var retiredExceptions = [...]retiredException{
 		lines: []string{"# Initial config: peer1 advertises software-version; ze-peer mirrors it."},
 		why:   "the peer's protocol behavior; the fixture runs through the current harness",
 	},
-	{file: "internal/le/hookruntime/bash_test.go", old: retiredZeTest, lines: []string{"\"ze-test bgp plugin 42\","}, why: retiredHookNegativeWhy},
-	{file: "internal/le/hookruntime/bash_test.go", old: retiredLeTest, lines: []string{"\"grep -n 'le-test bgp' internal/le/hookruntime/bash.go\","}, why: retiredHookNegativeWhy},
+	{file: retiredHookBashTestFile, old: retiredZeTest, lines: []string{"\"ze-test bgp plugin 42\","}, why: retiredHookNegativeWhy},
+	{file: retiredHookBashTestFile, old: retiredLeTest, lines: []string{"\"grep -n 'le-test bgp' internal/le/hookruntime/bash.go\","}, why: retiredHookNegativeWhy},
 	{
 		file:  "internal/le/weekly/answer.go",
 		old:   retiredZeTest,
@@ -459,6 +459,7 @@ const (
 const (
 	retiredLeTestBin           = "le.test.bin"
 	retiredZeTestBin           = "ze.test.bin"
+	retiredHookBashTestFile    = "internal/le/hookruntime/bash_test.go"
 	retiredGuestLeTestFile     = "internal/le/test/qemu/guestle_run_test.go"
 	retiredQEMUKnobsTestFile   = "internal/le/test/qemu/alltests_knobs_test.go"
 	retiredStressReproTestFile = "internal/le/test/stressrepro/stressrepro_test.go"

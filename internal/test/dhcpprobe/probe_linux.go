@@ -220,7 +220,7 @@ func (p *Probe) neigh(addr netip.Addr) error {
 		HardwareAddr: p.peerMAC,
 	}
 	if err := netlink.NeighSet(entry); err != nil {
-		return fmt.Errorf("dhcpprobe: neighbour %s on %s: %w", addr, p.link, err)
+		return fmt.Errorf("dhcpprobe: neighbor %s on %s: %w", addr, p.link, err)
 	}
 	return nil
 }

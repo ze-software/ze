@@ -336,7 +336,7 @@ func plainFigures(page, content string, figures []publishedFigure) ([]plainFigur
 			if figureMarked(node) {
 				continue
 			}
-			if slices.Contains([]string{"code", "pre", "script", "style"}, node.Data) {
+			if slices.Contains([]string{htmlTagCode, "pre", htmlTagScript, htmlTagStyle}, node.Data) {
 				continue
 			}
 			for _, attribute := range node.Attr {

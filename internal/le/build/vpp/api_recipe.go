@@ -18,8 +18,12 @@ import (
 // canonical Dockerfile supplies exactly one nonempty definition of each pin.
 type apiPins struct{ commit, sha256 string }
 
+func apiPatchesDir(root string) string {
+	return filepath.Join(root, "third_party", "vpp-patches")
+}
+
 func apiSourcePins(root string) (apiPins, error) {
-	file, err := os.Open(filepath.Join(root, "third_party/vpp-patches/Dockerfile"))
+	file, err := os.Open(filepath.Join(apiPatchesDir(root), "Dockerfile")) //nolint:gosec // G304: path joins checkout root with fixed canonical Dockerfile path.
 	if err != nil {
 		return apiPins{}, err
 	}
@@ -78,7 +82,7 @@ func apiBuildRecipe(root, work string, pins apiPins) (interoplab.ImageBuild, err
 		return interoplab.ImageBuild{}, err
 	}
 	for _, name := range append([]string{"Dockerfile.api"}, patches...) {
-		data, err := os.ReadFile(filepath.Join(root, "third_party/vpp-patches", name))
+		data, err := os.ReadFile(filepath.Join(apiPatchesDir(root), name)) //nolint:gosec // G304: path joins checkout root's patch directory with Dockerfile.api or regular .patch entries vetted by apiBaselinePatchNames.
 		if err != nil {
 			return interoplab.ImageBuild{}, err
 		}
@@ -103,7 +107,7 @@ func apiBuildRecipe(root, work string, pins apiPins) (interoplab.ImageBuild, err
 func apiBaselinePatchNames(root string) ([]string, error) {
 	var names []string
 	for _, layer := range []string{"", "ze"} {
-		directory := filepath.Join(root, "third_party/vpp-patches", layer)
+		directory := filepath.Join(apiPatchesDir(root), layer)
 		info, err := os.Lstat(directory)
 		if err != nil {
 			return nil, err

@@ -182,7 +182,7 @@ function demo(x) {
 			if writeErr := os.WriteFile(tmp, out, 0o600); writeErr != nil {
 				t.Fatal(writeErr)
 			}
-			if checkOut, checkErr := exec.Command(nodePath, "--check", tmp).CombinedOutput(); checkErr != nil {
+			if checkOut, checkErr := exec.CommandContext(t.Context(), nodePath, "--check", tmp).CombinedOutput(); checkErr != nil {
 				t.Fatalf("minified %s failed node --check: %v\n%s", filepath.Base(script), checkErr, checkOut)
 			}
 		}

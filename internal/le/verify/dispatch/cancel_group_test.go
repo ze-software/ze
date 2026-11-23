@@ -80,7 +80,7 @@ func TestDispatchCancellationReapsInflightStage(t *testing.T) {
 			}
 			defer func() {
 				foreign.Process.Kill() //nolint:errcheck // The fixture owns this sentinel.
-				foreign.Wait() //nolint:errcheck // A killed sentinel has no successful exit.
+				foreign.Wait()         //nolint:errcheck // A killed sentinel has no successful exit.
 			}()
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
@@ -120,7 +120,7 @@ func TestDispatchCancellationReapsInflightStage(t *testing.T) {
 				}
 			case <-time.After(5 * time.Second):
 				syscall.Kill(stagePID, syscall.SIGKILL) //nolint:errcheck // End only the stage named by its own child.
-				syscall.Kill(pid, syscall.SIGKILL) //nolint:errcheck // End the owned pipe holder before joining.
+				syscall.Kill(pid, syscall.SIGKILL)      //nolint:errcheck // End the owned pipe holder before joining.
 				<-answer
 				joined = true
 				t.Fatal("dispatcher did not join cancellation within five seconds")

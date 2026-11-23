@@ -17,6 +17,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// sysClassBlockDir is the Linux sysfs directory listing block devices and
+// partitions.
+const sysClassBlockDir = "/sys/class/block"
+
 // Disk is a partitioned disk image attached to a loop device that scans its
 // partition table, so the kernel makes a node per partition, the way it does
 // for the appliance's boot disk. Its cleanup detaches the loop device. Not
@@ -106,7 +110,7 @@ func (disk *Disk) Grow(t *testing.T, sizeBytes int64) {
 // the test.
 func (disk *Disk) KernelPartition(t *testing.T, number int) (start, sectors uint64, ok bool) {
 	t.Helper()
-	dir := filepath.Join("/sys/class/block", disk.Name()+"p"+strconv.Itoa(number))
+	dir := filepath.Join(sysClassBlockDir, disk.Name()+"p"+strconv.Itoa(number))
 	if _, err := os.Stat(dir); err != nil {
 		return 0, 0, false
 	}

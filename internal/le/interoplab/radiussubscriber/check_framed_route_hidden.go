@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,6 +18,9 @@ import (
 )
 
 const (
+	// ipWordDev is the device selector word of the ip and tc commands the
+	// checkers run.
+	ipWordDev = "dev"
 	// lacXL2TPDConf is where the LAC's xl2tpd reads its configuration.
 	lacXL2TPDConf = "/etc/xl2tpd/xl2tpd.conf"
 	// l2tpCapturePath holds the datagrams ze's container receives on its LNS
@@ -363,7 +367,7 @@ func carriesMessageAuthenticator(octets []byte) bool {
 }
 
 // judgeSignedAccepts refuses an Access-Accept with no Message-Authenticator:
-// ze accepting such an answer would be the BlastRADIUS defence switched off.
+// ze accepting such an answer would be the BlastRADIUS defense switched off.
 func judgeSignedAccepts(accepts []accessAccept) error {
 	if len(accepts) == 0 {
 		return errors.New("no Access-Accept captured")
@@ -435,7 +439,7 @@ func judgeFramedRoute(routes []kernelRoute, device string) error {
 // sessionDevice answers ze's interface for the session: the one its kernel
 // routes the address pppd holds on ppp0 through. It MUST be a PPP interface.
 func (s *scenarioLab) sessionDevice(ctx context.Context) (string, error) {
-	output, err := s.lab.Query(ctx, peerLAC, []string{"ip", "-j", "-4", "addr", "show", "dev", lacLink}, nil)
+	output, err := s.lab.Query(ctx, peerLAC, []string{"ip", "-j", "-4", "addr", verbShow, ipWordDev, lacLink}, nil)
 	if err != nil {
 		return "", fmt.Errorf("read the LAC's %s address: %w", lacLink, err)
 	}
@@ -468,7 +472,7 @@ func (s *scenarioLab) sessionDevice(ctx context.Context) (string, error) {
 // zeRoutes answers ze's main-table routes whose prefix is exactly prefix. An
 // empty answer is no route.
 func (s *scenarioLab) zeRoutes(ctx context.Context, prefix string) ([]kernelRoute, error) {
-	result, err := s.lab.Exec(ctx, peerZe, []string{"ip", "-j", "route", "show", prefix}, nil)
+	result, err := s.lab.Exec(ctx, peerZe, []string{"ip", "-j", "route", verbShow, prefix}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("read ze's routes for %s: %w: %s", prefix, err, result.Stderr)
 	}
@@ -486,7 +490,7 @@ func (s *scenarioLab) zeRoutes(ctx context.Context, prefix string) ([]kernelRout
 // framedRoutePing puts framedRouteTarget on the LAC's loopback and pings it
 // from ze, whose only route to it is the Framed-Route.
 func (s *scenarioLab) framedRoutePing(ctx context.Context) error {
-	result, err := s.lab.Exec(ctx, peerLAC, []string{"ip", "addr", "add", framedRouteTarget + "/32", "dev", "lo"}, nil)
+	result, err := s.lab.Exec(ctx, peerLAC, []string{"ip", "addr", "add", framedRouteTarget + "/32", ipWordDev, "lo"}, nil)
 	if err != nil {
 		return fmt.Errorf("put %s on the LAC's loopback: %w: %s", framedRouteTarget, err, result.Stderr)
 	}
@@ -516,12 +520,7 @@ func (s *scenarioLab) clearSubscriber(ctx context.Context, sessionID string) err
 	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: s.timeout, Interval: time.Second, Description: "pppd's " + lacLink + " gone from the LAC",
 	}, s.lacLinks, func(links []string) bool {
-		for _, link := range links {
-			if link == lacLink {
-				return false
-			}
-		}
-		return true
+		return !slices.Contains(links, lacLink)
 	}); err != nil {
 		return err
 	}
@@ -535,7 +534,7 @@ func (s *scenarioLab) clearSubscriber(ctx context.Context, sessionID string) err
 
 // lacLinks answers the interface names the LAC's kernel holds.
 func (s *scenarioLab) lacLinks(ctx context.Context) ([]string, error) {
-	output, err := s.lab.Query(ctx, peerLAC, []string{"ip", "-j", "link", "show"}, nil)
+	output, err := s.lab.Query(ctx, peerLAC, []string{"ip", "-j", "link", verbShow}, nil)
 	if err != nil {
 		return nil, err
 	}

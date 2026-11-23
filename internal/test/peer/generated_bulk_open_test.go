@@ -138,11 +138,11 @@ func runGeneratedBulkOPEN(t *testing.T, family, session, rail string) {
 	}()
 
 	var conn net.Conn
-	if config.Dial != "" {
-		conn, err = listener.Accept()
-	} else {
+	if config.Dial == "" {
 		var dialer net.Dialer
 		conn, err = dialer.DialContext(ctx, network, listener.Addr().String())
+	} else {
+		conn, err = listener.Accept()
 	}
 	if err != nil {
 		t.Fatal(err)

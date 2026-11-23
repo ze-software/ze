@@ -53,7 +53,7 @@ func confirmPublication(ctx context.Context, paths Paths, receipt publicationRec
 		return publicationReport{}, fmt.Errorf("the newest Pages deployment is %s, not success", deployment.Status)
 	}
 	if strings.TrimSuffix(deployment.EnvironmentURL, "/") != strings.TrimSuffix(publicationSiteURL, "/") {
-		return publicationReport{}, errors.New("Pages reports another public-site origin")
+		return publicationReport{}, errors.New("the Pages deployment reports another public-site origin")
 	}
 	probed, err := publicationProbe(ctx, receipt, expected)
 	if err != nil {

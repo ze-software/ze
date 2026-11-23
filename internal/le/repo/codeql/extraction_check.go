@@ -211,7 +211,7 @@ func extractionBundlePacks(executable string) (string, error) {
 }
 
 func readExtractionManifest(file string) (proof extractionManifest, err error) {
-	source, err := os.Open(file)
+	source, err := os.Open(file) //nolint:gosec // caller-chosen manifest path for le repo codeql check, verified below as a bounded regular file.
 	if err != nil {
 		return proof, fmt.Errorf("open CodeQL manifest: %w", err)
 	}
@@ -305,7 +305,7 @@ func runExtractionCodeQL(ctx context.Context, root, executable string, arguments
 }
 
 func checkExtractedGoFiles(root, file string, proof *extractionManifest, boundary *cacheBoundary) (count int, err error) {
-	source, err := os.Open(file)
+	source, err := os.Open(file) //nolint:gosec // file is the owned CSV decoded into the temporary proof directory created by CheckExtraction.
 	if err != nil {
 		return 0, fmt.Errorf("read extracted Go files: %w", err)
 	}

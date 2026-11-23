@@ -21,14 +21,14 @@ func couplingGit(t *testing.T, root string, args ...string) {
 func TestCouplingUsesOneCommittedMembershipManifestAndSource(t *testing.T) {
 	root := t.TempDir()
 	files := map[string]string{
-		"go.mod": "module github.com/ze-software/ze\n\ngo 1.26\n",
+		"go.mod":            "module github.com/ze-software/ze\n\ngo 1.26\n",
 		"feature-gates.txt": "ze_a internal/plugins/a\nze_b internal/plugins/b\n",
-		"cmd/ze/main.go": "package main\nimport (_ \"github.com/ze-software/ze/internal/plugins/a\"; _ \"github.com/ze-software/ze/internal/plugins/b\")\nfunc main() {}\n",
+		"cmd/ze/main.go":    "package main\nimport (_ \"github.com/ze-software/ze/internal/plugins/a\"; _ \"github.com/ze-software/ze/internal/plugins/b\")\nfunc main() {}\n",
 		"internal/component/plugin/registry/registry.go": "package registry\ntype Registration struct { Name, Description string; RunEngine func(); StartAfter []string }\nfunc Register(Registration) error { return nil }\n",
-		"internal/core/events/events.go": "package events\ntype Handle struct{}\nfunc Register[T any](string,string) Handle { return Handle{} }\nfunc (Handle) Emit(any,any) {}\nfunc (Handle) Subscribe(any,any) {}\n",
-		"internal/core/ev/ev.go": "package ev\nimport \"github.com/ze-software/ze/internal/core/events\"\nvar Thing = events.Register[*int](\"ns\", \"thing\")\n",
-		"internal/plugins/a/register.go": "package a\nimport (r \"github.com/ze-software/ze/internal/component/plugin/registry\"; renamed \"github.com/ze-software/ze/internal/core/ev\")\nfunc init() { _ = r.Register(r.Registration{Name: \"a\", Description: \"consumer\", RunEngine: func(){}}) }\nfunc listen() { renamed.Thing.Subscribe(nil,nil) }\n",
-		"internal/plugins/b/register.go": "package b\nimport (r \"github.com/ze-software/ze/internal/component/plugin/registry\"; \"github.com/ze-software/ze/internal/core/ev\")\nfunc init() { _ = r.Register(r.Registration{Name: \"b\", Description: \"provider\", RunEngine: func(){}}) }\nfunc emit() { ev.Thing.Emit(nil,nil) }\n",
+		"internal/core/events/events.go":                 "package events\ntype Handle struct{}\nfunc Register[T any](string,string) Handle { return Handle{} }\nfunc (Handle) Emit(any,any) {}\nfunc (Handle) Subscribe(any,any) {}\n",
+		"internal/core/ev/ev.go":                         "package ev\nimport \"github.com/ze-software/ze/internal/core/events\"\nvar Thing = events.Register[*int](\"ns\", \"thing\")\n",
+		"internal/plugins/a/register.go":                 "package a\nimport (r \"github.com/ze-software/ze/internal/component/plugin/registry\"; renamed \"github.com/ze-software/ze/internal/core/ev\")\nfunc init() { _ = r.Register(r.Registration{Name: \"a\", Description: \"consumer\", RunEngine: func(){}}) }\nfunc listen() { renamed.Thing.Subscribe(nil,nil) }\n",
+		"internal/plugins/b/register.go":                 "package b\nimport (r \"github.com/ze-software/ze/internal/component/plugin/registry\"; \"github.com/ze-software/ze/internal/core/ev\")\nfunc init() { _ = r.Register(r.Registration{Name: \"b\", Description: \"provider\", RunEngine: func(){}}) }\nfunc emit() { ev.Thing.Emit(nil,nil) }\n",
 	}
 	for name, source := range files {
 		writeFile(t, root, name, source)

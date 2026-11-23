@@ -11,8 +11,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/heavytool"
 	"mvdan.cc/sh/v3/syntax"
+
+	"github.com/ze-software/ze/internal/le/heavytool"
 )
 
 // developmentToolGoRun reads process construction rather than all source text.
@@ -395,7 +396,7 @@ func developmentProgramWords(words []developmentWord) []string {
 			}
 		}
 	}
-	for range len(tokens) {
+	for range tokens {
 		if _, handed := heavytool.ShellCommand(tokens); handed {
 			break
 		}

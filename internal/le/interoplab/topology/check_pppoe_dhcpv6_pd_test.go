@@ -54,7 +54,7 @@ func TestPPPoEDHCPv6PDVerdicts(t *testing.T) {
 		t.Errorf("a Solicit hinting /64: err = %v, want errNoSolicitHint", err)
 	}
 	for name, log := range map[string]string{
-		"no Request":    strings.Join([]string{solicit, reply}, "\n"),
+		"no Request":    solicit + "\n" + reply,
 		"other Reply":   strings.Join([]string{solicit, request, strings.Replace(reply, "2001:db8:2000::/60", "2001:db8:2010::/60", 1)}, "\n"),
 		"wrong request": strings.Join([]string{solicit, strings.Replace(request, "/60", "/56", 1), reply}, "\n"),
 	} {
@@ -76,7 +76,7 @@ func TestPPPoEDHCPv6PDVerdicts(t *testing.T) {
 		}
 	}
 	for name, log := range map[string]string{
-		"Rapid Commit, no Renew":            strings.Join([]string{rapidSolicit, rapidReply}, "\n"),
+		"Rapid Commit, no Renew":            rapidSolicit + "\n" + rapidReply,
 		"Rapid Commit, Renew of the hint":   strings.Join([]string{rapidSolicit, rapidReply, hintRenew}, "\n"),
 		"Rapid Commit, Renew of another":    strings.Join([]string{rapidSolicit, rapidReply, strings.Replace(renew, "2001:db8:2000::/60", "2001:db8:2010::/60", 1)}, "\n"),
 		"Rapid Commit, Renew before Reply":  strings.Join([]string{rapidSolicit, renew, rapidReply}, "\n"),

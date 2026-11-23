@@ -49,9 +49,9 @@ func TestDockerArchiveRefusesSparseOuterEntries(t *testing.T) {
 					paxRecord("GNU.sparse.minor", "0")
 				body = padTarBlock([]byte("0\n"))
 			}
-			archive := rawTarHeader(t, "PaxHeaders.0/unknown", tar.TypeXHeader, 0o644, int64(len(records)))
+			archive := rawTarHeader(t, "PaxHeaders.0/unknown", tar.TypeXHeader, int64(len(records)))
 			archive = append(archive, padTarBlock([]byte(records))...)
-			archive = append(archive, rawTarHeader(t, "unknown", tar.TypeReg, 0o644, int64(len(body)))...)
+			archive = append(archive, rawTarHeader(t, "unknown", tar.TypeReg, int64(len(body)))...)
 			archive = append(archive, body...)
 			archive = append(archive, make([]byte, 1024)...)
 			if err := scanDockerArchiveBytes(t, archive); err == nil {
@@ -93,9 +93,9 @@ func TestDockerArchiveAcceptsSparseFilesystemLayer(t *testing.T) {
 		paxRecord("GNU.sparse.minor", "0") +
 		paxRecord("GNU.sparse.name", "sparse-file") +
 		paxRecord("GNU.sparse.realsize", "2048")
-	layer := rawTarHeader(t, "PaxHeaders.0/sparse-file", tar.TypeXHeader, 0o644, int64(len(records)))
+	layer := rawTarHeader(t, "PaxHeaders.0/sparse-file", tar.TypeXHeader, int64(len(records)))
 	layer = append(layer, padTarBlock([]byte(records))...)
-	layer = append(layer, rawTarHeader(t, "sparse-file", tar.TypeReg, 0o644, 512)...)
+	layer = append(layer, rawTarHeader(t, "sparse-file", tar.TypeReg, 512)...)
 	layer = append(layer, padTarBlock([]byte("0\n"))...)
 	layer = append(layer, make([]byte, 1024)...)
 	fixture := savedDockerFixture(t, "legacy")

@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"net"
 	"path/filepath"
@@ -127,7 +128,11 @@ func vppStubReadbackState(t *testing.T) *vppStubState {
 // timeout is needed to bound the test.
 func vppStubReadbackCall(t *testing.T, state *vppStubState, message api.Message) []vppStubReadbackFrame {
 	t.Helper()
-	encoded, err := message.(interface{ Marshal([]byte) ([]byte, error) }).Marshal(nil)
+	marshaler, ok := message.(interface{ Marshal([]byte) ([]byte, error) })
+	if !ok {
+		t.Fatalf("%s (%T) does not implement Marshal", message.GetMessageName(), message)
+	}
+	encoded, err := marshaler.Marshal(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +152,7 @@ func vppStubReadbackCall(t *testing.T, state *vppStubState, message api.Message)
 	var frames []vppStubReadbackFrame
 	for {
 		frame, err := readVPPFrame(reader)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			name := message.GetMessageName()
 			if name == "sw_interface_dump" {
 				return frames
@@ -189,7 +194,11 @@ func vppStubReadbackDecode(t *testing.T, frames []vppStubReadbackFrame, message 
 	if frames[0].name != message.GetMessageName() {
 		t.Fatalf("reply name = %s, want %s", frames[0].name, message.GetMessageName())
 	}
-	if err := message.(interface{ Unmarshal([]byte) error }).Unmarshal(frames[0].body); err != nil {
+	unmarshaler, ok := message.(interface{ Unmarshal([]byte) error })
+	if !ok {
+		t.Fatalf("%s (%T) does not implement Unmarshal", message.GetMessageName(), message)
+	}
+	if err := unmarshaler.Unmarshal(frames[0].body); err != nil {
 		t.Fatal(err)
 	}
 }

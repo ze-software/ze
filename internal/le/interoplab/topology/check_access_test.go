@@ -311,17 +311,17 @@ func TestAccessChainStateReaders(t *testing.T) {
 	if _, found := deviceWithPeer(lns, netip.MustParseAddr("203.0.113.9")); found {
 		t.Error("deviceWithPeer found a device toward a peer nobody holds")
 	}
-	if err := pingVerdict("20 packets transmitted, 20 packets received, 0% packet loss\n", pingCount); err != nil {
+	if err := pingVerdict("20 packets transmitted, 20 packets received, 0% packet loss\n"); err != nil {
 		t.Error(err)
 	}
-	if err := pingVerdict("20 packets transmitted, 19 packets received, 5% packet loss\n", pingCount); err == nil {
+	if err := pingVerdict("20 packets transmitted, 19 packets received, 5% packet loss\n"); err == nil {
 		t.Error("pingVerdict passed a lossy ping")
 	}
 	// iputils, the pppd subscriber's pinger, words the summary without "packets".
-	if err := pingVerdict("20 packets transmitted, 20 received, 0% packet loss, time 19435ms\n", pingCount); err != nil {
+	if err := pingVerdict("20 packets transmitted, 20 received, 0% packet loss, time 19435ms\n"); err != nil {
 		t.Error(err)
 	}
-	if err := pingVerdict("20 packets transmitted, 19 received, 5% packet loss, time 19435ms\n", pingCount); err == nil {
+	if err := pingVerdict("20 packets transmitted, 19 received, 5% packet loss, time 19435ms\n"); err == nil {
 		t.Error("pingVerdict passed a lossy iputils ping")
 	}
 }

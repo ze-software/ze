@@ -49,7 +49,7 @@ func writeMarkdownMirror(htmlPath, markdown string) error {
 // style are not prose, and the rest are controls or drawing primitives that
 // carry no text a mirror should show.
 var mirrorSkipTags = map[string]bool{
-	"script": true, "style": true, "svg": true, "button": true, "input": true,
+	htmlTagScript: true, htmlTagStyle: true, "svg": true, "button": true, "input": true,
 	"select": true, "defs": true, "path": true, "textarea": true, "form": true,
 	"noscript": true,
 }
@@ -70,9 +70,19 @@ var mirrorSkipClasses = map[string]bool{
 // written "<img ...>" or "<img ... />".
 var mirrorVoidTags = map[string]bool{
 	"area": true, "base": true, "br": true, "col": true, "embed": true,
-	"hr": true, "img": true, "input": true, "link": true, "meta": true,
+	"hr": true, htmlTagImg: true, "input": true, "link": true, "meta": true,
 	"param": true, "source": true, "track": true, "wbr": true,
 }
+
+// HTML element names shared across mirror conversion, search indexing,
+// fact substitution and plain-figure checks.
+const (
+	htmlTagCode   = "code"
+	htmlTagImg    = "img"
+	htmlTagScript = "script"
+	htmlTagStyle  = "style"
+	htmlTagTable  = "table"
+)
 
 // tagPreformatted is the one element whose text a mirror keeps byte for byte,
 // because its indentation is what the block says.
@@ -216,7 +226,7 @@ func (converter *mirrorConverter) data(text string) {
 // code producer, including a badge that contains an inline code element.
 func (converter *mirrorConverter) recordLiteral(text string) {
 	for _, node := range converter.stack {
-		if node.tag == "code" || mirrorCodeComponent(strings.Fields(node.attributes["class"])) {
+		if node.tag == htmlTagCode || mirrorCodeComponent(strings.Fields(node.attributes["class"])) {
 			node.literal.Str(text)
 		}
 	}
@@ -251,7 +261,7 @@ func (converter *mirrorConverter) start(tag string, attributes map[string]string
 	case "hr":
 		converter.top().text.Str("\n\n---\n\n")
 		return
-	case "img":
+	case htmlTagImg:
 		converter.top().text.Str("![").Str(attributes["alt"]).Str("](").
 			Str(converter.absolute(attributes["src"])).Byte(')')
 		return
@@ -266,7 +276,7 @@ func (converter *mirrorConverter) start(tag string, attributes map[string]string
 		converter.lists = append(converter.lists, &mirrorList{ordered: true})
 	case tagPreformatted:
 		converter.pre++
-	case "table":
+	case htmlTagTable:
 		converter.tables = append(converter.tables, nil)
 	case "tr":
 		converter.rows = append(converter.rows, nil)
@@ -326,7 +336,7 @@ func (converter *mirrorConverter) end(tag string) {
 			converter.tables[len(converter.tables)-1] = append(converter.tables[len(converter.tables)-1], row)
 		}
 		return
-	case "table":
+	case htmlTagTable:
 		var rows [][]string
 		if len(converter.tables) != 0 {
 			rows = converter.tables[len(converter.tables)-1]
@@ -419,7 +429,7 @@ func (converter *mirrorConverter) renderNode(tag string, node *mirrorNode) strin
 			return ""
 		}
 		return "*" + text + "*"
-	case "code":
+	case htmlTagCode:
 		if converter.pre != 0 {
 			return inner
 		}

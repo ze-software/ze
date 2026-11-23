@@ -33,6 +33,7 @@ const (
 	leSpecCategoryIdea      = "idea"
 	leSpecCategoryOther     = "other" // The spec category, not an appliance name.
 	leSpecFieldBucket       = "bucket"
+	leSpecStatusReady       = "ready"
 	leSpecStatusSkeleton    = "skeleton"
 )
 
@@ -374,13 +375,13 @@ type leSpecStatusCase struct {
 func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []string, error) {
 	const committed = "2000-01-02"
 	expected := []leSpecStatusCase{
-		{"fixture-ready", "plan/release/fixes", leSpecBucketFixes, "ready", leSpecCategoryBacklog, committed, committed, false},
+		{"fixture-ready", "plan/release/fixes", leSpecBucketFixes, leSpecStatusReady, leSpecCategoryBacklog, committed, committed, false},
 		{"fixture-untracked", "plan/release/fixes", leSpecBucketFixes, "design", leSpecCategoryBacklog, "2001-02-03", "unknown", false},
 		{"fixture-fresh", "plan/post-release/engineering", leSpecBucketEngineering, leSpecStatusSkeleton, leSpecCategoryIdea, time.Now().UTC().Format("2006-01-02"), committed, false},
 		{"fixture-stale", "plan/post-release/engineering", leSpecBucketEngineering, leSpecStatusSkeleton, leSpecCategoryIdea, "2000-01-01", committed, true},
 		{"fixture-blocked", "plan/release/validation", "validation", "blocked", leSpecCategoryOther, "2000-01-01", committed, false},
-		{"fixture-delivery", "plan/release/delivery", "delivery", "ready", leSpecCategoryBacklog, committed, committed, false},
-		{"fixture-release-feature", "plan/release/features", "release-features", "ready", leSpecCategoryBacklog, committed, committed, false},
+		{"fixture-delivery", "plan/release/delivery", "delivery", leSpecStatusReady, leSpecCategoryBacklog, committed, committed, false},
+		{"fixture-release-feature", "plan/release/features", "release-features", leSpecStatusReady, leSpecCategoryBacklog, committed, committed, false},
 		{"fixture-feature", "plan/post-release/features", "features", "deferred", leSpecCategoryOther, committed, committed, false},
 		{"fixture-proposal", "plan/proposals", "proposals", leSpecStatusSkeleton, leSpecCategoryIdea, time.Now().UTC().Format("2006-01-02"), committed, false},
 	}

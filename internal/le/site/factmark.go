@@ -319,7 +319,7 @@ func htmlTokenContext(name string, opening, inHead bool, rawText string) (bool, 
 		return opening, rawText
 	case "body":
 		return false, rawText
-	case "script", "style", "textarea", "title":
+	case htmlTagScript, htmlTagStyle, "textarea", "title":
 		if opening {
 			return inHead, name
 		}

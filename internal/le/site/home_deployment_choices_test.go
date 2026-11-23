@@ -49,7 +49,7 @@ func TestHomepageDeploymentChoicesUseApprovedPaths(t *testing.T) {
 		t.Fatalf("homepage has %d deployment choices, want %d", len(cards), len(want))
 	}
 	for index, choice := range want {
-		card := strings.SplitN(cards[index], "</article>", 2)[0]
+		card, _, _ := strings.Cut(cards[index], "</article>")
 		for _, text := range []string{`class="index4-choice-badge">` + choice.label + `</span>`, `href="` + choice.href + `"`, choice.role} {
 			if !strings.Contains(card, text) {
 				t.Errorf("%s choice omits %q", choice.label, text)

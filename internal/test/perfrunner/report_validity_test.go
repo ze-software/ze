@@ -2,6 +2,7 @@
 package perfrunner
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -34,10 +35,16 @@ func TestReportPublicationRetainsValidOldBytes(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				defer file.Close()
 				var row perf.Result
-				if err := json.NewDecoder(file).Decode(&row); err != nil {
-					return err
+				decodeErr := json.NewDecoder(file).Decode(&row)
+				if closeErr := file.Close(); closeErr != nil {
+					if decodeErr != nil {
+						return decodeErr
+					}
+					return closeErr
+				}
+				if decodeErr != nil {
+					return decodeErr
 				}
 				return renderer.write([]perf.Result{row}, out)
 			}
@@ -61,7 +68,7 @@ func TestReportPublicationRetainsValidOldBytes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if string(retained) != string(old) {
+			if !bytes.Equal(retained, old) {
 				t.Fatal("valid old bytes changed after invalid input")
 			}
 		})

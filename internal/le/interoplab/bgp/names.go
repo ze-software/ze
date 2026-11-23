@@ -104,7 +104,10 @@ const (
 // birdc commands. The whole table is what an absence assertion reads, because
 // BIRD answers a lookup for a network it does not hold with "Network not
 // found" and birdc exits 1.
-const birdShowRoute = "show route"
+const (
+	birdShowRoute    = "show route"
+	birdShowRouteAll = "show route all"
+)
 
 // The FRR log file inside the FRR container.
 const frrLogPath = "/tmp/frr.log"

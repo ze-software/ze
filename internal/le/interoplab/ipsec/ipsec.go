@@ -522,4 +522,5 @@ const (
 	ipArgDev           = "dev"
 	containerInterface = "eth0"
 	ipObjectAddress    = "address"
+	ipObjectLink       = "link"
 )

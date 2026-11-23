@@ -191,7 +191,6 @@ func dispatch(
 	return result
 }
 
-
 // stageCrashFD is the descriptor the stage process holds its crash file at:
 // ExtraFiles[0] is always descriptor 3 in the child.
 const stageCrashFD = 3
@@ -283,29 +282,32 @@ func runStage(cmd *exec.Cmd, output *textbuf.Buffer) (held bool, err error) {
 // ordinary child exit. The bounded error tree is produced by ServerProcess;
 // exit status and context interruption are judged from ProcessState above.
 func stageProcessError(err error) error {
-	switch failure := err.(type) {
-	case nil, *exec.ExitError:
+	if err == nil {
 		return nil
-	case interface{ Unwrap() []error }:
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
 		var faults error
-		for _, cause := range failure.Unwrap() {
+		for _, cause := range joined.Unwrap() {
 			faults = errors.Join(faults, stageProcessError(cause))
 		}
 		return faults
-	case interface{ Unwrap() error }:
-		return stageProcessError(failure.Unwrap())
-	default:
-		if errors.Is(err, exec.ErrWaitDelay) {
-			return nil
-		}
-		if errors.Is(err, context.Canceled) {
-			return nil
-		}
-		if errors.Is(err, context.DeadlineExceeded) {
-			return nil
-		}
-		return err
 	}
+	if wrapped := errors.Unwrap(err); wrapped != nil {
+		return stageProcessError(wrapped)
+	}
+	if _, ok := errors.AsType[*exec.ExitError](err); ok {
+		return nil
+	}
+	if errors.Is(err, exec.ErrWaitDelay) {
+		return nil
+	}
+	if errors.Is(err, context.Canceled) {
+		return nil
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return nil
+	}
+	return err
 }
 
 // drainStage copies a stage's output into output until the pipe ends, then

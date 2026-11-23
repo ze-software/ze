@@ -69,7 +69,7 @@ func TestOwnerReviewRefusalPreservesRetryOperation(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, field := range []string{" rounds=" + strconv.Itoa(request.Rounds) + " ",
-			"\nrounds-reason: " + request.RoundsReason + "\n", "\nowner-authorised: " + request.OwnerAuthorised + "\n"} {
+			"\nrounds-reason: " + request.RoundsReason + "\n", "\nowner-authorised: " + request.OwnerAuthorised + "\n"} { //nolint:misspell // owner-authorised is the CLI keyword contract
 			if !strings.Contains(string(body), field) {
 				t.Errorf("persisted review omitted %q: %s", field, body)
 			}

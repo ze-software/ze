@@ -132,53 +132,6 @@ const (
 	pipeSourceAlias    = "alias"
 )
 
-// Operators answers the catalog operators the command answers to: its
-// generics and its overrides, in list order.
-func (c publishedCommand) Operators() []publishedCommandOperator {
-	var out []publishedCommandOperator
-	for _, op := range c.PipeOperations {
-		switch op.Source {
-		case pipeSourceGeneric, pipeSourceOverride:
-			out = append(out, publishedCommandOperator{
-				Name: op.Name, Source: op.Source, Class: op.Class, Available: op.Available,
-				Overridable: op.Overridable, LocalOnly: op.LocalOnly,
-				Description: op.Description,
-			})
-		default:
-			// A command operation and an alias are no catalog operator.
-		}
-	}
-	return out
-}
-
-// Pipes answers the operations the command runs itself: its overrides and its
-// own names, in list order.
-func (c publishedCommand) Pipes() []publishedCommandPipe {
-	var out []publishedCommandPipe
-	for _, op := range c.PipeOperations {
-		switch op.Source {
-		case pipeSourceOverride, pipeSourceCommand:
-			out = append(out, publishedCommandPipe{
-				Name: op.Name, Description: op.Description, TakesArg: op.Argument != "none",
-			})
-		default:
-			// A generic and an alias run nothing in the command's handler.
-		}
-	}
-	return out
-}
-
-// Aliases answers the named chains the command answers to, in list order.
-func (c publishedCommand) Aliases() []publishedCommandAlias {
-	var out []publishedCommandAlias
-	for _, op := range c.PipeOperations {
-		if op.Source == pipeSourceAlias {
-			out = append(out, publishedCommandAlias{Name: op.Name, Description: op.Description, Expansion: op.Expansion})
-		}
-	}
-	return out
-}
-
 type publishedCommandPipe struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -297,6 +250,53 @@ type publishedCommand struct {
 	Grammar      []publishedCommandToken `json:"grammar,omitempty"`
 	Syntax       string                  `json:"syntax,omitempty"`
 	Subcommands  []string                `json:"subcommands,omitempty"`
+}
+
+// Operators answers the catalog operators the command answers to: its
+// generics and its overrides, in list order.
+func (c *publishedCommand) Operators() []publishedCommandOperator {
+	var out []publishedCommandOperator
+	for _, op := range c.PipeOperations {
+		switch op.Source {
+		case pipeSourceGeneric, pipeSourceOverride:
+			out = append(out, publishedCommandOperator{
+				Name: op.Name, Source: op.Source, Class: op.Class, Available: op.Available,
+				Overridable: op.Overridable, LocalOnly: op.LocalOnly,
+				Description: op.Description,
+			})
+		default:
+			// A command operation and an alias are no catalog operator.
+		}
+	}
+	return out
+}
+
+// Pipes answers the operations the command runs itself: its overrides and its
+// own names, in list order.
+func (c *publishedCommand) Pipes() []publishedCommandPipe {
+	var out []publishedCommandPipe
+	for _, op := range c.PipeOperations {
+		switch op.Source {
+		case pipeSourceOverride, pipeSourceCommand:
+			out = append(out, publishedCommandPipe{
+				Name: op.Name, Description: op.Description, TakesArg: op.Argument != "none",
+			})
+		default:
+			// A generic and an alias run nothing in the command's handler.
+		}
+	}
+	return out
+}
+
+// Aliases answers the named chains the command answers to, in list order.
+func (c *publishedCommand) Aliases() []publishedCommandAlias {
+	var out []publishedCommandAlias
+	for _, op := range c.PipeOperations {
+		if op.Source == pipeSourceAlias {
+			out = append(out, publishedCommandAlias{Name: op.Name, Description: op.Description, Expansion: op.Expansion})
+		}
+	}
+	return out
 }
 
 // commandCatalogGenerationTimeout bounds one run of the compiled daemon's

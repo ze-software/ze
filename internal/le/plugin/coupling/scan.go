@@ -25,7 +25,6 @@ const module = "github.com/ze-software/ze"
 // typed event-bus handle.
 const eventsImport = module + "/internal/core/events"
 
-
 // skippedDirs are directories whose code no shipped binary carries.
 var skippedDirs = []string{"internal/le", "internal/test", "vendor"}
 
@@ -76,7 +75,6 @@ type scanned struct {
 	productions map[string][]production
 	files       int
 }
-
 
 // skipped reports whether a directory holds no shipped code.
 func skipped(rel string) bool {
@@ -352,4 +350,3 @@ func registersHandle(expr ast.Expr, eventsAlias string) bool {
 	}
 	return slices.Contains([]string{"Register", "RegisterSignal"}, selector.Sel.Name)
 }
-

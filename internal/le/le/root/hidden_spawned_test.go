@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 )
 
 // spawnedRun matches a daemon config's plugin `run` statement that starts an
@@ -92,7 +93,7 @@ func spawnedMocksAt(t *testing.T, root string) map[string]bool {
 		if entry.IsDir() || filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
-		file, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.SkipObjectResolution)
 		if err != nil {
 			return err
 		}
@@ -126,17 +127,20 @@ func descriptorSpawnedMocks(file *ast.File) map[string]bool {
 		name        string
 		descriptors bool
 	}
-	commands := make(map[*ast.Object]*launch)
+	bindings := repoinventory.NewParsedBindings([]*ast.File{file}, repoinventory.ParsedBindingOptions{})
+	commands := make(map[*repoinventory.ParsedBinding]*launch)
 	spawned := make(map[string]bool)
 	ast.Inspect(file, func(node ast.Node) bool {
 		if assignment, ok := node.(*ast.AssignStmt); ok {
 			for index, left := range assignment.Lhs {
 				if local, ok := left.(*ast.Ident); ok {
-					delete(commands, local.Obj)
-					if len(assignment.Lhs) == len(assignment.Rhs) {
-						if call, ok := assignment.Rhs[index].(*ast.CallExpr); ok {
-							if name := invokedMock(call, imports); name != "" && local.Obj != nil {
-								commands[local.Obj] = &launch{name: name}
+					if binding, _ := bindings.Binding(file, local); binding != nil {
+						delete(commands, binding)
+						if len(assignment.Lhs) == len(assignment.Rhs) {
+							if call, ok := assignment.Rhs[index].(*ast.CallExpr); ok {
+								if name := invokedMock(call, imports); name != "" {
+									commands[binding] = &launch{name: name}
+								}
 							}
 						}
 					}
@@ -153,17 +157,21 @@ func descriptorSpawnedMocks(file *ast.File) map[string]bool {
 				if !ok {
 					continue
 				}
-				if command := commands[local.Obj]; command != nil {
-					command.descriptors = inheritedFiles(assignment.Rhs[index])
+				if binding, _ := bindings.Binding(file, local); binding != nil {
+					if command := commands[binding]; command != nil {
+						command.descriptors = inheritedFiles(assignment.Rhs[index])
+					}
 				}
 			}
 		}
 		if call, ok := node.(*ast.CallExpr); ok {
 			if local := startedMock(call, imports); local != nil {
-				if command := commands[local.Obj]; command != nil {
-					if command.descriptors {
-						// Preserve this launch even when the variable is reused later.
-						spawned[command.name] = true
+				if binding, _ := bindings.Binding(file, local); binding != nil {
+					if command := commands[binding]; command != nil {
+						if command.descriptors {
+							// Preserve this launch even when the variable is reused later.
+							spawned[command.name] = true
+						}
 					}
 				}
 			}
@@ -285,7 +293,7 @@ import child "os/exec"
 import process "github.com/ze-software/ze/internal/component/plugin"
 func run() {
 ` + row.body + "\n}\n"
-			file, err := parser.ParseFile(token.NewFileSet(), row.name+".go", source, 0)
+			file, err := parser.ParseFile(token.NewFileSet(), row.name+".go", source, parser.SkipObjectResolution)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -351,7 +359,7 @@ func TestDescriptorSpawnDiscoveryTracksReassignedLaunches(t *testing.T) {
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			source := "package launch\nimport \"os/exec\"\nfunc run() {\n" + row.body + "\n}\n"
-			file, err := parser.ParseFile(token.NewFileSet(), row.name+".go", source, 0)
+			file, err := parser.ParseFile(token.NewFileSet(), row.name+".go", source, parser.SkipObjectResolution)
 			if err != nil {
 				t.Fatal(err)
 			}

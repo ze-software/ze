@@ -50,7 +50,7 @@ func checkAccessWholesale(ctx context.Context, check *interoplab.CheckContext) e
 	if err := checkRenegotiated(ctx, check, session); err != nil {
 		return err
 	}
-	return checkPingAcross(ctx, check, nodeLNS, subscriber, pingCount)
+	return checkPingAcross(ctx, check, nodeLNS, subscriber)
 }
 
 // checkLCPRenegotiatePPPD proves l2tp-lns-lcp-renegotiate-pppd: pppd, Opened
@@ -78,7 +78,7 @@ func checkLCPRenegotiatePPPD(ctx context.Context, check *interoplab.CheckContext
 	if err := lcpMRUVerdict(frames, netip.MustParseAddr(lnsCoreAddress), sessionMRU); err != nil {
 		return err
 	}
-	log, err := check.Lab.Query(ctx, nodePPPD, []string{"cat", pppdLog}, nil)
+	log, err := check.Lab.Query(ctx, nodePPPD, []string{commandCat, pppdLog}, nil)
 	if err != nil {
 		return fmt.Errorf("read pppd's log: %w", err)
 	}
@@ -92,7 +92,7 @@ func checkLCPRenegotiatePPPD(ctx context.Context, check *interoplab.CheckContext
 // subscriberAddress, the address the LNS hands it in IPCP.
 func waitPPPDAddress(ctx context.Context, check *interoplab.CheckContext) error {
 	return pollUntil(ctx, wholesaleWait, "pppd holds "+subscriberAddress+" on ppp0", func() error {
-		answer, err := check.Lab.Query(ctx, nodePPPD, []string{"ip", "-o", "-4", "address", "show", ipWordDev, "ppp0"}, nil)
+		answer, err := check.Lab.Query(ctx, nodePPPD, []string{"ip", "-o", "-4", ipWordAddress, wordShow, ipWordDev, "ppp0"}, nil)
 		if err != nil {
 			return err
 		}
@@ -107,11 +107,11 @@ func waitPPPDAddress(ctx context.Context, check *interoplab.CheckContext) error 
 // the answer: its eth0 is flushed, so ppp0 is the only path.
 func pppdPing(ctx context.Context, check *interoplab.CheckContext, target string) error {
 	ping, err := check.Lab.Query(ctx, nodePPPD,
-		[]string{"ping", "-c", strconv.Itoa(pingCount), "-W", "2", target}, nil)
+		[]string{commandPing, "-c", strconv.Itoa(pingCount), "-W", "2", target}, nil)
 	if err != nil {
 		return fmt.Errorf("pppd ping %s: %w\n%s", target, err, ping)
 	}
-	return pingVerdict(ping, pingCount)
+	return pingVerdict(ping)
 }
 
 // checkRenegotiated reads the LNS session detail and judges it.

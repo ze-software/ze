@@ -27,7 +27,7 @@ func RetryArguments(t testing.TB, refusal error) []string {
 	} else if !strings.HasPrefix(line, "./le ") {
 		t.Fatalf("refusal has no retry command: %v", refusal)
 	}
-	command := exec.CommandContext(t.Context(), "bash", "-c", decode)
+	command := exec.CommandContext(t.Context(), "bash", "-c", decode) //nolint:gosec // test helper decodes printed retry command quoting via bash without executing le
 	output, err := command.Output()
 	if err != nil {
 		t.Fatalf("decode retry %q: %v", line, err)

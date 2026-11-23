@@ -289,10 +289,6 @@ func TestCensusHeavyActionsAreAdmitted(t *testing.T) {
 		admitted = commandName
 		return body()
 	})()
-	handler := func(command.ValidatedArgs) command.LocalAnswer {
-		events = append(events, "body")
-		return command.LocalAnswer{}
-	}
 
 	metSelf := make(map[string]bool, len(censusSelfAdmitting))
 	metNoSlot := make(map[string]bool, len(censusNoSlot))
@@ -320,7 +316,10 @@ func TestCensusHeavyActionsAreAdmitted(t *testing.T) {
 		}
 
 		events, admitted = nil, ""
-		leroot.Run(area, handler, words, io.Discard, io.Discard)
+		leroot.Run(area, func(command.ValidatedArgs) command.LocalAnswer {
+			events = append(events, "body")
+			return command.LocalAnswer{}
+		}, words, io.Discard, io.Discard)
 		want := []string{"body"}
 		if slot.Kind == leroot.SlotCentral {
 			want = []string{"admit", "body"}

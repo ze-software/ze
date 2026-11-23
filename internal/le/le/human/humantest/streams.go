@@ -72,7 +72,7 @@ func Snapshot(t testing.TB, root string) map[string]string {
 		}
 		value := info.Mode().String()
 		if info.Mode().IsRegular() {
-			body, err := os.ReadFile(path)
+			body, err := os.ReadFile(path) //nolint:gosec // test helper snapshots regular files inside the caller's fixture root
 			if err != nil {
 				return err
 			}

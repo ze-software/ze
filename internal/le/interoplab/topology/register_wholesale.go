@@ -26,7 +26,7 @@ const (
 	// (pppoe/register_images.go, clientImageTag).
 	pppdClientImage = "ze-pppoe-client"
 	pppdUser        = "pppd@lab.example.net"
-	pppdPassword    = "pppd-fixture-password"
+	pppdPassword    = "pppd-fixture-password" //nolint:gosec // non-secret test fixture password for isolated Docker interop lab containers
 	pppdLog         = "/var/log/ppp/pppd.log"
 )
 
@@ -80,9 +80,9 @@ func pppdSubscriberAs(name, user string, host uint8) node {
 	shell := "mkdir -p /etc/ppp /var/log/ppp; exec " + strings.Join(arguments, " ")
 	return node{name: name, image: pppdClientImage, host: host,
 		capabilities: []string{capabilityNetAdmin},
-		arguments:    append(interoplab.PPPDeviceArguments(), "--entrypoint", "sh"),
+		arguments:    append(interoplab.PPPDeviceArguments(), dockerEntrypoint, "sh"),
 		command:      []string{"-c", shell},
-		prestart:     "ip -4 address flush dev eth0; ip -6 address flush dev eth0 scope global",
+		prestart:     flushEth0,
 		logFiles:     []string{pppdLog}}
 }
 
@@ -138,7 +138,7 @@ func realmRelayChain(lns node, checker interoplab.Checker) scenario {
 			{Name: coreLink, VLAN: 192, IPv4: netip.MustParsePrefix("192.0.2.0/24"), Members: []string{nodeLAC, lns.name}},
 		},
 		checker:            checker,
-		kernelCapabilities: []string{"pppoe", "l2tp", "l2tp-ppp"},
+		kernelCapabilities: []string{kernelCapPPPoE, kernelCapL2TP, kernelCapL2TPPPP},
 	}
 }
 
@@ -158,7 +158,7 @@ func xl2tpdLNS() node {
 	return node{name: nodeXL2TPDLNS, image: xl2tpdImage, host: 3,
 		config: "xl2tpd.conf", mountedAt: xl2tpdConfig,
 		capabilities: []string{capabilityNetAdmin},
-		arguments:    append(interoplab.PPPDeviceArguments(), "--entrypoint", "sh"),
+		arguments:    append(interoplab.PPPDeviceArguments(), dockerEntrypoint, "sh"),
 		command:      []string{"-c", shell},
 		shared: []sharedFile{
 			{source: directory + "/l2tp-secrets", target: "/etc/xl2tpd/l2tp-secrets"},

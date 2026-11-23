@@ -37,7 +37,7 @@ func specDesignInDir(ctx context.Context, args []string) error {
 		return fmt.Errorf("spec/design-in-dir: %w", err)
 	}
 
-	argv := append([]string{"spec", "design"}, args[2:]...)
+	argv := append([]string{areaSpec, "design"}, args[2:]...)
 	cmd := exec.CommandContext(ctx, leBin, argv...) //nolint:gosec // fixture invokes the checkout's native le binary
 	cmd.Dir = absDir
 	cmd.Env = withRepoRootEnv(os.Environ(), absDir)

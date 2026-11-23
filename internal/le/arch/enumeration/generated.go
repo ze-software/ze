@@ -24,7 +24,7 @@ func verifiedPluginCorpora(corpora []Corpus, proof gatedtable.CheckReport) ([]Co
 	}
 	out := slices.Clone(corpora)
 	for i := range out {
-		if out[i].Name != "plugin names" {
+		if out[i].Name != pluginNamesCorpus {
 			continue
 		}
 		declarations := slices.Clone(out[i].Declarations)

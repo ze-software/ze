@@ -132,10 +132,10 @@ func TestWikiCatalogReportsAPluginDeclaredAlias(t *testing.T) {
 		if entry.Path != path {
 			continue
 		}
-		if len(aliasesOf(entry)) != 1 {
-			t.Fatalf("%q publishes %d aliases, want the one the plugin declares", path, len(aliasesOf(entry)))
+		if len(aliasesOf(&entry)) != 1 {
+			t.Fatalf("%q publishes %d aliases, want the one the plugin declares", path, len(aliasesOf(&entry)))
 		}
-		alias := aliasesOf(entry)[0]
+		alias := aliasesOf(&entry)[0]
 		if alias.Name != "summary" {
 			t.Errorf("%q publishes alias %q, want summary", path, alias.Name)
 		}
@@ -273,7 +273,7 @@ func mainPackageLocal(path string) bool {
 }
 
 // aliasesOf answers the alias entries of a catalog row's pipe-operations list.
-func aliasesOf(entry Entry) []command.PipeOperationEntry {
+func aliasesOf(entry *Entry) []command.PipeOperationEntry {
 	var aliases []command.PipeOperationEntry
 	for _, operation := range entry.PipeOperations {
 		if operation.Source == command.PipeSourceAlias {

@@ -17,15 +17,15 @@ func init() {
 		nodes: []node{
 			zeNode("ze-server", 2, "ze-server.conf", interoplab.PPPDeviceArguments()...),
 			{name: "observer", image: zeImage, host: 4,
-				arguments: []string{"--entrypoint", "tcpdump"},
-				command:   []string{"-p", "-n", "-U", "-i", "eth0", "-w", observerCapture, "ether proto 0x8863"}},
+				arguments: []string{dockerEntrypoint, commandTcpdump},
+				command:   []string{"-p", "-n", "-U", "-i", containerInterface, "-w", observerCapture, "ether proto 0x8863"}},
 			zeNode("ze-client", 3, "ze-client.conf", interoplab.PPPDeviceArguments()...),
 		},
 		links: []interoplab.Link{
-			{Name: "access", VLAN: 183, Members: []string{"ze-server", "ze-client"}},
+			{Name: accessLink, VLAN: 183, Members: []string{"ze-server", "ze-client"}},
 		},
 		checker:            checkPPPoELink,
-		kernelCapabilities: []string{"pppoe"},
+		kernelCapabilities: []string{kernelCapPPPoE},
 	}
 }
 

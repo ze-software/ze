@@ -100,8 +100,12 @@ func TestPreparedAuthorizationAreaHelpCompletesWithoutExecution(t *testing.T) {
 // authorizationAreaHelpAnswer preserves a panic as a failed observation rather
 // than stopping the table before the other real prepared routes are exercised.
 func authorizationAreaHelpAnswer(answer func([]string) (any, int), words []string) (payload any, code int, failure any) {
-	code = -1
-	defer func() { failure = recover() }()
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			code = -1
+			failure = recovered
+		}
+	}()
 	payload, code = answer(words)
 	return payload, code, nil
 }

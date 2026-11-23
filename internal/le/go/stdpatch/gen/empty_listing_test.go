@@ -42,6 +42,7 @@ func TestEmptySuccessfulStdlibListingRefused(t *testing.T) {
 		}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			err := test.run()
 			if err == nil {
 				t.Fatal("a successful subprocess with no packages certified an empty standard library")

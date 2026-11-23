@@ -295,18 +295,18 @@ func searchMirrorText(markdown string) (string, error) {
 			if skipped != "" {
 				continue
 			}
-			if tag == "script" {
+			if tag == htmlTagScript {
 				skipped = tag
 				continue
 			}
-			if tag == "style" {
+			if tag == htmlTagStyle {
 				skipped = tag
 				continue
 			}
 			if searchTextBoundary(tag) {
 				text.Byte(' ')
 			}
-			if tag == "img" {
+			if tag == htmlTagImg {
 				for hasAttributes {
 					var key, value []byte
 					key, value, hasAttributes = tokenizer.TagAttr()
@@ -340,7 +340,7 @@ func searchMirrorText(markdown string) (string, error) {
 func searchTextBoundary(tag string) bool {
 	switch tag {
 	case "blockquote", "br", "h1", "h2", "h3", "h4", "h5", "h6", "hr",
-		"li", "ol", "p", "pre", "table", "td", "th", "tr", "ul":
+		"li", "ol", "p", "pre", htmlTagTable, "td", "th", "tr", "ul":
 		return true
 	default:
 		return false

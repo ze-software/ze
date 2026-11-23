@@ -414,9 +414,9 @@ func waitL2TPClean(ctx context.Context, lab labOperations, timeout time.Duration
 			out  *string
 		}{
 			{peerZe, []string{"ip", "-o", commandLink, commandShow, commandType, pppLinkType}, nil},
-			{peerZe, []string{"ip", "l2tp", commandShow, "tunnel"}, nil},
+			{peerZe, []string{"ip", commandL2TP, commandShow, "tunnel"}, nil},
 			{peerLAC, []string{"ip", "-o", commandLink, commandShow, commandType, pppLinkType}, nil},
-			{peerLAC, []string{"ip", "l2tp", commandShow, "tunnel"}, nil},
+			{peerLAC, []string{"ip", commandL2TP, commandShow, "tunnel"}, nil},
 		}
 		value := state{}
 		commands[0].out = &value.zeLinks

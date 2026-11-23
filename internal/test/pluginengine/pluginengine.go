@@ -247,8 +247,7 @@ func Start(t testing.TB, transport Transport, run func(net.Conn) int) *Engine {
 		t.Fatal("pluginengine: startup: " + err.Error())
 	}
 	if transport == TransportWire {
-		e.workers.Add(1)
-		go func() { defer e.workers.Done(); e.serveWire(serveCtx) }()
+		e.workers.Go(func() { e.serveWire(serveCtx) })
 	}
 	// The Stage 5 acknowledgement lets the SDK activate its bridge and run
 	// OnStarted; it does not mean its command callbacks are installed yet.
@@ -316,8 +315,7 @@ func (e *Engine) serveWire(ctx context.Context) {
 	jobs := make(chan *rpc.Request, engineWorkers)
 	var workers sync.WaitGroup
 	for range engineWorkers {
-		workers.Add(1)
-		go func() { defer workers.Done(); e.serveWireWorker(ctx, jobs) }()
+		workers.Go(func() { e.serveWireWorker(ctx, jobs) })
 	}
 	defer func() { e.stopServe(); close(jobs); workers.Wait() }()
 	// One long-lived reader records arrival before admitting each request to

@@ -313,14 +313,14 @@ func leadingLiteral(arg string) string {
 	// when truncated at the concatenation; strip that opening quote so the
 	// dispatcher judges the command prefix rather than rejecting an unclosed
 	// quote.
-	if strings.HasSuffix(lit, "\"") {
+	if trimmed, ok := strings.CutSuffix(lit, "\""); ok {
 		if strings.Count(lit, "\"")%2 == 1 {
-			lit = strings.TrimSpace(strings.TrimSuffix(lit, "\""))
+			lit = strings.TrimSpace(trimmed)
 		}
 	}
-	if strings.HasSuffix(lit, "'") {
+	if trimmed, ok := strings.CutSuffix(lit, "'"); ok {
 		if strings.Count(lit, "'")%2 == 1 {
-			lit = strings.TrimSpace(strings.TrimSuffix(lit, "'"))
+			lit = strings.TrimSpace(trimmed)
 		}
 	}
 	return lit

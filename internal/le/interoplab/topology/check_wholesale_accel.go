@@ -31,7 +31,7 @@ func checkAccessWholesaleAccel(ctx context.Context, check *interoplab.CheckConte
 	if err := accelRenegotiationVerdict(log, subscriberUser); err != nil {
 		return err
 	}
-	return checkPingAcross(ctx, check, nodeAccelLNS, subscriber, pingCount)
+	return checkPingAcross(ctx, check, nodeAccelLNS, subscriber)
 }
 
 // accelRenegotiationVerdict reads accel-ppp's verbose PPP log. The CPE was

@@ -267,13 +267,13 @@ func putTarOctal(t *testing.T, field []byte, value int64) {
 	field[width] = 0
 }
 
-// rawTarHeader builds one 512-byte USTAR header block by hand, checksum
-// included, for a header tar.Writer refuses to write itself.
-func rawTarHeader(t *testing.T, name string, typeflag byte, mode, size int64) []byte {
+// rawTarHeader builds one 512-byte USTAR header block by hand with mode 0644,
+// checksum included, for a header tar.Writer refuses to write itself.
+func rawTarHeader(t *testing.T, name string, typeflag byte, size int64) []byte {
 	t.Helper()
 	block := make([]byte, 512)
 	copy(block[0:100], name)
-	putTarOctal(t, block[100:108], mode)
+	putTarOctal(t, block[100:108], 0o644)
 	putTarOctal(t, block[108:116], 0)
 	putTarOctal(t, block[116:124], 0)
 	putTarOctal(t, block[124:136], size)
@@ -324,7 +324,7 @@ func writeSparseZeArchive(t *testing.T, realSize int64) string {
 		paxRecord("GNU.sparse.minor", "0") +
 		paxRecord("GNU.sparse.name", "ze") +
 		paxRecord("GNU.sparse.realsize", strconv.Itoa(int(realSize)))
-	prefix := rawTarHeader(t, "PaxHeaders.0/ze", tar.TypeXHeader, 0o644, int64(len(records)))
+	prefix := rawTarHeader(t, "PaxHeaders.0/ze", tar.TypeXHeader, int64(len(records)))
 	prefix = append(prefix, padTarBlock([]byte(records))...)
 	// An empty 1.0 sparse map: the entry count 0, so the whole logical size
 	// is one hole the reader fills with zeros.

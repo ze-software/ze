@@ -186,7 +186,7 @@ func (l *mobikeNativeLab) prepare(ctx context.Context, root, source string, stat
 	}
 	// Both veth ends are created directly in their final namespaces. A failed
 	// setup cannot strand a link in the guest's SSH network namespace.
-	if _, err := l.host(ctx, "link", "add", "name", containerInterface, "netns", l.peers[zePeer].namespace,
+	if _, err := l.host(ctx, ipObjectLink, "add", "name", containerInterface, "netns", l.peers[zePeer].namespace,
 		"type", "veth", "peer", "name", containerInterface, "netns", l.peers[swanPeer].namespace); err != nil {
 		return err
 	}
@@ -194,9 +194,9 @@ func (l *mobikeNativeLab) prepare(ctx context.Context, root, source string, stat
 		{peer: zePeer, address: zeIP}, {peer: swanPeer, address: swanIP},
 	} {
 		for _, argv := range [][]string{
-			{"ip", "link", "set", "lo", "up"},
+			{"ip", ipObjectLink, "set", "lo", "up"},
 			{"ip", ipObjectAddress, "add", endpoint.address + "/24", ipArgDev, containerInterface},
-			{"ip", "link", "set", containerInterface, "up"},
+			{"ip", ipObjectLink, "set", containerInterface, "up"},
 		} {
 			if _, err := l.Exec(ctx, endpoint.peer, argv, nil); err != nil {
 				return err

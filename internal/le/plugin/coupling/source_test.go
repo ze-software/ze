@@ -2,28 +2,32 @@
 package coupling
 
 import (
- "errors"
- "go/parser"
- "go/token"
- "io/fs"
- "os"
- "path/filepath"
- "strings"
+	"errors"
+	"go/parser"
+	"go/token"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
 
- pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
- repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
+	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
+	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 )
 
 var scanRoots = []string{"cmd", "internal", "pkg"}
 
 func buildModel(root string, plugins []repoinventory.Plugin) (model, error) {
- gates, err := pluginimports.LoadGateIndex(root)
- if err != nil { return model{}, err }
- files, fset, err := parseTree(root)
- if err != nil { return model{}, err }
- built := model{plugins: plugins, gates: gates}
- built.scan = scanTree(files, fset, func(dir string) bool { return built.owner(dir) != "" })
- return built, nil
+	gates, err := pluginimports.LoadGateIndex(root)
+	if err != nil {
+		return model{}, err
+	}
+	files, fset, err := parseTree(root)
+	if err != nil {
+		return model{}, err
+	}
+	built := model{plugins: plugins, gates: gates}
+	built.scan = scanTree(files, fset, func(dir string) bool { return built.owner(dir) != "" })
+	return built, nil
 }
 
 // parseTree parses every shipped, non-test Go file under the scan roots.
@@ -31,8 +35,7 @@ func parseTree(root string) ([]sourceFile, *token.FileSet, error) {
 	fset := token.NewFileSet()
 	var files []sourceFile
 	for _, top := range scanRoots {
-		// A scan root the tree does not hold has no source to read; rootExists
-		// already refused a tree with no internal/ at all.
+		// A scan root the synthetic fixture does not hold has no source to read.
 		if _, statErr := os.Stat(filepath.Join(root, top)); errors.Is(statErr, fs.ErrNotExist) {
 			continue
 		}
@@ -69,11 +72,4 @@ func parseTree(root string) ([]sourceFile, *token.FileSet, error) {
 		}
 	}
 	return files, fset, nil
-}
-
-// rootExists reports whether root holds the scan roots, so a wrong root is an
-// error rather than a tree with no coupling in it.
-func rootExists(root string) error {
-	_, err := os.Stat(filepath.Join(root, "internal"))
-	return err
 }

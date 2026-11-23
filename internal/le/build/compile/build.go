@@ -36,6 +36,11 @@ const (
 	HostBinary = "ze-host"
 
 	installerTags = "ze_installer"
+
+	goBuildCommand = "build"
+	goTagsFlag     = "-tags"
+	goLDFlagsFlag  = "-ldflags"
+	linuxOS        = "linux"
 )
 
 // BuildReport is the structured answer from one compiler invocation.
@@ -146,9 +151,9 @@ func hostPlan(root string, toolchain gotoolchain.Toolchain) buildPlan {
 	return buildPlan{
 		action: hostAction,
 		command: []string{
-			"go", "build",
-			"-tags", HostTags,
-			"-ldflags", toolchain.LDFlags(),
+			"go", goBuildCommand,
+			goTagsFlag, HostTags,
+			goLDFlagsFlag, toolchain.LDFlags(),
 			"-o", output,
 			"./cmd/ze",
 		},
@@ -166,13 +171,13 @@ func installerPlan(_ string, toolchain gotoolchain.Toolchain, arch string) build
 	return buildPlan{
 		action: action,
 		command: []string{
-			"go", "build",
-			"-tags", installerTags,
-			"-ldflags", toolchain.LDFlags(),
+			"go", goBuildCommand,
+			goTagsFlag, installerTags,
+			goLDFlagsFlag, toolchain.LDFlags(),
 			"-o", output,
 			"./cmd/ze-installer",
 		},
-		environ: gotoolchain.EnvOptions{GOOS: "linux", GOARCH: arch},
+		environ: gotoolchain.EnvOptions{GOOS: linuxOS, GOARCH: arch},
 		output:  output,
 	}
 }

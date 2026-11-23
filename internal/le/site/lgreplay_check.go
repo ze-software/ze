@@ -50,8 +50,7 @@ func (refusal replayRefusal) operatorError() *opererr.Error {
 // it matters, and the command that fixes it on the last line.
 func reportReplayRefusals(refusals []replayRefusal) {
 	for _, refusal := range refusals {
-		var failure *opererr.Error = refusal.operatorError()
-		leaction.ReportError(failure)
+		leaction.ReportError(opererr.New(refusal.Problem, refusal.Why, refusal.Fix))
 	}
 }
 
@@ -202,8 +201,7 @@ func lgReplayCommitInHistory(ctx context.Context, repository, commit string) (bo
 // "no" of the two queries lgReplayCommitInHistory asks, and an operator error
 // for any other failure, where git did not answer the question.
 func lgReplayGitRefused(err error) error {
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		if exit.ExitCode() == 1 {
 			return nil
 		}

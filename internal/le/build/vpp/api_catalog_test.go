@@ -17,9 +17,9 @@ func TestVPPAPIRecipeCopiesCompleteBaselineCatalog(t *testing.T) {
 		"0098-fixture.patch", "0099-fixture.patch",
 		"ze/0100-fixture.patch", "ze/0103-fixture.patch", "ze/0104-fixture.patch",
 	} {
-		apiWriteFixture(t, filepath.Join(root, "third_party/vpp-patches", name), name+"\n")
+		apiWriteFixture(t, filepath.Join(root, "third_party", "vpp-patches", name), name+"\n")
 	}
-	apiWriteFixture(t, filepath.Join(root, "third_party/vpp-patches/proof/metadata.diff"), "proof mutation\n")
+	apiWriteFixture(t, filepath.Join(root, "third_party", "vpp-patches", "proof", "metadata.diff"), "proof mutation\n")
 	build, err := apiBuildRecipe(root, work, apiPins{commit: "fixture", sha256: "digest"})
 	if err != nil {
 		t.Fatal(err)
@@ -46,7 +46,7 @@ func TestVPPAPIRecipeCopiesCompleteBaselineCatalog(t *testing.T) {
 func TestVPPAPIBaselineCatalogOrdersEachLayer(t *testing.T) {
 	root := t.TempDir()
 	for _, name := range []string{"0099-second.patch", "ze/0000-first.patch", "0001-first.patch", "ze/0103-second.patch"} {
-		apiWriteFixture(t, filepath.Join(root, "third_party/vpp-patches", name), "fixture\n")
+		apiWriteFixture(t, filepath.Join(root, "third_party", "vpp-patches", name), "fixture\n")
 	}
 	names, err := apiBaselinePatchNames(root)
 	if err != nil {
@@ -64,7 +64,7 @@ func TestVPPAPIBaselineCatalogRefusesIncompleteLayers(t *testing.T) {
 	for _, kind := range []string{"missing", "empty", "symlink-directory", "symlink-patch", "directory-patch"} {
 		t.Run(kind, func(t *testing.T) {
 			root := t.TempDir()
-			base := filepath.Join(root, "third_party/vpp-patches")
+			base := filepath.Join(root, "third_party", "vpp-patches")
 			apiWriteFixture(t, filepath.Join(base, "0001-fixture.patch"), "fixture\n")
 			ze := filepath.Join(base, "ze")
 			if kind == "symlink-directory" {

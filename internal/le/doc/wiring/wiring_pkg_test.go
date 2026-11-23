@@ -3,6 +3,7 @@
 package docwiring
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,9 +77,7 @@ func wiringPkgIssues(t *testing.T, source string, consumers map[string]string) [
 	t.Helper()
 	root := pushedTree(t, map[string]string{"README.md": "fixture\n"})
 	files := map[string]string{source: "package retained\n\ntype SeriesRetainer interface{}\n"}
-	for path, body := range consumers {
-		files[path] = body
-	}
+	maps.Copy(files, consumers)
 	for path, body := range files {
 		target := filepath.Join(root, filepath.FromSlash(path))
 		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {

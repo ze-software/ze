@@ -96,7 +96,7 @@ func checkLease(ctx context.Context, check *interoplab.CheckContext, client stri
 	if _, err := execOK(ctx, check, client, []string{commandDHCPCD, "-4", "-1", "-w", "-t", "60", lan.Device}); err != nil {
 		return fmt.Errorf("%s's dhcpcd bound no lease from the CPE: %w", client, err)
 	}
-	answer, err := execOK(ctx, check, client, []string{"ip", "-o", "-4", "address", "show", "dev", lan.Device})
+	answer, err := execOK(ctx, check, client, []string{"ip", "-o", "-4", ipWordAddress, wordShow, ipWordDev, lan.Device})
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ var errNoSourceSYN = errors.New("no SYN to the target in the capture")
 
 // readWebCapture answers the web server's capture as tcpdump prints it.
 func readWebCapture(ctx context.Context, check *interoplab.CheckContext) (string, error) {
-	return execOK(ctx, check, nodeWeb, []string{"tcpdump", "-n", "-r", webCapture})
+	return execOK(ctx, check, nodeWeb, []string{commandTcpdump, "-n", "-r", webCapture})
 }
 
 // synSourceVerdict proves the capture holds a SYN to target from source, and
@@ -185,8 +185,8 @@ func sendLANMSSProbe(ctx context.Context, check *interoplab.CheckContext, probe 
 		return err
 	}
 	offered := decimal(probe.offered)
-	if _, err := execOK(ctx, check, nodeLANStatic, []string{"ip", "route", "replace", webAddress + "/32",
-		"via", cpeLANGateway, "dev", lan.Device, "advmss", offered}); err != nil {
+	if _, err := execOK(ctx, check, nodeLANStatic, []string{"ip", ipWordRoute, ipWordReplace, webAddress + "/32",
+		"via", cpeLANGateway, ipWordDev, lan.Device, "advmss", offered}); err != nil {
 		return err
 	}
 	port := decimal(probe.port)
@@ -299,7 +299,7 @@ func readDropCounter(ctx context.Context, check *interoplab.CheckContext) (uint6
 	if err != nil {
 		return 0, err
 	}
-	return dropCounter(ruleset, defaultDropPrefix)
+	return dropCounter(ruleset)
 }
 
 // nftRuleset is the part of `nft -j list ruleset` a counter read needs.
@@ -318,10 +318,10 @@ type nftRuleset struct {
 	} `json:"nftables"`
 }
 
-// dropCounter answers the counter of the one rule whose log prefix is prefix,
-// and refuses a ruleset with none or several such rules, or one whose rule
-// counts nothing: a missing counter is not a zero.
-func dropCounter(ruleset, prefix string) (uint64, error) {
+// dropCounter answers the counter of the one rule whose log prefix is
+// defaultDropPrefix, and refuses a ruleset with none or several such rules,
+// or one whose rule counts nothing: a missing counter is not a zero.
+func dropCounter(ruleset string) (uint64, error) {
 	var parsed nftRuleset
 	if err := json.Unmarshal([]byte(ruleset), &parsed); err != nil {
 		return 0, fmt.Errorf("the CPE's nft ruleset is not JSON: %w", err)
@@ -334,7 +334,7 @@ func dropCounter(ruleset, prefix string) (uint64, error) {
 		logged := false
 		var counted *uint64
 		for _, expression := range entry.Rule.Expr {
-			if expression.Log != nil && expression.Log.Prefix == prefix {
+			if expression.Log != nil && expression.Log.Prefix == defaultDropPrefix {
 				logged = true
 			}
 			if expression.Counter != nil {
@@ -346,12 +346,12 @@ func dropCounter(ruleset, prefix string) (uint64, error) {
 			continue
 		}
 		if counted == nil {
-			return 0, fmt.Errorf("the CPE's rule logging %q carries no counter", prefix)
+			return 0, fmt.Errorf("the CPE's rule logging %q carries no counter", defaultDropPrefix)
 		}
 		counts = append(counts, *counted)
 	}
 	if len(counts) != 1 {
-		return 0, fmt.Errorf("the CPE's ruleset holds %d rules logging %q, want 1", len(counts), prefix)
+		return 0, fmt.Errorf("the CPE's ruleset holds %d rules logging %q, want 1", len(counts), defaultDropPrefix)
 	}
 	return counts[0], nil
 }

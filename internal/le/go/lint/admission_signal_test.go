@@ -145,7 +145,7 @@ func TestLintRegisteredQueueStopsOnInterrupt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(executable, "-test.run=^TestLintAdmissionSignalHelper$", "--", "--lint-admission-helper", checkout, root)
+	cmd := exec.CommandContext(t.Context(), executable, "-test.run=^TestLintAdmissionSignalHelper$", "--", "--lint-admission-helper", checkout, root)
 	cmd.Env = env.Without(os.Environ(), job.ParentKey, job.SlotsKey, lepath.RootKey, "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES")
 	cmd.Env = append(cmd.Env, "ZE_RUN_SLOTS=1", "GOPROXY=off", "GOWORK=off", "GOFLAGS=-mod=mod")
 	output := &lintQueueOutput{queued: make(chan struct{})}

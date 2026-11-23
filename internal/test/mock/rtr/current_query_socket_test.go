@@ -116,7 +116,7 @@ func TestRTRFixedQuerySocketKeepsWholeSet(t *testing.T) {
 // listener, and join the handler even when an assertion fails.
 func rtrQuerySocket(t *testing.T, cache *rtrMockCache) net.Conn {
 	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	done := make(chan error, 1)
 	go func() {
@@ -148,7 +148,7 @@ func rtrQuerySocket(t *testing.T, cache *rtrMockCache) net.Conn {
 			t.Error("query socket handler did not stop after cleanup")
 		}
 	})
-	conn, err = net.DialTimeout("tcp", listener.Addr().String(), time.Second)
+	conn, err = (&net.Dialer{Timeout: time.Second}).DialContext(t.Context(), "tcp", listener.Addr().String())
 	require.NoError(t, err)
 	require.NoError(t, conn.SetDeadline(time.Now().Add(5*time.Second)))
 	return conn

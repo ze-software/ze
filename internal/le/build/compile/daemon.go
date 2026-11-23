@@ -38,8 +38,8 @@ func BuildDaemon(ctx context.Context, root, arch, output, version, date string) 
 
 func daemonPlan(tc gotoolchain.Toolchain, arch, output, tags string) buildPlan {
 	return buildPlan{action: "preview-" + arch, output: output,
-		environ: gotoolchain.EnvOptions{GOOS: "linux", GOARCH: arch},
-		command: []string{"go", "build", "-mod=vendor", "-trimpath", "-buildvcs=false", "-tags", tags, "-ldflags", tc.LDFlags(), "-o", output, "./cmd/ze"}}
+		environ: gotoolchain.EnvOptions{GOOS: linuxOS, GOARCH: arch},
+		command: []string{"go", goBuildCommand, "-mod=vendor", "-trimpath", "-buildvcs=false", goTagsFlag, tags, goLDFlagsFlag, tc.LDFlags(), "-o", output, "./cmd/ze"}}
 }
 
 // A preview must not silently read a user's overlay/workspace, experiment or

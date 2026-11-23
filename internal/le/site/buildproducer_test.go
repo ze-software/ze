@@ -3,6 +3,7 @@
 package site
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"slices"
@@ -209,7 +210,7 @@ func TestAProducerRunRefusesANameTheRegistryDoesNotHold(t *testing.T) {
 	if ran != 0 {
 		t.Errorf("a refused run ran %d producer(s)", ran)
 	}
-	if recordAfter, err := os.ReadFile(record); err != nil || string(recordAfter) != string(recordBefore) {
+	if recordAfter, err := os.ReadFile(record); err != nil || !bytes.Equal(recordAfter, recordBefore) {
 		t.Errorf("a refused run changed the record (%v)", err)
 	}
 

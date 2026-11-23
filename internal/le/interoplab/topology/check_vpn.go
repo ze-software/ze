@@ -24,6 +24,9 @@ const ikeWait = 90 * time.Second
 // wordShow is the verb of a wg(8) read.
 const wordShow = "show"
 
+// wgDevice is the WireGuard interface name on both the CPE and wg-client.
+const wgDevice = "wg0"
+
 // checkRoadWarrior proves spec-home-cpe-11 AC-8 (spec-wireguard-runtime-proof
 // AC-1 and AC-2): the kernel holds the committed WireGuard configuration
 // (listen port, the laptop's key, a preshared key, its allowed-ips), wg-client
@@ -33,11 +36,11 @@ func checkRoadWarrior(ctx context.Context, check *interoplab.CheckContext) error
 	if _, err := waitCPEAddress(ctx, check, subscriberAddress, func(held netip.Addr) bool { return held.String() == subscriberAddress }); err != nil {
 		return err
 	}
-	laptop, err := execOK(ctx, check, nodeWGClient, []string{"wg", wordShow, "wg0", "public-key"})
+	laptop, err := execOK(ctx, check, nodeWGClient, []string{"wg", wordShow, wgDevice, "public-key"})
 	if err != nil {
 		return err
 	}
-	dump, err := execOK(ctx, check, nodeCPE, []string{"wg", wordShow, "wg0", "dump"})
+	dump, err := execOK(ctx, check, nodeCPE, []string{"wg", wordShow, wgDevice, "dump"})
 	if err != nil {
 		return fmt.Errorf("read the CPE's kernel WireGuard state (the ze image needs wireguard-tools for this readback): %w", err)
 	}
@@ -50,7 +53,7 @@ func checkRoadWarrior(ctx context.Context, check *interoplab.CheckContext) error
 	if _, err := execOK(ctx, check, nodeWGClient, []string{commandPing, "-c", "3", "-W", "2", resAAddress}); err != nil {
 		return fmt.Errorf("wg-client did not reach lan-res-a %s across the tunnel: %w", resAAddress, err)
 	}
-	handshakes, err := execOK(ctx, check, nodeWGClient, []string{"wg", wordShow, "wg0", "latest-handshakes"})
+	handshakes, err := execOK(ctx, check, nodeWGClient, []string{"wg", wordShow, wgDevice, "latest-handshakes"})
 	if err != nil {
 		return err
 	}
