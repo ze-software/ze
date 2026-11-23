@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -155,6 +156,106 @@ func TestSitePublicationRefusesMissingPartialAndRacedProvenance(t *testing.T) {
 			}
 			if _, err := recordPublication(t.Context(), paths, source); err == nil {
 				t.Fatal("record accepted unavailable whole-build provenance")
+			}
+		})
+	}
+}
+
+// VALIDATES: a build during which other sessions changed the dirty set outside
+// website/ stays recordable, and its receipt names every status entry observed
+// at the start or at the end, so no working-tree input goes undisclosed.
+// PREVENTS: one edit anywhere in the shared checkout making a whole build
+// unrecordable although HEAD and the website bytes never moved.
+func TestSitePublicationRecordsBuildWhoseDirtySetChanged(t *testing.T) {
+	paths, source := publicationFixture(t)
+	record, err := publicationProducerRecord(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	early := filepath.Join(paths.Repository, "early-session-edit.txt")
+	writeFixtureFile(t, early, "dirty when the build started\n")
+	before, err := publicationBuildStart(t.Context(), paths, record.Provenance.Source.Digest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(early); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, filepath.Join(paths.Repository, "other-session", "late-edit.txt"), "dirty when the build finished\n")
+	if err := publicationBuildFinish(t.Context(), paths, before); err != nil {
+		t.Fatal(err)
+	}
+	payload, code := Answer([]string{"record", "source", source, "output", paths.Output})
+	if code != 0 {
+		t.Fatalf("record refused a build whose HEAD and website bytes did not move: code %d, payload %#v", code, payload)
+	}
+	report, ok := payload.(publicationReport)
+	if !ok {
+		t.Fatalf("record returned %T", payload)
+	}
+	receipt, err := checkPublication(t.Context(), paths)
+	if err != nil {
+		t.Fatalf("receipt check refused the recorded build: %v", err)
+	}
+	for _, entry := range []string{"?? early-session-edit.txt", "?? other-session/late-edit.txt"} {
+		if !slices.Contains(report.Source.DirtyPaths, entry) {
+			t.Errorf("record answer does not disclose %q: %v", entry, report.Source.DirtyPaths)
+		}
+		if !slices.Contains(receipt.Source.DirtyPaths, entry) {
+			t.Errorf("receipt does not disclose %q: %v", entry, receipt.Source.DirtyPaths)
+		}
+	}
+	if !slices.IsSorted(receipt.Source.DirtyPaths) {
+		t.Errorf("disclosed entries are not in canonical order: %v", receipt.Source.DirtyPaths)
+	}
+	if len(slices.Compact(slices.Clone(receipt.Source.DirtyPaths))) != len(receipt.Source.DirtyPaths) {
+		t.Errorf("disclosed entries repeat: %v", receipt.Source.DirtyPaths)
+	}
+	if payload, code := Answer([]string{"check", "receipt", "output", paths.Output}); code != 0 {
+		t.Fatalf("registered receipt check refused the recorded build: code %d, payload %#v", code, payload)
+	}
+}
+
+// VALIDATES: a moved HEAD is named as the reason a build cannot be recorded,
+// whatever else changed during the build, and a website byte change that
+// happened in the same build is named beside it.
+// PREVENTS: a later, lesser observation overwriting the HEAD reason.
+func TestSitePublicationNamesEveryRacedSourceReason(t *testing.T) {
+	const headReason = "source HEAD changed during the build"
+	const bytesReason = "website source bytes changed during the build"
+	for _, scenario := range []string{"head-and-dirty-set", "head-and-website-bytes"} {
+		t.Run(scenario, func(t *testing.T) {
+			paths, source := publicationFixture(t)
+			record, err := publicationProducerRecord(paths)
+			if err != nil {
+				t.Fatal(err)
+			}
+			before := record.Provenance.Source
+			writeFixtureFile(t, filepath.Join(paths.Repository, "other-session", "committed-during-build.txt"), "landed\n")
+			roadmapGit(t, paths.Repository, "add", "other-session/committed-during-build.txt")
+			roadmapGit(t, paths.Repository, "-c", "commit.gpgsign=false", "commit", "-qm", "Landed during the build")
+			writeFixtureFile(t, filepath.Join(paths.Repository, "other-session", "late-edit.txt"), "dirty when the build finished\n")
+			if scenario == "head-and-website-bytes" {
+				writeFixtureFile(t, filepath.Join(paths.Source, "CNAME"), "changed.example\n")
+			}
+			if err := publicationBuildFinish(t.Context(), paths, before); err != nil {
+				t.Fatal(err)
+			}
+			if payload, code := Answer([]string{"record", "source", source, "output", paths.Output}); code != 1 || payload != nil {
+				t.Fatalf("registered record action accepted a build whose HEAD moved: code %d, payload %#v", code, payload)
+			}
+			_, err = recordPublication(t.Context(), paths, source)
+			if err == nil {
+				t.Fatal("record accepted a build whose HEAD moved")
+			}
+			if !strings.Contains(err.Error(), headReason) {
+				t.Errorf("refusal does not name the moved HEAD: %v", err)
+			}
+			if strings.Contains(err.Error(), bytesReason) != (scenario == "head-and-website-bytes") {
+				t.Errorf("refusal names the website bytes wrongly for %s: %v", scenario, err)
+			}
+			if strings.Contains(err.Error(), "dirty") {
+				t.Errorf("refusal blames the dirty set, which is disclosure only: %v", err)
 			}
 		})
 	}

@@ -375,15 +375,32 @@ the served website. Recording neither grants approval nor commits or pushes.
 <!-- source: internal/le/site/publication_actions.go -- runPublicationRecord, recordPublication -->
 
 A full build records its observed source HEAD, the existing website-source
-digest and its scope, dirty-path qualification, and the final artifact file
-hashes. The source digest covers tracked and nonignored untracked files under
-`website/`; it does not hash native generator code, command/catalog inputs or
-RFC caches. Dirty paths disclose working-tree inputs rather than proving their
-contents. The reviewed artifact bytes are the publication authority, not a
-claim that HEAD alone reproduces the site. A partial producer render invalidates
-whole-build provenance before replacing any page. Missing, legacy, mixed or
-raced provenance requires a fresh full build instead of a guessed source.
-<!-- source: internal/le/site/publication.go -- publicationSourceScope, publicationBuildStart, publicationBuildFinish, publicationPartial -->
+digest and its scope, the dirty paths, and the final artifact file hashes. The
+source digest covers tracked and nonignored untracked files under `website/`;
+it does not hash native generator code, command/catalog inputs or RFC caches.
+The reviewed artifact bytes are the publication authority, not a claim that
+HEAD alone reproduces the site.
+
+The dirty paths (`dirty-paths` in the record and the receipt) are the
+`git status` entries of the whole repository, taken when the build starts and
+again when it finishes. The record holds every entry seen at either end, so a
+path that became dirty, became clean or changed status during the build is
+still named. They disclose working-tree inputs rather than proving their
+contents: nothing compares them, at the end of the build or in a later check.
+Other sessions edit the shared checkout during every build, so a changed dirty
+set does not make a build unrecordable.
+
+Two changes during a build do make it unrecordable, and `./le site record`
+then refuses with "full-build provenance is unavailable" and the reason: the
+source HEAD moved, or the bytes under `website/` changed (the digest differs).
+When both happened, both are named. `./le site record` and
+`./le site check receipt` compare the same two facts again against the
+checkout, and refuse when either moved after the build. A partial producer
+render invalidates whole-build provenance before replacing any page. Missing,
+legacy, mixed or raced provenance requires a fresh full build instead of a
+guessed source.
+<!-- source: internal/le/site/publication.go -- publicationSourceScope, publicationBuildStart, publicationBuildFinish, publicationDirtyUnion, publicationPartial -->
+<!-- source: internal/le/site/publication_actions.go -- publicationCurrentSource -->
 
 The final-byte snapshot opens each path component from its parent directory
 descriptor, with symbolic link following disabled. It checks the opened file's

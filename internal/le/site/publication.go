@@ -68,7 +68,8 @@ type publicationReceipt struct {
 }
 
 // publicationBuildStart captures only the inputs named in DigestScope. Dirty
-// paths disclose other working-tree inputs; they are not content hashes.
+// paths are Git status entries over the whole repository: they disclose other
+// working-tree inputs and are neither content hashes nor compared afterwards.
 func publicationBuildStart(ctx context.Context, paths Paths, digest string) (publicationSource, error) {
 	revision, err := publicationGit(ctx, paths.Repository, "rev-parse", "--verify", "HEAD^{commit}")
 	if err != nil {
@@ -86,7 +87,11 @@ func publicationBuildStart(ctx context.Context, paths Paths, digest string) (pub
 }
 
 // publicationBuildFinish attaches the final-byte record to the existing route
-// record. A changed observed source invalidates attribution, not rendering.
+// record. A moved HEAD or changed website bytes invalidate attribution, not
+// rendering, and every such reason is named so that none hides another. A
+// changed dirty set invalidates nothing: the shared checkout changes under
+// every build, and the list is disclosure, so the record names every entry
+// observed at either end.
 func publicationBuildFinish(ctx context.Context, paths Paths, source publicationSource) error {
 	files, err := trackedAndUntrackedSourceFiles(paths)
 	if err != nil {
@@ -101,15 +106,15 @@ func publicationBuildFinish(ctx context.Context, paths Paths, source publication
 		return err
 	}
 	provenance := publicationProvenance{Format: publicationFormat, Source: source}
+	provenance.Source.DirtyPaths = publicationDirtyUnion(source.DirtyPaths, after.DirtyPaths)
+	reasons := make([]string, 0, 2)
 	if after.Revision != source.Revision {
-		provenance.Unavailable = "source HEAD changed during the build"
+		reasons = append(reasons, "source HEAD changed during the build")
 	}
 	if after.Digest != source.Digest {
-		provenance.Unavailable = "website source bytes changed during the build"
+		reasons = append(reasons, "website source bytes changed during the build")
 	}
-	if !slices.Equal(after.DirtyPaths, source.DirtyPaths) {
-		provenance.Unavailable = "observed dirty-path qualification changed during the build"
-	}
+	provenance.Unavailable = strings.Join(reasons, "; ")
 	provenance.Files, provenance.ArtifactDigest, err = publicationSnapshot(paths.Output)
 	if err != nil {
 		return err
@@ -339,6 +344,15 @@ func publicationNames(data []byte) []string {
 	}
 	slices.Sort(names)
 	return names
+}
+
+// publicationDirtyUnion names every Git status entry observed when the build
+// started or when it finished, sorted and without repeats. A path that became
+// dirty, became clean or changed status during the build stays disclosed.
+func publicationDirtyUnion(start, finish []string) []string {
+	names := slices.Concat(start, finish)
+	slices.Sort(names)
+	return slices.Compact(names)
 }
 
 func publicationRead(paths Paths, filename string, value any) error {
