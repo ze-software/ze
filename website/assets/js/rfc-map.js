@@ -15,7 +15,32 @@
     const figureValues = new Map();
     const proofSegments = [
         ["ze-proven", "Ze verified"], ["os-verified", "OS verified"], ["proof-pending", "Tests awaiting verification"],
-        ["os-gap", "OS testing gap"], ["exclusion-unchecked", "Exclusion unchecked"], ["not-assessed", "Not assessed"], ["not-built", "Recorded unmet"]
+        ["os-gap", "OS testing gap"], ["exclusion-unchecked", "Exclusion unchecked"], ["not-assessed", "Not assessed"], ["not-built", "Not built"]
+    ];
+    // Order puts unmet and open obligations first so missing parts of an RFC
+    // are always first in the selector without hiding verified or excluded rows.
+    const statusZones = [
+        ["not-built", "Not built"],
+        ["not-assessed", "Not assessed"],
+        ["proof-pending", "Tests awaiting verification"],
+        ["os-gap", "OS testing gap"],
+        ["exclusion-unchecked", "Exclusion unchecked"],
+        ["verified", "Verified"],
+        ["not-owed", "Not owed"],
+        ["rollup", "Derived"],
+        ["unknown", "Not reviewed"]
+    ];
+    const statusFilterOrder = [["all", "All"], ...statusZones];
+    const zoneRank = new Map(statusZones.map(([key], index) => [key, index]));
+    const rfcStatusOptions = [
+        ["not-built", "Has not-built mandatory"],
+        ["any-not-built", "Has any not-built (MUST / SHOULD)"],
+        ["not-assessed", "Has unassessed mandatory"],
+        ["proof-pending", "Has tests awaiting verification"],
+        ["os-gap", "Has OS testing gap"],
+        ["exclusion-unchecked", "Has unchecked exclusion"],
+        ["verified", "All mandatory verified"],
+        ["unreviewed", "No summary or not reviewed"]
     ];
     const relationLabels = {
         "declared-requirement": "Declared requirement relation",
@@ -69,6 +94,12 @@
     function sorted(values) {
         return values.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     }
+    function clip(text, maxLen) {
+        const clean = String(text || "").replace(/\s+/g, " ").trim();
+        if (clean.length <= maxLen) return clean;
+        const cut = clean.lastIndexOf(" ", maxLen);
+        return clean.slice(0, cut > 24 ? cut : maxLen) + "…";
+    }
     async function json(url) {
         const response = await fetch(url, { credentials: "same-origin" });
         if (!response.ok) throw new Error(new URL(url, document.baseURI).pathname + " returned HTTP " + response.status);
@@ -88,6 +119,70 @@
             names.add(node.stem);
         });
         return data;
+    }
+    function effectiveStatus(row, figure, node) {
+        if (figure?.data && Array.isArray(figure.data.unmet) && figure.data.unmet.includes(row.rid)) {
+            return "not-built";
+        }
+        if (row.status === "not-built") return "not-built";
+        if (row.status === "rollup") return "rollup";
+        if (figure?.unknown || (node && (!node.summary || !node.walked))) return "unknown";
+        return row.status || "not-assessed";
+    }
+    function statusBucket(status) {
+        if (status === "ze-proven" || status === "os-verified") return "verified";
+        return status;
+    }
+    function statusBadge(row, status) {
+        if (status === "not-built") {
+            const kind = row.annotation?.kind;
+            if (kind === "gap") return { text: "Gap", full: "Not built · Gap", tone: "not-built" };
+            if (kind === "partial") return { text: "Partial", full: "Not built · Partial", tone: "not-built" };
+            if (kind === "linux-limit") return { text: "Kernel limit", full: "Not built · Kernel limit", tone: "not-built" };
+            return { text: "Not built", full: "Not built", tone: "not-built" };
+        }
+        if (status === "ze-proven") return { text: "Verified", full: "Verified by Ze tests", tone: "ze-proven" };
+        if (status === "os-verified") return { text: "OS verified", full: "Verified on OS behavior", tone: "os-verified" };
+        if (status === "proof-pending") return { text: "Awaiting verification", full: "Tests awaiting verification", tone: "proof-pending" };
+        if (status === "os-gap") return { text: "OS testing gap", full: "OS testing gap", tone: "os-gap" };
+        if (status === "exclusion-unchecked") return { text: "Exclusion unchecked", full: "Exclusion unchecked", tone: "exclusion-unchecked" };
+        if (status === "not-assessed") return { text: "Not assessed", full: "Not assessed (no tagged test)", tone: "not-assessed" };
+        if (status === "not-owed") {
+            const kind = row.annotation?.kind;
+            const label = kind ? "Not owed · " + human(kind) : "Not owed";
+            return { text: "Not owed", full: label, tone: "not-owed" };
+        }
+        if (status === "rollup") {
+            const derived = row.annotation?.derived;
+            const label = derived ? "Derived · " + human(derived) : "Derived";
+            return { text: "Derived", full: label, tone: "rollup" };
+        }
+        return { text: "Not reviewed", full: "Requirement extraction not signed off", tone: "unknown" };
+    }
+    function statusSearchWords(row, status) {
+        const badge = statusBadge(row, status);
+        const extras = status === "not-built" ? "not built missing unimplemented unmet gap" :
+            status === "not-assessed" ? "not assessed no test untested" :
+            status === "proof-pending" ? "awaiting verification proof pending" :
+            status === "ze-proven" || status === "os-verified" ? "verified proven implemented" :
+            status === "not-owed" ? "not owed out of scope excluded" : "";
+        return badge.text + " " + badge.full + " " + status + " " + extras;
+    }
+    function stemStatusCounts(stem) {
+        const rows = model.requirements[stem] || [];
+        const node = nodes.get(stem);
+        const figure = figureValues.get(stem);
+        const gated = { "not-built": 0, "not-assessed": 0, "proof-pending": 0, "os-gap": 0, "exclusion-unchecked": 0, verified: 0, "not-owed": 0, kept: 0 };
+        let anyNotBuilt = 0;
+        rows.forEach(row => {
+            const status = effectiveStatus(row, figure, node);
+            if (status === "not-built") anyNotBuilt++;
+            if (!row.gated || status === "rollup") return;
+            const bucket = statusBucket(status);
+            if (bucket in gated) gated[bucket]++;
+            if (bucket !== "not-owed" && bucket !== "unknown") gated.kept++;
+        });
+        return { gated, anyNotBuilt };
     }
     function ensureFigure(stem) {
         if (!figures.has(stem)) {
@@ -136,29 +231,44 @@
     }
     function setURL() {
         const url = new URL(window.location.href);
-        ["layer", "profile", "technology", "view", "rfc", "q"].forEach(key => url.searchParams.delete(key));
+        ["layer", "profile", "technology", "view", "rfc", "q", "missing", "status", "rq"].forEach(key => url.searchParams.delete(key));
         if (state.mode === "all") url.searchParams.set("view", "all");
         if (state.mode !== "all" && state.mode !== "single") url.searchParams.set(state.mode, state.filter);
         url.searchParams.set("rfc", state.selected);
         if (state.query) url.searchParams.set("q", state.query);
+        if (state.rfcStatus) url.searchParams.set("missing", state.rfcStatus);
+        if (state.statusExplicit && state.status && state.status !== "all") url.searchParams.set("status", state.status);
+        if (state.statementQuery) url.searchParams.set("rq", state.statementQuery);
         history.replaceState(null, "", url);
     }
-    function select(stem) {
+    function select(stem, options) {
         if (!nodes.has(stem)) return;
         const focusGraph = ui.graph.contains(document.activeElement);
         const focusList = ui.listContent.contains(document.activeElement);
         const focusInspector = ui.inspector.contains(document.activeElement);
         state.selected = stem;
+        state.activeRID = "";
+        if (!state.statusExplicit) state.status = "auto";
+        if (options && typeof options.statementQuery === "string") {
+            state.statementQuery = options.statementQuery;
+            if (options.statementQuery) {
+                state.status = "all";
+                state.statusExplicit = false;
+            }
+        } else {
+            state.statementQuery = "";
+        }
         renderGraph();
         renderList();
         renderInspector();
+        renderStatementsPanel();
         setURL();
         // Rendering replaces the activated control; keep keyboard navigation
         // in the same area using the newly selected control or inspector.
         if (focusGraph) ui.graph.querySelector('.rfc-map-node[aria-pressed="true"]')?.focus({ preventScroll: true });
         if (focusList) ui.listContent.querySelector('.rfc-map-document[aria-pressed="true"]')?.focus({ preventScroll: true });
         if (focusInspector) ui.inspector.focus({ preventScroll: true });
-        ui.live.textContent = "Selected " + display(stem) + ". Its details are beside the graph.";
+        ui.live.textContent = "Selected " + display(stem) + ". Its overview is beside the graph and its statement selector is below.";
     }
     function scope() {
         let members;
@@ -176,22 +286,72 @@
         if (state.mode === "single") return display(state.selected);
         return "All RFCs and standards";
     }
-    function matches(node) {
-        const q = state.query.trim().toLowerCase();
+    function matchesRFCStatus(node) {
+        if (!state.rfcStatus) return true;
+        if (state.rfcStatus === "unreviewed") return !node.summary || !node.walked;
+        const counts = stemStatusCounts(node.stem);
+        if (state.rfcStatus === "any-not-built") return counts.anyNotBuilt > 0;
+        if (state.rfcStatus === "not-built") return counts.gated["not-built"] > 0;
+        if (!node.summary || !node.walked) return false;
+        if (state.rfcStatus === "verified") return counts.gated.kept > 0 && counts.gated.verified === counts.gated.kept;
+        return (counts.gated[state.rfcStatus] || 0) > 0;
+    }
+    function matchesMetadata(node, q) {
         return !q || [node.stem, display(node.stem), node.title || "", node.aggregate || ""].join(" ").toLowerCase().includes(q);
     }
-    function filteredScope() { return sorted(Array.from(scope()).filter(stem => matches(nodes.get(stem)))); }
+    function statementMatchesQuery(row, status, q) {
+        if (!q) return true;
+        const fields = [
+            row.rid,
+            row.section ? "section " + row.section + " §" + row.section : "",
+            row.level,
+            row.text,
+            statusSearchWords(row, status),
+            row.annotation?.kind || "",
+            row.annotation?.gap || "",
+            row.annotation?.tested || "",
+            row.annotation?.reason || "",
+            row.annotation?.["limit-id"] || "",
+            row["demonstrated-by"] || "",
+            row["audit-verdict"] || "",
+            row["audit-note"] || ""
+        ];
+        return fields.join(" ").toLowerCase().includes(q);
+    }
+    function matchingStatementCount(stem, q) {
+        if (!q) return 0;
+        const node = nodes.get(stem);
+        const figure = figureValues.get(stem);
+        return (model.requirements[stem] || []).filter(row => statementMatchesQuery(row, effectiveStatus(row, figure, node), q)).length;
+    }
+    function filteredScopeDetails() {
+        const statusMatched = sorted(Array.from(scope()).filter(stem => matchesRFCStatus(nodes.get(stem))));
+        const q = state.query.trim().toLowerCase();
+        if (!q) return { stems: statusMatched, viaStatements: false };
+        const direct = statusMatched.filter(stem => matchesMetadata(nodes.get(stem), q));
+        if (direct.length || /^rfc\s*\d+$/i.test(q)) {
+            return { stems: direct, viaStatements: false };
+        }
+        // When no RFC number, title or technology matches, search requirement
+        // statements and gap reasons inside the current view so queries like
+        // "MRAI" or "ATOMIC_AGGREGATE" locate the RFC holding the missing part.
+        const byStatements = statusMatched.filter(stem => matchingStatementCount(stem, q) > 0);
+        return { stems: byStatements, viaStatements: byStatements.length > 0 };
+    }
+    function filteredScope() { return filteredScopeDetails().stems; }
     function changeView(mode, value) {
         state.mode = mode;
         state.filter = value;
         state.added = [];
         state.graphMode = "view";
+        state.activeRID = "";
+        if (!state.statusExplicit) state.status = "auto";
         const members = filteredScope();
         if (!members.includes(state.selected) && members.length) state.selected = members[0];
         render();
     }
-    function labelledControl(label, control) {
-        const field = el("div", "rfc-map-field");
+    function labelledControl(label, control, className) {
+        const field = el("div", className ? "rfc-map-field " + className : "rfc-map-field");
         const text = el("label", "", label);
         text.htmlFor = control.id;
         field.append(text, control);
@@ -220,14 +380,36 @@
         const shell = el("div", "rfc-map-app");
         const controls = el("div", "rfc-map-controls");
         ui = {};
-        ui.layer = dropdown("rfc-map-layer", "Choose a proposed layer", model.layers.map(layer => [layer.id, layer.title]), value => changeView("layer", value));
-        ui.profile = dropdown("rfc-map-profile", "Choose an existing profile", model.profiles.filter(p => p.kind === "use-case").map(p => [p.id, p.title]), value => changeView("profile", value));
+        ui.layer = dropdown("rfc-map-layer", "Proposed layer…", model.layers.map(layer => [layer.id, layer.title]), value => changeView("layer", value));
+        ui.profile = dropdown("rfc-map-profile", "Release profile…", model.profiles.filter(p => p.kind === "use-case").map(p => [p.id, p.title]), value => changeView("profile", value));
         const aggregates = unique(model.nodes.map(node => node.aggregate).filter(Boolean));
-        ui.technology = dropdown("rfc-map-technology", "Browse another technology", sorted(aggregates).map(name => [name, model.profiles.find(p => p.id === name)?.title || human(name)]), value => changeView("technology", value));
+        ui.technology = dropdown("rfc-map-technology", "Technology…", sorted(aggregates).map(name => [name, model.profiles.find(p => p.id === name)?.title || human(name)]), value => changeView("technology", value));
+        ui.rfcStatus = dropdown("rfc-map-rfc-status", "All RFCs in view", rfcStatusOptions, value => {
+            state.rfcStatus = value;
+            const members = filteredScope();
+            if (!members.includes(state.selected) && members.length) {
+                state.selected = members[0];
+                state.activeRID = "";
+                if (!state.statusExplicit) state.status = "auto";
+            }
+            renderGraph();
+            renderList();
+            renderInspector();
+            renderStatementsPanel();
+            setURL();
+        });
+        ui.rfcStatus.addEventListener("change", () => {
+            if (!ui.rfcStatus.value) {
+                state.rfcStatus = "";
+                renderGraph();
+                renderList();
+                setURL();
+            }
+        });
         ui.search = el("input");
         ui.search.type = "search";
         ui.search.id = "rfc-map-search";
-        ui.search.placeholder = "RFC number, title or technology";
+        ui.search.placeholder = "RFC number, title, technology or missing term";
         ui.search.value = state.query;
         ui.search.addEventListener("input", () => {
             state.query = ui.search.value;
@@ -235,7 +417,13 @@
             renderList();
             setURL();
         });
-        controls.append(labelledControl("Proposed release layer", ui.layer), labelledControl("Existing release profile", ui.profile), labelledControl("Technology", ui.technology), labelledControl("Search this view", ui.search));
+        controls.append(
+            labelledControl("Proposed layer", ui.layer),
+            labelledControl("Release profile", ui.profile),
+            labelledControl("Technology", ui.technology),
+            labelledControl("Coverage filter", ui.rfcStatus),
+            labelledControl("Search view", ui.search, "rfc-map-field-search")
+        );
         shell.append(controls);
         const caption = el("div", "rfc-map-scope-row");
         ui.scope = el("div", "rfc-map-scope");
@@ -265,17 +453,23 @@
         ui.graph.id = "rfc-map-graph";
         ui.graph.tabIndex = 0;
         ui.graph.setAttribute("aria-label", "Scrollable graph. Tab to RFC buttons, or use the document list below.");
+        const graphFooter = el("div", "rfc-map-graph-footer");
         const legend = el("div", "rfc-map-legend");
         Object.entries(edgeLabels).forEach(([kind, label]) => legend.append(el("span", "rfc-map-edge-key rfc-map-edge-key-" + kind, label)));
-        legend.append(el("span", "rfc-map-context-key", "Dashed card: context only"));
+        legend.append(el("span", "rfc-map-context-key", "Dashed: context"));
         ui.graphNote = note("", "rfc-map-graph-caption");
-        graphPanel.append(toolbar, ui.graph, legend, ui.graphNote);
+        graphFooter.append(legend, ui.graphNote);
+        graphPanel.append(toolbar, ui.graph, graphFooter);
         ui.inspector = el("aside", "rfc-map-inspector");
         ui.inspector.id = "rfc-map-inspector";
         ui.inspector.tabIndex = -1;
-        ui.inspector.setAttribute("aria-label", "Selected RFC details");
+        ui.inspector.setAttribute("aria-label", "Selected RFC overview");
         workspace.append(graphPanel, ui.inspector);
         shell.append(workspace);
+        ui.statementsPanel = el("section", "rfc-map-statements-panel");
+        ui.statementsPanel.id = "rfc-map-statements-panel";
+        ui.statementsPanel.setAttribute("aria-label", "Selected RFC statements and missing requirements");
+        shell.append(ui.statementsPanel);
         ui.list = disclosure("Documents in this view", "rfc-map-disclosure rfc-map-document-list");
         ui.list.open = true;
         ui.listContent = el("div", "rfc-map-list-content");
@@ -299,10 +493,12 @@
         ui.layer.value = state.mode === "layer" ? state.filter : "";
         ui.profile.value = state.mode === "profile" ? state.filter : "";
         ui.technology.value = state.mode === "technology" ? state.filter : "";
+        ui.rfcStatus.value = state.rfcStatus || "";
         ui.scope.replaceChildren(el("strong", "", scopeTitle()), el("span", "", state.mode === "layer" ? "Proposed capability boundary · changes no support claim" : state.mode === "profile" ? "Required members only · optional members remain context" : "Browsing scope · relationships do not add obligations"));
         renderGraph();
         renderList();
         renderInspector();
+        renderStatementsPanel();
         setURL();
     }
     function graphMembers() {
@@ -317,8 +513,6 @@
         if (!shown.includes(state.selected)) shown.unshift(state.selected);
         if (state.context) {
             const context = sorted(Array.from(adjacent).filter(stem => nodes.has(stem) && !shown.includes(stem)));
-            // Updates are the useful first context for the selected base RFC;
-            // the complete relationship list remains in its inspector.
             const updaters = new Set(model.edges.filter(edge => edge.to === state.selected && edge.kind === "updates").map(edge => edge.from));
             context.sort((a, b) => Number(inView.has(b)) - Number(inView.has(a)) ||
                 Number(updaters.has(b)) - Number(updaters.has(a)) ||
@@ -343,12 +537,12 @@
             }
             columns[column].push(stem);
         });
-        const rowHeight = 110;
+        const rowHeight = 104;
         const rows = Math.max(4, ...columns.map(column => column.length));
-        const height = rows * rowHeight + 36;
+        const height = rows * rowHeight + 28;
         const positions = new Map();
         columns.forEach((column, col) => column.forEach((stem, row) => {
-            positions.set(stem, { x: 22 + col * 254, y: 18 + row * rowHeight + (rows - column.length) * rowHeight / 2 });
+            positions.set(stem, { x: 22 + col * 254, y: 14 + row * rowHeight + (rows - column.length) * rowHeight / 2 });
         }));
         const canvas = svg("svg", { viewBox: "0 0 752 " + height, width: 752, height, "aria-label": "Relationships around " + display(state.selected) });
         canvas.classList.add("rfc-map-canvas");
@@ -366,8 +560,8 @@
             const right = to.x > from.x;
             const x1 = from.x + (right ? 200 : 0);
             const x2 = to.x + (right ? 0 : 200);
-            const y1 = from.y + 46;
-            const y2 = to.y + 46;
+            const y1 = from.y + 45;
+            const y2 = to.y + 45;
             const bend = right ? 45 : -45;
             const path = svg("path", { d: "M " + x1 + " " + y1 + " C " + (x1 + bend) + " " + y1 + ", " + (x2 - bend) + " " + y2 + ", " + x2 + " " + y2,
                 class: "rfc-map-edge rfc-map-edge-" + edge.kind, "marker-end": "url(#rfc-map-arrow-" + edge.kind + ")" });
@@ -379,7 +573,7 @@
         graph.shown.forEach(stem => {
             const data = nodes.get(stem);
             const position = positions.get(stem);
-            const holder = svg("foreignObject", { x: position.x, y: position.y, width: 200, height: 94 });
+            const holder = svg("foreignObject", { x: position.x, y: position.y, width: 200, height: 92 });
             const card = document.createElementNS(htmlNS, "button");
             card.type = "button";
             card.className = "rfc-map-node" + (graph.inView.has(stem) ? "" : " rfc-map-node-context") + (stem === state.selected ? " rfc-map-node-selected" : "");
@@ -402,29 +596,73 @@
         ui.graph.replaceChildren(canvas);
         const selected = positions.get(state.selected);
         const ratio = state.zoom / 100;
-        ui.graph.scrollTop = Math.max(0, (selected.y + 46) * ratio - ui.graph.clientHeight / 2);
+        ui.graph.scrollTop = Math.max(0, (selected.y + 45) * ratio - ui.graph.clientHeight / 2);
         const contextCount = graph.shown.filter(stem => !graph.inView.has(stem)).length;
-        ui.graphNote.textContent = graph.shown.length + " documents shown · " + contextCount + " context only. " + graph.matched + " documents match this view; all remain available in the list. Arrows preserve the source relationship, not a release commitment.";
+        ui.graphNote.textContent = graph.shown.length + " shown · " + contextCount + " context only · " + graph.matched + " in view. Arrows preserve source citations, not release commitments.";
     }
     function renderList() {
-        const members = filteredScope();
+        const result = filteredScopeDetails();
+        const members = result.stems;
+        const q = state.query.trim().toLowerCase();
         ui.list.querySelector("summary").textContent = "Documents in this view · " + members.length;
         const list = el("div", "rfc-map-document-grid");
         members.forEach(stem => {
             const data = nodes.get(stem);
-            const item = button("", () => select(stem), "rfc-map-document");
+            const counts = stemStatusCounts(stem);
+            const item = button("", () => select(stem, result.viaStatements ? { statementQuery: state.query.trim() } : undefined), "rfc-map-document");
             item.setAttribute("aria-pressed", String(stem === state.selected));
             item.append(el("strong", "", display(stem)), el("span", "", data.title || "No summary available"));
-            // Only visible graph nodes are fetched automatically. The list
-            // remains small and useful without fetching every RFC figure.
+            const meta = [];
+            if (counts.gated["not-built"] > 0) meta.push(counts.gated["not-built"] + " MUST not built");
+            else if (counts.anyNotBuilt > 0) meta.push(counts.anyNotBuilt + " advisory not built");
+            if (counts.gated["not-assessed"] > 0) meta.push(counts.gated["not-assessed"] + " unassessed");
+            if (counts.gated["proof-pending"] > 0) meta.push(counts.gated["proof-pending"] + " awaiting verification");
+            if (result.viaStatements) {
+                const hits = matchingStatementCount(stem, q);
+                meta.unshift(hits + (hits === 1 ? " matching statement" : " matching statements"));
+            }
+            if (meta.length) {
+                item.append(el("small", counts.gated["not-built"] > 0 ? "rfc-map-document-meta rfc-map-document-meta-unmet" : "rfc-map-document-meta", meta.join(" · ")));
+            }
             list.append(item);
         });
-        ui.listContent.replaceChildren(members.length ? list : note("No documents match this search. Clear the search or browse all RFCs."));
+        const wrapper = el("div");
+        if (result.viaStatements) {
+            wrapper.append(note("No RFC title matched \"" + state.query.trim() + "\"; showing RFCs with matching requirement statements or gap reasons. Select one to inspect its matches."));
+        }
+        wrapper.append(members.length ? list : note("No documents match this filter. Clear the search or coverage filter, or browse all RFCs."));
+        ui.listContent.replaceChildren(wrapper);
     }
-    function metric(label, value) {
-        const node = el("div", "rfc-map-metric");
+    function metric(label, value, swatchKey, onSelect) {
+        const clickable = typeof onSelect === "function" && value > 0;
+        const node = el(clickable ? "button" : "div", "rfc-map-metric" +
+            (clickable ? " rfc-map-metric-action" : "") +
+            (swatchKey === "not-built" && value > 0 ? " rfc-map-metric-unmet" : ""));
+        if (clickable) {
+            node.type = "button";
+            node.addEventListener("click", onSelect);
+            node.title = "Filter statement selector below to " + label.toLowerCase();
+        }
+        if (swatchKey) {
+            const swatch = el("span", "rfc-map-swatch rfc-map-swatch-" + swatchKey);
+            swatch.setAttribute("aria-hidden", "true");
+            node.append(swatch);
+        }
         node.append(el("strong", "", String(value)), el("span", "", label));
         return node;
+    }
+    function jumpToStatementFilter(statusKey, options) {
+        state.status = statusKey;
+        state.statusExplicit = true;
+        if (options && options.level) state.level = options.level;
+        else if (options && options.mandatory) state.level = "mandatory";
+        if (options && typeof options.statementQuery === "string") state.statementQuery = options.statementQuery;
+        state.activeRID = options?.rid || "";
+        if (ui.level) ui.level.value = state.level === "all" ? "" : state.level;
+        if (ui.statementSearch) ui.statementSearch.value = state.statementQuery;
+        renderStatementsBody();
+        setURL();
+        ui.statementsPanel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
     function paintProof(host, figure) {
         host.replaceChildren();
@@ -438,10 +676,14 @@
             return;
         }
         const must = figure.must;
-        host.append(el("p", "rfc-map-proof-value", figure.percent === null ? (must.total ? "None owed" : "No MUST rows") : figure.percent.toFixed(1).replace(/\.0$/, "") + "%"));
+        const headline = el("div", "rfc-map-proof-headline");
+        headline.append(el("p", "rfc-map-proof-value", figure.percent === null ? (must.total ? "None owed" : "No MUST rows") : figure.percent.toFixed(1).replace(/\.0$/, "") + "%"));
         if (figure.percent !== null) {
-            host.append(note(figure.proven + " of " + must.kept + " owed mandatory requirements verified by tests. This card always covers the full mandatory register."));
-            const bar = svg("svg", { viewBox: "0 0 100 4", width: "100%", height: 10, role: "img", "aria-label": figure.proven + " verified, " + must["proof-pending"] + " awaiting test verification, " + must["not-built"] + " recorded unmet" });
+            headline.append(note(figure.proven + " of " + must.kept + " owed mandatory verified. Full mandatory register."));
+        }
+        host.append(headline);
+        if (figure.percent !== null) {
+            const bar = svg("svg", { viewBox: "0 0 100 4", width: "100%", height: 10, role: "img", "aria-label": figure.proven + " verified, " + must["proof-pending"] + " awaiting test verification, " + must["not-built"] + " not built" });
             let offset = 0;
             proofSegments.forEach(([key, title]) => {
                 const width = 100 * must[key] / must.kept;
@@ -456,51 +698,58 @@
             });
             host.append(bar);
             const metrics = el("div", "rfc-map-metrics");
-            metrics.append(metric("Verified", figure.proven), metric("Tests awaiting verification", must["proof-pending"]), metric("Recorded unmet", must["not-built"]), metric("Not assessed", must["not-assessed"]));
-            if (must["os-gap"] || must["exclusion-unchecked"]) metrics.append(metric("OS testing gap", must["os-gap"]), metric("Exclusions unchecked", must["exclusion-unchecked"]));
+            metrics.append(
+                metric("Verified", figure.proven, "ze-proven", () => jumpToStatementFilter("verified", { mandatory: true, statementQuery: "" })),
+                metric("Not built", must["not-built"], "not-built", () => jumpToStatementFilter("not-built", { mandatory: true, statementQuery: "" })),
+                metric("Tests awaiting verification", must["proof-pending"], "proof-pending", () => jumpToStatementFilter("proof-pending", { mandatory: true, statementQuery: "" })),
+                metric("Not assessed", must["not-assessed"], "not-assessed", () => jumpToStatementFilter("not-assessed", { mandatory: true, statementQuery: "" }))
+            );
+            if (must["os-gap"] || must["exclusion-unchecked"]) {
+                metrics.append(
+                    metric("OS testing gap", must["os-gap"], "os-gap", () => jumpToStatementFilter("os-gap", { mandatory: true, statementQuery: "" })),
+                    metric("Exclusion unchecked", must["exclusion-unchecked"], "exclusion-unchecked", () => jumpToStatementFilter("exclusion-unchecked", { mandatory: true, statementQuery: "" }))
+                );
+            }
             host.append(metrics);
-        } else host.append(note(must.total ? "Every listed mandatory row is recorded as not owed. This is not 100% verified coverage." : "The recorded summary lists no mandatory requirements. Advisory requirements can still apply."));
+        } else {
+            host.append(note(must.total ? "Every listed mandatory row is recorded as not owed. This is not 100% verified coverage." : "The recorded summary lists no mandatory requirements. Advisory requirements can still apply."));
+        }
         if (must["not-owed"]) host.append(note(must["not-owed"] + " mandatory rows are separately recorded as not owed."));
-        host.append(note("These are recorded test results. A fresh source review and release checks are separate. Recorded gaps can need source reconciliation.", "rfc-map-caption"));
+        host.append(note("Recorded test results. Click any non-zero count to jump to those statements below.", "rfc-map-caption"));
     }
     function renderInspector() {
         const data = nodes.get(state.selected);
         if (!data) return;
         const target = ui.inspector;
         target.replaceChildren();
-        target.append(el("div", "rfc-map-eyebrow", scope().has(data.stem) ? "Selected in this view" : "Related context · outside this view"), el("h2", "", display(data.stem)), note(data.title || "No summary available", "rfc-map-inspector-title"));
-        if (data.aggregate) target.append(el("span", "rfc-map-chip", human(data.aggregate)));
-        if (Array.isArray(data.component) && data.component.length > 1) target.append(note("Citation cycle: " + data.component.map(display).join(", ")));
+        const header = el("div", "rfc-map-inspector-head");
+        const titleBlock = el("div", "rfc-map-inspector-heading");
+        titleBlock.append(el("div", "rfc-map-eyebrow", scope().has(data.stem) ? "Selected in this view" : "Related context · outside this view"), el("h2", "", display(data.stem)));
+        header.append(titleBlock);
         const links = el("div", "rfc-map-inspector-links");
         if (data.summary) links.append(link("Open RFC evidence ↗", detail(data.stem)));
         else if (/^rfc\d+$/.test(data.stem)) links.append(link("Open RFC text ↗", "https://www.rfc-editor.org/rfc/" + encodeURIComponent(data.stem), "rfc-map-external"));
         else links.append(link("Browse standards records ↗", new URL("quality/rfc-compliance/", site).href));
-        if (!scope().has(data.stem)) links.append(button("Add to this view", () => { state.added.push(data.stem); render(); }, "rfc-map-button rfc-map-button-quiet"));
-        target.append(links);
+        if (!scope().has(data.stem)) links.append(button("Add to view", () => { state.added.push(data.stem); render(); }, "rfc-map-button rfc-map-button-quiet"));
+        header.append(links);
+        target.append(header);
+        const sub = el("div", "rfc-map-inspector-sub");
+        sub.append(note(data.title || "No summary available", "rfc-map-inspector-title"));
+        if (data.aggregate) sub.append(el("span", "rfc-map-chip", human(data.aggregate)));
+        target.append(sub);
+        if (Array.isArray(data.component) && data.component.length > 1) target.append(note("Citation cycle: " + data.component.map(display).join(", "), "rfc-map-caption"));
         const proof = el("section", "rfc-map-proof-card");
         proof.append(note("Loading the recorded test results…"));
         target.append(proof);
-        ensureFigure(data.stem).then(figure => { if (proof.isConnected) paintProof(proof, figure); });
         renderRelationships(target, data.stem);
-        const requirements = model.requirements[data.stem] || [];
-        const section = el("section", "rfc-map-requirements");
-        section.append(el("h3", "", "Requirements and linked work"));
-        const levels = sorted(unique(requirements.map(row => row.level).filter(Boolean)));
-        const level = dropdown("rfc-map-level", "All requirement keywords", [["mandatory", "MUST family · mandatory"], ...levels.map(value => [value, value + " only"])], value => {
-            state.level = value;
-            renderRequirementList(body, data.stem);
+        ui.inspectorSpecs = el("div", "rfc-map-inspector-specs");
+        target.append(ui.inspectorSpecs);
+        renderInspectorSpecs(data.stem, model.requirements[data.stem] || []);
+        ensureFigure(data.stem).then(figure => {
+            if (!proof.isConnected) return;
+            paintProof(proof, figure);
+            renderStatementsBody();
         });
-        // The empty option is a real all-keywords filter here.
-        level.addEventListener("change", () => {
-            if (!level.value) { state.level = "all"; renderRequirementList(body, data.stem); }
-        });
-        level.value = state.level === "all" ? "" : levels.includes(state.level) || state.level === "mandatory" ? state.level : "mandatory";
-        if (level.value === "mandatory") state.level = "mandatory";
-        section.append(labelledControl("Show statements", level));
-        const body = el("div", "rfc-map-requirement-body");
-        section.append(body);
-        renderRequirementList(body, data.stem);
-        target.append(section);
     }
     function renderRelationships(target, stem) {
         const edges = model.edges.filter(edge => edge.from === stem || edge.to === stem);
@@ -517,18 +766,13 @@
         block.append(note("Citations suggest context. Header updates do not identify which requirement was rewritten. Exact row applicability remains subject to review."), list);
         target.append(block);
     }
-    function relationsFor(stem) {
-        const rows = model.requirements[stem] || [];
-        const eligible = new Set(rows.filter(row => state.level === "all" || state.level === "mandatory" && row.gated || row.level === state.level).map(row => row.rid));
+    function relationsFor(stem, visibleRows) {
+        const eligible = new Set(visibleRows.map(row => row.rid));
         return model.relations.filter(relation => relation.stem === stem && (!relation.rid || eligible.has(relation.rid)));
     }
-    function renderRequirementList(target, stem) {
-        const all = model.requirements[stem] || [];
-        const rows = all.filter(row => state.level === "all" || state.level === "mandatory" && row.gated || row.level === state.level);
-        target.replaceChildren(note(rows.length + " of " + all.length + " listed statements. Keyword filtering changes this list and exact-ID relations, never the mandatory test results."));
-        const relations = relationsFor(stem);
+    function buildSpecEntries(relations) {
         const identities = unique(relations.map(row => row.spec));
-        const specBlock = disclosure("Associated specifications · " + identities.length);
+        const box = el("div", "rfc-map-spec-list");
         identities.forEach(name => {
             const item = el("div", "rfc-map-spec");
             const spec = specs.get(name);
@@ -542,30 +786,337 @@
                 evidence.forEach(row => sources.append(note([row.source, row.note].filter(Boolean).join(" · "), "rfc-map-source")));
                 item.append(sources);
             }
-            specBlock.append(item);
+            box.append(item);
         });
-        if (!identities.length) specBlock.append(note("No recorded association for this selection. This does not establish that no work is owed."));
-        else specBlock.append(note("Associations are not confirmed implementation ownership. A whole-RFC relation has no assigned requirement level."));
-        target.append(specBlock);
-        const list = el("div", "rfc-map-statements");
-        rows.forEach(row => {
-            const item = el("article", "rfc-map-statement");
-            const heading = el("div", "rfc-map-statement-heading");
-            heading.append(el("span", "rfc-map-keyword", row.level), link(row.rid, detail(stem, row.rid)));
-            item.append(heading, note(row.text));
-            if (row.annotation) {
-                item.append(el("span", "rfc-map-chip", "Recorded " + human(row.annotation.kind)));
-                if (row.annotation.reason) {
-                    const why = disclosure("Recorded annotation");
-                    why.append(note(row.annotation.reason));
-                    item.append(why);
-                }
+        return { identities, box };
+    }
+    function renderInspectorSpecs(stem, visibleRows) {
+        if (!ui.inspectorSpecs) return;
+        const relations = relationsFor(stem, visibleRows);
+        const { identities, box } = buildSpecEntries(relations);
+        const specBlock = disclosure("Associated specifications · " + identities.length);
+        if (identities.length) {
+            specBlock.append(box, note("Associations are not confirmed implementation ownership. A whole-RFC relation has no assigned requirement level."));
+        } else {
+            specBlock.append(note("No recorded association for this selection. This does not establish that no work is owed."));
+        }
+        ui.inspectorSpecs.replaceChildren(specBlock);
+    }
+    function renderStatementsPanel() {
+        const stem = state.selected;
+        const data = nodes.get(stem);
+        if (!data || !ui.statementsPanel) return;
+        const requirements = model.requirements[stem] || [];
+        const panel = ui.statementsPanel;
+        panel.replaceChildren();
+        const header = el("div", "rfc-map-explorer-header");
+        const titleWrap = el("div", "rfc-map-explorer-title");
+        titleWrap.append(el("h3", "", display(stem) + " — Requirement statements"), note(data.title || "No summary available", "rfc-map-caption"));
+        header.append(titleWrap);
+        const controls = el("div", "rfc-map-explorer-controls");
+        const levels = sorted(unique(requirements.map(row => row.level).filter(Boolean)));
+        const level = dropdown("rfc-map-level", "All requirement keywords", [["mandatory", "MUST family · mandatory"], ...levels.map(value => [value, value + " only"])], value => {
+            state.level = value;
+            state.activeRID = "";
+            if (!state.statusExplicit) state.status = "auto";
+            renderStatementsBody();
+        });
+        level.addEventListener("change", () => {
+            if (!level.value) {
+                state.level = "all";
+                state.activeRID = "";
+                if (!state.statusExplicit) state.status = "auto";
+                renderStatementsBody();
             }
-            if (row.section) item.append(note("Section " + row.section, "rfc-map-caption"));
-            list.append(item);
         });
-        if (!rows.length) list.append(note(all.length ? "No listed statements match this keyword." : "No requirement statements are recorded in this map for this document."));
-        target.append(list);
+        level.value = state.level === "all" ? "" : levels.includes(state.level) || state.level === "mandatory" ? state.level : "mandatory";
+        if (level.value === "mandatory") state.level = "mandatory";
+        ui.level = level;
+        const statementSearch = el("input");
+        statementSearch.type = "search";
+        statementSearch.id = "rfc-map-statement-search";
+        statementSearch.placeholder = "Search section, ID, text or gap…";
+        statementSearch.value = state.statementQuery;
+        statementSearch.addEventListener("input", () => {
+            state.statementQuery = statementSearch.value;
+            state.activeRID = "";
+            renderStatementsBody();
+            setURL();
+        });
+        ui.statementSearch = statementSearch;
+        controls.append(
+            labelledControl("Keywords", level),
+            labelledControl("Search statements", statementSearch)
+        );
+        header.append(controls);
+        panel.append(header);
+        ui.statementsBody = el("div", "rfc-map-explorer-body");
+        panel.append(ui.statementsBody);
+        renderStatementsBody();
+    }
+    function orderedRowsFor(stem, figure, node) {
+        const all = model.requirements[stem] || [];
+        const byLevel = all.filter(row => state.level === "all" || state.level === "mandatory" && row.gated || row.level === state.level);
+        const counts = { all: byLevel.length };
+        const enriched = byLevel.map((row, index) => {
+            const status = effectiveStatus(row, figure, node);
+            const bucket = statusBucket(status);
+            counts[bucket] = (counts[bucket] || 0) + 1;
+            return { row, status, bucket, index };
+        });
+        // Default to "not-built" when the active keyword set has missing rows,
+        // so the selector immediately opens on the missing statements.
+        let activeStatus = state.status;
+        if (activeStatus === "auto") {
+            activeStatus = (counts["not-built"] || 0) > 0 && !state.statementQuery.trim() ? "not-built" : "all";
+        }
+        const q = state.statementQuery.trim().toLowerCase();
+        const filtered = enriched.filter(item => {
+            if (activeStatus !== "all" && item.bucket !== activeStatus) return false;
+            return statementMatchesQuery(item.row, item.status, q);
+        });
+        const allQueryMatches = q ? enriched.filter(item => statementMatchesQuery(item.row, item.status, q)).length : byLevel.length;
+        // Group by status zone (missing/open first), preserving RFC document order within each zone.
+        filtered.sort((a, b) => (zoneRank.get(a.bucket) ?? 99) - (zoneRank.get(b.bucket) ?? 99) || a.index - b.index);
+        return { all, byLevel, counts, filtered, activeStatus, q, allQueryMatches };
+    }
+    function optionLabel(item) {
+        const row = item.row;
+        const badge = statusBadge(row, item.status);
+        const parts = [];
+        if (row.section) parts.push("§" + row.section);
+        parts.push(row.rid);
+        parts.push("[" + row.level + (item.bucket === "not-built" ? " · " + badge.text : "") + "]");
+        const summary = row.annotation?.kind === "partial" && row.annotation.gap
+            ? "Missing: " + row.annotation.gap
+            : row.text;
+        return parts.join(" · ") + " — " + clip(summary, 92);
+    }
+    function renderStatementDetail(host, stem, entry) {
+        host.replaceChildren();
+        if (!entry) return;
+        const row = entry.row;
+        const badge = statusBadge(row, entry.status);
+        const leftCol = el("div", "rfc-map-reader-col");
+        const meta = el("div", "rfc-map-reader-meta");
+        meta.append(
+            el("span", "rfc-map-keyword", row.level),
+            link(row.rid, detail(stem, row.rid), "rfc-map-reader-rid"),
+            el("span", "rfc-map-status rfc-map-status-" + badge.tone, badge.full)
+        );
+        if (row.section) meta.append(el("span", "rfc-map-section", "Section " + row.section));
+        leftCol.append(meta);
+        const reqBlock = el("div", "rfc-map-reader-block");
+        reqBlock.append(el("div", "rfc-map-eyebrow", "RFC requirement"), el("p", "rfc-map-reader-quote", row.text));
+        leftCol.append(reqBlock);
+        const rowRelations = model.relations.filter(rel => rel.stem === stem && rel.rid === row.rid);
+        if (rowRelations.length) {
+            const relBlock = el("div", "rfc-map-reader-block");
+            relBlock.append(el("div", "rfc-map-eyebrow", "Specifications referencing " + row.rid));
+            relBlock.append(buildSpecEntries(rowRelations).box);
+            leftCol.append(relBlock);
+        }
+        const footer = el("div", "rfc-map-reader-footer");
+        footer.append(link("Open " + row.rid + " in RFC evidence ↗", detail(stem, row.rid)));
+        leftCol.append(footer);
+
+        const rightCol = el("div", "rfc-map-reader-col");
+        if (row.annotation?.kind === "partial") {
+            if (row.annotation.gap) {
+                const missingBox = el("div", "rfc-map-reader-callout rfc-map-reader-callout-unmet");
+                missingBox.append(el("div", "rfc-map-eyebrow", "What is missing"), el("p", "", row.annotation.gap));
+                rightCol.append(missingBox);
+            }
+            if (row.annotation.tested) {
+                const testedBox = el("div", "rfc-map-reader-callout rfc-map-reader-callout-tested");
+                testedBox.append(el("div", "rfc-map-eyebrow", "What is tested"), el("p", "", row.annotation.tested));
+                rightCol.append(testedBox);
+            }
+            if (row.annotation.reason) {
+                const reasonBlock = el("div", "rfc-map-reader-block");
+                reasonBlock.append(el("div", "rfc-map-eyebrow", "Recorded details"), note(row.annotation.reason, "rfc-map-reader-prose"));
+                rightCol.append(reasonBlock);
+            }
+        } else if (row.annotation?.kind === "gap") {
+            const gapBox = el("div", "rfc-map-reader-callout rfc-map-reader-callout-unmet");
+            gapBox.append(el("div", "rfc-map-eyebrow", "Why this is missing"));
+            gapBox.append(el("p", "", row.annotation.reason || "Recorded as not built in the RFC summary."));
+            if (row["demonstrated-by"]) {
+                const demo = el("p", "rfc-map-caption");
+                demo.append(el("strong", "", "Demonstrated by: "), el("code", "", row["demonstrated-by"]));
+                gapBox.append(demo);
+            }
+            rightCol.append(gapBox);
+        } else if (entry.status === "not-built") {
+            const unmetBox = el("div", "rfc-map-reader-callout rfc-map-reader-callout-unmet");
+            unmetBox.append(el("div", "rfc-map-eyebrow", row.annotation?.kind === "linux-limit" ? "Kernel limitation" : "Recorded unmet"));
+            if (row.annotation?.["limit-id"]) {
+                unmetBox.append(el("p", "", row.annotation["limit-id"] + ": " + (row.annotation.reason || "")));
+            } else if (row["audit-verdict"]) {
+                unmetBox.append(el("p", "", "Audit verdict: " + row["audit-verdict"] + (row["audit-note"] ? " — " + row["audit-note"] : "")));
+            } else {
+                unmetBox.append(el("p", "", row.annotation?.reason || "Listed in the canonical unmet set for this RFC."));
+            }
+            rightCol.append(unmetBox);
+        } else if (row.annotation) {
+            const annBlock = el("div", "rfc-map-reader-block");
+            annBlock.append(el("div", "rfc-map-eyebrow", "Recorded " + human(row.annotation.kind)));
+            if (row.annotation.reason) annBlock.append(note(row.annotation.reason, "rfc-map-reader-prose"));
+            rightCol.append(annBlock);
+        } else if (entry.status === "not-assessed") {
+            const infoBox = el("div", "rfc-map-reader-callout");
+            infoBox.append(el("div", "rfc-map-eyebrow", "Status"), el("p", "", "No tagged test covers this statement yet, and nothing records it as unmet."));
+            rightCol.append(infoBox);
+        } else if (entry.status === "proof-pending") {
+            const infoBox = el("div", "rfc-map-reader-callout");
+            infoBox.append(el("div", "rfc-map-eyebrow", "Status"), el("p", "", "A tagged test covers this statement, awaiting a verified fault-detection record."));
+            rightCol.append(infoBox);
+        } else if (entry.status === "ze-proven" || entry.status === "os-verified") {
+            const okBox = el("div", "rfc-map-reader-callout rfc-map-reader-callout-tested");
+            okBox.append(el("div", "rfc-map-eyebrow", "Status"), el("p", "", "Verified by fault-checked tests. Open the canonical RFC evidence record to inspect the exact test functions."));
+            rightCol.append(okBox);
+        } else {
+            const infoBox = el("div", "rfc-map-reader-callout");
+            infoBox.append(el("div", "rfc-map-eyebrow", "Status"), el("p", "", badge.full));
+            rightCol.append(infoBox);
+        }
+        host.append(leftCol, rightCol);
+    }
+    function renderStatementsBody() {
+        const target = ui.statementsBody;
+        if (!target) return;
+        const stem = state.selected;
+        const node = nodes.get(stem);
+        const figure = figureValues.get(stem);
+        const { all, counts, filtered, activeStatus, q, allQueryMatches } = orderedRowsFor(stem, figure, node);
+        renderInspectorSpecs(stem, filtered.map(item => item.row));
+        if (!all.length) {
+            target.replaceChildren(note("No requirement statements are recorded in this map for this document."));
+            return;
+        }
+        const fragments = [];
+        const filterBar = el("div", "rfc-map-filter-bar");
+        const pills = el("div", "rfc-map-status-filters");
+        pills.setAttribute("role", "group");
+        pills.setAttribute("aria-label", "Filter statements by status");
+        statusFilterOrder.forEach(([key, label]) => {
+            const n = counts[key] || 0;
+            if (key !== "all" && n === 0 && activeStatus !== key) return;
+            const chip = button("", () => {
+                state.status = key;
+                state.statusExplicit = true;
+                state.activeRID = "";
+                renderStatementsBody();
+                setURL();
+            }, "rfc-map-pill" + (key !== "all" ? " rfc-map-pill-" + key : ""));
+            chip.setAttribute("aria-pressed", String(activeStatus === key));
+            if (key !== "all") {
+                const swatch = el("span", "rfc-map-swatch rfc-map-swatch-" + (key === "verified" ? "ze-proven" : key));
+                swatch.setAttribute("aria-hidden", "true");
+                chip.append(swatch);
+            }
+            chip.append(document.createTextNode(label + " (" + n + ")"));
+            pills.append(chip);
+        });
+        filterBar.append(pills);
+        const statusSummary = el("div", "rfc-map-statement-summary");
+        statusSummary.append(el("span", "", filtered.length + " of " + all.length + " statements in selector"));
+        if (activeStatus !== "all" || q) {
+            statusSummary.append(button("Show all", () => {
+                state.status = "all";
+                state.statusExplicit = true;
+                state.statementQuery = "";
+                state.activeRID = "";
+                if (ui.statementSearch) ui.statementSearch.value = "";
+                renderStatementsBody();
+                setURL();
+            }, "rfc-map-text-button"));
+        }
+        filterBar.append(statusSummary);
+        fragments.push(filterBar);
+
+        if (!filtered.length) {
+            const emptyRow = el("div", "rfc-map-empty-row");
+            emptyRow.append(note("No listed statements match this filter."));
+            if (q && activeStatus !== "all" && allQueryMatches > 0) {
+                emptyRow.append(button("Show " + allQueryMatches + " matches across all statuses", () => {
+                    state.status = "all";
+                    state.statusExplicit = true;
+                    state.activeRID = "";
+                    renderStatementsBody();
+                    setURL();
+                }, "rfc-map-button rfc-map-button-compact"));
+            }
+            fragments.push(emptyRow);
+            target.replaceChildren(...fragments);
+            return;
+        }
+
+        let activeIndex = filtered.findIndex(item => item.row.rid === state.activeRID);
+        if (activeIndex < 0) activeIndex = 0;
+        state.activeRID = filtered[activeIndex].row.rid;
+
+        const selectorBar = el("div", "rfc-map-selector-bar");
+        const selectLabel = el("label", "rfc-map-selector-label", activeStatus === "not-built" ? "Missing statement" : "Statement");
+        selectLabel.htmlFor = "rfc-map-statement-select";
+        const selector = el("select", "rfc-map-statement-select");
+        selector.id = "rfc-map-statement-select";
+        const bucketsPresent = unique(filtered.map(item => item.bucket));
+        if (bucketsPresent.length > 1) {
+            let currentGroup = null;
+            let currentBucket = null;
+            filtered.forEach(item => {
+                if (item.bucket !== currentBucket) {
+                    currentBucket = item.bucket;
+                    const zoneMeta = statusZones.find(([k]) => k === currentBucket);
+                    const zoneCount = filtered.filter(x => x.bucket === currentBucket).length;
+                    currentGroup = el("optgroup");
+                    currentGroup.label = (zoneMeta ? zoneMeta[1] : human(currentBucket)) + " (" + zoneCount + ")";
+                    selector.append(currentGroup);
+                }
+                const opt = el("option", "", optionLabel(item));
+                opt.value = item.row.rid;
+                currentGroup.append(opt);
+            });
+        } else {
+            filtered.forEach(item => {
+                const opt = el("option", "", optionLabel(item));
+                opt.value = item.row.rid;
+                selector.append(opt);
+            });
+        }
+        selector.value = filtered[activeIndex].row.rid;
+
+        const pager = el("div", "rfc-map-reader-pager");
+        const pos = el("span", "rfc-map-reader-pos", (activeIndex + 1) + " / " + filtered.length);
+        const prev = button("← Prev", () => setActive(activeIndex - 1), "rfc-map-button rfc-map-button-compact");
+        const next = button("Next →", () => setActive(activeIndex + 1), "rfc-map-button rfc-map-button-compact");
+        pager.append(pos, prev, next);
+        selectorBar.append(selectLabel, selector, pager);
+
+        const readerPane = el("article", "rfc-map-statement-reader");
+        readerPane.setAttribute("aria-label", "Selected statement details");
+
+        const setActive = nextIndex => {
+            if (nextIndex < 0 || nextIndex >= filtered.length) return;
+            activeIndex = nextIndex;
+            state.activeRID = filtered[activeIndex].row.rid;
+            selector.value = state.activeRID;
+            pos.textContent = (activeIndex + 1) + " / " + filtered.length;
+            prev.disabled = activeIndex <= 0;
+            next.disabled = activeIndex >= filtered.length - 1;
+            renderStatementDetail(readerPane, stem, filtered[activeIndex]);
+        };
+        selector.addEventListener("change", () => {
+            const idx = filtered.findIndex(item => item.row.rid === selector.value);
+            if (idx >= 0) setActive(idx);
+        });
+        prev.disabled = activeIndex <= 0;
+        next.disabled = activeIndex >= filtered.length - 1;
+        renderStatementDetail(readerPane, stem, filtered[activeIndex]);
+
+        fragments.push(selectorBar, readerPane);
+        target.replaceChildren(...fragments);
     }
     function safeURL(value) {
         if (typeof value !== "string" || !value.trim()) return false;
@@ -633,8 +1184,26 @@
         specs = new Map((roadmap?.items || []).map(spec => [spec.name, spec]));
         const query = new URL(window.location.href).searchParams;
         const initialLayer = model.layers.find(layer => layer.id === query.get("layer")) || model.layers.find(layer => layer.id === model["default-layer"]) || model.layers[0];
-        state = { mode: "layer", filter: initialLayer?.id || "", selected: nodes.has(query.get("rfc")) ? query.get("rfc") : initialLayer?.stems[0] || model.nodes[0]?.stem,
-            query: query.get("q") || "", level: "mandatory", context: true, graphMode: "neighborhood", zoom: 100, added: [] };
+        const validRFCStatus = new Set(rfcStatusOptions.map(([key]) => key));
+        const validStatementStatus = new Set(statusFilterOrder.map(([key]) => key));
+        const rawStatus = query.get("status");
+        const hasStatusParam = validStatementStatus.has(rawStatus);
+        state = {
+            mode: "layer",
+            filter: initialLayer?.id || "",
+            selected: nodes.has(query.get("rfc")) ? query.get("rfc") : initialLayer?.stems[0] || model.nodes[0]?.stem,
+            query: query.get("q") || "",
+            rfcStatus: validRFCStatus.has(query.get("missing")) ? query.get("missing") : "",
+            status: hasStatusParam ? rawStatus : "auto",
+            statusExplicit: hasStatusParam,
+            statementQuery: query.get("rq") || "",
+            activeRID: "",
+            level: "mandatory",
+            context: true,
+            graphMode: "neighborhood",
+            zoom: 100,
+            added: []
+        };
         if (query.get("view") === "all") { state.mode = "all"; state.filter = ""; }
         if (!state.selected) throw new Error("The recorded graph contains no documents.");
         const profile = model.profiles.find(item => item.id === query.get("profile"));

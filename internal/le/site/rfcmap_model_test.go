@@ -254,3 +254,99 @@ func rfcMapModelFixture(t *testing.T) Paths {
 		"layers":[{"id":"base","title":"Base BGP","stems":["rfc4271"]}]}`)
 	return paths
 }
+
+// TestRFCMapRequirementStatusesMatchRecordedEvidence checks that every
+// per-requirement status, gap demonstration and unmet audit note projects from
+// the recorded requirement ledger without duplicating proof counts onto nodes.
+func TestRFCMapRequirementStatusesMatchRecordedEvidence(t *testing.T) {
+	root := t.TempDir()
+	paths := Paths{Repository: root, Source: filepath.Join(root, "website"), Output: filepath.Join(root, "output")}
+	writeFixtureFile(t, filepath.Join(paths.Output, rfcLedgerFile), `{
+		"graph":{"nodes":[
+			{"stem":"rfc4271","title":"Base BGP","summary":true,"walked":true},
+			{"stem":"rfc9000","title":"Successor","summary":true,"walked":true}
+		],"edges":[]},
+		"profiles":[{"profile":"base","title":"Base","kind":"use-case","release":true,
+			"rows":[{"stem":"rfc4271"}]}],
+		"stems":[
+			{"stem":"rfc4271","summary-path":"rfc/short/rfc4271.md",
+			 "figures":{"stem":"rfc4271","walked":true,"mandatory-proven":3,"mandatory-total":10,
+				"unmet":["RFC4271-1-3","RFC4271-1-4","RFC4271-1-5"],
+				"sections":{"must":{"total":10,"kept":9,"ze-proven":2,"os-verified":1,"os-gap":1,
+					"proof-pending":1,"exclusion-unchecked":1,"not-assessed":1,"not-built":3,
+					"not-owed":1,"not-owed-by-kind":{"not-applicable":1}}}},
+			 "requirements":[
+				{"rid":"RFC4271-1-1","level":"MUST","gated":true,"text":"Proven row","section":"1",
+					"covers":[{"polarity":"positive","unit":"p::T","proof":{"route":"mutant","state":"verified","verified":true,"proves":true}}]},
+				{"rid":"RFC4271-1-2","level":"MUST","gated":true,"text":"OS proven row","section":"1",
+					"annotation":{"kind":"lower-layer","producer":"net/x.go::Set","reason":"kernel"},
+					"covers":[{"polarity":"positive","unit":"p::TOS","proof":{"route":"mutant","state":"verified","producer":"net/x.go::Set","verified":true,"proves":true}}]},
+				{"rid":"RFC4271-1-3","level":"MUST","gated":true,"text":"Gap row","section":"1",
+					"annotation":{"kind":"gap","reason":"Not implemented yet"},
+					"demonstrated-by":"pkg/x_test.go::TestGap"},
+				{"rid":"RFC4271-1-4","level":"MUST","gated":true,"text":"Partial row","section":"1",
+					"annotation":{"kind":"partial","tested":"half","gap":"other half","reason":"partial scope"}},
+				{"rid":"RFC4271-1-5","level":"MUST","gated":true,"text":"Audit unmet row","section":"1",
+					"audit":{"verdict":"unimplemented","meaning":"no code path","note":"missing handler","freshness":"fresh"}},
+				{"rid":"RFC4271-1-6","level":"MUST","gated":true,"text":"OS gap row","section":"1",
+					"annotation":{"kind":"lower-layer","producer":"net/x.go::Other","reason":"kernel"}},
+				{"rid":"RFC4271-1-7","level":"MUST","gated":true,"text":"Pending row","section":"1",
+					"covers":[{"polarity":"positive","unit":"p::TPending"}]},
+				{"rid":"RFC4271-1-8","level":"MUST","gated":true,"text":"Unassessed row","section":"1"},
+				{"rid":"RFC4271-1-9","level":"MUST","gated":true,"text":"Not owed row","section":"1",
+					"annotation":{"kind":"not-applicable","reason":"operator choice"}},
+				{"rid":"RFC4271-1-10","level":"MUST","gated":true,"text":"Unchecked exclusion row","section":"1",
+					"annotation":{"kind":"feature-declined","reason":"declined feature"}},
+				{"rid":"RFC4271-1-11","level":"MUST","gated":true,"text":"Superseded row","section":"1",
+					"superseded":{"disposition":"restated","target":"RFC9000-1-1","reason":"moved"}},
+				{"rid":"RFC4271-1-12","level":"MUST","gated":true,"text":"Rollup row","section":"1",
+					"annotation":{"kind":"rollup","targets":["RFC4271-1-1"],"derived":"met","reason":"summary"}}
+			]},
+			{"stem":"rfc9000","summary-path":"rfc/short/rfc9000.md",
+			 "figures":{"stem":"rfc9000","walked":true,"mandatory-proven":1,"mandatory-total":1,"unmet":[]},
+			 "requirements":[
+				{"rid":"RFC9000-1-1","level":"MUST","gated":true,"text":"Successor proven","section":"1",
+					"covers":[{"polarity":"positive","unit":"p::TS","proof":{"route":"mutant","state":"verified","verified":true,"proves":true}}]}
+			]}
+		]}`)
+	writeFixtureFile(t, filepath.Join(paths.Output, roadmapDataFile), `{
+		"schema-version":2,"revision":"recorded-revision","items":[]}`)
+	writeFixtureFile(t, filepath.Join(paths.Source, rfcMapLayersFile), `{
+		"schema-version":1,"proposed":true,"default-layer":"base",
+		"layers":[{"id":"base","title":"Base BGP","stems":["rfc4271"]}]}`)
+
+	data, err := loadRFCMapData(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantStatus := map[string]string{
+		"RFC4271-1-1":  rfcSegZeProven,
+		"RFC4271-1-2":  rfcSegOSVerified,
+		"RFC4271-1-3":  rfcSegNotBuilt,
+		"RFC4271-1-4":  rfcSegNotBuilt,
+		"RFC4271-1-5":  rfcSegNotBuilt,
+		"RFC4271-1-6":  rfcSegOSGap,
+		"RFC4271-1-7":  rfcSegProofPending,
+		"RFC4271-1-8":  rfcSegNotAssessed,
+		"RFC4271-1-9":  rfcSegNotOwed,
+		"RFC4271-1-10": rfcSegExclusionUnchecked,
+		"RFC4271-1-11": rfcSegZeProven,
+		"RFC4271-1-12": rfcMapStatusRollup,
+	}
+	gotByRID := map[string]rfcMapRequirement{}
+	for _, row := range data.Requirements["rfc4271"] {
+		gotByRID[row.RID] = row
+		if want := wantStatus[row.RID]; row.Status != want {
+			t.Errorf("%s status = %q, want %q", row.RID, row.Status, want)
+		}
+	}
+	if len(gotByRID) != len(wantStatus) {
+		t.Fatalf("projected %d requirements, want %d", len(gotByRID), len(wantStatus))
+	}
+	if got := gotByRID["RFC4271-1-3"].DemonstratedBy; got != "pkg/x_test.go::TestGap" {
+		t.Errorf("gap demonstrated-by = %q, want pkg/x_test.go::TestGap", got)
+	}
+	if got := gotByRID["RFC4271-1-5"]; got.AuditVerdict != "unimplemented" || got.AuditNote != "missing handler" {
+		t.Errorf("unmet audit disclosure = (%q, %q), want (unimplemented, missing handler)", got.AuditVerdict, got.AuditNote)
+	}
+}

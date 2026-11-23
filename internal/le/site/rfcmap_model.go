@@ -19,7 +19,10 @@ import (
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
 
-const rfcMapLayersFile = "data/rfc-release-layers.json"
+const (
+	rfcMapLayersFile   = "data/rfc-release-layers.json"
+	rfcMapStatusRollup = "rollup"
+)
 
 // rfcMapData is a page-only DTO. Its zero value is not a loaded projection;
 // loadRFCMapData returns one only after validating the recorded input identities.
@@ -55,12 +58,16 @@ type rfcMapNode struct {
 }
 
 type rfcMapRequirement struct {
-	RID        string               `json:"rid"`
-	Level      string               `json:"level"`
-	Gated      bool                 `json:"gated"`
-	Text       string               `json:"text"`
-	Section    string               `json:"section"`
-	Annotation *rfcLedgerAnnotation `json:"annotation,omitempty"`
+	RID            string               `json:"rid"`
+	Level          string               `json:"level"`
+	Gated          bool                 `json:"gated"`
+	Text           string               `json:"text"`
+	Section        string               `json:"section"`
+	Status         string               `json:"status"`
+	Annotation     *rfcLedgerAnnotation `json:"annotation,omitempty"`
+	DemonstratedBy string               `json:"demonstrated-by,omitempty"`
+	AuditVerdict   string               `json:"audit-verdict,omitempty"`
+	AuditNote      string               `json:"audit-note,omitempty"`
 }
 
 type rfcMapRelation struct {
@@ -320,6 +327,31 @@ func projectRFCMapProfiles(data *rfcMapData, reports []*rfc.TreeReport, known ma
 func projectRFCMapRelations(data *rfcMapData, ledger *rfcLedger, snapshot *roadmap.Snapshot, known map[string]bool) error {
 	requirementStems := map[string]string{}
 	summaryStems := map[string]bool{}
+	proven := map[string]bool{}
+	byRID := map[string]*rfcLedgerRequirement{}
+	stemByRID := map[string]*rfcLedgerStem{}
+	unmetByStem := map[string]map[string]bool{}
+	for index := range ledger.Stems {
+		stem := &ledger.Stems[index]
+		if stem.Figures != nil {
+			ids := make(map[string]bool, len(stem.Figures.Unmet))
+			for _, rid := range stem.Figures.Unmet {
+				ids[rid] = true
+			}
+			unmetByStem[stem.Stem] = ids
+		}
+		for reqIndex := range stem.Requirements {
+			requirement := &stem.Requirements[reqIndex]
+			if requirement.RID == "" {
+				continue
+			}
+			byRID[requirement.RID] = requirement
+			stemByRID[requirement.RID] = stem
+			if rfcMapHasProvingCover(requirement.Covers) {
+				proven[requirement.RID] = true
+			}
+		}
+	}
 	for index := range ledger.Stems {
 		stem := &ledger.Stems[index]
 		if !known[stem.Stem] {
@@ -329,9 +361,10 @@ func projectRFCMapRelations(data *rfcMapData, ledger *rfcLedger, snapshot *roadm
 			return fmt.Errorf("%s repeats summary %s; retain one summary per identity", rfcLedgerFile, stem.Stem)
 		}
 		summaryStems[stem.Stem] = true
+		kindCounts := rfcMapAnnotationKindCounts(stem)
 		data.Requirements[stem.Stem] = []rfcMapRequirement{}
-		for index := range stem.Requirements {
-			requirement := &stem.Requirements[index]
+		for reqIndex := range stem.Requirements {
+			requirement := &stem.Requirements[reqIndex]
 			if requirement.RID == "" {
 				return fmt.Errorf("%s summary %s has a statement without an RID; repair its recorded requirement", rfcLedgerFile, stem.Stem)
 			}
@@ -339,9 +372,22 @@ func projectRFCMapRelations(data *rfcMapData, ledger *rfcLedger, snapshot *roadm
 				return fmt.Errorf("%s repeats RID %s; retain one statement per identity", rfcLedgerFile, requirement.RID)
 			}
 			requirementStems[requirement.RID] = stem.Stem
-			data.Requirements[stem.Stem] = append(data.Requirements[stem.Stem], rfcMapRequirement{
-				RID: requirement.RID, Level: requirement.Level, Gated: requirement.Gated,
-				Text: requirement.Subject(), Section: requirement.Section, Annotation: requirement.Annotation})
+			status := rfcMapRequirementStatus(stem, requirement, unmetByStem, proven, byRID, stemByRID, kindCounts, 0)
+			entry := rfcMapRequirement{
+				RID:            requirement.RID,
+				Level:          requirement.Level,
+				Gated:          requirement.Gated,
+				Text:           requirement.Subject(),
+				Section:        requirement.Section,
+				Status:         status,
+				Annotation:     requirement.Annotation,
+				DemonstratedBy: requirement.DemonstratedBy,
+			}
+			if status == rfcSegNotBuilt && requirement.Audit != nil {
+				entry.AuditVerdict = requirement.Audit.Verdict
+				entry.AuditNote = requirement.Audit.Note
+			}
+			data.Requirements[stem.Stem] = append(data.Requirements[stem.Stem], entry)
 		}
 	}
 	basenames := map[string][]string{}
@@ -414,4 +460,202 @@ func appendRFCMapRelation(data *rfcMapData, relation rfcMapRelation, seen map[rf
 	}
 	seen[relation] = true
 	data.Relations = append(data.Relations, relation)
+}
+
+type rfcMapKindKey struct {
+	gated bool
+	kind  string
+}
+
+func rfcMapAnnotationKindCounts(stem *rfcLedgerStem) map[rfcMapKindKey]int {
+	counts := map[rfcMapKindKey]int{}
+	for index := range stem.Requirements {
+		requirement := &stem.Requirements[index]
+		if requirement.Annotation == nil {
+			continue
+		}
+		counts[rfcMapKindKey{gated: requirement.Gated, kind: requirement.Annotation.Kind}]++
+	}
+	return counts
+}
+
+func rfcMapHasProvingCover(covers []rfcLedgerCover) bool {
+	for index := range covers {
+		proof := covers[index].Proof
+		if proof == nil {
+			continue
+		}
+		if proof.Verified && proof.Proves {
+			return true
+		}
+	}
+	return false
+}
+
+// rfcMapRequirementStatus places one recorded requirement into the canonical
+// section status used by the RFC figures bar. Superseded-chain recursion is
+// bounded to depth 4 so a malformed cycle cannot loop.
+func rfcMapRequirementStatus(
+	stem *rfcLedgerStem,
+	requirement *rfcLedgerRequirement,
+	unmetByStem map[string]map[string]bool,
+	proven map[string]bool,
+	byRID map[string]*rfcLedgerRequirement,
+	stemByRID map[string]*rfcLedgerStem,
+	kindCounts map[rfcMapKindKey]int,
+	depth int,
+) string {
+	var traits rfc.AnnotationTraits
+	var known bool
+	if requirement.Annotation != nil {
+		traits, known = rfc.AnnotationTraitsOf(requirement.Annotation.Kind)
+		if known && !traits.Counts {
+			return rfcMapStatusRollup
+		}
+		if known && traits.OSMet {
+			if rfcMapOSVerified(stem, requirement) {
+				return rfcSegOSVerified
+			}
+			return rfcSegOSGap
+		}
+	}
+	if rfcMapRequirementUnmet(stem, requirement, unmetByStem) {
+		return rfcSegNotBuilt
+	}
+	if known && traits.CeilingExcluded {
+		if rfcMapExclusionUnchecked(stem, requirement, kindCounts) {
+			return rfcSegExclusionUnchecked
+		}
+		return rfcSegNotOwed
+	}
+	canProve := requirement.Annotation == nil
+	if known && traits.Proves {
+		canProve = true
+	}
+	if canProve && proven[requirement.RID] {
+		return rfcSegZeProven
+	}
+	if requirement.Superseded != nil {
+		if status, resolved := rfcMapSupersededStatus(requirement.Superseded, unmetByStem, proven, byRID, stemByRID, depth); resolved {
+			return status
+		}
+	}
+	if len(requirement.Covers) > 0 {
+		return rfcSegProofPending
+	}
+	return rfcSegNotAssessed
+}
+
+func rfcMapRequirementUnmet(stem *rfcLedgerStem, requirement *rfcLedgerRequirement, unmetByStem map[string]map[string]bool) bool {
+	if stem.Figures != nil {
+		return unmetByStem[stem.Stem][requirement.RID]
+	}
+	if requirement.Annotation != nil {
+		traits, known := rfc.AnnotationTraitsOf(requirement.Annotation.Kind)
+		if known && traits.Unmet {
+			return true
+		}
+	}
+	if requirement.Audit == nil {
+		return false
+	}
+	switch requirement.Audit.Verdict {
+	case rfc.VerdictWrong, rfc.VerdictUnimplemented, rfc.VerdictPartial:
+		return true
+	default:
+		return false
+	}
+}
+
+func rfcMapOSVerified(stem *rfcLedgerStem, requirement *rfcLedgerRequirement) bool {
+	if requirement.Annotation == nil {
+		return false
+	}
+	for index := range requirement.Covers {
+		proof := requirement.Covers[index].Proof
+		if proof == nil {
+			continue
+		}
+		if !proof.Verified {
+			continue
+		}
+		if !proof.Proves {
+			continue
+		}
+		if proof.Producer == requirement.Annotation.Producer {
+			return true
+		}
+	}
+	if stem.Figures == nil {
+		return false
+	}
+	if stem.Figures.Sections == nil {
+		return false
+	}
+	if requirement.Gated {
+		return stem.Figures.Sections.Must.OSGap == 0 && stem.Figures.Sections.Must.OSVerified > 0
+	}
+	return stem.Figures.Sections.Should.OSGap == 0 && stem.Figures.Sections.Should.OSVerified > 0
+}
+
+func rfcMapExclusionUnchecked(stem *rfcLedgerStem, requirement *rfcLedgerRequirement, kindCounts map[rfcMapKindKey]int) bool {
+	if stem.Figures == nil {
+		return false
+	}
+	if stem.Figures.Sections == nil {
+		return false
+	}
+	unchecked := stem.Figures.Sections.Should.ExclusionUnchecked
+	notOwed := stem.Figures.Sections.Should.NotOwedByKind
+	if requirement.Gated {
+		unchecked = stem.Figures.Sections.Must.ExclusionUnchecked
+		notOwed = stem.Figures.Sections.Must.NotOwedByKind
+	}
+	if unchecked == 0 {
+		return false
+	}
+	if requirement.Annotation == nil {
+		return true
+	}
+	total := kindCounts[rfcMapKindKey{gated: requirement.Gated, kind: requirement.Annotation.Kind}]
+	return total == 0 || notOwed[requirement.Annotation.Kind] < total
+}
+
+func rfcMapSupersededStatus(
+	superseded *rfcLedgerSuccessor,
+	unmetByStem map[string]map[string]bool,
+	proven map[string]bool,
+	byRID map[string]*rfcLedgerRequirement,
+	stemByRID map[string]*rfcLedgerStem,
+	depth int,
+) (string, bool) {
+	if superseded.Disposition == "dropped" {
+		return rfcSegZeProven, true
+	}
+	if superseded.Disposition != "restated" {
+		return "", false
+	}
+	if depth >= 4 {
+		return "", false
+	}
+	target, targetHeld := byRID[superseded.Target]
+	if !targetHeld {
+		return "", false
+	}
+	targetStem, stemHeld := stemByRID[superseded.Target]
+	if !stemHeld {
+		return "", false
+	}
+	status := rfcMapRequirementStatus(targetStem, target, unmetByStem, proven, byRID, stemByRID,
+		rfcMapAnnotationKindCounts(targetStem), depth+1)
+	if status == rfcSegZeProven {
+		return rfcSegZeProven, true
+	}
+	if status == rfcSegOSVerified {
+		return rfcSegZeProven, true
+	}
+	if status == rfcSegNotOwed {
+		return rfcSegNotOwed, true
+	}
+	return "", false
 }

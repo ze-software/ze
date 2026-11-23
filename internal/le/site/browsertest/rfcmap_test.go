@@ -97,10 +97,22 @@ func TestRFCMapBrowserInteraction(t *testing.T) {
 			t.Fatal("published model has no use-case profile with required and optional members to distinguish")
 		}
 		rfcMapBrowserOpen(ctx, t, pageURL)
-		rfcMapBrowserWait(ctx, t, `document.querySelector('.rfc-map-proof-value') !== null`)
+		rfcMapBrowserWait(ctx, t, `document.querySelector('.rfc-map-proof-value') !== null && document.querySelector('#rfc-map-statement-select option') !== null`)
 		proof, err := chromedp.Run(ctx, chromedp.Evaluate[string](`document.querySelector('.rfc-map-proof-card').textContent`))
 		if err != nil {
 			t.Fatal(err)
+		}
+		clickedAll, err := chromedp.Run(ctx, chromedp.Evaluate[bool](`(() => {
+            const pill = Array.from(document.querySelectorAll('.rfc-map-status-filters button')).find(b => b.textContent.startsWith('All ('));
+            if (!pill) return false;
+            pill.click();
+            return true;
+        })()`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !clickedAll {
+			t.Fatal("All status filter pill is absent")
 		}
 		for _, level := range []string{"MUST", "SHOULD", "MAY"} {
 			rfcMapBrowserChoose(ctx, t, "rfc-map-level", level)
@@ -113,7 +125,7 @@ func TestRFCMapBrowserInteraction(t *testing.T) {
 			if len(want) == 0 {
 				t.Fatalf("base BGP has no %s rows, so the published input cannot exercise this keyword", level)
 			}
-			got, err := chromedp.Run(ctx, chromedp.Evaluate[[]string](`Array.from(document.querySelectorAll('.rfc-map-statement-heading a'), node => node.textContent)`))
+			got, err := chromedp.Run(ctx, chromedp.Evaluate[[]string](`Array.from(document.querySelectorAll('#rfc-map-statement-select option'), node => node.value)`))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -249,8 +261,10 @@ type rfcMapBrowserModel struct {
 		Optional []string `json:"optional"`
 	} `json:"profiles"`
 	Requirements map[string][]struct {
-		RID   string `json:"rid"`
-		Level string `json:"level"`
+		RID    string `json:"rid"`
+		Level  string `json:"level"`
+		Gated  bool   `json:"gated"`
+		Status string `json:"status"`
 	} `json:"requirements"`
 }
 

@@ -393,6 +393,15 @@ claimed. It refuses `partial` and `refresh`, which are whole-site steps.
   from citation context and preserves exact requirement keywords, unclassified
   specifications and unknown evidence age. Its script reads proof figures from
   the canonical per-RFC data files; the map never certifies a release.
+  The overview beside the graph keeps the recorded mandatory results, clickable
+  status counts, relationships and linked specifications balanced with the
+  graph height, while a full-width statements panel underneath provides a
+  statement selector (`#rfc-map-statement-select`, defaulting to not-built
+  statements when present and grouped by status zone otherwise) with
+  previous/next stepping and a two-column full-text reading pane below it,
+  alongside status pills, keyword filter and statement search. Top controls
+  also filter RFCs by coverage status and search statements when no title
+  matches.
   Connected RFC cards use a left-to-right background gradient with the same
   category colors, order and proportions as the recorded mandatory results
   bar, tinted for readable text. Unknown or unavailable figures stay neutral.
