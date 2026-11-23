@@ -3,13 +3,15 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Priority | P1 |
-| Release reason | MOBIKE is already implemented; the recorded mobike-initiator interop failure is a shipped-path correctness obligation, not an absent extension. |
+| Priority | P3 |
+| Release reason | Owner ruling of 2026-11-23 ("we should move mobike to after the release"): MOBIKE moves to `plan/post-release/features/`. |
 | Depends | ipsec-8 (Child SA/XFRM), ipsec-9 (NAT-T) |
 | Phase | - |
-| Updated | 2026-05-21 |
+| Updated | 2026-11-23 |
 
 ## Release placement
+
+Owner ruling of 2026-11-23 ("we should move mobike to after the release"): moved from `plan/release/fixes/spec-ipsec-11-mobike.md` to `plan/post-release/features/spec-ipsec-11-mobike.md` at P3.
 
 The native MOBIKE implementation and tests now exist in internal/component/ike/engine/mobike.go and its callers. The historical absence/design narrative does not authorize duplicate implementation. The recorded mobike-initiator interop failure (first recorded by spec-lab-docker-cleanup-on-macos, closed 2026-10-23) is owned by `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` AC-2; AC-12 here cites that run and carries no fix of its own for the red. No rerun is claimed here.
 
@@ -159,6 +161,14 @@ address events, but wiring them to the IKE engine is deferred to a future spec.
 - INFORMATIONAL handler processes UPDATE_SA_ADDRESSES
 - DPD includes NAT detection payloads when MOBIKE is active and behind NAT
 - Child SA addresses are updated on MOBIKE address change
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Native MOBIKE engine | `internal/component/ike/engine/mobike.go`, `internal/component/ike/engine/inbound.go` | Implements IPv4 tunnel-mode MOBIKE negotiation, COOKIE2 return-routability checks, and address updates | Extends: remaining gaps (e.g. IPv6/VPP address monitoring, path testing, interop stabilization) build on this existing engine rather than duplicating it |
+| Live XFRM state migration | `internal/component/ike/dataplane/dataplane.go` (`TunnelMigrator`), `internal/component/ike/dataplane/xfrm_migrate_linux.go` | Migrates live IPsec SAs in place via `XFRM_MSG_MIGRATE_STATE` preserving sequence numbers and replay window | Extends: supersedes the earlier remove+install design note where `TunnelMigrator` is available |
+| Interface address monitoring | `internal/plugins/iface/netlink/monitor_linux.go` (`netlink.AddrSubscribe`), `internal/core/routewatch/routewatch.go` | Subscribes to Linux netlink address and route updates | Extends: address-change detection follows the same subscription pattern |
 
 ## Data Flow (MANDATORY)
 
