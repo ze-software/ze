@@ -285,12 +285,15 @@ everywhere in prose.
 ## RFC completion data
 
 RFC completion figures are not in `data/site-facts.json`, with one exception:
-the home page card's `rfc.proven`, `rfc.must_kept`, `rfc.proven_percent`,
-`rfc.implemented` and `rfc.not_walked` (each with its `_display` form), which
+the home page card's `rfc.proven`, `rfc.must_kept`, `rfc.must_built`,
+`rfc.must_not_built`, `rfc.implemented` and `rfc.not_walked` (each with its
+`_display` form), `rfc.proven_percent` and `rfc.proven_built_percent`, which
 `factsFromRFCLedger` reads from `rfc.ImplementedSectionsOf`
 (`internal/le/rfc/implemented.go`): the proven MUST rows, Ze proven plus OS
 verified (`MustSections.Proven`), over the MUST rows Ze and the OS owe, summed
-over the walked RFCs Ze implements. An OS verified row is one a layer under Ze
+over the walked RFCs Ze implements, and the same proven rows over only the
+MUST rows of what Ze builds (`MustSections.Built`: the owed rows less the not
+built ones, `ImplementedSections.ProvenBuiltPercent`). An OS verified row is one a layer under Ze
 performs whose recorded break proves the state Ze installs for it; a row on
 the `no-break` or `kernel-producer` escape is not one. The build publishes the
 per-RFC figures under `data/rfc/`, one file per RFC, so a change to one RFC republishes

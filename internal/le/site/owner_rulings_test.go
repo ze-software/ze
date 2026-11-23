@@ -183,3 +183,56 @@ func TestHeroSaysZeIsSelfContained(t *testing.T) {
 			"Self-contained", points)
 	}
 }
+
+// TestHomeRFCPanelStatesBothSharesAndWhatEachCounts pins the owner ruling that
+// the homepage RFC panel gives two shares, each saying what it counts, and
+// links the RFC dependency map beside the evidence link.
+//
+// Method: it renders the homepage from the fixture snapshot and reads the RFC
+// panel alone. The first share must be rfc.proven_percent over every MUST for
+// Ze or the OS, naming the not built rows it holds and that they need no test
+// until built; the second must be rfc.proven_built_percent over the MUSTs for
+// what Ze builds, saying it shows how well the shipped features are tested.
+// Dropping either figure, either explanation, the order of the two, or the map
+// link turns it red. The arithmetic of the second share is
+// TestTheHomeCardStatesProvenOverWhatZeBuilds's.
+func TestHomeRFCPanelStatesBothSharesAndWhatEachCounts(t *testing.T) {
+	page, mirror := renderHomeFixture(t)
+	panel := sliceBetween(t, page, `aria-labelledby="index4-rfc-title"`, `</article>`)
+
+	everyMUST := strings.Index(panel, markedFact("rfc.proven_percent", "54.2"))
+	builtMUST := strings.Index(panel, markedFact("rfc.proven_built_percent", "80.5"))
+	if everyMUST < 0 {
+		t.Fatal("the RFC panel does not show the share of every MUST (rfc.proven_percent)")
+	}
+	if builtMUST < 0 {
+		t.Fatal("the RFC panel does not show the share of the MUSTs for what Ze builds (rfc.proven_built_percent)")
+	}
+	if builtMUST < everyMUST {
+		t.Error("the RFC panel shows the share of what Ze builds before the share of every MUST")
+	}
+
+	text := visibleText(panel)
+	for _, says := range []string{
+		"54.2% 1,609 of all 2,966 MUSTs for Ze or the OS, including the 966 for parts of an RFC Ze does not " +
+			"build today, which need no test until they are built.",
+		"80.5% 1,609 of the 2,000 MUSTs for what Ze builds. This shows how well the features Ze ships are tested.",
+		"The RFC dependency map shows each standard and its coverage visually.",
+	} {
+		if !strings.Contains(text, says) {
+			t.Errorf("the RFC panel does not say %q (owner ruling, website/AI.md); it reads %q", says, text)
+		}
+	}
+	if !strings.Contains(panel, `<a href="quality/rfc-map/">RFC dependency map</a>`) {
+		t.Error("the RFC panel does not link the RFC dependency map at quality/rfc-map/")
+	}
+	if !strings.Contains(panel, `href="quality/rfc-compliance/"`) {
+		t.Error("the RFC panel lost its link to the standards requirements and test results")
+	}
+	for _, says := range []string{"for parts of an RFC Ze does not build today", "MUSTs for what Ze builds",
+		"RFC dependency map"} {
+		if !strings.Contains(mirror, says) {
+			t.Errorf("the homepage mirror does not say %q", says)
+		}
+	}
+}

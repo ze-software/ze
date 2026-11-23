@@ -1251,3 +1251,48 @@ func TestTheHomeCardStatesZeProvenOverTheRowsOwed(t *testing.T) {
 		t.Errorf("rfc.proven source %q does not say the count holds the OS verified rows", source)
 	}
 }
+
+// TestTheHomeCardStatesProvenOverWhatZeBuilds checks the home page RFC card's
+// second share: the same proven rows over only the MUST rows of what Ze builds,
+// the MUST rows Ze and the OS owe less the not built ones (owner, 2026-11-23).
+//
+// The method states one walked RFC whose eight MUST rows are two Ze verified,
+// one OS verified, one not assessed, three not built and one not applicable.
+// The first share must read 3 of 7 (42.9%) and the second 3 of 4 (75.0%), with
+// the 3 not built rows published beside them. A second share drawn over every
+// owed row would read 42.9 again, and one that also dropped the not assessed
+// row would read 100.0.
+func TestTheHomeCardStatesProvenOverWhatZeBuilds(t *testing.T) {
+	stubRFCLedger(t, fixtureRFCLedger())
+	liveStemFigures = func(string, rfc.Collected) (map[string]rfc.StemFigures, error) {
+		return map[string]rfc.StemFigures{
+			"rfc4271": {Stem: "rfc4271", Walked: true, OSVerified: 1, NotAssessed: 1, NotBuilt: 3,
+				Mandatory: rfc.Figure{Total: 8, Attainable: 6, Proven: 2, Excluded: map[string]int{
+					rfc.AnnotationLowerLayer: 1, rfc.AnnotationNotApplicable: 1}}},
+			"rfc7606": {Stem: "rfc7606", Walked: true},
+			"rfc9999": {Stem: "rfc9999"},
+			"rfc8654": {Stem: "rfc8654"},
+		}, nil
+	}
+	facts := siteFacts{Sources: map[string]string{}}
+	if err := factsFromRFCLedger(t.TempDir(), &facts); err != nil {
+		t.Fatalf("factsFromRFCLedger: %v", err)
+	}
+	card := facts.RFC
+	if card.Proven != 3 || card.MustKept != 7 || card.ProvenPercent != "42.9" {
+		t.Errorf("first share = %d of %d (%s%%), want 3 of 7 (42.9%%): every MUST row Ze and the OS owe, "+
+			"the not built ones included", card.Proven, card.MustKept, card.ProvenPercent)
+	}
+	if card.MustNotBuilt != 3 || card.MustNotBuiltDisplay != "3" {
+		t.Errorf("not built = %d (%q), want 3: the rows for parts Ze does not build", card.MustNotBuilt,
+			card.MustNotBuiltDisplay)
+	}
+	if card.MustBuilt != 4 || card.MustBuiltDisplay != "4" || card.ProvenBuiltPercent != "75.0" {
+		t.Errorf("second share = %d of %d (%q, %s%%), want 3 of 4 (75.0%%): the proven rows over the 7 owed "+
+			"less the 3 not built", card.Proven, card.MustBuilt, card.MustBuiltDisplay, card.ProvenBuiltPercent)
+	}
+	if source := facts.Sources["rfc.proven_built"]; !strings.Contains(source, "rfc.ImplementedSectionsOf") ||
+		!strings.Contains(source, "does not build") {
+		t.Errorf("rfc.proven_built source %q does not name its producer and the rows it leaves out", source)
+	}
+}

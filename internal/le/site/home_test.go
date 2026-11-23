@@ -99,7 +99,10 @@ func homeFixtureWeeks() []string {
 // The five are internally consistent with the published ones beside them: 1,609
 // proven of 2,966 gated MUSTs over the 140 RFCs Ze implements, inside the 2,972
 // that build gated across its 171 enrolled RFCs. not_walked_display is a
-// fixture value: that build published no count of unwalked RFCs.
+// fixture value: that build published no count of unwalked RFCs. So are the
+// three keys of the share over what Ze builds, which no build had published
+// then: 966 of the 2,966 not built leaves 2,000 built, and 1,609 of 2,000 is
+// 80.5%.
 const publishedFactsSnapshot = `{
   "cli_commands": 499,
   "plugin_registrations": 96,
@@ -116,7 +119,8 @@ const publishedFactsSnapshot = `{
   "rfc": {"enrolled_display": "171", "gated_must_display": "2,972",
           "must_kept_display": "2,966", "implemented_display": "140",
           "inspected_display": "171", "not_walked_display": "31",
-          "proven_display": "1,609", "proven_percent": "54.2"},
+          "must_built_display": "2,000", "must_not_built_display": "966",
+          "proven_display": "1,609", "proven_percent": "54.2", "proven_built_percent": "80.5"},
   "tests": {"e2e_display": "1,700+", "fuzz_display": "78", "unit_display": "23,700+"}
 }`
 
@@ -333,7 +337,7 @@ func firstMismatch(got, want string) (string, string) {
 
 // VALIDATES: the proof strip carries one span for each published number, each
 // naming the fact it shows and carrying that fact's value, and the RFC card
-// states its share with both populations it is drawn from.
+// states each of its two shares with both populations it is drawn from.
 //
 // The attribute is what lets a reader check the number against the snapshot it
 // came from, and visibleText cannot see an attribute, so this reads the markup.
@@ -348,6 +352,10 @@ func TestTheHomepageProofStripCarriesItsStatSpans(t *testing.T) {
 		markedFact("rfc.proven_display", "1,609"), markedFact("rfc.must_kept_display", "2,966"),
 		markedFact("rfc.proven_percent", "54.2"), markedFact("rfc.implemented_display", "140"),
 		markedFact("rfc.not_walked_display", "31"),
+		// The share over what Ze builds repeats the proven count beside its own
+		// denominator, and the first share names the not built rows it holds.
+		markedFact("rfc.proven_display", "1,609"), markedFact("rfc.must_not_built_display", "966"),
+		markedFact("rfc.proven_built_percent", "80.5"), markedFact("rfc.must_built_display", "2,000"),
 	}
 	for key, count := range map[string]string{
 		"bgp": "144", "ospfv2": "36", "ospfv3": "20", "isis": "14", "bfd": "5", "bmp": "4",

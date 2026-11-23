@@ -46,6 +46,11 @@ type MustSections struct {
 // bar draws them as separate segments.
 func (m *MustSections) Proven() int { return mustProven(m.ZeProven, m.OSVerified) }
 
+// Built answers the MUST rows of what Ze builds: the rows Ze and the OS owe
+// (Kept) less the not built ones, the denominator of the proven share over
+// what Ze builds (ImplementedSections.ProvenBuiltPercent).
+func (m *MustSections) Built() int { return m.Kept - m.NotBuilt }
+
 // ShouldSections splits every SHOULD / MAY row: proven, performed by a layer
 // under Ze (OS verified or OS gap, as a MUST row is), left out by an annotation
 // that says it does not bind Ze (NotOwed, by kind), or open, split as the open

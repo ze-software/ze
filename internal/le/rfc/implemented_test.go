@@ -187,6 +187,33 @@ func TestImplementedSectionsCountVerifiedRecordsOnly(t *testing.T) {
 	if percent := got.ProvenPercent(); percent != "33.3" {
 		t.Errorf("ProvenPercent() = %q, want \"33.3\": 2 Ze proven of the 6 MUST rows Ze owes", percent)
 	}
+	// The share over what Ze builds leaves the not built RFC1-1-5 out of the
+	// denominator alone: 2 proven of the 5 MUST rows Ze builds. Over every
+	// owed row it would read 33.3, and with the gap row in the numerator too
+	// 50.0.
+	if built := must.Built(); built != 5 {
+		t.Errorf("Built() = %d, want 5: the 6 MUST rows Ze owes less the not built RFC1-1-5", built)
+	}
+	builtPercent, err := got.ProvenBuiltPercent()
+	if err != nil {
+		t.Fatalf("ProvenBuiltPercent: %v", err)
+	}
+	if builtPercent != "40.0" {
+		t.Errorf("ProvenBuiltPercent() = %q, want \"40.0\": 2 Ze proven of the 5 MUST rows Ze builds", builtPercent)
+	}
+}
+
+// TestProvenBuiltPercentRefusesWhenNothingIsBuilt checks that the share over
+// what Ze builds is an error, not "NaN" or "0.0", when every MUST row Ze and
+// the OS owe is not built.
+//
+// ImplementedSectionsOf refuses only an empty Kept, so a population of not
+// built rows alone reaches this method, and its denominator is zero.
+func TestProvenBuiltPercentRefusesWhenNothingIsBuilt(t *testing.T) {
+	sections := ImplementedSections{Sections: Sections{Must: MustSections{Total: 2, Kept: 2, NotBuilt: 2}}}
+	if percent, err := sections.ProvenBuiltPercent(); err == nil {
+		t.Fatalf("ProvenBuiltPercent() = %q over no built row, want an error", percent)
+	}
 }
 
 // osVerifiedCorpus is one walked RFC, rfc1, whose six MUST rows land as: one

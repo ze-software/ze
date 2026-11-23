@@ -56,6 +56,31 @@ func (s *ImplementedSections) ProvenPercent() string {
 	return tb.Float(100*float64(s.Sections.Must.Proven())/float64(s.Sections.Must.Kept), 1).String()
 }
 
+// ProvenBuiltPercent renders the same proven MUST rows as ProvenPercent over
+// only the MUST rows of what Ze builds (Sections.Must.Built: Kept less the not
+// built rows), to one decimal place, without its sign.
+//
+// A not built row is one the summary or the audit says Ze does not meet
+// because that part of the RFC is not built yet. It needs no test until the
+// part is built, so this share shows how well the features Ze ships are
+// tested, while ProvenPercent counts every MUST row Ze and the OS will owe
+// (owner, 2026-11-23). A not built row is never proven, so the numerator is
+// the same on both figures and only the denominator differs.
+//
+// It refuses when every owed row is not built: ImplementedSectionsOf only
+// guarantees that Kept is not zero, and a share of no built row would divide
+// by zero.
+func (s *ImplementedSections) ProvenBuiltPercent() (string, error) {
+	built := s.Sections.Must.Built()
+	if built == 0 {
+		return "", errors.New("every MUST row Ze or the OS owes in the walked RFCs Ze implements is not built, " +
+			"so the proven share of what Ze builds would divide by zero: check the `not built` rows of " +
+			"rfc/short/*.md and their test reviews, then re-run `./le rfc check`")
+	}
+	var tb textbuf.Buffer
+	return tb.Float(100*float64(s.Sections.Must.Proven())/float64(built), 1).String(), nil
+}
+
 // ImplementedSectionsOf sums the section counts over the RFCs Ze implements,
 // from the per-RFC figures StemFiguresOf answers.
 //

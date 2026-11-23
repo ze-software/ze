@@ -202,14 +202,18 @@ type factsRepo struct {
 // they were extracted from, the MUST-level ones, and the MUST-level ones an
 // enrolled RFC makes `./le rfc check` gate.
 //
-// Proven, MustKept, Implemented, NotWalked, Inspected and ProvenPercent are the
-// published section counts, and every one of them is a field of, or the
-// percentage rendered by, the ImplementedSections
+// Proven, MustKept, MustBuilt, MustNotBuilt, Implemented, NotWalked, Inspected,
+// ProvenPercent and ProvenBuiltPercent are the published section counts, and
+// every one of them is a field of, or a percentage rendered by, the
+// ImplementedSections
 // `internal/le/rfc.ImplementedSectionsOf` returns: the proven MUST rows
 // (`MustSections.Proven`, Ze proven plus OS verified) over the MUST rows Ze and
 // the OS owe (`MustSections.Kept`: Ze proven, OS verified, proof pending, OS
 // testing gap, exclusion unchecked, not assessed and not built) in the walked
-// RFCs Ze implements. Nothing here computes a numerator or a
+// RFCs Ze implements. ProvenBuiltPercent is the same proven rows over only the
+// MUST rows of what Ze builds (`MustSections.Built`: Kept less the not built
+// rows), so the home page states both shares and what each counts (owner,
+// 2026-11-23). Nothing here computes a numerator or a
 // denominator of its own: the home page and /quality/health/ answer one
 // question with one number because both read that producer, and
 // /quality/rfc-compliance/ draws the same per-RFC sections (owner directive,
@@ -229,11 +233,16 @@ type factsRFC struct {
 	InspectedDisplay    string `json:"inspected_display"`
 	Must                int    `json:"must"`
 	MustDisplay         string `json:"must_display"`
+	MustBuilt           int    `json:"must_built"`
+	MustBuiltDisplay    string `json:"must_built_display"`
 	MustKept            int    `json:"must_kept"`
 	MustKeptDisplay     string `json:"must_kept_display"`
+	MustNotBuilt        int    `json:"must_not_built"`
+	MustNotBuiltDisplay string `json:"must_not_built_display"`
 	NotWalked           int    `json:"not_walked"`
 	NotWalkedDisplay    string `json:"not_walked_display"`
 	Proven              int    `json:"proven"`
+	ProvenBuiltPercent  string `json:"proven_built_percent"`
 	ProvenDisplay       string `json:"proven_display"`
 	ProvenPercent       string `json:"proven_percent"`
 	Requirements        int    `json:"requirements"`
@@ -599,13 +608,21 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	facts.RFC.MustKept = sections.Sections.Must.Kept
 	facts.RFC.Proven = sections.Sections.Must.Proven()
 	facts.RFC.ProvenPercent = sections.ProvenPercent()
+	facts.RFC.MustBuilt = sections.Sections.Must.Built()
+	facts.RFC.MustNotBuilt = sections.Sections.Must.NotBuilt
+	facts.RFC.ProvenBuiltPercent, err = sections.ProvenBuiltPercent()
+	if err != nil {
+		return err
+	}
 
 	facts.RFC.EnrolledDisplay = groupThousands(facts.RFC.Enrolled)
 	facts.RFC.GatedMustDisplay = groupThousands(facts.RFC.GatedMust)
 	facts.RFC.ImplementedDisplay = groupThousands(facts.RFC.Implemented)
 	facts.RFC.InspectedDisplay = groupThousands(facts.RFC.Inspected)
 	facts.RFC.MustDisplay = groupThousands(facts.RFC.Must)
+	facts.RFC.MustBuiltDisplay = groupThousands(facts.RFC.MustBuilt)
 	facts.RFC.MustKeptDisplay = groupThousands(facts.RFC.MustKept)
+	facts.RFC.MustNotBuiltDisplay = groupThousands(facts.RFC.MustNotBuilt)
 	facts.RFC.NotWalkedDisplay = groupThousands(facts.RFC.NotWalked)
 	facts.RFC.ProvenDisplay = groupThousands(facts.RFC.Proven)
 	facts.RFC.RequirementsDisplay = groupThousands(facts.RFC.Requirements)
@@ -622,6 +639,9 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 		"requirement and a recorded break proves the state Ze installs for it), divided by mandatory " +
 		"requirements Ze or the OS must meet, " +
 		"for implemented RFCs whose requirement lists have been reviewed"
+	facts.Sources["rfc.proven_built"] = "internal/le/rfc.ImplementedSectionsOf, the same proven " +
+		"mandatory requirements divided by only those of what Ze builds: the mandatory requirements Ze or " +
+		"the OS must meet, less the ones for parts of an RFC Ze does not build yet"
 	return nil
 }
 
