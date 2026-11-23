@@ -438,3 +438,35 @@ func TestWeeklyReportRemovesExports(t *testing.T) {
 		assertRunsRemoved(t, scratch)
 	})
 }
+
+// TestWeeklyReportPrintsTheBlockAsWritten asserts a source's block reaches the
+// section and prints after its facts with no indent.
+//
+// VALIDATES: answerSection carries SectionBody.Block into the section, the text
+// rendering prints a blank line and then each block line exactly, and a section
+// with no block prints none.
+// PREVENTS: a paste-ready table rendered as indented fact items, or dropped on
+// the way from the source to the report.
+func TestWeeklyReportPrintsTheBlockAsWritten(t *testing.T) {
+	block := []string{"## a..b", "", "| Item | Fragment |", "|------|----------|", "| BGP | x |"}
+	pasted := EventSource{Section: "paste", Answer: func(context.Context, EventRange) (SectionBody, error) {
+		return SectionBody{Facts: []Fact{{Name: "rows", Value: "1"}}, Block: block}, nil
+	}}
+	plain := EventSource{Section: "plain", Answer: func(context.Context, EventRange) (SectionBody, error) {
+		return SectionBody{Facts: []Fact{{Name: "rows", Value: "0"}}}, nil
+	}}
+	pastedSection := answerSection(t.Context(), pasted, EventRange{}, io.Discard)
+	if !slices.Equal(pastedSection.Block, block) {
+		t.Fatalf("section block = %q, want the source's %q", pastedSection.Block, block)
+	}
+	plainSection := answerSection(t.Context(), plain, EventRange{}, io.Discard)
+	if plainSection.Block != nil {
+		t.Errorf("a section whose source answered no block carries %q", plainSection.Block)
+	}
+
+	text := EventReport{Sections: []Section{pastedSection, plainSection}}.Text()
+	want := "== paste ==\nrows: 1\n\n" + strings.Join(block, "\n") + "\n\n== plain ==\nrows: 0\n"
+	if !strings.Contains(text, want) {
+		t.Errorf("the text rendering does not print the block as written:\n%s\nwant it to hold:\n%s", text, want)
+	}
+}

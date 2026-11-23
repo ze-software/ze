@@ -81,6 +81,10 @@ type SectionBody struct {
 	// Facts MUST hold at least one entry: a source with no events states a
 	// zero count, so an answered section never reads as a silent one.
 	Facts []Fact
+	// Block is text a reader pastes as it stands, one entry per line, such as
+	// the markdown table a record file takes. The text rendering prints it
+	// after the facts with no indent, so the paste carries nothing to strip.
+	Block []string
 }
 
 // EventSource answers one named section of the report.
@@ -155,6 +159,9 @@ type Section struct {
 	Reason string `json:"reason,omitempty"`
 	Note   string `json:"note,omitempty"`
 	Facts  []Fact `json:"facts"`
+	// Block is the source's paste-ready text (SectionBody.Block), absent when
+	// the source answered none.
+	Block []string `json:"block,omitempty"`
 }
 
 // Endpoint is one end of the range as the operator named it and as git
@@ -215,6 +222,14 @@ func (r EventReport) Text() string {
 			for _, item := range fact.Items {
 				tb.Str("  ").Str(item).Byte('\n')
 			}
+		}
+		// A blank line parts the block from the facts, and its lines print
+		// as the source wrote them, so a reader can paste them whole.
+		if len(section.Block) != 0 {
+			tb.Byte('\n')
+		}
+		for _, line := range section.Block {
+			tb.Str(line).Byte('\n')
 		}
 	}
 	return tb.String()
@@ -403,7 +418,7 @@ func answerSection(ctx context.Context, source EventSource, events EventRange, d
 		return Section{Name: source.Section, Status: SectionFailed, Facts: []Fact{},
 			Reason: "the source answered no facts; a source with no events states a zero count"}
 	}
-	return Section{Name: source.Section, Status: SectionAnswered, Note: body.Note, Facts: body.Facts}
+	return Section{Name: source.Section, Status: SectionAnswered, Note: body.Note, Facts: body.Facts, Block: body.Block}
 }
 
 // resolveEndpoint resolves one revision through the resolver le's

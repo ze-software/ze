@@ -1,12 +1,13 @@
 // Design: docs/architecture/core-design.md -- the weekly report of tooling events
-// Related: register.go -- registers both sections with le weekly report
+// Related: register.go -- registers these sections with le weekly report
 // Related: newsfragment.go -- parseNewsFragment and newsFoundBy, which the fragments section reads
-// Related: ../weekly/events.go -- EventRange and RegisterEventSource, the contract both sections answer
+// Related: weekly_measure.go -- the fragment-measure section, which reads fragments through weeklyReadFragments
+// Related: ../weekly/events.go -- EventRange and RegisterEventSource, the contract every section answers
 //
-// weekly_source.go answers the two sections of `le weekly report` whose
-// records this package owns: the approval lines commit messages carry, and the
-// news fragments a commit validates. Both read the range's commits from git,
-// so neither reads the exported endpoint trees.
+// weekly_source.go answers the sections of `le weekly report` whose records
+// this package owns: the approval lines commit messages carry, and the news
+// fragments a commit validates. Each reads the range's commits from git, so
+// none reads the exported endpoint trees.
 
 package commit
 
@@ -130,39 +131,13 @@ func weeklyCommitMessages(ctx context.Context, events weekly.EventRange) (map[st
 // by found-by. A fragment that does not parse fails the section with its path:
 // dropping it would remove a fix from the count with nothing to show it.
 func answerWeeklyFragments(ctx context.Context, events weekly.EventRange) (weekly.SectionBody, error) {
-	paths, err := weeklyAddedFragments(ctx, events)
+	fragments, err := weeklyReadFragments(ctx, events)
 	if err != nil {
 		return weekly.SectionBody{}, err
 	}
 	owners := make(map[string][]string, len(newsFoundBy))
 	unattributed := 0
-	var vocabulary map[string]string
-	for _, path := range paths {
-		if problem := newsFragmentNameProblem(path); problem != "" {
-			return weekly.SectionBody{}, errors.New("the range adds " + path + ", which cannot be a fragment: " + problem)
-		}
-		text, present, problem := committedText(events.Repo, events.ToCommit, path)
-		if problem != "" {
-			return weekly.SectionBody{}, errors.New("read news fragment " + path + " at " + shortSHA(events.ToCommit) + ": " + problem)
-		}
-		if !present {
-			return weekly.SectionBody{}, errors.New("git lists news fragment " + path + " as added by " +
-				shortSHA(events.ToCommit) + ", and that commit does not hold it")
-		}
-		// The vocabulary is read once, from the same commit, the way the
-		// commit gate reads it from the tree it judges.
-		if vocabulary == nil {
-			loaded, err := newsTopicVocabulary(events.Repo, events.ToCommit)
-			if err != nil {
-				return weekly.SectionBody{}, fmt.Errorf("read the topic vocabulary at %s: %w", shortSHA(events.ToCommit), err)
-			}
-			vocabulary = loaded
-		}
-		fragment, err := parseNewsFragment(path, text, vocabulary)
-		if err != nil {
-			return weekly.SectionBody{}, fmt.Errorf("a news fragment added in the range does not parse at %s: %w",
-				shortSHA(events.ToCommit), err)
-		}
+	for _, fragment := range fragments {
 		if fragment.foundBy == "" {
 			unattributed++
 			continue
@@ -189,6 +164,50 @@ func weeklyFragmentsBody(owners map[string][]string, unattributed int) (weekly.S
 	}
 	facts = append(facts, weekly.Fact{Name: "with no found-by", Value: strconv.Itoa(unattributed)})
 	return weekly.SectionBody{Note: weeklyFragmentsNote, Facts: facts}, nil
+}
+
+// weeklyReadFragments reads every news fragment the range adds, at the second
+// revision, through parseNewsFragment, in the order weeklyAddedFragments lists
+// them. Both fragment sections read the range through it, so they never
+// disagree about which fragments it holds. A path that cannot be a fragment, or
+// a fragment that does not parse, is an error naming the path: a section built
+// without it would drop a change with nothing to show it.
+func weeklyReadFragments(ctx context.Context, events weekly.EventRange) ([]newsFragment, error) {
+	paths, err := weeklyAddedFragments(ctx, events)
+	if err != nil {
+		return nil, err
+	}
+	fragments := make([]newsFragment, 0, len(paths))
+	var vocabulary map[string]string
+	for _, path := range paths {
+		if problem := newsFragmentNameProblem(path); problem != "" {
+			return nil, errors.New("the range adds " + path + ", which cannot be a fragment: " + problem)
+		}
+		text, present, problem := committedText(events.Repo, events.ToCommit, path)
+		if problem != "" {
+			return nil, errors.New("read news fragment " + path + " at " + shortSHA(events.ToCommit) + ": " + problem)
+		}
+		if !present {
+			return nil, errors.New("git lists news fragment " + path + " as added by " +
+				shortSHA(events.ToCommit) + ", and that commit does not hold it")
+		}
+		// The vocabulary is read once, from the same commit, the way the
+		// commit gate reads it from the tree it judges.
+		if vocabulary == nil {
+			loaded, err := newsTopicVocabulary(events.Repo, events.ToCommit)
+			if err != nil {
+				return nil, fmt.Errorf("read the topic vocabulary at %s: %w", shortSHA(events.ToCommit), err)
+			}
+			vocabulary = loaded
+		}
+		fragment, err := parseNewsFragment(path, text, vocabulary)
+		if err != nil {
+			return nil, fmt.Errorf("a news fragment added in the range does not parse at %s: %w",
+				shortSHA(events.ToCommit), err)
+		}
+		fragments = append(fragments, fragment)
+	}
+	return fragments, nil
 }
 
 // weeklyAddedFragments answers the news fragment paths the second revision

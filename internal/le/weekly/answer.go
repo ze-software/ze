@@ -107,7 +107,8 @@ var actions = leaction.New("weekly", leaction.Action{
 	Heavy:   true,
 	Summary: "answer the tooling events of a release range",
 	Why: "answer the tooling events between two revisions, one section per registered source:" +
-		" the input of the update's RFC section and of its defects-found row",
+		" the input of the update's RFC section and of its defects-found row, and the fragment measure" +
+		" table the update appends to plan/records/weekly-fragment-measure.md",
 	Parameters: []leaction.Parameter{
 		{Keyword: fromKeyword, Kind: leaction.KindRevision, Value: "rev", Requirement: leaction.Required,
 			Help: "the release-from commit of the update"},

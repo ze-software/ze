@@ -61,15 +61,26 @@ type newsHeading struct {
 	NoneAllowed bool
 }
 
+// The six heading names a fragment writes, each declared once. newsHeadings
+// orders them and the weekly fragment measure reads them by these names.
+const (
+	newsHeadingBefore   = "Before"
+	newsHeadingAfter    = "After"
+	newsHeadingCorrects = "Corrects"
+	newsHeadingExposure = "Exposure"
+	newsHeadingUpstream = "Upstream"
+	newsHeadingAskedBy  = "Asked by"
+)
+
 // newsHeadings is the one declaration of a fragment's six headings, in the
 // order a fragment writes them. website/changes/fragments/README.md cites it.
 var newsHeadings = []newsHeading{
-	{Name: "Before", NoneAllowed: false},
-	{Name: "After", NoneAllowed: false},
-	{Name: "Corrects", NoneAllowed: true},
-	{Name: "Exposure", NoneAllowed: true},
-	{Name: "Upstream", NoneAllowed: true},
-	{Name: "Asked by", NoneAllowed: true},
+	{Name: newsHeadingBefore, NoneAllowed: false},
+	{Name: newsHeadingAfter, NoneAllowed: false},
+	{Name: newsHeadingCorrects, NoneAllowed: true},
+	{Name: newsHeadingExposure, NoneAllowed: true},
+	{Name: newsHeadingUpstream, NoneAllowed: true},
+	{Name: newsHeadingAskedBy, NoneAllowed: true},
 }
 
 // newsFoundBy is the closed list a fix fragment's found-by value is drawn

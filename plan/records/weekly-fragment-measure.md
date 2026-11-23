@@ -10,7 +10,11 @@ item came from, so the owner can judge whether fragments replace the research
 or whether their rules need tightening.
 
 `/ze-weekly-update` appends one table per update once it is published
-(`ai/skills/ze-weekly-update.md`, Phase 1, step 9). Nothing here is published.
+(`ai/skills/ze-weekly-update.md`, Phase 1, step 9). The table starts as the
+`fragment-measure` section of `./le weekly report from <release-from> to
+<release-to>`, which fills one row per fragment the range adds; the writer
+marks what verification refuted or research found, and adds a row for each
+published item with no fragment. Nothing here is published.
 
 ## Table shape
 

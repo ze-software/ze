@@ -11,8 +11,13 @@ trims this directory from the artifact it deploys (`sourceOnlyDirectories`,
 `./le weekly report from <rev> to <rev>` reads them too: its `fix-fragments`
 section lists the fragments a range adds, grouped by `found-by` with each
 one's spec or journal row, and counts the ones with no `found-by` as one
-total. A fragment that does not parse fails that section, naming its path.
-<!-- source: internal/le/commit/weekly_source.go -- answerWeeklyFragments, weeklyAddedFragments -->
+total. Its `fragment-measure` section prints the table
+`plan/records/weekly-fragment-measure.md` takes for the range: one row per
+fragment, with `fragment` for a fact the fragment writes and `none` for one it
+writes only `none` under. A fragment that does not parse, a missing heading
+included, fails both sections, naming its path.
+<!-- source: internal/le/commit/weekly_source.go -- answerWeeklyFragments, weeklyReadFragments, weeklyAddedFragments -->
+<!-- source: internal/le/commit/weekly_measure.go -- answerWeeklyFragmentMeasure, weeklyMeasureCell -->
 
 ## A fragment is a claim
 

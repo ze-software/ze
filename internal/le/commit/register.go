@@ -25,7 +25,9 @@ func init() {
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)
 	// The approval lines and the news fragments are records this package
-	// owns, so it answers their sections of `le weekly report` (weekly_source.go).
+	// owns, so it answers their sections of `le weekly report`
+	// (weekly_source.go, weekly_measure.go).
 	weekly.RegisterEventSource(weekly.EventSource{Section: weeklyApprovalsSection, Answer: answerWeeklyApprovals})
 	weekly.RegisterEventSource(weekly.EventSource{Section: weeklyFragmentsSection, Answer: answerWeeklyFragments})
+	weekly.RegisterEventSource(weekly.EventSource{Section: weeklyMeasureSection, Answer: answerWeeklyFragmentMeasure})
 }
