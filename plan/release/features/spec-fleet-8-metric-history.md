@@ -20,14 +20,30 @@ bounded time series Ze has), `docs/architecture/fleet-config.md`.
 
 ## Task
 
-Let the hub draw a week of history for every device. Managed devices report a
+Let the hub keep a week of history for every device. Managed devices report a
 small, fixed set of figures at a regular interval; the hub keeps them in a
 bounded store that survives a restart, and answers queries for a series, for
-one device or summed over a set of devices.
+one device or summed over a set of devices, as commands on every command
+surface (CLI, SSH, MCP, REST, gRPC, the web command line).
 
-This is the data behind every chart and every "latest value" in the fleet web
-interface (`plan/post-release/features/spec-fleet-ui-3-dashboards-and-charts.md`), and behind the resource
-alarms (`plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`).
+This is the data behind the resource alarms
+(`plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`) and,
+after the first release, behind every chart and every "latest value" in the
+fleet web interface.
+
+### Owner ruling of 2026-11-23: commands in the first release, pages after it
+
+Thomas ruled (voice-transcribed answer "1 b") that the fleet features of the
+first release are reached through commands on every command surface, and that
+their web pages and views come after the first release (`ai/META-DECISIONS.md`,
+"Goal and scope"). This spec carries no chart, page or web view: the charts are
+`plan/post-release/features/spec-fleet-ui-3-dashboards-and-charts.md`'s, and
+the two parts of the fleet interface that `spec-fleet-1-device-registry.md` had
+given this spec moved with that work: `HistoryPart` to `fleet-ui-3` (its
+AC-9) and `LatestSamplePart` to
+`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`
+(its AC-17). Where a rule below said what a chart shows, the command's answer
+now says it (AC-11), and AC-10 proves every query on every command surface.
 
 ### What this changes in the fleet umbrella
 
@@ -62,7 +78,8 @@ feature that owns it, so the list is a registry, not a table in the fleet code.
 | Subscriber sessions | count | L2TP and PPPoE, when present |
 
 A figure whose owner is compiled out or not configured is absent from the
-report, and its charts say so rather than drawing zero.
+report, and the queries answer it as absent rather than as zero (the charts of
+`fleet-ui-3` show that answer after the first release).
 
 ### Reporting
 
@@ -73,7 +90,7 @@ report, and its charts say so rather than drawing zero.
 | While offline | The device does not buffer. The hub's history shows a gap, which is the truth |
 | Size | A report is a few hundred bytes, far inside the frame bound of the channel |
 | Rate | The hub refuses reports arriving faster than the interval allows and counts the refusals |
-| Older devices | A device that does not send reports has no history; its charts say that its software does not report |
+| Older devices | A device that does not send reports has no history; the queries answer that its software does not report |
 
 ### The history store
 
@@ -92,7 +109,8 @@ series, retention bounded by configuration.
 ### Queries
 
 Every query is a command, so the same data is available on every command
-surface and to the web pages.
+surface (CLI, SSH, MCP, REST, gRPC, the web command line), and after the first
+release to the web pages, which read it through the dispatcher.
 
 | Query | Answers |
 |-------|---------|
@@ -137,3 +155,10 @@ surface and to the web pages.
 | AC-7 | A device removed from the registry | Its history is gone | None |
 | AC-8 | Reports faster than the interval allows | They are refused and counted; the store does not grow faster than configured | None |
 | AC-9 | A standalone device | No reporting, no store, no overhead | None |
+| AC-10 | Each query of the Queries table asked on the CLI, SSH, MCP, REST, gRPC and the web command line | Each surface lists the command and the daemon dispatcher serves it there (`TestEveryCommandOnEverySurface`, `cmd/ze/hub/surface_parity_test.go`); every surface's answer is the one the hub's handler gives the dispatcher. Added by the owner ruling of 2026-11-23 | None |
+| AC-11 | A device that sends no reports, and a figure whose owner is absent on a reporting device | The latest-samples and series queries answer that the device's software does not report, or that the figure is absent, never a zero or an empty series read as data. Replaces the chart rules "its charts say so" (owner ruling of 2026-11-23) | None |
+
+No criterion of this spec names a chart, a page or a web view. The charts over
+this history are `plan/post-release/features/spec-fleet-ui-3-dashboards-and-charts.md`'s,
+its history administration page is
+`plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md`'s.

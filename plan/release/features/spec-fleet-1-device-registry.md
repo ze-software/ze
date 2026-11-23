@@ -17,7 +17,7 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Re-read after compaction:** this file, `docs/architecture/fleet-config.md`,
-`docs/architecture/fleet-interface.md`, `plan/post-release/features/spec-fleet-0-umbrella.md` (its three
+`plan/post-release/features/spec-fleet-0-umbrella.md` (its three
 Direction Update sections), `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`,
 `spec-fleet-7-config-reconnect-resolution`.
 
@@ -51,9 +51,49 @@ settled and are not reopened here:
 | Hierarchy | Labels stay flat key=value pairs; the interface builds its tree from labels only. `group` stays the unit that assigns a template |
 | Strongest concern carried | Bounding sessions by declared clients moves the limit into the configuration; the read-buffer bound is what makes the worst case stated |
 
+### Owner ruling of 2026-11-23: commands in the first release, pages after it
+
+Thomas ruled (voice-transcribed answer "1 b") that the fleet features of the
+first release are reached through commands on every command surface (CLI,
+SSH, MCP, REST, gRPC and the web command line), and that their web pages and
+views come after the first release (`ai/META-DECISIONS.md`, "Goal and
+scope"). This changes the owner decisions above in one place: the "Data seam"
+row's last sentence ("The dashboard and the device list go live on real data
+when `fleet-1` lands") and the web half of that row no longer belong to this
+spec. The split of the fleet interface's `Source` contract into one part per
+back end, the estate part over the dispatcher, the join by device name, the
+not-available state and the live-estate browser test move, unchanged, to
+`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`,
+section "Moved from fleet-1 (owner ruling 2026-11-23)". Every other owner
+decision above stands as written.
+
+This edit writes in a ruling Thomas made himself, so it is not put back to him
+for approval (`ai/META-DECISIONS.md`, "How agents work"). It changes `## Task`
+and `## Acceptance Criteria`, so the design approval of 2026-11-19 is stale:
+the independent design judge (`ai/skills/ze-design-judge.md`) re-judges the
+changed text before the spec is claimed. This spec is not re-approved by this
+edit.
+
+| AC moved out | Destination spec | Its AC there |
+|--------------|------------------|--------------|
+| AC-14 (a fleet page with only the estate part) | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` | AC-8 |
+| AC-15 (display state Unknown with no health part) | same | AC-9 |
+| AC-28 (`fleetui.DevicesMax` equals `ManagedClientsMax`) | same | AC-10 |
+| AC-29 (`test/web/fleet-estate-live.wb`) | same | AC-11 |
+| AC-30 (every absent part renders not available) | same | AC-12 |
+| AC-31 (the join by device name) | same | AC-13 |
+| AC-32 (a second or nil part registration panics) | same | AC-14 |
+| AC-33 (the sample build unchanged) | same | AC-15 |
+
+What the moved criteria proved on the command surfaces is kept here: the
+devices, their connection state, configuration state, labels and versions by
+AC-1 to AC-13 and AC-25, and every command surface by AC-34, added with this
+ruling. A device's health on the command surfaces is `fleet-4`'s
+(`plan/release/features/spec-fleet-4-inventory-health.md`, AC-8).
+
 The goal: on a hub with up to 4,096 declared clients and 2,000 of them
-connected, an operator runs `show fleet devices` (or opens the fleet dashboard)
-and sees every declared device with its connection state, its last-seen time,
+connected, an operator runs `show fleet devices` on any command surface and
+sees every declared device with its connection state, its last-seen time,
 its labels and where its configuration stands, across a hub restart and a
 config reload, with bounded memory and bounded store writes.
 
@@ -69,8 +109,8 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | `show fleet device detail <name>` | `show fleet device name <name>` | The same leaf grammar `show fleet divergence name <name>` uses (`internal/component/managed/yang/ze-managed-cmd.yang`) |
 | AC-13: an undeclared device is auto-discovered | Removed | An undeclared name is refused at authentication (`AuthenticateWithLookup` refuses an empty expected token); dynamic enrollment is out of scope (umbrella, Out of Scope) |
 | A `diverged` state set by `fleet-6` and cleared by `fleet-7` | Read from `fleet-7`'s held record | Umbrella Direction Update of 2026-11-19, row "`diverged` record on the hub" |
-| A web page `/fleet` with SSE updates, `page_fleet.go` | The estate part of the fleet interface's seam; pages, events and SSE belong to `fleet-ui` | Umbrella Direction Update of 2026-11-18, row "Web views" |
-| EventBus events `fleet.device.online/offline` | None | No consumer: the interface's live events are `fleet-ui-5`'s `EventSource` |
+| A web page `/fleet` with SSE updates, `page_fleet.go` | None in `fleet-1`: the seam split, its estate part, the pages, events and SSE belong to `fleet-ui` (the seam and the estate part to `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`) | Umbrella Direction Update of 2026-11-18, row "Web views"; owner ruling of 2026-11-23 (above) |
+| EventBus events `fleet.device.online/offline` | None | No consumer: the interface's live events are the `EventSource` of `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md` |
 | A `DeviceRegistry` wired from `cmd/ze/hub/main.go` into `ManagedConfigService` | The registry is part of `ManagedServer`, and replaces the `connected` set of `ManagedConfigService` | Owner placement A; no layering (`ai/rules/no-layering.md`) |
 | Health status in the registry record | Answered by `fleet-4`'s part, joined by name | Owner: each back end answers only its own fields |
 | "Client protocol unchanged" | One client change: the config-ack error text is bounded | The lowered read bound must hold every legal message (R-6) |
@@ -82,17 +122,15 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 ### Architecture Docs
 - [ ] `ai/doors/system.md`, `ai/doors/hub-engine.md`, `ai/doors/api-surfaces.md`, `ai/doors/commands-cli.md`, `ai/doors/config-yang.md` - the constraints of every subsystem this spec touches
   → Constraint: runtime state is persisted through the daemon's store under a key registered in `pkg/zefs/keys.go` (`MustRegister`), never `os.WriteFile`.
-  → Constraint: `cmd/ze/hub` is always on; the fleet interface is gated `ze_web && ze_fleet_ui`, so the real estate part is linked from a hub file under that build constraint, never imported by always-on code.
   → Constraint: something built only at startup ignores every reload (hub-engine door, Traps). The managed server is built only at startup today, which is the reload defect fixed here.
   → Constraint: one reload path, `doReload` (`cmd/ze/hub/main_reload.go`); the managed client set joins it rather than building a second path.
-  → Constraint: a web surface never imports a protocol package to read state; it asks the dispatcher. The estate part reads `show fleet devices` through `web.RouteDeps.Dispatch`.
   → Constraint: a handler answers data, never text; output goes through the pipes; a command-specific filter is declared with `command.RegisterPipeFilters` (`internal/component/command/pipe_filter.go`).
+  → Constraint: a command is declared once and reaches every interface (`ai/doors/system.md`, "One schema, one command registry, every interface"): the two commands are builtin RPCs, so CLI, SSH, MCP, REST, gRPC and the web command line all serve them with no edit to an interface package, which `TestEveryCommandOnEverySurface` (`cmd/ze/hub/surface_parity_test.go`) checks.
+  → Moved: the two constraints on the fleet interface (the `ze_web && ze_fleet_ui` gate of the estate part, and the estate part reading through `web.RouteDeps.Dispatch`) moved with that work to `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` (owner ruling of 2026-11-23).
 - [ ] `docs/architecture/fleet-config.md` - the managed protocol, the dedicated listener, "What doctor reads from the managed listener", per-client secrets
   → Decision: the registry is a third record of the managed server beside the doctor record (`managedDoctorState`) and the held records (`heldRecords`), published the same way (`ManagedDoctorSnapshot`).
   → Constraint: a client is admitted only on the address of the block that declares it; a client reachable through two blocks is declared under both. The registry keys by name, so one record serves both declarations, and two declarations of one name must carry the same labels.
-- [ ] `docs/architecture/fleet-interface.md` - the data source seam, "A source answers facts, the package derives", the failures a source reports
-  → Constraint: a source MUST answer an operator error wrapping a `source_errors.go` error where one fits, never an empty answer in its place (`internal/component/web/fleetui/source.go` `Source` doc).
-  → Decision: the split keeps derivation in `fleetui` (`DeviceDisplayState`, the tree, the table): a part answers facts only.
+- `docs/architecture/fleet-interface.md` - moved with the fleet interface work to `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`, which carries its two checkpoints (owner ruling of 2026-11-23)
 - [ ] `docs/architecture/api/commands.md` - where a command is served, builtin RPCs, answer shapes, pipe filters
   → Constraint: the wire-method prefix of a builtin is owned by the package that calls `RegisterRPCs` (`RPCRegistration.registrar`, `OwnerPrefix`), so the `ze-managed:` commands are registered from `internal/component/managed`, which reads the registry through an exported snapshot of `plugin/server`, as `show fleet divergence` reads the held records.
 - [ ] `docs/architecture/zefs-format.md` - key families and the store's refusal of a key below a value
@@ -106,7 +144,6 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 **Key insights:**
 - The registry is a record inside `ManagedServer`, written by `handleConn`, `handleRequest` (config-fetch) and `handleConfigAck`, persisted through the borrowed `ManagedServerConfig.Store`, published by an atomic pointer like `managedDoctorSource`.
 - The commands live in `internal/component/managed` (owner prefix `ze-managed`) beside `show fleet status` and `show fleet divergence`.
-- The `fleetui` slot holds one `Source` today; it becomes one slot per part, the estate part being mandatory for the routes to mount.
 - Reload today never touches the managed server; `hubConfig` is extracted once at boot (`cmd/ze/hub/main.go`, `zeconfig.ExtractHubConfig`, then `startManagedServer`).
 - Diverged is presence of `meta/config/client-<name>.conf/held` (`HeldRecordKey`), listed by `HeldClients`.
 
@@ -131,13 +168,8 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 - [ ] `internal/component/plugin/ipc/tls.go` - the plugin acceptor caps unauthenticated connections at `maxPendingConns` = 32 and releases the slot when the handshake ends.
 - [ ] `internal/component/plugin/yang/ze-plugin-conf.yang` - `plugin hub server <name> { ... list client { key name; leaf name (1..64); leaf secret } }`.
 - [ ] `internal/component/config/loader_extract.go` - `ExtractHubConfig` builds `plugin.HubConfig`; `checkManagedCertificateAgreement` refuses two serving blocks naming different certificates.
-- [ ] `internal/component/web/fleetui/source.go` - `Source` is the union of six interfaces; `sourceSlot` holds one; `MustRegisterSource` panics on a second.
-- [ ] `internal/component/web/fleetui/source_devices.go` - `RegistrySource` (`Now`, `Estate`, `Devices`, `Device`, `TreeViews`, `SavedFilters`), `Device` and its fact structs, `DevicesMax` = 4096, `LabelsMax` = 32.
-- [ ] `internal/component/web/fleetui/state.go` - `DeviceDisplayState`: offline when not connected, then diverged, down, degraded, and Unknown while `HealthReported` is false. `ConfigState`: in-sync, pending, rejected, diverged, never-fetched.
-- [ ] `internal/component/web/fleetui/pages.go` - `ReadSnapshot` fails the whole page when `Alarms`, `Tasks` or `TreeViews` errors.
-- [ ] `internal/component/web/fleetui/register.go` - every route mounts while `sourceRegistered`; `mountedSource` panics on an empty slot; a route's `Build` receives `web.RouteDeps`, which carries `Dispatch`.
-- [ ] `internal/component/web/fleetui/sample/register/register.go` - the sample registers one source for every concern (`MustRegisterSource(newSource(time.Now))`).
-- [ ] `cmd/ze/hub/register_fleet_ui.go` (`ze_web && ze_fleet_ui`) and `register_fleet_ui_sample.go` (`... && ze_fleet_ui_sample`) - the hub-side gates.
+- [ ] `cmd/ze/hub/surface_parity_test.go` - `TestEveryCommandOnEverySurface` builds the daemon dispatcher, walks every registered command and checks that the CLI, SSH, MCP, REST, gRPC, web admin and web completion surfaces each list and serve it.
+- Moved: the reads of `internal/component/web/fleetui` (`source.go`, `source_devices.go`, `state.go`, `pages.go`, `register.go`, `sample/register/register.go`) and of the hub-side gates `cmd/ze/hub/register_fleet_ui.go` and `register_fleet_ui_sample.go` moved with the fleet interface work to `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` (owner ruling of 2026-11-23).
 - [ ] `cmd/ze/hub/fleet_perf_test.go` - `TestFleetManyClientsPerf` (`fleetperf` tag) drives 128 clients through auth and one config fetch each through `startManagedServer`.
 - [ ] `internal/core/events/typed.go` - `events.Register[T]` declares a typed event. Not used here: placement B was rejected.
 
@@ -157,7 +189,7 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 - The connection cap held for a connection's life is removed; unauthenticated handshakes are capped instead; the hub's managed reader is bounded below 16 MiB; a config-ack error is bounded by the client.
 - A client entry carries labels.
 - A reload changes the client set the managed server serves, binding and closing serving addresses as needed; the managed server exists whenever the store can serve one, even with no client entry yet.
-- The fleet interface's single source slot becomes one slot per part; absent parts are shown as not available; the estate part is answered from the registry on a real build.
+- Not changed here: the fleet interface keeps its single source slot and its sample build. Its split into parts, the estate part over the registry and the not-available state belong to `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` (owner ruling of 2026-11-23).
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -180,9 +212,10 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | Hub client entry | `internal/component/plugin/yang/ze-plugin-conf.yang` `list client`; `loader_extract.go` `ExtractHubConfig`, `checkManagedCertificateAgreement` | Name and secret per client per serving block; cross-block agreement check | Extends: a `label` list on the entry, validated by YANG and by an agreement check beside the certificate one |
 | Reload | `cmd/ze/hub/main_reload.go` `doReloadContext`, `publishNameServers` | The one reload path; publishes post-promotion state | Extends: the managed client set is applied after promotion, beside `publishNameServers`; its extraction is checked before any step applies |
 | Held record | `managed_held.go` `HeldClients`, `HeldRecordKey` (`fleet-7`) | The hub's copy of what a holding client runs | Does not apply as a writer: the registry reads presence only, as the owner decided |
-| Fleet interface seam | `internal/component/web/fleetui/source.go` `sourceSlot`, `MustRegisterSource`; `register.go` `sourceRegistered` | One source per build, all concerns | Replaces the single slot with one slot per part; the sample registers every part |
-| Device display state | `internal/component/web/fleetui/state.go` `DeviceDisplayState` | Derives Unknown while `HealthReported` is false | Extends unchanged: an absent health part leaves `HealthReported` false, which is the owner's "health Unknown" |
-| Route deps | `internal/component/web/webroute.go` `RouteDeps.Dispatch` | Gives a route builder the web dispatcher | Extends: the estate part is built over it |
+| Fleet interface seam | `internal/component/web/fleetui/source.go` `sourceSlot`, `MustRegisterSource`; `register.go` `sourceRegistered` | One source per build, all concerns | Does not apply here: the split into parts is web work, moved to `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` by the owner ruling of 2026-11-23 |
+| Device display state | `internal/component/web/fleetui/state.go` `DeviceDisplayState` | Derives Unknown while `HealthReported` is false | Does not apply here: moved with the seam to `fleet-ui-2` |
+| Route deps | `internal/component/web/webroute.go` `RouteDeps.Dispatch` | Gives a route builder the web dispatcher | Does not apply here: the estate part built over it moved to `fleet-ui-2` |
+| Command surface parity | `cmd/ze/hub/surface_parity_test.go` `TestEveryCommandOnEverySurface`; `command.AnswerSurface` | Checks every registered command is listed and served on every operator surface | Extends: the two new builtins are covered by it with no edit, and AC-34 names it |
 | Perf harness | `cmd/ze/hub/fleet_perf_test.go` `TestFleetManyClientsPerf` | 128 clients, one fetch each | Extends: 2,000 clients held connected at once |
 | Typed events | `internal/core/events/typed.go` `Register` | Typed bus events | Does not apply: placement B (a component fed by events) was rejected by the owner |
 
@@ -192,8 +225,7 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 - A managed client's TLS connection to a serving block's listener: `#0 auth`, then newline-framed requests (`config-fetch`, `config-ack`, `config-held`, `ping`) and answers to `config-changed`.
 - A config load or reload carrying `plugin hub server <block> client <name> { secret; label <key> value <v>; }`.
 - A write of `file/active/client-<name>.conf` (the store's write observer).
-- An operator's `show fleet devices [| label <key>=<value>]` or `show fleet device name <name>` on any surface.
-- A fleet web page request on a build with `ze_web && ze_fleet_ui`.
+- An operator's `show fleet devices [| label <key>=<value>]` or `show fleet device name <name>` on any command surface: CLI, SSH, MCP, REST, gRPC, the web command line.
 
 ### Transformation Path
 1. Accept: `acceptLoop` takes a handshake slot, `handleConn` authenticates, then releases the slot. A failed or timed-out handshake releases it too.
@@ -206,8 +238,8 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 8. Config write: the observer, for a written client config, pushes config-changed (unchanged) and marks that client's hub version stale.
 9. Start: the registry lists the stored records, decodes each strictly, and holds every device offline; a record that does not decode is kept as unreadable.
 10. Reload: the pre-check extracts the hub config (refusing an invalid one before any step applies); after promotion, the hub applies the serving blocks to the managed server: added names become served, removed names have their session closed and their record marked removed, a changed secret closes the session it authenticated, an added address is bound, a removed address is closed.
-11. Answer: `ManagedRegistrySnapshot` copies every declared and stored record, recomputes stale hub versions through `ReadConfig`, and lists the held clients once (`HeldClients`); the `ze-managed` handlers turn it into rows, apply the `label` pipe filter, and answer data.
-12. Web: the estate part dispatches `show fleet devices` as the request's account, decodes the rows into `fleetui.Device` facts, and the interface joins any registered device-fact parts by name; an absent part leaves its fields not reported.
+11. Answer: `ManagedRegistrySnapshot` copies every declared and stored record, recomputes stale hub versions through `ReadConfig`, and lists the held clients once (`HeldClients`); the `ze-managed` handlers turn it into rows, apply the `label` pipe filter, and answer data, the same answer on every command surface.
+12. Web: none in this spec. The estate part that reads these answers for the fleet pages is `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`'s (owner ruling of 2026-11-23).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -217,9 +249,7 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | Store to hub (observer) | One write-observer function, run after durability | No |
 | Config to managed server | `ExtractHubConfig` at boot and at the reload pre-check; an apply call after promotion | No |
 | `plugin/server` to `managed` | Exported snapshot function and types (value copies) | No |
-| Daemon to every surface | Builtin RPC through the dispatcher; JSON answer, pipes | No |
-| Web to daemon | `web.RouteDeps.Dispatch` with the request's caller identity | No |
-| Back ends to fleet interface | One registration per part from `init()`; a join by device name | No |
+| Daemon to every surface | Builtin RPC through the dispatcher; JSON answer, pipes; CLI, SSH, MCP, REST, gRPC and the web command line | No |
 
 ### Changed-Wire Census
 
@@ -241,7 +271,7 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | Device record | writer | New: the registry's record writer (`meta/fleet/device/{name}/record`, JSON) in `internal/component/plugin/server/managed_registry.go` | New family, no prior writer | New |
 | Device record | reader | New: the registry's load at `Start`; generic raw readers `ze data` (prints keys and bytes, decodes nothing) | No other reader | New; `ze data` preserved |
 | `show fleet devices` answer | writer | New: `internal/component/managed/cmd_devices.go` handler | New command | New |
-| `show fleet devices` answer | reader | New: `internal/component/web/fleetui/estate` part; CLI renderers through the pipes; MCP tools derived from the registry | New | New |
+| `show fleet devices` answer | reader | New: CLI renderers through the pipes; SSH, REST, gRPC and the web command line through the dispatcher; MCP tools derived from the registry. After the first release, the `internal/component/web/fleetui/estate` part of `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` | New | New |
 | Hub client entry `label` (config) | writer | Operator configs; repository configs under `test/managed/` and `etc/` that declare clients | Additive optional list | Preserved: no existing config carries it |
 | Hub client entry `label` (config) | reader | `internal/component/config/loader_extract.go` `ExtractHubConfig`; the YANG parser | New field on `plugin.HubServerConfig` | New |
 
@@ -252,18 +282,18 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 - `doReloadContext` (`cmd/ze/hub/main_reload.go`) - checks the hub extraction before any step and applies it after promotion.
 - `internal/component/managed/register.go` - registers the two commands, their shapes, columns, pipe filter and completer.
 - `internal/component/plugin/doctor/check_managed_runtime.go` - the new checks read the extended doctor record.
-- `internal/component/web/fleetui` - one slot per part; `ReadSnapshot` tolerates absent parts; the join.
-- `cmd/ze/hub/register_fleet_ui_estate.go` - links the estate part on a real fleet build.
+- The command surfaces - reached through the command registry with no edit to an interface package; `TestEveryCommandOnEverySurface` proves the two commands on each.
+- Moved: `internal/component/web/fleetui` (parts, `ReadSnapshot`, the join) and `cmd/ze/hub/register_fleet_ui_estate.go` belong to `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` (owner ruling of 2026-11-23).
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | Yes | Facts are written by the server at the point they happen; the commands read a published snapshot; the web reads through the dispatcher |
-| No unintended coupling (components stay isolated) | Yes | `managed` already imports `plugin/server`; the web part imports only `fleetui` and `web`; `cmd/ze/hub` links the gated part from a gated file |
+| No bypassed layers (data flows through the intended path) | Yes | Facts are written by the server at the point they happen; the commands read a published snapshot; every surface reads through the dispatcher |
+| No unintended coupling (components stay isolated) | Yes | `managed` already imports `plugin/server`; no web package is touched |
 | No duplicated functionality (extends existing, does not recreate) | Yes | Replaces the connected set; one store, one observer, one reload path, one snapshot pointer |
 | Zero-copy preserved where applicable (refs, not copies) | Yes | The snapshot copies value records by design (a cross-boundary value, `ai/doors/system.md`); the hot path (request handling) updates a record in place under a lock |
-| Registration over hardcoding, outbound | Yes | Commands, shapes, columns, the pipe filter, the completer and the doctor checks register from `init()`; each fleet-interface part registers from its own package |
-| Registration over hardcoding, inbound | Yes | Lists searched for the names this spec adds (`fleet-devices`, `fleet-device`, `label`, the part names): the wire-method snapshot (`internal/component/plugin/all/testdata/wire-methods.snapshot`, regenerated, not hand-kept), `command.AnswerSurface` (derived), the MCP tool list (derived at call time), the doctor registry (registration), `feature-gates.txt` (the estate part sits under the `ze_fleet_ui` row's package prefix). The `ReadSnapshot` part list is the one central enumeration in `fleetui`; it is the seam's own definition of which parts a page reads, owned by `fleetui` |
+| Registration over hardcoding, outbound | Yes | Commands, shapes, columns, the pipe filter, the completer and the doctor checks register from `init()` |
+| Registration over hardcoding, inbound | Yes | Lists searched for the names this spec adds (`fleet-devices`, `fleet-device`, `label`): the wire-method snapshot (`internal/component/plugin/all/testdata/wire-methods.snapshot`, regenerated, not hand-kept), `command.AnswerSurface` (derived), the MCP tool list (derived at call time), the doctor registry (registration). The part names and `feature-gates.txt` moved with the fleet interface work to `fleet-ui-2` |
 
 ## Risks & Assumptions
 
@@ -274,11 +304,15 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | A-2 | `fleet-7`'s held record (`KeyConfigHeld`, `HeldClients`) lands before this spec's Phase 4 | `fleet-7` is in progress in another session; its files are untracked on 2026-11-19 | Diverged cannot be read; Phase 4 waits | `git log -- internal/component/plugin/server/managed_held.go` before Phase 4 | unvalidated |
 | A-3 | No legal client message other than config-held exceeds 64 KiB once the ack error is bounded | `client.go` `FetchConfig` (version only), `sendPing` (empty), config-changed answer (OK), `SendConfigAck` (bounded here) | The bound closes a healthy client | `TestManagedReadMaxAcceptsLargestHeld`, and a read of every `CallRPC` and `Send*` in `client.go` at implementation | unvalidated |
 | A-4 | A builtin RPC handler receives its command's declared pipe filter the way a plugin command does | `RegisterPipeFilters` resolves by command path, not by owner (`pipe_filter.go`) | The label filter needs another route | `TestShowFleetDevicesLabelFilter` through the dispatcher | unvalidated |
-| A-5 | The web interface runs inside the hub daemon, so the process clock and host name are the hub's | `fleetui` routes are mounted by the daemon's web server through `web.RegisterWebRoute` | `Now` or `Estate` would answer another host's values | `TestEstatePartAnswersHubClock` | unvalidated |
 | A-6 | `startManagedServer` receiving a nil store is the only "storage cannot serve" case | `startManagedServer` returns nil on `store == nil`; the comment says "storage is blob-backed" | A hub with client entries on non-blob storage would serve nothing silently | Read the store construction in `cmd/ze/hub/main.go` at Phase 6; if another case exists, it gets the `doctor-managed-store-unavailable` check of the Integration Checklist | unvalidated |
 | A-7 | A `.ci` can start a hub, a managed client and a reload in one test | `test/managed/fleet-status.ci`, `fleet-disable-severs.ci` run hub and client daemons | The reload proof needs a Go integration test instead | Writing `fleet-devices-reload-add.ci` | unvalidated |
-| A-8 | The browser test runner can start a hub daemon with a serving block and a real managed client beside it once it gains a server kind for it | `internal/test/cli/cmd_web.go` already starts a second process for a server kind (`zeTestStartLGServer` starts `ze-test test peer` beside the daemon); kinds are declared in `internal/component/web/testing/parser.go` (`WBServerLG`, `WBServerDaemon`); `option=needs-build-tag` accepts `state=absent` (`internal/test/runner/build_tags.go`) | The harness shape changes; the test stays a Phase 8 deliverable either way (AC-29) | Writing the `fleet-hub` kind and `test/web/fleet-estate-live.wb` in Phase 8 | unvalidated |
 | A-9 | 4,000 file descriptors are available to the perf test process | Linux defaults; macOS soft limit is 256 | The perf test fails on setup, not on the hub | The test raises the soft limit to the hard limit and fails naming both when the hard limit is too low | unvalidated |
+
+A-5 (the web interface runs inside the hub daemon) and A-8 (the browser test
+runner can start a hub with a real managed client) moved with the fleet
+interface work to
+`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`,
+as its A-1 and A-2 (owner ruling of 2026-11-23).
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -293,18 +327,22 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | R-8 | A reload apply fails part way (an added address does not bind) | `doctor-managed-listener-unbound` | The apply binds independently per address like `Start`; a failed address is recorded unbound and its clients are not connectable there; the rest of the reload stands, as at boot |
 | R-9 | A device name containing `/` or matching the client config key form corrupts a key or triggers a push | Key derivation | Names are bounded by YANG (`1..64`); the record key is `meta/fleet/device/<name>/record`, whose basename `record` never satisfies `ClientNameFromConfigKey`, so the observer never mistakes a record write for a config write; a name with `/` is refused at extraction |
 | R-10 | Two serving blocks declare one client with different labels | Extraction | Refused at verify with both blocks and the label named, beside `checkManagedCertificateAgreement` |
-| R-11 | The sample build and the real estate part both register the estate part | Panic at start | The real part's hub file is constrained `!ze_fleet_ui_sample`; the second registration of a part panics as a composition defect, as today |
 | R-12 | `show fleet devices` on a page render reads 4,096 client configs to hash them | Page latency | Hub versions are cached and recomputed only for names the observer marked stale; at `Start` all are stale and are computed once, on the first read |
 | R-13 | A secret change by reload leaves a session authenticated with the old secret | Session after reload | The apply closes the session of a client whose secret changed; the client reconnects with the new one |
-| R-14 | The estate part dispatches as an identity that may not read `show fleet devices` | 403 on the page | It dispatches as the request's account; a refusal is an operator error the page shows (`FailureUnauthorized`) |
+
+R-11 (the sample build and the real estate part both registering the estate
+part) and R-14 (the estate part dispatching as an identity that may not read
+`show fleet devices`) moved with the fleet interface work to
+`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`,
+as its R-1 and R-2 (owner ruling of 2026-11-23).
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | Managed clients refused or disconnected (read bound, handshake cap, reload apply); a hub that no longer starts its managed server; fleet pages that no longer mount |
+| What breaks if this is wrong? | Managed clients refused or disconnected (read bound, handshake cap, reload apply); a hub that no longer starts its managed server |
 | How is it reverted? | Single commit revert per phase; the new key family is inert when unread |
-| Who else touches this path? | `fleet-7` (held records, `managed.go`, `managed_serve.go`, `keys.go`, uncommitted), `fleet-ui-2` (the seam's other parts, the web mode), `fleet-4`, `fleet-8`, `fleet-9` (their device-fact parts) |
+| Who else touches this path? | `fleet-7` (held records, `managed.go`, `managed_serve.go`, `keys.go`, closed 2026-11-19), `fleet-4` and `fleet-8` (their reports on the same managed server), `fleet-ui-2` (the fleet interface's estate part that reads these commands, after the first release) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -319,9 +357,13 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | A reload removing a connected client | → | the apply closes the session and marks removed | `test/managed/fleet-devices-reload-remove.ci` |
 | A hub restart | → | the registry's load at `Start` | `test/managed/fleet-devices-restart.ci` |
 | A store write failure | → | the record writer's failure path and doctor | `TestRegistryWriteFailureReportedByDoctor` |
-| A fleet page on a real `ze_fleet_ui` build (no `ze_fleet_ui_sample`) with one real managed client | → | the estate part over the dispatcher, the join, the not-available component | `test/web/fleet-estate-live.wb` |
-| A page asking an unregistered part | → | the not-available component | `TestEveryAbsentPartRendersNotAvailable` |
+| `show fleet devices` and `show fleet device name <name>` on SSH, MCP, REST, gRPC and the web command line | → | the same builtins through the daemon dispatcher | `TestEveryCommandOnEverySurface` (`cmd/ze/hub/surface_parity_test.go`) |
 | 2,000 clients | → | handshake cap, read bound, registry | `TestFleetManyClientsPerf` (`fleetperf`) |
+
+The two web rows (`test/web/fleet-estate-live.wb`,
+`TestEveryAbsentPartRendersNotAvailable`) moved to
+`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`
+(owner ruling of 2026-11-23).
 
 ## Acceptance Criteria
 
@@ -340,8 +382,6 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | AC-11 | `show fleet device name edge-01` | One document: every field of the row plus `first-connected`, `last-ack`, `ack-version`, `ack-error`, `persisted`, `unreadable`, `removed-at` | None |
 | AC-12 | `show fleet device name nobody` | Operator error: no client `nobody` is declared or recorded, the fix names `show fleet devices` | None |
 | AC-13 | A client whose held record exists (`fleet-7`) | Its row has `diverged` true and `config-state` `diverged`; when the record is removed, `diverged` false on the next answer | An unreadable held record still counts as diverged, because presence is the flag |
-| AC-14 | A fleet page on a real `ze_fleet_ui` build with the estate part registered and no other part | The dashboard and devices table show the declared devices from the registry; alarms, tasks, history, device tabs and declared tree views show "not available on this hub yet"; built-in tree views work | The live event stream is absent (the page works without live updates), because `fleet-ui-5` owns the events part |
-| AC-15 | A connected device with no health part registered | Its display state is Unknown, never Healthy | None |
 | AC-16 | 33 unauthenticated connections held open, then a declared client connects | The client authenticates once a handshake slot frees (at most `managedAuthTimeout`); 129 authenticated sessions coexist | The 33rd unauthenticated connection waits in the backlog, because the cap is the flood bound |
 | AC-17 | A client sends config-held of exactly `fleet.HeldConfigMax` raw bytes | Accepted and stored as today | None |
 | AC-18 | A client sends a line one byte over the managed read maximum | The hub closes that connection, records `doctor-managed-client-rejected` with the oversize cause, and keeps serving others | The device's record shows the disconnect, because it did disconnect |
@@ -354,12 +394,12 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | AC-25 | A client config file is written | The next `show fleet devices` shows the new `hub-version` for that client and `config-state` `pending` until it acks the new version | Other clients' hub versions are not recomputed, because only the written one was marked stale |
 | AC-26 | A hub started with no client entry gains one by reload | The managed server binds the block's address and the client can connect | None |
 | AC-27 | The handshake cap is reached | `ze doctor` reports `doctor-managed-handshake-saturated` with the time, the count, the remote addresses holding slots and the fix | None |
-| AC-28 | `fleetui.DevicesMax` and the registry's `ManagedClientsMax` | Equal, checked by a test | None |
-| AC-29 | `test/web/fleet-estate-live.wb` on a build with `ze_fleet_ui` and without `ze_fleet_ui_sample`, one real managed client `edge-01` connected | The estate devices table shows `edge-01` connected (state Unknown), Config "In sync", label `site=lon`, and its config version hash in the side panel; the estate dashboard's Alarms card shows `fleet-not-available-activity` with "Not available on this hub yet." | No sample marker anywhere, because the sample registers nothing on this build |
-| AC-30 | Each part of the split table unregistered, with the estate part registered | Every page, card and section the not-available table names for that part renders "Not available on this hub yet." in `fleet-not-available-<part>`, with status 200, and every other part's content still renders | The event part shows no text, because a page without live updates is its stated absent state |
-| AC-31 | A device-fact part registered that answers facts for some estate devices and one name the estate does not hold | Each estate device carries exactly that part's fields for its name; devices it did not answer keep them not reported; the extra name appears nowhere; no field of another part changes | None |
-| AC-32 | A second registration of any one part, or a nil part | Panics at process start naming the part | None: it is a build composition defect |
-| AC-33 | The sample build (`ze_fleet_ui_sample`) | Every existing `test/web/fleet-*.wb` passes unchanged, and no not-available element appears | None: the sample registers every part |
+| AC-34 | `show fleet devices`, `show fleet devices \| label site=lon` and `show fleet device name edge-01` asked on the CLI, SSH, MCP, REST, gRPC and the web command line | Each surface lists both commands and the daemon dispatcher serves them there (`TestEveryCommandOnEverySurface`); every surface's answer is the one the builtin handler gives the dispatcher, whose content the `.ci` tests of AC-1 to AC-13 assert | None: a command is declared once and reaches every interface (`ai/doors/system.md`); added by the owner ruling of 2026-11-23 so the registry is reachable and tested on every command surface in the first release |
+
+AC-14, AC-15 and AC-28 to AC-33 moved to
+`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`
+(the table under "Owner ruling of 2026-11-23" in the Task section names each
+one's AC there).
 
 ## End-to-End User Stories
 
@@ -370,7 +410,7 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | 3 | Removes a client by reload | apply → session closed → listed removed | `fleet-devices-reload-remove.ci` |
 | 4 | Restarts the hub and sees every device offline | `Start` load → snapshot | `fleet-devices-restart.ci` |
 | 5 | Finds the London devices | `show fleet devices \| label site=lon` | `fleet-devices-label.ci` |
-| 6 | Opens the fleet dashboard on a real hub | web route → estate part → dispatcher → snapshot | `fleet-estate-live.wb` |
+| 6 | Lists the fleet from an MCP, REST, gRPC or SSH client, or the web command line | surface → dispatcher → `ze-managed:fleet-devices` → snapshot | `TestEveryCommandOnEverySurface` |
 
 ## 🧪 TDD Test Plan
 
@@ -415,21 +455,13 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | `TestCheckManagedDeviceRecordUnwritable` | `internal/component/plugin/doctor/check_managed_runtime_test.go` | AC-21 doctor text | |
 | `TestCheckManagedDeviceRecordUnreadable` | same | AC-22 doctor text | |
 | `TestCheckManagedHandshakeSaturated` | same | AC-27 | |
-| `TestEstatePartRequiredToMount` | `internal/component/web/fleetui/source_parts_test.go` | Routes mount only with the estate part | |
-| `TestSecondPartRegistrationPanics` | same | R-11 | |
-| `TestReadSnapshotMarksAbsentActivity` | same | AC-14 alarms and tasks not available | |
-| `TestReadSnapshotBuiltinViewsWithoutViewsPart` | same | AC-14 tree views | |
-| `TestAbsentHealthPartLeavesUnknown` | same | AC-15 | |
-| `TestJoinFillsDeviceFactsByName` | same | AC-31: a registered device-fact part fills only its fields | |
-| `TestJoinIgnoresNameOutsideEstate` | same | AC-31: a name the estate does not hold appears nowhere | |
-| `TestDeviceFactPartErrorLeavesFieldsNotReported` | same | A part answering an error leaves its fields not reported and the page renders | |
-| `TestEveryAbsentPartRendersNotAvailable` | same | AC-30, one subtest per part of the split table, each asserting its `fleet-not-available-<part>` element on the pages the table names and status 200 | |
-| `TestDeviceSystemJoinsHardwareFromInventoryPart` | same | `DeviceSystem.Hardware` from `InventoryHealthPart`, resources from `DeviceViewPart` | |
-| `TestSampleRegistersEveryPart` | `internal/component/web/fleetui/sample/register/register_test.go` | AC-33: every slot holds the sample | |
-| `TestEstatePartMapsRowsToDevices` | `internal/component/web/fleetui/estate/estate_test.go` | Row to `fleetui.Device` mapping | |
-| `TestEstatePartDispatchErrorIsOperatorError` | same | A refused dispatch is an operator error, never empty | |
-| `TestEstatePartAnswersHubClock` | same | A-5 | |
-| `TestFleetDevicesMaxAgreesWithManagedClientsMax` | `cmd/ze/hub/fleet_ui_bounds_test.go` (`ze_web ze_fleet_ui`) | AC-28 | |
+| `TestEveryCommandOnEverySurface` | `cmd/ze/hub/surface_parity_test.go` (existing) | AC-34: both builtins listed and served on every operator surface | |
+
+The fleet interface tests (`source_parts_test.go`, `estate_test.go`,
+`sample/register/register_test.go`, `fleet_ui_bounds_test.go`) moved with
+their criteria to
+`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`
+(owner ruling of 2026-11-23).
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -453,7 +485,6 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | `fleet-devices-reload-remove` | `test/managed/fleet-devices-reload-remove.ci` | Reload removes a connected client, closed, listed removed | |
 | `fleet-devices-label` | `test/managed/fleet-devices-label.ci` | Label filter | |
 | `fleet-devices-diverged` | `test/managed/fleet-devices-diverged.ci` | A holding client is listed diverged | |
-| `fleet-estate-live` | `test/web/fleet-estate-live.wb` (`option=server:kind=fleet-hub`, `ze_fleet_ui` present, `ze_fleet_ui_sample` absent) | AC-29: a real managed client listed online with its config version; the Alarms card not available | |
 | `TestFleetManyClientsPerf` | `cmd/ze/hub/fleet_perf_test.go` (`fleetperf`) | 2,000 connected devices | |
 
 ### Interop Tests (Scope: protocol)
@@ -476,10 +507,8 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 - `internal/component/managed/register.go`, `internal/component/managed/yang/ze-managed-cmd.yang` - two commands, shapes, columns, filter, completer.
 - `internal/component/plugin/doctor/check_managed_runtime.go` - three checks.
 - `internal/core/diagnostic/codes_plugin_infra.go` - three codes and their entries.
-- `internal/component/web/fleetui/source.go`, `source_devices.go`, `register.go`, `pages.go` - parts, join, not-available markers.
-- `internal/component/web/fleetui/sample/register/register.go` - register every part.
 - `cmd/ze/hub/fleet_perf_test.go` - 2,000 held sessions.
-- `docs/architecture/fleet-config.md`, `docs/architecture/fleet-interface.md`, `docs/guide/fleet-config.md`, `docs/guide/command-reference.md`, `docs/architecture/api/commands.md`, `docs/architecture/zefs-format.md`, `docs/architecture/doctor-and-health-checks.md`, `docs/features/cli-commands.md`, `docs/architecture/api/ipc_protocol.md`, `docs/architecture/hub-architecture.md` - the pages each phase makes wrong.
+- `docs/architecture/fleet-config.md`, `docs/guide/fleet-config.md`, `docs/guide/command-reference.md`, `docs/architecture/api/commands.md`, `docs/architecture/zefs-format.md`, `docs/architecture/doctor-and-health-checks.md`, `docs/features/cli-commands.md`, `docs/architecture/api/ipc_protocol.md`, `docs/architecture/hub-architecture.md` - the pages each phase makes wrong.
 
 ## Files to Create
 - `internal/component/plugin/server/managed_registry.go` - record, writer, load, snapshot.
@@ -488,15 +517,15 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 - `internal/component/plugin/server/managed_apply_test.go`
 - `internal/component/managed/cmd_devices.go` - the two handlers and the completer.
 - `internal/component/managed/cmd_devices_test.go`
-- `internal/component/web/fleetui/source_parts.go` - one slot per part and the join.
-- `internal/component/web/fleetui/source_parts_test.go`
-- `internal/component/web/fleetui/estate/estate.go`, `register.go`, `estate_test.go` - the estate part over the dispatcher.
-- `cmd/ze/hub/register_fleet_ui_estate.go` - `ze_web && ze_fleet_ui && !ze_fleet_ui_sample` blank import.
-- `cmd/ze/hub/fleet_ui_bounds_test.go`
 - `test/managed/fleet-devices-connect.ci`, `fleet-device-detail.ci`, `fleet-devices-restart.ci`, `fleet-devices-declared.ci`, `fleet-devices-reload-add.ci`, `fleet-devices-reload-remove.ci`, `fleet-devices-label.ci`, `fleet-devices-diverged.ci`
-- `test/web/fleet-estate-live.wb` - the live-estate browser test (AC-29)
-- `internal/component/web/fleetui/component_unavailable.templ` - the not-available component
-- `internal/component/web/fleetui/sample/register/register_test.go`
+
+The fleet interface files (`source_parts.go`, `estate/*`,
+`register_fleet_ui_estate.go`, `fleet_ui_bounds_test.go`,
+`fleet-estate-live.wb`, `component_unavailable.templ`, the sample's
+`register_test.go`, and the edits to `source.go`, `source_devices.go`,
+`register.go`, `pages.go` and `sample/register/register.go`) moved to
+`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`
+(owner ruling of 2026-11-23).
 
 ### The device record (persisted, JSON, strict decode)
 
@@ -558,17 +587,17 @@ Columns in order: `name`, `connected`, `config-state`, `labels`, `hub-version`, 
 | 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`, `docs/features/cli-commands.md` |
 | 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` |
 | 5 | Plugin added/changed? | N/A | No plugin added; the managed component's commands are documented by rows 3 and 4 |
-| 6 | Has a user guide page? | Yes | `docs/guide/fleet-config.md` (registry, labels, reload, scale), `docs/guide/web-interface.md` (real estate, not-available parts) |
+| 6 | Has a user guide page? | Yes | `docs/guide/fleet-config.md` (registry, labels, reload, scale, the commands on every command surface). `docs/guide/web-interface.md` (real estate, not-available parts) moved with the web work to `fleet-ui-2` |
 | 7 | Wire format changed? | Yes | `docs/architecture/fleet-config.md` "Protocol": hub read bound, ack error bound |
 | 8 | Plugin SDK/protocol changed? | Yes | `pkg/plugin/rpc` gains a bounded reader: `docs/architecture/api/process-protocol.md` framing paragraph names that the plugin protocol keeps 16 MiB |
 | 9 | RFC behavior implemented, changed, or newly proven? | N/A | No RFC |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` if the perf harness invocation changes (`./le test integration stress-fleet` names 2,000) |
 | 11 | Affects daemon comparison? | N/A | No comparison row covers fleet management |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/fleet-config.md` (registry, cap, reload), `docs/architecture/fleet-interface.md` (parts, join, not available) |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/fleet-config.md` (registry, cap, reload). `docs/architecture/fleet-interface.md` (parts, join, not available) moved with the web work to `fleet-ui-2` |
 | 13 | Route metadata keys added/changed? | N/A | No route metadata |
 | 14 | Prometheus counters added/changed? | Yes | `docs/guide/monitoring.md` managed metrics section, `docs/plugin-development/metrics.md` (it mentions `managed_serve.go`) |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/guide/status.md` command inventory rows |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Run `./le spec citation anchors spec plan/release/features/spec-fleet-1-device-registry.md` at each phase; the `// Design:` docs of the changed files are `docs/architecture/fleet-config.md`, `docs/architecture/fleet-interface.md`, `docs/architecture/api/commands.md`, `docs/architecture/zefs-format.md`, plus three the anchors report found on 2026-11-19: `docs/architecture/api/ipc_protocol.md` (declared by `pkg/plugin/rpc/framing.go`: updated, the bounded reader is a framing change), `docs/architecture/hub-architecture.md` (declared by `cmd/ze/hub/main.go` and `main_reload.go`: updated, "What the daemon does at start" and reload now carry the managed client set), `ai/rules/repo-maintenance.md` (declared by `internal/component/managed/register.go`: unaffected, it governs the doctor check registration this spec follows without changing the rule). Advisory mentions (`docs/plugin-development/metrics.md` for `managed_serve.go`, `docs/why-ze.md` for `framing.go`, the radius, tacacs and install guides for the hub files) are checked at each phase and edited only where a stated fact changes |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Run `./le spec citation anchors spec plan/release/features/spec-fleet-1-device-registry.md` at each phase; the `// Design:` docs of the changed files are `docs/architecture/fleet-config.md`, `docs/architecture/api/commands.md`, `docs/architecture/zefs-format.md`, plus three the anchors report found on 2026-11-19: `docs/architecture/api/ipc_protocol.md` (declared by `pkg/plugin/rpc/framing.go`: updated, the bounded reader is a framing change), `docs/architecture/hub-architecture.md` (declared by `cmd/ze/hub/main.go` and `main_reload.go`: updated, "What the daemon does at start" and reload now carry the managed client set), `ai/rules/repo-maintenance.md` (declared by `internal/component/managed/register.go`: unaffected, it governs the doctor check registration this spec follows without changing the rule). Advisory mentions (`docs/plugin-development/metrics.md` for `managed_serve.go`, `docs/why-ze.md` for `framing.go`, the radius, tacacs and install guides for the hub files) are checked at each phase and edited only where a stated fact changes |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/fleet-config.md` examples of `server central { client ... }` gain a label; `docs/architecture/fleet-config.md` "Roles" and "Per-Client Secrets" tables checked against the YANG |
 
 ### Repo-maintenance discovery
@@ -576,15 +605,15 @@ Columns in order: `name`, `connected`, `config-state`, `labels`, `hub-version`, 
 |----------|--------|
 | Where an agent looks first | `ai/INDEX.md` fleet row and `ai/doors/hub-engine.md` "managed (fleet) client and server" point to `docs/architecture/fleet-config.md`, which gains a "Device registry" section |
 | What prevents regression | The `.ci` tests above, `TestEveryCommandOnEverySurface` for the two commands, the doctor code tests |
-| What registry prevents drift | `pkg/zefs/keys.go`, the RPC registry and its wire-method snapshot, the doctor registry, the `fleetui` part slots |
+| What registry prevents drift | `pkg/zefs/keys.go`, the RPC registry and its wire-method snapshot, the doctor registry |
 | What verification proves it | The owed scoped package tests and `./le test managed` of the listed `.ci` |
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** - YANG nodes for both commands; builtin registrations answering a stub; `ManagedRegistrySnapshot` returning `ErrManagedNotServing`; `cmd/ze/hub/register_fleet_ui_estate.go` and an estate part that answers the not-available error
-   - Tests: `fleet-devices-connect.ci`, `fleet-device-detail.ci` (red: stub answers)
+1. **Phase: Wiring (MANDATORY FIRST)** - YANG nodes for both commands; builtin registrations answering a stub; `ManagedRegistrySnapshot` returning `ErrManagedNotServing`
+   - Tests: `fleet-devices-connect.ci`, `fleet-device-detail.ci` (red: stub answers), `TestEveryCommandOnEverySurface` (AC-34)
    - Files: `ze-managed-cmd.yang`, `register.go`, `cmd_devices.go`, `managed_registry.go` skeleton
-   - Verify: the commands route on every surface and fail on content
+   - Verify: the commands route on every command surface and fail on content
 2. **Phase: Registry core** - live record per declared name; admit, fetch, ack, disconnect; replace `connected`
    - Tests: `TestRegistryFirstConnectRecordsConnected` to `TestRegistryAckHoldingRecorded`, `TestRegistryDuplicateRefused`, `TestRegistryListsDeclaredNeverConnected`
    - Files: `managed_registry.go`, `managed.go`, `managed_serve.go`
@@ -603,150 +632,30 @@ Columns in order: `name`, `connected`, `config-state`, `labels`, `hub-version`, 
 7. **Phase: Connection bound** - handshake cap, bounded reader, ack error bound, oversize cause, metrics
    - Tests: `TestHandshake*`, `TestManagedReadMax*`, `TestFrameReaderMax*`, `TestSendConfigAckBoundsError`
    - Files: `managed_serve.go`, `framing.go`, `conn.go`, `envelope.go`, `client.go`, `managed_doctor.go`
-8. **Phase: Fleet interface parts** - one slot per part, join, not-available markers in `ReadSnapshot` and the pages, sample registers every part, estate part over the dispatcher
-   - Tests: `source_parts_test.go` (every test of AC-30 to AC-32), `estate_test.go`, `TestSampleRegistersEveryPart`, `TestFleetDevicesMaxAgreesWithManagedClientsMax`, `fleet-estate-live.wb` (AC-29), the existing sample `.wb` suite unchanged (AC-33)
-   - Files: `source.go`, `source_parts.go`, `source_devices.go`, `source_activity.go`, `source_config.go`, `source_history.go`, `source_views.go`, `source_events.go` (interfaces regrouped per part, bounds unchanged), `register.go`, `pages.go`, every page handler that renders a part's answer (the not-available component), a new `component_unavailable.templ`, `sample/register/register.go`, `estate/*`, `internal/component/web/testing/parser.go` and `internal/test/cli/cmd_web.go` (the `fleet-hub` server kind)
-   - Verify: the browser test is red before the estate part is registered (the routes do not mount) and green after
-9. **Phase: Scale** - 2,000 held sessions with the descriptor limit raised
+8. **Phase: Scale** - 2,000 held sessions with the descriptor limit raised
    - Tests: `TestFleetManyClientsPerf`
    - Files: `fleet_perf_test.go`
-10. **Phase: Documentation** - each phase edits its pages as it lands (the Documentation Update Checklist); this phase only checks anchors
+9. **Phase: Documentation** - each phase edits its pages as it lands (the Documentation Update Checklist); this phase only checks anchors
 
-### The fleet interface parts after the split
+The former Phase 8, "Fleet interface parts", moved whole to
+`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`,
+section "Moved from fleet-1 (owner ruling 2026-11-23)", with the section "The
+fleet interface parts after the split" that specified it.
 
-The single `Source` of `internal/component/web/fleetui/source.go` becomes one
-interface per back end, each held by its own slot in `source_parts.go` and
-registered from `init()` by one call per part (`MustRegisterEstatePart`,
-`MustRegisterViewsPart`, and so on, one name per row below). A nil part or a
-second registration of one part panics, as `MustRegisterSource` does today.
-`MustRegisterSource` is deleted, not kept beside the parts (no layering).
-Method names, argument lists, answer types and bounds are the ones
-`source_*.go` declares today (read on 2026-11-19); the split moves them, it
-does not change them, so every page handler keeps its calls. The sample
-(`internal/component/web/fleetui/sample/source.go`, one `estate` value that
-answers every method today) registers itself as every part from
-`sample/register/register.go`. The owner column names each spec by path.
+### The fleet interface parts (moved)
 
-| Part (interface) | Method: inputs → answer, bound | Owner |
-|------------------|-------------------------------|-------|
-| `EstatePart` | `Now(ctx)` → `time.Time`; `Estate(ctx)` → `Estate`; `Devices(ctx)` → `[]Device`, at most `DevicesMax` (4,096), each with `Labels` at most `LabelsMax` (32); `Device(ctx, name)` → `Device`, an unknown name is `DeviceUnknownError`. The estate part fills only `Name`, `Labels`, `SecretSet`, `Connection.Connected`, `Since`, `EverConnected`, `LastSeen`, `SourceAddr`, and `Config.State`, `HubVersion`, `DeviceVersion`, `Fetched`, `LastFetch`, `LastFetchResult` | `plan/release/features/spec-fleet-1-device-registry.md` |
-| `ViewsPart` | `TreeViews(ctx)` → `[]TreeView`, at most `TreeViewsMax` (32), each at most `TreeLevelsMax` (8) levels; `SavedFilters(ctx, user)` → `[]SavedFilter`, at most `SavedFiltersMax` (64) | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` |
-| `InventoryHealthPart` (device facts) | `InventoryHealth(ctx)` → one entry per device name holding `Inventory`, `HealthReported`, `Health` (at most `HealthComponentsMax`, 32) and the hardware list of `DeviceSystem.Hardware` (at most `HardwareItemsMax`, 64), at most `DevicesMax` entries; `InventoryHealthOf(ctx, name)` → the same entry for one device, an absent device answering the entry with `Reported` and `HealthReported` false | `plan/release/features/spec-fleet-4-inventory-health.md` |
-| `LatestSamplePart` (device facts) | `LatestSamples(ctx)` → one `LatestSample` per device name, at most `DevicesMax`; `LatestSampleOf(ctx, name)` → `LatestSample` | `plan/release/features/spec-fleet-8-metric-history.md` |
-| `RelayGrantPart` (device facts) | `RelayGrants(ctx)` → per device name `RelayGranted` and `RelayProfile`, at most `DevicesMax`; `RelayGrantOf(ctx, name)` → the same for one | `plan/post-release/features/spec-fleet-9-device-command-relay.md` |
-| `AssignmentPart` (device facts) | `Assignments(ctx)` → per device name `Group` and `Config.Template`, at most `DevicesMax`; `AssignmentOf(ctx, name)` → the same for one | `plan/post-release/features/spec-fleet-2-config-templates.md` |
-| `HistoryPart` | `DeviceSeries(ctx, device, metric Metric, span TimeSpan)` → `Series`, at most `SeriesPointsMax` (20,160) points; `EstateSeries(ctx, devices []string, metric, span)` → `Series`, at most `SeriesPointsMax`, `devices` at most `DevicesMax`; `HistoryUsage(ctx)` → `HistoryUsage`, `Largest` at most `HistoryDevicesMax` (10) | `plan/release/features/spec-fleet-8-metric-history.md` |
-| `ActivityPart` | `Alarms(ctx)` → `[]Alarm`, at most `AlarmsMax` (1,024); `AlarmHistory(ctx, device)` → `[]AlarmEvent`, at most `AlarmHistoryMax` (512), newest first; `Tasks(ctx)` → `[]Task`, at most `TasksMax` (512), newest first; `Task(ctx, id)` → `TaskDetail`, each answer at most `TaskAnswerBytesMax` (16,384), an unknown id wraps `ErrObjectUnknown` | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` |
-| `DeviceConfigPart` | `DeviceConfig(ctx, device)` → `DeviceConfig`, `Text` at most `ConfigTextBytesMax` (1 MiB) | `plan/post-release/features/spec-fleet-2-config-templates.md` (the source comment names `fleet-1` and `fleet-2`; the owner gave `fleet-1` the estate part only, so `fleet-2`, which renders what the hub serves, owns it) |
-| `ConfigHistoryPart` | `ConfigVersions(ctx, device)` → `[]ConfigVersion`, at most `ConfigVersionsMax` (100), newest first; `ConfigText(ctx, device, version)` → text, at most `ConfigTextBytesMax`, an unknown version wraps `ErrObjectUnknown`; `AuditEntries(ctx)` → `[]AuditEntry`, at most `AuditEntriesMax` (1,000), newest first | `plan/post-release/features/spec-fleet-3-audit-trail.md` |
-| `DivergencePart` | `Divergence(ctx, device)` → `Divergence`, texts at most `ConfigTextBytesMax`; a device that is not diverged wraps `ErrObjectUnknown` | `spec-fleet-7-config-reconnect-resolution` |
-| `RolloutPart` | `Rollouts(ctx)` → `[]Rollout`, at most `RolloutsMax` (128), newest first; `Rollout(ctx, name)` → `RolloutDetail`, at most `RolloutBatchesMax` (100) batches, an unknown name wraps `ErrObjectUnknown` | `plan/post-release/features/spec-fleet-5-staged-rollout.md` |
-| `TemplatePart` | `Templates(ctx)` → `[]Template`, at most `TemplatesMax` (256) | `plan/post-release/features/spec-fleet-2-config-templates.md` |
-| `AccessPart` | `AccessProfiles(ctx)` → `[]AccessProfile`, at most `AccessProfilesMax` (64) | `plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md` (the source comment names `fleet-1`; the access administration page is `fleet-ui-6`'s) |
-| `SettingsPart` | `Settings(ctx)` → `Settings` | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` |
-| `DeviceViewPart` | `DeviceSystem(ctx, device)` → `DeviceSystem` (`Resources`, `Time`; `Hardware` comes from `InventoryHealthPart` by the join); `DeviceInterfaces(ctx, device)` → `[]Interface`, at most `InterfacesMax` (1,024); `DevicePeers(ctx, device)` → `[]Peer`, at most `PeersMax` (4,096); `DeviceFamilies(ctx, device)` → `[]FamilySummary`, at most `FamiliesMax` (64); `DeviceAdjacencies(ctx, device)` → `[]ProtocolAdjacencies`, at most `ProtocolsMax` (16) of at most `AdjacenciesMax` (1,024) rows; `DeviceLogs(ctx, device)` → `[]LogLine`, at most `LogLinesMax` (500), newest first; `Console(ctx, device, user, command)` → `ConsoleAnswer`, at most `ConsoleOutputBytesMax` (65,536) | `plan/post-release/features/spec-fleet-9-device-command-relay.md` |
-| `EventPart` | `Subscribe(ctx)` → `*Subscription`, at most `EventSubscriptionsMax` (64) at once, each holding at most `EventBufferSize` (64) unread events; beyond the maximum wraps `ErrStreamsFull` | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` |
+The sections "The fleet interface parts after the split", "The join by device
+name", "The not-available state", "The estate part on a real build", "What
+stays with `fleet-ui-2`" and "The live-estate browser test" moved, with the
+criteria, tests and files they specified, to
+`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`,
+section "Moved from fleet-1 (owner ruling 2026-11-23)". There the parts that
+named a first-release spec as owner are owned by the fleet-ui spec whose page
+reads them (`InventoryHealthPart` and `LatestSamplePart` by `fleet-ui-2`,
+`HistoryPart` by `fleet-ui-3`), and `DivergencePart`, whose owner
+`spec-fleet-7-config-reconnect-resolution` closed without registering it, by
+`fleet-ui-6`.
 
-**The join by device name.** `fleetui` answers a page's `Devices` and
-`Device` by asking the estate part first: its answer is the set of devices
-and their order, and a device the estate does not hold is not a device of the
-page. For each registered device-fact part, it asks the batch method once per
-request (or the `...Of` method for one device) and copies into each device
-exactly the fields the table gives that part, matched by `Name`. A name a part
-answers that the estate does not hold is ignored, because the estate is the
-set; a device a part does not answer keeps that part's fields at their zero
-value, which every fact struct already reads as "not reported"
-(`Inventory.Reported`, `HealthReported`, `LatestSample.Reported` false,
-`RelayGranted` false, `Group` and `Template` empty). No field is written by
-two parts. A part that is not registered leaves its fields not reported for
-every device; a registered part that answers an error leaves them not
-reported and the page shows that part's error text in place of its fields
-(an operator error, `FailureOf`), never failing the page. `DeviceDisplayState`
-is unchanged, so a connected device with no health part is Unknown.
-
-**The not-available state.** While no back end has registered a part, every
-place that shows that part's answer renders one component instead: the text
-"Not available on this hub yet." in `--text-secondary`, inside an element
-whose id is `fleet-not-available-<part>` (`<part>` is the part's kebab-case
-name: `views`, `inventory-health`, `latest-sample`, `relay-grant`,
-`assignment`, `history`, `activity`, `device-config`, `config-history`,
-`divergence`, `rollout`, `template`, `access`, `settings`, `device-view`,
-`events`). It is a state of the page, not an error: the HTTP status stays 200,
-and `ReadSnapshot` records which parts are absent instead of failing. Where
-each part shows:
-
-| Part | Pages, cards and sections that show its not-available state |
-|------|--------------------------------------------------------------|
-| `ViewsPart` | The tree view menu lists the built-in views only, with the declared section showing the state; the saved filter menu of every table; the tree views and filters administration pages |
-| `InventoryHealthPart` | The Software card of the estate and group dashboards; the Version column cell of the devices table shows a dash; the Identity and Health sections of the side panel; the hardware section of the System tab |
-| `LatestSamplePart` | The Busiest devices card; the CPU and Memory cells of the devices table show a dash; the Now section of the side panel |
-| `RelayGrantPart` | The relay grant row of the side panel's Connection section |
-| `AssignmentPart` | The group level of a tree view and the template row of the Config tab show a dash |
-| `HistoryPart` | Every chart of the estate, group and device dashboards; the history administration page |
-| `ActivityPart` | The Alarms card; the alarm count of the Needs attention card; the alarm badges of the tree; the Alarms tabs; the task panel, the Tasks tabs and the Tasks page; the header task count; the Open alarms section of the side panel |
-| `DeviceConfigPart` | The device Config tab |
-| `ConfigHistoryPart` | The history section of the Config tab; the Recent changes card; the audit administration page and the audit section of the device Tasks tab |
-| `DivergencePart` | The divergence banner and diff of the device Dashboard and Config tabs (the diverged state itself still comes from the estate part) |
-| `RolloutPart` | The Rollouts card; the estate Rollouts tab and the rollout page; the rollout count of the Needs attention card |
-| `TemplatePart` | The templates administration page |
-| `AccessPart` | The access administration page |
-| `SettingsPart` | The settings administration page |
-| `DeviceViewPart` | The System (resources and clock), Interfaces, Routing, Logs and Console tabs of a device |
-| `EventPart` | Not shown as text: the page works without live updates, as it does today when the stream answers 503 |
-
-The estate part is the one part without a not-available state: the fleet
-routes mount only while it is registered (`sourceRegistered` reads its slot),
-and the two prototype-only routes mount only while the event part is a
-`Stepper`.
-
-**The estate part on a real build.** `internal/component/web/fleetui/estate`
-registers it from `init()` with a builder over `web.RouteDeps.Dispatch`,
-built once when the first fleet route is built. `Devices` dispatches
-`show fleet devices`, `Device` dispatches `show fleet device name <name>`, as
-the request's account; a refusal or an error is an operator error wrapping
-the `source_errors.go` error that fits. `Now` is the hub process's clock and
-`Estate.Name` the hub's host name (A-5); a host name that cannot be read is an
-operator error, never an empty name. `cmd/ze/hub/register_fleet_ui_estate.go`
-links it under `ze_web && ze_fleet_ui && !ze_fleet_ui_sample`.
-
-**What stays with `fleet-ui-2`.** The views part, the filter grammar over the
-estate rows, the sort and page of the tables, the web mode switch, sign-out
-and the CI stage for the fleet browser tests (its "Carried from the
-prototype" table). Its row "Register the real source, built over the command
-dispatcher" is amended (append-only, 2026-11-19) to say that `fleet-1` splits
-the contract and registers the estate part.
-
-**The live-estate browser test (A-8 made a deliverable).** The browser test
-runner gains a server kind, `fleet-hub` (`WBServerFleetHub` in
-`internal/component/web/testing/parser.go`, started by a new
-`zeTestStartFleetHubServer` in `internal/test/cli/cmd_web.go`, the way
-`zeTestStartLGServer` starts a peer beside the daemon). It starts the hub
-daemon with web enabled and a serving block declaring one client, `edge-01`,
-with a fixed secret, the label `site lon`, and a fixed client config written to
-`file/active/client-edge-01.conf`; then it starts a second `ze` as the managed
-client `edge-01` against that block and waits until the hub answers
-`show fleet device name edge-01` with `connected` true and `ack-result`
-`applied`. `test/web/fleet-estate-live.wb` carries these option lines:
-
-| Option line | Why |
-|-------------|-----|
-| `option=needs-build-tag:value=ze_fleet_ui:state=present` | The fleet routes are linked |
-| `option=needs-build-tag:value=ze_fleet_ui_sample:state=absent` | A real build: the sample would register every part |
-| `option=server:kind=fleet-hub` | The hub with one real managed client |
-| `option=timeout:value=90s` | Two daemons and a TLS handshake |
-| `option=viewport:width=1600:height=1000` | The devices table shows every column |
-
-It opens `/fleet/` and then the estate Devices tab, and expects: a row named
-`edge-01`; its state cell "Unknown" (connected, no health part registered);
-its Config cell "In sync"; its Labels cell `site=lon`; the side panel's
-Connection section naming the client config's version hash, the 16 hex
-characters `fleet.VersionHash` gives for the fixed config (computed when the
-test is written and stated in its header with the bytes it hashes); on the
-estate dashboard, the element `fleet-not-available-activity` inside the Alarms
-card with the text "Not available on this hub yet."; and no element with the
-sample marker "Sample data". The fleet browser tests run in CI once
-`fleet-ui-2`'s verifier stage builds the fleet tags; until then the main
-thread runs this one locally as an owed command.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -755,7 +664,7 @@ thread runs this one locally as an owed command.
 | Feature completeness | Every user story has a working path, no broken links |
 | Correctness | Connected state has one holder; a record write never blocks a request; the observer still reads no storage; a removed client's held record and config survive |
 | Naming | JSON keys kebab-case; codes `doctor-managed-*`; wire methods `ze-managed:fleet-devices`, `ze-managed:fleet-device` |
-| Data flow | Facts written only in `handleConn`, `handleRequest`, `handleConfigAck` and the apply; the web reads only through the dispatcher |
+| Data flow | Facts written only in `handleConn`, `handleRequest`, `handleConfigAck` and the apply; every command surface reads only through the dispatcher |
 | Operator errors and doctor codes | Every refusal is an `opererr` error with its fix on the last line, every `Warn`/`Error` line names the code the Integration Checklist lists, and each doctor check carries `Fix` |
 | Rule: goroutine lifecycle | One long-lived record writer started by `Start`, ended by `Stop`; no goroutine per event |
 | Rule: no layering | `ManagedConfigService.connected` and `managedMaxConns` deleted, not kept beside the replacements |
@@ -768,7 +677,6 @@ thread runs this one locally as an owed command.
 | Commands on every surface | `TestEveryCommandOnEverySurface` |
 | Reload follows the client set | `fleet-devices-reload-add.ci`, `fleet-devices-reload-remove.ci` |
 | Cap lifted, memory bounded | `TestHandshake*`, `TestManagedReadMax*`, `TestFleetManyClientsPerf` |
-| Estate part live | `fleet-estate-live.wb` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -776,7 +684,7 @@ thread runs this one locally as an owed command.
 | Input validation | Label keys and values by YANG; device names by YANG and at extraction; strict record decode; the read bound on every hub-read line |
 | Resource exhaustion | Handshake cap; sessions bounded by declared names; writer pending set bounded by declared names; unknown-name record bounded at 16 (existing) |
 | Error leakage | The ack error and record errors are bounded and never carry a secret; `source-address` is shown only to callers allowed to read `show fleet` |
-| Authorization | Both commands are read-only builtins under the dispatcher's authorization; the estate part dispatches as the request's account |
+| Authorization | Both commands are read-only builtins under the dispatcher's authorization, on every command surface |
 | Secret rotation | A secret changed by reload ends the session it authenticated |
 
 ### Failure Routing
@@ -809,8 +717,9 @@ thread runs this one locally as an owed command.
 | Removed devices are listed by the CLI only; the interface's estate part lists declared devices only (owner, final gate 2026-11-19) | Removed devices in the interface | `fleetui` has no removed state; adding one is `fleet-ui-2`'s design |
 | A serving certificate name change needs a restart (owner, final gate 2026-11-19) | Apply the certificate at reload | Deferred by the owner; recorded in Known Limitations |
 | `group` and `template` stay with `fleet-2` (owner, final gate 2026-11-19) | Declare `group` in `fleet-1` | `group` is the template unit; `fleet-2` answers the `AssignmentPart` |
-| The interface split is specified method by method here (owner, final gate 2026-11-19: strengthen the split) | Leave each other part to be designed by its own spec | Every later back end implements a stated contract, and the not-available state of every part is built and proven now |
-| One part per owning spec, so `ConfigSource` splits into device config, config history, divergence, rollout, template, access and settings parts, and `DeviceSystem` is joined from `DeviceViewPart` and `InventoryHealthPart` | Keep `ConfigSource` whole | `ConfigSource` today names six owners; "each back end registers the part it owns" needs one owner per part |
+| The interface split is specified method by method (owner, final gate 2026-11-19: strengthen the split) | Leave each other part to be designed by its own spec | Carried, with the split, to `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` by the owner ruling of 2026-11-23 |
+| One part per owning spec | Keep `ConfigSource` whole | Carried to `fleet-ui-2` with the split (owner ruling of 2026-11-23) |
+| The registry ships reachable through its commands on every command surface; its pages come after the first release (owner, 2026-11-23, "1 b") | Ship the estate part and the not-available state with the registry | `ai/META-DECISIONS.md`, "Goal and scope": the first-release fleet features are reached through commands; AC-34 proves every surface |
 | Handshake cap 32 | Keep 128 held for life | The acceptor's figure for the same flood; sessions are bounded by configuration |
 | Read maximum derived from `HeldConfigMax` | A literal | One declaration of the largest message |
 | Always-built managed server on a store that can serve | Build at reload when the first client appears | One lifecycle, one `Stop`, and the data and divergence targets need no reinstall |
@@ -853,7 +762,7 @@ thread runs this one locally as an owed command.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-33 all demonstrated
+- [ ] AC-1..AC-13, AC-16..AC-27 and AC-34 all demonstrated (AC-14, AC-15 and AC-28..AC-33 are `fleet-ui-2`'s)
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass, run in the main checkout by the main thread

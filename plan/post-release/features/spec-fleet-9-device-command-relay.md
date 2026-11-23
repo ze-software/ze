@@ -88,7 +88,7 @@ The two sides, as an operator sees them:
 |---------|------|
 | A dispatcher bound to one device | The same type as the existing command dispatcher, so anything written against a dispatcher (the web command line, the workbench page builders that read only through one, the related tools) works against a device unchanged |
 | A hub command | Runs one command on one named device and answers its data, so pipes and formats apply on the hub |
-| A hub command over several devices | Runs one read-only command on a set and answers one result per device, as a task (`plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md`) |
+| A hub command over several devices | Runs one read-only command on a set and answers one result per device, as a task (`plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`) |
 | Completion and help | Answered by the device, so they match the device's software and build |
 
 The command grammar for these is fixed at design, following the keyword-first

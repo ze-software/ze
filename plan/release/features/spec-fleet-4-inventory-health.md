@@ -24,7 +24,29 @@
 
 Add two new RPC verbs (`inventory-report` and `health-report`) so managed devices push
 their hardware inventory and component health to the hub. The hub stores this data in
-the device registry and exposes it through CLI and web.
+the device registry and exposes it through commands on every command surface (CLI, SSH,
+MCP, REST, gRPC, the web command line).
+
+### Owner ruling of 2026-11-23: commands in the first release, pages after it
+
+Thomas ruled (voice-transcribed answer "1 b") that the fleet features of the first
+release are reached through commands on every command surface, and that their web
+pages and views come after the first release (`ai/META-DECISIONS.md`, "Goal and
+scope"). This spec keeps the verbs, the hub's storage and the three commands; every web
+view it named moved to the post-release fleet-ui spec that owns the page, and the
+inventory-health part of the fleet interface (which `spec-fleet-1-device-registry.md`
+had given this spec) moved to `fleet-ui-2`, which builds it over this spec's commands.
+
+| Moved out | Destination spec | Its AC there |
+|-----------|------------------|--------------|
+| AC-4, its web half ("fleet dashboard shows degraded") | `plan/post-release/features/spec-fleet-ui-3-dashboards-and-charts.md` | AC-8 |
+| AC-12, the inventory and health columns of the device table and the side panel | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` | AC-16 |
+| AC-12, the device detail page with full inventory and health | `plan/post-release/features/spec-fleet-ui-4-device-tabs-and-console.md` | AC-8 |
+| The `InventoryHealthPart` registration (from `fleet-1`'s part table) | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` | AC-17 |
+
+AC-4 keeps its command half, and AC-13, added with this ruling, proves the three
+commands on every command surface, so what the moved views showed stays reachable and
+tested in the first release.
 
 Currently each device has rich local data (CPU, NIC, DMI, memory, thermal, storage, SMART
 via `host/inventory.go`; component health via `core/health/`) but none of it is reported
@@ -97,15 +119,15 @@ continues operating normally and lets the existing reconnect logic recover).
 - Client loop: after config-fetch, send inventory-report; periodically send health-report
 - Two new RPC verbs in `pkg/fleet/`
 - Hub-side handlers store reports in DeviceRegistry
-- CLI: `show fleet device inventory <name>`, `show fleet device health <name>`, `show fleet health`
-- Web: inventory and health columns in fleet dashboard, device detail page
+- Commands on every command surface: `show fleet device inventory <name>`, `show fleet device health <name>`, `show fleet health`
+- Web: none in this spec; the inventory and health views are `fleet-ui-2`'s, `fleet-ui-3`'s and `fleet-ui-4`'s, after the first release (owner ruling of 2026-11-23)
 
 ## Data Flow (MANDATORY)
 
 ### Entry Point
 - Client connects, completes config-fetch, then sends inventory-report
 - Client sends health-report every 5 minutes
-- Operator queries via CLI or web
+- Operator queries through the commands, on any command surface
 
 ### Transformation Path
 1. Client calls `host.Detect()` to get local inventory (cached)
@@ -114,7 +136,7 @@ continues operating normally and lets the existing reconnect logic recover).
 4. Client calls `health.Report()` to get component health
 5. Client serializes to JSON, sends `health-report` RPC
 6. Hub handler parses payload, stores in DeviceRegistry
-7. CLI/web queries DeviceRegistry for inventory/health per device or aggregated
+7. The commands read the registry for inventory/health per device or aggregated, through the dispatcher, the same answer on every command surface
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -122,15 +144,15 @@ continues operating normally and lets the existing reconnect logic recover).
 | Client local data to RPC | JSON serialization of inventory/health | [ ] |
 | Client to Hub | `inventory-report` and `health-report` verbs on MuxConn | [ ] |
 | Hub handler to DeviceRegistry | Store report data per device | [ ] |
-| DeviceRegistry to CLI/Web | Query API for inventory/health views | [ ] |
+| DeviceRegistry to every command surface | Builtin commands through the daemon dispatcher (CLI, SSH, MCP, REST, gRPC, the web command line) | [ ] |
 
 ### Integration Points
 - `RunManagedClient` -- add report calls to client loop
 - `pkg/fleet/envelope.go` -- new verb constants and payload types
 - `ManagedConfigService` -- new verb dispatch (or separate fleet handler)
 - `DeviceRegistry` from fleet-1 -- store inventory and health per device
-- CLI -- `show fleet device inventory <name>`, `show fleet health`
-- Web -- device detail page with inventory/health tabs
+- Commands -- `show fleet device inventory <name>`, `show fleet device health <name>`, `show fleet health`, registered once and reached on every command surface
+- Web -- none here: the views moved to `fleet-ui-2`, `fleet-ui-3` and `fleet-ui-4` (owner ruling of 2026-11-23)
 
 ### Architectural Verification
 - [ ] No bypassed layers (reports use existing MuxConn transport)
@@ -146,6 +168,7 @@ continues operating normally and lets the existing reconnect logic recover).
 | Client health timer fires | -> | Client sends health-report | `test/managed/fleet-health-report.ci` |
 | `show fleet device inventory edge-01` | -> | Hub returns stored inventory | `test/managed/fleet-inventory-report.ci` |
 | `show fleet health` | -> | Hub aggregates health across devices | `test/managed/fleet-health-report.ci` |
+| The three commands on SSH, MCP, REST, gRPC and the web command line | -> | The same builtins through the daemon dispatcher | `TestEveryCommandOnEverySurface` (`cmd/ze/hub/surface_parity_test.go`) |
 
 ## Acceptance Criteria
 
@@ -154,7 +177,7 @@ continues operating normally and lets the existing reconnect logic recover).
 | AC-1 | Client connects and completes config-fetch | Client sends `inventory-report` RPC with hardware summary |
 | AC-2 | Hub receives inventory-report | Inventory stored in DeviceRegistry for that device |
 | AC-3 | Client health timer fires (every 5 minutes) | Client sends `health-report` RPC with component statuses |
-| AC-4 | Hub receives health-report with degraded component | Device health updated in registry; fleet dashboard shows degraded |
+| AC-4 | Hub receives health-report with degraded component | Device health updated in registry; `show fleet device health <name>` shows the component degraded and `show fleet health` counts the device degraded (the dashboard half moved to `fleet-ui-3` AC-8) |
 | AC-5 | `show fleet device inventory edge-01` | Shows CPU, NIC, memory, storage summary for edge-01 |
 | AC-6 | `show fleet device health edge-01` | Shows per-component health status (healthy/degraded/down) |
 | AC-7 | `show fleet health` | Aggregated view: N healthy, N degraded, N down. Lists degraded/down devices |
@@ -162,7 +185,11 @@ continues operating normally and lets the existing reconnect logic recover).
 | AC-9 | Hub receives inventory-report from unknown device | Report accepted if device is authenticated (auto-discovered devices from fleet-1 AC-13) |
 | AC-10 | Old hub (without fleet-4) receives inventory-report | Hub ignores unknown verb (existing behavior for unknown verbs) |
 | AC-11 | Client connected to old hub (without fleet-4) | Client sends report, gets error or no response; continues operating normally |
-| AC-12 | Web fleet dashboard | Inventory and health columns in device table; device detail page with full inventory/health |
+| AC-13 | `show fleet device inventory edge-01`, `show fleet device health edge-01` and `show fleet health` asked on the CLI, SSH, MCP, REST, gRPC and the web command line | Each surface lists the three commands and the daemon dispatcher serves them there (`TestEveryCommandOnEverySurface`); every surface's answer is the builtin handler's, whose content `fleet-inventory-report.ci` and `fleet-health-report.ci` assert. Added by the owner ruling of 2026-11-23 |
+
+AC-12 (the web dashboard's inventory and health columns and the device detail page)
+moved: the table and side panel to `fleet-ui-2` AC-16, the detail page to `fleet-ui-4`
+AC-8 (the Task section's ruling table).
 
 ## 🧪 TDD Test Plan
 
@@ -219,10 +246,10 @@ continues operating normally and lets the existing reconnect logic recover).
    - Files: `report.go` (managed), `report_test.go` (managed), `client.go`
    - Verify: client sends reports on connect and periodically
 
-4. **Phase: CLI + Web** -- inventory and health views
-   - Tests: `fleet-inventory-report.ci`, `fleet-health-report.ci`
-   - Files: CLI commands, web page extensions
-   - Verify: `show fleet device inventory/health <name>` works
+4. **Phase: Commands** -- the inventory and health commands, on every command surface (the web views are `fleet-ui-2`, `fleet-ui-3` and `fleet-ui-4`'s, owner ruling of 2026-11-23)
+   - Tests: `fleet-inventory-report.ci`, `fleet-health-report.ci`, `TestEveryCommandOnEverySurface` (AC-13)
+   - Files: the command registrations and their YANG `ze:command` nodes
+   - Verify: `show fleet device inventory/health <name>` and `show fleet health` work on every command surface, run with `./le test managed`
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -230,7 +257,7 @@ continues operating normally and lets the existing reconnect logic recover).
 | Completeness | All AC-N have implementation |
 | Correctness | Report failure does not disrupt config-fetch or heartbeat |
 | Naming | RPC verbs are `inventory-report` and `health-report` (kebab-case) |
-| Data flow | Client local data -> RPC -> hub handler -> registry -> CLI/web |
+| Data flow | Client local data -> RPC -> hub handler -> registry -> commands on every command surface |
 | Rule: backward-compat | Old hub ignores new verbs; new client tolerates error responses |
 
 ### Security Review Checklist
@@ -268,7 +295,7 @@ continues operating normally and lets the existing reconnect logic recover).
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-12 all demonstrated
+- [ ] AC-1..AC-11 and AC-13 all demonstrated (AC-12 moved to `fleet-ui-2` AC-16 and `fleet-ui-4` AC-8)
 - [ ] Wiring Test table complete
 - [ ] The targeted tests for what changed pass, run in the main checkout by the main thread. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)

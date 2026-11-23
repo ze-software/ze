@@ -1,69 +1,38 @@
-# Spec: fleet-ui-5 -- Tasks, Alarms, Notifications and Live Updates
+# Spec: fleet-ui-5 -- The Hub Alarm List and Its Commands
 
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Scope | web, fleet |
+| Scope | fleet, cli |
 | Priority | P2 |
-| Release reason | Thomas put this fleet capability (the alarm list, with the task model, notifications and live updates it is specified with) in the first release; existing supported behavior and its obligations remain required. |
+| Release reason | Thomas put the fleet alarm list in the first release, reached through its commands on every command surface (`ai/META-DECISIONS.md`, "Goal and scope"); existing supported behavior and its obligations remain required. Its pages, the hub's task model and panel, notifications and live page updates come after the first release, in `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`. |
 | RFC gaps | - |
 | Depends | plan/release/features/spec-fleet-1-device-registry.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
-| Phase | 5/8 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
+| Phase | 5/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Re-read after compaction:** this file, `plan/post-release/features/spec-fleet-ui-0-umbrella.md`,
-`internal/component/web/sse.go`, `internal/core/report/report.go`.
+`plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`,
+`internal/core/report/report.go`.
 
 ## Task
 
-Make what the hub is doing, and what is wrong in the estate, visible at all
-times. Three things are specified here, each with the hub-side model it needs,
-the commands that expose it on every command surface, and its pages:
+Make what is wrong in the estate visible at all times. Every condition that
+needs attention is listed once, with its device, its severity and since when,
+by the hub's alarm model and the commands that expose it on every command
+surface: the CLI, MCP, REST, gRPC, SSH and the web command surface. Nothing
+that is wrong has to be discovered by opening devices one by one.
 
-1. **Tasks.** Every operation the hub performs on devices is a task an operator can watch, open and, where possible, cancel.
-2. **Alarms.** Every condition that needs attention is listed once, with its device, its severity and since when.
-3. **Live updates.** Trees, tables, cards, the task panel and toasts change as the estate changes, without a reload.
-
-Nothing the hub does to a device is invisible, and nothing that is wrong has to
-be discovered by opening devices one by one.
-
-### Tasks
-
-A task is one operator-started or hub-started operation on one or more devices.
-
-| Field | Meaning |
-|-------|---------|
-| Identifier | Unique on the hub, shown in the monospace font, with a copy control |
-| Kind | Configuration push, rollout batch, diagnostic run, divergence resolution, relayed command batch, software update |
-| Actor | The hub user who started it, or the hub itself |
-| Targets | The devices, and the estate or group node they were chosen from |
-| State | Pending, Running, Succeeded, Failed, Cancelled, Partly failed |
-| Progress | Devices finished over devices targeted |
-| Started, ended | Times; duration once ended |
-| Per-device result | For each target: state, the device's answer or refusal, duration |
-
-Where tasks appear:
-
-| Place | What it shows |
-|-------|---------------|
-| Header Tasks button | The count of running tasks; a dot in the error colour when a task failed since the panel was last opened |
-| Task panel (opened from the button, 30rem wide, over the content) | Four tabs with counts: Running, Succeeded, Failed, All. Each task is a row with kind, target summary, a progress bar and the actor; it expands to its per-device results |
-| Tasks tab of the estate, a group node and a device | The umbrella's table stack over the tasks that targeted that object: kind, targets, state word, progress, actor, started, duration; side panel with the per-device results |
-| `/fleet/tasks/` | The same table over every task |
-| Tree rows and object headers | A spinner while a task targets the object |
-| Toasts | One when a task the operator started ends: its kind, its result, and a link to it |
-
-| Rule | Detail |
-|------|--------|
-| Retention | Running tasks are always kept. Finished tasks are kept to a configured count, oldest dropped, and survive a hub restart |
-| Restart | A task running when the hub stops is recorded as Failed with the reason "hub restarted", never left Running |
-| Cancel | Offered while Pending or Running, for kinds that can stop. Devices already done keep their result |
-| Retry | Offered on a Failed or Partly failed task: starts a new task over the failed devices only |
-| Output | Each per-device result is bounded and escaped; a result too large is cut with a note saying so |
-| Relation to the audit trail | The audit trail of `fleet-3` is the permanent record of who did what. A task is the live view of an operation and links to its audit entries |
+On 2026-11-23 Thomas ruled that the fleet features of the first release are
+reached through commands, and that their web pages, the hub's task model and
+panel, notifications and live page updates come after it (`ai/META-DECISIONS.md`,
+"Goal and scope"). This spec was written with all of those; it keeps the
+alarm model and its commands, and the rest moved, unchanged, to
+`plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`
+(see "Moved to fleet-ui-9" below).
 
 ### Alarms
 
@@ -89,53 +58,23 @@ severity and its sentence, so a later feature adds one without editing the list.
 Alarm causes, which hide an alarm while the alarm that causes it is open, are
 specified in `plan/release/features/spec-fleet-ui-8-alarm-causes.md`.
 
-Where alarms appear:
-
-| Place | What it shows |
-|-------|---------------|
-| Alarms tab of the estate, a group node and a device | The umbrella's table stack: severity word with icon, device, alarm, detail, since, duration. Default order: severity, then oldest first. Filter fields: `severity`, `kind`, `device`, and the device fields of `fleet-ui-2` |
-| Alarms card on dashboards | The most severe, with a link to the tab (`fleet-ui-3`) |
-| Tree | A badge on a device row with its open alarm count; a group row's count turns to the warning colour |
-| Toasts | One when a critical alarm opens on a device in the operator's current view |
-
-A row's side panel shows the alarm's history on that device over the last week
-and links to the device tab where the condition can be examined.
-
-### Notifications
-
-| Rule | Detail |
-|------|--------|
-| Levels | Informational, Success, Warning, Error, each with its icon, its word and its colour variable |
-| Content | One line saying what happened, an optional second line, an optional link |
-| Placement | Bottom right, stacked, newest lowest; at most four shown, the rest counted |
-| Lifetime | Informational and Success leave after six seconds. Warning and Error stay until dismissed |
-| Source | Only events about the operator's own actions or the operator's current view. A toast is never the only record of anything: every toast links to a task, an alarm or a page |
-
-### Live updates
-
-| Rule | Detail |
-|------|--------|
-| Stream | One event stream per open page, at `/fleet/events`, scoped to the view: the estate, a group node or a device |
-| Events | Device state changed; alarm opened or cleared; task created, progressed or ended; registry changed (device added, removed, relabelled) |
-| Effect | Each event names the fragments it makes stale. htmx refetches those fragments, so the browser holds no model of the estate |
-| Authorization | A stream carries only what the operator's profile may see |
-| Not the broadcast broker | The existing broker reaches every client. Fleet data uses a per-connection stream, as the L2TP quality feed does |
-| Bounds | A stream that is not read is closed. Bursts are coalesced: many changes in one second become one event per fragment |
-| Loss of the stream | The umbrella's stale banner appears with the time of the last event, and the page reconnects with backoff. On reconnect every live fragment is refetched once |
-| Limit | A configured maximum of open fleet streams. Beyond it the page works without live updates and says so |
+Where the alarms appear on the web (the Alarms tabs, the Alarms card, the tree
+badges, the toasts and a row's side panel) is
+`plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`,
+"Alarm pages".
 
 ### Commands this spec adds
 
-Every operator command must run on every surface, so the task and alarm lists
-are commands first and pages second.
+Every operator command must run on every surface, so the alarm list is a
+command first.
 
 | Command | Answers |
 |---------|---------|
-| `show fleet task` | The task list, filterable by state, kind, actor and device |
-| `show fleet task id <id>` | One task with its per-device results |
-| `clear fleet task id <id>` | Cancels a pending or running task |
 | `show fleet alarm` | Open alarms, filterable by severity, kind and device |
 | `show fleet alarm history device <name>` | A device's alarm openings and clearings over the retention period |
+
+The task commands (`show fleet task`, `show fleet task id <id>`,
+`clear fleet task id <id>`) moved with the task model to `fleet-ui-9`.
 
 ### Key design decisions
 
@@ -143,9 +82,9 @@ are commands first and pages second.
 |----------|--------|
 | Alarms are derived, not stored events | The hub already holds every fact an alarm states. Deriving them means an alarm can never disagree with the device's state shown beside it |
 | No acknowledgement | An acknowledged alarm is a second state to keep true. The first version shows what is wrong now; a fixed condition clears itself |
-| Tasks are the hub's own model | Every fleet action creates a task through one entry point, so a new action cannot be invisible |
-| Events name fragments | The server decides what is stale. The browser stays a renderer |
-| One stream per page | A page's stream is scoped to what the page shows, which is also what the operator may see |
+
+The decisions "Tasks are the hub's own model", "Events name fragments" and
+"One stream per page" moved to `fleet-ui-9`.
 
 ### Dependencies and readiness
 
@@ -154,19 +93,50 @@ are commands first and pages second.
 | Device registry and its change notifications | Missing: `fleet-1` |
 | Health reports | Missing: `fleet-4` |
 | Latest samples for the resource alarms | Missing: `fleet-8` |
-| The actions that create tasks | `fleet-5` rollouts, `fleet-7` resolution, `fleet-9` relayed runs; each registers its task kind when it lands |
 | The report bus and its bounded lists | Available on each device; the hub's own alarms use the same shape |
-| A state store key for finished tasks | To be registered here |
+
+The task dependencies (the actions that create tasks, the state store key for
+finished tasks) moved to `fleet-ui-9`.
 
 ### Draft acceptance criteria
 
+The identifiers are those this spec was written with, so the references other
+specs hold stay true. AC-1, AC-2, AC-3, AC-5, AC-6 and AC-7 moved whole to
+`fleet-ui-9`; AC-4 and AC-8 keep their command part here and their page part
+moved (table below).
+
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | Any fleet action on devices | A task exists for it from the moment it starts, visible in the panel, in the Tasks tab of each target and in `show fleet task` | Reads create no task, because they change nothing |
-| AC-2 | A task over several devices where one fails | The task ends Partly failed, each device shows its own result, and Retry targets only the failed device | None |
-| AC-3 | The hub restarts during a task | After restart the task shows Failed with the reason "hub restarted" | Devices that had finished keep their result |
-| AC-4 | A condition in the alarm table becomes true, then false | The alarm opens, appears in every place listed, and clears from all of them | Its history row remains, because the history is the record that it happened |
-| AC-5 | A device changes state while a page is open | The tree row, the table row and the cards that count it change without a reload, within the bound fixed at design | Pages the operator is not viewing do not update, because they have no stream |
-| AC-6 | An operator who may not see a device | No event about it reaches the operator's stream | None |
-| AC-7 | The stream is lost | The stale banner shows with the time, the page reconnects, and the live fragments refresh once | None |
-| AC-8 | `show fleet task` and `show fleet alarm` on any command surface | The same data as the pages, as data answering every pipe | None |
+| AC-4 | A condition in the alarm table becomes true, then false | The alarm opens in `show fleet alarm` with its kind, device, severity and since, then clears from it; `show fleet alarm history device <name>` lists its opening and its clearing | Its history row remains, because the history is the record that it happened |
+| AC-8 | `show fleet alarm` and `show fleet alarm history device <name>` on every command surface: the CLI, MCP, REST, gRPC, SSH and the web command surface | The same alarms on every surface, as data answering every pipe | None |
+
+### Moved to fleet-ui-9
+
+Every item below is owned by
+`plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`,
+which names this spec as the source of each.
+
+| Item moved | Was here | Now in `fleet-ui-9` |
+|------------|----------|---------------------|
+| AC-1, a task exists for every fleet action | AC-1 | AC-1 |
+| AC-2, a task that partly fails | AC-2 | AC-2 |
+| AC-3, a task across a hub restart | AC-3 | AC-3 |
+| AC-4, the alarm appears in and clears from every page place | AC-4, page part | AC-4 |
+| AC-5, live change without a reload | AC-5 | AC-5 |
+| AC-6, no event about a device the operator may not see | AC-6 | AC-6 |
+| AC-7, the stream is lost | AC-7 | AC-7 |
+| AC-8, `show fleet task` on every command surface | AC-8, task part | AC-8 |
+| AC-8, the commands answer the same data as the pages | AC-8, the "same data as the pages" clause for alarms | AC-9 |
+| The task model, its kinds, its places and its rules | "Tasks" | "Tasks" |
+| Where alarms appear on the web, and the side panel's week of history | "Alarms", "Where alarms appear" | "Alarm pages" |
+| Notifications | "Notifications" | "Notifications" |
+| Live updates | "Live updates" | "Live updates" |
+| `show fleet task`, `show fleet task id <id>`, `clear fleet task id <id>` | "Commands this spec adds" | "Commands this spec adds" |
+| Decisions "Tasks are the hub's own model", "Events name fragments", "One stream per page" | "Key design decisions" | "Key Design Decisions" |
+| The actions that create tasks; a state store key for finished tasks | "Dependencies and readiness" | "Dependencies and readiness" |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The task model, notifications, live updates and the alarm pages, with the ACs in "Moved to fleet-ui-9" | Thomas ruled on 2026-11-23 that they come after the first release (`ai/META-DECISIONS.md`, "Goal and scope") | `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md` |

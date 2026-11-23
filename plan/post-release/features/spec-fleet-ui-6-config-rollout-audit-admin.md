@@ -7,10 +7,10 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md, spec-fleet-2-config-templates.md, spec-fleet-3-audit-trail.md, spec-fleet-5-staged-rollout.md, spec-fleet-7-config-reconnect-resolution |
-| Phase | 6/8 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
+| Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md, spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md, spec-fleet-2-config-templates.md, spec-fleet-3-audit-trail.md, spec-fleet-5-staged-rollout.md, spec-fleet-7-config-reconnect-resolution |
+| Phase | 6/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
-| Updated | 2026-11-18 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -65,7 +65,7 @@ Divergence, when the device is Diverged:
 | Diff | The existing commit-style diff; the hub's configuration on the left, the device's on the right |
 | Keep the device's changes | The device's configuration becomes the hub's copy. Confirmed in a dialog stating that the hub's version is replaced |
 | Restore the hub's version | The hub's configuration is pushed to the device and the local edit is discarded. A destructive action: confirmed by typing the device's name, and only offered after the diff has been opened |
-| Result | A task (`fleet-ui-5`) and an audit entry |
+| Result | A task (`plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`) and an audit entry |
 
 ### Rollouts tab of the estate (needs `fleet-5`)
 
@@ -137,7 +137,7 @@ candidate, pending change bar, diff and commit. Nothing is applied on save.
 | Rollouts | `fleet-5` | Missing |
 | Audit | `fleet-3` | Missing |
 | Templates | `fleet-2` | Missing |
-| Administration of devices, labels, tree views, access, settings | `fleet-1`, `fleet-ui-2`, `fleet-ui-5` | Missing |
+| Administration of devices, labels, tree views, access, settings | `fleet-1`, `fleet-ui-2`; the settings page reads the alarm settings of `fleet-ui-5` and the task and stream settings of `fleet-ui-9` | Missing |
 | The editor, candidate, diff and commit bar | Available | |
 
 ### Draft acceptance criteria
@@ -152,3 +152,89 @@ candidate, pending change bar, diff and commit. Nothing is applied on save.
 | AC-6 | The audit page with a filter | Exactly the matching entries, reproducible from the URL, exportable | No entry can be edited or removed from any page |
 | AC-7 | Any administration change | It is staged, shown as pending, diffed and committed through the existing path | Saved filters apply at once, because they are per-user state, not configuration |
 | AC-8 | Adding a device | The page shows what the device needs to join, and the secret is never shown again once set | None |
+
+### Moved in (owner ruling 2026-11-23)
+
+Thomas ruled (voice-transcribed answer "1 b") that the fleet features of the
+first release are reached through commands on every command surface, and that
+their web pages and views come after the first release (`ai/META-DECISIONS.md`,
+"Goal and scope"). With that ruling the fleet interface's part table moved from
+`plan/release/features/spec-fleet-1-device-registry.md` to
+`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`
+("Moved from fleet-1"), which names this spec as the owner of two parts:
+
+| Part | Why here | Serves |
+|------|----------|--------|
+| `DivergencePart` | Its owner in `fleet-1`'s table, `spec-fleet-7-config-reconnect-resolution`, closed on 2026-11-19 without registering it; the divergence banner and diff are this spec's Device Config tab family. It reads `show fleet divergence name <name>` through the dispatcher | AC-3, and AC-9 below |
+| `AccessPart` | Already this spec's (the access administration page) | The Access administration page |
+
+The Config tab of a device stays here, after the first release, beside
+`plan/post-release/features/spec-fleet-2-config-templates.md`, which owns the
+`DeviceConfigPart` the tab reads. The first-release alarm Configuration resync
+failed (`plan/release/features/spec-fleet-10-drift-hash-chain.md`) points at a
+command, not at this tab; its web binding to the Config tab is homed by
+`fleet-10` in `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`,
+with the alarm pages.
+
+| AC ID | From | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|------|-------------------|-------------------|-----------------------------|
+| AC-9 | The `DivergencePart` registration (`fleet-1`'s part table, owner `fleet-7` closed) | A real build with the divergence part registered, and a device holding a local edit | The Dashboard and Config tabs show the divergence banner and the diff exactly as `show fleet divergence name <name>` answers them; a device that is not diverged shows no banner; a refused dispatch is an operator error the tab shows | None |
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `ai/doors/system.md`, `ai/doors/api-surfaces.md` - a page reads commands through the dispatcher; edits go through the existing editor and commit
+- [ ] `docs/architecture/fleet-config.md`, "The baseline and the hold" - the divergence the Config tab shows
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `internal/component/web/fleetui/source.go` - `Source` is the union of six interfaces, `ConfigSource` among them; `fleet-ui-2` splits `ConfigSource` into the device config, config history, divergence, rollout, template, access and settings parts.
+
+## Data Flow (MANDATORY)
+
+### Entry Point
+- A Config tab, rollout, audit, template or administration page request on the hub's fleet interface.
+
+### Transformation Path
+1. The page asks its part through the dispatcher-backed source.
+2. A change is staged in the operator's candidate and committed through the existing path.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Web to daemon | `web.RouteDeps.Dispatch`; the existing editor for changes | No |
+
+### Integration Points
+- [pending design]
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| A diverged device's Config tab on a real build | → | the divergence part over `show fleet divergence name <name>` | [pending design: a `.wb` test] |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestDivergencePartReadsDivergenceCommand` | [pending design] | AC-9 | |
+
+## Files to Modify
+- [pending design]
+
+## Implementation Steps
+
+1. **Phase: Wiring** - [pending design]
+   - Verify: `./le test functional web` runs the fleet browser cases of this spec
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-9 all demonstrated
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)

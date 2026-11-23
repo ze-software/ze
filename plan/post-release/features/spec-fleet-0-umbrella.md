@@ -106,9 +106,26 @@ Phases 2, 3, 5 and 9 stay in `plan/post-release/features/`. Phases 6 and 7,
 the configuration freeze and the reconnect resolution, are closed. This
 umbrella stays in `plan/post-release/features/`.
 
+Thomas ruled on 2026-11-23 (voice-transcribed answers "1 b" and "2 b",
+`ai/META-DECISIONS.md`, "Goal and scope") that the first-release fleet
+features are reached through commands on every command surface (CLI, SSH, MCP,
+REST, gRPC, the web command line), and that their web pages and views come
+after the first release. Every web criterion of phases 1, 4, 8 and 10 moved to
+the post-release `fleet-ui` spec that owns its page: the `/fleet` pages, the
+seam's split into parts and the estate part to
+`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`,
+dashboards and charts to `spec-fleet-ui-3-dashboards-and-charts.md`, the
+device System tab to `spec-fleet-ui-4-device-tabs-and-console.md`, the device
+Config tab to `spec-fleet-ui-6-config-rollout-audit-admin.md`, the task model
+and panel, notifications, live page updates and the alarm pages to
+`spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md` (split from
+`fleet-ui-5`, whose alarms stay in the first release). Each child names what
+moved in its Task section. Where a row below says "web", that part is the
+`fleet-ui` spec's, after the first release.
+
 | Phase | Spec | Scope | Depends |
 |-------|------|-------|---------|
-| 1 | `plan/release/features/spec-fleet-1-device-registry.md` | Hub-side persistent device registry. `show fleet` CLI. Web fleet dashboard. Device metadata (name, config version, health, last-seen, labels). YANG schema for fleet config | - |
+| 1 | `plan/release/features/spec-fleet-1-device-registry.md` | Hub-side persistent device registry. `show fleet devices` and `show fleet device name <name>` on every command surface. Device metadata (name, config version, last-seen, labels; health is `fleet-4`'s). Labels on the hub's client entry. The fleet web pages are `fleet-ui-2`'s, after the first release | - |
 | 2 | `plan/post-release/features/spec-fleet-2-config-templates.md` | Named config templates with variable substitution. Group-based assignment. Template rendering at config-fetch time. YANG schema for templates and groups | fleet-1 |
 | 3 | `plan/post-release/features/spec-fleet-3-audit-trail.md` | Centralized audit log for fleet operations: config push/ack/reject, device connect/disconnect, template changes. CLI and web views. Structured log entries in ZeFS | fleet-1 |
 | 4 | `plan/release/features/spec-fleet-4-inventory-health.md` | New `inventory-report` and `health-report` RPC verbs. Devices push on connect and periodically. Hub stores per-device inventory and health. CLI and web aggregated views | fleet-1 |

@@ -77,10 +77,10 @@ build links exactly one. The page markup does not change when the source does.
 |-----------|---------|---------------|
 | `RegistrySource` | The hub's clock, the estate's name, every device with its facts, one device, the declared tree views, a user's saved filters | `fleet-1`, with `fleet-4` and `fleet-8` for the inventory, the health and the last sample of a device |
 | `HistorySource` | The samples of one metric for a device, or summed over named devices, and how much the history holds | `fleet-8` |
-| `ActivitySource` | The open alarms, a device's alarm history, the tasks, one task with its per-device results | `fleet-ui-5` |
+| `ActivitySource` | The open alarms, a device's alarm history, the tasks, one task with its per-device results | `fleet-ui-5` (the alarms, through its commands) and `fleet-ui-9` (the tasks) |
 | `ConfigSource` | A device's configuration, its versions and their text, a divergence, the rollouts, the audit trail, the templates, the access table, the settings | `fleet-2`, `fleet-3`, `fleet-5`, `fleet-7` |
 | `DeviceViewSource` | What only the device holds: system, interfaces, BGP peers and summary, other adjacencies, logs, and one console command | `fleet-9`, through the relay |
-| `EventSource` | A subscription to what changes in the estate | `fleet-ui-5` |
+| `EventSource` | A subscription to what changes in the estate | `fleet-ui-9` |
 
 Two sources are planned. The sample source, `internal/component/web/fleetui/sample`,
 answers from a fixed estate and exists so the interface can be judged before a

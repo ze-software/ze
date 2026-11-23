@@ -7,10 +7,10 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-9-device-command-relay.md |
-| Phase | 4/8 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
+| Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-9-device-command-relay.md, plan/release/features/spec-fleet-4-inventory-health.md |
+| Phase | 4/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
-| Updated | 2026-11-18 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -36,7 +36,7 @@ The tabs of a device, in order:
 | Routing | BGP peers and routing protocol state | This spec, relay |
 | Config | The device's configuration, its history and its diff | `fleet-ui-6`, hub-held |
 | Logs | Recent log lines, warnings and errors of the device | This spec, relay |
-| Tasks | Tasks that targeted this device | `fleet-ui-5`, hub-held |
+| Tasks | Tasks that targeted this device | `fleet-ui-9`, hub-held |
 
 ### How a relayed tab works
 
@@ -152,3 +152,79 @@ profile the device grants to relayed commands.
 | AC-5 | A command typed in the Console tab | It runs on that device, its output appears in the terminal, and it is audited on both sides with the hub user's name | Configuration mode is refused with a link to the Config tab, because the hub is the single writer |
 | AC-6 | The operator leaves a tab | Its refresh timers and relayed streams stop | None |
 | AC-7 | An offline device | Relayed sections show the offline state with the last-seen time; the Console shows no terminal | Hub-held inventory remains shown, marked with its age |
+
+### Moved in (owner ruling 2026-11-23)
+
+Thomas ruled (voice-transcribed answer "1 b") that the fleet features of the
+first release are reached through commands on every command surface, and that
+their web pages and views come after the first release (`ai/META-DECISIONS.md`,
+"Goal and scope"). The device detail view that
+`plan/release/features/spec-fleet-4-inventory-health.md` named (its AC-12,
+"device detail page with full inventory/health") is this spec's System tab;
+`fleet-4` keeps `show fleet device inventory <name>` and
+`show fleet device health <name>`.
+
+| AC ID | From | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|------|-------------------|-------------------|-----------------------------|
+| AC-8 | `fleet-4` AC-12, its device detail half | A device whose inventory and health `fleet-4` holds, on a real build with the inventory-health part registered (`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` AC-17) | The System tab's Identity and Hardware sections show the reported inventory (processor count and model, network interfaces and drivers, total memory, storage count and size) and the Health section one row per reported component with its state word, each equal to what `show fleet device inventory <name>` and `show fleet device health <name>` answer; a device that has not reported shows not reported | An offline device's hub-held sections stay shown, marked with the time they were reported |
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `ai/doors/system.md`, `ai/doors/api-surfaces.md` - a tab reads commands through a dispatcher, never a back end's package
+  → Constraint: the System tab's hub-held sections read `fleet-4`'s commands through the inventory-health part of `fleet-ui-2`.
+- [ ] `docs/architecture/web-workbench-pages.md` - the workbench page builders a relayed tab may reuse
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `internal/component/web/fleetui/source.go` - `Source` is the union of six interfaces, `DeviceViewSource` among them; `fleet-ui-2` splits it into parts, `DeviceViewPart` and `InventoryHealthPart` among them.
+
+## Data Flow (MANDATORY)
+
+### Entry Point
+- A device tab request on the hub's fleet interface.
+
+### Transformation Path
+1. A hub-held section asks the inventory-health part; a relayed section runs its fixed commands through the relay dispatcher of `fleet-9`.
+2. Each section renders its own answer or its own state.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Web to hub daemon | `web.RouteDeps.Dispatch` | No |
+| Hub to device | The command relay of `fleet-9` | No |
+
+### Integration Points
+- [pending design]
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| The System tab of a reporting device | → | the inventory-health part, the System tab sections | [pending design: a `.wb` test] |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestSystemTabShowsReportedInventory` | [pending design] | AC-8 | |
+
+## Files to Modify
+- [pending design]
+
+## Implementation Steps
+
+1. **Phase: Wiring** - [pending design]
+   - Verify: `./le test functional web` runs the fleet browser cases of this spec
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-8 all demonstrated
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)

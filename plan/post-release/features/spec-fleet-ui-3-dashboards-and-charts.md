@@ -8,9 +8,9 @@
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
 | Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
-| Phase | 3/8 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
+| Phase | 3/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
-| Updated | 2026-11-18 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -92,7 +92,7 @@ Twelve columns. The number after each card is its width.
 | Configuration | Donut by configuration state | Devices tab filtered by that configuration state | Registry |
 | Software | Donut by software version, newest first, at most four versions named and the rest grouped as Older | Devices tab filtered by that version | Inventory (`fleet-4`) |
 | Estate | Figures: devices, sites, BGP peers established of configured, open alarms | Devices tab, alarms tab | Registry, latest samples (`fleet-8`) |
-| Alarms | The eight most severe open alarms: severity word, device, summary, since | Alarms tab; each row to the device | Alarms (`fleet-ui-5`) |
+| Alarms | The eight most severe open alarms: severity word, device, summary, since | Alarms tab; each row to the device | Alarms (`fleet-ui-5`); the count of alarms hidden behind their cause, shown with it, is `fleet-ui-9`'s |
 | Needs attention | One line per condition needing an operator: paused rollouts, diverged devices, rejected configurations, devices offline for more than a day, devices more than one version behind | The matching filtered view | Registry, rollouts (`fleet-5`) |
 | Rollouts | Running and recently finished rollouts with state and progress | Rollouts tab | `fleet-5` |
 | Recent changes | The last eight audit entries: time, actor, what, how many devices | Audit page | `fleet-3` |
@@ -184,3 +184,79 @@ charts stay, ending where the samples end, because the history is held by the hu
 | AC-5 | One card's data source fails | That card shows the failed state with a retry; every other card renders | None |
 | AC-6 | An offline device's dashboard | Quick info, the offline state with the last-seen time, and charts ending at the last sample | Live cards are absent, because they would show stale values as current |
 | AC-7 | A period without samples | The chart shows a gap | None |
+
+### Moved in (owner ruling 2026-11-23)
+
+Thomas ruled (voice-transcribed answer "1 b") that the fleet features of the
+first release are reached through commands on every command surface, and that
+their web pages and views come after the first release (`ai/META-DECISIONS.md`,
+"Goal and scope"). The dashboard views the first-release back ends named moved
+here; each back end keeps its commands.
+
+| AC ID | From | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|------|-------------------|-------------------|-----------------------------|
+| AC-8 | `plan/release/features/spec-fleet-4-inventory-health.md` AC-4, its web half | A device reports a degraded component (`fleet-4`'s health-report), on a real build with the inventory-health part registered (`fleet-ui-2` AC-17) | The estate and group dashboards' Devices card counts it Degraded, its segment links to the devices table filtered to `state:degraded`, and the device's Quick info shows Degraded; the count equals what `show fleet health` answers | A count may trail the report by one event, because cards refresh from the event stream |
+| AC-9 | The `HistoryPart` registration, given to `plan/release/features/spec-fleet-8-metric-history.md` by `fleet-1`'s part table, moved here with the part table (`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`, "Moved from fleet-1") | A real build with the history part registered over the dispatcher | Every chart draws exactly the series `fleet-8`'s series query answers for the same figure, device or set, and range; the history administration figures (`fleet-ui-6`) are `fleet-8`'s store status answer; a refused dispatch is an operator error the card shows, never an empty chart | A figure `fleet-8` answers as absent is drawn as absent, never as zero (`fleet-8` AC-11) |
+
+`fleet-8` carries no chart: every chart over its history is this spec's.
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `ai/doors/system.md`, `ai/doors/api-surfaces.md` - the web UI is a thin adapter: a card reads commands through the dispatcher, never a back end's package
+  → Constraint: the history and inventory-health parts read `fleet-8`'s and `fleet-4`'s commands through `web.RouteDeps.Dispatch`.
+- [ ] `docs/architecture/fleet-interface.md` - the data source seam and its parts (`fleet-ui-2`, "Moved from fleet-1")
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `internal/component/web/fleetui/source.go` - `Source` is the union of six interfaces, `HistorySource` among them; one source per build today. `fleet-ui-2` splits it into parts, `HistoryPart` among them.
+
+## Data Flow (MANDATORY)
+
+### Entry Point
+- A dashboard request for the estate, a group node or a device.
+
+### Transformation Path
+1. Each card asks its part through the dispatcher-backed source; the history part asks `fleet-8`'s series query.
+2. The card renders its count or chart, or its own failed or not-available state.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Web to daemon | `web.RouteDeps.Dispatch` with the request's caller identity | No |
+
+### Integration Points
+- [pending design: the card registry and the history part's package]
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| A device dashboard on a real build with a reporting device | → | the history part over `fleet-8`'s series query, the chart card | [pending design: a `.wb` test] |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestHistoryPartDrawsFleet8Series` | [pending design: the history part's package] | AC-9 | |
+| `TestDevicesCardCountsDegraded` | [pending design] | AC-8 | |
+
+## Files to Modify
+- [pending design]
+
+## Implementation Steps
+
+1. **Phase: Wiring** - [pending design]
+   - Verify: `./le test functional web` runs the fleet browser cases of this spec
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-9 all demonstrated
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)

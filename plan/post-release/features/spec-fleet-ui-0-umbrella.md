@@ -62,10 +62,11 @@ components it composes.
 | 2 | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` | Tree views built from labels, the devices table, the filter language, saved filters, selection and bulk actions, the device side panel | fleet-ui-1 (approved), fleet-1 |
 | 3 | `plan/post-release/features/spec-fleet-ui-3-dashboards-and-charts.md` | Estate, group and device dashboards, their cards and charts | fleet-ui-2, fleet-4, fleet-8 |
 | 4 | `plan/post-release/features/spec-fleet-ui-4-device-tabs-and-console.md` | The device tabs that show live device state through the relay, and the per-device browser CLI | fleet-ui-2, fleet-9 |
-| 5 | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` | The hub task model and its panel, the alarm list, toasts and the live event stream | fleet-ui-1 (approved), fleet-1, fleet-4 |
-| 6 | `plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md` | Per-device config view and diff, divergence resolution, rollouts, the audit trail and the administration pages | fleet-ui-2, fleet-ui-5, fleet-2, fleet-3, fleet-5, fleet-7 |
+| 5 | `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` | The hub alarm list and its commands: the alarm model, its registered kinds, `show fleet alarm` and `show fleet alarm history` on every command surface. In the first release; its task model, pages, toasts and live updates moved to phase 9 (`ai/META-DECISIONS.md`, "Goal and scope") | fleet-1, fleet-4, fleet-8 |
+| 6 | `plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md` | Per-device config view and diff, divergence resolution, rollouts, the audit trail and the administration pages | fleet-ui-2, fleet-ui-5, fleet-ui-9, fleet-2, fleet-3, fleet-5, fleet-7 |
 | 7 | `spec-fleet-ui-7-recorded-demonstration` (closed 2026-11-19) | A recorded demonstration of the interface on the sample estate, played from the website checkout with no daemon, written where the site does not publish it, for the owner's review. It is rendered on request by `./le site fleet-demo render`, never by the site build, into the output's unpublished `tmp/fleet-demo/` (`docs/contributing/gh-pages.md`, "Render the fleet demonstration") | fleet-ui-1 |
-| 8 | `plan/release/features/spec-fleet-ui-8-alarm-causes.md` | Alarm causes: an alarm kind names the kinds that cause it in its own registration; an alarm whose cause is open on its device is hidden behind it, listed under its cause, and shown again with its original `Since` when the cause clears. Narrows `fleet-ui-5` AC-4 for a hidden alarm and adds the `has:cause` filter and the `hidden-behind` field of `show fleet alarm` | fleet-ui-5, fleet-1, fleet-4, fleet-8 |
+| 8 | `plan/release/features/spec-fleet-ui-8-alarm-causes.md` | Alarm causes: an alarm kind names the kinds that cause it in its own registration; an alarm whose cause is open on its device is hidden behind it, listed under its cause, and shown again with its original `Since` when the cause clears. Narrows `fleet-ui-5` AC-4 for a hidden alarm and adds the `hidden` filter and the `hidden-behind` field of `show fleet alarm`. In the first release; how the pages show a hidden alarm (the `has:cause` filter, the card line, the toast rules) moved to phase 9 | fleet-ui-5, fleet-1, fleet-4, fleet-8 |
+| 9 | `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md` | Split from `fleet-ui-5` and `fleet-ui-8` on 2026-11-23. The hub task model, `show fleet task` and `clear fleet task`, the task panel, the Tasks tabs and `/fleet/tasks/`; notifications and toasts; the live event stream; the alarm pages (the Alarms tabs, the Alarms card, the tree badges, the side panel) and the hidden form of an alarm on them (`has:cause`, the hidden counts, the toast rules) | fleet-ui-1 (approved), fleet-ui-5, fleet-ui-8, fleet-1, fleet-4, fleet-8 |
 
 Back-end work the interface needs, owned by the `fleet` set:
 
@@ -91,7 +92,7 @@ event stream.
 | Stage | What the operator can do | What is behind it |
 |-------|--------------------------|-------------------|
 | Prototype (`fleet-ui-1`) | Open every page, expand and filter the tree, sort and filter tables, select rows, open the side panel, switch tabs, change the chart range, switch theme, resize and pin the sidebar, open the task panel, see a scripted task progress and a device change state live, open confirm dialogs | Sample answers. Actions that would change something show their confirm dialog and then a toast saying the prototype changed nothing |
-| Functional (`fleet-ui-2` to `fleet-ui-6`) | The same pages, acting on the real estate | The real commands of the `fleet` set, replacing the sample answers page by page |
+| Functional (`fleet-ui-2`, `fleet-ui-3`, `fleet-ui-4`, `fleet-ui-6`, `fleet-ui-9`) | The same pages, acting on the real estate | The real commands of the `fleet` set, replacing the sample answers page by page |
 
 The sample dispatcher is development tooling. It is compiled only into a
 development build and is never part of a shipped binary. A page whose real
@@ -356,7 +357,7 @@ empty state naming what is missing and the next action.
 - [ ] `internal/component/web/assets/style.css` - the theme variables, in a dark default and a light override
 - [ ] `internal/component/plugin/server/managed_serve.go` - the hub side of the managed channel: connection set in memory, a cap of 128 held connections
 - [ ] `internal/component/managed/client.go` - the device side: a serial loop for hub requests, unknown verbs dropped without an answer
-- [ ] `pkg/fleet/envelope.go` - the four verbs
+- [ ] `pkg/fleet/envelope.go` - the five verbs (`config-fetch`, `config-changed`, `config-ack`, `config-held`, `ping`)
 
 **Behavior to preserve:**
 - The CLI, YANG editor and workbench modes, their routes and their appearance, on a device and on a hub
@@ -575,7 +576,7 @@ censused in the specs that own them: the report and history verbs in
 | YANG schema (new RPCs/config) | Yes | Tree views and saved filters, declared in `fleet-ui-2`; no schema in this umbrella itself |
 | YANG validation constraints | Yes | In the children that add leaves |
 | YANG custom validators | N-A | No leaf here needs more than native constraints |
-| CLI commands/flags | Yes | `show fleet task` and `show fleet alarm` in `fleet-ui-5`; every other read uses commands the `fleet` set owns |
+| CLI commands/flags | Yes | `show fleet alarm` in `fleet-ui-5`, `show fleet task` in `fleet-ui-9`; every other read uses commands the `fleet` set owns |
 | CLI grammar (keyword before value) | Yes | In the children that add commands |
 | Editor autocomplete | N-A | Automatic for the leaves added |
 | Functional test for new RPC/API | Yes | The `.wb` tests above and the `.ci` tests of the children |
@@ -591,8 +592,8 @@ censused in the specs that own them: the report and history verbs in
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/fleet-management.md` gains the interface in its scope |
 | 2 | Config syntax changed? | Yes | `docs/guide/configuration.md`, in the children that add leaves |
-| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`, in `fleet-ui-5` |
-| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md`, in `fleet-ui-5` |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`, in `fleet-ui-5` (alarms) and `fleet-ui-9` (tasks) |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md`, in `fleet-ui-5` (alarms) and `fleet-ui-9` (tasks) |
 | 5 | Plugin added/changed? | No | No plugin is added |
 | 6 | Has a user guide page? | Yes | `docs/guide/fleet-interface.md` |
 | 7 | Wire format changed? | No | Owned by `fleet-8` and `fleet-9` |
@@ -625,14 +626,16 @@ implemented, and is not started before the specs it depends on.
 4. **Phase: Device tabs and console (fleet-ui-4)** -- live device state and the per-device CLI
    - Tests: `fleet-device-routing-tab`, `fleet-device-console`
    - Verify: a device behind address translation is inspected from the hub
-5. **Phase: Tasks, alarms and notifications (fleet-ui-5)** -- the task panel, the alarm list, toasts, live events
-   - Tests: `fleet-task-progress`, `fleet-live-device-state`
-   - Verify: nothing the hub does to a device is invisible
+5. **Phase: The hub alarm list and its commands (fleet-ui-5)** -- the alarm model, its kinds, `show fleet alarm` and `show fleet alarm history` on every command surface
+   - Verify: every condition that needs attention is listed once by `show fleet alarm`, on every command surface
 6. **Phase: Config, rollout, audit and administration (fleet-ui-6)** -- the remaining fleet views
    - Verify: every fleet capability with a CLI command has a page
 8. **Phase: Alarm causes (fleet-ui-8)** -- an alarm hidden behind its open cause, listed under it, shown again when the cause clears
-   - Tests: `fleet-alarm-cause`, `alarm-hidden-behind-offline`
-   - Verify: a device that goes offline shows one alarm, and its other alarms return with it
+   - Tests: `alarm-hidden-behind-offline`
+   - Verify: for a device that goes offline, `show fleet alarm` shows one alarm and marks its other alarms `hidden-behind` it, and they return with it
+9. **Phase: Tasks, notifications, live updates and the alarm pages (fleet-ui-9)** -- the task model and its commands, the task panel, toasts, live events, the alarm pages and the hidden form on them
+   - Tests: `fleet-task-progress`, `fleet-live-device-state`, `fleet-alarm-cause`
+   - Verify: nothing the hub does to a device is invisible, and a device that goes offline shows one alarm on the pages
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
