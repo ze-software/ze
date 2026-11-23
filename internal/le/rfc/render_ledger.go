@@ -322,7 +322,7 @@ func evidenceCell(figure StemFigures) string {
 		return "-"
 	}
 	var tb textbuf.Buffer
-	for _, kind := range append(slices.Clone(evidenceStrengthOrder), kindOS, kindUnknown) {
+	for _, kind := range append(slices.Clone(evidenceStrengthOrder), kindOS, kindSuperseded, kindUnknown) {
 		count := figure.MandatoryByKind[kind]
 		if count == 0 {
 			continue

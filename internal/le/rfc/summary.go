@@ -367,6 +367,9 @@ const notApplicableBoundPrefix = "binds "
 // section that names the bound role, `§<section> "<sentence>"; <why>`, when
 // the obligation's own subject is no role (roleSentenceRefusal).
 func parseNotApplicable(body, where string, register KeywordRegister) (*Annotation, error) {
+	if keyword := featureHeadingRE.FindString(body); keyword != "" {
+		return parseNotApplicableHeading(body, body[len(keyword):], where)
+	}
 	if !strings.HasPrefix(body, `"`) {
 		return &Annotation{Kind: AnnotationNotApplicable, Reason: body}, nil
 	}
@@ -434,6 +437,62 @@ func parseNotApplicable(body, where string, register KeywordRegister) (*Annotati
 	// renderer that prints `{kind} reason` publishes the quote and the role.
 	return &Annotation{Kind: AnnotationNotApplicable, Quote: quote, BoundRole: bound,
 		RoleSection: role.section, RoleSentence: role.sentence, Reason: strings.TrimSpace(body)}, nil
+}
+
+// parseNotApplicableHeading reads `{not-applicable: heading "<heading words>";
+// binds <role>; <why>}` for an RFC section whose heading scopes every
+// obligation under it to a role Ze does not fill (such as Zone Signing or IANA
+// Considerations). The heading words are checked against the titles of the
+// row's cited section and its ancestors in (*evidenceReader).roleHeadingGap,
+// and the bound role is held to the same non-generic and Meta.ZeRoles checks
+// as a quoted {not-applicable} row.
+func parseNotApplicableHeading(rest, body, where string) (*Annotation, error) {
+	var tb textbuf.Buffer
+	parts := featureDeclinedRE.FindStringSubmatch(body)
+	if parts == nil {
+		return nil, parseErr(tb.Str(where).
+			Str(": {not-applicable} heading needs the section heading words in double quotes, then `binds <role>; <why>`. ").
+			Str(notApplicableFormat))
+	}
+	words := strings.TrimSpace(parts[1])
+	if len(words) < minHeadingWords {
+		return nil, parseErr(tb.Str(where).
+			Str(": {not-applicable} heading names ").Str(pyRepr(words)).
+			Str(", which is under ").Int(int64(minHeadingWords)).
+			Str(" characters and identifies no section heading. ").
+			Str(notApplicableFormat))
+	}
+	boundSegment, why, _ := strings.Cut(parts[2], ";")
+	bound, binds := strings.CutPrefix(strings.TrimSpace(boundSegment), notApplicableBoundPrefix)
+	if !binds {
+		bound = ""
+	}
+	bound = strings.TrimSpace(bound)
+	why = strings.TrimSpace(why)
+	if bound == "" {
+		return nil, parseErr(tb.Str(where).
+			Str(": {not-applicable} heading names no role the section binds; write `binds <role>` after the heading words. ").
+			Str(notApplicableFormat))
+	}
+	if genericRole(bound) {
+		return nil, parseErr(tb.Str(where).
+			Str(": {not-applicable} binds ").Str(pyRepr(bound)).
+			Str(", a word for any party to a protocol, so nothing shows the section leaves ze out. Name the specific role the RFC defines. ").
+			Str(notApplicableFormat))
+	}
+	if roleNamesNoParty(bound) {
+		return nil, parseErr(tb.Str(where).
+			Str(": {not-applicable} binds ").Str(pyRepr(bound)).
+			Str(", which names no party: its words are pronouns, determiners, scoping words or negations. Name the specific role the section binds. ").
+			Str(notApplicableFormat))
+	}
+	if why == "" {
+		return nil, parseErr(tb.Str(where).
+			Str(": {not-applicable} heading gives no reason after the role. Say why ").Str(bound).
+			Str(" is not a role ze fills. ").Str(notApplicableFormat))
+	}
+	return &Annotation{Kind: AnnotationNotApplicable, Heading: words, BoundRole: bound,
+		Reason: strings.TrimSpace(rest)}, nil
 }
 
 // parseRoleSentence reads the role sentence a {not-applicable} reason may

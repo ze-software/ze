@@ -343,6 +343,28 @@ running protocol speaker and therefore cannot be tested at runtime:
   document"`) and nearby receiver obligations remain refused; `subjectBreakers`
   is unchanged for protocol roles.
 
+Three further forms cover non-software and section-scoped exclusions
+(`nonSoftwareRoleAccepted` in `internal/le/rfc/notapplicable_roles.go`,
+`parseNotApplicableHeading` in `internal/le/rfc/summary.go`, and
+`(*evidenceReader).roleHeadingGap` in `internal/le/rfc/check_evidence.go`):
+
+- **Operator and deployment obligations:** a quoted sentence binding a closed
+  operator role (`operator`, `network operator`, `administrator`,
+  `network administrator`, `deployment`, `network deployment`) is accepted in
+  passive, conditional, or topology-clause form while plain active protocol-speaker
+  subjects remain refused.
+- **IANA and IETF-process obligations:** a quoted sentence binding a closed
+  registry role (`iana`, `iana registry`, `registry`, `ietf`, `ietf process`,
+  `rfc author`) is accepted when no protocol actor appears before the keyword.
+- **Section-heading role scoping:** `{not-applicable: heading "<heading words>";
+  binds <role>; <why>}` checks that `<heading words>` appears as whole words in
+  the title of the row's cited section or one of its ancestors
+  (`quoteSource.headingTitles`), with the same non-generic and `Meta.ZeRoles`
+  role checks as the quoted form.
+<!-- source: internal/le/rfc/notapplicable_roles.go -- nonSoftwareRoleAccepted, nonSoftwareOperatorRoles, nonSoftwareRegistryRoles -->
+<!-- source: internal/le/rfc/summary.go -- parseNotApplicableHeading -->
+<!-- source: internal/le/rfc/check_evidence.go -- evidenceReader.roleHeadingGap -->
+
 ```
 | Ze roles | BGP speaker, route server |
 - [ ] [RFC9999-2-1] [MUST] A route reflector MUST send the widget before it sends any frame that depends on it (§2) {not-applicable: "A route reflector MUST send the widget before it sends any frame that depends on it."; binds a route reflector; ze reflects no route, so the reflector's order binds nothing it does}
@@ -705,7 +727,9 @@ holds a row on the `no-break` or `kernel-producer` escape and a row with a tag
 and no record, stays out of every numerator. Ze proven and OS verified stay
 separate sections, and the MUST bar draws them as separate segments, because
 who performs a row is what the bar shows. Every published proven count reads
-the same sum: the home card (`rfc.proven`, `rfc.proven_percent`), the health
+the same sum: the home card (`rfc.proven`, `rfc.proven_percent`, and
+`rfc.proven_built_percent`, the same count over only the MUST rows of what Ze
+builds: `MustSections.Built`, the owed rows less the not built ones), the health
 proof density, the tree row's `mandatory-proven` (`StemFigures.MustProven`),
 each rollup's `mandatory-proven` (`MustSections.Proven` over its sections),
 and so the status page Proof cell, the site's per-RFC Proof cell and the update
@@ -721,8 +745,8 @@ walked or not, so their total is their own sum, and it exceeds the card's
 denominator.
 <!-- source: internal/le/rfc/profilecoverage.go -- figuresByStem, rowCounts, rollupOf, Rollup.mandatoryComplete, StemFiguresOf, figureEvidence -->
 <!-- source: internal/le/rfc/profilecoverage.go -- countOpen, openSectionOf, declinedForever, figureEvidence.tested -->
-<!-- source: internal/le/rfc/sectioncounts.go -- SectionsOf, sectionsOf, checkMustSections, checkShouldSections, Sections.String, MustSections.Proven -->
-<!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, ImplementedSections.ProvenPercent, Implements -->
+<!-- source: internal/le/rfc/sectioncounts.go -- SectionsOf, sectionsOf, checkMustSections, checkShouldSections, Sections.String, MustSections.Proven, MustSections.Built -->
+<!-- source: internal/le/rfc/implemented.go -- ImplementedSectionsOf, ImplementedSections.ProvenPercent, ImplementedSections.ProvenBuiltPercent, Implements -->
 <!-- source: internal/le/rfc/profilecoverage.go -- StemFigures.MustProven, mustProven, kindOS -->
 <!-- source: internal/le/rfc/tree.go -- TreeRow.MarshalJSON, TreeRow.UnmarshalJSON -->
 
@@ -1589,6 +1613,23 @@ Four dispositions are accepted, and each has a precondition the gate checks:
 The last two are DEBT, and the ledger publishes them as debt. An `unresolved`
 line drains when somebody fetches and summarises the successor. An `unextracted`
 line drains by an extraction pass over the successor's summary.
+
+In coverage figures (`figuresByStem` in `internal/le/rfc/profilecoverage.go`,
+`(*figureEvidence).resolveSuperseded` in `internal/le/rfc/superseded.go`, and
+`(*priorityCorpus).rowOwes` in `internal/le/rfc/next.go`), an obsoleted row
+that is not already directly proven or excluded resolves through its successor:
+
+- `restated <ID>`: counts as validated and complete (`kindSuperseded`) when
+  `<ID>` is proven (Ze proven or OS verified), and leaves Ze's owed count under
+  the successor's exclusion kind when `<ID>` is excluded with checked evidence.
+  Chained obsoletions resolve recursively up to the corpus size.
+- `dropped`: counts as validated and complete (`kindSuperseded`) when Ze
+  implements the obsoleting successor RFC (`Implements`), and remains open
+  otherwise.
+- `unextracted` and `unresolved`: remain open debt.
+<!-- source: internal/le/rfc/superseded.go -- figureEvidence.resolveSuperseded, kindSuperseded -->
+<!-- source: internal/le/rfc/profilecoverage.go -- figuresByStem, figureEvidenceOf -->
+<!-- source: internal/le/rfc/next.go -- priorityCorpus.rowOwes -->
 
 ## The updated-by marker
 

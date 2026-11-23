@@ -172,7 +172,9 @@ func StemFiguresOf(in *RenderInput) (map[string]StemFigures, error) {
 // value, so a row and the figure it sits in are judged by one rule.
 func figureEvidenceOf(in *RenderInput) figureEvidence {
 	return figureEvidence{tags: tagsByRID(in.Tags), carriers: in.Carriers, audits: in.Audits,
-		osProofs: osProofsOf(in.Discrimination), exclusions: newEvidenceReader(in.Tree)}
+		osProofs: osProofsOf(in.Discrimination), exclusions: newEvidenceReader(in.Tree),
+		byRID: indexRequirements(in.Requirements), successors: in.Successors,
+		implemented: implementedStemsOf(in.Metas)}
 }
 
 // stemFiguresWith answers StemFiguresOf over the evidence a caller holds.
@@ -232,6 +234,11 @@ type figureEvidence struct {
 	// (excluded). It MUST be set whenever a row carries such an annotation:
 	// without it the figures cannot tell an evidenced row from a bare one.
 	exclusions exclusionJudge
+	// byRID, successors and implemented resolve {superseded} rows against their
+	// implemented successor RFCs (superseded.go).
+	byRID       map[string]*Requirement
+	successors  map[string]string
+	implemented map[string]bool
 }
 
 // strongestKind answers the strongest evidence kind among the tags covering
@@ -349,6 +356,9 @@ func (e figureEvidence) excluded(requirement *Requirement) bool {
 func figuresByStem(requirements []Requirement, stems, walked, proven map[string]bool,
 	evidence figureEvidence,
 ) map[string]StemFigures {
+	if evidence.byRID == nil {
+		evidence.byRID = indexRequirements(requirements)
+	}
 	out := make(map[string]StemFigures, len(stems))
 	for stem := range stems {
 		out[stem] = StemFigures{Stem: stem, Walked: walked[stem]}
@@ -364,27 +374,50 @@ func figuresByStem(requirements []Requirement, stems, walked, proven map[string]
 		if !owed {
 			continue
 		}
-		unmet := evidence.unmet(requirement)
+		figures.countOS(requirement, evidence.osProofs)
+		excluded := evidence.excluded(requirement)
+		excludedKind := ""
+		if excluded {
+			excludedKind = requirement.Annotation.Kind
+		}
+		superseded := false
+		if !met && !osMet(requirement) && !excluded {
+			outcome, kind := evidence.resolveSuperseded(requirement, proven)
+			switch outcome {
+			case supersededProven:
+				met = true
+				superseded = true
+			case supersededNotOwed:
+				excluded = true
+				excludedKind = kind
+			case supersededNone:
+			default:
+				panic("BUG: unknown superseded outcome")
+			}
+		}
+		unmet := !met && !excluded && evidence.unmet(requirement)
 		if unmet && !listed[requirement.RID] {
 			listed[requirement.RID] = true
 			figures.Unmet = append(figures.Unmet, requirement.RID)
 		}
-		figures.countOS(requirement, evidence.osProofs)
-		excluded := evidence.excluded(requirement)
 		figures.countOpen(requirement, met, excluded, unmet, evidence.tested(requirement.RID))
 		if requirement.Gated() {
-			figures.Mandatory.count(requirement, met, excluded)
+			figures.Mandatory.count(met, excluded, excludedKind)
 			// The kinds sum to MustProven: a Ze-proven row under its
-			// strongest test kind, an OS verified row under kindOS. No row is
-			// both, because a lower-layer row's traits never prove.
-			if met {
+			// strongest test kind, a superseded-satisfied row under
+			// kindSuperseded, and an OS verified row under kindOS. No row is
+			// more than one, because a lower-layer row's traits never prove.
+			switch {
+			case superseded:
+				figures.countKind(kindSuperseded)
+			case met:
 				figures.countKind(evidence.strongestKind(requirement.RID))
-			} else if osVerified(requirement, evidence.osProofs) {
+			case osVerified(requirement, evidence.osProofs):
 				figures.countKind(kindOS)
 			}
 		} else {
 			figures.countIntent(requirement, met, excluded)
-			figures.Optional.count(requirement, met, excluded)
+			figures.Optional.count(met, excluded, excludedKind)
 		}
 		out[requirement.RFC] = figures
 	}
@@ -627,9 +660,10 @@ func (s *StemFigures) countKind(kind string) {
 }
 
 // count adds one owed row. Only a declared ceiling exclusion the figures accept
-// (figureEvidence.excluded) removes attainable work; gaps and partials remain
-// future work, and unknown kinds get no exemption.
-func (f *Figure) count(requirement *Requirement, proven, excluded bool) {
+// (figureEvidence.excluded) or a superseded row whose successor is excluded
+// removes attainable work; gaps and partials remain future work, and unknown
+// kinds get no exemption.
+func (f *Figure) count(proven, excluded bool, excludedKind string) {
 	f.Total++
 	if proven {
 		f.Proven++
@@ -638,7 +672,7 @@ func (f *Figure) count(requirement *Requirement, proven, excluded bool) {
 		if f.Excluded == nil {
 			f.Excluded = make(map[string]int)
 		}
-		f.Excluded[requirement.Annotation.Kind]++
+		f.Excluded[excludedKind]++
 		return
 	}
 	f.Attainable++

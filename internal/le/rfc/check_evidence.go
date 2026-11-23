@@ -751,6 +751,13 @@ func (reader *evidenceReader) gap(req *Requirement) (string, bool) {
 	}
 	switch req.Annotation.Kind {
 	case AnnotationNotApplicable:
+		if req.Annotation.Heading != "" {
+			if req.Annotation.BoundRole == "" {
+				return "it names no role the section heading binds", true
+			}
+			msg := reader.roleHeadingGap(req)
+			return msg, msg != ""
+		}
 		if req.Annotation.Quote == "" {
 			var tb textbuf.Buffer
 			return tb.Str("it carries no role-condition quote from section ").Str(req.Section).
@@ -794,6 +801,41 @@ func (reader *evidenceReader) notOwedGap(req *Requirement) (string, bool) {
 	}
 	issue := linuxLimitIssue(req, reader.limitEntries, reader.limitKernel, reader.limitsProblem)
 	return issue, issue != ""
+}
+
+// roleHeadingGap judges a {not-applicable} heading form: the heading words must
+// appear as whole words in the title of the row's cited section or one of its
+// ancestors (quoteSource.headingTitles), proving the RFC scopes this section
+// to the bound role. Empty string means no gap.
+func (reader *evidenceReader) roleHeadingGap(req *Requirement) string {
+	words := req.Annotation.Heading
+	source := loadQuoteSource(reader.sources, reader.tree, req.RFC)
+	var tb textbuf.Buffer
+	if source == nil {
+		return tb.Str("the RFC's own text is not in this repository, so its heading ").Str(pyRepr(words)).
+			Str(" can be checked against nothing; fetch it to ").Str(fullRel).Byte('/').
+			Str(req.RFC).Str(".txt").String()
+	}
+	own, cited := source.resolve(req.Section)
+	if !cited {
+		return tb.Str("the section it cites, ").Str(req.Section).
+			Str(", names no heading of the RFC, so no heading can scope the row to ").Str(pyRepr(req.Annotation.BoundRole)).String()
+	}
+	titles := source.headingTitles(own)
+	for _, title := range titles {
+		if phraseIn(title, words) {
+			return ""
+		}
+	}
+	tb.Str("its heading ").Str(pyRepr(words)).Str(" is in no title of section ").Str(own).
+		Str(" or of a section above it (")
+	for at, title := range titles {
+		if at > 0 {
+			tb.Str(", ")
+		}
+		tb.Str(pyRepr(title))
+	}
+	return tb.Str("), so no heading scopes the row to ").Str(pyRepr(req.Annotation.BoundRole)).String()
 }
 
 // roleQuoteGap judges a {not-applicable} row's quote against its RFC and its
@@ -1131,10 +1173,10 @@ func evidenceRowIsNew(req *Requirement, base evidenceBaseline) bool {
 }
 
 // carriesEvidenceForm answers whether an annotation is written in its kind's
-// evidence form (a quote, or a layer path), as against a row written before
-// the kind carried evidence.
+// evidence form (a quote, a heading, or a layer path), as against a row
+// written before the kind carried evidence.
 func carriesEvidenceForm(annotation *Annotation) bool {
-	return annotation.Quote != "" || annotation.LayerPath != ""
+	return annotation.Quote != "" || annotation.Heading != "" || annotation.LayerPath != ""
 }
 
 // heldUnchanged answers whether prints records rid with this fingerprint. An

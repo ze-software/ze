@@ -72,13 +72,17 @@ var bcp14Keywords = append(gatedLevelNames(), advisoryLevelNames()...)
 
 // documentNouns are the nouns that name an IETF specification document itself,
 // never a running protocol speaker. Used exclusively by documentAuthorAccepted.
-const documentNouns = "document documents specification specifications"
+const (
+	documentNouns     = "document documents specification specifications"
+	roleDocument      = "document"
+	roleSpecification = "specification"
+)
 
 // documentAuthorRoles is the closed set of normalized bound roles (roleKey)
 // accepted by the narrow document-author evidence form.
 var documentAuthorRoles = []string{
-	"document",
-	"specification",
+	roleDocument,
+	roleSpecification,
 	"document author",
 	"specification author",
 	"specification document",
@@ -97,11 +101,38 @@ const documentPassiveVerbs = "described specified defined documented stated deta
 
 // documentPassiveDeterminers are the optional determiners allowed before the
 // document noun in "<KEYWORD> be <verb> in|by [<det>] <documentNoun>".
+//
+//nolint:gosec // grammatical determiner word list, not credentials
 const documentPassiveDeterminers = "a an the each any that"
 
 // documentProtocolActors supplements genericRoleWords when rejecting protocol
 // actors from the subject of a passive-document obligation.
 const documentProtocolActors = "client clients server servers reflector reflectors relay relays agent agents proxy proxies daemon daemons collector collectors resolver resolvers validator validators"
+
+// nonSoftwareOperatorRoles is the closed set of normalized bound roles
+// (roleKey) for obligations that bind only a human operator's configuration,
+// operational procedures, or network topology, which protocol software cannot
+// observe or verify.
+var nonSoftwareOperatorRoles = []string{
+	"operator",
+	"network operator",
+	"administrator",
+	"network administrator",
+	"deployment",
+	"network deployment",
+}
+
+// nonSoftwareRegistryRoles is the closed set of normalized bound roles
+// (roleKey) for obligations that bind IANA registries, IETF allocation
+// processes, or future RFC authors rather than any running speaker.
+var nonSoftwareRegistryRoles = []string{
+	"iana",
+	"iana registry",
+	"registry",
+	"ietf",
+	"ietf process",
+	"rfc author",
+}
 
 // notApplicableShapes names the two quotes a {not-applicable} row may carry,
 // for every refusal of a quote of neither shape.
@@ -135,6 +166,9 @@ func boundRoleRefusal(quote, bound string, role roleSentence, register KeywordRe
 	refusal, refused := subjectRefusal(quote[:at], keyword, bound)
 	if role.sentence == "" {
 		if refused && documentAuthorAccepted(quote, at, keyword, bound) {
+			return "", false
+		}
+		if refused && nonSoftwareRoleAccepted(quote, at, bound) {
 			return "", false
 		}
 		return refusal, refused
@@ -181,12 +215,12 @@ func documentAuthorAccepted(quote string, at int, keyword, bound string) bool {
 func documentAuthorMatchesNoun(boundKey, noun string) bool {
 	singular := singularLetters(noun)
 	switch boundKey {
-	case "document", "document author":
-		return singular == "document"
-	case "specification", "specification author":
-		return singular == "specification"
+	case roleDocument, "document author":
+		return singular == roleDocument
+	case roleSpecification, "specification author":
+		return singular == roleSpecification
 	case "specification document":
-		return singular == "document" || singular == "specification"
+		return singular == roleDocument || singular == roleSpecification
 	default:
 		return false
 	}
@@ -248,6 +282,65 @@ func documentPassiveComplement(before, after, boundKey string) bool {
 		return false
 	}
 	return documentAuthorMatchesNoun(boundKey, afterWords[idx])
+}
+
+// nonSoftwareRoleAccepted answers whether quote may exclude Ze through a
+// non-software role (operator/deployment/topology or IANA/IETF registry) even
+// when the RFC states the obligation in passive voice, with a conditional
+// clause, or with a qualifying subject. A plain single active protocol-speaker
+// subject ("A BGP speaker MUST...", "A router MUST...") remains refused so
+// software obligations cannot hide behind an operator or registry role.
+func nonSoftwareRoleAccepted(quote string, at int, bound string) bool {
+	boundKey := roleKey(bound)
+	isOperator := slices.Contains(nonSoftwareOperatorRoles, boundKey)
+	isRegistry := slices.Contains(nonSoftwareRegistryRoles, boundKey)
+	if !isOperator && !isRegistry {
+		return false
+	}
+	before := quote[:at]
+	if isRegistry {
+		return !containsProtocolActor(before)
+	}
+	return !isPlainProtocolActorSubject(before)
+}
+
+// containsProtocolActor reports whether text holds any generic or named
+// protocol actor word.
+func containsProtocolActor(text string) bool {
+	words := roleTokens(text)
+	generic := strings.Fields(genericRoleWords)
+	actors := strings.Fields(documentProtocolActors)
+	for _, w := range words {
+		if slices.Contains(generic, w) {
+			return true
+		}
+		if slices.Contains(actors, w) {
+			return true
+		}
+	}
+	return false
+}
+
+// isPlainProtocolActorSubject reports whether before is a direct protocol
+// speaker subject (e.g. "A BGP speaker", "A client", "Routers") without a
+// conditional or multi-party deployment clause ("If ..., the cache and
+// routers").
+func isPlainProtocolActorSubject(before string) bool {
+	words := roleTokens(before)
+	if len(words) == 0 {
+		return false
+	}
+	for _, w := range words {
+		switch w {
+		case "if", "when", "where", "and":
+			return false
+		}
+	}
+	last := words[len(words)-1]
+	if slices.Contains(strings.Fields(genericRoleWords), last) {
+		return true
+	}
+	return slices.Contains(strings.Fields(documentProtocolActors), last)
 }
 
 // roleSentence is the sentence of another section a lowercase-register

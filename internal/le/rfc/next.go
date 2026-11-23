@@ -373,6 +373,9 @@ func (c *priorityCorpus) rowOwes(requirement *Requirement) (string, bool) {
 	if met {
 		return "", false
 	}
+	if outcome, _ := c.evidence.resolveSuperseded(requirement, c.proven); outcome != supersededNone {
+		return "", false
+	}
 	// An optional row the owner marked `{intent: not-ever}` is one Ze will
 	// not support, so it is never the next gap; the figures still count it, as
 	// not built (openSectionOf). A gated row never carries an intent

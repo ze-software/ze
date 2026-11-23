@@ -38,6 +38,9 @@ func openSectionOfCorpusRow(corpus *priorityCorpus, requirement *Requirement) (o
 	if corpus.evidence.excluded(requirement) {
 		return openUnspecified, false
 	}
+	if outcome, _ := corpus.evidence.resolveSuperseded(requirement, corpus.proven); outcome != supersededNone {
+		return openUnspecified, false
+	}
 	unmet := corpus.evidence.unmet(requirement)
 	return openSectionOf(requirement, unmet, corpus.evidence.tested(requirement.RID)), true
 }

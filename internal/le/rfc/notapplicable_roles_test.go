@@ -549,3 +549,97 @@ func TestNotApplicableDocumentAuthorForms(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: {not-applicable} accepts operator/topology and IANA/IETF registry
+// obligations written in passive or conditional form while continuing to refuse
+// plain active protocol-speaker obligations, and accepts section-heading role
+// scoping checked against the RFC's section titles.
+// PREVENTS: forcing non-software obligations or section-scoped non-Ze roles
+// into {gap}, or letting active speaker requirements hide behind operator/IANA.
+func TestNotApplicableNonSoftwareAndHeadingForms(t *testing.T) {
+	t.Parallel()
+
+	accepted := []struct{ name, body string }{
+		{
+			"operator passive config",
+			`not-applicable: "Roles MUST NOT be configured on an eBGP session with a Complex peering relationship."; binds an operator; ze cannot tell whether a peering relationship is Complex`,
+		},
+		{
+			"operator network topology",
+			`not-applicable: "If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network."; binds a network operator; ze cannot verify physical network topology`,
+		},
+		{
+			"IANA passive allocation",
+			`not-applicable: "The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type."; binds IANA; ze allocates no extended community type`,
+		},
+		{
+			"section heading form",
+			`not-applicable: heading "Zone Signing"; binds a zone signer; ze does not sign DNS zones`,
+		},
+	}
+	for _, one := range accepted {
+		t.Run("accept/"+one.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := parseAnnotation(one.body, "fixture", registerUpperCase); err != nil {
+				t.Errorf("refused valid annotation: %v", err)
+			}
+		})
+	}
+
+	refused := []struct{ name, body string }{
+		{
+			"speaker obligation hiding behind operator",
+			`not-applicable: "A BGP speaker MUST send an OPEN message after TCP establishes."; binds an operator; not valid`,
+		},
+		{
+			"router obligation hiding behind IANA",
+			`not-applicable: "A router MUST discard packets with invalid checksums."; binds IANA; not valid`,
+		},
+		{
+			"heading form with generic role",
+			`not-applicable: heading "Zone Signing"; binds a router; generic role`,
+		},
+		{
+			"heading form missing reason",
+			`not-applicable: heading "Zone Signing"; binds a zone signer`,
+		},
+	}
+	for _, one := range refused {
+		t.Run("refuse/"+one.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := parseAnnotation(one.body, "fixture", registerUpperCase); err == nil {
+				t.Errorf("accepted disallowed annotation %q", one.body)
+			}
+		})
+	}
+
+	// Verify roleHeadingGap matches an ancestor heading in real RFC 4035 text
+	// and refuses a heading absent from the cited section's ancestry.
+	reader := newEvidenceReader(filepath.Join("..", "..", ".."))
+	okReq := &Requirement{
+		RFC:     "rfc4035",
+		RID:     "RFC4035-2.1-2",
+		Section: "2.1",
+		Annotation: &Annotation{
+			Kind:      AnnotationNotApplicable,
+			Heading:   "Zone Signing",
+			BoundRole: "zone signer",
+		},
+	}
+	if missing, lacks := reader.gap(okReq); lacks {
+		t.Errorf("roleHeadingGap refused valid RFC 4035 §2 ancestor heading: %s", missing)
+	}
+	badReq := &Requirement{
+		RFC:     "rfc4035",
+		RID:     "RFC4035-5.1-1",
+		Section: "5.1",
+		Annotation: &Annotation{
+			Kind:      AnnotationNotApplicable,
+			Heading:   "Zone Signing",
+			BoundRole: "zone signer",
+		},
+	}
+	if _, lacks := reader.gap(badReq); !lacks {
+		t.Errorf("roleHeadingGap accepted unrelated heading for RFC 4035 §5.1")
+	}
+}
