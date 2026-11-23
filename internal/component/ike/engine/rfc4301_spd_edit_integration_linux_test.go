@@ -1,7 +1,7 @@
 //go:build linux
 
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SPD dispositions
-// Related: spd_policy.go -- installSPDPolicies, whose write sequence this probes
+// Related: spd_policy.go -- reconcileSPDPolicies, whose write sequence this probes
 // Related: rfc4301_fragment_boundary_integration_linux_test.go -- the plain sender and the inbound DISCARD counter
 
 package engine
@@ -43,7 +43,7 @@ func (d *probingDP) RemovePolicyParams(p dataplane.SPParams) error {
 // METHOD: in the two-namespace lab on the real kernel, a bypass floor entry at order
 // 5000 passes all UDP from the peer, so a probe that meets no discard entry is
 // DELIVERED (the positive control, observed first). The discard entry is then
-// installed, and each edit is reconciled through installSPDPolicies on a backend that
+// installed, and each edit is reconciled through reconcileForTest on a backend that
 // sends one probe after each write and requires XfrmInPolBlock to count it and the
 // listener to receive nothing.
 // PREVENTS: the D-1 reconcile order, which removed the old form before installing the
@@ -77,7 +77,7 @@ func TestRFC4301DiscardHoldsAcrossAnEditedEntry(t *testing.T) {
 	installed := map[string]ipsec.SPDPolicy{"floor": floor}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), installed, log) })
 
-	if err := installSPDPolicies(dataplane.Get(), nil, installed, log); err != nil {
+	if err := reconcileForTest(dataplane.Get(), nil, installed, log); err != nil {
 		t.Fatalf("install the bypass floor: %v", err)
 	}
 	fragmentSend(t, plain, packet)
@@ -97,7 +97,7 @@ func TestRFC4301DiscardHoldsAcrossAnEditedEntry(t *testing.T) {
 	}
 
 	next := map[string]ipsec.SPDPolicy{"floor": floor, "drop": drop}
-	if err := installSPDPolicies(dataplane.Get(), installed, next, log); err != nil {
+	if err := reconcileForTest(dataplane.Get(), installed, next, log); err != nil {
 		t.Fatalf("install the discard entry: %v", err)
 	}
 	installed = next
@@ -118,7 +118,7 @@ func TestRFC4301DiscardHoldsAcrossAnEditedEntry(t *testing.T) {
 			probeDropped(t, edit.name+", after "+what)
 		}}
 		next := map[string]ipsec.SPDPolicy{"floor": floor, "drop": edit.entry}
-		if err := installSPDPolicies(probe, installed, next, log); err != nil {
+		if err := reconcileForTest(probe, installed, next, log); err != nil {
 			t.Fatalf("%s: reconcile the edit: %v", edit.name, err)
 		}
 		installed = next

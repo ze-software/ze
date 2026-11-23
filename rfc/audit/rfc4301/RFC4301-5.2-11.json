@@ -1,22 +1,22 @@
 {
   "code": {
-    "internal/component/ike/engine/child.go::installChildDataplane": "35767eadc1a24cc3"
+    "internal/component/ike/engine/child.go::installChildDataplane": "b6d51ccacfa0f004"
   },
-  "note": "Re-judged 2026-11-20 by an independent agent after the annotation's home moved to plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md, whose AC-7 homes this row by name, and after TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded changed: its counter reader icmpErrSNMP(t, \"InMsgs\") became icmpInMsgs(t), the same Icmp InMsgs read with the same assertions (a parameter-only rename). RFC 4301 Section 5.2: \"If an IPsec system receives an inbound packet on an SA and the packet's header fields are not consistent with the selectors for the SA, it MUST discard the packet.\" Tested: \"it MUST discard the packet\". Gap: \"If an IPsec system receives an inbound packet on an SA\". Producer: internal/component/ike/engine/child.go::installChildDataplane. The tunnel-mode test delivers an in-selector packet first, then for source, port and protocol misses requires no delivery and XfrmInStateMismatch +1 with XfrmInNoPols and XfrmInPolBlock unchanged, isolating the SA's own selector; the transport-mode test drops a port-6000 packet and an ICMP echo at the state (XfrmInStateMismatch +1); the non-error test drops an Echo Request whose outer headers miss the state selector (XfrmInStateMismatch +1, InMsgs not counting it) beside a delivered consistent error. Discard and delivery are distinct assertions. Single-pair fixtures only: a packet on one SA of a multi-pair or sibling set matching a sibling's selectors is unobserved. Scoped evidence only; zero whole-requirement credit.",
+  "note": "Re-judged 2026-11-23 by an independent agent after child.go::installChildDataplane and the E3 rename in rfc4301_sad_selector_linux_test.go changed. RFC 4301 Section 5.2: \"If an IPsec system receives an inbound packet on an SA and the packet's header fields are not consistent with the selectors for the SA, it MUST discard the packet.\" Tested: \"it MUST discard the packet\". Gap: \"If an IPsec system receives an inbound packet on an SA\". Producer: internal/component/ike/engine/child.go::installChildDataplane. installChildDataplane validates and attaches both directional state scopes via childStateScope before installing either state. TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector (renamed from ...ByTheRequirePolicy) delivers an in-selector packet and discards source, port and protocol misses at the state selector (XfrmInStateMismatch +1, XfrmInNoPols and XfrmInPolBlock unchanged, no delivery); TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors drops port-6000 and ICMP echo misses (XfrmInStateMismatch +1); TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded drops a forged Echo Request (XfrmInStateMismatch +1, Icmp InMsgs unchanged) beside a delivered consistent ICMP error. All tagged fixtures remain single-pair, so multi-pair/sibling isolation stays unproven. Scoped evidence only; zero whole-requirement credit.",
   "requirement_sha": "b0412eac45a776a6",
   "tests": {
     "internal/component/ike/dataplane/rfc4301_icmp_nonerror_integration_linux_test.go::TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded": "4896e855dbdf0982",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "1dd9e50c858535f9",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "1dd9e50c858535f9",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "1dd9e50c858535f9",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "1dd9e50c858535f9"
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "9bb806221651a000",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "9bb806221651a000",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector": "9bb806221651a000",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector#2": "9bb806221651a000"
   },
   "units": {
     "internal/component/ike/dataplane/rfc4301_icmp_nonerror_integration_linux_test.go::TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded": "ba3ca7577fc2f9a6",
     "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "b3696b4dc51cb0e0",
     "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "b3696b4dc51cb0e0",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "899aa81f69c7607c",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "899aa81f69c7607c"
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector": "3d9880a56a5c6f86",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector#2": "3d9880a56a5c6f86"
   },
   "verdict": "partial"
 }

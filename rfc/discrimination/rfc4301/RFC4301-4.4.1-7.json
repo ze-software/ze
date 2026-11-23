@@ -3,12 +3,12 @@
     "rid": "RFC4301-4.4.1-7",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_spd_edit_integration_linux_test.go::TestRFC4301DiscardHoldsAcrossAnEditedEntry",
-    "unit-sha": "28fe37ed272daf0e",
+    "unit-sha": "fe7e2dcf2ce8b2ab",
     "claim-sha": "26726a2de19ab9c0",
-    "route": "mutant",
-    "producer": "internal/component/ike/engine/spd_policy.go::installSPDPolicies",
-    "producer-sha": "e2fa3e48c0e69a4d",
-    "break": "line 201: \"if dp == nil {\" -\u003e \"if removeReplacedSPDPolicies(dp, previous, next, log); dp == nil {\""
+    "route": "revert",
+    "producer": "internal/component/ike/engine/spd_policy.go::reconcileSPDPolicies",
+    "producer-sha": "763978c9d1ccf60f",
+    "break": "body of reconcileSPDPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-4.4.1-7",

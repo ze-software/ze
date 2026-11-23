@@ -249,8 +249,10 @@ func fragmentPacketID(packet []byte, id uint16) {
 // TestRFC4301ForwardedFragmentsRespectOperatorDisposition observes actual egress
 // between three private namespaces under unmatched BYPASS. Whole protected UDP
 // leaves as ESP, BYPASS UDP is delivered in the clear, and DISCARD UDP is blocked.
-// Fragments of protected or discarded traffic must not fall through to cleartext;
-// reassembly before protection or exact refusal are permitted for the protected row.
+// Fragments of protected or discarded traffic must not fall through to cleartext:
+// K3 gathers forwarded fragments before the policy check, so a fragmented DISCARD
+// moves XfrmOutPolBlock by 1 and a fragmented PROTECT emits 1 ESP packet with
+// XfrmOutPolBlock unchanged.
 // It then turns unmatched to DISCARD, where only the port-scoped bypass's forward
 // entry admits its traffic, and requires the fragments of a bypassed datagram to cross
 // and the fragments of no permitted datagram to stay behind
@@ -296,7 +298,7 @@ func TestRFC4301ForwardedFragmentsRespectOperatorDisposition(t *testing.T) {
 		},
 	}
 	// RFC 4301 Sections 4.4.1 and 7.4.
-	if err := installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
+	if err := reconcileForTest(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
 		t.Fatalf("install the operator SPD entries: %v", err)
 	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, slogutil.DiscardLogger()) })
@@ -330,7 +332,7 @@ func TestRFC4301ForwardedFragmentsRespectOperatorDisposition(t *testing.T) {
 			fragmentSend(t, sender, packet)
 		}
 		fragmentSend(t, sender, fragmentForwardPacket(t, fragmentBypassPort, id+1))
-		seen := fragmentObserve(t, capture, id, id+1, child.OutboundSPI, tc.protect && !tc.split)
+		seen := fragmentObserve(t, capture, id, id+1, child.OutboundSPI, tc.protect)
 		if !sadSelDelivered(t, bypassed) {
 			t.Fatalf("%s: the subsequent ordinary BYPASS barrier was not delivered", tc.name)
 		}
@@ -348,13 +350,21 @@ func TestRFC4301ForwardedFragmentsRespectOperatorDisposition(t *testing.T) {
 		if seen.whole+seen.initial+seen.nonInitial+seen.other != 0 {
 			t.Errorf("%s: traffic that must not leave in clear reached the outside peer: %+v", tc.name, seen)
 		}
-		if !tc.protect && seen.protected != 0 {
+		gotBlocked := sadSelStat(t, outStepStatPolBlock) - blocked
+		if tc.protect {
+			if seen.protected != 1 {
+				t.Errorf("%s: protected ESP packets = %d, want 1 (%+v)", tc.name, seen.protected, seen)
+			}
+			if gotBlocked != 0 {
+				t.Errorf("%s: XfrmOutPolBlock moved by %d, want 0", tc.name, gotBlocked)
+			}
+			continue
+		}
+		if seen.protected != 0 {
 			t.Errorf("%s: discarded traffic unexpectedly left on ESP: %+v", tc.name, seen)
 		}
-		if !tc.protect && !tc.split {
-			if got := sadSelStat(t, outStepStatPolBlock) - blocked; got != 1 {
-				t.Errorf("%s: XfrmOutPolBlock moved by %d, want 1", tc.name, got)
-			}
+		if gotBlocked != 1 {
+			t.Errorf("%s: XfrmOutPolBlock moved by %d, want 1", tc.name, gotBlocked)
 		}
 	}
 
@@ -514,7 +524,7 @@ func TestRFC4301ForwardedIPv6FragmentsFollowAPortScopedBypass(t *testing.T) {
 		},
 	}
 	// RFC 4301 Sections 4.4.1 and 7.4.
-	if err := installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
+	if err := reconcileForTest(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
 		t.Fatalf("install the operator IPv6 SPD entry: %v", err)
 	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, slogutil.DiscardLogger()) })

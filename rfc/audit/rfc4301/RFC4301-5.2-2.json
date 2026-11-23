@@ -1,21 +1,21 @@
 {
   "code": {
-    "internal/component/ike/dataplane/xfrm_state_scope_linux.go::checkXFRMStateScopeCapabilities": "a94d0b4953ed9be8",
-    "internal/component/ike/engine/child.go::installChildDataplane": "35767eadc1a24cc3",
+    "internal/component/ike/dataplane/xfrm_state_scope_linux.go::checkXFRMStateScopeCapabilities": "e61bad11c23b810f",
+    "internal/component/ike/engine/child.go::installChildDataplane": "b6d51ccacfa0f004",
     "internal/component/ike/engine/child_scope.go::childStateScope": "84c776aa19fe0a2b"
   },
-  "note": "Re-judged 2026-11-20 by an independent agent after the annotation's home moved from plan/release/fixes/spec-rfc4301-architecture-gaps.md to plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md (AC-5, AC-7), whose AC-7 homes this row by name; no tagged unit changed. RFC 4301 Section 5.2: \"Then match the packet against the inbound selectors identified by the SAD entry to verify that the received packet is appropriate for the SA via which it was received.\" Tested: \"match the packet against the inbound selectors identified by the SAD entry\". Gap: \"verify that the received packet is appropriate for the SA via which it was received\". Producer: internal/component/ike/engine/child.go::installChildDataplane, with internal/component/ike/engine/child_scope.go::childStateScope and internal/component/ike/dataplane/xfrm_state_scope_linux.go::checkXFRMStateScopeCapabilities. The tunnel and transport SAD-selector tests deliver an in-selector packet and drop source, port and protocol misses at the state selector (XfrmInStateMismatch +1); the boundary units pin direction, exact port and template and refuse an out-of-mask port; the transport state selector is the negotiated pair; bare ESP whole and fragmented is policy-checked on an ESP-in-UDP state. All fixtures are single-pair, so per-SA isolation within a multi-pair or sibling set stays unproven (AC-7). Scoped evidence only; zero whole-requirement credit.",
+  "note": "Re-judged 2026-11-23 by an independent agent after checkXFRMStateScopeCapabilities, installChildDataplane and the E3 rename in rfc4301_sad_selector_linux_test.go changed. RFC 4301 Section 5.2: \"Then match the packet against the inbound selectors identified by the SAD entry to verify that the received packet is appropriate for the SA via which it was received.\" Tested: \"match the packet against the inbound selectors identified by the SAD entry\". Gap: \"verify that the received packet is appropriate for the SA via which it was received\". Producer: internal/component/ike/engine/child.go::installChildDataplane, with internal/component/ike/engine/child_scope.go::childStateScope and internal/component/ike/dataplane/xfrm_state_scope_linux.go::checkXFRMStateScopeCapabilities. checkXFRMStateScopeCapabilities now requires ABI 0x5a450001, saStateScopeMaxSelectors, no unknown bits and required feature mask 0xef (bits 0-3 and 5-7, including xfrmZECapICMPForwardGate); installChildDataplane builds both directional scopes via childStateScope before publishing either state. TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector (renamed from ...ByTheRequirePolicy to match its assertions) and TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors deliver in-selector packets and drop source, port and protocol misses at the state selector (XfrmInStateMismatch +1, XfrmInNoPols and XfrmInPolBlock unchanged in tunnel mode); TestRFC4301BareESPOnTemplatedSAIsPolicyChecked covers whole and fragmented bare ESP on an ESP-in-UDP state; TestRFC4301TransportStateSelectorIsTheNegotiatedPair and rfc4301_boundary_linux_test.go pin exact selectors. All tagged fixtures remain single-pair (TestRFC4301SiblingSAsKeepInboundSelectorsBound is untagged), so general multi-pair/sibling per-SA isolation stays unproven. Scoped evidence only; zero whole-requirement credit.",
   "requirement_sha": "78400ad653201193",
   "tests": {
     "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "668eee61429b2524",
     "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "668eee61429b2524",
     "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair": "574abc2fa42f900d",
-    "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC4301BareESPOnTemplatedSAIsPolicyChecked": "11e955c07821e222",
-    "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC4301BareESPOnTemplatedSAIsPolicyChecked#2": "11e955c07821e222",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "1dd9e50c858535f9",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "1dd9e50c858535f9",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "1dd9e50c858535f9",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "1dd9e50c858535f9"
+    "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC4301BareESPOnTemplatedSAIsPolicyChecked": "04a875666a6fa74e",
+    "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC4301BareESPOnTemplatedSAIsPolicyChecked#2": "04a875666a6fa74e",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "9bb806221651a000",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "9bb806221651a000",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector": "9bb806221651a000",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector#2": "9bb806221651a000"
   },
   "units": {
     "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4f6a7698e201b01f",
@@ -25,8 +25,8 @@
     "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC4301BareESPOnTemplatedSAIsPolicyChecked#2": "d06ba83f4293ff04",
     "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "b3696b4dc51cb0e0",
     "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "b3696b4dc51cb0e0",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "899aa81f69c7607c",
-    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "899aa81f69c7607c"
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector": "3d9880a56a5c6f86",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector#2": "3d9880a56a5c6f86"
   },
   "verdict": "partial"
 }

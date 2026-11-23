@@ -347,3 +347,120 @@ func TestFinalEntryRemovedUnderALivePeerIsNotPutBack(t *testing.T) {
 		t.Fatalf("peer-a delete of its PROTECT policy = %v (delete ran %v), want the kernel delete", err, ran)
 	}
 }
+
+// TestFinalEntryYieldsToOperatorWildcardAcrossReloadAndReinstates proves an operator
+// wildcard entry (0.0.0.0/0 -> 0.0.0.0/0, proto 0, any port) installed over the
+// catch-all is not overwritten when a later reload re-asserts the catch-all, keeps the
+// latest catch-all requested, and puts that catch-all back in one upsert when the
+// operator removes its wildcard entry.
+//
+// VALIDATES: Round-2 review finding R2-1 — wildcard operator policy survives assertUnmatched on reload.
+// PREVENTS: silent kernel overwrite of an operator wildcard DISCARD/BYPASS entry by the catch-all.
+func TestFinalEntryYieldsToOperatorWildcardAcrossReloadAndReinstates(t *testing.T) {
+	discard, _ := finalTestPair(t, SPActionDiscard)
+	bypass, _ := finalTestPair(t, SPActionBypass)
+	opWildcard := discard
+	opWildcard.Role = PolicyRoleOperator
+	opWildcard.Priority = 1000
+
+	var o policyOwners
+	if _, err := o.claim(discard); err != nil {
+		t.Fatalf("claim(catch-all) = %v", err)
+	}
+	o.label(discard)
+
+	// Operator wildcard replaces the catch-all in the kernel and keeps finals[key].
+	if _, err := o.claim(opWildcard); err != nil {
+		t.Fatalf("claim(operator wildcard) = %v", err)
+	}
+	o.label(opWildcard)
+	row := finalTestDisplaced(&o, opWildcard)
+	if row.Role != PolicyRoleOperator || !row.Displaced.Held() || row.Displaced.Action != SPActionDiscard {
+		t.Fatalf("operator wildcard row = %+v, want role operator displacing discard catch-all", row)
+	}
+
+	// Subsequent reload changes unmatched to bypass: yieldFinal must suppress kernel write
+	// and update the kept final entry to bypass.
+	if !o.yieldFinal(bypass) {
+		t.Fatal("reload: yieldFinal(bypass) = false under operator wildcard; assertUnmatched would overwrite the operator entry")
+	}
+	row = finalTestDisplaced(&o, opWildcard)
+	if row.Role != PolicyRoleOperator || !row.Displaced.Held() || row.Displaced.Action != SPActionBypass {
+		t.Fatalf("after reload row = %+v, want role operator displacing updated bypass catch-all", row)
+	}
+
+	// Removing the operator wildcard reinstates the kept bypass catch-all in one upsert.
+	var installed []SPParams
+	handled, err := o.reinstateFinal(opWildcard, func(final SPParams) error {
+		installed = append(installed, final)
+		return nil
+	})
+	if !handled || err != nil {
+		t.Fatalf("reinstateFinal(operator wildcard) = %v, %v; want handled without error", handled, err)
+	}
+	if len(installed) != 1 || installed[0].Role != PolicyRoleCatchAll || installed[0].Action != SPActionBypass {
+		t.Fatalf("reinstated = %+v, want single bypass catch-all", installed)
+	}
+	row = finalTestDisplaced(&o, bypass)
+	if row.Role != PolicyRoleCatchAll || row.Displaced.Held() {
+		t.Fatalf("after operator removal row = %+v, want plain catch-all", row)
+	}
+
+	// A stale or repeated delete of the operator wildcard once the catch-all holds the
+	// selector must answer errFinalEntryHolds (ENOENT) and never fall through to delete
+	// the live catch-all.
+	installCalls := 0
+	handled, err = o.reinstateFinal(opWildcard, func(SPParams) error {
+		installCalls++
+		return nil
+	})
+	if !handled || !errors.Is(err, syscall.ENOENT) || !errors.Is(err, errFinalEntryHolds) {
+		t.Fatalf("repeated reinstateFinal(operator wildcard) = %v, %v; want handled with errFinalEntryHolds (ENOENT)", handled, err)
+	}
+	if installCalls != 0 {
+		t.Fatalf("repeated reinstateFinal called install %d times; want 0", installCalls)
+	}
+}
+
+// TestInterfaceCatchAllDisplacementPreservesSPDInterfaceName proves that when a dual-family
+// wildcard VTI peer displaces every interface catch-all at an IfID (leaving no remaining
+// interface catch-all row for nameInterfaceSPDs to read), policyOwners.annotate still fills
+// SPDInterface from the displaced interface catch-all.
+//
+// VALIDATES: Round-2 review finding R2-2 — VTI SPD interface name survives full dual-family displacement.
+// PREVENTS: show vpn ipsec dataplane policy degrading to "if-id <n>" on dual-stack wildcard VTI peers.
+func TestInterfaceCatchAllDisplacementPreservesSPDInterfaceName(t *testing.T) {
+	var o policyOwners
+	const ifID = 42
+	for _, cidr := range []string{"0.0.0.0/0", "::/0"} {
+		wide := overlapTestNet(t, cidr)
+		for _, dir := range []SADir{SADirIn, SADirOut} {
+			ifaceCatchAll := SPParams{
+				Src: wide, Dst: wide, Dir: dir, Action: SPActionDiscard,
+				Role: PolicyRoleInterfaceCatchAll, SPD: "vti0", IfID: ifID,
+				Priority: PriorityUnmatched, SrcPort: AnyPortMatch(), DstPort: AnyPortMatch(),
+			}
+			protect := SPParams{
+				Src: wide, Dst: wide, Dir: dir, Action: SPActionProtect, Mode: ModeTunnel,
+				Owner: "vti-peer", Role: PolicyRoleChildSA, IfID: ifID,
+				Priority: PriorityChildSA, SrcPort: AnyPortMatch(), DstPort: AnyPortMatch(),
+			}
+			if _, err := o.claim(ifaceCatchAll); err != nil {
+				t.Fatalf("claim(%s %v iface catch-all) = %v", cidr, dir, err)
+			}
+			o.label(ifaceCatchAll)
+			if _, err := o.claim(protect); err != nil {
+				t.Fatalf("claim(%s %v protect) = %v", cidr, dir, err)
+			}
+			o.label(protect)
+
+			row := finalTestDisplaced(&o, protect)
+			if row.SPDInterface != "vti0" {
+				t.Fatalf("%s dir=%v: SPDInterface = %q, want %q", cidr, dir, row.SPDInterface, "vti0")
+			}
+			if !row.Displaced.Held() || row.Displaced.Role != PolicyRoleInterfaceCatchAll {
+				t.Fatalf("%s dir=%v: Displaced = %+v, want PolicyRoleInterfaceCatchAll", cidr, dir, row.Displaced)
+			}
+		}
+	}
+}

@@ -117,7 +117,7 @@ func TestRFC4301ForgedFragmentsTakeTheReassembledDatagramsDisposition(t *testing
 		},
 	}
 	// RFC 4301 Sections 4.4.1 and 7.4.
-	if err := installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
+	if err := reconcileForTest(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
 		t.Fatalf("install the operator bypass entry: %v", err)
 	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, slogutil.DiscardLogger()) })

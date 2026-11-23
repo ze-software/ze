@@ -118,7 +118,7 @@ func outStepSPD(t *testing.T) *ChildSA {
 			RemotePrefix: mustCIDRNet(t, outStepDiscardTarget+"/32"), RemotePort: anyPort,
 		},
 	}
-	if err := installSPDPolicies(dp, nil, entries, log); err != nil {
+	if err := reconcileForTest(dp, nil, entries, log); err != nil {
 		t.Fatalf("install the operator SPD entries: %v", err)
 	}
 	t.Cleanup(func() { removeSPDPolicies(dp, entries, log) })

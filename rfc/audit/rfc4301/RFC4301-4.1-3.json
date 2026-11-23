@@ -1,5 +1,5 @@
 {
-  "note": "every IKE peer SA is asserted modeTunnel; OSPFv3 transport SAs fall under the security-gateway-acting-as-host exception; single-polarity annotated",
+  "note": "Re-judged independently after correcting stale hardcodes-tunnel-mode prose. IKE now negotiates transport mode when configured, with real confinement guards (validatePeerSelectors, decideResponderTransportMode, keepSingleAddress, installChildSA forwardPolicy suppression), so the sole tagged test TestChildSAInstallsInDataplane (which exercises only default modeTunnel) does not test any transport-mode refusal or confinement guard; downgraded honestly to weak until transport-mode positive and negative tests are tagged.",
   "requirement_sha": "95378853d65e42a9",
   "tests": {
     "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3ecdcbdea3c4458f"
@@ -7,5 +7,5 @@
   "units": {
     "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

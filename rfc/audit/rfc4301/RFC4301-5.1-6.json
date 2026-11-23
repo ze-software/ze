@@ -1,13 +1,13 @@
 {
-  "note": "Step 3b SPD search. With no kernel SPD cache every packet, including the first of a flow, is looked up in the SPD (SPD-S: the Child SA PROTECT entry; SPD-O: operator BYPASS/DISCARD and the catch-all). Positive: first packets on the PROTECT and BYPASS entries take those entries' dispositions. Negative: a packet selecting no operator entry takes the catch-all's discard (EPERM, XfrmOutPolBlock +1), not a neighbouring entry's bypass. Claims name the cache absence rather than proving a cache. Records as 5.1-4.",
+  "note": "Re-judged 2026-11-23 by an independent agent after rfc4301_outbound_steps_linux_test.go changed. RFC 4301 Section 5.1 step 3b: \"If no match is found in the cache, search the SPD (SPD-S and SPD-O parts) specified by SPD-ID.\" With no kernel SPD cache, the first packet of each flow searches SPD-S (Child SA PROTECT) and SPD-O (operator BYPASS/DISCARD and catch-all). TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches and TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches verify first-packet PROTECT, BYPASS, operator DISCARD, and catch-all fallback on an unmatched port. Verdict stands.",
   "requirement_sha": "61a00d3b97e3843a",
   "tests": {
-    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "59e162e7881eb350",
-    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "59e162e7881eb350"
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "f407c8bf8d2c61f7",
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "f407c8bf8d2c61f7"
   },
   "units": {
     "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "3dd4e913175fac34",
-    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "356dd358920fc52b"
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "9d6f56dc8764c178"
   },
   "verdict": "enforced"
 }

@@ -228,7 +228,7 @@ func TestRFC4301OperatorEntryDecidesTransitTraffic(t *testing.T) {
 	}
 	log := slogutil.DiscardLogger()
 	// RFC 4301 Section 6.
-	if err := installSPDPolicies(dataplane.Get(), nil, entries, log); err != nil {
+	if err := reconcileForTest(dataplane.Get(), nil, entries, log); err != nil {
 		t.Fatalf("install the operator SPD entries: %v", err)
 	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, log) })

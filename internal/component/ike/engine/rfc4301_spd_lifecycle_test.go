@@ -219,8 +219,8 @@ func TestRFC4301FinalEntryIsUnderEveryZeSPDEntry(t *testing.T) {
 	if protectWrites != 2*len(protect) {
 		t.Fatalf("replayed %d writes of the Child SA's %d PROTECT entries, want each installed and removed", protectWrites, len(protect))
 	}
-	if others < 2*(2+len(protect)) {
-		t.Fatalf("replayed %d writes of entries other than the catch-all, want at least %d", others, 2*(2+len(protect)))
+	if others != 2*(2+len(protect)) {
+		t.Fatalf("replayed %d writes of entries other than the catch-all, want %d", others, 2*(2+len(protect)))
 	}
 	if len(live) != 0 {
 		t.Fatalf("after the release Ze still holds %d SPD entries: %+v", len(live), live)

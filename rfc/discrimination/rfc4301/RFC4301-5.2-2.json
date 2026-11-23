@@ -79,8 +79,8 @@
   {
     "rid": "RFC4301-5.2-2",
     "polarity": "positive",
-    "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy",
-    "unit-sha": "4b12728f3d98f11a",
+    "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector",
+    "unit-sha": "e9b39df2e2b922af",
     "claim-sha": "1528d29cddc38066",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
@@ -90,8 +90,8 @@
   {
     "rid": "RFC4301-5.2-2",
     "polarity": "negative",
-    "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy",
-    "unit-sha": "4b12728f3d98f11a",
+    "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector",
+    "unit-sha": "e9b39df2e2b922af",
     "claim-sha": "ff457bbf5e280f5a",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::appendChildPolicies",

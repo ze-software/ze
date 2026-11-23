@@ -90,12 +90,47 @@ func TestRFC4301UnmatchedNeverDiscardsWhatTheOperatorDidNotAskToDiscard(t *testi
 	if len(dp.installed) != 6 {
 		t.Fatalf("installed %d policies, want 6", len(dp.installed))
 	}
+	type bypassSlot struct {
+		ipv4 bool
+		dir  dataplane.SADir
+	}
+	seen := make(map[bypassSlot]bool, 6)
 	for _, p := range dp.installed {
-		if p.Action == dataplane.SPActionDiscard {
-			t.Errorf("dir %d: a bypass catch-all reached the dataplane as a discard", p.Dir)
+		if p.Action != dataplane.SPActionBypass {
+			t.Errorf("dir %d: action %d, want bypass (%d)", p.Dir, p.Action, dataplane.SPActionBypass)
 		}
 		if p.Priority <= operatorOrderMax {
 			t.Errorf("dir %d: priority %d is at or above an operator order", p.Dir, p.Priority)
+		}
+		if p.Priority <= dataplane.PriorityChildSA {
+			t.Errorf("dir %d: priority %d is at or above Child SA priority %d", p.Dir, p.Priority, dataplane.PriorityChildSA)
+		}
+		if ones, _ := p.Src.Mask.Size(); ones != 0 {
+			t.Errorf("dir %d: source %s is not the wildcard", p.Dir, p.Src)
+		}
+		if ones, _ := p.Dst.Mask.Size(); ones != 0 {
+			t.Errorf("dir %d: destination %s is not the wildcard", p.Dir, p.Dst)
+		}
+		if (p.Src.IP.To4() != nil) != (p.Dst.IP.To4() != nil) {
+			t.Errorf("dir %d: mixed address families %s -> %s", p.Dir, p.Src, p.Dst)
+		}
+		if p.UpperProto != 0 || !p.SrcPort.IsAny() || !p.DstPort.IsAny() {
+			t.Errorf("dir %d: selector is not any protocol, any port", p.Dir)
+		}
+		if p.Mode != 0 || p.ReqID != 0 || p.TunnelSrc != nil || p.TunnelDst != nil {
+			t.Errorf("dir %d: a bypass catch-all carries a template", p.Dir)
+		}
+		slot := bypassSlot{ipv4: p.Src.IP.To4() != nil, dir: p.Dir}
+		if seen[slot] {
+			t.Errorf("duplicate bypass catch-all for ipv4=%v dir=%d", slot.ipv4, slot.dir)
+		}
+		seen[slot] = true
+	}
+	for _, ipv4 := range []bool{true, false} {
+		for _, dir := range []dataplane.SADir{dataplane.SADirIn, dataplane.SADirOut, dataplane.SADirFwd} {
+			if !seen[bypassSlot{ipv4: ipv4, dir: dir}] {
+				t.Errorf("missing bypass catch-all for ipv4=%v dir=%d", ipv4, dir)
+			}
 		}
 	}
 

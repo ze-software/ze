@@ -1,13 +1,13 @@
 {
-  "note": "Step 3a: process as the matching entry says, BYPASS, DISCARD or PROTECT. PROTECT: the datagram reaches the remote endpoint as ESP carrying the Child SA outbound SPI, no XfrmOutNoStates. BYPASS: delivered in the clear, and no ESP copy on the raw socket. DISCARD: operator DISCARD entry refuses the write with EPERM, XfrmOutPolBlock +1, not delivered. All three dispositions asserted on kernel counters and delivery; AH is not installed by IKE (ESP only), so the PROTECT case is ESP. Records: producer revert red both polarities; overlays discard->ALLOW and bypass->BLOCK each redden exactly the unit that asserts that disposition.",
+  "note": "Re-judged 2026-11-23 by an independent agent after rfc4301_outbound_steps_linux_test.go changed. RFC 4301 Section 5.1 step 3a: \"If there is a match, then process the packet as specified by the matching cache entry, i.e., BYPASS, DISCARD, or PROTECT using AH or ESP.\" TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches asserts PROTECT (ESP arriving at remote endpoint carrying child.OutboundSPI, XfrmOutNoStates unchanged) and BYPASS (clear delivery, no ESP on raw socket). TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches asserts operator DISCARD (EPERM, XfrmOutPolBlock +1, not delivered) and catch-all DISCARD on an unmatched port. Verdict stands.",
   "requirement_sha": "3e509f5a715e6822",
   "tests": {
-    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "59e162e7881eb350",
-    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "59e162e7881eb350"
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "f407c8bf8d2c61f7",
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "f407c8bf8d2c61f7"
   },
   "units": {
     "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "3dd4e913175fac34",
-    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "356dd358920fc52b"
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "9d6f56dc8764c178"
   },
   "verdict": "enforced"
 }

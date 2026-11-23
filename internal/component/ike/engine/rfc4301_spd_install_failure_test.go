@@ -261,7 +261,7 @@ func TestSPDEntriesReachTheDataplaneInOrder(t *testing.T) {
 	want := []int{1000, 1000, 2000, 2000, 2000, 2000, 3000, 3000}
 	for range 20 {
 		dp := &bypassDP{}
-		if err := installSPDPolicies(dp, nil, entries, slogutil.DiscardLogger()); err != nil {
+		if err := reconcileForTest(dp, nil, entries, slogutil.DiscardLogger()); err != nil {
 			t.Fatalf("install: %v", err)
 		}
 		if len(dp.installed) != len(want) {

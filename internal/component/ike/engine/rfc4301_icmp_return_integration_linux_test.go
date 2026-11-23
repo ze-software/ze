@@ -435,7 +435,7 @@ func TestRFC4301ForwardedICMPErrorUnderOperatorDiscardMapsToReturnSA(t *testing.
 	if err := verifySPDOrder(&ipsec.IPsecConfig{Policies: entries}); err != nil {
 		t.Fatalf("the operator SPD under test is one Ze refuses at commit: %v", err)
 	}
-	if err := installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
+	if err := reconcileForTest(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
 		t.Fatalf("install the operator SPD entries: %v", err)
 	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, slogutil.DiscardLogger()) })
@@ -539,7 +539,7 @@ func TestRFC4301OperatorBypassForwardsTransitEchoInClear(t *testing.T) {
 	}
 	log := slogutil.DiscardLogger()
 	// RFC 4301 Section 6.
-	if err := installSPDPolicies(dataplane.Get(), nil, entries, log); err != nil {
+	if err := reconcileForTest(dataplane.Get(), nil, entries, log); err != nil {
 		t.Fatalf("install the operator SPD entry: %v", err)
 	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, log) })

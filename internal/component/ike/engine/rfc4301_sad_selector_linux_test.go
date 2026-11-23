@@ -388,14 +388,14 @@ func sadSelDelivered(t *testing.T, conn *net.UDPConn) bool {
 	return err == nil
 }
 
-// TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy proves the tunnel-mode
+// TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector proves the tunnel-mode
 // half of RFC 4301 Section 4.4.2 at the stack: the inbound SAD entry's selectors are the
 // negotiated ones, as enforced for every decapsulated packet. Method: a tunnel-mode Child SA
 // negotiated for UDP from 10.1.0.0/16 to local port 5000 of 10.2.0.0/16; then one inner
 // packet inside the selectors (delivered), and one each outside them by source address, by
 // port and by protocol (each dropped by the SA selector as XfrmInStateMismatch before
 // the SPD lookup, none delivered, with XfrmInNoPols and XfrmInPolBlock unchanged).
-func TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy(t *testing.T) {
+func TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheStateSelector(t *testing.T) {
 	// RFC requirement: RFC4301-4.4.2-1 positive -- a tunnel-mode inbound packet whose inner
 	// source, protocol and destination port are the negotiated ones is decrypted and
 	// delivered, through the inbound policy createFirstChildSA installs.

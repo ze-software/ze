@@ -147,9 +147,9 @@ func (o *policyOwners) label(p SPParams) {
 		o.finals[key] = p
 		return
 	}
-	if !ownedEntry(p) {
-		// Another node-wide entry took the selector, so the kernel no longer holds the
-		// final entry there and nothing stands in for it.
+	if !ownedEntry(p) && p.Role != PolicyRoleOperator {
+		// Another non-operator node-wide entry took the selector, so the kernel no
+		// longer holds the final entry there and nothing stands in for it.
 		delete(o.finals, key)
 	}
 }
@@ -179,8 +179,12 @@ func (o *policyOwners) annotate(info *PolicyInfo) {
 		info.Role, info.SPDInterface = label.role, label.spd
 	}
 	if final, kept := o.finals[key]; kept {
-		if _, standsIn := o.owners[key]; standsIn {
+		_, owned := o.owners[key]
+		if owned || o.operatorHeldLocked(key) {
 			info.Displaced = DisplacedFinalEntry{Role: final.Role, Action: final.Action}
+			if info.SPDInterface == "" {
+				info.SPDInterface = final.SPD
+			}
 		}
 	}
 }
@@ -471,6 +475,12 @@ func (o *policyOwners) deleteThenRelease(p SPParams, del func() error) error {
 			}
 			// A refused delete must not reach the kernel.
 			return &PolicyOwnedError{Selector: key, HeldBy: held.owner, WantedRole: p.Role}
+		}
+		if o.operatorHeldLocked(key) && finalEntry(p) {
+			// The kernel holds the operator's wildcard entry here, not this final entry,
+			// so forget the final entry without deleting the operator's kernel policy.
+			delete(o.finals, key)
+			return nil
 		}
 		delErr := del()
 		if delErr != nil && !errors.Is(delErr, syscall.ENOENT) {

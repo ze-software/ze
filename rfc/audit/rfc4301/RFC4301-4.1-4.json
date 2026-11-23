@@ -1,5 +1,5 @@
 {
-  "note": "inbound and outbound SA of one IKE pair both asserted modeTunnel, so the pair is same-mode; single-polarity annotated",
+  "note": "Re-judged independently after correcting stale hardcodes-tunnel-mode prose. ChildSA.Mode is a single scalar assigned to both inbound and outbound SAParams in installChildDataplane (single-polarity valid), but the sole tagged test TestChildSAInstallsInDataplane exercises only modeTunnel and would stay green if one side hardcoded modeTunnel on a modeTransport Child SA; downgraded honestly to weak until a tagged modeTransport same-mode pair test is added.",
   "requirement_sha": "0b810163c97a99f9",
   "tests": {
     "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3ecdcbdea3c4458f"
@@ -7,5 +7,5 @@
   "units": {
     "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

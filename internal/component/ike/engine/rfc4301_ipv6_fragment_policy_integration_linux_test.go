@@ -74,7 +74,7 @@ func TestRFC4301IPv6RawOutputFragmentsRespectPortPolicies(t *testing.T) {
 		},
 	}
 	// RFC 4301 Sections 4.4.1 and 7.4: apply the operator's actual SPD entries.
-	if err := installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
+	if err := reconcileForTest(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
 		t.Fatalf("install the operator SPD entries: %v", err)
 	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, slogutil.DiscardLogger()) })
@@ -94,7 +94,7 @@ func TestRFC4301IPv6RawOutputFragmentsRespectPortPolicies(t *testing.T) {
 	fallback.Action = dataplane.SPActionBypass
 	entries[fallback.Name] = fallback
 	// RFC 4301 Appendix D.4: the same production reconcile changes disposition.
-	if err := installSPDPolicies(dataplane.Get(), previous, entries, slogutil.DiscardLogger()); err != nil {
+	if err := reconcileForTest(dataplane.Get(), previous, entries, slogutil.DiscardLogger()); err != nil {
 		t.Fatalf("install the operator SPD entries: %v", err)
 	}
 	fragmentWantOperatorPolicies(t, entries)

@@ -44,10 +44,10 @@ import (
 // (src/libcharon/plugins/kernel_netlink/kernel_netlink_ipsec.c, add_policy and
 // del_policy over policy_entry_t.used_by).
 
-// DisplacedFinalEntry names the final entry of an SPD that a PROTECT policy stands in
-// for: the entry Ze was asked to hold on the policy's own selector, which the kernel
-// cannot hold beside it. Role is PolicyRoleUnspecified when the policy stands in for
-// none, and Action is then meaningless.
+// DisplacedFinalEntry names the final entry of an SPD that a peer's PROTECT policy or an
+// operator's wildcard entry stands in for: the entry Ze was asked to hold on the policy's
+// own selector, which the kernel cannot hold beside it. Role is PolicyRoleUnspecified
+// when the policy stands in for none, and Action is then meaningless.
 type DisplacedFinalEntry struct {
 	Role   PolicyRole
 	Action SPAction
@@ -58,11 +58,11 @@ func (d DisplacedFinalEntry) Held() bool {
 	return d.Role != PolicyRoleUnspecified
 }
 
-// errFinalEntryHolds answers an owner's delete at a selector where the kernel holds the
-// SPD's final entry and no policy of any owner. It wraps ENOENT, which is the fact the
-// kernel would report for the owner's policy, so a caller reads it as it reads a kernel
-// delete of a policy that is already gone.
-var errFinalEntryHolds = fmt.Errorf("the SPD's final entry holds this selector and no peer's policy does: %w", syscall.ENOENT)
+// errFinalEntryHolds answers a peer's or operator's delete at a selector where the kernel
+// holds the SPD's final entry and neither a peer's policy nor an operator's entry does.
+// It wraps ENOENT, which is the fact the kernel would report for a policy that is already
+// gone, so a caller reads it as it reads a kernel delete of a missing policy.
+var errFinalEntryHolds = fmt.Errorf("the SPD's final entry holds this selector and no peer's or operator's policy does: %w", syscall.ENOENT)
 
 // finalEntry reports whether p is the final entry of an SPD: the node-wide catch-all or
 // an XFRM interface's catch-all. The role decides, as it does for the ICMP yield
@@ -76,26 +76,27 @@ func finalEntry(p SPParams) bool {
 }
 
 // yieldFinal reports whether the final entry p must NOT be written to the kernel
-// because an owner's PROTECT policy holds p's selector, and records p as the entry to
-// put back when that policy goes. The caller makes no kernel call and answers success:
-// the lookup has its final entry, which is the PROTECT policy.
+// because an owner's PROTECT policy or an operator's wildcard entry holds p's selector,
+// and records p as the entry to put back when that policy goes. The caller makes no
+// kernel call and answers success: the lookup has its final entry, which is the holding
+// policy.
 //
 // It answers false for every other case, and the caller then installs p through claim:
-// no owner holds the selector, or the holder is a template-free allow, which cannot
-// stand in for a final entry and which claim refuses.
+// no owner or operator entry holds the selector, or the holder is a template-free allow
+// of a peer, which cannot stand in for a final entry and which claim refuses.
 //
 // The record replaces an earlier one, so a reload that changes `unmatched` while the
-// PROTECT policy is live changes the entry that is put back.
+// holding policy is live changes the entry that is put back.
 func (o *policyOwners) yieldFinal(p SPParams) bool {
 	key := policyKey(p)
 
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	held, existed := o.owners[key]
-	if !existed {
-		return false
-	}
-	if !held.protects {
+	if held, existed := o.owners[key]; existed {
+		if !held.protects {
+			return false
+		}
+	} else if !o.operatorHeldLocked(key) {
 		return false
 	}
 	if o.finals == nil {
@@ -105,27 +106,30 @@ func (o *policyOwners) yieldFinal(p SPParams) bool {
 	return true
 }
 
-// reinstateFinal handles an owner's delete of p at a selector Ze holds a final entry
-// for. handled is false when it does not apply, and the caller then runs
-// deleteThenRelease: p is not an owned entry, no final entry is kept at p's selector, a
-// different owner holds it, or an operator entry does (deleteThenRelease refuses the
-// last two).
+// reinstateFinal handles an owner's or operator's delete of p at a selector Ze holds a
+// final entry for. handled is false when it does not apply, and the caller then runs
+// deleteThenRelease: no final entry is kept at p's selector, p is neither an owned entry
+// nor an operator entry, a different owner holds it, or an operator entry holds what an
+// owner tried to delete (deleteThenRelease refuses the last two).
 //
-// When p's owner holds the selector, install is called with the kept final entry, and
-// MUST upsert it: the kernel replaces the PROTECT policy with the final entry in one
-// request, so the lookup always holds one of the two. The owner record goes, and the label
-// becomes the final entry's, only once install succeeded. On a failure the kernel still
-// holds the PROTECT policy, the record stays, and the error is returned: the caller
-// keeps the policy as not removed and retries.
+// When p's owner (or an operator deleting its own wildcard entry) holds the selector,
+// install is called with the kept final entry, and MUST upsert it: the kernel replaces
+// the removed policy with the final entry in one request, so the lookup always holds one
+// of the two. The owner record goes, and the label becomes the final entry's, only once
+// install succeeded. On a failure the kernel still holds the previous policy, the record
+// stays, and the error is returned: the caller keeps the policy as not removed and
+// retries.
 //
-// When NO owner holds the selector the kernel holds the final entry itself, so the
-// owner's policy is not there to delete, and a kernel delete would remove the final
-// entry. install is not called, and errFinalEntryHolds (ENOENT) is returned.
+// When NO owner and NO operator entry holds the selector for an owned or operator delete,
+// the kernel holds the final entry itself, so the requested policy is not there to
+// delete, and a kernel delete would remove the final entry. install is not called, and
+// errFinalEntryHolds (ENOENT) is returned.
 //
 // The lock spans install for the reason deleteThenRelease gives for del: check, kernel
 // request and record are one step.
 func (o *policyOwners) reinstateFinal(p SPParams, install func(final SPParams) error) (handled bool, err error) {
-	if !ownedEntry(p) {
+	owned := ownedEntry(p)
+	if !owned && p.Role != PolicyRoleOperator {
 		return false, nil
 	}
 	key := policyKey(p)
@@ -137,6 +141,22 @@ func (o *policyOwners) reinstateFinal(p SPParams, install func(final SPParams) e
 		return false, nil
 	}
 	held, existed := o.owners[key]
+	if !owned {
+		if existed {
+			return false, nil
+		}
+		if !o.operatorHeldLocked(key) {
+			return true, errFinalEntryHolds
+		}
+		if installErr := install(final); installErr != nil {
+			return true, installErr
+		}
+		if o.labels == nil {
+			o.labels = make(map[policySelectorKey]policyLabel)
+		}
+		o.labels[key] = policyLabel{role: final.Role, spd: final.SPD}
+		return true, nil
+	}
 	if !existed {
 		if o.operatorHeldLocked(key) {
 			return false, nil

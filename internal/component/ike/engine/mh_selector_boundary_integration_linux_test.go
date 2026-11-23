@@ -121,50 +121,6 @@ func mhBoundaryReceivers(t *testing.T, lab *espPolLab) (*net.IPConn, *net.IPConn
 	return local, forwarded
 }
 
-// mhBoundaryLANEgress gives decrypted MH packets an explicit cleartext route
-// to the protected LAN through the real operator-policy producer. Only OUT is
-// bypassed: IN and FWD still require the Child SA's exact selectors. This keeps
-// the separate unmatched-discard forwarding-default investigation from deciding
-// a test of MH classification before any MH field is examined.
-func mhBoundaryLANEgress(t *testing.T) {
-	t.Helper()
-	entry := ipsec.SPDPolicy{
-		Name: "mh-protected-lan", Action: dataplane.SPActionBypass,
-		Direction: ipsec.SPDDirOut, Order: 1500, Protocol: ipsec.MobilityHeaderProtocol,
-		LocalPrefix: mustCIDRNet(t, "2001:db8:121::/64"), LocalPort: ipsec.AnyPort(),
-		RemotePrefix: mustCIDRNet(t, "2001:db8:122::/64"), RemotePort: ipsec.AnyPort(),
-	}
-	entries := map[string]ipsec.SPDPolicy{entry.Name: entry}
-	log := slogutil.DiscardLogger()
-	if err := installSPDPolicies(dataplane.Get(), nil, entries, log); err != nil {
-		t.Fatalf("install the operator SPD entries: %v", err)
-	}
-	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, log) })
-	actual, err := dataplane.Get().ListPolicies()
-	if err != nil {
-		t.Fatalf("read back the private protected-LAN egress policy: %v", err)
-	}
-	for i := range actual {
-		policy := &actual[i]
-		if policy.Dir != dataplane.SADirOut || policy.Action != dataplane.SPActionBypass {
-			continue
-		}
-		if policy.UpperProto != ipsec.MobilityHeaderProtocol || policy.Priority != int(entry.Order) {
-			continue
-		}
-		if policy.Src == nil {
-			continue
-		}
-		if policy.Dst == nil {
-			continue
-		}
-		if policy.Src.String() == entry.LocalPrefix.String() && policy.Dst.String() == entry.RemotePrefix.String() {
-			return
-		}
-	}
-	t.Fatal("the exact private MH protected-LAN OUT BYPASS did not reach the kernel")
-}
-
 // mhBoundaryChild uses the real IKE Child SA creator and XFRM backend. The
 // remote side constrains received types; local remains ANY. Outer ESP uses
 // the ordinary UDP-encapsulated path so the test measures inner IPv6 selectors.
@@ -306,7 +262,6 @@ func TestMHChildPoliciesSelectIncomingIPv6Packets(t *testing.T) {
 	lab := newEspPolLab(t)
 	espPolSPD(t)
 	local, forwarded := mhBoundaryReceivers(t, lab)
-	mhBoundaryLANEgress(t)
 	natt := mbTransport(t, net.JoinHostPort(espPolZeOuter, "4500"), true)
 	if err := transport.EnableESPInUDP(natt.Conn()); err != nil {
 		t.Fatalf("enable ordinary ESP-in-UDP reception: %v", err)

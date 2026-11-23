@@ -2,8 +2,8 @@
   "note": "Step 4 first sentence: ESP processing with the SAD entry step 3a selected. Positive: the packet on the Child SA SPI is decrypted with that SA's key and delivered, XfrmInStateProtoError unchanged. Negative: right SPI, fresh sequence number, sealed with a zero key: ICV fails, XfrmInStateProtoError +1, not delivered, so processing uses the selected SA's key and not a pass-through. Judge ran both: PASS. Records: xfrmStateFromParams revert red both. AH processing (OSPFv3) not probed here.",
   "requirement_sha": "72d27927ab4b6176",
   "tests": {
-    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPFailingIntegrityIsDiscarded": "4648c74302f8ef4d",
-    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "4648c74302f8ef4d"
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPFailingIntegrityIsDiscarded": "a616863b27478a29",
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "a616863b27478a29"
   },
   "units": {
     "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPFailingIntegrityIsDiscarded": "824920b3c07d7595",
