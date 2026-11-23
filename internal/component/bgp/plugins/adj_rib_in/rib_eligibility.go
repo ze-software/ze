@@ -513,18 +513,28 @@ func (r *AdjRIBInManager) announcedGateCommand(status string, data any, err erro
 func (r *AdjRIBInManager) removeInstalled(peer receivedPeer, key compactRouteKey) {
 	r.noteValidationChange(peer, key)
 	if routes := r.ribIn[peer]; routes != nil {
+		if old, existed := routes.Get(key); existed && old.ImportFiltered {
+			r.adjustFilteredCountLocked(peer.address, -1)
+		}
 		routes.Delete(key)
 	}
 }
 
 func (r *AdjRIBInManager) removePeerInstalled(peer receivedPeer) {
+	removedFiltered := 0
 	if routes := r.ribIn[peer]; routes != nil {
-		routes.Range(func(key compactRouteKey, _ uint64, _ *RawRoute) bool {
+		routes.Range(func(key compactRouteKey, _ uint64, rt *RawRoute) bool {
+			if rt.ImportFiltered {
+				removedFiltered++
+			}
 			r.noteValidationChange(peer, key)
 			return true
 		})
 	}
 	delete(r.ribIn, peer)
+	if removedFiltered > 0 {
+		r.adjustFilteredCountLocked(peer.address, -removedFiltered)
+	}
 	for key := range r.validationPeers {
 		if key.source == peer {
 			delete(r.validationPeers, key)

@@ -1492,7 +1492,15 @@ code position:
    `bgp-role:otc-egress`) included, runs as a member of the peer's filter
    list, the step below. Signature (`engineIngressFunc`)
    `func(source PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)`.
-   `accept=false` drops the route (no caching, no dispatch). A non-nil
+   `accept=false` drops the route (no caching, no forwarding, no ordinary dispatch).
+   When the source peer has `rs-client true` and the verdict is not a teardown,
+   `notifyOneMessage` (`retainDeniedIngress`, `enqueueFilteredIngress`) queues
+   withdrawals for the affected prefixes on the ordinary `update` rail first (so
+   a denied replacement clears Loc-RIB and recipients) and then queues the original
+   pre-policy UPDATE bytes on the distinct `update-filtered` rail carrying the
+   denying step name so `bgp-adj-rib-in` retains the pre-policy population
+   (RFC 7947 Section 2.1). Mixed UPDATEs whose announcements are denied by
+   `ingressPolicyWithdrawals` follow the same route for `rs-client true` peers. A non-nil
    `modifiedPayload` REPLACES the original bytes; the reactor builds a fresh
    `WireUpdate` and updates `RawMessage.RawBytes / WireUpdate / AttrsWire`. The
    modified buffer is heap-allocated (not pool-backed).

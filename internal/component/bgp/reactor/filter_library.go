@@ -67,6 +67,10 @@ type libraryIntentContext struct {
 	// raw on a pass over a body the chain already rewrote (runFinalJudges).
 	// Nil on a chain's first pass, whose payload is that route.
 	chainInput []byte
+	// retainDenied asks rewriteLibrary to extract any policy-dropped
+	// announcement subset into deniedPayload with original pre-policy
+	// attributes, for route-server Adj-RIB-In retention (RFC 7947 Section 2.1).
+	retainDenied bool
 }
 
 // libraryResult is one library chain run, as the policy steps map it.
@@ -77,6 +81,11 @@ type libraryResult struct {
 	failed bool
 	// modifiedPayload is the rewritten body, nil when the sets change nothing.
 	modifiedPayload []byte
+	// deniedPayload owns a pre-policy UPDATE carrying only the announcement
+	// entries stripped by a partial-accept policy rewrite on an rs-client
+	// peer (RFC 7947 Section 2.1). Nil when no announcements were dropped or
+	// retainDenied was false.
+	deniedPayload []byte
 	// removals owns source-key withdrawals omitted by an accepted marked subset.
 	// Callers MUST apply them before the effective output, without running policy again.
 	removals [][]byte
@@ -219,9 +228,9 @@ func (r *Reactor) evaluateLibraryChain(library filterapi.LibraryChain, wireUpdat
 		return libraryResult{outcome: outcome, failed: true}
 	}
 	if record != nil {
-		return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, wireChanges: describeWireOps(&run.mods), treatments: treatments}
+		return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, deniedPayload: rewrite.deniedPayload, wireChanges: describeWireOps(&run.mods), treatments: treatments}
 	}
-	return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, treatments: treatments}
+	return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, deniedPayload: rewrite.deniedPayload, treatments: treatments}
 }
 
 // rewrote reports whether an accepting run changed the route's body.
@@ -370,6 +379,10 @@ type libraryRewrite struct {
 	// payload is the rewritten body, nil when the sets change nothing or
 	// cannot be applied.
 	payload []byte
+	// deniedPayload is the pre-policy announcement subset stripped by folded
+	// NLRI drops or family strips when intent.retainDenied is set
+	// (RFC 7947 Section 2.1).
+	deniedPayload []byte
 	// nlriRefused is set when an NLRI intent cannot be applied (refusal says
 	// why); modFail when buildModifiedPayload could not apply the operations.
 	nlriRefused bool
@@ -402,7 +415,98 @@ func (r *Reactor) rewriteLibrary(mods *filterapi.ModAccumulator, folded *policyc
 		return libraryRewrite{}
 	}
 	modPayload, _, modFail := buildModifiedPayload(payload, mods, r.attrModHandlers, nil, override)
-	return libraryRewrite{payload: modPayload, modFail: modFail}
+	if modFail.failed() {
+		return libraryRewrite{payload: modPayload, modFail: modFail}
+	}
+	var deniedPayload []byte
+	if intent.retainDenied {
+		if !folded.Empty() {
+			var deniedFail modifyFailure
+			deniedPayload, deniedFail = r.buildDeniedAnnouncementPayload(values, folded, wireUpdate, payload)
+			if deniedFail.failed() {
+				return libraryRewrite{modFail: deniedFail}
+			}
+		}
+	}
+	return libraryRewrite{payload: modPayload, deniedPayload: deniedPayload, modFail: modFail}
+}
+
+// buildDeniedAnnouncementPayload extracts the denied announcement subset of an
+// accepted partial-rewrite UPDATE for route-server Adj-RIB-In retention
+// (RFC 7947 Section 2.1). It preserves the original pre-policy path attributes
+// from payload, strips explicit withdrawals (which travel on the accepted rail),
+// and carries only the legacy NLRI and/or MP_REACH_NLRI entries that folded
+// dropped or stripped. Returns nil when folded dropped no announcement entries.
+func (r *Reactor) buildDeniedAnnouncementPayload(scratch *valueScratch, folded *policychain.Sets, wireUpdate *wireu.WireUpdate, payload []byte) ([]byte, modifyFailure) {
+	ctx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
+	var deniedMods filterapi.ModAccumulator
+	deniedOverride := noNLRI
+	hasDenied := false
+
+	annSource, err := nlriSectionOf(wireUpdate, ctx, sectionAnnounce)
+	if err == nil {
+		if annSource.present {
+			if len(annSource.raw) > 0 {
+				annDrops := folded.NLRIDrops(policychain.NLRISectionAnnounce)
+				if folded.StripsFamily(annSource.fam) {
+					deniedOverride = annSource.raw
+					hasDenied = true
+				} else if len(annDrops) > 0 {
+					kept, ok := keepNLRI(scratch, annSource, annDrops)
+					if !ok {
+						return nil, modifyFailureMalformed
+					}
+					if len(kept) > 0 {
+						deniedOverride = kept
+						hasDenied = true
+					}
+				}
+			}
+		}
+	}
+
+	mpSource, err := nlriSectionOf(wireUpdate, ctx, sectionMPReach)
+	if err == nil {
+		if mpSource.present {
+			mpDrops := folded.NLRIDrops(policychain.NLRISectionMPReach)
+			keepMP := false
+			if len(mpSource.raw) > 0 {
+				if folded.StripsFamily(mpSource.fam) {
+					keepMP = true
+					hasDenied = true
+				} else if len(mpDrops) > 0 {
+					kept, ok := keepNLRI(scratch, mpSource, mpDrops)
+					if !ok {
+						return nil, modifyFailureMalformed
+					}
+					if len(kept) > 0 {
+						deniedMods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModReplaceNLRI, kept)
+						keepMP = true
+						hasDenied = true
+					}
+				}
+			}
+			if !keepMP {
+				deniedMods.Op(uint8(attribute.AttrMPReachNLRI), filterapi.AttrModReplaceNLRI, noNLRI)
+			}
+		}
+	}
+
+	if !hasDenied {
+		return nil, modifyFailureNone
+	}
+
+	// Explicit withdrawals travel on the accepted update rail, never as filtered announcements.
+	deniedMods.SetWithdrawnRewrite(noNLRI)
+	mpUnreach, unreachErr := nlriSectionOf(wireUpdate, ctx, sectionMPUnreach)
+	if unreachErr == nil {
+		if mpUnreach.present {
+			deniedMods.Op(uint8(attribute.AttrMPUnreachNLRI), filterapi.AttrModReplaceNLRI, noNLRI)
+		}
+	}
+
+	deniedBody, _, modFail := buildModifiedPayload(payload, &deniedMods, r.attrModHandlers, nil, deniedOverride)
+	return deniedBody, modFail
 }
 
 // libraryCaller reaches an external member's plugin through the plugin

@@ -562,6 +562,7 @@ one.
 | Sysctl management | Yes | No | No | Partial | Partial | No | No | No | No | No | No |
 | Sysctl profiles | Yes | No | No | No | No | No | No | No | No | No | No |
 | Route server mode | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes |
+| Route server pre-policy Adj-RIB-In (RFC 7947 §2.1) | Yes (`rs-client true`) <!-- source: internal/component/bgp/reactor/reactor_notify.go -- retainDeniedIngress, enqueueFilteredIngress --> | Yes | Yes | Yes | Yes | Yes | Unclear | No | No | Yes | Unclear |
 | Dynamic neighbors | Yes | Yes | Yes | Yes | No | Yes | No | No | Yes | No | Yes |
 | Looking glass | Yes | Yes | Yes | No | Yes | No | Yes | No | No | Yes | Yes |
 | Multicast RPF lookup | Yes | No | No | Yes | No | No | No | No | No | No | Yes |

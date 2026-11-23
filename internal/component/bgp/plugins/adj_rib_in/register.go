@@ -3,6 +3,7 @@ package adj_rib_in
 import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -20,6 +21,9 @@ func init() {
 		SignalsSessionReady: true,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureMetrics: func(reg metrics.Registry) {
+			SetMetricsRegistry(reg)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

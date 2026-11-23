@@ -75,6 +75,11 @@ type ingressStepResult struct {
 	// On an rs-client peer, notifyOneMessage retains the original pre-policy
 	// UPDATE in Adj-RIB-In marked filtered (RFC 7947 Section 2.1).
 	deniedAnnouncements bool
+	// deniedPayload owns a pre-policy UPDATE carrying only the announcement
+	// entries stripped by a partial-accept policy rewrite (e.g. a prefix-list
+	// dropping one prefix from a multi-NLRI UPDATE) on an rs-client peer
+	// (RFC 7947 Section 2.1).
+	deniedPayload []byte
 }
 
 // orderedEgressStep is one entry of the egress pass forwardUpdateCore runs per
@@ -172,7 +177,11 @@ func (r *Reactor) runIngressPolicyChainMeta(peer *Peer, peerAddr netip.Addr, src
 			*meta = make(map[string]any, 2)
 		}
 		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
-		intent := libraryIntentContext{asn4: srcCtx != nil && srcCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: true}
+		retainDenied := false
+		if src != nil {
+			retainDenied = src.RSClient
+		}
+		intent := libraryIntentContext{asn4: srcCtx != nil && srcCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: true, retainDenied: retainDenied}
 		session := importSession(src, external, peerAS).WithImportMetadata(*meta)
 		res := r.runLibraryChain(library, wireUpdate, payload, &session, intent,
 			directionImport, modifySiteImportChain, peerAddr.String(), nil)
@@ -192,7 +201,7 @@ func (r *Reactor) runIngressPolicyChainMeta(peer *Peer, peerAddr netip.Addr, src
 		if res.failed {
 			return ingressStepResult{} // a guard miss: drop the route
 		}
-		return ingressStepResult{accept: true, modifiedPayload: res.modifiedPayload, removals: res.removals}
+		return ingressStepResult{accept: true, modifiedPayload: res.modifiedPayload, removals: res.removals, deniedPayload: res.deniedPayload}
 	}
 	if !hasActiveFilter(policy, directionImport) {
 		// RFC 8212 Section 3.

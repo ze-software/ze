@@ -201,6 +201,22 @@ passing interop result.
 <!-- source: internal/le/interoplab/bgp/check_best_route_transit.go -- checkBestRouteTransit -->
 <!-- source: internal/le/interoplab/bgp/prepare_best_route_transit.go -- bestRouteTransitCopyPeer -->
 
+### Route server pre-policy Adj-RIB-In retention and replay exclusion
+
+`bgp-route-server-filtered-adj-rib-in-frr` extends `bgp-route-server-frr` with
+FRR 10.7.1 originating both an accepted prefix (`10.99.0.0/24`) and an
+import-policy-denied prefix (`10.99.1.0/24`) to a `rs-client true` Ze route
+server, with BIRD 3.4.0 as the second `rs-client true` peer. Ze's
+`show bgp adj-rib-in` must retain both prefixes under FRR's peer address with
+`10.99.1.0/24` marked `filtered: true` and `filter-step: peer-policy-chain`,
+`show bgp adj-rib-in status` must report `total-routes: 2` and
+`filtered-routes: 1`, and `show bgp rib` must omit `10.99.1.0/24`. BIRD must
+receive `10.99.0.0/24` with transparent AS_PATH `65002` and never receive
+`10.99.1.0/24`, both on the live rail and after bouncing `ze_peer`
+(`birdc disable ze_peer` then `birdc enable ze_peer`) so `bgp-rs` replays from
+`bgp-adj-rib-in`.
+<!-- source: internal/le/interoplab/bgp/check_rfc7947_filtered.go -- checkRouteServerFilteredAdjRIBIn -->
+
 ## Tested Daemons
 
 | Daemon | Version | Image | Query Method | What It Validates |

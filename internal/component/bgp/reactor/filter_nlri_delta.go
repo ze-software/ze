@@ -171,3 +171,10 @@ func recordNLRIRewrite(section nlriSection, kept []byte, override *[]byte, mods 
 func dropNLRI(scratch *valueScratch, source nlriSource, drops []uint16) ([]byte, bool) {
 	return wireu.DropCIDREntries(scratch.carveBytes(len(source.raw))[:0], source.raw, source.addPath, drops)
 }
+
+// keepNLRI returns only the NLRI entries of source that start at an offset in
+// keeps, which MUST be ascending and each once. It is the complement of
+// dropNLRI for extracting policy-denied NLRI subsets (RFC 7947 Section 2.1).
+func keepNLRI(scratch *valueScratch, source nlriSource, keeps []uint16) ([]byte, bool) {
+	return wireu.KeepCIDREntries(scratch.carveBytes(len(source.raw))[:0], source.raw, source.addPath, keeps)
+}

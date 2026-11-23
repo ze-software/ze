@@ -440,35 +440,7 @@ func RunRouteServer(conn net.Conn) int {
 			if !ok {
 				continue
 			}
-			switch se.EventType {
-			case rpc.EventKindUpdate:
-				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
-					rs.dispatchStructured(se.PeerAddress, msg)
-				}
-			case rpc.EventKindState:
-				if ev := parseStructuredState(se); ev != nil {
-					rs.handleState(ev)
-				}
-			case rpc.EventKindOpen:
-				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
-					if ev := parseStructuredOpen(se, msg); ev != nil {
-						rs.handleOpen(ev)
-					}
-				}
-			case rpc.EventKindRefresh:
-				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
-					if ev := parseStructuredRefresh(se, msg); ev != nil {
-						rs.handleRefresh(ev)
-					}
-				}
-			case rpc.EventKindUnspecified, rpc.EventKindNotification, rpc.EventKindKeepalive,
-				rpc.EventKindEOR, rpc.EventKindBoRR, rpc.EventKindEoRR,
-				rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindUpdateFiltered,
-				rpc.EventKindCount:
-				// These events do not change route-server state.
-			default:
-				// The plugin event set is open; unknown events leave route-server state unchanged.
-			}
+			rs.handleStructuredEvent(se)
 		}
 		return nil
 	})
@@ -518,12 +490,7 @@ func RunRouteServer(conn net.Conn) int {
 	// overwrites Families each time, so the last OPEN wins. If the sent OPEN
 	// arrives last, the peer's families are wrong and selectForwardTargets
 	// excludes it from forwarding.
-	p.SetStartupSubscriptions([]string{
-		eventUpdate + " direction received", //nolint:goconst // const folded at compile time
-		eventState,
-		eventOpen + " direction received", //nolint:goconst // const folded at compile time
-		eventRefresh,
-	}, nil, "")
+	p.SetStartupSubscriptions(routeServerStartupSubscriptions(), nil, "")
 
 	// Request text encoding — strings.Fields parsing instead of json.Unmarshal.
 	p.SetEncoding("text")
@@ -548,6 +515,52 @@ func RunRouteServer(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// routeServerStartupSubscriptions returns the base BGP startup subscriptions
+// registered by bgp-rs. It excludes update-filtered by design (RFC 7947 §2.1).
+func routeServerStartupSubscriptions() []string {
+	return []string{
+		eventUpdate + " direction received", //nolint:goconst // const folded at compile time
+		eventState,
+		eventOpen + " direction received", //nolint:goconst // const folded at compile time
+		eventRefresh,
+	}
+}
+
+// handleStructuredEvent dispatches one structured BGP event received over the
+// DirectBridge fast path. EventKindUpdateFiltered is ignored without modifying
+// route-server state (RFC 7947 §2.1).
+func (rs *routeServer) handleStructuredEvent(se *rpc.StructuredEvent) {
+	switch se.EventType {
+	case rpc.EventKindUpdate:
+		if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
+			rs.dispatchStructured(se.PeerAddress, msg)
+		}
+	case rpc.EventKindState:
+		if ev := parseStructuredState(se); ev != nil {
+			rs.handleState(ev)
+		}
+	case rpc.EventKindOpen:
+		if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
+			if ev := parseStructuredOpen(se, msg); ev != nil {
+				rs.handleOpen(ev)
+			}
+		}
+	case rpc.EventKindRefresh:
+		if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
+			if ev := parseStructuredRefresh(se, msg); ev != nil {
+				rs.handleRefresh(ev)
+			}
+		}
+	case rpc.EventKindUnspecified, rpc.EventKindNotification, rpc.EventKindKeepalive,
+		rpc.EventKindEOR, rpc.EventKindBoRR, rpc.EventKindEoRR,
+		rpc.EventKindSent, rpc.EventKindNegotiated, rpc.EventKindUpdateFiltered,
+		rpc.EventKindCount:
+		// These events do not change route-server state.
+	default:
+		// The plugin event set is open; unknown events leave route-server state unchanged.
+	}
 }
 
 // releaseCache acks a cached UPDATE for this plugin (rs) via the reactor-owned

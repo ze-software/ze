@@ -45,11 +45,7 @@ func pendingKey(peerAddr receivedPeer, routeKey compactRouteKey) compactPendingK
 func (r *AdjRIBInManager) promoteToInstalled(pr *pendingRoute, validationState uint8) {
 	pr.route.ValidationState = validationState
 
-	if r.ribIn[pr.peerAddr] == nil {
-		r.ribIn[pr.peerAddr] = newSeqMap()
-	}
-	r.seqCounter++
-	r.ribIn[pr.peerAddr].Put(pr.routeKey, r.seqCounter, pr.route)
+	r.putInstalledRouteLocked(pr.peerAddr, pr.routeKey, pr.route)
 	r.noteValidationChange(pr.peerAddr, pr.routeKey)
 }
 

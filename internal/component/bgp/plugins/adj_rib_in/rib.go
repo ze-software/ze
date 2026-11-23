@@ -165,6 +165,10 @@ type AdjRIBInManager struct {
 	// authority over another owner at the same address.
 	ribIn map[receivedPeer]*seqmap.Map[compactRouteKey, *RawRoute]
 
+	// filteredByPeer tracks the current import-filtered route count per peer
+	// address for the ze_adjribin_routes_filtered gauge. Protected by mu.
+	filteredByPeer map[netip.Addr]int
+
 	// peerUp tracks which peers are currently up.
 	peerUp map[netip.Addr]bool
 
@@ -758,11 +762,7 @@ func (r *AdjRIBInManager) installStructuredNLRIsWithFilter(peerAddr receivedPeer
 			if importFiltered {
 				r.removePending(peerAddr, rk)
 			}
-			if r.ribIn[peerAddr] == nil {
-				r.ribIn[peerAddr] = newSeqMap()
-			}
-			r.seqCounter++
-			r.ribIn[peerAddr].Put(rk, r.seqCounter, route)
+			r.putInstalledRouteLocked(peerAddr, rk, route)
 			// The registered lookup still fences received generations when
 			// RPKI is disabled. Wake selection if it saw this UPDATE first.
 			r.noteValidationChange(peerAddr, rk)
@@ -1066,11 +1066,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							if importFiltered {
 								r.removePending(source, rk)
 							}
-							if r.ribIn[source] == nil {
-								r.ribIn[source] = newSeqMap()
-							}
-							r.seqCounter++
-							r.ribIn[source].Put(rk, r.seqCounter, route)
+							r.putInstalledRouteLocked(source, rk, route)
 							if isSimplePrefixFamily(fam) {
 								r.noteValidationChange(source, rk)
 							}

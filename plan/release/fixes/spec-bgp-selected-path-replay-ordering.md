@@ -12,7 +12,7 @@
 | Handoff | - |
 | Updated | 2026-11-22 |
 
-Split out of `plan/release/fixes/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md`
+Split out of `spec-rfc7947-adj-rib-in-accepts-filtered-updates`
 on 2026-11-22 (owner approval) so RFC 7947 Section 2.1 pre-policy Adj-RIB-In
 retention lands cleanly without carrying an orthogonal RR/RS cold-worker
 redesign.
@@ -112,7 +112,7 @@ design review before implementation.
 |----------|--------|
 | What breaks if this is wrong? | Delayed replay answers can overwrite newer routes or resurrect withdrawn ones |
 | How is it reverted? | Revert ticket admission and RS cold worker commit |
-| Who else touches this path? | `spec-rfc7947-adj-rib-in-accepts-filtered-updates.md` touches `replayPathCommand` for import-filtered suppression |
+| Who else touches this path? | Closed `spec-rfc7947-adj-rib-in-accepts-filtered-updates` added import-filtered suppression to `replayPathCommand` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

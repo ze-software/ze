@@ -50,7 +50,7 @@ All families decode. Most encode. Use `ze show plugin list` to see the current s
 | bgp-rs (route server) | Working -- forwards each received UPDATE with zero-copy optimization; a client without ADD-PATH whose prefix several sources contest is sent the route `bgp-rib` elects |
 | bgp-gr (graceful restart) | Working -- stale route retention, restart marker, timer expiry |
 | bgp-rpki (RPKI validation) | Working -- RTR client, origin validation, fail-open safety |
-| bgp-adj-rib-in | Working -- raw hex replay for convergent replay |
+| bgp-adj-rib-in | Working -- raw hex replay for convergent replay and pre-policy `update-filtered` retention for `rs-client true` peers <!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- runAdjRIBInPlugin --> |
 | bgp-route-refresh | Working -- RFC 2918 and RFC 7313 enhanced route refresh |
 | role (RFC 9234) | Working -- OTC filtering, role mismatch detection |
 | bgp-hostname, bgp-softver | Working -- capability advertisement |

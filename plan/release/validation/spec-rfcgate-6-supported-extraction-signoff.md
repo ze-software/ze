@@ -6,7 +6,7 @@
 | Priority | P2 |
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
 | Scope | protocol |
-| Depends | `plan/release/fixes/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md` (RFC 7947 implementation/sign-off slice) |
+| Depends | - |
 | Phase | - |
 | Handoff | verify |
 | Updated | 2026-09-19 |
@@ -33,7 +33,7 @@ Status is `blocked` for that decision, rather than claiming the package is ready
 |---|---|
 | Untested obligations and stale discrimination records named on 2026-09-05 | This spec retains AC-2 and the final evidence reconciliation. Derive current ids and proof state from summaries, tags and records; do not repeat the old totals as current debt |
 | RFC 5798 functional backfill | `plan/release/validation/spec-rfc-evidence-deferred-unbootable-suite-musts.md` owns the full VRRP proof alongside BFD and DHCP. Its completion supplies evidence here; it does not remove RFC 5798 from AC-2 |
-| RFC 7947 filtered Adj-RIB-In and extraction | `plan/release/fixes/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md` supplies that slice |
+| RFC 7947 filtered Adj-RIB-In and extraction | Closed `spec-rfc7947-adj-rib-in-accepts-filtered-updates` landed this slice (`rfc/extraction/rfc7947.json`, `RFC7947-2.1-1`) |
 | RFC 5176 residual behaviour | The extraction signed on 2026-09-01. `plan/release/fixes/spec-rfc5176-remaining-defect-classes.md` owns atomic multi-change application and subscriber selector correctness; `plan/release/fixes/spec-lifecycle-invariants.md` owns applied-result reporting and PPPoE delivery. The signature does not close either |
 | Class A scope conflict | Thomas must resolve RFC 4301 and RFC 9582 explicitly before closure; all original obligations remain accounted for meanwhile |
 | RFC 7607 interop proof for AS 0 in an UPDATE's own AS_PATH | This spec. No scenario under `test/interop/scenarios/` proves it: `bgp-attr-set-included-as-set-frr-bird` carries AS 0 only inside an ATTR_SET. The scenario must have a raw injector send Ze an UPDATE whose AS_PATH holds AS 0, together with a control prefix, and assert that FRR receives the control prefix from Ze and never the prefix carried with AS 0 (`ai/rules/interop-and-goal-validation.md`), with the red recorded against a reverted AS 0 check |

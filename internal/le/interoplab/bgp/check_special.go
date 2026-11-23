@@ -72,6 +72,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	// differs, so one checker judges both (failures name the internal scenario).
 	"bgp-role-otc-withdraw-frr-forked": checkOTCWithdrawal,
 	"bgp-route-server-frr":             checkRouteServerASPath,
+	routeServerFilteredScenario:        checkRouteServerFilteredAdjRIBIn,
 	"bgp-self-nexthop-withheld-frr":    checkSelfNextHopWithheld,
 	"bgp-wellknown-noexport-frr":       checkNoExportBoundary,
 	"bgp-holdtime-deadpeer-frr":        checkHoldtimeDeadPeer,

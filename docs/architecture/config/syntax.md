@@ -1560,6 +1560,7 @@ attach process <plugin-name> {
 | Value | Description |
 |-------|-------------|
 | `update` | Route announcements |
+| `update-filtered` | Ingress-denied UPDATEs retained pre-policy for route-server clients (`rs-client true`, RFC 7947 Section 2.1) <!-- source: internal/core/bgp/events/events.go -- EventUpdateFiltered --> |
 | `open` | Session open messages |
 | `notification` | Error notifications |
 | `keepalive` | Keepalive messages |

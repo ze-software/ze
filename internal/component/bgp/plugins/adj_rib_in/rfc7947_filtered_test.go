@@ -1,6 +1,7 @@
 // Design: docs/architecture/plugin/rib-storage-design.md -- RFC 7947 Section 2.1 import-filtered Adj-RIB-In entries
 // RFC: rfc/short/rfc7947.md -- Section 2.1
 // Related: rib.go, rib_commands.go, rib_eligibility.go, rib_replay_path.go
+// RFC naming: untagged -- unit tests of Adj-RIB-In filtered lifecycle, views, replay skip, and Prometheus gauge; RFC7947-2.1-1 conformance tags live in reactor/rfc7947_filtered_conformance_test.go.
 package adj_rib_in
 
 import (
@@ -19,10 +20,11 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-func ipv4FilteredBody(nlri []byte, withdrawn []byte) []byte {
+func ipv4FilteredBody(nlri, withdrawn []byte) []byte {
 	// ORIGIN(IGP)=40010100, NEXT_HOP(10.0.0.1)=4003040a000001
 	attrs := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x03, 0x04, 10, 0, 0, 1}
 	if len(nlri) == 0 {
@@ -37,6 +39,7 @@ func ipv4FilteredBody(nlri []byte, withdrawn []byte) []byte {
 	return body
 }
 
+//nolint:unparam // peer parameter kept explicit so tests can add multi-peer cases
 func structuredFilteredEvent(t *testing.T, ctxID bgpctx.ContextID, peer string, owner, connID, msgID uint64, kind rpc.EventKind, step string, body []byte) *rpc.StructuredEvent {
 	t.Helper()
 	wu := wireu.NewWireUpdate(body, ctxID)
@@ -187,4 +190,190 @@ func TestAdjRIBInFilteredLifecycleAndViews(t *testing.T) {
 	st = statusMap(t, r)
 	assert.Equal(t, 0, st["total-routes"])
 	assert.Equal(t, 0, st["filtered-routes"])
+}
+
+type fakeGauge struct {
+	val float64
+}
+
+func (g *fakeGauge) Set(v float64) { g.val = v }
+func (g *fakeGauge) Inc()          { g.val++ }
+func (g *fakeGauge) Dec()          { g.val-- }
+func (g *fakeGauge) Add(v float64) { g.val += v }
+
+type fakeGaugeVec struct {
+	values map[string]*fakeGauge
+}
+
+func (v *fakeGaugeVec) With(labelValues ...string) metrics.Gauge {
+	key := ""
+	if len(labelValues) > 0 {
+		key = labelValues[0]
+	}
+	if v.values == nil {
+		v.values = make(map[string]*fakeGauge)
+	}
+	g, ok := v.values[key]
+	if !ok {
+		g = &fakeGauge{}
+		v.values[key] = g
+	}
+	return g
+}
+
+func (v *fakeGaugeVec) Delete(labelValues ...string) bool {
+	if len(labelValues) == 0 || v.values == nil {
+		return false
+	}
+	_, ok := v.values[labelValues[0]]
+	delete(v.values, labelValues[0])
+	return ok
+}
+
+type fakeMetricsRegistry struct {
+	metrics.NopRegistry
+	gauges map[string]*fakeGaugeVec
+}
+
+func (r *fakeMetricsRegistry) GaugeVec(name, _ string, _ []string) metrics.GaugeVec {
+	if r.gauges == nil {
+		r.gauges = make(map[string]*fakeGaugeVec)
+	}
+	v := &fakeGaugeVec{values: make(map[string]*fakeGauge)}
+	r.gauges[name] = v
+	return v
+}
+
+// TestAdjRIBInFilteredRoutesMetric verifies that ze_adjribin_routes_filtered
+// tracks import-filtered route inserts, replacements, withdrawals, and peer down.
+//
+// VALIDATES: Prometheus filtered-route gauge in spec-rfc7947-adj-rib-in-accepts-filtered-updates.
+func TestAdjRIBInFilteredRoutesMetric(t *testing.T) {
+	reg := &fakeMetricsRegistry{}
+	SetMetricsRegistry(reg)
+	t.Cleanup(func() { SetMetricsRegistry(nil) })
+
+	r := newTestManager(t)
+	const peer = "10.0.0.1"
+	const owner uint64 = 21
+	const conn uint64 = 1
+	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, nil))
+	require.NoError(t, err)
+
+	r.handleStructuredState(&rpc.StructuredEvent{
+		EventType:    rpc.EventKindState,
+		PeerAddress:  peer,
+		PeerOwner:    owner,
+		ConnectionID: conn,
+		State:        rpc.SessionStateUp,
+	})
+
+	gaugeVal := func() float64 {
+		gv := reg.gauges[metricRoutesFiltered]
+		require.NotNil(t, gv)
+		g := gv.values[peer]
+		if g == nil {
+			return 0
+		}
+		return g.val
+	}
+
+	// Filtered insert -> 1.
+	r.handleReceivedStructured(structuredFilteredEvent(t, ctxID, peer, owner, conn, 1,
+		rpc.EventKindUpdateFiltered, "loop", ipv4FilteredBody([]byte{24, 10, 0, 1}, nil)))
+	assert.Equal(t, float64(1), gaugeVal())
+
+	// Accepted insert -> still 1.
+	r.handleReceivedStructured(structuredFilteredEvent(t, ctxID, peer, owner, conn, 2,
+		rpc.EventKindUpdate, "", ipv4FilteredBody([]byte{24, 10, 0, 2}, nil)))
+	assert.Equal(t, float64(1), gaugeVal())
+
+	// Replace accepted with filtered -> 2.
+	r.handleReceivedStructured(structuredFilteredEvent(t, ctxID, peer, owner, conn, 3,
+		rpc.EventKindUpdateFiltered, "peer-policy-chain", ipv4FilteredBody([]byte{24, 10, 0, 2}, nil)))
+	assert.Equal(t, float64(2), gaugeVal())
+
+	// Replace filtered with accepted -> 1.
+	r.handleReceivedStructured(structuredFilteredEvent(t, ctxID, peer, owner, conn, 4,
+		rpc.EventKindUpdate, "", ipv4FilteredBody([]byte{24, 10, 0, 2}, nil)))
+	assert.Equal(t, float64(1), gaugeVal())
+
+	// Explicit withdrawal of filtered route -> 0.
+	r.handleReceivedStructured(structuredFilteredEvent(t, ctxID, peer, owner, conn, 5,
+		rpc.EventKindUpdate, "", ipv4FilteredBody(nil, []byte{24, 10, 0, 1})))
+	assert.Equal(t, float64(0), gaugeVal())
+
+	// Re-insert filtered route then peer DOWN -> 0.
+	r.handleReceivedStructured(structuredFilteredEvent(t, ctxID, peer, owner, conn, 6,
+		rpc.EventKindUpdateFiltered, "loop", ipv4FilteredBody([]byte{24, 10, 0, 3}, nil)))
+	assert.Equal(t, float64(1), gaugeVal())
+
+	r.handleStructuredState(&rpc.StructuredEvent{
+		EventType:    rpc.EventKindState,
+		PeerAddress:  peer,
+		PeerOwner:    owner,
+		ConnectionID: conn,
+		State:        rpc.SessionStateDown,
+	})
+	assert.Equal(t, float64(0), gaugeVal())
+}
+
+// TestAdjRIBInSuspendForRevalidationKeepsImportFiltered proves that RPKI
+// revalidation refresh (`enable-validation refresh`) never suspends
+// ImportFiltered routes into r.pending, never exposes them in the RPKI
+// snapshot, and preserves ze_adjribin_routes_filtered (RFC 7947 Section 2.1).
+func TestAdjRIBInSuspendForRevalidationKeepsImportFiltered(t *testing.T) {
+	reg := &fakeMetricsRegistry{}
+	SetMetricsRegistry(reg)
+	t.Cleanup(func() { SetMetricsRegistry(nil) })
+
+	r := newTestManager(t)
+	const peer = "10.0.0.1"
+	const owner uint64 = 33
+	const conn uint64 = 1
+	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, nil))
+	require.NoError(t, err)
+
+	r.handleStructuredState(&rpc.StructuredEvent{
+		EventType:    rpc.EventKindState,
+		PeerAddress:  peer,
+		PeerOwner:    owner,
+		ConnectionID: conn,
+		State:        rpc.SessionStateUp,
+	})
+
+	// Install one accepted route and one import-filtered route.
+	r.handleReceivedStructured(structuredFilteredEvent(t, ctxID, peer, owner, conn, 1,
+		rpc.EventKindUpdate, "", ipv4FilteredBody([]byte{24, 10, 0, 1}, nil)))
+	r.handleReceivedStructured(structuredFilteredEvent(t, ctxID, peer, owner, conn, 2,
+		rpc.EventKindUpdateFiltered, "peer-policy-chain", ipv4FilteredBody([]byte{24, 10, 0, 2}, nil)))
+
+	gv := reg.gauges[metricRoutesFiltered]
+	require.NotNil(t, gv)
+	require.Equal(t, float64(1), gv.values[peer].val)
+
+	// Trigger enable-validation refresh (calls suspendForRevalidation).
+	status, data, cmdErr := r.enableValidationCommand([]string{"refresh"})
+	require.NoError(t, cmdErr)
+	require.Equal(t, statusDone, status)
+
+	snap, ok := data.(map[string]any)
+	require.True(t, ok)
+	routes, ok := snap["routes"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, routes, 1, "only the accepted route should be suspended for RPKI revalidation")
+	assert.Equal(t, "10.0.1.0/24", routes[0]["prefix"])
+
+	// The import-filtered route must remain in r.ribIn, absent from r.pending,
+	// and keep ze_adjribin_routes_filtered == 1.
+	r.mu.RLock()
+	pendingCount := len(r.pending)
+	r.mu.RUnlock()
+	assert.Equal(t, 1, pendingCount, "only accepted route moves to pending")
+	assert.Equal(t, float64(1), gv.values[peer].val, "filtered gauge must stay 1 across RPKI refresh")
+
+	st, ok := r.status().(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 1, st["total-routes"], "import-filtered route stays visible in Adj-RIB-In")
+	assert.Equal(t, 1, st["filtered-routes"])
 }

@@ -144,7 +144,7 @@ recorded nothing is listed as `unknown`.
 | Plugin | Purpose |
 |--------|---------|
 | `bgp-rib` | Mandatory Route Information Base (received/sent routes, best-path tracking, in-memory reconnect history) |
-| `bgp-adj-rib-in` | Adj-RIB-In with raw hex replay |
+| `bgp-adj-rib-in` | Adj-RIB-In with raw hex replay and pre-policy `update-filtered` retention for `rs-client true` peers <!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- runAdjRIBInPlugin --> |
 | `bgp-rs` | Route server, client-to-client reflection (RFC 7947) |
 | `bgp-rr` | Route reflector (RFC 4456) |
 | `bgp-gr` | Graceful Restart (RFC 4724) + Long-Lived GR (RFC 9494) |

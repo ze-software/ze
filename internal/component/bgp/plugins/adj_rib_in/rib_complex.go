@@ -60,11 +60,7 @@ func (r *AdjRIBInManager) installComplexNLRIsWithFilter(peerAddr receivedPeer, f
 		if !r.receiveCurrentLocked(peerAddr, rk, connectionID, msgID) {
 			return true
 		}
-		if r.ribIn[peerAddr] == nil {
-			r.ribIn[peerAddr] = newSeqMap()
-		}
-		r.seqCounter++
-		r.ribIn[peerAddr].Put(rk, r.seqCounter, &RawRoute{
+		r.putInstalledRouteLocked(peerAddr, rk, &RawRoute{
 			Family:            fam,
 			AttrHex:           attrHex,
 			NHopHex:           nhopHex,

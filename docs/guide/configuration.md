@@ -1634,11 +1634,14 @@ A running plugin that a peer does not attach receives no event from that peer,
 whatever the plugin asked for when it started, and it may send that peer
 nothing. Loading a plugin and attaching it to a peer are two separate acts.
 
-Base event types for `receive`: `update`, `open`, `notification`, `keepalive`,
-`refresh`, `state`, `negotiated`, `eor`, `rpki`. Plugins may register more (for
+Base event types for `receive`: `update`, `update-filtered`, `open`, `notification`, `keepalive`,
+`refresh`, `state`, `negotiated`, `eor`, `rpki`. `update-filtered` carries
+ingress-denied UPDATEs for route-server clients (`rs-client true`) so
+`bgp-adj-rib-in` retains the pre-policy population (RFC 7947 Section 2.1). Plugins may register more (for
 example `update-rpki` from bgp-rpki-decorator). A plain type is fed in both
 directions; `update-received` and `update-sent` name one. `*` names every
 registered type. Values are validated at config parse time.
+<!-- source: internal/core/bgp/events/events.go -- EventUpdateFiltered -->
 
 Base message types for `send`: `update` to originate routes, `refresh` to ask
 the peer to re-advertise, `raw` to write a whole BGP message the program built

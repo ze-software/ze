@@ -695,6 +695,11 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, captured *Session, peerAd
 		routeMeta = meta
 		msg.Meta = meta
 	}
+	type partialDeniedIngress struct {
+		body []byte
+		step string
+	}
+	var partialDenied []partialDeniedIngress
 	var policyRemovals [][]byte
 	if policyDisposition != ingressPolicyAlreadyApplied && direction == rpc.DirectionReceived && wireUpdate != nil && !endOfRIB && len(r.orderedIngressSteps) > 0 {
 		src := filterapi.PeerFilterInfo{
@@ -820,6 +825,15 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, captured *Session, peerAd
 					sessionLogger().Debug("modified WireUpdate.Attrs error", "peer", peerAddr, "error", parseErr)
 				}
 			}
+			if res.deniedPayload != nil {
+				if retainDeniedIngress(hasPeer, src) {
+					// Partial-accept policy rewrite (e.g. a prefix-list dropping
+					// a subset of prefixes from a multi-NLRI UPDATE): retain the
+					// denied subset on update-filtered after the accepted subset
+					// and any source removals finish (RFC 7947 Section 2.1).
+					partialDenied = append(partialDenied, partialDeniedIngress{body: res.deniedPayload, step: step.name})
+				}
+			}
 			if res.followWithdrawal != nil {
 				*follow = append(*follow, ingressPolicyContinuation{body: res.followWithdrawal, epoch: sourcePolicyEpoch})
 			}
@@ -845,7 +859,13 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, captured *Session, peerAd
 			*follow = append(*follow, ingressPolicyContinuation{body: body, epoch: sourcePolicyEpoch, meta: routeMeta})
 		}
 		*follow = append(*follow, ingressPolicyContinuation{body: wireUpdate.Payload(), epoch: sourcePolicyEpoch, meta: routeMeta, buffer: buf})
+		for _, denied := range partialDenied {
+			enqueueFilteredIngress(denied.body, bgpctx.Registry.Get(wireUpdate.SourceCtxID()), sourcePolicyEpoch, denied.step, follow)
+		}
 		return false
+	}
+	for _, denied := range partialDenied {
+		enqueueFilteredIngress(denied.body, bgpctx.Registry.Get(wireUpdate.SourceCtxID()), sourcePolicyEpoch, denied.step, follow)
 	}
 	if !filtered && direction == rpc.DirectionReceived && wireUpdate != nil {
 		r.retainAIGPReceived(peerAddr, wireUpdate, routeMeta, sourcePolicyEpoch)

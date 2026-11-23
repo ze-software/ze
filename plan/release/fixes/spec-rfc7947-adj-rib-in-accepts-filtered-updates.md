@@ -7,9 +7,9 @@
 | Release reason | A route server must retain the required pre-policy received population independently of policy rejection. |
 | Scope | protocol |
 | Depends | - |
-| Phase | Implemented and verified; ready for closure |
+| Phase | Closure preparation: functional tests, interop proof, metrics, docs, and review gate |
 | Handoff | - |
-| Updated | 2026-11-22 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -71,7 +71,7 @@ filtered. On 2026-11-22 he approved revising this spec to match the live codebas
 |------|-----|
 | A pre-policy Adj-RIB-In for a non-route-server peer | RFC 7947 Section 2.1 binds a route server. Key Design Decisions states what the wider scope would cost |
 | BMP Adj-RIB-In Pre-Policy monitoring (RFC 7854 Section 5) | A separate obligation under a separate RFC, and bgp-bmp is a separate subscriber |
-| Path-hiding mitigation (multiple Loc-RIBs, add-path) | RFC 7947 Section 2.3 is non-normative; this spec only corrects what `RFC7947-x-5` CLAIMS about it |
+| Path-hiding mitigation (multiple Loc-RIBs, add-path) | RFC 7947 Section 2.3 is non-normative; `RFC7947-x-5` is already `[SHOULD]` and untouched |
 
 ## Required Reading
 
@@ -86,24 +86,23 @@ filtered. On 2026-11-22 he approved revising this spec to match the live codebas
   → Constraint: `EventKind` is a small unsigned integer with a fixed-size string table and a `MarshalText`/`UnmarshalText` pair. A new kind takes the next ordinal, a wire string, a table row, an `UnmarshalText` case, and `EventKindCount` moves.
 - [ ] `docs/architecture/core-design.md` - the message receiver dispatch, declared by `reactor_notify.go`, `session_read.go`, `config.go` and `internal/component/bgp/plugin/register.go`
   → Constraint: the ingress step loop is the ONE stage-ordered pipeline; step order is a declared Stage, not code position. Each `orderedIngressStep` carries a `name` (`filter_ordered.go`), which is the operator-visible reason a route was denied and needs no new plumbing.
-  → Decision: `checkPrefixLimits` is called from the session read loop (`session_read.go`) BEFORE `notifyMessageReceiver`, so the per-family `prefix` maximum already counts a denied UPDATE's NLRIs. That is the memory bound on the filtered population.
+  → Decision: `checkPrefixLimits` (`session_prefix.go`) runs BEFORE `notifyMessageReceiver`, but default offered-mode subtraction decrements on unmatched withdrawals without checking store membership. For `rs-client true` peers in offered mode, `prefixCounts.retained` tracks unique retained keys alongside the offered tally so unmatched withdrawals cannot grow retained entries past `maximum` (AC-15).
+- [ ] `docs/architecture/testing/interop.md` - BGP interop scenario discovery, native checker registration, and forced-RED validation, declared by `internal/le/interoplab/bgp/check_rfc7947_filtered.go`
+  → Constraint: scenario directory names carry no numeric prefix, assertions live in registered Go checkers under `internal/le/interoplab/bgp/`, and protocol scenarios require a forced-RED proof against a rebuilt artifact.
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfc7947.md` - the route server obligations, and the two rows this spec corrects
-  → Constraint: a requirement id is anchored to the section its line CITES (`validateID`, `internal/le/rfc/summary.go`). `RFC7947-x-4` and `RFC7947-x-5` anchor to the no-section marker, so their corrected text MUST keep a trailing `(Key Requirements)` parenthetical and MUST name the section in the `RFC 7947 Section N` form that `crossRFCSecRE` scrubs. Putting a bare section citation in the trailing parenthetical would demand a section-anchored id and break the permanence rule.
-  → Constraint: `checkLevelRatchet` (`internal/le/rfc/check_ratchets.go`) fires when a requirement leaves the gated set (MUST, MUST NOT, SHALL, SHALL NOT, REQUIRED). It is silenced only by a paragraph in the summary opening `Correction <YYYY-MM-DD>:`, naming the id in backticks, and quoting at least 24 characters, in double quotes, of a sentence that appears in `rfc/full/rfc7947.txt`.
-- [ ] `rfc/full/rfc7947.txt` Sections 2.1, 2.3 and 2.3.3 - the authority
-  → Constraint: Section 2.3 states "Neither Section 2.3 nor its subsections form part of the normative specification of this document; they are included for information purposes only." Every obligation `RFC7947-x-4` and `RFC7947-x-5` claim is drawn from Section 2.3 or its subsections.
-  → Constraint: the only normative neighbour is Section 2.1's "The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy", and Section 2.3.3's "Authors of route server implementations may wish to consider one of the methods described in Section 2.3.2".
+- [ ] `rfc/short/rfc7947.md` - the route server obligations; `RFC7947-x-4` and `RFC7947-x-5` are already `[SHOULD]` and proven, and `RFC7947-2.1-1` exists at `[MUST]`
+  → Constraint: `RFC7947-2.1-1` is gated (`MUST`), so removing `{gap}` requires both positive and negative tagged tests with verified `./le rfc record` discrimination proofs and an independent `./le rfc audit` verdict (`enforced`).
+- [ ] `rfc/full/rfc7947.txt` Section 2.1 - the authority for client UPDATE retention in Adj-RIB-In and policy omission from Loc-RIB
 - [ ] `rfc/short/rfc4271.md` - the Adj-RIB-In definition the store implements
   → Constraint: RFC 4271 Section 3.2 makes the Adj-RIB-In the unprocessed information a peer advertised. RFC 7947 Section 2.1 is not in tension with it; it makes explicit for a route server what the base spec leaves to the implementation.
 
 **Key insights:** (minimal context to resume after compaction)
-- The reject return is in `reactor_notify.go`, inside the ordered ingress step loop, and it precedes BOTH the Adj-RIB-In dispatch and `reactorForwardRS`.
-- Seven plugins subscribe to `update direction received`: bgp-rib, bgp-rs, bgp-rr, bgp-rpki, bgp-rpki-decorator, bgp-bmp, bgp-adj-rib-in. Any design that reuses the `update` event has to be honored by six of them that must ignore it.
+- The reject return is in `reactor_notify.go`, inside the ordered ingress step loop, and it precedes BOTH the Adj-RIB-In dispatch and `reactorForwardRS`; mixed-UPDATE policy denial runs through `filter_ordered.go::ingressPolicyWithdrawals`.
+- Seven plugins subscribe to `update direction received`: bgp-rib, bgp-rs, bgp-rr, bgp-rpki, bgp-rpki-decorator, bgp-bmp, bgp-adj-rib-in. A distinct event type (`update-filtered`) reaches only `bgp-adj-rib-in` and fails closed.
 - The receive-token vocabulary, the subscription grammar and the YANG completion are all DERIVED from the bgp event registry, so a new event type costs one constant plus one registration argument.
-- The filtered mark's only replay consumer is `buildReplayRoutes`. Missing that skip turns a policy denial into a route leak on the next peer-up.
-- `RFC7947-x-4` moving MUST to SHOULD is the only one of the two corrections `checkLevelRatchet` charges for.
+- `ImportFiltered` is stored independently of RPKI `Ineligible` and gates `walkReplayRoutes`, `replayPathCommand`, `routeEligible`, and `applyToInstalled`.
+- `RFC7947-x-4` and `RFC7947-x-5` are already `[SHOULD]` in `rfc/short/rfc7947.md` and remain untouched (2026-11-22 revision).
 
 ## Current Behavior (MANDATORY)
 
@@ -140,12 +139,12 @@ filtered. On 2026-11-22 he approved revising this spec to match the live codebas
 - A teardown verdict still queues the NOTIFICATION and drops the route with no Adj-RIB-In insertion: a session being torn down has no Adj-RIB-In to hold anything.
 
 **Behavior to change:** (only what the user asked for)
-- On a denial, when the source peer has `rs-client true`, the reactor emits one filtered-update event carrying the same `RawMessage` and the denying step's name, before returning false.
-- bgp-adj-rib-in subscribes to that event type and stores the routes it carries with a filtered mark.
-- `buildReplayRoutes` skips a filtered entry.
-- `show bgp adj-rib-in` and `show bgp adj-rib-in status` report the filtered population.
-- `RFC7947-x-4` moves from MUST to SHOULD; `RFC7947-x-5` moves from SHOULD to MAY; a new `RFC7947-2.1-1` is added at MUST.
-- `rfc/extraction/rfc7947.json` lands with its Section 2.1 site mapped.
+- On a non-teardown denial (or mixed-UPDATE denied announcements via `ingressPolicyWithdrawals`) when the source peer has `rs-client true`, the reactor queues withdrawals for affected prefixes on the ordinary `update` rail first (clearing Loc-RIB and recipients) and then emits one `update-filtered` event carrying the original pre-policy bytes and the denying step's name, before returning false.
+- `bgp-adj-rib-in` subscribes to `update-filtered direction received`, stores the routes with `ImportFiltered: true` and `FilterStep` independently of RPKI `Ineligible`, and updates `ze_adjribin_routes_filtered{peer=...}`.
+- `walkReplayRoutes`, `replayPathCommand`, `routeEligible`, and `applyToInstalled` exclude `ImportFiltered` entries unconditionally.
+- `session_prefix.go` tracks unique retained keys for `rs-client true` families in offered mode so unmatched withdrawals cannot exceed configured prefix maximums.
+- `show bgp adj-rib-in` and `show bgp adj-rib-in status` report `filtered`, `filter-step`, and `filtered-routes`.
+- `RFC7947-2.1-1` leaves `{gap}` with positive/negative tagged conformance tests, discrimination records, and an `enforced` audit verdict; `rfc/extraction/rfc7947.json` prose reflects enforcement (`RFC7947-x-4` and `RFC7947-x-5` stay untouched at `[SHOULD]`).
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -176,28 +175,28 @@ filtered. On 2026-11-22 he approved revising this spec to match the live codebas
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Session read goroutine → reactor ingress pipeline | direct call, `notifyMessageReceiver` | No |
-| Reactor → plugin process | `rpc.StructuredEvent` over DirectBridge, or the JSON event rail for a forked plugin | No |
-| Reactor config → peer settings | `ps.RSClient` from the plugin-owned `rs-client` YANG leaf | No |
-| Config attach grant → delivery graph | a filtered-update receive token resolved against the bgp event registry | No |
-| Plugin → engine (replay) | `rpc.StoredRoute` via the relay call; a filtered entry must never appear here | No |
-| Plugin → operator | command answer through `ApplyPipes`, document shape | No |
+| Session read goroutine → reactor ingress pipeline | direct call, `notifyMessageReceiver` | Yes |
+| Reactor → plugin process | `rpc.StructuredEvent` over DirectBridge, or the JSON event rail for a forked plugin | Yes |
+| Reactor config → peer settings | `ps.RSClient` from the plugin-owned `rs-client` YANG leaf | Yes |
+| Config attach grant → delivery graph | `update-filtered` / `update-filtered-received` token resolved against the bgp event registry | Yes |
+| Plugin → engine (replay) | `rpc.StoredRoute` via `walkReplayRoutes` and `replayPathCommand`; `ImportFiltered` entries never emitted | Yes |
+| Plugin → operator | `show bgp adj-rib-in` and `show bgp adj-rib-in status` through `ApplyPipes` (`json`, `yaml`, `table`) and `ze_adjribin_routes_filtered` gauge | Yes |
 
 ### Integration Points
-- `internal/core/bgp/events/events.go` - the one declaration of the type name; the subscription grammar, the YANG validator and completion all derive from it.
-- `internal/component/bgp/plugin/register.go` - adds the new type to the namespace registration argument list.
-- `pkg/plugin/rpc/enums.go` - the typed kind carried on `StructuredEvent`.
-- `internal/component/bgp/plugins/adj_rib_in/rib.go` `SetStartupSubscriptions` - adds the new type in the received direction.
-- `internal/component/bgp/plugins/adj_rib_in/rib.go` `buildReplayRoutes` - the one place the mark gates re-advertisement.
+- `internal/core/bgp/events/events.go` - the one declaration of the type name (`EventUpdateFiltered`); the subscription grammar, the YANG validator and completion all derive from it.
+- `internal/component/bgp/plugin/register.go` - adds `EventUpdateFiltered` to the namespace registration argument list.
+- `pkg/plugin/rpc/enums.go` - `EventKindUpdateFiltered` (ordinal 12; `EventKindCount` is now 14 after `EventKindUpdatePrePolicyOut = 13`) carried on `StructuredEvent`.
+- `internal/component/bgp/plugins/adj_rib_in/rib.go` `SetStartupSubscriptions` - subscribes to `update-filtered direction received`.
+- `internal/component/bgp/plugins/adj_rib_in/rib.go` `walkReplayRoutes`, `rib_replay_path.go` `replayPathCommand`, `rib_eligibility.go` `routeEligible`, `rib_validation.go` `applyToInstalled` - gate selection, replay, and validation independently of `Ineligible`.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | Denied `rs-client true` UPDATEs flow through `notifyOneMessage` -> `enqueueFilteredIngress` -> `EventKindUpdateFiltered` -> `bgp-adj-rib-in` (`handleReceivedStructured`/`handleReceived`) without touching `recentUpdates`, `reactorForwardRS`, `EventBus`, or `bgp-rib` |
+| No unintended coupling (components stay isolated) | Yes | `./le arch tier check` and `./le plugin boundary check` both pass; `bgp-rs` takes no subscription to `update-filtered` (`TestRouteServerTakesNoDeliveryOfFilteredUpdates`) |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Single `ribIn` seqmap with `ImportFiltered`/`FilterStep` fields; reuses existing withdrawal walk, `putInstalledRouteLocked`, and `session_prefix.go` set machinery (`prefixCounts.retained`) |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | Accepted UPDATEs keep existing zero-copy cache/pool lifecycle; `bytes.Clone` occurs only on the denied `rs-client` cold path in `enqueueFilteredIngress` so the borrowed read buffer is released |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | `EventUpdateFiltered` registers once in `internal/component/bgp/plugin/register.go`; `ReceiveEventValidator`, `parseOneReceiveFlag`, and completion all derive from the registry (`TestReceiveGrantAcceptsUpdateFilteredToken`); `ConfigureMetrics` wires `ze_adjribin_routes_filtered` |
 
 ## Test-campaign research: 2026-11-15
 
@@ -281,13 +280,13 @@ owner approval 2026-11-22).
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `walkReplayRoutes`, `replayPathCommand`, and `routeEligible` are the ONLY paths by which an Adj-RIB-In entry becomes an advertisement or eligible path | Source inspection of `adj_rib_in/{rib.go,rib_replay_path.go,rib_eligibility.go,rib_validation.go}` | a filtered route leaks on an unguarded rail or is un-filtered by RPKI validation | `TestBuildReplayRoutesOmitsFilteredEntries`, `TestRFC7947ReceivedValidationCannotAcceptPolicyDenial`, and `TestRFC7947FilteredReceivedExcludedFromSelection` | unvalidated |
-| A-2 | Unique retained keys per source peer (accepted + import-filtered) must be bounded independently of offered-withdrawal subtraction | 2026-11-15 counterexample: unmatched withdrawal B decrements offered count while retained denied A stays in memory | a hostile rs-client can exceed its configured prefix maximum using unmatched withdrawals | Unique-retained-population boundary test (AC-15) | unvalidated |
-| A-3 | A denied replacement of a previously accepted route must emit a withdrawal for that replaced prefix on the accepted rail (Loc-RIB / forwarding) while retaining the new denied bytes marked filtered in Adj-RIB-In | `TestRFC7947FilteredReplacementClearsSelectedRoute` and `TestRFC7947ReceivedDeniedReplacementSupersedesOldBytes` | stale accepted path remains selected and advertised to clients | Both existing probes passing | unvalidated |
-| A-4 | No existing consumer reads `show bgp adj-rib-in` route objects by exact key set | `plan/journal/gate-excludes-part-of-its-population.md` records `med-removal-before-decision` parsing this command's shape; adding keys removes none | a functional fixture goes red on an added key | grep the functional suite for the command, then read each hit's assertions | unvalidated |
-| A-5 | `RFC7947-x-4` and `RFC7947-x-5` are already at `[SHOULD]` in `rfc/short/rfc7947.md`, and `RFC7947-2.1-1` + `rfc/extraction/rfc7947.json` already exist | Verified 2026-11-22 against `rfc/short/rfc7947.md` and `rfc/extraction/rfc7947.json` | unnecessary or harmful level downgrade | `./le rfc check` before and after | confirmed |
-| A-6 | bgp-rs takes no delivery of the new event type, so its forward-target selection and its replay cut are unchanged | `rs/server.go` subscribes to update received, open received, state and refresh; a new type reaches only a subscriber | the route server forwards a filtered route, which is the leak G-2 exists to prevent | `TestRouteServerTakesNoDeliveryOfFilteredUpdates` plus `TestRFC7947FilteredReceivedExcludedFromSelection` | unvalidated |
-| A-7 | The ingest-position contract is not disturbed by a second event kind carrying a MessageID | `noteIngested` publishes the position bgp-rs's cut is compared against, and a filtered UPDATE also has a MessageID | the peer-up cut advances past routes the live rail will not deliver, and the replay omits them: both rails silent | `TestIngestPositionAdvancesOnFilteredUpdates`, asserting the cut and the replay agree | unvalidated |
+| A-1 | `walkReplayRoutes`, `replayPathCommand`, and `routeEligible` are the ONLY paths by which an Adj-RIB-In entry becomes an advertisement or eligible path | Source inspection of `adj_rib_in/{rib.go,rib_replay_path.go,rib_eligibility.go,rib_validation.go}` | a filtered route leaks on an unguarded rail or is un-filtered by RPKI validation | `TestAdjRIBInFilteredLifecycleAndViews`, `TestRFC7947ReceivedValidationCannotAcceptPolicyDenial`, and `TestRFC7947FilteredReceivedExcludedFromSelection` | confirmed |
+| A-2 | Unique retained keys per source peer (accepted + import-filtered) must be bounded independently of offered-withdrawal subtraction | 2026-11-15 counterexample: unmatched withdrawal B decrements offered count while retained denied A stays in memory | a hostile rs-client can exceed its configured prefix maximum using unmatched withdrawals | `TestRFC7947FilteredRetainedPopulationBound` (`session_prefix.go::prefixCounts.retained`) | confirmed |
+| A-3 | A denied replacement of a previously accepted route must emit a withdrawal for that replaced prefix on the accepted rail (Loc-RIB / forwarding) while retaining the new denied bytes marked filtered in Adj-RIB-In | `TestRFC7947FilteredReplacementClearsSelectedRoute` and `TestRFC7947ReceivedDeniedReplacementSupersedesOldBytes` | stale accepted path remains selected and advertised to clients | Both probes passing via `enqueueFilteredIngress` withdrawal-first FIFO ordering | confirmed |
+| A-4 | No existing consumer reads `show bgp adj-rib-in` route objects by exact key set | Grep of `test/` and `internal/test/fixture/` confirms every consumer reads named fields (`adj-rib-in`, `total-routes`, `attr-hex`, etc.) | a functional fixture goes red on an added key | Grep verified across `internal/test/fixture/` + promoted `.ci` runs | confirmed |
+| A-5 | `RFC7947-x-4` and `RFC7947-x-5` are already at `[SHOULD]` in `rfc/short/rfc7947.md`, and `RFC7947-2.1-1` + `rfc/extraction/rfc7947.json` already exist | Verified 2026-11-22 against `rfc/short/rfc7947.md` and `rfc/extraction/rfc7947.json` | unnecessary or harmful level downgrade | `./le rfc update` + `./le rfc extraction report` | confirmed |
+| A-6 | `bgp-rs` takes no delivery of `update-filtered`, so its forward-target selection and its replay cut are unchanged | Read all `SetStartupSubscriptions` sites under `internal/component/bgp/plugins/`; only `bgp-adj-rib-in` subscribes to `update-filtered` | the route server forwards a filtered route, which is the leak G-2 exists to prevent | `TestRouteServerTakesNoDeliveryOfFilteredUpdates` plus `TestRFC7947FilteredReceivedExcludedFromSelection` | confirmed |
+| A-7 | The ingest-position contract is not disturbed by a second event kind carrying a MessageID | `noteIngested` publishes the position `bgp-rs`'s cut is compared against, and a filtered UPDATE also has a MessageID | the peer-up cut advances past routes the live rail will not deliver, and the replay omits them: both rails silent | `TestAdjRIBInFilteredLifecycleAndViews` (`ingestPosition` advances to msgID 12 across filtered msgID 11) | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -399,8 +398,9 @@ owner approval 2026-11-22).
 - `internal/core/bgp/events/events.go` - the filtered-update event type constant beside the existing type constants. Design doc: `docs/architecture/api/process-protocol.md`
 - `internal/component/bgp/plugin/register.go` - name the new type in the namespace registration. Design doc: `docs/architecture/core-design.md`
 - `pkg/plugin/rpc/enums.go` - the new event kind, its wire string, its table row, its unmarshal case, and the count. Design doc: `docs/architecture/api/ipc_protocol.md`
-- `internal/component/bgp/reactor/reactor_notify.go` - emit the filtered event before the deny return, gated on the peer's `RSClient` setting, carrying the denying step's name. Design doc: `docs/architecture/core-design.md`
-- `internal/component/bgp/reactor/session_prefix.go` - only if A-3 shows the installed-count mode does not cover a denied UPDATE. Design doc: `docs/architecture/core-design.md`
+- `internal/component/bgp/reactor/reactor_notify.go` - emit the filtered event before the deny return, gated on the peer's `RSClient` setting, carrying the denying step's name; retain partially dropped announcement subsets on `update-filtered`. Design doc: `docs/architecture/core-design.md`
+- `internal/component/bgp/reactor/filter_ordered.go`, `filter_library.go`, `filter_nlri_delta.go`, `internal/component/bgp/wireu/nlri_cidr.go` - extract policy-dropped announcement subsets (`KeepCIDREntries`, `buildDeniedAnnouncementPayload`) with unmodified pre-policy attributes when a multi-NLRI UPDATE is partially accepted on an `rs-client true` peer. Design doc: `docs/architecture/core-design.md`
+- `internal/component/bgp/reactor/session_prefix.go` - track unique retained keys (`prefixCounts.retained`) for `rs-client true` peers in offered mode so unmatched withdrawals cannot exceed configured prefix maximums. Design doc: `docs/architecture/core-design.md`
 - `internal/component/bgp/plugins/adj_rib_in/rib.go` - `RawRoute` gains the filtered mark and the denying step name; the startup subscriptions gain the new type; the structured dispatch routes the new kind; `buildReplayRoutes` skips a marked entry. Design doc: `docs/architecture/plugin/rib-storage-design.md`
 - `internal/component/bgp/plugins/adj_rib_in/rib_commands.go` - `show` and `status` report the mark and the count. Design doc: `docs/architecture/plugin/rib-storage-design.md`
 - `rfc/short/rfc7947.md` - add `RFC7947-2.1-1`; correct `RFC7947-x-4` and `RFC7947-x-5`; add two `Correction 2026-08-30:` paragraphs
@@ -415,13 +415,19 @@ owner approval 2026-11-22).
 
 ## Files to Create
 
-- `rfc/extraction/rfc7947.json` - the landed sign-off, promoted from this session's scratch with the Section 2.1 site mapped to `RFC7947-2.1-1`
+- `internal/component/bgp/plugins/adj_rib_in/metrics.go` - `ze_adjribin_routes_filtered` Prometheus gauge and per-peer filtered counter helpers
+- `internal/component/bgp/plugins/adj_rib_in/rfc7947_filtered_test.go` - unit tests for filtered lifecycle, views, replay skip, and Prometheus gauge
+- `internal/component/bgp/plugins/rs/rfc7947_filtered_subscription_test.go` - unit test proving `bgp-rs` takes no `update-filtered` delivery
+- `internal/component/bgp/reactor/rfc7947_filtered_conformance_test.go` - `RFC7947-2.1-1` positive/negative conformance tests, receive-token validation, AC-15 bound, and teardown guard
+- `internal/component/bgp/reactor/rfc7947_filtered_partial_test.go` and `internal/component/bgp/wireu/nlri_cidr_test.go` - unit tests for multi-NLRI partial-policy-rejection retention and `KeepCIDREntries`
+- `pkg/plugin/rpc/event_kind_filtered_test.go` - `EventKindUpdateFiltered` marshal/unmarshal and count test
+- `internal/test/fixture/register_adj_rib_in_filtered.go` and `internal/test/fixture/plugin_adj_rib_in_filtered.go` - compiled functional test observers
 - `test/plugin/adj-rib-in-filtered-visible.ci`
 - `test/plugin/adj-rib-in-filtered-status.ci`
 - `test/plugin/adj-rib-in-filtered-not-replayed.ci`
 - `test/plugin/adj-rib-in-filtered-absent-for-plain-peer.ci`
-- `test/interop/scenarios/bgp-route-server-filtered-adj-rib-in-frr/` with its ze, frr and bird configs
-- the retired deferral shard "rfc7947-adj-rib-in-accepts-filtered-updates"
+- `test/interop/scenarios/bgp-route-server-filtered-adj-rib-in-frr/` (`ze.conf`, `frr.conf`, `bird.conf`) and `internal/le/interoplab/bgp/check_rfc7947_filtered.go`
+- `website/changes/fragments/rfc7947-adj-rib-in-accepts-filtered-updates.md`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -546,61 +552,41 @@ owner approval 2026-11-22).
 ## Design Insights
 
 - The receive-grant vocabulary, the subscription grammar and the config completion are all DERIVED from one event registry, so adding a new event type costs a constant and one registration argument, and reaches four surfaces. That is what makes the fail-closed design cheaper than it looks.
-- `checkPrefixLimits` running BEFORE the ingress filter chain is not an accident of ordering: it is why RFC 7947 Section 2.1 is affordable at all. A route server that must hold everything a client sends needs its bound applied to what the client SENDS, not to what policy keeps.
-- The three existing Correction paragraphs in `rfc/short/rfc7947.md` (2026-07-23, 2026-08-14, 2026-08-15) each cite the RFC sentence that states the true strength. Two more of the same shape land here, which makes five corrections on one document: the extraction walk that produced the original rows read a summary rather than the source.
+- Offered-mode prefix counting decrements on unmatched withdrawals without tracking store membership, so retaining denied routes on `rs-client true` peers requires an independent unique-retained set (`prefixCounts.retained` in `session_prefix.go`) to enforce the configured maximum without altering offered-mode semantics.
+- Capturing original pre-policy UPDATE bytes before `ingressPolicyWithdrawals` projection and queueing withdrawals on the ordinary `update` rail ahead of the `update-filtered` event keeps Loc-RIB, downstream recipients, and Adj-RIB-In consistent for both mixed UPDATEs and denied replacements.
 
 ## Key Design Decisions
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Deliver the filtered UPDATE on a DISTINCT registered event type | A filtered boolean on the existing `RawMessage`, dispatched on the ordinary update event | Seven plugins subscribe to update received. A boolean makes the correctness of every ingress filter depend on six of them each remembering to check it, and on every plugin added later. That is a guard that fails open, which `ai/rules/principles.md` forbids. A distinct type reaches only a subscriber, so today it reaches exactly one plugin, and a future plugin has to ASK for it |
-| Scope the change to peers with `rs-client true` | Every peer | RFC 7947 Section 2.1 binds "a route server", and `rs-client` is the only thing in Ze that makes a peer a route-server client (`ps.RSClient`, `internal/component/bgp/reactor/config.go`). Full compliance with this requirement is the narrow scope, so nothing is traded away. The wide scope would cost: every deployment's Adj-RIB-In grows by its denied population, `show bgp adj-rib-in` changes meaning for every operator, and the memory bound in A-2 would have to hold for peers nobody configured a prefix maximum on. It would BUY a complete pre-policy view for BMP (RFC 7854 Section 5) and for `show bgp adj-rib-in` on an ordinary peer, which are real but are separate obligations under separate documents |
-| Carry the denying step's name on the entry | A boolean alone; or a full filter verdict object | `orderedIngressStep.name` already exists and is the operator's answer to "why". A boolean leaves an operator worse off than before, because a route that is present but silent about its status reads as accepted. A verdict object is machinery the problem does not need (`ai/rules/simplicity.md`) |
-| Skip filtered entries in `buildReplayRoutes` | A separate store for filtered routes | A second map duplicates the peer keying, the seqmap, the withdrawal walk and the peer-down teardown, and the two would disagree the first time one was edited (`ai/rules/principles.md`, one declaration). One map with one field, and one skip in the one walk that re-advertises, is the smaller and safer shape |
-| `RFC7947-x-5` becomes MAY, not a deleted row | Deleting the row; inventing an informational level | `checkRetiredRequirements` refuses a deleted id, and ids are permanent. The level vocabulary is closed at eleven RFC 2119 keywords (`gatedLevels` plus `advisoryLevels`, `internal/le/rfc/rfc.go`), so "informational" is not spellable as a level. MAY is the weakest available and matches Section 2.3.3's "may wish to consider". `rfc/short/rfc3765.md` sets the precedent: a document that gates nothing carries MAY rows |
-| Correct `RFC7947-x-4` and `-x-5` in place, keeping the `(Key Requirements)` trailing citation | Re-anchoring them to section-anchored ids | `validateID` anchors an id to the section its line cites, so re-anchoring means new ids, which is renumbering. Naming the section in the `RFC 7947 Section 2.1` form keeps the reader informed while the cross-RFC scrubber removes it before the anchor is read |
+| Deliver the filtered UPDATE on a DISTINCT registered event type (`update-filtered`) | A filtered boolean on the existing `RawMessage`, dispatched on the ordinary `update` event | Seven plugins subscribe to `update direction received`. A boolean makes ingress-filter correctness depend on six plugins each checking it (fail-open). A distinct type reaches only `bgp-adj-rib-in` and fails closed |
+| Scope the change to peers with `rs-client true` | Every peer | RFC 7947 Section 2.1 binds a route server, and `rs-client` is the sole leaf defining that role (`ps.RSClient`, `internal/component/bgp/reactor/config.go`) |
+| Carry the denying step's name (`FilterStep`) on `RawRoute` alongside `ImportFiltered` | A boolean alone; reusing RPKI `Ineligible` | `orderedIngressStep.name` tells operators why a route was denied, and keeping `ImportFiltered` separate from `Ineligible` prevents a later RPKI validation decision from releasing a policy denial |
+| Skip `ImportFiltered` in `walkReplayRoutes`, `replayPathCommand`, `routeEligible`, and `applyToInstalled` | A separate store for filtered routes | One seqmap with one field avoids duplicating peer keying, withdrawals, and peer-down cleanup while guarding every selection and replay consumer |
+| Track unique retained keys in `prefixCounts.retained` for `rs-client true` offered-mode families | Relying on the offered-mode counter | Unmatched withdrawals decrement the offered counter while denied routes remain stored; `prefixCounts.retained` enforces `maximum` on unique retained keys while keeping offered semantics intact |
+| Keep `RFC7947-x-4` and `RFC7947-x-5` untouched at `[SHOULD]` | Downgrading `x-5` to `MAY` | Approved 2026-11-22: both rows are already `[SHOULD]` and proven in `rfc/short/rfc7947.md` |
 
 ## Known Limitations
 
-- BMP Adj-RIB-In Pre-Policy monitoring (RFC 7854 Section 5) still reports the post-policy population. bgp-bmp does not subscribe to the new event type, deliberately: adding it changes what a monitoring station receives and is a separate RFC's obligation.
-- A peer that is not a route-server client keeps its post-policy Adj-RIB-In. RFC 4271 Section 3.2 arguably wants the pre-policy view there too; RFC 7947 does not require it, and Key Design Decisions records what changing it would cost.
-- Path hiding is still unmitigated. `RFC7947-x-5` is corrected to say so honestly at MAY; it is not implemented here.
-- The filtered population is reported but not separately capped. AC-15 proves the configured prefix maximum covers it; a deployment with no configured maximum has the same unbounded exposure it already has for accepted routes.
+- BMP Adj-RIB-In Pre-Policy monitoring (RFC 7854 Section 5) still reports the post-policy population. `bgp-bmp` does not subscribe to `update-filtered`, deliberately: adding it changes what a monitoring station receives and is a separate RFC's obligation.
+- A peer that is not a route-server client keeps its post-policy Adj-RIB-In.
+- Path hiding is still mitigated only by ADD-PATH; multiple Loc-RIBs per client (Section 2.3.2.1) are not implemented.
+- The filtered population shares the per-family configured prefix maximum (`prefixCounts.retained`); a peer with no configured maximum has the same unbounded exposure it already has for accepted routes.
 
 ## RFC Documentation (Scope: protocol)
 
 Add an `// RFC NNNN Section X.Y:` comment with the quoted requirement above enforcing code.
-MUST document: validation rules, error conditions, state transitions, timer
-constraints, message ordering, and every MUST/MUST NOT.
 
 | Site | Comment content |
 |------|-----------------|
-| The filtered-event emit in `notifyMessageReceiver` | RFC 7947 Section 2.1, quoting "A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In.", with the tag `RFC7947-2.1-1` |
-| The `buildReplayRoutes` skip | RFC 7947 Section 2.1, quoting "These UPDATE messages MAY be omitted from the route server's Loc-RIB or Loc-RIBs, due to filters configured for the purpose of implementing routing policy." -- the sentence that confines the MUST, and the reason a filtered entry is never re-advertised |
-| The `RSClient` gate on the emit | A one-line note that Section 2.1 binds a route server, so the obligation follows the `rs-client` role rather than every peer |
+| `enqueueFilteredIngress` in `internal/component/bgp/reactor/reactor_notify.go` | RFC 7947 Section 2.1, quoting `"A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In."` |
+| `walkReplayRoutes` (`rib.go`), `replayPathCommand` (`rib_replay_path.go`), `routeEligible` (`rib_eligibility.go`), `applyToInstalled` (`rib_validation.go`) | RFC 7947 Section 2.1 exclusion of import-filtered entries from selection, replay, and validation promotion |
+| `retainDeniedIngress` gate in `reactor_notify.go` | Confines pre-policy retention to `rs-client true` peers |
 
-New and corrected requirement rows in `rfc/short/rfc7947.md`:
-
-| Requirement | Level | Change | Section it cites |
-|-------------|-------|--------|------------------|
-| `RFC7947-2.1-1` | MUST | NEW: a route server accepts every client UPDATE for inclusion in its Adj-RIB-In | Section 2.1, in the trailing parenthetical, so the id anchors there |
-| `RFC7947-x-4` | MUST becomes SHOULD | Text corrected: the forwarding of UPDATEs from the Loc-RIB to clients is determined by local policy, at Section 2.1's SHOULD strength. The MUST was read out of Section 2.3, which is non-normative | Key Requirements, naming RFC 7947 Section 2.1 in the scrubbed form |
-| `RFC7947-x-5` | SHOULD becomes MAY | Text corrected: Section 2.3.3 says authors "may wish to consider" a mitigation, and Section 2.3 is informational | Key Requirements, naming RFC 7947 Section 2.3.3 in the scrubbed form |
-
-Each correction is recorded as a paragraph opening `Correction 2026-08-30:`, naming
-its id in backticks, and quoting in double quotes at least 24 characters of the
-sentence from `rfc/full/rfc7947.txt` that states the lower strength. For `x-4` that
-sentence is Section 2.1's "The route server SHOULD forward UPDATE messages from its
-Loc-RIB or Loc-RIBs to its clients as determined by local policy." For `x-5` it is
-Section 2.3's "Neither Section 2.3 nor its subsections form part of the normative
-specification of this document". Only `x-4` is charged by `checkLevelRatchet`, since
-SHOULD is not a gated level; `x-5` carries the same form for the reader.
-
-`rfc/extraction/rfc7947.json` lands with its Section 2.1 site moving from a null
-disposition to mapped, pointing at `RFC7947-2.1-1`, with a reason naming the
-producing functions. That is the last open site: 24 of 24 sections and 2 of 3 sites
-were classified on 2026-08-30, and the artifact is held in this session's scratch
-until this spec closes.
+Requirement rows in `rfc/short/rfc7947.md`:
+- `RFC7947-2.1-1` (`[MUST]`, §2.1): `{gap}` removed; proven in positive (`TestRFC7947ClientDeniedUpdateRetainedInAdjRIBIn`) and negative (`TestRFC7947OrdinaryPeerDeniedUpdateAbsentFromAdjRIBIn`) polarities with verified discrimination records (`rfc/discrimination/rfc7947/RFC7947-2.1-1.json`) and independent audit verdict `enforced` (`rfc/audit/rfc7947/RFC7947-2.1-1.json`).
+- `RFC7947-x-4` and `RFC7947-x-5`: remain untouched at `[SHOULD]` (2026-11-22 owner approval).
+- `rfc/extraction/rfc7947.json`: remains signed with site `2.1:1` mapped to `RFC7947-2.1-1` and prose updated to reflect enforcement.
 
 ## Checklist
 
@@ -618,10 +604,10 @@ until this spec closes.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1 through AC-15 all demonstrated
+- [ ] AC-1 through AC-16 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] Scoped package and relevant functional/interop tests pass; GitHub CI supplies whole-tree verification after an authorized push. Agents do not run any `./le verify` command or test a copy of the tree
+- [ ] Scoped verification passes: `./le test unit pkg path ./internal/component/bgp/plugins/adj_rib_in/`, `./le test unit pkg path ./internal/component/bgp/reactor/ run TestRFC7947`, `./le test unit pkg path ./internal/component/bgp/plugins/rs/`, `./le test unit pkg path ./pkg/plugin/rpc/ run TestEventKindUpdateFiltered`, `./le test bgp plugin --pattern adj-rib-in-filtered`, `./le test integration interop` (`bgp-route-server-filtered-adj-rib-in-frr`), and `./le rfc check`
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -705,14 +691,202 @@ spec that cites the shared log has superseding evidence. The earlier
 only while another owning record still needs its other findings. No extra
 report copy is needed.
 
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Core filtered-update rail (landed in `44411d90c3`, completed in Commit A)**:
+  - Registered `bgpevents.EventUpdateFiltered` (`"update-filtered"`) in `internal/core/bgp/events/events.go` and `internal/component/bgp/plugin/register.go`, and added `rpc.EventKindUpdateFiltered` (ordinal 12; `EventKindCount` 13 at `44411d90c3`, now 14 after `EventKindUpdatePrePolicyOut`) in `pkg/plugin/rpc/enums.go`.
+  - Wired `reactor_notify.go` (`retainDeniedIngress`, `enqueueFilteredIngress`, `notifyOneMessage`, `partialDenied`) to queue withdrawals for affected prefixes on the ordinary `update` rail and then deliver original pre-policy UPDATE bytes on `update-filtered` for `rs-client true` peers on full denial, mixed-UPDATE `ingressPolicyWithdrawals` denial, and multi-NLRI partial-accept denial.
+  - Added `wireu.KeepCIDREntries` (`internal/component/bgp/wireu/nlri_cidr.go`), `keepNLRI` (`filter_nlri_delta.go`), and `buildDeniedAnnouncementPayload` (`filter_library.go`) so multi-NLRI UPDATEs where a prefix-list or family strip drops only a subset of prefixes retain the denied subset with unmodified pre-policy attributes while the accepted subset proceeds on the ordinary rail.
+  - Added `prefixCounts.retained` in `internal/component/bgp/reactor/session_prefix.go` to bound unique retained keys (accepted + import-filtered) against configured `maximum` for `rs-client true` offered-mode families independently of unmatched withdrawals.
+  - Updated `internal/component/bgp/plugins/adj_rib_in/` (`rib.go`, `rib_complex.go`, `rib_commands.go`, `rib_eligibility.go`, `rib_replay_path.go`, `rib_validation.go`, `rib_validation_config.go`, `metrics.go`, `register.go`) to subscribe to `update-filtered direction received`, store `ImportFiltered` and `FilterStep` independently of RPKI `Ineligible`, exclude `ImportFiltered` from `walkReplayRoutes`, `replayPathCommand`, `routeEligible`, `applyToInstalled`, `suspendForRevalidation`, and `disableValidationCommand`, expose `filtered`, `filter-step`, and `filtered-routes` in CLI commands, and maintain the per-peer `ze_adjribin_routes_filtered{peer=...}` Prometheus gauge.
+  - Extracted `routeServerStartupSubscriptions()` and `(*routeServer).handleStructuredEvent` in `internal/component/bgp/plugins/rs/server.go` so `TestRouteServerTakesNoDeliveryOfFilteredUpdates` directly proves subscription and dispatch isolation.
+  - Added compiled functional test observers (`internal/test/fixture/register_adj_rib_in_filtered.go`, `plugin_adj_rib_in_filtered.go`) and four promoted `.ci` functional tests (`test/plugin/adj-rib-in-filtered-{visible,status,not-replayed,absent-for-plain-peer}.ci`), verified 80/80 under 64 CPU burners.
+  - Added protocol interop scenario `test/interop/scenarios/bgp-route-server-filtered-adj-rib-in-frr/` with Go checker `internal/le/interoplab/bgp/check_rfc7947_filtered.go` + unit test `check_rfc7947_filtered_test.go`.
+  - Closed `RFC7947-2.1-1` (`{gap}` removed in `rfc/short/rfc7947.md`), recorded discrimination proofs (`rfc/discrimination/rfc7947/RFC7947-2.1-1.json`), independently re-audited `RFC7947-2.1-1` (`enforced`), resealed shifted `RFC7947-x-{1,2,3,5}` audits, updated `rfc/extraction/rfc7947.json`, updated `features/ixp-route-server-dynamic-peers.md`, and created news fragment `website/changes/fragments/rfc7947-adj-rib-in-accepts-filtered-updates.md`.
+
+### Bugs Found/Fixed
+- **Multi-NLRI partial-policy-rejection silent drop (found by FRR 10.7.1 interop `task-388`)**: FRR packs equal-attribute prefixes (`10.99.0.0/24` and `10.99.1.0/24`) into a single BGP UPDATE. When `filter_prefix` rejected only `10.99.1.0/24`, `policychain` returned `OutcomeAccept` with a rewritten `modifiedPayload` containing only `10.99.0.0/24`, so `notifyOneMessage` never emitted `update-filtered` for the stripped `10.99.1.0/24`. Fixed by extracting the stripped announcement subset with unmodified pre-policy attributes (`wireu.KeepCIDREntries`, `filter_library.go::buildDeniedAnnouncementPayload`, `reactor_notify.go::partialDenied`). Covered by `TestKeepCIDREntriesMatchesComplementOfDrop`, `TestKeepCIDREntriesAddPathAndErrors`, `TestRFC7947PartialMultiNLRIDenialRetained`, `TestRFC7947PartialMultiNLRIDenialSupersedesAccepted`, and `bgp-route-server-filtered-adj-rib-in-frr`.
+- **Pre-existing stale source anchor in `docs/guide/route-reflection.md:494`**: `rsRelaySendGranted` had been renamed to `rsRelaySendProcessName`; fixed during `./le doc check all`.
+
+### Documentation Updates
+- `docs/architecture/plugin/rib-storage-design.md` (`RawRoute`, `walkReplayRoutes`, `replayPathCommand`, `routeEligible`, `applyToInstalled`) — updated in `44411d90c3`.
+- `docs/architecture/api/process-protocol.md` (`EventUpdateFiltered`), `docs/architecture/api/ipc_protocol.md` (`EventKindUpdateFiltered`), `docs/architecture/api/commands.md` (`filtered`, `filter-step`, `filtered-routes`) — updated in `44411d90c3`.
+- `docs/plugin-development/metrics.md` (`ze_adjribin_routes_filtered`, `internal/component/bgp/plugins/adj_rib_in/metrics.go`).
+- `docs/architecture/config/syntax.md`, `docs/guide/configuration.md` (`update-filtered` / `update-filtered-received` receive token).
+- `docs/guide/command-reference.md` (`show bgp adj-rib-in` and `show bgp adj-rib-in status` fields).
+- `docs/guide/plugins.md`, `docs/features/plugins.md`, `docs/plugin-overview.md`, `docs/guide/status.md` (`bgp-adj-rib-in` `update-filtered` subscription and filtered count).
+- `docs/architecture/core-design.md` (`reactor_notify.go::enqueueFilteredIngress`, `filter_library.go::buildDeniedAnnouncementPayload`, `session_prefix.go::prefixCounts.retained`).
+- `docs/comparison.md` (pre-policy Adj-RIB-In for route-server clients).
+- `docs/architecture/testing/interop.md` (`bgp-route-server-filtered-adj-rib-in-frr`).
+- `docs/guide/route-reflection.md` (updated route-server Adj-RIB-In description and fixed stale anchor `rsRelaySendProcessName`); `docs/guide/rpki.md` verified via grep to contain zero `show bgp adj-rib-in` output blocks.
+- `features/ixp-route-server-dynamic-peers.md` and `rfc/extraction/rfc7947.json` (removed stale Section 2.1 `{gap}` prose and open spec path citation).
+- `plan/release/fixes/spec-bgp-selected-path-replay-ordering.md`, `plan/release/validation/spec-feature-maturity-declared.md`, `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (switched citations to bare stem `spec-rfc7947-adj-rib-in-accepts-filtered-updates`).
+- `./le doc check all`: 0 errors on all files touched by this spec (3170 digest anchors verified).
+
+### Deviations from Plan
+- **Partial multi-NLRI policy rewrite retention added**: The original plan assumed ingress policy rejection always took `!res.accept` or `ingressPolicyWithdrawals`. Real FRR 10.7.1 interop revealed that prefix-list rejection on a multi-NLRI UPDATE returns `OutcomeAccept` with a subset `modifiedPayload`; adding `KeepCIDREntries` and `buildDeniedAnnouncementPayload` fulfills RFC 7947 §2.1 for real-world BGP speakers.
+- **RFC 7947 `x-4` and `x-5` kept untouched**: Owner ruled on 2026-11-22 that both rows are already `[SHOULD]` and proven in `rfc/short/rfc7947.md`, so no downgrade or correction paragraphs were needed.
+- **Selected-path replay ordering split out**: Owner approved splitting the 2026-11-16 delayed selected-path replay proposal into `plan/release/fixes/spec-bgp-selected-path-replay-ordering.md`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | Assumed ingress policy denial of a prefix always enters `!res.accept` or `ingressPolicyWithdrawals` | When FRR packs accepted and rejected prefixes into one multi-NLRI UPDATE, `filter_prefix` + `policychain` returns `OutcomeAccept` with a rewritten subset `modifiedPayload` | Real FRR 10.7.1 interop `bgp-route-server-filtered-adj-rib-in-frr` failed at Assertion 5 (`has 1 Adj-RIB-In entries, want 2`) | Added `wireu.KeepCIDREntries` and `filter_library.go::buildDeniedAnnouncementPayload` + reactor unit tests; re-ran interop to GREEN |
+| assumption | Original 2026-08-30 spec assumed default offered-mode prefix counting bounded retained filtered routes | Unmatched withdrawals decrement offered count while retained denied entries stay in memory | 2026-11-15 test-campaign counterexample | Added `prefixCounts.retained` unique-key bound in `session_prefix.go` + `TestRFC7947FilteredRetainedPopulationBound` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Pre-policy Adj-RIB-In retention for `rs-client true` denied UPDATEs (full, mixed, replacement, partial multi-NLRI) | Done | `internal/component/bgp/reactor/reactor_notify.go:339-370`, `reactor_notify.go:787-858`, `filter_library.go:404-508`, `plugins/adj_rib_in/rib.go:464-480` | Original pre-policy attrs preserved on `update-filtered` rail |
+| Omission from Loc-RIB, live forwarding, bulk/paged replay, single-path replay, and RPKI validation promotion | Done | `plugins/adj_rib_in/rib.go:1276`, `rib_replay_path.go:99`, `rib_eligibility.go:101`, `rib_validation.go:81` | `ImportFiltered` independent of `Ineligible`; `bgp-rs` does not subscribe to `update-filtered` |
+| Operator CLI visibility (`filtered`, `filter-step`, `filtered-routes`) across json/yaml/table + Prometheus gauge | Done | `plugins/adj_rib_in/rib_commands.go:236-285`, `plugins/adj_rib_in/metrics.go:1-85` | `ze_adjribin_routes_filtered{peer=...}` maintained O(1) |
+| Unique retained-population prefix bound unaffected by unmatched withdrawals | Done | `internal/component/bgp/reactor/session_prefix.go` (`prefixCounts.retained`) | Verified by `TestRFC7947FilteredRetainedPopulationBound` |
+| `RFC7947-2.1-1` leaves `{gap}`, proven both polarities with discrimination + audit | Done | `rfc/short/rfc7947.md`, `rfc/discrimination/rfc7947/RFC7947-2.1-1.json`, `rfc/audit/rfc7947/RFC7947-2.1-1.json` | 0 `rfc7947` violations in `./le rfc check`; 206/206 signed |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC7947ClientDeniedUpdateRetainedInAdjRIBIn`, `TestRFC7947ReceivedLoopDenialRetained`, `test/plugin/adj-rib-in-filtered-visible.ci` | Loop-denied UPDATE retained with `filtered: true, filter-step: "loop"` |
+| AC-2 | Done | `TestRFC7947ReceivedImportFinalDenialRetained`, `TestRFC7947PartialMultiNLRIDenialRetained`, `test/plugin/adj-rib-in-filtered-status.ci`, `bgp-route-server-filtered-adj-rib-in-frr` | Policy-chain denial (full + partial multi-NLRI) retained with `filter-step: "peer-policy-chain"` |
+| AC-3 | Done | `TestRFC7947FilteredReceivedExcludedFromSelection`, `test/plugin/adj-rib-in-filtered-visible.ci`, `bgp-route-server-filtered-adj-rib-in-frr` | Absent from `show bgp rib` and never sent live to other RS clients |
+| AC-4 | Done | `TestRFC7947FilteredReceivedWithheldOnClientJoin`, `TestAdjRIBInFilteredLifecycleAndViews`, `test/plugin/adj-rib-in-filtered-not-replayed.ci`, `bgp-route-server-filtered-adj-rib-in-frr` | Reconnecting/late RS client receives accepted prefix only |
+| AC-5 | Done | `TestRFC7947OrdinaryPeerDeniedUpdateAbsentFromAdjRIBIn`, `TestRFC7947PartialMultiNLRIDenialRetained/ordinary-peer`, `test/plugin/adj-rib-in-filtered-absent-for-plain-peer.ci` | Non-`rs-client` denied UPDATE stays absent |
+| AC-6 | Done | `TestAdjRIBInFilteredLifecycleAndViews`, `TestRFC7947ReceivedMixedDenialRetainsAnnouncement`, `TestRFC7947PartialMultiNLRIDenialRetained` | Explicit withdrawal removes filtered entry |
+| AC-7 | Done | `TestAdjRIBInFilteredLifecycleAndViews`, `TestAdjRIBInFilteredRoutesMetric` | Peer-down clears filtered entries and zeroes gauge |
+| AC-8 | Done | `test/plugin/adj-rib-in-filtered-visible.ci`, `test/plugin/adj-rib-in-filtered-status.ci` | Verified across `json`, `yaml`, and `table` pipes |
+| AC-9 | Done | `TestAdjRIBInFilteredLifecycleAndViews`, `test/plugin/adj-rib-in-filtered-status.ci`, `bgp-route-server-filtered-adj-rib-in-frr` | `total-routes: 2, filtered-routes: 1` |
+| AC-10 | Done | `TestReceiveGrantAcceptsUpdateFilteredToken`, all 4 `test/plugin/adj-rib-in-filtered-*.ci` | `update-filtered` / `update-filtered-received` loads and completes |
+| AC-11 | Done | `TestReceiveGrantAcceptsUpdateFilteredToken` | Misspelled token rejected naming valid tokens |
+| AC-12 | Done | `./le rfc check` (0 violations on `rfc7947`) | `RFC7947-2.1-1` proven both polarities, discriminated, audited `enforced` |
+| AC-13 | Done | `rfc/short/rfc7947.md` | `RFC7947-x-4` and `RFC7947-x-5` remain untouched at `[SHOULD]` |
+| AC-14 | Done | `./le rfc extraction report` | `backlog: 0, enrolled: 206, signed: 206, unsigned: []` |
+| AC-15 | Done | `TestRFC7947FilteredRetainedPopulationBound` | Denied A + unmatched withdrawal B + denied C bounded at max=1; replace/withdraw/accept verified |
+| AC-16 | Done | `TestRFC7947ReceivedMixedDenialRetainsAnnouncement`, `TestRFC7947FilteredReplacementClearsSelectedRoute`, `TestRFC7947ReceivedValidationCannotAcceptPolicyDenial`, `TestRFC7947PartialMultiNLRIDenialSupersedesAccepted` | Mixed UPDATEs, denied replacements, and RPKI validation independence all pass |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Conformance & reactor lifecycle tests | Done | `internal/component/bgp/reactor/rfc7947_filtered_conformance_test.go`, `rfc7947_filtered_received_test.go`, `rfc7947_filtered_selection_test.go`, `rfc7947_filtered_partial_test.go` | Pass via `./le test unit pkg path ./internal/component/bgp/reactor/ run TestRFC7947` |
+| Wire subset complement tests | Done | `internal/component/bgp/wireu/nlri_cidr_test.go` | Pass via `./le test unit pkg path ./internal/component/bgp/wireu/ run TestKeepCIDREntries` |
+| Adj-RIB-In store, replay, CLI & metric tests | Done | `internal/component/bgp/plugins/adj_rib_in/rfc7947_filtered_test.go` | Pass via `./le test unit pkg path ./internal/component/bgp/plugins/adj_rib_in/` |
+| RS subscription isolation test | Done | `internal/component/bgp/plugins/rs/rfc7947_filtered_subscription_test.go` | Pass via `./le test unit pkg path ./internal/component/bgp/plugins/rs/` |
+| RPC EventKind round-trip & boundary test | Done | `pkg/plugin/rpc/event_kind_filtered_test.go` | Pass via `./le test unit pkg path ./pkg/plugin/rpc/ run TestEventKindUpdateFiltered` |
+| Interop checker binding & predicate unit tests | Done | `internal/le/interoplab/bgp/check_rfc7947_filtered_test.go` | Pass via `./le test unit pkg path ./internal/le/interoplab/bgp/ run "TestRFCInteropCheckerBindings\|TestRouteServerFilteredAdjRIBInPredicates"` |
+| Four functional `.ci` tests | Done | `test/plugin/adj-rib-in-filtered-{visible,status,not-replayed,absent-for-plain-peer}.ci` | 80/80 stress-repro under 64 CPU burners + 4/4 promoted PASS (7.3s) |
+| FRR + BIRD protocol interop scenario | Done | `test/interop/scenarios/bgp-route-server-filtered-adj-rib-in-frr/` | 1 passed, 0 failed against FRR 10.7.1 + BIRD 3.4.0 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 42 files from `44411d90c3` | Done | Landed in HEAD (`44411d90c3`) |
+| `internal/component/bgp/plugins/adj_rib_in/{metrics.go,register.go,rib.go,rib_complex.go,rib_eligibility.go,rib_validation.go,rfc7947_filtered_test.go}` | Done | Prometheus gauge + lint/RFC-naming cleanup |
+| `internal/component/bgp/wireu/{nlri_cidr.go,nlri_cidr_test.go}` & `reactor/{filter_library.go,filter_nlri_delta.go,filter_ordered.go,reactor_notify.go,rfc7947_filtered_partial_test.go}` | Done | Multi-NLRI partial-denial retention fix + tests |
+| `internal/component/bgp/plugins/rs/rfc7947_filtered_subscription_test.go` | Done | Added RFC untagged header |
+| `internal/test/fixture/{register_adj_rib_in_filtered.go,plugin_adj_rib_in_filtered.go}` & `test/plugin/adj-rib-in-filtered-*.ci` | Done | 4 functional tests + compiled observers |
+| `test/interop/scenarios/bgp-route-server-filtered-adj-rib-in-frr/*` & `internal/le/interoplab/bgp/{check_rfc7947_filtered.go,check_rfc7947_filtered_test.go,check_special.go,bgp_test.go}` | Done | Interop scenario + registered checker |
+| Docs, RFC audit/extraction, feature declaration, citing specs, news fragment | Done | All Checklist Yes rows updated; `./le doc check all` clean on touched files |
+
+### Audit Summary
+- **Total items:** 29 (5 task requirements, 16 ACs, 8 test groups)
+- **Done:** 29
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations: multi-NLRI partial-reject retention added; `x-4`/`x-5` kept untouched per 2026-11-22 ruling; selected-path replay ordering split to `spec-bgp-selected-path-replay-ordering.md`)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1: Route-server client denied UPDATEs (full, mixed, replacement, partial multi-NLRI) retained in Adj-RIB-In marked import-filtered | Interop + functional + unit | **RED -> GREEN interop**: `bgp-route-server-filtered-adj-rib-in-frr` failed at Assertion 5 (`peer 172.30.0.3 has 1 Adj-RIB-In entries, want 2`, `task-388`) before `buildDeniedAnnouncementPayload`, then **PASSED** (`1 passed, 0 failed`, recording `bgp-route-server-filtered-adj-rib-in-frr-NZY7RKHQFOWXH3D4NMBK2CSFLJ.jsonl`, `task-535`) against FRR 10.7.1 + BIRD 3.4.0; `adj-rib-in-filtered-visible.ci` PASS (1.0s); `TestRFC7947PartialMultiNLRIDenialRetained` PASS |
+| G-2: Import-filtered entry never selected or re-advertised (live, bulk/paged replay, single-path replay, post-RPKI valid) and denied replacement withdraws prior accepted path | Interop + functional + unit | `bgp-route-server-filtered-adj-rib-in-frr` Assertions 7, 8, 9–12 (BIRD omits `10.99.1.0/24` live AND after `birdc disable/enable ze_peer` reconnect replay); `adj-rib-in-filtered-not-replayed.ci` PASS (7.3s, 80/80 under 64-burner load); `TestRFC7947FilteredReceivedExcludedFromSelection`, `TestRFC7947FilteredReplacementClearsSelectedRoute`, `TestRFC7947ReceivedValidationCannotAcceptPolicyDenial` PASS |
+| G-3: Operator distinguishes filtered from accepted entries at CLI across all pipes + metric | Functional + unit | `adj-rib-in-filtered-visible.ci` (`json`, `yaml`, `table` pipes + `ze_adjribin_routes_filtered{peer="127.0.0.1"} == 1`) & `adj-rib-in-filtered-status.ci` (`total-routes: 2, filtered-routes: 1`) PASS (4/4 promoted, 80/80 stress-repro); `TestAdjRIBInFilteredRoutesMetric` PASS |
+| G-4: Retained entries bounded by unique keys against prefix maximum, unaffected by unmatched withdrawals | Unit | `TestRFC7947FilteredRetainedPopulationBound` PASS (`session_prefix.go::prefixCounts.retained`) |
+| G-5: `RFC7947-2.1-1` leaves `{gap}` and passes `./le rfc check` with discrimination and audit | RFC gate | `./le rfc check` reports 0 violations for `rfc7947`; `rfc/discrimination/rfc7947/RFC7947-2.1-1.json` verified; `rfc/audit/rfc7947/RFC7947-2.1-1.json` independently judged `enforced`; `./le rfc extraction report` `backlog: 0, enrolled: 206, signed: 206` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Delayed selected-path replay ticket/cold-worker ordering | Orthogonal 2026-11-16 investigation split out by owner ruling on 2026-11-22 | `plan/release/fixes/spec-bgp-selected-path-replay-ordering.md` |
+
 ## Review Gate
 
-<!-- Filled at implementation time by /ze-review. Left empty here by design. -->
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc7947-adj-rib-in-accepts-filtered-updates-f1a36472-8747-465b-8316-df184028508b.md` |
+| `./le spec review check` | clean (53 files verified) |
+| Rounds | 2 (Round 1: `e8bce97a`, 1 BLOCKER, 2 ISSUE, 2 NOTE; Round 2: `dbcc88c5`, CLEAN: 0 BLOCKER, 0 ISSUE, 1 NOTE) |
+| Reviewer lenses used | logic+wiring, security+guard+edge-cases, spec-compliance+tests+docs |
 
-### Round 1
-| Lens | Scope | BLOCKER | ISSUE | NOTE |
-|------|-------|---------|-------|------|
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `suspendForRevalidation` (`enable-validation refresh`) moved `ImportFiltered` routes into `r.pending`, zeroing the gauge and allowing RPKI reject to delete them | `internal/component/bgp/plugins/adj_rib_in/rib_validation_config.go:72` | Skipped `route.ImportFiltered` in `suspendForRevalidation` and `disableValidationCommand`; added `TestAdjRIBInSuspendForRevalidationKeepsImportFiltered` |
+| 2 | ISSUE | `TestRouteServerTakesNoDeliveryOfFilteredUpdates` asserted a hardcoded local slice and did not drive `bgp-rs`'s structured event handler | `internal/component/bgp/plugins/rs/rfc7947_filtered_subscription_test.go:22` | Extracted `routeServerStartupSubscriptions()` and `handleStructuredEvent()` in `rs/server.go` and tested both directly |
+| 3 | ISSUE | `docs/features.md` (derived, gitignored) still showed pre-fix Section 2.1 text locally | `features/ixp-route-server-dynamic-peers.md` -> `docs/features.md:32` | Verified `docs/features.md` is gitignored/derived (`.gitignore:219`) and `features/ixp-route-server-dynamic-peers.md` carries no stale gap prose or open spec path |
+| 4 | NOTE | `buildDeniedAnnouncementPayload` skipped silently on `!ok` from `keepNLRI` and `rfc7947_filtered_partial_test.go` covered IPv4 only | `internal/component/bgp/reactor/filter_library.go:455` | Returned `modifyFailureMalformed` on `!ok` from `keepNLRI`; added IPv6 `MP_REACH_NLRI` test `TestRFC7947PartialMPReachDenialRetained` |
 
-### Round 2
-| Lens | Scope | BLOCKER | ISSUE | NOTE |
-|------|-------|---------|-------|------|
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/plugins/adj_rib_in/metrics.go` | Yes | `-rw-r--r-- 2335 Nov 23 15:45` |
+| `internal/component/bgp/plugins/adj_rib_in/rfc7947_filtered_test.go` | Yes | `-rw-r--r-- 11703 Nov 23 19:19` |
+| `internal/component/bgp/plugins/rs/rfc7947_filtered_subscription_test.go` | Yes | `-rw-r--r-- 1378 Nov 23 19:20` |
+| `internal/component/bgp/reactor/rfc7947_filtered_conformance_test.go` | Yes | `-rw-r--r-- 13286 Nov 23 02:40` |
+| `internal/component/bgp/reactor/rfc7947_filtered_partial_test.go` | Yes | `-rw-r--r-- 7229 Nov 23 16:52` |
+| `internal/component/bgp/wireu/nlri_cidr_test.go` | Yes | `-rw-r--r-- 1541 Nov 23 16:44` |
+| `pkg/plugin/rpc/event_kind_filtered_test.go` | Yes | `-rw-r--r-- 1669 Nov 22 15:36` |
+| `internal/test/fixture/register_adj_rib_in_filtered.go` & `plugin_adj_rib_in_filtered.go` | Yes | `-rw-r--r-- 563` & `9744 Nov 23 15:51` |
+| `test/plugin/adj-rib-in-filtered-{visible,status,not-replayed,absent-for-plain-peer}.ci` | Yes | `2381`, `2407`, `3539`, `2067` bytes |
+| `test/interop/scenarios/bgp-route-server-filtered-adj-rib-in-frr/{ze,frr,bird}.conf` | Yes | `1417`, `351`, `185` bytes |
+| `internal/le/interoplab/bgp/check_rfc7947_filtered.go` & `_test.go` | Yes | `10007` & `2323` bytes |
+| `website/changes/fragments/rfc7947-adj-rib-in-accepts-filtered-updates.md` | Yes | `-rw-r--r-- 1500 Nov 23 15:53` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-3, AC-4, AC-5 | Retention on `rs-client true`, omission from Loc-RIB/live/replay, plain peer absent | `./le test unit pkg path ./internal/component/bgp/reactor/ run TestRFC7947` exit 0 (`task-531`); `./le --name rfc7947-draft test bgp plugin --pattern adj-rib-in-filtered` 4/4 PASS 7.3s (`task-594`); `bgp-route-server-filtered-adj-rib-in-frr` 1 passed, 0 failed (`task-535`) |
+| AC-6, AC-7, AC-8, AC-9 | Withdrawal/peer-down cleanup, json/yaml/table pipe rendering, status filtered-routes & gauge | `./le test unit pkg path ./internal/component/bgp/plugins/adj_rib_in/` exit 0 (`task-571`) + `TestAdjRIBInFiltered` exit 0 (`task-585`); `adj-rib-in-filtered-{visible,status}.ci` PASS (`task-594`) |
+| AC-10, AC-11 | `update-filtered` receive grant loads/completes, misspelling refused | `TestReceiveGrantAcceptsUpdateFilteredToken` PASS (`task-531`); `EventKindUpdateFiltered` PASS (`task-571`) |
+| AC-12, AC-13, AC-14 | `RFC7947-2.1-1` proven/discriminated/audited; `x-4`/`x-5` `[SHOULD]`; extraction signed | `./le rfc check` 0 `rfc7947` violations (`task-600`); `./le rfc extraction report` 206/206 signed |
+| AC-15, AC-16 | Unique retained prefix bound; mixed UPDATEs, denied replacements, RPKI independence | `TestRFC7947FilteredRetainedPopulationBound`, `TestRFC7947ReceivedMixedDenialRetainsAnnouncement`, `TestRFC7947FilteredReplacementClearsSelectedRoute`, `TestRFC7947ReceivedValidationCannotAcceptPolicyDenial`, `TestRFC7947PartialMultiNLRIDenialSupersedesAccepted` PASS (`task-531`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Loop-denied UPDATE on `rs-client true` -> `show bgp adj-rib-in` + `ze_adjribin_routes_filtered` | `test/plugin/adj-rib-in-filtered-visible.ci` | Yes (PASS 1.0s; 80/80 under load) |
+| Policy-chain denied UPDATE on `rs-client true` -> `show bgp adj-rib-in status` | `test/plugin/adj-rib-in-filtered-status.ci` | Yes (PASS 3.0s; 80/80 under load) |
+| Peer-up replay to second `rs-client true` omits filtered route | `test/plugin/adj-rib-in-filtered-not-replayed.ci` | Yes (PASS 7.3s; 80/80 under load) |
+| Loop-denied UPDATE on non-`rs-client` peer stays absent | `test/plugin/adj-rib-in-filtered-absent-for-plain-peer.ci` | Yes (PASS 3.0s; 80/80 under load) |
+| FRR multi-NLRI partial policy denial + BIRD live & reconnect replay | `test/interop/scenarios/bgp-route-server-filtered-adj-rib-in-frr/` | Yes (1 passed, 0 failed; RED->GREEN verified) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `grep ImportFiltered internal/component/bgp/plugins/adj_rib_in/` confirms guards in `walkReplayRoutes`, `replayPathCommand`, `routeEligible`, `applyToInstalled`; verified by `TestAdjRIBInFilteredLifecycleAndViews` and `TestRFC7947ReceivedValidationCannotAcceptPolicyDenial` |
+| A-2 | confirmed | `session_prefix.go::prefixCounts.retained` verified by `TestRFC7947FilteredRetainedPopulationBound` |
+| A-3 | confirmed | `reactor_notify.go::enqueueFilteredIngress` withdrawal-first FIFO ordering verified by `TestRFC7947FilteredReplacementClearsSelectedRoute` and `TestRFC7947PartialMultiNLRIDenialSupersedesAccepted` |
+| A-4 | confirmed | Promoted functional suite (4/4) and full `adj_rib_in` / `rs` unit suites pass with added `filtered`, `filter-step`, and `filtered-routes` keys |
+| A-5 | confirmed | `rfc/short/rfc7947.md` keeps `x-4` and `x-5` at `[SHOULD]`; `./le rfc check` has 0 `rfc7947` violations; `./le rfc extraction report` 206/206 signed |
+| A-6 | confirmed | All `SetStartupSubscriptions` sites inspected; only `bgp-adj-rib-in` subscribes to `update-filtered`; `TestRouteServerTakesNoDeliveryOfFilteredUpdates` PASS (`task-571`) |
+| A-7 | confirmed | `TestAdjRIBInFilteredLifecycleAndViews` proves `ingestPosition` advances cleanly across filtered UPDATEs (`task-571`) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Wire format / metadata / test infra (No) | No BGP wire encoding, route metadata map, or harness changes; verified by `git diff --stat` | Yes |
+| Architecture & API docs (`rib-storage-design.md`, `process-protocol.md`, `ipc_protocol.md`, `commands.md`, `core-design.md`) | Verified against `rib.go`, `rib_commands.go`, `events.go`, `enums.go`, `reactor_notify.go`, `filter_library.go`, `session_prefix.go`; `./le doc check all` 0 errors on touched files | Yes |
+| Operator & plugin docs (`metrics.md`, `syntax.md`, `configuration.md`, `command-reference.md`, `plugins.md`, `features/plugins.md`, `plugin-overview.md`, `status.md`, `comparison.md`, `route-reflection.md`, `interop.md`, `features/ixp-route-server-dynamic-peers.md`) | Verified against `metrics.go`, `register.go`, `rib_commands.go`, `check_rfc7947_filtered.go`; grep confirmed `docs/guide/rpki.md` has no `show bgp adj-rib-in` sample output; `./le doc check all` clean | Yes |
+| RFC ledger & news (`rfc/short/rfc7947.md`, `docs/features/rfc-status.md`, `rfc/extraction/rfc7947.json`, `website/changes/fragments/rfc7947-adj-rib-in-accepts-filtered-updates.md`) | Verified by `./le rfc check` (0 `rfc7947` violations) and `./le rfc extraction report` (206/206 signed) | Yes |
+
+## Core Insight
+
+Real BGP speakers pack equal-attribute prefixes into multi-NLRI UPDATEs, where per-prefix import policies return `OutcomeAccept` with a rewritten subset payload rather than `OutcomeReject`. Satisfying RFC 7947 Section 2.1 therefore requires retaining not only whole-UPDATE and mixed-UPDATE denials, but also the exact dropped-NLRI complement (`wireu.KeepCIDREntries`) with unmodified pre-policy attributes alongside the accepted subset.

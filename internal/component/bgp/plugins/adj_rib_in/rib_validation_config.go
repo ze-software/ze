@@ -72,6 +72,11 @@ func (r *AdjRIBInManager) suspendForRevalidation() []map[string]any {
 			if !isSimplePrefixFamily(route.Family) {
 				return true
 			}
+			// RFC 7947 Section 2.1: import-filtered routes remain retained
+			// pre-policy and are never suspended into RPKI validation pending.
+			if route.ImportFiltered {
+				return true
+			}
 			pending = append(pending, &pendingRoute{
 				peerAddr: peer, family: route.Family, prefix: key.Prefix.String(), routeKey: key,
 				route: route, receivedAt: now, state: ValidationPending,
@@ -115,6 +120,9 @@ func (r *AdjRIBInManager) disableValidationCommand() (status string, data any, e
 		var recovered []compactRouteKey
 		routes.Range(func(key compactRouteKey, _ uint64, route *RawRoute) bool {
 			if !isSimplePrefixFamily(route.Family) {
+				return true
+			}
+			if route.ImportFiltered {
 				return true
 			}
 			newer := r.earlyDecisions[pendingKey(peer, key)]

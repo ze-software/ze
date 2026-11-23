@@ -28,7 +28,7 @@ bgp {
             send [ update ]
         }
         attach process adj-rib-in {
-            receive [ update-received state ]
+            receive [ update-received update-filtered-received state ]
         }
     }
 
@@ -44,7 +44,7 @@ bgp {
             send [ update ]
         }
         attach process adj-rib-in {
-            receive [ update-received state ]
+            receive [ update-received update-filtered-received state ]
         }
     }
 }
@@ -110,7 +110,7 @@ bgp {
             send [ update ]
         }
         attach process adj-rib-in {
-            receive [ update-received state ]
+            receive [ update-received update-filtered-received state ]
         }
     }
 }
@@ -334,7 +334,10 @@ Overflow uses a two-tier pool: per-peer pools (64 slots) absorb steady-state tra
 
 ### Convergent Replay
 
-When a peer reconnects, the route server replays eligible stored routes from other peers:
+When a peer reconnects, the route server replays eligible stored routes from other peers (import-filtered pre-policy entries retained for `rs-client true` peers under RFC 7947 Section 2.1 are skipped by `walkReplayRoutes`, `replayPathCommand`, and `routeEligible`, so denied routes are never selected or re-advertised):
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- walkReplayRoutes -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go -- replayPathCommand -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- routeEligible -->
 
 1. Full snapshot replay of non-FlowSpec routes from adj-rib-in
 2. Delta loop catches those routes received during replay
@@ -488,13 +491,13 @@ fast path needs`), naming the missing grant and the line to add. To fix either, 
 `attach process <rs-name> { receive [ update-received ]; send [ update ]; }` to
 the peer, where `<rs-name>` is the name your `plugin { internal ... }` block
 gives `bgp-rs`.
-<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- rsRelaySendGranted, rsRelayReceiveGranted, reportRSRelayGrants -->
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- rsRelaySendProcessName, rsRelayReceiveGranted, reportRSRelayGrants -->
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver fast-path gate -->
 <!-- test: test/plugin/bgp-rs-fastpath-relay-grants.ci -- a destination without send [ update ] gets nothing and logs send refused; a source without receive [ update-received ] is relayed to nobody -->
 
 The `bgp-adj-rib-in` plugin stores received routes for replay on peer reconnect.
-It needs only `receive [ update-received state ]`. When a peer comes up, the
+Ordinary peers need `receive [ update-received state ]`; route-server client peers (`rs-client true`) add `update-filtered-received` so ingress-denied UPDATEs are retained pre-policy without being replayed (RFC 7947 Section 2.1). When a peer comes up, the
 route server or reflector reads the stored routes from it, page by page, and
 sends them to the peer itself, so the peer's `send [ update ]` for `rs` (or the
 reflector) is the grant that covers the replay. Grant `bgp-adj-rib-in`

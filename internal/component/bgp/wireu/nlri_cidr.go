@@ -100,3 +100,32 @@ func DropCIDREntries(out, section []byte, addPath bool, drops []uint16) ([]byte,
 	}
 	return out, true
 }
+
+// KeepCIDREntries appends to out only the NLRI entries of section that start
+// at an offset in keeps, which MUST be ascending and each once. Each kept NLRI
+// is copied whole, path identifier and label stack included. It is the exact
+// complement of DropCIDREntries, used to extract policy-denied NLRI subsets
+// for route-server Adj-RIB-In retention (RFC 7947 Section 2.1).
+func KeepCIDREntries(out, section []byte, addPath bool, keeps []uint16) ([]byte, bool) {
+	cursor := NewCIDRCursor(section, addPath)
+	for {
+		entry, _, start, more := cursor.Next()
+		if !more {
+			break
+		}
+		if len(keeps) > 0 && int(keeps[0]) < start {
+			return nil, false // the offset fell inside the entry before this one
+		}
+		if len(keeps) > 0 && int(keeps[0]) == start {
+			out = append(out, entry...)
+			keeps = keeps[1:]
+		}
+	}
+	if cursor.Bad() {
+		return nil, false
+	}
+	if len(keeps) > 0 {
+		return nil, false // an offset past the last entry
+	}
+	return out, true
+}
