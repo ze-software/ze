@@ -2606,7 +2606,7 @@ in the diagnostic.
 | **Walker** | `config.validateBackendFeatures(tree, schema, root, activeBackend, backendLeafPath)` descends the parsed JSON tree alongside the schema and emits one error per YANG path where the node's annotation excludes the active backend. |
 | **Narrowest wins** | A descendant annotation that accepts the active backend suppresses an outer annotation that rejects it, so per-case overrides work. |
 | **No backend on this host** | An empty active backend means the config names none and this OS has no default (netlink, nft and tc are the Linux defaults). The walker's refusal, and each component's "no backend configured and no OS default available", is marked `diagnostic.HostVerdict`, so `ze config validate` reports it under the host-verdict code `config-host-backend` rather than as a config defect. |
-| **Wiring** | iface, firewall, and traffic plugins call the gate in `OnConfigure` (startup) and `OnConfigVerify` (reload). `ze config validate` calls the same helper so offline validation matches daemon commit. Runtime `errNotSupported` returns in `ifacevpp` stay as defence-in-depth. |
+| **Wiring** | iface, firewall, and traffic call the gate from `OnConfigure` (startup) and from the parse their `OnConfigVerify` (reload) and their `InProcessConfigVerifier` share. The container plugin calls it too, from its network rule, with the interface backend. `ze config validate` has no gate call of its own: it reaches the same helper through `config.VerifyPluginConfig`, which runs each registration's `InProcessConfigVerifier`, so offline validation matches daemon commit. Runtime `errNotSupported` returns in `ifacevpp` stay as defence-in-depth. |
 | **Initial coverage** | iface: `bridge`, `tunnel`, `wireguard`, `veth`, `mirror` annotated `ze:backend "netlink"`. firewall: seven `ze:backend "nft"` annotations on conntrack-driven matches (`connection-state`, `connection-mark`) and nft-only action/modifier leaves. traffic: carries a `leaf backend` default (`tc`); per-feature annotations land with `spec-fw-7-traffic-vpp`. |
 
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension backend -->
@@ -2615,7 +2615,8 @@ in the diagnostic.
 <!-- source: internal/component/iface/register.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
 <!-- source: internal/component/firewall/engine.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
 <!-- source: internal/component/traffic/register.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
-<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation, backend-gate loop over gated components -->
+<!-- source: internal/component/config/plugin_verify.go -- VerifyPluginConfig, VerifyPluginConfigMapTransition, the in-process verifiers ze config validate runs -->
+<!-- source: internal/plugins/container/network/backend.go -- checkBackends, runBackendGate -->
 <!-- source: internal/core/diagnostic/host_verdict.go -- HostVerdict, IsHostVerdict -->
 
 ---
@@ -4215,6 +4216,16 @@ Fetching new data and applying it are two different decisions. A background serv
 The fleet hub is the builder for a managed router. The hub keeps the configuration of each router, sends `config-changed` as a notification, and the router fetches the new configuration when it is ready. An external source of truth such as NetBox fits the same shape: the hub pulls from NetBox and builds the configuration of each router, and the router pulls from the hub. Ze has no NetBox builder today.
 <!-- source: internal/component/plugin/server/managed_serve.go -- ManagedServer config-fetch and config-changed -->
 <!-- source: internal/component/managed/handler.go -- client config-changed handling -->
+
+---
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now. | Accepting such a configuration at commit, accepting a `fib kernel` block with no `fib vpp` block beside it, or letting any feature other than `fib kernel` and `sysctl` declare a host-side (LCP-punted) meaning in order to stay accepted. | plan/release/fixes/spec-dataplane-compatibility-guard.md | 2026-11-23 |
+| A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each. | A start-only mode that keeps, reports or partly applies such a configuration, a feature exempt from the refusal at start, or a verdict that differs between start, commit, reload and validate. | plan/release/fixes/spec-dataplane-compatibility-guard.md | 2026-11-23 |
+| The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "nft"` annotation. | A `ze:backend` annotation that refuses `connection-state` or `mark-set` on VPP, or announcing any of `connection-state`, `flow-offload` and `mark-set` as supported on VPP before a test on real VPP proves it. | plan/release/fixes/spec-dataplane-compatibility-guard.md | 2026-11-23 |
 
 ---
 
