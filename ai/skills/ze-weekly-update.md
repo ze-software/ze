@@ -175,8 +175,10 @@ the MUSTs of what Ze builds, leaving out the `not built` section of
 `./le rfc tree`, whose MUSTs need no test until built (`ai/META-DECISIONS.md`,
 "Website design"). The trend and the movement compare figures only when both
 endpoints were counted the same way. When the counting changed and a published
-figure can not be reconciled with today's, give today's figures alone and say
-the counting changed.
+figure can not be reconciled with today's, explain the change only when its
+reason is known and verified at the code. Otherwise give today's figures alone
+and say nothing about the earlier figure or the counting: an unexplained "the
+counting changed" reads as cooking the books.
 
 ### Writing the RFC section
 
@@ -207,8 +209,9 @@ break", "walked", "ledger" or "polarity".
 5. **Compare only like with like.** Before quoting a past figure, run the
    weekly report over the earlier post's range and compare its endpoint
    figure with the one that post printed. When they differ, the counting
-   changed: say so in one sentence and give no comparison, no trend and no
-   gain in points.
+   changed. Give no comparison, no trend and no gain in points, and do not
+   mention the change unless its reason is known and can be said in one
+   plain sentence.
 6. Close with where the period's new tests came from, by RFC, and the
    compliance page link.
 
@@ -220,7 +223,7 @@ Each MUST in the RFCs Ze implements gets a test. When the test is written, the c
 - <A>% of all the MUSTs have a test checked this way (<p> of <t>). This counts every MUST of every RFC Ze implements, including the <n> for parts of an RFC Ze does not build today, which need no test until they are built.
 - <B>% of the MUSTs for what Ze builds have a test checked this way. This leaves those <n> out, so it shows how well the features Ze ships are tested.
 
-<a comparison with the last update when the counting is the same, or one sentence saying the counting changed>. Most of this period's new tests are for <RFC>, followed by <RFC>: https://ze-software.net/quality/rfc-compliance/
+<a comparison with the last update only when both were counted the same way; otherwise nothing>. Most of this period's new tests are for <RFC>, followed by <RFC>: https://ze-software.net/quality/rfc-compliance/
 ```
 
 `./le weekly report` prints text even when `'|' json` is passed through

@@ -643,8 +643,11 @@ publishes, or a screenshot, demo or video about Ze.
   until that part is built, so the second figure shows how well the shipped
   features are tested.
 - An update report compares a figure with an earlier report only when both
-  were counted the same way. When the counting changed and the two can not be
-  reconciled, it gives today's figure alone and says the counting changed.
+  were counted the same way. When the counting changed, it explains why the
+  number moved only when the reason is known; when it is not known, it gives
+  today's figure alone and says nothing about the earlier one or about the
+  counting, because an unexplained "the counting changed" reads as cooking
+  the books.
 - In blog articles, everything before the AI authorship disclaimer is a brief
   teaser. The developed argument, substantial background and technical
   explanations follow the disclaimer. The deck also leaves the explanation
