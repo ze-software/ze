@@ -633,6 +633,16 @@ publishes, or a screenshot, demo or video about Ze.
 - The update report is written in Thomas's tone, under the project's name: it
   reads as he would write it, never as a model's prose
   (`website/changes/discord/STYLE.md`, "Identity & voice").
+- The update report's RFC section gives its figures as percentages, in plain
+  words, and gives two of them, each saying what it counts: the share of all
+  the MUSTs of the RFCs Ze implements whose test has been seen to fail with
+  the code broken, and the same share over only the MUSTs of what Ze builds.
+  It says that a MUST for a part of an RFC Ze does not build needs no test
+  until that part is built, so the second figure shows how well the shipped
+  features are tested.
+- An update report compares a figure with an earlier report only when both
+  were counted the same way. When the counting changed and the two can not be
+  reconciled, it gives today's figure alone and says the counting changed.
 - In blog articles, everything before the AI authorship disclaimer is a brief
   teaser. The developed argument, substantial background and technical
   explanations follow the disclaimer. The deck also leaves the explanation

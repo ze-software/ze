@@ -160,6 +160,15 @@ ways of proving a requirement, defects the checking found and fixed), then where
 the whole stands today. Per-profile or per-service figures stay out of the post
 until that feature is complete (owner instruction, 2026-10-26).
 
+Where the whole stands is two percentages, each with a plain sentence saying
+what it counts: the share of all MUSTs with a proven test, and the share over
+the MUSTs of what Ze builds, leaving out the `not built` section of
+`./le rfc tree`, whose MUSTs need no test until built (`ai/META-DECISIONS.md`,
+"Website design"). The trend and the movement compare figures only when both
+endpoints were counted the same way. When the counting changed and a published
+figure can not be reconciled with today's, give today's figures alone and say
+the counting changed.
+
 A MUST counts as covered only when a recorded break proved its test goes red
 (`ai/META-DECISIONS.md`). Report that figure first. The ledger's "checked" count
 is a weaker claim and comes second, if at all.
