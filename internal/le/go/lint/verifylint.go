@@ -522,7 +522,7 @@ func (r *Runner) queryFlavorsParallel(flavors []Flavor, patterns []string) []fla
 }
 
 // runFlavorWorker claims flavor indices from next until exhausted and stores
-// each goList result in its disjoint results slot before signalling wg.
+// each goList result in its disjoint results slot before signaling wg.
 func (r *Runner) runFlavorWorker(flavors []Flavor, patterns []string, next *atomic.Int64, results []flavorQueryResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
