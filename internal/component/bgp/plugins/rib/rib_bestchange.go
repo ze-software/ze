@@ -1045,15 +1045,18 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 			return bestChangeEntry{}, false
 		}
 		sh.store.delete(pfx, routeKey)
-		r.removeAdvertise(fam, pfx, routeKey)
 		// DOWN must still find this owner while the synchronous withdrawal
 		// mirror is in flight, even though no best record remains in the shard.
 		defer r.bestPathInterner.releasePeer(prev.rec.peerIdx())
 		// The Loc-RIB is prefix-keyed and feeds the kernel FIB, so it takes
 		// CIDR families only. See mirrorToLocRIB below for why.
+		// RFC 4271 Section 9.2: remove the unfeasible route from the Routing
+		// Table (Loc-RIB) before publishing the Adj-RIB-Out withdrawal so
+		// readers observing the withdrawal never see a stale Routing Table entry.
 		if cidr {
 			r.removeLocRIB(fam, pfx)
 		}
+		r.removeAdvertise(fam, pfx, routeKey)
 		if !cidr {
 			return bestChangeEntry{
 				Action:  ribevents.BestChangeWithdraw,
@@ -1196,8 +1199,10 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	if sameBest {
 		// A changed multipath set still reaches the Loc-RIB, which deduplicates
 		// true no-ops, but the best itself needs no new record or event.
-		r.commitReceivedAdvertise(fam, pfx, routeKey, learnedBest, selected)
+		// RFC 4271 Section 9.1.3: install in the Routing Table (Loc-RIB) before
+		// publishing to Adj-RIB-Out so advertised destinations are forwardable.
 		mirrorToLocRIB()
+		r.commitReceivedAdvertise(fam, pfx, routeKey, learnedBest, selected)
 		return bestChangeEntry{}, false
 	}
 
@@ -1240,10 +1245,13 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	} else {
 		delete(sh.store.labels, pfx)
 	}
-	r.commitReceivedAdvertise(fam, pfx, routeKey, learnedBest, selected)
 	// Mirror the best path (and its equal-cost multipath set) into the shared
 	// Loc-RIB via the same closure the same-best short-circuit uses.
+	// RFC 4271 Section 9.1.3: complete Routing Table installation before
+	// publishing to Adj-RIB-Out so the destination is already forwardable when
+	// SelectRoutes writes to any peer.
 	mirrorToLocRIB()
+	r.commitReceivedAdvertise(fam, pfx, routeKey, learnedBest, selected)
 	action := ribevents.BestChangeAdd
 	if havePrev {
 		action = ribevents.BestChangeUpdate

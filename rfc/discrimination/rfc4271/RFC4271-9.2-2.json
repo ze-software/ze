@@ -2,6 +2,39 @@
   {
     "rid": "RFC4271-9.2-2",
     "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_forked_forwardability_proof_test.go::TestRFC4271ForkedProspectiveResolutionExcludesUnforwardableRoutes",
+    "unit-sha": "e0fa6b09c635df29",
+    "claim-sha": "cb4f4e3356d82627",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::prospectiveDistance",
+    "producer-sha": "8cdc6f9c7abaac2e",
+    "break": "line 189: \"distance := igpcost.Distance{Cost: d.Cost, Resolved: d.Resolved, Recursive: d.Recursive, MissingAIGP: d.MissingAIGP}\" -\u003e \"distance := igpcost.Distance{Cost: d.Cost, Resolved: true, Recursive: d.Recursive, MissingAIGP: d.MissingAIGP} // MUTATION-APPLIED: ignore prospective unresolvability\""
+  },
+  {
+    "rid": "RFC4271-9.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_forked_forwardability_proof_test.go::TestRFC4271ForkedRemotePublicationForwardableAtStableRevision",
+    "unit-sha": "c11de68233df66e6",
+    "claim-sha": "addb1e7e504328cb",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_remote.go::insertLocRIB",
+    "producer-sha": "886c895c7cc400f9",
+    "break": "line 252: \"remote.sink.InsertForward(fam, prefix, path)\" -\u003e \"_ = path // MUTATION-APPLIED: skip remote Loc-RIB install before publication\""
+  },
+  {
+    "rid": "RFC4271-9.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_forked_forwardability_proof_test.go::TestRFC4271ForkedRevisionInvalidationWithdrawsOnReachabilityLoss",
+    "unit-sha": "d228f8a4df8d9c26",
+    "claim-sha": "a019e20b32ffc193",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_remote.go::runRemoteMetrics",
+    "producer-sha": "ac9dc07b356f4bd1",
+    "break": "line 141: \"clear(r.forkRIB.prospective)\" -\u003e \"_ = r.forkRIB.prospective // MUTATION-APPLIED: keep stale prospective cache across revision change\""
+  },
+  {
+    "rid": "RFC4271-9.2-2",
+    "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_forwardability_session_test.go::TestRFC4271OrdinaryOutputRequiresForwardableRoute",
     "unit-sha": "a5e22af42e9b85f3",
     "claim-sha": "dc2c532fde44a7dd",
@@ -18,8 +51,8 @@
     "claim-sha": "5352eb1800d524b8",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "184a3ec3f6b97352",
-    "break": "line 1123: \"if !cidr {\" -\u003e \"if true /* MUTATION-APPLIED: omit ordinary CIDR mirroring only */ {\""
+    "producer-sha": "48bb523d2ee3b3fd",
+    "break": "line 1162: \"if !cidr {\" -\u003e \"if true /* MUTATION-APPLIED: omit ordinary CIDR mirroring only */ {\""
   },
   {
     "rid": "RFC4271-9.2-2",
