@@ -5,7 +5,7 @@
 | Status | blocked |
 | Priority | P3 |
 | Release reason | Release-independent interop image copies a prebuilt ze work; historical findings do not establish a current product defect. |
-| Blocked by | `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` (AC-9: `interop-ipsec` green; the Docker host now runs Ze's kernel, closed in `spec-docker-hosts-run-the-ze-kernel`, and the remaining MOBIKE reds are that spec's) and a full `./le verify worktree` (AC-10) |
+| Blocked by | `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` and `plan/post-release/features/spec-ipsec-11-mobike.md` (AC-9: `interop-ipsec` green; the Docker host now runs Ze's kernel, closed in `spec-docker-hosts-run-the-ze-kernel`, and the MOBIKE reds moved to `spec-ipsec-11-mobike.md` on 2026-11-23) and a full `./le verify worktree` (AC-10) |
 | Scope | tooling |
 | Depends | `spec-docker-hosts-run-the-ze-kernel`, closed (AC-9 only: `mobike-initiator` and `mobike-responder` need a Docker host kernel with every feature Ze enrols, `XFRM_MSG_MIGRATE_STATE` included) |
 | Phase | - |

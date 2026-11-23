@@ -5,11 +5,11 @@
 | Status | design |
 | Scope | protocol |
 | Priority | P1 |
-| Release reason | Four shipped IPsec interop scenarios are red against strongSwan in `./le test integration interop-ipsec` on Ze's own kernel, on Linux and in the Mac `docker-lab` guest; a red interop scenario on a shipped capability is a release defect until it is diagnosed and fixed. |
+| Release reason | Three shipped IPsec interop scenarios are red against strongSwan in `./le test integration interop-ipsec` on Ze's own kernel, on Linux and in the Mac `docker-lab` guest; a red interop scenario on a shipped capability is a release defect until it is diagnosed and fixed. (AC-2 `mobike-initiator` moved to `plan/post-release/features/spec-ipsec-11-mobike.md` on 2026-11-23.) |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-23 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -27,21 +27,12 @@ spec owns making the four scenarios pass, on the Linux host and through the Mac
 be Ze, the scenario's checker or fixture, or the strongSwan 6.1.0 build, and
 the fix goes where the cause is.
 
--> Decision (closer, 2026-10-23): this spec owns the `mobike-initiator` red.
-`plan/post-release/features/spec-ipsec-11-mobike.md` AC-12 names the same scenario as
-evidence for its own goal (MOBIKE behavior); it cites the passing run AC-2 here
-records and carries no fix of its own for this red, so the work is not
-duplicated.
-
--> Decision (closer of `spec-docker-hosts-run-the-ze-kernel`, 2026-11-14, on
-the owner's "close"): that spec's AC-12 and AC-13 named `mobike-initiator` as
-evidence of a Ze-kernel Docker host on the Mac and on the nightly. Its kernel
-half is proven (the check answers `ipsec-mobike` present on both routes, and
-`mobike-responder` passes), and the `mobike-initiator` pass on both routes moved
-here. AC-2 therefore also holds in the scheduled `evidence-nightly`
-`ipsec-interop` job, and
-`plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` AC-9
-cites the same run.
+-> Decision (owner, 2026-11-23): MOBIKE moved to after the release and is not
+covered by the first-release quality process. The `mobike-initiator` interop
+failure (formerly AC-2 here, plus the 2026-11-14 nightly failure in run
+`43586166002`) moved to `plan/post-release/features/spec-ipsec-11-mobike.md`
+(Known Issues #1). This spec now owns the three non-MOBIKE scenarios (AC-1,
+AC-3, AC-4).
 
 ## Required Reading
 
@@ -102,7 +93,7 @@ on the Mac, with the commit, the kernel and the strongSwan version recorded.
 | AC ID | Scenario | Expected Behavior |
 |-------|----------|-------------------|
 | AC-1 | `ike-padded-probe-strongswan` | the scenario passes: the prober reports `ike`, and no `sendto: operation not permitted` is left under Ze's SPD catch-all DISCARD |
-| AC-2 | `mobike-initiator` | the scenario passes: the `docker exec` Ze CLI readback of peer state finishes inside its timeout and reports the moved address |
+| AC-2 | *(moved 2026-11-23)* | `mobike-initiator` moved to `plan/post-release/features/spec-ipsec-11-mobike.md` (Known Issues #1) by owner ruling of 2026-11-23 |
 | AC-3 | `esp-integrity-only-null` | the scenario passes: charon logs its `selected proposal: ESP:...` line and the checker reads it before its timeout |
 | AC-4 | `mtu-negotiated-transform` | the scenario passes: charon logs its `selected proposal: ESP:...` line and the checker reads it before its timeout |
 

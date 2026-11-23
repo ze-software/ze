@@ -11,9 +11,30 @@
 
 ## Release placement
 
-Owner ruling of 2026-11-23 ("we should move mobike to after the release"): moved from `release/fixes` to `post-release/features` at P3.
+Owner ruling of 2026-11-23 ("we should move mobike to after the release"): moved from `release/fixes` to `post-release/features` at P3. MOBIKE is not released as a first-release feature and is not covered by the first-release quality process; all known MOBIKE issues are consolidated in `## Known Issues` below.
 
-The native MOBIKE implementation and tests now exist in internal/component/ike/engine/mobike.go and its callers. The historical absence/design narrative does not authorize duplicate implementation. The recorded mobike-initiator interop failure (first recorded by spec-lab-docker-cleanup-on-macos, closed 2026-10-23) is owned by `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` AC-2; AC-12 here cites that run and carries no fix of its own for the red. No rerun is claimed here.
+The native MOBIKE implementation and tests now exist in `internal/component/ike/engine/mobike.go` and its callers. The historical absence/design narrative does not authorize duplicate implementation.
+
+## Known Issues
+
+Consolidated on 2026-11-23 from `plan/release/` specs and `plan/journal/` so no MOBIKE-only issue remains in `plan/release/`:
+
+| # | Issue | Origin / Evidence | What is owed |
+|---|-------|-------------------|--------------|
+| 1 | `mobike-initiator` interop failure (two distinct reds) | Moved from `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` AC-2; `plan/journal/gate-verdict-depends-on-the-machine.md` row 2026-10-09 (`docker exec` Ze CLI readback `did not finish within 30s (exit 124)` on 7.2.9-ze); `evidence-nightly` run `43586166002` (2026-11-14, head `495e333fbe`, job `ipsec-interop`: `wait for MOBIKE migration of the original IKE and Child SAs never measured peer state: MOBIKE replaced an IKE or Child SA instead of migrating it`, while `mobike-responder` passed in 20s) | Diagnose both causes and make `mobike-initiator` pass on Linux and Mac `docker-lab` (and satisfy `plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` AC-9) |
+| 2 | `PeerSession.Info` data race with `migrateMobikePair` | Folded from `spec-ike-peer-info-reads-child-after-unlock` (removed 2026-11-23); `plan/journal/field-read-after-its-lock-is-released.md:10` | `PeerSession.Info` (`internal/component/ike/engine/reconcile.go`) copies `child := ps.childSA` under `ps.mu`, unlocks, then reads `InboundSPI`, `OutboundSPI`, `IfID`, `LocalAddr`, `RemoteAddr`, `Mode`, `UDPEncap`, traffic selectors and `ESPGroup` while `migrateMobikePair` (`engine/mobike.go`) writes those fields under `ps.mu`; move reads inside `ps.mu` (preserving `peersMu` -> `ps.mu` order, as `espFormSharedSPIPeer` does) with a `-race` test |
+| 3 | `serviceMobike` dropped errors below WARN | Moved from `plan/release/fixes/spec-dropped-error-3-access-security.md` AC-2, AC-3 (and AC-7 `mobike-initiator` run); `plan/journal/dropped-error-logged-below-warn.md:12` | Raise `mobikeRouteSource` failure (`internal/component/ike/engine/mobike.go:576`, currently `log.Debug`) and RFC 3948 NAT keepalive send failure (`mobike.go:593`, currently `log.Debug`) to WARN once per condition (or counter + first WARN) naming peer, cause and fix, with `TestMOBIKERouteSourceFailureIsWarned` and `TestMOBIKENATKeepaliveFailureIsWarned` |
+| 4 | MOBIKE failure doctor coverage | Moved from `plan/release/validation/spec-doctor-coverage-3-access-security.md` AC-18 | Record per-peer last teardown reason (`cause mobike`) and `doctor-ipsec-mobike-failed` (warning, fix names `show vpn ipsec sa`), cleared on re-establishment |
+| 5 | Automatic negotiation vs opt-in config gate | `internal/component/ike/engine/mobike.go:60` (`mobikeAvailable`), `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang`, `docs/guide/ipsec.md:224` | Currently `mobikeAvailable` negotiates MOBIKE automatically on IPv4 tunnel peers on Linux 7.2+ kernels with `XFRM_MSG_MIGRATE_STATE`; no `mobike enable/disable` YANG leaf exists yet |
+| 6 | Stale `sa.peerEndpoint` comments | `plan/journal/comment-describes-superseded-behaviour.md:58` | Name the MOBIKE initial-tuple write (`handleAuthRequest`, RFC 4555 Section 3.3) in `responder.go`, `ts_nat_substitute.go`, and `sa.go` |
+| 7 | Darwin bind failure in `mobike_handoff_test.go` | `plan/journal/gate-verdict-depends-on-the-machine.md:148` | `TestMobikeParallelAuth*` bind `127.0.0.2` with no `_linux` build tag |
+| 8 | Defect-review journal rows on `features/ipsec-mobike.md` | `features/ipsec-mobike.md:18` | Re-verify `false-synchronization-claim.md:17`, `guard-added-to-one-half-of-a-pair.md:44`, `silent-fall-through.md:65`, `stale-artifact-reused.md:60`, `test-against-broken-path.md:58` before promoting feature maturity |
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `field-read-after-its-lock-is-released.md` | 2026-11-12 | `PeerSession.Info` (`ike/engine/reconcile.go`), via `PeerInfoMap` |
 
 Anchor refresh (2026-07-22 plan review, design unchanged, feature not
 landed; Depends ipsec-8/ipsec-9 both SATISFIED, learned 742/744): the

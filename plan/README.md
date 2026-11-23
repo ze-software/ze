@@ -56,11 +56,14 @@ Assign every acceptance criterion, dependency and remaining implementation step
 to an owning spec, with reciprocal references. Preserve historical evidence as
 history; do not turn it into a new claim about the product.
 
-An absent feature can remain post-release. Accepted but ineffective
-configuration is not an absent feature: its incorrect behavior still needs a
-release owner. A fix does not close merely because an enhancement moved away.
-Relocations and splits are not completion, and a lower release count is not
-evidence that the product improved.
+An absent feature can remain post-release. An opt-in capability that must be
+explicitly enabled is not part of Ze's default setup, is not released as a
+first-release feature, and is not covered by the first-release quality process:
+its known issues live in its post-release spec under `plan/post-release/features/`.
+Accepted but ineffective configuration on a released feature is not an absent
+feature: its incorrect behavior still needs a release owner. A fix does not
+close merely because an enhancement moved away. Relocations and splits are not
+completion, and a lower release count is not evidence that the product improved.
 
 ## Release inventory
 

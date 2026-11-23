@@ -41,6 +41,11 @@ in the spec or commit it applies to.
   capabilities it implements. A missing RFC feature may wait until after the
   first release, and a partial implementation is never announced as full
   support.
+- Opt-in unreleased capabilities: a capability that must be explicitly enabled
+  is not part of Ze's default setup, is not released as a first-release
+  feature, and is not covered by the first-release quality process. Its known
+  issues, interop failures and open proof debt live in its post-release spec
+  under `plan/post-release/features/`, not in `plan/release/fixes/`.
 - Production is Linux. A check, test or defect that exists only on macOS
   waits until after the first release.
 - A question the RFC text answers is not asked. Where the RFC is silent or

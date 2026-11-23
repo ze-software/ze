@@ -150,13 +150,13 @@ one of them, this child resolves the log level and names that spec.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `./le arch refuse-by-default report '|' json`, filtered to this child's paths | No `findings` entry with rule `error-dropped-below-warn` |
-| AC-2 | `mobike.go` route-source lookup fails | One WARN at the default level naming the peer, that the SA cannot move to a new address, and what to check; no repeat per tick while the condition holds |
-| AC-3 | `mobike.go` NAT keepalive send fails | One WARN (or a counter and a first WARN) naming the peer and the path |
+| AC-1 | `./le arch refuse-by-default report '|' json`, filtered to this child's paths (excluding `internal/component/ike/engine/mobike.go`, moved to `plan/post-release/features/spec-ipsec-11-mobike.md` on 2026-11-23) | No `findings` entry with rule `error-dropped-below-warn` |
+| AC-2 | *(moved 2026-11-23)* | `mobike.go` route-source lookup failure moved to `plan/post-release/features/spec-ipsec-11-mobike.md` (Known Issues #3) |
+| AC-3 | *(moved 2026-11-23)* | `mobike.go` NAT keepalive failure moved to `plan/post-release/features/spec-ipsec-11-mobike.md` (Known Issues #3) |
 | AC-4 | Each answer-1 instance | A unit test where the caller observes the error |
 | AC-5 | Each file with an answer-2 WARN | A unit test asserts one WARN line names what, why and the fix |
 | AC-6 | Each annotation | Names a guard the file can see |
-| AC-7 | `./le test ipsec`, `./le test l2tp` and the plugin `.ci` for TACACS+ and RADIUS that the change reaches, and the `mobike-initiator` interop scenario | Green |
+| AC-7 | `./le test ipsec`, `./le test l2tp` and the plugin `.ci` for TACACS+ and RADIUS that the change reaches | Green (`mobike-initiator` moved to `plan/post-release/features/spec-ipsec-11-mobike.md` on 2026-11-23) |
 
 ## 🧪 TDD Test Plan
 
