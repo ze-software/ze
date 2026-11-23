@@ -3,6 +3,7 @@ package server
 
 import (
 	"encoding/json"
+	"maps"
 	"testing"
 	"time"
 
@@ -143,9 +144,7 @@ func TestUpdateRouteRegisteredEntryEnforcesVariantContract(t *testing.T) {
 	} {
 		t.Run(question.name, func(t *testing.T) {
 			values := make(map[string]any, len(question.base))
-			for k, v := range question.base {
-				values[k] = v
-			}
+			maps.Copy(values, question.base)
 			if question.edit != nil {
 				question.edit(values)
 			}

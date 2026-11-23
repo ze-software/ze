@@ -2,18 +2,18 @@ package reactor
 
 import (
 	"context"
-	"github.com/ze-software/ze/internal/core/redistevents"
 	"net/netip"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	updatecmd "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
 	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/family"
-
-	"github.com/stretchr/testify/require"
+	"github.com/ze-software/ze/internal/core/redistevents"
 )
 
 // redistributionNextHopBoundary reaches the same command parser, queue and

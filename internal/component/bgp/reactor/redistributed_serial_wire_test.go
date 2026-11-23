@@ -5,11 +5,12 @@ package reactor
 import (
 	"context"
 	"errors"
-	"github.com/ze-software/ze/internal/core/redistevents"
 	"io"
 	"net/netip"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	updatecmd "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
@@ -22,9 +23,8 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/selector"
-
-	"github.com/stretchr/testify/require"
 )
 
 // TestRedistributedSerialAnnouncementsKeepBothPrefixes observes the same two

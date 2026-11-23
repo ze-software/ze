@@ -4,10 +4,12 @@ package sdk
 import (
 	"context"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // Real SDK native values and public frames preserve exact physical identity,

@@ -3,8 +3,9 @@ package reactor
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TestLiveSourceWriteCannotBorrowLaterRetention holds a live-only write while

@@ -4,12 +4,15 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"testing"
-	"time"
 )
 
 // The actual registered engine method on native and framed transports must
@@ -30,7 +33,7 @@ func TestDispatchPhysicalPeerRegisteredEngineParity(t *testing.T) {
 	}, "physical command", RegisterOptions{AcceptsPeerConnection: true}))
 	require.NoError(t, s.dispatcher.Register("unsupported command", func(*CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 		t.Error("unsupported physical constraint reached a handler")
-		return nil, nil
+		return nil, errors.New("unsupported command handler called")
 	}, "unsupported"))
 	proc := nativeOwnerProcess(t, s)
 	proc.Bridge().SetReady()

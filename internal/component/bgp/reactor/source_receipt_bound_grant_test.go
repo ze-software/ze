@@ -2,9 +2,11 @@
 package reactor
 
 import (
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/internal/core/events"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 func boundSourceGrant(peer *Peer, name string) {

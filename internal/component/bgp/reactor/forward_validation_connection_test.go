@@ -2,11 +2,13 @@
 package reactor
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
-	"testing"
 )
 
 // The real partitioner asks validation about the held original receipt even

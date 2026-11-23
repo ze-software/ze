@@ -72,7 +72,7 @@ type peerForwardFacts struct {
 	// registry.RelaysOnRSFastPath. The fast path forwards in place of that
 	// plugin's cached forward, which filterPermittedPeers refuses a peer
 	// without the grant, so reactorForwardRSSection selects no peer whose
-	// rsRelaySend is false (rsRelaySendGranted). rsRelaySendProcess names the
+	// rsRelaySend is false (rsRelaySendProcessName). rsRelaySendProcess names the
 	// granting process so AIGP metric re-advertisement rechecks the same grant.
 	rsRelaySend        bool
 	rsRelaySendProcess string
@@ -224,7 +224,11 @@ func (r *redirectNextHop) add(addr netip.Addr) {
 
 // rsRelaySendProcessName returns the first process name in bindings that
 // grants `send [ update ]` to a plugin declaring registry.RelaysOnRSFastPath,
-// or "" when none does.
+// or "" when none does. It applies the grant the route server's cached forward
+// is checked against (ProcessBinding.MaySend, through Peer.maySend and
+// filterPermittedPeers), so the fast path and the cached rail answer one
+// declaration. It runs once per snapshot, never once per UPDATE: the registry
+// lookup resolves an alias through the process manager.
 func rsRelaySendProcessName(bindings []ProcessBinding) string {
 	for i := range bindings {
 		b := &bindings[i]
@@ -238,23 +242,12 @@ func rsRelaySendProcessName(bindings []ProcessBinding) string {
 	return ""
 }
 
-// rsRelaySendGranted reports whether bindings grant `send [ update ]` to a
-// process whose plugin declares registry.RelaysOnRSFastPath. It applies the
-// grant the route server's cached forward is checked against
-// (ProcessBinding.MaySend, through Peer.maySend and filterPermittedPeers), so
-// the fast path and the cached rail answer one declaration. It runs once per
-// snapshot, never once per UPDATE: the registry lookup resolves an alias
-// through the process manager.
-func rsRelaySendGranted(bindings []ProcessBinding) bool {
-	return rsRelaySendProcessName(bindings) != ""
-}
-
 // rsRelayReceiveGranted reports whether bindings grant the peer's received
 // UPDATEs to a process whose plugin declares registry.RelaysOnRSFastPath. It
 // reads the grant the delivery graph builds its UPDATE edges from
 // (deliveryPeersFromSettings, grantDirection in the plugin server): the
 // wildcard carries both directions, a named type the directions it names. Like
-// rsRelaySendGranted it runs once per snapshot.
+// rsRelaySendProcessName it runs once per snapshot.
 func rsRelayReceiveGranted(bindings []ProcessBinding) bool {
 	for i := range bindings {
 		b := &bindings[i]

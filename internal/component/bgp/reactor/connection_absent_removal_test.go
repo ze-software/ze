@@ -2,10 +2,12 @@
 package reactor
 
 import (
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/internal/component/bgp/message"
 	"net/netip"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // A deconfigured Peer can have no physical Session. Its departure still ends

@@ -3,10 +3,12 @@
 package reactor
 
 import (
-	"github.com/stretchr/testify/require"
-	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"net/netip"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // recoveryFixtureOrigin holds immutable original source facts; zero is invalid.

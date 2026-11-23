@@ -14,6 +14,7 @@ const (
 	CodeDoctorBGPCaptureDirectory = "doctor-bgp-capture-directory"
 	exampleShowDoctor             = "ze show doctor"
 	exampleShowErrors             = "ze show errors"
+	exampleShowBGPPeerList        = "ze show bgp peer list"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -56,7 +57,7 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Code:        CodeDoctorBGPRFC8212NoPolicy,
 		Title:       "An external BGP direction has no explicit policy",
 		Description: "RFC8212 Section3 prevents an external peer's unconfigured import direction from contributing learned routes or its unconfigured export direction from sending routes. Configure an explicit policy with the peer or group's editor command and commit it. An explicit rejecting final also resolves the absence. The doctor result describes its supplied saved configuration.",
-		Examples:    []string{"ze doctor --json", "ze show bgp peer list"},
+		Examples:    []string{"ze doctor --json", exampleShowBGPPeerList},
 	},
 	{
 		Code:         CodeDoctorBGPCaptureDirectory,

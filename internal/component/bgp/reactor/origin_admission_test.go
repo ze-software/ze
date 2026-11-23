@@ -4,15 +4,17 @@ package reactor
 import (
 	"context"
 	"errors"
+	"net/netip"
+	"testing"
+
 	"github.com/stretchr/testify/require"
+
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"net/netip"
-	"testing"
 )
 
 func originAcceptedFixture(t *testing.T, owner plugin.SelectedOwner, lookup rpc.OriginAdmissionLookupHandler) *originSource {

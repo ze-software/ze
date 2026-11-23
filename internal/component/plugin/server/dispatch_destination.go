@@ -4,9 +4,10 @@ package server
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"time"
 )
 
 func (s *Server) dispatchDestinationCommand(ctx context.Context, proc *process.Process, input rpc.DispatchCommandInput) (*rpc.DispatchCommandOutput, error) {

@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // Exact positive failed completion is the only remote joined evidence. These
@@ -26,7 +28,7 @@ func TestBoundCachedSDKFailureEvidenceOnBothTransports(t *testing.T) {
 							return nil, errors.New("target outcome unknown")
 						}
 						if outcome == "missing" {
-							return nil, nil
+							return nil, nil //nolint:nilnil // The absent receipt is the case under test and must be refused.
 						}
 						output := rpc.CompletedCachedWrite(deadline, context.Canceled)
 						if outcome == "false" {

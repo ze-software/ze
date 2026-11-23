@@ -2,9 +2,10 @@
 package reactor
 
 import (
-	"github.com/stretchr/testify/require"
 	"net/netip"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // NewPeer, rather than an address lookup, supplies immutable identity to each

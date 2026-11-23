@@ -49,7 +49,7 @@ func init() {
 		Code:        codeDoctorBGPBoRRBeforeEOR,
 		Title:       "BGP BoRR marker ignored before End-of-RIB from Graceful Restart peer",
 		Description: "A neighbor that advertised the Graceful Restart Capability sent a Beginning-of-Route-Refresh (BoRR) marker for an address family before sending its End-of-RIB (EoR) marker for that family. Per RFC 7313 Section 4, Ze ignored the BoRR and kept the session Established.",
-		Examples:    []string{"ze show bgp peer list", "ze show diagnostic " + codeDoctorBGPBoRRBeforeEOR},
+		Examples:    []string{exampleShowBGPPeerList, "ze show diagnostic " + codeDoctorBGPBoRRBeforeEOR},
 	}); err != nil {
 		panic("BUG: bgp reactor: BoRR-before-EoR diagnostic registration failed: " + err.Error())
 	}
@@ -60,7 +60,7 @@ func init() {
 		Code:        codeDoctorBGPOriginValidationStateBad,
 		Title:       "BGP Origin Validation State extended community discarded (invalid value)",
 		Description: "A peer sent an RFC 8097 Prefix Origin Validation State extended community (type 0x43, sub-type 0x00) carrying a validation state value greater than 2 (0=valid, 1=not-found, 2=invalid). Per RFC 8097 Section 2, Ze applied an attribute-discard strategy by discarding the erroneous community while preserving the route and session.",
-		Examples:    []string{"ze show bgp peer list", "ze show diagnostic " + codeDoctorBGPOriginValidationStateBad},
+		Examples:    []string{exampleShowBGPPeerList, "ze show diagnostic " + codeDoctorBGPOriginValidationStateBad},
 	}); err != nil {
 		panic("BUG: bgp reactor: RFC 8097 invalid origin validation state diagnostic registration failed: " + err.Error())
 	}

@@ -54,6 +54,7 @@ const (
 	CodeDoctorPluginCapabilitiesNotRestored = "doctor-plugin-capabilities-not-restored"
 	exampleShowDoctor                       = "ze show doctor"
 	exampleShowErrors                       = "ze show errors"
+	exampleDoctorJSON                       = "ze doctor --json"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -65,7 +66,7 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Title: "External plugin connection refused",
 		Description: "An external plugin connected back to the daemon and was refused, because its name is not a valid plugin name, it is not a plugin the daemon started, or its token did not match. " +
 			"The plugin does not start, and its start waits until it times out. Correct the name in the plugin's `external` block.",
-		Examples: []string{"ze doctor --json", exampleShowErrors, "ze show diagnostic doctor-plugin-connect-back-refused"},
+		Examples: []string{exampleDoctorJSON, exampleShowErrors, "ze show diagnostic doctor-plugin-connect-back-refused"},
 	},
 	{
 		Code:  CodeDoctorPluginAnswerUndelivered,
@@ -130,7 +131,7 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"The acceptor takes the FIRST server block and the managed listener takes every block that declares client entries, so a shared address is asked of the kernel twice. " +
 			"The acceptor binds it, the managed listener is skipped, and every managed client that dials that address is dropped by an acceptor which routes only to a plugin waiter. " +
 			"Move the client entries to a server block with its own port.",
-		Examples: []string{"ze doctor --json", "ze show diagnostic doctor-hub-managed-collision"},
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-hub-managed-collision"},
 	},
 	{
 		Code:  CodeDoctorPluginConfigUnapplied,
@@ -145,7 +146,7 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Title: "Ze stopped because a plugin failed",
 		Description: "When ze last ran, a plugin whose failure policy is fatal failed, or the boot refused a plugin, and ze stopped itself. " +
 			"The record written before the stop names the plugin, the reason and the time. Read that plugin's log lines, then change its configuration or its failure policy.",
-		Examples:     []string{"ze doctor --json", "ze show diagnostic doctor-plugin-fatal-stop"},
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-plugin-fatal-stop"},
 		RelatedCodes: []string{"doctor-plugin-stop-cleanup-late"},
 	},
 	{

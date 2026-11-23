@@ -1,6 +1,6 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- reactor-native RS forwarding
 // Related: forward_rs.go -- reactorForwardRSSection destination selection
-// Related: peer_forward_facts.go -- rsRelaySendGranted, the fast path's send permission
+// Related: peer_forward_facts.go -- rsRelaySendProcessName, the fast path's send permission
 // Related: send_permission.go -- filterPermittedPeers, the cached rail's send permission
 //
 // VALIDATES: the route-server fast path forwards only to a destination whose
@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -31,8 +33,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-
-	"github.com/stretchr/testify/require"
 )
 
 // rsFixtureRelay is the process name of a route server in this package's

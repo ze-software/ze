@@ -3,10 +3,12 @@ package reactor
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // The retained original already has membership. Its successor's uncompleted

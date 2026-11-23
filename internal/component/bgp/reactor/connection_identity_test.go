@@ -2,14 +2,16 @@
 package reactor
 
 import (
+	"net/netip"
+	"testing"
+
 	"github.com/stretchr/testify/require"
+
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"net/netip"
-	"testing"
 )
 
 // The actual factory binds both OPEN directions and EOR to the issuing

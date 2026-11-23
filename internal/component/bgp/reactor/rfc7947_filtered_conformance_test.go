@@ -32,7 +32,7 @@ import (
 // RFC requirement: RFC7947-2.1-1 positive -- a route server MUST accept all
 // UPDATE messages received from each of its clients for inclusion in its
 // Adj-RIB-In, even when omitted from Loc-RIB due to routing policy.
-// Producer: internal/component/bgp/reactor/reactor_notify.go::enqueueFilteredIngress
+// Producer: internal/component/bgp/reactor/reactor_notify.go::enqueueFilteredIngress.
 func TestRFC7947ClientDeniedUpdateRetainedInAdjRIBIn(t *testing.T) {
 	t.Run("loop-denial", func(t *testing.T) {
 		f := newFilteredReceivedLive(t, true, mustPolicy(t, nil, routepolicy.FinalAccept))
@@ -108,7 +108,7 @@ func TestRFC7947ClientDeniedUpdateRetainedInAdjRIBIn(t *testing.T) {
 //
 // RFC requirement: RFC7947-2.1-1 negative -- an ordinary (non-rs-client) peer
 // whose UPDATE is denied on ingress is not retained on the filtered-update rail.
-// Producer: internal/component/bgp/reactor/reactor_notify.go::retainDeniedIngress
+// Producer: internal/component/bgp/reactor/reactor_notify.go::retainDeniedIngress.
 func TestRFC7947OrdinaryPeerDeniedUpdateAbsentFromAdjRIBIn(t *testing.T) {
 	f := newFilteredReceivedLive(t, false, mustPolicy(t, nil, routepolicy.FinalAccept))
 	prefix := netip.MustParsePrefix("203.0.114.0/24")
@@ -127,6 +127,7 @@ func TestRFC7947OrdinaryPeerDeniedUpdateAbsentFromAdjRIBIn(t *testing.T) {
 //
 // VALIDATES: AC-10 and AC-11 of spec-rfc7947-adj-rib-in-accepts-filtered-updates.
 func TestReceiveGrantAcceptsUpdateFilteredToken(t *testing.T) {
+	const misspelled = "update-filterd" //nolint:misspell // the near miss is the input under test
 	b := &ProcessBinding{}
 	require.NoError(t, parseOneReceiveFlag(bgpevents.EventUpdateFiltered, b))
 	assert.Equal(t, events.DirBoth, b.Receive[bgpevents.EventUpdateFiltered])
@@ -135,17 +136,17 @@ func TestReceiveGrantAcceptsUpdateFilteredToken(t *testing.T) {
 	require.NoError(t, parseOneReceiveFlag(bgpevents.EventUpdateFiltered+"-received", bRecv))
 	assert.Equal(t, events.DirReceived, bRecv.Receive[bgpevents.EventUpdateFiltered])
 
-	err := parseOneReceiveFlag("update-filterd", &ProcessBinding{})
+	err := parseOneReceiveFlag(misspelled, &ProcessBinding{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "update-filterd")
+	assert.Contains(t, err.Error(), misspelled)
 	assert.Contains(t, err.Error(), bgpevents.EventUpdateFiltered)
 
 	v := config.ReceiveEventValidator()
 	require.NoError(t, v.ValidateFn("receive", bgpevents.EventUpdateFiltered))
 	require.NoError(t, v.ValidateFn("receive", bgpevents.EventUpdateFiltered+"-received"))
-	err = v.ValidateFn("receive", "update-filterd")
+	err = v.ValidateFn("receive", misspelled)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "update-filterd")
+	assert.Contains(t, err.Error(), misspelled)
 
 	completions := v.CompleteFn()
 	assert.True(t, slices.Contains(completions, bgpevents.EventUpdateFiltered),

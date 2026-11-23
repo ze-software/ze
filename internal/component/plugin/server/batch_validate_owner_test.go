@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/plugin"
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -25,7 +26,7 @@ const batchValidationOwnerQuestionCommand = "request bgp adj-rib-in batch-valida
 func batchValidationSDKCaller(t *testing.T, s *Server, proc *process.Process, direct bool, requests int) *sdk.Plugin {
 	t.Helper()
 	client, engine := net.Pipe()
-	var connection net.Conn = client
+	connection := client
 	if direct {
 		bridge := rpc.NewDirectBridge()
 		bridge.SetDispatchRPC(func(ctx context.Context, method string, input json.RawMessage) (json.RawMessage, error) {
@@ -162,7 +163,7 @@ func TestBatchValidateCancelledContextDoesNotReachOwner(t *testing.T) {
 	s := &Server{dispatcher: NewDispatcher()}
 	s.ctx, s.cancel = context.WithCancel(t.Context())
 	defer s.cancel()
-	proc := process.NewProcess(plugin.PluginConfig{Name: "cancelled-validator"})
+	proc := process.NewProcess(plugin.PluginConfig{Name: "canceled-validator"})
 	caller := batchValidationSDKCaller(t, s, proc, true, 0)
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()

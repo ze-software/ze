@@ -5,12 +5,14 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // This wrapper holds the final socket call AFTER the real recording transport

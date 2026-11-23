@@ -6,6 +6,7 @@
 package reactor
 
 import (
+	"errors"
 	"io"
 	"net"
 	"net/netip"
@@ -20,7 +21,7 @@ import (
 // setupEstablishedGRSession establishes a passive session whose peer OPEN
 // carries the supplied capabilities (e.g. Graceful Restart with or without
 // address-family tuples).
-func setupEstablishedGRSession(t *testing.T, localID, remoteID uint32, peerCaps ...capability.Capability) (*Session, net.Conn, net.Conn) {
+func setupEstablishedGRSession(t *testing.T, localID, remoteID uint32, peerCaps ...capability.Capability) (*Session, net.Conn) {
 	t.Helper()
 	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
@@ -75,7 +76,7 @@ func setupEstablishedGRSession(t *testing.T, localID, remoteID uint32, peerCaps 
 	if session.State() != fsm.StateEstablished {
 		t.Fatalf("session state = %v, want Established", session.State())
 	}
-	return session, client, server
+	return session, client
 }
 
 // TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification proves the
@@ -106,7 +107,7 @@ func TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification(t *testing.T)
 		}
 		// Local BGP ID (0x0A000001) > remote BGP ID (0x01020302): under plain
 		// RFC 4271 Section 6.8 the incoming connection would lose even in OpenConfirm.
-		oldSession, oldClient, _ := setupEstablishedGRSession(t, 0x0A000001, 0x01020302, grCap)
+		oldSession, oldClient := setupEstablishedGRSession(t, 0x0A000001, 0x01020302, grCap)
 
 		accept, closeExisting := oldSession.detectCollision(0x01020302)
 		if !accept || !closeExisting {
@@ -147,7 +148,7 @@ func TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification(t *testing.T)
 		if res.n != 0 {
 			t.Fatalf("old TCP session received %d bytes (expected 0 / no NOTIFICATION)", res.n)
 		}
-		if res.err != io.EOF {
+		if !errors.Is(res.err, io.EOF) {
 			t.Fatalf("old TCP session read err = %v, want io.EOF (closed)", res.err)
 		}
 
@@ -175,7 +176,7 @@ func TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification(t *testing.T)
 	})
 
 	t.Run("no GR capability rejects new connection and keeps old", func(t *testing.T) {
-		oldSession, _, _ := setupEstablishedGRSession(t, 0x01020304, 0xFFFFFFFF)
+		oldSession, _ := setupEstablishedGRSession(t, 0x01020304, 0xFFFFFFFF)
 
 		accept, closeExisting := oldSession.detectCollision(0xFFFFFFFF)
 		if accept || closeExisting {
@@ -220,7 +221,7 @@ func TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification(t *testing.T)
 
 	t.Run("empty GR capability without families follows RFC 4271", func(t *testing.T) {
 		emptyGR := &capability.GracefulRestart{RestartTime: 120}
-		oldSession, _, _ := setupEstablishedGRSession(t, 0x01020304, 0xFFFFFFFF, emptyGR)
+		oldSession, _ := setupEstablishedGRSession(t, 0x01020304, 0xFFFFFFFF, emptyGR)
 
 		accept, closeExisting := oldSession.detectCollision(0xFFFFFFFF)
 		if accept || closeExisting {

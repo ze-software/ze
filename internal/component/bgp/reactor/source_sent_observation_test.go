@@ -80,10 +80,11 @@ func TestRawSentBeforeSourceReceiptCaptureReachesRouting(t *testing.T) {
 		}
 		field := reflect.ValueOf(info).FieldByName("SentObservation")
 		if field.IsValid() && !field.IsNil() {
-			observation := field.Interface().(interface {
+			observation, ok := reflect.TypeAssert[interface {
 				BeginSentObservation() bool
 				EndSentObservation()
-			})
+			}](field)
+			require.True(t, ok, "SentObservation lacks BeginSentObservation/EndSentObservation")
 			if !observation.BeginSentObservation() {
 				return
 			}

@@ -3,11 +3,13 @@ package reactor
 
 import (
 	"errors"
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/report"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // An actual refusal enters the shared doctor event ring once per peer, carries

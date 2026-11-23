@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"math"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestBoundCachedSDKTypedAndFramedCompletion drives both actual SDK operations

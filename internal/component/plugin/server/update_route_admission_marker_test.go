@@ -2,8 +2,9 @@
 package server
 
 import (
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"testing"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // MUTATION: removing the OriginAdmissionID marker guard accepts the malformed
