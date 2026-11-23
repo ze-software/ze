@@ -235,8 +235,11 @@ func interfaceNames(ch api.Channel, rows []vppForwardingRow) (map[uint32]string,
 func pathLabelsAndNextHop(path *fib_types.FibPath) ([]int, string) {
 	count := min(int(path.NLabels), len(path.LabelStack))
 	var labels []int
-	for i := range count {
-		labels = append(labels, int(path.LabelStack[i].Label))
+	if count > 0 {
+		labels = make([]int, count)
+		for i := range count {
+			labels[i] = int(path.LabelStack[i].Label)
+		}
 	}
 	var nextHop netip.Addr
 	switch path.Proto {

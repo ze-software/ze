@@ -154,10 +154,25 @@ one; Ze refuses to guess.
 The existing daemon-owned state service stores policy, steering and ordinary
 fallback records under the feature-registered
 `meta/fib-vpp/srv6/{kind}/{identity}` key.
-Storage errors block mutation. No extra operator option or loose state file is
-introduced. A planned policy record precedes creation; only a successful API
-reply followed by durable acknowledgement confirms ownership. Steering records
-retain current and proposed binding SIDs before a replacement.
+No extra operator option or loose state file is introduced. When no persistent
+store is configured (`errSRv6StoreUnavailable`, `statestore.ErrUnavailable`, or
+`rpc.StateUnavailable`), `fib-vpp` still programs and flushes plain IP routes
+and MPLS pushes without the SRv6 ownership list, and `fib-vpp-srv6` stays
+silent while no SRv6 service route is requested. Any SRv6 service route
+arriving without durable state is refused before mutating VPP or durable state,
+logged under `doctor-fib-vpp-srv6-refused`, and reported by the `fib-vpp-srv6`
+runtime doctor check with `ze init` and the daemon restart as its fix until
+withdrawn or replaced by a non-SRv6 route. All other storage and reconciliation
+errors (corrupt or unreadable state, decode errors, conflicting VPP policies,
+or unconfirmed mutations) still block route mutations and flush to preserve
+forwarding, and reach `fib-vpp-srv6` under `doctor-fib-vpp-srv6-refused` with
+`ze show data check` and the daemon restart as its fix. Runtime SRv6 steering,
+table-selection, checkpoint and cleanup failures are likewise recorded per
+`(prefix, table)` (bounded at `labelFindingsMax` findings plus an overflow
+count) until cleared by a later install, replace or withdrawal. A planned
+policy record precedes creation; only a successful API reply followed by
+durable acknowledgement confirms ownership. Steering records retain current and
+proposed binding SIDs before a replacement.
 
 Admission reuses the production state-list contract, `rpc.StateListMax`
 (4096 keys), for the **whole ownership namespace**, not per resource kind.
@@ -234,7 +249,8 @@ later process restart still recognizes an explicit ordinary withdrawal.
 The existing MPLS backend supports only its configured table; a transition or
 restored MPLS fallback requiring another configured table is refused.
 
-<!-- source: internal/plugins/fib/vpp/srv6_state.go -- restore, loadState, sameSRv6Policy -->
+<!-- source: internal/plugins/fib/vpp/srv6_state.go -- restore, loadState, sameSRv6Policy, errSRv6StoreUnavailable, isSRv6StoreUnavailable -->
+<!-- source: internal/plugins/fib/vpp/doctor_srv6.go -- srv6CheckDecl, srv6DoctorFindings, codeSRv6Refused -->
 <!-- source: internal/plugins/fib/vpp/register.go -- srv6OwnershipKey, runFibVPPPlugin -->
 
 The VPP writer exists only when VPP answers. With no vpp connector, or a GoVPP

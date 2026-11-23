@@ -63,7 +63,7 @@ var staleRouteCodeMeta = diagnostic.CodeMeta{
 		"run a VPP release that serves `fib_source_add` and `ip_route_add_del_v2` first. The finding's fix gives " +
 		"the restart for this process: a systemd command only when ze runs under ze.service, otherwise the steps " +
 		"for a ze started another way.",
-	Examples: []string{"ze show doctor", "ze show diagnostic doctor-fib-vpp-stale-route"},
+	Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-fib-vpp-stale-route"},
 }
 
 // staleRouteDoctorFindings answers the fib-vpp-stale-routes check. With no

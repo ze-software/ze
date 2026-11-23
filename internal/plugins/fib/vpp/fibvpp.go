@@ -148,12 +148,20 @@ type installedRoute struct {
 	nextHop string
 }
 
+// srv6Refusal records why one SRv6 service route was not programmed into VPP.
+type srv6Refusal struct {
+	sid netip.Addr
+	err error
+}
+
 // fibVPP manages VPP FIB route programming.
 type fibVPP struct {
-	installed     map[srv6RouteKey]installedRoute // (prefix, table) -> ordinary state
-	mplsInstalled map[string]bool                 // prefix -> true (MPLS labeled routes)
-	srv6Installed map[srv6RouteKey]bool           // (prefix, table) -> owned SRv6 steering
-	srv6TableID   uint32
+	installed      map[srv6RouteKey]installedRoute // (prefix, table) -> ordinary state
+	mplsInstalled  map[string]bool                 // prefix -> true (MPLS labeled routes)
+	srv6Installed  map[srv6RouteKey]bool           // (prefix, table) -> owned SRv6 steering
+	srv6TableID    uint32
+	srv6RestoreErr error
+	srv6Refusals   map[srv6RouteKey]srv6Refusal
 	// labelOwners maps each swap/pop in-label this writer installed to the
 	// source that owns it; labelPushes each (mpls-fib, entry) push FEC to
 	// whether it carries labels (false: the plain route of an Implicit NULL
@@ -195,9 +203,70 @@ func newFibVPP(backend vppBackend) *fibVPP {
 		installed:     make(map[srv6RouteKey]installedRoute),
 		mplsInstalled: make(map[string]bool),
 		srv6Installed: make(map[srv6RouteKey]bool),
+		srv6Refusals:  make(map[srv6RouteKey]srv6Refusal),
 		labelOwners:   make(map[uint32]uint16),
 		labelPushes:   make(map[netip.Prefix]bool),
 		backend:       backend,
+	}
+}
+
+// recordSRv6RefusalLocked stores the refusal for (prefix, table) so
+// fib-vpp-srv6 reports it until a later install, replace, or withdrawal clears it.
+// Caller MUST hold f.mu.
+func (f *fibVPP) recordSRv6RefusalLocked(key srv6RouteKey, sid netip.Addr, err error) {
+	if f.srv6Refusals == nil {
+		f.srv6Refusals = make(map[srv6RouteKey]srv6Refusal)
+	}
+	f.srv6Refusals[key] = srv6Refusal{sid: sid, err: err}
+}
+
+// clearSRv6RefusalOnWithdrawLocked clears a recorded refusal for key, and on a
+// zero-table withdrawal also clears a uniquely matching refused prefix in
+// another table. Caller MUST hold f.mu.
+func (f *fibVPP) clearSRv6RefusalOnWithdrawLocked(requestedTable uint32, key srv6RouteKey) {
+	delete(f.srv6Refusals, key)
+	if requestedTable != 0 {
+		return
+	}
+	var matched srv6RouteKey
+	matches := 0
+	for k := range f.srv6Refusals {
+		if k.prefix == key.prefix {
+			matched = k
+			matches++
+		}
+	}
+	if matches == 1 {
+		delete(f.srv6Refusals, matched)
+	}
+}
+
+// refuseSRv6WithoutStoreLocked handles an SRv6 change when no persistent daemon
+// store is configured, before processSRv6Change can touch b.store. It returns
+// true when the change is fully handled and the caller should continue to the
+// next entry in the batch. Caller MUST hold f.mu.
+func (f *fibVPP) refuseSRv6WithoutStoreLocked(c *incomingChange, storeErr error) bool {
+	key, _ := f.srv6ChangeKey(c.Prefix, c.TableID, false) //nolint:errcheck // recoverTable=false cannot fail
+	switch c.Action.Verb() {
+	case routeaction.VerbInstall, routeaction.VerbReplace:
+		f.recordSRv6RefusalLocked(key, c.SRv6SID, storeErr)
+		logger().Error("fib-vpp: SRv6 service route refused because durable daemon state is unavailable; run 'ze init', then restart ze",
+			"prefix", key.prefix, "table", key.table, "sid", c.SRv6SID, "error", storeErr, "code", codeSRv6Refused)
+		return true
+	case routeaction.VerbRemove:
+		f.clearSRv6RefusalOnWithdrawLocked(c.TableID, key)
+		if _, installed := f.installed[key]; installed {
+			return false
+		}
+		if key.table == f.srv6TableID && f.mplsInstalled[key.prefix.String()] {
+			return false
+		}
+		return true
+	case routeaction.VerbSkip:
+		// Unspecified and unknown actions do not change SRv6 forwarding.
+		return true
+	default:
+		panic("BUG: invalid normalized route verb")
 	}
 }
 
@@ -252,6 +321,7 @@ func (f *fibVPP) delVPPRoute(c *incomingChange) error {
 	}
 	if err == nil {
 		delete(f.installed, key)
+		f.clearSRv6RefusalOnWithdrawLocked(c.TableID, key)
 	}
 	return err
 }
@@ -269,19 +339,42 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 		return
 	}
 
+	var restoreErr error
+	storeUnavailable := false
 	for i := range batch.Changes {
 		c := &batch.Changes[i]
 		if !c.Prefix.IsValid() {
 			logger().Warn("fib-vpp: skipping change with empty prefix")
 			continue
 		}
-		if err := f.restoreSRv6(); err != nil {
-			logger().Error("fib-vpp: ownership reconciliation failed; preserving forwarding", "error", err)
-			return
+		if !storeUnavailable {
+			restoreErr = f.restoreSRv6()
+			storeUnavailable = isSRv6StoreUnavailable(restoreErr)
+			if restoreErr != nil {
+				if !storeUnavailable {
+					f.srv6RestoreErr = restoreErr
+					logger().Error("fib-vpp: SRv6 ownership reconciliation failed; preserving forwarding; run 'ze show doctor' for the fix",
+						"error", restoreErr, "code", codeSRv6Refused)
+					return
+				}
+			}
+			f.srv6RestoreErr = nil
 		}
-		if c.SRv6SID.IsValid() || f.hasSRv6Route(c.Prefix, c.TableID) {
-			f.processSRv6Change(c)
-			continue
+		if storeUnavailable {
+			if c.SRv6SID.IsValid() {
+				if f.refuseSRv6WithoutStoreLocked(c, restoreErr) {
+					continue
+				}
+			}
+		} else {
+			if c.SRv6SID.IsValid() {
+				f.processSRv6Change(c)
+				continue
+			}
+			if f.hasSRv6Route(c.Prefix, c.TableID) {
+				f.processSRv6Change(c)
+				continue
+			}
 		}
 		if len(c.Labels) > 0 || f.mplsInstalled[c.Prefix.String()] {
 			f.processMPLSChange(c)
@@ -295,6 +388,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 			}
 			key, _ := f.srv6ChangeKey(c.Prefix, c.TableID, false)
 			f.installed[key] = installedRoute{nextHop: c.NextHop.String()}
+			delete(f.srv6Refusals, key)
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeInstalls.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
@@ -306,6 +400,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 			}
 			key, _ := f.srv6ChangeKey(c.Prefix, c.TableID, false)
 			f.installed[key] = installedRoute{nextHop: c.NextHop.String()}
+			delete(f.srv6Refusals, key)
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeUpdates.Inc()
 			}
@@ -341,6 +436,8 @@ func (f *fibVPP) processMPLSChange(c *incomingChange) {
 			return
 		}
 		f.mplsInstalled[pfxStr] = true
+		key, _ := f.srv6ChangeKey(c.Prefix, c.TableID, false) //nolint:errcheck // recoverTable=false cannot fail
+		delete(f.srv6Refusals, key)
 		if m := fibVPPMetricsPtr.Load(); m != nil {
 			m.routeInstalls.Inc()
 		}
@@ -350,6 +447,8 @@ func (f *fibVPP) processMPLSChange(c *incomingChange) {
 			return
 		}
 		delete(f.mplsInstalled, pfxStr)
+		key, _ := f.srv6ChangeKey(c.Prefix, c.TableID, false) //nolint:errcheck // recoverTable=false cannot fail
+		f.clearSRv6RefusalOnWithdrawLocked(c.TableID, key)
 		if m := fibVPPMetricsPtr.Load(); m != nil {
 			m.routeRemovals.Inc()
 		}
@@ -366,9 +465,14 @@ func (f *fibVPP) flushRoutes() {
 	defer f.mu.Unlock()
 
 	if err := f.restoreSRv6(); err != nil {
-		logger().Warn("fib-vpp: flush ownership reconciliation failed", "error", err)
-		return
+		if !isSRv6StoreUnavailable(err) {
+			f.srv6RestoreErr = err
+			logger().Warn("fib-vpp: flush ownership reconciliation failed; preserving forwarding; run 'ze show doctor' for the fix",
+				"error", err, "code", codeSRv6Refused)
+			return
+		}
 	}
+	f.srv6RestoreErr = nil
 	for key := range f.installed {
 		if backend, ok := f.srv6Backend.(*govppSRv6Backend); ok && backend.fallbacks[key] != nil {
 			if err := f.removeSRv6Fallback(key); err != nil {

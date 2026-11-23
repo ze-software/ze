@@ -14,7 +14,29 @@ import (
 	"go.fd.io/govpp/binapi/ip_types"
 	"go.fd.io/govpp/binapi/sr"
 	"go.fd.io/govpp/binapi/sr_types"
+
+	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+// errSRv6StoreUnavailable means the SRv6 backend has no persistent daemon store.
+var errSRv6StoreUnavailable = errors.New("SRv6 requires durable daemon state")
+
+// isSRv6StoreUnavailable reports whether err means no persistent daemon store
+// is configured. Corrupt, unreadable, or ambiguous ownership state returns
+// false so callers keep blocking mutations to preserve forwarding.
+func isSRv6StoreUnavailable(err error) bool {
+	if errors.Is(err, errSRv6StoreUnavailable) {
+		return true
+	}
+	if errors.Is(err, statestore.ErrUnavailable) {
+		return true
+	}
+	if stateErr, ok := errors.AsType[*rpc.StateError](err); ok {
+		return stateErr.Status == rpc.StateUnavailable
+	}
+	return false
+}
 
 // srv6StateStore is the existing daemon StateKeys raw-key contract. The owner
 // MUST keep its lifetime context alive until the backend stops using it.
@@ -101,7 +123,7 @@ func (b *govppSRv6Backend) restore() error {
 		return nil
 	}
 	if b.store == nil {
-		return errors.New("SRv6 requires durable daemon state")
+		return errSRv6StoreUnavailable
 	}
 	if err := b.loadState(); err != nil {
 		return err

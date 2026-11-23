@@ -166,6 +166,7 @@ plugin's process:
 | `bgp-epe-label-entries` | `bgp-epe` | a PeerNode SID label no writer installed or removed as EPE wants | `doctor-fib-mpls-no-writer` |
 | `fib-vpp-label-entries` | `fib-vpp` | label entries installed without their path MTU; a label route a previous run left in VPP that could not be removed | `doctor-fib-vpp-mpls-path-mtu`, `doctor-fib-vpp-mpls-stale-label` |
 | `fib-vpp-stale-routes` | `fib-vpp` | an IP route or labeled push a previous run left in VPP that could not be removed, IP tables that could not be read, or no FIB source to mark routes with | `doctor-fib-vpp-stale-route` |
+| `fib-vpp-srv6` | `fib-vpp` | an SRv6 ownership reconciliation failure blocking mutations, or an SRv6 service route refused because durable daemon state is unavailable or VPP steering failed; silent while no SRv6 route is refused | `doctor-fib-vpp-srv6-refused` |
 | `ipsec-state-scope` | `ike` | a missing, partial or unreadable complete state-scope receipt with configured IPsec peers, before a Child SA attempt; the finding retains the shared installation validator's cause and native kernel-build repair commands | `doctor-ipsec-state-scope` |
 | `ipsec-spd-install` | `ike` | the SPD catch-all (`vpn ipsec unmatched`), or a bound XFRM interface's own final entry, the dataplane refused at start, so that default discard is not in force; an if_id 0 exemption of a bound XFRM interface the dataplane refused on the last install pass, so the traffic routed into that interface is dropped; an operator SPD entry the dataplane refused at start; a selector where a failed undo or removal left the dataplane disagreeing with the running configuration, with its direction, selector, priority and the dataplane's answer | `doctor-ipsec-spd-catch-all-missing`, `doctor-ipsec-spd-exemption-missing`, `doctor-ipsec-spd-install-refused`, `doctor-ipsec-spd-undo-incomplete` |
 | `ipsec-source-guard` | `ike` | an IPv6 address of a bound XFRM interface whose tunnel-source guard the kernel refused, its source rule or the publish of the nft table `ze_ipsec_source_guard`, so its if_id 0 source exemption stays uninstalled and IPv6 host traffic from it routed into the interface is dropped at the DISCARD catch-all, with the interface, the address, the refused step, the cause the kernel's answer gives and that cause's fix | `doctor-ipsec-source-guard-missing` |
@@ -176,11 +177,14 @@ What each finding means, and the stale-label sweep behind the
 `doctor-fib-vpp-mpls-stale-label` code, are in
 `docs/architecture/mpls/mpls-kernel.md`, "Doctor checks". The stale IP route
 sweep behind `doctor-fib-vpp-stale-route` is in
-`docs/architecture/fib/fib-vpp-route-ownership.md`.
+`docs/architecture/fib/fib-vpp-route-ownership.md`. The SRv6 refusal and
+ownership-restore behavior behind `doctor-fib-vpp-srv6-refused` is in
+`docs/architecture/fib/fib-depth-4-srv6.md`, "Ownership and restart".
 <!-- source: internal/plugins/ldp/doctor_label.go -- labelEntriesCheckDecl -->
 <!-- source: internal/plugins/rsvpte/doctor_label.go -- labelEntriesCheckName -->
 <!-- source: internal/plugins/fib/vpp/doctor_label.go -- labelEntriesCheckDecl -->
 <!-- source: internal/plugins/fib/vpp/doctor_route.go -- staleRoutesCheckDecl -->
+<!-- source: internal/plugins/fib/vpp/doctor_srv6.go -- srv6CheckDecl, srv6DoctorFindings -->
 <!-- source: internal/component/ike/engine/doctor_state_scope.go -- stateScopeCheckDecl, answerStateScope -->
 <!-- source: internal/component/ike/engine/doctor_spd_install.go -- spdInstallCheckDecl -->
 <!-- source: internal/component/ike/engine/doctor_source_guard.go -- sourceGuardCheckDecl -->

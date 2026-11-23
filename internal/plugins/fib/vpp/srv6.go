@@ -33,7 +33,9 @@ func (f *fibVPP) processSRv6Change(c *incomingChange) {
 	}
 	key, err := f.srv6ChangeKey(c.Prefix, c.TableID, !c.SRv6SID.IsValid())
 	if err != nil {
-		logger().Error("fib-vpp: SRv6 table selection failed", "error", err)
+		refusalKey := srv6RouteKey{prefix: c.Prefix.Masked(), table: c.TableID}
+		f.recordSRv6RefusalLocked(refusalKey, c.SRv6SID, err)
+		logger().Error("fib-vpp: SRv6 table selection failed", "prefix", c.Prefix, "error", err, "code", codeSRv6Refused)
 		return
 	}
 	defer f.syncSRv6Route(key)
@@ -43,42 +45,52 @@ func (f *fibVPP) processSRv6Change(c *incomingChange) {
 			// Program the replacement before removing SR forwarding. A failed
 			// replacement MUST leave the previous steering intact.
 			if err := f.replaceSRv6WithIP(c, key); err != nil {
-				logger().Error("fib-vpp: SRv6 to IP replacement failed", "error", err)
+				f.recordSRv6RefusalLocked(key, c.SRv6SID, err)
+				logger().Error("fib-vpp: SRv6 to IP replacement failed", "prefix", key.prefix, "table", key.table, "error", err, "code", codeSRv6Refused)
 				return
 			}
 			if err := f.srv6Backend.delSRv6Steer(key.prefix, key.table); err != nil {
-				logger().Error("fib-vpp: SRv6 to IP cleanup failed", "error", err)
+				f.recordSRv6RefusalLocked(key, c.SRv6SID, err)
+				logger().Error("fib-vpp: SRv6 to IP cleanup failed", "prefix", key.prefix, "table", key.table, "error", err, "code", codeSRv6Refused)
 				return
 			}
 			delete(f.srv6Installed, key)
+			delete(f.srv6Refusals, key)
 			return
 		}
 		if err := f.checkpointSRv6Fallback(key, c.SRv6SID); err != nil {
-			logger().Error("fib-vpp: IP to SRv6 ownership checkpoint failed", "error", err)
+			f.recordSRv6RefusalLocked(key, c.SRv6SID, err)
+			logger().Error("fib-vpp: IP to SRv6 ownership checkpoint failed", "prefix", key.prefix, "table", key.table, "sid", c.SRv6SID, "error", err, "code", codeSRv6Refused)
 			return
 		}
 		if err := f.srv6Backend.addSRv6Steer(key.prefix, c.SRv6SID, key.table); err != nil {
-			logger().Error("fib-vpp: SRv6 steer failed", "prefix", c.Prefix, "sid", c.SRv6SID, "error", err)
+			f.recordSRv6RefusalLocked(key, c.SRv6SID, err)
+			logger().Error("fib-vpp: SRv6 steer failed", "prefix", c.Prefix, "table", key.table, "sid", c.SRv6SID, "error", err, "code", codeSRv6Refused)
 			return
 		}
 		f.srv6Installed[key] = true
 		if err := f.removeSRv6Fallback(key); err != nil {
-			logger().Error("fib-vpp: replaced IP cleanup failed", "error", err)
+			f.recordSRv6RefusalLocked(key, c.SRv6SID, err)
+			logger().Error("fib-vpp: replaced IP cleanup failed", "prefix", key.prefix, "table", key.table, "sid", c.SRv6SID, "error", err, "code", codeSRv6Refused)
 			return
 		}
+		delete(f.srv6Refusals, key)
 		if m := fibVPPMetricsPtr.Load(); m != nil {
 			m.routeInstalls.Inc()
 		}
 	case routeaction.VerbRemove:
 		if err := f.removeSRv6Fallback(key); err != nil {
-			logger().Error("fib-vpp: withdrawal IP cleanup failed", "error", err)
+			f.recordSRv6RefusalLocked(key, c.SRv6SID, err)
+			logger().Error("fib-vpp: withdrawal IP cleanup failed", "prefix", key.prefix, "table", key.table, "error", err, "code", codeSRv6Refused)
 			return
 		}
 		if err := f.srv6Backend.delSRv6Steer(key.prefix, key.table); err != nil {
-			logger().Error("fib-vpp: SRv6 steer del failed", "prefix", c.Prefix, "error", err)
+			f.recordSRv6RefusalLocked(key, c.SRv6SID, err)
+			logger().Error("fib-vpp: SRv6 steer del failed", "prefix", c.Prefix, "table", key.table, "error", err, "code", codeSRv6Refused)
 			return
 		}
 		delete(f.srv6Installed, key)
+		f.clearSRv6RefusalOnWithdrawLocked(c.TableID, key)
 		if m := fibVPPMetricsPtr.Load(); m != nil {
 			m.routeRemovals.Inc()
 		}

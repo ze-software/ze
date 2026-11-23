@@ -21,7 +21,7 @@ import (
 // METHOD: engineRegistration, the value runFibVPPPlugin passes to p.Run.
 func TestFibVPPRegistrationDeclaresLabelCheck(t *testing.T) {
 	reg := engineRegistration()
-	require.Len(t, reg.DoctorChecks, 2)
+	require.Len(t, reg.DoctorChecks, 3)
 	check := reg.DoctorChecks[0]
 	assert.Equal(t, labelEntriesCheckName, check.Name)
 	assert.Equal(t, rpc.DoctorPhaseRuntime, check.Phase)
@@ -30,6 +30,10 @@ func TestFibVPPRegistrationDeclaresLabelCheck(t *testing.T) {
 	assert.Equal(t, staleRoutesCheckName, routes.Name)
 	assert.Equal(t, rpc.DoctorPhaseRuntime, routes.Phase)
 	assert.Equal(t, []string{codeStaleRoute}, routes.Codes)
+	srv6 := reg.DoctorChecks[2]
+	assert.Equal(t, srv6CheckName, srv6.Name)
+	assert.Equal(t, rpc.DoctorPhaseRuntime, srv6.Phase)
+	assert.Equal(t, []string{codeSRv6Refused}, srv6.Codes)
 	assert.Equal(t, commandDecls(), reg.Commands, "the runner still sends the commands init declares")
 }
 

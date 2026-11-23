@@ -250,14 +250,14 @@ func runFibVPPPlugin(conn net.Conn) int {
 }
 
 // engineRegistration is the Stage 1 registration the runner sends: the config
-// it wants, the commands it serves and the runtime doctor check it answers.
+// it wants, the commands it serves and the runtime doctor checks it answers.
 func engineRegistration() *sdk.Registration {
 	return &sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
-		DoctorChecks: []rpc.DoctorCheckDecl{labelEntriesCheckDecl, staleRoutesCheckDecl},
+		DoctorChecks: []rpc.DoctorCheckDecl{labelEntriesCheckDecl, staleRoutesCheckDecl, srv6CheckDecl},
 	}
 }
 
@@ -265,10 +265,14 @@ func engineRegistration() *sdk.Registration {
 // current writer f, or from unreachable, why there is none. A name fib-vpp
 // did not declare is refused by answerLabelDoctorCheck.
 func answerDoctorCheck(name string, f *fibVPP, unreachable error) ([]rpc.DoctorCheckDiagnostic, error) {
-	if name == staleRoutesCheckName {
+	switch name {
+	case staleRoutesCheckName:
 		return staleRouteDoctorFindings(f, unreachable), nil
+	case srv6CheckName:
+		return srv6DoctorFindings(f), nil
+	default:
+		return answerLabelDoctorCheck(name, f)
 	}
-	return answerLabelDoctorCheck(name, f)
 }
 
 // answerLabelDoctorCheck answers the runtime doctor check named name from
@@ -321,7 +325,12 @@ func openFibVPPWriter(connector *vppcomp.Connector, table uint32, store srv6Stat
 	f.labelReplayToken = mplsfib.NewReplayToken()
 	f.srv6Backend = newGovppSRv6Backend(ch, table, store)
 	if err := f.restoreSRv6(); err != nil {
-		logger().Error("fib-vpp: SRv6 ownership restore failed", "error", err)
+		if isSRv6StoreUnavailable(err) {
+			logger().Info("fib-vpp: durable daemon state is unavailable; plain IP and MPLS routes will be programmed, SRv6 service routes will be refused until 'ze init' is run", "error", err)
+		} else {
+			f.srv6RestoreErr = err
+			logger().Error("fib-vpp: SRv6 ownership restore failed; run 'ze show doctor' for the fix", "error", err, "code", codeSRv6Refused)
+		}
 	}
 	return f, nil
 }

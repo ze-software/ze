@@ -67,7 +67,7 @@ var staleLabelCodeMeta = diagnostic.CodeMeta{
 		"what it could not remove under doctor-fib-vpp-stale-route. Remedy: restart Ze, which opens a new writer and runs the sweep again; " +
 		"the finding names VPP's refusal when it repeats, and its fix gives the restart for this process: a systemd command only " +
 		"when ze runs under ze.service, otherwise the steps for a ze started another way.",
-	Examples: []string{"ze show doctor", "ze show diagnostic doctor-fib-vpp-mpls-stale-label"},
+	Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-fib-vpp-mpls-stale-label"},
 }
 
 // pathMTUCodeMeta is the explanation `ze show diagnostic` prints for
@@ -80,7 +80,7 @@ var pathMTUCodeMeta = diagnostic.CodeMeta{
 		"interface alone: a frame larger than the path MTU the LSP reserved leaves the interface and is dropped further " +
 		"along the path rather than refused here. This is a WARNING. Remedy: set the MTU of each MPLS interface to the " +
 		"smallest path MTU the LSPs need, with `set interface <type> <name> mtu <bytes>` (for example `set interface ethernet eth0 mtu 1500`).",
-	Examples: []string{"ze show doctor", "ze show diagnostic doctor-fib-vpp-mpls-path-mtu"},
+	Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-fib-vpp-mpls-path-mtu"},
 }
 
 // pathMTUFix is the command that bounds labeled frames by the path MTU.
