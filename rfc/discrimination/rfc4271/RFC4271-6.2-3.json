@@ -1,6 +1,39 @@
 [
   {
     "rid": "RFC4271-6.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_open_errors_all_classes_proof_test.go::TestRFC4271AllOPENValidationClassesSendOpenMessageError",
+    "unit-sha": "9673f99a82baf418",
+    "claim-sha": "cc5d56b766aeffdd",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::validateOpenLocked",
+    "producer-sha": "7c8617ae0e47c626",
+    "break": "line 175: \"message.NotifyOpenMessage,\" -\u003e \"message.NotifyCease, // MUTATION-APPLIED: misclassify version OPEN error as Cease\""
+  },
+  {
+    "rid": "RFC4271-6.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_open_errors_all_classes_proof_test.go::TestRFC4271PendingAllOPENValidationClassesSendOpenMessageError",
+    "unit-sha": "7e7f61fcc702d73a",
+    "claim-sha": "d5ee83d8164ed3b1",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_open_as.go::rejectOpenPeerAS",
+    "producer-sha": "1cf2b7bb59e19cd4",
+    "break": "line 171: \"s.logNotifyErr(conn, message.NotifyOpenMessage, message.NotifyOpenBadPeerAS, nil)\" -\u003e \"s.logNotifyErr(conn, message.NotifyCease, message.NotifyOpenBadPeerAS, nil) // MUTATION-APPLIED: misclassify Bad Peer AS as Cease\""
+  },
+  {
+    "rid": "RFC4271-6.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_open_errors_all_classes_proof_test.go::TestRFC4271ValidOPENControlsAdvanceWithoutOpenMessageError",
+    "unit-sha": "58f900a8a6206dba",
+    "claim-sha": "0a2b41931ff5278f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::validateOpenLocked",
+    "producer-sha": "7c8617ae0e47c626",
+    "break": "line 163: \"if open.Version != 4 {\" -\u003e \"if open.Version == 4 { // MUTATION-APPLIED: reject valid version-4 OPEN\""
+  },
+  {
+    "rid": "RFC4271-6.2-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271ExactOuterOPENFramingCompletesTheHandshake",
     "unit-sha": "d900d5074f5ca6b3",

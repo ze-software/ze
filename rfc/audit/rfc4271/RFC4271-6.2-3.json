@@ -1,20 +1,23 @@
 {
-  "code": {
-    "internal/component/bgp/reactor/session_handlers.go::handleOpen": "5bd6dc63d6ec803a"
-  },
-  "note": "RFC 4271 Section 6.2 says: All errors detected while processing the OPEN message MUST be indicated by sending the NOTIFICATION message with the Error Code OPEN Message Error. Tested is \"NOTIFICATION message with the Error Code OPEN Message Error\"; Gap is \"All errors detected\"; Producer is internal/component/bgp/reactor/session_handlers.go::handleOpen. The ordinary and pending matrices present three standard/RFC9072 outer-length failures with legal message-header lengths. Both now reach Session.admitOpen, UnpackOpen and rejectOpenCapabilityError; they require exact NOTIFICATION 2/0, ordinary Idle or retained incumbent OpenConfirm, and cleared pending admission. The pending fixture first reads its independent connection's local OPEN before sending malformed input, preserving the refusal assertions. Exact-length ordinary controls require KEEPALIVE and OpenConfirm; the valid pending collision requires Cease 6/7 and an unchanged incumbent. These controls distinguish framing refusal from unconditional OPEN or collision refusal. The handleOpen extraction delegates decoding and validation without changing this tested obligation. The matrices do not enumerate every OPEN validation class, assert TCP EOF independently, or prove universal incoming admission; this remains partial with zero whole-requirement credit.",
-  "requirement_sha": "7789b38cf91c76ee",
+  "note": "Independent audit after reading RFC 4271 Section 6.2, rfc/short/rfc4271.md, all seven tagged test units across rfc4271_open_framing_proof_test.go and rfc4271_open_errors_all_classes_proof_test.go, producing code (Session.handleOpen, admitOpen, validateOpenLocked, rejectOpenCapabilityError, validateOpenPeerAS, rejectOpenPeerAS, validateOpenIdentifier, runOpenValidator, validateCapabilityModes, validateAddPathFamilyModes, and incoming_candidate.go handlePendingCollision/readOpen/admitFrame), and all seven discrimination records. The combined ordinary and pending proof suites cover every OPEN decode and validation class: standard and RFC 9072 outer framing overruns (2/0), unsupported version 3 and 5 (2/1 with [0,4]), unacceptable hold time 1 and 2 (2/6 with [0,1]/[0,2]), 2-byte and 4-byte AS 0 and peer AS mismatch (2/2), unsupported optional parameter (2/4), malformed capability TLV (2/0), zero and iBGP-self BGP Identifier (2/3), plugin role-mismatch OPEN validation (2/11), and missing/refused required families, capabilities, and ADD-PATH families (2/7 with capability Data). All 17 validation error classes assert exact NOTIFICATION 2/<subcode>/<Data>, TCP io.EOF closure, and Idle or preserved incumbent OpenConfirm with cleared pending state. Conforming controls across standard/extended framing, hold time 0, eBGP shared identifier, 4-octet peer AS, and constrained capability/validator acceptance advance to OpenConfirm with KEEPALIVE on the ordinary rail and resolve pending collisions with Cease 6/7 instead of Error Code 2. All seven discrimination records mutate Error Code 2 or valid-OPEN/collision boundaries directly.",
+  "requirement_sha": "0ebbe6db0483e00e",
   "tests": {
+    "internal/component/bgp/reactor/rfc4271_open_errors_all_classes_proof_test.go::TestRFC4271AllOPENValidationClassesSendOpenMessageError": "c589b667acbec12d",
+    "internal/component/bgp/reactor/rfc4271_open_errors_all_classes_proof_test.go::TestRFC4271PendingAllOPENValidationClassesSendOpenMessageError": "c589b667acbec12d",
+    "internal/component/bgp/reactor/rfc4271_open_errors_all_classes_proof_test.go::TestRFC4271ValidOPENControlsAdvanceWithoutOpenMessageError": "c589b667acbec12d",
     "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271ExactOuterOPENFramingCompletesTheHandshake": "aa2176bdf3ae1899",
     "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271OuterOPENFramingErrorsNotify": "aa2176bdf3ae1899",
     "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271PendingOuterOPENFramingErrorsNotify": "aa2176bdf3ae1899",
     "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271ValidPendingOPENRemainsACollision": "aa2176bdf3ae1899"
   },
   "units": {
+    "internal/component/bgp/reactor/rfc4271_open_errors_all_classes_proof_test.go::TestRFC4271AllOPENValidationClassesSendOpenMessageError": "3d7ff91984c9ec80",
+    "internal/component/bgp/reactor/rfc4271_open_errors_all_classes_proof_test.go::TestRFC4271PendingAllOPENValidationClassesSendOpenMessageError": "46bb4559ead83307",
+    "internal/component/bgp/reactor/rfc4271_open_errors_all_classes_proof_test.go::TestRFC4271ValidOPENControlsAdvanceWithoutOpenMessageError": "db7872d8580eeeac",
     "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271ExactOuterOPENFramingCompletesTheHandshake": "416ce8291c20ced5",
     "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271OuterOPENFramingErrorsNotify": "7b94574c8e3b2b4c",
     "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271PendingOuterOPENFramingErrorsNotify": "4be823876acd5946",
     "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271ValidPendingOPENRemainsACollision": "ab13109e12c698fa"
   },
-  "verdict": "partial"
+  "verdict": "enforced"
 }
