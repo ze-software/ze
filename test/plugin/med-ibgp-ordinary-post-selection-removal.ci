@@ -1,0 +1,65 @@
+# Test: does ordinary bgp-rib selected-route iBGP readvertisement (without
+# bgp-rs) preserve a selected route's MULTI_EXIT_DISC when a raw export policy
+# omits MED and rewrites a community, while leaving a no-MED control without MED?
+# A unit test cannot decide whether real daemon config grants, bgp-rib ordinary
+# dissemination, external raw export-filter RPC, applyFactsMED and the live TCP
+# session writer are joined end-to-end.
+#
+# RFC requirement: RFC4271-9.1.2.2-2 positive -- on an ordinary bgp-rib transit
+# daemon (no bgp-rs), an eBGP-learned route selected with MED 100 readvertised
+# over iBGP through a raw export filter that drops MED and rewrites COMMUNITY
+# reaches the iBGP TCP peer with both MED 100 and the rewritten community.
+# RFC requirement: RFC4271-9.1.2.2-2 negative -- on the same ordinary bgp-rib
+# transit daemon and raw export filter, a distinct selected eBGP route received
+# without MED reaches the iBGP TCP peer with the rewritten community and no MED.
+option=timeout:value=90s
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal adj-rib-in { use bgp-adj-rib-in; }
+	internal rib { use bgp-rib; }
+	external raw-med-drop {
+		run "le test fixture plugin/med-ibgp-ordinary-post-selection-removal 127.0.0.1:$PORT";
+		encoder json;
+	}
+}
+bgp {
+	router-id 1.2.3.4;
+	peer source {
+		connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+		session {
+			asn { local 65000; remote 65001; }
+			aigp { enabled false; }
+			family { ipv4/unicast { prefix { maximum 1000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		filter { import { final accept; } export { final reject; } }
+		attach process adj-rib-in { receive [ update-received state ]; }
+		attach process rib { receive [ update-received state ]; }
+	}
+	peer destination {
+		connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+		session {
+			asn { local 65000; remote 65000; }
+			aigp { enabled false; }
+			family { ipv4/unicast { prefix { maximum 1000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		filter {
+			import { final reject; }
+			export { filters [ raw-med-drop:drop-med-raw ]; final accept; }
+		}
+		attach process rib { send [ update ]; receive [ state refresh update-sent ]; }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=70s
+expect=exit:code=0
+expect=stderr:contains=RAW-MED-DROP: removed MULTI_EXIT_DISC
+expect=stderr:contains=OK: ordinary selected-route iBGP MED preserved alongside raw community rewrite and no-MED control
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered
+reject=stderr:contains=fatal error

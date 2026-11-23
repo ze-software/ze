@@ -1,0 +1,21 @@
+{
+  "note": "Independent audit of RFC 4271 Section 9.1.2.2: \"If an implementation chooses to remove MULTI_EXIT_DISC, then the optional comparison on MULTI_EXIT_DISC, if performed, MUST be performed only among EBGP-learned routes.\" Ze compares MED across eBGP and iBGP candidates sharing a neighbor AS (bestpath.go::comparePair), confines configured del { med; } to import before Phases 1 and 2 (filter_modify.go::medRemoveFor, external_attributes.go::removeMED), and guards internal readvertisement against raw post-selection MED omission in forward_med.go::applyFactsMED. TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval proves mixed iBGP/eBGP same-neighbor-AS (65010) MED comparison and ordinary bgp-rib selected-route iBGP readvertisement restore selected MED alongside the raw filter's community marker while sparing a no-MED control, explicit egress MED Set 7, and iBGP split horizon. test/plugin/med-ibgp-ordinary-post-selection-removal.ci and checkMEDIBGPOrdinaryPostSelectionRemovalGoBGP prove the same ordinary bgp-rib preservation and no-MED control end-to-end over TCP and against FRR/GoBGP.",
+  "requirement_sha": "067fb7531e108398",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go::TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval": "0aa44f461d571dda",
+    "internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go::TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval#2": "0aa44f461d571dda",
+    "internal/le/interoplab/bgp/register_med_ibgp_ordinary.go::checkMEDIBGPOrdinaryPostSelectionRemovalGoBGP": "88f21c7bb7403a96",
+    "internal/le/interoplab/bgp/register_med_ibgp_ordinary.go::checkMEDIBGPOrdinaryPostSelectionRemovalGoBGP#2": "88f21c7bb7403a96",
+    "test/plugin/med-ibgp-ordinary-post-selection-removal.ci": "0df931d83ed1b9b0",
+    "test/plugin/med-ibgp-ordinary-post-selection-removal.ci#2": "0df931d83ed1b9b0"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go::TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval": "706a40757adbae2f",
+    "internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go::TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval#2": "706a40757adbae2f",
+    "internal/le/interoplab/bgp/register_med_ibgp_ordinary.go::checkMEDIBGPOrdinaryPostSelectionRemovalGoBGP": "5e8a877e4ebd68b0",
+    "internal/le/interoplab/bgp/register_med_ibgp_ordinary.go::checkMEDIBGPOrdinaryPostSelectionRemovalGoBGP#2": "5e8a877e4ebd68b0",
+    "test/plugin/med-ibgp-ordinary-post-selection-removal.ci": "0df931d83ed1b9b0",
+    "test/plugin/med-ibgp-ordinary-post-selection-removal.ci#2": "0df931d83ed1b9b0"
+  },
+  "verdict": "enforced"
+}

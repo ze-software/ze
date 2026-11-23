@@ -158,10 +158,8 @@ func applyFactsMED(f *peerForwardFacts, src, base medValue, basePayload []byte, 
 		if f.isEBGP {
 			return
 		}
-		// RFC 4271 Section 9.1.2.2: if MED participated in selection, it must not
-		// be removed before IBGP readvertisement by a raw post-selection policy
-		// base. Restore only absence on an advertisement, and stand aside for a
-		// policy Set.
+		// RFC 4271 Section 9.1.2.2: "If an implementation chooses to remove MULTI_EXIT_DISC, then the optional comparison on MULTI_EXIT_DISC, if performed, MUST be performed only among EBGP-learned routes."
+		// Restore only absence on an advertisement, and stand aside for a policy Set.
 		if src.present && !base.present && !modsSetMED(mods) && wireu.PayloadAdvertisesNLRI(basePayload) {
 			mods.Op(uint8(attribute.AttrMED), filterapi.AttrModSet, src.raw)
 		}

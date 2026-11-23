@@ -53,10 +53,9 @@ func payloadWithoutMEDWithCommunity(t *testing.T, payload, community []byte) []b
 // value restored before it reaches the destination wire.
 //
 // VALIDATES: the common egress guard keeps the selected MED present on the
-// destination wire when a raw override removes it after selection. This is not
-// full RFC4271-9.1.2.2-2 proof because the runnable functional and interop
-// producers use the route-server rail, not normal BGP selected-route
-// readvertisement.
+// destination wire when a raw override removes it after selection; end-to-end
+// ordinary selected-route proof lives in
+// rfc4271_ordinary_med_readvertisement_test.go.
 func TestRFC4271IBGPReadvertisementRejectsRawMEDRemoval(t *testing.T) {
 	h := newFanoutHarnessWith(t, 1, 1, fanoutOpts{modify: false, groups: true})
 
@@ -436,4 +435,44 @@ func TestPayloadMED(t *testing.T) {
 	require.True(t, zero.present)
 	assert.False(t, zero.sameAs(medValue{}), "zero is not absent")
 	assert.False(t, zero.sameAs(found), "zero is not one hundred")
+}
+
+// VALIDATES: spec-rfc4271-med-ibgp-readvertisement boundary values -- MED 0
+// (0x00000000) and MED 4294967295 (0xffffffff) both survive raw-base omission
+// on IBGP egress via applyFactsMED.
+// PREVENTS: a zero-metric guard or uint32 sentinel treating MED 0 as absent or
+// mishandling the maximum 32-bit unsigned metric.
+func TestRFC4271IBGPReadvertisementRestoresMEDBoundaries(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		metric []byte
+	}{
+		{"med-zero", []byte{0x00, 0x00, 0x00, 0x00}},
+		{"med-max", []byte{0xFF, 0xFF, 0xFF, 0xFF}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newMEDSource(tc.metric)
+			src := payloadMED(s.payload)
+			require.True(t, src.present, "selected source carries boundary MED")
+
+			changedCommunity := []byte{0x00, 0x64, 0x00, 0x02}
+			base := payloadWithoutMEDWithCommunity(t, s.payload, changedCommunity)
+			require.False(t, payloadMED(base).present, "raw egress base omits MED")
+
+			facts := &peerForwardFacts{isEBGP: false}
+			var mods filterapi.ModAccumulator
+			applyFactsMED(facts, src, payloadMED(base), base, &mods)
+			require.Equal(t, 1, mods.Len(), "IBGP preservation must restore boundary MED")
+
+			result, _, fail := buildModifiedPayload(base, &mods, attrModHandlersWithDefaults(), nil, nil)
+			require.Equal(t, modifyFailureNone, fail)
+			require.NotNil(t, result, "restoring MED requires a rebuild")
+
+			got := payloadMED(result)
+			require.True(t, got.present, "rebuilt IBGP payload must carry MED")
+			assert.Equal(t, tc.metric, got.raw, "restored MED octets must match selected value")
+			assert.True(t, bytes.Contains(result, changedCommunity),
+				"unrelated community rewrite from raw base must survive")
+		})
+	}
 }

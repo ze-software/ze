@@ -1,0 +1,48 @@
+[
+  {
+    "rid": "RFC4271-9.1.2.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go::TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval",
+    "unit-sha": "6c8a95f0262002d2",
+    "claim-sha": "81c3367aa3e46696",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_med.go::applyFactsMED",
+    "producer-sha": "7a8d013aec5b5395",
+    "break": "body of applyFactsMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9.1.2.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_ordinary_med_readvertisement_test.go::TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval",
+    "unit-sha": "6c8a95f0262002d2",
+    "claim-sha": "a71e02e5e8ae37de",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_med.go::applyFactsMED",
+    "producer-sha": "7a8d013aec5b5395",
+    "break": "body of applyFactsMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9.1.2.2-2",
+    "polarity": "positive",
+    "unit": "test/plugin/med-ibgp-ordinary-post-selection-removal.ci",
+    "unit-sha": "7d35c8a1e1098d67",
+    "claim-sha": "58ad259dcca8f2b2",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_med.go::applyFactsMED",
+    "producer-sha": "7a8d013aec5b5395",
+    "break": "body of applyFactsMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+    "citation": "expect=stderr:contains=OK: ordinary selected-route iBGP MED preserved alongside raw community rewrite and no-MED control"
+  },
+  {
+    "rid": "RFC4271-9.1.2.2-2",
+    "polarity": "negative",
+    "unit": "test/plugin/med-ibgp-ordinary-post-selection-removal.ci",
+    "unit-sha": "7d35c8a1e1098d67",
+    "claim-sha": "ce2b2b97b8e35038",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_med.go::applyFactsMED",
+    "producer-sha": "7a8d013aec5b5395",
+    "break": "body of applyFactsMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+    "citation": "expect=stderr:contains=OK: ordinary selected-route iBGP MED preserved alongside raw community rewrite and no-MED control"
+  }
+]

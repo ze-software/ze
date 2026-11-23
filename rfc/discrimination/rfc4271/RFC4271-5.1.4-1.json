@@ -20,5 +20,38 @@
     "producer": "internal/component/bgp/reactor/forward_med.go::applyFactsMED",
     "producer-sha": "7a8d013aec5b5395",
     "break": "body of applyFactsMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_originated_med_established_test.go::TestRFC4271OriginatedMEDEstablishedBuildUnicast",
+    "unit-sha": "5f5de2a592642ebb",
+    "claim-sha": "93055cf61a7c19e7",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build.go::UpdateBuilder.BuildUnicast",
+    "producer-sha": "9a2131cf7338716b",
+    "break": "body of UpdateBuilder.BuildUnicast replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_originated_med_established_test.go::TestRFC4271OriginatedMEDEstablishedPlanBatchAttrs",
+    "unit-sha": "b8ee0a34aa8e3f67",
+    "claim-sha": "303709071027e832",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::planBatchAttrs",
+    "producer-sha": "9b9701055243ba16",
+    "break": "body of planBatchAttrs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_originated_med_established_test.go::TestRFC4271OriginatedMEDEstablishedWriteAnnounceUpdate",
+    "unit-sha": "6fe475da0ffa9c37",
+    "claim-sha": "98eaeea2e655762b",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_wire.go::writeAnnounceUpdate",
+    "producer-sha": "faf3ed4513e2d69c",
+    "break": "body of writeAnnounceUpdate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

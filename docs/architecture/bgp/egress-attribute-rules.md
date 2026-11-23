@@ -307,19 +307,25 @@ path is removed, guarded, or proven unreachable.
 | Rule | Unit | Functional | Interop |
 |------|------|-----------|---------|
 | LOCAL_PREF | `rfc4271_forward_local_pref_test.go` | `test/plugin/local-pref-strip-ebgp.ci` | `test/interop/scenarios/bgp-local-pref-strip-gobgp/` |
-| MULTI_EXIT_DISC, the propagation rule | `forward_med_test.go` | `test/plugin/med-not-propagated-across-as.ci`, `test/plugin/med-locally-set-reaches-peer.ci` | `test/interop/scenarios/bgp-med-across-as-gobgp/` |
+| MULTI_EXIT_DISC, the propagation rule | `forward_med_test.go`, `rfc4271_originated_med_established_test.go` | `test/plugin/med-not-propagated-across-as.ci`, `test/plugin/med-locally-set-reaches-peer.ci` | `test/interop/scenarios/bgp-med-across-as-gobgp/` |
 | MULTI_EXIT_DISC, the configured removal | `forward_med_test.go`, `filter_modify/rfc4271_modify_test.go` | `test/plugin/med-removal-configured.ci`, `test/plugin/med-removal-before-decision.ci`, `test/plugin/med-removal-export-refused.ci` | `test/interop/scenarios/bgp-med-remove-configured-gobgp/` |
-| MULTI_EXIT_DISC, IBGP post-selection preservation | `forward_med_test.go` | `test/plugin/med-ibgp-post-selection-removal.ci` | `test/interop/scenarios/bgp-med-ibgp-post-selection-removal-gobgp/` |
+| MULTI_EXIT_DISC, IBGP post-selection preservation | `forward_med_test.go`, `rfc4271_ordinary_med_readvertisement_test.go` | `test/plugin/med-ibgp-post-selection-removal.ci` (route-server rail), `test/plugin/med-ibgp-ordinary-post-selection-removal.ci` (ordinary `bgp-rib` rail) | `test/interop/scenarios/bgp-med-ibgp-post-selection-removal-gobgp/` (route-server rail), `test/interop/scenarios/bgp-med-ibgp-ordinary-post-selection-removal-gobgp/` (ordinary `bgp-rib` rail) |
 
 Each functional test carries its confining negative in the same run: one
 UPDATE, several destinations, opposite transforms, so neither half can pass by
 accident. The interop scenarios carry the same pair against a foreign RIB.
-Scenario 60: the relayed metric is gone from GoBGP's view and ze's own metric is
-in it. Scenario 61: the destination is INTERNAL, so the automatic rule never
-fires there, and of two routes on one session the one the policy names arrives
-with no metric while the one it does not keeps 100. Scenario 62: a raw export
+In `bgp-med-across-as-gobgp`, the relayed metric is gone from GoBGP's view and
+ze's own metric is in it. In `bgp-med-remove-configured-gobgp`, the destination
+is INTERNAL, so the automatic rule never fires there, and of two routes on one
+session the one the policy names arrives with no metric while the one it does
+not keeps 100. In `bgp-med-ibgp-post-selection-removal-gobgp`, a raw export
 filter removes MED from the destination base on the route-server egress rail,
-and GoBGP still receives MED.
+and GoBGP still receives MED. In
+`bgp-med-ibgp-ordinary-post-selection-removal-gobgp`, the same raw export
+filter runs on ordinary `bgp-rib` selected-route iBGP readvertisement (without
+`bgp-rs`): GoBGP still receives `Med: 100` for the route selected with MED 100,
+while the control route whose MED was removed on import before selection
+arrives with no MED synthesized.
 
 The configured removal has work only when the route carries a metric, from the
 peer or from an earlier member of the chain: `Chain.overlayMEDRemove` forgets a

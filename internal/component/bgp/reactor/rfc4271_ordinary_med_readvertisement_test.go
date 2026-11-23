@@ -1,7 +1,7 @@
 // Design: docs/architecture/bgp/egress-attribute-rules.md -- MED after ordinary selection.
 // Related: rfc4271_selected_advertisement_test.go -- actual RIB and socket controls.
 // Related: filter_answer_transport_test.go -- declared raw and MED policy answers.
-// RFC naming: untagged -- this ordinary MED selection-to-wire witness awaits its baseline and independent discrimination judgment.
+// RFC: rfc/short/rfc4271.md -- Section 9.1.2.2 MED presence preservation before IBGP readvertisement.
 package reactor
 
 import (
@@ -24,20 +24,41 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval receives two actual
-// same-neighbor candidates before connecting ordinary internal recipients.
-// The lower MED beats the other source's lower BGP Identifier, then a MED-only
-// change reverses the winner. One recipient's raw policy omits MED and changes
-// a community; another recipient sets MED 7. A distinct route without MED must
-// stay useful and acquire no metric at the raw-policy recipient.
+// TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval receives actual
+// same-neighbor-AS (65010) candidates before connecting ordinary internal
+// recipients. Both an all-eBGP pair and a mixed iBGP/eBGP pair prove that
+// ordinary RIB MED comparison runs and that raw egress policy omitting MED
+// cannot strip the selected MED before iBGP readvertisement, while a distinct
+// no-MED control gains no MED, an explicit egress MED Set (7) wins, and an
+// iBGP winner is withheld from internal peers by split horizon.
+//
+// VALIDATES: spec-rfc4271-med-ibgp-readvertisement AC-1 through AC-3 and AC-10.
+// PREVENTS: post-selection raw egress replacement silently dropping MED on
+// ordinary selected-route iBGP readvertisement without restricting MED
+// comparison to eBGP-only routes.
 // RFC 4271 Section 9.1.2.2: "If an implementation chooses to remove
 // MULTI_EXIT_DISC, then the optional comparison on MULTI_EXIT_DISC, if performed,
 // MUST be performed only among EBGP-learned routes."
-// This bounded witness checks preservation after actual ordinary selection;
-// it does not claim every conditional candidate population or foreign-peer proof.
+// RFC requirement: RFC4271-9.1.2.2-2 positive -- when ordinary RIB route
+// selection compares same-neighbor-AS (65010) candidates across mixed iBGP/eBGP
+// and all-eBGP sources and readvertises the selected route over iBGP through a
+// raw export policy that omits MED and rewrites a community, applyFactsMED
+// restores the selected MED on the destination wire alongside the rewritten
+// community.
+// RFC requirement: RFC4271-9.1.2.2-2 negative -- on the same ordinary iBGP
+// readvertisement path, a distinct selected route received without MED gains no
+// MED after the raw export policy, a separate internal recipient's explicit
+// egress MED Set (7) wins over the selected MED, and an iBGP-learned candidate
+// winning at MED 10 over an eBGP candidate at MED 20 is withheld from internal
+// recipients by iBGP split horizon.
 // MUTATION: omit applyFactsMED's internal raw-absence restoration; the raw
 // recipient's selected MED disappears while its rewritten community survives.
 func TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval(t *testing.T) {
+	t.Run("ebgp-same-neighbor-as", testOrdinarySelectedMEDAllEBGP)
+	t.Run("mixed-ibgp-ebgp-same-neighbor-as", testOrdinarySelectedMEDMixedIBGPEBGP)
+}
+
+func testOrdinarySelectedMEDAllEBGP(t *testing.T) {
 	policy := &ordinarySelectedMEDPolicy{}
 	transport := &answerTransport{reads: []string{rpc.FilterFieldRaw, "med"},
 		sets: []string{"med"}, answer: policy.answer}
@@ -104,6 +125,106 @@ func TestRFC4271OrdinarySelectedMEDSurvivesRawEgressRemoval(t *testing.T) {
 	ownershipLiveEstablished(t, []*lowLivePeer{a, b, raw, set})
 }
 
+func testOrdinarySelectedMEDMixedIBGPEBGP(t *testing.T) {
+	policy := &ordinarySelectedMEDPolicy{}
+	transport := &answerTransport{reads: []string{rpc.FilterFieldRaw, "med"},
+		sets: []string{"med"}, answer: policy.answer}
+	settings := []*PeerSettings{
+		acceptingLiveSettings(t, "192.0.2.215", 65000, 65000),
+		acceptingLiveSettings(t, "192.0.2.216", 65000, 65010),
+		acceptingLiveSettings(t, "192.0.2.217", 65000, 65000),
+		acceptingLiveSettings(t, "192.0.2.218", 65000, 65000),
+	}
+	peers := startOrdinarySelectedMEDPeers(t, transport, settings)
+	a := lowLiveConnect(t, peers[0], 0x0a00fe11)
+	b := lowLiveConnect(t, peers[1], 0x0a00fe12)
+	subject := netip.MustParsePrefix("198.19.213.0/24")
+	control := netip.MustParsePrefix("198.19.214.0/24")
+	fence := netip.MustParsePrefix("198.19.215.0/24")
+	aHop, bHop := peers[0].Settings().Address, peers[1].Settings().Address
+
+	// RFC 4271 Section 9.1.2.2: compare iBGP A and eBGP B sharing neighbor AS
+	// 65010 before connecting recipients. A30/B20 selects B; A-only MED 10
+	// selects A despite eBGP-over-iBGP preference; restored A30/B20 selects B.
+	ownershipLiveSend(t, a, nil, ordinaryBoundaryMEDAttrs(aHop.String(), 30), subject)
+	ownershipLiveSend(t, b, nil, ordinaryEBGPMEDAttrs(bHop, 65010, 20), subject)
+	ordinarySelectedMEDStored(t, a, subject, 30)
+	ordinarySelectedMEDStored(t, b, subject, 20)
+	ordinarySelectedBest(t, subject, bHop.String())
+
+	ownershipLiveSend(t, a, nil, ordinaryBoundaryMEDAttrs(aHop.String(), 10), subject)
+	ordinarySelectedMEDStored(t, a, subject, 10)
+	ordinarySelectedMEDStored(t, b, subject, 20)
+	ordinarySelectedBest(t, subject, aHop.String())
+
+	ownershipLiveSend(t, a, nil, ordinaryBoundaryMEDAttrs(aHop.String(), 30), subject)
+	ordinarySelectedMEDStored(t, a, subject, 30)
+	ordinarySelectedMEDStored(t, b, subject, 20)
+	ordinarySelectedBest(t, subject, bHop.String())
+	ordinaryBoundaryDrain(t, a)
+	ordinaryBoundaryDrain(t, b)
+
+	raw := lowLiveConnect(t, peers[2], 0x0a00fe13)
+	set := lowLiveConnect(t, peers[3], 0x0a00fe14)
+	ordinarySelectedWire(t, raw, subject, bHop.String())
+	ordinarySelectedWire(t, set, subject, bHop.String())
+
+	// The useful no-MED control comes from eBGP B: an iBGP A-origin control is
+	// withheld from internal recipients by ordinary iBGP split horizon.
+	noMEDControl := synthesizedNextHopAttrs(bHop, 65010)
+	ownershipLiveSend(t, b, nil, noMEDControl, control)
+	ordinarySelectedStored(t, b, control)
+	ordinarySelectedBest(t, control, bHop.String())
+	ordinarySelectedWire(t, raw, control, bHop.String())
+	ordinarySelectedWire(t, set, control, bHop.String())
+	ordinaryBoundaryDrain(t, b)
+	ordinaryBoundaryCapture(t, raw)
+	ordinaryBoundaryCapture(t, set)
+	rawView, setView := ownershipLiveRead(t, raw), ownershipLiveRead(t, set)
+	ordinarySelectedMEDWire(t, rawView.routes[subject], 20)
+	ordinarySelectedMEDMarker(t, rawView.routes[subject])
+	ordinarySelectedMEDWire(t, setView.routes[subject], 7)
+	ordinarySelectedMEDMarker(t, rawView.routes[control])
+	_, _, _, controlHasMED := attribute.AttrFind(rawView.routes[control], attribute.AttrMED)
+	require.False(t, controlHasMED, "a selected eBGP source without MED must not gain one")
+	ordinarySelectedMEDWire(t, setView.routes[control], 7)
+	require.Positive(t, policy.initial.Load(), "the raw answer must actually omit received MED 20")
+
+	// When iBGP A wins at MED 10, ordinary iBGP split horizon withdraws B's
+	// prior advertisement and withholds A's route from both internal recipients.
+	ownershipLiveSend(t, a, nil, ordinaryBoundaryMEDAttrs(aHop.String(), 10), subject)
+	ordinarySelectedMEDStored(t, a, subject, 10)
+	ordinarySelectedMEDStored(t, b, subject, 20)
+	ordinarySelectedBest(t, subject, aHop.String())
+	ordinaryBoundaryDrain(t, a)
+
+	ownershipLiveSend(t, b, nil, noMEDControl, fence)
+	ordinarySelectedStored(t, b, fence)
+	ordinarySelectedBest(t, fence, bHop.String())
+	ordinarySelectedWire(t, raw, fence, bHop.String())
+	ordinarySelectedWire(t, set, fence, bHop.String())
+	ordinaryBoundaryDrain(t, b)
+	ordinaryBoundaryCapture(t, raw)
+	ordinaryBoundaryCapture(t, set)
+	rawView, setView = ownershipLiveRead(t, raw), ownershipLiveRead(t, set)
+	ownershipLiveAbsent(t, rawView, subject)
+	ownershipLiveWithdrawals(t, rawView, subject, 1)
+	ownershipLiveAbsent(t, setView, subject)
+	ownershipLiveWithdrawals(t, setView, subject, 1)
+	ordinarySelectedMEDMarker(t, rawView.routes[fence])
+	_, _, _, fenceHasMED := attribute.AttrFind(rawView.routes[fence], attribute.AttrMED)
+	require.False(t, fenceHasMED)
+	ordinarySelectedMEDWire(t, setView.routes[fence], 7)
+	require.Positive(t, transport.callsFor(peers[3].Settings().Address.String()),
+		"the separate recipient's declared MED Set must execute")
+	ownershipLiveEstablished(t, []*lowLivePeer{a, b, raw, set})
+}
+
+func ordinaryEBGPMEDAttrs(hop netip.Addr, asn, med uint32) []byte {
+	attrs := synthesizedNextHopAttrs(hop, asn)
+	return append(attrs, makeAttr(0x80, byte(attribute.AttrMED), binary.BigEndian.AppendUint32(nil, med))...)
+}
+
 // ordinarySelectedMEDPeers configures the existing policy seam before start.
 // The only inserted routes are independent terminal interior next-hop hosts;
 // neither selected BGP destination is injected into the RIB by the fixture.
@@ -115,6 +236,11 @@ func ordinarySelectedMEDPeers(t *testing.T, transport *answerTransport) []*Peer 
 		acceptingLiveSettings(t, "192.0.2.213", 65000, 65000),
 		acceptingLiveSettings(t, "192.0.2.214", 65000, 65000),
 	}
+	return startOrdinarySelectedMEDPeers(t, transport, settings)
+}
+
+func startOrdinarySelectedMEDPeers(t *testing.T, transport *answerTransport, settings []*PeerSettings) []*Peer {
+	t.Helper()
 	settings[2].ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "remove-med")
 	settings[3].ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "set-med")
 	peers := lowLiveStart(t, lowLiveOptions{withoutRS: true,
