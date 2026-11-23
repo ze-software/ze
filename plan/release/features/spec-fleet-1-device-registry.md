@@ -89,7 +89,9 @@ What the moved criteria proved on the command surfaces is kept here: the
 devices, their connection state, configuration state, labels and versions by
 AC-1 to AC-13 and AC-25, and every command surface by AC-34, added with this
 ruling. A device's health on the command surfaces is `fleet-4`'s
-(`plan/release/features/spec-fleet-4-inventory-health.md`, AC-8).
+(`plan/release/features/spec-fleet-4-inventory-health.md`: AC-8, a device
+that has not reported shows "pending" or "not reported", and AC-13, its
+inventory and health commands on every command surface).
 
 The goal: on a hub with up to 4,096 declared clients and 2,000 of them
 connected, an operator runs `show fleet devices` on any command surface and
@@ -219,11 +221,83 @@ The skeleton of 2026-05-15 is replaced. What changed and why:
 | Perf harness | `cmd/ze/hub/fleet_perf_test.go` `TestFleetManyClientsPerf` | 128 clients, one fetch each | Extends: 2,000 clients held connected at once |
 | Typed events | `internal/core/events/typed.go` `Register` | Typed bus events | Does not apply: placement B (a component fed by events) was rejected by the owner |
 
+## Design documents
+
+Derived by `./le spec design documents spec plan/release/features/spec-fleet-1-device-registry.md` (41 pages and 5 decision rows on 2026-11-23), with five rows added beyond the derivation: two doors this spec's Required Reading names (`ai/doors/api-surfaces.md`, `ai/doors/commands-cli.md`) and two owner rules of `ai/META-DECISIONS.md`.
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | One schema, one command registry, every interface | System door (always derived) | "A command is declared once and reaches every interface." | agrees | `show fleet devices` and `show fleet device` are builtin RPCs with `ze:command` nodes in `ze-managed-cmd.yang`, registered once from `internal/component/managed/register.go`; no interface package is edited, and `TestEveryCommandOnEverySurface` checks every surface lists and routes them (AC-34) |
+| `ai/doors/system.md` | Shared machinery you use rather than rebuild | System door (always derived) | "In the daemon, `statestore` under a key in `pkg/zefs/keys.go`, never `os.WriteFile`." | agrees | The device record is written through the daemon's one store, the handle `ManagedServerConfig.Store` the held records already use, under `KeyFleetDeviceRecord` registered with `MustRegister` in `pkg/zefs/keys.go`; no file is written directly |
+| `ai/doors/system.md` | Shared machinery you use rather than rebuild | System door (always derived) | "A long-lived worker on a channel, never one per event" | agrees | One record writer started by `Start` and ended by `Stop` drains a dirty set; no goroutine is started per connect, fetch or ack (Critical Review Checklist, goroutine lifecycle) |
+| `ai/doors/hub-engine.md` | Boundaries | Door covering `cmd/ze/hub`, `internal/component/managed`, `pkg/fleet` | "SIGHUP and a managed push both reach `doReload` (`cmd/ze/hub/main_reload.go`). A new trigger joins it rather than building a second path." | agrees | The managed client set joins `doReloadContext`: the hub extraction is checked before any step applies and applied after promotion beside `publishNameServers`; no second reload path is built |
+| `ai/doors/hub-engine.md` | Traps | Door covering `cmd/ze/hub` | "Something built only at startup ignores every reload." | agrees | This is the reload defect the spec fixes: the managed server, built only at startup today, gains an apply that the reload calls (AC-8, AC-9, AC-26) |
+| `ai/doors/hub-engine.md` | Traps | Door covering `cmd/ze/hub` | "A check that runs only at start passes validate." | agrees | The label agreement and the 4,096-name refusals sit in `ExtractHubConfig` beside `checkManagedCertificateAgreement`; `validate_semantic.go` calls `ExtractHubConfig`, so `ze config validate`, boot and the reload pre-check give one verdict (AC-23, AC-24) |
+| `ai/doors/plugin-infra.md` | Traps | Door covering `internal/component/plugin/server`, `pkg/plugin/rpc` | "so a payload must be compact `json.Marshal` output." | agrees | The managed channel keeps newline framing; only the hub's reader of it gets a lower maximum, and the bounded ack error travels inside the same compact line |
+| `ai/doors/plugin-infra.md` | Boundaries | Door covering `pkg/plugin/rpc` | "The SDK stays generic." | agrees | `pkg/plugin/rpc` gains one additive constructor taking a caller-given maximum; it names no managed or fleet concept, and every existing caller keeps `MaxMessageSize` |
+| `ai/doors/core.md` | Boundaries | Door covering `pkg/zefs/keys.go`, `internal/core/diagnostic` | "Runtime state goes through the daemon's one store." | agrees | The device records are runtime state in the daemon's store under a registered key family; the three new doctor codes register in `codes_plugin_infra.go`, the existing code registry |
+| `ai/doors/config-yang.md` | Traps | Door covering `internal/component/config/loader_extract.go` | "`ze config validate` never calls a live `OnConfigVerify`." | agrees | No rule of this spec lives in an `OnConfigVerify`: the label and count refusals run in `ExtractHubConfig`, which validate reaches through `validate_semantic.go`, and the label constraints are YANG (`pattern`, `length`, `max-elements`) |
+| `ai/doors/le-tooling.md` | Where it sits | Door covering the `test/managed/fleet-*.ci` files | "Functional `.ci` files live under `test/<suite>/` and run through" | agrees | The eight new functional tests live under `test/managed/` and run through `./le test managed` |
+| `ai/doors/commands-cli.md` | Boundaries | Added: Required Reading names this door | "A handler answers data, never text." | agrees | Both handlers answer rows and a document with kebab-case keys, declared by `RegisterShape` and `RegisterColumns`, and every format comes from the pipes |
+| `ai/doors/api-surfaces.md` | Boundaries | Added: Required Reading names this door | "Never add a command in an adapter." | agrees | No REST, gRPC, MCP, SSH or web package gains a fleet route or command; each surface reaches the builtins through the dispatcher |
+| `ai/META-DECISIONS.md` | Goal and scope | Added: owner rule of 2026-11-23 ("1 b", voice-transcribed) | "Fleet management ships in the first release with its device registry," | agrees | The registry ships reachable through its two commands on every command surface; its web pages moved to `fleet-ui-2` (Task, "Owner ruling of 2026-11-23") |
+| `ai/META-DECISIONS.md` | CLI, config, and daemon surfaces | Added: owner rule on command surfaces | "Every operator command runs through the daemon on every command surface (MCP," | agrees | Both commands are daemon builtins served on MCP, REST, gRPC, SSH and the web with one answer; they hold no local route, so no local answer can differ (owner, final gate 2026-11-19, "Daemon-only commands") |
+| `docs/architecture/fleet-config.md` | Dedicated managed listener (reuses auth + transport) | `// Design:` page of `managed.go`, `managed_serve.go`, `managed_doctor.go`, `client.go`, `envelope.go`, `managed_server.go`; modified page | "to each `server` block that declares `client` entries." | agrees | A listener still binds only for a block that declares clients; the reload apply binds a block's address when it gains its first client and closes one that loses its last (AC-26, R-8). The server object exists with no listener so the reload can bind, which the page's new "Device registry" text states |
+| `docs/architecture/fleet-config.md` | Per-Client Secrets | `// Design:` page of `managed_serve.go`; modified page | "A client that must be reachable through two blocks is declared under both." | agrees | The registry keys by name, so one record serves both declarations, and two declarations of one name must carry the same labels (R-10, AC-23); admission per block is unchanged |
+| `docs/architecture/fleet-config.md` | What doctor reads from the managed listener | `// Design:` page of `managed_doctor.go`, `check_managed_runtime.go`; modified page | "no managed server in the process the answer is `ErrManagedNotServing`" | agrees | The registry snapshot is published through the same pointer and withdrawn by `Stop`; with no server the commands answer an operator error naming its fix (`TestShowFleetDevicesNotServing`), and the doctor table gains the three new codes |
+| `docs/architecture/fleet-config.md` | Config Storage (Hub Side) | `// Design:` page of `managed_server.go`; modified page | "The hub's `Storage.SetWriteObserver` callback maps a written client-config key" | agrees | The same single observer also marks the written client's hub version stale and still reads no storage; a record key ends in `record`, which `ClientNameFromConfigKey` never maps, so a record write pushes nothing (R-9) |
+| `docs/architecture/fleet-config.md` | Connection Lifecycle | `// Design:` page of `client.go`, `managed_serve.go`; modified page | "largest answer, 16 MiB (`rpc.MaxMessageSize`), on a link of about 4.5 Mbit/s." | agrees | The client's reader keeps 16 MiB; only the hub's reader of client lines is lowered, derived from `fleet.HeldConfigMax`, because the hub may serve a configuration larger than any client sends (Changed-Wire Census) |
+| `docs/architecture/fleet-config.md` | Connection Lifecycle | `// Design:` page of `managed_serve.go`; modified page | "A panic while the hub serves one client ends that client's connection only." | agrees | The registry marks the device offline in `handleConn`'s deferred cleanup, which runs on a contained panic too, so the name is released and the reconnect admitted |
+| `docs/architecture/fleet-config.md` | RPCs | `// Design:` page of `envelope.go`; modified page | "after the first four verbs is optional and omitted when unset" | agrees | No verb and no field is added; `config-ack`'s `error` keeps its type and is cut by the client at `fleet.AckErrorMax` with a marker, a value bound the page's "Protocol" text gains |
+| `docs/architecture/fleet-config.md` | Non-Goals | `// Design:` page of the managed server files; modified page | "Hub already exists; extend it" | agrees | The registry is a record inside `ManagedServer` (owner, placement A), not a new server component |
+| `docs/architecture/api/commands.md` | Which surfaces offer a command | `// Design:` page of `register.go`; anchored to the managed and hub files; modified page | "Offered: the daemon serves each through its handler" | agrees | Both commands are builtin RPCs, the registration row this statement covers, so every surface offers them with no declaration of their own |
+| `docs/architecture/api/commands.md` | Per-command declarations: what a command says about itself | `// Design:` page of `register.go`; modified page | "the pipe operations this command runs in its own handler" | agrees | `\| label` is declared with `RegisterPipeFilters` on `show fleet devices` and runs in its handler, which keeps the matching rows (Data Flow step 11, A-4); the command also registers its own shape and columns, so it inherits none from `show fleet` |
+| `docs/architecture/api/commands.md` | Design decisions | Decision of 2026-08-21 on a page this spec modifies | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | `show fleet devices` names the subject and stops; narrowing by label is the pipe operation `\| label <key>=<value>`, never an argument or a `--label` flag. `show fleet device name <name>` names one device as its subject, a document rather than the table, in the grammar of `show fleet divergence name <name>` |
+| `docs/architecture/api/commands.md` | Design decisions | Decision of 2026-11-20 on a page this spec modifies | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | `label` is no operator of the catalog (`pipe_catalog.go`), so it is the command's own operation and overrides nothing; every generic, `match`, `count`, `first` and the formats included, still applies to the rows unchanged |
+| `docs/architecture/api/ipc_protocol.md` | Message Framing | `// Design:` page of `framing.go`, `conn.go`; modified page | "All plugin RPC messages are UTF-8, newline-delimited lines:" | agrees | The framing is unchanged; the page gains the constructor with a caller-given maximum and that only the hub's managed reader passes one |
+| `docs/architecture/api/process-protocol.md` | Wire Format | `// Design:` page of `types.go`; anchored to `framing.go`, `conn.go` | "Maximum message size is 16 MB." | agrees | Every plugin reader keeps 16 MiB; the framing paragraph states that the plugin protocol keeps it (Documentation Update Checklist row 8) |
+| `docs/architecture/api/wire-format.md` | Framing | Anchored to `framing.go`, `conn.go` | "16 MB (16,777,216 bytes)" | agrees | The IPC maximum stays the library default; the managed channel's hub-side bound is stated in `docs/architecture/fleet-config.md`, "Protocol" (row 7) |
+| `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` | Both ESP forms on one inbound state | Anchored to `conn.go` (`writeFrame`) | "" | silent | The section cites `writeFrame` for a serialized framed write of IKE report RPCs; this spec changes no write path, only an added read constructor |
+| `docs/architecture/api/architecture.md` | Implementation Status | Anchored to `managed_serve.go`, `types.go`, `main.go`, `main_reload.go` | "" | silent | Lists the plugin process, dispatch and BGP API features; silent on the managed channel and the fleet commands |
+| `docs/architecture/core-design.md` | 19. Component Boundaries | Anchored to `managed_serve.go`, `types.go`, `main.go`, `main_reload.go` | "Each component under `internal/component/` is independently removable." | agrees | No import between components is added: `managed` already imports `plugin/server` for `show fleet divergence`, the registry lives in `plugin/server`, and no web package is touched |
+| `docs/architecture/core-design.md` | Design decisions | Decision of 2026-11-23 | "A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now." | agrees | The hub's managed configuration programs neither the kernel nor VPP; the labels and the reload apply add no feature the dataplane guard judges |
+| `docs/architecture/core-design.md` | Design decisions | Decision of 2026-11-23 | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | The spec adds no dataplane verdict; its own refusals follow the same rule, one verdict in `ExtractHubConfig` at validate, boot and the reload pre-check |
+| `docs/architecture/core-design.md` | Design decisions | Decision of 2026-11-23 | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "nft"` annotation." | agrees | No firewall leaf, verifier or `ze:backend` annotation is touched |
+| `docs/architecture/hub-architecture.md` | What the daemon does at start | `// Design:` page of `main.go`, `main_reload.go`; anchored to `managed_serve.go`, `managed_server.go`; modified page | "the external plugins and their modules alone: every other part of the config" | departs | The managed client set now reloads without a restart, but the managed listener's certificate (`plugin hub server <block> certificate`) stays read at boot: a change takes effect at the next restart (owner, final gate 2026-11-19; Known Limitations). The page gains that exception ("Documents departed from") |
+| `docs/architecture/hub-architecture.md` | Store ownership and configuration authority | `// Design:` page of `main.go`; modified page | "The daemon owns one writable tree at `<config-folder>/database/` until exit." | agrees | The registry writes through the store the daemon owns, borrowed by the managed server, and its writer is joined by the managed server's `Stop` before the hub returns that store |
+| `docs/architecture/doctor-and-health-checks.md` | The runtime phase: checks only the daemon runs | Anchored to `managed_doctor.go`, `check_managed_runtime.go`; `// Design:` page of `codes_plugin_infra.go`; modified page | "such state registers in the `runtime` phase, through the same" | agrees | `doctor-managed-device-record-unwritable`, `doctor-managed-device-record-unreadable` and `doctor-managed-handshake-saturated` read the running server's record and register in the runtime phase through `diagnostic.RegisterDoctorCheck`, as the existing managed checks do |
+| `docs/architecture/doctor-and-health-checks.md` | Every finding names the command that fixes it | Modified page | "A doctor diagnostic carries `fix`: the command or config statement the" | agrees | Each new check carries `Fix` (Critical Review Checklist); the unreadable-record fix names `ze data rm meta/fleet/device/<name>/record` (R-4) |
+| `docs/architecture/zefs-format.md` | Key Namespaces | `// Design:` page of `pkg/zefs/keys.go`; modified page | "Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions between metadata and config files." | agrees | `meta/fleet/device/{name}/record` is a new family outside `meta/config/` and `meta/managed/` (owner); `meta/fleet/` holds no value, so no key sits below a value; the page's table gains the row |
+| `docs/architecture/container/image-store.md` | State keys | Anchored to `pkg/zefs/keys.go` | "" | silent | Covers the container plugin's `meta/container/` keys; silent on fleet keys |
+| `docs/architecture/diagnostics/debug-filtering.md` | One ZeFS trap | Anchored to `pkg/zefs/keys.go` | "`List(prefix)` fails when the prefix ends in a slash." | agrees | The registry's load at `Start` lists the record family by the prefix `meta/fleet/device`, written with no trailing slash |
+| `docs/architecture/irr-owner.md` | Stored keys and notices | Anchored to `pkg/zefs/keys.go` | "" | silent | Covers the IRR owner's `meta/irr-*` keys and events; silent on fleet keys |
+| `docs/architecture/storage-backends.md` | Opening and ownership | Anchored to `pkg/zefs/keys.go`, `main.go` | "A second writer receives `ErrBusy`" | agrees | No second opener: the records use the daemon's borrowed store handle |
+| `docs/architecture/api/json-format.md` | Field naming | Anchored to `types.go` | "JSON keys are lowercase kebab-case, never camelCase and never snake_case." | agrees | Every record field and answer key is kebab-case (`connected-since`, `last-fetch-result`, `hub-version`) |
+| `docs/architecture/cli/command-verbs.md` | Narrowing and shaping: the pipe layer | Anchored to `types.go` | "An owned filter takes the name of the field it selects on." | agrees | `\| label` selects on the row's `labels` field and names what the operator chooses by, one label; it narrows an answer that exists and chooses nothing the command acts on |
+| `docs/architecture/cli/error-surface.md` | The operator error | Anchored to `types.go` | "A refusal an operator reads is an `opererr.Error`" | agrees | The unknown name (AC-12), the hub not serving, and the label and count refusals at verify (AC-23, AC-24) are operator errors with their fix on the last line (Critical Review Checklist) |
+| `docs/architecture/config/transaction-protocol.md` | 1. Design Principles | Anchored to `types.go`, `main_reload.go` | "The hub promotes a candidate after runtime reload succeeds." | agrees | The managed client set is applied after promotion, as post-acceptance state like `publishNameServers`; an address that does not bind is recorded and the rest of the reload stands (R-8) |
+| `docs/architecture/encoding-context.md` | TL;DR (Read This First) | Anchored to `types.go` | "" | silent | Covers BGP capability-dependent encoding; silent on the managed server and fleet commands |
+| `docs/architecture/plugin-manager-wiring.md` | Stage 1 Registration: Config Transaction Fields | Anchored to `types.go` | "" | silent | Covers plugin Stage 1 budget fields; the managed server is no plugin and declares no Stage 1 field |
+| `docs/architecture/web-interface.md` | Admin command visibility | Anchored to `types.go`, `main.go`, `main_reload.go` | "Admin command discovery omits schema-hidden nodes and their descendants." | agrees | Neither command is hidden, so the web admin and the web command line list both (AC-34); no web page or route is added |
+| `docs/architecture/config/syntax.md` | List (keyed entries) | `// Design:` page of `loader_extract.go`; anchored to `main.go` | "A list entry can also be written on one line, with the key first and the child" | agrees | `label` is a keyed list under the hub `client` entry with one `value` leaf. In a config file it is written as a block, `label site { value lon; }`: on one line the values after the key are assigned by position (`parseListInlineEntry`), so in `label site value lon;` the word `value` would itself be taken as a value. The `set` form keeps the keyword, `set plugin hub server central client edge-01 label site value lon`. The page's hub example gains a label (Documentation Update Checklist row 2) |
+| `docs/architecture/appliance/remote-operations.md` | Decisions | Anchored to `main.go` | "" | silent | Covers appliance config preview and push over SSH; silent on the managed channel and the hub's registry |
+| `docs/architecture/behavior/signals.md` | Ze Signal Mapping | Anchored to `main.go`, `main_reload.go` | "`handleSIGHUPReload` (`cmd/ze/hub/main_reload.go`), then `reactor.SignalHandler.OnReload`" | agrees | A SIGHUP reaches the same reload, whose post-promotion step now applies the managed client set; no signal is added |
+| `docs/architecture/cli/command-completion.md` | The producers | Anchored to `main.go` | "Every producer asks one predicate what its surface owes a command:" | agrees | No producer is edited: each asks `command.AnswerSurface` for the two builtins. The device-name completion is the builtin's `Complete`, answered from the snapshot's names |
+| `docs/architecture/config/yang-config-design.md` | API Schemas: `ze-bgp-api.yang` and `ze-*-cmd.yang` | Anchored to `main.go` | "The `-cmd.yang` modules define the CLI navigation hierarchy using" | agrees | The two commands are `config false` containers with `ze:command` in `ze-managed-cmd.yang`, beside `show fleet status` and `show fleet divergence` |
+| `docs/architecture/diagnostics/crash-capture.md` | Recovered panics | Anchored to `main.go` | "below that boundary ends only the unit the input belongs to" | agrees | A panic while serving one client ends that connection only; the registry's offline mark runs in the cleanup that follows it |
+| `docs/architecture/pki/pki-store.md` | Traps this code exists to avoid | Anchored to `main.go` | "A YANG list is built with the list-entry API, not with nested containers." | agrees | The `label` list's extraction tests build their entries as list entries |
+| `docs/architecture/pki/tls-listeners.md` | Decision: rotation does not rebind the hub listeners | Anchored to `main.go`, `main_reload.go` | "A hub listener re-resolves the name in the new store." | departs | The managed listener is a hub listener whose certificate is resolved once at construction (`managedCertificate`); the reload apply leaves it as it is, so a certificate change takes effect at the next restart (owner, final gate 2026-11-19). The page's table gains the managed listener's row ("Documents departed from") |
+| `docs/architecture/system-architecture.md` | Composition roots | Anchored to `main.go` | "" | silent | Covers the `ze`/`le` composition roots; silent on the managed server |
+| `docs/architecture/testing/ci-format.md` | Registered engines launched externally | Anchored to `main.go` | "" | silent | Covers the `le mock plugin-external` launcher; the new `.ci` tests use existing hub and client daemons and no new directive |
+| `docs/architecture/aaa-tacacs.md` | Config surface constraints | Anchored to `main_reload.go` | "" | silent | Covers TACACS+ config leaves and probes; silent on the hub client entry and its labels |
+| `docs/architecture/plugin/component-boundaries.md` | What this buys | Anchored to `main_reload.go` | "" | silent | Covers the four `pkg/ze` interfaces; the design adds no engine interface, subsystem or plugin |
+| `ai/rules/repo-maintenance.md` | Directives | `// Design:` page of `internal/component/managed/register.go` | "A change that adds or changes a surface future agents use, verify, document or avoid MUST update its discovery path in the same work" | agrees | The Repo-maintenance discovery table names `ai/INDEX.md`, the hub-engine door and `docs/architecture/fleet-config.md`'s new "Device registry" section, and the new runtime faults get doctor checks |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - A managed client's TLS connection to a serving block's listener: `#0 auth`, then newline-framed requests (`config-fetch`, `config-ack`, `config-held`, `ping`) and answers to `config-changed`.
-- A config load or reload carrying `plugin hub server <block> client <name> { secret; label <key> value <v>; }`.
+- A config load or reload carrying `plugin hub server <block> client <name> { secret; label <key> { value <v>; } }` (in `set` form, `plugin hub server <block> client <name> label <key> value <v>`).
 - A write of `file/active/client-<name>.conf` (the store's write observer).
 - An operator's `show fleet devices [| label <key>=<value>]` or `show fleet device name <name>` on any command surface: CLI, SSH, MCP, REST, gRPC, the web command line.
 
@@ -357,7 +431,8 @@ as its R-1 and R-2 (owner ruling of 2026-11-23).
 | A reload removing a connected client | → | the apply closes the session and marks removed | `test/managed/fleet-devices-reload-remove.ci` |
 | A hub restart | → | the registry's load at `Start` | `test/managed/fleet-devices-restart.ci` |
 | A store write failure | → | the record writer's failure path and doctor | `TestRegistryWriteFailureReportedByDoctor` |
-| `show fleet devices` and `show fleet device name <name>` on SSH, MCP, REST, gRPC and the web command line | → | the same builtins through the daemon dispatcher | `TestEveryCommandOnEverySurface` (`cmd/ze/hub/surface_parity_test.go`) |
+| `show fleet devices` and `show fleet device name <name>` on SSH, MCP, REST, gRPC and the web command line | → | the same builtins listed and routed through the daemon dispatcher | `TestEveryCommandOnEverySurface` (`cmd/ze/hub/surface_parity_test.go`, tags `ze_ssh ze_web`) |
+| `show fleet devices \| label site=lon` sent to the daemon dispatcher every surface calls | → | the declared `label` pipe filter on the builtin's answer | `TestShowFleetDevicesLabelFilter` (`internal/component/managed/cmd_devices_test.go`) |
 | 2,000 clients | → | handshake cap, read bound, registry | `TestFleetManyClientsPerf` (`fleetperf`) |
 
 The two web rows (`test/web/fleet-estate-live.wb`,
@@ -394,7 +469,7 @@ The two web rows (`test/web/fleet-estate-live.wb`,
 | AC-25 | A client config file is written | The next `show fleet devices` shows the new `hub-version` for that client and `config-state` `pending` until it acks the new version | Other clients' hub versions are not recomputed, because only the written one was marked stale |
 | AC-26 | A hub started with no client entry gains one by reload | The managed server binds the block's address and the client can connect | None |
 | AC-27 | The handshake cap is reached | `ze doctor` reports `doctor-managed-handshake-saturated` with the time, the count, the remote addresses holding slots and the fix | None |
-| AC-34 | `show fleet devices`, `show fleet devices \| label site=lon` and `show fleet device name edge-01` asked on the CLI, SSH, MCP, REST, gRPC and the web command line | Each surface lists both commands and the daemon dispatcher serves them there (`TestEveryCommandOnEverySurface`); every surface's answer is the one the builtin handler gives the dispatcher, whose content the `.ci` tests of AC-1 to AC-13 assert | None: a command is declared once and reaches every interface (`ai/doors/system.md`); added by the owner ruling of 2026-11-23 so the registry is reachable and tested on every command surface in the first release |
+| AC-34 | `show fleet devices`, `show fleet devices \| label site=lon` and `show fleet device name edge-01` asked on the CLI, SSH, MCP, REST, gRPC and the web command line | Each surface lists both commands and the daemon dispatcher serves them there: `TestEveryCommandOnEverySurface` (`cmd/ze/hub/surface_parity_test.go`, built only under `ze_ssh && ze_web`) proves the listing and the routing, and runs no pipe and compares no answer. The `\| label site=lon` filter is proven where every surface reaches it, at the daemon dispatcher: `TestShowFleetDevicesLabelFilter` sends `show fleet devices \| label site=lon` through the dispatcher and asserts exactly the `site=lon` rows (A-4). Every surface's answer is the one the builtin handler gives the dispatcher, whose content the `.ci` tests of AC-1 to AC-13 assert | None: a command is declared once and reaches every interface (`ai/doors/system.md`); added by the owner ruling of 2026-11-23 so the registry is reachable and tested on every command surface in the first release |
 
 AC-14, AC-15 and AC-28 to AC-33 moved to
 `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`
@@ -448,14 +523,14 @@ one's AC there).
 | `TestExtractHubConfigRefusesDisagreeingLabels` | same | AC-23 | |
 | `TestExtractHubConfigRefusesTooManyClients` | same | AC-24 | |
 | `TestShowFleetDevicesAnswersRows` | `internal/component/managed/cmd_devices_test.go` | Row fields and kebab-case keys | |
-| `TestShowFleetDevicesLabelFilter` | same | AC-10 through the dispatcher | |
+| `TestShowFleetDevicesLabelFilter` | same | AC-10, and AC-34's label filter: `show fleet devices \| label site=lon` sent through the daemon dispatcher answers exactly the `site=lon` rows (A-4) | |
 | `TestShowFleetDeviceAnswersDetail` | same | AC-11 | |
 | `TestShowFleetDeviceUnknownName` | same | AC-12 | |
 | `TestShowFleetDevicesNotServing` | same | `ErrManagedNotServing` answers an operator error with its fix | |
 | `TestCheckManagedDeviceRecordUnwritable` | `internal/component/plugin/doctor/check_managed_runtime_test.go` | AC-21 doctor text | |
 | `TestCheckManagedDeviceRecordUnreadable` | same | AC-22 doctor text | |
 | `TestCheckManagedHandshakeSaturated` | same | AC-27 | |
-| `TestEveryCommandOnEverySurface` | `cmd/ze/hub/surface_parity_test.go` (existing) | AC-34: both builtins listed and served on every operator surface | |
+| `TestEveryCommandOnEverySurface` | `cmd/ze/hub/surface_parity_test.go` (existing, `//go:build ze_ssh && ze_web`) | AC-34: both builtins listed and routed on every operator surface; it runs no pipe and compares no answer. Run with both tags: `./le job run label unit-pkg quiet command go test -race -tags "ze_ssh ze_web" -run TestEveryCommandOnEverySurface ./cmd/ze/hub/` | |
 
 The fleet interface tests (`source_parts_test.go`, `estate_test.go`,
 `sample/register/register_test.go`, `fleet_ui_bounds_test.go`) moved with
@@ -509,6 +584,7 @@ their criteria to
 - `internal/core/diagnostic/codes_plugin_infra.go` - three codes and their entries.
 - `cmd/ze/hub/fleet_perf_test.go` - 2,000 held sessions.
 - `docs/architecture/fleet-config.md`, `docs/guide/fleet-config.md`, `docs/guide/command-reference.md`, `docs/architecture/api/commands.md`, `docs/architecture/zefs-format.md`, `docs/architecture/doctor-and-health-checks.md`, `docs/features/cli-commands.md`, `docs/architecture/api/ipc_protocol.md`, `docs/architecture/hub-architecture.md` - the pages each phase makes wrong.
+- `docs/architecture/hub-architecture.md` ("What the daemon does at start") and `docs/architecture/pki/tls-listeners.md` ("Decision: rotation does not rebind the hub listeners") - the managed listener's certificate stays read at boot, the departure "Documents departed from" names (Phase 6).
 
 ## Files to Create
 - `internal/component/plugin/server/managed_registry.go` - record, writer, load, snapshot.
@@ -607,6 +683,118 @@ Columns in order: `name`, `connected`, `config-state`, `labels`, `hub-version`, 
 | What prevents regression | The `.ci` tests above, `TestEveryCommandOnEverySurface` for the two commands, the doctor code tests |
 | What registry prevents drift | `pkg/zefs/keys.go`, the RPC registry and its wire-method snapshot, the doctor registry |
 | What verification proves it | The owed scoped package tests and `./le test managed` of the listed `.ci` |
+
+## Design presentation
+
+### What changes
+
+The hub keeps one record per declared managed client inside its managed
+server, written at connect, disconnect, config fetch and config ack, persisted
+in the hub's store under `meta/fleet/device/<name>/record` by one coalescing
+writer, and loaded at start. An operator runs `show fleet devices` (filtered
+with `| label <key>=<value>`) and `show fleet device name <name>` on the CLI,
+SSH, MCP, REST, gRPC or the web command line and sees every declared device,
+whether it is connected, when it was last seen, its labels, its version and
+where its configuration stands, across a hub restart and a config reload. A
+client entry gains labels. A config reload now adds and removes managed
+clients without a restart. The cap of 128 connections held for life becomes a
+cap of 32 unauthenticated handshakes, with sessions bounded by the declared
+clients (at most 4,096) and the hub's reader of the managed channel bounded
+near 1.4 MiB, so 2,000 connected devices are proven. `ze doctor` reports a
+record that cannot be written or read and a saturated handshake cap. The web
+pages that read this registry come after the first release
+(`plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`).
+
+### Before and after
+
+1. `show fleet devices` on any command surface. Before: no such command; the hub
+   knows only which names are connected now, in memory. After: one row per
+   declared or recorded device, for example `edge-01`, `connected` true,
+   `config-state` `in-sync`, `labels` `site=lon`, `hub-version` and
+   `device-version` `3f9a1c2e7b4d5a60`, `last-seen` empty while connected.
+2. `show fleet devices | label site=lon`. Before: no command. After: exactly the
+   rows whose labels include `site=lon`; a removed device never matches.
+3. `show fleet device name edge-01`. Before: no command. After: one document with
+   every row field plus `first-connected`, `last-ack`, `ack-version`,
+   `ack-error`, `persisted`, `unreadable` and `removed-at`.
+   `show fleet device name nobody` answers an operator error whose fix names
+   `show fleet devices`.
+4. A reload that adds `client edge-09`. Before: `edge-09` is refused as an
+   unknown name until the hub restarts. After: it is listed at once (never
+   connected), can authenticate, and is listed connected once it does.
+5. A reload that removes a connected `client edge-02`. Before: its session stays
+   up and the hub keeps serving it until a restart. After: its session closes
+   within the reload, it is listed `removed` true with `removed-at`, its stored
+   facts, held record and config file are kept, and its reconnect is refused as
+   an unknown name and recorded by doctor.
+6. A hub restart. Before: nothing about any device survives. After: every stored
+   device is listed `connected` false with its stored facts until it reconnects.
+7. 2,000 devices connect. Before: the 129th connection waits for a slot, because
+   each connection holds one of 128 for its life. After: all 2,000 hold sessions;
+   only a 33rd unauthenticated handshake waits, for at most the handshake
+   timeout.
+8. A config that declares one client under two serving blocks with different
+   labels, or more than 4,096 client names. Before: a client entry has no
+   `label`, and no bound on the number of client names exists in
+   `loader_extract.go` or the YANG. After: refused at verify, at
+   `ze config validate`, boot and reload alike, naming the client, both blocks
+   and the label, or the count and the bound.
+9. `ze doctor` after a store write fails. Before: no record exists to fail.
+   After: `doctor-managed-device-record-unwritable` names the device, the store
+   error and the fix, and `show fleet device` answers `persisted` false with the
+   right live facts.
+10. A reload that changes `plugin hub server central certificate`. Before and
+    after: the served certificate is unchanged until the next restart. This is
+    the departure below, decided by Thomas at the final gate of 2026-11-19.
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| A separate registry component fed by events (placement B) | It misses events emitted before it subscribes and adds a second persistence path (owner, 2026-11-19) |
+| A synchronous store write per event | A reconnect storm of 2,000 devices would make up to 6,000 durable writes on the request path (R-1) |
+| A `fleet { device <name> { label; group; } }` root | A second declaration of a device beside the hub's `client` entry |
+| `--label` flag or a `label` argument | A flag never reaches the daemon, and scope is a pipe operation (`docs/architecture/api/commands.md`, decision of 2026-08-21) |
+| Builtins registered from `plugin/server` | The wire-method owner prefix belongs to the registering package; `managed` already holds the fleet commands |
+| An offline route answering stored records as offline | Every fact but the stored one lives in the daemon; an offline answer would show a fleet that looks dead (owner, 2026-11-19) |
+| Removed devices in the fleet interface | `fleetui` has no removed state; adding one is `fleet-ui-2`'s design (owner, 2026-11-19) |
+| Apply a changed serving certificate at reload | Deferred by the owner at the final gate of 2026-11-19 (Known Limitations) |
+| Declare `group` in `fleet-1` | `group` is the template unit `fleet-2` answers (owner, 2026-11-19) |
+| Keep the 128-connection cap held for life | 2,000 devices cannot connect; the acceptor's figure of 32 bounds the handshake flood, and configuration bounds sessions |
+| A literal read maximum | The largest legal message is declared once, as `fleet.HeldConfigMax` |
+| Build the managed server at reload when the first client appears | Two lifecycles, two stops, and the data and divergence targets would need reinstalling |
+| Ship the estate part, the source split and the not-available state with the registry | First-release fleet features are reached through commands; the web parts moved to `fleet-ui-2` (owner ruling of 2026-11-23, "1 b") |
+
+### Documents departed from
+
+- `docs/architecture/hub-architecture.md`, "What the daemon does at start".
+  Statement: "the external plugins and their modules alone: every other part of
+  the config reloads without a restart." The managed listener's certificate
+  (`plugin hub server <block> certificate`, and the material it names) is read
+  at boot only, by the owner decision of the final gate on 2026-11-19. After
+  this work the page names that second exception beside the external plugins:
+  a changed managed certificate takes effect at the next restart, while the
+  managed client set reloads.
+- `docs/architecture/pki/tls-listeners.md`, "Decision: rotation does not rebind
+  the hub listeners". Statement: "A hub listener re-resolves the name in the new
+  store." The managed listener resolves its certificate once, when the managed
+  server is built (`managedCertificate`), and the reload apply leaves it as it
+  is. After this work the page's table gains a row for the managed listener:
+  no reload hook, the certificate is read at boot, a change needs a restart.
+
+### Choices for Thomas
+
+| # | Choice | Options | Decision |
+|---|--------|---------|----------|
+| C-1 | Where the registry lives | (a) a record inside the hub's managed server; (b) a separate component fed by events | (a), DESIGN gate 2026-11-19 |
+| C-2 | When the records are persisted | (a) on connect, disconnect, fetch and ack, under a family outside `meta/config/` and `meta/managed/`; (b) on every event, in place | (a), DESIGN gate 2026-11-19 |
+| C-3 | The connection cap | (a) lift it here: a handshake cap, sessions bounded by declared clients, a bounded reader, 2,000 devices proven; (b) a later spec | (a), DESIGN gate 2026-11-19 |
+| C-4 | Reload of the client set | (a) fixed here, proven by a `.ci` that adds a client by reload; (b) a later spec | (a), DESIGN gate 2026-11-19 |
+| C-5 | Offline answer of the commands | (a) daemon only; (b) an offline route over the stored records | (a), final gate 2026-11-19 |
+| C-6 | Removed devices | (a) listed by the commands, the interface lists declared devices only; (b) shown in the interface too | (a), final gate 2026-11-19; the interface half is `fleet-ui-2`'s |
+| C-7 | A changed serving certificate | (a) needs a restart, recorded as a Known Limitation, with the two page corrections above; (b) applied at reload | (a), final gate 2026-11-19 |
+| C-8 | `group` and `template` | (a) `fleet-2`'s; (b) declared here | (a), final gate 2026-11-19 |
+| C-9 | The fleet web parts | (a) commands in the first release, pages after it; (b) the estate part with the registry | (a), ruling of 2026-11-23 (voice-transcribed "1 b") |
 
 ## Implementation Steps
 
@@ -714,7 +902,7 @@ reads them (`InventoryHealthPart` and `LatestSamplePart` by `fleet-ui-2`,
 | `\| label` pipe filter | `--label` flag, a `label` argument | Flags are offline only; scope is a pipe operation |
 | Commands as `ze-managed` builtins over a snapshot | Builtins in `plugin/server` | The owner prefix belongs to the registering package; `managed` already holds the fleet commands |
 | Daemon-only commands, no offline fallback (owner, final gate 2026-11-19) | A local route answering stored records as offline | Every fact but the stored one is in the daemon; an offline answer would show a fleet that looks dead |
-| Removed devices are listed by the CLI only; the interface's estate part lists declared devices only (owner, final gate 2026-11-19) | Removed devices in the interface | `fleetui` has no removed state; adding one is `fleet-ui-2`'s design |
+| Removed devices are listed by the CLI (`show fleet devices`, `removed` true, on every command surface) (owner, final gate 2026-11-19) | Removed devices in the interface | A removed entry keeps its record (AC-9), and the commands are this spec's surface. The other half of the owner decision, that the interface's estate part lists declared devices only because `fleetui` has no removed state, is `fleet-ui-2`'s work after the first release: `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md`, section "Moved from fleet-1 (owner ruling 2026-11-23)", row "Removed devices" |
 | A serving certificate name change needs a restart (owner, final gate 2026-11-19) | Apply the certificate at reload | Deferred by the owner; recorded in Known Limitations |
 | `group` and `template` stay with `fleet-2` (owner, final gate 2026-11-19) | Declare `group` in `fleet-1` | `group` is the template unit; `fleet-2` answers the `AssignmentPart` |
 | The interface split is specified method by method (owner, final gate 2026-11-19: strengthen the split) | Leave each other part to be designed by its own spec | Carried, with the split, to `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` by the owner ruling of 2026-11-23 |
