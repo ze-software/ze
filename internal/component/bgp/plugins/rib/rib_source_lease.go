@@ -329,8 +329,12 @@ func (s *ribSourceLeases) settleReceipts(ctx context.Context, receipts []uint64)
 			}
 			s.mu.Lock()
 			if err != nil {
-				lease.failure = s.operationError(err, lease.peer, receipt, rpc.SourceLeaseRelease)
-				refused = errors.Join(refused, lease.failure)
+				if errors.Is(err, errSelectedOutputConverging) {
+					refused = errors.Join(refused, err)
+				} else {
+					lease.failure = s.operationError(err, lease.peer, receipt, rpc.SourceLeaseRelease)
+					refused = errors.Join(refused, lease.failure)
+				}
 			} else {
 				delete(s.leases, receipt)
 			}

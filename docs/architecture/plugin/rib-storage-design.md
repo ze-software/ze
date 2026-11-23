@@ -322,10 +322,15 @@ refresh with the latest live owner and Session stored in its existing peer
 metadata. A stale observation cannot replay SENT to a replacement. A current
 ordinary observation without eligibility also cannot borrow legacy replay.
 
-Source-policy phases, explicit stale purge and safety-net expiry capture affected
-worker incarnations before removing input. They publish replacements and join
-both that captured set and remaining source obligations before releasing source
-leases. This includes an old winner that disappeared before any wire receipt.
+Source-policy phases, explicit stale purge, safety-net expiry and non-GR peer
+DOWN capture affected worker incarnations before removing input. Source-policy,
+purge and expiry publish replacements and join both that captured set and
+remaining source obligations before releasing source leases; peer DOWN holds
+those captured and post-reconciliation destinations on the lease without
+blocking event delivery, and the destination worker wakes the lease worker as
+each batch settles so normal convergence releases promptly without raising a
+spurious doctor failure. This includes an old winner that disappeared before
+any wire receipt.
 Command/timer settlement is bounded by the process lifetime and the existing
 cancellable-operation budget. Before mutation, a transient operation hold blocks
 the existing last-reference release worker. While that hold remains active,
@@ -341,9 +346,10 @@ source releases continue independently. Lease and dispatcher mutexes never nest.
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_refresh.go -- requestRefresh, refreshStep, replayLegacyRefresh, currentRefreshSession, rememberRefreshSession -->
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_barrier.go -- sourceDestinations, sourceReleaseReady -->
 <!-- source: internal/component/bgp/plugins/rib/rib_source_lease.go -- holdSourceOutput, settleReceipts -->
-<!-- source: internal/component/bgp/plugins/rib/rib_source_output.go -- settleSourceOutput, settlePurgedSource -->
+<!-- source: internal/component/bgp/plugins/rib/rib_source_output.go -- settleSourceOutput, settlePurgedSource, beginDownSourceHold, finishDownSourceHold -->
 <!-- source: internal/component/bgp/plugins/rib/rib_event_settlement.go -- settleEvents -->
-<!-- source: internal/component/bgp/plugins/rib/rib.go -- runRIBPlugin -->
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- runRIBPlugin, handleStructuredState, handleState -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_dispatch.go -- setOnSettled -->
 <!-- source: internal/component/bgp/plugins/rib/rib_ordinary_destination.go -- updateSelectedDestination -->
 
 A failed barrier names unresolved destination addresses and Session tokens.

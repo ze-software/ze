@@ -68,6 +68,28 @@
   {
     "rid": "RFC8654-5-4",
     "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8654_fatal_owner_order_test.go::TestRFC8654FatalLengthHoldsRouteOwnerUntilRecoveryAdmission",
+    "unit-sha": "6be0506bb17dd2c2",
+    "claim-sha": "25a9b7c0b4ef05bc",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/relay_recovery.go::admitRecovery",
+    "producer-sha": "84e65c12ec919177",
+    "break": "body of admitRecovery replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8654_fatal_owner_order_test.go::TestRFC8654FatalLengthOrdinaryRIBHoldsSourceOwnerUntilSelectedOutput",
+    "unit-sha": "66a2e97e0bb061e0",
+    "claim-sha": "9ba83196f6db3ebd",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_source_output.go::beginDownSourceHold",
+    "producer-sha": "d69c465dec384a8d",
+    "break": "body of beginDownSourceHold replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-5-4",
+    "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654FatalLengthReelectsAlternateBest",
     "unit-sha": "b5c08db4a7e51119",
     "claim-sha": "b0c31ba5b2c9ee2c",

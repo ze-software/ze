@@ -127,6 +127,7 @@ type selectedDispatch struct {
 	destinations map[selectedDestinationID]*selectedDestination
 	cut          scopedRevision
 	changed      chan struct{}
+	onSettled    func()
 	stopped      bool
 	fatal        error
 }
@@ -551,9 +552,24 @@ func selectedDispatchRetry(destination *selectedDestination) bool {
 	}
 }
 
+// setOnSettled registers a non-blocking wake callback invoked whenever a
+// destination finishes work or exits. The callback MUST NOT acquire d.mu,
+// wait on a worker, or perform I/O.
+func (d *selectedDispatch) setOnSettled(fn func()) {
+	if d == nil {
+		return
+	}
+	d.mu.Lock()
+	d.onSettled = fn
+	d.mu.Unlock()
+}
+
 func (d *selectedDispatch) signalChangeLocked() {
 	close(d.changed)
 	d.changed = make(chan struct{})
+	if d.onSettled != nil {
+		d.onSettled()
+	}
 }
 
 func (d *selectedDispatch) completeReady(destination *selectedDestination) bool {

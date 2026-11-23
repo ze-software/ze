@@ -42,3 +42,30 @@ func (r *RIBManager) settlePurgedSource(active []*selectedDestination, receipts 
 	defer cancel()
 	return r.settleSourceOutput(ctx, active, receipts, release)
 }
+
+// beginDownSourceHold captures affected ordinary selected-output destinations
+// before a peer DOWN removes Adj-RIB-In input, holding the source's lease
+// until the resulting withdrawal or alternate-best replacement settles on
+// every affected destination. No peer or storage lock may be held.
+// RFC 4271 Section 6: "Before the invalid routes are deleted from the system,
+// it advertises, to its peers, either withdraws for the routes marked as
+// invalid, or the new best routes before the invalid routes are deleted from
+// the system."
+func (r *RIBManager) beginDownSourceHold(peerOwner uint64) func() {
+	receipts := r.sourceLeases.receiptsForPeer(peerOwner)
+	active, _ := r.selectedDispatch.sourceDestinations(receipts)
+	return r.sourceLeases.holdSourceOutput(receipts, active)
+}
+
+// finishDownSourceHold captures any late-admitted destination after peer-DOWN
+// reconciliation and releases the pre-purge operation hold without blocking
+// event delivery. Actual lease release waits for sourceReleaseReady.
+func (r *RIBManager) finishDownSourceHold(peerOwner uint64, release func()) {
+	if release == nil {
+		return
+	}
+	receipts := r.sourceLeases.receiptsForPeer(peerOwner)
+	post, _ := r.selectedDispatch.sourceDestinations(receipts)
+	r.sourceLeases.holdSourceOutput(receipts, post)()
+	release()
+}

@@ -172,6 +172,12 @@ func (d *selectedDispatch) settledLocked(destination *selectedDestination) bool 
 	return len(destination.pending) == 0
 }
 
+// errSelectedOutputConverging reports that every unsettled destination is
+// still healthy and actively flushing its queued or in-flight selected output.
+// Callers MUST still keep source leases alive, while avoiding spurious fault
+// reports during normal convergence.
+var errSelectedOutputConverging = errors.New("selected output has not settled")
+
 // sourceReleaseReady is the last-reference release guard, including retries
 // from the running lease worker. It never waits: one blocked recipient cannot
 // stop unrelated source releases. Existing retry admission repeats the guard.
@@ -187,6 +193,7 @@ func (d *selectedDispatch) sourceReleaseReady(active []*selectedDestination) err
 		return d.fatal
 	}
 	var pending []selectedUnsettled
+	allConverging := true
 	seen := make(map[*selectedDestination]struct{})
 	inspect := func(destination *selectedDestination) {
 		if _, duplicate := seen[destination]; duplicate {
@@ -199,9 +206,29 @@ func (d *selectedDispatch) sourceReleaseReady(active []*selectedDestination) err
 			return
 		default:
 		}
-		if destination.ctx.Err() != nil || d.destinations[id] != destination || !d.settledLocked(destination) {
+		if destination.ctx.Err() != nil {
+			allConverging = false
 			cause := destination.failure
 			if cause == nil {
+				cause = errors.New("selected output is queued or in flight")
+			}
+			pending = append(pending, selectedUnsettled{id: id, cause: cause})
+			return
+		}
+		if d.destinations[id] != destination {
+			allConverging = false
+			cause := destination.failure
+			if cause == nil {
+				cause = errors.New("selected output is queued or in flight")
+			}
+			pending = append(pending, selectedUnsettled{id: id, cause: cause})
+			return
+		}
+		if !d.settledLocked(destination) {
+			cause := destination.failure
+			if cause != nil {
+				allConverging = false
+			} else {
 				cause = errors.New("selected output is queued or in flight")
 			}
 			pending = append(pending, selectedUnsettled{id: id, cause: cause})
@@ -211,6 +238,9 @@ func (d *selectedDispatch) sourceReleaseReady(active []*selectedDestination) err
 		inspect(destination)
 	}
 	if len(pending) != 0 {
+		if allConverging {
+			return selectedBarrierError(errSelectedOutputConverging, pending)
+		}
 		return selectedBarrierError(errors.New("selected output has not settled"), pending)
 	}
 	return nil

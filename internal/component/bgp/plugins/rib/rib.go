@@ -930,6 +930,7 @@ func runRIBPlugin(conn net.Conn) int {
 
 	r.sourceLeases = newRIBSourceLeases(r)
 	r.sourceLeases.start(ctx)
+	selected.setOnSettled(r.sourceLeases.notify)
 	p.OnEventSettlement(r.settleEvents)
 	// Started before events flow; stopped after Run has drained delivery.
 	r.startRecoveryRemovals(ctx, r.sendRecoveryRemoval)
@@ -1544,6 +1545,12 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 		}
 	}
 	defer r.settleSourceLeases(peerOwner)
+	if state == rpc.SessionStateDown {
+		// RFC 4271 Section 6: keep the departed source lease alive until
+		// ordinary selected output flushes the withdrawal or replacement.
+		releaseDownHold := r.beginDownSourceHold(peerOwner)
+		defer func() { r.finishDownSourceHold(peerOwner, releaseDownHold) }()
+	}
 
 	r.peerMu.Lock()
 	// seenBefore must be read BEFORE the assignment below, which creates the key:
@@ -1659,6 +1666,12 @@ func (r *RIBManager) handleState(event *Event) {
 		}
 	}
 	defer r.settleSourceLeases(peerOwner)
+	if state == "down" {
+		// RFC 4271 Section 6: keep the departed source lease alive until
+		// ordinary selected output flushes the withdrawal or replacement.
+		releaseDownHold := r.beginDownSourceHold(peerOwner)
+		defer func() { r.finishDownSourceHold(peerOwner, releaseDownHold) }()
+	}
 
 	r.peerMu.Lock()
 	// seenBefore must be read BEFORE the assignment below, which creates the key:
