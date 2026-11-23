@@ -694,6 +694,11 @@ an unbind would be unsafe. These unknown owners remain quarantined until
 ownership-aware readback resolves the operation or process retirement proves
 the native state gone. An API reconnection alone cannot release that ownership
 or authorize native interface recycling.
+The owner decision of 2026-11-23 ("Design decisions" below) replaces that last
+rule for an adopted VPP: over a new connection whose peer is proven the same
+process by comparing retained pidfs identities, a retained owner reads back and
+cleans its exact native identity. That is not built yet;
+`plan/post-release/features/spec-pppoe-vpp-dataplane.md` owns it.
 <!-- source: internal/component/l2tp/pppoe/dataplane/vpp/rate_owner.go -- policerRates, policerRates.Close, policerRates.cleanup -->
 <!-- source: internal/component/l2tp/pppoe/dataplane/vpp/rate_transaction.go -- policerRates.Prepare, policerRateTransaction.Apply, policerRateTransaction.Rollback -->
 <!-- source: internal/component/l2tp/pppoe/dataplane/vpp/rate_features.go -- binaryAPI.quarantinePolicers -->
@@ -737,3 +742,10 @@ A void test send observer proves only an attempt. Shutdown and future terminal
 logic use this receipt snapshot instead of deriving publication from State.
 <!-- source: internal/component/l2tp/pppoe/session.go -- PADSPublication, SessionTable.PADSPublication -->
 <!-- source: internal/component/l2tp/pppoe/server.go -- sendPADS, submitFrame -->
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| D-1, a VPP API loss with the process alive, is resolved by the VPP lifecycle rules: a live VPP that Ze cannot adopt is killed and restarted, so its exit proof always arrives and retires the retained owners | Holding PPPoE service fenced until an external VPP happens to exit, or releasing retained owners on an API reconnection alone | plan/post-release/features/spec-pppoe-vpp-dataplane.md, plan/post-release/features/spec-vpp-failure-lifecycle.md | 2026-11-23 |
+| When Ze adopts the VPP, retained owners are read back by exact identity over the new connection of the same pidfd-proven process, and cleaned there (option C) | Using a new connection whose peer is not proven the same process, or releasing an owner without a confirmed deletion or a completed absence read | plan/post-release/features/spec-pppoe-vpp-dataplane.md | 2026-11-23 |

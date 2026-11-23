@@ -471,6 +471,10 @@ External mode also observes API loss and retries its connection through the
 manager's backoff loop. Its supervisor is external: Ze neither kills that
 process nor treats an API failure as proof of process death. Owners must retain
 unresolved native state until its own ownership or absence is confirmed.
+The owner decisions of 2026-11-23 ("Design decisions" below) replace this
+behavior: Ze refuses to run VPP unmanaged, and kills and restarts an external
+VPP it cannot prove alive and forwarding. That is not built yet; its
+implementation is owed by `plan/post-release/features/spec-vpp-failure-lifecycle.md`.
 
 ### API Clients
 
@@ -536,3 +540,12 @@ at a time), 256 = saturated (processing full vectors). Production typically 4-16
 - No kernel features on fast path (tc, XDP, conntrack, eBPF).
 - DPDK/RDMA NIC drivers only (not all hardware supported).
 - Minimum 4 physical CPU cores, 8 GB RAM.
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| Ze refuses to run VPP unmanaged. When VPP is external, the operator accepts that Ze may terminate and restart it | A mode where Ze only connects to a VPP it may not kill or restart, leaving recovery to the operator or another supervisor | plan/post-release/features/spec-vpp-failure-lifecycle.md | 2026-11-23 |
+| Ze knows how to manage and restart an external VPP: through a systemd unit, or by starting the binary directly, as it does with the embedded runtime | An enabled VPP with no restart method Ze can run itself | plan/post-release/features/spec-vpp-failure-lifecycle.md | 2026-11-23 |
+| After a failure, when the VPP process is alive, forwarding continued, and Ze reconnects and can read the state it configured, Ze continues from where it is | Killing, rebuilding or tearing down sessions and adjacencies over a VPP proven alive, forwarding and still holding Ze's state | plan/post-release/features/spec-vpp-failure-lifecycle.md | 2026-11-23 |
+| When VPP could have crashed or stopped forwarding, Ze reflects it in its own model and makes sure IGP and BGP peers are updated | Leaving VPP-backed interfaces up in Ze, or leaving IGP and BGP peers to learn of the failure only from their own timers | plan/post-release/features/spec-vpp-failure-lifecycle.md | 2026-11-23 |

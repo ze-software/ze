@@ -281,6 +281,12 @@ step 8, then emits lifecycle events and completes readiness at step 9.
 It blocks on context cancellation instead of `cmd.Wait` at step 10.
 <!-- source: internal/component/vpp/vpp.go -- External branch in Run and runOnce -->
 
+This mode is going away. The owner decided on 2026-11-23 that Ze refuses to
+run VPP unmanaged: with an external VPP the operator accepts that Ze may stop
+and restart it, through its systemd unit or by starting the binary directly
+(`docs/research/vpp-deployment-reference.md`, "Design decisions"). That is not
+built yet; `plan/post-release/features/spec-vpp-failure-lifecycle.md` owns it.
+
 Typical configurations:
 
 ```

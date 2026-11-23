@@ -23,6 +23,8 @@ evidence and both designs in full.
 | `b6388ee211` | PADS follows the session's creation, and PADT its deletion (five server tests, two cuts) |
 | `c879124c37` | Spec records the IPv4 product lab pass and the PADS/PADT order; PPPoE operator clear row |
 | this handover's commit | The `product-framed` pass, both implementation designs, the unpoliced-subscriber row, this handover |
+| `400c99ef00` | Spec records the loss and policer designs; handover 61 |
+| the 2026-11-23 recording commit | The owner's VPP rules and D-1 decision, the lifecycle spec skeleton, the shaping research, three journal rows, the digest correction, this update |
 
 ## Baseline now
 
@@ -37,17 +39,44 @@ evidence and both designs in full.
 
 Logs are under `tmp/session/2026-11-22-203554/scratch/`.
 
+## Owner rules of 2026-11-23, and where they are recorded
+
+Thomas decided how Ze manages VPP, and D-1 = option C:
+
+1. Ze refuses to run VPP unmanaged; with an external VPP the operator accepts
+   that Ze may terminate and restart it.
+2. Ze knows how to manage and restart an external VPP: a systemd unit, or a
+   direct start of the binary as with the embedded runtime.
+3. After a failure: alive, forwarding, reconnected and state readable means
+   continue from where it is; possibly crashed or stopped forwarding means
+   reflect it in Ze and update IGP and BGP peers.
+
+| Where | What |
+|-------|------|
+| `docs/research/vpp-deployment-reference.md`, "Design decisions" | Rules 1 to 3; a note in "Socket Transport" says they replace "Ze neither kills that process" and are not built |
+| `docs/guide/vpp.md`, "Running against an externally supervised VPP" | The same note |
+| `docs/architecture/l2tp/bng-5-pppoe.md`, "Design decisions" | D-1 resolved: kill and restart when Ze cannot adopt, option C readback when it adopts; a note on the "VPP session ownership" invariant |
+| `plan/post-release/features/spec-vpp-failure-lifecycle.md` (new skeleton) | The rules, findings 1 to 7, the design draft, the eight open choices, the pages made wrong; owns two journal rows |
+| `plan/post-release/features/spec-pppoe-vpp-dataplane.md`, "Owner decisions of 2026-11-23: D-1 resolved" and "VPP subscriber shaping research — 2026-11-23" | F-1 to F-5, changes 1 and 2, readback table, E-1 to E-4 under the rules, owed tests; the shaping summary and recommendation; the ng row corrected |
+| `ai/digests/vpp-dataplane.md` | Corrected against today's code (connect path, disconnected emitter, external API loss) |
+
 ## Remaining, in order
 
 | # | Work | First action |
 |---|------|--------------|
-| 1 | Owner decisions D-1 (external-mode VPP API loss with the process alive: A, B or C) and C-1 (where a configured VPP rate lives) | Present both from the spec's design section to Thomas |
-| 2 | Implement OD-2 loss handling per the spec design | Needs no decision except D-1's external-mode branch; managed mode can go first |
-| 3 | Implement the per-session VPP policer wiring | The Filter-Id/RADIUS path needs no decision; the configured rate waits on C-1. This fixes the open defect: VPP subscribers forward unpoliced today |
-| 4 | Lab discrimination (revert, rebuild, red) for `product` and `product-framed` | Spec "Real-VPP product lab" |
-| 5 | VPP accounting and idle detection (AC-17) | After `spec-pppoe-subscribers-produce-no-accounting-or-telemetry` |
-| 6 | AC-8 (IA_PD) | After `spec-l2tp-ipv6-subscriber` wires the prefix allocator |
-| 7 | Scale on a known host | Thomas |
+| 1 | Owner choices: the eight lifecycle choices (`spec-vpp-failure-lifecycle`, "Choices the rules do not settle"), E-1 (unknown-outcome creations on adopt), C-1 (where a configured VPP rate lives), and the shaping plugin licence route: a Ze-written plugin as an Apache-2.0 diff in the VPP tree or an AGPL-3.0 plugin directory, or carry osvbng's GPL-3.0+ plugin | Present them to Thomas from the two specs |
+| 2 | The lifecycle spec's design | Fresh session, `/ze-spec plan/post-release/features/spec-vpp-failure-lifecycle.md`; also put its bucket (post-release or release) to Thomas |
+| 3 | The VPP shaping spec | Fresh session, `/ze-spec`; references `~/Code/github.com/veesix-networks/osvbng-vpp` `plugins/osvbng_qos_sched` and VyOS with accel-ppp-ng; the recommendation is in the PPPoE spec's shaping section |
+| 4 | PPPoE OD-2 and the F-1 and F-3 fixes | After the lifecycle spec's design: OD-2's drain runs on the down verdict only |
+| 5 | The per-session VPP policer wiring | The Filter-Id/RADIUS path needs no decision; the configured rate waits on C-1. This fixes the open defect: VPP subscribers forward unpoliced today |
+| 6 | Lab discrimination (revert, rebuild, red) for `product` and `product-framed` | Spec "Real-VPP product lab" |
+| 7 | VPP accounting and idle detection (AC-17) | After `spec-pppoe-subscribers-produce-no-accounting-or-telemetry` |
+| 8 | AC-8 (IA_PD) | After `spec-l2tp-ipv6-subscriber` wires the prefix allocator |
+| 9 | Scale on a known host | Thomas |
+
+Reference clones on disk: `~/Code/github.com/veesix-networks/osvbng` (753e934),
+`~/Code/github.com/veesix-networks/osvbng-vpp`, `~/Code/github.com/vyos/vyos-1x`
+(db29bdc89), `~/Code/github.com/accel-ppp/accel-ppp-ng` (7e4ec88).
 
 ## Waiting on Thomas
 
@@ -55,7 +84,7 @@ Logs are under `tmp/session/2026-11-22-203554/scratch/`.
 - `./le setup docker kernel install` and a reboot, so the host runs a kernel
   with the 0013b fix and the netdev option.
 - The Docker store on the server: Docker kernel builds need 40 GB free.
-- Decisions D-1 and C-1.
+- The choices in item 1 above.
 
 ## Traps
 

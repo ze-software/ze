@@ -7,10 +7,10 @@
 | Priority | P2 |
 | Release reason | Owner decision: Ze terminates PPPoE subscriber sessions in VPP, after the first release (OD-5, decided 2026-10-28). The shipped-behaviour fix that was Phase 1 (validate accepts PPPoE under the VPP backend and every session then fails) moved to `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` |
 | RFC gaps | - |
-| Depends | - |
+| Depends | `plan/post-release/features/spec-vpp-failure-lifecycle.md` (OD-2 and AC-12 consume its adopt and down verdicts) |
 | Phase | 2/7 (shared PPP seam; full product acceptance remains owed) |
 | Handoff | - |
-| Updated | 2026-11-22 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -33,7 +33,7 @@ validation limits below. The VPP provider is composed; it is not fully accepted.
 | Provider history defect | Repaired in `0c93a81fd2` (2026-11-22). `Settle` keeps a delayed settlement's causes and matched NACK; physical close joins instead of overwriting; a response the write itself received is still returned once and not retained. The model root and both genuine ACK/NACK roots went red to green. |
 | IPv6 | The arm64 kernel `cddff82e255fc9a7010a79d5237a733463569f495ae483b60962455788fb3884` and image `f92054020556fb26` passed four constructor models and thirteen genuine API roots. Carrier adopted 2026-11-22 (resume step 3): the kernel session carrier opens its ICMPv6 and UDPv6 sockets from the original unit, and the name-based path is deleted. On amd64 runtime tree `2b23af13` all nine `TestNativeIPv6Carrier*` roots pass, and so does the whole `pppoe/dataplane/kernel` package. The adoption also repaired kernel patch `0013b` for UDP6 receive. Fragment ownership is accepted (resume step 4, `169eccfa2c`): the five fragment roots pass on `2b23af13`, the package passes 47/0/0, and the name-based carrier cut turns the ownership roots red. Complete subscriber acceptance remains open. |
 | PCI override prerequisite | The Go reader and doctor reject ambiguous legacy override state and preserve exact raw bytes/errors. The `driver_override_raw` kernel patch `0006` is not enrolled. Do not claim managed NIC restoration is accepted on the current kernel from the Go model results. |
-| Final gates | Current defect: VPP subscribers forward unpoliced, because the shaper's ingress policer is refused by traffic-vpp and only logged, and a VPP session's CoA rate change is NAKed (`unwired-feature.md`, 2026-11-22). The fix is the policer wiring design below. The real-VPP IPv4 product lab passed 4 of 4 on 2026-11-22, including 100 subscribers, and `product-framed` passed 1 of 1 (AC-7) ("Real-VPP product lab" below); the discrimination of both is owed. The OD-2 and policer designs are in "Implementation designs — 2026-11-22"; they wait on owner decisions D-1 and C-1. Server PADS and PADT order is proven (`b6388ee211`). AC-11 still lacks a PPPoE operator clear (owned here) and CoA Disconnect for PPPoE (`spec-lifecycle-invariants` I-4). L2TP accounting counts the original unit (`38267f5e0c`) and AC-24 route receipt is proven (`0a92e78161`); resume step 5 lists what remains of accounting and who owns it. Owed implementation, each needing a design: OD-2 VPP loss handling for AC-12 (no PPPoE code consumes `vpp/disconnected` or `vpp/reconnected`, and `Reconcile` in `pppoe/dataplane/vpp/reconcile.go` has no production caller), and policer wiring for AC-9, AC-10 and AC-15 (`newPolicerRatePolicy` in `pppoe/dataplane/vpp/rate_policy.go` has no production caller). Owed: the accounting admission design and the name-based shaper (Owned journal rows), scoped lint, documentation checks, independent review, discrimination, and real VPP forwarding, restart, interop and scale. AC-8 waits on `spec-l2tp-ipv6-subscriber`. Keep this spec in phase 2/7 until those requirements are actually met. |
+| Final gates | Current defect: VPP subscribers forward unpoliced, because the shaper's ingress policer is refused by traffic-vpp and only logged, and a VPP session's CoA rate change is NAKed (`unwired-feature.md`, 2026-11-22). The fix is the policer wiring design below. The real-VPP IPv4 product lab passed 4 of 4 on 2026-11-22, including 100 subscribers, and `product-framed` passed 1 of 1 (AC-7) ("Real-VPP product lab" below); the discrimination of both is owed. The OD-2 and policer designs are in "Implementation designs — 2026-11-22". D-1 is decided (2026-11-23, "Owner decisions of 2026-11-23" there): OD-2 now waits on the design of `spec-vpp-failure-lifecycle`, and the policer wiring waits on C-1. Server PADS and PADT order is proven (`b6388ee211`). AC-11 still lacks a PPPoE operator clear (owned here) and CoA Disconnect for PPPoE (`spec-lifecycle-invariants` I-4). L2TP accounting counts the original unit (`38267f5e0c`) and AC-24 route receipt is proven (`0a92e78161`); resume step 5 lists what remains of accounting and who owns it. Owed implementation, each needing a design: OD-2 VPP loss handling for AC-12 (no PPPoE code consumes `vpp/disconnected` or `vpp/reconnected`, and `Reconcile` in `pppoe/dataplane/vpp/reconcile.go` has no production caller), and policer wiring for AC-9, AC-10 and AC-15 (`newPolicerRatePolicy` in `pppoe/dataplane/vpp/rate_policy.go` has no production caller). Owed: the accounting admission design and the name-based shaper (Owned journal rows), scoped lint, documentation checks, independent review, discrimination, and real VPP forwarding, restart, interop and scale. AC-8 waits on `spec-l2tp-ipv6-subscriber`. Keep this spec in phase 2/7 until those requirements are actually met. |
 
 ### Retirement causal cuts — 2026-11-22
 
@@ -90,7 +90,7 @@ owed by `spec-lifecycle-invariants` I-4 and its AC-15.
 `88588b41...` (`tmp/session/2026-11-22-203554/scratch/job-vpp-framed-52302217.log`).
 It covers AC-7 for a RADIUS Framed-Route. Its discrimination is owed too.
 
-## Implementation designs — 2026-11-22 (awaiting owner decisions)
+## Implementation designs — 2026-11-22 (D-1 decided 2026-11-23; C-1 open)
 
 Two strongest-tier design agents produced these read-only, from facts read at
 the producers. Each designs within an agreed decision: OD-2 decides the loss
@@ -218,7 +218,8 @@ Change: `plugins/pppoe-vpp/register.go`, `pppoe/subsystem.go`,
 
 Open and recorded choices:
 
-- **D-1 (owner decision, open).** With `vpp external true`, the API is lost
+- **D-1 (owner decision, decided 2026-11-23: see "Owner decisions of
+  2026-11-23" below).** With `vpp external true`, the API is lost
   while the VPP process stays alive. Managed mode kills the child, so only
   external mode is exposed. No exit proof arrives: old sessions keep
   forwarding in VPP, retained MACs stay blocked, and `refuseOverlap` refuses
@@ -238,6 +239,125 @@ Open and recorded choices:
   then AC-12's accounting clause is provable only at the event (cause 3).
 - **D-3 (recorded).** VPP not up at boot: Start fails as it does today; AC-12
   does not cover it.
+
+### Owner decisions of 2026-11-23: D-1 resolved
+
+Thomas set three rules for every VPP Ze runs. They are recorded in
+`docs/research/vpp-deployment-reference.md`, "Design decisions", and owned by
+`plan/post-release/features/spec-vpp-failure-lifecycle.md`:
+
+1. Ze refuses to run VPP unmanaged; with an external VPP the operator accepts
+   that Ze may terminate and restart it.
+2. Ze knows how to manage and restart an external VPP: a systemd unit, or a
+   direct start of the binary as with the embedded runtime.
+3. After a failure: process alive, forwarding continued, reconnect and state
+   readable: continue from where it is. Software possibly crashed or stopped
+   forwarding: reflect it in Ze and update IGP and BGP peers.
+
+He also chose option C for D-1, with osvbng and VyOS as references. Under the
+rules D-1 resolves on two paths, recorded in
+`docs/architecture/l2tp/bng-5-pppoe.md`, "Design decisions":
+
+| Verdict | What PPPoE does |
+|---------|-----------------|
+| Down (crashed, stalled, unprovable, or the bound expired) | A live VPP that Ze cannot adopt is killed and restarted, so its exit proof always arrives and retires the retained owners. OD-2's drain runs here, and only here. E-2, E-3 and E-4 close on this path |
+| Adopt (same pidfd-proven process, forwarding, state read back) | Option C: retained owners read back their exact native identity over the new connection of the same process and are cleaned there. Sessions survive. E-1 stays open |
+| Undecided window (API lost, verdict pending) | Admission is fenced and sessions are held (lifecycle choice 6) |
+
+OD-2 (A) still decides what the down path does; it no longer runs on every
+API loss. The subscription in step 1 of "Subscription and order" maps the
+lifecycle spec's verdict events once that spec names them (its choice 8). This
+work depends on that spec's design.
+
+Findings (read at the producers, 2026-11-23):
+
+| # | Finding |
+|---|---------|
+| F-1 | Defect: the VPP provider holds no process lease. `captureAPI` (`pppoe/dataplane/vpp/api.go`) keeps only the connector and the generation. `Connector.RetainProcessForGeneration` and `ProcessLease.SameProcess` (`internal/component/vpp/process_peer.go`, `process_lease_equality.go`) have test callers only, and the first one's comment says it MUST precede the first native mutation |
+| F-2 | Defect: without a lease the old generation's exit proof is lost. `processAPIConnection.Disconnect` (`process_transport.go`) releases the witness; the last release closes `stop`; `observeExit` then returns without `notifyProcessExit` (its only caller). `exitedProcess.Covers` needs the exact generation. So in external mode after an API drop, a later VPP exit never retires the old owners, and `refuseOverlap` refuses for good, not "until VPP exits". Managed mode may race the same way (1 s tick against `retireManagedConnection`): unconfirmed |
+| F-3 | An old owner cannot use the new connection: `binaryAPI.open` is `NewStreamForGeneration(generation)` and answers `errVppGenerationChanged` after a reconnect, so `retrySession`, `readSessionKeys` and `controlMapOwners.remove` all fail |
+| F-4 | The accel-ppp-ng VPP-loss row in "Reference design" was stale; corrected there |
+| F-5 | The product lab already runs `vpp external true` (`vpppppoe/product_plan.go` `productConfigWith`); it converts under the lifecycle spec's restart method |
+
+References: osvbng (753e934) keeps sessions in its OpDB and, after an API loss,
+reconnects and decides "same or new VPP" from an interface-count heuristic
+(`ifCount <= 1` means state lost, then replay; key-idempotent: retval -116 is
+success, -500 is delete and recreate). accel-ppp-ng at 7e4ec88 only
+disconnects and reconnects lazily on an API error. vyos-1x (db29bdc89) holds
+no long-lived API and remaps every cp mapping on each commit. None proves
+process identity; option C is stricter than all three, and ng's HEAD shows that
+a live VPP after an API drop is real.
+
+Changes (not built):
+
+1. Fixes F-1 and F-2: `captureAPI` takes
+   `connector.RetainProcessForGeneration(generation)`; `binaryAPI` holds the
+   lease until its last owner releases, and `Retire` runs on proof. Leases are
+   not constructible outside the `vpp` component, so a test seam is owed. Each
+   retained generation of a live process holds one of the 1024
+   `processWitnessMax` slots.
+2. Fixes F-3: `Reconcile` gets the current `binaryAPI` from `Prepare`. A
+   retained owner on the same connector with an older generation: when
+   `old.lease.SameProcess(current.lease)` is true, readback and cleanup run on
+   the current stream; when it is false or errors, the owner is retained and
+   reported. Equality never retires an owner; only a confirmed deletion or a
+   completed absence read does.
+
+Readback before delete:
+
+| Owner | Readback | Then |
+|-------|----------|------|
+| Session, confirmed creation (pending session set, closed) | `readSessionIdentity`: sw_if_index, SID, client MAC, EncapIfIndex, local MAC, DecapVrfID, a single row, plus the interface name captured at create (`binaryAPI.interfaceName`) | `closeNative`, unchanged |
+| Session, unknown creation | Full dump `readSessionKeys` on the current stream | Absent: release. Present: retained (E-1) |
+| Owned cp map (`controlMapLeaseState`, owned, no references) | Reciprocal pair read (`controlPairPresent`) | `remove` on the current stream; Prepare adds it again |
+| `controlMapUnconfirmed` | Targeted read of both indices | Absent: release. Present: retained (E-1) |
+| Unknown first policer binding | None is safe | Retained (E-2) |
+
+Refuse, retain and report on: `SameProcess` false or an error; an old owner
+with no lease; any field mismatch; a duplicate or incomplete dump; a session
+not closed; a session absent while its routes remain. `refuseOverlap` is
+unchanged. With the OD-2 drain: Close fails as not sent,
+`macReservation.retain` raises one `doctor-pppoe-vpp-reconcile` per session,
+and recovery (`prepareAccessConfiguration`, then VPP Prepare, then
+`Reconcile(current)` first) clears them while the worker pacer retries. About
+five API calls per session, serially; not sized against the retry interval.
+
+Option B's address hold is not needed on the common path: no VPP session is
+admitted before Reconcile. It leaves two holes: a session left retained while
+admission resumes keeps its /32 in VPP, so a new session given that address
+adds a second ze-pppoe path (traffic shared between stale and new); and the
+pool is shared with L2TP and pppoe-kernel, which keep admitting in the window.
+
+Open owner choices left by C, and where each stands under the rules:
+
+| # | Choice | Status under the rules |
+|---|--------|------------------------|
+| E-1 | Unknown-outcome creations (a PADR in flight at the loss): (a) keep refusing, the MAC blocked until VPP exits; (b) adopt on a complete identity match in a same-process VPP where Ze holds the owned cp map for that access. VPP sessions carry no owner tag, so Ze cannot tell its own from an identical one another API client made | Open on the adopt path (lifecycle choice 6) |
+| E-2 | Unknown first policer binding stays quarantined until VPP exits (policer design, C-1) | Closes on the down path: the kill delivers the exit |
+| E-3 | A retained session's address: (a) recovery refuses admission while Reconcile reports a pending confirmed session; (b) hold for retained sessions only (misses RADIUS addresses and framed routes); (c) a publication guard: AddAddressP2P or Connect refuses a prefix that already has a ze-pppoe path through another index (covers pool, RADIUS and framed routes; exact or refuse). None alone closes the window in which L2TP and pppoe-kernel share the pool | Closes on the down path: the exit removes the stale state before admission resumes |
+| E-4 | A different process on reconnect: after change 1 the old lease delivers the exit proof and retirement works; if the old process lives on behind another socket, owners stay retained and overlapping accesses fenced | Closes on the down path: an unprovable process is killed |
+
+Tests owed (`pppoe/dataplane/vpp` with a fake connector and the lease seam,
+unless named):
+
+| Test | Red before the change |
+|------|-----------------------|
+| `TestReconcileSameProcessReconnectCleansRetainedSession` | PendingSessions stays 1 with `errVppGenerationChanged` |
+| `TestReconcileSameProcessRemovesOwnedControlMap` | The map stays and Prepare is refused by `refuseOverlap` |
+| `TestReconcileDifferentProcessRefusesCleanup` | Cut: skip `SameProcess` |
+| `TestReconcileComparisonErrorRetains` | Same cut |
+| `TestReconcileSameProcessIdentityMismatchRetains` (table: index, SID, MAC, access, local MAC, table, name) | Cut: skip the readback |
+| `TestReconcileUnknownCreationVisibleStaysRetained` | Cut: delete on presence |
+| `TestCaptureAPIRetainsProcessLease` | No lease taken |
+| `TestLeasedWitnessPublishesExitAfterDisconnect` (`internal/component/vpp`; check for an existing one first) | Pins F-2 |
+| Lab `product-restart`, API-drop case | Freeze VPP longer than `connectionProbeTimeout` (5 s) with SIGSTOP and SIGCONT or a container pause. Asserts "adopted, sessions survive" or "killed after the bound", per the lifecycle spec's choices 1 and 2. Red: cut the `SameProcess` adoption; reconcile warnings persist and the redial is refused ("client MAC already belongs to a live or constructing session"). A socket proxy cannot drop the API, because SO_PEERPIDFD would name the proxy. Not read: whether the lab VPP shares a container with Ze (signal or pause) |
+
+Text that changes when this is built: `bng-5-pppoe.md` "on its captured
+connection" ("VPP session ownership") and "block overlapping admissions across
+API reconnections"; the `Reconcile` comment in `reconcile.go` ("on the original
+immutable connection. A failed or changed connection cannot authorize an old
+owner to use a new one"); the `SameProcess` comment, which names this caller.
+The page's invariant already carries a note that the decision replaces it.
 
 ### Per-session VPP policer wiring (AC-9, AC-10, AC-15)
 
@@ -321,7 +441,9 @@ Teardown (AC-15):
 
 Verify refusal (AC-9): beside `validateBackendGate` (`pppoe/backend_gate.go`),
 reading the selected provider's registered rate capability, never a test of
-the backend name.
+the backend name. The refusal stays, and its text names the VPP egress shaper
+spec as what lifts it ("VPP subscriber shaping research" below; that spec is
+not written yet).
 
 Tests, each with its red:
 
@@ -366,6 +488,73 @@ Not verified by the designer: `authradius` dispatch reaching an engine-side
 RPC with a source peer; whether the FreeRADIUS lab image ships `radclient`;
 the policer name prefix rules; whether editing `confirmCoA` stales its three
 RFC 5176 records.
+
+### VPP subscriber shaping research — 2026-11-23
+
+Thomas said yes to a VPP shaping spec and asked how osvbng and VyOS do it.
+Read-only research by a strongest-tier agent; nothing is built.
+
+| Source | What it does |
+|--------|--------------|
+| osvbng's plugin (`~/Code/github.com/veesix-networks/osvbng-vpp`, `plugins/osvbng_qos_sched/`, about 4.8k lines of C) | Egress (download) only: `ip4-cake-enqueue` and `ip6-cake-enqueue` features on `ip4-output` and `ip6-output`, keyed by TX sw_if_index. One owner thread per scheduler, the others hand off (`vlib_buffer_enqueue_to_thread`, drop on congestion, counted). A polling input node `cake-dequeue` per owning worker sends at most one frame per pass and restarts buffers on the output arc. Per-scheduler byte limit (1.5 x 100 ms x rate, floor 64 KiB) with tail drop, a 128-entry ring per flow, COBALT drop and ECN. Disable under the worker barrier (features off, drain, free) and on interface delete, because sw_if_index is recycled; `tests/churn-rig.sh` reproduces a SIGSEGV from buffers queued to a deleted interface (the AC-15 class). API: enable and disable, dump, reset stats, aggregates; no in-place rate update. GPL-3.0-or-later, early development, LLM-authored, targets VPP 26.06 (Ze builds 25.10: unverified). Its figures are from containerlab with no pinning: enqueue 282 clocks per packet for FIFO and token bucket, 347 for full CAKE, 271 baseline; a 100 Mbit/s shaper measured 123 Mbit/s in phase 1 |
+| VyOS (`~/Code/github.com/vyos/vyos-1x`, db29bdc89) and accel-ppp-ng (7e4ec88) | VyOS does not shape in VPP. Subscriber rate under VPP is police-only in both directions: ng's `install_limiter` hook makes two RFC 2698 2R3C policers (cir 0.8 x rate, eir = rate, violate drop). VyOS's RADIUS shaper template hard-codes `down-limiter=tbf`, which under the VPP hook silently becomes a policer: Ze's exact-or-reject forbids that. ng's `vpppolicer_remove_limiter` still unbinds and deletes before it disables the input features, which AC-15 forbids: do not copy its order |
+
+The smallest correct Ze shaper matches the kernel TBF that `translateQdisc`
+(`internal/plugins/traffic/netlink/translate_linux.go`) programs: rate; burst
+of rate/8 bytes (125 ms, floor 2048); limit of 1 s of bytes (floor 2048); one
+FIFO. In VPP: a feature on `ip4-output` and `ip6-output` keyed by TX
+sw_if_index, one FIFO of buffer indices with a byte limit and tail drop, a
+virtual-time token bucket with a burst cap, an owner thread with handoff, a
+polling input node per owning worker, and a barrier-protected disable plus an
+interface-delete hook. No flow hash, DRR, COBALT, tins or aggregates: a few
+hundred lines. Ze also needs an in-place rate update (AC-10, C-2), which
+osvbng lacks. Upload stays policed (the patch 0018 path).
+
+Mechanisms it extends: the rate policy seam (`subscriber/rate_policy.go`: the
+shaper becomes a second controller beside `policerRates`, download on the
+shaper, upload on the policer, owner command and CoA unchanged); the
+registered rate capability (police becomes police plus tbf; htb stays refused);
+the `qdisc-type` enum (`shaper/yang/ze-l2tp-shaper-conf.yang`), which bears on
+C-1; the VPP build (the `third_party/vpp-patches/` Dockerfile's plugin list,
+the plugin directory as a build-time diff); the bindings (`./le build vpp
+update`, a fourth package in `Dockerfile.api`); ownership tokens.
+
+Tension to put to Thomas with the spec: the global traffic-vpp backend already
+accepts htb and tbf and programs them as policers
+(`internal/plugins/traffic/vpp/verify.go` `verifyQdiscType`: "A SINGLE class
+binds one policer to interface output"), while OD-4 and AC-9 refuse the same
+substitution for subscribers. A VPP shaper would make traffic-vpp's
+single-class tbf exact too.
+
+Licensing, facts only: Ze is AGPL-3.0; VPP and Ze's carried patches are
+Apache-2.0 (`third_party/vpp-patches/LICENSE`); osvbng's plugin is
+GPL-3.0-or-later. `ai/META-DECISIONS.md` keeps changes to carried third-party
+code under that code's licence and code Ze writes under Ze's. Route A, Ze
+writes its own plugin: as a diff in the VPP tree it is Apache-2.0 and can be
+offered upstream (OD-1); whether a wholly new plugin directory is a
+third-party patch (Apache-2.0) or Ze-written code (AGPL-3.0) is an owner call.
+Route B, carry osvbng's plugin: it stays GPL-3.0+, VPP plus the plugin as
+shipped is a GPLv3 combined work, bindings generated from its `.api` compile
+into the AGPL binary, `spec-vpp-embedded-runtime` ships VPP inside Ze's
+artifact, and it brings about 4k lines TBF does not need, no rate update, and
+a 26.06 target.
+
+Recommendation: a new post-release feature spec (a search of `plan/` for cake,
+hqos, osvbng and VPP shaping found none; `spec-traffic-ingress-shaping` is the
+kernel IFB path; OD-4 here already frames shaping as a later mechanism). Its
+first deliverable is a TBF-only egress shaper plugin in Ze's VPP build on the
+session interface, with enable, update in place, disable and dump messages; the
+rate capability accepts tbf for download, upload stays policed, htb stays
+refused; teardown under churn is proven in the real-VPP lab (the AC-15
+analogue, same VPP PID). CAKE, AQM and aggregates come later. AC-9's refusal
+stays and names that spec as what lifts it. Licence route: owner call, above.
+
+Proof only a known host gives: pacing accuracy, burst, enqueue cost, idle-poll
+cost at thousands of sessions, latency and jitter, handoff drops under RSS
+skew, DPDK against af_packet. Proof anywhere: rate bounded, queue rather than
+drop, in-place CoA, teardown. Not verified: that the output arcs run for
+pppoe_session TX in Ze's 25.10 (the policer design assumes it too); that
+osvbng's plugin compiles on 25.10; how osvbng applies a CoA to a scheduler.
 
 Doors: `ai/doors/system.md`, `ai/doors/forwarding.md` (vpp, iface, traffic), `ai/doors/access-security.md` (l2tp, PPPoE, PPP).
 
@@ -698,7 +887,7 @@ Read at the source, not from its README:
 | Rate limit | Two VPP policers per session (`policer_add_del`), bound with `policer_input` and `policer_output`, the input one enabled as a feature on the `ip4-unicast`, `ip6-unicast`, `ip4-multicast`, `ip6-multicast` arcs | `session_hooks/vyos_vpp/vpppolicer.c` (`vpppolicer_install_limiter`) |
 | IPv6 control | The adopted patch punts RS, RA and DHCPv6 inside PPP frames to the cp TAP; ng parses IPv6 out of the PPP channel and answers in PPP frames ("non-socket DHCPv6/ND") | Patched VPP `pppoe_decap.c` (`is_control_plane_packet`); `accel-pppd/ipv6/ppp_ipv6layer.c`, `ipv6/dhcpv6.c`, `ipv6/nd.c` (`is_non_socket_dhcpv6_nd`); commit `07f158d` |
 | Teardown | Flush routes, remove policers, delete the VPP session | `vpphooks.c` (`vpphook_pppoe_terminate`) |
-| VPP loss | On a lost VPP connection the VPP PPPoE services stop; they restart when netlink reports the cp TAP again | commit `90c6d35` (`libnetlink/new_link_event.c`, `ctrl/pppoe/pppoe.c` `pppoe_on_add_link`) |
+| VPP loss | At `90c6d35` a lost VPP connection set `is_vpppoe_lost` (`pppoe_on_vpp_connection_lost`) and stopped the VPP PPPoE services. At HEAD `7e4ec88` both are gone: `vpp_check_error` only disconnects, `vpp_get_vapi` reconnects lazily, and services stop and start only on cp TAP netlink events (`pppoe_on_del_link` with TERM_NAS_ERROR, `pppoe_on_add_link`). An API drop with VPP alive changes nothing: no resync, no identity check (corrected 2026-11-23) | `session_hooks/vyos_vpp/vpputils.c` (`vpp_check_error`), `ctrl/pppoe/pppoe.c`; touched by `2c00fde`, `d65aeee` |
 
 ng drives the **upstream VPP `pppoe` plugin through VAPI**, not a custom plugin,
 but the API it calls is the **VyOS-patched** one: upstream VPP 25.10 has no
@@ -1312,6 +1501,7 @@ parallel packages.
 | `unwired-feature.md` | 2026-11-22 | VPP subscribers forward unpoliced; a VPP session's CoA rate change is NAKed (policer wiring, AC-9, AC-10, AC-15) |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-11-22 | PPPoE has no operator clear-session command (L2TP has `clear l2tp session`); owed under AC-11 |
 | `invariant-enforced-by-an-absent-call-site.md` | 2026-11-22 | `ClaimAccountingAssignment` and `AccountingAdmission` have no production caller: no accounting capacity is reserved before Accept |
+| `invariant-enforced-by-an-absent-call-site.md` | 2026-11-23 | The VPP provider takes no process lease (F-1, F-2): after an API drop a later VPP exit's proof is lost and retained owners stay quarantined for good |
 
 The earlier row this spec found (`validate-accepts-what-start-refuses.md`, 2026-10-28) is owned by `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md`.
 
