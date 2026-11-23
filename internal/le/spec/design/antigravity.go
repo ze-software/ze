@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -183,6 +184,8 @@ func loadAntigravityReads(root, transcriptPath, specRelative string) (antigravit
 		wholeDigests: map[string]map[string]bool{},
 		sections:     map[string]map[string]bool{},
 	}
+	partials := map[agyPartialKey]map[int]agyPartialChunk{}
+	lineRuns := map[agyLineFileKey]map[int]string{}
 	for _, step := range plannerSteps {
 		for index, call := range step.ToolCalls {
 			rawPath, hasPath := agyArgString(call.Args, "Path")
@@ -210,10 +213,37 @@ func loadAntigravityReads(root, transcriptPath, specRelative string) (antigravit
 					continue
 				}
 				recordAntigravityRead(&reads, rel, result.Content)
+				collectAntigravityChunks(rel, result.Content, partials, lineRuns)
 			}
 		}
 	}
+	recordStitchedPartials(&reads, partials, lineRuns)
+	recordStitchedLineRuns(&reads, lineRuns)
 	return reads, nil
+}
+
+// agyPartialKey identifies one byte-windowed Partial read range of one file so
+// ByteOffset continuation chunks can be stitched back into the full range.
+type agyPartialKey struct {
+	docPath   string
+	start     int
+	end       int
+	total     int
+	byteTotal int
+}
+
+// agyPartialChunk holds one raw byte slice returned by a Partial read.
+type agyPartialChunk struct {
+	byteStart int
+	byteEnd   int
+	rawBody   string
+}
+
+// agyLineFileKey identifies one file and its line count for stitching
+// contiguous complete line-range reads.
+type agyLineFileKey struct {
+	docPath string
+	total   int
 }
 
 // recordAntigravityRead parses one read_file result body and records its
@@ -223,6 +253,12 @@ func recordAntigravityRead(reads *antigravityReads, docPath, body string) {
 	if !ok {
 		return
 	}
+	recordParsedRead(reads, docPath, text, whole, reachesEnd)
+}
+
+// recordParsedRead adds whole-file and complete-section digests from one
+// verified text span onto reads.
+func recordParsedRead(reads *antigravityReads, docPath, text string, whole, reachesEnd bool) {
 	if whole {
 		if reads.wholeDigests[docPath] == nil {
 			reads.wholeDigests[docPath] = map[string]bool{}
@@ -239,6 +275,188 @@ func recordAntigravityRead(reads *antigravityReads, docPath, body string) {
 	for _, section := range complete {
 		reads.sections[docPath][section.Digest()+"\t"+section.Heading] = true
 	}
+}
+
+// collectAntigravityChunks saves Partial read byte-offset chunks and complete
+// Showing lines ranges for post-scan stitching across multi-chunk reads.
+func collectAntigravityChunks(docPath, content string, partials map[agyPartialKey]map[int]agyPartialChunk, lineRuns map[agyLineFileKey]map[int]string) {
+	header, rawBody, ok := splitAntigravityHeader(content)
+	if !ok {
+		return
+	}
+	if match := agyPartialReadPattern.FindStringSubmatch(header); match != nil {
+		key, chunk, valid := parsePartialChunkMeta(docPath, match, rawBody)
+		if !valid {
+			return
+		}
+		if partials[key] == nil {
+			partials[key] = map[int]agyPartialChunk{}
+		}
+		partials[key][chunk.byteStart] = chunk
+		return
+	}
+	if match := agyShowingLinesPattern.FindStringSubmatch(header); match != nil {
+		start, end, total, valid := parseLineBounds(match)
+		if !valid {
+			return
+		}
+		extracted, _, _, valid := parseNumberedLines(start, end, total, strings.Split(rawBody, "\n"))
+		if !valid {
+			return
+		}
+		storeLineRun(lineRuns, docPath, total, start, extracted)
+	}
+}
+
+// recordStitchedPartials stitches contiguous Partial read byte-offset chains
+// covering [0, byteTotal) back into complete numbered line ranges.
+func recordStitchedPartials(reads *antigravityReads, partials map[agyPartialKey]map[int]agyPartialChunk, lineRuns map[agyLineFileKey]map[int]string) {
+	for key, byOffset := range partials {
+		var stitched strings.Builder
+		pos := 0
+		for pos < key.byteTotal {
+			chunk, found := byOffset[pos]
+			if !found {
+				break
+			}
+			if chunk.byteEnd <= pos {
+				break
+			}
+			stitched.WriteString(chunk.rawBody)
+			pos = chunk.byteEnd
+		}
+		if pos != key.byteTotal {
+			continue
+		}
+		extracted, whole, reachesEnd, valid := parseNumberedLines(key.start, key.end, key.total, strings.Split(stitched.String(), "\n"))
+		if !valid {
+			continue
+		}
+		recordParsedRead(reads, key.docPath, strings.Join(extracted, "\n"), whole, reachesEnd)
+		storeLineRun(lineRuns, key.docPath, key.total, key.start, extracted)
+	}
+}
+
+// recordStitchedLineRuns merges contiguous verified line intervals for the same
+// file and line count so sections exceeding read_file's byte cap can be read
+// across adjacent line-range calls.
+func recordStitchedLineRuns(reads *antigravityReads, lineRuns map[agyLineFileKey]map[int]string) {
+	for key, lines := range lineRuns {
+		if len(lines) == 0 {
+			continue
+		}
+		nums := make([]int, 0, len(lines))
+		for num := range lines {
+			nums = append(nums, num)
+		}
+		slices.Sort(nums)
+		runStart := nums[0]
+		runLines := []string{lines[runStart]}
+		prev := runStart
+		flush := func(start, end int, textLines []string) {
+			recordParsedRead(reads, key.docPath, strings.Join(textLines, "\n"), start == 1 && end == key.total, end == key.total)
+		}
+		for _, num := range nums[1:] {
+			if num == prev+1 {
+				runLines = append(runLines, lines[num])
+				prev = num
+				continue
+			}
+			flush(runStart, prev, runLines)
+			runStart = num
+			prev = num
+			runLines = []string{lines[num]}
+		}
+		flush(runStart, prev, runLines)
+	}
+}
+
+// storeLineRun records verified line texts keyed by 1-based line number.
+func storeLineRun(lineRuns map[agyLineFileKey]map[int]string, docPath string, total, start int, extracted []string) {
+	key := agyLineFileKey{docPath: docPath, total: total}
+	if lineRuns[key] == nil {
+		lineRuns[key] = map[int]string{}
+	}
+	for offset, line := range extracted {
+		lineRuns[key][start+offset] = line
+	}
+}
+
+// splitAntigravityHeader skips leading timestamp lines and separates the
+// read_file header line from the normalized body that follows it.
+func splitAntigravityHeader(content string) (header, rawBody string, ok bool) {
+	normalized := strings.ReplaceAll(content, "\r\n", "\n")
+	rest := normalized
+	for {
+		line, after, hasNL := strings.Cut(rest, "\n")
+		if isTimestampLine(line) {
+			if !hasNL {
+				return "", "", false
+			}
+			rest = after
+			continue
+		}
+		if !hasNL {
+			return "", "", false
+		}
+		return line, after, true
+	}
+}
+
+// parseLineBounds extracts start, end and total from a Showing lines or
+// Partial read regexp match.
+func parseLineBounds(match []string) (start, end, total int, ok bool) {
+	start, valid := parseIntAtLeast(match[1], 1)
+	if !valid {
+		return 0, 0, 0, false
+	}
+	end, valid = parseIntAtLeast(match[2], start)
+	if !valid {
+		return 0, 0, 0, false
+	}
+	total, valid = parseIntAtLeast(match[3], end)
+	if !valid {
+		return 0, 0, 0, false
+	}
+	return start, end, total, true
+}
+
+// parsePartialChunkMeta decodes one Partial read header and body into its
+// stitching key and byte-window chunk.
+func parsePartialChunkMeta(docPath string, match []string, rawBody string) (agyPartialKey, agyPartialChunk, bool) {
+	start, end, total, valid := parseLineBounds(match)
+	if !valid {
+		return agyPartialKey{}, agyPartialChunk{}, false
+	}
+	byteStart, valid := parseIntAtLeast(match[4], 0)
+	if !valid {
+		return agyPartialKey{}, agyPartialChunk{}, false
+	}
+	byteEnd, valid := parseIntAtLeast(match[5], byteStart)
+	if !valid {
+		return agyPartialKey{}, agyPartialChunk{}, false
+	}
+	byteTotal, valid := parseIntAtLeast(match[6], byteEnd)
+	if !valid {
+		return agyPartialKey{}, agyPartialChunk{}, false
+	}
+	if byteEnd <= byteStart {
+		return agyPartialKey{}, agyPartialChunk{}, false
+	}
+	if byteTotal == 0 {
+		return agyPartialKey{}, agyPartialChunk{}, false
+	}
+	return agyPartialKey{
+		docPath:   docPath,
+		start:     start,
+		end:       end,
+		total:     total,
+		byteTotal: byteTotal,
+	}, agyPartialChunk{
+		byteStart: byteStart,
+		byteEnd:   byteEnd,
+		rawBody:   rawBody,
+	}, true
 }
 
 // isTimestampLine reports whether line is a leading read_file timestamp header.
@@ -267,19 +485,11 @@ func parseIntAtLeast(raw string, minValue int) (int, bool) {
 // ("Partial read (lines S-E of T). Showing bytes B0-B1 of BT..."). Anything
 // else returns ok false so unreadable or unrecognized output never counts.
 func parseAntigravityRead(content string) (text string, whole, reachesEnd, ok bool) {
-	lines := strings.Split(content, "\n")
-	for index, line := range lines {
-		lines[index] = strings.TrimRight(line, "\r")
-	}
-	headerIndex := 0
-	for headerIndex < len(lines) && isTimestampLine(lines[headerIndex]) {
-		headerIndex++
-	}
-	if headerIndex >= len(lines) {
+	header, rawBody, valid := splitAntigravityHeader(content)
+	if !valid {
 		return "", false, false, false
 	}
-	header := lines[headerIndex]
-	body := lines[headerIndex+1:]
+	body := strings.Split(rawBody, "\n")
 	if match := agyShowingLinesPattern.FindStringSubmatch(header); match != nil {
 		return parseShowingLines(match, body)
 	}
@@ -291,32 +501,34 @@ func parseAntigravityRead(content string) (text string, whole, reachesEnd, ok bo
 
 // parseShowingLines decodes a complete line range "Showing lines S-E of T".
 func parseShowingLines(match, body []string) (text string, whole, reachesEnd, ok bool) {
-	start, valid := parseIntAtLeast(match[1], 1)
+	start, end, total, valid := parseLineBounds(match)
 	if !valid {
 		return "", false, false, false
 	}
-	end, valid := parseIntAtLeast(match[2], start)
+	extracted, whole, reachesEnd, valid := parseNumberedLines(start, end, total, body)
 	if !valid {
 		return "", false, false, false
 	}
-	total, valid := parseIntAtLeast(match[3], end)
-	if !valid {
-		return "", false, false, false
-	}
+	return strings.Join(extracted, "\n"), whole, reachesEnd, true
+}
+
+// parseNumberedLines validates that body starts with exact "<n>: " lines for
+// start..end and returns the stripped line texts.
+func parseNumberedLines(start, end, total int, body []string) (extracted []string, whole, reachesEnd, ok bool) {
 	count := end - start + 1
 	if len(body) < count {
-		return "", false, false, false
+		return nil, false, false, false
 	}
-	extracted := make([]string, 0, count)
+	extracted = make([]string, 0, count)
 	for offset := range count {
 		prefix := strconv.Itoa(start+offset) + ": "
 		value, found := strings.CutPrefix(body[offset], prefix)
 		if !found {
-			return "", false, false, false
+			return nil, false, false, false
 		}
 		extracted = append(extracted, value)
 	}
-	return strings.Join(extracted, "\n"), start == 1 && end == total, end == total, true
+	return extracted, start == 1 && end == total, end == total, true
 }
 
 // parsePartialRead decodes a byte-windowed "Partial read (lines S-E of T).

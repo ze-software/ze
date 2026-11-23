@@ -169,6 +169,10 @@ harness it runs under:
   digest matches the current door on disk (`readrecord.WholeDigest`), and any
   other row requires a `read_file` that returned that section complete with its
   current digest (`readrecord.CompleteSections`), confined to this checkout.
+  Contiguous `Partial read` byte-offset continuations covering `[0, byteTotal)`
+  for the same line range and adjacent `Showing lines` ranges for the same file
+  are stitched before hashing, so sections exceeding `read_file`'s 46,080-byte
+  per-call limit can be verified without gaps.
 
 Under either harness, the action refuses while any row's door or section is
 unread and prints the range that clears each one (`offset` and `limit` for

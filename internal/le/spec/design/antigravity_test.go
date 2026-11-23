@@ -360,3 +360,105 @@ func TestAntigravityJudgeRefusesUnsafeEnvAndCorruptTranscript(t *testing.T) {
 		requireContains(t, "corrupt transcript refusal", text, "parse antigravity transcript")
 	})
 }
+
+// TestAntigravityJudgeStitchesPartialByteOffsetAndContiguousLineReads proves
+// that a section split across Partial read ByteOffset continuations (including
+// a mid-line split) or across adjacent Showing lines ranges satisfies the read
+// check, while a gap between byte chunks or line ranges is still refused.
+func TestAntigravityJudgeStitchesPartialByteOffsetAndContiguousLineReads(t *testing.T) {
+	root := widgetRoot(t)
+	writeTree(t, root, map[string]string{widgetSpec: completeSpecText})
+
+	doorText, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(widgetDoor)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pageLines := strings.Split(strings.TrimSuffix(widgetPageText, "\n"), "\n")
+	var numbered strings.Builder
+	for i, line := range pageLines {
+		numbered.WriteString(strconv.Itoa(i + 1))
+		numbered.WriteString(": ")
+		numbered.WriteString(line)
+		if i+1 < len(pageLines) {
+			numbered.WriteByte('\n')
+		}
+	}
+	fullNumbered := numbered.String()
+	// Split right in the middle of line 9 (the Design decisions row).
+	splitAt := strings.Index(fullNumbered, widgetDecision) + 12
+	byteTotal := len(fullNumbered)
+
+	formatPartial := func(b0, b1 int) string {
+		return "Created At: 2026-11-22T16:00:00Z\nCompleted At: 2026-11-22T16:00:01Z\n" +
+			"Partial read (lines 1-" + strconv.Itoa(len(pageLines)) + " of " + strconv.Itoa(len(pageLines)) + "). " +
+			"Showing bytes " + strconv.Itoa(b0) + "-" + strconv.Itoa(b1) + " of " + strconv.Itoa(byteTotal) + " in this line range.\n" +
+			fullNumbered[b0:b1]
+	}
+
+	t.Run("contiguous byte-offset chunks stitch cleanly", func(t *testing.T) {
+		appData := t.TempDir()
+		useAntigravity(t, appData, agyConvID)
+		writeAgyTranscript(t, appData, "transcript_full.jsonl", []agyTestCall{
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetDoor)), content: agyFormatWhole(string(doorText))},
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetPage)), content: formatPartial(0, splitAt)},
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetPage)), content: formatPartial(splitAt, byteTotal)},
+		}, false)
+
+		text, code := runJudge(t, "approve", "every verdict holds against its section")
+		if code != 0 {
+			t.Fatalf("contiguous Partial read chunks answered %d, want 0:\n%s", code, text)
+		}
+	})
+
+	t.Run("gapped byte-offset chunks are refused", func(t *testing.T) {
+		_ = os.Remove(filepath.Join(root, filepath.FromSlash(judgedRecord)))
+		appData := t.TempDir()
+		useAntigravity(t, appData, agyConvID)
+		writeAgyTranscript(t, appData, "transcript_full.jsonl", []agyTestCall{
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetDoor)), content: agyFormatWhole(string(doorText))},
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetPage)), content: formatPartial(0, splitAt)},
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetPage)), content: formatPartial(splitAt+5, byteTotal)},
+		}, false)
+
+		text, code := runJudge(t, "approve", "every verdict holds")
+		if code != 2 {
+			t.Fatalf("gapped Partial read chunks answered %d, want 2:\n%s", code, text)
+		}
+		requireContains(t, "gapped refusal", text, widgetPage+", Design decisions")
+		requireAbsent(t, root, judgedRecord)
+	})
+
+	t.Run("contiguous Showing lines ranges stitch cleanly", func(t *testing.T) {
+		_ = os.Remove(filepath.Join(root, filepath.FromSlash(judgedRecord)))
+		appData := t.TempDir()
+		useAntigravity(t, appData, agyConvID)
+		writeAgyTranscript(t, appData, "transcript_full.jsonl", []agyTestCall{
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetDoor)), content: agyFormatWhole(string(doorText))},
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetPage)), content: agyFormatShowing(widgetPageText, 5, 8, len(pageLines))},
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetPage)), content: agyFormatShowing(widgetPageText, 9, 11, len(pageLines))},
+		}, false)
+
+		text, code := runJudge(t, "approve", "every verdict holds against its section")
+		if code != 0 {
+			t.Fatalf("contiguous Showing lines ranges answered %d, want 0:\n%s", code, text)
+		}
+	})
+
+	t.Run("gapped Showing lines ranges are refused", func(t *testing.T) {
+		_ = os.Remove(filepath.Join(root, filepath.FromSlash(judgedRecord)))
+		appData := t.TempDir()
+		useAntigravity(t, appData, agyConvID)
+		writeAgyTranscript(t, appData, "transcript_full.jsonl", []agyTestCall{
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetDoor)), content: agyFormatWhole(string(doorText))},
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetPage)), content: agyFormatShowing(widgetPageText, 5, 7, len(pageLines))},
+			{name: "read_file", path: filepath.Join(root, filepath.FromSlash(widgetPage)), content: agyFormatShowing(widgetPageText, 9, 11, len(pageLines))},
+		}, false)
+
+		text, code := runJudge(t, "approve", "every verdict holds")
+		if code != 2 {
+			t.Fatalf("gapped Showing lines ranges answered %d, want 2:\n%s", code, text)
+		}
+		requireContains(t, "gapped lines refusal", text, widgetPage+", Design decisions")
+		requireAbsent(t, root, judgedRecord)
+	})
+}
