@@ -111,7 +111,11 @@ func (n *ContainerNode) relocatedHint(name string) (string, bool) {
 // It is built fresh, never the cached YANGSchema, because grafting the old
 // position into the shared schema would make every load accept it.
 func MigrationSchema() (*Schema, error) {
-	schema, err := YANGSchemaWithPlugins(nil)
+	loader, err := loadYANGModules(nil)
+	if err != nil {
+		return nil, err
+	}
+	schema, err := schemaFromResolved(loader)
 	if err != nil {
 		return nil, err
 	}

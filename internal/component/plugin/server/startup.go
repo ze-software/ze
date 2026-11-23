@@ -1442,15 +1442,9 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		}
 	}
 
-	for i := range input.Schemas {
-		schema := &input.Schemas[i]
-		reg.PluginSchemas = append(reg.PluginSchemas, plugin.PluginSchemaDecl{
-			Module:    schema.Module,
-			Namespace: schema.Namespace,
-			Handlers:  schema.Handlers,
-			Yang:      schema.YANGText,
-		})
-	}
+	// Stage 1 YANG modules (input.Schemas) are read directly at boot by
+	// HoldDeclaredPlugins and by the Stage 1 checks (refuseChangedSchema,
+	// refuseUnservedCommandNodes), so PluginRegistration keeps no copy.
 
 	// runStartupHandshake refused a declaration that does not compile
 	// (registry.CheckFilterDeclarations) before the sink saw it, so a failure

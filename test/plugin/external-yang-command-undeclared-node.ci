@@ -1,0 +1,58 @@
+# Test: an external command module with an unserved ze:command node is refused at Stage 1 and by the conformance checker
+#
+# Question: when an external plugin brings a valid -cmd module whose
+# `show acme-monitor target` ze:command node is reached by no command the plugin
+# declares at Stage 1, does `ze show plugin conformance run` refuse it offline
+# under `command-nodes-served` naming the node and the module, and does
+# `ze start` refuse the plugin at Stage 1 with the same refusal and fail startup
+# without ever reaching `Ze running.`?
+# Why not a unit test: TestStage1RefusesACommandNodeNoDeclaredCommandReaches
+# (internal/component/plugin/server/stage1_commands_test.go) and
+# TestRunJudgesTheCommandNodesOfTheDeclaredModules (conformance) prove the check
+# in isolation. Only the real binaries prove that the shipped daemon joins the
+# command module cleanly at boot, then refuses the plugin at its startup tier's
+# Stage 1 and aborts startup, and that `ze show plugin conformance run` reports
+# the same failure from the CLI.
+#
+# The fixture's command-unserved variant
+# (internal/test/fixture/plugin_fixture_external_yang.go) brings Valid,
+# Commands and API, and declares only `show acme-monitor status` at Stage 1,
+# leaving `show acme-monitor target` unserved. Its stage1Refused flag turns a
+# ready daemon into ZE-OBSERVER-FAIL.
+#
+# VALIDATES: AC-40 of spec-plugin-external-yang-at-startup (narrowed): both the
+#   live Stage 1 refusal at `ze start` and the offline conformance check.
+# PREVENTS: an external plugin publishing a ze:command node in the command tree
+#   that no declared command serves, which would leave operators seeing a
+#   command that fails with "not registered" when invoked.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.port:value=$PORT
+
+tmpfs=unserved.conf:terminator=EOF_CONF
+plugin {
+	external unserved-command {
+		run "le test fixture plugin/external-yang command-unserved"
+		encoder json
+	}
+}
+EOF_CONF
+
+# Step 1: offline conformance check refuses the plugin under command-nodes-served.
+cmd=foreground:seq=1:exec=ze show plugin conformance run "le test fixture plugin/external-yang command-unserved" name unserved-command:exit=1
+expect=stdout:contains=command-nodes-served
+expect=stdout:contains=fail
+expect=stdout:contains=show acme-monitor target
+expect=stdout:contains=acme-monitor-cmd
+
+# Step 2: ze start joins the modules, then refuses the plugin at Stage 1 and
+# aborts the startup tier without reaching "Ze running.".
+cmd=foreground:seq=2:exec=ze start unserved.conf:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=unserved-command
+expect=stderr:contains=show acme-monitor target
+expect=stderr:contains=acme-monitor-cmd
+expect=stderr:contains=declares no command at Stage 1 that reaches it
+reject=stderr:contains=Ze running.
+reject=stderr:contains=FIXTURE: external-yang generation 1 ready
+reject=stderr:pattern=ZE-OBSERVER-FAIL

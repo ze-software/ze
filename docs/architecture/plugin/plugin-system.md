@@ -653,6 +653,26 @@ send-type. A plugin's `OnStarted` fires after its ready acknowledgment within
 Stage 5, before plugins of a later phase are loaded. A declared initializer must
 return successfully and answer runtime-ready before its tier completes.
 
+Declared external plugins (from `plugin { external <name> { run ... } }` or the
+command line) take an earlier Stage 1 step before the full configuration parse:
+boot runs `config.FirstPass`, starts each declared external process once
+(`HoldDeclaredPlugins` -> `Manager.StartDeclared`), reads its Stage 1 `schemas`
+list while keeping the Stage 1 request unanswered on `pendingStartup`, joins and
+publishes the external YANG modules once (`PublishExternalModules`), and only
+then parses the full configuration and constructs the plugin server. When the
+plugin's startup tier runs later, `Manager.SpawnMore` hands back the held
+process and replays its kept Stage 1 request so every Stage 1 check runs against
+the published schema and the process is never forked twice. External plugin
+declarations and their modules are fixed for the life of the daemon: a reload
+that changes `external` declarations is refused (`RefuseChangedDeclarations`),
+and a restarted plugin that declares a different module set is failed at Stage 1
+(`refuseChangedSchema`, `doctor-plugin-schema-changed`), naming a restart of
+`ze`.
+<!-- source: internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins -->
+<!-- source: internal/component/plugin/manager/manager.go -- StartDeclared, SpawnMore -->
+<!-- source: internal/component/plugin/server/reload_declarations.go -- RefuseChangedDeclarations -->
+<!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema -->
+
 Before the first phase starts,
 the engine resolves the dependencies of the config-path, family, event-type
 and send-type sets, and refuses startup when one names a plugin this build

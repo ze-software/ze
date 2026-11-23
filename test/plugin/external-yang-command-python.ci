@@ -3,26 +3,30 @@
 # Question: when `ze start` runs examples/plugin/python/acme_monitor.py, the
 # real example an author copies (no Go SDK), do its config, -cmd and -api
 # modules join, does `show acme-monitor status` answer the configured target,
-# is a target name longer than the 16 characters its leaf accepts refused by
-# the daemon without the plugin being asked, and does a configured name reach
-# the plugin and answer that target, while a name the config does not hold is
-# answered with the plugin's own error and fix?
+# does `system command help` show the command's YANG help (AC-30), is a target
+# name longer than the 16 characters its leaf accepts refused by the daemon
+# without the plugin being asked (AC-32), does a configured name reach the
+# plugin and answer that target (while an unconfigured name returns the
+# plugin's own error and fix), and does the shell form `ze show acme-monitor
+# target ...` route to the running daemon and return the same answer and
+# refusal (AC-36)?
 # Why not a unit test: the answer is the whole path of a running daemon and a
 # forked Python process: the library's TLS connect-back and Stage 1 with three
-# modules, the join of those modules, the argument definitions rebuilt from
-# the joined set, the line an operator types over `ze cli -c`, the route to
-# the process, and the plugin's own answer. Unit tests prove the join alone
-# (internal/component/config/yang join_command_test.go), and
+# modules, the join of those modules, the argument definitions and help rebuilt
+# from the joined set, the line an operator types over `ze cli -c` and from the
+# shell, the route to the process, and the plugin's own answer. Unit tests prove
+# the join alone (internal/component/config/yang join_command_test.go), and
 # test/plugin/external-yang-command-argument.ci proves the same path for a
 # plugin built on the Go SDK.
 #
-# VALIDATES: spec-plugin-external-yang-at-startup AC-39, the AC-32 part: the
-#   Python example's command with an argument, its refusal before the plugin
-#   is asked, and the answer of a good value. AC-30 (help) and AC-36 (the
-#   shell form) are not asserted here.
+# VALIDATES: spec-plugin-external-yang-at-startup AC-39: the Python example's
+#   command with an argument, its YANG help (AC-30 via `system command help`),
+#   its refusal before the plugin is asked and good-value answer (AC-32), and
+#   the shell form routed to the running daemon (AC-36).
 # PREVENTS: the author's example drifting from what ze accepts: a module ze
-#   refuses, a command the library does not list at Stage 1, or a handler
-#   that never gets the value the operator typed.
+#   refuses, a command the library does not list at Stage 1, missing YANG help,
+#   a broken shell route, or a handler that never gets the value the operator
+#   typed.
 #
 # The plugin logs each target it is asked for (acme_monitor.py `target`), so a
 # value the daemon refused is a line that never appears in the daemon's span,
@@ -88,10 +92,11 @@ cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
 cmd=background:seq=2:exec=ze start python.conf:name=daemon:ready=Ze running.
 # The section loaded through the example's own module, and its apply ran.
 expect=stderr:contains=acme-monitor: applied target=web.example.net interval=3
-# The good value of step 6 reached the plugin.
+# The good value of steps 6 and 8 reached the plugin.
 expect=stderr:contains=acme-monitor: asked for target web.example.net
-# The value of step 4 never reached the plugin.
+# The values of steps 4 and 9 never reached the plugin.
 reject=stderr:contains=asked for target this-name-is-far-too-long
+reject=stderr:contains=asked for target shell-name-is-far-too-long
 # No handler of the example failed.
 reject=stderr:contains=Traceback
 reject=stderr:contains=unexpected error while serving
@@ -117,3 +122,18 @@ expect=stderr:contains=fix: show acme-monitor status
 # The configured name reaches the plugin as typed, and answers that target.
 cmd=foreground:seq=6:exec=ze cli -c "show acme-monitor target web.example.net":exit=0
 expect=stdout:contains=web.example.net
+
+# AC-30 on the Python example: system command help shows the YANG help text
+# declared in acme-monitor-cmd.
+cmd=foreground:seq=7:exec=ze cli -c 'system command help name "show acme-monitor target"':exit=0
+expect=stdout:contains=Show the configured target of the acme monitor.
+
+# AC-36 on the Python example: the shell form reaches the running daemon for a
+# valid target and refuses an over-long value before asking the plugin.
+cmd=foreground:seq=8:exec=ze show acme-monitor target web.example.net:exit=0
+expect=stdout:contains=web.example.net
+reject=stderr:contains=unknown command
+
+cmd=foreground:seq=9:exec=ze show acme-monitor target shell-name-is-far-too-long:exit=1
+expect=stderr:contains=name accepts 1..16 characters
+reject=stderr:contains=unknown command

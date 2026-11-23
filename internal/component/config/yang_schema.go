@@ -68,9 +68,9 @@ func PluginOnlySchema() (*Schema, error) {
 // for each of the five parses a reload performs (LoadConfig, the BGP reload
 // function, peersAndDynamicGroups), so a commit of one changed leaf cost
 // three seconds of schema builds and the REST commit missed a 5 s client
-// deadline. A schema built over module texts no init() registered is not
-// cached here: YANGSchemaWithPlugins takes those as an argument and joins them
-// on each call.
+// deadline. YANGSchemaWithPlugins shares this cache when every module text it
+// is given is already in DefaultLoader's set, and builds a private schema only
+// when it joins module text no init() registered.
 func YANGSchema() (*Schema, error) {
 	return yangSchemaCache.get(schemaFromResolved)
 }
@@ -258,7 +258,9 @@ var yangValidatorCache resolvedCache[*yang.Validator]
 
 // YANGValidatorWithPlugins creates a YANG value validator over the compiled-in
 // modules joined to the module texts given (loadYANGModules), under the rule
-// YANGSchemaWithPlugins states for them.
+// YANGSchemaWithPlugins states for them. When loadYANGModules answers the
+// shared DefaultLoader set, it returns YANGValidator's cached build instead of
+// rebuilding.
 // Registers custom validators, attaches registry, and checks integrity.
 // Used for runtime attribute validation (origin enum, med/local-pref uint32 ranges).
 func YANGValidatorWithPlugins(pluginYANG map[string]string) (*yang.Validator, error) {
@@ -266,7 +268,21 @@ func YANGValidatorWithPlugins(pluginYANG map[string]string) (*yang.Validator, er
 	if err != nil {
 		return nil, err
 	}
-	return validatorFromResolved(loader)
+	return validatorOf(loader)
+}
+
+// validatorOf answers the value validator built over resolved. The set
+// DefaultLoader answers shares YANGValidator's cached build; any other set is
+// built for this call.
+func validatorOf(resolved *yang.Resolved) (*yang.Validator, error) {
+	shipped, err := yang.DefaultLoader()
+	if err != nil {
+		return nil, err
+	}
+	if shipped == resolved {
+		return YANGValidator()
+	}
+	return validatorFromResolved(resolved)
 }
 
 // validatorFromResolved builds the value validator over one resolved module set.
@@ -303,13 +319,15 @@ func validatorFromResolved(loader *yang.Resolved) (*yang.Validator, error) {
 // the module texts given. pluginYANG maps a module file name to its YANG text,
 // and loadYANGModules states what happens to each: a text identical to a
 // module the compiled-in set holds is left out, a held name with another
-// content is refused, and every other text passes the join.
+// content is refused, and every other text passes the join. When
+// loadYANGModules answers the shared DefaultLoader set, it returns
+// YANGSchema's cached build instead of rebuilding.
 func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 	loader, err := loadYANGModules(pluginYANG)
 	if err != nil {
 		return nil, err
 	}
-	return schemaFromResolved(loader)
+	return SchemaOf(loader)
 }
 
 // SchemaOf answers the config schema built over resolved, so a caller that

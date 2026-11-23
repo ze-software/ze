@@ -691,6 +691,18 @@ not treat a read timeout as an acknowledgement or a message boundary.
 <!-- source: internal/test/peer/message.go -- messageReader.readMessage -->
 <!-- test: internal/test/peer/message_timeout_test.go -- TestMessageLoopPreservesPartialFrame, TestHoldSessionPreservesPartialFrame, TestPartialFrameTimeoutCancellation -->
 
+### External plugin YANG fixtures
+
+`le test fixture plugin/external-yang <variant>` runs a real external plugin process built on `pkg/plugin/sdk` that answers declare mode (`sdk.RunOrDeclare`), connects back over TLS, declares YANG modules from `internal/test/externalyang` at Stage 1, prints received Stage 2 configure, verify, apply, and command lines to stderr, and turns an unexpected acceptance into `ZE-OBSERVER-FAIL`. Variants select the module set and behavior: `valid`, `valid-config-refused`, `valid-environment`, `redeclare`, `invalid`, `clash`, `augment`, `unheld-validate`, `commands`, `commands-redeclare`, `command-clash`, and `command-unserved`.
+<!-- source: internal/test/fixture/plugin_fixture_external_yang.go -- externalYANGDriver, externalYANGVariants -->
+<!-- source: internal/test/fixture/plugin_fixture_external_yang_unheld.go -- unheld-validate variant -->
+<!-- source: internal/test/fixture/register_external_yang.go -- init -->
+
+Five UI session fixtures start a daemon with `plugin/external-yang` and drive an interactive SSH terminal or `show` commands against the published external module set: `ui/external-yang-session-editor` (editor completion, `?`, range refusal), `ui/external-yang-daemon-schema` (`show schema list`, `show yang tree config`), `ui/external-yang-session-save` (commit in a session, stop, and restart on the same disk store), `ui/external-yang-command-help` (YANG command help precedence over Stage 1 help), and `ui/external-yang-command-completion` (Tab completion of plugin commands and argument leaves).
+<!-- source: internal/test/fixture/ui_fixture_external_yang_session.go -- externalYANGSessionEditor, externalYANGDaemonSchema -->
+<!-- source: internal/test/fixture/ui_fixture_external_yang_save.go -- externalYANGSessionSave -->
+<!-- source: internal/test/fixture/ui_fixture_external_yang_command_help.go -- externalYANGCommandHelp, externalYANGCommandCompletion -->
+
 ### Final-policy wire probes
 
 `bgp-best-route-transit-default.ci` exercises ordinary transit with explicit

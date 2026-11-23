@@ -129,26 +129,22 @@ func TestPluginRegistrationStructConstruction(t *testing.T) {
 // TestPluginSchemaDecl verifies PluginSchemaDecl can be constructed and used.
 //
 // VALIDATES: Schema declaration struct holds YANG module info.
-// PREVENTS: Schema data loss during RPC registration.
+// PREVENTS: Schema data loss in subsystem schema declarations.
 func TestPluginSchemaDecl(t *testing.T) {
-	reg := &PluginRegistration{
-		Name: "bgp-plugin",
-		PluginSchemas: []PluginSchemaDecl{{
-			Module:    "ze-bgp",
-			Namespace: "urn:ze:bgp",
-			Handlers:  []string{"bgp", "bgp/peer"},
-			Yang:      "module ze-bgp { namespace \"urn:ze:bgp\"; }",
-			Priority:  500,
-		}},
+	decl := PluginSchemaDecl{
+		Module:    "ze-bgp",
+		Namespace: "urn:ze:bgp",
+		Handlers:  []string{"bgp", "bgp/peer"},
+		Yang:      "module ze-bgp { namespace \"urn:ze:bgp\"; }",
+		Priority:  500,
 	}
 
-	require.Len(t, reg.PluginSchemas, 1)
-	assert.Equal(t, "ze-bgp", reg.PluginSchemas[0].Module)
-	assert.Equal(t, "urn:ze:bgp", reg.PluginSchemas[0].Namespace)
-	assert.Len(t, reg.PluginSchemas[0].Handlers, 2)
-	assert.Contains(t, reg.PluginSchemas[0].Handlers, "bgp")
-	assert.Contains(t, reg.PluginSchemas[0].Handlers, "bgp/peer")
-	assert.Equal(t, 500, reg.PluginSchemas[0].Priority)
+	assert.Equal(t, "ze-bgp", decl.Module)
+	assert.Equal(t, "urn:ze:bgp", decl.Namespace)
+	assert.Len(t, decl.Handlers, 2)
+	assert.Contains(t, decl.Handlers, "bgp")
+	assert.Contains(t, decl.Handlers, "bgp/peer")
+	assert.Equal(t, 500, decl.Priority)
 }
 
 // TestFilterDeclarationParse verifies filter declarations are stored on PluginRegistration.

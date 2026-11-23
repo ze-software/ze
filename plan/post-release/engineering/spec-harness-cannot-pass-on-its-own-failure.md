@@ -54,13 +54,21 @@ Source files read on 2026-10-23:
 - [ ] `internal/test/fixture/fixture.go` - `ReportFailure` (line 311) writes the observer sentinel to process stderr and drops every call after the first through the package-global `reportedOnce atomic.Bool` (line 303). A fixture the daemon runs as a plugin writes it after `plugin.Run` returns, which is after the scenario asked the daemon to shut down, so nothing relays it
 - [ ] `internal/test/fixture/fixture_test.go` - `readOneReport` resets `reportedOnce` before each case, so the test-order red is gone; the process-global latch itself remains
 - [ ] `internal/test/runner/runner.go` - `(*Runner).Build` runs `go build -o r.zePath` whenever `LE_TEST_NO_BUILD` is unset, so an explicit `ZE_BIN` is overwritten with the shared tree's ze
-- [ ] `internal/test/runner/runner_exec.go` - `runOrchestrated` keeps a mid-file foreground helper's assertion span open to the end of the run (2026-10-14 row); `routeStdinBlock` now routes a `-` correctly (row fixed)
+- [ ] `internal/test/runner/runner_exec.go` - `runOrchestrated` keeps a mid-file foreground helper's assertion span open to the end of the run (2026-10-14 row); the plain `await=stderr` arm paired with `expect=exit:code=` without `then=stop` compares the exit code against `waitForPeers` (nil with no peer) instead of the daemon's exit (2026-11-17 row); `routeStdinBlock` now routes a `-` correctly (row fixed)
 - [ ] `internal/test/runner/record_parse.go` - `checkKeys` refuses an unknown key on `expect=stdout`, so `not-contains=` is no longer silently dropped (rows fixed)
 - [ ] `internal/test/peer/peer.go` - `(*Peer).Run` turns a check peer stopped short into `ErrExpectationsUnmet` (row fixed)
 - [ ] `internal/test/peer/open.go` - `buildOpen` now takes every sender value from `openIdentity` and `Config`; the OPEN mirror rows are fixed
 - [ ] `internal/test/peer/reject.go` - `completed` with `option=linger` prints the success token, and a later rejection retracts it with `RejectionMarker`, which `failedCheckPeers` (`internal/test/runner/peer_contract.go`) reads (row fixed)
 - [ ] `internal/le/rfc/discriminate.go` - `interopCitationState` checks that the cited `fail(N)` exists, never that it is the assertion the broken run failed
 - [ ] `internal/le/rfc/discriminate_observe.go` - `observationRunner.attribution` returns no refusal for interop once a scenario is selected, so a mutant that failed to compile (`0 passed, 0 failed`) was recorded as proof of RFC7911-2-2
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| `.ci` runner orchestration and directive parser | `internal/test/runner/runner_exec.go` `runOrchestrated`, `record_parse.go` `checkKeys`, `runner.go` `(*Runner).Build` | Builds/runs `ze`, fixtures, and `ze-peer`, and evaluates `await=`, `expect=`, and exit codes | Extends: closes helper spans on helper exit, pins explicit `ZE_BIN`, refuses plain `await=stderr` + `expect=exit:code=` without `then=stop`, and reads a per-run failure sink |
+| Fixture failure sentinel | `internal/test/fixture/fixture.go` `ReportFailure`, `reportedOnce` | Writes one `ZE-OBSERVER-FAIL` line to stderr and drops later calls | Replaces the package-global latch and late stderr write with a per-run failure sink file read by the runner |
+| RFC discrimination recorder | `internal/le/rfc/discriminate.go` `interopCitationState`, `discriminate_observe.go` `observationRunner.attribution` | Records a red run when a mutation fails a carrier | Extends: refuses build/setup/zero-assertion runs and requires the cited assertion to be the one that failed |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -104,6 +112,7 @@ names it.
 | Binary under test | An explicit `ZE_BIN` is a pin: the runner never builds into it, and verifies it exists. A build happens only into the runner's own path |
 | Tool verdicts | Where a gate reads a tool, the exit code decides and a printed summary is never read as the verdict. An exit code that disagrees with the summary is red and names both |
 | Assertion span | A mid-file foreground helper's span closes when the helper exits, so a later command's output cannot satisfy its assertions |
+| Plain `await=stderr` with `expect=exit:code=` | Refuse a `.ci` record that pairs `await=stderr` without `then=stop` with `expect=exit:code=` and no peer (instead of vacuously comparing against a nil peer wait), and convert the five remaining tracked `.ci` files |
 | Capability-bound tests | A `.ci` whose feature needs a kernel capability declares it; the runner skips with the missing capability named, and never passes one whose install was refused |
 | `le test peer` session routing | `action=send:conn=N` under `conn_map` writes to session N, or refuses |
 | Discrimination | A red counts only when the run reached the tagged unit and failed the assertion the record cites. A build failure, setup failure or zero-assertion run is refused with its cause |
@@ -136,6 +145,7 @@ Each case MUST go red, and the corpus runs with the runner's own package tests.
 | AC-8 | `discriminate-record` with a mutant that does not compile | The record is refused and the message names the build failure |
 | AC-9 | `discriminate-record` citing `fail(6)` when the broken run failed at `fail(2)` | The record is refused and names both assertions |
 | AC-10 | The self-test corpus | Every case is red; removing any one fix turns its case green, and that is recorded once as the red proof |
+| AC-11 | A `.ci` record pairs plain `await=stderr` (no `then=stop`) with `expect=exit:code=` and no peer | The runner refuses the record as vacuous instead of passing `code=0`, and the five remaining tracked `.ci` files are converted under the test judge |
 
 ## Risks & Assumptions
 
@@ -212,6 +222,7 @@ Each case MUST go red, and the corpus runs with the runner's own package tests.
 | `green-that-could-not-have-been-red.md` | 2026-08-29 | `ReportFailure` from a plugin fixture never reaches the runner |
 | `green-that-could-not-have-been-red.md` | 2026-09-05 | shared lint verdict read from the summary, not the exit |
 | `green-that-could-not-have-been-red.md` | 2026-10-14 | `runOrchestrated` mid-file helper span stays open |
+| `green-that-could-not-have-been-red.md` | 2026-11-17 | `runOrchestrated` plain `await=stderr` beside `expect=exit:code=` with no peer asserts nothing about the daemon's exit (five remaining tests and runner refusal; moved from `spec-plugin-external-yang-at-startup` after its four tests were converted) |
 | `green-that-could-not-have-been-red.md` | 2026-10-21 | `interopCitationState` checks the cited assertion exists, not that it failed |
 | `green-that-could-not-have-been-red.md` | 2026-10-23 | `observationRunner.attribution` accepts a build failure as proof |
 | `test-against-broken-path.md` | 2026-08-15 | ze-peer `action=send:conn=2` under `conn_map` writes to the first session (not re-read today) |

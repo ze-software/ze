@@ -208,3 +208,53 @@ func TestModuleTextRoadRefusesRegisteredModule(t *testing.T) {
 	assert.Contains(t, err.Error(), `"ze-plugin-conf"`)
 	assert.Contains(t, err.Error(), "compiled into ze")
 }
+
+// TestYANGSchemaAndValidatorWithPluginsReuseCacheForSharedSet proves that when
+// loadYANGModules answers the shared DefaultLoader set (nil map or only texts
+// already in the registered set), YANGSchemaWithPlugins and
+// YANGValidatorWithPlugins return the cached YANGSchema and YANGValidator
+// pointers rather than rebuilding, while MigrationSchema still returns a fresh
+// schema and an unregistered module text builds a distinct schema and validator.
+//
+// VALIDATES: spec-plugin-external-yang-at-startup row 7 (G-4): cache reuse on
+// the command-line text road when the module set is the shared one.
+// PREVENTS: paying an uncached schema and validator build on every start or
+// reload with an in-tree `--plugin`, or mutating the shared cache in
+// MigrationSchema.
+func TestYANGSchemaAndValidatorWithPluginsReuseCacheForSharedSet(t *testing.T) {
+	cachedSchema, err := YANGSchema()
+	require.NoError(t, err)
+	cachedValidator, err := YANGValidator()
+	require.NoError(t, err)
+
+	nilSchema, err := YANGSchemaWithPlugins(nil)
+	require.NoError(t, err)
+	assert.Same(t, cachedSchema, nilSchema)
+
+	nilValidator, err := YANGValidatorWithPlugins(nil)
+	require.NoError(t, err)
+	assert.Same(t, cachedValidator, nilValidator)
+
+	registeredTexts := map[string]string{"ze-plugin-conf.yang": registeredModuleText(t, "ze-plugin-conf.yang")}
+	regSchema, err := YANGSchemaWithPlugins(registeredTexts)
+	require.NoError(t, err)
+	assert.Same(t, cachedSchema, regSchema)
+
+	regValidator, err := YANGValidatorWithPlugins(registeredTexts)
+	require.NoError(t, err)
+	assert.Same(t, cachedValidator, regValidator)
+
+	migSchema, err := MigrationSchema()
+	require.NoError(t, err)
+	assert.NotSame(t, cachedSchema, migSchema)
+
+	externalTexts := map[string]string{"acme-monitor-conf.yang": joinedMonitorModule}
+	extSchema, err := YANGSchemaWithPlugins(externalTexts)
+	require.NoError(t, err)
+	assert.NotSame(t, cachedSchema, extSchema)
+	assert.NotNil(t, extSchema.Get("acme-monitor"))
+
+	extValidator, err := YANGValidatorWithPlugins(externalTexts)
+	require.NoError(t, err)
+	assert.NotSame(t, cachedValidator, extValidator)
+}

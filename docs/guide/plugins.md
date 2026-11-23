@@ -122,6 +122,23 @@ such a block under `doctor-plugin-external-unsupported`, with the `internal`
 block that runs it instead.
 <!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalInProcess, inProcessOnlyRegistration -->
 
+### External Plugins with Their Own YANG Schema and Commands
+
+An external plugin can bring its own YANG modules in its Stage 1 `schemas` list: a `-conf` module for its own configuration root (or an `augment` of a shared container such as `service`), a `-cmd` module for its CLI commands and argument leaves, and an `-api` module for MCP, REST, and gRPC command parameters. At `ze start`, the daemon parses the `plugin` and `environment` blocks first (`config.FirstPass`), starts every declared external plugin, reads each plugin's Stage 1 `schemas` list while holding Stage 1 unanswered, joins and publishes those modules once for the daemon's life, and then parses the full configuration against the combined schema. Each plugin continues its five-stage handshake in its startup tier without being forked a second time, and receives its configuration section at start and on every commit.
+<!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins -->
+<!-- source: internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins -->
+<!-- source: internal/component/config/yang/publish.go -- PublishExternalModules -->
+
+External plugin declarations and their YANG modules are fixed until `ze` restarts. A reload (`SIGHUP` or commit) that adds, removes, or changes a `plugin { external <name> { run ... } }` declaration is refused whole under `doctor-config-reload-refused`, leaving the running configuration unchanged. If a running external plugin restarts and declares different YANG modules than the ones published at start, that plugin is failed at Stage 1 under `doctor-plugin-schema-changed` and its commands are released until `ze` restarts. Invalid, clashing, or unheld-registration modules refuse startup and record `doctor-plugin-schema-refused`; a declared plugin that fails to declare records `doctor-plugin-schema-undeclared`.
+<!-- source: internal/component/plugin/server/reload_declarations.go -- RefuseChangedDeclarations -->
+<!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema -->
+<!-- source: internal/component/plugin/server/doctor_codes.go -- CodeDoctorPluginSchemaChanged, CodeDoctorPluginSchemaRefused, CodeDoctorPluginSchemaUndeclared -->
+
+When no `ze` daemon is running, offline commands never start external plugin programs. `ze config validate`, `fmt`, `dump`, `diff`, and `graph` ask a running `ze` daemon first when a configuration declares an external plugin; if no daemon answers, sections defined only by external plugins are reported as unavailable with `ze start` as the fix. Similarly, running an external plugin's command from the shell (`ze show ...`) forwards to the running daemon and reports the command unavailable when no daemon is running. See [YANG Schema Authoring](../plugin-development/schema.md) and [Adding Commands](../plugin-development/commands.md) for module examples and rules.
+<!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins, ParseRefusal -->
+<!-- source: internal/component/config/cli/daemon_route.go -- suppliedQuestion -->
+<!-- source: cmd/ze/internal/cmdutil/unheld.go -- unheld path routing -->
+
 ## When a Plugin Fails
 
 `doctor-plugin-cleanup` means a plugin's original resources have no confirmed

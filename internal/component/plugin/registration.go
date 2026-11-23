@@ -138,9 +138,6 @@ type PluginRegistration struct {
 	// asks for.
 	FailurePolicy rpc.FailurePolicy
 
-	// YANG schema declarations (Hub Architecture)
-	PluginSchemas []PluginSchemaDecl // The YANG modules this plugin declared, one for each module text
-
 	// Route filter declarations (filter chain protocol)
 	Filters []FilterRegistration // Named filters this plugin offers
 

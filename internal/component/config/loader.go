@@ -87,11 +87,10 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 
 	// The schema is kept, not rebuilt: ApplyPasswordHashing below is
 	// schema-driven (it hashes the plaintext- sibling of every ze:bcrypt leaf),
-	// and YANGSchemaWithPlugins caches nothing -- given any module text it
-	// builds the schema again on each call, and resolves the module set again
-	// when a text is not one the set holds. Parsing once and carrying
-	// the schema costs one pointer; asking for it again would cost a second
-	// build on every daemon start and every SIGHUP with a selected plugin.
+	// and when pluginYANG carries an unregistered module text,
+	// YANGSchemaWithPlugins resolves and builds a private schema on each call.
+	// Parsing once and carrying the schema costs one pointer; asking for it
+	// again would cost a second build when a selected plugin adds module text.
 	tree, schema, err := parseTreeWithYANG(input, pluginYANG)
 	if err != nil {
 		return nil, err

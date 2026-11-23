@@ -69,6 +69,11 @@ type externalYANGVariant struct {
 	// learns that ze did not start: a transport that ends is the pass and a
 	// ready plugin is the failure.
 	configRefused bool
+	// stage1Refused says the variant brings valid modules that join cleanly,
+	// and a Stage 1 declaration that the tier's Stage 1 checks must refuse
+	// (such as an unserved ze:command node): a transport that ends is the pass
+	// and a ready plugin is the failure.
+	stage1Refused bool
 	// environment names the env keys whose value the plugin prints when it
 	// starts, one line each, before it connects. A variant with none prints no
 	// such line.
@@ -159,6 +164,16 @@ var externalYANGVariants = map[string]externalYANGVariant{
 		commands: []sdk.CommandDecl{
 			{Name: externalyang.CommandClashPath, ShortHelp: externalyang.DeclaredSummary, Description: externalyang.DeclaredExplanation},
 		},
+	},
+	// Brings both acme-monitor-cmd and acme-monitor-api (so the join succeeds),
+	// and declares only show acme-monitor status at Stage 1, leaving the
+	// ze:command node show acme-monitor target unserved for AC-40.
+	"command-unserved": {
+		schema:        externalyang.Valid(),
+		wants:         []string{externalYANGRoot},
+		extra:         []externalyang.Module{externalyang.Commands(), externalyang.API()},
+		commands:      []sdk.CommandDecl{{Name: externalyang.CommandStatus}},
+		stage1Refused: true,
 	},
 }
 
@@ -475,6 +490,9 @@ func externalYANGServe(ctx context.Context, variant externalYANGVariant, generat
 			if variant.configRefused {
 				return errors.New("the daemon started with a config it must refuse under the root of " + variant.schema.Name)
 			}
+			if variant.stage1Refused {
+				return errors.New("the daemon accepted a Stage 1 declaration it must refuse for " + variant.schema.Name)
+			}
 			if variant.redeclares() && generation == 1 {
 				// Returning ends the process, and the daemon starts it again.
 				externalYANGSayGeneration(generation, "is exiting")
@@ -508,6 +526,12 @@ func externalYANGEnded(variant externalYANGVariant, generation int, runErr error
 	// externalYANGPlugin does: a transport the daemon closed after refusing
 	// any of them is this plugin's normal end.
 	if variant.refused() {
+		var line textbuf.Buffer
+		line.Str("FIXTURE: external-yang was refused: ").Err(runErr).Byte('\n')
+		line.StdErr() //nolint:errcheck // fixture progress output
+		return nil
+	}
+	if variant.stage1Refused {
 		var line textbuf.Buffer
 		line.Str("FIXTURE: external-yang was refused: ").Err(runErr).Byte('\n')
 		line.StdErr() //nolint:errcheck // fixture progress output
