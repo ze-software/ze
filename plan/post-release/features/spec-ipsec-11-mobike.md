@@ -11,7 +11,7 @@
 
 ## Release placement
 
-Owner ruling of 2026-11-23 ("we should move mobike to after the release"): moved from `plan/release/fixes/spec-ipsec-11-mobike.md` to `plan/post-release/features/spec-ipsec-11-mobike.md` at P3.
+Owner ruling of 2026-11-23 ("we should move mobike to after the release"): moved from `release/fixes` to `post-release/features` at P3.
 
 The native MOBIKE implementation and tests now exist in internal/component/ike/engine/mobike.go and its callers. The historical absence/design narrative does not authorize duplicate implementation. The recorded mobike-initiator interop failure (first recorded by spec-lab-docker-cleanup-on-macos, closed 2026-10-23) is owned by `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` AC-2; AC-12 here cites that run and carries no fix of its own for the red. No rerun is claimed here.
 
