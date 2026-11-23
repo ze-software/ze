@@ -91,12 +91,19 @@ whatever the span (`ai/META-DECISIONS.md`, "Reports and messages").
    report, and who asked. Each fact is `fragment` (a fragment carried it and
    it passed verification), `research` (no fragment carried it, so step 8
    found it), `failed` (a fragment carried it and the producer refuted it), or
-   `n/a` (the item has no such fact). Once the post is published (Phase 3),
-   append one table for this update to
-   `plan/records/weekly-fragment-measure.md`, in the shape that file sets,
-   headed by the update's `release-from`..`release-to` range whatever its
-   length. The table measures whether fragments carry the facts. It is never
-   published.
+   `n/a` (the item has no such fact). The weekly report's `fragment-measure`
+   section prints the table in the shape
+   `plan/records/weekly-fragment-measure.md` sets, headed by the update's
+   `release-from`..`release-to` range: one row per fragment the range adds,
+   each fact `fragment` where the fragment writes it and `none` where it
+   writes only `none`. Apply your marks to that table: name the published
+   item in Item, turn `fragment` into `failed` where verification refuted the
+   claim, turn `none` into `research` or `n/a`, drop the row of a fragment the
+   post does not publish, repeat a row for each further item one fragment
+   carries, and add one row per published item that had no fragment. A
+   failed `fragment-measure` section names the fragment that does not parse
+   at `release-to` and why, as `fix-fragments` does. The table measures whether fragments
+   carry the facts. It is never published.
 10. Complete the independent Milestones review in `website/AI.md`, `Update
     Report Checklist`, before showing the post for approval. Include any
     missed reports since the timeline's newest linked update. Keep the
@@ -206,12 +213,14 @@ break", "walked", "ledger" or "polarity".
 4. **Say why the two figures differ.** A MUST for a part of an RFC Ze does not
    build needs no test until that part is built. Say what is not built, never
    whether or when it will be.
-5. **Compare only like with like.** Before quoting a past figure, run the
-   weekly report over the earlier post's range and compare its endpoint
-   figure with the one that post printed. When they differ, the counting
-   changed. Give no comparison, no trend and no gain in points, and do not
-   mention the change unless its reason is known and can be said in one
-   plain sentence.
+5. **Compare only like with like.** Read `plan/records/rfc-counting-history.md`
+   first to see whether any compliance calculation rule changed during or since
+   the earlier post's range. Before quoting a past figure, run the weekly
+   report over the earlier post's range and compare its endpoint figure with
+   the one that post printed. When they differ, the counting changed: explain
+   the change in one plain sentence from `plan/records/rfc-counting-history.md`
+   after verifying it in code, or give no comparison, no trend and no gain in
+   points when no recorded reason explains it.
 6. Close with where the period's new tests came from, by RFC, and the
    compliance page link.
 
@@ -391,7 +400,7 @@ The posting tool refuses a post whose `covers:` range ends after today unless `f
 
 Never answer a partial send by running the command again without `resume-from`. The archive is written only after the last chunk lands, so nothing records the week as posted, and a fresh run sends every chunk that already arrived a second time.
 
-6. Append this update's measure table to `plan/records/weekly-fragment-measure.md` (Phase 1, step 9).
+6. Append this update's measure table to `plan/records/weekly-fragment-measure.md`: the weekly report's `fragment-measure` table with your verification marks applied and a row added for each published item that had no fragment (Phase 1, step 9).
 
 ## Phase 4: Update the website
 

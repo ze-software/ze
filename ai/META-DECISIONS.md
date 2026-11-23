@@ -657,6 +657,16 @@ publishes, or a screenshot, demo or video about Ze.
   today's figure alone and says nothing about the earlier one or about the
   counting, because an unexplained "the counting changed" reads as cooking
   the books.
+- The RFC compliance page explains how compliance is calculated in plain
+  language written for an engineer, not in internal tooling jargon: what each
+  headline figure counts, how fault-checked tests work, why default behavior
+  is judged separately from custom operator overrides, and how OS-provided
+  behavior, superseded RFCs, and non-applicable roles are handled.
+- Every change to how RFC compliance figures are calculated is recorded with
+  its date, before and after counts, and plain-English reason in
+  `plan/records/rfc-counting-history.md`, in a news fragment under
+  `website/changes/fragments/`, and in the public Counting history note, so
+  subsequent update reports can explain why figures moved.
 - In blog articles, everything before the AI authorship disclaimer is a brief
   teaser. The developed argument, substantial background and technical
   explanations follow the disclaimer. The deck also leaves the explanation
@@ -756,12 +766,32 @@ OSPF, or any other protocol).
   operator control. RFC compliance is assessed on the default configuration
   path. Explicit configuration options that provide more specific behavior or
   extensions remain supported; their existence does not make the default path
-  fail compliance. RFC work does not remove existing features to improve a
+  fail compliance. An operator's ability to configure custom policy, raw
+  octets, or explicit overrides in a way that violates an RFC is not a failure
+  of Ze and never turns a compliant default path into a gap or partial
+  requirement. RFC work does not remove existing features to improve a
   conformance figure. Specs name the default configuration being assessed, the
   options to preserve, and tests for both. Claims and evidence identify the
   configuration they cover; an explicitly selected extension is not presented
   as RFC behavior when it differs from the RFC. BGP router-ID overrides for
   peers and groups, and router-ID changes on reload, are features to preserve.
+- A requirement of an obsoleted RFC whose `{superseded}` marker points to a
+  proven requirement in its successor (`restated`), or that an implemented
+  successor dropped (`dropped`), counts as validated and complete rather than
+  as an open gap, including when Ze implements the newer protocol version in
+  place of the obsoleted one (such as RFC 8210 RTR v1 superseding RFC 6810
+  RTR v0). When its successor row is excluded as not applicable or declined
+  with checked evidence, it leaves Ze's owed count the same way.
+- A requirement that binds only a human operator's configuration choices,
+  operational procedures, or network topology (which software cannot observe
+  or verify), or that binds IANA registries, IETF allocation processes, or the
+  author of a future RFC or specification, does not bind Ze and is excluded as
+  `{not-applicable}` rather than recorded as a `{gap}`.
+- When an RFC section heading or scoping sentence scopes a section to a role
+  Ze does not fill, rows under that section may be excluded as
+  `{not-applicable}` by naming that scoping heading or sentence and the bound
+  role, even when an individual obligation sentence uses passive voice, a
+  comma, or an adjectival keyword.
 - BGP's RFC state machine describes expected behaviour; it does not prescribe
   the implementation's structure. Implement and assess the required externally
   visible behaviour using RFC 4271 together with applicable updates and errata,
