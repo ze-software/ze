@@ -53,7 +53,7 @@ type classDate struct {
 type Base struct {
 	Files   map[string]string
 	Removed map[string]bool
-	source *revisionSource
+	source  *revisionSource
 }
 
 // read answers every path's content in the base, reading in one git process

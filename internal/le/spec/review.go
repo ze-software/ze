@@ -24,13 +24,14 @@ import (
 
 const (
 	reviewDir           = "tmp/review"
+	reviewDeletedHash   = "DELETED"
 	reviewRoundCap      = 5
 	reviewOwnerRoundCap = 5
 )
 
 var (
 	reviewHeaderPattern = regexp.MustCompile(`<!--\s*ze-review\s+spec=(\S+)\s+verdict=(\S+).*?-->`)
-	reviewFilePattern   = regexp.MustCompile(`^  ([0-9a-f]{64}|DELETED)  (100644|100755|120000|0)  (.+)$`)
+	reviewFilePattern   = regexp.MustCompile(`^ {2}([0-9a-f]{64}|DELETED) {2}(100644|100755|120000|0) {2}(.+)$`)
 )
 
 // reviewCodeSuffixes is the one list of what a review pins, read only through
@@ -311,7 +312,7 @@ func CheckReview(root, spec, sessionID string, files []string) (ReviewCheck, err
 // recordedFile pins exactly one declared source, including its Git mode.
 func recordedFile(root, head, path string, selected, blobs map[string]string, removed map[string]bool, modes map[string]string) (ReviewedFile, error) {
 	if removed[path] {
-		return ReviewedFile{Path: path, Hash: "DELETED", Mode: "0"}, nil
+		return ReviewedFile{Path: path, Hash: reviewDeletedHash, Mode: "0"}, nil
 	}
 	pin := ReviewedFile{Path: path}
 	if patch, found := selected[path]; found {
@@ -348,7 +349,7 @@ func recordedFile(root, head, path string, selected, blobs map[string]string, re
 		}
 	}
 	if mode, found := modes[path]; found {
-		if pin.Hash == "DELETED" {
+		if pin.Hash == reviewDeletedHash {
 			return pin, fmt.Errorf("review_gate: removed path %s cannot carry a file mode", path)
 		}
 		pin.Mode = mode
@@ -362,7 +363,7 @@ func ReviewFile(root, path string) (ReviewedFile, error) {
 	name := reviewInputPath(root, path)
 	info, err := os.Lstat(name)
 	if errors.Is(err, os.ErrNotExist) {
-		pin.Hash, pin.Mode = "DELETED", "0"
+		pin.Hash, pin.Mode = reviewDeletedHash, "0"
 		return pin, nil
 	}
 	if err != nil {
@@ -373,20 +374,20 @@ func ReviewFile(root, path string) (ReviewedFile, error) {
 		pin.Mode = "100755"
 	}
 	var body []byte
-	if info.Mode()&os.ModeSymlink != 0 {
+	if info.Mode()&os.ModeSymlink == 0 {
+		if !info.Mode().IsRegular() {
+			return pin, fmt.Errorf("review_gate: %s is not a regular file or symbolic link", path)
+		}
+		body, err = os.ReadFile(name) //nolint:gosec // name is a developer-supplied or recorded review path resolved by reviewInputPath and verified regular by Lstat
+		if err != nil {
+			return pin, err
+		}
+	} else {
 		target, err := os.Readlink(name)
 		if err != nil {
 			return pin, err
 		}
 		pin.Mode, body = "120000", []byte(target)
-	} else {
-		if !info.Mode().IsRegular() {
-			return pin, fmt.Errorf("review_gate: %s is not a regular file or symbolic link", path)
-		}
-		body, err = os.ReadFile(name)
-		if err != nil {
-			return pin, err
-		}
 	}
 	sum := sha256.Sum256(body)
 	pin.Hash = hex.EncodeToString(sum[:])

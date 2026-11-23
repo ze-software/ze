@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	defaultWIPCap = 12
-	wipCapKey     = "ze.spec.wip.cap"
+	defaultWIPCap    = 12
+	wipCapKey        = "ze.spec.wip.cap"
+	statusInProgress = "in-progress"
 )
 
 var wipCapEntry = env.MustRegister(env.EnvEntry{
@@ -180,7 +181,7 @@ func (o specOwner) Claim(spec string) (ClaimReport, error) {
 			return err
 		}
 		report.Transitioned = true
-		report.Status = "in-progress"
+		report.Status = statusInProgress
 		report.InProgress++
 		return nil
 	})
@@ -279,7 +280,7 @@ func CheckWIPTransition(file, current, proposed string) error {
 	if err != nil {
 		return fmt.Errorf("proposed spec metadata cannot admit this edit: %w", err)
 	}
-	if status != "in-progress" {
+	if status != statusInProgress {
 		return nil
 	}
 	before := ""
@@ -289,7 +290,7 @@ func CheckWIPTransition(file, current, proposed string) error {
 			return fmt.Errorf("current spec metadata cannot establish an active state: %w; repair the metadata before claiming new WIP", err)
 		}
 	}
-	if before == "in-progress" {
+	if before == statusInProgress {
 		return nil
 	}
 	return fmt.Errorf("WIP admission must use ./le spec claim %s, which checks the cap and publishes under the claim lock; mark the spec ready first if needed. A direct edit cannot reserve a WIP slot", filepath.Base(file))
@@ -310,7 +311,7 @@ func wip(root string, cap int) (wipReport, error) {
 			return wipReport{}, err
 		}
 		rows := specMetadataRows(string(body))
-		if strings.ToLower(specMetadataField(rows, "Status")) != "in-progress" {
+		if strings.ToLower(specMetadataField(rows, "Status")) != statusInProgress {
 			continue
 		}
 		report.Specs = append(report.Specs, WIPSpec{Spec: relative, Updated: specMetadataField(rows, "Updated")})

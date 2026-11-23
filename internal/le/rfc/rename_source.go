@@ -40,7 +40,7 @@ func readRenameSource(tree, rel string) (renameSource, error) {
 	if !info.Mode().IsRegular() {
 		return renameSource{}, errors.New(rel + ": source is not a regular file; leave it in place and select the tagged source file")
 	}
-	body, err := os.ReadFile(path)
+	body, err := os.ReadFile(path) //nolint:gosec // path is a cleanRepoPath source under the checkout root, verified regular by Lstat
 	if err != nil {
 		return renameSource{}, err
 	}
@@ -119,7 +119,7 @@ func renameSourceCurrent(tree string, source renameSource) error {
 	if info.Mode() != source.identity.Mode() {
 		return errors.New(problem)
 	}
-	body, err := os.ReadFile(path)
+	body, err := os.ReadFile(path) //nolint:gosec // path is the previously validated cleanRepoPath source under the checkout root, verified by Lstat and SameFile
 	if err != nil {
 		return errors.New(problem)
 	}
