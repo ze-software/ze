@@ -8,9 +8,9 @@
 | Release reason | The release check runs the full `./le go lint run`, and a red there holds the release (`ai/META-DECISIONS.md`, "A red prevents a release, never a commit"); it reports 220 findings today |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | Closed: all 9 children closed; AC-2 overridden by owner on 2026-11-23 |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-23 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -186,7 +186,24 @@ scoped run before it starts, because other sessions edit these files.
 ## Checklist
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
-- [ ] Each child's scoped `./le go lint run scope "<packages>"` reports zero and its package tests pass, the scoped subset of its `./le test unit` group. Cite CI's full run for AC-2.
+- [x] Each child's scoped `./le go lint run scope "<packages>"` reports zero and its package tests pass, the scoped subset of its `./le test unit` group. AC-2 overridden by owner on 2026-11-23.
+
+## Implementation Audit
+
+| AC ID | Status | Evidence |
+|-------|--------|----------|
+| AC-1 | Met | All nine child specs (`spec-lint-backlog-1-bgp-engine` through `spec-lint-backlog-9-config-and-forwarding`) are closed in `HEAD`, ending with `spec-lint-backlog-3-test-tooling` (`75410f01d1`, 0 committed findings across all 8 build flavors in `5140e76eca` and `76e5705254`). |
+| AC-2 | Overridden by owner (2026-11-23) | Owner instruction on 2026-11-23: "I'm overriding AC2. You can close the spec fully." GitHub CI `verify` run `45267097074` on `75410f01d1` was launched and remained in progress at closure. |
+
+## Goal Validation
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Clear the 220 listed lint findings across all nine subsystem children | Closed child specs | All 9 children closed in `HEAD` (last: `75410f01d1`). |
+| Full CI `./le go lint run` zero findings | Owner override | AC-2 waived by owner on 2026-11-23 ("I'm overriding AC2. You can close the spec fully."); `verify` run `45267097074` running on `75410f01d1`. |
+
+## Work Not Done
+
+| What was not done | Why | Disposition |
+|-------------------|-----|-------------|
+| Waiting for CI `verify` run `45267097074` to finish and citing its full `./le go lint run` result (AC-2, A-1, A-2) | Owner explicitly overrode AC-2 on 2026-11-23 ("I'm overriding AC2. You can close the spec fully.") | Waived by owner; CI `verify` run `45267097074` continues asynchronously on `origin/main` |
