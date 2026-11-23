@@ -54,7 +54,8 @@ func dryRunMissingPeer(owner uint64) error {
 // dryRunFinalAccepts uses the same policy methods as the live import/export
 // steps. An empty chain and withdrawal preservation MUST use this same run's
 // session; neither may infer local authority from absent source facts.
-func dryRunFinalAccepts(policy filterapi.Policy, session policyview.Session) bool {
+// session MUST NOT be nil.
+func dryRunFinalAccepts(policy filterapi.Policy, session *policyview.Session) bool {
 	if session.IsExport() {
 		return policy.AcceptsExportAtEnd(session.EBGP, session.ExportKind())
 	}

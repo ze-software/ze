@@ -104,8 +104,9 @@ func (r *Reactor) exportFilterFromFacts(peer *Peer, facts *peerForwardFacts, pen
 		var update wireu.WireUpdate
 		wireu.InitWireUpdate(&update, body, facts.sendCtxID)
 		// An originated, injected or redistributed route has no source peer.
+		session := policyview.ExportSession(facts.filterInfo, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 		res := r.runEgressPolicyChainASN4(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
-			policyview.ExportSession(facts.filterInfo, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit), &update, facts.sendASN4)
+			&session, &update, facts.sendASN4)
 		if res.withdraw {
 			return egressInjectedWithdrawal(body, facts)
 		}

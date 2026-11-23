@@ -173,7 +173,8 @@ func (r *Reactor) runIngressPolicyChainMeta(peer *Peer, peerAddr netip.Addr, src
 		}
 		srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 		intent := libraryIntentContext{asn4: srcCtx != nil && srcCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: true}
-		res := r.runLibraryChain(library, wireUpdate, payload, importSession(src, external, peerAS).WithImportMetadata(*meta), intent,
+		session := importSession(src, external, peerAS).WithImportMetadata(*meta)
+		res := r.runLibraryChain(library, wireUpdate, payload, &session, intent,
 			directionImport, modifySiteImportChain, peerAddr.String(), nil)
 		if res.outcome.Teardown {
 			return ingressStepResult{teardown: true, notifyCode: res.outcome.NotifyCode, notifySubcode: res.outcome.NotifySubcode}
@@ -228,7 +229,8 @@ func importSession(src *filterapi.PeerFilterInfo, external bool, peerAS uint32) 
 // Teardown is import-only and never fires on export. Unlike ingress, this reads the
 // original payload: the forward rail's own edits go into the shared
 // ModAccumulator, so the payload is never rewritten in the egress pass.
-func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, session policyview.Session, wireUpdate *wireu.WireUpdate) egressStepResult {
+// session MUST NOT be nil, as on runEgressPolicyChainASN4.
+func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, session *policyview.Session, wireUpdate *wireu.WireUpdate) egressStepResult {
 	if !hasActiveFilter(exportPolicy, directionExport) {
 		// RFC 8212 Section 3: classify the destination, not the source encoding.
 		return egressStepResult{accept: exportPolicy.AcceptsExportAtEnd(!destInternal, session.ExportKind())}
@@ -264,8 +266,8 @@ func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrSt
 //
 // session carries the destination's facts and, on a forwarded route, the
 // source's (policyview.ExportSession), which the chain's session fact fields
-// read.
-func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, session policyview.Session, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
+// read. It MUST NOT be nil, and the pointer is not kept past the call.
+func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, session *policyview.Session, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
 	if !session.ExportKind().Known() {
 		return egressStepResult{}
 	}

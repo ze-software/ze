@@ -504,8 +504,9 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 			r.emitPrePolicyAdjRIBOut(peer, facts, wire.Payload(), wire.SourceCtxID(), prePolicyNextHopUnknownForFacts(facts))
 		}
 		if facts.exportChainActive && !mods.IsWithdraw() {
+			chainSession := policyview.ExportSession(facts.filterInfo, srcFilter, srcKnown, filterapi.ExportExplicit).WithExportMetadata(update.Meta)
 			res := r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
-				policyview.ExportSession(facts.filterInfo, srcFilter, srcKnown, filterapi.ExportExplicit).WithExportMetadata(update.Meta), wire)
+				&chainSession, wire)
 			if res.accept {
 				treatments = res.treatments
 				policyRemovals = res.removals

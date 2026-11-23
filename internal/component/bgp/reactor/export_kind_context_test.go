@@ -16,10 +16,10 @@ import (
 
 // explicitExportTestSession supplies the legacy fixtures' explicit output
 // context without inventing peer/source facts their old bare Session lacked.
-func explicitExportTestSession(external bool) policyview.Session {
+func explicitExportTestSession(external bool) *policyview.Session {
 	session := policyview.ExportSession(filterapi.PeerFilterInfo{IsIBGP: !external}, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 	session.PeerKnown = false
-	return session
+	return &session
 }
 
 // TestEgressPolicyFinalReadsRouteKind proves both shared egress entry points
@@ -33,9 +33,9 @@ func TestEgressPolicyFinalReadsRouteKind(t *testing.T) {
 				wire := testWireUpdate([]byte{0, 0, 0, 0})
 				var result egressStepResult
 				if direct {
-					result = r.runEgressPolicyChainASN4(filterapi.Policy{}, "192.0.2.231", 65000, 65000, internal, session, wire, true)
+					result = r.runEgressPolicyChainASN4(filterapi.Policy{}, "192.0.2.231", 65000, 65000, internal, &session, wire, true)
 				} else {
-					result = r.runEgressPolicyChain(filterapi.Policy{}, "192.0.2.231", 65000, 65000, internal, session, wire)
+					result = r.runEgressPolicyChain(filterapi.Policy{}, "192.0.2.231", 65000, 65000, internal, &session, wire)
 				}
 				require.Equal(t, internal && kind == filterapi.ExportExplicit, result.accept, "direct=%v internal=%v kind=%d", direct, internal, kind)
 				require.False(t, result.failed)

@@ -14,22 +14,22 @@
     "rid": "RFC8893-1-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy",
-    "unit-sha": "dc767485cf4cbbd3",
+    "unit-sha": "1a9d5b7674c246db",
     "claim-sha": "420d9024aec1753a",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_library.go::Reactor.runPostEgressRPKIValidation",
-    "producer-sha": "a7021398732695df",
+    "producer-sha": "025b1e49de668541",
     "break": "body of Reactor.runPostEgressRPKIValidation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8893-1-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy",
-    "unit-sha": "f3a62a7aaac3991f",
+    "unit-sha": "2b00dfeca86ad50b",
     "claim-sha": "07e7a2a367d77324",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_library.go::Reactor.runPostEgressRPKIValidation",
-    "producer-sha": "a7021398732695df",
+    "producer-sha": "025b1e49de668541",
     "break": "body of Reactor.runPostEgressRPKIValidation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

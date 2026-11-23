@@ -89,10 +89,10 @@ func installRFC8893Validator(t *testing.T, vrps []rfc8893VRP) *[]struct {
 
 // compileRFC8893ExportChain builds a real BGP export policychain.Chain against
 // the real "bgp export" attachment from policy registry instances and optional
-// external members.
-func compileRFC8893ExportChain(t *testing.T, reg *policy.Registry, members []policychain.Member, final policy.Final) filterapi.Policy {
+// external members. The chain's final action is accept.
+func compileRFC8893ExportChain(t *testing.T, reg *policy.Registry, members []policychain.Member) filterapi.Policy {
 	t.Helper()
-	chain, err := policychain.Compile(rfc8893ExportAttachment, reg, members, final, policychain.Bases{})
+	chain, err := policychain.Compile(rfc8893ExportAttachment, reg, members, policy.FinalAccept, policychain.Bases{})
 	require.NoError(t, err)
 	refs := make([]policy.Ref, len(members))
 	for i, m := range members {
@@ -102,7 +102,7 @@ func compileRFC8893ExportChain(t *testing.T, reg *policy.Registry, members []pol
 		}
 		refs[i] = policy.Ref{Name: name}
 	}
-	return mustPolicy(t, refs, final).WithLibrary(chain)
+	return mustPolicy(t, refs, policy.FinalAccept).WithLibrary(chain)
 }
 
 func rfc8893IPv4Update(t *testing.T, asPath []byte, nlri ...[]byte) (*wireu.WireUpdate, bgpctx.ContextID) {
@@ -181,14 +181,14 @@ func TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy(t *testing.T) 
 		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{
 			{Name: "drop-invalid"},
 			{Plugin: "probe", Name: "f"},
-		}, policy.FinalAccept)
+		})
 
 		// Public AS 3356 + private AS 65500: remove-private-as strips 65500 leaving [3356] (Valid).
 		wu, _ := rfc8893IPv4Update(t, asSequence4(3356, 65500), []byte{24, 198, 51, 100})
 		dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}).SessionFacts(65002)
 		session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 
-		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, session, wu, true)
+		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &session, wu, true)
 		require.True(t, res.accept, "route whose private origin 65500 is stripped to authorized 3356 must be accepted")
 		require.NotNil(t, res.wireOverride, "remove-private-as rewrite must be preserved in wireOverride")
 		u, err := message.UnpackUpdate(res.wireOverride.Payload())
@@ -208,7 +208,7 @@ func TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy(t *testing.T) 
 		peer.settings.PeerAS = 65002
 		peer.settings.ASOverride = true
 		peer.settings.NextHopMode = NextHopUnchanged
-		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "drop-invalid"}}, policy.FinalAccept)
+		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "drop-invalid"}})
 		peer.refreshForwardFacts()
 
 		// Received origin AS is 65002 (Invalid for 203.0.113.0/24), but as-override
@@ -228,14 +228,14 @@ func TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy(t *testing.T) 
 
 	t.Run("multi-prefix UPDATE drops only Invalid prefix after egress policy", func(t *testing.T) {
 		r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
-		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "drop-invalid"}}, policy.FinalAccept)
+		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "drop-invalid"}})
 
 		// 198.51.100.0/24 is Valid for AS 3356; 192.0.2.0/24 is Invalid for AS 3356 (VRP is 64496).
 		wu, _ := rfc8893IPv4Update(t, asSequence4(3356), []byte{24, 198, 51, 100}, []byte{24, 192, 0, 2})
 		dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}).SessionFacts(65002)
 		session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 
-		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, session, wu, true)
+		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &session, wu, true)
 		require.True(t, res.accept)
 		require.NotNil(t, res.wireOverride)
 		u, err := message.UnpackUpdate(res.wireOverride.Payload())
@@ -248,7 +248,7 @@ func TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy(t *testing.T) 
 		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{
 			{Name: "drop-invalid"},
 			{Plugin: "probe", Name: "f"},
-		}, policy.FinalAccept)
+		})
 		wu, ctxID := rfc8893IPv4Update(t, asSequence4(3356, 65500), []byte{24, 198, 51, 100})
 		dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}).SessionFacts(65002)
 
@@ -264,7 +264,7 @@ func TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy(t *testing.T) 
 		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{
 			{Name: "drop-invalid"},
 			{Plugin: "probe", Name: "f"},
-		}, policy.FinalAccept)
+		})
 		wu, ctxID := rfc8893IPv4Update(t, asSequence4(3356, 65500), []byte{24, 198, 51, 100})
 		dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}).SessionFacts(65002)
 		before, err := displayUpdate(wu)
@@ -333,7 +333,7 @@ func TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy(t 
 		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{
 			{Name: "drop-invalid"},
 			{Plugin: "probe", Name: "f"},
-		}, policy.FinalAccept)
+		})
 
 		// Pre-egress origin 65500 is Valid, but after stripping 65500 the
 		// effective origin is public AS 64497 which is Invalid.
@@ -341,7 +341,7 @@ func TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy(t 
 		dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}).SessionFacts(65002)
 		session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 
-		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, session, wu, true)
+		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &session, wu, true)
 		require.False(t, res.accept, "route whose post-policy origin AS 64497 is Invalid must be rejected")
 	})
 
@@ -353,7 +353,7 @@ func TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy(t 
 		peer.settings.PeerAS = 65002
 		peer.settings.ASOverride = true
 		peer.settings.NextHopMode = NextHopUnchanged
-		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "drop-invalid"}}, policy.FinalAccept)
+		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "drop-invalid"}})
 		peer.refreshForwardFacts()
 
 		// Pre-egress origin 65002 is Valid, but as-override rewrites it to 65000 (Invalid).
@@ -371,7 +371,7 @@ func TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy(t 
 
 	t.Run("AS_SET trailing segment yields OriginNone and Invalid under covering VRP", func(t *testing.T) {
 		r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
-		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "drop-invalid"}}, policy.FinalAccept)
+		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "drop-invalid"}})
 
 		// AS_SET {65002} is OriginNone per RFC 6811 Section 2, so Invalid when covered.
 		asSet := []byte{byte(attribute.ASSet), 1, 0, 0, 0xFD, 0xEA}
@@ -379,7 +379,7 @@ func TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy(t 
 		dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65003}).SessionFacts(65003)
 		session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 
-		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65003, 65000, false, session, wu, true)
+		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65003, 65000, false, &session, wu, true)
 		require.False(t, res.accept, "AS_SET origin NONE covered by VRP must be rejected as Invalid")
 	})
 
@@ -388,7 +388,7 @@ func TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy(t 
 		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{
 			{Name: "drop-invalid"},
 			{Plugin: "probe", Name: "f"},
-		}, policy.FinalAccept)
+		})
 		wu, ctxID := rfc8893IPv4Update(t, asSequence4(64497, 65500), []byte{24, 198, 51, 100})
 		dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}).SessionFacts(65002)
 
@@ -402,7 +402,7 @@ func TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy(t 
 		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{
 			{Name: "drop-invalid"},
 			{Plugin: "probe", Name: "f"},
-		}, policy.FinalAccept)
+		})
 		wu, ctxID := rfc8893IPv4Update(t, asSequence4(64497, 65500), []byte{24, 198, 51, 100})
 		dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}).SessionFacts(65002)
 		before, err := displayUpdate(wu)
@@ -450,14 +450,14 @@ func TestRFC8893ASPathModificationsChangingEffectiveOriginAS(t *testing.T) {
 		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{
 			{Plugin: "probe", Name: "f"},
 			{Name: "only-valid"},
-		}, policy.FinalAccept)
+		})
 
 		// AS_PATH=[65500] -> stripped to [] -> eBGP prepends LocalAS 65000 -> Valid for 198.51.100.0/24.
 		wu, _ := rfc8893IPv4Update(t, asSequence4(65500), []byte{24, 198, 51, 100})
 		dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}).SessionFacts(65002)
 		session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 
-		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, session, wu, true)
+		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &session, wu, true)
 		require.True(t, res.accept)
 	})
 
@@ -467,14 +467,14 @@ func TestRFC8893ASPathModificationsChangingEffectiveOriginAS(t *testing.T) {
 		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{
 			{Plugin: "probe", Name: "f"},
 			{Name: "only-valid"},
-		}, policy.FinalAccept)
+		})
 
 		// AS_PATH=[3356, 65500] -> private 65500 replaced with PeerAS 65002 -> Valid for 198.18.0.0/24.
 		wu, _ := rfc8893IPv4Update(t, asSequence4(3356, 65500), []byte{24, 198, 18, 0})
 		dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}).SessionFacts(65002)
 		session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 
-		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, session, wu, true)
+		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &session, wu, true)
 		require.True(t, res.accept)
 	})
 
@@ -486,7 +486,7 @@ func TestRFC8893ASPathModificationsChangingEffectiveOriginAS(t *testing.T) {
 		peer.settings.PeerAS = 65002
 		peer.settings.ASOverride = true
 		peer.settings.NextHopMode = NextHopUnchanged
-		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}}, policy.FinalAccept)
+		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
 		peer.refreshForwardFacts()
 
 		// Received AS_PATH=[65001, 65002] (unauthorized 65002 for 198.51.100.0/24);
@@ -506,7 +506,7 @@ func TestRFC8893ASPathModificationsChangingEffectiveOriginAS(t *testing.T) {
 
 	t.Run("RFC 7705 migration SecondaryAS is innermost effective origin on empty AS_PATH", func(t *testing.T) {
 		r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
-		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}}, policy.FinalAccept)
+		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
 
 		// Empty AS_PATH with LocalAS=65200, GlobalLocalAS=65100 -> SecondaryAS=65100 -> announced [65200, 65100] -> Valid.
 		wu, _ := rfc8893IPv4Update(t, nil, []byte{24, 203, 0, 113})
@@ -515,7 +515,7 @@ func TestRFC8893ASPathModificationsChangingEffectiveOriginAS(t *testing.T) {
 		}).SessionFacts(65002)
 		session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 
-		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65200, false, session, wu, true)
+		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65200, false, &session, wu, true)
 		require.True(t, res.accept)
 	})
 
@@ -533,14 +533,14 @@ func TestRFC8893ASPathModificationsChangingEffectiveOriginAS(t *testing.T) {
 		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{
 			{Plugin: "probe", Name: "f"},
 			{Name: "only-valid"},
-		}, policy.FinalAccept)
+		})
 
 		// Input has unauthorized AS 65099; external filter rewrites AS_PATH to [65001] (Valid).
 		wu, _ := rfc8893IPv4Update(t, asSequence4(65099), []byte{24, 192, 0, 2})
 		dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}).SessionFacts(65002)
 		session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 
-		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, session, wu, true)
+		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &session, wu, true)
 		require.True(t, res.accept)
 	})
 }
@@ -571,7 +571,7 @@ func TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected(t *testing.T) {
 		peer.settings.PeerAS = 65002
 		peer.settings.ASOverride = true
 		peer.settings.NextHopMode = NextHopUnchanged
-		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}}, policy.FinalAccept)
+		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
 		peer.refreshForwardFacts()
 
 		// VRP authorizes 65002, NOT 65000; as-override rewrites 65002 -> 65000 (Invalid -> rejected).
@@ -589,7 +589,7 @@ func TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected(t *testing.T) {
 
 	t.Run("RFC 7705 SecondaryAS overrides LocalAS as origin so unauthorized SecondaryAS rejects", func(t *testing.T) {
 		r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
-		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}}, policy.FinalAccept)
+		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
 
 		// VRP authorizes LocalAS 65200, NOT SecondaryAS 65100; announced path is
 		// [65200, 65100], so effective origin is 65100 (Invalid -> rejected).
@@ -599,13 +599,13 @@ func TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected(t *testing.T) {
 		}).SessionFacts(65002)
 		session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 
-		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65200, false, session, wu, true)
+		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65200, false, &session, wu, true)
 		require.False(t, res.accept)
 	})
 
 	t.Run("as-override affecting only transit AS leaves Valid rightmost origin unchanged", func(t *testing.T) {
 		r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
-		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}}, policy.FinalAccept)
+		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
 
 		// AS_PATH=[65002, 65001] with PeerAS=65002, LocalAS=65000, as-override=true
 		// announces [65000, 65000, 65001]: rightmost origin is still 65001 (Valid).
@@ -615,7 +615,7 @@ func TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected(t *testing.T) {
 		}).SessionFacts(65002)
 		session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 
-		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, session, wu, true)
+		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &session, wu, true)
 		require.True(t, res.accept)
 	})
 }
@@ -682,12 +682,12 @@ func TestRFC8893SamePolicyPrimitiveAcrossIngressRedistributionAndEgress(t *testi
 	require.True(t, rejInvalid, "redistribution must reject Invalid")
 
 	// 3. BGP Egress (real "bgp export" attachment)
-	expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "drop-invalid"}}, policy.FinalAccept)
+	expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "drop-invalid"}})
 	dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}).SessionFacts(65002)
 	expSession := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
-	require.True(t, r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, expSession, validWU, true).accept, "egress must accept Valid")
-	require.True(t, r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, expSession, notFoundWU, true).accept, "egress must accept NotFound")
-	require.False(t, r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, expSession, invalidWU, true).accept, "egress must reject Invalid")
+	require.True(t, r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &expSession, validWU, true).accept, "egress must accept Valid")
+	require.True(t, r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &expSession, notFoundWU, true).accept, "egress must accept NotFound")
+	require.False(t, r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &expSession, invalidWU, true).accept, "egress must reject Invalid")
 }
 
 // RFC requirement: RFC8893-3-1 negative -- the shared rpki-validation-state
@@ -748,10 +748,10 @@ func TestRFC8893ValidationStatePrimitiveRefusesInvalidConfigAndInactiveValidator
 	require.True(t, rej, "without an active validator, route/redistribution match requiring valid must reject")
 
 	// BGP Egress
-	expPol := compileRFC8893ExportChain(t, regValid, []policychain.Member{{Name: "only-valid"}}, policy.FinalAccept)
+	expPol := compileRFC8893ExportChain(t, regValid, []policychain.Member{{Name: "only-valid"}})
 	dest := (&PeerSettings{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}).SessionFacts(65002)
 	session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
-	require.False(t, r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, session, wu, true).accept,
+	require.False(t, r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &session, wu, true).accept,
 		"without an active validator, egress match requiring valid must reject")
 }
 
@@ -783,7 +783,7 @@ func TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS(t *testing.T) {
 		peer.settings.PeerAS = 65002
 		peer.settings.ASOverride = true
 		peer.settings.NextHopMode = NextHopUnchanged
-		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}}, policy.FinalAccept)
+		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
 		peer.refreshForwardFacts()
 
 		// Received AS_PATH=[65001, 65002]; as-override + eBGP prepend announces
@@ -817,7 +817,7 @@ func TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS(t *testing.T) {
 
 	t.Run("2-octet destination body reconstructs 4-octet effective origin from AS4_PATH", func(t *testing.T) {
 		r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
-		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}}, policy.FinalAccept)
+		expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
 
 		ctx2 := bgpctx.EncodingContextForASN4(false)
 		ctx2ID, err := bgpctx.Registry.Register(ctx2)
@@ -835,7 +835,7 @@ func TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS(t *testing.T) {
 		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}
 		session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 
-		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, session, wu, false)
+		res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &session, wu, false)
 		require.True(t, res.accept, "4-octet origin 4200000100 reconstructed from AS4_PATH must validate as Valid")
 		lastQ := (*queries)[len(*queries)-1]
 		require.Equal(t, uint32(4200000100), lastQ.originAS)
@@ -865,7 +865,7 @@ func TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS(t *testing.T) {
 	peer.settings.PeerAS = 65002
 	peer.settings.ASOverride = true
 	peer.settings.NextHopMode = NextHopUnchanged
-	peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}}, policy.FinalAccept)
+	peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
 	peer.refreshForwardFacts()
 
 	attrs := makeAttr(0x40, byte(attribute.AttrOrigin), []byte{0})
@@ -889,7 +889,7 @@ func TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS(t *testing.T) {
 
 	// Withdrawal-only UPDATE must still pass through egress RPKI policy unblocked.
 	r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
-	expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}}, policy.FinalAccept)
+	expPol := compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
 	ctx := bgpctx.NewEncodingContext(
 		&capability.PeerIdentity{LocalASN: 65000, PeerASN: 65002},
 		&capability.EncodingCaps{ASN4: true},
@@ -901,6 +901,6 @@ func TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS(t *testing.T) {
 	withdrawWU := wireu.NewWireUpdate(withdrawBody, ctxID)
 	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), LocalAS: 65000, PeerAS: 65002}
 	session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
-	res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, session, withdrawWU, true)
+	res := r.runEgressPolicyChainASN4(expPol, "10.0.0.2", 65002, 65000, false, &session, withdrawWU, true)
 	require.True(t, res.accept, "route withdrawals must not be blocked by egress RPKI validation")
 }

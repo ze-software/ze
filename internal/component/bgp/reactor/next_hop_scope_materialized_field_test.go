@@ -226,8 +226,9 @@ func nextHopScopeBase(t *testing.T, f *aigpReplayFixture, rd bool, body []byte, 
 	}
 	facts := f.destination.forwardFacts()
 	require.NotNil(t, facts)
+	session := policyview.ExportSession(facts.filterInfo, f.source.forwardFacts().filterInfo, true, filterapi.ExportExplicit)
 	res := f.r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
-		policyview.ExportSession(facts.filterInfo, f.source.forwardFacts().filterInfo, true, filterapi.ExportExplicit), cached.WireUpdate)
+		&session, cached.WireUpdate)
 	require.True(t, res.accept)
 	require.False(t, res.failed)
 	require.False(t, res.withdraw)

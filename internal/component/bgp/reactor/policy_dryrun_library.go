@@ -54,7 +54,7 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry *library
 	rpkiExport := dry.direction == directionExport && r.holdsRPKIValidation(library)
 	firstIntent := dry.intent
 	firstIntent.skipRPKIValidation = rpkiExport
-	res := r.runLibraryChain(library, dry.wireUpdate, dry.payload, dry.session, firstIntent,
+	res := r.runLibraryChain(library, dry.wireUpdate, dry.payload, &dry.session, firstIntent,
 		dry.direction, "", dry.peer, record)
 	if dry.direction == directionExport && res.rewrote() {
 		// A member of the pass over the rewritten body is shown over that body.
@@ -66,7 +66,7 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry *library
 			textBefore = shown.text()
 		}
 		// RFC 9494 Section 4.3
-		res = r.runFinalJudges(library, res, dry.payload, dry.ctxID, dry.session, dry.intent, "", dry.peer, record)
+		res = r.runFinalJudges(library, res, dry.payload, dry.ctxID, &dry.session, dry.intent, "", dry.peer, record)
 	}
 	if rpkiExport {
 		if res.rewrote() {
@@ -80,7 +80,7 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry *library
 		}
 		// RFC 8893 Section 1: post-egress RPKI validation runs after non-validating
 		// egress policy and final judges in dry-run just as on the live path.
-		res = r.runPostEgressRPKIValidation(library, res, dry.payload, dry.ctxID, dry.session, dry.intent, "", dry.peer, record)
+		res = r.runPostEgressRPKIValidation(library, res, dry.payload, dry.ctxID, &dry.session, dry.intent, "", dry.peer, record)
 	}
 	outcome := res.outcome
 	if outcome.Action == policychain.OutcomeWithdraw {

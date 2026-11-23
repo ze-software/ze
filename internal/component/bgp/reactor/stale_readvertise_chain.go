@@ -165,7 +165,7 @@ func (r *Reactor) runStaleChain(chain staleChain, dest filterapi.PeerFilterInfo,
 	run := func(payload []byte) libraryResult {
 		var update wireu.WireUpdate
 		wireu.InitWireUpdate(&update, payload, chain.ctxID)
-		return r.runLibraryChain(library, &update, payload, session, intent,
+		return r.runLibraryChain(library, &update, payload, &session, intent,
 			directionExport, modifySiteStaleReadvertise, address, nil)
 	}
 
@@ -199,13 +199,13 @@ func (r *Reactor) runStaleChain(chain staleChain, dest filterapi.PeerFilterInfo,
 		// change every member that declares judges-final.
 		intent.readvertise = !chain.judgeAll
 		// RFC 9494 Section 4.3
-		res = r.runFinalJudges(library, res, body, chain.ctxID, session, intent,
+		res = r.runFinalJudges(library, res, body, chain.ctxID, &session, intent,
 			modifySiteStaleReadvertise, address, nil)
 	}
 	if rpkiExport {
 		// RFC 8893 Section 1: run rpki-validation-state after all non-validating
 		// egress policy and final judges over the effective outgoing body.
-		res = r.runPostEgressRPKIValidation(library, res, body, chain.ctxID, session, intent,
+		res = r.runPostEgressRPKIValidation(library, res, body, chain.ctxID, &session, intent,
 			modifySiteStaleReadvertise, address, nil)
 	}
 	return res, true

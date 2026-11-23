@@ -205,8 +205,9 @@ func assertLibraryRunMatchesTrace(t *testing.T, r *Reactor, peer *Peer, transpor
 		return
 	}
 	intent := libraryIntentContext{asn4: true, localAS: settings.LocalAS, peerAS: settings.PeerAS, asPathEditable: true}
-	session := func() policyview.Session {
-		return importSession(nil, settings.IsEBGP(), settings.PeerAS).WithImportMetadata(make(map[string]any, 2))
+	session := func() *policyview.Session {
+		imported := importSession(nil, settings.IsEBGP(), settings.PeerAS).WithImportMetadata(make(map[string]any, 2))
+		return &imported
 	}
 	addr := settings.Address.String()
 

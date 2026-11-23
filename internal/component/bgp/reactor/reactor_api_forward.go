@@ -931,8 +931,9 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			stepFailed := false
 			withdrawn := false
 			for range a.r.orderedEgressSteps {
+				chainSession := policyview.ExportSession(destFilter, srcFilter, srcInfo.resolved, srcInfo.exportKind()).WithExportMetadata(update.Meta)
 				res := a.r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
-					policyview.ExportSession(destFilter, srcFilter, srcInfo.resolved, srcInfo.exportKind()).WithExportMetadata(update.Meta), sourceWire)
+					&chainSession, sourceWire)
 				if !res.accept {
 					suppressed = true
 					stepFailed = res.failed

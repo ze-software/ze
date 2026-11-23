@@ -75,7 +75,7 @@ func TestMalformedRawMemberUsesOnError(t *testing.T) {
 							}
 							body := libraryTestBody(100)
 							r := &Reactor{filterTransportSeam: transport}
-							got := r.runLibraryChain(chain, testWireUpdate(body), body, policyview.Session{},
+							got := r.runLibraryChain(chain, testWireUpdate(body), body, &policyview.Session{},
 								libraryIntentContext{}, direction, "raw-boundary", "192.0.2.4", record)
 							wantAction := policychain.OutcomeReject
 							wantCalls := 1
@@ -131,7 +131,7 @@ func TestValidRawMemberStaysTerminal(t *testing.T) {
 		}}
 	policy := answerPolicy(t, routepolicy.FinalAccept, "rewrite", "must-not-run")
 	r := &Reactor{filterTransportSeam: transport}
-	got := r.runLibraryChain(policy.Library(), testWireUpdate(body), body, policyview.Session{},
+	got := r.runLibraryChain(policy.Library(), testWireUpdate(body), body, &policyview.Session{},
 		libraryIntentContext{}, directionImport, "raw-boundary", "192.0.2.4", nil)
 	if got.outcome.Action != policychain.OutcomeAccept || got.failed || !bytes.Equal(got.modifiedPayload, rewritten) || transport.calls() != 1 {
 		t.Fatalf("outcome=%+v failed=%v body=%x calls=%d, want terminal exact rewrite %x", got.outcome, got.failed, got.modifiedPayload, transport.calls(), rewritten)

@@ -33,8 +33,9 @@ var errUncompiledChain = errors.New("the peer's filter chain is not compiled, so
 // the run's route kind and RFC 8212 deciding an absent one. On export
 // a policy that requires the ingress stage is refused before any filter, its
 // first in-process check named as not evaluated. The caller shows the
-// resulting UPDATE: the pasted one on accept, none on reject.
-func traceUncompiledChain(policy filterapi.Policy, session policyview.Session) (PolicyChainResult, []plugin.PolicyTraceEntry) {
+// resulting UPDATE: the pasted one on accept, none on reject. session MUST NOT
+// be nil.
+func traceUncompiledChain(policy filterapi.Policy, session *policyview.Session) (PolicyChainResult, []plugin.PolicyTraceEntry) {
 	var trace []plugin.PolicyTraceEntry
 	refused := session.IsExport() && policy.RequiresIngress()
 	for i, ref := range policy.Filters() {
@@ -259,7 +260,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerOwner uint64, direction, filterOver
 			intent: libraryIntentContext{asn4: asn4, localAS: localAS, peerAS: peerAS, asPathEditable: direction == directionImport || !internal}}
 		result, after, trace, wireChanges = r.traceLibraryChain(library, &dry, &before)
 	} else {
-		result, trace = traceUncompiledChain(policy, session)
+		result, trace = traceUncompiledChain(policy, &session)
 		if result.Action == PolicyAccept {
 			result.Text = textBefore
 			after = &before
@@ -267,7 +268,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerOwner uint64, direction, filterOver
 	}
 	// A policy rejection removes announcements, not explicit withdrawals.
 	// Execution failures and teardown still drop the entire UPDATE.
-	if result.Action == PolicyReject && !dryRunFinalAccepts(policy, session) && !result.Failed && !result.Teardown {
+	if result.Action == PolicyReject && !dryRunFinalAccepts(policy, &session) && !result.Failed && !result.Teardown {
 		if withdrawals := policyWithdrawals(updateBody); withdrawals != nil {
 			withdrawn, displayErr := displayUpdate(wireu.NewWireUpdate(withdrawals, ctxID))
 			if displayErr != nil {

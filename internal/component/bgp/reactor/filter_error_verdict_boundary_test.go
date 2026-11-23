@@ -156,7 +156,7 @@ func TestErrorVerdictUsesSameMemberFailureOnBothTransports(t *testing.T) {
 						}
 						body := libraryTestBody(100)
 						r := &Reactor{filterTransportSeam: transport, attrModHandlers: attrModHandlersWithDefaults()}
-						got := r.runLibraryChain(chain, testWireUpdate(body), body, policyview.Session{}, libraryIntentContext{},
+						got := r.runLibraryChain(chain, testWireUpdate(body), body, &policyview.Session{}, libraryIntentContext{},
 							direction, "error-verdict", "192.0.2.4", nil)
 						wantAction, wantCalls := policychain.OutcomeReject, 1
 						if onError == rpc.OnErrorAccept {

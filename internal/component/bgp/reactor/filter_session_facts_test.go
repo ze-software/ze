@@ -36,7 +36,7 @@ func TestPolicyChainSendsSessionFacts(t *testing.T) {
 	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.9"), PeerAS: 65009, LocalAS: 65000,
 		Name: "client", RSClient: true}
 	session := policyview.ExportSession(dest, src, true, filterapi.ExportExplicit)
-	if out := r.runEgressPolicyChain(policy, "10.0.0.9", 65009, 65000, false, session, testWireUpdate(received)); !out.accept {
+	if out := r.runEgressPolicyChain(policy, "10.0.0.9", 65009, 65000, false, &session, testWireUpdate(received)); !out.accept {
 		t.Fatalf("export refused the route: %+v", out)
 	}
 	if len(transport.sent) != 2 {

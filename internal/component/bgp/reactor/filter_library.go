@@ -98,11 +98,14 @@ type libraryResult struct {
 // filter-update names; payload is the raw body a member that declared raw is
 // sent, borrowed for the run only.
 //
+// session holds the facts the chain's session fields read. It MUST NOT be nil: the
+// view copies what it points at, and the pointer is not kept past the call.
+//
 // record, when not nil, makes the run display only (show policy test): the
 // chain hands it each member's step (policychain.Chain.Trace), and neither the
 // chain nor this function counts or logs a failure, because no route is
 // refused. A live run passes nil.
-func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wireu.WireUpdate, payload []byte, session policyview.Session, intent libraryIntentContext, direction, site, peer string, record func(policychain.MemberTrace)) libraryResult {
+func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wireu.WireUpdate, payload []byte, session *policyview.Session, intent libraryIntentContext, direction, site, peer string, record func(policychain.MemberTrace)) libraryResult {
 	res := r.evaluateLibraryChain(library, wireUpdate, payload, session, intent, direction, site, peer, record)
 	if res.outcome.Action != policychain.OutcomeAccept {
 		return res
@@ -143,7 +146,8 @@ func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wi
 // evaluateLibraryChain materializes one run's raw or folded typed answer.
 // The caller MUST pass its accepting result through marked-route admission
 // before publishing or forwarding it; runLibraryChain owns that boundary.
-func (r *Reactor) evaluateLibraryChain(library filterapi.LibraryChain, wireUpdate *wireu.WireUpdate, payload []byte, session policyview.Session, intent libraryIntentContext, direction, site, peer string, record func(policychain.MemberTrace)) libraryResult {
+// session MUST NOT be nil, as on runLibraryChain.
+func (r *Reactor) evaluateLibraryChain(library filterapi.LibraryChain, wireUpdate *wireu.WireUpdate, payload []byte, session *policyview.Session, intent libraryIntentContext, direction, site, peer string, record func(policychain.MemberTrace)) libraryResult {
 	chain, ok := library.(*policychain.Chain)
 	if !ok {
 		panic("BUG: reactor: a policy's library chain is not a *policychain.Chain")
@@ -155,7 +159,7 @@ func (r *Reactor) evaluateLibraryChain(library filterapi.LibraryChain, wireUpdat
 	defer libraryRuns.Put(run)
 	defer run.mods.Reset()
 
-	run.view.Reset(wireUpdate, session)
+	run.view.Reset(wireUpdate, *session)
 	defer run.view.Clear()
 
 	raw := payload
@@ -237,7 +241,8 @@ func (res *libraryResult) rewrote() bool {
 // their declarations.
 //
 // record, when not nil, makes the pass display only, as on runLibraryChain.
-func (r *Reactor) runFinalJudges(library filterapi.LibraryChain, res libraryResult, input []byte, ctxID bgpctx.ContextID, session policyview.Session, intent libraryIntentContext, site, peer string, record func(policychain.MemberTrace)) libraryResult {
+// session MUST NOT be nil, as on runLibraryChain.
+func (r *Reactor) runFinalJudges(library filterapi.LibraryChain, res libraryResult, input []byte, ctxID bgpctx.ContextID, session *policyview.Session, intent libraryIntentContext, site, peer string, record func(policychain.MemberTrace)) libraryResult {
 	if !res.rewrote() || !r.holdsFinalJudge(library) {
 		return res
 	}
@@ -286,7 +291,9 @@ func (r *Reactor) holdsRPKIValidation(library filterapi.LibraryChain) bool {
 // RFC 8893 Section 1: "A validating BGP speaker MUST apply Route Origin
 // Validation policy semantics (see Section 2 of [RFC6811] and Section 4 of
 // [RFC8481]) after applying any egress configuration and policy."
-func (r *Reactor) runPostEgressRPKIValidation(library filterapi.LibraryChain, res libraryResult, input []byte, ctxID bgpctx.ContextID, session policyview.Session, intent libraryIntentContext, site, peer string, record func(policychain.MemberTrace)) libraryResult {
+//
+// session MUST NOT be nil, as on runLibraryChain.
+func (r *Reactor) runPostEgressRPKIValidation(library filterapi.LibraryChain, res libraryResult, input []byte, ctxID bgpctx.ContextID, session *policyview.Session, intent libraryIntentContext, site, peer string, record func(policychain.MemberTrace)) libraryResult {
 	if res.outcome.Action != policychain.OutcomeAccept {
 		return res
 	}

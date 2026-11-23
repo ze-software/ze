@@ -606,7 +606,7 @@ func TestForwardRailKeepsLLGRStale(t *testing.T) {
 	session := policyview.ExportSession(filterapi.PeerFilterInfo{}, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 	run := func(body []byte) egressStepResult {
 		update := wireu.NewWireUpdate(body, chain.ctxID)
-		return f.a.r.runEgressPolicyChainASN4(chain.policy, "10.0.0.2", 65001, 65000, false, session, update, true)
+		return f.a.r.runEgressPolicyChainASN4(chain.policy, "10.0.0.2", 65001, 65000, false, &session, update, true)
 	}
 
 	res := run(nlriHex(t, llgrStaleBody))
@@ -628,7 +628,7 @@ func TestForwardRailKeepsLLGRStale(t *testing.T) {
 func runForwardChain(f *staleChangeFixture, chain staleChain, body []byte) egressStepResult {
 	session := policyview.ExportSession(filterapi.PeerFilterInfo{}, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 	update := wireu.NewWireUpdate(body, chain.ctxID)
-	return f.a.r.runEgressPolicyChainASN4(chain.policy, "10.0.0.2", 65001, 65000, false, session, update, true)
+	return f.a.r.runEgressPolicyChainASN4(chain.policy, "10.0.0.2", 65001, 65000, false, &session, update, true)
 }
 
 // TestExportChainGivesOptedMembersTheLastWord proves the one thing the engine does
