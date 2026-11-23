@@ -5,7 +5,7 @@
 | Status | skeleton |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
-| Depends | spec-vpp-isolated-cpus (closed 2026-09-07), spec-vpp-host-tuning (closed, learned 1105) |
+| Depends | spec-vpp-isolated-cpus (closed 2026-09-07), spec-vpp-host-tuning (closed; no learned record exists, its decisions live in `docs/architecture/vpp-host-tuning.md` and its last text is `git show e98595ac4a^:plan/spec-vpp-host-tuning.md`). Depended on by `plan/post-release/features/spec-hardware-capacity-profile.md`, which needs the NUMA and SMT facts for its sizing |
 | Phase | - |
 | Updated | 2026-07-10 |
 
@@ -15,7 +15,7 @@
 1. This spec file
 2. `.claude/rules/planning.md`
 3. `docs/architecture/vpp-host-tuning.md` - worker-core selection from the kernel-isolated set, built by spec-vpp-isolated-cpus (closed 2026-09-07)
-4. `plan/spec-vpp-host-tuning.md` - owns global hugepage reservation + the kernel-args assembly seam
+4. `docs/architecture/vpp-host-tuning.md` - global hugepage reservation + the kernel-args assembly seam (`internal/appliance/kernelargs.go`); the closed spec's text is `git show e98595ac4a^:plan/spec-vpp-host-tuning.md`
 5. `internal/component/host/inventory.go` - `CoreInfo`/`NICInfo` (facts this spec must extend)
 
 ## Task
@@ -62,7 +62,7 @@ so this spec is about correctness on bigger iron, not the common path.
 
 ### Architecture Docs
 - [ ] `docs/architecture/vpp-host-tuning.md` - the worker-core selection this spec validates against; the helper is `resolveWorkerCores` (`internal/component/vpp/cpuset.go`).
-- [ ] `plan/spec-vpp-host-tuning.md` (or its learned summary after closure) - kernel-args seam, hugepage doctor check to extend.
+- [ ] `docs/architecture/vpp-host-tuning.md` (the closed spec has no learned record) - kernel-args seam, hugepage doctor check to extend.
 - [ ] `ai/rules/repo-maintenance.md` - ownership + diagnostic codes for the new checks.
 - [ ] `ai/rules/platform-linux.md` - QEMU can emulate NUMA topologies (`-numa` options) for evidence.
 - [ ] `docs/research/vpp-deployment-reference.md` - production placement guidance.
@@ -193,7 +193,7 @@ so this spec is about correctness on bigger iron, not the common path.
 
 ## Known Limitations
 - Skeleton only: acceptance criteria and tests above are provisional placeholders to be refined during DESIGN.
-- Worker-core selection is owned by `docs/architecture/vpp-host-tuning.md`, which spec-vpp-isolated-cpus built and left behind; global hugepage reservation and the kernel-args seam by `plan/spec-vpp-host-tuning.md`.
+- Worker-core selection is owned by `docs/architecture/vpp-host-tuning.md`, which spec-vpp-isolated-cpus built and left behind; global hugepage reservation and the kernel-args seam by the same page (`docs/architecture/vpp-host-tuning.md`), left by the closed spec-vpp-host-tuning.
 
 ## Implementation Summary
 ### What Was Implemented
