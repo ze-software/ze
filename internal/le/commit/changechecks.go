@@ -29,9 +29,10 @@ func changeCheckRefusal(change changecheck.Change) error {
 }
 
 // runChangeChecks is changeCheckRefusal over a given check list, so a test
-// judges a fixture check without the composition root.
-func runChangeChecks(root string, paths, removed []string, selection hunks.Selection, head string, checks []changecheck.Check) error {
-	return judgeChange(changeOf(root, paths, removed, selection, head), checks)
+// judges a fixture check without the composition root. The fixture commit
+// removes no path.
+func runChangeChecks(root string, paths []string, selection hunks.Selection, head string, checks []changecheck.Check) error {
+	return judgeChange(changeOf(root, paths, nil, selection, head), checks)
 }
 
 // changeOf is the commit being prepared as a check reads it. Create fills

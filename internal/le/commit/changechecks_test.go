@@ -48,7 +48,7 @@ func TestChangeChecksRefuseAStagedAddition(t *testing.T) {
 	root := dependencyBaseline(t, map[string]string{"internal/x/x.go": "package x\n// " + fixtureMarker + " held by the parent\n"})
 	writeCommitFixture(t, root, "internal/x/x.go", "package x\n// "+fixtureMarker+" held by the parent\n// "+fixtureMarker+" added\n")
 
-	err := runChangeChecks(root, []string{"internal/x/x.go"}, nil, nil, "HEAD", []changecheck.Check{fixtureCheck()})
+	err := runChangeChecks(root, []string{"internal/x/x.go"}, nil, "HEAD", []changecheck.Check{fixtureCheck()})
 	if err == nil {
 		t.Fatal("a commit adding what a registered check refuses was admitted")
 	}
@@ -65,7 +65,7 @@ func TestChangeChecksAdmitACleanCommit(t *testing.T) {
 	root := dependencyBaseline(t, map[string]string{"internal/x/x.go": "package x\n// " + fixtureMarker + " held by the parent\n"})
 	writeCommitFixture(t, root, "internal/x/x.go", "package x\n// "+fixtureMarker+" held by the parent\n// a new comment\n")
 
-	if err := runChangeChecks(root, []string{"internal/x/x.go"}, nil, nil, "HEAD", []changecheck.Check{fixtureCheck()}); err != nil {
+	if err := runChangeChecks(root, []string{"internal/x/x.go"}, nil, "HEAD", []changecheck.Check{fixtureCheck()}); err != nil {
 		t.Fatalf("a commit adding nothing a check refuses was refused: %v", err)
 	}
 }
@@ -90,7 +90,7 @@ func TestChangeChecksReadTheParentUnderADirectory(t *testing.T) {
 		held = found
 		return "", err
 	}}
-	if err := runChangeChecks(root, []string{"internal/x/x.go"}, nil, nil, "HEAD", []changecheck.Check{probe}); err != nil {
+	if err := runChangeChecks(root, []string{"internal/x/x.go"}, nil, "HEAD", []changecheck.Check{probe}); err != nil {
 		t.Fatalf("the probe check could not read the parent: %v", err)
 	}
 	want := map[string]string{
@@ -109,7 +109,7 @@ func TestChangeChecksAnswerACheckThatCannotJudge(t *testing.T) {
 	failing := changecheck.Check{Name: "failing check", Judge: func(changecheck.Change) (string, error) {
 		return "", errors.New("the fixture judge could not read the tree")
 	}}
-	err := runChangeChecks(root, []string{"internal/x/x.go"}, nil, nil, "HEAD", []changecheck.Check{failing})
+	err := runChangeChecks(root, []string{"internal/x/x.go"}, nil, "HEAD", []changecheck.Check{failing})
 	if err == nil {
 		t.Fatal("a check that could not judge admitted the commit")
 	}
