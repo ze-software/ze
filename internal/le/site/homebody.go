@@ -374,13 +374,16 @@ Keep the logs if a check fails.</code></pre>
                         <span class="index4-badge concept-evidence">Standards requirements</span>
                         <h3 id="index4-rfc-title">Mandatory RFC requirements proven</h3>
                         <p class="index4-big-figure">{{ze:rfc.proven_percent}}<span class="index4-percent">%</span></p>
-                        <p>{{ze:rfc.proven_display}} of {{ze:rfc.must_kept_display}} requirements for Ze or the OS.</p>
+                        <p>{{ze:rfc.proven_display}} of all {{ze:rfc.must_kept_display}} MUSTs for Ze or the OS, including the {{ze:rfc.must_not_built_display}} for parts of an RFC Ze does not build today, which need no test until they are built.</p>
+                        <p class="index4-big-figure">{{ze:rfc.proven_built_percent}}<span class="index4-percent">%</span></p>
+                        <p>{{ze:rfc.proven_display}} of the {{ze:rfc.must_built_display}} MUSTs for what Ze builds. This shows how well the features Ze ships are tested.</p>
                         <div class="index4-small-figures"><div><b>{{ze:rfc.implemented_display}}</b><span>RFCs implemented</span></div>
                             <div><b>{{ze:rfc.not_walked_display}}</b><span>unreviewed requirement lists excluded</span></div></div>
                         <p class="index4-panel-note">Each test identifies the requirement it checks. The ledger names the evidence and missing coverage.</p>
-                        <details class="index4-method" open><summary>Our testing goal</summary><p>We want the strongest testing possible to catch bugs and prevent regressions. Our goal is to test every applicable MUST requirement in the RFCs Ze implements, wherever testing is possible, and to prove that those tests detect a broken implementation.</p><p>Later RFCs can update or replace earlier requirements, so our tests must follow the standards as they apply today. The figure above shows how much of that goal we have proven so far.</p></details>
-                        <details class="index4-method"><summary>Counting history</summary><p>Until 2026-10-31: all mandatory rows counted, including annotated rows; summary rows excluded.</p></details>
+                        <details class="index4-method" open><summary>Our testing goal</summary><p>We want the strongest testing possible to catch bugs and prevent regressions. Our goal is to test every applicable MUST requirement in the RFCs Ze implements, wherever testing is possible, and to prove that those tests detect a broken implementation.</p><p>Later RFCs can update or replace earlier requirements, so our tests must follow the standards as they apply today. The first figure above shows how much of that goal we have proven so far.</p></details>
+                        <details class="index4-method"><summary>Counting history</summary><p>2026-11-23: superseded requirements satisfied by an implemented successor count as complete; operator, topology, IANA/IETF, and section-scoped non-Ze role rules leave the denominator; custom operator overrides do not mark a compliant default path partial.</p><p>2026-11-13: OS-verified requirements joined the verified numerator and the built-features percentage was added.</p><p>Until 2026-10-31: all mandatory rows counted, including annotated rows; summary rows excluded.</p></details>
                         <a class="index4-evidence-link" href="quality/rfc-compliance/">Standards requirements and test results →</a>
+                        <p class="index4-panel-note">The <a href="quality/rfc-map/">RFC dependency map</a> shows each standard and its coverage visually.</p>
                     </article>
                     <article class="index4-metric-panel" aria-labelledby="index4-interop-title">
                         <span class="index4-badge concept-evidence">Tests with other implementations</span>
