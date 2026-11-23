@@ -182,7 +182,7 @@ continues operating normally and lets the existing reconnect logic recover).
 | AC-6 | `show fleet device health edge-01` | Shows per-component health status (healthy/degraded/down) |
 | AC-7 | `show fleet health` | Aggregated view: N healthy, N degraded, N down. Lists degraded/down devices |
 | AC-8 | Device has not reported yet (first connect in progress) | Inventory and health show "pending" or "not reported" |
-| AC-9 | Hub receives inventory-report from unknown device | Report accepted if device is authenticated (auto-discovered devices from fleet-1 AC-13) |
+| AC-9 | Hub receives inventory-report from a declared client (`fleet-1` admits only a client its hub declares, on the address of the block that declares it) | Report accepted and stored under the name the session authenticated as. A name no client entry declares is refused at authentication (`AuthenticateWithLookup` refuses an empty expected token), so no report from it is ever stored; `fleet-1` has no auto-discovery (its table "Superseded from the May skeleton") |
 | AC-10 | Old hub (without fleet-4) receives inventory-report | Hub ignores unknown verb (existing behavior for unknown verbs) |
 | AC-11 | Client connected to old hub (without fleet-4) | Client sends report, gets error or no response; continues operating normally |
 | AC-13 | `show fleet device inventory edge-01`, `show fleet device health edge-01` and `show fleet health` asked on the CLI, SSH, MCP, REST, gRPC and the web command line | Each surface lists the three commands and the daemon dispatcher serves them there (`TestEveryCommandOnEverySurface`); every surface's answer is the builtin handler's, whose content `fleet-inventory-report.ci` and `fleet-health-report.ci` assert. Added by the owner ruling of 2026-11-23 |

@@ -71,7 +71,7 @@ spec building on the previous.
 | Area | Description |
 |------|-------------|
 | Device registry | Persistent hub-side registry of all known devices with metadata, config version, health, last-seen |
-| Fleet CLI + web dashboard | `show fleet devices`, `show fleet device detail <name>`, web page listing fleet state |
+| Fleet commands | `show fleet devices`, `show fleet device name <name>` on every command surface in the first release; the web pages listing fleet state are the `fleet-ui` set's, after it |
 | Config templates | Named templates with variable substitution, group-based assignment |
 | Device grouping | Labels/tags on devices, group-based targeting for config and operations |
 | Audit trail | Centralized log of config pushes, acks, rejections, device connects/disconnects |
@@ -127,13 +127,13 @@ moved in its Task section. Where a row below says "web", that part is the
 |-------|------|-------|---------|
 | 1 | `plan/release/features/spec-fleet-1-device-registry.md` | Hub-side persistent device registry. `show fleet devices` and `show fleet device name <name>` on every command surface. Device metadata (name, config version, last-seen, labels; health is `fleet-4`'s). Labels on the hub's client entry. The fleet web pages are `fleet-ui-2`'s, after the first release | - |
 | 2 | `plan/post-release/features/spec-fleet-2-config-templates.md` | Named config templates with variable substitution. Group-based assignment. Template rendering at config-fetch time. YANG schema for templates and groups | fleet-1 |
-| 3 | `plan/post-release/features/spec-fleet-3-audit-trail.md` | Centralized audit log for fleet operations: config push/ack/reject, device connect/disconnect, template changes. CLI and web views. Structured log entries in ZeFS | fleet-1 |
-| 4 | `plan/release/features/spec-fleet-4-inventory-health.md` | New `inventory-report` and `health-report` RPC verbs. Devices push on connect and periodically. Hub stores per-device inventory and health. CLI and web aggregated views | fleet-1 |
+| 3 | `plan/post-release/features/spec-fleet-3-audit-trail.md` | Centralized audit log for fleet operations: config push/ack/reject, device connect/disconnect, template changes. Commands on every command surface; the audit web views are `fleet-ui-6`'s. Structured log entries in ZeFS | fleet-1 |
+| 4 | `plan/release/features/spec-fleet-4-inventory-health.md` | New `inventory-report` and `health-report` RPC verbs. Devices push on connect and periodically. Hub stores per-device inventory and health. `show fleet device inventory <name>`, `show fleet device health <name>` and `show fleet health` on every command surface. The inventory and health web views are `fleet-ui-2`'s, `fleet-ui-3`'s and `fleet-ui-4`'s, after the first release | fleet-1 |
 | 5 | `plan/post-release/features/spec-fleet-5-staged-rollout.md` | Percentage-based config push targeting device groups. Rollout state machine (pending, rolling, paused, complete, failed). Automatic pause on ACK failure threshold. CLI rollout commands | fleet-2, fleet-4 |
 | 6 | `spec-fleet-6-config-freeze` (closed 2026-11-19; design in `docs/architecture/fleet-config.md`, "The baseline and the hold" and "The freeze") | Persisted baseline and reconnect hold (no silent stomp); `request fleet disable` and `enable` with immediate sever, `show fleet status`; best-effort freeze of operator edits on a managed device; declared-client guard on every hub writer. See the Direction Update of 2026-11-19 | - |
 | 7 | `spec-fleet-7-config-reconnect-resolution` | Resolve a `diverged` device: an up-verb on the existing TLS channel, a diff at the hub (Local=hub, Remote=router), adopt or revert, and its own per-client record of the pushed config. Closed 2026-11-19; design in `docs/architecture/fleet-config.md`, "The baseline and the hold" ("The hub's copy of a hold") | fleet-6 |
 
-Phases 2, 3, and 4 are independent of each other (all depend only on fleet-1) and can proceed in parallel. Phase 5 depends on templates (for group targeting) and health reporting (for rollout health gates). Phases 6 and 7 are the direction update below: 6 (freeze, persisted baseline, safe reconnect hold) depends on nothing new and is safe to land first; 7 (diverged-config resolution) depends on 6 and surfaces through the fleet-1 dashboard.
+Phases 2, 3, and 4 are independent of each other (all depend only on fleet-1) and can proceed in parallel. Phase 5 depends on templates (for group targeting) and health reporting (for rollout health gates). Phases 6 and 7 are the direction update below: 6 (freeze, persisted baseline, safe reconnect hold) depends on nothing new and is safe to land first; 7 (diverged-config resolution) depends on 6 and surfaces through `show fleet divergence` and the `diverged` field of `fleet-1`'s `show fleet devices` (`fleet-1` AC-13); its web banner and diff are `fleet-ui-6`'s, after the first release.
 
 ### Direction Update (2026-06-26): Single-Writer Config, Emergency Disable, Reconnect Resolution
 
@@ -300,15 +300,15 @@ frame bound (`pkg/plugin/rpc/framing.go`, enforced at write time in conn.go).
 - Per-client auth and config isolation unchanged
 - Client cached config for partition resilience unchanged
 - Appliance toolchain (ze appliance push/config-push) unchanged
-- Web fleet peer selector (config-declared peer URLs) preserved alongside new fleet dashboard
+- Web fleet peer selector (config-declared peer URLs) preserved alongside the `fleet-ui` pages
 
 **Behavior to change:**
 - Hub-side ManagedConfigService extended with persistent device registry
 - New YANG `fleet {}` container for fleet configuration (device labels, templates, groups)
 - New RPC verbs for inventory and health reporting (fleet-4)
 - Config fetch extended to support template rendering (fleet-2)
-- New CLI commands under `show fleet` and `fleet rollout` (fleet-1, fleet-5)
-- New web pages for fleet dashboard (fleet-1)
+- New commands under `show fleet` and `fleet rollout` (fleet-1, fleet-4, fleet-5), each registered once and reached on every command surface
+- No web page in the first release: the fleet web pages are the `fleet-ui` set's, after it (`fleet-ui-2` the estate tree and device tables, `fleet-ui-3` the dashboards, `fleet-ui-4` the device tabs, `fleet-ui-9` the task, notification and alarm pages)
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -339,7 +339,7 @@ current.
 - Device connects to hub via TLS (existing path)
 - Hub-initiated config-changed notifications (existing path)
 - New: device-initiated inventory-report and health-report RPCs (fleet-4)
-- New: operator CLI/web commands for fleet management
+- New: operator commands for fleet management, on every command surface
 
 ### Transformation Path
 1. Device connects, authenticates (existing)
@@ -347,7 +347,7 @@ current.
 3. Device requests config via config-fetch (existing)
 4. Hub renders config from template if group-assigned (fleet-2, intercepts existing HandleConfigFetch)
 5. Device reports inventory and health (fleet-4, new RPC handling)
-6. Hub stores device state, exposes via CLI/web/API (fleet-1)
+6. Hub stores device state and answers it through commands on every command surface (fleet-1, fleet-4); the `fleet-ui` pages read the same commands after the first release
 7. Operator initiates staged rollout (fleet-5), hub orchestrates notifications
 
 ### Boundaries Crossed
@@ -355,16 +355,16 @@ current.
 |----------|-----|----------|
 | Device to Hub | TLS + MuxConn RPC (existing transport) | [ ] |
 | Hub to ZeFS | Blob read/write for device registry, audit log, templates | [ ] |
-| Hub to CLI/Web | Event bus + query API for fleet state | [ ] |
+| Hub to command surfaces | Builtin commands through the daemon dispatcher, the same answer on the CLI, SSH, MCP, REST, gRPC and the web command line | [ ] |
 | Template to Config | Hub-side rendering at config-fetch time | [ ] |
 
 ### Integration Points
 - `ManagedConfigService` -- extend with registry, template lookup, audit logging
 - `PluginAcceptor.handleConn` -- hook device registration on auth success
-- EventBus -- fleet events for web SSE and internal consumers
+- Live page updates -- none in the first release: `fleet-1` emits no EventBus fleet event, and the pages' live updates are the `EventSource` of `fleet-ui-9`, after it
 - YANG schema -- `fleet {}` container alongside existing `plugin { hub {} }`
-- CLI command tree -- `show fleet`, `fleet rollout`
-- Web pages -- fleet dashboard, device detail, rollout status
+- Command registry -- `show fleet`, `fleet rollout`, registered once and reached on every command surface
+- Web pages -- none in the first release: the estate tree and device tables are `fleet-ui-2`'s, the dashboard `fleet-ui-3`'s, device detail `fleet-ui-4`'s, rollout status `fleet-ui-6`'s, the task, notification and alarm pages `fleet-ui-9`'s, all after the first release
 
 ### Architectural Verification
 - [ ] No bypassed layers (fleet uses existing TLS/auth/MuxConn path)
@@ -383,7 +383,7 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 | AC-3 | Config template assigned to a group | All devices in the group receive rendered config on next fetch |
 | AC-4 | Operator pushes config change to a group | Audit trail records: who, when, which template, which devices, ack/reject per device |
 | AC-5 | Device reports inventory to hub | `show fleet device inventory edge-01` shows CPU, NIC, memory, storage summary |
-| AC-6 | Device reports degraded health | Fleet dashboard shows device as degraded; `show fleet health` aggregates fleet-wide status |
+| AC-6 | Device reports degraded health | `show fleet device health <name>` shows the component degraded and `show fleet health` counts the device degraded, on every command surface (`fleet-4` AC-4, AC-7, AC-13). The dashboard's Degraded count moved to `fleet-ui-3` AC-8, after the first release |
 | AC-7 | Staged rollout at 20% with failure | Rollout pauses automatically; `show fleet rollout` shows pause reason and affected devices |
 | AC-8 | Standalone device (not managed) | Zero fleet overhead; no fleet YANG required; existing behavior unchanged |
 
@@ -394,7 +394,7 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 | Device connects to hub with per-client auth | -> | DeviceRegistry.Register persists device record | `test/managed/fleet-device-register.ci` |
 | `show fleet devices` CLI command | -> | Fleet query returns all registered devices | `test/managed/fleet-show-devices.ci` |
 | Config template assigned to device group | -> | HandleConfigFetch renders template for group member | `test/managed/fleet-template-fetch.ci` |
-| Device sends inventory-report RPC | -> | Hub stores inventory, queryable via CLI | `test/managed/fleet-inventory-report.ci` |
+| Device sends inventory-report RPC | -> | Hub stores inventory, answered by `show fleet device inventory <name>` | `test/managed/fleet-inventory-report.ci` |
 | Staged rollout initiated for group | -> | Rollout state machine progresses, pauses on failure | `test/managed/fleet-staged-rollout.ci` |
 
 ## 🧪 TDD Test Plan
@@ -426,7 +426,6 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 - `pkg/fleet/envelope.go` -- add new RPC verb constants (inventory-report, health-report)
 - `internal/component/managed/client.go` -- add inventory and health reporting to client loop (fleet-4)
 - `cmd/ze/hub/main.go` -- wire fleet registry, audit, template, rollout at startup
-- `internal/component/web/page_system.go` -- fleet dashboard web page
 - `internal/component/plugin/yang/ze-plugin-conf.yang` -- fleet YANG container
 
 ## Files to Create
@@ -436,8 +435,9 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 - `internal/component/plugin/server/rollout.go` -- staged rollout state machine
 - `internal/component/plugin/server/fleet_report.go` -- inventory and health report handlers
 - `pkg/fleet/report.go` -- inventory-report and health-report envelope types
-- `internal/component/web/page_fleet.go` -- fleet dashboard web page
 - `test/managed/fleet-*.ci` -- functional tests (6 files)
+
+No web file is planned here: the fleet pages are `internal/component/web/fleetui`'s, built by the `fleet-ui` set after the first release (`fleet-ui-2`, `fleet-ui-3`, `fleet-ui-4`, `fleet-ui-9`). `internal/component/web/page_system.go` keeps its peer selector unchanged.
 
 ## Implementation Steps
 
@@ -448,7 +448,7 @@ child spec's own Implementation Steps, Files and test tables are the
 authority for its phase; where this list names a file or a test the child no
 longer plans, the child wins.
 
-1. **Phase: Device Registry (fleet-1, `plan/release/features/spec-fleet-1-device-registry.md`, ready)** -- persistent device record, `show fleet devices` and `show fleet device name <name>`, labels in config, the reload apply, the connection bound, the estate part of the fleet interface (the `/fleet` pages belong to `fleet-ui`)
+1. **Phase: Device Registry (fleet-1, `plan/release/features/spec-fleet-1-device-registry.md`, ready)** -- persistent device record, `show fleet devices` and `show fleet device name <name>`, labels in config, the reload apply, the connection bound (the estate part of the fleet interface and the `/fleet` pages moved to `fleet-ui-2`, after the first release)
    - Tests: `TestRegistryFirstConnectRecordsConnected` and the other `managed_registry_test.go` tests, `fleet-devices-connect.ci`, `fleet-device-detail.ci`, `fleet-devices-restart.ci`, `fleet-devices-reload-add.ci`, `fleet-devices-label.ci`
    - Files: `managed_registry.go`, `managed_apply.go`, `managed.go`, `managed_serve.go`, `internal/component/managed/cmd_devices.go`, `cmd/ze/hub/main_reload.go`
    - Verify: devices appear in the registry on connect, survive a hub restart as offline, and are queryable on every command surface
@@ -461,12 +461,12 @@ longer plans, the child wins.
 3. **Phase: Audit Trail (fleet-3, `plan/post-release/features/spec-fleet-3-audit-trail.md`, skeleton)** -- centralized fleet operation logging
    - Tests: `TestAuditLogAppend`, `fleet-audit-log.ci`
    - Files: `audit.go`, `managed.go` (hook audit on connect/config-ack/disconnect)
-   - Verify: audit entries queryable via CLI and web
+   - Verify: audit entries queryable through commands on every command surface; the audit web view is `fleet-ui-6`'s
 
 4. **Phase: Inventory + Health (fleet-4, `plan/release/features/spec-fleet-4-inventory-health.md`, skeleton)** -- device reporting, hub aggregation
    - Tests: `TestInventoryReportHandler`, `TestHealthReportHandler`, `fleet-inventory-report.ci`
    - Files: `fleet_report.go`, `report.go`, `client.go` (add reporting to client loop)
-   - Verify: device inventory and health visible on hub via CLI and web
+   - Verify: device inventory and health answered on the hub by `show fleet device inventory <name>`, `show fleet device health <name>` and `show fleet health` on every command surface; the web views are `fleet-ui-2`'s, `fleet-ui-3`'s and `fleet-ui-4`'s, after the first release
 
 5. **Phase: Staged Rollout (fleet-5, `plan/post-release/features/spec-fleet-5-staged-rollout.md`, skeleton)** -- orchestrated config push with failure gates
    - Tests: `TestRolloutStateMachine`, `TestRolloutPauseOnFailure`, `fleet-staged-rollout.ci`
@@ -497,16 +497,16 @@ longer plans, the child wins.
 | Completeness | Every child spec AC-N has implementation with file:line |
 | Correctness | Existing config-fetch protocol unchanged; templates transparent to client |
 | Naming | Fleet YANG uses kebab-case; RPC verbs use kebab-case; CLI uses `show fleet` prefix |
-| Data flow | Device to hub to ZeFS to CLI/web; no bypassed layers |
-| Rule: wiring-completeness | Every new exported symbol called from cmd/ze/hub/main.go or web handlers |
+| Data flow | Device to hub to ZeFS to every command surface; no bypassed layers |
+| Rule: wiring-completeness | Every new exported symbol called from cmd/ze/hub/main.go or a registered command handler |
 | Rule: no-partial-completion | No child spec marked done without wiring test passing |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Device registry with persistence | `grep -rn DeviceRegistry internal/component/plugin/server/` |
-| `show fleet devices` CLI command | `grep -rn 'fleet.*devices' internal/component/cli/` |
-| Fleet web dashboard | `ls internal/component/web/page_fleet.go` |
+| `show fleet devices` command | `grep -rn 'fleet.*devices' internal/component/managed/` |
+| Fleet commands on every command surface | `TestEveryCommandOnEverySurface` (`cmd/ze/hub/surface_parity_test.go`) lists and serves them |
 | Config template rendering | `grep -rn ConfigTemplate internal/component/plugin/server/` |
 | Audit log with query API | `grep -rn AuditLog internal/component/plugin/server/` |
 | Inventory + health reporting | `grep -rn inventory-report pkg/fleet/` |

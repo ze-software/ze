@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Thomas ruled on 2026-11-23 that the fleet features of the first release are reached through commands on every command surface, and that their web pages, the hub's task model and panel, notifications and live page updates come after the first release (`ai/META-DECISIONS.md`, "Goal and scope"). Split out of `plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md` and `plan/release/features/spec-fleet-ui-8-alarm-causes.md`, which keep the alarm model and its commands; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md, plan/release/features/spec-fleet-ui-8-alarm-causes.md, plan/release/features/spec-fleet-1-device-registry.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
+| Depends | plan/release/features/spec-fleet-ui-5-tasks-alarms-notifications.md, plan/release/features/spec-fleet-ui-8-alarm-causes.md, plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md, plan/release/features/spec-fleet-1-device-registry.md, plan/release/features/spec-fleet-4-inventory-health.md, plan/release/features/spec-fleet-8-metric-history.md |
 | Phase | 9/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-23 |
@@ -208,7 +208,7 @@ command first and a page second.
 | Device registry and its change notifications | Missing: `fleet-1` |
 | The actions that create tasks | `fleet-5` rollouts, `fleet-7` resolution, `fleet-9` relayed runs; each registers its task kind when it lands |
 | A state store key for finished tasks | To be registered here |
-| The data parts the pages read (`fleet-1`, "The parts") | `ActivityPart`: `Alarms` and `AlarmHistory` answered from `fleet-ui-5`'s commands, `Tasks` and `Task` from this spec's task model. `EventPart`: this spec. `SettingsPart`: the alarm settings (`OfflineAlarmDelay`, `ResourceAlarmPercent`, `ResourceAlarmDelay`) are `fleet-ui-5`'s configuration; the finished task count (`FinishedTasksKept`) and the open stream maximum (`EventStreamsMax`) are this spec's |
+| The data parts the pages read (`fleet-ui-2`, "Moved from fleet-1 (owner ruling 2026-11-23)", "The fleet interface parts after the split") | `ActivityPart`: `Alarms` and `AlarmHistory` answered from `fleet-ui-5`'s commands, `Tasks` and `Task` from this spec's task model. `EventPart`: this spec. `SettingsPart`: the alarm settings (`OfflineAlarmDelay`, `ResourceAlarmPercent`, `ResourceAlarmDelay`) are `fleet-ui-5`'s configuration; the finished task count (`FinishedTasksKept`) and the open stream maximum (`EventStreamsMax`) are this spec's |
 
 ## Required Reading
 
@@ -226,8 +226,8 @@ command first and a page second.
 - [ ] `docs/architecture/fleet-interface.md` - "The data source seam", "Live events", "The live event stream", "Activity"
   → Constraint: "A source answers facts only"; every count is derived in the package from the rows its link opens
   → Constraint: the event stream carries no data of the estate; each event names the stale regions
-- [ ] `plan/release/features/spec-fleet-1-device-registry.md` - "The parts": `ActivityPart`, `EventPart`, `SettingsPart`
-  → Constraint: the part's methods, arguments and bounds stay as `fleet-1` fixes them
+- [ ] `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` - "Moved from fleet-1 (owner ruling 2026-11-23)", "The fleet interface parts after the split": `ActivityPart`, `EventPart`, `SettingsPart` (the section moved there from `fleet-1` by the owner ruling of 2026-11-23)
+  → Constraint: the part's methods, arguments and bounds stay as `fleet-ui-2` fixes them
 - [ ] `plan/post-release/features/spec-fleet-3-audit-trail.md` - the permanent record a task links to
 
 **Key insights:**
@@ -250,7 +250,7 @@ command first and a page second.
 
 **Behavior to preserve:**
 - Every page, panel, toast and stream rule `docs/architecture/fleet-interface.md` describes for the prototype
-- `fleet-1`'s `ActivityPart`, `EventPart` and `SettingsPart` methods, arguments and bounds
+- `fleet-ui-2`'s `ActivityPart`, `EventPart` and `SettingsPart` methods, arguments and bounds
 - The alarm tab registry of the page, keyed by kind name
 
 **Behavior to change:**
@@ -261,7 +261,7 @@ command first and a page second.
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| `ActivitySource`, `Alarm`, `AlarmEvent` | `internal/component/web/fleetui/source_activity.go`; the same methods as `ActivityPart` in `plan/release/features/spec-fleet-1-device-registry.md` | `Alarms` answers the open alarms, at most `AlarmsMax`. `Alarm` holds one device and no cause. Answered only by the sample source | Extends: answered for real, the alarms from `fleet-ui-5`'s commands and the tasks from this spec's model. `Alarm` gains the identifier of the alarm it is hidden behind, empty when shown, and `AlarmEvent` gains the hidden mark (moved from `fleet-ui-8`). The methods, their arguments and their bounds do not change, so `fleet-1`'s part contract stands. The source answers the fact; the counts are derived in the package, as every other count is |
+| `ActivitySource`, `Alarm`, `AlarmEvent` | `internal/component/web/fleetui/source_activity.go`; the same methods as `ActivityPart` in `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` | `Alarms` answers the open alarms, at most `AlarmsMax`. `Alarm` holds one device and no cause. Answered only by the sample source | Extends: answered for real, the alarms from `fleet-ui-5`'s commands and the tasks from this spec's model. `Alarm` gains the identifier of the alarm it is hidden behind, empty when shown, and `AlarmEvent` gains the hidden mark (moved from `fleet-ui-8`). The methods, their arguments and their bounds do not change, so `fleet-ui-2`'s part contract stands. The source answers the fact; the counts are derived in the package, as every other count is |
 | `EventSource`, `Feed`, `Subscription` | `internal/component/web/fleetui/source_events.go`; `docs/architecture/fleet-interface.md`, "Live events" | Typed events into one feed per source, bounded buffers and subscriptions, no goroutine | Extends: the real source publishes into the same feed when a device, an alarm, a task or the registry changes |
 | The fleet event stream | `internal/component/web/fleetui/handler_events.go`; `docs/architecture/fleet-interface.md`, "The live event stream" | Per-page stream, scoped to the view, coalesced once a second, bounded by `EventSubscriptionsMax` | Extends: unchanged, fed by the real source |
 | Event broker | `internal/component/web/sse.go`, `EventBroker` | Broadcasts configuration and log events to every client | Does not apply to per-view data: a broadcast would send one view's devices to every client (umbrella, "Existing Mechanisms") |
@@ -349,7 +349,7 @@ command first and a page second.
 |----------|--------|
 | What breaks if this is wrong? | [pending design] |
 | How is it reverted? | [pending design] |
-| Who else touches this path? | `fleet-ui-5` and `fleet-ui-8` (the alarms the pages read), `fleet-ui-3` (the Alarms card that carries the hidden line), `fleet-ui-2` and `fleet-ui-4` (the Tasks tab and the actions that create tasks), `fleet-ui-6` (rollouts and resolution create tasks), `fleet-1` (the parts) |
+| Who else touches this path? | `fleet-ui-5` and `fleet-ui-8` (the alarms the pages read), `fleet-ui-3` (the Alarms card that carries the hidden line), `fleet-ui-2` and `fleet-ui-4` (the Tasks tab and the actions that create tasks; `fleet-ui-2` also owns the parts, moved there from `fleet-1`), `fleet-ui-6` (rollouts and resolution create tasks) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
