@@ -131,7 +131,7 @@ const homeTemplate = `        <div class="site-home">
                                     </a>
                                     <p>
                                         <strong class="hero-release-title">Planned release</strong>
-                                        <span>Initial version</span><br /><span>Q4 2026</span>
+                                        <span>Initial version</span><br /><span>December 2026</span>
                                     </p>
                                 </div>
                             </div>
@@ -379,6 +379,7 @@ Keep the logs if a check fails.</code></pre>
                             <div><b>{{ze:rfc.not_walked_display}}</b><span>unreviewed requirement lists excluded</span></div></div>
                         <p class="index4-panel-note">Each test identifies the requirement it checks. The ledger names the evidence and missing coverage.</p>
                         <details class="index4-method" open><summary>Our testing goal</summary><p>We want the strongest testing possible to catch bugs and prevent regressions. Our goal is to test every applicable MUST requirement in the RFCs Ze implements, wherever testing is possible, and to prove that those tests detect a broken implementation.</p><p>Later RFCs can update or replace earlier requirements, so our tests must follow the standards as they apply today. The figure above shows how much of that goal we have proven so far.</p></details>
+                        <details class="index4-method"><summary>Counting history</summary><p>Until 2026-10-31: all mandatory rows counted, including annotated rows; summary rows excluded.</p></details>
                         <a class="index4-evidence-link" href="quality/rfc-compliance/">Standards requirements and test results →</a>
                     </article>
                     <article class="index4-metric-panel" aria-labelledby="index4-interop-title">

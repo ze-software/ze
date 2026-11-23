@@ -605,7 +605,7 @@ on hover; keyboard focus remains outlined. This is an owner ruling
 <!-- source: website/assets/css/30-components.css -- .site-home .hero a -->
 <!-- source: internal/le/site/owner_rulings_test.go -- TestHeroLinksAreNeverUnderlined -->
 The release text has a Planned release title above two lines: Initial version
-and Q4 2026. The separator between release and counters is vertical on desktop
+and December 2026 (Thomas replaced Q4 2026 with December 2026 on 2026-11-23). The separator between release and counters is vertical on desktop
 and horizontal when the counters stack below release at tablet widths and below.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: website/assets/css/30-components.css -- .site-home .hero-metrics-grid -->

@@ -174,7 +174,7 @@ func TestHomepageOmitsRetiredSafetySection(t *testing.T) {
 			t.Errorf("homepage retains removed safety section %q", retired)
 		}
 	}
-	for _, retained := range []string{"No stable release yet.", "Planned release", "Q4 2026"} {
+	for _, retained := range []string{"No stable release yet.", "Planned release", "December 2026"} {
 		if !strings.Contains(page, retained) {
 			t.Errorf("homepage lost hero release information %q", retained)
 		}

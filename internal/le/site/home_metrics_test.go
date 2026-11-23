@@ -312,8 +312,8 @@ func TestHomeReleaseNamesInitialVersion(t *testing.T) {
 	if metricNodeWithClass(details, "hero-mascot") == nil || metricNodeWithClass(details, "hero-release-speaker") == nil {
 		t.Error("release details lost the linked bird")
 	}
-	if got := strings.Join(lines, ","); got != "Initial version,Q4 2026" || breaks != 1 {
-		t.Errorf("release lines = %q with %d breaks, want Initial version then Q4 2026", got, breaks)
+	if got := strings.Join(lines, ","); got != "Initial version,December 2026" || breaks != 1 {
+		t.Errorf("release lines = %q with %d breaks, want Initial version then December 2026", got, breaks)
 	}
 }
 
