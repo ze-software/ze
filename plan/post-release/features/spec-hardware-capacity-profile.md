@@ -54,6 +54,18 @@ Thomas's addition (2026-11-23), on how the known-platform table is filled:
 > database" for example, like JSON file embedded or the like, we can update
 > after test or have users report their testing
 
+And on how a user reports (2026-11-23):
+
+> they run a lab with ze in "record perf mode" and it produces an artifact
+> they can share with us
+
+So record mode is a way to run Ze, not a load generator: the user drives
+their own lab traffic through a Ze in record perf mode, Ze records what it
+observes (forwarding rate, route and peer scale reached, CPU and memory use,
+drops, convergence) against the hardware it runs on, and at the end of the
+run writes one cleaned artifact the user shares with the project. The same
+mode serves the project's own lab runs.
+
 ### Defects found while researching, owned here
 
 | Defect | Consequence | Why here |
@@ -170,6 +182,7 @@ Further verified facts:
 |----|------|--------------|----------------------|
 | R-1 | An estimate is read as a promise, and an operator sizes a deployment on it | An operator report quoting an estimate as a measured figure | Every answer carries its kind (measured on a named platform, or estimate) in the same line as the figure |
 | R-3 | A user-submitted record is wrong (a VM reported as hardware, a lossy run, an edited file) and skews the table for everyone on that platform; and once users submit records, the record format is a contract with people outside the repository | A submitted record whose figures sit far from the project's own run on the same platform, or a record that fails to parse after a format change | Record mode applies the `./le perf` publication rule (a lossy run is not a figure) and records the platform detection it saw; a user record enters only by reviewed commit (C-6); the format carries a version so an older report still parses |
+| R-4 | In a user's lab Ze sees what it forwarded, not what the traffic generator could offer, so a run limited by the generator records a figure below the box's capacity and is read as its maximum | A record whose CPU, worker and NIC counters show headroom (no saturated worker, no rx ring or buffer drops) | The artifact states whether a limit was reached and which (CPU, a worker, a NIC queue, memory): a run that reached one records a maximum, a run that reached none records "at least" that figure, and only a maximum fills the table's capacity value |
 | R-2 | Init-chosen values drift from what the hardware supports after a hardware change or image move | Doctor sees workers beyond the isolated set, or hugepages short of the estimate | The P4 doctor rows judge the running config against the current hardware, not against what init saw |
 
 ## Blast Radius
@@ -290,7 +303,7 @@ Further verified facts:
 | C-2 | Which platforms are measured first for the known-platform table, on which known hardware | (a) the N100-class appliance target and one server class, each recorded with P5 record mode; (b) other | Filled by record mode into the embedded JSON database (Thomas, 2026-11-23); which platforms first is still open |
 | C-6 | How a user-reported record enters the shipped database | (a) through a reviewed commit, labelled "user-reported" beside "project-measured", and only when the record shows real hardware, so an estimate, a user report and a project measurement are three different answers; (b) user reports are kept apart and never shipped in the table | |
 | C-7 | Whether a box uses its own recorded run | (a) yes: a run recorded on this box is kept in its store and beats both the embedded table and the estimate for this box only, labelled "measured on this device"; (b) no, only the embedded table is read | |
-| C-8 | How a user reports a record | (a) record mode writes a cleaned file the user chooses to submit (an issue or a pull request); Ze never sends it anywhere by itself; (b) an opt-in upload command | |
+| C-8 | How a user reports a record | (a) record mode writes a cleaned file the user chooses to submit (an issue or a pull request); Ze never sends it anywhere by itself; (b) an opt-in upload command | (a), refined by Thomas (2026-11-23): the user runs a lab with Ze in "record perf mode", and it produces an artifact they share with the project |
 | C-3 | Where sizing applies on the appliance | (a) both: `ze appliance init` takes a declared platform for hugepages and isolated CPUs, and first boot writes the YANG leaves from detection; (b) first boot only, reporting hugepage and isolation mismatches through doctor | |
 | C-4 | Whether the profile is also a command (`show host capacity`) served on every surface | (a) yes, so an operator re-reads it after a hardware change; (b) init output only | |
 | C-5 | Memory shortfall: refuse or warn | (a) refuse a VPP heap and buffers that cannot be allocated, warn on an estimated RIB shortfall; (b) warn on both | |
