@@ -2,8 +2,8 @@
   "note": "Independent re-judgment against RFC 5176 Section 3.4 and HEAD code (packet.go VerifyCoAMessageAuthenticator). radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields and TestRFC5176MessageAuthenticatorRefusesEveryOtherStream directly isolate VerifyCoAMessageAuthenticator with an independent RFC signer, asserting non-zero wire Request Authenticator acceptance and rejecting non-zeroed Request Authenticator, non-zeroed Message-Authenticator (0x77), tampered attributes, wrong secret and zero value. authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields proves conformant acceptance end-to-end over UDP; its negative case reproduces the coupled pre-fix inverted order (which trips VerifyCoARequestAuth before VerifyCoAMessageAuthenticator under conformant RequestAuth, while the radius direct tests isolate VerifyCoAMessageAuthenticator independently).",
   "requirement_sha": "88faa1987d20f72c",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "77dcd5becb6dabff",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields#2": "77dcd5becb6dabff",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "65fc8a9b234b928e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields#2": "65fc8a9b234b928e",
     "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorRefusesEveryOtherStream": "4e8828b1e015967c",
     "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "4e8828b1e015967c"
   },

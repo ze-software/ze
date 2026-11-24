@@ -12,8 +12,8 @@
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "3a27a8d6fbc4947c",
     "internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go::TestCoAImplementedIdentificationStillApplies": "5886dd26c6f6c191",
     "internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go::TestDynamicAuthorizationRefusesUnimplementedIdentification": "5886dd26c6f6c191",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed": "77dcd5becb6dabff",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed#2": "77dcd5becb6dabff"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed": "65fc8a9b234b928e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed#2": "65fc8a9b234b928e"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed": "64288501d122a8dd",

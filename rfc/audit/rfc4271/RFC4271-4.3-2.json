@@ -1,21 +1,21 @@
 {
-  "note": "Re-judged at HEAD against RFC 4271 Section 4.3 (\"For well-known attributes and for optional non-transitive attributes, the Partial bit MUST be set to 0.\"). Positive: TestRFC4271PartialBitClearOnSend checks encoded flags of all well-known attributes and MED; TestRFC4271PartialClearedOnTheRelayedWire proves ORIGIN 0x60 and MED 0xA0 are cleared to 0x40 and 0x80 on route-server relay via publishBase -> ClearPartialOnWellKnownAndNonTransitive while COMMUNITIES 0xE0 preserves Partial; TestRFC4271PartialNotSetOnRecognizedOrNonTransitive checks reactor publish. Negative: TestRFC4271PartialNotStampedOnExcludedClasses proves SetPartialOnUnrecognizedTransitive never stamps well-known or optional non-transitive attributes; TestRFC4271PartialClearedWhenTheRailReadvertises and TestRFC4271PartialBitClearedOnReadvertisedWellKnown prove commit and storage readvertise rails clear Partial on received 0x60/0xA0 inputs.",
+  "note": "Re-judged independently at HEAD against RFC 4271 Section 4.3 (\"For well-known attributes and for optional non-transitive attributes, the Partial bit MUST be set to 0.\") after 89250c6db8 restored RFC4271-5-3 negative comment lines without altering test assertions. Positive: attribute.TestRFC4271PartialBitClearOnSend asserts Flags().IsPartial()==false and encoded buf[0]&0x20==0 for all five RFC 4271 well-known attributes (ORIGIN, AS_PATH, NEXT_HOP, LOCAL_PREF, ATOMIC_AGGREGATE) and optional non-transitive MED; reactor.TestRFC4271PartialClearedOnTheRelayedWire (revert discrimination record on attribute.ClearPartialOnWellKnownAndNonTransitive) drives enforceRFC7606 -> publishBase -> RelayStoredRoute to an RS-client with incoming ORIGIN 0x60, MED 0xA0, COMMUNITIES 0xE0 and asserts exact relayed flags 0x40, 0x80, and preserved 0xE0; reactor.TestRFC4271PartialNotSetOnRecognizedOrNonTransitive asserts clean ORIGIN 0x40, MED 0x80, COMMUNITIES 0xC0 remain 0x40, 0x80, 0xC0 through enforceRFC7606/publishBase. Negative: rib.TestRFC4271PartialClearedWhenTheRailReadvertises (revert discrimination record on packAttributesWithASPath) parses incoming Partial-set ORIGIN 0x60, MED 0xA0, LOCAL_PREF 0x60 via AttributesWire.All and asserts exact packed iBGP flags 0x40, 0x40, 0x80; storage.TestRFC4271PartialBitClearedOnReadvertisedWellKnown parses ORIGIN 0x60, LOCAL_PREF 0x60, MED 0xA0 via ParseAttributes -> ToWireBytes and asserts exact 0x40, 0x40, 0x80; attribute.TestRFC4271PartialNotStampedOnExcludedClasses asserts SetPartialOnUnrecognizedTransitive stamps 0 attributes and leaves ORIGIN 0x40, MED 0x80, COMMUNITIES 0xC0 byte-identical.",
   "requirement_sha": "156aea092a643db1",
   "tests": {
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitClearedOnReadvertisedWellKnown": "d8b54efb525e6be8",
     "internal/component/bgp/reactor/rfc4271_relay_partial_test.go::TestRFC4271PartialClearedOnTheRelayedWire": "71651bbb29bf74fa",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "e631109147b761b1",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "4e6d4c69499e564a",
     "internal/component/bgp/rib/rfc4271_partial_test.go::TestRFC4271PartialClearedWhenTheRailReadvertises": "f16e4cbdf16366d6",
-    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialBitClearOnSend": "50591a608ea00f22",
-    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "50591a608ea00f22"
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialBitClearOnSend": "c7ba696c3128b187",
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "c7ba696c3128b187"
   },
   "units": {
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitClearedOnReadvertisedWellKnown": "d87e9f9a0b7f0c20",
     "internal/component/bgp/reactor/rfc4271_relay_partial_test.go::TestRFC4271PartialClearedOnTheRelayedWire": "4a5929435fc3c5cd",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "6afff8bfdbd8dccb",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "8fcd890f1e42f657",
     "internal/component/bgp/rib/rfc4271_partial_test.go::TestRFC4271PartialClearedWhenTheRailReadvertises": "70df500c12038a63",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialBitClearOnSend": "e0b76f97bbef5bfc",
-    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "0db19bec1b2a773f"
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "d225258226cd6b84"
   },
   "verdict": "enforced"
 }

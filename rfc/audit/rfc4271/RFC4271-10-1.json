@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeConfiguredPerPeerFromConfig": "38282f2e0ee2bbfa",
     "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault": "38282f2e0ee2bbfa",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimeConfigurablePerPeer": "e631109147b761b1",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PerPeerHoldTimeSurvivesNegotiation": "e631109147b761b1"
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimeConfigurablePerPeer": "4e6d4c69499e564a",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PerPeerHoldTimeSurvivesNegotiation": "4e6d4c69499e564a"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeConfiguredPerPeerFromConfig": "d4263f469fe08add",

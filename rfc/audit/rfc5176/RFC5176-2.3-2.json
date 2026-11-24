@@ -2,11 +2,11 @@
   "note": "Independent re-judgment against RFC 5176 Section 2.3 and HEAD code (coa.go replayKey, cachedReplay, rememberReplay). TestRFC5176DuplicateRequestAnsweredFromCache and TestRFC5176DuplicateIsSameSourcePortAndIdentifier send identical Disconnect-Requests on one client socket and assert identical cached response octets and one teardown, while a new Identifier on the same socket runs afresh (two teardowns). TestRFC5176DifferentSourcePortIsNotADuplicate proves a second source port runs afresh (two teardowns), and TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh proves a new Request Authenticator on the same triple runs afresh and replaces the entry while a stale discarded copy preserves it.",
   "requirement_sha": "b8ec763b15216763",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DifferentSourcePortIsNotADuplicate": "77dcd5becb6dabff",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateIsSameSourcePortAndIdentifier": "77dcd5becb6dabff",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateRequestAnsweredFromCache": "77dcd5becb6dabff",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateRequestAnsweredFromCache#2": "77dcd5becb6dabff",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh": "77dcd5becb6dabff"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DifferentSourcePortIsNotADuplicate": "65fc8a9b234b928e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateIsSameSourcePortAndIdentifier": "65fc8a9b234b928e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateRequestAnsweredFromCache": "65fc8a9b234b928e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateRequestAnsweredFromCache#2": "65fc8a9b234b928e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh": "65fc8a9b234b928e"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DifferentSourcePortIsNotADuplicate": "33a5a3b91f0c4e04",

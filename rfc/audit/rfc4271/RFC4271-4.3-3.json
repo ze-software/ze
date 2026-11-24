@@ -5,7 +5,7 @@
     "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteClearsLowNibbleEveryAttribute": "e8d082e5538b8273",
     "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteLeavesCleanFlagsUnchanged": "e8d082e5538b8273",
     "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "7fcb9a72da7cbf62",
-    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "50591a608ea00f22",
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "c7ba696c3128b187",
     "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "d8b3075406decc74"
   },
   "units": {

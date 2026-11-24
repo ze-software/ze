@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterAnswersAConfiguredClient": "26886fa0813e7fa4",
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterDiscardsWhenNoServerResolved": "26886fa0813e7fa4",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded": "77dcd5becb6dabff",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded#2": "77dcd5becb6dabff"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded": "65fc8a9b234b928e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded#2": "65fc8a9b234b928e"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterAnswersAConfiguredClient": "94a50244372986fa",

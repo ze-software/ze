@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAMatchingOneSessionIsACKed": "5f3f208e05b07a3f",
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAMatchingSeveralSessionsIsNAKed": "5f3f208e05b07a3f",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MultipleMatchingSessionsNAKed": "77dcd5becb6dabff",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MultipleMatchingSessionsNAKed#2": "77dcd5becb6dabff"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MultipleMatchingSessionsNAKed": "65fc8a9b234b928e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MultipleMatchingSessionsNAKed#2": "65fc8a9b234b928e"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAMatchingOneSessionIsACKed": "814d4d708dbbb804",

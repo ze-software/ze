@@ -2,8 +2,8 @@
   "note": "Re-judged at HEAD against RFC 4271 Section 6.2 (\"An implementation that accepts a Hold Time MUST use the negotiated value for the Hold Time.\"). Positive: TestRFC4271NegotiatedHoldTimeDrivesTimers verifies negotiateWith(local 90s, peer 30s) sets both neg.HoldTime=30 and s.timers.HoldTime()=30s. Negative: TestRFC4271LocalHoldTimeNotUsedWhenPeerProposesSmaller asserts local 90s is not installed when peer proposes 30s and that an out-of-range 1s/2s negotiation is floored to 3s rather than used verbatim.",
   "requirement_sha": "597a67a65f2d5f21",
   "tests": {
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalHoldTimeNotUsedWhenPeerProposesSmaller": "e631109147b761b1",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NegotiatedHoldTimeDrivesTimers": "e631109147b761b1"
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalHoldTimeNotUsedWhenPeerProposesSmaller": "4e6d4c69499e564a",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NegotiatedHoldTimeDrivesTimers": "4e6d4c69499e564a"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalHoldTimeNotUsedWhenPeerProposesSmaller": "a628a5b180014ac6",

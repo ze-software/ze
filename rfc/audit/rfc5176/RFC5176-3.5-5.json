@@ -2,8 +2,8 @@
   "note": "Independent re-judgment against RFC 5176 Section 3.5 and HEAD code (coa.go sendResponse and all callers). TestRFC5176ErrorCausePlacement pins exact response codes across five refusal paths (four CoA-NAK and one Disconnect-NAK), asserting each NAK carries an Error-Cause in 400-599 (never 200-299), and across both CoA-ACK and Disconnect-ACK, asserting no Error-Cause is present (never 400-599), and requires all three reply classes observed.",
   "requirement_sha": "a65b3e293de2fe17",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ErrorCausePlacement": "77dcd5becb6dabff",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ErrorCausePlacement#2": "77dcd5becb6dabff"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ErrorCausePlacement": "65fc8a9b234b928e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ErrorCausePlacement#2": "65fc8a9b234b928e"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ErrorCausePlacement": "e93bcd00cbd055f8",

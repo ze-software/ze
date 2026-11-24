@@ -26,7 +26,7 @@
   "requirement_sha": "b1c5bb6b4aacbdae",
   "tests": {
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught": "4a52fe47930aab88",
-    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271WellKnownAttributesAreTransitive": "50591a608ea00f22"
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271WellKnownAttributesAreTransitive": "c7ba696c3128b187"
   },
   "units": {
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught": "e79f8269d4173a35",

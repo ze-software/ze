@@ -2,8 +2,8 @@
   "note": "Independent re-judgment against RFC 5176 Section 6.3 and HEAD code (coa.go answerRequest, eventTimestampState). TestRFC5176StaleEventTimestampDiscarded sends an otherwise valid Disconnect-Request with Event-Timestamp two replay windows in the past and asserts silent discard (no response) and zero teardowns, then sends the same request with a current Event-Timestamp and asserts Disconnect-ACK. Note: future-dated timestamps (checked by ts.After in eventTimestampState) are not exercised.",
   "requirement_sha": "aa0e6dc684ebf798",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StaleEventTimestampDiscarded": "77dcd5becb6dabff",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StaleEventTimestampDiscarded#2": "77dcd5becb6dabff"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StaleEventTimestampDiscarded": "65fc8a9b234b928e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StaleEventTimestampDiscarded#2": "65fc8a9b234b928e"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StaleEventTimestampDiscarded": "eef64862226dd42a",
