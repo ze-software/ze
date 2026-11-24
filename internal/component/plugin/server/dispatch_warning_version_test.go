@@ -51,6 +51,7 @@ func dispatchWarningOverSocket(t *testing.T, lines []string) *rpc.Answer {
 
 	pluginSide, engineSide := net.Pipe()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "warning-lines"})
+	proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: "cli:warning lines test"}}})
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}

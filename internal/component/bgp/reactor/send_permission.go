@@ -1,6 +1,6 @@
-// Design: docs/architecture/api/architecture.md -- the send half of an attach block
-// Related: reactor_api.go -- getMatchingPeersSel, the one resolver every send command uses
-// Related: delivery_graph.go -- the receive half, indexed in the plugin server
+// Design: docs/architecture/api/architecture.md -- the send half of a participant bus filter.
+// Related: reactor_api.go -- getMatchingPeersSel, the one resolver every send command uses.
+// Related: delivery_graph.go -- the receive half, indexed in the plugin server.
 
 package reactor
 
@@ -8,13 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
-	"sync/atomic"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -167,25 +168,113 @@ func filterPermittedPeers(matched []*Peer, origin sendOrigin) (permitted []*Peer
 	return permitted, refused
 }
 
+const (
+	// reportSourceBGPReactor identifies peer send-permission refusals raised on
+	// the operational report bus alongside plugin-server bus refusals under
+	// diagnostic.CodeDoctorPluginRequestRefused.
+	reportSourceBGPReactor = "bgp.reactor"
+
+	// sendRefusalFallbackFix keeps the refusal event within report.FixMax when
+	// a dynamic fix line containing long participant paths exceeds the bound.
+	sendRefusalFallbackFix = "ze show errors"
+
+	// sendNoSenderFix names the dispatch-path defect when a send command
+	// carries the zero plugin.Sender.
+	sendNoSenderFix = "the dispatch path that built this command must set CommandContext.Sender"
+)
+
+// busSendParticipant returns the canonical bus participant path for a named
+// process sender, or the bounded sender name ("unset") when no process was
+// named.
+func busSendParticipant(sender plugin.Sender) string {
+	if process, ok := sender.Process(); ok {
+		return plugin.EndpointPath(process)
+	}
+	return sender.String()
+}
+
+// busSendMessage formats one BGP send type in the canonical bus message form
+// ("bgp:update", "bgp:refresh", "bgp:raw").
+func busSendMessage(sendType string) string {
+	var tb textbuf.Buffer
+	return tb.Str(bgpevents.Namespace).Byte(':').Str(sendType).String()
+}
+
+// fitSendRefusalSubject bounds subject to report.SubjectMax at a UTF-8 rune
+// boundary so a long participant name never causes report.RaiseErrorFix to drop
+// the refusal event.
+func fitSendRefusalSubject(subject string) string {
+	if len(subject) <= report.SubjectMax {
+		return subject
+	}
+	const mark = "..."
+	cut := report.SubjectMax - len(mark)
+	for cut > 0 {
+		if utf8.RuneStart(subject[cut]) {
+			break
+		}
+		cut--
+	}
+	var tb textbuf.Buffer
+	return tb.Str(subject[:cut]).Str(mark).String()
+}
+
+// fitSendRefusalFix returns fix when it fits report.FixMax, or
+// sendRefusalFallbackFix otherwise so report.RaiseErrorFix never drops the
+// refusal event.
+func fitSendRefusalFix(fix string) string {
+	if len(fix) <= report.FixMax {
+		return fix
+	}
+	return sendRefusalFallbackFix
+}
+
 // sendPermissionDenied reports one refused peer, once per refusal.
 //
 // A refusal an operator cannot see is a routing bug in disguise: the process
 // gets an accepted command back for the peers it MAY reach, the route never
 // arrives at the peer it may not, and nothing on either side says which of the
 // two happened (ai/rules/evidence.md -- fail closed OR say something; this
-// does both).
+// logs at WARN, increments the single bus refusal counter, and raises
+// diagnostic.CodeDoctorPluginRequestRefused on the report bus).
 func sendPermissionDenied(peer *Peer, origin sendOrigin) {
-	var tb textbuf.Buffer
 	process := origin.sender.String()
-	action := tb.Str("permit bgp:").Str(origin.sendType).Str(" from /bus/endpoint/").Str(process).Str(" in this peer's bus receive filter or the endpoint's bus send filter").String()
+	participant := busSendParticipant(origin.sender)
+	msg := busSendMessage(origin.sendType)
+	peerPath := deliveryPeerPathForSettings(peer.settings)
+	if peerPath == "" {
+		peerPath = peer.settings.Address.String()
+	}
+
+	var actionBuf textbuf.Buffer
+	action := actionBuf.Str("permit ").Str(msg).Str(" from ").Str(participant).
+		Str(" in ").Str(peerPath).Str("'s bus receive filter or ").Str(participant).
+		Str("'s bus send filter").String()
+
+	var reportMsg textbuf.Buffer
+	reportMsg.Str("bus send refused: ").Str(participant).Str(" may not send ").Str(msg).
+		Str(" to ").Str(peerPath).
+		Str("; neither ").Str(peerPath).Str(" receive filter nor ").Str(participant).
+		Str(" send filter permits this target")
+
 	routesLogger().Warn("send refused: the compiled bus filter does not permit this process to send that message type to this peer",
 		"peer", peer.settings.Address,
+		"peer-participant", peerPath,
+		"participant", participant,
 		"process", process,
+		"message", msg,
 		"send-type", origin.sendType,
 		"effect", "nothing was sent to this peer; other peers in the selector are unaffected",
 		"action", action,
 		"code", diagnostic.CodeDoctorPluginRequestRefused)
-	recordSendRefused(process, origin.sendType)
+	pluginserver.RecordBusSendRefused(participant, msg)
+	report.RaiseErrorFix(
+		reportSourceBGPReactor,
+		diagnostic.CodeDoctorPluginRequestRefused,
+		fitSendRefusalSubject(participant),
+		report.FitMessage(reportMsg.String()),
+		fitSendRefusalFix(action),
+	)
 }
 
 // sendNoSenderDenied reports one send command refused for naming no sender.
@@ -194,17 +283,35 @@ func sendPermissionDenied(peer *Peer, origin sendOrigin) {
 // so no peer is at fault. target names what the command addressed, in the words
 // of the rail that built it -- a selector, a destination list, one peer -- and
 // the caller pays for that string only here, on the refused path. The counter
-// shares the label set of every other refusal, and Sender.String() gives it the
-// bounded value "unset" (recordSendRefused).
+// shares the label set of every other bus refusal, and Sender.String() gives it
+// the bounded participant value "unset" (pluginserver.RecordBusSendRefused).
 func sendNoSenderDenied(target string, origin sendOrigin) {
+	participant := busSendParticipant(origin.sender)
+	msg := busSendMessage(origin.sendType)
+
+	var reportMsg textbuf.Buffer
+	reportMsg.Str("bus send refused: command addressing ").Str(target).
+		Str(" for ").Str(msg).
+		Str(" names no sender (").Str(participant).
+		Str("), so no bus filter can permit it")
+
 	routesLogger().Warn("send refused: this command names no sender, so no bus filter can permit it",
 		"target", target,
+		"participant", participant,
 		"process", origin.sender.String(),
+		"message", msg,
 		"send-type", origin.sendType,
 		"effect", "nothing was sent to any peer this command names",
-		"action", "the dispatch path that built this command must set CommandContext.Sender",
+		"action", sendNoSenderFix,
 		"code", diagnostic.CodeDoctorPluginRequestRefused)
-	recordSendRefused(origin.sender.String(), origin.sendType)
+	pluginserver.RecordBusSendRefused(participant, msg)
+	report.RaiseErrorFix(
+		reportSourceBGPReactor,
+		diagnostic.CodeDoctorPluginRequestRefused,
+		fitSendRefusalSubject(participant),
+		report.FitMessage(reportMsg.String()),
+		sendNoSenderFix,
+	)
 }
 
 // selectorTarget names a selector for a refusal message.
@@ -225,44 +332,4 @@ func peerTarget(addr netip.Addr) string {
 // addresses that were refused are already one WARN each (sendPermissionDenied).
 func destinationsTarget(n int) string {
 	return textbuf.StrInt("destinations ", int64(n))
-}
-
-// sendPermissionMetrics holds the counter for sends the permission refused.
-type sendPermissionMetrics struct {
-	refused metrics.CounterVec // labels: process, type
-}
-
-// sendPermissionMetricsPtr stays nil until the reactor wires a registry. A
-// build with metrics disabled leaves it nil and the refusal is then reported by
-// its log line and its error alone. Same shape and same reason as
-// announceMetricsPtr: the recorder is reached from a free function.
-var sendPermissionMetricsPtr atomic.Pointer[sendPermissionMetrics]
-
-// setSendPermissionMetricsRegistry creates the send-permission counter from the
-// given registry. A nil registry is a no-op, leaving the recorder disabled.
-func setSendPermissionMetricsRegistry(reg metrics.Registry) {
-	if reg == nil {
-		return
-	}
-	sendPermissionMetricsPtr.Store(&sendPermissionMetrics{
-		refused: reg.CounterVec(
-			"ze_bgp_send_refused_total",
-			"Messages a process was refused permission to generate toward a peer, because the peer's config does not attach that process with that send type. Nothing reached the peer.",
-			[]string{"process", metricLabelType},
-		),
-	})
-}
-
-// recordSendRefused counts one refused peer.
-//
-// The peer is NOT a label. It is in the log line and in the error the issuing
-// process receives, and both of those name one refusal; the counter answers a
-// different question, which is whether a process is being refused at all. That
-// is the same reasoning announce_metrics.go records for its own error path.
-// The two labels are bounded: a process name comes from the config's plugin
-// block, and the type is one of the built-in send types.
-func recordSendRefused(process, sendType string) {
-	if m := sendPermissionMetricsPtr.Load(); m != nil {
-		m.refused.With(process, sendType).Inc()
-	}
 }

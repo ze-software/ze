@@ -284,6 +284,9 @@ func TestDaemonTerminationSocketResponsePrecedesWait(t *testing.T) {
 			})
 
 			proc := process.NewProcess(plugin.PluginConfig{Name: "daemon-termination-caller"})
+			proc.SetRegistration(&plugin.PluginRegistration{
+				Sends: []rpc.MessageSendDecl{{Message: busCLIPrefix + tt.command}},
+			})
 			proc.SetConn(plugipc.NewPluginConn(engineSide, engineSide))
 			pm := process.NewProcessManager(nil)
 			if err := pm.AddProcess(proc.Name(), proc); err != nil {

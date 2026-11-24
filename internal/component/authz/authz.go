@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -354,11 +355,16 @@ func (s *Store) hasUserAssignments() bool {
 // TACACS/RADIUS-only box has profiles but no assignments, and its authenticated
 // users must still resolve a profile or be denied.
 //
-// Three reserved cases keep the strict default from bricking or breaking a box:
-//   - A trusted in-process caller, whose username bears ReservedInternalPrefix
-//     (injected at the plugin RPC boundary), is allowed so internal dispatch
-//     keeps working. Its prefix is un-typeable, so no authenticated identity can
-//     spoof it.
+// Four reserved cases govern daemon-injected and break-glass identities:
+//   - The sole trusted in-process RPC caller, whose username exactly equals
+//     ReservedInternalRPCIdentity (naming no bus participant), is allowed so
+//     internal RPC dispatch keeps working. It is un-typeable, so no
+//     authenticated identity can spoof it.
+//   - A plugin identity carrying ReservedInternalPluginPrefix is NEVER granted
+//     by prefix: it is evaluated against the endpoint's compiled bus command
+//     profile (aaa.LookupPluginCommandProfile) through authz's own Entry.matches
+//     prefix matcher and fails closed when no profile allows the command,
+//     independent of whether operator profiles are configured.
 //   - A shared-token or no-auth API caller whose username exactly equals
 //     ReservedSharedAPIUsername is allowed after REST or gRPC classification.
 //     The transport's read-only gate denies no-auth mutations first.
@@ -367,9 +373,10 @@ func (s *Store) hasUserAssignments() bool {
 //     as a config assignment), is allowed so an operator can always reach a
 //     misconfigured box.
 //
-// Every audit-worthy decision (a trusted-internal grant, a shared-API grant, a
-// recovery grant, and each deny reason) is logged so an operator can distinguish
-// "denied by profile" from "denied because no profile applied".
+// Every audit-worthy decision (a trusted-internal grant, a plugin profile
+// grant or deny, a shared-API grant, a recovery grant, and each deny reason) is
+// logged so an operator can distinguish "denied by profile" from "denied
+// because no profile applied".
 func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
 	return s.authorize(username, nil, false, command, isReadOnly)
 }
@@ -381,16 +388,21 @@ func (s *Store) AuthorizeWithProfiles(username string, profiles []string, comman
 }
 
 func (s *Store) authorize(username string, loginNames []string, hasLoginNames bool, command string, isReadOnly bool) Action {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	// Trusted in-process caller injected at the RPC boundary. Not a config
-	// subject: the prefix is un-typeable, so this cannot be reached by an
-	// authenticated user or a config assignment.
-	if strings.HasPrefix(username, aaa.ReservedInternalPrefix) {
-		authzLogger.Debug("authorized: trusted internal caller",
+	// Trusted in-process RPC caller carrying no bus participant identity.
+	// Match the complete identity rather than a prefix so no plugin or other
+	// reserved name bypasses authorization profiles.
+	if username == aaa.ReservedInternalRPCIdentity {
+		authzLogger.Debug("authorized: trusted internal RPC caller",
 			"identity", username, "command", command)
 		return Allow
+	}
+
+	// Plugin identity injected at the plugin RPC boundary. Evaluated against
+	// the endpoint's compiled bus command profile before operator store state
+	// so plugin authorization never depends on operator profiles and never
+	// holds s.mu across the profile lookup callback.
+	if endpoint, isPlugin := aaa.PluginEndpointFromIdentity(username); isPlugin {
+		return authorizePluginIdentity(username, endpoint, command, isReadOnly)
 	}
 
 	// Shared API identity injected only after REST or gRPC has classified a
@@ -409,6 +421,9 @@ func (s *Store) authorize(username string, loginNames []string, hasLoginNames bo
 		authzLogger.Warn("denied: empty identity", "command", command)
 		return Deny
 	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	var profileNames []string
 	var hasAssignment bool
@@ -488,5 +503,73 @@ func (s *Store) authorize(username string, loginNames []string, hasLoginNames bo
 	// grants admin only on the direct Store API (assignment to a missing profile).
 	authzLogger.Warn("denied: assigned profiles all undefined",
 		"username", username, "command", command)
+	return Deny
+}
+
+// compilePluginProfile builds an authorization Profile whose Run and Edit
+// sections both evaluate allowedPrefixes with Default: Deny using authz's own
+// word-boundary prefix matcher (Entry.matches). Empty or whitespace-only
+// prefixes are skipped so they can never act as a wildcard allow.
+func compilePluginProfile(endpoint string, allowedPrefixes []string) Profile {
+	section := Section{
+		Default: Deny,
+		Entries: make([]Entry, 0, len(allowedPrefixes)),
+	}
+	for _, raw := range allowedPrefixes {
+		prefix := strings.TrimSpace(raw)
+		if prefix == "" {
+			continue
+		}
+		section.Append(Allow, prefix, false)
+	}
+	return Profile{
+		Name: aaa.ReservedInternalPluginPrefix + endpoint,
+		Run:  section,
+		Edit: section,
+	}
+}
+
+// authorizePluginIdentity evaluates a plugin identity against its published bus
+// command profile through authz's own Profile/Entry matcher. Fails closed when
+// no profile is published, AllowNone is set, or AllowedPrefixes contains no
+// matching prefix.
+func authorizePluginIdentity(username, endpoint, command string, isReadOnly bool) Action {
+	prof, ok := aaa.LookupPluginCommandProfile(endpoint)
+	if !ok {
+		authzLogger.Warn("denied: plugin identity has no command profile",
+			"identity", username, "endpoint", endpoint, "command", command,
+			"code", diagnostic.CodeDoctorPluginRequestRefused)
+		return Deny
+	}
+	if prof.AllowNone {
+		authzLogger.Warn("denied: plugin command profile allows no commands",
+			"identity", username, "endpoint", endpoint, "command", command,
+			"code", diagnostic.CodeDoctorPluginRequestRefused)
+		return Deny
+	}
+	if len(prof.AllowedPrefixes) == 0 {
+		authzLogger.Warn("denied: plugin command profile has no allowed prefixes",
+			"identity", username, "endpoint", endpoint, "command", command,
+			"code", diagnostic.CodeDoctorPluginRequestRefused)
+		return Deny
+	}
+
+	profile := compilePluginProfile(endpoint, prof.AllowedPrefixes)
+	if len(profile.Run.Entries) == 0 {
+		authzLogger.Warn("denied: plugin command profile has no non-empty prefixes",
+			"identity", username, "endpoint", endpoint, "command", command,
+			"code", diagnostic.CodeDoctorPluginRequestRefused)
+		return Deny
+	}
+
+	if profile.Authorize(command, isReadOnly) == Allow {
+		authzLogger.Debug("authorized: plugin identity by bus profile",
+			"identity", username, "endpoint", endpoint, "command", command)
+		return Allow
+	}
+
+	authzLogger.Warn("denied: plugin command not permitted by bus profile",
+		"identity", username, "endpoint", endpoint, "command", command,
+		"code", diagnostic.CodeDoctorPluginRequestRefused)
 	return Deny
 }

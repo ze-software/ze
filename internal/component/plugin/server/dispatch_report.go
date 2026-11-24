@@ -244,9 +244,16 @@ func (r *pluginReportRate) raiseWarningWithin(source string, in *rpc.ReportIssue
 // per window by a bound of its own, as the report-issue route does
 // (reportWindow).
 func refusePluginRequest(plugin, message string) {
-	report.RaiseErrorFixOnce(serverEventSource, diagnostic.CodeDoctorPluginRequestRefused, plugin,
+	refusePluginRequestWithFix(plugin, message, fixShowErrors)
+}
+
+func refusePluginRequestWithFix(subject, message, fix string) {
+	if fix == "" {
+		fix = fixShowErrors
+	}
+	report.RaiseErrorFixOnce(serverEventSource, diagnostic.CodeDoctorPluginRequestRefused, subject,
 		report.FitMessage(message+"; ze raises one such event per plugin in "+rpc.ReportRaiseWindow.String()),
-		fixShowErrors, rpc.ReportRaiseWindow)
+		fix, rpc.ReportRaiseWindow)
 }
 
 // forgetPluginReports drops the report-issue rate window of name, whose

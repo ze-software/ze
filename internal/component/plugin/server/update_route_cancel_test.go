@@ -59,7 +59,10 @@ func TestUpdateRouteSocketCancellationJoinsCommandMutation(t *testing.T) {
 	ctx, cancel := context.WithCancel(work)
 	defer cancel()
 	done := make(chan error, 1)
-	go func() { _, err := peer.UpdateRouteResult(ctx, "192.0.2.7", "route"); done <- err }()
+	go func() {
+		_, err := peer.UpdateRouteResult(ctx, "192.0.2.7", "update text nlri add 10.0.0.0/24")
+		done <- err
+	}()
 	select {
 	case <-entered:
 	case <-work.Done():
@@ -84,7 +87,7 @@ func TestUpdateRouteSocketCancellationJoinsCommandMutation(t *testing.T) {
 func TestUpdateRouteLegacyDeadlineKeepsOrdinaryReceiverContract(t *testing.T) {
 	host := &Server{ctx: t.Context()}
 	proc := nativeOwnerProcess(t, host)
-	raw, err := json.Marshal(rpc.UpdateRouteInput{Command: "route", PeerSelector: "192.0.2.7"})
+	raw, err := json.Marshal(rpc.UpdateRouteInput{Command: "update text nlri add 10.0.0.0/24", PeerSelector: "192.0.2.7"})
 	require.NoError(t, err)
 	scope, err := updateRouteCancellationScope(host, proc, raw)
 	require.NoError(t, err)

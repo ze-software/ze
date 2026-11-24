@@ -5,6 +5,8 @@
 package clidispatch
 
 import (
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/opererr"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -14,7 +16,7 @@ const area = "cli dispatch"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Summary: "check every command a Go call site sends still routes", Why: "every command string a native Go call site sends to the daemon still resolves, so a command-tree migration cannot leave a caller sending a key that no longer exists",
+	leaction.Action{Verb: "check", Summary: "check every command a Go call site sends still routes", Why: "every command string a native Go call site sends to the daemon still resolves and every compiled-in plugin declares the messages it sends, so neither a command-tree migration nor a missing Registration.Sends entry can leave a caller failing at runtime",
 		Answer: runCheck},
 	leaction.Action{Verb: "selftest", Summary: "prove the dispatch resolver against its fixtures", Why: "the resolver and the emitter recogniser still tell a dead command from a live one, proved against fixtures rather than against the tree they judge",
 		Answer: runSelftest},
@@ -43,6 +45,17 @@ func runCheck() (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
+	sendFindings, pluginsChecked, err := CheckPluginSends(tree, registry.All())
+	if err != nil {
+		leaction.ReportError(opererr.Wrap(err,
+			"plugin send coverage check failed",
+			"could not verify compiled-in plugin Registration.Sends against the checkout",
+			"./le cli dispatch check"))
+		return nil, 1
+	}
+	report.PluginsChecked = pluginsChecked
+	report.Findings = append(report.Findings, sendFindings...)
+	sortPluginFindings(report.Findings)
 	if !report.Valid() {
 		return report, 1
 	}

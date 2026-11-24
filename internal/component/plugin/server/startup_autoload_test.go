@@ -430,7 +430,11 @@ func TestRollbackStartupProcessWaitsForRuntimeDrain(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: pluginName})
 	proc.SetConn(ipc.NewMuxPluginConn(rpc.NewMuxConn(rpc.NewConn(engineSide, engineSide))))
 	proc.SetStage(plugin.StageRunning)
-	proc.SetRegistration(&plugin.PluginRegistration{Name: pluginName, Commands: []string{commandName}})
+	proc.SetRegistration(&plugin.PluginRegistration{
+		Name:     pluginName,
+		Commands: []string{commandName},
+		Sends:    []rpc.MessageSendDecl{{Message: busCLIPrefix + gatedCommand}},
+	})
 	require.NoError(t, pm.AddProcess(pluginName, proc))
 	require.NoError(t, s.registry.Register(proc.Registration()))
 	s.markPluginLoaded(pluginName)
@@ -555,7 +559,11 @@ func TestSocketReloadRefusesToStopCallingProcess(t *testing.T) {
 	})
 	proc := process.NewProcess(plugin.PluginConfig{Name: pluginName})
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
-	proc.SetRegistration(&plugin.PluginRegistration{Name: pluginName, Commands: []string{commandName}})
+	proc.SetRegistration(&plugin.PluginRegistration{
+		Name:     pluginName,
+		Commands: []string{commandName},
+		Sends:    []rpc.MessageSendDecl{{Message: "cli:request reload"}},
+	})
 	require.NoError(t, pm.AddProcess(pluginName, proc))
 	require.NoError(t, s.registry.Register(proc.Registration()))
 	s.markPluginLoaded(pluginName)
@@ -784,7 +792,11 @@ func TestBridgeReloadRefusesToStopCallingProcess(t *testing.T) {
 	require.NoError(t, proc.StartWithContext(s.ctx))
 	require.NoError(t, proc.InitConns())
 	proc.SetStage(plugin.StageRunning)
-	proc.SetRegistration(&plugin.PluginRegistration{Name: pluginName, Commands: []string{commandName}})
+	proc.SetRegistration(&plugin.PluginRegistration{
+		Name:     pluginName,
+		Commands: []string{commandName},
+		Sends:    []rpc.MessageSendDecl{{Message: "cli:request reload"}},
+	})
 	require.NoError(t, pm.AddProcess(pluginName, proc))
 	require.NoError(t, s.registry.Register(proc.Registration()))
 	s.markPluginLoaded(pluginName)

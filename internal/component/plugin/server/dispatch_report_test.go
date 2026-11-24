@@ -397,6 +397,7 @@ func TestUndecodablePluginEmitIsRefusedAndBounded(t *testing.T) {
 	unsubscribe := forkedBGPRouteChange.Subscribe(s, func(*redistevents.RouteChangeBatch) { received++ })
 	defer unsubscribe()
 	proc := reportingProcess("emit-undecodable")
+	proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: forkedBGPRouteChange.Namespace() + ":" + forkedBGPRouteChange.EventType()}}})
 	params, err := json.Marshal(rpc.EmitEventInput{
 		Namespace: forkedBGPRouteChange.Namespace(), EventType: forkedBGPRouteChange.EventType(), Event: "{not json",
 	})
@@ -435,6 +436,7 @@ func TestUndecodablePluginEmitToForkedSubscriberIsRefused(t *testing.T) {
 		Direction: events.DirBoth,
 	})
 	emitter := reportingProcess("emit-undecodable-forked")
+	emitter.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: namespace + ":" + eventType}}})
 
 	// Red: the decode in deliverEvent gated on an engine subscriber listening.
 	for range 20 {
@@ -473,6 +475,7 @@ func TestReportRefusalsLogOncePerWindow(t *testing.T) {
 	handle := lookupEngineOp(rpc.MethodReportIssue).handle
 	code := diagnostic.CodeDoctorInternalDefect
 	proc := reportingProcess("report-log-looper")
+	proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: "cli:nonexistent command"}}})
 
 	_, err := s.dispatchCommand(t.Context(), proc, "nonexistent command")
 	require.Error(t, err)
@@ -598,6 +601,7 @@ func TestFailingDispatchCommandIsBounded(t *testing.T) {
 	s := reportTestServer(t)
 	s.dispatcher = NewDispatcher()
 	proc := reportingProcess("dispatch-looper")
+	proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: "cli:nonexistent command"}}})
 	// Red: refusePluginRequest in dispatchCommandResponse's failure branch.
 	for range 20 {
 		_, err := s.dispatchCommand(t.Context(), proc, "nonexistent command")

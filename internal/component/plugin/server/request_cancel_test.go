@@ -53,7 +53,7 @@ func TestSelectedSocketCancellationJoinsWriter(t *testing.T) {
 	if err := host.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{{Addr: "192.0.2.7", Name: "p7", Path: "/" + graphNS + "/entry/p7"}}, []BusParticipantInput{{
 		Path:         plugin.EndpointPath(proc.Name()),
 		EndpointName: proc.Name(),
-		Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}},
+		Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}, {Message: busMsgBGPUpdate}},
 	}}); err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +300,7 @@ func TestSelectedSocketDisconnectCancelsBeforeDispatchJoin(t *testing.T) {
 	if err := host.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{{Addr: "192.0.2.7", Name: "p7", Path: "/" + graphNS + "/entry/p7"}}, []BusParticipantInput{{
 		Path:         plugin.EndpointPath(proc.Name()),
 		EndpointName: proc.Name(),
-		Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}},
+		Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}, {Message: busMsgBGPUpdate}},
 	}}); err != nil {
 		t.Fatal(err)
 	}

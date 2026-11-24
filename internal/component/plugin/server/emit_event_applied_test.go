@@ -51,13 +51,18 @@ func newAppliedEmitterGroup(t *testing.T, typed, self bool, handler func(string)
 	ownerReady := make(chan *sdk.Plugin, 1)
 	names := append([]string{"applied-emitter"}, consumers...)
 	for _, name := range names {
+		var sends []rpc.MessageSendDecl
 		var receives []rpc.MessageReceiveDecl
+		if name == "applied-emitter" {
+			sends = []rpc.MessageSendDecl{{Message: appliedEventNamespace + ":" + appliedEventType}}
+		}
 		if name != "applied-emitter" || self {
 			receives = []rpc.MessageReceiveDecl{{Message: appliedEventNamespace + ":" + appliedEventType}}
 		}
 		require.NoError(t, registry.Register(registry.Registration{
 			Name:        name,
 			Description: "applied event settlement test plugin",
+			Sends:       sends,
 			Receives:    receives,
 			RunEngine: func(conn net.Conn) int {
 				if !typed {
@@ -74,7 +79,7 @@ func newAppliedEmitterGroup(t *testing.T, typed, self bool, handler func(string)
 				if name == "applied-emitter" {
 					p.OnStarted(func(context.Context) error { ownerReady <- p; return nil })
 				}
-				if err := p.Run(context.Background(), &sdk.Registration{Receives: receives}); err != nil {
+				if err := p.Run(context.Background(), &sdk.Registration{Sends: sends, Receives: receives}); err != nil {
 					return 1
 				}
 				return 0

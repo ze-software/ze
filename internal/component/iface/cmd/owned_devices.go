@@ -27,13 +27,17 @@ import (
 // ownedDeviceSubject names the requests in a decode refusal.
 const ownedDeviceSubject = "Owned interface device request"
 
+// ownedDeviceBusExemptReason explains why the owned-device operations do not
+// carry a participant bus message.
+const ownedDeviceBusExemptReason = "governed by compile-time iface.MustGrantOwnedDeviceNames prefix grants keyed on compiled registration identity"
+
 func init() {
 	// ConfigureSafe: an owner may declare its bridges and start what needs a
 	// link from its configure stage, and every handler answers within ctx.
 	for _, operation := range []pluginserver.EngineOperation{
-		{Method: rpc.MethodOwnedBridgesReplace, Handler: ownedBridgesReplaceHandler, Startup: pluginserver.EngineOperationConfigureSafe},
-		{Method: rpc.MethodOwnedLinkCreate, Handler: ownedLinkCreateHandler, Startup: pluginserver.EngineOperationConfigureSafe},
-		{Method: rpc.MethodOwnedLinkRemove, Handler: ownedLinkRemoveHandler, Startup: pluginserver.EngineOperationConfigureSafe},
+		{Method: rpc.MethodOwnedBridgesReplace, Handler: ownedBridgesReplaceHandler, Startup: pluginserver.EngineOperationConfigureSafe, BusExemptReason: ownedDeviceBusExemptReason},
+		{Method: rpc.MethodOwnedLinkCreate, Handler: ownedLinkCreateHandler, Startup: pluginserver.EngineOperationConfigureSafe, BusExemptReason: ownedDeviceBusExemptReason},
+		{Method: rpc.MethodOwnedLinkRemove, Handler: ownedLinkRemoveHandler, Startup: pluginserver.EngineOperationConfigureSafe, BusExemptReason: ownedDeviceBusExemptReason},
 	} {
 		if err := pluginserver.RegisterEngineOp(operation); err != nil {
 			panic("BUG: owned interface device registration failed: " + err.Error())

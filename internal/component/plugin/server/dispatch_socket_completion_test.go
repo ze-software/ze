@@ -40,6 +40,9 @@ func TestDispatchCommandSocketCompletesAcceptedAction(t *testing.T) {
 
 	pluginSide, engineSide := net.Pipe()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-socket-completion"})
+	proc.SetRegistration(&plugin.PluginRegistration{
+		Sends: []rpc.MessageSendDecl{{Message: "cli:completion test"}},
+	})
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	completed := make(chan struct{}, 2)

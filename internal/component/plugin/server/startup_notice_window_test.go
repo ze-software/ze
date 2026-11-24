@@ -147,18 +147,25 @@ func TestStartupSubscriptionLiveBeforeOnStartedRead(t *testing.T) {
 
 		var owner atomic.Pointer[sdk.Plugin]
 		ownerStarted := make(chan struct{})
-		registerLifecyclePlugin(t, ownerName, nil, func(conn net.Conn) int {
-			p := sdk.NewWithConn(ownerName, conn)
-			owner.Store(p)
-			p.OnStarted(func(context.Context) error {
-				close(ownerStarted)
-				return nil
-			})
-			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
-				return 1
-			}
-			return 0
-		})
+		ownerSends := []rpc.MessageSendDecl{{Message: store.NoticeNamespace + ":" + store.EventDatasetStored}}
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        ownerName,
+			Description: "startup notice window owner test plugin",
+			Sends:       ownerSends,
+			RunEngine: func(conn net.Conn) int {
+				p := sdk.NewWithConn(ownerName, conn)
+				owner.Store(p)
+				p.OnStarted(func(context.Context) error {
+					close(ownerStarted)
+					return nil
+				})
+				if err := p.Run(context.Background(), &sdk.Registration{Sends: ownerSends}); err != nil {
+					return 1
+				}
+				return 0
+			},
+			CLIHandler: func([]string) int { return 0 },
+		}))
 		emitted := make(chan windowEmit, 1)
 		arrivals := make(chan windowArrival, 4)
 		emit := func(ctx context.Context) (int, error) {
@@ -213,6 +220,7 @@ func TestStartupSubscriptionLiveBeforeOnStartedRead(t *testing.T) {
 		}()
 
 		emitter := process.NewProcess(plugin.PluginConfig{Name: ownerName})
+		emitter.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: store.NoticeNamespace + ":" + store.EventDatasetStored}}})
 		emit := func(context.Context) (int, error) {
 			params, err := json.Marshal(rpc.EmitEventInput{
 				Namespace: store.NoticeNamespace, EventType: store.EventDatasetStored, Event: payload,

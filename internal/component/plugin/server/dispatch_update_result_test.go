@@ -93,6 +93,9 @@ func TestUpdateRouteAdmissionResultTransportParity(t *testing.T) {
 					s.ctx, s.cancel = context.WithCancel(t.Context())
 					defer s.cancel()
 					proc := process.NewProcess(plugin.PluginConfig{Name: "origin-result"})
+					proc.SetRegistration(&plugin.PluginRegistration{
+						Sends: []rpc.MessageSendDecl{{Message: busMsgBGPUpdate}},
+					})
 					client, engine := net.Pipe()
 					var p *sdk.Plugin
 					if typed {
@@ -128,7 +131,7 @@ func TestUpdateRouteAdmissionResultTransportParity(t *testing.T) {
 							t.Error(err)
 						}
 					})
-					got, err := p.UpdateRouteSelResult(t.Context(), selector.ParseDefault("192.0.2.7"), "route")
+					got, err := p.UpdateRouteSelResult(t.Context(), selector.ParseDefault("192.0.2.7"), "announce route")
 					if test.failure == "" {
 						if err != nil {
 							t.Fatal(err)
@@ -139,7 +142,7 @@ func TestUpdateRouteAdmissionResultTransportParity(t *testing.T) {
 					if !reflect.DeepEqual(got, &test.want) {
 						t.Fatalf("result = %+v, want %+v", got, test.want)
 					}
-					announced, withdrawn, oldErr := p.UpdateRouteSel(t.Context(), selector.ParseDefault("192.0.2.7"), "route")
+					announced, withdrawn, oldErr := p.UpdateRouteSel(t.Context(), selector.ParseDefault("192.0.2.7"), "announce route")
 					if announced != test.want.Announced || withdrawn != test.want.Withdrawn {
 						t.Fatalf("legacy counts = %d/%d", announced, withdrawn)
 					}

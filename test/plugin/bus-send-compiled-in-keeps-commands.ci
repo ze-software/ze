@@ -1,0 +1,366 @@
+# Test: compiled-in bgp-rr keeps its declared commands in-daemon and forked (process separate) and is uniformly gated by send > allow.
+# QUESTION: when compiled-in `bgp-rr` runs both in-daemon and forked via
+# `process separate`, does `request bgp adj-rib-in claim-replay` succeed with
+# zero refusals and reflect `i1`'s route to `i2` exactly once when nothing is
+# written, and when `send { allow [ ... ]; }` excludes
+# `cli:request bgp adj-rib-in claim-replay`, do both transports refuse it with
+# the allow-list message naming `/bus/endpoint/bgp-rr` and log
+# `could not claim adj-rib-in replay ownership`? A unit test cannot decide this
+# because it spans DirectBridge vs TLS connect-back process fork, real BGP
+# reflection between two iBGP peers, `bgp-adj-rib-in` replay claiming, doctor,
+# and Prometheus metrics.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S28 / AC-29.
+# PREVENTS: incomplete compiled-in send declarations breaking `bgp-rr`, or
+# in-daemon and forked (`process separate`) transports diverging on bus gating.
+
+option=timeout:value=150s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Peer scripts for Run 1 (in-daemon default).
+stdin=i1-int:terminator=EOF_I1_INT
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.1
+option=linger:value=true
+option=await-file:path=i2-int.established
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_I1_INT
+
+stdin=i2-int:terminator=EOF_I2_INT
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=i2-int.established
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=18C63364
+EOF_I2_INT
+
+# Peer scripts for Run 2 (forked process separate default).
+stdin=i1-fork:terminator=EOF_I1_FORK
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.1
+option=linger:value=true
+option=await-file:path=i2-fork.established
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_I1_FORK
+
+stdin=i2-fork:terminator=EOF_I2_FORK
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=asn:value=65000
+option=open:value=router-id:id=127.0.0.2
+option=linger:value=true
+option=established-file:path=i2-fork.established
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=18C63364
+EOF_I2_FORK
+
+# Config 1: bgp-rr in-daemon, nothing written on send.
+tmpfs=rr-int-default.conf:terminator=EOF_RR_INT_DEF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint bgp-adj-rib-in { internal bgp-adj-rib-in; }
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint bgp-rr { internal bgp-rr; }
+}
+bgp {
+	router-id 1.2.3.4;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer i1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			route-reflector-client true;
+			cluster-id 10.0.0.1;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer i2 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_RR_INT_DEF
+
+# Config 2: bgp-rr forked (process separate), nothing written on send.
+tmpfs=rr-fork-default.conf:terminator=EOF_RR_FORK_DEF
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint bgp-adj-rib-in { internal bgp-adj-rib-in; }
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint bgp-rr {
+		internal bgp-rr;
+		process separate;
+	}
+}
+bgp {
+	router-id 1.2.3.4;
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer i1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			route-reflector-client true;
+			cluster-id 10.0.0.1;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer i2 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_RR_FORK_DEF
+
+# Config 3: bgp-rr in-daemon with send allow excluding claim-replay.
+tmpfs=rr-int-narrowed.conf:terminator=EOF_RR_INT_NAR
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint bgp-adj-rib-in { internal bgp-adj-rib-in; }
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint bgp-rr {
+		internal bgp-rr;
+		send {
+			allow [ "cli:request bgp adj-rib-in replay-routes" "cli:request bgp adj-rib-in replay-path" "cli:request bgp adj-rib-in eligibility" "cli:request bgp rib flowspec-gate" "cli:request peer" bgp-rib:gate-query bgp:update ];
+		}
+	}
+}
+bgp {
+	router-id 1.2.3.4;
+	peer i1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			route-reflector-client true;
+			cluster-id 10.0.0.1;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_RR_INT_NAR
+
+# Config 4: bgp-rr forked (process separate) with send allow excluding claim-replay.
+tmpfs=rr-fork-narrowed.conf:terminator=EOF_RR_FORK_NAR
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint bgp-adj-rib-in { internal bgp-adj-rib-in; }
+	endpoint bgp-rib { internal bgp-rib; }
+	endpoint bgp-rr {
+		internal bgp-rr;
+		process separate;
+		send {
+			allow [ "cli:request bgp adj-rib-in replay-routes" "cli:request bgp adj-rib-in replay-path" "cli:request bgp adj-rib-in eligibility" "cli:request bgp rib flowspec-gate" "cli:request peer" bgp-rib:gate-query bgp:update ];
+		}
+	}
+}
+bgp {
+	router-id 1.2.3.4;
+	peer i1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			route-reflector-client true;
+			cluster-id 10.0.0.1;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_RR_FORK_NAR
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- Run 1: in-daemon default ---
+cmd=background:seq=2:name=i1-int:exec=le test peer --port $PORT:stdin=i1-int
+cmd=background:seq=3:name=i2-int:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=i2-int
+cmd=background:seq=4:name=daemon1:exec=ze start rr-int-default.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=5:exec=le test fixture daemon/await-answer-all "show bgp peer i2 detail | json" '"updates-sent": 2' '"eor-sent": 1':exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/bgp-rr 0:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/bgp-rr = 0
+cmd=foreground:seq=7:exec=ze cli -c "show doctor | json":exit=0
+reject=stdout:contains=doctor-plugin-request-refused
+reject=stdout:contains=claim-replay
+
+cmd=stop:seq=8:name=daemon1:signal=term
+cmd=stop:seq=9:name=i1-int
+cmd=stop:seq=10:name=i2-int
+
+# --- Run 2: forked (process separate) default ---
+cmd=background:seq=11:name=i1-fork:exec=le test peer --port $PORT:stdin=i1-fork
+cmd=background:seq=12:name=i2-fork:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=i2-fork
+cmd=background:seq=13:name=daemon2:exec=ze start rr-fork-default.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=14:exec=le test fixture daemon/await-answer-all "show bgp peer i2 detail | json" '"updates-sent": 2' '"eor-sent": 1':exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=15:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/bgp-rr 0:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/bgp-rr = 0
+cmd=foreground:seq=16:exec=ze cli -c "show doctor | json":exit=0
+reject=stdout:contains=doctor-plugin-request-refused
+reject=stdout:contains=claim-replay
+
+cmd=stop:seq=17:name=daemon2:signal=term
+cmd=stop:seq=18:name=i1-fork
+cmd=stop:seq=19:name=i2-fork
+
+# --- Run 3: in-daemon narrowed allow-list ---
+cmd=background:seq=20:name=daemon3:exec=ze start rr-int-narrowed.conf:ready=Ze running.
+expect=stderr:contains=could not claim adj-rib-in replay ownership
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=21:exec=le test fixture plugin/bus-assert-refused-series $PORT3 /bus/endpoint/bgp-rr "cli:request bgp adj-rib-in claim-replay" 1:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total{participant="/bus/endpoint/bgp-rr",message="cli:request bgp adj-rib-in claim-replay"} = 1
+cmd=foreground:seq=22:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-plugin-request-refused"
+expect=stdout:contains=/bus/endpoint/bgp-rr
+expect=stdout:contains=removed by send allow-list
+expect=stdout:contains=set bus endpoint bgp-rr send allow
+
+cmd=stop:seq=23:name=daemon3:signal=term
+
+# --- Run 4: forked (process separate) narrowed allow-list ---
+cmd=background:seq=24:name=daemon4:exec=ze start rr-fork-narrowed.conf:ready=Ze running.
+expect=stderr:contains=could not claim adj-rib-in replay ownership
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=25:exec=le test fixture plugin/bus-assert-refused-series $PORT3 /bus/endpoint/bgp-rr "cli:request bgp adj-rib-in claim-replay" 1:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total{participant="/bus/endpoint/bgp-rr",message="cli:request bgp adj-rib-in claim-replay"} = 1
+cmd=foreground:seq=26:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-plugin-request-refused"
+expect=stdout:contains=/bus/endpoint/bgp-rr
+expect=stdout:contains=removed by send allow-list
+expect=stdout:contains=set bus endpoint bgp-rr send allow
+
+cmd=stop:seq=27:name=daemon4:signal=term

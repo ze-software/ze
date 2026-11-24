@@ -56,6 +56,7 @@ type DirectBridge struct {
 	filterSlot               FilterSlotHandler
 	hasFilterSlot            atomic.Bool // set atomically when filterSlot is written (filter_slot.go)
 	dispatchRPC              func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error)
+	hasDispatchRPC           atomic.Bool // set atomically when dispatchRPC is written
 	dispatchNative           func(context.Context, string, any) (any, bool, error)
 	dispatchCommand          DispatchCommandHandler       // Typed fast path (no JSON)
 	hasDispatchCmd           atomic.Bool                  // set atomically when dispatchCommand is written
@@ -322,6 +323,7 @@ func (b *DirectBridge) SetDeliverEvents(fn func(events []string) error) {
 // Called by the engine after startup to register the dispatch function.
 func (b *DirectBridge) SetDispatchRPC(fn func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error)) {
 	b.dispatchRPC = fn
+	b.hasDispatchRPC.Store(fn != nil)
 }
 
 // SetReady signals that both sides have registered their handlers and the bridge
@@ -1047,27 +1049,39 @@ func GetDNSResolver() DNSResolveHandler {
 	return fn
 }
 
-// SetBatchValidate registers the engine-side typed batch-validate handler.
+// SetBatchValidate registers a test-only typed batch-validate handler. When
+// DispatchRPC is active on the bridge (every live engine connection),
+// HasBatchValidate returns false and BatchValidate refuses so both in-daemon
+// and forked callers route through rpc.MethodBatchValidate and its bus gate.
 func (b *DirectBridge) SetBatchValidate(fn BatchValidateHandler) {
 	b.batchValidate = fn
 	b.hasBatchValidate.Store(fn != nil)
 }
 
-// BatchValidate calls the engine's typed batch-validate handler directly.
-// Returns error if the handler is not set.
+// BatchValidate calls the test-only typed batch-validate handler when no engine
+// DispatchRPC is wired. On a live engine bridge (hasDispatchRPC == true) it
+// refuses so callers cannot bypass rpc.MethodBatchValidate's bus send gate.
 func (b *DirectBridge) BatchValidate(decisions []ValidationDecision) (*BatchValidateResult, error) {
 	if !b.beginDispatch() {
 		return nil, ErrBridgeClosed
 	}
 	defer b.endDispatch()
+	if b.hasDispatchRPC.Load() {
+		return nil, errors.New("batch-validate direct shortcut is disabled when DispatchRPC is active; call " + MethodBatchValidate)
+	}
 	if !b.hasBatchValidate.Load() {
 		return nil, errors.New("batch-validate handler not set")
 	}
 	return b.batchValidate(decisions)
 }
 
-// HasBatchValidate reports whether the typed batch-validate handler is set.
+// HasBatchValidate reports whether the test-only typed batch-validate handler
+// is active. Always false when DispatchRPC is wired, ensuring live in-daemon
+// plugins route through rpc.MethodBatchValidate identically to forked plugins.
 func (b *DirectBridge) HasBatchValidate() bool {
+	if b.hasDispatchRPC.Load() {
+		return false
+	}
 	return b.ready.Load() && b.hasBatchValidate.Load()
 }
 

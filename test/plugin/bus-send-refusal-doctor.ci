@@ -1,0 +1,109 @@
+# Test: a bus send refusal surfaces in show doctor with participant, reason, and fix line, and increments ze_bus_send_refused_total{participant, message}.
+# QUESTION: when an external endpoint `monitor` is narrowed by
+# `send { allow [ "cli:show bgp peer" ]; }` and dispatches an allowed command
+# (`show bgp peer list`) followed by a disallowed command (`clear bgp rib in *`),
+# does `show doctor | json` report `doctor-plugin-request-refused` naming
+# `/bus/endpoint/monitor`, `removed by send allow-list`, and the fix line
+# `set bus endpoint monitor send allow "cli:clear bgp rib in *"`, AND does the
+# Prometheus metrics endpoint expose `ze_bus_send_refused_total` with
+# `{participant="/bus/endpoint/monitor", message="cli:clear bgp rib in *"}` = 1
+# (and 0 for the allowed command)? A unit test cannot decide this because the
+# path spans live report-bus integration with `show doctor`, Prometheus HTTP
+# registration via `SetBusSendRefusedMetrics`, and TLS external dispatch.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config Story 10 / AC-26, AC-27.
+# PREVENTS: bus send refusals failing to reach `show doctor` with an actionable
+# fix line or failing to wire `ze_bus_send_refused_total` onto the live
+# Prometheus telemetry registry.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT3;
+		}
+	}
+}
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint monitor {
+		external {
+			run "le test fixture plugin/bus-send-refusal-doctor refusal.done";
+		}
+		encoding json;
+		send {
+			allow [ "cli:show bgp peer" ];
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:name=daemon:exec=ze start running.conf:ready=Ze running.
+expect=stderr:contains=OK: bus send refusal triggered for /bus/endpoint/monitor
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=3:exec=le test fixture plugin/bus-wait-file refusal.done:exit=0
+expect=stdout:contains=OK: marker file refusal.done appeared
+
+cmd=foreground:seq=4:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-plugin-request-refused"
+expect=stdout:contains=/bus/endpoint/monitor
+expect=stdout:contains=removed by send allow-list
+expect=stdout:contains=set bus endpoint monitor send allow
+
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-assert-refused-series $PORT3 /bus/endpoint/monitor "cli:clear bgp rib in *" 1:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total{participant="/bus/endpoint/monitor",message="cli:clear bgp rib in *"} = 1
+
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/monitor 1:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/monitor = 1
+
+cmd=stop:seq=7:name=daemon:signal=term

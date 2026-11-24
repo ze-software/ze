@@ -45,6 +45,9 @@ func resetPipeOperationRegistries(t *testing.T) {
 	})
 }
 
+// cliTestRows declares the bus send message for the "test rows" test fixture.
+const cliTestRows = "cli:test rows"
+
 // rowsDocument is the answer of the rows target: three peers, one of them up.
 var rowsDocument = plugin.Map{"peers": []any{
 	map[string]any{"name": "a", "state": "up"},
@@ -340,6 +343,7 @@ func TestDispatchCommandAppliesPipeChain(t *testing.T) {
 		s.ctx, s.cancel = context.WithCancel(context.Background())
 		defer s.cancel()
 		proc := process.NewProcess(plugin.PluginConfig{Name: "pipe-chain-bridge"})
+		proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: cliTestRows}}})
 		out, err := pipeChainBridge(s, proc).DispatchCommand(t.Context(), line)
 		require.NoError(t, err)
 		require.NotNil(t, out)
@@ -357,6 +361,7 @@ func TestDispatchCommandAppliesPipeChain(t *testing.T) {
 		t.Cleanup(func() { _ = pluginSide.Close() })
 		t.Cleanup(func() { _ = engineSide.Close() })
 		proc := process.NewProcess(plugin.PluginConfig{Name: "pipe-chain-socket"})
+		proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: cliTestRows}}})
 		proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 		s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
 		s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -392,6 +397,7 @@ func TestDispatchCommandAppliesPipeChain(t *testing.T) {
 		s.ctx, s.cancel = context.WithCancel(context.Background())
 		defer s.cancel()
 		proc := process.NewProcess(plugin.PluginConfig{Name: "pipe-chain-answer"})
+		proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: cliTestRows}}})
 		answer, err := pipeChainBridge(s, proc).DispatchCommandAnswer(t.Context(), line)
 		require.NoError(t, err)
 		require.NotNil(t, answer)
@@ -778,6 +784,7 @@ func TestDispatchCommandSocketRefusesPipeOperationWord(t *testing.T) {
 	t.Cleanup(func() { _ = pluginSide.Close() })
 	t.Cleanup(func() { _ = engineSide.Close() })
 	proc := process.NewProcess(plugin.PluginConfig{Name: "pipe-word-socket"})
+	proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: cliTestRows}}})
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 	s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -843,6 +850,7 @@ func TestDispatchCommandAnswerRefusesPipeOperationWord(t *testing.T) {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	defer s.cancel()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "pipe-word-answer"})
+	proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: cliTestRows}}})
 	answer, err := pipeChainBridge(s, proc).DispatchCommandAnswer(t.Context(), "test rows received")
 	if answer != nil {
 		// Walk the answer so the bridge releases its dispatch admission, as the

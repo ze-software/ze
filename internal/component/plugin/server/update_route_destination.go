@@ -29,6 +29,9 @@ func updateRouteDispatchCommand(input rpc.UpdateRouteInput, peer string) (string
 		if input.Command == "" {
 			return refuse()
 		}
+		if err := validateUpdateRouteSubcommand(input.Command); err != nil {
+			return "", err
+		}
 		var text textbuf.Buffer
 		return text.Str("send bgp ").Str(peer).Byte(' ').Str(input.Command).String(), nil
 	}

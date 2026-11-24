@@ -1,0 +1,152 @@
+# Test: one send > allow list governs every namespace the endpoint declared (bgp:* and cli:*).
+# QUESTION: when an external endpoint `ops2` declares `bgp:update`,
+# `cli:show bgp peer`, and `cli:clear bgp rib`, and its config sets
+# `send { allow [ bgp:update ]; }`, does `UpdateRoute` still deliver a real
+# BGP UPDATE to `edge1` while `show bgp peer list` and `clear bgp rib in *`
+# are refused with the allow-list message naming `/bus/endpoint/ops2`, the
+# message, and `set bus endpoint ops2 send allow` (and in a control run without
+# `send > allow`, do both the BGP UPDATE and both CLI commands succeed)? A unit
+# test cannot decide this because the path spans live BGP TCP delivery to a
+# peer, Q-T4(b) `update-route` dispatch under fail-closed authz, and real
+# `dispatch-command` authorization over TLS connect-back.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S36 / AC-40, Q-T4(b).
+# PREVENTS: `send > allow [ bgp:update ]` either blocking `update-route` for
+# lacking `cli:send bgp` or leaking declared `cli:*` commands past the allow-list.
+
+option=timeout:value=90s
+
+# Peer for Run 1 (restricted): expects EOR + announced 203.0.113.0/24 (18CB0071).
+stdin=edge1-restricted:terminator=EOF_EDGE1_R
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=asn:value=65001
+option=linger:value=true
+option=established-file:path=edge1-restricted.established
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=18CB0071
+EOF_EDGE1_R
+
+# Peer for Run 2 (control): expects EOR + announced 203.0.113.0/24 (18CB0071).
+stdin=edge1-control:terminator=EOF_EDGE1_C
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=asn:value=65001
+option=linger:value=true
+option=established-file:path=edge1-control.established
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:announced=18CB0071
+EOF_EDGE1_C
+
+# Run 1 config: ops2 narrowed to send { allow [ bgp:update ]; }.
+tmpfs=restricted.conf:terminator=EOF_CONF_R
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint ops2 {
+		external {
+			run "le test fixture plugin/bus-send-allow-list-namespaces restricted edge1-restricted.established restricted.done";
+		}
+		encoding json;
+		send {
+			allow [ bgp:update ];
+		}
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF_R
+
+# Run 2 config (control): ops2 without send allow-list.
+tmpfs=control.conf:terminator=EOF_CONF_C
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+	}
+}
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint ops2 {
+		external {
+			run "le test fixture plugin/bus-send-allow-list-namespaces control edge1-control.established control.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF_C
+
+# --- Run 1: send { allow [ bgp:update ]; } ---
+cmd=background:seq=1:name=edge1-r:exec=le test peer --port $PORT:stdin=edge1-restricted
+cmd=background:seq=2:name=daemon1:exec=ze start restricted.conf:ready=Ze running.
+expect=stderr:contains=OK: bus-send-allow-list-namespaces restricted verified
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=3:exec=le test fixture plugin/bus-wait-file restricted.done:exit=0
+expect=stdout:contains=OK: marker file restricted.done appeared
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/ops2 2:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/ops2 = 2
+
+cmd=stop:seq=5:name=daemon1:signal=term
+cmd=stop:seq=6:name=edge1-r
+
+# --- Run 2: control without allow-list ---
+cmd=background:seq=7:name=edge1-c:exec=le test peer --port $PORT:stdin=edge1-control
+cmd=background:seq=8:name=daemon2:exec=ze start control.conf:ready=Ze running.
+expect=stderr:contains=OK: bus-send-allow-list-namespaces control verified
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-wait-file control.done:exit=0
+expect=stdout:contains=OK: marker file control.done appeared
+cmd=foreground:seq=10:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/ops2 0:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/ops2 = 0
+
+cmd=stop:seq=11:name=daemon2:signal=term
+cmd=stop:seq=12:name=edge1-c

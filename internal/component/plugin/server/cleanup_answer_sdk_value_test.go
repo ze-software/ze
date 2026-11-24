@@ -111,6 +111,9 @@ func cleanupAnswerSDKValueCases(t *testing.T, question func(*testing.T, bool, bo
 func cleanupAnswerSDKValueClient(t *testing.T, s *Server, bridge bool) *sdk.Plugin {
 	t.Helper()
 	caller := process.NewProcess(plugin.PluginConfig{Name: "cleanup-value-reader"})
+	caller.SetRegistration(&plugin.PluginRegistration{
+		Sends: []rpc.MessageSendDecl{{Message: "cli:show cleanup answer"}},
+	})
 	reader, engine := net.Pipe()
 	if bridge {
 		client := sdk.NewWithConn(caller.Name(), rpc.NewBridgedConn(reader, pipeChainBridge(s, caller)))

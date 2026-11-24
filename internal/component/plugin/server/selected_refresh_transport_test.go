@@ -52,7 +52,7 @@ func TestSelectedRefreshBoundaryTransports(t *testing.T) {
 	if err := host.UpdateDeliveryGraphWithEndpoints(graphNS, []DeliveryPeer{{Addr: input.Destination, Name: "dst", Path: "/" + graphNS + "/entry/dst"}}, []BusParticipantInput{{
 		Path:         plugin.EndpointPath(proc.Name()),
 		EndpointName: proc.Name(),
-		Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}},
+		Sends:        []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}, {Message: busMsgBGPUpdate}},
 	}}); err != nil {
 		t.Fatal(err)
 	}

@@ -656,9 +656,9 @@ func validateMembers(member *LeafNode, path, items []string) error {
 }
 
 func inlineValueItems(value string) []string {
-	items := strings.Fields(value)
-	if len(items) >= 2 && items[0] == "[" && items[len(items)-1] == "]" {
-		return items[1 : len(items)-1]
+	trimmed := strings.TrimSpace(value)
+	if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+		trimmed = strings.TrimSpace(trimmed[1 : len(trimmed)-1])
 	}
-	return items
+	return SplitLeafListMembers(trimmed)
 }

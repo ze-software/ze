@@ -20,9 +20,11 @@ import (
 	"errors"
 	"io"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -38,6 +40,14 @@ import (
 type engineOp struct {
 	// method is the ze-plugin-engine:* wire method string (rpc.Method* constant).
 	method string
+
+	// BusMessage names the bus message this operation carries (static message
+	// name or busMsgDynamic* sentinel). Mutually exclusive with BusExemptReason.
+	BusMessage string
+
+	// BusExemptReason states why this operation carries no bus message.
+	// Mutually exclusive with BusMessage.
+	BusExemptReason string
 
 	// cancellationScope opts a socket request into authenticated cancellation.
 	// The single reader validates its owned resource and deadline before dispatch.
@@ -71,15 +81,16 @@ type engineOp struct {
 // engineOps is the single source of truth for plugin->engine runtime RPCs. The
 // JSON dispatch, Direct dispatch, and typed bridge wiring derive from this table.
 var engineOps = []engineOp{
-	{method: rpc.MethodStateGet, handle: (*Server).opStateGet},
-	{method: rpc.MethodStatePut, handle: (*Server).opStatePut},
-	{method: rpc.MethodStateRemove, handle: (*Server).opStateRemove},
-	{method: rpc.MethodStateList, handle: (*Server).opStateList},
-	{method: rpc.MethodStateIncrement, handle: (*Server).opStateIncrement},
-	{method: rpc.MethodMetricsPublish, handle: (*Server).opMetricsPublish},
-	{method: rpc.MethodReportIssue, handle: (*Server).opReportIssue},
+	{method: rpc.MethodStateGet, BusExemptReason: busExemptStateGrants, handle: (*Server).opStateGet},
+	{method: rpc.MethodStatePut, BusExemptReason: busExemptStateGrants, handle: (*Server).opStatePut},
+	{method: rpc.MethodStateRemove, BusExemptReason: busExemptStateGrants, handle: (*Server).opStateRemove},
+	{method: rpc.MethodStateList, BusExemptReason: busExemptStateGrants, handle: (*Server).opStateList},
+	{method: rpc.MethodStateIncrement, BusExemptReason: busExemptStateGrants, handle: (*Server).opStateIncrement},
+	{method: rpc.MethodMetricsPublish, BusExemptReason: "acts on caller's own metric records", handle: (*Server).opMetricsPublish},
+	{method: rpc.MethodReportIssue, BusExemptReason: "acts on caller's own report-bus records", handle: (*Server).opReportIssue},
 	{
 		method:            rpc.MethodUpdateRoute,
+		BusMessage:        busMsgDynamicUpdateRoute,
 		handle:            (*Server).opUpdateRoute,
 		cancellationScope: updateRouteCancellationScope,
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
@@ -90,6 +101,7 @@ var engineOps = []engineOp{
 	},
 	{
 		method:            rpc.MethodDispatchCommand,
+		BusMessage:        busMsgDynamicCLI,
 		handle:            (*Server).opDispatchCommand,
 		cancellationScope: dispatchPeerCancellationScope,
 		native:            (*Server).nativeDispatchPeerCommand,
@@ -108,8 +120,9 @@ var engineOps = []engineOp{
 		},
 	},
 	{
-		method: rpc.MethodDispatchCommandArgs,
-		handle: (*Server).opDispatchCommandArgs,
+		method:     rpc.MethodDispatchCommandArgs,
+		BusMessage: busMsgDynamicCLI,
+		handle:     (*Server).opDispatchCommandArgs,
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
 			b.SetDispatchCommandArgs(func(ctx context.Context, command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
 				return s.dispatchCommandArgs(ctx, proc, command, args, peer)
@@ -117,16 +130,19 @@ var engineOps = []engineOp{
 		},
 	},
 	{
-		method: rpc.MethodSubscribeEvents,
-		handle: (*Server).opSubscribeEvents,
+		method:     rpc.MethodSubscribeEvents,
+		BusMessage: busMsgDynamicReceive,
+		handle:     (*Server).opSubscribeEvents,
 		// No typed slot: low-frequency, string-only. Same as before unification.
 	},
 	{
-		method: rpc.MethodUnsubscribeEvents,
-		handle: (*Server).opUnsubscribeEvents,
+		method:     rpc.MethodUnsubscribeEvents,
+		BusMessage: busMsgDynamicReceive,
+		handle:     (*Server).opUnsubscribeEvents,
 	},
 	{
 		method:            rpc.MethodEmitEvent,
+		BusMessage:        busMsgDynamicEmit,
 		handle:            (*Server).opEmitEvent,
 		cancellationScope: emitEventCancellationScope,
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
@@ -137,17 +153,25 @@ var engineOps = []engineOp{
 	},
 	{
 		method:            rpc.MethodForwardCached,
+		BusMessage:        busMsgBGPUpdate,
 		handle:            (*Server).opForwardCached,
 		cancellationScope: forwardCachedCancellationScope,
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
 			b.SetForwardCached(func(ctx context.Context, input rpc.ForwardCachedInput) (*rpc.CachedWriteOutput, error) {
+				if err := proc.RequirePeerDeclarations(); err != nil {
+					return nil, err
+				}
+				if err := checkEngineOpBusSend(s, proc, busMsgBGPUpdate); err != nil {
+					return nil, err
+				}
 				return s.forwardCachedRequest(ctx, proc, input)
 			})
 		},
 	},
 	{
-		method: rpc.MethodReleaseCached,
-		handle: (*Server).opReleaseCached,
+		method:          rpc.MethodReleaseCached,
+		BusExemptReason: "releases caller's own cache holds",
+		handle:          (*Server).opReleaseCached,
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
 			b.SetReleaseCached(func(_ context.Context, ids []uint64) error {
 				return s.releaseCached(proc, ids)
@@ -156,6 +180,7 @@ var engineOps = []engineOp{
 	},
 	{
 		method:            rpc.MethodRelayStoredRoute,
+		BusMessage:        busMsgBGPUpdate,
 		handle:            (*Server).opRelayStoredRoute,
 		cancellationScope: relayStoredRouteCancellationScope,
 		// proc names the sender here for the same reason opRelayStoredRoute does:
@@ -163,46 +188,67 @@ var engineOps = []engineOp{
 		// unnamed would gate the forked plugin and let an in-process one through.
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
 			b.SetRelayStoredRoute(func(ctx context.Context, input rpc.RelayStoredRouteInput) (*rpc.CachedWriteOutput, error) {
+				if err := proc.RequirePeerDeclarations(); err != nil {
+					return nil, err
+				}
+				if err := checkEngineOpBusSend(s, proc, busMsgBGPUpdate); err != nil {
+					return nil, err
+				}
 				return s.relayStoredRouteRequest(ctx, proc, input)
 			})
 		},
 	},
 	{
 		method:            rpc.MethodSelectRoutes,
+		BusMessage:        busMsgBGPUpdate,
 		handle:            (*Server).opSelectRoutes,
 		cancellationScope: selectedCancellationScope,
 		typedWire: func(s *Server, proc *process.Process, bridge *rpc.DirectBridge) {
 			bridge.SetSelectRoutes(func(ctx context.Context, input rpc.SelectRoutesInput) (*rpc.SelectRoutesOutput, error) {
+				if err := proc.RequirePeerDeclarations(); err != nil {
+					return nil, err
+				}
+				if err := checkEngineOpBusSend(s, proc, busMsgBGPUpdate); err != nil {
+					return nil, err
+				}
 				return s.selectRoutes(ctx, proc, input)
 			})
 		},
 	},
-	{method: rpc.MethodCancelRequest, handle: (*Server).opCancelRequest},
+	{method: rpc.MethodCancelRequest, BusExemptReason: "cancels caller's own pending request", handle: (*Server).opCancelRequest},
 	{
 		method:            rpc.MethodSelectRefresh,
+		BusMessage:        busMsgBGPUpdate,
 		handle:            (*Server).opSelectRefresh,
 		native:            (*Server).selectRefreshNative,
 		cancellationScope: selectedRefreshCancellationScope,
 	},
 	{
-		method: rpc.MethodRouteInstall,
-		handle: (*Server).opRouteInstall,
+		method:     rpc.MethodRouteInstall,
+		BusMessage: busMsgSystemRIBInstall,
+		handle:     (*Server).opRouteInstall,
 		// No typed slot: forked-plugin batch path, socket/Direct only.
 	},
 	{
-		method: rpc.MethodRouteRemove,
-		handle: (*Server).opRouteRemove,
+		method:     rpc.MethodRouteRemove,
+		BusMessage: busMsgSystemRIBInstall,
+		handle:     (*Server).opRouteRemove,
 	},
 	{
-		method: rpc.MethodRouteMetrics,
-		handle: (*Server).opRouteMetrics,
+		method:     rpc.MethodRouteMetrics,
+		BusMessage: busMsgSystemRIBMetrics,
+		handle:     (*Server).opRouteMetrics,
 	},
 	{
-		method: rpc.MethodInjectWireRoute,
-		handle: (*Server).opInjectWireRoute,
-		typedWire: func(_ *Server, proc *process.Process, b *rpc.DirectBridge) {
+		method:     rpc.MethodInjectWireRoute,
+		BusMessage: busMsgBGPRaw,
+		handle:     (*Server).opInjectWireRoute,
+		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
 			b.SetInjectWireRoute(func(protocol, peerKey string, updateBody []byte) error {
 				if err := proc.RequirePeerDeclarations(); err != nil {
+					return err
+				}
+				if err := checkEngineOpBusSend(s, proc, busMsgBGPRaw); err != nil {
 					return err
 				}
 				fn := rpc.GetRouteInjector()
@@ -214,14 +260,16 @@ var engineOps = []engineOp{
 		},
 	},
 	{
-		method: rpc.MethodResolveDNS,
-		handle: (*Server).opResolveDNS,
+		method:     rpc.MethodResolveDNS,
+		BusMessage: busMsgResolveDNS,
+		handle:     (*Server).opResolveDNS,
 		// No typed slot: a TTL-scheduled control-plane lookup, not a per-packet
 		// call, and its only caller runs forked. Same reasoning as route-install.
 	},
 	{
-		method: rpc.MethodBatchValidate,
-		handle: (*Server).opBatchValidate,
+		method:     rpc.MethodBatchValidate,
+		BusMessage: busMsgBatchValidate,
+		handle:     (*Server).opBatchValidate,
 		// No typed manager slot: the receive-store owner may be forked. Both
 		// SDK rails use this context-aware operation and the registered command.
 	},
@@ -296,6 +344,10 @@ func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginCo
 // Ordinary calls supply the same server context they used before cancellation
 // opt-in; selected calls supply their authenticated connection-scoped context.
 func (s *Server) serveEngineOpJSONRequest(ctx context.Context, proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) {
+	if err := s.gateEngineOp(proc, op); err != nil {
+		_ = answerEngineOpJSON(s.replyContext(), proc, conn, req, nil, err) //nolint:errcheck // Runtime reply failures are already logged by the shared wrapper.
+		return
+	}
 	result, err := op.handle(s, ctx, proc, req.Params)
 	// A runtime request that the end of the plugin's engine session canceled
 	// is left unanswered: the connection close that ends the session answers
@@ -340,6 +392,9 @@ func (s *Server) engineSessionEnded(proc *process.Process, err error) bool {
 // response transport or encoding failures are returned; a sent handler
 // refusal succeeds.
 func (s *Server) serveEngineOpJSONContext(ctx, reply context.Context, proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) error {
+	if err := s.gateEngineOp(proc, op); err != nil {
+		return answerEngineOpJSON(reply, proc, conn, req, nil, err)
+	}
 	result, err := op.handle(s, ctx, proc, req.Params)
 	return answerEngineOpJSON(reply, proc, conn, req, result, err)
 }
@@ -379,6 +434,9 @@ func answerEngineOpJSON(reply context.Context, proc *process.Process, conn *plug
 // double-prefixed. A failure that is the end of the plugin's engine session
 // answers rpc.ErrBridgeClosed instead (directCallError).
 func (s *Server) serveEngineOpDirect(ctx context.Context, proc *process.Process, op *engineOp, params json.RawMessage) (json.RawMessage, error) {
+	if err := s.gateEngineOp(proc, op); err != nil {
+		return nil, s.directCallError(proc, err)
+	}
 	result, err := op.handle(s, ctx, proc, params)
 	if err != nil {
 		return nil, s.directCallError(proc, err)
@@ -430,6 +488,15 @@ func (s *Server) opUpdateRoute(ctx context.Context, proc *process.Process, param
 	if peer == "" {
 		peer = "*"
 	}
+	// Restrict update-route to UPDATE subcommands or borr/eorr markers before
+	// checking the bus send gate (Q-T4(b)).
+	dispatchCmd, err := updateRouteDispatchCommand(input, peer)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkEngineOpBusSend(s, proc, updateRouteBusMessage(input)); err != nil {
+		return nil, err
+	}
 	cmdCtx := &CommandContext{
 		Server:            s,
 		Process:           proc,
@@ -437,19 +504,13 @@ func (s *Server) opUpdateRoute(ctx context.Context, proc *process.Process, param
 		Peer:              peer,
 		Meta:              input.Meta,
 		SourcePolicyEpoch: input.SourcePolicyEpoch,
-		// Inject the reserved trusted internal identity, same as the other internal
-		// dispatch paths (spec-fixit-authz-admin-fallthrough O-4). Without it this
-		// route-push RPC carries an empty username and, on a box with authorization
-		// configured, hits the now-fail-closed "denied: empty identity" branch --
-		// silently breaking route propagation (RS/OSPF/IS-IS `update text`).
-		Username: internalPluginIdentity(proc.Name()),
+		// After passing the bgp:update / bgp:refresh bus send gate above,
+		// dispatch internally under ReservedInternalRPCIdentity so a send
+		// allow-list holding only bgp:update works without also requiring
+		// "cli:send bgp" (Q-T4(b), S36). Sender still names proc so BGP's
+		// target filter enforces send > to and receive > from.
+		Username: aaa.ReservedInternalRPCIdentity,
 		Sender:   sender,
-	}
-	// Route injection commands are always forms under `send bgp <selector>`
-	// (e.g., "update text ...", "unicast ..."). Prepend unconditionally.
-	dispatchCmd, err := updateRouteDispatchCommand(input, peer)
-	if err != nil {
-		return nil, err
 	}
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
 	if err := ctx.Err(); err != nil {
@@ -506,6 +567,11 @@ func (s *Server) opSubscribeEvents(ctx context.Context, proc *process.Process, p
 	}
 	if s.subscriptions == nil {
 		return nil, &rpc.RPCCallError{Message: "subscription manager not available"}
+	}
+	if input.Namespace != "" && events.IsValidNamespace(input.Namespace) {
+		if err := checkEngineOpBusReceive(s, proc, input.Namespace, input.Events); err != nil {
+			return nil, err
+		}
 	}
 	s.registerSubscriptions(proc, &input)
 	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content

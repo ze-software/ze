@@ -21,14 +21,29 @@ import "strings"
 // such as `admin` (spec-fixit-authz-admin-fallthrough R-8).
 const reservedPrefix = "\x00ze:"
 
-// ReservedInternalPrefix namespaces the username the plugin RPC boundary injects
-// for a trusted in-process caller (plugin/server wrapHandler and
-// dispatchCommand*). authz.Store.Authorize grants any identity under this
-// prefix. The descriptor after the prefix (for example a plugin name) is
-// preserved for accounting and audit and never affects the decision. The prefix
-// is un-typeable, so no authenticated identity can spoof a trusted internal
-// caller.
+// ReservedInternalPrefix namespaces internal identities injected by the daemon
+// (RPC and plugin dispatch boundaries). authz.Store.Authorize does NOT grant by
+// this prefix: only the exact ReservedInternalRPCIdentity bypasses profiles,
+// while identities under ReservedInternalPluginPrefix are evaluated against the
+// participant's compiled bus command profile. The prefix is un-typeable, so no
+// authenticated identity can spoof an internal caller.
 const ReservedInternalPrefix = reservedPrefix + "internal:"
+
+// ReservedInternalRPCIdentity is the sole internal identity authz.Store.Authorize
+// allows without a profile, because it names no bus participant and has no
+// filter to check against. Its sole production caller is
+// internal/component/plugin/server/server.go:wrapHandler (plus internal
+// post-gate dispatches such as update-route after its bgp:update/bgp:refresh
+// bus check).
+const ReservedInternalRPCIdentity = ReservedInternalPrefix + "rpc"
+
+// ReservedInternalPluginPrefix namespaces internal identities injected for a
+// bus participant (plugin endpoint) dispatching a CLI command. Every identity
+// under this prefix is evaluated against the endpoint's compiled bus command
+// profile (PluginCommandProfile) via authz's prefix matcher and fails closed
+// when no profile allows the command. The endpoint name is preserved for
+// accounting and audit.
+const ReservedInternalPluginPrefix = ReservedInternalPrefix + "plugin:"
 
 // ReservedSharedAPIUsername is the identity REST and gRPC inject after they
 // classify a caller as either a validated shared-token request or a no-auth
@@ -50,6 +65,20 @@ const ReservedRecoveryProfile = reservedPrefix + "recovery"
 // therefore may not appear in, or be referenced by, configuration.
 func IsReservedName(name string) bool {
 	return strings.HasPrefix(name, reservedPrefix)
+}
+
+// PluginEndpointFromIdentity extracts the plugin endpoint name from an internal
+// plugin identity carrying ReservedInternalPluginPrefix. Returns ("", false)
+// when username does not bear the prefix or carries an empty endpoint name.
+func PluginEndpointFromIdentity(username string) (endpoint string, ok bool) {
+	endpoint, ok = strings.CutPrefix(username, ReservedInternalPluginPrefix)
+	if !ok {
+		return "", false
+	}
+	if endpoint == "" {
+		return "", false
+	}
+	return endpoint, true
 }
 
 // FilterReservedNames returns names with every reserved name removed. Apply it to

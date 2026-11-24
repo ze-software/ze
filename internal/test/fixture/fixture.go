@@ -296,9 +296,11 @@ type ObserverScenario func(context.Context, *sdk.Plugin) error
 type observerSetup func(*sdk.Plugin) error
 
 const (
-	bgpPeerFromPrefix = "/bgp/ip/"
-	eventDirectionSep = " direction "
-	eventDirectionTag = "direction"
+	bgpPeerFromPrefix    = "/bgp/ip/"
+	eventDirectionSep    = " direction "
+	eventDirectionTag    = "direction"
+	observerSendQuiesce  = "cli:request quiesce"
+	observerSendShutdown = "cli:request shutdown"
 )
 
 // observerReceivesMu guards pending Stage 1 Receives declarations registered
@@ -333,6 +335,28 @@ func mergeReceiveDecls(base, extra []sdk.MessageReceiveDecl) []sdk.MessageReceiv
 	}
 	seen := make(map[string]bool, len(base)+len(extra))
 	merged := make([]sdk.MessageReceiveDecl, 0, len(base)+len(extra))
+	for i := range base {
+		seen[base[i].Message] = true
+		merged = append(merged, base[i])
+	}
+	for i := range extra {
+		if seen[extra[i].Message] {
+			continue
+		}
+		seen[extra[i].Message] = true
+		merged = append(merged, extra[i])
+	}
+	return merged
+}
+
+// mergeSendDecls appends extra declarations to base while skipping any message
+// name already present in base.
+func mergeSendDecls(base, extra []sdk.MessageSendDecl) []sdk.MessageSendDecl {
+	if len(extra) == 0 {
+		return base
+	}
+	seen := make(map[string]bool, len(base)+len(extra))
+	merged := make([]sdk.MessageSendDecl, 0, len(base)+len(extra))
 	for i := range base {
 		seen[base[i].Message] = true
 		merged = append(merged, base[i])
@@ -431,6 +455,14 @@ func observeConfigured(
 	if extra := takeObserverReceives(plugin); len(extra) > 0 {
 		reg.Receives = mergeReceiveDecls(reg.Receives, extra)
 	}
+	// Every observer built on Observe dispatches request quiesce and request
+	// shutdown below to cleanly stop the daemon. Auto-merge only those two
+	// lifecycle sends so probe fixtures that omit other declarations stay
+	// fail-closed.
+	reg.Sends = mergeSendDecls(reg.Sends, []sdk.MessageSendDecl{
+		{Message: observerSendQuiesce},
+		{Message: observerSendShutdown},
+	})
 
 	result := make(chan error, 1)
 	started := make(chan struct{})

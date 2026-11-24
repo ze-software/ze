@@ -23,6 +23,9 @@ import (
 func TestDaemonRestartSocketCompletesAcceptedAction(t *testing.T) {
 	pluginSide, engineSide := net.Pipe()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "daemon-restart-socket"})
+	proc.SetRegistration(&plugin.PluginRegistration{
+		Sends: []rpc.MessageSendDecl{{Message: "cli:request restart"}},
+	})
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 	s := &Server{
 		subscriptions: newSubscriptionManager(), dispatcher: restartLineDispatcher(t),

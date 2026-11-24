@@ -90,6 +90,7 @@ func TestDispatchCommandCarriesRenderedText(t *testing.T) {
 		s.ctx, s.cancel = context.WithCancel(context.Background())
 		defer s.cancel()
 		proc := process.NewProcess(plugin.PluginConfig{Name: "rendered-bridge"})
+		proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: cliTestRows}}})
 		out, err := pipeChainBridge(s, proc).DispatchCommand(t.Context(), line)
 		require.NoError(t, err)
 		require.NotNil(t, out)
@@ -106,6 +107,7 @@ func TestDispatchCommandCarriesRenderedText(t *testing.T) {
 		s.ctx, s.cancel = context.WithCancel(context.Background())
 		defer s.cancel()
 		proc := process.NewProcess(plugin.PluginConfig{Name: "rendered-answer"})
+		proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: cliTestRows}}})
 		answer, err := pipeChainBridge(s, proc).DispatchCommandAnswer(t.Context(), line)
 		require.NoError(t, err)
 		require.NotNil(t, answer)
@@ -126,6 +128,7 @@ func TestDispatchCommandCarriesRenderedText(t *testing.T) {
 		t.Cleanup(func() { _ = pluginSide.Close() })
 		t.Cleanup(func() { _ = engineSide.Close() })
 		proc := process.NewProcess(plugin.PluginConfig{Name: "rendered-socket"})
+		proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: cliTestRows}}})
 		proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 		s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
 		s.ctx, s.cancel = context.WithCancel(context.Background())

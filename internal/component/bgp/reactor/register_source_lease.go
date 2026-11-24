@@ -17,8 +17,12 @@ const codeSourceLeaseCleanup = "doctor-bgp-source-lease-cleanup"
 
 func init() {
 	if err := pluginserver.RegisterEngineOp(pluginserver.EngineOperation{
-		Method: rpc.MethodSourceLease, Handler: sourceLeaseJSON, Native: sourceLeaseNative,
-		Startup: pluginserver.EngineOperationRuntimeOnly, CancellationScope: sourceLeaseCancellation,
+		Method:            rpc.MethodSourceLease,
+		Handler:           sourceLeaseJSON,
+		Native:            sourceLeaseNative,
+		Startup:           pluginserver.EngineOperationRuntimeOnly,
+		BusExemptReason:   "caller's own source-receipt leases, gated by SelectedOwner and peer dissemination receive grant",
+		CancellationScope: sourceLeaseCancellation,
 	}); err != nil {
 		panic("BUG: source lease operation registration failed: " + err.Error())
 	}

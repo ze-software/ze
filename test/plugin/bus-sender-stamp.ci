@@ -1,0 +1,63 @@
+# Test: the bus stamps sender from the authenticated registration and ignores spoofed sender fields in event payloads.
+# QUESTION: with three live external endpoints (`a`, `b`, and `collector` with
+# `receive { from [ /bus/endpoint/a ]; }`) connected over TLS, when `b` emits
+# `acme:alert` events whose JSON content claims `"sender": "/bus/endpoint/a"`
+# or `"sender": "a"`, does the bus overwrite `sender` with `/bus/endpoint/b`
+# so `collector` drops them (delivered=0), and when `a` emits `acme:alert`
+# afterward, does `collector` record only `a`'s event stamped with
+# `"/bus/endpoint/a"`? A unit test cannot decide this because the path spans
+# real per-endpoint TLS token authentication, Stage 1 registration, compiled
+# DeliveryGraph filtering in `deliverEventCaptured`, and JSON delivery to
+# another forked endpoint.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S25 / AC-35.
+# PREVENTS: an external plugin impersonating another bus participant by
+# embedding a spoofed `"sender"` field in emitted event JSON.
+
+option=timeout:value=60s
+
+tmpfs=running.conf:terminator=EOF_CONF
+bus {
+	endpoint a {
+		external {
+			run "le test fixture plugin/bus-sender-stamp a b.done a.done";
+		}
+		encoding json;
+	}
+	endpoint b {
+		external {
+			run "le test fixture plugin/bus-sender-stamp b b.done a.done";
+		}
+		encoding json;
+	}
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector acme:alert collector.log authentic-from-a collector.done";
+		}
+		encoding json;
+		receive {
+			from [ /bus/endpoint/a ];
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:name=daemon:exec=ze start running.conf:ready=Ze running.
+expect=stderr:contains=OK: role b spoofed emits were blocked by bus sender stamping (delivered=0)
+expect=stderr:contains=OK: role a authentic emit delivered (delivered=1)
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=2:exec=le test fixture plugin/bus-wait-file b.done:exit=0
+expect=stdout:contains=OK: marker file b.done appeared
+
+cmd=foreground:seq=3:exec=le test fixture plugin/bus-wait-file a.done:exit=0
+expect=stdout:contains=OK: marker file a.done appeared
+
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-wait-file collector.done:exit=0
+expect=stdout:contains=OK: marker file collector.done appeared
+
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-assert-collector collector.log /bus/endpoint/a authentic-from-a spoof-full-from-b spoof-short-from-b:exit=0
+expect=stdout:contains=OK: collector recorded sender=/bus/endpoint/a detail=authentic-from-a (1 event)
+
+cmd=stop:seq=6:name=daemon:signal=term

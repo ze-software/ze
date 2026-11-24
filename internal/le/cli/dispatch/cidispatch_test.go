@@ -11,7 +11,9 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // surfaceOnce builds the command surface once per test binary. Building it
@@ -276,5 +278,243 @@ func TestRawStringLiteralsResolveCommandPrefixes(t *testing.T) {
 	prefix := leadingLiteral("`system command help name \"`+cmd+`\"`")
 	if prefix != "system command help name" {
 		t.Errorf("leadingLiteral(raw concat) = %q, want %q", prefix, "system command help name")
+	}
+}
+
+func writeFixtureFile(t *testing.T, root, rel, content string) {
+	t.Helper()
+	full := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+		t.Fatalf("mkdir %s: %v", full, err)
+	}
+	if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
+		t.Fatalf("write %s: %v", full, err)
+	}
+}
+
+// VALIDATES: CheckPluginSends detects undeclared engine operations and CLI
+// command prefixes across literals, constants, textbuf chains, fmt.Sprintf,
+// DispatchCommandArgs, DispatchDestinationCommand, DispatchCommandWithTimeout,
+// same-package wrappers, and owned subpackages, while honoring word-boundary
+// cli:<prefix> matching and excluding nested subpackages with their own
+// registry.Register.
+// PREVENTS: a compiled-in plugin shipping with an incomplete Registration.Sends
+// or a false-positive prefix match across hyphenated tokens.
+func TestCheckPluginSendsSyntheticFixtures(t *testing.T) {
+	tree := t.TempDir()
+	writeFixtureFile(t, tree, "go.mod", "module github.com/ze-software/ze\n")
+	writeFixtureFile(t, tree, "internal/plugins/demo/register.go", `package demo
+
+import "github.com/ze-software/ze/internal/component/plugin/registry"
+
+const demoPluginName = "demo"
+
+func init() {
+	reg := registry.Registration{Name: demoPluginName}
+	_ = registry.Register(reg)
+}
+`)
+	writeFixtureFile(t, tree, "internal/plugins/demo/engine.go", `package demo
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
+)
+
+const cmdClearPeer = "clear bgp peer"
+
+func run(ctx context.Context, p *sdk.Plugin, peer string) {
+	_, _ = p.RouteInstall(ctx, nil)
+	_, _ = p.RouteMetrics(ctx, nil)
+	_, _, _, _ = p.ResolveDNS(ctx, "example.com", 1)
+	_ = p.InjectWireRoute("bmp", peer, nil)
+	_, _ = p.BatchValidate(ctx, nil)
+	_, _, _ = p.UpdateRoute(ctx, peer, "update text")
+	_, _, _ = p.UpdateRouteRequest(ctx, rpc.UpdateRouteInput{PeerMarker: "borr", MarkerFamily: "ipv4/unicast"})
+	_, _, _ = p.DispatchCommand(ctx, cmdClearPeer)
+	_, _, _ = p.DispatchCommandArgs(ctx, "request bgp watchdog announce", nil, "")
+	_, _, _ = p.DispatchDestinationCommand(ctx, rpc.DispatchCommandInput{Command: fmt.Sprintf("request peer %s flush", peer)})
+	var tb textbuf.Buffer
+	tb.Str("show bgp peer ").Str(peer).Str(" detail")
+	_, _, _ = p.DispatchCommand(ctx, tb.String())
+	dispatchHelper(ctx, p, "show bgp-ls topology")
+}
+
+func dispatchHelper(ctx context.Context, p *sdk.Plugin, command string) {
+	_, _, _ = p.DispatchCommandWithTimeout(ctx, time.Second, command)
+}
+`)
+	writeFixtureFile(t, tree, "internal/plugins/demo/helper/helper.go", `package helper
+
+import (
+	"context"
+
+	"github.com/ze-software/ze/pkg/plugin/sdk"
+)
+
+func remove(ctx context.Context, p *sdk.Plugin) {
+	_, _ = p.RouteRemove(ctx, nil)
+}
+`)
+	writeFixtureFile(t, tree, "internal/plugins/demo/nested/register.go", `package nested
+
+import (
+	"context"
+
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
+)
+
+func init() {
+	_ = registry.Register(registry.Registration{Name: "demo-nested"})
+}
+
+func runNested(ctx context.Context, p *sdk.Plugin) {
+	_, _, _ = p.DispatchCommand(ctx, "show nested status")
+}
+`)
+
+	t.Run("fully-declared-passes", func(t *testing.T) {
+		regs := []*registry.Registration{
+			{
+				Name: "demo",
+				Sends: []rpc.MessageSendDecl{
+					{Message: "system-rib:route-install"},
+					{Message: "system-rib:route-metrics"},
+					{Message: "resolve:dns"},
+					{Message: "bgp:raw"},
+					{Message: "bgp:update"},
+					{Message: "bgp:refresh"},
+					{Message: "cli:request bgp adj-rib-in batch-validate"},
+					{Message: "cli:clear bgp peer"},
+					{Message: "cli:request bgp watchdog"},
+					{Message: "cli:request peer"},
+					{Message: "cli:show bgp peer"},
+					{Message: "cli:show bgp-ls"},
+				},
+			},
+			{
+				Name: "demo-nested",
+				Sends: []rpc.MessageSendDecl{
+					{Message: "cli:show nested status"},
+				},
+			},
+		}
+
+		findings, checked, err := CheckPluginSends(tree, regs)
+		if err != nil {
+			t.Fatalf("CheckPluginSends returned error: %v", err)
+		}
+		if checked != 2 {
+			t.Errorf("checked = %d, want 2", checked)
+		}
+		if len(findings) != 0 {
+			t.Errorf("expected 0 findings for fully declared fixture, got %d: %+v", len(findings), findings)
+		}
+	})
+
+	t.Run("undeclared-ops-and-commands-fail", func(t *testing.T) {
+		regs := []*registry.Registration{
+			{
+				Name: "demo",
+				// "cli:show bgp" covers "show bgp peer" at a word boundary,
+				// but MUST NOT cover "show bgp-ls topology".
+				Sends: []rpc.MessageSendDecl{
+					{Message: "cli:show bgp"},
+				},
+			},
+			{
+				Name:  "demo-nested",
+				Sends: nil,
+			},
+		}
+
+		findings, checked, err := CheckPluginSends(tree, regs)
+		if err != nil {
+			t.Fatalf("CheckPluginSends returned error: %v", err)
+		}
+		if checked != 2 {
+			t.Errorf("checked = %d, want 2", checked)
+		}
+
+		gotByCmd := make(map[string]Finding, len(findings))
+		for _, f := range findings {
+			if f.Kind != KindUndeclaredSend {
+				t.Errorf("unexpected finding kind %q in %+v", f.Kind, f)
+			}
+			if f.Line <= 0 {
+				t.Errorf("finding %+v has non-positive line number", f)
+			}
+			gotByCmd[f.Command] = f
+		}
+
+		wantMissing := []string{
+			"system-rib:route-install",
+			"system-rib:route-metrics",
+			"resolve:dns",
+			"bgp:raw",
+			"bgp:update",
+			"bgp:refresh",
+			"cli:request bgp adj-rib-in batch-validate",
+			"cli:clear bgp peer",
+			"cli:request bgp watchdog announce",
+			"cli:request peer",
+			"cli:show bgp-ls topology",
+			"cli:show nested status",
+		}
+		for _, want := range wantMissing {
+			if _, found := gotByCmd[want]; !found {
+				t.Errorf("missing expected undeclared-send finding for %q; got findings: %+v", want, findings)
+			}
+		}
+		if _, spurious := gotByCmd["cli:show bgp peer"]; spurious {
+			t.Errorf("word-boundary prefix cli:show bgp should cover cli:show bgp peer, got finding: %+v", gotByCmd["cli:show bgp peer"])
+		}
+		// Ensure nested plugin call was attributed to demo-nested, not demo.
+		if f, ok := gotByCmd["cli:show nested status"]; ok {
+			if !strings.Contains(f.Detail, `"demo-nested"`) {
+				t.Errorf("nested finding attributed to wrong plugin: %+v", f)
+			}
+		}
+	})
+
+	t.Run("empty-registrations-refused", func(t *testing.T) {
+		if _, _, err := CheckPluginSends(tree, nil); err == nil {
+			t.Error("CheckPluginSends accepted empty registration slice")
+		}
+	})
+}
+
+// VALIDATES: Report.Text renders PluginsChecked and KindUndeclaredSend counts.
+// PREVENTS: undeclared plugin sends being miscounted as unverifiable emitters.
+func TestReportTextRendersUndeclaredSendFindings(t *testing.T) {
+	rendered := Report{
+		SchemaVersion:   1,
+		CommandsKnown:   10,
+		EmittersChecked: 20,
+		PluginsChecked:  5,
+		Findings: []Finding{{
+			File:    "internal/plugins/demo/engine.go",
+			Line:    12,
+			Kind:    KindUndeclaredSend,
+			Emitter: "RouteInstall",
+			Command: "system-rib:route-install",
+			Detail:  `plugin "demo" calls RouteInstall which requires Sends entry "system-rib:route-install", not declared in Registration.Sends`,
+		}},
+	}.Text()
+
+	for _, want := range []string{
+		"Plugins checked:     5",
+		`internal/plugins/demo/engine.go:12: undeclared-send: RouteInstall("system-rib:route-install")`,
+		"ci-dispatch check: FAIL (0 dead, 0 unverifiable, 1 undeclared-send)",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Errorf("Report.Text() missing %q:\n%s", want, rendered)
+		}
 	}
 }

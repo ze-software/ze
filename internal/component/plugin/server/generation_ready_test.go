@@ -31,7 +31,8 @@ func TestGenerationReadyJoinsFramedRuntimeBeforeStartupSuccess(t *testing.T) {
 				dispatched.Add(1)
 				return &plugin.Response{Status: plugin.StatusDone}, nil
 			}, "runtime restoration probe"))
-			require.NoError(t, registry.Register(registry.Registration{Name: name, CLIHandler: func([]string) int { return 0 }, RunEngine: func(conn net.Conn) int {
+			probeSends := []rpc.MessageSendDecl{{Message: "cli:ready-probe"}}
+			require.NoError(t, registry.Register(registry.Registration{Name: name, Sends: probeSends, CLIHandler: func([]string) int { return 0 }, RunEngine: func(conn net.Conn) int {
 				p := sdk.NewWithConn(name, struct{ net.Conn }{conn})
 				p.OnCurrentSelection(func(ctx context.Context, in rpc.CurrentSelectionInput) (*rpc.CurrentSelectionOutput, error) {
 					_, _, err := p.DispatchCommand(ctx, "ready-probe")
@@ -44,7 +45,7 @@ func TestGenerationReadyJoinsFramedRuntimeBeforeStartupSuccess(t *testing.T) {
 					}
 					return out, nil
 				})
-				if err := p.Run(s.Context(), &sdk.Registration{}); err != nil && s.Context().Err() == nil {
+				if err := p.Run(s.Context(), &sdk.Registration{Sends: probeSends}); err != nil && s.Context().Err() == nil {
 					return 1
 				}
 				return 0

@@ -46,8 +46,9 @@ func TestGenerationReadyRestartIgnoresPreviousStopRecord(t *testing.T) {
 				calls.Add(1)
 				return &plugin.Response{Status: plugin.StatusDone}, nil
 			}, "useful exact replacement runtime"))
+			probeSends := []rpc.MessageSendDecl{{Message: "cli:ready-old-stop-probe"}}
 			require.NoError(t, registry.Register(registry.Registration{
-				Name: name, CLIHandler: func([]string) int { return 0 },
+				Name: name, Sends: probeSends, CLIHandler: func([]string) int { return 0 },
 				RunEngine: func(conn net.Conn) int {
 					generation := starts.Add(1)
 					if !typed {
@@ -66,7 +67,7 @@ func TestGenerationReadyRestartIgnoresPreviousStopRecord(t *testing.T) {
 						}
 						return output, nil
 					})
-					declaration := &sdk.Registration{}
+					declaration := &sdk.Registration{Sends: probeSends}
 					if generation > 1 {
 						provider.OnDrain(func(context.Context, rpc.DrainInput) error { return nil })
 						declaration.DrainBudget = 1

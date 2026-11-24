@@ -77,7 +77,18 @@ func nativeOwnerProcess(t *testing.T, s *Server) *process.Process {
 	t.Cleanup(func() { registry.Restore(snapshot) })
 	const name = "native-owner-engine-test"
 	if err := registry.Register(registry.Registration{
-		Name:       name,
+		Name: name,
+		Sends: []rpc.MessageSendDecl{
+			{Message: busMsgBGPUpdate},
+			{Message: busMsgBGPRefresh},
+			{Message: busMsgBGPRaw},
+			{Message: "cli:send bgp"},
+			{Message: "cli:physical command"},
+			{Message: "cli:unsupported command"},
+			{Message: "cli:request"},
+			{Message: "cli:show"},
+			{Message: "cli:clear"},
+		},
 		RunEngine:  func(net.Conn) int { <-ctx.Done(); return 0 },
 		CLIHandler: func([]string) int { return 0 },
 	}); err != nil {

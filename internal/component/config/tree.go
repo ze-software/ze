@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/configorder"
@@ -1400,7 +1401,11 @@ func (t *Tree) toMap(withListOrder, withInactiveIntent bool) map[string]any {
 		case 0:
 			// wholly deactivated leaf-list: omit
 		case 1:
-			result[k] = active[0]
+			if strings.ContainsAny(active[0], " \t\n\r") {
+				result[k] = active
+			} else {
+				result[k] = active[0]
+			}
 		default:
 			result[k] = active
 		}

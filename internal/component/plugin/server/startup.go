@@ -355,6 +355,11 @@ func (s *Server) signalStartupComplete() {
 		return
 	}
 
+	// Compile the bus filter index from all Stage 1 declarations and BusConfig,
+	// publishing every endpoint's command profile before any OnAllPluginsReady
+	// handler runs.
+	s.RefreshDeliveryGraph()
+
 	// Fan out the post-startup callback to every running plugin so that
 	// OnAllPluginsReady handlers (e.g., bgp-rpki enabling the adj-rib-in
 	// validation gate) can safely dispatch cross-plugin commands -- at this

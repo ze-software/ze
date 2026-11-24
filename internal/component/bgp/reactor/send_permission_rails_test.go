@@ -34,6 +34,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -173,12 +174,17 @@ func railServer(t *testing.T, api *reactorAPIAdapter, sender plugin.Sender) *plu
 // PREVENTS: any connected process forwarding a cached UPDATE into a peer that
 // never attached it, which is route injection under another command's name.
 func TestCacheForwardEntryPointRefusesAnUnattachedProcess(t *testing.T) {
-	resetSendPermissionMetrics(t)
+	resetSendPermissionReports(t)
 	env := railFixture(t)
 
 	const refusedID, grantedID = uint64(41), uint64(42)
 	env.cacheUpdate(t, refusedID)
 	env.cacheUpdate(t, grantedID)
+
+	refusedParticipant := plugin.EndpointPath(railRefused)
+	grantedParticipant := plugin.EndpointPath(railGranted)
+	beforeRefused := pluginserver.BusSendRefusedCount(refusedParticipant, testBusMsgUpdate)
+	beforeGranted := pluginserver.BusSendRefusedCount(grantedParticipant, testBusMsgUpdate)
 
 	refused := railServer(t, env.api, plugin.ProcessSender(railRefused))
 	resp, err := refused.Server.Dispatcher().Dispatch(refused, "send bgp "+railDest+" cached 41")
@@ -187,6 +193,10 @@ func TestCacheForwardEntryPointRefusesAnUnattachedProcess(t *testing.T) {
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, railRefused, "the refusal must name the process")
 	assert.Empty(t, env.items(), "a refused forward must put nothing on the destination's wire")
+	assert.Equal(t, beforeRefused+1, pluginserver.BusSendRefusedCount(refusedParticipant, testBusMsgUpdate),
+		"the refused cache forward must increment ze_bus_send_refused_total")
+	require.Len(t, busRefusalEvents(refusedParticipant), 1,
+		"the refused cache forward must raise CodeDoctorPluginRequestRefused on the report bus")
 
 	// The same command, the same destination, the same cached UPDATE: only the
 	// process name differs, so what is measured is the attach block and nothing
@@ -197,6 +207,8 @@ func TestCacheForwardEntryPointRefusesAnUnattachedProcess(t *testing.T) {
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	env.awaitDispatch(t)
 	require.Len(t, env.items(), 1, "the attached process must be served")
+	assert.Equal(t, beforeGranted, pluginserver.BusSendRefusedCount(grantedParticipant, testBusMsgUpdate),
+		"the permitted cache forward must record no refusal")
 }
 
 // TestCacheForwardRefusalNamesTheAttachBlock holds what an unattached process
@@ -213,7 +225,7 @@ func TestCacheForwardEntryPointRefusesAnUnattachedProcess(t *testing.T) {
 // PREVENTS: a refusal that leaves the process author guessing which config
 // grants the send.
 func TestCacheForwardRefusalNamesTheAttachBlock(t *testing.T) {
-	resetSendPermissionMetrics(t)
+	resetSendPermissionReports(t)
 	env := railFixture(t)
 	env.cacheUpdate(t, 41)
 
@@ -230,6 +242,8 @@ func TestCacheForwardRefusalNamesTheAttachBlock(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, "forward failed: "+want, resp.Error)
 	assert.Empty(t, env.items(), "a refused forward must put nothing on the destination's wire")
+	require.Len(t, busRefusalEvents(plugin.EndpointPath(railRefused)), 1,
+		"the refused cache forward must raise CodeDoctorPluginRequestRefused on the report bus")
 }
 
 // TestPeerRawEntryPointNeedsTheRawSendWord drives `send bgp <addr> raw` through the
@@ -247,10 +261,17 @@ func TestCacheForwardRefusalNamesTheAttachBlock(t *testing.T) {
 // PREVENTS: a connected process writing a BGP message of its own choosing, a
 // forged NOTIFICATION included, into a session that granted it routes only.
 func TestPeerRawEntryPointNeedsTheRawSendWord(t *testing.T) {
-	resetSendPermissionMetrics(t)
+	resetSendPermissionReports(t)
 
 	peer, conn := newAttachedPeer(t, railDest, sendUpdateOnly(railOther), sendRawOnly(railGranted))
 	api := newSendPermissionReactor(t, peer)
+
+	refusedParticipant := plugin.EndpointPath(railRefused)
+	otherParticipant := plugin.EndpointPath(railOther)
+	grantedParticipant := plugin.EndpointPath(railGranted)
+	beforeRefused := pluginserver.BusSendRefusedCount(refusedParticipant, testBusMsgRaw)
+	beforeOther := pluginserver.BusSendRefusedCount(otherParticipant, testBusMsgRaw)
+	beforeGranted := pluginserver.BusSendRefusedCount(grantedParticipant, testBusMsgRaw)
 
 	refused := railServer(t, api, plugin.ProcessSender(railRefused))
 	resp, err := refused.Server.Dispatcher().Dispatch(refused, "send bgp "+railDest+" raw hex DEADBEEF type update")
@@ -258,6 +279,9 @@ func TestPeerRawEntryPointNeedsTheRawSendWord(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Empty(t, conn.written(), "a refused raw injection must put nothing on the peer's socket")
+	assert.Equal(t, beforeRefused+1, pluginserver.BusSendRefusedCount(refusedParticipant, testBusMsgRaw),
+		"an unattached raw refusal must increment ze_bus_send_refused_total under bgp:raw")
+	require.Len(t, busRefusalEvents(refusedParticipant), 1)
 
 	updateOnly := railServer(t, api, plugin.ProcessSender(railOther))
 	resp, err = updateOnly.Server.Dispatcher().Dispatch(updateOnly, "send bgp "+railDest+" raw hex DEADBEEF type update")
@@ -266,12 +290,17 @@ func TestPeerRawEntryPointNeedsTheRawSendWord(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Empty(t, conn.written(), "an attached process without `send [ raw ]` must reach no socket")
+	assert.Equal(t, beforeOther+1, pluginserver.BusSendRefusedCount(otherParticipant, testBusMsgRaw),
+		"an update-only raw refusal must increment ze_bus_send_refused_total under bgp:raw")
+	require.Len(t, busRefusalEvents(otherParticipant), 1)
 
 	granted := railServer(t, api, plugin.ProcessSender(railGranted))
 	resp, err = granted.Server.Dispatcher().Dispatch(granted, "send bgp "+railDest+" raw hex DEADBEEF type update")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.NotEmpty(t, conn.written(), "the process the peer grants `send [ raw ]` must reach the socket")
+	assert.Equal(t, beforeGranted, pluginserver.BusSendRefusedCount(grantedParticipant, testBusMsgRaw),
+		"the permitted raw injection must record no refusal")
 }
 
 // TestForwardCachedRailRefusesAnUnattachedProcess is the forward-cached rail,
@@ -289,7 +318,7 @@ func TestPeerRawEntryPointNeedsTheRawSendWord(t *testing.T) {
 // whole batch fails, and nothing is dispatched.
 // PREVENTS: a cache consumer flushing UPDATEs into any peer address it can name.
 func TestForwardCachedRailRefusesAnUnattachedProcess(t *testing.T) {
-	resetSendPermissionMetrics(t)
+	resetSendPermissionReports(t)
 	env := railFixture(t)
 
 	const refusedID, grantedID = uint64(51), uint64(52)
@@ -297,14 +326,22 @@ func TestForwardCachedRailRefusesAnUnattachedProcess(t *testing.T) {
 	env.cacheUpdate(t, grantedID)
 	dst := []netip.AddrPort{netip.AddrPortFrom(netip.MustParseAddr(railDest), 0)}
 
+	refusedParticipant := plugin.EndpointPath(railRefused)
+	grantedParticipant := plugin.EndpointPath(railGranted)
+	beforeRefused := pluginserver.BusSendRefusedCount(refusedParticipant, testBusMsgUpdate)
+	beforeGranted := pluginserver.BusSendRefusedCount(grantedParticipant, testBusMsgUpdate)
+
 	err := env.api.ForwardUpdatesDirect([]uint64{refusedID}, dst, railRefused, plugin.ProcessSender(railRefused))
 	require.ErrorIs(t, err, errSendNotPermitted)
 	assert.Contains(t, err.Error(), railRefused, "the refusal must name the process")
 	assert.Empty(t, env.items(), "a refused batch must put nothing on the destination's wire")
+	assert.Equal(t, beforeRefused+1, pluginserver.BusSendRefusedCount(refusedParticipant, testBusMsgUpdate))
+	require.Len(t, busRefusalEvents(refusedParticipant), 1)
 
 	require.NoError(t, env.api.ForwardUpdatesDirect([]uint64{grantedID}, dst, railGranted, plugin.ProcessSender(railGranted)))
 	env.awaitDispatch(t)
 	require.Len(t, env.items(), 1, "the attached process must be served")
+	assert.Equal(t, beforeGranted, pluginserver.BusSendRefusedCount(grantedParticipant, testBusMsgUpdate))
 }
 
 // TestRelayStoredRouteRailRefusesAnUnattachedProcess is the relay rail, which a
@@ -324,7 +361,7 @@ func TestForwardCachedRailRefusesAnUnattachedProcess(t *testing.T) {
 // replay or a revalidated path on the strength of being attached at all, which
 // is why the replay owner relays instead (docs/architecture/api/architecture.md).
 func TestRelayStoredRouteRailRefusesAnUnattachedProcess(t *testing.T) {
-	resetSendPermissionMetrics(t)
+	resetSendPermissionReports(t)
 	env := railFixture(t)
 
 	const receiveOnly, rawOnly = "adj-rib-in", "raw-builder"
@@ -346,15 +383,22 @@ func TestRelayStoredRouteRailRefusesAnUnattachedProcess(t *testing.T) {
 	route.SourceConnectionID = env.source.currentSession().connectionID
 	routes := []rpc.StoredRoute{route}
 	for _, process := range []string{railRefused, receiveOnly, rawOnly} {
+		participant := plugin.EndpointPath(process)
+		before := pluginserver.BusSendRefusedCount(participant, testBusMsgUpdate)
 		err := env.api.RelayStoredRoute(dst, routes, plugin.ProcessSender(process))
 		require.ErrorIs(t, err, errSendNotPermitted, "process %s", process)
 		assert.Contains(t, err.Error(), process, "the refusal must name the process")
+		assert.Equal(t, before+1, pluginserver.BusSendRefusedCount(participant, testBusMsgUpdate), "process %s", process)
+		require.Len(t, busRefusalEvents(participant), 1, "process %s", process)
 	}
 	assert.Empty(t, env.items(), "a refused relay must put nothing on the destination's wire")
 
+	grantedParticipant := plugin.EndpointPath(railGranted)
+	beforeGranted := pluginserver.BusSendRefusedCount(grantedParticipant, testBusMsgUpdate)
 	require.NoError(t, env.api.RelayStoredRoute(dst, routes, plugin.ProcessSender(railGranted)))
 	env.awaitDispatch(t)
 	require.Len(t, env.items(), 1, "the attached process must be served")
+	assert.Equal(t, beforeGranted, pluginserver.BusSendRefusedCount(grantedParticipant, testBusMsgUpdate))
 }
 
 // TestRailsRefuseACommandWithNoSender pins the branch these four rails take
@@ -369,7 +413,8 @@ func TestRelayStoredRouteRailRefusesAnUnattachedProcess(t *testing.T) {
 //
 // VALIDATES: cache forward, forward-cached, relay-stored-route and raw each
 // refuse the zero plugin.Sender with errSendNoSender, report it under the
-// bounded "unset" process label, and dispatch nothing.
+// bounded "unset" participant label in ze_bus_send_refused_total and
+// CodeDoctorPluginRequestRefused on the report bus, and dispatch nothing.
 // PREVENTS: the branch being dropped and the rails falling through to the attach
 // filter, which answers errSendNotPermitted -- a defect in the dispatch path
 // reported to an operator as their config mistake, on the rail where raw bytes
@@ -377,9 +422,10 @@ func TestRelayStoredRouteRailRefusesAnUnattachedProcess(t *testing.T) {
 // (plugins/cmd/raw/mock_reactor_test.go, SendRawMessage), and a mirror whose
 // original is gone goes on passing alone.
 func TestRailsRefuseACommandWithNoSender(t *testing.T) {
-	resetSendPermissionMetrics(t)
-	reg := &announceFakeRegistry{}
-	setSendPermissionMetricsRegistry(reg)
+	resetSendPermissionReports(t)
+	reg := wireBusRefusalRegistry(t)
+	beforeUnsetUpdate := pluginserver.BusSendRefusedCount(testUnsetSender, testBusMsgUpdate)
+	beforeUnsetRaw := pluginserver.BusSendRefusedCount(testUnsetSender, testBusMsgRaw)
 	env := railFixture(t)
 
 	const cachedID = uint64(61)
@@ -405,11 +451,26 @@ func TestRailsRefuseACommandWithNoSender(t *testing.T) {
 
 	assert.Empty(t, env.items(), "a command nobody claimed must reach no destination")
 
-	// Reported, not only refused. The series is keyed on the sender's name, and
-	// Sender.String gives an unset sender the bounded value "unset".
-	require.NotNil(t, reg.vec, "the refusal must reach the counter")
-	assert.Equal(t, 3, reg.vec.counters["unset|update"].n,
-		"the three UPDATE rails must move the unset series once each")
-	assert.Equal(t, 1, reg.vec.counters["unset|raw"].n,
-		"raw is refused under its own send type, which no send list can grant")
+	// Reported, not only refused. The series is keyed on the bounded "unset"
+	// participant label and the bus message name.
+	require.NotNil(t, reg.vec)
+	require.Contains(t, reg.vec.counters, testUnsetSender+"|"+testBusMsgUpdate)
+	assert.Equal(t, 3, reg.vec.counters[testUnsetSender+"|"+testBusMsgUpdate].n,
+		"the three UPDATE rails must move the Prometheus unset|bgp:update series once each")
+	require.Contains(t, reg.vec.counters, testUnsetSender+"|"+testBusMsgRaw)
+	assert.Equal(t, 1, reg.vec.counters[testUnsetSender+"|"+testBusMsgRaw].n,
+		"raw is refused under its own Prometheus unset|bgp:raw series")
+	assert.Equal(t, beforeUnsetUpdate+3, pluginserver.BusSendRefusedCount(testUnsetSender, testBusMsgUpdate),
+		"the three UPDATE rails must move the unset/bgp:update series once each")
+	assert.Equal(t, beforeUnsetRaw+1, pluginserver.BusSendRefusedCount(testUnsetSender, testBusMsgRaw),
+		"raw is refused under its own bgp:raw message, which no send list can grant")
+
+	events := busRefusalEvents(testUnsetSender)
+	require.Len(t, events, 4, "all four no-sender rail refusals must raise CodeDoctorPluginRequestRefused on the report bus")
+	for _, ev := range events {
+		assert.Equal(t, reportSourceBGPReactor, ev.Source)
+		assert.Equal(t, diagnostic.CodeDoctorPluginRequestRefused, ev.Code)
+		assert.Equal(t, testUnsetSender, ev.Subject)
+		assert.Contains(t, ev.Fix, "CommandContext.Sender")
+	}
 }

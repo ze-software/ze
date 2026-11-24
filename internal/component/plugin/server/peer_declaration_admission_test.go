@@ -133,8 +133,8 @@ func TestPendingPeerDeclarationsFenceEveryOutputRail(t *testing.T) {
 		input        any
 		typed        func() error
 	}{
-		{name: "update", method: rpc.MethodUpdateRoute, input: rpc.UpdateRouteInput{}, typed: func() error {
-			_, _, err := bridge.UpdateRouteSel(t.Context(), selector.ParseDefault("*"), "route", nil, 0)
+		{name: "update", method: rpc.MethodUpdateRoute, input: rpc.UpdateRouteInput{Command: "update text nlri add 10.0.0.0/24"}, typed: func() error {
+			_, _, err := bridge.UpdateRouteSel(t.Context(), selector.ParseDefault("*"), "update text nlri add 10.0.0.0/24", nil, 0)
 			return err
 		}},
 		{name: "cached", method: rpc.MethodForwardCached, input: rpc.ForwardCachedInput{}, typed: func() error {

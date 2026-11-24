@@ -1,0 +1,119 @@
+# Test: an external plugin declaring only cli:show bgp peer is refused undeclared sends while an operator keeps authorization.
+# QUESTION: over a real TLS external-plugin connect-back, full daemon command
+# dispatcher, live authz.Store, live Loc-RIB, and live event bus, does Ze admit
+# `show bgp peer list` for an external endpoint declaring only `cli:show bgp peer`,
+# refuse undeclared `clear bgp rib in *`, `route-install`, and `emit-event` of
+# `bgp:state` with `doctor-plugin-request-refused` and counter 3, while still
+# authorizing an operator running `clear bgp rib in *` over SSH? A unit test
+# cannot decide this because the path spans TLS connect-back authentication,
+# Stage 1 bus declarations, the live authz profile lookup, engine RPC dispatch,
+# report-bus doctor diagnostics, Prometheus metrics, and SSH operator dispatch.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S20 / AC-26, AC-28, AC-30,
+# AC-32, AC-34.
+# PREVENTS: external plugin identities bypassing command authorization via
+# aaa.ReservedInternalPrefix or invoking undeclared engine operations.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT3;
+		}
+	}
+}
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint rib {
+		internal rib;
+	}
+	endpoint bus-send-undeclared-probe {
+		external {
+			run "le test fixture plugin/bus-send-undeclared-probe probe.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.2;
+				connect false;
+			}
+			local {
+				ip 127.0.0.1;
+				port $PORT;
+				accept true;
+			}
+		}
+		session {
+			asn {
+				local 65000;
+				remote 65000;
+			}
+			router-id 1.2.3.4;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start running.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=OK: show bgp peer list succeeded and 3 undeclared sends were refused
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=3:exec=le test fixture plugin/bus-wait-file probe.done:exit=0
+expect=stdout:contains=OK: marker file probe.done appeared
+
+cmd=foreground:seq=4:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-plugin-request-refused"
+expect=stdout:contains=/bus/endpoint/bus-send-undeclared-probe
+
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/bus-send-undeclared-probe 3:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/bus-send-undeclared-probe = 3
+
+# Negative/control: an operator running clear bgp rib in * over SSH stays authorized.
+cmd=foreground:seq=6:exec=ze cli -c "clear bgp rib in *":exit=0
+
+cmd=stop:seq=7:name=daemon:signal=term

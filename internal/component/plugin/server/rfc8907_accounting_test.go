@@ -42,6 +42,9 @@ func TestRFC8907TypedDispatchAccountsDeniedCommand(t *testing.T) {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	defer s.cancel()
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
+	caller.SetRegistration(&plugin.PluginRegistration{
+		Sends: []rpc.MessageSendDecl{{Message: "cli:request target echo"}},
+	})
 	args := []string{"two words", `quote"inside`, `slash\inside`}
 	_, err := s.dispatchCommandArgs(t.Context(), caller, "request target echo", args, "*")
 	if !errors.Is(err, ErrUnauthorized) {

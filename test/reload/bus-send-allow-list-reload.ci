@@ -1,0 +1,230 @@
+# Test: SIGHUP reloads of send > allow narrow a running external endpoint's CLI commands live without restarting the endpoint.
+# QUESTION: when an external endpoint `ops` declares `cli:show bgp peer` and
+# `cli:clear bgp rib`, does a live SIGHUP reload writing
+# `send { allow [ "cli:show bgp peer" ]; }` and then `send { allow none; }`
+# immediately narrow `ops`'s compiled bus filter and authz profile (counting
+# refusals 1 -> 3 -> 6) without restarting `ops` (identical PID across all
+# three phases) and without blocking an SSH operator from running
+# `clear bgp rib in *`? A unit test cannot decide this because the path spans
+# real SIGHUP reload, RefuseChangedDeclarations permitting bus filter edits,
+# live DeliveryGraph + PluginCommandProfile swap, and a live forked child PID.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S27 / AC-27, AC-31.
+# PREVENTS: reload leaving stale plugin command profiles active, or rejecting
+# bus filter edits on an existing external endpoint as a process-declaration change.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Initial config: no send allow-list written on ops.
+tmpfs=ze-bgp.conf:terminator=EOF_CONF0
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT3;
+		}
+	}
+}
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint ops {
+		external {
+			run "le test fixture plugin/bus-send-allow-list-reload";
+		}
+		encoding json;
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF0
+
+# Reload 1: narrow ops send allow-list to cli:show bgp peer only.
+tmpfs=reload1.conf:terminator=EOF_CONF1
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT3;
+		}
+	}
+}
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint ops {
+		external {
+			run "le test fixture plugin/bus-send-allow-list-reload";
+		}
+		encoding json;
+		send {
+			allow [ "cli:show bgp peer" ];
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF1
+
+# Reload 2: narrow ops send allow-list to none.
+tmpfs=reload2.conf:terminator=EOF_CONF2
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT3;
+		}
+	}
+}
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint ops {
+		external {
+			run "le test fixture plugin/bus-send-allow-list-reload";
+		}
+		encoding json;
+		send {
+			allow none;
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF2
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start ze-bgp.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=OK: ops allow-list reload phases 0, 1, 2 verified with same PID
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+# Phase 0: show bgp peer list & clear bgp rib in * succeed; show interface refused (counter = 1).
+cmd=foreground:seq=3:exec=le test fixture plugin/bus-wait-file phase0.done:exit=0
+expect=stdout:contains=OK: marker file phase0.done appeared
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/ops 1:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/ops = 1
+cmd=foreground:seq=5:exec=ze cli -c "clear bgp rib in *":exit=0
+
+# Reload 1: allow only cli:show bgp peer (counter = 1 + 2 = 3).
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-sighup-reload reload1.conf ze-bgp.conf reload1.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload1.conf applied
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-wait-file phase1.done:exit=0
+expect=stdout:contains=OK: marker file phase1.done appeared
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/ops 3:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/ops = 3
+cmd=foreground:seq=9:exec=ze cli -c "clear bgp rib in *":exit=0
+
+# Reload 2: allow none (counter = 3 + 3 = 6).
+cmd=foreground:seq=10:exec=le test fixture plugin/bus-sighup-reload reload2.conf ze-bgp.conf reload2.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload2.conf applied
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-wait-file phase2.done:exit=0
+expect=stdout:contains=OK: marker file phase2.done appeared
+cmd=foreground:seq=12:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/ops 6:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/ops = 6
+cmd=foreground:seq=13:exec=le test fixture plugin/bus-assert-same-pid phase0.done phase1.done phase2.done:exit=0
+expect=stdout:contains=OK: endpoint kept same PID
+cmd=foreground:seq=14:exec=ze cli -c "clear bgp rib in *":exit=0
+
+cmd=stop:seq=15:name=daemon:signal=term

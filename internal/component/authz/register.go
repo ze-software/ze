@@ -5,15 +5,37 @@
 package authz
 
 import (
+	"strings"
+
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // StoreAuthorizer adapts *Store to aaa.Authorizer (bool return). It maps the
 // profile-based Action verdict to a boolean: any decision other than Deny is
-// treated as allowed. A nil Store allows everything (matching the existing
-// "nil authorizer = allow all" convention in the dispatcher).
+// treated as allowed. A nil Store allows operator and internal-RPC identities
+// (matching the existing "nil authorizer = allow all" convention when
+// system.authorization is unconfigured), while still evaluating plugin
+// identities against their compiled bus PluginCommandProfile.
 type StoreAuthorizer struct {
 	Store *Store
+}
+
+// authorizeWithNilStore preserves the allow-all default for human operators
+// when no operator authorization Store is configured, while still enforcing
+// compiled bus command profiles on plugin identities (never default-allowing a
+// plugin identity).
+func authorizeWithNilStore(username, command string, isReadOnly bool) bool {
+	if endpoint, isPlugin := aaa.PluginEndpointFromIdentity(username); isPlugin {
+		return authorizePluginIdentity(username, endpoint, command, isReadOnly) != Deny
+	}
+	if strings.HasPrefix(username, aaa.ReservedInternalPluginPrefix) {
+		authzLogger.Warn("denied: malformed empty plugin identity",
+			"identity", username, "command", command,
+			"code", diagnostic.CodeDoctorPluginRequestRefused)
+		return false
+	}
+	return true
 }
 
 // BindProfiles returns a request-carried authorizer for one authentication
@@ -33,14 +55,14 @@ type boundStoreAuthorizer struct {
 
 func (a boundStoreAuthorizer) Authorize(username, _, command string, isReadOnly bool) bool {
 	if a.store == nil {
-		return true
+		return authorizeWithNilStore(username, command, isReadOnly)
 	}
 	return a.store.AuthorizeWithProfiles(username, a.profiles, command, isReadOnly) != Deny
 }
 
 func (a boundStoreAuthorizer) AuthorizeCommandArgs(username, _, command string, args []string, peer string, isReadOnly bool) bool {
 	if a.store == nil {
-		return true
+		return authorizeWithNilStore(username, aaa.CanonicalCommand(command, args, peer), isReadOnly)
 	}
 	return a.store.AuthorizeWithProfiles(username, a.profiles, aaa.CanonicalCommand(command, args, peer), isReadOnly) != Deny
 }
@@ -48,7 +70,7 @@ func (a boundStoreAuthorizer) AuthorizeCommandArgs(username, _, command string, 
 // Authorize implements aaa.Authorizer.
 func (a StoreAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
 	if a.Store == nil {
-		return true
+		return authorizeWithNilStore(username, command, isReadOnly)
 	}
 	return a.Store.Authorize(username, command, isReadOnly) != Deny
 }
@@ -58,7 +80,7 @@ func (a StoreAuthorizer) Authorize(username, remoteAddr, command string, isReadO
 // existing peer-scoped RBAC semantics through aaa.CanonicalCommand.
 func (a StoreAuthorizer) AuthorizeCommandArgs(username, _, command string, args []string, peer string, isReadOnly bool) bool {
 	if a.Store == nil {
-		return true
+		return authorizeWithNilStore(username, aaa.CanonicalCommand(command, args, peer), isReadOnly)
 	}
 	return a.Store.Authorize(username, aaa.CanonicalCommand(command, args, peer), isReadOnly) != Deny
 }

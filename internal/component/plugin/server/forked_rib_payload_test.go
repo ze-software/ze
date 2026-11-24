@@ -167,6 +167,12 @@ func TestForkedRIBGateCommandsCrossTheServer(t *testing.T) {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	defer s.cancel()
 	caller := process.NewProcess(plugin.PluginConfig{Name: "bgp-rr"})
+	caller.SetRegistration(&plugin.PluginRegistration{
+		Sends: []rpc.MessageSendDecl{
+			{Message: busCLIPrefix + eligibilityCommand},
+			{Message: busCLIPrefix + flowSpecCommand},
+		},
+	})
 	release := ribevents.RegisterGateDispatch(func(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
 		out, err := s.dispatchCommandArgs(ctx, caller, command, args, "")
 		if err != nil {

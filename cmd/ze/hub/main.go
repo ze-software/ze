@@ -1062,6 +1062,17 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		logStartupFailure("create plugin server", serverErr)
 		return 1
 	}
+	busCfg, busCfgErr := zePlugin.ExtractBusConfigFromMap(loadResult.Tree.ToMap())
+	if busCfgErr != nil {
+		refusal := opererr.Wrap(busCfgErr,
+			"bus configuration is invalid",
+			"the configured bus filters cannot be applied at startup; fix the bus block and restart ze",
+			"ze config validate")
+		fmt.Fprintln(os.Stderr, refusal)
+		logStartupFailure("bus config", refusal)
+		return 1
+	}
+	apiServer.SetBusConfig(busCfg)
 	// Every exit owns built transports and the server's stop hooks, including
 	// infrastructure acquired before a later startup failure. OnceFunc joins
 	// concurrent stops; stopHooks.run alone can return during another drain.

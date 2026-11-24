@@ -215,6 +215,7 @@ func TestDispatchCommandToPlugin(t *testing.T) {
 	pluginSide, engineSide := net.Pipe()
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-dispatch"})
+	proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: "cli:test command"}}})
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	d := NewDispatcher()
@@ -285,6 +286,7 @@ func TestHandleDispatchCommandRPCPreservesPluginIdentity(t *testing.T) {
 			t.Cleanup(func() { _ = engineSide.Close() })
 
 			proc := process.NewProcess(plugin.PluginConfig{Name: "identity-check"})
+			proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: "cli:test command"}}})
 			proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 			type identityContextKey struct{}
@@ -463,6 +465,7 @@ func TestDispatchCommandPluginError(t *testing.T) {
 	pluginSide, engineSide := net.Pipe()
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-dispatch-error"})
+	proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: "cli:failing command"}}})
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	d := NewDispatcher()
@@ -593,6 +596,9 @@ func TestDispatchCommandDirectBridge(t *testing.T) {
 	defer s.cancel()
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-direct-bridge"})
+	proc.SetRegistration(&plugin.PluginRegistration{
+		Sends: []rpc.MessageSendDecl{{Message: "cli:bridge test"}},
+	})
 
 	input := &rpc.DispatchCommandInput{Command: "bridge test"}
 	params, err := json.Marshal(input)
@@ -641,6 +647,7 @@ func TestDispatchCommandArgsRoutesSameHandlerAsDispatchCommand(t *testing.T) {
 	defer s.cancel()
 
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
+	caller.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: "cli:request target echo"}}})
 	stringOut, err := s.dispatchCommand(t.Context(), caller, "request target echo alpha beta")
 	require.NoError(t, err)
 
@@ -681,6 +688,7 @@ func TestDispatchCommandArgsPreservesOddArguments(t *testing.T) {
 	defer s.cancel()
 
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
+	caller.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: "cli:request target odd"}}})
 	out, err := s.dispatchCommandArgs(t.Context(), caller, "request target odd", wantArgs, wantPeer)
 	require.NoError(t, err)
 	require.NotNil(t, out)
@@ -711,6 +719,10 @@ func TestDispatchCommandArgsErrorsMatchDispatchCommand(t *testing.T) {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	defer s.cancel()
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
+	caller.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{
+		{Message: "cli:missing command"},
+		{Message: "cli:request target fails"},
+	}})
 
 	stringUnknownOut, stringUnknownErr := s.dispatchCommand(t.Context(), caller, "missing command")
 	argsUnknownOut, argsUnknownErr := s.dispatchCommandArgs(t.Context(), caller, "missing command", nil, "")
@@ -751,6 +763,7 @@ func TestDispatchCommandArgsPreservesPluginIdentity(t *testing.T) {
 	defer s.cancel()
 
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
+	caller.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: "cli:request target echo"}}})
 	wantArgs := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
 	out, err := s.dispatchCommandArgs(t.Context(), caller, "request target echo", wantArgs, "10.0.0.1")
 	require.Error(t, err)
@@ -784,6 +797,7 @@ func TestDispatchCommandArgsLegacyAuthorizationCanonicalizesPeerScope(t *testing
 	defer s.cancel()
 
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
+	caller.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: "cli:request target echo"}}})
 	wantArgs := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
 	out, err := s.dispatchCommandArgs(t.Context(), caller, "request target echo", wantArgs, "10.0.0.1")
 	require.Error(t, err)

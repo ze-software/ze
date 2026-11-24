@@ -68,7 +68,8 @@ func checkGenerationReadyReplacement(t *testing.T, typed, deferred, refuse bool)
 	}, "restoration runtime probe"))
 	posts := make(chan uint64, 4)
 	var generations atomic.Uint64
-	require.NoError(t, registry.Register(registry.Registration{Name: name, CLIHandler: func([]string) int { return 0 },
+	probeSends := []rpc.MessageSendDecl{{Message: "cli:ready-restart-probe"}}
+	require.NoError(t, registry.Register(registry.Registration{Name: name, Sends: probeSends, CLIHandler: func([]string) int { return 0 },
 		RunEngine: func(conn net.Conn) int {
 			generation := generations.Add(1)
 			if !typed {
@@ -90,7 +91,7 @@ func checkGenerationReadyReplacement(t *testing.T, typed, deferred, refuse bool)
 				}
 				return output, nil
 			})
-			if err := provider.Run(s.Context(), &sdk.Registration{}); err != nil && s.Context().Err() == nil {
+			if err := provider.Run(s.Context(), &sdk.Registration{Sends: probeSends}); err != nil && s.Context().Err() == nil {
 				return 1
 			}
 			return 0

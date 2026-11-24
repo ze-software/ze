@@ -1002,28 +1002,259 @@ func TestStoreAuthorizeEmptyUsernameWithProfiles(t *testing.T) {
 	}
 }
 
-// TestStoreAuthorizeReservedInternalIdentity pins O-4: a trusted in-process caller
-// whose username bears aaa.ReservedInternalPrefix (injected at the RPC boundary) is
-// allowed even on a strict store, so internal plugin dispatch keeps working. The
-// descriptor after the prefix (here a plugin name) is preserved for audit and
-// does not change the decision.
+// TestStoreAuthorizeReservedInternalIdentity pins that ONLY the exact
+// plugin-less RPC identity (aaa.ReservedInternalRPCIdentity) bypasses profiles,
+// while plugin identities under aaa.ReservedInternalPluginPrefix no longer get
+// a prefix bypass and fail closed without a published bus command profile.
 //
-// VALIDATES: AC-3/AC-10 -- reserved internal identity authorizes; plugin dispatch works.
+// VALIDATES: AC-34 -- reserved internal RPC identity authorizes; plugin prefix bypass is closed.
+// PREVENTS: a plugin identity bypassing authorization profiles via aaa.ReservedInternalPrefix.
 func TestStoreAuthorizeReservedInternalIdentity(t *testing.T) {
+	t.Cleanup(func() { aaa.SetPluginCommandProfileLookup(nil) })
+	aaa.SetPluginCommandProfileLookup(nil)
+
 	s := NewStore()
 	s.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
 	s.AssignProfiles("operator", []string{"read-only"})
 
-	rpc := aaa.ReservedInternalPrefix + "rpc"
-	plug := aaa.ReservedInternalPrefix + "plugin:ospf"
-	for _, id := range []string{rpc, plug} {
-		if got := s.Authorize(id, "restart", true); got != Allow {
-			t.Errorf("reserved internal identity %q run: expected Allow, got %v", id, got)
-		}
-		if got := s.Authorize(id, "router bgp", false); got != Allow {
-			t.Errorf("reserved internal identity %q edit: expected Allow, got %v", id, got)
+	if got := s.Authorize(aaa.ReservedInternalRPCIdentity, "restart", true); got != Allow {
+		t.Errorf("reserved internal RPC identity run: expected Allow, got %v", got)
+	}
+	if got := s.Authorize(aaa.ReservedInternalRPCIdentity, "router bgp", false); got != Allow {
+		t.Errorf("reserved internal RPC identity edit: expected Allow, got %v", got)
+	}
+
+	plug := aaa.ReservedInternalPluginPrefix + "ospf"
+	if got := s.Authorize(plug, "restart", true); got != Deny {
+		t.Errorf("plugin identity %q without profile run: expected Deny, got %v", plug, got)
+	}
+	if got := s.Authorize(plug, "router bgp", false); got != Deny {
+		t.Errorf("plugin identity %q without profile edit: expected Deny, got %v", plug, got)
+	}
+}
+
+// TestInternalRPCIdentityStaysAllowed verifies that only the exact
+// aaa.ReservedInternalRPCIdentity bypasses profiles (whether operator profiles
+// are active or inactive) and that no other identity under
+// aaa.ReservedInternalPrefix inherits that bypass.
+//
+// VALIDATES: AC-34 -- plugin-less internal RPC identity stays allowed while arbitrary internal prefixes deny.
+// PREVENTS: a prefix-based escape hatch granting allow-all to non-RPC internal identities.
+func TestInternalRPCIdentityStaysAllowed(t *testing.T) {
+	t.Cleanup(func() { aaa.SetPluginCommandProfileLookup(nil) })
+	aaa.SetPluginCommandProfileLookup(nil)
+
+	activeStore := NewStore()
+	activeStore.AddProfile(Profile{Name: "read-only", Run: Section{Default: Allow}, Edit: Section{Default: Deny}})
+	activeStore.AssignProfiles("operator", []string{"read-only"})
+
+	emptyStore := NewStore()
+	nilAuth := StoreAuthorizer{Store: nil}
+
+	for _, storeCase := range []struct {
+		name  string
+		store *Store
+	}{
+		{"profiles active", activeStore},
+		{"profiles inactive", emptyStore},
+	} {
+		t.Run(storeCase.name, func(t *testing.T) {
+			if got := storeCase.store.Authorize(aaa.ReservedInternalRPCIdentity, "show bgp peer", true); got != Allow {
+				t.Errorf("RPC identity run: got %v, want Allow", got)
+			}
+			if got := storeCase.store.Authorize(aaa.ReservedInternalRPCIdentity, "clear bgp peer", false); got != Allow {
+				t.Errorf("RPC identity edit: got %v, want Allow", got)
+			}
+			for _, denied := range []string{
+				aaa.ReservedInternalPrefix + "other",
+				aaa.ReservedInternalRPCIdentity + ":extra",
+				aaa.ReservedInternalPluginPrefix,
+			} {
+				if got := storeCase.store.Authorize(denied, "show bgp peer", true); got != Deny {
+					t.Errorf("non-RPC internal identity %q run: got %v, want Deny", denied, got)
+				}
+				if got := storeCase.store.Authorize(denied, "clear bgp peer", false); got != Deny {
+					t.Errorf("non-RPC internal identity %q edit: got %v, want Deny", denied, got)
+				}
+			}
+		})
+	}
+
+	if !nilAuth.Authorize(aaa.ReservedInternalRPCIdentity, "", "clear bgp peer", false) {
+		t.Error("nil StoreAuthorizer: expected internal RPC identity to stay allowed")
+	}
+	if nilAuth.Authorize(aaa.ReservedInternalPluginPrefix, "", "show bgp peer", true) {
+		t.Error("nil StoreAuthorizer: expected malformed empty plugin identity to be denied")
+	}
+}
+
+// TestPluginIdentityIsAuthorizedByProfile verifies that every plugin identity
+// is evaluated against its published bus PluginCommandProfile through authz's
+// own word-boundary prefix matcher, failing closed when no profile is
+// registered, AllowNone is set, or AllowedPrefixes is empty — even when no
+// operator authorization profiles are configured.
+//
+// VALIDATES: AC-26, AC-27 -- plugin identities fail closed without a profile and match only allowed CLI prefixes at word boundaries.
+// PREVENTS: a plugin identity bypassing authorization profiles or defaulting to allow when operator authz is unconfigured.
+func TestPluginIdentityIsAuthorizedByProfile(t *testing.T) {
+	t.Cleanup(func() { aaa.SetPluginCommandProfileLookup(nil) })
+
+	const (
+		pluginEndpoint = "ops"
+		pluginIdentity = aaa.ReservedInternalPluginPrefix + pluginEndpoint
+		cmdShowPeer    = "show bgp peer"
+		cmdShowPeerIP  = "show bgp peer 192.0.2.1"
+		cmdShowPeers   = "show bgp peers"
+		cmdShowIface   = "show interface"
+		cmdClearPeer   = "clear bgp peer"
+	)
+
+	if ep, ok := aaa.PluginEndpointFromIdentity(pluginIdentity); !ok || ep != pluginEndpoint {
+		t.Fatalf("PluginEndpointFromIdentity(%q) = (%q, %v), want (%q, true)", pluginIdentity, ep, ok, pluginEndpoint)
+	}
+	for _, nonPlugin := range []string{aaa.ReservedInternalPluginPrefix, aaa.ReservedInternalRPCIdentity, "ops", ""} {
+		if ep, ok := aaa.PluginEndpointFromIdentity(nonPlugin); ok {
+			t.Fatalf("PluginEndpointFromIdentity(%q) = (%q, true), want (\"\", false)", nonPlugin, ep)
 		}
 	}
+
+	configuredStore := NewStore()
+	configuredStore.AddProfile(builtinAdminProfile())
+	configuredStore.AssignProfiles("admin-op", []string{"admin"})
+
+	emptyStore := NewStore()
+	nilAuth := StoreAuthorizer{Store: nil}
+	boundNilAuth := nilAuth.BindProfiles(nil)
+
+	assertAllStores := func(t *testing.T, cmd string, readOnly bool, want Action) {
+		t.Helper()
+		wantBool := want == Allow
+		if got := configuredStore.Authorize(pluginIdentity, cmd, readOnly); got != want {
+			t.Errorf("configured store Authorize(%q, %v) = %v, want %v", cmd, readOnly, got, want)
+		}
+		if got := emptyStore.Authorize(pluginIdentity, cmd, readOnly); got != want {
+			t.Errorf("empty store Authorize(%q, %v) = %v, want %v", cmd, readOnly, got, want)
+		}
+		if got := nilAuth.Authorize(pluginIdentity, "", cmd, readOnly); got != wantBool {
+			t.Errorf("nil StoreAuthorizer Authorize(%q, %v) = %v, want %v", cmd, readOnly, got, wantBool)
+		}
+		if got := nilAuth.AuthorizeCommandArgs(pluginIdentity, "", cmd, nil, "*", readOnly); got != wantBool {
+			t.Errorf("nil StoreAuthorizer AuthorizeCommandArgs(%q, %v) = %v, want %v", cmd, readOnly, got, wantBool)
+		}
+		if got := boundNilAuth.Authorize(pluginIdentity, "", cmd, readOnly); got != wantBool {
+			t.Errorf("bound nil StoreAuthorizer Authorize(%q, %v) = %v, want %v", cmd, readOnly, got, wantBool)
+		}
+	}
+
+	assertOperatorAdminUnaffected := func(t *testing.T) {
+		t.Helper()
+		if got := configuredStore.Authorize("admin-op", cmdShowPeer, true); got != Allow {
+			t.Errorf("operator admin run %q = %v, want Allow", cmdShowPeer, got)
+		}
+		if got := configuredStore.Authorize("admin-op", cmdClearPeer, false); got != Allow {
+			t.Errorf("operator admin edit %q = %v, want Allow", cmdClearPeer, got)
+		}
+		if got := configuredStore.Authorize("admin-op", cmdShowIface, true); got != Allow {
+			t.Errorf("operator admin run %q = %v, want Allow", cmdShowIface, got)
+		}
+	}
+
+	t.Run("no registered profile fails closed", func(t *testing.T) {
+		aaa.SetPluginCommandProfileLookup(nil)
+		assertAllStores(t, cmdShowPeer, true, Deny)
+		assertAllStores(t, cmdClearPeer, false, Deny)
+		assertOperatorAdminUnaffected(t)
+	})
+
+	t.Run("allowed prefixes enforce word boundaries", func(t *testing.T) {
+		prefixes := []string{cmdShowPeer, cmdClearPeer}
+		aaa.SetPluginCommandProfileLookup(func(endpoint string) (aaa.PluginCommandProfile, bool) {
+			if endpoint == pluginEndpoint {
+				return aaa.PluginCommandProfile{
+					Endpoint:        pluginEndpoint,
+					AllowedPrefixes: prefixes,
+				}, true
+			}
+			return aaa.PluginCommandProfile{}, false
+		})
+
+		assertAllStores(t, cmdShowPeer, true, Allow)
+		assertAllStores(t, cmdShowPeerIP, true, Allow)
+		assertAllStores(t, cmdClearPeer, false, Allow)
+		assertAllStores(t, cmdShowPeers, true, Deny)
+		assertAllStores(t, cmdShowIface, true, Deny)
+
+		// Unregistered sibling plugin stays denied even while lookup is active.
+		otherPlugin := aaa.ReservedInternalPluginPrefix + "other"
+		if got := configuredStore.Authorize(otherPlugin, cmdShowPeer, true); got != Deny {
+			t.Errorf("unregistered plugin %q: got %v, want Deny", otherPlugin, got)
+		}
+		if nilAuth.Authorize(otherPlugin, "", cmdShowPeer, true) {
+			t.Errorf("nil StoreAuthorizer unregistered plugin %q: got true, want false", otherPlugin)
+		}
+
+		// Verify aaa.NewCommandPrefixAuthorizer agrees with authz.Entry.matches.
+		matcher := aaa.NewCommandPrefixAuthorizer(prefixes)
+		if !matcher(cmdShowPeer) || !matcher(cmdShowPeerIP) || !matcher(cmdClearPeer) {
+			t.Error("NewCommandPrefixAuthorizer rejected an allowed prefix")
+		}
+		if matcher(cmdShowPeers) || matcher(cmdShowIface) || matcher("") {
+			t.Error("NewCommandPrefixAuthorizer admitted a non-matching command")
+		}
+
+		assertOperatorAdminUnaffected(t)
+	})
+
+	t.Run("narrowed profile revokes omitted prefix", func(t *testing.T) {
+		aaa.SetPluginCommandProfileLookup(func(endpoint string) (aaa.PluginCommandProfile, bool) {
+			if endpoint == pluginEndpoint {
+				return aaa.PluginCommandProfile{
+					Endpoint:        pluginEndpoint,
+					AllowedPrefixes: []string{cmdShowPeer},
+				}, true
+			}
+			return aaa.PluginCommandProfile{}, false
+		})
+
+		assertAllStores(t, cmdShowPeer, true, Allow)
+		assertAllStores(t, cmdShowPeerIP, true, Allow)
+		assertAllStores(t, cmdClearPeer, false, Deny)
+		assertAllStores(t, cmdClearPeer, true, Deny)
+		assertOperatorAdminUnaffected(t)
+	})
+
+	t.Run("AllowNone denies all commands", func(t *testing.T) {
+		aaa.SetPluginCommandProfileLookup(func(endpoint string) (aaa.PluginCommandProfile, bool) {
+			if endpoint == pluginEndpoint {
+				return aaa.PluginCommandProfile{
+					Endpoint:        pluginEndpoint,
+					AllowNone:       true,
+					AllowedPrefixes: []string{cmdShowPeer},
+				}, true
+			}
+			return aaa.PluginCommandProfile{}, false
+		})
+
+		assertAllStores(t, cmdShowPeer, true, Deny)
+		assertAllStores(t, cmdClearPeer, false, Deny)
+		assertOperatorAdminUnaffected(t)
+	})
+
+	t.Run("empty AllowedPrefixes denies all commands", func(t *testing.T) {
+		aaa.SetPluginCommandProfileLookup(func(endpoint string) (aaa.PluginCommandProfile, bool) {
+			if endpoint == pluginEndpoint {
+				return aaa.PluginCommandProfile{
+					Endpoint:        pluginEndpoint,
+					AllowedPrefixes: nil,
+				}, true
+			}
+			return aaa.PluginCommandProfile{}, false
+		})
+
+		assertAllStores(t, cmdShowPeer, true, Deny)
+		assertAllStores(t, cmdClearPeer, false, Deny)
+		assertOperatorAdminUnaffected(t)
+	})
 }
 
 // VALIDATES: AC-7 and AC-8, the server-injected shared API identity crosses a

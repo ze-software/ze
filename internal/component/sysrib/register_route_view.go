@@ -18,15 +18,19 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// routeViewBusExemptReason explains why the sysrib route-view operations do not
+// carry a participant bus message.
+const routeViewBusExemptReason = "exclusive daemon-RIB session protocol gated by RegistrationName() == \"rib\" and live session token"
+
 // routeViews is the owner's registration-backed daemon service. Declaration
 // mode initializes no RIB, connection, timer, subscription or worker.
 var routeViews routeViewAuthority
 
 func init() {
 	for _, operation := range []pluginserver.EngineOperation{
-		{Method: rpc.MethodRouteViewOpen, Handler: routeViewOpenHandler, Startup: pluginserver.EngineOperationConfigureSafe},
-		{Method: rpc.MethodRouteViewRead, Handler: routeViewReadHandler, Startup: pluginserver.EngineOperationRuntimeOnly},
-		{Method: rpc.MethodRouteViewClose, Handler: routeViewCloseHandler, Startup: pluginserver.EngineOperationRuntimeOnly},
+		{Method: rpc.MethodRouteViewOpen, Handler: routeViewOpenHandler, Startup: pluginserver.EngineOperationConfigureSafe, BusExemptReason: routeViewBusExemptReason},
+		{Method: rpc.MethodRouteViewRead, Handler: routeViewReadHandler, Startup: pluginserver.EngineOperationRuntimeOnly, BusExemptReason: routeViewBusExemptReason},
+		{Method: rpc.MethodRouteViewClose, Handler: routeViewCloseHandler, Startup: pluginserver.EngineOperationRuntimeOnly, BusExemptReason: routeViewBusExemptReason},
 	} {
 		if err := pluginserver.RegisterEngineOp(operation); err != nil {
 			panic("BUG: selected routing view registration failed: " + err.Error())

@@ -34,10 +34,19 @@ const (
 // process, never a process name supplied by its JSON caller. ConfigureSafe
 // handlers MUST finish within ctx and MUST NOT wait for a later startup stage.
 type EngineOperation struct {
-	Method    string
-	Handler   func(*Server, context.Context, *process.Process, json.RawMessage) (any, error)
-	Startup   EngineOperationStartup
-	TypedWire func(*Server, *process.Process, *rpc.DirectBridge)
+	Method  string
+	Handler func(*Server, context.Context, *process.Process, json.RawMessage) (any, error)
+	Startup EngineOperationStartup
+	// BusMessage names the bus message this operation carries (for example
+	// "bgp:update" or "system-rib:route-install"). Mutually exclusive with
+	// BusExemptReason; ValidateAllEngineOps refuses any operation declaring
+	// neither or both.
+	BusMessage string
+	// BusExemptReason states why this operation carries no bus message (for
+	// example, governed by compile-time reservations or caller-owned leases).
+	// Mutually exclusive with BusMessage.
+	BusExemptReason string
+	TypedWire       func(*Server, *process.Process, *rpc.DirectBridge)
 	// CancellationScope authenticates one resource synchronously before the
 	// connection reader dispatches its cancellable operation. The handler MUST
 	// recheck the same authority before mutation. Nil keeps ordinary semantics.
@@ -106,11 +115,13 @@ func registerEngineOp(owner string, declaration EngineOperation) error {
 			return fmt.Errorf("engine operation %q is already registered", declaration.Method)
 		}
 		engineOpTable[declaration.Method] = &engineOp{
-			method:    declaration.Method,
-			handle:    declaration.Handler,
-			typedWire: declaration.TypedWire,
-			native:    declaration.Native,
-			startup:   declaration.Startup,
+			method:          declaration.Method,
+			BusMessage:      declaration.BusMessage,
+			BusExemptReason: declaration.BusExemptReason,
+			handle:          declaration.Handler,
+			typedWire:       declaration.TypedWire,
+			native:          declaration.Native,
+			startup:         declaration.Startup,
 		}
 		if declaration.CancellationScope != nil {
 			engineOpTable[declaration.Method].cancellationScope = func(s *Server, proc *process.Process, raw json.RawMessage) (requestScope, error) {

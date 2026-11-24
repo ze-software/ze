@@ -25,9 +25,10 @@ func init() {
 	// ConfigureSafe: an owner contributes its tables from its configure stage,
 	// and the handler answers within ctx.
 	operation := pluginserver.EngineOperation{
-		Method:  rpc.MethodFirewallTablesReplace,
-		Handler: tablesReplaceHandler,
-		Startup: pluginserver.EngineOperationConfigureSafe,
+		Method:          rpc.MethodFirewallTablesReplace,
+		Handler:         tablesReplaceHandler,
+		Startup:         pluginserver.EngineOperationConfigureSafe,
+		BusExemptReason: "governed by compile-time firewall.MustReserveTableNames grants keyed on compiled registration identity",
 	}
 	if err := pluginserver.RegisterEngineOp(operation); err != nil {
 		panic("BUG: firewall table contribution registration failed: " + err.Error())

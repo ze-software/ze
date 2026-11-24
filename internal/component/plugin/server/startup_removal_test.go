@@ -38,26 +38,36 @@ func TestPluginRemovalCallbackKeepsEngineConnection(t *testing.T) {
 			const commandName = "show lifecycle removal-probe"
 			callback := make(chan error, 1)
 			runResult := make(chan error, 1)
-			registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
-				p := sdk.NewWithConn(pluginName, conn)
-				p.OnBye(func(reason string) error {
-					if reason != "removed" {
-						err := fmt.Errorf("unexpected bye reason %q", reason)
+			probeSends := []rpc.MessageSendDecl{{Message: busCLIPrefix + commandName}}
+			require.NoError(t, registry.Register(registry.Registration{
+				Name:        pluginName,
+				Description: "lifecycle removal callback test plugin",
+				Sends:       probeSends,
+				RunEngine: func(conn net.Conn) int {
+					p := sdk.NewWithConn(pluginName, conn)
+					p.OnBye(func(reason string) error {
+						if reason != "removed" {
+							err := fmt.Errorf("unexpected bye reason %q", reason)
+							callback <- err
+							return err
+						}
+						ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+						defer cancel()
+						_, _, err := p.DispatchCommand(ctx, commandName)
 						callback <- err
 						return err
+					})
+					runResult <- p.Run(context.Background(), &sdk.Registration{
+						FailurePolicy: rpc.FailureFatal,
+						Sends:         probeSends,
+					})
+					if err := p.Close(); err != nil {
+						return 1
 					}
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-					defer cancel()
-					_, _, err := p.DispatchCommand(ctx, commandName)
-					callback <- err
-					return err
-				})
-				runResult <- p.Run(context.Background(), &sdk.Registration{FailurePolicy: rpc.FailureFatal})
-				if err := p.Close(); err != nil {
-					return 1
-				}
-				return 0
-			})
+					return 0
+				},
+				CLIHandler: func([]string) int { return 0 },
+			}))
 			s, spawner := newLifecycleStartupServer(t)
 			if err := s.dispatcher.Register(commandName, func(*CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 				return &plugin.Response{Status: plugin.StatusDone}, nil
@@ -156,9 +166,11 @@ func TestConfigRemovalReleasesStateBeforeDependenciesStop(t *testing.T) {
 			return run(p, &sdk.Registration{Commands: []sdk.CommandDecl{{Name: backendCommand}}})
 		},
 	}))
+	middleSends := []rpc.MessageSendDecl{{Message: busCLIPrefix + backendCommand}}
 	require.NoError(t, registry.Register(registry.Registration{
 		Name: middle, Description: "optional backend consumer",
 		OptionalDependencies: []string{backend},
+		Sends:                middleSends,
 		CLIHandler:           func([]string) int { return 0 },
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(middle, conn)
@@ -175,12 +187,17 @@ func TestConfigRemovalReleasesStateBeforeDependenciesStop(t *testing.T) {
 				callbacks <- err
 				return err
 			})
-			return run(p, &sdk.Registration{Commands: []sdk.CommandDecl{{Name: middleCommand}}})
+			return run(p, &sdk.Registration{
+				Commands: []sdk.CommandDecl{{Name: middleCommand}},
+				Sends:    middleSends,
+			})
 		},
 	}))
+	producerSends := []rpc.MessageSendDecl{{Message: busCLIPrefix + middleCommand}}
 	require.NoError(t, registry.Register(registry.Registration{
 		Name: producer, Description: "configured state producer",
 		ConfigRoots: []string{root}, Dependencies: []string{middle},
+		Sends:      producerSends,
 		CLIHandler: func([]string) int { return 0 },
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(producer, conn)
@@ -191,7 +208,7 @@ func TestConfigRemovalReleasesStateBeforeDependenciesStop(t *testing.T) {
 				callbacks <- err
 				return err
 			})
-			return run(p, &sdk.Registration{})
+			return run(p, &sdk.Registration{Sends: producerSends})
 		},
 	}))
 	s, spawner := newLifecycleStartupServer(t)
@@ -329,9 +346,11 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 						return run(p, &sdk.Registration{Commands: []sdk.CommandDecl{{Name: command}}})
 					},
 				}))
+				producerSends := []rpc.MessageSendDecl{{Message: busCLIPrefix + command}}
 				require.NoError(t, registry.Register(registry.Registration{
 					Name: producer, Description: "retryable removal source",
 					ConfigRoots: []string{root}, Dependencies: []string{backend},
+					Sends:      producerSends,
 					CLIHandler: func([]string) int { return 0 },
 					RunEngine: func(conn net.Conn) int {
 						generation := starts.Add(1)
@@ -376,7 +395,7 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 							_, _, err := p.DispatchCommand(ctx, command)
 							return err
 						})
-						registration := sdk.Registration{FailurePolicy: rpc.FailureFatal}
+						registration := sdk.Registration{FailurePolicy: rpc.FailureFatal, Sends: producerSends}
 						if scenario.crash {
 							if generation == 1 {
 								registration.FailurePolicy = rpc.FailureRestart

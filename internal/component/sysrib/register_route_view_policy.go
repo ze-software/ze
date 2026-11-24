@@ -14,8 +14,8 @@ import (
 
 func init() {
 	for _, operation := range []pluginserver.EngineOperation{
-		{Method: rpc.MethodRouteViewCandidates, Handler: routeViewCandidatesHandler, Startup: pluginserver.EngineOperationRuntimeOnly},
-		{Method: rpc.MethodRouteViewDistances, Handler: routeViewDistancesHandler, Startup: pluginserver.EngineOperationConfigureSafe},
+		{Method: rpc.MethodRouteViewCandidates, Handler: routeViewCandidatesHandler, Startup: pluginserver.EngineOperationRuntimeOnly, BusExemptReason: routeViewBusExemptReason},
+		{Method: rpc.MethodRouteViewDistances, Handler: routeViewDistancesHandler, Startup: pluginserver.EngineOperationConfigureSafe, BusExemptReason: routeViewBusExemptReason},
 	} {
 		if err := pluginserver.RegisterEngineOp(operation); err != nil {
 			panic("BUG: routing policy view registration failed: " + err.Error())

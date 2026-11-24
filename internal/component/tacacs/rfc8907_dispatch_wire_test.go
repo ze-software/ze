@@ -252,6 +252,17 @@ func TestTACACSWireIdentityCannotForgeLocalTrust(t *testing.T) {
 	}, ""); err != nil {
 		t.Fatal(err)
 	}
+	aaa.SetPluginCommandProfileLookup(func(endpoint string) (aaa.PluginCommandProfile, bool) {
+		if endpoint == "wire-caller" {
+			return aaa.PluginCommandProfile{
+				Endpoint:        "wire-caller",
+				AllowedPrefixes: []string{"show"},
+			}, true
+		}
+		return aaa.PluginCommandProfile{}, false
+	})
+	t.Cleanup(func() { aaa.SetPluginCommandProfileLookup(nil) })
+
 	for _, raw := range []string{aaa.ReservedInternalPrefix + "plugin:wire-caller", aaa.ReservedSharedAPIUsername} {
 		lookalike := "~ze~r:" + base64.RawURLEncoding.EncodeToString([]byte(raw))
 		for _, identity := range []string{raw, lookalike} {

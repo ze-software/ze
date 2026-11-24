@@ -323,6 +323,25 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 		return 0, &rpc.RPCCallError{Message: "emit-event requires namespace and event-type"}
 	}
 
+	var stampedSender string
+	if emitter != nil {
+		var msgBuf textbuf.Buffer
+		msg := msgBuf.Str(namespace).Byte(':').Str(eventType).String()
+		if err := checkEngineOpBusSend(s, emitter, msg); err != nil {
+			return 0, err
+		}
+		stampedSender = plugin.EndpointPath(emitter.Name())
+		if compiled := s.DeliveryGraph().Compiled(); compiled != nil {
+			if claimed, claimErr := extractClaimedSenderFromJSON(payload); claimErr == nil {
+				if res, err := compiled.ResolveAuthenticatedSender(emitter.Name(), claimed); err == nil {
+					if res.StampedPath != "" {
+						stampedSender = res.StampedPath
+					}
+				}
+			}
+		}
+	}
+
 	// Validate event type exists in the namespace (uses canonical registry).
 	if !events.IsValidEvent(namespace, eventType) {
 		var tb textbuf.Buffer
@@ -364,6 +383,8 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 		}
 		if typed {
 			enginePayload = decoded
+		} else if stampedSender != "" {
+			enginePayload = stampSenderInJSON(raw, stampedSender)
 		}
 	}
 
@@ -405,6 +426,9 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 	var procs []*process.Process
 	if peerAddress == "" {
 		procs = s.subscriptions.getMatching(nsID, etID, dirID, "", "")
+		if stampedSender != "" {
+			procs = filterReceiversByCompiledSender(s.DeliveryGraph().Compiled(), stampedSender, nsID, etID, dirID, procs)
+		}
 	} else {
 		procs = s.PeerScopedProcs(nsID, etID, dirID, peerAddress, "")
 	}
@@ -427,6 +451,9 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 	if err != nil {
 		var tb textbuf.Buffer
 		return 0, &rpc.RPCCallError{Message: tb.Str("marshal event payload: ").Err(err).String()}
+	}
+	if stampedSender != "" {
+		eventJSON = stampSenderInJSON(eventJSON, stampedSender)
 	}
 
 	// Gap B: subscribers that opted into enveloped delivery receive the bare
@@ -637,6 +664,12 @@ func (s *Server) handleUpdateRouteSelResultDirect(ctx context.Context, proc *pro
 	if err := proc.RequirePeerDeclarations(); err != nil {
 		return nil, err
 	}
+	if err := validateUpdateRouteSubcommand(command); err != nil {
+		return nil, err
+	}
+	if err := checkEngineOpBusSend(s, proc, busMsgBGPUpdate); err != nil {
+		return nil, err
+	}
 	peer := sel.String()
 	cmdCtx := &CommandContext{
 		Server:            s,
@@ -645,11 +678,12 @@ func (s *Server) handleUpdateRouteSelResultDirect(ctx context.Context, proc *pro
 		Peer:              peer,
 		Meta:              meta,
 		SourcePolicyEpoch: sourcePolicyEpoch,
-		// Reserved trusted internal identity (spec-fixit-authz-admin-fallthrough
-		// O-4): the typed update-route-sel path is an internal route push too, so it
-		// must authorize like opUpdateRoute rather than fail closed on an empty
-		// username when authorization is configured.
-		Username: internalPluginIdentity(proc.Name()),
+		// After passing the bgp:update bus send gate above, dispatch internally
+		// under ReservedInternalRPCIdentity so a send allow-list holding only
+		// bgp:update works without also requiring "cli:send bgp" (Q-T4(b), S36).
+		// Sender still names proc so BGP's target filter enforces send > to and
+		// receive > from.
+		Username: aaa.ReservedInternalRPCIdentity,
 		Sender:   plugin.ProcessSender(proc.Name()),
 	}
 
@@ -709,20 +743,18 @@ func extractUpdateRouteOutput(resp *plugin.Response, dispatchErr error) *rpc.Upd
 // internalRPCIdentity is the reserved username wrapHandler injects for a trusted
 // in-process RPC call that carries no plugin identity (spec-fixit-authz-admin-
 // fallthrough O-4). It is un-typeable, so no authenticated user can present it;
-// authz.Store.Authorize grants it as a trusted internal caller. Without an
-// injected identity an empty username would reach the now-fail-closed Authorize
-// and every RPC method would be denied.
-const internalRPCIdentity = aaa.ReservedInternalPrefix + "rpc"
+// authz.Store.Authorize grants it as a trusted internal caller because it names
+// no bus participant.
+const internalRPCIdentity = aaa.ReservedInternalRPCIdentity
 
 // internalPluginIdentity builds the reserved username the engine injects when a
-// plugin dispatches a command in-process (spec O-4/F-6, regularizing the former
-// bare `plugin:<name>` identity that fell through to the admin default). The
-// plugin name is kept after the reserved prefix for accounting and audit; it
-// never affects the authorization decision. The prefix is un-typeable, so no
-// authenticated identity can spoof a trusted internal caller.
+// plugin dispatches a CLI command. authz.Store.authorize evaluates this identity
+// against the endpoint's compiled bus command profile (aaa.PluginCommandProfile),
+// failing closed when no profile admits the command. The endpoint name is kept
+// after the reserved prefix for accounting, audit, and profile lookup.
 func internalPluginIdentity(pluginName string) string {
 	var tb textbuf.Buffer
-	return tb.Str(aaa.ReservedInternalPrefix).Str("plugin:").Str(pluginName).String()
+	return tb.Str(aaa.ReservedInternalPluginPrefix).Str(pluginName).String()
 }
 
 // dispatchCommandArgs is the core dispatch-command-args logic shared by JSON and typed paths.
@@ -743,6 +775,10 @@ func (s *Server) dispatchCommandArgs(ctx context.Context, proc *process.Process,
 // (Records, internal/component/plugin/types.go).
 func (s *Server) dispatchCommandArgsResponse(ctx context.Context, proc *process.Process, command string, args []string, peer string) (*plugin.Response, error) {
 	if err := proc.RequirePeerDeclarations(); err != nil {
+		return nil, err
+	}
+	matchMsg, reportMsg := cliMessagesForCommandArgs(command, args)
+	if err := checkEngineOpBusSendCLI(s, proc, matchMsg, reportMsg); err != nil {
 		return nil, err
 	}
 	if peer == "" {
@@ -833,6 +869,10 @@ func (s *Server) dispatchCommandResponse(ctx context.Context, proc *process.Proc
 
 func (s *Server) dispatchCommandPeerResponse(ctx context.Context, proc *process.Process, command string, owner, connection, destinationOwner, destinationSession uint64) (*plugin.Response, error) {
 	if err := proc.RequirePeerDeclarations(); err != nil {
+		return nil, err
+	}
+	cliMsg := busCLIPrefix + normalizeBusCommandPath(command)
+	if err := checkEngineOpBusSend(s, proc, cliMsg); err != nil {
 		return nil, err
 	}
 	sender := plugin.ProcessSender(proc.Name())

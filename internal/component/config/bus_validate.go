@@ -441,12 +441,6 @@ func discoverParticipants(
 		participants[epPath] = p
 	}
 
-	cliSelected := make(map[string]bool)
-	for _, raw := range CommandLinePlugins() {
-		if resolved, err := plugin.ResolvePlugin(raw); err == nil && resolved.Type == plugin.PluginTypeInternal {
-			cliSelected[resolved.Name] = true
-		}
-	}
 	for _, reg := range registry.All() {
 		if explicitCompiledKinds[reg.Name] {
 			continue
@@ -454,13 +448,11 @@ func discoverParticipants(
 		if len(reg.ParticipantNodes) > 0 {
 			continue
 		}
-		active := cliSelected[reg.Name]
-		if !active {
-			for _, root := range reg.ConfigRoots {
-				if tree.GetContainer(root) != nil {
-					active = true
-					break
-				}
+		active := false
+		for _, root := range reg.ConfigRoots {
+			if tree.GetContainer(root) != nil {
+				active = true
+				break
 			}
 		}
 		if !active {

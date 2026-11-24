@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/transaction"
+	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -424,6 +425,10 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 	if err := s.reactor.VerifyConfig(newTree); err != nil {
 		return fmt.Errorf("reactor config verify: %w", err)
 	}
+	busCfg, busCfgErr := plugin.ExtractBusConfigFromMap(newTree)
+	if busCfgErr != nil {
+		return fmt.Errorf("bus config verify: %w", busCfgErr)
+	}
 
 	// Collect removed config keys for deferred stop (after verify+apply succeeds).
 	// Stopping plugins before the transaction is proven risks divergence: if
@@ -515,6 +520,8 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 			return errors.Join(err, s.compensateReload(ctx))
 		}
 		s.reactor.SetConfigTree(newTree)
+		s.SetBusConfig(busCfg)
+		s.RefreshDeliveryGraph()
 		return nil
 	}
 
@@ -570,6 +577,8 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 	// the reactor's config view happens last so the BGP peer reconcile
 	// step sees every other plugin's apply in place.
 	s.reactor.SetConfigTree(newTree)
+	s.SetBusConfig(busCfg)
+	s.RefreshDeliveryGraph()
 	logger().Info("config reload completed")
 	return nil
 }

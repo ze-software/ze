@@ -64,10 +64,12 @@ func TestMidLifeAutoLoadDeliversPostStartup(t *testing.T) {
 		CLIHandler: func([]string) int { return 0 },
 	}))
 
+	claimSends := []sdk.MessageSendDecl{{Message: busCLIPrefix + claimCommand}}
 	require.NoError(t, registry.Register(registry.Registration{
 		Name:        lateJoiner,
 		Description: "post-startup test late claimant",
 		ConfigRoots: []string{configRoot},
+		Sends:       claimSends,
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(lateJoiner, conn)
 			p.OnAllPluginsReady(func() error {
@@ -76,7 +78,7 @@ func TestMidLifeAutoLoadDeliversPostStartup(t *testing.T) {
 				_, _, err := p.DispatchCommand(ctx, claimCommand)
 				return err
 			})
-			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+			if err := p.Run(context.Background(), &sdk.Registration{Sends: claimSends}); err != nil {
 				return 1
 			}
 			return 0

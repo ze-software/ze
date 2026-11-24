@@ -1,0 +1,201 @@
+# Test: engine operations route-install, route-remove, inject-wire-route, and emit-event are refused when undeclared and succeed once declared.
+# QUESTION: over a real TLS external-plugin connect-back, full engine RPC
+# dispatch, live Loc-RIB, bgp-rib wire injector, and bus event delivery, does Ze
+# refuse undeclared route-install, route-remove, inject-wire-route, and
+# emit-event acme:alert with counter 4 in Run 1, and in a separate Run 2 where
+# the endpoint declares system-rib:route-install, bgp:raw, and acme:alert, do
+# all four operations take real effect (route enters then leaves show rib, wire
+# route enters bgp-rib protocol bmp, and collector records acme:alert)? A unit
+# test cannot decide this because the path spans TLS Stage 1 declarations,
+# live locrib.Default(), sysrib, bgp-rib's RegisterRouteInjector, and live
+# cross-endpoint event delivery.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S37 / AC-28, AC-30.
+# PREVENTS: external plugins mutating Loc-RIB, injecting wire routes, or
+# emitting undeclared bus events without declaring the governing bus messages.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Run 1: inj declares NO sends -> all four operations refused, counter == 4.
+tmpfs=run1.conf:terminator=EOF_RUN1
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT3;
+		}
+	}
+}
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint rib {
+		internal rib;
+	}
+	endpoint inj {
+		external {
+			run "le test fixture plugin/bus-send-op-cap-probe undeclared run1.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_RUN1
+
+# Run 2 (separate start per RefuseChangedDeclarations): inj declares
+# system-rib:route-install, bgp:raw, and acme:alert; collector receives acme:alert.
+tmpfs=run2.conf:terminator=EOF_RUN2
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT3;
+		}
+	}
+}
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+	endpoint rib {
+		internal rib;
+	}
+	endpoint inj {
+		external {
+			run "le test fixture plugin/bus-send-op-cap-probe declared route-installed.ready remove.go run2.done";
+		}
+		encoding json;
+	}
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector acme:alert collector.log s37-alert collector.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65000; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_RUN2
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# --- Run 1: undeclared ---
+cmd=background:seq=2:exec=ze start run1.conf:name=daemon1:ready=Ze running.
+expect=stderr:contains=OK: undeclared route-install, route-remove, inject-wire-route, and emit-event were refused
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=3:exec=le test fixture plugin/bus-wait-file run1.done:exit=0
+expect=stdout:contains=OK: marker file run1.done appeared
+
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/inj 4:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/inj = 4
+
+cmd=stop:seq=5:name=daemon1:signal=term
+
+# --- Run 2: declared ---
+cmd=background:seq=6:exec=ze start run2.conf:name=daemon2:ready=Ze running.
+expect=stderr:contains=OK: declared route-install, route-remove, inject-wire-route, and emit-event succeeded
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-wait-file route-installed.ready:exit=0
+expect=stdout:contains=OK: marker file route-installed.ready appeared
+
+cmd=foreground:seq=8:exec=le test fixture daemon/await-answer-all "show rib" 198.51.100.0/24:exit=0
+expect=stdout:contains=OK:
+
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-touch-file remove.go:exit=0
+expect=stdout:contains=OK: wrote marker file remove.go
+
+cmd=foreground:seq=10:exec=le test fixture plugin/bus-wait-file run2.done:exit=0
+expect=stdout:contains=OK: marker file run2.done appeared
+
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-wait-file collector.done:exit=0
+expect=stdout:contains=OK: marker file collector.done appeared
+
+cmd=foreground:seq=12:exec=ze cli -c "show rib":exit=0
+reject=stdout:contains=198.51.100.0/24
+
+cmd=foreground:seq=13:exec=ze cli -c "show bgp rib protocol bmp":exit=0
+expect=stdout:contains=203.0.113.0/24
+
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-assert-collector collector.log /bus/endpoint/inj s37-alert s37-unauth:exit=0
+expect=stdout:contains=OK: collector recorded sender=/bus/endpoint/inj detail=s37-alert (1 event)
+
+cmd=foreground:seq=15:exec=le test fixture plugin/bus-assert-refused-count $PORT3 /bus/endpoint/inj 0:exit=0
+expect=stdout:contains=OK: ze_bus_send_refused_total for /bus/endpoint/inj = 0
+
+cmd=stop:seq=16:name=daemon2:signal=term

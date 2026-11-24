@@ -1,14 +1,14 @@
-// Design: docs/architecture/forked-route-install.md -- plugin route-install and route-remove operation capability gating through the bus send filter.
-// Overview: register_bus_send_op_cap_probe.go -- the observer registered from this probe.
-// Related: fixture.go -- Observe, ReportFailure.
+// Design: docs/architecture/forked-route-install.md -- plugin engine-operation capability gating through the bus send filter.
+// Overview: register_bus_send_op_cap_probe.go -- the driver registered from this probe.
+// Related: bus_send_fixtures.go -- busRunPlugin, busAssertUndeclaredRefusal.
 
 package fixture
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -20,16 +20,74 @@ const (
 	busSendOpCapPrefix  = "198.51.100.0/24"
 	busSendOpCapNextHop = "192.0.2.1"
 	busSendOpCapMetric  = 10
+	busSendOpCapPeerKey = "127.0.0.2"
 )
 
-// busSendOpCapProbe connects as an external plugin and invokes RouteInstall
-// followed by RouteRemove with a registered protocol name ("static") against a
-// live engine Loc-RIB / sysrib without declaring system-rib:route-install. It
-// fails when either RPC succeeds (as today's unchecked opRouteInstall and
-// opRouteRemove handlers allow) or when either RPC fails for an unrelated
-// reason (such as unknown protocol, missing handler, or malformed input).
-func busSendOpCapProbe(ctx context.Context, p *sdk.Plugin) error {
-	installEntry := rpc.RouteInstallEntry{
+// busSendOpCapUpdateBody is a valid RFC 4271 Section 4.3 IPv4 unicast UPDATE
+// payload (without the 19-byte BGP header): withdrawn=0, path attributes=20B
+// (ORIGIN IGP, 4-byte AS_PATH [65001], NEXT_HOP 192.0.2.1), NLRI 203.0.113.0/24.
+var busSendOpCapUpdateBody = []byte{
+	0x00, 0x00,
+	0x00, 0x14,
+	0x40, 0x01, 0x01, 0x00,
+	0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xE9,
+	0x40, 0x03, 0x04, 0xC0, 0x00, 0x02, 0x01,
+	0x18, 0xCB, 0x00, 0x71,
+}
+
+// busSendOpCapProbeDriver implements S37 (bus-send-operation-capability.ci).
+// Mode "undeclared" (Run 1) declares no sends and asserts route-install,
+// route-remove, inject-wire-route, and emit-event acme:alert are all refused.
+// Mode "declared" (Run 2) declares system-rib:route-install, bgp:raw, and
+// acme:alert and asserts all four succeed, synchronizing between install and
+// remove so the caller verifies 198.51.100.0/24 enters and leaves show rib.
+// Usage: plugin/bus-send-op-cap-probe [undeclared <done-file> | declared <installed-file> <remove-go-file> <done-file>].
+func busSendOpCapProbeDriver(ctx context.Context, args []string) error {
+	mode := "undeclared"
+	doneFile := "run1.done"
+	installedFile := ""
+	removeGoFile := ""
+
+	switch len(args) {
+	case 0:
+		// Default Run 1 mode.
+	case 2:
+		if args[0] != "undeclared" {
+			return fmt.Errorf("bus-send-op-cap-probe: 2-arg form requires mode undeclared, got %q", args[0])
+		}
+		mode = args[0]
+		doneFile = args[1]
+	case 4:
+		if args[0] != "declared" {
+			return fmt.Errorf("bus-send-op-cap-probe: 4-arg form requires mode declared, got %q", args[0])
+		}
+		mode = args[0]
+		installedFile = args[1]
+		removeGoFile = args[2]
+		doneFile = args[3]
+	default:
+		return errors.New("usage: plugin/bus-send-op-cap-probe [undeclared <done> | declared <installed> <remove-go> <done>]")
+	}
+
+	reg := &sdk.Registration{}
+	if mode == "declared" {
+		reg.Sends = []sdk.MessageSendDecl{
+			{Message: busMsgSysRIBInst},
+			{Message: busMsgBGPRaw},
+			{Message: busMsgAcmeAlert},
+		}
+	}
+
+	return busRunPlugin(ctx, busSendOpCapPlugin, reg, nil, func(ctx context.Context, p *sdk.Plugin) error {
+		if mode == "undeclared" {
+			return busSendOpCapRunUndeclared(ctx, p, doneFile)
+		}
+		return busSendOpCapRunDeclared(ctx, p, installedFile, removeGoFile, doneFile)
+	})
+}
+
+func busSendOpCapInstallEntry() rpc.RouteInstallEntry {
+	return rpc.RouteInstallEntry{
 		Protocol: protocolStatic,
 		AFI:      uint16(family.AFIIPv4),
 		SAFI:     uint8(family.SAFIUnicast),
@@ -37,61 +95,85 @@ func busSendOpCapProbe(ctx context.Context, p *sdk.Plugin) error {
 		NextHop:  busSendOpCapNextHop,
 		Metric:   busSendOpCapMetric,
 	}
-	installed, err := p.RouteInstall(ctx, []rpc.RouteInstallEntry{installEntry})
-	if err == nil {
-		return fmt.Errorf("undeclared route-install succeeded (installed=%d): opRouteInstall accepted an undeclared system-rib:route-install call with no bus permission check",
-			installed)
-	}
-	if err := checkOpCapRefusal("route-install", err); err != nil {
-		return err
-	}
+}
 
-	removeEntry := rpc.RouteRemoveEntry{
+func busSendOpCapRemoveEntry() rpc.RouteRemoveEntry {
+	return rpc.RouteRemoveEntry{
 		Protocol: protocolStatic,
 		AFI:      uint16(family.AFIIPv4),
 		SAFI:     uint8(family.SAFIUnicast),
 		Prefix:   busSendOpCapPrefix,
 	}
-	removed, err := p.RouteRemove(ctx, []rpc.RouteRemoveEntry{removeEntry})
-	if err == nil {
-		return fmt.Errorf("undeclared route-remove succeeded (removed=%d): opRouteRemove accepted an undeclared system-rib:route-install call with no bus permission check",
-			removed)
-	}
-	if err := checkOpCapRefusal("route-remove", err); err != nil {
+}
+
+func busSendOpCapRunUndeclared(ctx context.Context, p *sdk.Plugin, doneFile string) error {
+	epPath := busEndpointPath(busCurrentEndpointName(busSendOpCapPlugin))
+
+	_, err := p.RouteInstall(ctx, []rpc.RouteInstallEntry{busSendOpCapInstallEntry()})
+	if err := busAssertUndeclaredRefusal("route-install", err, epPath, busMsgSysRIBInst); err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintln(os.Stderr, "OK: undeclared route-install and route-remove were refused")
+	_, err = p.RouteRemove(ctx, []rpc.RouteRemoveEntry{busSendOpCapRemoveEntry()})
+	if err := busAssertUndeclaredRefusal("route-remove", err, epPath, busMsgSysRIBInst); err != nil {
+		return err
+	}
+
+	err = p.InjectWireRoute("bmp", busSendOpCapPeerKey, busSendOpCapUpdateBody)
+	if err := busAssertUndeclaredRefusal("inject-wire-route", err, epPath, busMsgBGPRaw); err != nil {
+		return err
+	}
+
+	_, err = p.EmitEvent(ctx, "acme", "alert", "", "", `{"detail":"s37-unauth"}`)
+	if err := busAssertUndeclaredRefusal("emit-event acme:alert", err, epPath, busMsgAcmeAlert); err != nil {
+		return err
+	}
+
+	if err := busWriteAtomicFile(doneFile, "run1-ok\n"); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(os.Stderr, "OK: undeclared route-install, route-remove, inject-wire-route, and emit-event were refused")
 	return err
 }
 
-// checkOpCapRefusal rejects RPC errors caused by wiring, registration, or input
-// bugs so the probe cannot pass falsely for a reason other than bus refusal.
-func checkOpCapRefusal(operation string, err error) error {
-	refusal := err.Error()
-	if strings.Contains(refusal, "unknown protocol") {
-		return fmt.Errorf("undeclared %s failed as unknown protocol rather than bus refusal: %s",
-			operation, refusal)
+func busSendOpCapRunDeclared(ctx context.Context, p *sdk.Plugin, installedFile, removeGoFile, doneFile string) error {
+	installed, err := p.RouteInstall(ctx, []rpc.RouteInstallEntry{busSendOpCapInstallEntry()})
+	if err != nil {
+		return fmt.Errorf("declared route-install failed: %w", err)
 	}
-	if strings.Contains(refusal, "not registered") {
-		return fmt.Errorf("undeclared %s failed because protocol or handler was not registered rather than bus refusal: %s",
-			operation, refusal)
+	if installed != 1 {
+		return fmt.Errorf("declared route-install returned installed=%d, want 1", installed)
 	}
-	if strings.Contains(refusal, "unknown method") {
-		return fmt.Errorf("undeclared %s failed as unknown method rather than bus refusal: %s",
-			operation, refusal)
+	if err := busWriteAtomicFile(installedFile, "installed\n"); err != nil {
+		return err
 	}
-	if strings.Contains(refusal, "engine has no Loc-RIB") {
-		return fmt.Errorf("undeclared %s failed because engine has no Loc-RIB rather than bus refusal: %s",
-			operation, refusal)
+	if err := busPollFile(ctx, removeGoFile); err != nil {
+		return fmt.Errorf("wait for remove-go barrier: %w", err)
 	}
-	if strings.Contains(refusal, "bad prefix") {
-		return fmt.Errorf("undeclared %s failed on prefix parse rather than bus refusal: %s",
-			operation, refusal)
+
+	removed, err := p.RouteRemove(ctx, []rpc.RouteRemoveEntry{busSendOpCapRemoveEntry()})
+	if err != nil {
+		return fmt.Errorf("declared route-remove failed: %w", err)
 	}
-	if strings.Contains(refusal, "bad next-hop") {
-		return fmt.Errorf("undeclared %s failed on next-hop parse rather than bus refusal: %s",
-			operation, refusal)
+	if removed != 1 {
+		return fmt.Errorf("declared route-remove returned removed=%d, want 1", removed)
 	}
-	return nil
+
+	if err := p.InjectWireRoute("bmp", busSendOpCapPeerKey, busSendOpCapUpdateBody); err != nil {
+		return fmt.Errorf("declared inject-wire-route failed: %w", err)
+	}
+
+	delivered, err := p.EmitEvent(ctx, "acme", "alert", "", "", `{"detail":"s37-alert"}`)
+	if err != nil {
+		return fmt.Errorf("declared emit-event acme:alert failed: %w", err)
+	}
+	if delivered < 1 {
+		return fmt.Errorf("declared emit-event acme:alert delivered=%d, want >= 1", delivered)
+	}
+
+	if err := busWriteAtomicFile(doneFile, "run2-ok\n"); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(os.Stderr, "OK: declared route-install, route-remove, inject-wire-route, and emit-event succeeded")
+	return err
 }

@@ -74,6 +74,7 @@ func TestBatchValidateReachesRegisteredReceiveOwner(t *testing.T) {
 			s.ctx, s.cancel = context.WithCancel(t.Context())
 			t.Cleanup(s.cancel)
 			callerProc := process.NewProcess(plugin.PluginConfig{Name: "validator-alias"})
+			callerProc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: busMsgBatchValidate}}})
 			caller := batchValidationSDKCaller(t, s, callerProc, direct, 6)
 			var got [][]string
 			done := registerExecuteCommandTarget(t, s.dispatcher, batchValidationOwnerQuestionCommand, 4,

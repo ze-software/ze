@@ -131,7 +131,9 @@ func TestAdHocProcessRuntime(t *testing.T) {
 		return nil
 	})
 
-	_ = p.Run(context.Background(), &sdk.Registration{})
+	_ = p.Run(context.Background(), &sdk.Registration{
+		Sends: []sdk.MessageSendDecl{{Message: "cli:test echo"}},
+	})
 
 	// The dispatch-command may return an error (unknown command) but the
 	// RPC itself should complete -- proving the runtime loop is running.

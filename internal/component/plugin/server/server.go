@@ -328,6 +328,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		})
 		setPluginPanicMetrics(config.MetricsRegistry)
 		pluginipc.SetFilterMetrics(config.MetricsRegistry)
+		SetBusSendRefusedMetrics(config.MetricsRegistry)
 	}
 
 	// Build WireMethod -> CLI path mapping from shared YANG loader. The maps
@@ -581,6 +582,7 @@ func (s *Server) SetMetricsRegistry(reg metrics.Registry) {
 	if reg != nil {
 		setPluginPanicMetrics(reg)
 		pluginipc.SetFilterMetrics(reg)
+		SetBusSendRefusedMetrics(reg)
 	}
 	if setter, ok := s.spawner.(interface{ SetMetricsRegistry(metrics.Registry) }); ok && reg != nil {
 		setter.SetMetricsRegistry(reg)
@@ -943,6 +945,7 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	// The runtime doctor checks read plugin state through this publication
 	// (doctor_snapshot.go); Stop withdraws it.
 	publishDoctorSnapshot(s)
+	publishPluginProfileServer(s)
 
 	// Hold the door open for the reactor's initial-sync barrier, which asks
 	// whether a process declared it reports `plugin session ready`. An external
@@ -950,6 +953,7 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	// so this server is the only thing that can answer for it
 	// (declaresSessionReady, events.go).
 	s.releaseRuntimeSeams = []func(){
+		func() { withdrawPluginProfileServer(s) },
 		registry.SetRuntimeSessionReady(s.declaresSessionReady),
 		registry.SetRuntimeReplayFence(s.declaresReplayFence),
 		// The replay fence asks the same alias question (registry.FencesLiveForwards).

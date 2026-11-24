@@ -12,7 +12,7 @@ package clidispatch
 
 import "github.com/ze-software/ze/internal/core/textbuf"
 
-// The two kinds a finding can be. They are what `| match dead` selects.
+// The finding kinds a check can emit. They are what `| match dead` selects.
 const (
 	// KindDead is a command string the dispatcher refuses: ErrUnknownCommand,
 	// or IncompleteCommandError for a prefix that names no whole command. The
@@ -22,6 +22,10 @@ const (
 	// It fails as loudly as a dead one because an unread command is not proof
 	// that the call site is valid.
 	KindUnverifiable = "unverifiable"
+	// KindUndeclaredSend is a plugin package call site invoking an engine
+	// operation or CLI command prefix that the plugin's Registration.Sends
+	// omits.
+	KindUndeclaredSend = "undeclared-send"
 )
 
 // Finding is one emitter that does not resolve and one row of the answer.
@@ -40,13 +44,14 @@ type Report struct {
 	CommandsKnown   int       `json:"commands-known"`
 	EmittersChecked int       `json:"emitters-checked"`
 	PassThrough     int       `json:"pass-through"`
+	PluginsChecked  int       `json:"plugins-checked,omitempty"`
 	Findings        []Finding `json:"findings"`
 }
 
 // Valid reports whether every emitter this run read resolves.
 func (r Report) Valid() bool { return len(r.Findings) == 0 }
 
-// Text renders the report for a person: the three counts, then one two-line
+// Text renders the report for a person: the counts, then one two-line
 // entry per finding, then the verdict. It ends in a newline.
 func (r Report) Text() string {
 	var tb textbuf.Buffer
@@ -54,6 +59,9 @@ func (r Report) Text() string {
 	tb.Str("Registered commands: ").Int(int64(r.CommandsKnown)).Byte('\n')
 	tb.Str("Emitters checked:    ").Int(int64(r.EmittersChecked)).Byte('\n')
 	tb.Str("Pass-through (var):  ").Int(int64(r.PassThrough)).Byte('\n')
+	if r.PluginsChecked > 0 {
+		tb.Str("Plugins checked:     ").Int(int64(r.PluginsChecked)).Byte('\n')
+	}
 	tb.Byte('\n')
 
 	if len(r.Findings) == 0 {
@@ -61,13 +69,16 @@ func (r Report) Text() string {
 		return tb.String()
 	}
 
-	dead, unverifiable := 0, 0
+	dead, unverifiable, undeclared := 0, 0, 0
 	for _, finding := range r.Findings {
-		if finding.Kind == KindDead {
+		switch finding.Kind {
+		case KindDead:
 			dead++
-			continue
+		case KindUndeclaredSend:
+			undeclared++
+		default:
+			unverifiable++
 		}
-		unverifiable++
 	}
 	for _, finding := range r.Findings {
 		tb.Str(finding.File).Byte(':').Int(int64(finding.Line)).Str(": ").
@@ -76,6 +87,10 @@ func (r Report) Text() string {
 	}
 	tb.Byte('\n')
 	tb.Str("ci-dispatch check: FAIL (").Int(int64(dead)).
-		Str(" dead, ").Int(int64(unverifiable)).Str(" unverifiable)\n")
+		Str(" dead, ").Int(int64(unverifiable)).Str(" unverifiable")
+	if undeclared > 0 {
+		tb.Str(", ").Int(int64(undeclared)).Str(" undeclared-send")
+	}
+	tb.Str(")\n")
 	return tb.String()
 }

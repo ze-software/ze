@@ -35,6 +35,9 @@ func (s *Server) dispatchPluginRPCNative(ctx context.Context, proc *process.Proc
 			err = &rpc.RPCCallError{Message: engineOpPanicMessage(method, p)}
 		},
 	)
+	if err := s.gateEngineOp(proc, op); err != nil {
+		return nil, true, s.directCallError(proc, err)
+	}
 	result, err = op.native(s, ctx, proc, input)
 	if err != nil {
 		return nil, true, s.directCallError(proc, err)

@@ -194,6 +194,7 @@ func TestEmittedPeerScopedEventIsFilteredByTheGraph(t *testing.T) {
 	}
 	// A third process, so neither subscriber is skipped as the emitter.
 	emitter := process.NewProcess(plugin.PluginConfig{Name: "emitter"})
+	emitter.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: graphMsg(graphUpdate)}}})
 
 	// 192.0.2.1 grants looking-glass update-received and grants route-injector
 	// nothing, though both subscribed to everything.

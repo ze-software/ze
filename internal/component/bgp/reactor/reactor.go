@@ -1377,10 +1377,6 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// are free functions with no Reactor to read rmetrics off
 		// (announce_metrics.go).
 		setAnnounceMetricsRegistry(r.metricsRegistry)
-		// The send permission's refusal counter, same reason again: the refusal
-		// is reported from a free function reached by the selector resolver
-		// (send_permission.go).
-		setSendPermissionMetricsRegistry(r.metricsRegistry)
 		go r.metricsUpdateLoop()
 	}
 

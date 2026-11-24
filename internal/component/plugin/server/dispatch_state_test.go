@@ -35,6 +35,12 @@ func stateRPCClientAs(t *testing.T, direct bool, owner string) *sdk.Plugin {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	t.Cleanup(s.cancel)
 	proc := process.NewProcess(plugin.PluginConfig{Name: owner, CompiledPlugin: owner, Internal: true})
+	proc.SetRegistration(&plugin.PluginRegistration{
+		Sends: []rpc.MessageSendDecl{
+			{Message: busMsgSystemRIBInstall},
+			{Message: busMsgSystemRIBMetrics},
+		},
+	})
 	client, engine := net.Pipe()
 	conn := client
 	if direct {

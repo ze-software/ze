@@ -62,6 +62,7 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	defer s.cancel()
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "parity"})
+	proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: "cli:parity test"}}})
 
 	op := lookupEngineOp(rpc.MethodDispatchCommand)
 	require.NotNil(t, op)
@@ -112,8 +113,9 @@ func TestUpdateRouteRPCWithAuthorization(t *testing.T) {
 			s.ctx, s.cancel = context.WithCancel(context.Background())
 			defer s.cancel()
 			proc := process.NewProcess(plugin.PluginConfig{Name: "routepush"})
+			proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: busMsgBGPUpdate}}})
 
-			_, err := d.Dispatch(&CommandContext{Server: s}, "send bgp p1 route")
+			_, err := d.Dispatch(&CommandContext{Server: s}, "send bgp p1 update text nlri add 10.0.0.0/24")
 			require.ErrorIs(t, err, ErrUnauthorized)
 			require.Zero(t, executed, "an anonymous send must not execute")
 
@@ -137,9 +139,9 @@ func TestUpdateRouteRPCWithAuthorization(t *testing.T) {
 				}()
 				ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
 				defer cancel()
-				_, _, err = p.UpdateRoute(ctx, "p1", "route")
+				_, _, err = p.UpdateRoute(ctx, "p1", "update text nlri add 10.0.0.0/24")
 			case "direct":
-				_, err = s.dispatchPluginRPCDirect(t.Context(), proc, rpc.MethodUpdateRoute, json.RawMessage(`{"command":"route","peer-selector":"p1"}`))
+				_, err = s.dispatchPluginRPCDirect(t.Context(), proc, rpc.MethodUpdateRoute, json.RawMessage(`{"command":"update text nlri add 10.0.0.0/24","peer-selector":"p1"}`))
 			case "typed":
 				bridge := rpc.NewDirectBridge()
 				for i := range engineOps {
@@ -148,7 +150,7 @@ func TestUpdateRouteRPCWithAuthorization(t *testing.T) {
 					}
 				}
 				bridge.SetReady()
-				_, _, err = bridge.UpdateRouteSel(t.Context(), selector.ParseDefault("p1"), "route", nil, 0)
+				_, _, err = bridge.UpdateRouteSel(t.Context(), selector.ParseDefault("p1"), "update text nlri add 10.0.0.0/24", nil, 0)
 			}
 			require.NoError(t, err)
 			require.Equal(t, 1, executed, "the authorized route push must execute exactly once")
@@ -173,6 +175,7 @@ func TestEngineOpInjectWireRouteJSONFallback(t *testing.T) {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	defer s.cancel()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "inject-json"})
+	proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: busMsgBGPRaw}}})
 
 	prev := rpc.GetRouteInjector()
 	defer rpc.RegisterRouteInjector(prev)
@@ -216,6 +219,7 @@ func TestEngineOpBatchValidateJSONFallback(t *testing.T) {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	defer s.cancel()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "batch-json"})
+	proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: busMsgBatchValidate}}})
 
 	prev := rpc.GetBatchValidator()
 	defer rpc.RegisterBatchValidator(prev)
@@ -290,6 +294,7 @@ func TestDispatchCommandAlwaysAnswersRecords(t *testing.T) {
 	// A process that has declared nothing. Stage 3 no longer writes a protocol
 	// list, so this is the state every caller is in.
 	caller := process.NewProcess(plugin.PluginConfig{Name: "unconditional"})
+	caller.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: "cli:request target version"}}})
 
 	// The record payload states its own byte count, so the record line is
 	// spelled by the shipped appender rather than by a second copy of the
@@ -353,6 +358,7 @@ func TestUpdateRouteDirectCancellation(t *testing.T) {
 				t.Fatal(err)
 			}
 			proc := process.NewProcess(plugin.PluginConfig{Name: "cancel-route"})
+			proc.SetRegistration(&plugin.PluginRegistration{Sends: []rpc.MessageSendDecl{{Message: busMsgBGPUpdate}}})
 			bridge := rpc.NewDirectBridge()
 			bridge.SetDispatchRPC(func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
 				return s.dispatchPluginRPCDirect(ctx, proc, method, params)

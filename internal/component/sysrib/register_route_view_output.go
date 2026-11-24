@@ -25,8 +25,11 @@ import (
 
 func init() {
 	if err := pluginserver.RegisterEngineOp(pluginserver.EngineOperation{
-		Method: rpc.MethodRouteViewPublish, Handler: routeViewPublishHandler,
-		Native: routeViewPublishNative, Startup: pluginserver.EngineOperationRuntimeOnly,
+		Method:          rpc.MethodRouteViewPublish,
+		Handler:         routeViewPublishHandler,
+		Native:          routeViewPublishNative,
+		Startup:         pluginserver.EngineOperationRuntimeOnly,
+		BusExemptReason: routeViewBusExemptReason,
 	}); err != nil {
 		panic("BUG: routing output registration failed: " + err.Error())
 	}

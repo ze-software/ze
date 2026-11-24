@@ -282,10 +282,11 @@ func (p *Plugin) InjectWireRoute(protocol, peerKey string, updateBody []byte) er
 	return err
 }
 
-// BatchValidate sends a batch of RPKI validation decisions to adj-rib-in.
-// Fast path: typed DirectBridge dispatch (no string serialization). Slow path:
-// the JSON codec over the socket (rpc.MethodBatchValidate) for forked/external
-// plugins without a typed slot.
+// BatchValidate sends a batch of RPKI validation decisions through the
+// registered engine operation (rpc.MethodBatchValidate) on both in-daemon and
+// forked transports so bus send authorization applies uniformly. Only an
+// isolated test DirectBridge with no DispatchRPC wired uses the legacy typed
+// slot.
 func (p *Plugin) BatchValidate(ctx context.Context, decisions []rpc.ValidationDecision) (*rpc.BatchValidateResult, error) {
 	if p.bridge != nil && p.bridge.HasBatchValidate() {
 		return p.bridge.BatchValidate(decisions)

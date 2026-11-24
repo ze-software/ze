@@ -821,6 +821,15 @@ func (s *Server) UpdateDeliveryGraph(namespace string, peers []DeliveryPeer) {
 	}
 }
 
+// RefreshDeliveryGraph recompiles the bus delivery index from s's current
+// BusConfig, active/configured endpoints, and retained participant set (even
+// when no protocol participants have been published yet), swaps the new
+// snapshot in atomically, and publishes the updated plugin command profiles.
+func (s *Server) RefreshDeliveryGraph() {
+	cur := s.DeliveryGraph()
+	s.UpdateDeliveryGraph(cur.namespace, cur.disseminationPeers)
+}
+
 // UpdateDeliveryGraphWithEndpoints compiles peers with explicit endpoint
 // participant inputs and atomically swaps the resulting DeliveryGraph into s.
 func (s *Server) UpdateDeliveryGraphWithEndpoints(
@@ -835,6 +844,7 @@ func (s *Server) UpdateDeliveryGraphWithEndpoints(
 	if prev := s.deliveryGraph.Swap(g); prev != nil {
 		s.prevDeliveryGraph.Store(prev)
 	}
+	publishPluginProfileServer(s)
 	logger().Debug("delivery graph published", "namespace", namespace, "entries", g.Len())
 	s.reconcileDelivery(nil)
 	return nil
@@ -857,6 +867,12 @@ func (s *Server) collectBusEndpointInputs(namespace string, busCfg plugin.BusCon
 		if regName == namespace && epName == namespace {
 			return
 		}
+		if regName == "" && (liveReg == nil || (!liveReg.Done && len(liveReg.Sends) == 0 && len(liveReg.Receives) == 0)) {
+			// External endpoint whose Stage 1 registration has not arrived yet:
+			// NewProcess initializes an empty PluginRegistration (Done=false),
+			// so wait until Stage 1 completes or declarations are populated.
+			return
+		}
 
 		var sends []rpc.MessageSendDecl
 		var receives []rpc.MessageReceiveDecl
@@ -866,13 +882,15 @@ func (s *Server) collectBusEndpointInputs(namespace string, busCfg plugin.BusCon
 			sends = liveReg.Sends
 			receives = liveReg.Receives
 		}
-		if compiled := registry.Lookup(regName); compiled != nil {
-			if len(sends) == 0 && len(receives) == 0 {
-				sends = compiled.Sends
-				receives = compiled.Receives
-			}
-			if compiled.Name != namespace {
-				singletonPath = singletonParticipantPath(compiled.ParticipantNodes)
+		if regName != "" {
+			if compiled := registry.Lookup(regName); compiled != nil {
+				if len(sends) == 0 && len(receives) == 0 {
+					sends = compiled.Sends
+					receives = compiled.Receives
+				}
+				if compiled.Name != namespace {
+					singletonPath = singletonParticipantPath(compiled.ParticipantNodes)
+				}
 			}
 		}
 
@@ -895,26 +913,18 @@ func (s *Server) collectBusEndpointInputs(namespace string, busCfg plugin.BusCon
 
 	if pm := s.procManager.Load(); pm != nil {
 		for _, proc := range pm.AllProcesses() {
-			regName := proc.RegistrationName()
-			if regName == "" {
-				regName = proc.Name()
-			}
-			addEndpoint(proc.Name(), regName, proc.Registration())
+			addEndpoint(proc.Name(), proc.RegistrationName(), proc.Registration())
 		}
 	}
 
 	if s.config != nil {
 		for _, pc := range s.config.Plugins {
-			regName := pc.CompiledIdentity()
-			if regName == "" {
-				regName = pc.Name
-			}
-			addEndpoint(pc.Name, regName, nil)
+			addEndpoint(pc.Name, pc.CompiledIdentity(), nil)
 		}
 	}
 
 	for _, epName := range slices.Sorted(maps.Keys(busCfg.Endpoints)) {
-		addEndpoint(epName, epName, nil)
+		addEndpoint(epName, "", nil)
 	}
 
 	return out
