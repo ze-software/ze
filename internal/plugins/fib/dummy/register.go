@@ -1,6 +1,8 @@
 // Design: docs/architecture/core-design.md -- FIB dummy plugin
 // Related: fibdummy.go -- held route table, best-change handler, counters, metrics
 // Related: show.go -- command answer shapes and builders
+// Related: labels.go -- MPLS label refusal and targeted replay request
+// Related: register_doctor_codes.go -- diagnostic codes owned by fib-dummy
 //
 // Package fibdummy implements the fib-dummy plugin, which receives the routes
 // the system RIB selects, holds them in memory, counts changes, and writes them
@@ -221,18 +223,43 @@ func runFIBDummyPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn(pluginName, conn)
 	defer func() { _ = p.Close() }()
 
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
+
 	f := newDummyFIB(time.Now().UTC())
+	f.onInvalidChange = func(_ string) {
+		logger().Warn("fib-dummy: received a system-rib best-change entry with an invalid prefix, so it was counted and held nowhere; inspect with `ze show fib dummy counters`",
+			"code", codeDoctorInvalidChange)
+		issue := sdk.Issue{
+			Severity: rpc.ReportWarning,
+			Code:     codeDoctorInvalidChange,
+			Subject:  "best-change",
+			Message:  "fib-dummy received a system-rib best-change entry with an invalid prefix, so it was counted in invalid-changes and held nowhere",
+			Fix:      "ze show fib dummy counters",
+		}
+		if err := p.RaiseIssue(ctx, issue); err != nil {
+			logger().Warn("fib-dummy: raise invalid-change warning failed",
+				"error", err,
+				"code", codeDoctorInvalidChange)
+		}
+	}
 	var activeJournal *sdk.Journal
 
 	var unsubMu sync.Mutex
 	var unsubBestChange func()
+	var unsubLabels func()
 	unsubscribeAll := func() {
 		unsubMu.Lock()
-		fn := unsubBestChange
+		fnBest := unsubBestChange
 		unsubBestChange = nil
+		fnLabels := unsubLabels
+		unsubLabels = nil
 		unsubMu.Unlock()
-		if fn != nil {
-			fn()
+		if fnBest != nil {
+			fnBest()
+		}
+		if fnLabels != nil {
+			fnLabels()
 		}
 	}
 	defer unsubscribeAll()
@@ -289,6 +316,13 @@ func runFIBDummyPlugin(conn net.Conn) int {
 			if _, err := sysribevents.ReplayRequest.Emit(eb, &replay.Request{ReplayID: replay.Broadcast}); err != nil {
 				return fmt.Errorf("fib-dummy: emit replay request: %w", err)
 			}
+			labelUnsub, err := f.subscribeAndRequestLabels(eb)
+			if err != nil {
+				return err
+			}
+			unsubMu.Lock()
+			unsubLabels = labelUnsub
+			unsubMu.Unlock()
 			return nil
 		}
 
@@ -317,8 +351,6 @@ func runFIBDummyPlugin(conn net.Conn) int {
 		}
 	})
 
-	ctx, cancel := sdk.SignalContext()
-	defer cancel()
 	if err := p.Run(ctx, engineRegistration()); err != nil {
 		logger().Error("fib-dummy plugin failed", "error", err, "code", diagnostic.CodeDoctorPluginStopped)
 		return 1

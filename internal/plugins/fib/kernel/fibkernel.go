@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- FIB kernel plugin
 // Detail: backend.go -- OS backend abstraction, showInstalled
-// Detail: backend_linux.go -- Linux netlink backend
+// Detail: backend_linux.go -- Linux kernel backend
 // Detail: backend_other.go -- noop backend for non-Linux
 // Detail: monitor.go -- external route change handling
 // Detail: monitor_linux.go -- Linux netlink route monitor
@@ -236,6 +236,10 @@ type fibKernel struct {
 	retryMaxDelay    time.Duration
 	retryMaxAttempts int
 	retryWake        chan struct{}
+	// labelReplayToken is the targeted (mpls-fib, replay-request) token this
+	// writer draws on creation; a replay batch carrying another token belongs
+	// to another writer. Set in newFIBKernel, then read only.
+	labelReplayToken uint64
 	backend          routeBackend
 	stopped          atomic.Bool
 	mu               sync.RWMutex
@@ -265,6 +269,7 @@ func newFIBKernel(backend routeBackend) *fibKernel {
 		retryMaxDelay:    defaultRetryMaxDelay,
 		retryMaxAttempts: defaultRetryMaxAttempts,
 		retryWake:        make(chan struct{}, 1),
+		labelReplayToken: mplsfibevents.NewReplayToken(),
 		backend:          backend,
 	}
 }
@@ -1142,6 +1147,20 @@ func (f *fibKernel) sweepStale(stale map[string]string) {
 	}
 }
 
+// emitLabelReplayRequest asks every label source to re-apply the entries it
+// wants installed, tagged with this writer's replay token. Caller MUST NOT hold
+// f.mu because sources answer synchronously via ApplyReplay on the same
+// goroutine.
+func (f *fibKernel) emitLabelReplayRequest(eb ze.EventBus) {
+	if f.labelReplayToken == 0 {
+		return
+	}
+	if _, err := mplsfibevents.ReplayRequest.Emit(eb, &replay.Request{ReplayID: f.labelReplayToken}); err != nil {
+		logger().Warn("fib-kernel: mpls-fib replay-request emit failed", "error", err,
+			"code", mplsfibevents.CodeDoctorNoWriter)
+	}
+}
+
 // run subscribes to the forwarding events and reports subscription readiness
 // before replay. The caller MUST receive ready before starting producers and
 // MUST cancel ctx and join run before closing the backend.
@@ -1159,6 +1178,18 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool, ready chan<- erro
 	// LDP). fib-kernel is the single kernel-FIB owner, so it programs these too.
 	unsubMPLS := mplsfibevents.EntryChange.Subscribe(eb, f.handleMPLSEntry)
 	defer unsubMPLS()
+
+	// Re-request label entries once a reload finishes stopping a displaced
+	// ProgramsFIB writer (such as fib-dummy) so live adds that saw its joined
+	// refusal during the reload window clear and settle. Must run without
+	// holding f.mu because sources answer synchronously via ApplyReplay.
+	unsubWriterStopped := mplsfibevents.WriterStopped.Subscribe(eb, func() {
+		if f.stopped.Load() {
+			return
+		}
+		f.emitLabelReplayRequest(eb)
+	})
+	defer unsubWriterStopped()
 	ready <- nil
 
 	// Request full-table replay from sysrib so we populate even if sysrib
@@ -1166,6 +1197,11 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool, ready chan<- erro
 	if _, err := sysribevents.ReplayRequest.Emit(eb, &replay.Request{ReplayID: replay.Broadcast}); err != nil {
 		logger().Warn("fib-kernel: replay-request emit failed", "error", err)
 	}
+
+	// Request a targeted label replay so a fib-kernel started after the label
+	// sources (for example by a reload) receives every entry each source wants
+	// installed.
+	f.emitLabelReplayRequest(eb)
 
 	// Start kernel route monitor for external change detection.
 	var monitorDone sync.WaitGroup

@@ -6,12 +6,13 @@
 // push/swap/pop/remove calls into (mpls-fib, entry) events that the writer of
 // the selected data plane programs: fib-kernel on the Linux kernel, fib-vpp on
 // VPP. The writer stays the single owner of its data plane's forwarding
-// state; RSVP-TE never touches netlink or VPP directly, and names no writer:
+// state; RSVP-TE never touches netlink sockets or VPP directly, and names no writer:
 // its registration declares NeedsDataPlane.
 package rsvpte
 
 import (
 	"net/netip"
+	"slices"
 	"sync"
 
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
@@ -46,14 +47,15 @@ type busFIB struct {
 
 	// mu guards installed and refusals.
 	mu sync.Mutex
-	// installed holds every entry a writer accepted and RSVP-TE has not
-	// removed: the forwarding its LSPs rely on. A writer that opens later
-	// asks for it again (replay). An entry a writer refused is not here: the
-	// engine refused its LSP, and the LSP's own retry programs it again.
+	// installed holds every accepted add RSVP-TE has not withdrawn: the
+	// forwarding its active LSPs rely on. A removal leaves installed whatever
+	// the writer answers, so a withdrawn entry is never replayed. An entry a
+	// writer refused on apply is not here: the engine rejected its reservation
+	// and applies it again on the reservation's next refresh.
 	installed map[installedKey]mplsfibevents.Entry
-	// refusals holds the installed entries a writer's replay request asked
-	// for and did not acknowledge as installed, with the cause, until a later
-	// apply of the same slot or a successful replay. mu guards it. The
+	// refusals holds every entry a writer refused on apply or a replay did not
+	// restore, with the cause, until a later apply of the same slot succeeds
+	// or a successful replay re-sends that exact entry. mu guards it. The
 	// rsvp-te-label-entries doctor check reports it (doctor_label.go).
 	refusals mplsfibevents.Refusals
 }
@@ -62,17 +64,23 @@ func (b *busFIB) emit(e mplsfibevents.Entry) error {
 	e.Source = mplsSourceRSVPTE
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if e.Action == mplsfibevents.ActionRemove {
+		// RSVP-TE withdrew this entry: drop it from installed whatever the
+		// writer answers so a later replay never re-installs forwarding for
+		// a torn-down LSP.
+		delete(b.installed, keyOf(&e))
+	}
 	err := mplsfibevents.Apply(b.bus, []mplsfibevents.Entry{e})
 	if err != nil {
+		b.refusals.Record(&e, err)
 		return err
 	}
 	b.recordLocked(&e)
 	return nil
 }
 
-// recordLocked updates the installed set after a writer accepted e. A
-// removal is recorded only once accepted, so a failed withdrawal stays
-// installed and is replayed rather than forgotten. Caller holds b.mu.
+// recordLocked updates the installed set and clears any refusal on the slot
+// after a writer accepted e. Caller holds b.mu.
 func (b *busFIB) recordLocked(e *mplsfibevents.Entry) {
 	b.refusals.Clear(e)
 	switch e.Action {
@@ -80,7 +88,9 @@ func (b *busFIB) recordLocked(e *mplsfibevents.Entry) {
 		if b.installed == nil {
 			b.installed = make(map[installedKey]mplsfibevents.Entry)
 		}
-		b.installed[keyOf(e)] = *e
+		stored := *e
+		stored.OutLabels = slices.Clone(e.OutLabels)
+		b.installed[keyOf(e)] = stored
 	case mplsfibevents.ActionRemove:
 		delete(b.installed, keyOf(e))
 	case mplsfibevents.ActionRemoveLabelSource:
@@ -95,11 +105,28 @@ func (b *busFIB) recordLocked(e *mplsfibevents.Entry) {
 	}
 }
 
+// entriesEqual reports whether a and b describe the exact same forwarding
+// entry. A successful replay clears a refusal slot only when the recorded
+// entry equals one it re-sent, so a refused replacement sharing a slot with an
+// installed entry (such as a failed backup swap) stays reported.
+func entriesEqual(a, b *mplsfibevents.Entry) bool {
+	return a.Action == b.Action &&
+		a.Op == b.Op &&
+		a.InLabel == b.InLabel &&
+		a.FEC == b.FEC &&
+		a.TableID == b.TableID &&
+		slices.Equal(a.OutLabels, b.OutLabels) &&
+		a.NextHop == b.NextHop &&
+		a.PathMTU == b.PathMTU &&
+		a.Source == b.Source
+}
+
 // replay answers a label writer's (mpls-fib, replay-request): it re-applies
-// every installed entry, tagged with the request's token, so only the writer
-// that asked consumes it. A writer opens after RSVP-TE programmed its LSPs
-// (VPP connects late), or after it lost its FIB (VPP restarted), and holds
-// none of them until this answer.
+// every accepted add RSVP-TE has not withdrawn, tagged with the request's
+// token, so only the writer that asked consumes it. On success it clears only
+// the refusal slots whose recorded entry equals one it replayed, preserving
+// live refusals, refused replacements on installed slots, and refused
+// removals.
 //
 // It runs on the requesting writer's goroutine, synchronously, and takes
 // b.mu: the writer MUST NOT hold the lock its own (mpls-fib, entry) handler
@@ -127,7 +154,14 @@ func (b *busFIB) replay(req *replay.Request) error {
 		}
 		return err
 	}
-	b.refusals.Reset()
+	b.refusals.ClearIf(func(held *mplsfibevents.Entry) bool {
+		for i := range entries {
+			if entriesEqual(held, &entries[i]) {
+				return true
+			}
+		}
+		return false
+	})
 	return nil
 }
 

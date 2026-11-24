@@ -133,8 +133,9 @@ func (b *EntryBatch) Addresses(token uint64) bool {
 	return b.ReplayID == token
 }
 
-// EntryChange is the typed handle for (mpls-fib, entry). Producers Apply; the
-// writer of each data plane (fib-kernel, fib-vpp) Subscribes.
+// EntryChange is the typed handle for (mpls-fib, entry). Producers Apply; each
+// data-plane label writer Subscribes, and fib-dummy subscribes to refuse every
+// entry addressed to it.
 var EntryChange = events.Register[*EntryBatch](Namespace, EventEntry)
 
 // EventReplayRequest is the event type a label writer emits to ask the
@@ -147,6 +148,17 @@ const EventReplayRequest = "replay-request"
 // ApplyReplay, tagged with that token. A request whose token is zero asks for
 // nothing and is ignored.
 var ReplayRequest = events.Register[*replay.Request](Namespace, EventReplayRequest)
+
+// EventWriterStopped is the signal emitted after a reload or rollback finishes
+// stopping one or more ProgramsFIB processes.
+const EventWriterStopped = "writer-stopped"
+
+// WriterStopped is the typed signal for (mpls-fib, writer-stopped). Emitted
+// once every displaced ProgramsFIB process has exited and unsubscribed from
+// EntryChange; each remaining data-plane label writer subscribes and issues
+// one more targeted ReplayRequest with its own token so live label adds that
+// saw the stopping writer's refusal during the reload window clear and settle.
+var WriterStopped = events.RegisterSignal(Namespace, EventWriterStopped)
 
 // replayTokens hands out targeted replay tokens for the whole process. It
 // starts at 1 so a token is never 0 (incremental) and never reaches

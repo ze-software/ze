@@ -11,10 +11,13 @@ import (
 	"time"
 
 	"go.fd.io/govpp/binapi/ip_types"
+	"go.fd.io/govpp/binapi/mpls"
 	"go.fd.io/govpp/binapi/sr"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/core/replay"
 )
 
 func TestFibVPPRegistered(t *testing.T) {
@@ -181,4 +184,87 @@ func (b *fibSubscriptionBus) Subscribe(_, _ string, handler func(any)) func() {
 
 func (*fibSubscriptionBus) Emit(_, _ string, _ any) (int, error) {
 	return 0, nil
+}
+
+// TestFIBVPPReplaysLabelsOnWriterStopped proves that (mpls-fib, writer-stopped)
+// causes fib-vpp to emit one targeted (mpls-fib, replay-request) carrying the
+// open writer's token without holding fibMu across the emit and without
+// re-running markStaleLabelsLocked, and emits nothing when no writer is open
+// or the writer is retired.
+//
+// VALIDATES: spec-fib-dummy AC-24, R-15 -- post-stop targeted label replay
+// recovers reload-window live adds without deadlocking on fibMu or re-dumping
+// MPLS table 0.
+func TestFIBVPPReplaysLabelsOnWriterStopped(t *testing.T) {
+	w := newLabelWriter(t, 0)
+	t.Cleanup(subscribeFibVPPWriterStopped(w.bus, &w.mu, &w.fib))
+
+	var seenTokens []uint64
+	var replayErr error
+	t.Cleanup(mplsfib.ReplayRequest.Subscribe(w.bus, func(req *replay.Request) {
+		if req == nil {
+			return
+		}
+		seenTokens = append(seenTokens, req.ReplayID)
+		// Synchronously invoking ApplyReplay reaches subscribeFibVPPLabels,
+		// which locks w.mu; returning without deadlock proves fibMu was
+		// released before ReplayRequest.Emit.
+		replayErr = mplsfib.ApplyReplay(w.bus, req.ReplayID, []mplsfib.Entry{
+			swapEntry(205, []uint32{206}),
+		})
+	}))
+
+	dumpsBefore := 0
+	for _, m := range w.ch.requests {
+		if _, ok := m.(*mpls.MplsRouteDump); ok {
+			dumpsBefore++
+		}
+	}
+
+	if _, err := mplsfib.WriterStopped.Emit(w.bus); err != nil {
+		t.Fatalf("WriterStopped.Emit: %v", err)
+	}
+	if len(seenTokens) != 1 {
+		t.Fatalf("replay requests emitted = %d, want 1", len(seenTokens))
+	}
+	if seenTokens[0] != w.fib.labelReplayToken {
+		t.Fatalf("replay token = %d, want %d", seenTokens[0], w.fib.labelReplayToken)
+	}
+	if replayErr != nil {
+		t.Fatalf("synchronous ApplyReplay on WriterStopped failed: %v", replayErr)
+	}
+
+	dumpsAfter := 0
+	for _, m := range w.ch.requests {
+		if _, ok := m.(*mpls.MplsRouteDump); ok {
+			dumpsAfter++
+		}
+	}
+	if dumpsAfter != dumpsBefore {
+		t.Fatalf("WriterStopped triggered %d MplsRouteDump calls (markStaleLabelsLocked must not re-run)", dumpsAfter-dumpsBefore)
+	}
+
+	// Retired writer emits nothing.
+	w.mu.Lock()
+	w.fib.mu.Lock()
+	w.fib.retired = true
+	w.fib.mu.Unlock()
+	w.mu.Unlock()
+	if _, err := mplsfib.WriterStopped.Emit(w.bus); err != nil {
+		t.Fatalf("WriterStopped.Emit after retire: %v", err)
+	}
+	if len(seenTokens) != 1 {
+		t.Fatalf("retired writer emitted replay request (total %d, want 1)", len(seenTokens))
+	}
+
+	// Nil writer emits nothing.
+	w.mu.Lock()
+	w.fib = nil
+	w.mu.Unlock()
+	if _, err := mplsfib.WriterStopped.Emit(w.bus); err != nil {
+		t.Fatalf("WriterStopped.Emit with nil writer: %v", err)
+	}
+	if len(seenTokens) != 1 {
+		t.Fatalf("nil writer emitted replay request (total %d, want 1)", len(seenTokens))
+	}
 }

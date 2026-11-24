@@ -1,0 +1,92 @@
+# Test: LDP label entries on a `fib { dummy { } }` box are refused by
+#       `fib-dummy`, counted in `show fib dummy counters`, and reported by
+#       LDP's `ldp-label-entries` runtime doctor check under
+#       `doctor-fib-mpls-no-writer` with the dummy's refusal text and fix.
+#
+# VALIDATES: spec-fib-dummy AC-9, A-4 -- `fib-dummy` subscribes to
+#            `(mpls-fib, entry)`, requests a targeted label replay on open,
+#            refuses LDP's local egress pop with the AC-9 refusal text, counts
+#            the refused entries in `label-entries-refused`, and LDP stays
+#            running and reports the entry under `doctor-fib-mpls-no-writer`
+#            through `show doctor`.
+# PREVENTS:  `fib-dummy` acknowledging label entries as installed, missing
+#            entries applied before it opened, failing to count refusals, or
+#            LDP failing to surface the dummy's refusal in `show doctor`.
+#
+# Flow:
+# 1. Boot `ze` with `fib { dummy { } }` and `ldp { lsr-id 10.0.0.1; ... }`.
+# 2. LDP originates a local egress pop for its LSR-ID 10.0.0.1/32 (and
+#    connected prefixes on `lo`) and applies it through `mplsfib.Apply`
+#    (and answers `fib-dummy`'s targeted label replay on open).
+# 3. Wait until `show doctor | json` carries `doctor-fib-mpls-no-writer` with
+#    `fib dummy programs no label`, then verify the full refusal message and
+#    fix in `show doctor | json` and `label-entries-refused` > 0 in
+#    `show fib dummy counters | json`.
+
+option=needs-linux
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=fib-dummy-labels-refused.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+fib {
+	dummy { }
+}
+ldp {
+	lsr-id 10.0.0.1
+	transport-address 10.0.0.1
+	hello-interval 5
+	hello-hold-time 15
+	keepalive-time 60
+	interfaces lo
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start fib-dummy-labels-refused.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=3:exec=le test fixture daemon/await-answer-all "show doctor | json" doctor-fib-mpls-no-writer "fib dummy programs no label":exit=0
+expect=stdout:contains=OK:
+
+# AC-9: `show doctor | json` holds the ldp-label-entries error under
+# doctor-fib-mpls-no-writer carrying the dummy's exact refusal text and fix.
+cmd=foreground:seq=4:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:pattern="code": ?"doctor-fib-mpls-no-writer"
+expect=stdout:contains=ldp: the data plane does not hold
+expect=stdout:contains=fib dummy programs no label, so this entry is not installed; delete fib dummy, or remove the label protocol
+expect=stdout:pattern="severity": ?"error"
+
+# AC-9: `show fib dummy counters | json` counts at least one refused label entry.
+cmd=foreground:seq=5:exec=ze cli -c "show fib dummy counters | json":exit=0
+expect=stdout:pattern="forwarding": ?"none"
+expect=stdout:pattern="label-entries-refused": ?[1-9][0-9]*
+
+# A-4: LDP stays running after the label refusal and answers `show ldp binding`.
+cmd=foreground:seq=6:exec=ze cli -c "show ldp binding | json":exit=0
+expect=stdout:contains=10.0.0.1/32
+
+cmd=stop:seq=7:name=daemon:signal=term

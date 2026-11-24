@@ -13,6 +13,7 @@ import (
 
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -36,10 +37,11 @@ type heldRoute struct {
 // dummyFIB holds the best routes the system RIB selected, counts changes, and
 // writes them to no forwarding table. Safe for concurrent use.
 type dummyFIB struct {
-	mu              sync.RWMutex
-	routes          map[routeKey]heldRoute
-	since           time.Time
-	onInvalidChange func(prefix string)
+	mu               sync.RWMutex
+	routes           map[routeKey]heldRoute
+	since            time.Time
+	labelReplayToken uint64
+	onInvalidChange  func(prefix string)
 
 	installs            atomic.Uint64
 	replaces            atomic.Uint64
@@ -50,8 +52,9 @@ type dummyFIB struct {
 
 func newDummyFIB(since time.Time) *dummyFIB {
 	return &dummyFIB{
-		routes: make(map[routeKey]heldRoute),
-		since:  since,
+		routes:           make(map[routeKey]heldRoute),
+		since:            since,
+		labelReplayToken: mplsfib.NewReplayToken(),
 	}
 }
 

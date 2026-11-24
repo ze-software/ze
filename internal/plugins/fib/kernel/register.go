@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/health"
 	"github.com/ze-software/ze/internal/core/metrics"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	fibevents "github.com/ze-software/ze/internal/plugins/fib/kernel/events"
@@ -29,6 +30,7 @@ import (
 func fibKernelSends() []rpc.MessageSendDecl {
 	return []rpc.MessageSendDecl{
 		{Message: fibevents.Namespace + ":" + fibevents.EventExternalChange},
+		{Message: mplsfibevents.Namespace + ":" + mplsfibevents.EventReplayRequest},
 		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventDefault},
 		{Message: sysribevents.Namespace + ":" + sysribevents.EventReplayRequest},
 	}
@@ -203,12 +205,18 @@ func init() {
 		YANG:         fibyang.ZeFibConfYANG,
 		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{"rib", "sysctl"},
-		// This plugin is the writer for the netlink data plane, the name
+		// This plugin is the writer for the kernel data plane, the name
 		// `interface { backend }` gives the Linux kernel. A route producer
 		// that declares NeedsDataPlane is answered with this plugin when the
 		// operator wrote no `fib { ... }` block of their own.
+		//
+		// HostSideDataPlane marks that this declaration acts on the Linux host
+		// itself, beside the selected data plane: on a VPP deployment, fib-kernel
+		// programs the Linux route table for the router's own traffic when paired
+		// with fib-vpp (fib-kernel alone under VPP is refused by the verdict).
 		ProgramsFIB:              true,
-		DataPlane:                "netlink",
+		DataPlane:                "kernel",
+		HostSideDataPlane:        true,
 		PreservesForwardingState: preservesForwardingState,
 		InProcessConfigVerifier:  verifyFIBConfig,
 		Sends:                    fibKernelSends(),

@@ -171,3 +171,26 @@ func TestReplayRequestHandle(t *testing.T) {
 			ReplayRequest.Namespace(), ReplayRequest.EventType(), Namespace)
 	}
 }
+
+// TestWriterStoppedHandle pins the wire identity and signal delivery of
+// (mpls-fib, writer-stopped).
+//
+// VALIDATES: AC-24 -- WriterStopped registers (mpls-fib, writer-stopped) as a
+// no-payload signal and delivers synchronously to subscribers.
+func TestWriterStoppedHandle(t *testing.T) {
+	if WriterStopped.Namespace() != Namespace || WriterStopped.EventType() != EventWriterStopped {
+		t.Fatalf("WriterStopped is (%s, %s), want (%s, %s)",
+			WriterStopped.Namespace(), WriterStopped.EventType(), Namespace, EventWriterStopped)
+	}
+	bus := &syncBus{}
+	calls := 0
+	t.Cleanup(WriterStopped.Subscribe(bus, func() {
+		calls++
+	}))
+	if _, err := WriterStopped.Emit(bus); err != nil {
+		t.Fatalf("WriterStopped.Emit: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("WriterStopped calls = %d, want 1", calls)
+	}
+}

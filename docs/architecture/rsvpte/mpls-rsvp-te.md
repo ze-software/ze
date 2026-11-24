@@ -455,7 +455,7 @@ Verify a named interop peer exists before an acceptance criterion names it.
 The engine submits push, swap and pop entries to the writer of the selected
 data plane. RSVP-TE names no writer: its registration declares
 `NeedsDataPlane`, and the engine loads `fib-kernel` under `interface { backend
-netlink }` and `fib-vpp` under `backend vpp`. An Up transition or outgoing label
+kernel }` and `fib-vpp` under `backend vpp`. An Up transition or outgoing label
 advertisement follows successful acceptance, not merely event publication.
 `fib-kernel` programs the corresponding IP and `AF_MPLS` routes, `fib-vpp` the
 routes in VPP MPLS table 0. Bypass control traffic uses private mark-selected
@@ -463,13 +463,15 @@ contexts, which only the kernel writer can install: `fib-vpp` refuses such a
 push, so a facility backup is not available on VPP. An egress pop carries the
 session's tunnel endpoint as its `FEC`, which tells a writer the payload family
 of the popped packet. RSVP-TE answers a writer's `(mpls-fib, replay-request)` by
-re-applying every entry it has installed, so a writer that opens late or after
-a VPP restart gets them all. An entry that replay asked for again and the
-writer did not install leaves an LSP RSVP-TE holds up with no forwarding under
-it: `fib.go` keeps it with the writer's cause until it is applied again or a
-later replay succeeds, and the runtime doctor check `rsvp-te-label-entries`
-answers one `doctor-fib-mpls-no-writer` error per entry, at most 32 and a count
-of the rest. RSVP-TE declares the check in the Stage 1 registration its runner
+re-applying every entry it has installed and not withdrawn, so a writer that
+opens late or after a VPP restart gets them all; an entry a writer refused on
+apply is applied again when its reservation is next refreshed. An entry a writer
+refused on apply, as well as an entry that replay asked for again and the writer
+did not install, is kept by `fib.go` with the writer's cause until a later apply
+of the same slot succeeds (or a later replay restores that exact entry), and the
+runtime doctor check `rsvp-te-label-entries` answers one
+`doctor-fib-mpls-no-writer` error per entry, at most 32 and a count of the rest.
+RSVP-TE declares the check in the Stage 1 registration its runner
 sends and answers it from its own `OnDoctorCheck`, because the record lives in
 its process, which may be a forked one. A label route a previous run left in
 VPP is the writer's to remove, not RSVP-TE's.

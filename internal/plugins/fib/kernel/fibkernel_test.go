@@ -1,6 +1,7 @@
 package fibkernel
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/netip"
@@ -12,9 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/plugin/server"
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/routewatch"
 	"github.com/ze-software/ze/internal/core/rtproto"
@@ -392,21 +396,21 @@ type failingBackend struct {
 
 func (m *failingBackend) addRoute(prefix, nextHop string) error {
 	if m.failAdd {
-		return errors.New("netlink: operation not permitted")
+		return errors.New("netlink error: operation not permitted")
 	}
 	return m.mockBackend.addRoute(prefix, nextHop)
 }
 
 func (m *failingBackend) replaceRoute(prefix, nextHop string) error {
 	if m.failReplace {
-		return errors.New("netlink: operation not permitted")
+		return errors.New("netlink error: operation not permitted")
 	}
 	return m.mockBackend.replaceRoute(prefix, nextHop)
 }
 
 func (m *failingBackend) delRoute(prefix string) (bool, error) {
 	if m.failDel {
-		return false, errors.New("netlink: no such process")
+		return false, errors.New("netlink error: no such process")
 	}
 	return m.mockBackend.delRoute(prefix)
 }
@@ -811,4 +815,285 @@ func TestKernelPlainRouteLegacyPath(t *testing.T) {
 	// Rich backend should NOT be called for plain routes.
 	assert.Empty(t, backend.richAdded)
 	assert.Equal(t, "192.168.1.1", backend.added["10.0.0.0/24"])
+}
+
+func startFIBKernelOnTestBus(t *testing.T) *server.Server {
+	t.Helper()
+	prev := eventBusPtr.Load()
+	t.Cleanup(func() { eventBusPtr.Store(prev) })
+
+	bus, err := server.NewServer(&server.ServerConfig{}, nil)
+	require.NoError(t, err)
+	setEventBus(bus)
+	return bus
+}
+
+// VALIDATES: spec-fib-dummy AC-21 -- after run subscribes to (mpls-fib, entry),
+// fib-kernel emits one targeted (mpls-fib, replay-request) with a non-zero
+// token, consumes and acknowledges a batch tagged with that token, and ignores
+// a batch tagged with another writer's token.
+// PREVENTS: a fib-kernel started by reload missing pre-existing label entries.
+func TestFIBKernelRequestsLabelReplayOnOpen(t *testing.T) {
+	mb := newMPLSMockBackend()
+	f := newFIBKernel(mb)
+	bus := startFIBKernelOnTestBus(t)
+
+	replayCh := make(chan uint64, 4)
+	t.Cleanup(mplsfibevents.ReplayRequest.Subscribe(bus, func(req *replay.Request) {
+		if req != nil {
+			replayCh <- req.ReplayID
+		}
+	}))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ready := make(chan error, 1)
+	var wg sync.WaitGroup
+	wg.Go(func() { f.run(ctx, false, ready) })
+	t.Cleanup(func() {
+		cancel()
+		wg.Wait()
+	})
+	require.NoError(t, <-ready)
+
+	var token uint64
+	select {
+	case token = <-replayCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("fib-kernel did not emit (mpls-fib, replay-request) on open")
+	}
+	assert.True(t, replay.IsReplay(token), "replay token must be non-zero")
+	assert.NotEqual(t, replay.Broadcast, token, "replay token must be targeted, not broadcast")
+	assert.Equal(t, f.labelReplayToken, token)
+
+	ownedEntry := mplsfibevents.Entry{
+		Action:    mplsfibevents.ActionAdd,
+		Op:        mplsfibevents.OpSwap,
+		InLabel:   16100,
+		OutLabels: []uint32{26100},
+		NextHop:   netip.MustParseAddr("10.0.0.5"),
+		Source:    2,
+	}
+	require.NoError(t, mplsfibevents.ApplyReplay(bus, token, []mplsfibevents.Entry{ownedEntry}))
+	require.Len(t, mb.swapsAdded, 1)
+	assert.Equal(t, uint32(16100), mb.swapsAdded[0].in)
+
+	foreignEntry := mplsfibevents.Entry{
+		Action:    mplsfibevents.ActionAdd,
+		Op:        mplsfibevents.OpSwap,
+		InLabel:   16101,
+		OutLabels: []uint32{26101},
+		NextHop:   netip.MustParseAddr("10.0.0.6"),
+		Source:    2,
+	}
+	require.Error(t, mplsfibevents.ApplyReplay(bus, mplsfibevents.NewReplayToken(), []mplsfibevents.Entry{foreignEntry}),
+		"fib-kernel must not acknowledge a batch tagged with another writer's token")
+	assert.Len(t, mb.swapsAdded, 1, "foreign replay batch must not be programmed")
+}
+
+// VALIDATES: spec-fib-dummy AC-24, R-15 -- emitting mplsfib.WriterStopped
+// causes an active fib-kernel to emit one targeted (mpls-fib, replay-request)
+// carrying its own token without deadlocking when a subscriber synchronously
+// answers with ApplyReplay, and emits nothing after beginStop.
+// PREVENTS: reload-window label refusals persisting or WriterStopped deadlocking
+// on f.mu.
+func TestFIBKernelReplaysLabelsOnWriterStopped(t *testing.T) {
+	mb := newMPLSMockBackend()
+	f := newFIBKernel(mb)
+	bus := startFIBKernelOnTestBus(t)
+
+	swap := mplsfibevents.Entry{
+		Action:    mplsfibevents.ActionAdd,
+		Op:        mplsfibevents.OpSwap,
+		InLabel:   16200,
+		OutLabels: []uint32{26200},
+		NextHop:   netip.MustParseAddr("10.0.0.5"),
+		Source:    2,
+	}
+	replayCh := make(chan uint64, 4)
+	var replayErrs []error
+	var errMu sync.Mutex
+	t.Cleanup(mplsfibevents.ReplayRequest.Subscribe(bus, func(req *replay.Request) {
+		if req == nil {
+			return
+		}
+		// Synchronous ApplyReplay on the same goroutine proves f.mu is NOT held
+		// across ReplayRequest.Emit.
+		err := mplsfibevents.ApplyReplay(bus, req.ReplayID, []mplsfibevents.Entry{swap})
+		errMu.Lock()
+		replayErrs = append(replayErrs, err)
+		errMu.Unlock()
+		replayCh <- req.ReplayID
+	}))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ready := make(chan error, 1)
+	var wg sync.WaitGroup
+	wg.Go(func() { f.run(ctx, false, ready) })
+	t.Cleanup(func() {
+		cancel()
+		wg.Wait()
+	})
+	require.NoError(t, <-ready)
+
+	// Drain initial open replay.
+	select {
+	case tok := <-replayCh:
+		assert.Equal(t, f.labelReplayToken, tok)
+	case <-time.After(5 * time.Second):
+		t.Fatal("fib-kernel did not emit initial replay request")
+	}
+
+	// Emit WriterStopped and verify one more targeted replay runs synchronously.
+	_, err := mplsfibevents.WriterStopped.Emit(bus)
+	require.NoError(t, err)
+	select {
+	case tok := <-replayCh:
+		assert.Equal(t, f.labelReplayToken, tok)
+	case <-time.After(5 * time.Second):
+		t.Fatal("fib-kernel did not emit post-stop replay request on WriterStopped")
+	}
+
+	errMu.Lock()
+	require.Len(t, replayErrs, 2)
+	assert.NoError(t, replayErrs[0])
+	assert.NoError(t, replayErrs[1])
+	errMu.Unlock()
+
+	// After beginStop, WriterStopped must emit nothing.
+	f.beginStop()
+	_, err = mplsfibevents.WriterStopped.Emit(bus)
+	require.NoError(t, err)
+	select {
+	case tok := <-replayCh:
+		t.Fatalf("unexpected replay request with token %d after beginStop", tok)
+	default:
+	}
+}
+
+// VALIDATES: spec-fib-dummy AC-24, R-15 -- a live ActionAdd landing in the
+// reload window while both fib-kernel and a refusing fib-dummy subscriber are
+// subscribed is installed in fib-kernel, gets fib-dummy's refusal joined into
+// the source's Refusals, and clears cleanly once fib-dummy unsubscribes and
+// mplsfib.WriterStopped triggers fib-kernel's post-stop targeted replay.
+// PREVENTS: stale doctor-fib-mpls-no-writer findings surviving a reload that
+// replaces fib-dummy with fib-kernel.
+func TestReloadWindowLiveLabelApplyRecoveredAfterDummyStops(t *testing.T) {
+	mb := newMPLSMockBackend()
+	f := newFIBKernel(mb)
+	bus := startFIBKernelOnTestBus(t)
+
+	// Simulate an LDP-style label source keeping its wanted entries and Refusals.
+	var srcMu sync.Mutex
+	var wanted []mplsfibevents.Entry
+	var refusals mplsfibevents.Refusals
+	initialReplayDone := make(chan struct{}, 2)
+
+	t.Cleanup(mplsfibevents.ReplayRequest.Subscribe(bus, func(req *replay.Request) {
+		if req == nil {
+			return
+		}
+		if !replay.IsReplay(req.ReplayID) {
+			return
+		}
+		srcMu.Lock()
+		entries := slices.Clone(wanted)
+		if len(entries) == 0 {
+			srcMu.Unlock()
+			select {
+			case initialReplayDone <- struct{}{}:
+			default:
+			}
+			return
+		}
+		err := mplsfibevents.ApplyReplay(bus, req.ReplayID, entries)
+		if err != nil {
+			for i := range entries {
+				refusals.Record(&entries[i], err)
+			}
+		} else {
+			for i := range entries {
+				refusals.Clear(&entries[i])
+			}
+		}
+		srcMu.Unlock()
+	}))
+
+	// Start fib-kernel and wait for its initial open replay to complete.
+	ctx, cancel := context.WithCancel(context.Background())
+	ready := make(chan error, 1)
+	var wg sync.WaitGroup
+	wg.Go(func() { f.run(ctx, false, ready) })
+	t.Cleanup(func() {
+		cancel()
+		wg.Wait()
+	})
+	require.NoError(t, <-ready)
+	select {
+	case <-initialReplayDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("fib-kernel did not emit initial label replay")
+	}
+
+	// Simulate displaced fib-dummy still subscribed during the reload window.
+	dummyToken := mplsfibevents.NewReplayToken()
+	dummyErr := errors.New("fib dummy programs no label, so this entry is not installed; delete fib dummy, or remove the label protocol")
+	unsubDummy := mplsfibevents.EntryChange.Subscribe(bus, func(batch *mplsfibevents.EntryBatch) {
+		if batch == nil {
+			return
+		}
+		if !batch.Addresses(dummyToken) {
+			return
+		}
+		if batch.Acknowledge != nil {
+			batch.Acknowledge(dummyErr)
+		}
+	})
+
+	// Live ActionAdd lands during the reload window while both writers listen.
+	swapEntry := mplsfibevents.Entry{
+		Action:    mplsfibevents.ActionAdd,
+		Op:        mplsfibevents.OpSwap,
+		InLabel:   16300,
+		OutLabels: []uint32{26300},
+		NextHop:   netip.MustParseAddr("10.0.0.5"),
+		Source:    2,
+	}
+	pushEntry := mplsfibevents.Entry{
+		Action:    mplsfibevents.ActionAdd,
+		Op:        mplsfibevents.OpPush,
+		FEC:       netip.MustParsePrefix("10.0.0.9/32"),
+		OutLabels: []uint32{26301},
+		NextHop:   netip.MustParseAddr("10.0.0.5"),
+		Source:    2,
+	}
+
+	srcMu.Lock()
+	wanted = []mplsfibevents.Entry{swapEntry, pushEntry}
+	err := mplsfibevents.Apply(bus, wanted)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, dummyErr)
+	for i := range wanted {
+		refusals.Record(&wanted[i], err)
+	}
+	findings := refusals.Findings("ldp", "fix")
+	srcMu.Unlock()
+
+	require.Len(t, findings, 2, "window refusal must be recorded in doctor findings")
+	assert.Equal(t, mplsfibevents.CodeDoctorNoWriter, findings[0].Code)
+	assert.Contains(t, findings[0].Message, "fib dummy programs no label")
+	require.Len(t, mb.swapsAdded, 1, "fib-kernel already installed the swap during the window")
+	require.Len(t, mb.richAdded, 1, "fib-kernel already installed the push during the window")
+
+	// Displaced fib-dummy stops and unsubscribes; stopCollectedProcesses emits WriterStopped.
+	unsubDummy()
+	_, err = mplsfibevents.WriterStopped.Emit(bus)
+	require.NoError(t, err)
+
+	// fib-kernel's post-stop targeted replay re-applies cleanly and clears both findings.
+	srcMu.Lock()
+	remaining := refusals.Findings("ldp", "fix")
+	srcMu.Unlock()
+	assert.Empty(t, remaining, "post-stop replay after WriterStopped must clear reload-window refusals")
+	assert.Len(t, mb.swapsAdded, 2, "owned swap replaced idempotently on post-stop replay")
+	assert.Len(t, mb.richReplaced, 1, "owned push replaced idempotently on post-stop replay")
 }

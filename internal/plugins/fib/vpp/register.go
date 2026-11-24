@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
 	vppevents "github.com/ze-software/ze/internal/core/vpp/events"
@@ -214,7 +215,8 @@ func runFibVPPPlugin(conn net.Conn) int {
 			})
 			unsub1 := eb.Subscribe(vppevents.Namespace, vppevents.EventConnected, onVPPReady)
 			unsub2 := eb.Subscribe(vppevents.Namespace, vppevents.EventReconnected, onVPPReady)
-			vppUnsub = func() { unsub1(); unsub2() }
+			unsub3 := subscribeFibVPPWriterStopped(eb, &fibMu, &fib)
+			vppUnsub = func() { unsub1(); unsub2(); unsub3() }
 		}
 
 		restart()
@@ -394,6 +396,35 @@ func subscribeFibVPPLabels(eb ze.EventBus, mu *sync.Mutex, current **fibVPP, unr
 		}
 		if batch.Acknowledge != nil {
 			batch.Acknowledge(noLabelWriterError(unreachable()))
+		}
+	})
+}
+
+// subscribeFibVPPWriterStopped listens for (mpls-fib, writer-stopped) after a
+// reload stops another ProgramsFIB writer and emits one targeted
+// (mpls-fib, replay-request) with the current writer's token. It releases mu
+// before emitting because label sources answer synchronously via ApplyReplay on
+// the same goroutine, and does NOT re-run markStaleLabelsLocked. The caller
+// MUST unsubscribe when the plugin stops.
+func subscribeFibVPPWriterStopped(eb ze.EventBus, mu *sync.Mutex, current **fibVPP) func() {
+	return mplsfib.WriterStopped.Subscribe(eb, func() {
+		mu.Lock()
+		var token uint64
+		if f := *current; f != nil {
+			f.mu.RLock()
+			retired := f.retired
+			f.mu.RUnlock()
+			if !retired {
+				token = f.labelReplayToken
+			}
+		}
+		mu.Unlock()
+		if token == 0 {
+			return
+		}
+		if _, err := mplsfib.ReplayRequest.Emit(eb, &replay.Request{ReplayID: token}); err != nil {
+			logger().Warn("fib-vpp: mpls-fib post-stop replay-request emit failed", "error", err,
+				"code", mplsfib.CodeDoctorNoWriter)
 		}
 	})
 }

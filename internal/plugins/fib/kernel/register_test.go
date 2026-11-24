@@ -4,6 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // VALIDATES: preservesForwardingState, the answer this plugin gives the BGP
@@ -68,4 +73,17 @@ func TestPreservesForwardingState(t *testing.T) {
 // under, which configRoot "fib/kernel" spells as {"fib":{"kernel":{...}}}.
 func fibTree(body map[string]any) map[string]any {
 	return map[string]any{"fib": map[string]any{"kernel": body}}
+}
+
+// VALIDATES: spec-fib-dummy AC-21 -- fibKernelSends, carried by both the
+// registry registration and the Stage 1 runner, declares (mpls-fib,
+// replay-request) so fib-kernel can ask label sources to replay on open.
+// PREVENTS: fib-kernel emitting an undeclared replay-request message.
+func TestFIBKernelSendsDeclareLabelReplay(t *testing.T) {
+	want := rpc.MessageSendDecl{Message: mplsfibevents.Namespace + ":" + mplsfibevents.EventReplayRequest}
+	assert.Contains(t, fibKernelSends(), want)
+
+	reg := registry.Lookup(pluginName)
+	require.NotNil(t, reg, "fib-kernel must be registered by init()")
+	assert.Contains(t, reg.Sends, want)
 }

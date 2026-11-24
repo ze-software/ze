@@ -10,8 +10,10 @@
 // Unsupported backends reject entries through the synchronous acknowledgment.
 // The entry rules it shares with every other label writer come from
 // mplsfib.ValidateEntry; it adds only the private-table namespace its packet-mark
-// contexts use. fib-kernel never asks for a replay, so a batch answering another
-// writer's replay request is left alone, unprogrammed and unacknowledged.
+// contexts use. fib-kernel draws a targeted replay token on creation, asks the
+// label sources for a replay on open and after another FIB writer stops,
+// consumes batches tagged with its own token, and leaves batches tagged with
+// another writer's token alone, unprogrammed and unacknowledged.
 package fibkernel
 
 import (
@@ -24,7 +26,7 @@ import (
 )
 
 // mplsBackend programs AF_MPLS swap/pop entries (in-label keyed). Implemented by
-// the netlink backend on Linux; stubbed elsewhere.
+// the kernel backend on Linux; stubbed elsewhere.
 type mplsBackend interface {
 	// addMPLSSwap installs an AF_MPLS route: packets arriving with inLabel are
 	// forwarded to nextHop with outLabels imposed (a single-element stack is a
@@ -59,11 +61,11 @@ func (f *fibKernel) handleMPLSEntry(batch *mplsfibevents.EntryBatch) {
 	if batch == nil {
 		return
 	}
-	// A batch tagged with a replay token answers a request another writer
-	// made (fib-vpp on open). fib-kernel holds no token, so it neither
-	// re-installs entries it already holds nor acknowledges a batch it did
-	// not program: Apply's answer belongs to the writer that asked.
-	if !batch.Addresses(0) {
+	// A batch tagged with a replay token answers one writer's replay request.
+	// fib-kernel consumes batches tagged with its own token (live, broadcast,
+	// or its targeted replay) and leaves batches tagged with another writer's
+	// token alone: Apply's answer belongs to the writer that asked.
+	if !batch.Addresses(f.labelReplayToken) {
 		return
 	}
 	f.mu.Lock()

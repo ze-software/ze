@@ -132,10 +132,25 @@ func (s *Source) Stop() error {
 	return err
 }
 
+// liveApply applies a live (token 0) batch to every active label writer.
+func (s *Source) liveApply(entries []mplsfib.Entry) error {
+	return mplsfib.Apply(s.bus, entries)
+}
+
 // publishLocked withdraws obsolete label assignments before installing their
 // replacements. The snapshot describes only labels acknowledged by the native
 // FIB owner, never hypothetical SIDs attached to ordinary BGP sessions.
 func (s *Source) publishLocked() error {
+	return s.publishWithApplyLocked(s.liveApply)
+}
+
+// publishWithApplyLocked reconciles label assignments and emits the link-state
+// snapshot using applyFn for every mpls-fib batch. Live callers pass liveApply
+// (token 0); an unacquired ReplayLabels passes ApplyReplay tagged with the
+// asking writer's token so the cleanup and initial adds reach that writer
+// alone, never a displaced writer still subscribed during a reload window.
+// Caller holds s.mu.
+func (s *Source) publishWithApplyLocked(applyFn func([]mplsfib.Entry) error) error {
 	if s.retired {
 		// A successful bye may race the next producer's startup. The deferred
 		// stop must not reset labels that the new instance has since acquired.
@@ -146,7 +161,8 @@ func (s *Source) publishLocked() error {
 	// The native FIB owner outlives this source object. Reclaim its retained
 	// labels before any fresh assignment, including after an error exit.
 	if !s.acquired {
-		if err := mplsfib.RemoveLabelSource(s.bus, epeMPLSSource); err != nil {
+		cleanup := []mplsfib.Entry{{Action: mplsfib.ActionRemoveLabelSource, Source: epeMPLSSource}}
+		if err := applyFn(cleanup); err != nil {
 			s.recordUnacquiredLocked(desired, err)
 			snapshot := linkstateevents.Snapshot{Domain: linkstateevents.Domain{Protocol: linkstateevents.BGP, Instance: 1}, Generation: epeGeneration.Add(1)}
 			_, publishErr := epeSnapshots.Emit(s.bus, &snapshot)
@@ -159,7 +175,7 @@ func (s *Source) publishLocked() error {
 		if current, retained := desired[peer]; retained && current == label {
 			continue
 		}
-		if err := s.emitLabel(mplsfib.ActionRemove, label, peer); err != nil {
+		if err := s.emitLabelWith(applyFn, mplsfib.ActionRemove, label, peer); err != nil {
 			failures = append(failures, err)
 			continue
 		}
@@ -171,7 +187,13 @@ func (s *Source) publishLocked() error {
 	for peer, label := range s.installed {
 		occupied[label] = peer
 	}
-	for peer, label := range desired {
+	desiredPeers := make([]netip.Addr, 0, len(desired))
+	for peer := range desired {
+		desiredPeers = append(desiredPeers, peer)
+	}
+	slices.SortFunc(desiredPeers, netip.Addr.Compare)
+	for _, peer := range desiredPeers {
+		label := desired[peer]
 		// A failed removal still owns the old label. Do not lose that cleanup
 		// obligation by overwriting it with a successful replacement.
 		if _, installed := s.installed[peer]; installed {
@@ -181,7 +203,7 @@ func (s *Source) publishLocked() error {
 			failures = append(failures, fmt.Errorf("EPE label %d still belongs to peer %s", label, owner))
 			continue
 		}
-		if err := s.emitLabel(mplsfib.ActionAdd, label, peer); err != nil {
+		if err := s.emitLabelWith(applyFn, mplsfib.ActionAdd, label, peer); err != nil {
 			failures = append(failures, err)
 			continue
 		}
@@ -189,6 +211,15 @@ func (s *Source) publishLocked() error {
 		occupied[label] = peer
 	}
 	s.forgetSettledLocked(desired)
+	if err := s.emitSnapshotLocked(desired); err != nil {
+		failures = append(failures, err)
+	}
+	return errors.Join(failures...)
+}
+
+// emitSnapshotLocked builds and emits the link-state snapshot for every peer
+// whose desired label is currently recorded in s.installed. Caller holds s.mu.
+func (s *Source) emitSnapshotLocked(desired map[netip.Addr]uint32) error {
 	snapshot := linkstateevents.Snapshot{Domain: linkstateevents.Domain{Protocol: linkstateevents.BGP, Instance: 1}, Generation: epeGeneration.Add(1)}
 	peers := make([]netip.Addr, 0, len(desired))
 	for peer, label := range desired {
@@ -222,10 +253,7 @@ func (s *Source) publishLocked() error {
 			Attributes: []linkstateevents.TLV{{Type: 1101, Value: value}}})
 	}
 	_, err := epeSnapshots.Emit(s.bus, &snapshot)
-	if err != nil {
-		failures = append(failures, err)
-	}
-	return errors.Join(failures...)
+	return err
 }
 
 // desiredLocked answers the label each established, configured peer should
@@ -243,12 +271,16 @@ func (s *Source) desiredLocked() map[netip.Addr]uint32 {
 	return desired
 }
 
-// ReplayLabels answers a label writer's (mpls-fib, replay-request): it
-// re-applies every label EPE holds for a peer it still wants, tagged with the
-// request's token, so only the writer that asked consumes it. A writer opens
-// after EPE installed its labels (VPP connects late), or after it lost its FIB
-// (VPP restarted), and holds none of them until this answer. A label kept only
-// because its removal failed is not re-applied: EPE is retiring it.
+// ReplayLabels answers a label writer's (mpls-fib, replay-request), tagged
+// with the request's token so only the writer that asked consumes it. While
+// the source has not yet acquired its label space (for example on a box booted
+// with fib-dummy), it runs publishWithApplyLocked with ApplyReplay so the
+// acknowledged RemoveLabelSource cleanup runs first against the asking writer
+// alone and the wanted adds follow only once cleanup succeeds. Once acquired,
+// it re-applies every label desiredLocked wants (accepted and previously
+// refused alike), skipping peers awaiting removal and labels still occupied by
+// another peer's retained label, records newly installed labels in s.installed
+// and re-emits the link-state snapshot if any label became newly installed.
 //
 // It runs on the requesting writer's goroutine, synchronously, and takes
 // s.mu: the writer MUST NOT hold the lock its own (mpls-fib, entry) handler
@@ -265,11 +297,46 @@ func (s *Source) ReplayLabels(req *replay.Request) {
 	if s.retired {
 		return
 	}
+	if s.stopped {
+		return
+	}
+	replayApply := func(entries []mplsfib.Entry) error {
+		return mplsfib.ApplyReplay(s.bus, req.ReplayID, entries)
+	}
+	if !s.acquired {
+		if err := s.publishWithApplyLocked(replayApply); err != nil {
+			epeLogger.Warn("BGP EPE: the forwarding writer that asked for the PeerNode SID labels did not complete initial cleanup or installation, so labeled traffic to those peers is not forwarded; run `ze show doctor` to see why",
+				"error", err,
+				"code", mplsfib.CodeDoctorNoWriter)
+		}
+		return
+	}
 	desired := s.desiredLocked()
-	entries := make([]mplsfib.Entry, 0, len(s.installed))
+	occupied := make(map[uint32]netip.Addr, len(s.installed))
 	for peer, label := range s.installed {
-		if wanted, ok := desired[peer]; !ok || wanted != label {
-			continue
+		occupied[label] = peer
+	}
+	peers := make([]netip.Addr, 0, len(desired))
+	for peer := range desired {
+		peers = append(peers, peer)
+	}
+	slices.SortFunc(peers, netip.Addr.Compare)
+	entries := make([]mplsfib.Entry, 0, len(peers))
+	for _, peer := range peers {
+		label := desired[peer]
+		// A peer whose old label's removal failed still owns that label;
+		// wait for publishLocked to finish removing it before adding the new one.
+		if cur, exists := s.installed[peer]; exists {
+			if cur != label {
+				continue
+			}
+		}
+		// A label retained by another peer after a failed removal cannot be
+		// reassigned until that removal succeeds.
+		if owner, taken := occupied[label]; taken {
+			if owner != peer {
+				continue
+			}
 		}
 		entries = append(entries, mplsfib.Entry{Action: mplsfib.ActionAdd, Op: mplsfib.OpPop,
 			InLabel: label, NextHop: peer, Source: epeMPLSSource})
@@ -277,7 +344,7 @@ func (s *Source) ReplayLabels(req *replay.Request) {
 	if len(entries) == 0 {
 		return
 	}
-	if err := mplsfib.ApplyReplay(s.bus, req.ReplayID, entries); err != nil {
+	if err := replayApply(entries); err != nil {
 		// The writer answers one acknowledgement for the batch, so which
 		// labels it refused is unknown: each is recorded with the cause.
 		for i := range entries {
@@ -288,17 +355,35 @@ func (s *Source) ReplayLabels(req *replay.Request) {
 			"code", mplsfib.CodeDoctorNoWriter)
 		return
 	}
+	newlyInstalled := false
 	for i := range entries {
+		peer := entries[i].NextHop
+		label := entries[i].InLabel
+		cur, ok := s.installed[peer]
+		if !ok {
+			s.installed[peer] = label
+			newlyInstalled = true
+		} else if cur != label {
+			s.installed[peer] = label
+			newlyInstalled = true
+		}
 		s.refusals.Clear(&entries[i])
+	}
+	if newlyInstalled {
+		if err := s.emitSnapshotLocked(desired); err != nil {
+			epeLogger.Warn("BGP EPE: emitting the link-state snapshot after label replay failed",
+				"error", err,
+				"code", mplsfib.CodeDoctorNoWriter)
+		}
 	}
 }
 
-// emitLabel applies one PeerNode SID label change through the writer of the
-// selected data plane, and records or clears its refusal. Caller holds s.mu.
-func (s *Source) emitLabel(action mplsfib.Action, label uint32, peer netip.Addr) error {
+// emitLabelWith applies one PeerNode SID label change through applyFn, and
+// records or clears its refusal. Caller holds s.mu.
+func (s *Source) emitLabelWith(applyFn func([]mplsfib.Entry) error, action mplsfib.Action, label uint32, peer netip.Addr) error {
 	entries := []mplsfib.Entry{{Action: action, Op: mplsfib.OpPop,
 		InLabel: label, NextHop: peer, Source: epeMPLSSource}}
-	if err := mplsfib.Apply(s.bus, entries); err != nil {
+	if err := applyFn(entries); err != nil {
 		s.refusals.Record(&entries[0], err)
 		return fmt.Errorf("EPE label %d: %w", label, err)
 	}

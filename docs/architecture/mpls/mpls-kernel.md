@@ -12,11 +12,13 @@ system-RIB routes and native label-distribution entries have separate ownership.
 The writer of a data plane owns all of its forwarding state, labels included.
 LDP and RSVP-TE name no writer: each declares `Registration.NeedsDataPlane`,
 and the engine loads the writer of the data plane `interface { backend }`
-selects, `fib-kernel` for netlink and `fib-vpp` for VPP
-(`appendDataPlaneWriter`). Both writers subscribe to `(mpls-fib, entry)` and
-judge each entry with the one validation in `internal/core/mplsfib`
-(`ValidateEntry`, `ValidateOutLabels`). The VPP form is in "Label entries on
-VPP" below.
+selects, `fib-kernel` for `kernel` and `fib-vpp` for `vpp`
+(`appendDataPlaneWriter`). Both data-plane writers subscribe to
+`(mpls-fib, entry)` and judge each entry with the one validation in
+`internal/core/mplsfib` (`ValidateEntry`, `ValidateOutLabels`). `fib-dummy`
+subscribes too and refuses every entry addressed to it so no label source
+advertises a label nothing forwards, and each source's own doctor check reports
+the refusal. The VPP form is in "Label entries on VPP" below.
 
 <!-- source: internal/core/mplsfib/label.go -- the shared label validation -->
 <!-- source: internal/plugins/fib/kernel/mplsentry.go -- the transit swap and pop entry path -->
@@ -88,14 +90,21 @@ is a rejected kernel or VPP operation. Callers must not advertise forwarding
 that the writer refused.
 
 A writer that opens late holds none of the entries: VPP connects after LDP has
-already programmed its egress pops, or reconnects after losing its FIB. Such a
-writer emits `(mpls-fib, replay-request)` with a token from
+already programmed its egress pops or reconnects after losing its FIB, or a
+reload starts `fib-kernel` or `fib-dummy` while label sources already run. Such
+a writer emits `(mpls-fib, replay-request)` with a token from
 `mplsfib.NewReplayToken`, and LDP, RSVP-TE, OSPF Segment Routing and BGP EPE
-answer with `mplsfib.ApplyReplay`,
-re-applying every entry they want installed in a batch tagged with that token.
+answer with `mplsfib.ApplyReplay`, re-applying every entry they want installed
+in a batch tagged with that token (RSVP-TE wants no entry whose reservation it
+rejected and applies a refused one again at the reservation's next refresh).
 Only the writer that holds the token consumes and acknowledges a tagged batch
-(`EntryBatch.Addresses`); `fib-kernel` running beside it ignores the batch, so
-it never re-installs what it already holds.
+(`EntryBatch.Addresses`); any other writer ignores a batch tagged with another
+writer's token, so it never re-installs what it already holds. After a reload
+stops a displaced `ProgramsFIB` writer, `stopCollectedProcesses` emits
+`(mpls-fib, writer-stopped)`, and each remaining data-plane writer
+(`fib-kernel`, `fib-vpp`) emits one more targeted `(mpls-fib, replay-request)`
+with its own token so live adds that met the stopping writer's refusal during
+the reload window clear and settle.
 
 `mplsfib.RemoveLabelSource` retires the native owner's retained `AF_MPLS`
 swap/pop labels for one source. A replacement producer can use it even when its
@@ -390,7 +399,7 @@ forked:
 | Check | Answered by | Reports | Code |
 |-------|-------------|---------|------|
 | `ldp-label-entries` | LDP | each push or pop no writer carried out, with the writer's cause, until a later apply of the same FEC or in-label succeeds | `doctor-fib-mpls-no-writer` (error) |
-| `rsvp-te-label-entries` | RSVP-TE | each entry a writer's replay asked for again and did not install, which leaves an LSP RSVP-TE holds up with no forwarding under it | `doctor-fib-mpls-no-writer` (error) |
+| `rsvp-te-label-entries` | RSVP-TE | each entry a writer refused on apply or a replay did not restore, until a later apply of the same slot succeeds | `doctor-fib-mpls-no-writer` (error) |
 | `ospf-sr-label-entries` | OSPF | each Segment Routing push, swap or pop of any OSPFv2 instance or OSPFv3 family that no writer carried out: refused on apply, not installed by a replay, or unprogrammable because OSPF runs forked with no event bus | `doctor-fib-mpls-no-writer` (error) |
 | `bgp-epe-label-entries` | `bgp-epe` | each PeerNode SID label no writer installed, a removal no writer carried out, or a label a replay did not restore, until the data plane holds what EPE wants | `doctor-fib-mpls-no-writer` (error) |
 | `fib-vpp-label-entries` | `fib-vpp` | label entries installed without their path MTU | `doctor-fib-vpp-mpls-path-mtu` (warning) |
@@ -425,7 +434,7 @@ backend's whole-set `ReplaceMPLSInput`: the VPP backend creates table 0, reads
 the enabled set back with `MplsInterfaceDump`, enables only what VPP does not
 already report, and disables once an interface the set no longer names. The
 enable is reference-counted in VPP, which is why it is never sent twice. The
-netlink backend accepts the set and installs nothing, because the sysctl
+kernel backend accepts the set and installs nothing, because the sysctl
 already enables the kernel.
 
 <!-- source: internal/plugins/fib/vpp/mplsentry.go -- the VPP label consumer -->
@@ -443,7 +452,7 @@ reader up by that name, so the command names no FIB plugin:
 
 | Data plane | Reader | What it reads |
 |------------|--------|---------------|
-| `netlink` | `internal/component/mpls` | The kernel AF_MPLS table (swap, pop), and the IP routes with `rtm_protocol` 250 that carry an MPLS encap (push) |
+| `kernel` | `internal/component/mpls` | The kernel AF_MPLS table (swap, pop), and the IP routes with `rtm_protocol` 250 that carry an MPLS encap (push) |
 | `vpp` | `fib-vpp` | VPP MPLS table 0 (swap, pop), and every IP table's routes whose path carries a label stack (push) |
 
 The rows have the same shape on both data planes. Under VPP, one Ze entry is
