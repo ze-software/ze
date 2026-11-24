@@ -84,7 +84,7 @@ var actions = leaction.New(area,
 	leaction.Action{
 		Verb:    "carry",
 		Does:    doesRecord,
-		Summary: "carry Thomas's approval to a text that only writes in his own decisions",
+		Summary: "carry Thomas's approval when text adds only his decisions",
 		Why: "a change that only adds a verdict on a row of a page's Design decisions section, or follows a " +
 			"rename on a page a row quotes, is not put back to him: the judge approves the new text, this " +
 			"action proves nothing else changed against the text he approved, and anything else is refused " +
