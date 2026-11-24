@@ -1,0 +1,180 @@
+# Test: removed `session { next-hop }` is refused while export-chain next-hop
+# syntax (`next-hop:self`, `next-hop:unchanged`, `next-hop:auto`, and
+# `policy { modify { set { next-hop ... } } }`) validates cleanly and enforces
+# direction and deactivation rules.
+#
+# Question: does `ze config validate` reject removed `session { next-hop }`,
+# `inactive:next-hop:auto`, and import-side egress-only next-hop modes while
+# accepting built-in `next-hop:*` on export and explicit IPv6 `modify` on both
+# import and export?
+#
+# VALIDATES: AC-15, AC-16, AC-17 (spec-bgp-next-hop-auto-rewrites-for-ebgp).
+# PREVENTS: removed `session { next-hop }` silently parsing, `inactive:next-hop:auto`
+# bypassing trailing `next-hop:auto`, or egress-only next-hop modes leaking onto
+# import chains.
+
+stdin=valid:terminator=EOF_VALID
+policy {
+	modify nh-v6 {
+		set {
+			next-hop 2001:db8::1;
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn {
+			local 65000;
+		}
+	}
+	peer p-self {
+		connection {
+			remote { ip 192.0.2.1; }
+			local { ip 192.0.2.254; }
+		}
+		session {
+			asn { remote 65000; }
+		}
+		filter {
+			import { filters [ modify:nh-v6 ]; final accept; }
+			export { filters [ next-hop:self ]; final accept; }
+		}
+	}
+	peer p-unchanged {
+		connection {
+			remote { ip 192.0.2.2; }
+			local { ip 192.0.2.254; }
+		}
+		session {
+			asn { remote 65001; }
+		}
+		filter {
+			export { filters [ next-hop:unchanged ]; final accept; }
+		}
+	}
+	peer p-auto {
+		connection {
+			remote { ip 192.0.2.3; }
+			local { ip 192.0.2.254; }
+		}
+		session {
+			asn { remote 65002; }
+		}
+		filter {
+			export { filters [ next-hop:auto ]; final accept; }
+		}
+	}
+	peer p-mod-export {
+		connection {
+			remote { ip 192.0.2.4; }
+			local { ip 192.0.2.254; }
+		}
+		session {
+			asn { remote 65003; }
+		}
+		filter {
+			export { filters [ modify:nh-v6 ]; final accept; }
+		}
+	}
+}
+EOF_VALID
+
+stdin=removed-session-nexthop:terminator=EOF_REMOVED
+bgp {
+	router-id 192.0.2.254;
+	peer p1 {
+		connection {
+			remote { ip 192.0.2.1; }
+			local { ip 192.0.2.254; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			next-hop self;
+		}
+	}
+}
+EOF_REMOVED
+
+stdin=inactive-auto:terminator=EOF_INACTIVE_AUTO
+bgp {
+	router-id 192.0.2.254;
+	peer p1 {
+		connection {
+			remote { ip 192.0.2.1; }
+			local { ip 192.0.2.254; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+		}
+		filter {
+			export { filters [ inactive:next-hop:auto ]; final accept; }
+		}
+	}
+}
+EOF_INACTIVE_AUTO
+
+stdin=import-builtin-self:terminator=EOF_IMPORT_BUILTIN
+bgp {
+	router-id 192.0.2.254;
+	peer p1 {
+		connection {
+			remote { ip 192.0.2.1; }
+			local { ip 192.0.2.254; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+		}
+		filter {
+			import { filters [ next-hop:self ]; final accept; }
+		}
+	}
+}
+EOF_IMPORT_BUILTIN
+
+stdin=import-modify-self:terminator=EOF_IMPORT_MODIFY
+policy {
+	modify nh-self {
+		set {
+			next-hop self;
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	peer p1 {
+		connection {
+			remote { ip 192.0.2.1; }
+			local { ip 192.0.2.254; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+		}
+		filter {
+			import { filters [ modify:nh-self ]; final accept; }
+		}
+	}
+}
+EOF_IMPORT_MODIFY
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=removed-session-nexthop:exit=1
+expect=exit:code=1
+expect=stdout:contains=next-hop:self
+expect=stdout:contains=next-hop:unchanged
+expect=stdout:contains=policy { modify
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=inactive-auto:exit=1
+expect=exit:code=1
+expect=stdout:contains=next-hop:unchanged
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=import-builtin-self:exit=1
+expect=exit:code=1
+expect=stdout:contains=export chains only
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=import-modify-self:exit=1
+expect=exit:code=1
+expect=stdout:contains=egress-only

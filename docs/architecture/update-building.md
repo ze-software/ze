@@ -322,7 +322,7 @@ roles and wire forms, not next-hop-entity adjacency.
 An effective 16-octet speaker-owned IPv6 global also receives the configured
 speaker Link-Local when one connected prefix contains that global and the
 recipient. This happens after policy on both rails, including raw export
-fallback under `next-hop auto` or `unchanged`. It uses the existing immutable
+fallback under `next-hop:auto` or `next-hop:unchanged`. It uses the existing immutable
 ownership snapshot and accumulator storage, without rerunning policy.
 An effective 16-octet global that names another router on that same connected
 prefix receives that router's own Link-Local, as the kernel neighbor table
@@ -372,7 +372,7 @@ octets. VPN-IPv4 and LS-VPN have such profiles.
 <!-- source: internal/core/bgp/attribute/mpnlri.go -- MPReachNLRI.WriteTo, MPNextHopProfile -->
 <!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- init -->
 
-Under `next-hop self` or an explicit next hop, the forwarding rails select RD
+Under export-chain `next-hop:self` or an explicit `policy { modify }` next hop, the forwarding rails select RD
 framing from the family's profile. SAFI 128 uses 24 octets (zero RD, global),
 or 48 when the VPN-IPv6 link-local decision holds, which the
 facts snapshot records apart from the RFC 2545 one (`nhVPNLinkLocal`); 12 octets (zero RD,
@@ -398,7 +398,7 @@ link-local in `LabeledUnicastParams.LinkLocalNextHop`, and
 <!-- source: internal/component/bgp/config/neighbor_table_doctor.go -- checkBGPNeighborTable -->
 <!-- source: internal/core/network/neighbors.go -- NewNeighborLinkLocals, ReadNeighbors -->
 <!-- test: internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go TestRFC2545ThirdPartyLinkLocalAnnounce -->
-<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop, precomputeVPNNextHop -->
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyNextHopWireForBase, precomputeVPNNextHop -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler, familyAdmitsNextHopOctets -->
 <!-- source: internal/component/bgp/message/update_build_labeled.go -- buildMPReachLabeledUnicast -->
 <!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- normalizeOrdinaryNextHop -->
@@ -516,17 +516,19 @@ forward rails too. When the destination peer leaves
 `precomputeRedirectNextHop` strips the next hop to length zero per RFC 8955
 Section 4. When the destination peer sets `flowspec-redirect-next-hop true`,
 and the route's EXTENDED_COMMUNITIES carry 0x0800 with a 4- or 16-octet
-MP_REACH next hop, each destination's decision is computed once per facts
-snapshot:
+MP_REACH next hop, the redirect next-hop follows the export filter chain's
+resolved `policychain.NextHopIntent` (precomputed once per facts snapshot by
+`precomputeRedirectNextHop` as a static fast path when the export chain selects
+an unconditional next-hop mode with no conditional filters):
 
 | Destination | Next hop sent |
 |-------------|---------------|
-| IBGP, next hop auto or unchanged | the received address |
-| EBGP, next hop auto | this speaker's address (connected endpoint, else `local ip`), per draft-simpson-idr-flowspec-redirect-02 Section 3 "SHOULD be reset to an address of the advertising router by default" |
-| EBGP, next hop unchanged | the received address, the draft's "MAY be configured to keep the next-hop unchanged" |
-| Next hop self or explicit | that address |
-| Route-server client, next hop auto | the received address, RFC 7947 Section 2.2.1 |
-| Not sent extended communities, or EBGP auto with no own address | zero length: no redirect action reaches it |
+| IBGP, `next-hop:auto` or `next-hop:unchanged` | the received address |
+| EBGP, `next-hop:auto` | this speaker's address (connected endpoint, else `local ip`), per draft-simpson-idr-flowspec-redirect-02 Section 3 "SHOULD be reset to an address of the advertising router by default" |
+| EBGP, `next-hop:unchanged` | the received address, the draft's "MAY be configured to keep the next-hop unchanged" |
+| Export chain `next-hop:self` or explicit `policy { modify }` address | that address |
+| Route-server client, `next-hop:auto` | the received address, RFC 7947 Section 2.2.1 |
+| Not sent extended communities, or EBGP `next-hop:auto` with no own address | zero length: no redirect action reaches it |
 | An egress operation takes every 0x0800 community off (a community strip, a replacement, a suppression) | zero length: RFC 8955 Section 4 holds for a route that leaves without the action |
 | The address about to be sent is the destination's own | the rule is withheld, the RFC 4271 Section 5.1.3 peer-own gate |
 

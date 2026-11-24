@@ -90,9 +90,24 @@ plugin {
 	internal adj-rib-in {
 		use bgp-adj-rib-in
 	}
+	internal bgp-filter-modify {
+		use bgp-filter-modify
+	}
 	external shutdown-after-up {
 		run "le test fixture plugin/modify-accumulator-per-peer-isolation"
 		encoder json
+	}
+}
+policy {
+	modify nh-client-a {
+		set {
+			next-hop 192.0.2.22
+		}
+	}
+	modify nh-client-b {
+		set {
+			next-hop 192.0.2.33
+		}
 	}
 }
 bgp {
@@ -159,14 +174,16 @@ bgp {
 			}
 			router-id 1.2.3.4
 			rs-client true
-			# Modification set A.
-			next-hop 192.0.2.22
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability {
 				graceful-restart disable
 			}
+		}
+		# Modification set A.
+		filter {
+			export { filters [ modify:nh-client-a ]; final accept; }
 		}
 		behavior {
 			group-updates disable
@@ -199,15 +216,17 @@ bgp {
 			}
 			router-id 1.2.3.4
 			rs-client true
-			# Modification set B: same KIND of operation as A, different value, so
-			# a leak shows up as the wrong address rather than a missing attribute.
-			next-hop 192.0.2.33
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability {
 				graceful-restart disable
 			}
+		}
+		# Modification set B: same KIND of operation as A, different value, so
+		# a leak shows up as the wrong address rather than a missing attribute.
+		filter {
+			export { filters [ modify:nh-client-b ]; final accept; }
 		}
 		behavior {
 			group-updates disable
@@ -240,15 +259,17 @@ bgp {
 			}
 			router-id 1.2.3.4
 			rs-client true
-			# Modification set C: EMPTY. `unchanged` maps to nhModeNone, so no
-			# accumulator operation is produced and the route is forwarded verbatim.
-			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability {
 				graceful-restart disable
 			}
+		}
+		# Modification set C: EMPTY. `next-hop:unchanged` produces no
+		# accumulator operation and the route is forwarded verbatim.
+		filter {
+			export { filters [ next-hop:unchanged ]; final accept; }
 		}
 		behavior {
 			group-updates disable

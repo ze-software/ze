@@ -1707,16 +1707,39 @@ config at bgp/group/peer levels. Every present direction requires a final.
 
 ```
 Ingress:  Wire → Loop detection (engine) → Default filters → Policy chain (user) → Cache
-Egress:   Cache → Default filters → Policy chain (user) → Wire (per-peer)
+Egress:   Cache → Default filters → Policy chain (user) → Built-in next-hop:* (engine) → Wire (per-peer)
 ```
 
 The ingress pass runs as a single stage-ordered pipeline: the engine's loop
 step and the per-peer policy chain are sorted by declared Stage, with the
 policy chain bound at the terminal `filterapi.FilterStagePeerChain`, so
 "Policy chain (user)" above is an ordering property rather than a separate
-hardcoded code block. The egress pass in `forwardUpdateCore` holds the export
-policy chain alone: the engine owns no egress step, and every egress procedure
-is a member of that chain.
+hardcoded code block. The egress pass in `forwardUpdateCore` runs the export
+policy chain, which also carries the BGP engine's built-in next-hop steps
+(`next-hop:self`, `next-hop:unchanged`, and `next-hop:auto`) compiled directly
+into `policychain.Chain` (parallel to `loop-detection`, zero RPC, no
+`pkg/plugin/rpc.FilterInsertion` tail extension).
+
+Config loading (`appendDefaultExportFilters`) appends built-in `next-hop:auto`
+at the tail of every export chain unless an unconditional `next-hop:self`,
+`next-hop:unchanged`, or `next-hop:auto` is already present, using
+`Policy.Append` so `Policy.Configured()` stays false when no operator export
+policy was written (preserving RFC 8212 default-deny on eBGP). Operators
+override the default explicitly with `next-hop:unchanged`; `inactive:next-hop:auto`
+is refused at config load. Within an export chain, `Sets.NextHop` /
+`Sets.NextHopMode` (`policychain.NextHopIntent`) accept `self`, `unchanged`,
+`auto`, IPv4, and global IPv6 addresses (validated via
+`attribute.ValidateGlobalNextHop`), with last-write-wins folding for explicit
+sets and fill-if-unset folding (`foldNextHopIntent`) for the auto-appended
+trailing `next-hop:auto`. Egress-only modes (`self`, `unchanged`, `auto`) —
+both built-in `next-hop:*` refs and inside `policy { modify }` — are refused on
+import chains at config load. Trailing `next-hop:auto` applies only to
+forwarded routes (preserving locally originated next hops), whereas explicit
+export-chain next-hop actions apply uniformly to forwarded and originated
+routes.
+<!-- source: internal/component/bgp/policychain/nexthop.go -- BuiltinNextHopMode, NextHopIntent, foldNextHopIntent -->
+<!-- source: internal/component/bgp/config/peers.go -- appendDefaultExportFilters, validateBuiltinNextHopRef, checkImportModifyNextHop -->
+<!-- source: internal/component/bgp/filterapi/policy.go -- ImpliedFilter, Policy.Append, Policy.Implied -->
 
 The shared `runLibraryChain` result boundary also restricts modifications of
 an original input carrying valid ATOMIC_AGGREGATE. Accepting raw and typed
@@ -1807,8 +1830,16 @@ import needs no route kind.
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, Policy.AcceptsExportAtEnd, UnconfiguredAccepts, Policy.InProcess, Policy.WithBoundFilters -->
 <!-- source: internal/component/bgp/filterapi/export_kind.go -- ExportKind, ExportKind.Known, UnconfiguredExportAccepts -->
 
-**Auto-inserted members.** A plugin can ask the config loader to insert a
-member into the list of each peer whose config needs it, in a daemon that
+**Auto-inserted members and the implied-filter seam.** Every automatic
+filter-chain member Ze inserts — built-in `loop-detection` at the import head,
+built-in `next-hop:auto` at the export tail (`appendDefaultExportFilters`), and
+plugin-declared `FilterInsertions` (`insertDeclaredFilters`) — is recorded on
+`filterapi.Policy` as a `filterapi.ImpliedFilter` (carrying direction, position
+`head` or `tail`, reference, and `implied-by` reason) so `| implied`
+(`spec-bus-2`) displays every extra chain member alongside the operator's
+written filter list without hardcoding BGP names, while `show bgp peer` displays
+the effective `export-policy` filter list including `next-hop:auto`. A plugin can ask the config
+loader to insert a member into the list of each peer whose config needs it, in a daemon that
 runs the plugin (`registry.LoadedPlugins`): its Stage 1
 registration carries `filter-insertions` (`rpc.FilterInsertion`: the
 reference it serves, `import` or `export`, a priority 0-9999, one condition,
@@ -1828,9 +1859,10 @@ non-required member the operator names (plainly, to place it, or
 detection already follows. A required one named in any form is refused with
 the plugin's reason, naming the peer and the list. An inserted member never
 configures the operator's policy: a peer whose list holds only inserted
-members keeps the RFC 8212 Section 3 default, because its library chain is
-compiled with no final and the current run's session and export kind decide
-the end (`policychain.CompileUnconfigured`, `Session.UnconfiguredAccepts`).
+members (including trailing `next-hop:auto`) keeps the RFC 8212 Section 3
+default, because its library chain is compiled with no final and the current
+run's session and export kind decide the end (`policychain.CompileUnconfigured`,
+`Session.UnconfiguredAccepts`).
 This inactive intent stays in the internal running-map projection through
 boot, reload and compensation. Every later Stage 1 declaration rebuild uses
 that current map; it neither treats a missing active reference as permission

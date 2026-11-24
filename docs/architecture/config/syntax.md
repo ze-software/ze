@@ -1380,12 +1380,15 @@ an ineligible local address or port cannot create, count or reuse that group's m
 <!-- source: internal/component/bgp/reactor/reactor_connection.go -- handleConnection, handleConnectionWithContext -->
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- containsAddr, findDynamicGroupEligible, tryCreateDynamicPeerAt, buildDynamicPeerSettings -->
 
-`next-hop self` uses the connected local endpoint. A link-local-only next hop
-still requires negotiated capability 77 and the route's permitted next-hop
-encoding. Configuring a link-local TCP endpoint does not change these rules or
-permit a link-local address as an explicit global next hop.
+Export-chain `next-hop:self` (and route-origination `next-hop self`) uses the
+connected local endpoint. A link-local-only next hop still requires negotiated
+capability 77 and the route's permitted next-hop encoding. Configuring a
+link-local TCP endpoint does not change these rules or permit a link-local
+address as an explicit global next hop. Egress next-hop rewriting belongs
+exclusively in `filter { export { ... } }`; `session { next-hop }` is not a
+valid leaf.
 <!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, linkLocalOnlyNextHopRefused -->
-<!-- source: internal/component/bgp/reactor/config_nexthop_form.go -- applyNextHopMode -->
+<!-- source: internal/component/bgp/policychain/nexthop.go -- BuiltinNextHopMode, validateExplicitNextHop -->
 
 ### session (BGP protocol)
 
@@ -1791,11 +1794,13 @@ reference must be deactivated where it was written, not at the affected peer.
 This keeps the inactive member, other references, and the direction's final.
 <!-- source: internal/component/bgp/config/peers.go -- validateExportPolicyReferences -->
 
-One filter is injected rather than written: `prependDefaultFilters`
-(`internal/component/bgp/config/peers.go`) puts each `loop-detection` entry
-defined under the top-level `policy` block at the head of every peer's import chain. An operator
-suppresses that injection by naming the entry in the chain, and deactivating a
-named member turns the filter off for that peer:
+Two built-in filters are inserted automatically rather than written:
+
+1. **Import head (`loop-detection`)**: `prependDefaultFilters`
+   (`internal/component/bgp/config/peers.go`) puts each `loop-detection` entry
+   defined under the top-level `policy` block at the head of every peer's import
+   chain. An operator suppresses that injection by naming the entry in the
+   chain, and deactivating a named member turns the filter off for that peer:
 
 ```
 filter {
@@ -1807,18 +1812,38 @@ filter {
 }
 ```
 
-A deactivated member stays in the chain and never executes. It is how an
-operator records a decision to run a session without a check, and the config
-layer reads it as a decision rather than as an absence: `filterChainContains`
-counts it.
+   A deactivated member stays in the chain and never executes. It is how an
+   operator records a decision to run a session without a check, and the config
+   layer reads it as a decision rather than as an absence: `filterChainContains`
+   counts it.
+
+2. **Export tail (`next-hop:auto`)**: `appendDefaultExportFilters`
+   (`internal/component/bgp/config/peers.go`) appends the built-in
+   `next-hop:auto` step at the tail of every peer and dynamic-group export chain
+   unless an unconditional `next-hop:self`, `next-hop:unchanged`, or
+   `next-hop:auto` is already present. Using `Policy.Append` keeps
+   `Policy.Configured()` false when the operator wrote no export policy, so RFC
+   8212 default-deny on eBGP stays intact. To keep received next hops on eBGP,
+   write `next-hop:unchanged` explicitly; `inactive:next-hop:auto` is refused at
+   config load. Egress-only modes (`next-hop:self`, `next-hop:unchanged`,
+   `next-hop:auto`, and `policy { modify }` setting `self`/`unchanged`/`auto`)
+   are refused on import chains at config load.
+
+Every auto-inserted member — built-in `loop-detection` on import, trailing
+`next-hop:auto` on export, and plugin-declared `FilterInsertions` — is published
+through the shared `filterapi.ImpliedFilter` seam (`Policy.Implied`) carrying
+direction, position (`head`/`tail`), reference, and `implied-by` reason for
+`| implied` (`spec-bus-2`), while `show bgp peer` displays the effective
+`export-policy` filter list including `next-hop:auto`.
 
 There is no mandatory filter an operator cannot configure, and no `overrides`
 keyword. RFC 9234 Only-To-Customer marking is applied by the `bgp-role` plugin
 from the peer's `role` block, not by a filter named in a chain.
-Automatic loop references do not invent an operator policy or change an explicit
-final. Config and runtime carry a single validated policy value so references
-and disposition belong to the same generation.
-<!-- source: internal/component/bgp/filterapi/policy.go -- Policy, NewPolicy, InternalPolicy -->
+Automatic loop and trailing `next-hop:auto` references do not invent an operator
+policy or change an explicit final. Config and runtime carry a single validated
+policy value so references and disposition belong to the same generation.
+<!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters, appendDefaultExportFilters, validateBuiltinNextHopRef, checkImportModifyNextHop -->
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy, ImpliedFilter, Policy.Append, Policy.Implied, NewPolicy, InternalPolicy -->
 
 ### The upstream check a role inserts
 

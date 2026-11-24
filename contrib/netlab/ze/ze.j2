@@ -217,20 +217,6 @@ bgp {
 				remote {{ n.as }};
 			}
 			router-id {{ bgp.router_id }};
-{% if n.type == 'ibgp' and n.next_hop_self %}
-{#          netlab's next_hop_self carries 'ebgp' (rewrite only what eBGP taught
-            us) as well as true. Ze's `self` always rewrites, which is broader.
-            It is the same thing in a netlab lab: netlab builds a full iBGP mesh
-            and contrib/netlab/ze.yml declares no route-reflector support, so no
-            iBGP-learned route is ever re-advertised to another iBGP peer. #}
-			next-hop self;
-{% endif %}
-{% if n.type == 'ebgp' %}
-{#          RFC 4271 Section 5.1.3: Ze's default Auto rewrites a forwarded next
-            hop to its own address toward ordinary eBGP peers. Explicit Self
-            selects the same address and keeps the lab's intent visible. #}
-			next-hop self;
-{% endif %}
 			family {
 {% if n.activate.ipv4 is defined and n.activate.ipv4 %}
 				ipv4/unicast {
@@ -258,6 +244,15 @@ bgp {
 			}
 {% endif %}
 			export {
+{% if n.type == 'ibgp' and n.next_hop_self %}
+{#          netlab's next_hop_self carries 'ebgp' (rewrite only what eBGP taught
+            us) as well as true. Ze's `next-hop:self` always rewrites, which is
+            broader. It is the same thing in a netlab lab: netlab builds a full
+            iBGP mesh and contrib/netlab/ze.yml declares no route-reflector
+            support, so no iBGP-learned route is ever re-advertised to another
+            iBGP peer. #}
+				filters [ next-hop:self ];
+{% endif %}
 				final accept;
 			}
 		}

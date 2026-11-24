@@ -128,10 +128,12 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
-			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
+		}
+		filter {
+			export { filters [ next-hop:unchanged ]; final accept; }
 		}
 
 		role {

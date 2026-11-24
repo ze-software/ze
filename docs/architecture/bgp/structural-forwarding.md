@@ -708,8 +708,9 @@ grouping key, so a self route cannot borrow an explicit route's attributes.
 
 RFC 4271 Section 5.1.3: "A BGP speaker MUST be able to support the disabling
 advertisement of third party NEXT_HOP attributes in order to handle imperfectly
-bridged media." A peer's `next-hop self` is that disabling for the routes Ze
-forwards. Both forward rails, the general one and the route-server fast path,
+bridged media." A peer's export-chain `next-hop:self` (or `policy { modify }`
+`set { next-hop self; }`) is that disabling for the routes Ze forwards. Both
+forward rails, the general one and the route-server fast path,
 rewrite the next hop to the address the peer reaches Ze on: the local endpoint
 of the established session's TCP connection. That is the address the announce
 rail sends for a `next-hop self` route, so the rails agree. It is also the only
@@ -756,24 +757,47 @@ The draft's second condition is therefore a `{not-applicable}` row,
 `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15`.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopIsPeerOwn, originatedNextHopIsPeerOwn -->
 
-A relayed route under `next-hop auto` uses the same self address as explicit
-`next-hop self` toward an ordinary eBGP peer, on single-hop and multihop
+A relayed route's egress next-hop decision comes from the destination peer's
+export filter chain rather than a separate session leaf (`session { next-hop }`
+is removed). Operators write built-in `next-hop:self`, `next-hop:unchanged`, or
+`next-hop:auto` directly in `filter { export { filters [ ... ]; } }`, or use
+`policy { modify <name> { set { next-hop self | unchanged | auto | <ipv4/ipv6>; } } }`
+for conditional rules; when no unconditional built-in `next-hop:*` is present,
+config loading appends `next-hop:auto` at the tail of the export chain without
+marking the policy configured.
+
+Under `next-hop:auto`, a relayed route uses the same self address as explicit
+`next-hop:self` toward an ordinary eBGP peer, on single-hop and multihop
 sessions. The connected local endpoint takes precedence over the configured
 local address. If neither supplies a usable address, the announcement becomes
-a withdrawal; existing withdrawals in the same UPDATE still pass. Both relay
-paths read this decision from the destination's precomputed forwarding facts.
-Auto preserves the received next hop toward iBGP peers and route-server
-clients, subject to the wire-form checks below. Explicit `unchanged`, `self`,
-and address modes retain their configured behavior.
-<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
+a withdrawal; existing withdrawals in the same UPDATE still pass. `next-hop:auto`
+preserves the received next hop toward iBGP peers and route-server clients,
+subject to the wire-form checks below. Explicit `next-hop:unchanged`,
+`next-hop:self`, and explicit IPv4 or global IPv6 addresses in `policy { modify }`
+retain their configured behavior, with last-write-wins folding for explicit
+steps and fill-if-unset semantics for auto-appended trailing `next-hop:auto`.
 
-The `bgp-nexthop-auto-ebgp-frr` interop scenario omits the ordinary eBGP
-recipient's next-hop setting. FRR must select the forwarded route with Ze's
-connected address as its accessible next hop. Separate Unchanged eBGP and
-default iBGP recipients must retain the source's next hop.
+`peerForwardFacts` (`precomputeNextHop`) still precomputes the destination's
+zero-allocation self, RD-framed, and link-local wire buffers once per session
+snapshot, and retains a static fast path on both relay rails when the export
+chain resolves to a static peer-wide next-hop mode (`auto`, `self`, or
+`unchanged`) with no conditional filters. When conditional or modifying filters
+run, both relay paths materialize the export chain's folded
+`policychain.NextHopIntent` using those precomputed self buffers (for `self` or
+ordinary-eBGP `auto`) or the explicit IPv4/global-IPv6 address through
+`attribute.MPNextHopProfile`, then run the post-policy RFC 2545/4271 scope and
+withholding gates below.
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
+<!-- source: internal/component/bgp/policychain/nexthop.go -- NextHopIntent, foldNextHopIntent -->
+
+The `bgp-nexthop-auto-ebgp-frr` interop scenario omits any explicit next-hop
+member on the ordinary eBGP recipient, exercising auto-appended `next-hop:auto`.
+FRR must select the forwarded route with Ze's connected address as its
+accessible next hop. Separate `next-hop:unchanged` eBGP and default iBGP
+recipients must retain the source's next hop.
 <!-- source: internal/le/interoplab/bgp/check_nexthop_auto_ebgp.go -- checkNextHopAutoEBGP, requireNextHopAutoFRR -->
 
-A relayed route under `next-hop unchanged`, or under a preserving `auto`
+A relayed route under `next-hop:unchanged`, or under a preserving `next-hop:auto`
 destination, keeps its effective next hop only if its wire form is usable.
 For a 32-octet pair (or a 48-octet VPN-IPv6 pair), the first address must be
 IPv6 global unicast and the second must be
@@ -889,7 +913,8 @@ materializer inserts an unused NEXT_HOP attribute.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- payloadNextHop, effectiveNextHop -->
 <!-- test: internal/component/bgp/reactor/next_hop_classic_presence_test.go TestEffectiveNextHopClassicPresence, TestNextHopClassicPolicyRepairRecovery, TestNextHopClassicPolicyUsefulRepair -->
 
-For a configured IPv4 self or explicit rewrite, `applyFactsNextHop` obtains the
+For a configured IPv4 self or explicit rewrite, `applyEgressNextHopIntent` /
+`applyNextHopWireForBase` obtains the
 native candidate's width from the family's profile: four octets for a plain
 field, twelve when each address has an RD. A known length table that excludes
 that width requests the mapped IPv6 form; an empty table adds no width
@@ -900,7 +925,8 @@ same selected operation, borrowed from the immutable facts snapshot.
 IPv6 SR Policy permits native IPv4 independently of its NLRI AFI;
 IPv6-unicast NLRI retains its IPv6 encoding. Received or policy-written mapped
 fields keep their existing family admission checks.
-<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopIntent -->
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyNextHopWireForBase -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- familyAdmitsNextHopOctets -->
 <!-- test: internal/component/bgp/reactor/next_hop_auto_bgpls_test.go TestNextHopAutoBGPLSNativeIPv4 -->
 
@@ -909,7 +935,7 @@ link-local scope condition. LS-VPN selects its cached 48-octet pair only when
 the RFC 2545 joint-subnet decision selected the second address. VPN-IPv6 keeps
 its separate RFC 4659 peer-only decision. Both reuse the shared profile writer
 at snapshot construction; the forwarding path only selects an existing view.
-<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop, rdIPv6NextHop, precomputeVPNNextHop -->
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyNextHopWireForBase, rdIPv6NextHop, precomputeVPNNextHop -->
 <!-- test: internal/component/bgp/reactor/ls72_forward_framing_test.go TestNextHopAutoLSVPNFraming -->
 
 The mixed AIGP socket regression uses a genuine IPv6 self address for MP and an
@@ -947,10 +973,10 @@ the route and sent its withdrawal, whether this speaker wrote the next hop or
 relayed the received one: RFC 2545 Section 3 puts the Global address in the
 field, and the draft's Section 3 calls a Link-Local-only Next Hop "received
 without the Link-Local Next Hop Capability having been negotiated" "not
-conformant with [RFC2545]". A next-hop rewrite
-(`self`, a filter, or `auto` toward an ordinary eBGP peer) replaces the address
-before the question is asked. The resulting address must still pass the
-destination's next-hop checks.
+conformant with [RFC2545]". An export-chain next-hop rewrite
+(`next-hop:self`, a `policy { modify }` rule, or `next-hop:auto` toward an
+ordinary eBGP peer) replaces the address before the question is asked. The
+resulting address must still pass the destination's next-hop checks.
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLinkLocalOnlyOffLink -->
 

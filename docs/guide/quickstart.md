@@ -395,7 +395,7 @@ alias once with `sudo ifconfig lo0 alias 127.0.0.2`, which `./le setup install` 
 does. The refusal is `originatedNextHopIsPeerOwn`
 (`internal/component/bgp/reactor/forward_next_hop.go`), and `precomputeNextHop`
 (`internal/component/bgp/reactor/peer_forward_facts.go`) is what resolves
-`next-hop self` to the local address.
+self next-hop rewriting (`next-hop:self` / `next-hop:auto`) to the local address.
 
 The sink accepts whatever it is sent, so this demo works either way until you
 announce a route; the address split is what keeps it working when you do.

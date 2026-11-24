@@ -227,10 +227,11 @@ for AFI 1 / SAFI 1, with no NEXT_HOP attribute and an empty NLRI field
 
 The forward rails (general and route server) apply the same check to a received
 route. The next hop checked is the one about to be written: the received one
-when it passes along unchanged, or the one a next-hop mode or a filter sets.
-When a destination lacks the pair, the announcement is withheld from it and the
-withdrawals in the same UPDATE are still sent. A warning names the peer and the
-family.
+when it passes along unchanged, or the one the export filter chain selects
+(built-in `next-hop:auto`/`next-hop:self`/`next-hop:unchanged`, `policy { modify }`,
+or a raw export override). When a destination lacks the pair, the announcement
+is withheld from it and the withdrawals in the same UPDATE are still sent. A
+warning names the peer and the family.
 
 <!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, canUseNextHopFor, rfc8950Family -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- queuedNextHopPolicy -->

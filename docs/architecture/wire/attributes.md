@@ -858,9 +858,11 @@ the same propagation safeguard; that is not an SRv6 origination capability.
 When non-Service TLVs survive cleanup, the rebuilt Prefix-SID also keeps the
 received Partial bit. Service-only cleanup may remove the whole attribute.
 An MP carrier remains present when raw export policy temporarily leaves its
-next-hop field empty or undecodable. If a configured rewrite repairs that field
-before admission, the repaired address governs Service-TLV propagation; an
-unrelated legacy next hop or an unusable intermediate value cannot replace it.
+next-hop field empty or undecodable. Because `session { next-hop }` is removed
+and a raw export override that alters next-hop bytes is not rewritten by
+auto-appended trailing `next-hop:auto`, that field is judged as emitted unless
+an explicit export-chain next-hop rewrite runs; an unrelated legacy next hop or
+an unusable intermediate value cannot replace it.
 <!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- applyEgressPrefixSIDNextHop -->
 
 **A repeated single-occurrence TLV is discarded at ingest.** RFC 8669 Section 6

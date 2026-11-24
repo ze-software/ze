@@ -207,10 +207,12 @@ satisfy RFC 8212.
 <!-- source: contrib/netlab/ze/ze.j2 -- filter, attach process bgp-rib -->
 <!-- source: internal/component/bgp/plugins/rib/rib_dissemination.go -- disseminationDecls -->
 
-The template sets `next-hop self` toward external peers so they can use the
-advertising node as their next hop. It also sets `next-hop self` on internal
-sessions where the topology requests it.
-<!-- source: contrib/netlab/ze/ze.j2 -- next-hop self -->
+External peers rely on Ze's auto-appended trailing `next-hop:auto` export step,
+which rewrites forwarded next hops to the advertising node's connected address
+(RFC 4271 Section 5.1.3). On internal sessions where the topology requests
+`next_hop_self`, the template adds `filters [ next-hop:self ];` to the peer's
+`filter { export { ... } }` block.
+<!-- source: contrib/netlab/ze/ze.j2 -- next-hop:self -->
 
 The explicit `clab.node_config.initial` shell method runs Linux interface setup
 through `docker exec`. The Ze initial template marks successful completion for

@@ -50,7 +50,7 @@ bgp {
     # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
     filter {
         import { final accept; }
-        export { final accept; }
+        export { filters [ next-hop:unchanged ]; final accept; }
     }
     peer inject {
         connection {
@@ -61,7 +61,6 @@ bgp {
         session {
             asn { local 65001; remote 65004; }
             router-id 10.254.5.1;
-            next-hop unchanged;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
@@ -77,7 +76,6 @@ bgp {
         session {
             asn { local 65001; remote 65003; }
             router-id 10.254.5.1;
-            next-hop unchanged;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
@@ -123,7 +121,7 @@ bgp {
     # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
     filter {
         import { final accept; }
-        export { final accept; }
+        export { filters [ next-hop:unchanged ]; final accept; }
     }
     peer inject {
         connection {
@@ -134,7 +132,6 @@ bgp {
         session {
             asn { local 65001; remote 65004; }
             router-id 10.254.5.1;
-            next-hop unchanged;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
@@ -150,7 +147,6 @@ bgp {
         session {
             asn { local 65001; remote 65003; }
             router-id 10.254.5.1;
-            next-hop unchanged;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
@@ -196,7 +192,7 @@ bgp {
     # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
     filter {
         import { final accept; }
-        export { final accept; }
+        export { filters [ next-hop:unchanged ]; final accept; }
     }
     peer inject {
         connection {
@@ -207,7 +203,6 @@ bgp {
         session {
             asn { local 65001; remote 65004; }
             router-id 10.254.5.1;
-            next-hop unchanged;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
@@ -223,7 +218,6 @@ bgp {
         session {
             asn { local 65001; remote 65003; }
             router-id 10.254.5.1;
-            next-hop unchanged;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
@@ -269,7 +263,7 @@ bgp {
     # RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
     filter {
         import { final accept; }
-        export { final accept; }
+        export { filters [ next-hop:unchanged ]; final accept; }
     }
     peer inject {
         connection {
@@ -280,7 +274,6 @@ bgp {
         session {
             asn { local 65001; remote 65004; }
             router-id 10.254.5.1;
-            next-hop unchanged;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }
@@ -296,7 +289,6 @@ bgp {
         session {
             asn { local 65001; remote 65003; }
             router-id 10.254.5.1;
-            next-hop unchanged;
             family { ipv6/unicast { prefix { maximum 10000; } } }
         }
         behavior { rs-fast-path enable; }

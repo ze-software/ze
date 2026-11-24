@@ -72,13 +72,15 @@ bgp {
 			}
 			router-id 1.2.3.4
 			route-reflector-client true
-			next-hop self
 			family {
 				ipv6/unicast { prefix { maximum 10000; } }
 			}
 			capability {
 				graceful-restart disable
 			}
+		}
+		filter {
+			export { filters [ next-hop:self ]; final accept; }
 		}
 	}
 }

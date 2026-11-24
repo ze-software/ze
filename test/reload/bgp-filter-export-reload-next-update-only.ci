@@ -168,7 +168,6 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65002; }
-			next-hop unchanged
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -176,6 +175,10 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		filter {
+			export {
+				filters [ next-hop:unchanged ]
+				final accept
+			}
 			egress {
 				community {
 					tag [ TAG ]
@@ -251,7 +254,6 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65002; }
-			next-hop unchanged
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -259,6 +261,10 @@ bgp {
 			capability { graceful-restart disable; }
 		}
 		filter {
+			export {
+				filters [ next-hop:unchanged ]
+				final accept
+			}
 			egress {
 				community {
 					tag [ TAG ]

@@ -43,11 +43,18 @@ marks `ze:filter`; `route` carries no marker, so a filter chain cannot name a
 `policy route` entry.
 <!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
 
-The effective references are cumulative: automatic safety filters run first,
-followed by global, group, and peer references. The most-specific configured
-direction supplies its final decision; references inherited from less-specific
-levels are not replaced. Each configured direction must state its own final,
-even if it has no references. Use `insert` in the editor when order matters.
+The effective references are cumulative: automatic import safety filters
+(`loop-detection` and plugin-declared insertions) run first, followed by global,
+group, and peer references, and on export Ze appends built-in `next-hop:auto` at
+the tail unless an unconditional `next-hop:self`, `next-hop:unchanged`, or
+`next-hop:auto` is already present. All auto-inserted chain members (built-in
+steps and plugin insertions alike) are exposed through `Policy.Implied` for
+`| implied` (`spec-bus-2`), and `show bgp peer` shows the effective
+`export-policy` list including `next-hop:auto`.
+The most-specific configured direction supplies its final decision; references
+inherited from less-specific levels are not replaced. Each configured direction
+must state its own final, even if it has no references. Use `insert` in the
+editor when order matters.
 
 For example, `filter { import { filters [ name ]; final accept; } export {
 final reject; } }` runs `name` on import and rejects every export that reaches
@@ -55,10 +62,12 @@ the policy final. With no explicit policy at any level, EBGP rejects routes
 in that direction (RFC 8212 Section 3). On IBGP, ordinary selected output needs
 an export policy for a learned route. Explicit local announcements and routes
 sent through an attached route-server or reflector role keep their accepting
-default, including sessions using the migration AS. Automatic and inactive
-references do not count as an explicit policy. The engine records the output
-kind independently of source-peer facts or route metadata.
-<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
+default, including sessions using the migration AS. Automatic references
+(including trailing `next-hop:auto`) and inactive references do not count as an
+explicit policy. The engine records the output kind independently of source-peer
+facts or route metadata.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, Policy.Append, ImpliedFilter -->
+<!-- source: internal/component/bgp/config/peers.go -- appendDefaultExportFilters -->
 <!-- source: internal/component/bgp/filterapi/export_kind.go -- UnconfiguredExportAccepts -->
 <!-- source: internal/component/bgp/reactor/export_kind.go -- forwardSourceInfo.exportKind, fwdItem.exportKind -->
 
@@ -407,6 +416,55 @@ Use the [IRR filtering](irr-filtering.md) and [RPKI](rpki.md) guides for cache c
 Attribute modification belongs in an explicit export or import chain. Keep each named modifier narrow, then compose it with other filters. Typical operations include setting local preference or MED, changing next hop, and adding or removing communities.
 
 Inspect the live plugin documentation before using increment or decrement operations. Attribute ranges and missing-attribute behaviour are validated by the owning plugin.
+
+### Egress and ingress next-hop policy
+
+All BGP egress next-hop rewriting lives in the export filter chain (`session { next-hop }` is removed so there is only one place that modifies outbound routes). Two authoring forms drive the same `policychain.NextHopIntent`:
+
+1. **Built-in peer-wide references** (`next-hop:self`, `next-hop:unchanged`, `next-hop:auto`) written directly in an export `filters` list with no `modify` wrapper block and zero RPC overhead:
+
+```text
+bgp {
+    peer 198.51.100.2 {
+        session { asn { local 65000; remote 65000; } }
+        filter {
+            export { filters [ next-hop:self ]; final accept; }
+        }
+    }
+    peer 203.0.113.2 {
+        session { asn { local 65000; remote 65002; } }
+        filter {
+            export { filters [ next-hop:unchanged ]; final accept; }
+        }
+    }
+}
+```
+
+2. **Conditional or explicit `policy { modify }` rules**, accepting `self`, `unchanged`, `auto`, an IPv4 address, or a global IPv6 address (validated via `attribute.ValidateGlobalNextHop`):
+
+```text
+policy {
+    modify rtbh-v4 {
+        match { community [ 65000:666 ]; }
+        set { next-hop 192.0.2.66; }
+    }
+    modify rtbh-v6 {
+        match { community [ 65000:666 ]; }
+        set { next-hop 2001:db8::66; }
+    }
+}
+```
+
+Key rules:
+
+- **Auto-appended `next-hop:auto`:** When an export chain does not already contain an unconditional `next-hop:self`, `next-hop:unchanged`, or `next-hop:auto`, Ze appends `next-hop:auto` at the tail (`appendDefaultExportFilters`). On ordinary eBGP it rewrites to this speaker's session address (RFC 4271 Section 5.1.3); on iBGP and route-server clients it preserves the received next hop. Use `next-hop:unchanged` to keep third-party next hops on eBGP; `inactive:next-hop:auto` is refused at config load.
+- **Precedence:** Explicit next-hop actions use last-write-wins folding. The auto-appended trailing `next-hop:auto` fills only when no earlier member set a next hop, so a conditional `modify` (such as `rtbh-v4` above) wins for matching routes while unmatched routes on the same eBGP peer still rewrite to self.
+- **Raw override provenance:** When a raw full-UPDATE export filter returns replacement bytes, trailing `next-hop:auto` compares each emitted next-hop field (`NEXT_HOP` and `MP_REACH_NLRI`) against the received UPDATE (matching MED provenance). Trailing `auto` skips only fields whose next-hop bytes the raw override changed (or when an earlier member already selected `unchanged`, `self`, or an explicit address).
+- **Originated vs. forwarded routes:** Auto-appended trailing `next-hop:auto` applies only to forwarded routes, preserving explicit next hops on locally originated routes (static config routes, ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions (`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both forwarded and originated routes.
+- **Import-chain rules:** Explicit IPv4 and global IPv6 addresses in `policy { modify { set { next-hop <ip>; } } }` work on both import and export chains. Egress-only modes (`self`, `unchanged`, `auto`) — whether written as built-in `next-hop:*` refs or inside `policy { modify }` — are refused on import chains at config load.
+<!-- source: internal/component/bgp/policychain/nexthop.go -- BuiltinNextHopMode, NextHopIntent, foldNextHopIntent -->
+<!-- source: internal/component/bgp/config/peers.go -- appendDefaultExportFilters, validateBuiltinNextHopRef, checkImportModifyNextHop -->
+<!-- source: internal/component/bgp/plugins/filter_modify/config.go -- validateNextHop -->
 
 ## Well-known communities (RFC 1997)
 

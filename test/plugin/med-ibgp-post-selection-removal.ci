@@ -105,11 +105,10 @@ bgp {
             asn { local 65000; remote 65000; }
             family { ipv4/unicast { prefix { maximum 10000; } } }
             capability { graceful-restart disable; }
-            next-hop self;
         }
         behavior { group-updates disable; }
         filter {
-            export { filters [ raw-med-drop:drop-med-raw ]; final accept; }
+            export { filters [ next-hop:self raw-med-drop:drop-med-raw ]; final accept; }
         }
         attach process rs {
             receive [ update-received state open-received refresh ];

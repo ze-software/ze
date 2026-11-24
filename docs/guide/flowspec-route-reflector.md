@@ -51,7 +51,8 @@ set bgp peer mitigation-upstream session asn local 65000
 set bgp peer mitigation-upstream session asn remote 65000
 set bgp peer mitigation-upstream session route-reflector-client disable
 set bgp peer mitigation-upstream session cluster-id 10.0.0.1
-set bgp peer mitigation-upstream session next-hop unchanged
+set bgp peer mitigation-upstream filter export filters [ next-hop:unchanged ]
+set bgp peer mitigation-upstream filter export final accept
 set bgp peer mitigation-upstream session family ipv4/flow mode enable
 set bgp peer mitigation-upstream session family ipv4/flow prefix maximum 1000
 set bgp peer mitigation-upstream attach process bgp-rr receive [ update-received state open-received ]
@@ -64,7 +65,8 @@ set bgp peer edge-a session asn local 65000
 set bgp peer edge-a session asn remote 65000
 set bgp peer edge-a session route-reflector-client enable
 set bgp peer edge-a session cluster-id 10.0.0.1
-set bgp peer edge-a session next-hop unchanged
+set bgp peer edge-a filter export filters [ next-hop:unchanged ]
+set bgp peer edge-a filter export final accept
 set bgp peer edge-a session family ipv4/flow mode enable
 set bgp peer edge-a session family ipv4/flow prefix maximum 1000
 set bgp peer edge-a attach process bgp-rr receive [ update-received state open-received ]
@@ -77,7 +79,8 @@ set bgp peer edge-b session asn local 65000
 set bgp peer edge-b session asn remote 65000
 set bgp peer edge-b session route-reflector-client enable
 set bgp peer edge-b session cluster-id 10.0.0.1
-set bgp peer edge-b session next-hop unchanged
+set bgp peer edge-b filter export filters [ next-hop:unchanged ]
+set bgp peer edge-b filter export final accept
 set bgp peer edge-b session family ipv4/flow mode enable
 set bgp peer edge-b session family ipv4/flow prefix maximum 1000
 set bgp peer edge-b attach process bgp-rr receive [ update-received state open-received ]
@@ -104,7 +107,7 @@ What matters:
 | `attach process bgp-rr { receive [ update-received state open-received ]; send [ update ]; }` on each peer | Feeds the reflector what it declares it handles, and lets it reflect back. The received direction is not a preference: reflecting an UPDATE raises the sent event the reflection is waiting on, so a plain `update` deadlocks it. |
 | `family ipv4/flow` | Negotiates FlowSpec NLRI with the peer. |
 | `route-reflector-client enable` on edge clients | Routes from clients are reflected to all clients and non-clients. |
-| `next-hop unchanged` | Keeps the mitigation next-hop unchanged. Change this only when your design requires next-hop rewrite. |
+| `filter { export { filters [ next-hop:unchanged ]; final accept; } }` | Keeps the mitigation next-hop unchanged in the export filter chain. Change this only when your design requires a next-hop rewrite (for example `next-hop:self`). |
 | `cluster-id 10.0.0.1` | Uses a stable route reflector cluster ID. |
 
 The plugin dependency `bgp-adj-rib-in` is added by the plugin dependency resolver. There is no separate route-reflector config root.

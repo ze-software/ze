@@ -488,8 +488,10 @@ An internal peer normally receives the gateway; an external peer receives the
 connected session's local address. An IPv6 link-local gateway uses the session's
 local address for either peer type, because the gateway's interface scope does not
 identify a next hop on the BGP session. A gateway equal to the internal peer also
-uses the local address. The peer's configured `self`, `unchanged` or explicit
-next-hop setting overrides this default. The selected address must still meet
+uses the local address. Peer-wide `next-hop:unchanged` in the export chain
+preserves the gateway candidate, while explicit export-chain actions
+(`next-hop:self` or `policy { modify { set { next-hop ... } } }`) apply at
+`egressGate` and override this default. The selected address must still meet
 the wire-format and negotiated-capability checks. `next-hop <address>` remains
 an explicit announcement, and `next-hop self` always names the sending session.
 For IPv4 unicast, use `nlri` with the late-bound `default` and `self` policies:

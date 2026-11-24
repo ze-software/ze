@@ -861,7 +861,12 @@ The runtime uses the declaration to choose raw payload delivery, validate modify
 deltas against declared attributes, and pick fail-open or fail-closed behavior
 on filter RPC errors. Accept continues to the next filter. Exhaustion applies
 the policy final, including empty and inactive-only chains. A raw full-UPDATE
-rewrite stops later filters but still receives the final. Earlier reject,
+rewrite stops later filters and still receives the final; on export, the
+auto-appended trailing `next-hop:auto` step still runs on any next-hop field
+(attr 3 `NEXT_HOP` or `MP_REACH_NLRI`) whose emitted bytes match the received
+UPDATE when no earlier chain member already selected `unchanged`, `self`, or an
+explicit address (and skips any field whose next-hop bytes the raw override
+altered). Earlier reject,
 fail-closed error and teardown remain terminal. A final-only export change
 reconciles the affected route kinds on the current session. The ordinary owner
 reoffers current learned selections. If the local decision changes, it also
@@ -885,7 +890,10 @@ filter-definition changes do not generally re-evaluate existing routes.
 <!-- source: internal/component/bgp/server/export_policy_event.go -- OnPeerExportPolicy -->
 
 Operational `PeerInfo` carries `ImportPolicy` and `ExportPolicy` as optional
-`PolicyInfo` values rather than bare reference lists. Each carries `filters`
+`PolicyInfo` values rather than bare reference lists, and no longer carries
+separate `NextHopMode` or `NextHopAddress` fields (`session { next-hop }` is
+removed; the effective `ExportPolicy` carries `next-hop:auto`, `next-hop:self`,
+or `next-hop:unchanged`). Each carries `filters`
 (canonical reference strings) and an optional `final` (`accept` or `reject`).
 A configured policy, empty or not, reports its configured final. A direction
 with no operator policy reports the final the session applies: `reject` with
@@ -4242,7 +4250,7 @@ The interface and firewall components each register engine operations in their
 own namespace, so a plugin that owns kernel state reaches them over the direct
 path internal and over RPC forked. The kernel state they create is the
 interface component's and the firewall component's, never the plugin's: the
-plugin holds no netlink or nftables call. The owner of every device and table
+plugin holds no netlink call or nftables call. The owner of every device and table
 is the authenticated process name, never a name in the request.
 <!-- source: internal/component/iface/cmd/owned_devices.go -- init, ownedBridgesReplaceHandler -->
 <!-- source: internal/component/firewall/register_contribution.go -- init, tablesReplaceHandler -->

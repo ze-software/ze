@@ -89,6 +89,26 @@ A policy that rewrites the metric to the value it already held is
 indistinguishable on the wire from the propagation Section 5.1.4 forbids, and
 the MUST NOT decides that tie.
 
+### Raw-override next-hop provenance
+
+Auto-appended trailing `next-hop:auto` uses the same wire-byte provenance check
+when an export chain ends with a whole-payload raw override (`wireOverride`):
+
+- If an earlier chain member already selected an explicit next-hop intent
+  (`unchanged`, `self`, `auto`, or an explicit IPv4/IPv6 address), that folded
+  intent wins and trailing `next-hop:auto` stands aside.
+- Otherwise, Ze compares each emitted next-hop field (`NEXT_HOP` attr 3 and
+  `MP_REACH_NLRI` next-hop bytes) in the raw override against the received
+  forwarding baseline: a field whose emitted next-hop bytes differ from the
+  received bytes was deliberately rewritten by the raw filter and is kept
+  intact, while a field whose next-hop bytes match the received bytes still
+  receives trailing `next-hop:auto` (rewriting to self on ordinary eBGP).
+- Post-policy RFC 2545/4271 scope normalization and refusal gates
+  (`applyEgressNextHopScope`, `egressNextHopWithheld`) still inspect the final
+  emitted bytes.
+<!-- source: internal/component/bgp/policychain/nexthop.go -- NextHopIntent, foldNextHopIntent -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope, egressNextHopWithheld -->
+
 ## ATOMIC_AGGREGATE policy admission
 
 RFC 4271 Section 5.1.6 binds the marked received route even if a filter removes

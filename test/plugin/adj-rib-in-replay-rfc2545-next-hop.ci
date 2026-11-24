@@ -135,7 +135,7 @@ bgp {
 	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
 	filter {
 		import { final accept; }
-		export { final accept; }
+		export { filters [ next-hop:unchanged ]; final accept; }
 	}
 	peer source-peer {
 		connection {
@@ -153,7 +153,6 @@ bgp {
 				remote 65001
 			}
 			router-id 1.2.3.4
-			next-hop unchanged
 			family {
 				ipv6/unicast { prefix { maximum 10000; } }
 			}
@@ -193,7 +192,6 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
-			next-hop unchanged
 			family {
 				ipv6/unicast { prefix { maximum 10000; } }
 			}

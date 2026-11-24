@@ -149,12 +149,14 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
-			# The subject of this test. Every UPDATE relayed to this peer now has
-			# a NEXT_HOP operation recorded against it by applyFactsNextHop.
-			next-hop self;
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
+		}
+		# The subject of this test. Every UPDATE relayed to this peer now has
+		# a NEXT_HOP operation recorded against it by applyFactsNextHop.
+		filter {
+			export { filters [ next-hop:self ]; final accept; }
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]

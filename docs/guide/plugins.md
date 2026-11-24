@@ -677,9 +677,9 @@ address. A session whose events named it nothing is selected by no name.
 | Plugin | Description | Process Binding |
 |--------|-------------|-----------------|
 | `iface` | OS interface orchestration: loads backend, dispatches operations | -- (Bus events, no peer binding) |
-| `iface-netlink` | Netlink backend for iface: manage, monitor, bridge, sysctl, mirror | -- (registered as iface backend) |
+| `iface-netlink` | Kernel backend for iface: manage, monitor, bridge, sysctl, mirror | -- (registered as iface backend) |
 | `iface-dhcp` | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal | -- (Bus events) |
-| `iface-ra` | IPv6 Router Advertisement sender (RFC 4861): advertises prefixes, flags, and RDNSS resolvers (RFC 8106) on a LAN unit. Hosts autoconfigure addresses, learn a default router, and learn resolvers. Linux and netlink only. [Guide](configuration.md#ipv6-router-advertisements) | -- (Config-driven, raw ICMPv6 socket per unit) |
+| `iface-ra` | IPv6 Router Advertisement sender (RFC 4861): advertises prefixes, flags, and RDNSS resolvers (RFC 8106) on a LAN unit. Hosts autoconfigure addresses, learn a default router, and learn resolvers. Linux and kernel backend only. [Guide](configuration.md#ipv6-router-advertisements) | -- (Config-driven, raw ICMPv6 socket per unit) |
 | `rib` | System RIB: resolves authoritative routes and publishes forwarding changes | Internal or external; no peer binding |
 | `fib-kernel` | FIB kernel: programs OS routes from system RIB via netlink | -- (Bus events, no peer binding) |
 | `fib-p4` | FIB P4: programs P4 switch from system RIB via gRPC/P4Runtime (noop backend) | -- (Bus events, no peer binding) |
@@ -744,7 +744,7 @@ See [L2TP guide](l2tp.md) for configuration details.
 <!-- source: internal/component/l2tp/plugins/shaper/register.go -->
 
 The `iface` plugin defines a `Backend` interface and loads a backend by name (YANG
-`backend` leaf, default `netlink`). The `iface-netlink` backend handles all Linux
+`backend` leaf, default `kernel`). The `iface-netlink` backend handles all Linux
 interface operations. `iface-dhcp` is a separate plugin for DHCP client lifecycle.
 BGP reacts to address events by starting/stopping listeners. Uses a JunOS-style
 two-layer model: physical interfaces + logical units (VLANs).
@@ -1233,9 +1233,12 @@ only to the routes that meet it. The operations are:
 
 **Set** (absolute value): `set { local-preference 200; med 50; origin igp;
 next-hop 10.0.0.1; as-path-prepend 3; }`. Only present leaves are applied.
-`next-hop` writes the NEXT_HOP attribute, which carries an IPv4 address only,
-so an IPv6 address there is refused when the config loads. `as-path-prepend`
-takes 1 to 32.
+`next-hop` accepts `self`, `unchanged`, `auto`, an IPv4 address (attr 3
+NEXT_HOP), or a global IPv6 address (MP_REACH_NLRI via the family's
+`MPNextHopProfile`, validated via `attribute.ValidateGlobalNextHop`); link-local,
+unspecified, IPv6 loopback (`::1`), multicast, zoned, and IPv4-mapped IPv6
+addresses are refused at config load. Egress-only modes (`self`, `unchanged`,
+`auto`) are refused on import chains at config load. `as-path-prepend` takes 1 to 32.
 
 **Increment/Decrement** (relative adjustment): `increment { local-preference 50; }`
 or `decrement { med 30; }`. Supported attributes: local-preference, med, aigp.

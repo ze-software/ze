@@ -1030,7 +1030,7 @@ the value in the field's shape:
 | `med` | `remove` | `null`; honored on an import chain only (RFC 4271 Section 5.1.4), so on an export chain the route fails | `{"field":"med","action":"remove","value":null}` |
 | `aigp` | `set`, `increment`, `decrement` | a number from 0 to 4294967295; an increment or decrement of a route with no AIGP changes nothing | `{"field":"aigp","action":"increment","value":10}` |
 | `origin` | `set` | `"igp"`, `"egp"` or `"incomplete"` | `{"field":"origin","action":"set","value":"egp"}` |
-| `next-hop` | `set` | one IPv4 address | `{"field":"next-hop","action":"set","value":"192.0.2.1"}` |
+| `next-hop` | `set` | `"self"`, `"unchanged"`, `"auto"`, one IPv4 address, or one global IPv6 address (validated via `attribute.ValidateGlobalNextHop`); `"self"`, `"unchanged"`, and `"auto"` are egress-only and refused on an import chain | `{"field":"next-hop","action":"set","value":"192.0.2.1"}`, `{"field":"next-hop","action":"set","value":"2001:db8::1"}`, `{"field":"next-hop","action":"set","value":"self"}` |
 | `large-community` | `add`, `remove` | one large community string | `{"field":"large-community","action":"add","value":"65000:1:2"}` |
 | `extended-community` | `add`, `remove` | one extended community string, in the form the UPDATE event writes | `{"field":"extended-community","action":"add","value":"target:65000:100"}` |
 | `as-path` | `prepend` | a count of local AS copies, 1 to 32 | `{"field":"as-path","action":"prepend","value":2}` |

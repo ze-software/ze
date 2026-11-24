@@ -169,7 +169,6 @@ bgp {
 			}
 		}
 		session {
-			next-hop unchanged
 			asn {
 				local 65000
 				remote 65003
@@ -181,6 +180,9 @@ bgp {
 			capability {
 				graceful-restart disable
 			}
+		}
+		filter {
+			export { filters [ next-hop:unchanged ]; final accept; }
 		}
 		behavior {
 			group-updates disable

@@ -1,0 +1,123 @@
+# Question: on a real eBGP peer with a conditional export `policy { modify }`
+# setting an explicit next-hop, does the matching route carry the explicit
+# next-hop while an unmatched route on the same peer falls through to the
+# auto-appended trailing `next-hop:auto` and rewrites to Ze's local address?
+#
+# A unit test cannot prove that the running daemon's config loader, internal
+# `bgp-filter-modify` plugin, export policy chain, trailing fill-if-unset
+# `next-hop:auto`, and real socket writer are wired end to end.
+#
+# VALIDATES: AC-16, AC-18 (spec-bgp-next-hop-auto-rewrites-for-ebgp).
+# PREVENTS: trailing `next-hop:auto` overwriting a conditional `modify`
+# next-hop set on eBGP, or a conditional `modify` suppressing trailing
+# `next-hop:auto` on routes that do not match the condition.
+#
+# This portable loopback harness proves daemon wiring only: its synthetic 127/8
+# local address on the unmatched route is not evidence of a valid production
+# NEXT_HOP or acceptance by another router.
+
+option=env:var=ze.log.bgp.rs:value=info
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65001
+option=linger:value=true
+option=await-file:path=destination.up
+# Route 1 (matches community 65000:666): ORIGIN IGP; AS_PATH [65001];
+# NEXT_HOP 192.0.2.9; COMMUNITIES 65000:666; NLRI 10.88.1.0/24.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE9400304C0000209C00804FDE8029A180A5801
+# Route 2 (no community, unmatched): ORIGIN IGP; AS_PATH [65001];
+# NEXT_HOP 192.0.2.9; NLRI 10.88.2.0/24.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9400304C0000209180A5802
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SOURCE
+
+stdin=destination:terminator=EOF_DESTINATION
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65002
+option=linger:value=true
+option=established-file:path=destination.up
+# Route 1: conditional modify:bh matched 65000:666 -> NEXT_HOP 192.0.2.66 (C0000242)
+# wins over auto-appended trailing next-hop:auto; AS_PATH [65000,65001].
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE9400304C0000242C00804FDE8029A180A5801
+# Route 2: unmatched by modify:bh -> reaches trailing next-hop:auto on eBGP ->
+# NEXT_HOP rewritten to Ze's local endpoint 127.0.0.4 (7F000004); AS_PATH [65000,65001].
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE94003047F000004180A5802
+EOF_DESTINATION
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs { use bgp-rs; }
+	internal adj-rib-in { use bgp-adj-rib-in; }
+	internal bgp-filter-modify { use bgp-filter-modify; }
+}
+policy {
+	modify bh {
+		match {
+			community [ 65000:666 ];
+		}
+		set {
+			next-hop 192.0.2.66;
+		}
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.3; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+	peer destination {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.4; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		filter {
+			export { filters [ modify:bh ]; final accept; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=destination
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=30s
+# The runner waits for both lingering check peers' actual expectations before
+# stopping Ze. No observer may shut it down before the recipient sees both routes.
+await=stderr:contains=worker-queue-size applied:then=stop
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=send refused
+reject=stderr:pattern=forward-cached failed

@@ -1,0 +1,185 @@
+# Question: in a running Ze daemon forwarding BGP-LS VPN (AFI 16388 / SAFI 72)
+# routes under the export filter chain, does default trailing `next-hop:auto`
+# emit the 12-octet zero-RD + IPv4 next hop, does `policy { modify }` with a
+# global IPv6 address emit the 24-octet zero-RD + IPv6 next hop, and does
+# `next-hop:unchanged` preserve the received 12-octet field verbatim?
+#
+# A unit test cannot prove that the live daemon's config loader, autoloaded
+# `bgp-nlri-ls` next-hop profile registration, `bgp-filter-modify` plugin,
+# `bgp-rs` / `bgp-adj-rib-in` relay, export filter chain, and socket writer are
+# wired end to end over real TCP sessions.
+#
+# VALIDATES: AC-12 step 7 (spec-bgp-next-hop-auto-rewrites-for-ebgp),
+# RFC 9552 Section 5.5 (zero eight-octet RD prepended to LS-VPN next hop,
+# independent of the nonzero NLRI RD 65001:7).
+# PREVENTS: BGP-LS VPN losing its 8-octet zero-RD next-hop framing (emitting
+# naked 4- or 16-octet fields) or conflating the NLRI RD with the next-hop RD
+# across export-chain `next-hop:auto`, `modify`, and `next-hop:unchanged`.
+#
+# This portable loopback harness proves daemon wiring and wire framing only:
+# the synthetic 127.0.0.4 local endpoint on `dest-auto-v4` is not evidence of a
+# valid production NEXT_HOP or acceptance by another router (covered separately
+# by `bgpls-vpn-exabgp-single.ci`).
+
+option=env:var=ze.log.bgp.rs:value=info
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65001
+option=linger:value=true
+option=await-file:path=dest-auto-v4.up
+# ORIGIN IGP; AS_PATH [65001]; MP_REACH AFI 16388 / SAFI 72:
+#   NH len 12: [8x00 RD][192.0.2.9]
+#   NLRI (49B): Node NLRI (type 1, len 45) with nonzero NLRI RD 65001:7,
+#               OSPFv2, identifier 256, AS 65001, BGP-LS ID 0x12345678,
+#               Router ID 192.0.2.9.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006902000000524001010040020602010000FDE9800E424004480C0000000000000000C0000209000001002D0000FDE90000000703000000000000010001000018020000040000FDE9020100041234567802030004C0000209
+# End-of-RIB for bgp-ls/bgp-ls-vpn (AFI 16388 = 0x4004, SAFI 72 = 0x48).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003400448
+EOF_SOURCE
+
+stdin=dest-auto-v4:terminator=EOF_DEST_AUTO_V4
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65002
+option=linger:value=true
+option=established-file:path=dest-auto-v4.up
+# Ordinary eBGP with default trailing next-hop:auto:
+# MP_REACH NH len 12 = [8x00 RD][127.0.0.4] (emitted first per mp-nlri-ordering),
+# ORIGIN IGP, AS_PATH [65000,65001]; no legacy NEXT_HOP; exact 49B NLRI.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006D0200000056800E424004480C00000000000000007F000004000001002D0000FDE90000000703000000000000010001000018020000040000FDE9020100041234567802030004C00002094001010040020A02020000FDE80000FDE9
+EOF_DEST_AUTO_V4
+
+stdin=dest-modify-v6:terminator=EOF_DEST_MODIFY_V6
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65003
+option=linger:value=true
+# eBGP export chain [ modify:ls-nh6 ] setting explicit global IPv6 2001:db8::fe:
+# MP_REACH NH len 24 = [8x00 RD][2001:db8::fe], ORIGIN IGP, AS_PATH [65000,65001]; exact 49B NLRI.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00790200000062800E4E40044818000000000000000020010DB80000000000000000000000FE000001002D0000FDE90000000703000000000000010001000018020000040000FDE9020100041234567802030004C00002094001010040020A02020000FDE80000FDE9
+EOF_DEST_MODIFY_V6
+
+stdin=dest-unchanged:terminator=EOF_DEST_UNCHANGED
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=asn:value=65004
+option=linger:value=true
+# Preserving control via export chain [ next-hop:unchanged ]:
+# MP_REACH NH len 12 = [8x00 RD][192.0.2.9] preserved verbatim, ORIGIN IGP, AS_PATH [65000,65001].
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006D0200000056800E424004480C0000000000000000C0000209000001002D0000FDE90000000703000000000000010001000018020000040000FDE9020100041234567802030004C00002094001010040020A02020000FDE80000FDE9
+EOF_DEST_UNCHANGED
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs { use bgp-rs; }
+	internal adj-rib-in { use bgp-adj-rib-in; }
+	internal bgp-filter-modify { use bgp-filter-modify; }
+}
+policy {
+	modify ls-nh6 {
+		set {
+			next-hop 2001:db8::fe;
+		}
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.3; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { bgp-ls/bgp-ls-vpn { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+	peer dest-auto-v4 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.4; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4;
+			family { bgp-ls/bgp-ls-vpn { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+	peer dest-modify-v6 {
+		connection {
+			remote { ip 127.0.0.5; }
+			local { ip 127.0.0.6; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65003; }
+			router-id 1.2.3.4;
+			family { bgp-ls/bgp-ls-vpn { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		filter {
+			export { filters [ modify:ls-nh6 ]; final accept; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+	peer dest-unchanged {
+		connection {
+			remote { ip 127.0.0.7; }
+			local { ip 127.0.0.8; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65004; }
+			router-id 1.2.3.4;
+			family { bgp-ls/bgp-ls-vpn { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		filter {
+			export { filters [ next-hop:unchanged ]; final accept; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest-auto-v4
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=dest-modify-v6
+cmd=background:seq=4:exec=le test peer --bind 127.0.0.7 --port $PORT:stdin=dest-unchanged
+cmd=foreground:seq=5:exec=ze -:stdin=ze-bgp:timeout=30s
+# The runner waits for all four lingering check peers' exact wire expectations
+# before stopping Ze.
+await=stderr:contains=worker-queue-size applied:then=stop
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=send refused
+reject=stderr:pattern=forward-cached failed

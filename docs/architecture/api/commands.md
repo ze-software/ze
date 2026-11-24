@@ -1916,6 +1916,12 @@ object of a BGP event has `group` and no `description`.
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- Peers -->
 <!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- hotSwappableSettings -->
 
+`show bgp peer <selector> detail` reports the peer's effective `import-policy`
+and `export-policy` chains — including built-in `next-hop:auto`, `next-hop:self`,
+or `next-hop:unchanged` in `export-policy` — rather than a separate session
+`next-hop` field (`session { next-hop }` is removed).
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handleBgpPeerDetail -->
+
 `show bgp peer <selector> history` reads the peer's retained FSM transitions
 through the registered BGP adapter. Each row carries the source and destination
 states, plus the timestamp and reason when recorded.
@@ -2117,10 +2123,13 @@ every later withdrawal is written, whether or not the peer holds the route named
 An announcement can name an explicit next hop, `next-hop self`, or
 `next-hop default <gateway>`. The default form selects the address per peer;
 the [UPDATE syntax](update-syntax.md#path-attributes) defines its internal and
-external defaults and configured overrides. Cursor mode retains that policy
+external defaults and export-chain overrides. Cursor mode retains that policy
 alongside the candidate gateway until it is replaced or cleared. The candidate
 can be an IGP IPv6 link-local gateway; default selection then uses the session's
-local address unless a configured next-hop setting overrides it.
+local address unless the peer's export chain sets `next-hop:unchanged` to
+preserve the gateway candidate, while explicit export-chain actions
+(`next-hop:self` or `policy { modify { set { next-hop ... } } }`) apply at
+`egressGate`.
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- parseNhopFlat -->
 <!-- source: internal/component/bgp/plugins/cmd/update/cursor.go -- clearAttr -->
 <!-- source: internal/component/bgp/reactor/peer.go -- defaultOriginationNextHop -->

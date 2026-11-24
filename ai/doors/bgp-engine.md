@@ -66,11 +66,15 @@ with its page, and check the ExaBGP bridge in the same change.
 
   Never name a plugin package from the reactor.
 - **Every plugin filter is a policy-chain member, reached through
-  `filter-update` on both transports.** No compiled-in filter registry
-  exists: the reactor's own steps are loop detection and the per-peer chain
-  (`docs/architecture/core-design.md`, "All ingress filtering runs in one
-  stage-ordered pass"), and a procedure a plugin's config implies is a
-  declared filter insertion.
+  `filter-update` on both transports.** No compiled-in plugin filter registry
+  exists: the engine's own steps are `loop-detection` on ingress, the built-in
+  egress next-hop steps (`next-hop:self`, `next-hop:unchanged`, `next-hop:auto`)
+  compiled directly into `policychain.Chain` (zero RPC, parallel to
+  `loop-detection`), and the per-peer chain
+  (`docs/architecture/core-design.md`, "Policy Filter Chain"). A procedure a
+  plugin's config implies is a declared filter insertion, and every automatic
+  member (built-in engine steps and plugin insertions alike) is published
+  through `filterapi.ImpliedFilter`.
 - **Received bytes are borrowed.** A received UPDATE points into a reusable
   read buffer, so `RawMessage.IsAsyncSafe()` is false and anything that hands
   it to another goroutine copies first (`plan/learned/DESIGN-HISTORY.md`,

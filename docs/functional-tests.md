@@ -1407,7 +1407,7 @@ capability bits the probe tests.
 
 | Token | Capability | What needs it |
 |-------|-----------|---------------|
-| `net-admin` | CAP_NET_ADMIN | interfaces, netlink, nftables |
+| `net-admin` | CAP_NET_ADMIN | interfaces, netlink sockets, nftables |
 | `net-bind` | CAP_NET_BIND_SERVICE | binding a port below 1024, which `le mock dns` does on 53 |
 | `net-raw` | CAP_NET_RAW | raw and packet sockets (ping, traceroute) |
 | `bpf` | CAP_BPF | loading eBPF programs and creating maps |
@@ -1546,7 +1546,7 @@ peer <namespace> <script>` as each exits zero, fails on the first non-zero
 exit, fails when the command exits while a peer is still owed, and then stops
 the command. `test/plugin/linklocal-only-multihop-withdraw.ci` uses it: an
 injector in the router namespace, on Ze's link, relays a route twice through
-Ze (route server, `next-hop unchanged`) to a receiver in the far namespace,
+Ze (route server, `next-hop:unchanged` export policy) to a receiver in the far namespace,
 one router away; the receiver asserts the Global generation, then a withdrawal
 of the Link-Local-only one, then a control route
 (draft-ietf-idr-linklocal-capability Section 4).
@@ -1978,12 +1978,12 @@ count, and no code does that today.
 <!-- source: internal/test/cli/cmd_vpp.go -- the vpp suite's -p default of 1 -->
 <!-- source: internal/test/cli/cmd_mcp.go -- the MCP readiness deadline, scaled by ChildParallelFactor -->
 
-### Netns launch mode for netlink `.ci` suites (host-safe firewall/policy/OSPF)
+### Netns launch mode for kernel `.ci` suites (host-safe firewall/policy/OSPF)
 
-The netlink functional suites (`firewall`, `policy`, `ospf`, `ospfv3`, and any
+The kernel functional suites (`firewall`, `policy`, `ospf`, `ospfv3`, and any
 suite whose `ze` daemon needs `CAP_NET_ADMIN` for nft/FIB) carry
 `option=skip-os:value=darwin` and program real kernel state. Run unprivileged the
-nft backend hard-fails; run with caps in the host namespace they reprogram the
+kernel firewall backend hard-fails; run with caps in the host namespace they reprogram the
 operator's real firewall. An **opt-in per-test network-namespace launch mode**
 makes them runnable host-safely on Linux:
 
@@ -4992,7 +4992,7 @@ Additional dataplane integration packages:
 
 | File | Covers | Tests |
 |------|--------|-------|
-| `internal/plugins/fib/kernel/integration_linux_test.go` | FIB route add/remove/replace, restart sweep, producer protocol isolation, flush-on-stop, metric ranking against a competing owner. Each test reads the kernel's forwarding decision for a destination (`RTM_GETROUTE` with `RTM_F_FIB_MATCH`, as `ip route get fibmatch`) beside the netlink read-back, so a route the kernel holds but never selects fails | 9 tests |
+| `internal/plugins/fib/kernel/integration_linux_test.go` | FIB route add/remove/replace, restart sweep, producer protocol isolation, flush-on-stop, metric ranking against a competing owner. Each test reads the kernel's forwarding decision for a destination (`RTM_GETROUTE` with `RTM_F_FIB_MATCH`, as `ip route get fibmatch`) beside the netlink route read-back, so a route the kernel holds but never selects fails | 9 tests |
 | `internal/plugins/firewall/nft/integration_linux_test.go` | nft table ownership, same-instance cleanup, restart reapply preservation | 2 tests |
 | `internal/plugins/traffic/netlink/integration_linux_test.go` | real tc qdisc snapshot, persisted restore after backend restart | 1 test |
 | `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` | VLAN QoS wire-level: egress PCP on wire, ingress PCP classification, DSCP-to-PCP full chain | 3 tests |

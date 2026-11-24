@@ -189,7 +189,7 @@ used to add it whatever the UPDATE carried:
 | Rule | Producer | RFC |
 |------|----------|-----|
 | AS_PATH prepend to an external peer | `wireu.ASPathEdit.Record` | 4271 Section 5.1.2 |
-| next-hop rewrite (`next-hop self`, `next-hop <addr>`) | `applyFactsNextHop` | 4271 Section 5.1.3 |
+| next-hop rewrite (export-chain `next-hop:self`, eBGP `next-hop:auto`, or `policy { modify }`) | `applyEgressNextHopIntent` / `applyNextHopWireForBase` | 4271 Section 5.1.3 |
 | reflection attributes to an internal peer | `forwardUpdateCore`, `reactorForwardRS`, landing on `originatorIDHandler` and `clusterListHandler` | 4456 Section 8 |
 | egress community tag | `filter_community`'s egress step, landing on `genericCommunityHandler` | 7947 Section 2.3.2.2 |
 | a policy chain's sets on any code | `runIngressPolicyChainMeta` / `runEgressPolicyChain`, landing on `genericAttrSetHandler` | operator policy |

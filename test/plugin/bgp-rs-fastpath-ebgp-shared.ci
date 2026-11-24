@@ -156,14 +156,16 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
-			# Preserve the received NEXT_HOP bytes asserted by this test.
-			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability {
 				graceful-restart disable
 			}
+		}
+		# Preserve the received NEXT_HOP bytes asserted by this test.
+		filter {
+			export { filters [ next-hop:unchanged ]; final accept; }
 		}
 		behavior {
 			group-updates disable

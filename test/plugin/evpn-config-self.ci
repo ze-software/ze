@@ -35,8 +35,6 @@ bgp {
         session {
             asn { local 65000; remote 65000; }
             router-id 192.0.2.1
-            # Explicit route self overrides this unrelated export default.
-            next-hop 192.0.2.99
             family { l2vpn/evpn { prefix { maximum 10000; } } }
             capability { graceful-restart disable; }
         }

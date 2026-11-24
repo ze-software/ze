@@ -19,7 +19,7 @@ plugin {
 	}
 }
 bgp {
-	filter { import { final accept; } export { final accept; } }
+	filter { import { final accept; } export { filters [ next-hop:unchanged ]; final accept; } }
 	peer source-peer {
 		connection {
 			local { ip 127.0.0.1; port $PORT; }
@@ -28,7 +28,6 @@ bgp {
 		session {
 			asn { local 65000; remote 65001; }
 			router-id 1.2.3.4
-			next-hop unchanged
 			family { ipv4/unicast { prefix { maximum 10000; } } }
 		}
 		role { import provider; export customer; }
@@ -43,7 +42,6 @@ bgp {
 		session {
 			asn { local 65000; remote 65002; }
 			router-id 1.2.3.4
-			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 				ipv6/unicast { prefix { maximum 10000; } }

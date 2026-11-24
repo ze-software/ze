@@ -24,12 +24,17 @@ bgp {
 		}
 		session {
 			rs-client true
-			next-hop unchanged
 			family ipv4/unicast {
 				mode enable
 				prefix {
 					maximum 100000
 				}
+			}
+		}
+		filter {
+			export {
+				filters [ next-hop:unchanged ]
+				final accept
 			}
 		}
 	}

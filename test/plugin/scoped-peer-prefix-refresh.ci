@@ -1,6 +1,6 @@
 # Question: does the real address watcher update scoped-peer forwarding scope
 # after a connected prefix is removed/restored, on the original TCP connection?
-# Units cannot establish the netlink watch, kernel prefix/route state, real
+# Units cannot establish the netlink subscription watch, kernel prefix/route state, real
 # scoped TCP endpoints or causal refresh-to-wire ordering across processes.
 # The bound fe80::1/128 and explicit fe80::2/128 route remain throughout.
 # Only secondary fe80::100/64 is removed/restored. Automatic LL generation is
@@ -87,11 +87,11 @@ bgp {
   connection { remote { ip fe80::2%sp; port $PORT; } local { ip fe80::1%sp; accept false; } }
   session {
    asn { local 65001; remote 65003; }
-   next-hop unchanged;
    link-local fe80::1;
    family { ipv6/unicast { prefix { maximum 100; } } }
    capability { graceful-restart disable; link-local-nexthop enable; }
   }
+  filter { export { filters [ next-hop:unchanged ]; final accept; } }
   behavior { rs-fast-path enable; group-updates disable; }
   attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
   timer { connect-retry 1; }
@@ -100,11 +100,11 @@ bgp {
   connection { remote { ip 2001:db8:5730::9; port $PORT; } local { ip 2001:db8:5730::1; accept false; } }
   session {
    asn { local 65001; remote 65004; }
-   next-hop unchanged;
    link-local fe80::1;
    family { ipv6/unicast { prefix { maximum 100; } } }
    capability { graceful-restart disable; link-local-nexthop enable; }
   }
+  filter { export { filters [ next-hop:unchanged ]; final accept; } }
   behavior { rs-fast-path enable; group-updates disable; }
   attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
   timer { connect-retry 1; }
@@ -113,11 +113,11 @@ bgp {
   connection { remote { ip 2001:db8:5730::a; port $PORT; } local { ip 2001:db8:5730::1; accept false; } }
   session {
    asn { local 65001; remote 65005; }
-   next-hop unchanged;
    link-local fe80::1;
    family { ipv6/unicast { prefix { maximum 100; } } }
    capability { graceful-restart disable; link-local-nexthop enable; }
   }
+  filter { export { filters [ next-hop:unchanged ]; final accept; } }
   behavior { rs-fast-path enable; group-updates disable; }
   attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
   timer { connect-retry 1; }
@@ -126,11 +126,11 @@ bgp {
   connection { remote { ip 2001:db8:5730::b; port $PORT; } local { ip 2001:db8:5730::1; accept false; } }
   session {
    asn { local 65001; remote 65006; }
-   next-hop unchanged;
    link-local fe80::1;
    family { ipv6/unicast { prefix { maximum 100; } } }
    capability { graceful-restart disable; link-local-nexthop enable; }
   }
+  filter { export { filters [ next-hop:unchanged ]; final accept; } }
   behavior { rs-fast-path enable; group-updates disable; }
   attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
   timer { connect-retry 1; }

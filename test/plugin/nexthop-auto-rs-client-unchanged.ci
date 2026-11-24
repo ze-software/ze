@@ -74,7 +74,6 @@ bgp {
 			asn { local 65000; remote 65002; }
 			router-id 1.2.3.4;
 			rs-client true;
-			next-hop auto;
 			family { ipv4/unicast { prefix { maximum 10000; } } }
 			capability { graceful-restart disable; }
 		}
@@ -93,7 +92,6 @@ bgp {
 		session {
 			asn { local 65000; remote 65003; }
 			router-id 1.2.3.4;
-			next-hop auto;
 			family { ipv4/unicast { prefix { maximum 10000; } } }
 			capability { graceful-restart disable; }
 		}

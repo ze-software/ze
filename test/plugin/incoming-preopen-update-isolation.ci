@@ -22,7 +22,7 @@ plugin {
 bgp {
 	filter {
 		import { final accept; }
-		export { final accept; }
+		export { filters [ next-hop:unchanged ]; final accept; }
 	}
 	peer source-peer {
 		timer { delay-open 60; }
@@ -33,7 +33,6 @@ bgp {
 		session {
 			asn { local 65000; remote 65001; }
 			router-id 1.2.3.4
-			next-hop unchanged
 			family { ipv4/unicast { prefix { maximum 10000; } } }
 		}
 		role { import provider; export customer; }
@@ -54,7 +53,6 @@ bgp {
 		session {
 			asn { local 65000; remote 65002; }
 			router-id 1.2.3.4
-			next-hop unchanged
 			family { ipv4/unicast { prefix { maximum 10000; } } }
 		}
 		role { import provider; }

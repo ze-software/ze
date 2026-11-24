@@ -122,15 +122,17 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
-			# The relayed route keeps the source next hop (asserted in the hex
-			# above). next-hop auto toward an eBGP peer now writes self, which here
-			# is 127.0.0.2, the peer's own address, and that route is withheld
-			# (RFC 4271 Section 5.1.3). This test asks about the IRR modify, not
-			# the next-hop default, so it pins the transparent next hop.
-			next-hop unchanged
 			family {
 				ipv6/unicast { prefix { maximum 10000; } }
 			}
+		}
+		# The relayed route keeps the source next hop (asserted in the hex
+		# above). next-hop:auto toward an eBGP peer writes self, which here
+		# is 127.0.0.2, the peer's own address, and that route is withheld
+		# (RFC 4271 Section 5.1.3). This test asks about the IRR modify, not
+		# the next-hop default, so it pins the transparent next hop.
+		filter {
+			export { filters [ next-hop:unchanged ]; final accept; }
 		}
 		# bgp-rs asks adj-rib-in to replay the stored route here when this
 		# session establishes, so adj-rib-in needs the send permission.
