@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
@@ -15,4 +16,9 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-config:show-config-running", Handler: handleShowConfigRunning},
 	)
+	command.RegisterPipeFilters([]string{"show config running"}, command.PipeFilter{
+		Name:        pipeOpImplied,
+		Description: impliedFilterDesc,
+		Argument:    command.ArgNone,
+	})
 }

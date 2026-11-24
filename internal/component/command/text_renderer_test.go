@@ -107,3 +107,75 @@ func TestMustRegisterTextRendererRefusesDuplicate(t *testing.T) {
 		t.Fatal("nil renderer accepted")
 	}
 }
+
+const (
+	testEnvelopeKeyA = "test-envelope-a"
+	testEnvelopeKeyB = "test-envelope-b"
+)
+
+// TestEnvelopeTextRendererAndLineMatch proves multi-key envelope text
+// renderers draw under default text, `| text`, `| text | match`, and bare
+// `| match` on line-rendered surfaces, while keeping `| json` structured.
+//
+// VALIDATES: RegisterEnvelopeTextRenderer, applyRegisteredText multi-key
+// matching, and validateDeclaredShape allowing line transforms after `| text`.
+// PREVENTS: a two-key envelope such as `{config, implied}` falling back to a
+// generic ASCII table on `| text` or failing `| text | match` on ShapeBlob/Doc.
+func TestEnvelopeTextRendererAndLineMatch(t *testing.T) {
+	if err := RegisterEnvelopeTextRenderer([]string{testEnvelopeKeyB, testEnvelopeKeyA}, func(answer json.RawMessage) (string, error) {
+		var env struct {
+			A string `json:"test-envelope-a"`
+			B string `json:"test-envelope-b"`
+		}
+		if err := json.Unmarshal(answer, &env); err != nil {
+			return "", err
+		}
+		return "line-a " + env.A + "\n# implied: " + env.B + "\n", nil
+	}); err != nil {
+		t.Fatalf("RegisterEnvelopeTextRenderer: %v", err)
+	}
+
+	if err := RegisterEnvelopeTextRenderer([]string{testEnvelopeKeyA, testEnvelopeKeyB}, func(json.RawMessage) (string, error) {
+		return "", nil
+	}); err == nil {
+		t.Fatal("duplicate envelope key-set registration accepted")
+	}
+
+	raw := `{"` + testEnvelopeKeyA + `":"alpha","` + testEnvelopeKeyB + `":"beta"}`
+	for _, input := range []string{"show env-pair", "show env-pair | text"} {
+		_, format, msg := ProcessPipesDefaultFormatChecked(input, "text")
+		if msg != "" {
+			t.Fatalf("%s: %s", input, msg)
+		}
+		want := "line-a alpha\n# implied: beta\n"
+		if got := format(raw); got != want {
+			t.Errorf("%s: got %q, want %q", input, got, want)
+		}
+	}
+
+	_, formatMatch, msg := ProcessPipesDefaultFormatChecked("show env-pair | match implied", "text")
+	if msg != "" {
+		t.Fatalf("show env-pair | match implied: %s", msg)
+	}
+	if got := formatMatch(raw); got != "# implied: beta\n" {
+		t.Errorf("match on envelope text = %q, want %q", got, "# implied: beta\n")
+	}
+
+	_, formatJSON, msg := ProcessPipesDefaultFormatChecked("show env-pair | json", "")
+	if msg != "" {
+		t.Fatalf("show env-pair | json: %s", msg)
+	}
+	if got := formatJSON(raw); !strings.Contains(got, testEnvelopeKeyA) || !strings.Contains(got, testEnvelopeKeyB) {
+		t.Errorf("| json lost envelope keys: %q", got)
+	}
+
+	const blobPath = "show test env blob"
+	RegisterShape([]string{blobPath}, ShapeBlob)
+	_, formatBlobMatch, msg := ProcessPipesDefaultFormatChecked(blobPath+" | text | match implied", "")
+	if msg != "" {
+		t.Fatalf("%s | text | match implied refused: %s", blobPath, msg)
+	}
+	if got := formatBlobMatch(raw); got != "# implied: beta\n" {
+		t.Errorf("%s | text | match implied = %q, want %q", blobPath, got, "# implied: beta\n")
+	}
+}

@@ -10,10 +10,17 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-const noSavedDraft = "(no saved draft)"
+const (
+	noSavedDraft            = "(no saved draft)"
+	impliedScopeBus         = "bus"
+	impliedScopeEndpoint    = "endpoint"
+	impliedScopeParticipant = "participant"
+	impliedPathSep          = "/"
+)
 
 // cmdShow displays configuration content.
 // "show" renders the full tree; "show confirmed" shows committed config; "show saved" shows draft.
@@ -25,7 +32,7 @@ func (m *Model) cmdShow(args []string) (commandResult, error) {
 	// Reject subcommands that moved to pipe filters or option.
 	if len(args) > 0 {
 		switch args[0] {
-		case cmdBlame, cmdChanges, cmdErrors, cmdHistory, cmdCompare:
+		case cmdBlame, cmdChanges, cmdErrors, cmdHistory, cmdCompare, cmdImplied:
 			return commandResult{}, fmt.Errorf("use 'show | %s' instead", args[0])
 		case cmdAll, cmdNone:
 			return commandResult{}, fmt.Errorf("use 'option %s' instead", args[0])
@@ -79,34 +86,221 @@ func (m *Model) cmdShowDisplayWithSource(format, compareTarget, source string) (
 		if err != nil {
 			return commandResult{}, err
 		}
-		return m.showAlternateSource(m.renderRawSourceAtPath(raw, m.contextPath, format))
+		result, err := m.showAlternateSource(m.renderRawSourceAtPath(raw, m.contextPath, format))
+		if err == nil {
+			m.attachImpliedPlainNotice(&result, m.parseSourceTree(raw))
+		}
+		return result, err
 	}
 	if source == srcSaved {
 		draft := m.editor.savedDraftContent()
 		if draft == "" {
 			return commandResult{output: noSavedDraft}, nil
 		}
-		return m.showAlternateSource(m.renderRawSourceAtPath(draft, m.contextPath, format))
+		result, err := m.showAlternateSource(m.renderRawSourceAtPath(draft, m.contextPath, format))
+		if err == nil {
+			m.attachImpliedPlainNotice(&result, m.parseSourceTree(draft))
+		}
+		return result, err
 	}
 
 	// Default: working config.
+	var workingTree *config.Tree
+	if m.editor.treeValid {
+		workingTree = m.editor.tree
+	}
 	if m.editor.ContentAtPath(m.contextPath) == "" {
-		return commandResult{output: emptyConfiguration}, nil
+		result := commandResult{output: emptyConfiguration}
+		m.attachImpliedPlainNotice(&result, workingTree)
+		return result, nil
 	}
 
 	columns := m.showColumns()
 
 	if !columns.AnyEnabled() {
-		// No columns enabled: use bare serializers
+		// No columns enabled: use bare serializers.
 		if format == fmtConfig {
-			return commandResult{output: m.renderTreeAtPath(m.editor.tree, m.contextPath, fmtConfig)}, nil
+			result := commandResult{output: m.renderTreeAtPath(m.editor.tree, m.contextPath, fmtConfig)}
+			m.attachImpliedPlainNotice(&result, workingTree)
+			return result, nil
 		}
-		return commandResult{configView: m.configViewAtPath(m.contextPath)}, nil
+		result := commandResult{configView: m.configViewAtPath(m.contextPath)}
+		m.attachImpliedPlainNotice(&result, workingTree)
+		return result, nil
 	}
 
-	// Annotated view with enabled columns
+	// Annotated view with enabled columns.
 	content := m.editor.annotatedView(m.contextPath, columns, format == fmtConfig)
-	return commandResult{output: content}, nil
+	result := commandResult{output: content}
+	m.attachImpliedPlainNotice(&result, workingTree)
+	return result, nil
+}
+
+// cmdShowImplied renders the selected source together with every implied
+// endpoint, effective participant bus block, and inserted filter member from
+// config.BuildImpliedReport in either hierarchical text or set-command format.
+func (m *Model) cmdShowImplied(format, source string) (commandResult, error) {
+	if m.editor == nil {
+		return commandResult{}, fmt.Errorf("command %q requires config mode (no config file loaded)", cmdShow)
+	}
+
+	targetTree, msg, err := m.sourceTree(source)
+	if err != nil {
+		return commandResult{}, err
+	}
+	if msg != "" {
+		return commandResult{output: msg}, nil
+	}
+	if targetTree == nil {
+		if source == "" && !m.editor.treeValid {
+			return commandResult{}, opererr.New(
+				"Cannot display implied configuration while the candidate has parse errors.",
+				"Implied endpoints, bus wiring, and filters are computed from the parsed configuration tree.",
+				"Run 'show | errors' to fix syntax issues, then retry 'show | implied'",
+			)
+		}
+		targetTree = config.NewTree()
+	}
+
+	report, err := config.BuildImpliedReport(targetTree, config.ImpliedOptions{
+		Offline:    true,
+		ConfigFile: m.editor.originalPath,
+	})
+	if err != nil {
+		return commandResult{}, err
+	}
+
+	scoped := scopeImpliedReport(report, m.contextPath)
+	written := m.renderTreeAtPath(targetTree, m.contextPath, format)
+
+	var rendered string
+	if format == fmtConfig {
+		rendered = config.RenderImpliedSet(written, scoped)
+	} else {
+		rendered = config.RenderImpliedText(written, scoped)
+	}
+	if rendered == "" {
+		return commandResult{output: emptyConfiguration}, nil
+	}
+	return commandResult{output: rendered}, nil
+}
+
+// attachImpliedPlainNotice populates result.statusMessage with the plain-display
+// implied notice when result has no status message yet and implied items are
+// active within m.contextPath. Uses Offline: false so plain show never spawns
+// external endpoint query processes and never fails on an unreachable binary.
+func (m *Model) attachImpliedPlainNotice(result *commandResult, tree *config.Tree) {
+	if result == nil {
+		return
+	}
+	if result.statusMessage != "" {
+		return
+	}
+	if tree == nil {
+		return
+	}
+	if m.editor == nil {
+		return
+	}
+	report, err := config.BuildImpliedReport(tree, config.ImpliedOptions{
+		Offline:    false,
+		ConfigFile: m.editor.originalPath,
+	})
+	if err != nil {
+		return
+	}
+	scoped := scopeImpliedReport(report, m.contextPath)
+	if scoped.IsEmpty() {
+		return
+	}
+	result.statusMessage = config.ImpliedPlainNotice(scoped)
+}
+
+// scopeImpliedReport filters report to items under path when path is non-empty,
+// returning report unchanged at the configuration root.
+func scopeImpliedReport(report config.ImpliedReport, path []string) config.ImpliedReport {
+	if len(path) == 0 {
+		return report
+	}
+
+	var tb textbuf.Buffer
+	rawPrefix := tb.Join(path, impliedPathSep).String()
+	tb.Reset()
+	slashPrefix := tb.Str(impliedPathSep).Str(rawPrefix).String()
+
+	var scoped config.ImpliedReport
+	for i := range report.Endpoints {
+		if endpointMatchesScope(&report.Endpoints[i], path, rawPrefix) {
+			scoped.Endpoints = append(scoped.Endpoints, report.Endpoints[i])
+		}
+	}
+	for i := range report.Participants {
+		if participantMatchesScope(&report.Participants[i], path, slashPrefix) {
+			scoped.Participants = append(scoped.Participants, report.Participants[i])
+		}
+	}
+	for i := range report.Filters {
+		if pathMatchesScopePrefix(report.Filters[i].TargetPath, slashPrefix) {
+			scoped.Filters = append(scoped.Filters, report.Filters[i])
+		}
+	}
+	return scoped
+}
+
+func endpointMatchesScope(ep *config.ImpliedEndpoint, path []string, rawPrefix string) bool {
+	if path[0] == impliedScopeBus {
+		if len(path) == 1 {
+			return true
+		}
+		if path[1] == impliedScopeEndpoint {
+			if len(path) == 2 {
+				return true
+			}
+			return path[2] == ep.Name
+		}
+	}
+	if ep.ReasonSource == "" {
+		return false
+	}
+	src := strings.TrimPrefix(ep.ReasonSource, impliedPathSep)
+	if src == rawPrefix {
+		return true
+	}
+	if strings.HasPrefix(src, rawPrefix+impliedPathSep) {
+		return true
+	}
+	if strings.HasPrefix(src, rawPrefix+".") {
+		return true
+	}
+	return strings.HasPrefix(src, rawPrefix+"=")
+}
+
+func participantMatchesScope(p *config.ImpliedParticipant, path []string, slashPrefix string) bool {
+	if path[0] == impliedScopeBus {
+		if len(path) == 1 {
+			return true
+		}
+		if path[1] == impliedScopeParticipant {
+			if len(path) == 2 {
+				return true
+			}
+			return path[2] == p.Path
+		}
+	}
+	if pathMatchesScopePrefix(p.Path, slashPrefix) {
+		return true
+	}
+	if p.ParentPath == "" {
+		return false
+	}
+	return pathMatchesScopePrefix(p.ParentPath, slashPrefix)
+}
+
+func pathMatchesScopePrefix(target, slashPrefix string) bool {
+	if target == slashPrefix {
+		return true
+	}
+	return strings.HasPrefix(target, slashPrefix+impliedPathSep)
 }
 
 // cmdShowFiltered renders config with a tree-level filter (active or inactive).

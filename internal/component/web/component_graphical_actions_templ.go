@@ -537,27 +537,27 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "\"> <input type=\"hidden\" name=\"action\" value=\"inspect\"> <label>Configuration source <select id=\"graphical-inspect-source\" name=\"source\"><option value=\"candidate\">Candidate</option><option value=\"confirmed\">Running configuration</option><option value=\"saved\">Saved draft</option></select></label> <label>Presentation <select id=\"graphical-inspect-format\" name=\"format\"><option value=\"tree\">Tree</option><option value=\"config\">Set commands</option></select></label> <button class=\"config-btn\" id=\"graphical-inspect\">Inspect selected configuration</button></form><form hx-post=\"/config/action\" hx-target=\"#content-area\" hx-swap=\"innerHTML\" hx-sync=\"#content-area:queue all\"><input type=\"hidden\" name=\"path\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "\"> <input type=\"hidden\" name=\"action\" value=\"inspect\"> <label>Configuration source <select id=\"graphical-inspect-source\" name=\"source\"><option value=\"candidate\">Candidate</option><option value=\"confirmed\">Running configuration</option><option value=\"saved\">Saved draft</option></select></label> <label>Presentation <select id=\"graphical-inspect-format\" name=\"format\"><option value=\"tree\">Tree</option><option value=\"config\">Set commands</option></select></label> <label><input type=\"checkbox\" id=\"graphical-inspect-implied\" name=\"implied\" value=\"true\">Include implied items</label> <button class=\"config-btn\" id=\"graphical-inspect\">Inspect selected configuration</button></form><form hx-post=\"/config/action\" hx-target=\"#content-area\" hx-swap=\"innerHTML\" hx-sync=\"#content-area:queue all\"><input type=\"hidden\" name=\"path\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templruntime.NewAttributeExpression(v.Path).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 134, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 135, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "\"> <input type=\"hidden\" name=\"action\" value=\"inspect-metadata\"> <label>Candidate metadata <select name=\"view\"><option value=\"blame\">Authorship</option><option value=\"active\">Active settings</option><option value=\"inactive\">Inactive settings</option> <option value=\"changes\">My pending changes</option><option value=\"allchanges\">All pending changes</option><option value=\"errors\">Validation issues</option></select></label> <button class=\"config-btn\" id=\"graphical-inspect-metadata\">Inspect candidate metadata</button></form><details><summary>Compare candidate</summary><form hx-post=\"/config/action\" hx-target=\"#content-area\" hx-swap=\"innerHTML\" hx-sync=\"#content-area:queue all\"><input type=\"hidden\" name=\"path\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "\"> <input type=\"hidden\" name=\"action\" value=\"inspect-metadata\"> <label>Candidate metadata <select name=\"view\"><option value=\"blame\">Authorship</option><option value=\"active\">Active settings</option><option value=\"inactive\">Inactive settings</option> <option value=\"implied\">Implied configuration</option> <option value=\"changes\">My pending changes</option><option value=\"allchanges\">All pending changes</option><option value=\"errors\">Validation issues</option></select></label> <button class=\"config-btn\" id=\"graphical-inspect-metadata\">Inspect candidate metadata</button></form><details><summary>Compare candidate</summary><form hx-post=\"/config/action\" hx-target=\"#content-area\" hx-swap=\"innerHTML\" hx-sync=\"#content-area:queue all\"><input type=\"hidden\" name=\"path\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templruntime.NewAttributeExpression(v.Path).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 145, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 147, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 		if templ_7745c5c3_Err != nil {
@@ -596,7 +596,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templruntime.NewAttributeExpression(revision.Key).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 159, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 161, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 				if templ_7745c5c3_Err != nil {
@@ -609,7 +609,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 				var templ_7745c5c3_Var30 string
 				templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(intText(revision.Number) + ": " + revision.Timestamp)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 159, Col: 93}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 161, Col: 93}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 				if templ_7745c5c3_Err != nil {
@@ -638,7 +638,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 				var templ_7745c5c3_Var31 string
 				templ_7745c5c3_Var31, templ_7745c5c3_Err = templruntime.NewAttributeExpression(username).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 166, Col: 32}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 168, Col: 32}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 				if templ_7745c5c3_Err != nil {
@@ -651,7 +651,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 				var templ_7745c5c3_Var32 string
 				templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(username)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 166, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 168, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 				if templ_7745c5c3_Err != nil {
@@ -674,7 +674,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templruntime.NewAttributeExpression(v.Path).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 177, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 179, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 		if templ_7745c5c3_Err != nil {
@@ -697,7 +697,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 				var templ_7745c5c3_Var34 string
 				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(session.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 183, Col: 27}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 185, Col: 27}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 				if templ_7745c5c3_Err != nil {
@@ -710,7 +710,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(intText(session.Changes))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 183, Col: 64}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 185, Col: 64}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -733,7 +733,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 					var templ_7745c5c3_Var36 string
 					templ_7745c5c3_Var36, templ_7745c5c3_Err = templruntime.NewAttributeExpression(v.Path).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 188, Col: 57}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 190, Col: 57}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 					if templ_7745c5c3_Err != nil {
@@ -746,7 +746,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 					var templ_7745c5c3_Var37 string
 					templ_7745c5c3_Var37, templ_7745c5c3_Err = templruntime.NewAttributeExpression(session.ID).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 189, Col: 64}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 191, Col: 64}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 					if templ_7745c5c3_Err != nil {
@@ -784,7 +784,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 			var templ_7745c5c3_Var38 string
 			templ_7745c5c3_Var38, templ_7745c5c3_Err = templruntime.NewAttributeExpression(v.Path).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 204, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 206, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 			if templ_7745c5c3_Err != nil {
@@ -797,7 +797,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 			var templ_7745c5c3_Var39 string
 			templ_7745c5c3_Var39, templ_7745c5c3_Err = templruntime.NewAttributeExpression(option.Name).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 206, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 208, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 			if templ_7745c5c3_Err != nil {
@@ -810,7 +810,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 			var templ_7745c5c3_Var40 string
 			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(option.Help)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 207, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 209, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 			if templ_7745c5c3_Err != nil {
@@ -834,7 +834,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 					var templ_7745c5c3_Var41 string
 					templ_7745c5c3_Var41, templ_7745c5c3_Err = templruntime.NewAttributeExpression(value).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 212, Col: 62}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 214, Col: 62}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 					if templ_7745c5c3_Err != nil {
@@ -847,7 +847,7 @@ func graphicalInspectionPanel(v *GraphicalActions, readOnly bool) templ.Componen
 					var templ_7745c5c3_Var42 string
 					templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(value)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 212, Col: 72}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_graphical_actions.templ`, Line: 214, Col: 72}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 					if templ_7745c5c3_Err != nil {

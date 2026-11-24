@@ -96,6 +96,8 @@ type ListTableRow struct {
 	HxPath            string              // YANG path for hx-get
 	RowTools          []RelatedToolButton // ze:related row-placement tools (workbench only)
 	HasPendingChanges bool                // Editor session has uncommitted changes touching this row
+	Implied           bool                // Derived automatically by Ze; rendered read-only with a badge
+	ImpliedBy         string              // Human-readable source or rule that implied this row
 }
 
 // ListTableView holds data for rendering a multi-key list as a table.

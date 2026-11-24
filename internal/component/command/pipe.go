@@ -420,6 +420,21 @@ func applyPipesWithRequest(output string, ops []pipeOp, meta pipeChainMeta, colu
 			}
 			matched, msg := applyMatch(result, op.arg)
 			if msg != "" {
+				// On a line-rendered surface (where the chain ends in a line
+				// format such as default `| text`), a self-describing answer
+				// with a registered text renderer (such as `{config, implied}`)
+				// renders first so `| match` filters its lines.
+				if hasTextFormatOp(ops) {
+					drawn, found, renderMsg := applyRegisteredText(result)
+					if renderMsg != "" {
+						return "", renderMsg
+					}
+					if found {
+						result = applyMatchLines(drawn, op.arg)
+						lineFormatExecuted = true
+						continue
+					}
+				}
 				return "", msg
 			}
 			result = matched
@@ -868,8 +883,16 @@ func validateDisplayNarrowing(ops []pipeOp) string {
 func validateDeclaredShape(command string, ops []pipeOp) string {
 	shape, declared := ShapeForCommand(command)
 	addressFields := AddressFieldsForCommand(command)
+	rendered := false
 
 	for _, op := range ops {
+		if isFormatOp(op.kind) {
+			rendered = formatForcesLineTransforms(op.kind)
+			continue
+		}
+		if rendered && isLineTransformOp(op.kind) {
+			continue
+		}
 		entry, known := lookupPipeOperatorByKind(op.kind)
 		if !known {
 			continue

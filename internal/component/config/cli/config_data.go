@@ -25,11 +25,13 @@
 package cli
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/resolve"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -137,7 +139,44 @@ func dataDump(validated command.ValidatedArgs) command.LocalAnswer {
 	}
 	// A config that resolved can still carry parse warnings: they travel
 	// beside the payload, and the local route prints them before it.
-	return command.LocalAnswer{Payload: res.dumpMap, Diagnostic: diag.String()}
+	if !hasPipeOperation(validated.PipeOperations(), pipeOpImplied) {
+		return command.LocalAnswer{Payload: res.dumpMap, Diagnostic: diag.String()}
+	}
+
+	cfgTree := res.tree
+	if cfgTree == nil {
+		var treeErr error
+		cfgTree, treeErr = treeFromImpliedConfigMap(res.dumpMap)
+		if treeErr != nil {
+			return command.LocalRefusal(exitError, diag.String()+command.LocalErrorLine(opererr.Wrap(
+				treeErr,
+				"cannot build configuration tree for implied view",
+				"the resolved configuration could not be projected into a tree",
+				"ze show config dump help")))
+		}
+	}
+	report, err := config.BuildImpliedReport(cfgTree, config.ImpliedOptions{
+		Offline:    true,
+		ConfigFile: readPath,
+	})
+	if err != nil {
+		fix := "ze show config dump help"
+		if op, ok := errors.AsType[*opererr.Error](err); ok && op.Fix() != "" {
+			fix = op.Fix()
+		}
+		return command.LocalRefusal(exitError, diag.String()+command.LocalErrorLine(opererr.Wrap(
+			err,
+			"cannot display implied configuration",
+			"offline implied evaluation failed",
+			fix)))
+	}
+	return command.LocalAnswer{
+		Payload: config.ImpliedEnvelope{
+			Config:  res.dumpMap,
+			Implied: report,
+		},
+		Diagnostic: diag.String(),
+	}
 }
 
 // dataList answers `show config list`: every configuration the daemon can see,

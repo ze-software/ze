@@ -128,6 +128,7 @@ templ graphicalInspectionPanel(v *GraphicalActions, readOnly bool) {
 				<label>Presentation <select id="graphical-inspect-format" name="format">
 					<option value="tree">Tree</option><option value="config">Set commands</option>
 				</select></label>
+				<label><input type="checkbox" id="graphical-inspect-implied" name="implied" value="true">Include implied items</label>
 				<button class="config-btn" id="graphical-inspect">Inspect selected configuration</button>
 			</form>
 			<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
@@ -135,6 +136,7 @@ templ graphicalInspectionPanel(v *GraphicalActions, readOnly bool) {
 				<input type="hidden" name="action" value="inspect-metadata">
 				<label>Candidate metadata <select name="view">
 					<option value="blame">Authorship</option><option value="active">Active settings</option><option value="inactive">Inactive settings</option>
+					<option value="implied">Implied configuration</option>
 					<option value="changes">My pending changes</option><option value="allchanges">All pending changes</option><option value="errors">Validation issues</option>
 				</select></label>
 				<button class="config-btn" id="graphical-inspect-metadata">Inspect candidate metadata</button>

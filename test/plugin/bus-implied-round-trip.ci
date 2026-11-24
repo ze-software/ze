@@ -1,0 +1,140 @@
+# Test: an implied bus block printed by `show config running | implied` round-trips cleanly into written configuration with origin shifting from registered to written.
+# QUESTION: when an external `collector` endpoint declares reception of `bgp:update`
+# with nothing written under `bus { endpoint collector { receive ... } }`, does
+# `show config running | implied` print `collector`'s reception under
+# `# implied by: registration of collector` in valid short-path `bus` syntax with zero
+# `##` lines and `origin: "registered"` in JSON, and when that exact printed `bus`
+# block is pasted back into configuration, validated, and reloaded into the running
+# daemon, does it commit cleanly and transition to `origin: "written"` with zero
+# duplicate implied block? A unit test cannot decide this because the path spans live
+# daemon `show config running | implied` output, real `ze config validate`, and live
+# SIGHUP reload recompilation.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S30 / AC-38.
+# PREVENTS: printed implied blocks failing to parse (`##` at col 0 or invalid paths)
+# or remaining duplicated as implied once written explicitly.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:update collector.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=base.conf:terminator=EOF_BASE
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:update collector.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_BASE
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+# Step 1: verify registered origin and extract the exact printed implied bus block.
+cmd=foreground:seq=3:exec=le test fixture plugin/bus-assert-implied round-trip-extract collector-bus.conf:exit=0
+expect=stdout:contains=OK: round-trip-extract captured collector bus block with origin registered
+
+# Step 2: paste the printed bus block verbatim into config and validate it.
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-assert-implied merge-config base.conf collector-bus.conf pasted.conf:exit=0
+expect=stdout:contains=OK: merged base.conf + collector-bus.conf -> pasted.conf
+cmd=foreground:seq=5:exec=ze config validate pasted.conf:exit=0
+
+# Step 3: apply via live reload and verify origin is now written with zero duplicate implied copy.
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-sighup-reload pasted.conf running.conf reload.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload pasted.conf applied
+
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-implied round-trip-verify:exit=0
+expect=stdout:contains=OK: round-trip-verify confirmed origin written with no duplicate implied block
+
+cmd=stop:seq=8:name=daemon:signal=term

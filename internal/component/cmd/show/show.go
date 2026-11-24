@@ -123,22 +123,29 @@ func init() {
 	)
 }
 
-// handleShowEventDelivery returns the peer-to-process delivery graph the running
-// config produced: for every peer, the processes it attaches, what each one is
-// fed, and what each one may send toward it.
+// handleShowEventDelivery returns the multi-namespace, origin-annotated bus
+// delivery graph the running config produced: every deduplicated delivery edge
+// with its origin (written, inherited, registered, required, dormant), sender
+// and receiver paths, admitting dynamic container path when applicable, and
+// covered destinations, alongside the per-address view.
 //
-// It reads the index delivery reads, not the config document, so an operator
-// asking "why is my program not fed" sees the answer the daemon acts on. A
-// granted token the event registry does not know appears under `unresolved`,
-// which is the one way an edge can go missing.
+// It reads the compiled index delivery acts on, not the raw config document, so
+// an operator asking why an endpoint is or is not fed sees the exact runtime
+// verdict.
 func handleShowEventDelivery(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	if ctx == nil || ctx.Server == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: "delivery graph not available"}, nil
 	}
-	peers := ctx.Server.DeliveryGraph().Inspect()
+	graph := ctx.Server.DeliveryGraph()
+	edges := graph.InspectEdges()
+	peers := graph.Inspect()
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"peers": peers, keyCount: len(peers)},
+		Data: plugin.Map{
+			"edges":  edges,
+			"peers":  peers,
+			keyCount: len(edges),
+		},
 	}, nil
 }
 

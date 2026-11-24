@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -225,6 +226,9 @@ func (r dumpResult) declaredPlugins() []dumpPlugin {
 func resolveDumpBytes(data []byte, stripPrivate bool, diag *textbuf.Buffer) (dumpResult, error) {
 	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: string(data)})
 	if err != nil {
+		if _, isOperErr := errors.AsType[*opererr.Error](err); isOperErr {
+			return dumpResult{}, err
+		}
 		return dumpResult{}, opererr.Wrap(err, "The configuration schema could not be loaded.",
 			"The configuration could not be interpreted; no dump was produced.",
 			"ze show doctor")

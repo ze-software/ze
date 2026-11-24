@@ -1,6 +1,7 @@
 // Design: docs/architecture/api/process-protocol.md — plugin auto-loading
 // Overview: startup.go — plugin startup phases
 // Related: config.go — ServerConfig with ConfiguredFamilies, ConfiguredCustomEvents, ConfiguredCustomSendTypes
+// Related: autoload_reasons.go — offline implied-endpoint evaluation and Server auto-load reason store
 
 package server
 
@@ -15,10 +16,59 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // encoderJSON is the wire encoder every auto-loaded internal plugin speaks.
 const encoderJSON = "json"
+
+// Auto-load reason kinds classifying why Ze auto-loaded an internal endpoint.
+const (
+	AutoLoadReasonConfigPath = "config-path"
+	AutoLoadReasonFamily     = "family"
+	AutoLoadReasonDependency = "dependency"
+	AutoLoadReasonConfigNeed = "config-need"
+	AutoLoadReasonDataPlane  = "data-plane"
+)
+
+// AutoLoadReason states why an internal endpoint was auto-loaded without an
+// explicit bus > endpoint block.
+type AutoLoadReason struct {
+	Kind   string
+	Source string
+	Detail string
+}
+
+// ImpliedBy returns the human-readable reason describing what implied the
+// endpoint.
+func (r AutoLoadReason) ImpliedBy() string {
+	if r.Detail != "" {
+		return r.Detail
+	}
+	if r.Source == "" {
+		return r.Kind
+	}
+	var tb textbuf.Buffer
+	return tb.Str(r.Kind).Str(": ").Str(r.Source).String()
+}
+
+// AutoLoadedEndpoint pairs one auto-loaded endpoint's PluginConfig with the
+// typed reason that selected it.
+type AutoLoadedEndpoint struct {
+	Config plugin.PluginConfig
+	Reason AutoLoadReason
+}
+
+func autoLoadedConfigs(entries []AutoLoadedEndpoint) []plugin.PluginConfig {
+	if len(entries) == 0 {
+		return nil
+	}
+	out := make([]plugin.PluginConfig, len(entries))
+	for i := range entries {
+		out[i] = entries[i].Config
+	}
+	return out
+}
 
 // getUnclaimedFamilyPlugins returns plugins to auto-load for configured families
 // that are NOT claimed by any explicit plugin, with their dependencies.
@@ -28,22 +78,39 @@ const encoderJSON = "json"
 // *registry.MissingDependencyError or a cycle): the caller MUST refuse startup
 // on it and MUST NOT start the set without the dependency.
 func (s *Server) getUnclaimedFamilyPlugins() ([]plugin.PluginConfig, error) {
-	needed := s.unclaimedFamilyPlugins()
+	entries, err := s.getUnclaimedFamilyAutoLoaded()
+	if err != nil {
+		return nil, err
+	}
+	s.recordAutoLoadReasons(entries)
+	return autoLoadedConfigs(entries), nil
+}
+
+// getUnclaimedFamilyAutoLoaded returns the family-triggered auto-loaded
+// endpoints together with their typed reasons.
+func (s *Server) getUnclaimedFamilyAutoLoaded() ([]AutoLoadedEndpoint, error) {
+	needed, seedReasons := s.unclaimedFamilyPluginsWithReasons()
 	if len(needed) == 0 {
 		return nil, nil
 	}
-	return s.resolveAutoLoad(needed, "family")
+	return s.resolveAutoLoadWithReasons(needed, seedReasons, s.config.ConfigNeedHolds, AutoLoadReasonFamily)
 }
 
 // unclaimedFamilyPlugins answers the internal plugin names that decode a
 // configured family no explicit plugin has claimed yet.
 func (s *Server) unclaimedFamilyPlugins() []string {
+	needed, _ := s.unclaimedFamilyPluginsWithReasons()
+	return needed
+}
+
+func (s *Server) unclaimedFamilyPluginsWithReasons() ([]string, map[string]AutoLoadReason) {
 	seen := make(map[string]bool)
+	reasons := make(map[string]AutoLoadReason)
 	var needed []string
 
 	for _, fam := range s.config.ConfiguredFamilies {
 		// Family-based check: skip if already claimed by explicit plugin
-		if s.registry.LookupFamily(fam) != "" {
+		if s.registry != nil && s.registry.LookupFamily(fam) != "" {
 			logger().Debug("fam already claimed, skipping auto-load",
 				"family", fam, "claimed_by", s.registry.LookupFamily(fam))
 			continue
@@ -60,13 +127,18 @@ func (s *Server) unclaimedFamilyPlugins() []string {
 			continue
 		}
 		seen[pluginName] = true
+		reasons[pluginName] = AutoLoadReason{
+			Kind:   AutoLoadReasonFamily,
+			Source: fam,
+			Detail: "address family " + fam,
+		}
 
 		logger().Debug("auto-loading plugin for unclaimed fam",
 			"plugin", pluginName, "family", fam)
 		needed = append(needed, pluginName)
 	}
 
-	return needed
+	return needed, reasons
 }
 
 // getConfigPathPlugins returns plugins to auto-load based on config section presence.
@@ -79,14 +151,31 @@ func (s *Server) unclaimedFamilyPlugins() []string {
 // *registry.MissingDependencyError or a cycle): the caller MUST refuse startup
 // on it and MUST NOT start any plugin of the set.
 func (s *Server) getConfigPathPlugins() ([]plugin.PluginConfig, error) {
+	entries, err := s.getConfigPathAutoLoaded()
+	if err != nil {
+		return nil, err
+	}
+	s.recordAutoLoadReasons(entries)
+	return autoLoadedConfigs(entries), nil
+}
+
+// getConfigPathAutoLoaded selects config-path, data-plane, dependency, and
+// config-need auto-loaded endpoints with their typed reasons.
+func (s *Server) getConfigPathAutoLoaded() ([]AutoLoadedEndpoint, error) {
 	if len(s.config.ConfiguredPaths) == 0 {
 		return nil, nil
+	}
+
+	pathSet := make(map[string]bool, len(s.config.ConfiguredPaths))
+	for _, p := range s.config.ConfiguredPaths {
+		pathSet[p] = true
 	}
 
 	// The plugins the config's roots select, from the one registry answer the
 	// validate and commit doors also resolve (config.VerifyPluginConfig).
 	pm := s.procManager.Load()
 	var needed []string
+	seedReasons := make(map[string]AutoLoadReason)
 	for _, pluginName := range registry.PluginsForConfigPaths(s.config.ConfiguredPaths) {
 		if s.isPluginLoaded(pluginName) {
 			continue
@@ -97,15 +186,21 @@ func (s *Server) getConfigPathPlugins() ([]plugin.PluginConfig, error) {
 		if pm != nil && pm.GetProcess(pluginName) != nil {
 			continue
 		}
+		matchedRoot := firstMatchingConfigRoot(pluginName, pathSet)
+		seedReasons[pluginName] = AutoLoadReason{
+			Kind:   AutoLoadReasonConfigPath,
+			Source: matchedRoot,
+			Detail: "config section " + matchedRoot,
+		}
 		needed = append(needed, pluginName)
-		logger().Debug("auto-loading plugin for config path", "plugin", pluginName)
+		logger().Debug("auto-loading plugin for config path", "plugin", pluginName, "root", matchedRoot)
 	}
 
 	if len(needed) == 0 {
 		return nil, nil
 	}
 
-	needed, err := s.appendDataPlaneWriter(needed, s.config.DataPlane)
+	needed, err := s.appendDataPlaneWriterWithReason(needed, s.config.DataPlane, seedReasons)
 	if err != nil {
 		return nil, err
 	}
@@ -120,25 +215,7 @@ func (s *Server) getConfigPathPlugins() ([]plugin.PluginConfig, error) {
 	//
 	// ConfigNeedHolds answers for the boot config, so an optional provider is
 	// pulled only when the config holds the need that names it.
-	resolved, err := registry.ResolveDependencies(needed, nil, s.config.ConfigNeedHolds)
-	if err != nil {
-		return nil, err
-	}
-
-	var plugins []plugin.PluginConfig
-	pm2 := s.procManager.Load()
-	for _, name := range resolved {
-		if s.isPluginLoaded(name) || s.hasConfiguredPlugin(name) || (pm2 != nil && pm2.GetProcess(name) != nil) {
-			continue
-		}
-		plugins = append(plugins, plugin.PluginConfig{
-			Name:     name,
-			Encoder:  encoderJSON,
-			Internal: true,
-		})
-	}
-
-	return plugins, nil
+	return s.resolveAutoLoadWithReasons(needed, seedReasons, s.config.ConfigNeedHolds, AutoLoadReasonConfigPath)
 }
 
 // appendDataPlaneWriter returns needed plus the plugin that programs the
@@ -156,6 +233,10 @@ func (s *Server) getConfigPathPlugins() ([]plugin.PluginConfig, error) {
 // An unresolvable data plane refuses the entire selection before any route
 // producer starts. Both boot and reload MUST propagate that refusal.
 func (s *Server) appendDataPlaneWriter(needed []string, dataPlane string) ([]string, error) {
+	return s.appendDataPlaneWriterWithReason(needed, dataPlane, nil)
+}
+
+func (s *Server) appendDataPlaneWriterWithReason(needed []string, dataPlane string, reasons map[string]AutoLoadReason) ([]string, error) {
 	producerIndex := slices.IndexFunc(needed, registry.NeedsDataPlane)
 	if producerIndex < 0 {
 		return needed, nil
@@ -163,10 +244,19 @@ func (s *Server) appendDataPlaneWriter(needed []string, dataPlane string) ([]str
 	if s.fibPluginChosen(needed) {
 		return needed, nil
 	}
+	producer := needed[producerIndex]
 	// The judgement `ze doctor` repeats (doctor-plugin-no-dataplane-writer).
-	writer, err := registry.DataPlaneWriter(needed[producerIndex], dataPlane)
+	writer, err := registry.DataPlaneWriter(producer, dataPlane)
 	if err != nil {
 		return nil, err
+	}
+	if reasons != nil {
+		var tb textbuf.Buffer
+		reasons[writer] = AutoLoadReason{
+			Kind:   AutoLoadReasonDataPlane,
+			Source: dataPlane,
+			Detail: tb.Str("data plane ").Str(dataPlane).Str(" for ").Str(producer).String(),
+		}
 	}
 	// No second "is it already loaded" check: writer declares a data plane, so
 	// it declares ProgramsFIB, so fibPluginChosen above has already answered for
@@ -231,6 +321,17 @@ func (s *Server) autoLoadForNewConfigPaths(ctx context.Context, newTree map[stri
 // runs. It starts nothing, so reload compensation can order the whole set
 // before executing any of it.
 func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]plugin.PluginConfig, error) {
+	entries, err := s.selectAutoLoadWithReasons(newTree, addedRoots)
+	if err != nil {
+		return nil, err
+	}
+	s.recordAutoLoadReasons(entries)
+	return autoLoadedConfigs(entries), nil
+}
+
+// selectAutoLoadWithReasons returns the reload auto-load selection paired with
+// typed AutoLoadReason entries.
+func (s *Server) selectAutoLoadWithReasons(newTree map[string]any, addedRoots []string) ([]AutoLoadedEndpoint, error) {
 	// Build the set of all new paths by navigating into the nested tree.
 	// diff keys are slash-separated (e.g., "fib/kernel"), so we split and descend.
 	newPaths := make([]string, 0, len(addedRoots))
@@ -242,11 +343,17 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 		}
 	}
 
+	pathSet := make(map[string]bool, len(newPaths))
+	for _, p := range newPaths {
+		pathSet[p] = true
+	}
+
 	// Match against ConfigRoots from registered plugins: the same registry
 	// answer boot auto-load and the validate and commit doors use.
 	pm := s.procManager.Load()
 	var needed []string
 	seen := make(map[string]bool)
+	seedReasons := make(map[string]AutoLoadReason)
 	for _, pluginName := range registry.PluginsForConfigPaths(newPaths) {
 		if s.isPluginLoaded(pluginName) {
 			continue
@@ -258,11 +365,17 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 			continue
 		}
 		seen[pluginName] = true
+		matchedRoot := firstMatchingConfigRoot(pluginName, pathSet)
+		seedReasons[pluginName] = AutoLoadReason{
+			Kind:   AutoLoadReasonConfigPath,
+			Source: matchedRoot,
+			Detail: "config section " + matchedRoot,
+		}
 		needed = append(needed, pluginName)
-		logger().Info("config reload: auto-loading plugin for new config path", "plugin", pluginName)
+		logger().Info("config reload: auto-loading plugin for new config path", "plugin", pluginName, "root", matchedRoot)
 	}
 
-	needed, err := s.appendDataPlaneWriter(needed, ConfigDataPlane(newTree))
+	needed, err := s.appendDataPlaneWriterWithReason(needed, ConfigDataPlane(newTree), seedReasons)
 	if err != nil {
 		return nil, err
 	}
@@ -272,16 +385,16 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 	// whenever anything is needed.
 	needHolds := config.ConfigNeedHolds(newTree)
 	if needHolds != nil {
-		needed = appendHeldNeedProviders(needed, seen, needHolds, func(name string) bool {
+		needed = appendHeldNeedProvidersWithReasons(needed, seen, needHolds, func(name string) bool {
 			return s.isRegistrationRunning(pm, name)
-		})
+		}, seedReasons)
 	}
 
 	if len(needed) == 0 {
 		return nil, nil
 	}
 
-	resolved, err := registry.ResolveDependencies(needed, nil, needHolds)
+	entries, err := s.resolveAutoLoadWithReasons(needed, seedReasons, needHolds, AutoLoadReasonConfigPath)
 	if err != nil {
 		logger().Error("config reload: dependency resolution failed, aborting auto-load",
 			"plugins", needed, "error", err, "code", CodeDoctorConfigReloadRefused)
@@ -294,25 +407,7 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 		return nil, fmt.Errorf("config-path auto-load dependency resolution: %w", err)
 	}
 
-	var plugins []plugin.PluginConfig
-	for _, name := range resolved {
-		if s.isPluginLoaded(name) {
-			continue
-		}
-		if s.hasConfiguredPlugin(name) {
-			continue
-		}
-		if pm != nil && pm.GetProcess(name) != nil {
-			continue
-		}
-		plugins = append(plugins, plugin.PluginConfig{
-			Name:     name,
-			Encoder:  encoderJSON,
-			Internal: true,
-		})
-	}
-
-	return plugins, nil
+	return entries, nil
 }
 
 // startAutoLoaded starts plugins that selectAutoLoad chose, and expands nothing.
@@ -522,6 +617,7 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 			if err := s.rollbackStartupProcess(proc); err != nil {
 				return fmt.Errorf("config reload: remove plugin %q: %w", name, err)
 			}
+			s.clearAutoLoadReason(name)
 			withdrawn = withdrawn || declared
 		}
 	}
@@ -684,13 +780,35 @@ func parentRemoved(path string, removed map[string]bool) bool {
 // dependency. refuseUnresolvableDeferredAutoLoad already ran this resolution
 // before the first plugin started; this one covers the set as it stands now.
 func (s *Server) resolveAutoLoad(needed []string, kind string) ([]plugin.PluginConfig, error) {
-	resolved, err := registry.ResolveDependencies(needed, nil, s.config.ConfigNeedHolds)
+	seedReasons := make(map[string]AutoLoadReason, len(needed))
+	for _, name := range needed {
+		seedReasons[name] = AutoLoadReason{Kind: kind}
+	}
+	entries, err := s.resolveAutoLoadWithReasons(needed, seedReasons, s.config.ConfigNeedHolds, kind)
+	if err != nil {
+		return nil, err
+	}
+	s.recordAutoLoadReasons(entries)
+	return autoLoadedConfigs(entries), nil
+}
+
+// resolveAutoLoadWithReasons resolves dependencies for needed and pairs every
+// selected plugin with its typed AutoLoadReason.
+func (s *Server) resolveAutoLoadWithReasons(
+	needed []string,
+	seedReasons map[string]AutoLoadReason,
+	needHolds registry.NeedHolds,
+	kind string,
+) ([]AutoLoadedEndpoint, error) {
+	resolved, err := registry.ResolveDependencies(needed, nil, needHolds)
 	if err != nil {
 		return nil, err
 	}
 
+	reasons := attributeResolvedReasons(needed, resolved, seedReasons, needHolds)
+
 	// Build plugin configs for all resolved names not already running.
-	var plugins []plugin.PluginConfig
+	var entries []AutoLoadedEndpoint
 	pm2 := s.procManager.Load()
 	for _, name := range resolved {
 		if s.isPluginLoaded(name) {
@@ -703,17 +821,24 @@ func (s *Server) resolveAutoLoad(needed []string, kind string) ([]plugin.PluginC
 			continue
 		}
 
+		reason := reasons[name]
+		if reason.Kind == "" {
+			reason.Kind = kind
+		}
 		logger().Debug("auto-loading plugin for "+kind,
-			"plugin", name)
+			"plugin", name, "reason_kind", reason.Kind, "reason_source", reason.Source)
 
-		plugins = append(plugins, plugin.PluginConfig{
-			Name:     name,
-			Encoder:  encoderJSON,
-			Internal: true,
+		entries = append(entries, AutoLoadedEndpoint{
+			Config: plugin.PluginConfig{
+				Name:     name,
+				Encoder:  encoderJSON,
+				Internal: true,
+			},
+			Reason: reason,
 		})
 	}
 
-	return plugins, nil
+	return entries, nil
 }
 
 // refuseUnresolvableDeferredAutoLoad resolves the dependencies of every plugin
@@ -774,6 +899,16 @@ func (s *Server) isRegistrationRunning(pm *process.ProcessManager, registration 
 // need with no registered provider. seen holds the names already in needed.
 // needHolds MUST NOT be nil.
 func appendHeldNeedProviders(needed []string, seen map[string]bool, needHolds registry.NeedHolds, running func(string) bool) []string {
+	return appendHeldNeedProvidersWithReasons(needed, seen, needHolds, running, nil)
+}
+
+func appendHeldNeedProvidersWithReasons(
+	needed []string,
+	seen map[string]bool,
+	needHolds registry.NeedHolds,
+	running func(string) bool,
+	reasons map[string]AutoLoadReason,
+) []string {
 	for _, reg := range registry.All() {
 		if len(reg.ConfigNeeds) == 0 {
 			continue
@@ -796,6 +931,9 @@ func appendHeldNeedProviders(needed []string, seen map[string]bool, needHolds re
 					continue
 				}
 				seen[provider] = true
+				if reasons != nil {
+					reasons[provider] = configNeedAutoLoadReason(reg.Name, need)
+				}
 				needed = append(needed, provider)
 			}
 		}

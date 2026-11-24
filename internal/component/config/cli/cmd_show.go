@@ -12,6 +12,7 @@ import (
 
 	editor "github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -73,12 +74,18 @@ func openBackupShowEditor(configName, backupPath string) (*editor.Editor, error)
 // Like `ze config dump`/`validate`, it reads a config file directly from the
 // filesystem (not the blob store), so a plain path works without `-f`.
 func cmdShow(args []string) int {
-	return showConfig(os.Stdout, args)
+	return showConfigTo(os.Stdout, os.Stderr, args)
 }
 
 // showConfig is the io.Writer-parameterised core of `ze config show`, so tests
 // can assert on the rendered tree without capturing os.Stdout.
 func showConfig(out io.Writer, args []string) int {
+	return showConfigTo(out, os.Stderr, args)
+}
+
+// showConfigTo runs `ze config show` writing byte-pure written configuration to
+// out and diagnostics or plain-display implied notices to errOut.
+func showConfigTo(out, errOut io.Writer, args []string) int {
 	fs := flag.NewFlagSet("config show", flag.ExitOnError)
 	backupPath := fs.String(flagBackup, "", "Read the config from a backup artifact")
 	fs.Usage = func() {
@@ -102,7 +109,7 @@ func showConfig(out io.Writer, args []string) int {
 	}
 
 	if fs.NArg() < 1 {
-		helpfmt.WriteError(os.Stderr, false, "missing config file")
+		helpfmt.WriteError(errOut, false, "missing config file")
 		fs.Usage()
 		return exitError
 	}
@@ -112,19 +119,38 @@ func showConfig(out io.Writer, args []string) int {
 
 	ed, err := openShowEditor(configFile, *backupPath)
 	if err != nil {
-		helpfmt.WriteError(os.Stderr, false, "%v", err)
+		helpfmt.WriteError(errOut, false, "%v", err)
 		return exitError
 	}
 	defer ed.Close() //nolint:errcheck // read-only inspection, nothing to flush
 
 	answer := sourceEditorAnswer(ed, configFile, path)
-	return command.PrintLocalAnswerWith("show config source", answer, func(_ string, payload any) int {
-		blob, ok := payload.(command.Blob)
-		if !ok {
-			panic("BUG: source display answered something other than its bytes")
+	if answer.Diagnostic != "" {
+		_, _ = io.WriteString(errOut, answer.Diagnostic) //nolint:errcheck // CLI diagnostic
+	}
+	if answer.Payload == nil {
+		return answer.Code
+	}
+	blob, ok := answer.Payload.(command.Blob)
+	if !ok {
+		panic("BUG: source display answered something other than its bytes")
+	}
+	if rc := writeText(out, string(blob)); rc != exitOK {
+		return rc
+	}
+	if whole := ed.DisplayTreeAtPath(nil); whole != nil {
+		report, reportErr := config.BuildImpliedReport(whole, config.ImpliedOptions{
+			Offline:    false,
+			ConfigFile: configFile,
+		})
+		if reportErr == nil {
+			if notice := config.ImpliedPlainNotice(report); notice != "" {
+				var tb textbuf.Buffer
+				_, _ = io.WriteString(errOut, tb.Str(notice).Byte('\n').String()) //nolint:errcheck // CLI plain-display notice
+			}
 		}
-		return writeText(out, string(blob))
-	})
+	}
+	return answer.Code
 }
 
 // sourceEditorAnswer is the source display shared by local files and supplied

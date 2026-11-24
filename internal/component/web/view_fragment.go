@@ -194,13 +194,16 @@ func toolOverlayClass(state ToolOverlayState) string {
 }
 
 // listRowClass is one list-table row's class list. A pending row holds an edit
-// the operator has not committed.
+// the operator has not committed; an implied row is read-only and derived by Ze.
 //
 // The base class is always written. The markup this replaced emitted class=""
 // for a row with no pending change, which names no class at all and leaves the
 // row with no styling hook. wbTablePendingClass is the sibling that gets it
 // right.
-func listRowClass(pending bool) string {
+func listRowClass(pending, implied bool) string {
+	if implied {
+		return "finder-table-row row--implied"
+	}
 	if pending {
 		return "finder-table-row row--pending"
 	}
@@ -282,8 +285,11 @@ func wbTableRowClass(flagClass string) string {
 }
 
 // wbTablePendingClass is one workbench table row's class list. A pending row
-// holds an edit the operator has not committed.
-func wbTablePendingClass(pending bool) string {
+// holds an edit the operator has not committed; an implied row is read-only.
+func wbTablePendingClass(pending, implied bool) string {
+	if implied {
+		return "wb-table-row wb-table-row--implied"
+	}
 	if pending {
 		return "wb-table-row wb-table-row--pending"
 	}

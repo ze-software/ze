@@ -302,6 +302,7 @@ const (
 	cmdDisconnect = "disconnect"
 	cmdAll        = "all"
 	cmdBlame      = "blame"
+	cmdImplied    = "implied"
 	cmdStop       = "stop"
 	cmdRestart    = "restart"
 	cmdChanges    = "changes"

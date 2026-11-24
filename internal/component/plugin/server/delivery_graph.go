@@ -40,6 +40,9 @@ type DeliveryPeer struct {
 	BusOrigin BusEdgeOrigin
 	// BusSource is the human-readable configuration location of Bus.
 	BusSource string
+	// Dynamic reports whether this participant was admitted dynamically under
+	// ParentPath rather than statically configured.
+	Dynamic bool
 	// SessionFacts optionally carries key/value session properties evaluated
 	// against DisseminationProcess.ClaimSessionScope.
 	SessionFacts map[string]string
@@ -48,11 +51,12 @@ type DeliveryPeer struct {
 // ProcessEdges is the operator view of one endpoint's compiled delivery
 // relationship with a participant address entry.
 type ProcessEdges struct {
-	Process string   `json:"process"`
-	Path    string   `json:"path,omitempty"`
-	Receive []string `json:"receive,omitempty"`
-	Send    []string `json:"send,omitempty"`
-	Origin  string   `json:"origin,omitempty"`
+	Process string            `json:"process"`
+	Path    string            `json:"path,omitempty"`
+	Receive []string          `json:"receive,omitempty"`
+	Send    []string          `json:"send,omitempty"`
+	Origin  string            `json:"origin,omitempty"`
+	Origins map[string]string `json:"origins,omitempty"`
 }
 
 // PeerEdges is the operator view of all compiled delivery relationships for
@@ -62,7 +66,24 @@ type PeerEdges struct {
 	Name       string         `json:"name,omitempty"`
 	Path       string         `json:"path,omitempty"`
 	ParentPath string         `json:"parent-path,omitempty"`
+	Dynamic    bool           `json:"dynamic,omitempty"`
 	Processes  []ProcessEdges `json:"processes"`
+}
+
+// DeliveryEdge describes one compiled bus delivery relationship across any
+// namespace, deduplicated per registered rule ("one registration, one line").
+type DeliveryEdge struct {
+	SenderPath       string              `json:"sender-path,omitempty"`
+	SenderEndpoint   string              `json:"sender-endpoint,omitempty"`
+	SenderGroup      string              `json:"sender-group,omitempty"`
+	ReceiverPath     string              `json:"receiver-path,omitempty"`
+	ReceiverEndpoint string              `json:"receiver-endpoint,omitempty"`
+	ReceiverGroup    string              `json:"receiver-group,omitempty"`
+	Message          string              `json:"message"`
+	Origin           string              `json:"origin"`
+	Source           string              `json:"source,omitempty"`
+	Destinations     []string            `json:"destinations,omitempty"`
+	Tags             map[string][]string `json:"tags,omitempty"`
 }
 
 // deliveryKey is one hot-path delivery lookup key. Every field is comparable so
@@ -86,6 +107,7 @@ type DeliveryGraph struct {
 	disseminationPeers []DeliveryPeer
 	peers              map[string]*peerDelivery
 	pathToAddr         map[string]string
+	dynamicGroupByPath map[string]string
 	order              []string
 	namespace          string
 	ns                 events.NamespaceID
@@ -95,6 +117,7 @@ type peerDelivery struct {
 	name          string
 	path          string
 	parentPath    string
+	dynamic       bool
 	sessionFacts  map[string]string
 	procs         []processDelivery
 	receive       map[deliveryKey][]string
@@ -105,10 +128,12 @@ type peerDelivery struct {
 }
 
 type processDelivery struct {
-	name   string
-	path   string
-	send   []string
-	origin BusEdgeOrigin
+	name        string
+	path        string
+	send        []string
+	origin      BusEdgeOrigin
+	recvOrigins map[events.EventTypeID]BusEdgeOrigin
+	sendOrigins map[string]BusEdgeOrigin
 }
 
 // emptyDeliveryGraph is returned before the first graph publication so lookups
@@ -208,6 +233,7 @@ func NewDeliveryGraphFromCompiled(namespace string, peers []DeliveryPeer, compil
 		disseminationPeers: cloneDeliveryPeers(peers),
 		peers:              make(map[string]*peerDelivery, len(peers)),
 		pathToAddr:         make(map[string]string, len(peers)*2),
+		dynamicGroupByPath: make(map[string]string),
 		order:              make([]string, 0, len(peers)),
 		namespace:          namespace,
 		ns:                 nsID,
@@ -226,10 +252,24 @@ func NewDeliveryGraphFromCompiled(namespace string, peers []DeliveryPeer, compil
 			}
 		}
 
+		isDynamic := p.Dynamic
+		if !isDynamic && p.ParentPath != "" && !plugin.PathCovers(p.ParentPath, pPath) {
+			isDynamic = true
+		}
+		if isDynamic && p.ParentPath != "" {
+			g.dynamicGroupByPath[pPath] = p.ParentPath
+			for _, sp := range p.SecondaryPaths {
+				if sp != "" {
+					g.dynamicGroupByPath[sp] = p.ParentPath
+				}
+			}
+		}
+
 		pd := &peerDelivery{
 			name:          p.Name,
 			path:          pPath,
 			parentPath:    p.ParentPath,
+			dynamic:       isDynamic,
 			sessionFacts:  maps.Clone(p.SessionFacts),
 			receive:       make(map[deliveryKey][]string),
 			sendersByType: make(map[string][]string),
@@ -264,13 +304,15 @@ func populatePeerDeliveryFromCompiled(
 		pm, ok := procMeta[epName]
 		if !ok {
 			pm = &processDelivery{
-				name:   epName,
-				path:   epPath,
-				origin: origin,
+				name:        epName,
+				path:        epPath,
+				origin:      origin,
+				recvOrigins: make(map[events.EventTypeID]BusEdgeOrigin),
+				sendOrigins: make(map[string]BusEdgeOrigin),
 			}
 			procMeta[epName] = pm
-		} else if origin == BusOriginWritten || (origin == BusOriginInherited && pm.origin == BusOriginRegistered) {
-			pm.origin = origin
+		} else {
+			pm.origin = strongerEdgeOrigin(pm.origin, origin)
 		}
 		return pm
 	}
@@ -292,7 +334,12 @@ func populatePeerDeliveryFromCompiled(
 				if !slices.Contains(names, epName) {
 					names = append(names, epName)
 				}
-				ensureProc(epName, r.Path, r.Origin)
+				pm := ensureProc(epName, r.Path, r.Origin)
+				if prev, exists := pm.recvOrigins[k.et]; exists {
+					pm.recvOrigins[k.et] = strongerEdgeOrigin(prev, r.Origin)
+				} else {
+					pm.recvOrigins[k.et] = r.Origin
+				}
 				if k.ns == nsID && stateETID != events.EventTypeUnknown && k.et == stateETID && k.dir == events.DirUnspecified {
 					pd.recvState[epName] = true
 				}
@@ -349,6 +396,11 @@ func populatePeerDeliveryFromCompiled(
 			if !slices.Contains(pm.send, displayToken) {
 				pm.send = append(pm.send, displayToken)
 			}
+			if prev, exists := pm.sendOrigins[displayToken]; exists {
+				pm.sendOrigins[displayToken] = strongerEdgeOrigin(prev, origin)
+			} else {
+				pm.sendOrigins[displayToken] = origin
+			}
 		}
 	}
 
@@ -359,6 +411,30 @@ func populatePeerDeliveryFromCompiled(
 		pm := procMeta[name]
 		slices.Sort(pm.send)
 		pd.procs = append(pd.procs, *pm)
+	}
+}
+
+func strongerEdgeOrigin(cur, next BusEdgeOrigin) BusEdgeOrigin {
+	if edgeOriginPriority(next) > edgeOriginPriority(cur) {
+		return next
+	}
+	return cur
+}
+
+func edgeOriginPriority(o BusEdgeOrigin) int {
+	switch o {
+	case BusOriginRequired:
+		return 5
+	case BusOriginWritten:
+		return 4
+	case BusOriginInherited:
+		return 3
+	case BusOriginRegistered:
+		return 2
+	case BusOriginDormant:
+		return 1
+	default:
+		panic("BUG: server: invalid BusEdgeOrigin value")
 	}
 }
 
@@ -386,6 +462,7 @@ func cloneDeliveryPeers(peers []DeliveryPeer) []DeliveryPeer {
 			Bus:            peers[i].Bus.Clone(),
 			BusOrigin:      peers[i].BusOrigin,
 			BusSource:      peers[i].BusSource,
+			Dynamic:        peers[i].Dynamic,
 			SessionFacts:   maps.Clone(peers[i].SessionFacts),
 		}
 	}
@@ -724,20 +801,319 @@ func (g *DeliveryGraph) Inspect() []PeerEdges {
 			Name:       pd.name,
 			Path:       pd.path,
 			ParentPath: pd.parentPath,
+			Dynamic:    pd.dynamic,
 			Processes:  make([]ProcessEdges, 0, len(pd.procs)),
 		}
 		for _, proc := range pd.procs {
+			recvTokens := g.receiveTokens(addr, proc.name)
+			origins := g.tokenOriginsForProcess(proc, recvTokens)
 			entry.Processes = append(entry.Processes, ProcessEdges{
 				Process: proc.name,
 				Path:    proc.path,
-				Receive: g.receiveTokens(addr, proc.name),
+				Receive: recvTokens,
 				Send:    slices.Clone(proc.send),
 				Origin:  proc.origin.String(),
+				Origins: origins,
 			})
 		}
 		out = append(out, entry)
 	}
 	return out
+}
+
+func (g *DeliveryGraph) tokenOriginsForProcess(proc processDelivery, recvTokens []string) map[string]string {
+	total := len(recvTokens) + len(proc.send)
+	if total == 0 {
+		return nil
+	}
+	origins := make(map[string]string, total)
+	for _, tok := range recvTokens {
+		origin := proc.origin
+		if evType, _, ok := events.SplitTypeToken(g.namespace, tok); ok {
+			if o, found := proc.recvOrigins[events.LookupEventTypeID(evType)]; found {
+				origin = o
+			}
+		}
+		origins[tok] = origin.String()
+	}
+	for _, tok := range proc.send {
+		origin := proc.origin
+		if o, found := proc.sendOrigins[tok]; found {
+			origin = o
+		}
+		origins[tok] = origin.String()
+	}
+	return origins
+}
+
+type regEdgeGroupKey struct {
+	senderPath string
+	message    string
+}
+
+type regEdgeGroup struct {
+	senderPath     string
+	senderEndpoint string
+	senderGroup    string
+	message        string
+	source         string
+	destinations   []string
+	tags           map[string][]string
+	single         *DeliveryEdge
+}
+
+// InspectEdges returns the multi-namespace, origin-annotated delivery edges
+// compiled in g, deduplicated per registered rule ("one registration, one
+// line"). Dynamic participants carry their admitting container path in
+// SenderGroup or ReceiverGroup; static participants leave those fields empty.
+func (g *DeliveryGraph) InspectEdges() []DeliveryEdge {
+	if g == nil {
+		return []DeliveryEdge{}
+	}
+	if g.compiled == nil {
+		return []DeliveryEdge{}
+	}
+
+	compiledEdges := g.compiled.Edges()
+	if len(compiledEdges) == 0 {
+		return []DeliveryEdge{}
+	}
+
+	out := make([]DeliveryEdge, 0, len(compiledEdges))
+	regGroups := make(map[regEdgeGroupKey]*regEdgeGroup)
+	var regGroupOrder []regEdgeGroupKey
+
+	for i := range compiledEdges {
+		ce := &compiledEdges[i]
+		sFilter := g.compiled.Filter(ce.SenderPath)
+		rFilter := g.compiled.Filter(ce.ReceiverPath)
+
+		senderEP := ""
+		if sFilter != nil {
+			senderEP = sFilter.EndpointName
+		}
+		recvEP := ce.ReceiverEndpoint
+		if recvEP == "" && rFilter != nil {
+			recvEP = rFilter.EndpointName
+		}
+		senderGroup := g.dynamicGroupByPath[ce.SenderPath]
+		recvGroup := g.dynamicGroupByPath[ce.ReceiverPath]
+
+		var sendRule *BusCompiledSendRule
+		if sFilter != nil {
+			sendRule = sFilter.SendRules[ce.Message]
+		}
+		var recvRule *BusCompiledReceiveRule
+		if rFilter != nil {
+			recvRule = rFilter.ReceiveRules[ce.Message]
+		}
+
+		source := compiledEdgeSource(ce, sFilter, sendRule, rFilter, recvRule)
+		tags := compiledEdgeTags(sendRule, recvRule)
+
+		// Collapse registered multi-destination sends from endpoints (or to
+		// non-endpoint participants) into one row ("one registration, one line").
+		if ce.Origin == BusOriginRegistered && ce.SenderPath != "" && (recvEP == "" || senderEP != "") && sendRule != nil && sendRule.ToOrigin.Origin == BusOriginRegistered {
+			key := regEdgeGroupKey{senderPath: ce.SenderPath, message: ce.Message}
+			grp, exists := regGroups[key]
+			if !exists {
+				edgeCopy := DeliveryEdge{
+					SenderPath:       ce.SenderPath,
+					SenderEndpoint:   senderEP,
+					SenderGroup:      senderGroup,
+					ReceiverPath:     ce.ReceiverPath,
+					ReceiverEndpoint: recvEP,
+					ReceiverGroup:    recvGroup,
+					Message:          ce.Message,
+					Origin:           ce.Origin.String(),
+					Source:           source,
+					Destinations:     []string{ce.ReceiverPath},
+					Tags:             tags,
+				}
+				grp = &regEdgeGroup{
+					senderPath:     ce.SenderPath,
+					senderEndpoint: senderEP,
+					senderGroup:    senderGroup,
+					message:        ce.Message,
+					source:         registrationSourceLabel(sFilter, ce.SenderPath),
+					destinations:   []string{ce.ReceiverPath},
+					tags:           tags,
+					single:         &edgeCopy,
+				}
+				regGroups[key] = grp
+				regGroupOrder = append(regGroupOrder, key)
+			} else {
+				grp.single = nil
+				if !slices.Contains(grp.destinations, ce.ReceiverPath) {
+					grp.destinations = append(grp.destinations, ce.ReceiverPath)
+				}
+			}
+			continue
+		}
+
+		var dests []string
+		if ce.ReceiverPath != "" && ce.Origin != BusOriginDormant {
+			dests = []string{ce.ReceiverPath}
+		}
+		out = append(out, DeliveryEdge{
+			SenderPath:       ce.SenderPath,
+			SenderEndpoint:   senderEP,
+			SenderGroup:      senderGroup,
+			ReceiverPath:     ce.ReceiverPath,
+			ReceiverEndpoint: recvEP,
+			ReceiverGroup:    recvGroup,
+			Message:          ce.Message,
+			Origin:           ce.Origin.String(),
+			Source:           source,
+			Destinations:     dests,
+			Tags:             tags,
+		})
+	}
+
+	for _, key := range regGroupOrder {
+		grp := regGroups[key]
+		if grp.single != nil {
+			out = append(out, *grp.single)
+			continue
+		}
+		slices.Sort(grp.destinations)
+		out = append(out, DeliveryEdge{
+			SenderPath:     grp.senderPath,
+			SenderEndpoint: grp.senderEndpoint,
+			SenderGroup:    grp.senderGroup,
+			Message:        grp.message,
+			Origin:         BusOriginRegistered.String(),
+			Source:         grp.source,
+			Destinations:   grp.destinations,
+			Tags:           grp.tags,
+		})
+	}
+
+	slices.SortFunc(out, compareDeliveryEdges)
+	return out
+}
+
+func compareDeliveryEdges(a, b DeliveryEdge) int {
+	if a.SenderPath != b.SenderPath {
+		return strings.Compare(a.SenderPath, b.SenderPath)
+	}
+	if a.ReceiverPath != b.ReceiverPath {
+		return strings.Compare(a.ReceiverPath, b.ReceiverPath)
+	}
+	if a.Message != b.Message {
+		return strings.Compare(a.Message, b.Message)
+	}
+	if a.Origin != b.Origin {
+		return strings.Compare(a.Origin, b.Origin)
+	}
+	return strings.Compare(a.Source, b.Source)
+}
+
+func registrationSourceLabel(f *CompiledParticipantFilter, fallbackPath string) string {
+	label := fallbackPath
+	if f != nil {
+		if f.EndpointName != "" {
+			label = f.EndpointName
+		} else if f.Path != "" {
+			label = f.Path
+		}
+	}
+	if label == "" {
+		return "registration"
+	}
+	return "registration of " + label
+}
+
+func compiledEdgeSource(
+	ce *BusCompiledEdge,
+	sFilter *CompiledParticipantFilter,
+	sendRule *BusCompiledSendRule,
+	rFilter *CompiledParticipantFilter,
+	recvRule *BusCompiledReceiveRule,
+) string {
+	switch ce.Origin {
+	case BusOriginDormant:
+		if ce.TagSummary != "" {
+			if ce.SenderPath == "" {
+				return enrichDormantReason(ce.Message, ce.TagSummary)
+			}
+			return ce.TagSummary
+		}
+		return enrichDormantReason(ce.Message, "no active sender")
+	case BusOriginRequired:
+		if src := firstSourceWithOrigin(BusOriginRequired, sendRule, recvRule); src != "" {
+			return src
+		}
+		if rFilter != nil && rFilter.EndpointName != "" {
+			return "feature requirement for " + rFilter.EndpointName
+		}
+		if sFilter != nil && sFilter.EndpointName != "" {
+			return "feature requirement for " + sFilter.EndpointName
+		}
+		return "feature requirement"
+	case BusOriginWritten:
+		if src := firstSourceWithOrigin(BusOriginWritten, sendRule, recvRule); src != "" {
+			return src
+		}
+		return ce.SenderPath
+	case BusOriginInherited:
+		if src := firstSourceWithOrigin(BusOriginInherited, sendRule, recvRule); src != "" {
+			return "inherited from " + src
+		}
+		if ce.ParentPath != "" {
+			return "inherited from " + ce.ParentPath
+		}
+		return "inherited"
+	case BusOriginRegistered:
+		if rFilter != nil && rFilter.EndpointName != "" {
+			return registrationSourceLabel(rFilter, ce.ReceiverPath)
+		}
+		return registrationSourceLabel(sFilter, ce.SenderPath)
+	default:
+		panic("BUG: server: invalid BusEdgeOrigin value")
+	}
+}
+
+func firstSourceWithOrigin(want BusEdgeOrigin, sendRule *BusCompiledSendRule, recvRule *BusCompiledReceiveRule) string {
+	if sendRule != nil {
+		if sendRule.ToOrigin.Origin == want && len(sendRule.ToOrigin.Sources) > 0 {
+			return textbuf.Join(sendRule.ToOrigin.Sources, ", ")
+		}
+		if sendRule.AllowOrigin.Origin == want && len(sendRule.AllowOrigin.Sources) > 0 {
+			return textbuf.Join(sendRule.AllowOrigin.Sources, ", ")
+		}
+		for _, tagName := range slices.Sorted(maps.Keys(sendRule.TagOrigins)) {
+			orig := sendRule.TagOrigins[tagName]
+			if orig.Origin == want && len(orig.Sources) > 0 {
+				return textbuf.Join(orig.Sources, ", ")
+			}
+		}
+	}
+	if recvRule != nil {
+		if recvRule.FromOrigin.Origin == want && len(recvRule.FromOrigin.Sources) > 0 {
+			return textbuf.Join(recvRule.FromOrigin.Sources, ", ")
+		}
+		if recvRule.AllowOrigin.Origin == want && len(recvRule.AllowOrigin.Sources) > 0 {
+			return textbuf.Join(recvRule.AllowOrigin.Sources, ", ")
+		}
+		for _, tagName := range slices.Sorted(maps.Keys(recvRule.TagOrigins)) {
+			orig := recvRule.TagOrigins[tagName]
+			if orig.Origin == want && len(orig.Sources) > 0 {
+				return textbuf.Join(orig.Sources, ", ")
+			}
+		}
+	}
+	return ""
+}
+
+func compiledEdgeTags(sendRule *BusCompiledSendRule, recvRule *BusCompiledReceiveRule) map[string][]string {
+	if recvRule != nil && len(recvRule.InboundTagMap) > 0 {
+		return cloneTagValueMap(recvRule.InboundTagMap)
+	}
+	if sendRule != nil && len(sendRule.OutboundTagMap) > 0 {
+		return cloneTagValueMap(sendRule.OutboundTagMap)
+	}
+	return nil
 }
 
 // receiveTokens reads the event types indexed for one endpoint on one address
@@ -867,7 +1243,7 @@ func (s *Server) collectBusEndpointInputs(namespace string, busCfg plugin.BusCon
 		if regName == namespace && epName == namespace {
 			return
 		}
-		if regName == "" && (liveReg == nil || (!liveReg.Done && len(liveReg.Sends) == 0 && len(liveReg.Receives) == 0)) {
+		if regName == "" && (liveReg == nil || (!liveReg.Done && len(liveReg.Sends) == 0 && len(liveReg.Receives) == 0 && !liveReg.WantsValidateOpen)) {
 			// External endpoint whose Stage 1 registration has not arrived yet:
 			// NewProcess initializes an empty PluginRegistration (Done=false),
 			// so wait until Stage 1 completes or declarations are populated.
@@ -891,6 +1267,15 @@ func (s *Server) collectBusEndpointInputs(namespace string, busCfg plugin.BusCon
 				if compiled.Name != namespace {
 					singletonPath = singletonParticipantPath(compiled.ParticipantNodes)
 				}
+			}
+		}
+		if liveReg != nil && liveReg.WantsValidateOpen && namespace != "" {
+			stateMsg := namespace + ":state"
+			hasState := slices.ContainsFunc(receives, func(d rpc.MessageReceiveDecl) bool {
+				return d.Message == stateMsg
+			})
+			if !hasState {
+				receives = append(slices.Clone(receives), rpc.MessageReceiveDecl{Message: stateMsg})
 			}
 		}
 

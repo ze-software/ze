@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/process-protocol.md — 5-stage plugin startup protocol
 // Design: docs/architecture/api/commands.md — a plugin declares a pipe alias or a pipe operation
 // Overview: server.go — Server struct and lifecycle
-// Detail: startup_autoload.go — auto-loading plugins for families and event types
+// Detail: startup_autoload.go — auto-loading plugins for config paths, families, data planes, and dependencies
 // Detail: startup_failure.go — the error reported when a plugin never reaches StageRunning
 
 package server
@@ -24,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -122,12 +123,10 @@ func (s *Server) stageTransition(ctx context.Context, proc *process.Process, plu
 	return true
 }
 
-// runPluginStartup handles five-phase plugin startup:
+// runPluginStartup handles three-phase plugin startup:
 // Phase 1: Auto-load config-path plugins and their already-selected prerequisites.
 // Phase 2: Start the remaining explicit plugins.
 // Phase 3: Auto-load plugins for unclaimed families.
-// Phase 4: Auto-load plugins for custom event types (e.g., update-rpki triggers bgp-rpki-decorator).
-// Phase 5: Auto-load plugins for custom send types (e.g., enhanced-refresh triggers bgp-route-refresh).
 func (s *Server) runPluginStartup() {
 	defer s.wg.Done()
 
@@ -138,17 +137,16 @@ func (s *Server) runPluginStartup() {
 	// Every boot auto-load set resolves its hard dependencies before the first
 	// plugin starts. A plugin whose Registration.Dependencies names a plugin
 	// this build lacks never works, so boot refuses with the plugin, the
-	// dependency and the build tag rather than starting it alone. The event and
-	// send type sets and the unclaimed families start after the explicit
-	// plugins, so they are resolved here too: a refusal found only in phase 3
-	// or later would leave the earlier phases' plugins running.
+	// dependency and the build tag rather than starting it alone. Unclaimed
+	// families start after the explicit plugins, so they are resolved here too:
+	// a refusal found only in phase 3 would leave earlier phases' plugins running.
 	autoLoadConfigPaths, err := s.getConfigPathPlugins()
 	if err != nil {
 		s.refuseBootAutoLoad("config path", err)
 		return
 	}
 	if err := s.refuseUnresolvableDeferredAutoLoad(); err != nil {
-		s.refuseBootAutoLoad("family, custom event or send type", err)
+		s.refuseBootAutoLoad("family", err)
 		return
 	}
 	autoCount := len(autoLoadConfigPaths)
@@ -219,11 +217,10 @@ func (s *Server) runPluginStartup() {
 }
 
 // refuseBootAutoLoad ends startup because the auto-load set for trigger (the
-// config path, a family, or a custom event or send type) cannot resolve its
-// dependencies. The error is the operator's message as ResolveDependencies
-// wrote it, so it is the startup error unwrapped: for a missing hard
-// dependency it already names the plugin, the dependency, the build tag and
-// the fix.
+// config path or a family) cannot resolve its dependencies. The error is the
+// operator's message as ResolveDependencies wrote it, so it is the startup
+// error unwrapped: for a missing hard dependency it already names the plugin,
+// the dependency, the build tag and the fix.
 func (s *Server) refuseBootAutoLoad(trigger string, err error) {
 	logger().Error("boot auto-load refused: its plugin dependencies do not resolve",
 		"trigger", trigger, "error", err)
@@ -702,6 +699,7 @@ func (s *Server) unmarkPluginLoaded(name string) {
 	s.loadedPluginsMu.Lock()
 	delete(s.loadedPlugins, name)
 	s.loadedPluginsMu.Unlock()
+	s.clearAutoLoadReason(name)
 }
 
 func (s *Server) rememberPluginFamilies(name string, regs []family.FamilyRegistration) {
@@ -1006,6 +1004,18 @@ func (e *engineStartupSink) onReady(input *rpc.ReadyInput) error {
 		var receives []rpc.MessageReceiveDecl
 		if reg := proc.Registration(); reg != nil {
 			receives = reg.Receives
+			if reg.WantsValidateOpen {
+				ns := s.DeliveryGraph().namespace
+				if ns == "" && events.IsValidNamespace("bgp") {
+					ns = "bgp"
+				}
+				if ns != "" {
+					stateMsg := ns + ":state"
+					if !slices.ContainsFunc(receives, func(d rpc.MessageReceiveDecl) bool { return d.Message == stateMsg }) {
+						receives = append(slices.Clone(receives), rpc.MessageReceiveDecl{Message: stateMsg})
+					}
+				}
+			}
 		}
 		s.registerReceiveDeclarations(proc, receives, input)
 		if len(receives) > 0 {

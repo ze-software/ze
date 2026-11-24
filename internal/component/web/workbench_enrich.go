@@ -16,6 +16,14 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+const (
+	segBus            = "bus"
+	segBusEndpoint    = "endpoint"
+	segBusParticipant = "participant"
+	colBusInternal    = "internal"
 )
 
 // enrichWorkbenchTable populates the workbench-only fields on data.ListTable:
@@ -65,6 +73,168 @@ func enrichWorkbenchTable(data *FragmentData, schema *config.Schema, tree *confi
 		data.ListTable.Rows[i].RowTools = buildRowTools(rowTools, rowPathJoined)
 		data.ListTable.Rows[i].HasPendingChanges = entryHasPendingChange(pendingPaths, path, listNode, key)
 	}
+
+	appendImpliedWorkbenchRows(data.ListTable, tree, path)
+}
+
+// appendImpliedWorkbenchRows appends read-only rows for implied bus endpoints
+// or participants that are not already present among the written rows of table.
+// Uses Offline: false so workbench rendering never spawns external query
+// processes.
+func appendImpliedWorkbenchRows(table *ListTableView, tree *config.Tree, path []string) {
+	if table == nil {
+		return
+	}
+	if tree == nil {
+		return
+	}
+	if len(path) != 2 {
+		return
+	}
+	if path[0] != segBus {
+		return
+	}
+	if path[1] != segBusEndpoint && path[1] != segBusParticipant {
+		return
+	}
+
+	report, err := config.BuildImpliedReport(tree, config.ImpliedOptions{Offline: false})
+	if err != nil {
+		return
+	}
+
+	writtenKeys := make(map[string]bool, len(table.Rows))
+	for i := range table.Rows {
+		writtenKeys[table.Rows[i].KeyValue] = true
+	}
+
+	var nonKeyCols []ListTableColumn
+	if len(table.Columns) > 1 {
+		nonKeyCols = table.Columns[1:]
+	}
+
+	switch path[1] {
+	case segBusEndpoint:
+		for i := range report.Endpoints {
+			ep := &report.Endpoints[i]
+			if ep.Name == "" {
+				continue
+			}
+			if writtenKeys[ep.Name] {
+				continue
+			}
+			writtenKeys[ep.Name] = true
+
+			cells := make([]ListTableCell, 0, len(nonKeyCols))
+			for _, col := range nonKeyCols {
+				val := ""
+				if col.Name == colBusInternal {
+					val = ep.CompiledPlugin
+					if val == "" {
+						val = ep.Name
+					}
+				}
+				cells = append(cells, ListTableCell{Value: val})
+			}
+
+			table.Rows = append(table.Rows, ListTableRow{
+				KeyValue:  ep.Name,
+				Cells:     cells,
+				Implied:   true,
+				ImpliedBy: impliedEndpointReason(ep),
+			})
+		}
+	case segBusParticipant:
+		for i := range report.Participants {
+			p := &report.Participants[i]
+			if p.Path == "" {
+				continue
+			}
+			if writtenKeys[p.Path] {
+				continue
+			}
+			reason, hasImplied := impliedParticipantReason(p)
+			if !hasImplied {
+				continue
+			}
+			writtenKeys[p.Path] = true
+
+			cells := make([]ListTableCell, len(nonKeyCols))
+			table.Rows = append(table.Rows, ListTableRow{
+				KeyValue:  p.Path,
+				Cells:     cells,
+				Implied:   true,
+				ImpliedBy: reason,
+			})
+		}
+	}
+}
+
+func impliedEndpointReason(ep *config.ImpliedEndpoint) string {
+	if ep.ImpliedBy != "" {
+		return ep.ImpliedBy
+	}
+	if ep.ReasonKind != "" {
+		var tb textbuf.Buffer
+		tb.Str(ep.ReasonKind)
+		if ep.ReasonSource != "" {
+			tb.Byte(' ').Str(ep.ReasonSource)
+		}
+		return tb.String()
+	}
+	return "auto-load of " + ep.Name
+}
+
+func impliedParticipantReason(p *config.ImpliedParticipant) (string, bool) {
+	for i := range p.Receive {
+		if reason, ok := impliedDirectionRuleReason(&p.Receive[i]); ok {
+			return reason, true
+		}
+	}
+	for i := range p.Send {
+		if reason, ok := impliedDirectionRuleReason(&p.Send[i]); ok {
+			return reason, true
+		}
+	}
+	if impliedAllowActive(p.ReceiveAllowOrigin, p.ReceiveAllowNone, p.ReceiveAllow) {
+		if p.ReceiveAllowSource != "" {
+			return p.ReceiveAllowSource, true
+		}
+		return p.ReceiveAllowOrigin, true
+	}
+	if impliedAllowActive(p.SendAllowOrigin, p.SendAllowNone, p.SendAllow) {
+		if p.SendAllowSource != "" {
+			return p.SendAllowSource, true
+		}
+		return p.SendAllowOrigin, true
+	}
+	return "", false
+}
+
+func impliedDirectionRuleReason(rule *config.ImpliedDirectionRule) (string, bool) {
+	if rule.Origin == config.ImpliedOriginWritten && len(rule.ReplacedDefaults) == 0 && !rule.Dormant {
+		return "", false
+	}
+	if rule.Source != "" {
+		return rule.Source, true
+	}
+	if rule.Dormant && rule.DormantReason != "" {
+		return rule.DormantReason, true
+	}
+	return rule.Origin, true
+}
+
+func impliedAllowActive(origin string, allowNone bool, allow []string) bool {
+	if origin == "" {
+		return false
+	}
+	if origin == config.ImpliedOriginWritten {
+		return false
+	}
+	if allowNone {
+		return true
+	}
+	return len(allow) > 0
 }
 
 // buildWorkbenchListTable constructs a ListTableView for any named list,

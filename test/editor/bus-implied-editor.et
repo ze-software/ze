@@ -1,0 +1,120 @@
+# Test: TUI editor `show | implied` displays S43 filter insertions and implied endpoints while plain `show` stays pure with a status notice.
+# QUESTION: in the interactive config editor on an S43 configuration (`edge1` with
+# `role { import customer; }`, `lab` with `next-hop:unchanged`, `t1` with
+# `next-hop:auto`, `t2` bare), does plain `show` keep written config pure and show
+# the implied notice in the status bar, do `show | implied`, `show | implied | format config`,
+# and `show | implied | match otc-egress` display the exact S43 implied items with zero
+# `##` markers, and does deleting `role` from `edge1` immediately remove `otc-ingress`
+# and `otc-egress` from `show | implied` while keeping `loop-detection` and `next-hop:auto`?
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config AC-23, AC-46, S43 (editor surface).
+# PREVENTS: editor `show | implied` dropping built-in/plugin filter insertions, leaking
+# `# implied by:` into plain `show`, or failing to compose with `| format config` / `| match`.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 192.0.2.1; }
+			local { ip auto; }
+		}
+		session {
+			asn { remote 65001; }
+		}
+		role { import customer; }
+	}
+	peer lab {
+		connection {
+			remote { ip 192.0.2.2; }
+			local { ip auto; }
+		}
+		session {
+			asn { remote 65002; }
+		}
+		filter {
+			export {
+				filters [ next-hop:unchanged ];
+				final accept;
+			}
+		}
+	}
+	peer t1 {
+		connection {
+			remote { ip 192.0.2.3; }
+			local { ip auto; }
+		}
+		session {
+			asn { remote 65003; }
+		}
+		filter {
+			export {
+				filters [ next-hop:auto ];
+				final accept;
+			}
+		}
+	}
+	peer t2 {
+		connection {
+			remote { ip 192.0.2.4; }
+			local { ip auto; }
+		}
+		session {
+			asn { remote 65004; }
+		}
+	}
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=20s
+
+# Plain `show`: written config stays pure; status bar surfaces the implied notice.
+input=type:text=show
+input=enter
+expect=viewport:contains=peer edge1
+expect=viewport:not-contains=# implied by:
+expect=status:contains=implied
+expect=error:none
+
+# `show | implied`: S43 filter insertions and auto-loaded endpoints appear with single-hash comments.
+input=type:text=show | implied
+input=enter
+expect=viewport:contains=# implied by:
+expect=viewport:contains=loop-detection
+expect=viewport:contains=bgp-role:otc-ingress
+expect=viewport:contains=bgp-role:otc-egress
+expect=viewport:contains=next-hop:auto
+expect=viewport:not-contains=##
+expect=error:none
+
+# `show | implied | format config`: explicit config format retains implied annotations.
+input=type:text=show | implied | format config
+input=enter
+expect=viewport:contains=# implied by:
+expect=viewport:contains=bgp-role:otc-egress
+expect=viewport:not-contains=##
+expect=error:none
+
+# `show | implied | match otc-egress`: composes cleanly with standard pipes.
+input=type:text=show | implied | match otc-egress
+input=enter
+expect=viewport:contains=otc-egress
+expect=viewport:not-contains=otc-ingress
+expect=error:none
+
+# Negative case: deleting role from edge1 removes both bgp-role filter members while keeping built-ins.
+input=type:text=delete bgp peer edge1 role
+input=enter
+expect=error:none
+
+input=type:text=show | implied
+input=enter
+expect=viewport:contains=loop-detection
+expect=viewport:contains=next-hop:auto
+expect=viewport:not-contains=bgp-role:otc-ingress
+expect=viewport:not-contains=bgp-role:otc-egress
+expect=error:none

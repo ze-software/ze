@@ -1,0 +1,81 @@
+# Test: offline `show config source`/`dump | implied` queries external declarations without starting the run loop, refuses unqueryable binaries, and `ze config show` keeps stdout pure with stderr notice.
+# QUESTION: with NO daemon running, when a config names an external endpoint whose
+# `run` binary supports `sdk.RunOrDeclare` query mode, do `show config source file <f> | implied | json`
+# and `show config dump <f> | implied | json` report the external endpoint's declared
+# sends/receives in `implied.participants` without ever starting its run loop; when a
+# second config names a nonexistent `run` binary, do both commands refuse non-zero
+# naming the endpoint, `run` line, cause, and `ze show plugin conformance run "..."`
+# with zero partial implied output; and does `ze config show <f>` write pure written
+# config to stdout with the implied notice on stderr? A unit test cannot decide this
+# because it proves end-to-end local CLI process execution, real subprocess query-mode
+# handshaking, and stdout/stderr separation across all three offline commands.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config AC-24, AC-23 (offline notice).
+# PREVENTS: offline `| implied` starting external run loops, returning partial implied
+# output when a query fails, or polluting `ze config show` stdout with notices.
+
+option=timeout:value=60s
+
+tmpfs=probe.conf:terminator=EOF_PROBE
+bus {
+	endpoint probe {
+		external {
+			run "le test fixture plugin/bus-implied-probe probe.started";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 192.0.2.1; }
+			local { ip auto; }
+		}
+		session {
+			asn { remote 65001; }
+		}
+	}
+}
+EOF_PROBE
+
+tmpfs=missing.conf:terminator=EOF_MISSING
+bus {
+	endpoint broken {
+		external {
+			run "/nonexistent/ze-missing-implied-probe";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 192.0.2.1; }
+			local { ip auto; }
+		}
+		session {
+			asn { remote 65001; }
+		}
+	}
+}
+EOF_MISSING
+
+# Case 1: query-mode external endpoint appears in implied.participants; run loop never starts.
+cmd=foreground:seq=1:exec=le test fixture plugin/bus-assert-implied offline-ok probe.conf probe.started:exit=0
+expect=stdout:contains=OK: offline-ok verified source and dump implied declarations without starting run loop
+
+# Case 2: nonexistent run binary is refused cleanly with conformance command and zero partial output.
+cmd=foreground:seq=2:exec=le test fixture plugin/bus-assert-implied offline-refusal missing.conf broken /nonexistent/ze-missing-implied-probe:exit=0
+expect=stdout:contains=OK: offline-refusal verified source and dump refuse unqueryable endpoint cleanly
+
+# Case 3: ze config show keeps stdout pure written config and prints implied notice to stderr.
+cmd=foreground:seq=3:exec=le test fixture plugin/bus-assert-implied config-show-notice probe.conf:exit=0
+expect=stdout:contains=OK: config-show-notice verified pure stdout and stderr implied notice

@@ -59,7 +59,11 @@ func TestGraphicalInspectionSourcesUseSharedProducer(t *testing.T) {
 			require.Contains(t, shared.Output, source.want)
 			response := graphicalActionRequest(t, handler, "inspect", "bgp", url.Values{"source": {source.form}, "format": {format}})
 			requireStatus(t, http.StatusOK, response)
-			assert.Equal(t, shared.Output, response.Body.String())
+			want := shared.Output
+			if shared.Feedback != "" {
+				want = shared.Feedback + "\n" + shared.Output
+			}
+			assert.Equal(t, want, response.Body.String())
 		}
 	}
 	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), schema))

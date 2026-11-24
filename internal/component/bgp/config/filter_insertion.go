@@ -62,16 +62,17 @@ func insertDeclaredFilters(bgpTree map[string]any, peers []*reactor.PeerSettings
 	return conditional, nil
 }
 
-// anyPeerHolds answers, per insertion, whether a `scope any-peer` insertion's
-// config condition holds on any static peer or dynamic group template
-// (rpc.FilterScopeAnyPeer, spec-filter-wire-6-stage-filters D-5): a
+// anyPeerHolds answers, per insertion, the triggering config path of the first
+// static peer or dynamic group template whose config satisfies a
+// `scope any-peer` insertion (rpc.FilterScopeAnyPeer,
+// spec-filter-wire-6-stage-filters D-5), or "" when no peer satisfies it: a
 // source-keyed procedure acts on the routes a peer meeting it sent, which
 // every other peer's export list carries. The Stage 1 judge refuses any-peer
 // beside a session condition, so the config condition is the only one read.
 func anyPeerHolds(insertions []rpc.FilterInsertion, peers []*reactor.PeerSettings, peerMap map[string]any,
 	groups []*reactor.DynamicGroupConfig,
-) []bool {
-	holds := make([]bool, len(insertions))
+) []string {
+	triggers := make([]string, len(insertions))
 	for i := range insertions {
 		ins := &insertions[i]
 		if ins.Scope != rpc.FilterScopeAnyPeer {
@@ -80,18 +81,21 @@ func anyPeerHolds(insertions []rpc.FilterInsertion, peers []*reactor.PeerSetting
 		for _, ps := range peers {
 			resolved, _ := peerMap[ps.Name].(map[string]any)
 			if insertionConditionHolds(resolved, ins.Config, ins.Values) {
-				holds[i] = true
+				triggers[i] = insertionConfigTrigger(ps, ins)
 				break
 			}
 		}
+		if triggers[i] != "" {
+			continue
+		}
 		for _, dg := range groups {
 			if insertionConditionHolds(dg.Template, ins.Config, ins.Values) {
-				holds[i] = true
+				triggers[i] = insertionConfigTrigger(dg.Settings, ins)
 				break
 			}
 		}
 	}
-	return holds
+	return triggers
 }
 
 // sessionMembers are the members a dynamic template carries under a session
@@ -161,12 +165,12 @@ func declaredInsertions() ([]rpc.FilterInsertion, error) {
 // the group to keep or drop once its OPEN gives its AS
 // (templatedChain.CompileResolved).
 func insertForPeer(ps *reactor.PeerSettings, resolved map[string]any,
-	insertions []rpc.FilterInsertion, anyPeer []bool, reg *policy.Registry,
+	insertions []rpc.FilterInsertion, anyPeer []string, reg *policy.Registry,
 ) (sessionMembers, error) {
 	var members sessionMembers
 	for i := len(insertions) - 1; i >= 0; i-- {
 		ins := &insertions[i]
-		holds, deferred, err := insertionHolds(ps, resolved, ins, anyPeer[i])
+		holds, deferred, err := insertionHolds(ps, resolved, ins, anyPeer[i] != "")
 		if err != nil {
 			return members, err
 		}
@@ -187,11 +191,13 @@ func insertForPeer(ps *reactor.PeerSettings, resolved map[string]any,
 			if err := validateChainNames(reg, refs, ps.IsDynamic, attachmentImportBGP, "peer "+ps.Name+" import filters"); err != nil {
 				return members, err
 			}
-			ps.ImportPolicy = ps.ImportPolicy.Prepend(ref, inProcess).WithImplied(filterapi.ImpliedFilter{
+			ps.ImportPolicy = ps.ImportPolicy.Prepend(ref, inProcess).PrependImplied(filterapi.ImpliedFilter{
 				Direction: directionImport,
 				Position:  filterapi.ImpliedPositionHead,
 				Ref:       ref.Name,
-				ImpliedBy: insertionImpliedBy(ins),
+				ImpliedBy: insertionImpliedBy(ps, ins, anyPeer[i]),
+				Required:  ins.Required,
+				Reason:    ins.Reason,
 			})
 			if deferred {
 				members.imports = append(members.imports, member)
@@ -207,11 +213,13 @@ func insertForPeer(ps *reactor.PeerSettings, resolved map[string]any,
 		if err := validateChainNames(reg, refs, ps.IsDynamic, attachmentExport, "peer "+ps.Name+" export filters"); err != nil {
 			return members, err
 		}
-		ps.ExportPolicy = ps.ExportPolicy.Prepend(ref, inProcess).WithImplied(filterapi.ImpliedFilter{
+		ps.ExportPolicy = ps.ExportPolicy.Prepend(ref, inProcess).PrependImplied(filterapi.ImpliedFilter{
 			Direction: directionExport,
 			Position:  filterapi.ImpliedPositionHead,
 			Ref:       ref.Name,
-			ImpliedBy: insertionImpliedBy(ins),
+			ImpliedBy: insertionImpliedBy(ps, ins, anyPeer[i]),
+			Required:  ins.Required,
+			Reason:    ins.Reason,
 		})
 		if deferred {
 			members.exports = append(members.exports, member)
@@ -289,21 +297,19 @@ func requiredInsertionRefusal(ps *reactor.PeerSettings, direction string, ins *r
 }
 
 // insertionImpliedBy formats a generic human-readable provenance reason for
-// ins from its declared scope, config path/values, or session facts without
-// hardcoding any plugin name.
-func insertionImpliedBy(ins *rpc.FilterInsertion) string {
-	var tb textbuf.Buffer
+// ins from its declared scope, triggering config path/values, or session facts
+// without hardcoding any plugin name.
+func insertionImpliedBy(ps *reactor.PeerSettings, ins *rpc.FilterInsertion, anyPeerTrigger string) string {
 	if ins.Scope == rpc.FilterScopeAnyPeer {
-		tb.Str("any-peer ")
+		if anyPeerTrigger != "" {
+			return anyPeerTrigger
+		}
 	}
 	if len(ins.Config) > 0 {
-		tb.Join(ins.Config, " ")
-		if len(ins.Values) > 0 {
-			tb.Byte('=').Join(ins.Values, "|")
-		}
-		return tb.String()
+		return insertionConfigTrigger(ps, ins)
 	}
 	if len(ins.Session) > 0 {
+		var tb textbuf.Buffer
 		tb.Str("session ")
 		for i := range ins.Session {
 			if i > 0 {
@@ -318,4 +324,34 @@ func insertionImpliedBy(ins *rpc.FilterInsertion) string {
 		return tb.String()
 	}
 	return "plugin filter insertion"
+}
+
+// insertionConfigTrigger formats the config path on ps that triggered ins,
+// without naming any plugin or feature.
+func insertionConfigTrigger(ps *reactor.PeerSettings, ins *rpc.FilterInsertion) string {
+	var tb textbuf.Buffer
+	tb.Str(peerConfigPathPrefix(ps))
+	if len(ins.Config) > 0 {
+		tb.Str(" > ").Join(ins.Config, " ")
+		if len(ins.Values) > 0 {
+			tb.Byte('=').Join(ins.Values, "|")
+		}
+	}
+	return tb.String()
+}
+
+// peerConfigPathPrefix formats ps's config path in Ze's `>` hierarchy
+// notation (standalone peer, grouped peer, or dynamic group template).
+func peerConfigPathPrefix(ps *reactor.PeerSettings) string {
+	if ps == nil {
+		return "bgp"
+	}
+	var tb textbuf.Buffer
+	if ps.IsDynamic {
+		return tb.Str("bgp > group ").Str(ps.GroupName).String()
+	}
+	if ps.GroupName != "" {
+		return tb.Str("bgp > group ").Str(ps.GroupName).Str(" > peer ").Str(ps.Name).String()
+	}
+	return tb.Str("bgp > peer ").Str(ps.Name).String()
 }

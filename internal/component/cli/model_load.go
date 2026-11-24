@@ -434,6 +434,11 @@ func (m *Model) cmdShowPipe(args []string, filters []PipeFilter) (commandResult,
 		return m.applyTextFilters(r, e, opts.TextFilters)
 	}
 
+	if opts.Implied {
+		r, e := m.cmdShowImplied(opts.Format, source)
+		return m.applyTextFilters(r, e, opts.TextFilters)
+	}
+
 	// A bare comparison reviews this session's intent. Explicit sources,
 	// targets and format pipes retain the parsed-tree comparison contract.
 	if source == "" {
@@ -648,10 +653,11 @@ type ShowPipeOpts struct {
 	ChangesAll     bool         // show | changes all
 	Errors         bool         // show | errors
 	History        bool         // show | history
+	Implied        bool         // show | implied
 	TextFilters    []PipeFilter // remaining text filters (match, head, tail)
 }
 
-// ClassifyShowPipes separates show-specific pipes (format, compare, active/inactive)
+// ClassifyShowPipes separates show-specific pipes (format, compare, active/inactive, implied)
 // from text filters (match, head, tail). Both the SSH and web CLI call this so the
 // classification logic lives in one place.
 func ClassifyShowPipes(filters []PipeFilter) (ShowPipeOpts, error) {
@@ -682,6 +688,11 @@ func ClassifyShowPipes(filters []PipeFilter) (ShowPipeOpts, error) {
 			opts.Errors = true
 		case cmdHistory:
 			opts.History = true
+		case cmdImplied:
+			if f.Arg != "" {
+				return ShowPipeOpts{}, fmt.Errorf("show | implied takes no arguments (got %q)", f.Arg)
+			}
+			opts.Implied = true
 		default:
 			opts.TextFilters = append(opts.TextFilters, f)
 		}

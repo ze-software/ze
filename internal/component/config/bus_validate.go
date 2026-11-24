@@ -375,6 +375,17 @@ func stripSchemaPrefixes(schemaPath string) []string {
 	return out
 }
 
+func singletonSchemaShortPath(nodes []rpc.ParticipantNodeDecl) string {
+	if len(nodes) != 1 {
+		return ""
+	}
+	segs := stripSchemaPrefixes(nodes[0].SchemaPath)
+	if len(segs) == 0 {
+		return ""
+	}
+	return "/" + textbuf.Join(segs, "/")
+}
+
 // discoverParticipants builds the map of all active configured participants in
 // tree from registered participant node templates, explicit bus endpoints, and
 // auto-loaded compiled-in plugins.
@@ -432,6 +443,20 @@ func discoverParticipants(
 				p.HasDeclaration = true
 				p.Sends = reg.Sends
 				p.Receives = reg.Receives
+				if sp := singletonSchemaShortPath(reg.ParticipantNodes); sp != "" {
+					if _, exists := participants[sp]; !exists {
+						participants[sp] = &BusValidatedParticipant{
+							Path:           sp,
+							Kind:           reg.Name,
+							HasDeclaration: true,
+							Sends:          reg.Sends,
+							Receives:       reg.Receives,
+							Block:          endpointBlocks[ep.Name],
+							Source:         p.Source,
+						}
+						singletonByKind[reg.Name] = sp
+					}
+				}
 			}
 		} else if extDecl, ok := lookupExternalBusDecl(ep.Name); ok {
 			p.HasDeclaration = true
@@ -441,22 +466,66 @@ func discoverParticipants(
 		participants[epPath] = p
 	}
 
+	var activeCompiled []string
+	seenCompiled := make(map[string]bool)
+	addActiveCompiled := func(name string) {
+		if name == "" {
+			return
+		}
+		if seenCompiled[name] {
+			return
+		}
+		seenCompiled[name] = true
+		activeCompiled = append(activeCompiled, name)
+	}
+	for name := range explicitCompiledKinds {
+		addActiveCompiled(name)
+	}
 	for _, reg := range registry.All() {
 		if explicitCompiledKinds[reg.Name] {
 			continue
 		}
-		if len(reg.ParticipantNodes) > 0 {
+		if len(reg.ParticipantNodes) > 1 {
 			continue
 		}
-		active := false
 		for _, root := range reg.ConfigRoots {
 			if tree.GetContainer(root) != nil {
-				active = true
+				addActiveCompiled(reg.Name)
 				break
 			}
 		}
-		if !active {
+	}
+	resolvedCompiled := activeCompiled
+	if len(activeCompiled) > 0 {
+		if expanded, depErr := registry.ResolveDependencies(activeCompiled, nil, ConfigNeedHolds(tree.ToMap())); depErr == nil {
+			resolvedCompiled = expanded
+		}
+	}
+	for _, name := range resolvedCompiled {
+		if explicitCompiledKinds[name] {
 			continue
+		}
+		reg := registry.Lookup(name)
+		if reg == nil {
+			continue
+		}
+		if len(reg.ParticipantNodes) > 1 {
+			continue
+		}
+		if sp := singletonSchemaShortPath(reg.ParticipantNodes); sp != "" {
+			if _, exists := participants[sp]; !exists {
+				participants[sp] = &BusValidatedParticipant{
+					Path:           sp,
+					Kind:           reg.Name,
+					HasDeclaration: true,
+					Sends:          reg.Sends,
+					Receives:       reg.Receives,
+					Source:         sp,
+				}
+			}
+			if _, hasSingleton := singletonByKind[reg.Name]; !hasSingleton {
+				singletonByKind[reg.Name] = sp
+			}
 		}
 		epPath := plugin.EndpointPath(reg.Name)
 		if _, exists := participants[epPath]; exists {

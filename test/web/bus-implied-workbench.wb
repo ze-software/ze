@@ -1,0 +1,61 @@
+# Test: Web CLI `show | implied` and workbench bus tables display S43 implied filter insertions and read-only implied rows.
+# QUESTION: on a running daemon web UI in workbench mode, when an operator configures
+# `role import customer` on `peer1` in the web CLI, do `show | implied` and
+# `show | implied | match otc-egress` render the S43 implied filter insertions with
+# zero `##` lines while plain `show` stays pure, and after `commit now`, do the
+# workbench list tables (`/show/bus/endpoint/` and `/show/bus/participant/`) render
+# read-only implied rows (`wb-table-row--implied` with an implied badge and no edit
+# controls)? A handler unit test cannot prove end-to-end browser terminal submission,
+# DOM replacement, and workbench list rendering against a real daemon.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config AC-23, AC-46, S43 (web CLI & workbench).
+# PREVENTS: web CLI failing to classify `show | implied`, workbench hiding implied
+# endpoints/participants, or implied rows rendering as editable inputs.
+
+option=timeout:value=90s
+option=server:kind=daemon
+option=env:var=ze.web.ui-mode:value=workbench
+
+action=open:path=/cli
+
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+
+# Configure S43 `role import customer` on the daemon's existing peer `peer1`.
+action=fill:id=terminal-input:value=set bgp peer peer1 role import customer
+action=press:id=terminal-input:key=Enter
+
+# Plain `show` keeps written config pure without `# implied by:`.
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+expect=html:contains=role import customer
+expect=html:not-contains=# implied by:
+
+# `show | implied` shows S43 implied filter members and implied endpoints.
+action=fill:id=terminal-input:value=show | implied
+action=press:id=terminal-input:key=Enter
+expect=html:contains=# implied by:
+expect=html:contains=loop-detection
+expect=html:contains=bgp-role:otc-ingress
+expect=html:contains=bgp-role:otc-egress
+expect=html:contains=next-hop:auto
+expect=html:not-contains=##
+
+# Pipe composition on web CLI: `show | implied | match otc-egress`.
+action=fill:id=terminal-input:value=show | implied | match otc-egress
+action=press:id=terminal-input:key=Enter
+action=wait-html:not-contains=otc-ingress
+expect=html:contains=otc-egress
+
+# Commit the configuration so live workbench bus tables reflect the applied implied items.
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+expect=element:text=commit successful
+
+# Workbench bus tables: implied endpoints and participants render read-only with an implied badge.
+action=open:path=/show/bus/endpoint/
+expect=html:contains=row--implied
+expect=html:contains=bgp-rib
+
+action=open:path=/show/bus/participant/
+expect=html:contains=row--implied

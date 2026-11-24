@@ -1,6 +1,7 @@
 // Design: docs/architecture/config/syntax.md — config dependency graph for agent impact analysis
 // Related: plugin_verify.go — plugin config root verification uses same registry
 // Related: listener.go — listener endpoint collection for port conflict detection
+// Related: implied.go — GraphBusEdgeProvider seam and canonical edge origin constants
 
 package config
 
@@ -54,9 +55,10 @@ type GraphNode struct {
 
 // GraphEdge is a directed edge in the config dependency graph.
 type GraphEdge struct {
-	From string        `json:"from"`
-	To   string        `json:"to"`
-	Kind GraphEdgeKind `json:"kind"`
+	From   string        `json:"from"`
+	To     string        `json:"to"`
+	Kind   GraphEdgeKind `json:"kind"`
+	Origin string        `json:"origin,omitempty"`
 }
 
 // Graph is the full config dependency graph.
@@ -71,6 +73,10 @@ func (g *Graph) addNode(id string, kind GraphNodeKind, name string) {
 
 func (g *Graph) addEdge(from, to string, kind GraphEdgeKind) {
 	g.Edges = append(g.Edges, GraphEdge{From: from, To: to, Kind: kind})
+}
+
+func (g *Graph) addEdgeWithOrigin(from, to string, kind GraphEdgeKind, origin string) {
+	g.Edges = append(g.Edges, GraphEdge{From: from, To: to, Kind: kind, Origin: origin})
 }
 
 // BuildGraph builds a dependency graph from a parsed config tree and schema.
@@ -128,21 +134,35 @@ func addBGPEdges(g *Graph, tree *Tree) {
 	}
 }
 
-// addBusEdges adds endpoint nodes and directional bus filter edges from
-// bus > endpoint, bus > participant, and participant-local bus blocks.
+// addBusEdges adds endpoint nodes from bus > endpoint and directional bus
+// delivery edges with their origins. When a compiled GraphBusEdgeProvider is
+// registered, its origin-annotated delivery edges are appended directly;
+// otherwise written bus blocks in tree are scanned as a fallback.
 func addBusEdges(g *Graph, tree *Tree) {
 	if tree == nil {
 		return
 	}
 	var tb textbuf.Buffer
 
-	if busTree := tree.GetContainer(sectionBus); busTree != nil {
+	busTree := tree.GetContainer(sectionBus)
+	if busTree != nil {
+		for _, entry := range busTree.GetListOrdered(busListEndpoint) {
+			epID := tb.Reset().Str("plugin/").Str(entry.Key).String()
+			g.addNode(epID, NodePlugin, entry.Key)
+			g.addEdge("section/bus", epID, EdgeContains)
+		}
+	}
+
+	if provider := getGraphBusEdgeProvider(); provider != nil {
+		g.Edges = append(g.Edges, provider(tree)...)
+		return
+	}
+
+	if busTree != nil {
 		busCfg, err := plugin.ParseBusConfigFromMap(busTree.ToMap())
 		if err == nil {
 			for _, epName := range slices.Sorted(maps.Keys(busCfg.Endpoints)) {
 				epID := tb.Reset().Str("plugin/").Str(epName).String()
-				g.addNode(epID, NodePlugin, epName)
-				g.addEdge("section/bus", epID, EdgeContains)
 				addBusBlockGraphEdges(g, epID, busCfg.Endpoints[epName])
 			}
 			for _, pPath := range slices.Sorted(maps.Keys(busCfg.Participants)) {
@@ -186,7 +206,7 @@ func addBusBlockGraphEdges(g *Graph, srcID string, block plugin.BusBlock) {
 		if dstID == srcID {
 			continue
 		}
-		g.addEdge(srcID, dstID, EdgeProcessBinds)
+		g.addEdgeWithOrigin(srcID, dstID, EdgeProcessBinds, ImpliedOriginWritten)
 	}
 }
 
@@ -485,15 +505,16 @@ func sortGraph(g *Graph) {
 	}
 	g.Nodes = unique
 
-	// Deduplicate edges.
+	// Deduplicate edges while preserving distinct origins.
 	type edgeKey struct {
 		from, to string
 		kind     GraphEdgeKind
+		origin   string
 	}
 	seenEdges := make(map[edgeKey]bool, len(g.Edges))
 	dedupEdges := make([]GraphEdge, 0, len(g.Edges))
 	for _, e := range g.Edges {
-		k := edgeKey{e.From, e.To, e.Kind}
+		k := edgeKey{e.From, e.To, e.Kind, e.Origin}
 		if !seenEdges[k] {
 			seenEdges[k] = true
 			dedupEdges = append(dedupEdges, e)
@@ -509,7 +530,10 @@ func sortGraph(g *Graph) {
 		if g.Edges[i].To != g.Edges[j].To {
 			return g.Edges[i].To < g.Edges[j].To
 		}
-		return g.Edges[i].Kind < g.Edges[j].Kind
+		if g.Edges[i].Kind != g.Edges[j].Kind {
+			return g.Edges[i].Kind < g.Edges[j].Kind
+		}
+		return g.Edges[i].Origin < g.Edges[j].Origin
 	})
 }
 

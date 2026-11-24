@@ -106,6 +106,7 @@ func init() {
 		Resolve: resolveBGPSecondaryIPPath,
 	})
 	zeconfig.RegisterBusRequirementValidator("bgp-features", validateBGPBusRequirements)
+	zeconfig.RegisterImpliedFilterProvider(attachmentOwnerBGP, collectBGPImpliedFilters)
 	registry.RegisterReactorFactory(createReactorFromCoordinator)
 
 	// Fill the always-on infra seams (internal/component/config/infra) so

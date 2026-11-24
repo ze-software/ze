@@ -11,13 +11,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ze-software/ze/internal/component/cli/contract"
-	"github.com/ze-software/ze/internal/core/textbuf"
-
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Completion represents a single completion suggestion.
@@ -620,6 +619,7 @@ var showPipeFilters = append([]Completion{
 	{Text: cmdErrors, ShortHelp: "Validation issues", Type: completionKeyword},
 	{Text: cmdFormat, ShortHelp: "Output format (tree or config)", Type: completionKeyword},
 	{Text: cmdHistory, ShortHelp: "Rollback revisions", Type: completionKeyword},
+	{Text: cmdImplied, ShortHelp: "Include implied endpoints, wiring and filters", Type: completionKeyword},
 	{Text: cmdActive, ShortHelp: "Show only active nodes (hide inactive)", Type: completionKeyword},
 	{Text: cmdInactive, ShortHelp: "Show only inactive nodes", Type: completionKeyword},
 }, textPipeFilters...)

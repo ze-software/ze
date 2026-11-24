@@ -1,0 +1,242 @@
+# Test: `show config running | implied` renders S43 filter insertions, auto-loaded endpoints, and replaced bus defaults across text, JSON, YAML, and pipe composition.
+# QUESTION: on a running daemon with S43 peers (`edge1` with `role { import customer; }`
+# and no filter, `lab` with `next-hop:unchanged`, `t1` with `next-hop:auto`, `t2` bare
+# plus a written `bus` `to` override replacing a default) and auto-loaded plugins
+# (`bgp-rib` and `bgp-role`), do `show config running | implied` (text),
+# `| implied | json`, `| implied | yaml`, `| implied | match otc-egress`, and
+# plain `show config running | json` each produce the exact S43 view (with zero `##`
+# lines at column 0 and zero human notice in machine outputs), and after reloading with
+# `role` removed from `edge1`, do `bgp-role:otc-ingress` and `bgp-role:otc-egress`
+# leave every peer while `loop-detection` and `edge1`/`t2`'s `next-hop:auto` stay?
+# A unit test cannot decide this because the path spans live daemon startup auto-load,
+# BGP policy compilation, SSH CLI pipe execution (`| implied`, `| json`, `| yaml`,
+# `| match`), and SIGHUP config reload updating the live running view.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config AC-23, AC-46, S43.
+# PREVENTS: missing built-in or plugin-inserted filter members in `| implied`,
+# `##` markers breaking `DetectFormat`, human notices leaking into `| json`/`| yaml`,
+# or stale any-peer role insertions surviving reload removal.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:update collector.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		role { import customer; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		filter {
+			export {
+				filters [ next-hop:unchanged ];
+				final accept;
+			}
+		}
+	}
+	peer t1 {
+		connection {
+			remote { ip 127.0.0.4; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65003; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		filter {
+			export {
+				filters [ next-hop:auto ];
+				final accept;
+			}
+		}
+	}
+	peer t2 {
+		connection {
+			remote { ip 127.0.0.5; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65004; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		bus {
+			send {
+				message bgp:update {
+					to [ /bus/endpoint/bgp-rib /bus/endpoint/collector ];
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=norole.conf:terminator=EOF_NOROLE
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:update collector.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.3; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		filter {
+			export {
+				filters [ next-hop:unchanged ];
+				final accept;
+			}
+		}
+	}
+	peer t1 {
+		connection {
+			remote { ip 127.0.0.4; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65003; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		filter {
+			export {
+				filters [ next-hop:auto ];
+				final accept;
+			}
+		}
+	}
+	peer t2 {
+		connection {
+			remote { ip 127.0.0.5; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65004; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+		bus {
+			send {
+				message bgp:update {
+					to [ /bus/endpoint/bgp-rib /bus/endpoint/collector ];
+				}
+			}
+		}
+	}
+}
+EOF_NOROLE
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=3:exec=le test fixture plugin/bus-assert-implied s43-running:exit=0
+expect=stdout:contains=OK: s43-running verified text, json, yaml, match, and pure json
+
+# Negative case: reload removing role from edge1 drops otc-ingress/otc-egress everywhere.
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-sighup-reload norole.conf running.conf reload.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload norole.conf applied
+
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-assert-implied s43-no-role:exit=0
+expect=stdout:contains=OK: s43-no-role verified role filters gone and built-in filters retained
+
+cmd=stop:seq=6:name=daemon:signal=term

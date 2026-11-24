@@ -1,0 +1,168 @@
+# Test: `show event delivery | json` and `ze config graph` report delivery origins and attribute dynamic peers to their admitting group while static peers carry no group.
+# QUESTION: on a running daemon with a static peer `edge1`, a group `transit` with
+# member `t1` exercising an inherited `send > to`, a dynamic group `dyn1` accepting
+# loopback `127.0.0.0/24`, and endpoints exercising `written`, `inherited`,
+# `registered`, and `dormant` origins, once a live `le test peer --dial` connects
+# from `127.0.0.1`, does `show event delivery | json` report every edge with a valid
+# origin (covering `written`, `inherited`, `registered`, `dormant`), name `/bgp/group/dyn1`
+# beside the dynamic peer's address while static peer `/bgp/peer/edge1` carries no
+# group, and does `ze config graph` emit origin-annotated `process-binds` edges?
+# A unit test cannot decide this because the path spans live dynamic-peer admission
+# over TCP, `DeliveryGraph.InspectEdges` over the real compiled bus, and CLI/graph
+# JSON serialization.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config AC-25, S31.
+# PREVENTS: missing origin labels on delivery or graph edges, or dynamic peers
+# losing their admitting group path in `show event delivery`.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+stdin=dyn-peer:terminator=EOF_DYN
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65100
+option=linger:value=true
+option=established-file:path=dyn.up
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_DYN
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint col-reg {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:state reg.log";
+		}
+		encoding json;
+	}
+	endpoint col-written {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:state written.log";
+		}
+		encoding json;
+		receive {
+			from [ /bgp/peer/edge1 ];
+		}
+	}
+	endpoint col-inh {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:state inh.log";
+		}
+		encoding json;
+	}
+	endpoint col-dormant {
+		external {
+			run "le test fixture plugin/bus-event-collector acme:alert dormant.log";
+		}
+		encoding json;
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+	group transit {
+		bus {
+			send {
+				message bgp:state {
+					to [ /bus/endpoint/bgp-rib /bus/endpoint/col-inh ];
+				}
+			}
+		}
+		peer t1 {
+			connection {
+				remote { ip 127.0.0.3; connect false; }
+				local { ip 127.0.0.1; port $PORT; accept true; }
+			}
+			session {
+				asn { remote 65002; }
+				family { ipv4/unicast { prefix { maximum 10000; } } }
+				capability { graceful-restart disable; }
+			}
+		}
+	}
+	group dyn1 {
+		connection {
+			remote {
+				ip dynamic;
+				connect false;
+				range 127.0.0.0/24;
+			}
+			local {
+				ip 127.0.0.1;
+				port $PORT;
+				accept true;
+			}
+		}
+		session {
+			asn { local 65000; }
+			router-id 192.0.2.254;
+			family {
+				ipv4/unicast {
+					mode enable;
+					prefix { maximum 10000; }
+				}
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+cmd=background:seq=3:name=dyn-peer:exec=le test peer --dial 127.0.0.1:$PORT:stdin=dyn-peer
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-wait-file dyn.up:exit=0
+expect=stdout:contains=OK: marker file dyn.up appeared
+
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-assert-implied delivery-origins running.conf /bgp/group/dyn1 127.0.0.1 /bgp/peer/edge1:exit=0
+expect=stdout:contains=OK: delivery-origins verified all origins, dynamic group attribution, static peer, and config graph
+
+cmd=stop:seq=6:name=daemon:signal=term
+cmd=stop:seq=7:name=dyn-peer

@@ -41,25 +41,37 @@ templ workbenchTable(v WorkbenchTableData) {
 			<tbody>
 				if len(v.Rows) > 0 {
 					for _, row := range v.Rows {
-						<tr class={ wbTablePendingClass(row.Pending) } data-key={ row.Key }>
-							<td class={ wbTableFlagClass(row.FlagClass) }>{ row.Flags }</td>
+						<tr class={ wbTablePendingClass(row.Pending, row.Implied) } data-key={ row.Key } data-implied?={ row.Implied }>
+							<td class={ wbTableFlagClass(row.FlagClass) }>
+								if row.Implied {
+									<span class="badge badge-implied" title={ row.ImpliedBy }>implied</span>
+								} else {
+									{ row.Flags }
+								}
+							</td>
 							for _, cell := range row.Cells {
 								<td class="wb-table-cell">{ cell }</td>
 							}
 							<td class="wb-table-actions">
-								for _, a := range row.Actions {
-									if a.HxPost != "" {
-										<button
-											hx-post={ a.HxPost }
-											class={ wbActionClass(a.Class) }
-											if a.Confirm != "" {
-												hx-confirm={ a.Confirm }
-											}
-										>{ a.Label }</button>
-									} else {
-										<a href={ a.URL } class={ wbActionClass(a.Class) }>{ a.Label }</a>
+								if row.Implied {
+									if row.ImpliedBy != "" {
+										<span class="implied-by-detail">{ row.ImpliedBy }</span>
 									}
-									{ " " }
+								} else {
+									for _, a := range row.Actions {
+										if a.HxPost != "" {
+											<button
+												hx-post={ a.HxPost }
+												class={ wbActionClass(a.Class) }
+												if a.Confirm != "" {
+													hx-confirm={ a.Confirm }
+												}
+											>{ a.Label }</button>
+										} else {
+											<a href={ a.URL } class={ wbActionClass(a.Class) }>{ a.Label }</a>
+										}
+										{ " " }
+									}
 								}
 							</td>
 						</tr>

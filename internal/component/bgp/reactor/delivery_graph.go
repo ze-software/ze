@@ -157,6 +157,7 @@ func deliveryPeerFromSettingsWithAS(s *PeerSettings, remoteAS uint32) pluginserv
 		Bus:            s.Bus.Clone(),
 		BusOrigin:      s.BusOrigin,
 		BusSource:      source,
+		Dynamic:        s.IsDynamic,
 		SessionFacts:   deliveryPeerSessionFacts(s, remoteAS),
 	}
 }

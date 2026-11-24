@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // errNoRunningConfig is the refusal of a daemon that holds no running tree.
@@ -32,7 +33,12 @@ var errNoRunningConfig = errors.New("show config running: this daemon holds no r
 // with config.SecretDataPlaceholder. The answer leaves the daemon over SSH,
 // REST and gRPC, so it never carries the $9$ form `show config dump` writes:
 // that form is reversible.
-func handleShowConfigRunning(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*zePlugin.Response, error) {
+//
+// When the command-declared `| implied` pipe operation is requested, the
+// response wraps the byte-pure masked configuration under "config" beside the
+// compiled config.ImpliedReport under "implied". Without `| implied`, the
+// answer stays the plain masked configuration map, byte-identical to before.
+func handleShowConfigRunning(ctx *pluginserver.CommandContext, args command.ValidatedArgs) (*zePlugin.Response, error) {
 	if ctx == nil {
 		return runningRefusal(errNoRunningConfig), nil
 	}
@@ -48,9 +54,43 @@ func handleShowConfigRunning(ctx *pluginserver.CommandContext, _ command.Validat
 	if err != nil {
 		return runningRefusal(errors.Join(errors.New("show config running: the YANG schema did not load, so secret leaves cannot be masked"), err)), nil
 	}
+	activeMap := config.ActiveConfigMap(tree)
+	masked := runningConfigView(activeMap, config.SecretKeys(schema))
+	if !hasPipeOperation(args.PipeOperations(), pipeOpImplied) {
+		return &zePlugin.Response{
+			Status: zePlugin.StatusDone,
+			Data:   zePlugin.Map(masked),
+		}, nil
+	}
+
+	cfgTree, err := treeFromRunningMap(activeMap)
+	if err != nil {
+		return runningRefusal(opererr.Wrap(err,
+			"show config running: could not build configuration tree for implied view",
+			"The daemon's running configuration map could not be reconstructed into a tree.",
+			"show config running")), nil
+	}
+
+	opts := config.ImpliedOptions{}
+	if ctx.Server != nil {
+		opts.LiveEndpoints = ctx.Server.AutoLoadedEndpoints()
+		if dg := ctx.Server.DeliveryGraph(); dg != nil {
+			opts.LiveCompiled = dg.Compiled()
+		}
+	}
+	report, err := config.BuildImpliedReport(cfgTree, opts)
+	if err != nil {
+		if operErr, ok := errors.AsType[*opererr.Error](err); ok {
+			return zePlugin.OperatorErrorResponse(operErr), nil
+		}
+		return runningRefusal(err), nil
+	}
 	return &zePlugin.Response{
 		Status: zePlugin.StatusDone,
-		Data:   zePlugin.Map(runningConfigView(config.ActiveConfigMap(tree), config.SecretKeys(schema))),
+		Data: zePlugin.Map{
+			impliedKeyConfig:  masked,
+			impliedKeyImplied: report,
+		},
 	}, nil
 }
 

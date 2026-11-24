@@ -18,6 +18,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/policy"
 
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
@@ -152,10 +153,15 @@ func buildPeerPopulationsWithResolved(tree *config.Tree) ([]*reactor.PeerSetting
 	// the group's routes and stops there.
 	for _, groupEntry := range bgpContainer.GetListOrdered("group") {
 		groupTree := groupEntry.Value
+		hasGroupBus := groupTree.GetContainer("bus") != nil
 
 		if ds, ok := dynByGroup[groupEntry.Key]; ok {
 			if err := patchRoutes(ds, groupEntry.Key, groupTree); err != nil {
 				return nil, nil, nil, err
+			}
+			if !ds.Bus.IsEmpty() && hasGroupBus {
+				ds.BusOrigin = pluginserver.BusOriginInherited
+				ds.BusSource = "/bgp/group/" + groupEntry.Key + " > bus"
 			}
 		}
 
@@ -166,6 +172,11 @@ func buildPeerPopulationsWithResolved(tree *config.Tree) ([]*reactor.PeerSetting
 			ps, ok := peerIndex[addr]
 			if !ok {
 				continue
+			}
+
+			if !ps.Bus.IsEmpty() && hasGroupBus && peerTree.GetContainer("bus") == nil {
+				ps.BusOrigin = pluginserver.BusOriginInherited
+				ps.BusSource = "/bgp/group/" + groupEntry.Key + " > bus"
 			}
 
 			// Layer 1: Routes from group defaults.
@@ -874,13 +885,19 @@ func applyLoopDetectionConfig(policyTree *config.Tree, peers []*reactor.PeerSett
 // if not already present (explicitly or as inactive:). Default filters come from
 // loop-detection entries in the policy section. Each entry's name is prepended
 // to ImportPolicy so loop detection runs first without changing its final.
+// When no explicit policy { loop-detection } stanza is configured, the reactor
+// still runs its built-in loop-detection step first at FilterStageProtocol
+// (reactor/filter_ordered.go), so recordBuiltinLoopDetectionImplied publishes
+// that step on ImportPolicy.Implied() without altering ImportPolicy.Filters().
 func prependDefaultFilters(policyTree *config.Tree, peers []*reactor.PeerSettings, reg *policy.Registry) {
 	if policyTree == nil {
+		recordBuiltinLoopDetectionImplied(peers)
 		return
 	}
 
-	ldEntries := policyTree.GetList("loop-detection")
+	ldEntries := policyTree.GetList(loopdetect.FilterType)
 	if len(ldEntries) == 0 {
+		recordBuiltinLoopDetectionImplied(peers)
 		return
 	}
 
@@ -902,13 +919,31 @@ func prependDefaultFilters(policyTree *config.Tree, peers []*reactor.PeerSetting
 				continue
 			}
 			// bound is nil when no reference bound in process, else parallel to refs.
-			ps.ImportPolicy = ps.ImportPolicy.Prepend(dflt, i < len(bound) && bound[i]).WithImplied(filterapi.ImpliedFilter{
+			ps.ImportPolicy = ps.ImportPolicy.Prepend(dflt, i < len(bound) && bound[i]).PrependImplied(filterapi.ImpliedFilter{
 				Direction: directionImport,
 				Position:  filterapi.ImpliedPositionHead,
 				Ref:       dflt.Name,
 				ImpliedBy: "policy loop-detection",
 			})
 		}
+	}
+}
+
+// recordBuiltinLoopDetectionImplied records the engine's built-in
+// loop-detection ingress step at the head of each peer's ImportPolicy.Implied()
+// seam when no explicit policy { loop-detection } block is configured.
+func recordBuiltinLoopDetectionImplied(peers []*reactor.PeerSettings) {
+	builtin := filterapi.ImpliedFilter{
+		Direction: directionImport,
+		Position:  filterapi.ImpliedPositionHead,
+		Ref:       loopdetect.FilterType,
+		ImpliedBy: "built-in loop-detection step",
+	}
+	for _, ps := range peers {
+		if filterChainContains(ps.ImportPolicy.Filters(), loopdetect.FilterType) {
+			continue
+		}
+		ps.ImportPolicy = ps.ImportPolicy.PrependImplied(builtin)
 	}
 }
 

@@ -116,10 +116,9 @@ func (s *Server) deliveryDisagreements(only *process.Process) []deliveryDisagree
 	return out
 }
 
-// edgeDisagreements judges one peer-to-process edge, in both directions: a type
-// the config grants that the plugin never declared, and a type the plugin
-// declared that this peer's attach block does not grant. A type the config
-// granted implicitly (ProcessEdges.Implicit) is not reported undeclared.
+// edgeDisagreements judges one participant-to-endpoint edge, in both
+// directions: a type the compiled filter grants that the plugin never declared,
+// and a type the plugin declared that the compiled filter does not grant.
 func (s *Server) edgeDisagreements(g *DeliveryGraph, peer PeerEdges, edges ProcessEdges, proc *process.Process) []deliveryDisagreement {
 	var out []deliveryDisagreement
 	granted := make([]events.EventTypeID, 0, len(edges.Receive))

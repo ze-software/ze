@@ -6,10 +6,19 @@
 package cli
 
 import (
+	"errors"
+
 	editor "github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+const (
+	pathShowSource     = "show config source"
+	pathSuppliedSource = "show config supplied source"
 )
 
 func dataMigrate(args command.ValidatedArgs) command.LocalAnswer {
@@ -21,7 +30,26 @@ func dataFixPlan(args command.ValidatedArgs) command.LocalAnswer {
 }
 
 func dataSource(args command.ValidatedArgs) command.LocalAnswer {
-	return fileToolAnswer(args, "show config source", fileSource)
+	file, found := args.Keyed("file")
+	if !found {
+		positional := args.PositionalTokens()
+		if len(positional) != 1 {
+			return suppliedRefusal(pathShowSource, "one file is required", nil)
+		}
+		file = positional[0]
+	}
+	readPath, err := command.CallerPath(args.Route(), pathShowSource, args.Tokens(), file)
+	if err != nil {
+		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
+	}
+	data, err := cliio.ReadFile(readPath)
+	if err != nil {
+		return suppliedRefusal(pathShowSource, "configuration file could not be read", err)
+	}
+	produce := func(a command.ValidatedArgs, content []byte, label string) command.LocalAnswer {
+		return sourceBytesAnswerWithPath(a, content, label, readPath, a.Route().CallerLocal())
+	}
+	return suppliedAnswer(pathShowSource, produce, args, data, file)
 }
 
 // fileToolAnswer confines a daemon-host filename before reading it, then
@@ -71,31 +99,82 @@ func suppliedSource(args command.ValidatedArgs, data []byte, name string) comman
 	return sourceBytesAnswer(args, data, name, true)
 }
 
-func fileSource(args command.ValidatedArgs, data []byte, name string) command.LocalAnswer {
-	return sourceBytesAnswer(args, data, name, args.Route().CallerLocal())
+func sourceBytesAnswer(args command.ValidatedArgs, data []byte, name string, rawSourceAllowed bool) command.LocalAnswer {
+	return sourceBytesAnswerWithPath(args, data, name, name, rawSourceAllowed)
 }
 
-func sourceBytesAnswer(args command.ValidatedArgs, data []byte, name string, rawSourceAllowed bool) command.LocalAnswer {
+func sourceBytesAnswerWithPath(args command.ValidatedArgs, data []byte, name, configFile string, rawSourceAllowed bool) command.LocalAnswer {
 	var path []string
 	if selected, found := args.Keyed("path"); found {
 		words, err := editor.ParseCommandWords(selected)
 		if err != nil {
-			return suppliedRefusal("show config supplied source", "source path could not be read", err)
+			return suppliedRefusal(pathSuppliedSource, "source path could not be read", err)
 		}
 		path = words.Tokens()
 	}
 	ed, err := editor.NewEditorFromContent(data, name)
 	if err != nil {
-		return suppliedRefusal("show config supplied source", "configuration could not be inspected", err)
+		return suppliedRefusal(pathSuppliedSource, "configuration could not be inspected", err)
 	}
-	answer := sourceEditorAnswer(ed, name, path)
-	if !rawSourceAllowed {
-		if ed.DisplayTreeAtPath(nil) == nil {
-			answer = suppliedRefusal("show config source", "the source does not parse, so its secret leaves cannot be masked; inspect the file with the local ze config show command", nil)
+	var answer command.LocalAnswer
+	if hasPipeOperation(args.PipeOperations(), pipeOpImplied) {
+		answer = sourceImpliedEditorAnswer(ed, name, configFile, path)
+	} else {
+		answer = sourceEditorAnswer(ed, name, path)
+		if !rawSourceAllowed {
+			if ed.DisplayTreeAtPath(nil) == nil {
+				answer = suppliedRefusal(pathShowSource, "the source does not parse, so its secret leaves cannot be masked; inspect the file with the local ze config show command", nil)
+			}
 		}
 	}
 	if err := ed.Close(); err != nil {
-		return suppliedRefusal("show config supplied source", "inspection could not be closed", err)
+		return suppliedRefusal(pathSuppliedSource, "inspection could not be closed", err)
 	}
 	return answer
+}
+
+// sourceImpliedEditorAnswer builds the `{config, implied}` envelope for
+// `show config source <file> | implied`. Offline external endpoint declarations
+// are queried in declare mode; any query refusal fails closed with zero payload.
+func sourceImpliedEditorAnswer(ed *editor.Editor, name, configFile string, path []string) command.LocalAnswer {
+	whole := ed.DisplayTreeAtPath(nil)
+	if whole == nil {
+		return command.LocalRefusal(exitError, command.LocalErrorLine(opererr.New(
+			name+": the configuration does not parse",
+			"Implied configuration cannot be computed until the source parses cleanly.",
+			"ze config validate "+name)))
+	}
+	targetTree := whole
+	if len(path) > 0 {
+		subtree := ed.DisplayTreeAtPath(path)
+		if subtree == nil {
+			var b textbuf.Buffer
+			return command.LocalRefusal(exitError, command.LocalErrorLine(opererr.New(
+				b.Str("path not found: ").Join(path, " ").String(),
+				"No subtree at that path exists in the supplied configuration.",
+				"ze show config source help")))
+		}
+		targetTree = subtree
+	}
+	report, err := config.BuildImpliedReport(whole, config.ImpliedOptions{
+		Offline:    true,
+		ConfigFile: configFile,
+	})
+	if err != nil {
+		fix := "ze show config source help"
+		if op, ok := errors.AsType[*opererr.Error](err); ok && op.Fix() != "" {
+			fix = op.Fix()
+		}
+		return command.LocalRefusal(exitError, command.LocalErrorLine(opererr.Wrap(
+			err,
+			"cannot display implied configuration",
+			"offline implied evaluation failed",
+			fix)))
+	}
+	return command.LocalAnswer{
+		Payload: config.ImpliedEnvelope{
+			Config:  targetTree.ToMap(),
+			Implied: report,
+		},
+	}
 }

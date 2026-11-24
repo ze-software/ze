@@ -53,6 +53,8 @@ type WorkbenchTableRow struct {
 	Cells     []string
 	Actions   []WorkbenchRowAction
 	Pending   bool
+	Implied   bool   // Derived automatically by Ze; rendered read-only with a badge
+	ImpliedBy string // Human-readable source or rule that implied this row
 }
 
 // WorkbenchRowAction describes a single action button or link on a row.

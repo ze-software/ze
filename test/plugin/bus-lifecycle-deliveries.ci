@@ -1,0 +1,275 @@
+# Test: OPEN-validator (`WantsValidateOpen`) lifecycle removal deliveries appear with origin `registered` and obey compiled bus receive allow-lists.
+# QUESTION: with `collector` (receiving `bgp:state`), an external endpoint `val`
+# declaring `WantsValidateOpen` with no peer attachment, and peers `lab` and `lab2`,
+# does `show event delivery | json` list `val`'s registered `bgp:state` lifecycle
+# delivery with `origin: "registered"`, does reloading to remove `lab` deliver `lab`'s
+# removal notice to both `collector` and `val`, and after reloading `val` with
+# `receive { allow none; }`, does `val`'s edge leave `show event delivery | json` and
+# does a subsequent reload removing `lab2` deliver `lab2`'s removal to `collector`
+# while suppressing delivery to `val`? A unit test cannot decide this because the path
+# spans live Stage 1 `WantsValidateOpen` registration over TLS, live SIGHUP peer
+# removal in the BGP reactor, `show event delivery`, and compiled bus filter enforcement.
+#
+# VALIDATES: spec-explicit-plugin-and-attach-config S32 / AC-39.
+# PREVENTS: OPEN-validator removal observers bypassing the compiled bus receive filter
+# or failing to appear in `show event delivery` with origin `registered`.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=running.conf:terminator=EOF_CONF0
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:state col.log removed col-lab.done";
+		}
+		encoding json;
+	}
+	endpoint val {
+		external {
+			run "le test fixture plugin/bus-open-validator val.log removed val-lab.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer lab {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+	peer lab2 {
+		connection {
+			remote { ip 127.0.0.3; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF0
+
+tmpfs=reload1-remove-lab.conf:terminator=EOF_CONF1
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:state col.log removed col-lab.done";
+		}
+		encoding json;
+	}
+	endpoint val {
+		external {
+			run "le test fixture plugin/bus-open-validator val.log removed val-lab.done";
+		}
+		encoding json;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer lab2 {
+		connection {
+			remote { ip 127.0.0.3; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF1
+
+tmpfs=reload2-narrow-val.conf:terminator=EOF_CONF2
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:state col.log removed col-lab.done";
+		}
+		encoding json;
+	}
+	endpoint val {
+		external {
+			run "le test fixture plugin/bus-open-validator val.log removed val-lab.done";
+		}
+		encoding json;
+		receive {
+			allow none;
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer lab2 {
+		connection {
+			remote { ip 127.0.0.3; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65002; }
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=reload3-remove-lab2.conf:terminator=EOF_CONF3
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint collector {
+		external {
+			run "le test fixture plugin/bus-event-collector bgp:state col.log removed col-lab.done";
+		}
+		encoding json;
+	}
+	endpoint val {
+		external {
+			run "le test fixture plugin/bus-open-validator val.log removed val-lab.done";
+		}
+		encoding json;
+		receive {
+			allow none;
+		}
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+}
+EOF_CONF3
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:name=daemon:exec=ze start running.conf:ready=Ze running.
+expect=stderr:contains=OK: val subscribed to bgp:state lifecycle events
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+
+# Step 1: verify show event delivery lists val's lifecycle reception with origin "registered".
+cmd=foreground:seq=3:exec=le test fixture plugin/bus-assert-implied lifecycle-delivery present:exit=0
+expect=stdout:contains=OK: lifecycle-delivery verified val bgp:state is present
+
+# Step 2: snapshot logs before reload1, then reload removing lab -> both collector and val receive a new removal notice for lab (127.0.0.2).
+cmd=foreground:seq=4:exec=le test fixture plugin/bus-assert-implied snapshot-file val.log val.before1:exit=0
+cmd=foreground:seq=5:exec=le test fixture plugin/bus-assert-implied snapshot-file col.log col.before1:exit=0
+cmd=foreground:seq=6:exec=le test fixture plugin/bus-sighup-reload reload1-remove-lab.conf running.conf r1.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload1-remove-lab.conf applied
+cmd=foreground:seq=7:exec=le test fixture plugin/bus-assert-implied poll-file-grew-needle val.log val.before1 127.0.0.2:exit=0
+expect=stdout:contains=OK: file val.log recorded new 127.0.0.2
+cmd=foreground:seq=8:exec=le test fixture plugin/bus-assert-implied poll-file-grew-needle col.log col.before1 127.0.0.2:exit=0
+expect=stdout:contains=OK: file col.log recorded new 127.0.0.2
+
+# Step 3: narrow val with receive { allow none; } -> val's bgp:state edge disappears from delivery graph.
+cmd=foreground:seq=9:exec=le test fixture plugin/bus-sighup-reload reload2-narrow-val.conf running.conf r2.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload2-narrow-val.conf applied
+cmd=foreground:seq=10:exec=le test fixture plugin/bus-assert-implied lifecycle-delivery absent:exit=0
+expect=stdout:contains=OK: lifecycle-delivery verified val bgp:state is absent
+
+# Step 4: snapshot logs before reload3, then reload removing lab2 -> collector receives a new removal notice for lab2 (causal fence), val.log stays unchanged.
+cmd=foreground:seq=11:exec=le test fixture plugin/bus-assert-implied snapshot-file val.log val.before3:exit=0
+cmd=foreground:seq=12:exec=le test fixture plugin/bus-assert-implied snapshot-file col.log col.before3:exit=0
+cmd=foreground:seq=13:exec=le test fixture plugin/bus-sighup-reload reload3-remove-lab2.conf running.conf r3.applied:exit=0
+expect=stdout:contains=OK: SIGHUP reload reload3-remove-lab2.conf applied
+cmd=foreground:seq=14:exec=le test fixture plugin/bus-assert-implied poll-file-grew-needle col.log col.before3 127.0.0.3:exit=0
+expect=stdout:contains=OK: file col.log recorded new 127.0.0.3
+cmd=foreground:seq=15:exec=le test fixture plugin/bus-assert-implied file-unchanged val.log val.before3:exit=0
+expect=stdout:contains=OK: file val.log unchanged relative to val.before3
+
+cmd=stop:seq=16:name=daemon:signal=term

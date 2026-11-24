@@ -30,6 +30,8 @@ type ImpliedFilter struct {
 	Position  ImpliedPosition
 	Ref       string
 	ImpliedBy string
+	Required  bool
+	Reason    string
 }
 
 // Policy is BGP's compiled, immutable policy snapshot: the protocol-neutral
@@ -285,6 +287,18 @@ func (p Policy) WithImplied(entry ImpliedFilter) Policy {
 	entries := make([]ImpliedFilter, len(p.implied)+1)
 	copy(entries, p.implied)
 	entries[len(p.implied)] = entry
+	p.implied = entries
+	return p
+}
+
+// PrependImplied inserts entry at the front of a fresh copy of the policy's
+// implied-filter list, leaving the receiver's slice untouched. Callers that
+// Prepend a head filter call PrependImplied so Implied() stays in exact chain
+// execution order.
+func (p Policy) PrependImplied(entry ImpliedFilter) Policy {
+	entries := make([]ImpliedFilter, len(p.implied)+1)
+	entries[0] = entry
+	copy(entries[1:], p.implied)
 	p.implied = entries
 	return p
 }

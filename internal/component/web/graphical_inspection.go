@@ -21,6 +21,8 @@ type GraphicalSession struct {
 	Own     bool
 }
 
+const configWordImplied = "implied"
+
 // graphicalInspectionWords admits only structured display choices. The
 // strings here are command/form boundary tokens, not an internal state machine.
 func graphicalInspectionWords(r *http.Request) ([]string, bool, error) {
@@ -35,7 +37,21 @@ func graphicalInspectionWords(r *http.Request) ([]string, bool, error) {
 			return nil, true, graphicalActionRefusal("Select candidate, running configuration or saved draft before inspecting it.")
 		}
 		format, err := graphicalInspectionFormat(r)
-		return append(words, "|", "format", format), true, err
+		if err != nil {
+			return nil, true, err
+		}
+		switch r.FormValue(configWordImplied) {
+		case "", "false":
+			return append(words, "|", "format", format), true, nil
+		case "true", configWordImplied:
+			words = append(words, "|", configWordImplied)
+			if format == "config" {
+				words = append(words, "|", "format", format)
+			}
+			return words, true, nil
+		default:
+			return nil, true, graphicalActionRefusal("Select whether to include implied configuration items.")
+		}
 	case "inspect-metadata":
 		switch r.FormValue("source") {
 		case "", "candidate":
@@ -44,7 +60,7 @@ func graphicalInspectionWords(r *http.Request) ([]string, bool, error) {
 		}
 		words := []string{verbShow, "|"}
 		switch view := r.FormValue("view"); view {
-		case "blame", "active", "inactive", configWordChanges, verbErrors:
+		case "blame", "active", "inactive", configWordImplied, configWordChanges, verbErrors:
 			return append(words, view), true, nil
 		case "allchanges":
 			return append(words, configWordChanges, "all"), true, nil

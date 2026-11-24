@@ -205,6 +205,12 @@ func init() {
 	command.RegisterShape([]string{
 		"show config cat", "show config fmt", "show config graph",
 	}, command.ShapeBlob)
+	command.RegisterPipeFilters([]string{"show config source", "show config dump"}, command.PipeFilter{
+		Name:        pipeOpImplied,
+		Description: impliedFilterDesc,
+		Argument:    command.ArgNone,
+	})
+	command.MustRegisterEnvelopeTextRenderer([]string{impliedKeyConfig, impliedKeyImplied}, renderImpliedEnvelopeText)
 }
 
 const (

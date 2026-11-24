@@ -53,6 +53,7 @@ var editorCommands = []editorCommand{
 		{"show | errors", "Validation issues"},
 		{"show | format config", "Display as set commands"},
 		{"show | history", "List rollback revisions"},
+		{"show | implied", "Include implied endpoints, wiring and filters"},
 	}},
 	{name: cmdOption, help: "Display settings (columns, errors)", forms: []editorHelpForm{
 		{"option <col> enable", "Enable display column (author/date/source/changes)"},
