@@ -2259,3 +2259,9 @@ CLI: when `ze_gnmi` is compiled in, `show gnmi` returns server status (enabled, 
 | `internal/component/bgp/reactor/session.go` | Session lifecycle, teardown handling |
 <!-- source: internal/component/plugin/server/ -- server, command, handler packages -->
 <!-- source: internal/core/ipc/dispatch.go -- RPCDispatcher -->
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| When `\| implied` modifies an existing config line (such as inserting automatic members into a `filters [ ... ];` list), it keeps the line intact and places an inline `# implied: ...` comment on the same line after the statement naming what was added and why, rather than placing a comment only above the line or splitting the list across multiple lines. In Thomas's words (2026-11-23): "No, it should be on the same line and say what was added". | Modifying an existing config line under `\| implied` without a same-line trailing comment naming what was added, or expanding an existing single-line list into multi-line entries to annotate implied members. | plan/release/fixes/spec-bus-2-implied-display-and-grant-refusals.md | 2026-11-23 |
