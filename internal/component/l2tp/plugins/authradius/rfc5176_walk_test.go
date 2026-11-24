@@ -360,10 +360,39 @@ func TestRFC5176LengthFieldGovernsTheOctetsRead(t *testing.T) {
 	if resp.Code != radius.CodeDisconnectACK {
 		t.Errorf("padded request: got code %d, want %d (Disconnect-ACK)", resp.Code, radius.CodeDisconnectACK)
 	}
+	if got := fake.teardowns.Load(); got != 1 {
+		t.Errorf("teardowns after padded request: got %d, want 1", got)
+	}
 
 	// The Length field still claims the whole packet, but four octets never arrive.
 	truncated := append([]byte(nil), wire[:len(wire)-4]...)
 	sendRawCoAPacketExpectNoResponse(t, addr, truncated)
+
+	// RFC 5176 Section 2.3: "If the packet is shorter than the Length field
+	// indicates, it MUST be silently discarded."
+	//
+	// Build a well-formed N-byte Disconnect-Request (complete attributes and a
+	// current Event-Timestamp), set header Length to N+4, and compute both
+	// Message-Authenticator and Request Authenticator over the N arrived octets.
+	// Every TLV and both authenticators verify over those N octets, so an
+	// implementation that clamps pktLen to len(data) ("reads to the end of what
+	// arrived") instead of discarding when pktLen > len(data) would accept the
+	// packet, tear down the session, and reply with Disconnect-ACK.
+	short := encodeCoAPacket(t, radius.CodeDisconnectRequest, 2, []radius.Attr{
+		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
+		{Type: radius.AttrMessageAuthenticator, Value: make([]byte, radius.AuthenticatorLen)},
+	}, time.Now())
+	maOff := messageAuthenticatorOffsetForTest(t, short)
+	binary.BigEndian.PutUint16(short[2:4], uint16(len(short)+4))
+	mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 5176 Section 3.4 mandates HMAC-MD5.
+	mac.Write(short)
+	copy(short[maOff:maOff+radius.AuthenticatorLen], mac.Sum(nil))
+	signCoARequestAuthenticator(short, secret)
+
+	sendRawCoAPacketExpectNoResponse(t, addr, short)
+	if got := fake.teardowns.Load(); got != 1 {
+		t.Errorf("teardowns after short-length request: got %d, want 1", got)
+	}
 }
 
 // RFC requirement: RFC5176-2.3-4 positive -- the shared secret is chosen by the source

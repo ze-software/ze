@@ -3,53 +3,53 @@
     "rid": "RFC5176-2.3-3",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead",
-    "unit-sha": "d2531588da29ddf6",
+    "unit-sha": "eb8743fa4a5e23e6",
     "claim-sha": "3f2f84ff8d2e0986",
     "route": "mutant",
     "producer": "internal/component/radius/packet.go::VerifyCoARequestAuth",
     "producer-sha": "6885d3789f404708",
-    "break": "line 240: \"data[:pktLen], pktLen\" -\u003e \"data, len(data)\""
+    "break": "line 240: \"expected := AccountingRequestAuth(data[:pktLen], pktLen, secret)\" -\u003e \"expected := AccountingRequestAuth(data, len(data), secret)\""
   },
   {
     "rid": "RFC5176-2.3-3",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead",
-    "unit-sha": "d2531588da29ddf6",
+    "unit-sha": "eb8743fa4a5e23e6",
     "claim-sha": "1d88625089bff3ba",
     "route": "mutant",
     "producer": "internal/component/radius/packet.go::VerifyCoARequestAuth",
     "producer-sha": "6885d3789f404708",
-    "break": "line 237: \"pktLen \u003c MinPacketLen || pktLen \u003e len(data)\" -\u003e \"pktLen \u003c MinPacketLen\"",
+    "break": "line 236: \"pktLen := int(binary.BigEndian.Uint16(data[2:4]))\" -\u003e \"pktLen := min(int(binary.BigEndian.Uint16(data[2:4])), len(data))\"",
     "paired": [
       {
         "producer": "internal/component/radius/packet.go::Decode",
         "producer-sha": "1cfcbbae411360f3",
-        "break": "line 121: \"pktLen \u003c MinPacketLen || pktLen \u003e len(data)\" -\u003e \"pktLen \u003c MinPacketLen\""
+        "break": "line 120: \"pktLen := int(binary.BigEndian.Uint16(data[2:4]))\" -\u003e \"pktLen := min(int(binary.BigEndian.Uint16(data[2:4])), len(data))\""
       },
       {
         "producer": "internal/component/radius/packet.go::VerifyCoAMessageAuthenticator",
         "producer-sha": "0d846f2a2cf75b97",
-        "break": "line 288: \"pktLen \u003c MinPacketLen || pktLen \u003e len(data)\" -\u003e \"pktLen \u003c MinPacketLen\""
+        "break": "line 287: \"pktLen := int(binary.BigEndian.Uint16(data[2:4]))\" -\u003e \"pktLen := min(int(binary.BigEndian.Uint16(data[2:4])), len(data))\""
       }
     ],
     "solo": [
       {
         "producer": "internal/component/radius/packet.go::VerifyCoARequestAuth",
-        "break": "line 237: \"pktLen \u003c MinPacketLen || pktLen \u003e len(data)\" -\u003e \"pktLen \u003c MinPacketLen\"",
-        "seconds": 4,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/l2tp/plugins/authradius\t0.707s"
+        "break": "line 236: \"pktLen := int(binary.BigEndian.Uint16(data[2:4]))\" -\u003e \"pktLen := min(int(binary.BigEndian.Uint16(data[2:4])), len(data))\"",
+        "seconds": 7,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/l2tp/plugins/authradius\t0.417s"
       },
       {
         "producer": "internal/component/radius/packet.go::Decode",
-        "break": "line 121: \"pktLen \u003c MinPacketLen || pktLen \u003e len(data)\" -\u003e \"pktLen \u003c MinPacketLen\"",
-        "seconds": 5,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/l2tp/plugins/authradius\t0.675s"
+        "break": "line 120: \"pktLen := int(binary.BigEndian.Uint16(data[2:4]))\" -\u003e \"pktLen := min(int(binary.BigEndian.Uint16(data[2:4])), len(data))\"",
+        "seconds": 9,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/l2tp/plugins/authradius\t0.611s"
       },
       {
         "producer": "internal/component/radius/packet.go::VerifyCoAMessageAuthenticator",
-        "break": "line 288: \"pktLen \u003c MinPacketLen || pktLen \u003e len(data)\" -\u003e \"pktLen \u003c MinPacketLen\"",
-        "seconds": 7,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/l2tp/plugins/authradius\t0.712s"
+        "break": "line 287: \"pktLen := int(binary.BigEndian.Uint16(data[2:4]))\" -\u003e \"pktLen := min(int(binary.BigEndian.Uint16(data[2:4])), len(data))\"",
+        "seconds": 10,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/l2tp/plugins/authradius\t0.418s"
       }
     ]
   }

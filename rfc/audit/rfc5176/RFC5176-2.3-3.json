@@ -1,13 +1,13 @@
 {
-  "note": "Independent re-judgment against RFC 5176 Section 2.3 and HEAD code (packet.go VerifyCoARequestAuth, Decode, VerifyCoAMessageAuthenticator; coa.go serveRequests). The positive half of TestRFC5176LengthFieldGovernsTheOctetsRead isolates trailing padding (8 zero octets past Length still get Disconnect-ACK, whereas reading past Length fails auth and decode). The negative half fails Question 3 (cascade-confounded buffer) and Question 2: slicing wire[:len(wire)-4] invalidates Request Authenticator MD5 (computed over len(wire) bytes) and truncates the final 6-byte Event-Timestamp TLV to 2 bytes, so an implementation that clamps pktLen to len(data) ('reads to the end of what arrived') still silently discards and passes green; furthermore, removing pktLen > len(data) panics on data[:pktLen] and serveRequests taskguard.Contain silently drops pre-admission panics, passing sendRawCoAPacketExpectNoResponse. Fix owed: construct a datagram with complete attributes of N bytes, Length set to N+4, and authenticators signed over the N arrived bytes (plus direct Decode/Verify unit checks), asserting silence and no extra teardown.",
+  "note": "Independent re-audit against RFC 5176 Section 2.3 and working-tree TestRFC5176LengthFieldGovernsTheOctetsRead. Positive half appends 8 trailing zero octets past Length and asserts Disconnect-ACK plus teardowns == 1 (reading past Length fails auth and decode). Negative half now isolates pktLen > len(data): alongside the truncated copy, it sends a well-formed N-byte Disconnect-Request (fresh Identifier 2, complete TLVs, current Event-Timestamp, header Length set to N+4) with both Message-Authenticator and Request Authenticator computed over the N arrived octets, asserting silent discard and teardowns remaining 1. An implementation clamping pktLen to len(data) across VerifyCoARequestAuth, Decode and VerifyCoAMessageAuthenticator would accept and ACK the packet and increment teardowns.",
   "requirement_sha": "78ea108345236eb7",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead": "77dcd5becb6dabff",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead#2": "77dcd5becb6dabff"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead": "65fc8a9b234b928e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead#2": "65fc8a9b234b928e"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead": "a052797d9f095f0e",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead#2": "a052797d9f095f0e"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead": "413552d9f251cd96",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead#2": "413552d9f251cd96"
   },
-  "verdict": "weak"
+  "verdict": "enforced"
 }
