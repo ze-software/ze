@@ -9,9 +9,19 @@
 | Depends | `plan/release/fixes/spec-login-service-authorisation.md` |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| ID | Decision |
+|----|----------|
+| D-1 (Looking Glass missing `auth-mode`) | No default: refuse to start Looking Glass unless `auth-mode` (`open`, `token`, or `user`) is explicitly configured. |
+| D-2 (Looking Glass browser login in `user` mode) | Login form + session cookie (matching the web UI), plus header auth for scripts/programs. |
+| D-3 (Looking Glass JSON API `/api/looking-glass/*` in `user` mode) | Gate the JSON API under the same per-user authentication as HTML pages. |
+| D-4 (Looking Glass per-command RBAC) | Enforce each authenticated user's RBAC profile against the underlying `show` commands Looking Glass dispatches (instead of admitting all LG users to all LG queries). |
+| D-5 (gNMI plaintext on loopback) | Keep allowing plaintext gNMI on loopback (`127.0.0.1` / `::1`) only, while continuing to require TLS on all non-loopback listeners. |
 
 ## Task
 

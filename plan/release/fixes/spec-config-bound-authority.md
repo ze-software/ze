@@ -12,9 +12,17 @@
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| ID | Decision |
+|----|----------|
+| D-1 (boot / reload behavior — split by severity) | Treat buffer/tuning bounds (`system tuning ethtool ring rx/tx` and `vpp dpdk interface rx-queues/tx-queues`) as optimization: refused at validate/commit, warning / non-fatal skip at boot/reload. Treat `interface <name> mtu` as protocol-correctness failure (a wrong MTU breaks OSPF and similar protocols): MUST fail hard rather than warn-and-skip. |
+| D-2 (ring-check seam) | Follow R-a: register a `system/tuning` transaction participant owning the ring check and tuning apply (removing the hub's direct `applyHostTuning` bypass, per `ai/doors/system.md` and `ai/rules/no-layering.md`). |
+| D-3 (`ze doctor` for DPDK NICs held by VPP on `vfio-pci`) | Stay silent for DPDK NICs already bound to `vfio-pci` and held by VPP (do not emit a permanent false-alarm warning on healthy VPP routers). |
 
 This spec is the release-fix half of the 2026-09-08 design. The other half, a
 declaration of who owns every numeric YANG bound and a `./le` gate over it, moved

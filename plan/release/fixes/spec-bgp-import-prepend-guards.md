@@ -2,14 +2,27 @@
 
 | Field | Value |
 |-------|-------|
-| Status | deferred |
+| Status | design |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Existing import as-path-prepend must not silently modify route-server paths or contradict accepted no-prepend configuration. |
 | Depends | - (spec-bgp-local-as-options closed 2026-10-09; no dependency on the deferred migration recipe) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-22 |
+| Updated | 2026-11-24 |
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Inherited Sept 6 `deferred` pause | Lift the pause on these two existing-policy config-load guards (`rs-client` + import `as-path-prepend`, and `local-options no-prepend` + import `as-path-prepend`); move to `design` and proceed for release 1. The automatic inbound append migration recipe remains post-release in `plan/post-release/features/spec-bgp-local-as-inbound-append.md`. |
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| Route-server config handler | `internal/component/bgp/plugins/rs/server.go`, `OnConfigure` | Configures `rs-client` peers from the delivered `bgp` subtree without checking import `as-path-prepend` policies | Extends with the AC-3 config-load refusal naming RFC 7947 Section 2.2.2.1 |
+| Import modify filter config handler | `internal/component/bgp/plugins/filter_modify/config.go`, `OnConfigure` | Parses `as-path-prepend` definitions without checking sibling `local-options no-prepend` on peers | Extends with the AC-4 config-load refusal |
 
 ## Task
 

@@ -10,9 +10,15 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| AC-22 stock Debian/Ubuntu test-VM exception | Extend the Debian/Ubuntu test-VM exception in `ai/META-DECISIONS.md` (currently limited to `modprobe` kernel-module tests) so AC-22 fault-recorder tests can run on real booted Debian/Ubuntu VMs under systemd (`systemd-pstore` and stock kernels without reserved ramoops RAM). |
 
 ## Where this stands (2026-11-14)
 

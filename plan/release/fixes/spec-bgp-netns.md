@@ -7,7 +7,22 @@
 | Release reason | BGP must work with the owner-retained default LCP namespace and isolation model. |
 | Depends | - (not blocked by any spec; this spec IS the fix for the shipped default, see "Why this is the default case" below) |
 | Phase | 0/N (research) |
-| Updated | 2026-07-16 |
+| Updated | 2026-11-24 |
+
+## Owner decisions (2026-11-24, supersedes 2026-07-16 rulings below)
+
+| Topic | Decision |
+|-------|----------|
+| Per-protocol `bgp { listen { netns } }` leaf vs. full-stack isolation | Reject the per-protocol `bgp { listen { netns } }` leaf. Network namespaces are a full-stack wrapper `netns <name> { bgp { ... } interface { ... } }` (nestable) designed post-release alongside Linux VRF support (`plan/post-release/features/spec-vrf-0-umbrella.md`), not a BGP-only listener leaf. |
+| Release-1 `vpp { lcp { netns } }` default | Superseding the 2026-07-16 ruling: for v1.0, change `vpp { lcp { netns } }` default in `internal/component/vpp/yang/ze-vpp-conf.yang` from `"dataplane"` to `""` (host namespace) so VPP LCP TAP interfaces and routing protocols (BGP, OSPF, etc.) work together out of the box without requiring per-protocol netns plumbing. Move multi-namespace `netns <name> { ... }` design to post-release. |
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| VPP LCP netns leaf | `internal/component/vpp/yang/ze-vpp-conf.yang` (`vpp/lcp/netns`) | Defaults to `"dataplane"`, isolating TAP mirrors from host routing daemons | Changes default to `""` (host namespace) for v1.0 per owner ruling |
+| VPP LCP TAP placement & doctor check | `internal/plugins/iface/vpp/lcp.go` (`lcpPairNetns`), `internal/plugins/iface/vpp/doctor.go` (`lcpNetnsIsRootReachable`) | Maps root-reachable names (`""`, `"host"`, `"root"`) to host netns and warns when LCP netns is unreachable | Preserved; default now resolves to host netns cleanly |
+| BGP listener factory | `internal/component/bgp/reactor/reactor.go` (`newListenerFactory`), `internal/core/network/network.go` (`RealListenerFactory`) | Binds BGP listeners in the current namespace | Does not gain a BGP-only `netns` leaf; full `netns <name> { ... }` moves post-release alongside `spec-vrf-0-umbrella.md` |
 
 Anchor refresh (2026-07-22 plan review, design unchanged): `reactor.go`
 anchors shifted ~+18 lines; citations below updated in-body --
@@ -756,7 +771,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
 | A blocking question framed as "is X worth supporting?" when the code shows X is the DEFAULT, not an opt-in | Seen once (A-7), but the class is general: a question's FRAMING can be wrong independently of its answer | Before asking the user a scoping question, read the default that decides who is affected. "Is this worth supporting" and "does the shipped default already do this to everyone" are different questions with different answers | Candidate for `ai/rules/evidence.md` (a recommendation's PREMISE must be traced, and so must a QUESTION's) |
-| Treating a vendored GENERATED binapi stub as the authority on a foreign system's SEMANTICS. `lcp.ba.go` documents the netns field as "optional tap netns; netns[0] == 0 if none" and that is all it can ever say: the resolution rule lives in VPP's C, which is not vendored. Three sessions built on `""` == "VPP's own namespace" without reading a line of VPP | Seen once (A-13), but the class is broad: ze vendors generated bindings for VPP, netlink, and gNMI, and every one describes WIRE SHAPE while the BEHAVIOR sits in the peer's implementation | A generated binding is evidence of a field's existence and encoding, never of what the remote end DOES with it. When a claim about a foreign system's behavior is load-bearing, the producer is that system's source, not our stubs. `ai/rules/evidence.md`'s "read the producer" already says this; what it does not say is that the producer can be OUTSIDE the repo | Candidate for `ai/rules/evidence.md`: extend "read the producer" to cross-boundary claims, naming vendored binapi/stubs as a non-source. **Raise with Thomas; not actioned by this investigation** |
+| Treating a vendored GENERATED binapi stub as the authority on a foreign system's SEMANTICS. `lcp.ba.go` documents the netns field as "optional tap netns; netns[0] == 0 if none" and that is all it can ever say: the resolution rule lives in VPP's C, which is not vendored. Three sessions built on `""` == "VPP's own namespace" without reading a line of VPP | Seen once (A-13), but the class is broad: ze vendors generated bindings for VPP, the netlink protocol, and gNMI, and every one describes WIRE SHAPE while the BEHAVIOR sits in the peer's implementation | A generated binding is evidence of a field's existence and encoding, never of what the remote end DOES with it. When a claim about a foreign system's behavior is load-bearing, the producer is that system's source, not our stubs. `ai/rules/evidence.md`'s "read the producer" already says this; what it does not say is that the producer can be OUTSIDE the repo | Candidate for `ai/rules/evidence.md`: extend "read the producer" to cross-boundary claims, naming vendored binapi/stubs as a non-source. **Raise with Thomas; not actioned by this investigation** |
 | Reading a code comment for DESIGN INTENT and concluding the code "contradicts its own intent", when the recorded decision was in `plan/deferrals.md` all along | Seen once here (A-7's second framing error), but the shape is general and cheap to repeat: comments are the nearest text to the code, so they are what a source-reading session finds first | A comment states what its author believed, not what was decided. Recorded decisions live in `plan/deferrals.md`, `plan/learned/`, and specs; check them before asserting intent | **ACTIONED 2026-07-16:** added to `ai/rules/evidence.md` ("Behavioral claims and recommendations" + a Banned row). Chosen over `ai/rules/evidence.md`'s Evidence corollary because that corollary is scoped to SAFETY properties verified at a producing function, while this is the same rule's core method (read the producer, not the nearby text) applied to a claim about INTENT, whose producer is the decision record |
 
 ## Design Insights

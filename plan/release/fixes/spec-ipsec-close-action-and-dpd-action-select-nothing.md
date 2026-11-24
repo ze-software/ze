@@ -19,7 +19,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 |--------------|----------|
 | `close-action` (`none`, `restart`) and `dead-peer-detection action` (`clear`, `restart`) | Implement `none` / `clear` (tear down SA and do not reconnect) versus `restart` (tear down and reconnect on backoff). |
 | `close-action start` | Drop the redundant `start` value from `close-action`. |
-| `dead-peer-detection action hold` | Remove and defer `hold` (XFRM `ACQUIRE` trap policies) post-release, and change the `dead-peer-detection action` default from `hold` to `restart` or `clear`. |
+| `dead-peer-detection action hold` and `close-action hold` | Implement `hold` (on-demand XFRM `ACQUIRE` trap policies) alongside `none`/`clear` and `restart` for both DPD and close actions (updated 2026-11-24). |
 
 ## Task
 

@@ -12,9 +12,15 @@
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-17 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| O-1..O-4 (one definer per YANG node across built-in modules) | Enforce one owner per YANG node everywhere (~26 built-in modules switch to `augment`), create always-built `ze-service-conf` to own `service`, assign `l2tp/auth` ownership to `ze-l2tp-conf`, and give each shared root clean whole-root `?` help text. |
 
 ## Task
 

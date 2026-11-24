@@ -10,9 +10,18 @@
 | Depends | - |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| ID | Decision |
+|----|----------|
+| OD-1 (RADIUS / TACACS+ users without a local user entry) | Option (d): add a login-service set leaf alongside the profile mapping in RADIUS and TACACS+ config so remote accounts can be restricted by login service too. |
+| OD-2 (config user shadowing the stored appliance recovery username) | Option (a): keep the existing `ReservedRecoveryProfile` rule — a config user with that name is treated as an ordinary user whose login set applies (serial console recovery still works). |
+| OD-3 (user with no login set configured) | Option (a): absent means allowed on all login services (existing configs keep working). |
+| OD-4 (MCP) | Option (b): include MCP in login-service authorization too so operators can restrict MCP access alongside SSH, Web, REST, gRPC, Looking Glass, and gNMI. |
 
 ## Task
 

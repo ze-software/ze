@@ -9,9 +9,26 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-04 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| ID | Decision |
+|----|----------|
+| Q2 (`show bgp peer \| extensive`) | Make `\| extensive` a server-side folded filter (like `\| limit`) so bare `show bgp peer` stays lightweight/fast on routers with many peers and the daemon only gathers/serializes full detail when requested. |
+| Q3 & Q4 (Class K display commands + YANG key naming on `\| limit`) | Use `\| limit <key> <val>` naming the YANG key explicitly (e.g. `show bgp rib \| limit peer <sel>`, `show interface \| limit name <n>`, `show bgp peer \| limit peer <sel>`) and convert the 21 Class-K display commands plus rename `show bgp rib \| peer`, **provided** the key name(s) after `\| limit ` are Tab-autocompleted from the command's registered keys / YANG schema (`internal/component/command/completer.go`). |
+| Q5 (old command forms) | No compatibility alias or migration shim (per `ai/META-DECISIONS.md` pre-release rule); old forms fail as unknown commands with existing `suggest.Command`. |
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| Pipe parsing and server-side filter folding | `internal/component/command/pipe.go` (`ParsePipe`, `foldFilters`), `pipe_filter.go` (`RegisterPipeFilters`) | Folds command-owned pipe filters (such as `show bgp rib \| peer <sel>`) into command arguments sent to the daemon | Extends for keyed `\| limit <key> <val>` and server-side `\| extensive` across display commands |
+| Pipe and sub-argument completion | `internal/component/command/completer.go` (`PipeOperators`, `pipeExtras`, `pipeSubArgs`) | Completes registered per-command pipe filters and static sub-args (`json`, `fill`) | Extends so `\| limit <TAB>` autocompletes each command's registered YANG key names |
+| Static CLI grammar checker | `internal/component/command/grammar/checker.go` (`CheckNode`, `CheckSiblings`) | Enforces R1-R9 over the merged YANG command tree | Extends with the display-selector rule forbidding ambiguous positional display selectors |
+| Peer subcommand collision deriver | `internal/component/plugin/server/rpc_register.go` (`PeerSubcommandKeywords`) | Marks verbs colliding with peer names based on mandatory positional selectors | Updates so converted display commands do not reserve ordinary words as colliding peer names |
 
 ## Task
 

@@ -18,7 +18,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 | Topic | Decision |
 |-------|----------|
-| Scope and YANG override leaf | Implement the MUST-only default inbound eBGP drop (`RFC8097-2-4`) with no new YANG leaf in this fix; defer the SHOULD egress strip and configured override leaf to the full RFC 8097 feature. |
+| Scope and YANG override leaf | Implement full RFC 8097 boundary handling: default inbound eBGP drop (`RFC8097-2-4`), default egress eBGP strip (`SHOULD`), and an explicit operator YANG override leaf to accept/send across trusted eBGP boundaries (updated 2026-11-24). |
 
 ## Task
 

@@ -9,9 +9,23 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-08 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| RFC 9252 Section 5 local-policy resolvability bypass (`MAY` clause) | Add an explicit YANG config option (per peer or per family) allowing local policy to bypass the SRv6 Service SID reachability check when an alternate steering mechanism (such as an SR Policy) reaches the egress PE; default remains strict resolvability enforcement before best-path. |
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| BGP best-path candidate filter | `internal/component/bgp/plugins/rib/rib_commands.go` (`gatherCandidatesLocked`), `rib_bestchange.go` (`isSRv6Ineligible`, `srv6SIDFromResult`) | Filters only semantically invalid SRv6 SIDs (`RFC9252-5-1`) and self next-hops | Adds merged-SID reachability filtering (`RFC9252-5-2`) plus the owner-requested per-peer/per-family bypass option |
+| Sysrib next-hop / SID reachability oracle | `internal/component/sysrib/sysrib.go` (`srv6SIDResolvable`, `SetLocRIB`), `nhresolver.go` (`nhResolver.Resolve`) | Checks SID reachability recursively over Loc-RIB only at FIB install time (`fibEntry`), and publishes `igpcost.Set` | Publishes reachability via a new leaf seam `internal/core/rib/reachable` beside `igpcost.Set`, keeping `fibEntry` as defense in depth |
+| Loc-RIB change notifications | `internal/core/rib/locrib/manager.go` (`OnChange`), `internal/component/bgp/plugins/rib/rib.go` (`SetLocRIB`) | Dispatches prefix Add/Update/Remove synchronously under shard write lock | Subscribes to enqueue changed prefixes into a coalescing worker that re-runs best-path for affected SRv6 prefixes |
 
 ## Task
 

@@ -7,7 +7,21 @@
 | Release reason | Restore the default eBGP Transitive clear on both forwarding rails; optional policy selection is separate. |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-08-07 |
+| Updated | 2026-11-24 |
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Route-server eBGP client Transitive-bit clear | Apply the default eBGP Transitive-bit clear to **route-server eBGP clients too** (not just ordinary eBGP peers); pay the per-destination buffer copy/edit only on UPDATEs that actually carry an `ATTR_TOMBSTONE` marker so normal marker-free UPDATEs preserve the zero-copy fast path. |
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| Egress forward rails | `internal/component/bgp/reactor/reactor_api_forward.go` (`forwardUpdateCore`), `forward_rs.go` (`reactorForwardRS`) | Records per-destination edits and calls `buildModifiedPayload`; neither currently clears Transitive on `ATTR_TOMBSTONE` at eBGP egress | Restores the default eBGP Transitive-bit clear on both ordinary and RS-client rails without mutating shared received wire bytes |
+| One-pass attribute rebuild | `internal/component/bgp/reactor/forward_build.go` (`buildModifiedPayload`) | Materializes per-destination modified UPDATE buffers while leaving unmodified UPDATEs zero-copy | Carries marker flag edits (default inherit clear) on marker-bearing UPDATEs while keeping marker-free UPDATEs zero-copy |
+| Tombstone marker generation | `internal/component/bgp/message/attr_discard.go` (`attrDiscardFlags`), `wireu/tombstone.go` (`WriteTombstone`) | Generates code 252 (`attribute.AttrTombstone`) with Optional/Transitive/ExtLen preserved and Partial cleared | Preserved unchanged; forwarding policy stays on the egress rails |
 
 > **BLOCKER CLEARED 2026-08-07.** D-1 and D-2 are both answered by Thomas. The
 > spec said it could not leave `skeleton` until they were, so it moves to

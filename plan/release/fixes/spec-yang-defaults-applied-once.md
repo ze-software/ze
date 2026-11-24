@@ -12,9 +12,15 @@
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| ID | Decision |
+|----|----------|
+| D-1 (YANG defaults for external plugins) | Option 3 (presented as Option 1 in interview): Ze delivers **both** the operator-configured values and a separate defaults map in Stage 2 / transaction config payloads (documented in `docs/plugin-development/protocol.md`, with an SDK merge helper), so external plugins receive defaults automatically while still distinguishing explicit settings from omitted leaves. |
 
 ## Task
 

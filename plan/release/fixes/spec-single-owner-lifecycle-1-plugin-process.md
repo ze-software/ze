@@ -12,9 +12,16 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-19 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| ID | Decision |
+|----|----------|
+| D-A (per-peer OPEN policy while validator plugin is down) | Approved: keep the plugin's per-peer OPEN-policy capability declarations in the capability injector and record the plugin as owing OPEN validation while it remains configured, rejecting incoming peer OPENs fail-closed (Role Mismatch) until a running generation replaces it or reload removes the plugin. |
+| D-B (config reload restarts configured down plugins) | Approved: every reload restarts configured down plugins through `restartPluginReplacement` (refusing the reload if restart fails), while never lifting a respawn-limit disable (which still requires manual `ze request plugin restart <name>`). |
 
 Design pass of 2026-11-19. The design approved on 2026-11-11 was written
 against producers that six later commits rewrote (aa6ebb8d15, 325ec5d0d6,

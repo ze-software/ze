@@ -9,13 +9,22 @@
 | Depends | `plan/release/fixes/spec-eap-tls-identity-authorization.md` (skeleton; owns `RFC5216-5.3-2`, the authorization of the identity an EAP-TLS certificate carries. The `eap-tls` mode of this spec needs its export of the verified client identity. The `eap-mschapv2` and `eap-md5` modes do not depend on it). Closed prerequisites: `spec-ike-virtual-ip-assignment` (2026-10-26, `plan/learned/035-ike-virtual-ip-assignment.md`), `spec-fixit-ipsec-verify-siblings` (2026-08-03) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`. Then read
 `internal/component/ike/engine/register.go` `tryResponderSAInit`,
 `internal/component/ike/engine/cp.go` `assignVirtualIP`,
 `internal/core/eap/pool.go` `Registry.Acquire` and
 `internal/core/eap/eap_mschapv2.go` `handleResponse`.
+
+## Owner decisions (2026-11-24)
+
+| ID | Decision |
+|----|----------|
+| OD-1 (multiple devices per `eap-user`) | Support multiple simultaneous devices per user (with a device/session discriminator and a configurable per-user tunnel limit leaf), so one user can connect laptop + phone concurrently. |
+| OD-2 (half-open handshake DoS caps) | Default `half-open-limit` to `64` and `half-open-limit-per-address` to `8` (for clients behind shared NAT), and refuse `0` (cannot disable the limit). |
+| OD-3 (client-requested VPN IP & static per-user IP) | Support an optional static IP leaf per `eap-user` in config; otherwise honor a client's requested IP only if it was that user's own previous IP (never hand user B's recently released IP to user A on request). |
+| OD-4 (initial EAP Identity Request, RFC 7296 §3.16) | Follow RFC 7296 Section 3.16 (`SHOULD NOT`): drop the redundant initial EAP Identity Request for `eap-mschapv2` and `eap-tls` (keeping it only where required for `eap-md5`), and update affected EAP tests cleanly. |
 
 ## Task
 

@@ -9,9 +9,23 @@
 | Depends | - |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-08-11 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Rollback verdict on VPP reply timeout (Open Question) | **Way 2:** attempt rollback on VPP reply timeouts too, everywhere (keeping firewall and interface rollback behavior uniform, accepting the second timeout wait if VPP remains wedged). |
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| Shared VPP channel factory | `internal/component/vpp/conn.go` (`(*Connector).NewChannel`) | Returns govpp channels with `DefaultReplyTimeout == 0` (unbounded wait) | Installs a clamped positive reply deadline by construction on every channel obtained from the connector |
+| Firewall & traffic VPP reply timeout | `internal/plugins/firewall/vpp/timeout_linux.go`, `internal/plugins/traffic/vpp/timeout_linux.go` (`newGovppOps`) | Clamps and applies reply timeout in a per-plugin constructor and rolls back firewall config via `sdk.Journal` on failure | Preserves firewall rollback behavior across both firewall and iface (Way 2) and aligns with the shared mechanism |
+| VPP dataplane plugins | `internal/plugins/iface/vpp/ifacevpp.go`, `internal/component/iface/config_apply.go`, `internal/plugins/fib/vpp/fibvpp.go`, `internal/plugins/static/inject.go` | Unbounded VPP calls; fib logs and continues with no operator surface; static tracks skipped routes | Distinguishes `core.ErrReplyTimeout` as a wedged dataplane, reports failures to the operator, and preserves static per-route isolation |
 
 ## Task
 
@@ -64,7 +78,7 @@ for does not exist.
 
 ### Architecture Docs
 - [ ] `docs/architecture/static-routes.md` - the static plugin, which programs operator-declared routes straight into the FIB
-- [ ] `docs/features/interfaces.md` - interface management through pure netlink, with no iproute2 shell-outs
+- [ ] `docs/features/interfaces.md` - interface management through pure netlink sockets, with no iproute2 shell-outs
 - [ ] `docs/research/vpp-deployment-reference.md` - the VPP deployment reference drawn from 83 ipng.ch articles
 - [ ] `ai/rules/evidence.md` - the rule this change is governed by: the deadline is a guard
   → Constraint: a computed-but-uninstalled deadline is indistinguishable from having none. The test MUST prove the deadline is installed BEFORE the first request, not that a helper computed it.

@@ -9,9 +9,24 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-08-26 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Dedicated `consumer-facing` per-peer YANG role (`RFC9552-8.2.6-2`) | Drop the redundant `consumer-facing` per-peer YANG role; operators use existing `family-filter` to drop incoming BGP-LS updates (matching `rfc/short/rfc9552.md`, which already marks `RFC9552-8.2.6-2` `{not-applicable}`). Audit and close this spec around any remaining `.ci` or interop gaps, noting that NLRI syntactic validation already exists in `internal/component/bgp/message/rfc7606_bgpls_nlri.go` and `internal/component/bgp/reactor/rfc9552_nlri_test.go`. |
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| BGP-LS NLRI syntactic validator | `internal/component/bgp/message/rfc7606_bgpls_nlri.go`, `internal/component/bgp/message/rfc7606.go` (`validateMPNLRISyntax`) | Validates BGP-LS NLRI length and TLV framing under RFC 9552 Section 8.2.2 | Audit against remaining ACs and close any `.ci`/interop gaps |
+| BGP-LS attribute validator | `internal/component/bgp/message/rfc7606_bgpls.go` (`validateBGPLSAttr`) | Validates code 29 BGP-LS Attribute TLVs with Attribute Discard | Preserved |
+| Session RFC 7606 enforcement | `internal/component/bgp/reactor/session_validation.go` (`Session.enforceRFC7606`) | Enforces NLRI discard, AFI/SAFI disable, or session reset before plugin dispatch | Preserved / audited |
+| Family import filter | `internal/component/bgp/plugins/filter_family/config.go` (`parseFamilyFilters`) | Drops or tears down incoming BGP-LS updates on a peer | Replaces the dropped `consumer-facing` YANG role |
 
 ## Task
 

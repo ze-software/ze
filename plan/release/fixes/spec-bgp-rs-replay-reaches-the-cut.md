@@ -10,9 +10,15 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Replay catch-up failure / timeout (`bgp-adj-rib-in` still behind cut after 2-minute replay context timeout) | Keep waiting up to the 2-minute replay context timeout; if `bgp-adj-rib-in` still has not reached the cut (or delta fails unrecoverably), reset the client BGP session with a Cease NOTIFICATION so it reconnects and receives a complete table rather than leaving stale or missing routes. |
 
 ## Task
 

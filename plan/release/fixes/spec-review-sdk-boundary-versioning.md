@@ -7,7 +7,21 @@
 | Release reason | Shipped external-plugin protocol and public SDK must detect mismatches and expose usable types. |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-06 |
+| Updated | 2026-11-24 |
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Stage-1 protocol version matching policy | Use a **supported version range** (`MinSupportedProtocolVersion .. CurrentProtocolVersion`): accept any plugin version within the supported range, and reject missing (`0`), below-minimum, or future/above-current versions at Stage 1 with a clear diagnostic error. |
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| Shared Stage-1 startup handshake | `internal/component/plugin/server/startup_driver.go` (`runStartupHandshake`), `pkg/plugin/rpc/types.go` (`DeclareRegistrationInput`), `pkg/plugin/sdk/sdk.go` | Decodes Stage-1 registration for both engine and hub topologies with no protocol version check | Adds `ProtocolVersion` and supported-range validation in `runStartupHandshake` before trusting later structs |
+| In-process route update fast path | `pkg/plugin/rpc/bridge.go` (`UpdateRouteSelHandler`, `DirectBridge.UpdateRouteSel`), `pkg/plugin/sdk/sdk_engine.go` (`UpdateRouteSel`, `UpdateRouteSelWithMeta`) | Exposes `*internal/core/selector.Selector` in exported `pkg/plugin/**` signatures | Relocates typed fast path to an internal in-process seam; keeps string `UpdateRoute` public and adds a mechanical boundary guard |
+| Transport write deadline & watchdog | `pkg/plugin/rpc/conn.go` (`defaultWriteDeadline`, `fireWatchdog`) | Bounds stalled writes on plugin connections | Preserved; version mismatch diagnostics must stay distinct from write-watchdog closes |
 
 ## Post-Compaction Recovery
 

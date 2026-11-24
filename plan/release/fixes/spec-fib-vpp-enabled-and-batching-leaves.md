@@ -18,7 +18,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 | Leaves | Decision |
 |--------|----------|
 | `fib { vpp { enabled } }` | Delete the leaf; presence of the `fib { vpp }` block plus Junos-style `deactivate`/`activate` controls whether VPP FIB programming is active. |
-| `fib { vpp { batch-size; batch-interval-ms; } }` | Delete both leaves from YANG and remove their deferred-error map in `parseFibVPPConfig`. |
+| `fib { vpp { batch-size; batch-interval-ms; } }` | Keep both leaves and implement VPP FIB route batching in `internal/plugins/fib/vpp/`, removing the deferred-error map in `parseFibVPPConfig` (updated 2026-11-24). |
 
 ## Task
 

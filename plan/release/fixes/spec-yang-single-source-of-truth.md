@@ -12,9 +12,18 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| ID | Decision |
+|----|----------|
+| T-1 (split vs. single spec) | Split into **three separate specs** (D: command arguments by leaf name, E: unused config leaf/RPC/notification gate, F: Go-vs-YANG enum agreement gate) so the smaller pieces D and F can land immediately without waiting on E. |
+| T-2 & T-3 (leaf-read tracking & typed SDK config accessors) | Choose T-2 option 3 + T-3 add typed accessors: add schema-bound typed config accessors to the plugin SDK so plugins stop hand-parsing raw JSON maps and read paths are recorded accurately without maintaining manual leaf lists. |
+| T-5 (temporary allowlist on leaf gate) | Allow a temporary recorded allowlist (like `claims/allowlist.json`, each entry naming a reason and owning spec) so the build gate can turn on immediately and block new unused declarations while existing rows are resolved. |
+| T-4 (per-row disposition, verified against current tree) | `rpki/cache-server/preference` and `update/watchdog/withdraw` are already implemented and tested; `remote-access` is owned by `spec-ipsec-remote-access.md`; `bgp/rib/adj-rib-*` is owned by `spec-bgp-rib-state-subtree-has-no-producer.md`. Implement `require` and `refuse` on `software-version/mode`; keep the 7 `ze-bgp-api` notifications on the temporary allowlist with a post-release spec to wire their producers; fix the 3 stale `ze-bgp-api` RPC names (`peer-show`, `peer-show-capabilities`, `peer-show-statistics`) and the `label`/`labels` plugin-family bug. |
 
 ## Task
 

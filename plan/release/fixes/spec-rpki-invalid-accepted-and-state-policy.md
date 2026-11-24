@@ -9,9 +9,15 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-08-30 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| ASPA `action` container (`A-6`) | Convert ASPA (`rpki { aspa { action { invalid ...; unknown ...; } } }`) to the same named policy-object style in this spec alongside RPKI origin validation, avoiding a hybrid half-`action` / half-policy config under `rpki`. |
 
 ## Task
 
@@ -607,7 +613,7 @@ or whole-RFC credit is claimed.
 
 The test runs on Ze's Linux kernel through the existing per-test namespace
 runner. Its declared dummy interface `zerpkisel` holds `10.0.0.254/24`.
-The daemon's real netlink interface and connected plugins must publish that
+The daemon's real kernel interface backend and connected plugins must publish that
 connected path before a BGP next hop of `10.0.0.1` can be selected. The fixture
 never injects a constructor-created RIB path. It explicitly loads bgp-rpki,
 bgp-adj-rib-in, bgp-rib and the internal system RIB, with Invalid rejection and

@@ -9,9 +9,25 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-22 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Per-session Prometheus metric naming | Rename `ze_l2tp_session_*` to `ze_subscriber_session_*` with an `access_type` (`l2tp` / `pppoe`) label (pre-release; no compatibility alias). |
+| Per-subscriber Prometheus label cardinality | Keep per-subscriber Prometheus metrics enabled by default (matching existing L2TP behavior). |
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| Unified subscriber registry & events | `internal/component/l2tp/subscriber/session.go` (`DefaultRegistry`), `subscriber/events/events.go` (`SessionUp`, `SessionIPAssigned`, `SessionDown`) | Tracks both L2TP and PPPoE subscriber sessions with `AccessType`, `PppInterface`, `Username`, and IP fields | Extends consumers (`authradius` and stats poller) to subscribe/read from this layer instead of L2TP-only paths |
+| RADIUS accounting plugin | `internal/component/l2tp/plugins/authradius/acct.go` (`subscribeEventBus`, `buildAcctPacket`) | Subscribes only to `l2tpevents` and writes zero octets when counter reads fail | Moves to subscriber events so PPPoE produces Start/Interim/Stop accounting and omits octets on read failure |
+| Subscriber stats poller | `internal/component/l2tp/metrics.go` (`l2tpStatsPoller`), `subsystem.go` | Polls only `s.reactors` and emits `ze_l2tp_session_*` | Polls `subscriber.DefaultRegistry` for both L2TP and PPPoE and emits `ze_subscriber_session_*` with `access_type` |
+| Creation-bound PPP counter reader | `internal/component/iface/counters.go` (`baselineStore`) and PPP unit capture (`38267f5e0c`) | Measures the session's original PPP unit so renamed/reused `pppN` cannot bill another subscriber | Reused by PPPoE kernel accounting (and VPP session handle counters on VPP dataplane) |
 
 ## Task
 
