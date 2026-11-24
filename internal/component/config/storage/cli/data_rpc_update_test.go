@@ -210,10 +210,10 @@ func TestUpdateKeyRefusesConfigurationKey(t *testing.T) {
 func TestUpdateKeyRefusesKeyOfRunningPlugin(t *testing.T) {
 	granted := map[string][]string{updateTestKey: {"test-owner"}}
 	running := pluginserver.DoctorSnapshot{Plugins: []pluginserver.PluginDoctorState{
-		{Name: "test-owner", Configured: true, HasProcess: true, Running: true},
+		{Name: "test-owner", RegistrationName: "test-owner", Configured: true, HasProcess: true, Running: true},
 	}}
 	stopped := pluginserver.DoctorSnapshot{Plugins: []pluginserver.PluginDoctorState{
-		{Name: "test-owner", Configured: true, HasProcess: true, Running: false, Down: true},
+		{Name: "test-owner", RegistrationName: "test-owner", Configured: true, HasProcess: true, Running: false, Down: true},
 	}}
 	encoded := base64.StdEncoding.EncodeToString([]byte("new state"))
 

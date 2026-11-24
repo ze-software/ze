@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -593,26 +594,81 @@ const (
 
 // PluginConfig holds plugin configuration.
 type PluginConfig struct {
-	Name          string         // Plugin identifier
-	Run           string         // Command to execute (empty for internal plugins)
-	Encoder       string         // "json" or "text"
-	Respawn       RespawnRequest // What the block's `respawn` leaf asked for
-	WorkDir       string         // Working directory for plugin execution
-	ReceiveUpdate bool           // Forward received UPDATEs to plugin stdin
-	StageTimeout  time.Duration  // Startup stall timeout: how long a stage may go with no plugin progress (0 = use default 5s)
-	Internal      bool           // If true, run in-process via goroutine (ze.X plugins)
+	Name            string         // Endpoint identifier.
+	CompiledPlugin  string         // Explicit compiled registration name; identifies the compiled plugin regardless of Name or SeparateProcess.
+	SeparateProcess bool           // Run a compiled-in plugin as a separate forked process over TLS connect-back.
+	Run             string         // Command to execute (empty for compiled-in plugins unless using legacy Internal+Run spelling).
+	Encoder         string         // "json" or "text".
+	Respawn         RespawnRequest // What the block's `respawn` leaf asked for.
+	WorkDir         string         // Working directory for plugin execution.
+	ReceiveUpdate   bool           // Forward received UPDATEs to plugin stdin.
+	StageTimeout    time.Duration  // Startup stall timeout: how long a stage may go with no plugin progress (0 = use default 5s).
+	Internal        bool           // Legacy in-daemon compiled flag kept for Phase-3 callers until Phase 4 replaces plugin {} with bus {}.
 }
 
-// RunsExternalProgram reports whether the block names a program of its own: an
-// `external` block whose `run` is a command line. The program declares its own
-// roots and dependencies over the protocol, so a compiled-in registry row that
-// shares the block's name is NOT this block's, and nothing may be taken from
-// it. Every caller that asks "is this registration the block's" asks here.
-func (p PluginConfig) RunsExternalProgram() bool {
-	if p.Internal {
-		return false
+// CompiledIdentity returns the compiled registration identity this config
+// runs, or empty string when the config is not a compiled-in plugin.
+//
+// A foreign external program (Run != "" with neither CompiledPlugin nor
+// Internal set) NEVER inherits a compiled registration identity from its
+// endpoint Name or Run command.
+func (p PluginConfig) CompiledIdentity() string {
+	if p.CompiledPlugin != "" {
+		return strings.TrimPrefix(p.CompiledPlugin, "ze.")
 	}
-	return p.Run != ""
+	if p.Internal {
+		if p.Run != "" {
+			cand := strings.TrimPrefix(p.Run, "ze.")
+			if registry.Has(cand) {
+				return cand
+			}
+			if p.Name != "" && registry.Has(p.Name) {
+				return p.Name
+			}
+			return cand
+		}
+		return p.Name
+	}
+	if p.Run != "" {
+		return ""
+	}
+	if p.Name != "" && registry.Has(p.Name) {
+		return p.Name
+	}
+	return ""
+}
+
+// IsCompiled reports whether this config identifies a compiled-in plugin
+// registration, regardless of whether it runs in-daemon or in a separate
+// process.
+func (p PluginConfig) IsCompiled() bool {
+	return p.CompiledIdentity() != ""
+}
+
+// RunsInDaemon reports whether this config runs a compiled-in plugin as a
+// goroutine inside the daemon process.
+func (p PluginConfig) RunsInDaemon() bool {
+	return p.IsCompiled() && !p.SeparateProcess
+}
+
+// RunsSeparateProcess reports whether this config runs a compiled-in plugin
+// as a separate forked process executing Ze's own binary over TLS connect-back.
+func (p PluginConfig) RunsSeparateProcess() bool {
+	return p.IsCompiled() && p.SeparateProcess
+}
+
+// RunsExternalProgram reports whether this config runs a foreign external
+// program Ze did not ship. Its identity is its endpoint name alone, and it
+// takes nothing from any compiled-in registration that shares that name.
+func (p PluginConfig) RunsExternalProgram() bool {
+	return !p.IsCompiled() && p.Run != ""
+}
+
+// RunsForked reports whether this config spawns an OS child process over TLS
+// connect-back, either a compiled-in plugin with SeparateProcess or a foreign
+// external program.
+func (p PluginConfig) RunsForked() bool {
+	return p.RunsSeparateProcess() || p.RunsExternalProgram()
 }
 
 // Format constants for process output formatting.
@@ -681,6 +737,3 @@ const (
 	// (rpc.AnswerKindWarning), and DirectBridge carries the status itself.
 	StatusWarning = rpc.StatusWarning
 )
-
-// cmdPlugin is the "plugin" token in command strings like "ze plugin <name>".
-const cmdPlugin = "plugin"

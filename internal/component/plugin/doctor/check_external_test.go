@@ -61,9 +61,10 @@ func TestExternalUnsupportedCheckReadsField(t *testing.T) {
 	}
 
 	rows := checkExternalInProcess(diagnostic.DoctorCheckContext{Plugins: []zeplugin.PluginConfig{
-		{Name: "in-process-only-fixture", Run: "ze plugin in-process-only-fixture"},
-		{Name: "forkable-fixture", Run: "ze plugin forkable-fixture"},
+		{Name: "in-process-only-fixture", CompiledPlugin: "in-process-only-fixture", SeparateProcess: true},
+		{Name: "forkable-fixture", CompiledPlugin: "forkable-fixture", SeparateProcess: true},
 		{Name: "as-internal", Internal: true, Run: "in-process-only-fixture"},
+		{Name: "in-process-only-fixture", Run: "/usr/local/bin/foreign-program"},
 	}})
 	if len(rows) != 1 {
 		t.Fatalf("rows = %+v, want one", rows)

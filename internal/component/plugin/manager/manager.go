@@ -242,7 +242,7 @@ func (m *Manager) StartDeclared(ctx context.Context, configs []parent.PluginConf
 			continue
 		}
 		m.plugins[cfg.Name] = &pluginState{
-			config:  ze.PluginConfig{Name: cfg.Name, Internal: cfg.Internal},
+			config:  ze.PluginConfig{Name: cfg.Name, Internal: cfg.RunsInDaemon()},
 			running: true,
 		}
 	}
@@ -421,7 +421,7 @@ func (m *Manager) spawnProcesses(configs []parent.PluginConfig) error {
 			ps.running = true
 		} else {
 			m.plugins[cfg.Name] = &pluginState{
-				config:  ze.PluginConfig{Name: cfg.Name, Internal: cfg.Internal},
+				config:  ze.PluginConfig{Name: cfg.Name, Internal: cfg.RunsInDaemon()},
 				running: true,
 			}
 		}
@@ -438,10 +438,10 @@ func (m *Manager) ensureAcceptor(configs []parent.PluginConfig) error {
 		return nil // Already created
 	}
 
-	hasExternal := false
+	hasForked := false
 	for _, cfg := range configs {
-		if !cfg.Internal {
-			hasExternal = true
+		if cfg.RunsForked() {
+			hasForked = true
 			break
 		}
 	}
@@ -449,9 +449,9 @@ func (m *Manager) ensureAcceptor(configs []parent.PluginConfig) error {
 	// clients (plugin CLI, the .ci engine-step runner) authenticate with the
 	// configured secret without any external plugin being declared. Only the
 	// AUTO-generated hub (random secret nobody outside this process can know)
-	// stays gated on external plugins existing.
+	// stays gated on forked plugins existing.
 	hasExplicitHub := m.hubConfig != nil && len(m.hubConfig.Servers) > 0
-	if !hasExternal && !hasExplicitHub {
+	if !hasForked && !hasExplicitHub {
 		return nil
 	}
 

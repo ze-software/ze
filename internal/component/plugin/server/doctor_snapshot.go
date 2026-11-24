@@ -100,8 +100,14 @@ type UnbackedClaim struct {
 
 // PluginDoctorState is one plugin's state at the moment of the snapshot.
 type PluginDoctorState struct {
-	// Name is the plugin's configured name (its process name).
+	// Name is the plugin's configured name (its endpoint / process name).
 	Name string
+	// RegistrationName is the compiled registration identity this endpoint
+	// runs (for example "ddos-flowspec" when configured under an alias), or
+	// empty for a foreign external program. Populated even when the endpoint
+	// is stopped or disabled so doctor checks and data commands can match by
+	// compiled registration identity.
+	RegistrationName string
 	// Configured is true when the plugin is in the manager's configuration.
 	Configured bool
 	// Running is true while the plugin's engine runs (process.Process.Running).
@@ -209,7 +215,12 @@ func (s *Server) doctorSnapshot() (DoctorSnapshot, error) {
 // pluginDoctorState reads one plugin's state.
 func (s *Server) pluginDoctorState(name string, configured bool) PluginDoctorState {
 	pm := s.procManager.Load()
-	state := PluginDoctorState{Name: name, Configured: configured, Disabled: pm.Disabled(name)}
+	state := PluginDoctorState{
+		Name:             name,
+		RegistrationName: pm.RegistrationFor(name),
+		Configured:       configured,
+		Disabled:         pm.Disabled(name),
+	}
 	state.Stop, state.Down = pm.Stopped(name)
 	state.CleanupOwed = s.lateCleanups.owed(name)
 	state.Enrichers = enricherFailures(name)
@@ -218,6 +229,9 @@ func (s *Server) pluginDoctorState(name string, configured bool) PluginDoctorSta
 	state.HasProcess = proc != nil
 	if !state.HasProcess {
 		return state
+	}
+	if state.RegistrationName == "" {
+		state.RegistrationName = proc.RegistrationName()
 	}
 	state.Records = proc.DoctorRecord(time.Now())
 	state.Running = proc.Running()

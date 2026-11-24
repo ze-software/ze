@@ -600,42 +600,44 @@ func TestDispatchAnswersRequestThatStoppedTheServer(t *testing.T) {
 }
 
 // TestHasConfiguredPluginRunCommand verifies that hasConfiguredPlugin matches
-// external plugins by Run command when config name differs from registry name.
+// compiled plugins by CompiledIdentity as well as by configured endpoint name,
+// and never derives a compiled identity from a foreign external Run string.
 //
-// VALIDATES: Config "adj-rib-in" with Run "ze plugin bgp-adj-rib-in" matches
-//
-//	registry name "bgp-adj-rib-in".
-//
+// VALIDATES: Aliased compiled plugins (in-daemon and separate-process) match
+// both their endpoint name and compiled registration identity.
 // PREVENTS: Auto-loader launching duplicate plugin instances when config uses
-//
-//	short names (e.g., "adj-rib-in") and registry uses full names ("bgp-adj-rib-in").
+// short endpoint aliases for compiled registrations.
 func TestHasConfiguredPluginRunCommand(t *testing.T) {
-	// A registered name is what makes the `ze.` spelling resolvable, and a
-	// throwaway one keeps the case independent of which features this binary was
-	// built with (registerSessionReadyPlugin restores the registry on cleanup).
+	// A registered name keeps the case independent of which features this
+	// binary was built with (registerSessionReadyPlugin restores the registry).
 	const dottedImplementation = "test-has-configured-plugin-implementation"
 	registerSessionReadyPlugin(t, dottedImplementation, false)
 
 	s := &Server{
 		config: &ServerConfig{
 			Plugins: []plugin.PluginConfig{
-				{Name: "adj-rib-in", Run: "ze plugin bgp-adj-rib-in", Encoder: "json"},
-				{Name: "rpki-decorator", Run: "ze plugin bgp-rpki-decorator", Encoder: "json"},
-				{Name: "ribout", Run: "ze." + dottedImplementation, Encoder: "json"},
+				{Name: "adj-rib-in", CompiledPlugin: "bgp-adj-rib-in", SeparateProcess: true, Encoder: "json"},
+				{Name: "rpki-decorator", CompiledPlugin: "bgp-rpki-decorator", SeparateProcess: true, Encoder: "json"},
+				{Name: "ribout", Internal: true, Run: "ze." + dottedImplementation, Encoder: "json"},
 				{Name: "my-custom-plugin", Encoder: "json", Internal: true},
+				{Name: "foreign-watcher", Run: "/usr/local/bin/watcher bgp-rib", Encoder: "json"},
 			},
 		},
 	}
 
-	// Exact name match
+	// Exact endpoint name match
 	assert.True(t, s.hasConfiguredPlugin("adj-rib-in"), "exact config name should match")
 	assert.True(t, s.hasConfiguredPlugin("my-custom-plugin"), "exact internal name should match")
+	assert.True(t, s.hasConfiguredPlugin("foreign-watcher"), "exact foreign endpoint name should match")
 
-	// Registry name match via Run command
-	assert.True(t, s.hasConfiguredPlugin("bgp-adj-rib-in"), "registry name in Run command should match")
-	assert.True(t, s.hasConfiguredPlugin("bgp-rpki-decorator"), "registry name in Run command should match")
+	// Compiled registration identity match under aliases and transports
+	assert.True(t, s.hasConfiguredPlugin("bgp-adj-rib-in"), "compiled registration identity should match")
+	assert.True(t, s.hasConfiguredPlugin("bgp-rpki-decorator"), "compiled registration identity should match")
 	assert.True(t, s.hasConfiguredPlugin(dottedImplementation),
-		"the ze. spelling names the same implementation, and answering false here starts a second copy of it")
+		"the ze. spelling on an internal config names the same implementation")
+
+	// Foreign external Run arguments never confer compiled identity
+	assert.False(t, s.hasConfiguredPlugin("bgp-rib"), "foreign Run string must not match compiled identity")
 
 	// No match
 	assert.False(t, s.hasConfiguredPlugin("bgp-nonexistent"), "non-existent plugin should not match")

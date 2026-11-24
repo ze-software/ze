@@ -18,10 +18,13 @@ func requireRIBDelivery(plugins []plugin.PluginConfig, peers []*reactor.PeerSett
 	// Event delivery alone cannot cross that boundary.
 	if internalOnly {
 		for _, declared := range plugins {
-			if declared.Internal {
+			if declared.RunsInDaemon() {
 				continue
 			}
 			names := plugin.RegistryNames(declared)
+			if id := declared.CompiledIdentity(); id != "" && !slices.Contains(names, id) {
+				names = append(names, id)
+			}
 			if slices.Contains(names, bgpredist.LocRIBPlugin) {
 				return fmt.Errorf("%s requires an internal bgp-rib process; %q is external", feature, declared.Name)
 			}

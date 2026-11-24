@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -43,33 +44,52 @@ func init() {
 	}
 }
 
-// ownedDeviceCallers maps an owner name to the process that last made an
-// owned-device request under it, so the generation cleanup withdraws an
-// owner's devices only for the process that declared them, never for an
-// older generation that ended after its replacement declared. Safe for
+// ownedDeviceCallers maps a compiled registration owner name to the process
+// that last made an owned-device request under it, so the generation cleanup
+// withdraws an owner's devices only for the process that declared them, never
+// for an older generation that ended after its replacement declared. Safe for
 // concurrent use.
 var ownedDeviceCallers = struct {
 	mu      sync.Mutex
 	byOwner map[string]*process.Process
 }{byOwner: map[string]*process.Process{}}
 
-// noteOwnedDeviceCaller records proc as the current declarer of its name.
-func noteOwnedDeviceCaller(proc *process.Process) {
+// noteOwnedDeviceCaller records proc as the current declarer of owner.
+func noteOwnedDeviceCaller(owner string, proc *process.Process) {
 	ownedDeviceCallers.mu.Lock()
-	ownedDeviceCallers.byOwner[proc.Name()] = proc
+	ownedDeviceCallers.byOwner[owner] = proc
 	ownedDeviceCallers.mu.Unlock()
 }
 
+// refuseOwnedDeviceCaller verifies proc's compiled registration identity holds
+// an owned-device grant, refusing foreign external programs (whose
+// RegistrationName is empty) while naming proc's configured endpoint alias in
+// the operator-facing refusal.
+func refuseOwnedDeviceCaller(proc *process.Process) (string, error) {
+	owner := proc.RegistrationName()
+	if err := iface.RefuseUngrantedDeviceOwner(owner); err != nil {
+		if owner == "" {
+			return "", opererr.Wrap(err,
+				"Plugin "+proc.Name()+" may not ask for owned interface devices",
+				"Only a plugin compiled into this ze binary that granted itself device names may create bridges and links, so no outside process can place a device in any network namespace",
+				"Configure a compiled-in plugin with a device-name grant instead of an external program")
+		}
+		return "", err
+	}
+	return owner, nil
+}
+
 func ownedBridgesReplaceHandler(_ *pluginserver.Server, _ context.Context, proc *process.Process, params json.RawMessage) (any, error) {
-	if err := iface.RefuseUngrantedDeviceOwner(proc.Name()); err != nil {
+	owner, err := refuseOwnedDeviceCaller(proc)
+	if err != nil {
 		return nil, err
 	}
 	var input rpc.OwnedBridgesReplaceInput
 	if err := pluginserver.DecodeEngineOperationInput(params, &input, ownedDeviceSubject); err != nil {
 		return nil, err
 	}
-	noteOwnedDeviceCaller(proc)
-	output, err := iface.ReplaceOwnedBridges(proc.Name(), &input)
+	noteOwnedDeviceCaller(owner, proc)
+	output, err := iface.ReplaceOwnedBridges(owner, &input)
 	if err != nil {
 		return nil, err
 	}
@@ -77,15 +97,16 @@ func ownedBridgesReplaceHandler(_ *pluginserver.Server, _ context.Context, proc 
 }
 
 func ownedLinkCreateHandler(_ *pluginserver.Server, _ context.Context, proc *process.Process, params json.RawMessage) (any, error) {
-	if err := iface.RefuseUngrantedDeviceOwner(proc.Name()); err != nil {
+	owner, err := refuseOwnedDeviceCaller(proc)
+	if err != nil {
 		return nil, err
 	}
 	var input rpc.OwnedLinkCreateInput
 	if err := pluginserver.DecodeEngineOperationInput(params, &input, ownedDeviceSubject); err != nil {
 		return nil, err
 	}
-	noteOwnedDeviceCaller(proc)
-	output, err := iface.CreateOwnedLink(proc.Name(), &input)
+	noteOwnedDeviceCaller(owner, proc)
+	output, err := iface.CreateOwnedLink(owner, &input)
 	if err != nil {
 		return nil, err
 	}
@@ -93,15 +114,16 @@ func ownedLinkCreateHandler(_ *pluginserver.Server, _ context.Context, proc *pro
 }
 
 func ownedLinkRemoveHandler(_ *pluginserver.Server, _ context.Context, proc *process.Process, params json.RawMessage) (any, error) {
-	if err := iface.RefuseUngrantedDeviceOwner(proc.Name()); err != nil {
+	owner, err := refuseOwnedDeviceCaller(proc)
+	if err != nil {
 		return nil, err
 	}
 	var input rpc.OwnedLinkRemoveInput
 	if err := pluginserver.DecodeEngineOperationInput(params, &input, ownedDeviceSubject); err != nil {
 		return nil, err
 	}
-	noteOwnedDeviceCaller(proc)
-	output, err := iface.RemoveOwnedLink(proc.Name(), &input)
+	noteOwnedDeviceCaller(owner, proc)
+	output, err := iface.RemoveOwnedLink(owner, &input)
 	if err != nil {
 		return nil, err
 	}
@@ -112,10 +134,14 @@ func ownedLinkRemoveHandler(_ *pluginserver.Server, _ context.Context, proc *pro
 // is gone, when that process is the one that declared them. It runs after the
 // process's admitted requests drained and before a replacement starts.
 func ownedDevicesCleanup(_ *pluginserver.Server, proc *process.Process) {
+	owner := proc.RegistrationName()
+	if owner == "" {
+		return
+	}
 	ownedDeviceCallers.mu.Lock()
-	declarer, known := ownedDeviceCallers.byOwner[proc.Name()]
+	declarer, known := ownedDeviceCallers.byOwner[owner]
 	if known && declarer == proc {
-		delete(ownedDeviceCallers.byOwner, proc.Name())
+		delete(ownedDeviceCallers.byOwner, owner)
 	}
 	ownedDeviceCallers.mu.Unlock()
 	if !known {
@@ -124,11 +150,11 @@ func ownedDevicesCleanup(_ *pluginserver.Server, proc *process.Process) {
 	if declarer != proc {
 		return
 	}
-	if err := iface.WithdrawOwnedDevices(proc.Name()); err != nil {
+	if err := iface.WithdrawOwnedDevices(owner); err != nil {
 		slogutil.Logger("iface").LogAttrs(context.Background(), slog.LevelError,
 			"owned interface devices of an ended plugin were not all deleted",
 			slog.String("plugin", proc.Name()), slog.String("error", err.Error()),
 			slog.String("code", iface.CodeDoctorIfaceOwnedDeviceCleanup),
-			slog.String("fix", "ip -d link show lists what remains with alias ze:owned:"+proc.Name()+"; the next interface commit deletes it"))
+			slog.String("fix", "ip -d link show lists what remains with alias ze:owned:"+owner+"; the next interface commit deletes it"))
 	}
 }

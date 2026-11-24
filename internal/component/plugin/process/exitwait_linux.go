@@ -41,6 +41,15 @@ func newPluginShell(_ context.Context, run string) *exec.Cmd {
 	return cmd
 }
 
+// newPluginExec answers a direct child fork without a shell, using the same
+// Linux pgrp isolation and stop discipline as newPluginShell.
+func newPluginExec(_ context.Context, executable string, args ...string) *exec.Cmd {
+	// #nosec G204 -- executable is os.Executable() and args carry validated compiled registration tokens.
+	cmd := exec.Command(executable, args...) //nolint:noctx // a context's Cancel can fire past the reap; pluginGroup is the stop (see newPluginShell)
+	cmd.SysProcAttr = plugin.NewSysProcAttr()
+	return cmd
+}
+
 // waitExitedUnreaped blocks until the plugin process at pid has exited, and
 // answers true with the process still unreaped: a zombie that keeps pid, and
 // so the process group pid heads, from being handed to another process.

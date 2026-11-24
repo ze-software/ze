@@ -48,16 +48,8 @@ func loadHubAuthority(store storage.Storage) (*zepki.Root, error) {
 func pluginServerConfigs(plugins []zePlugin.PluginConfig, workDir string) []zePlugin.PluginConfig {
 	configs := make([]zePlugin.PluginConfig, 0, len(plugins))
 	for _, pc := range plugins {
-		configs = append(configs, zePlugin.PluginConfig{
-			Name:          pc.Name,
-			Run:           pc.Run,
-			Encoder:       pc.Encoder,
-			Respawn:       pc.Respawn,
-			WorkDir:       workDir,
-			ReceiveUpdate: pc.ReceiveUpdate,
-			StageTimeout:  pc.StageTimeout,
-			Internal:      pc.Internal,
-		})
+		pc.WorkDir = workDir
+		configs = append(configs, pc)
 	}
 	return configs
 }

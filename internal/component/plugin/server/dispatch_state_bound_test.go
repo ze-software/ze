@@ -73,7 +73,7 @@ func TestPluginStateDeclaredBoundBothTransports(t *testing.T) {
 			}
 		})
 	}
-	proc := process.NewProcess(plugin.PluginConfig{Name: owner})
+	proc := process.NewProcess(plugin.PluginConfig{Name: owner, CompiledPlugin: owner, Internal: true})
 	requestOf := func(key string, size int) json.RawMessage {
 		raw, err := json.Marshal(rpc.StateInput{Key: key, Data: make([]byte, size)})
 		if err != nil {

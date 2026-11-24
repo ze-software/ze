@@ -369,9 +369,10 @@ func declarationRows(ctx context.Context, configPath string) ([]declarationRow, 
 			return nil, readErr
 		}
 		for _, configuredPlugin := range configured.Plugins {
-			// An internal block that names a plugin this binary carries is
-			// already answered, from the registration walk above.
-			if configuredPlugin.Internal && carried[configuredPlugin.Name] {
+			// A compiled-in plugin that this binary carries is already
+			// answered from the registration walk above, whether running
+			// in-daemon or as a separate process.
+			if configuredPlugin.IsCompiled() && carried[configuredPlugin.CompiledIdentity()] {
 				continue
 			}
 			row, rowErr := configuredDeclarationRow(ctx, configuredPlugin, configured.Process, configPath, budget)
@@ -525,7 +526,7 @@ func configuredDeclarationRow(ctx context.Context, configured PluginConfig, proc
 // declare.
 func blockWithNoProgramRow(configured PluginConfig) (row declarationRow, answered bool) {
 	row = declarationRow{Name: configured.Name, Kind: configuredKind(configured), State: stateUnstartable}
-	if configured.Internal {
+	if configured.IsCompiled() {
 		row.Reason = "the config declares this plugin internal and this binary does not carry it"
 		return row, true
 	}
@@ -1010,11 +1011,11 @@ func (b *boundedBuffer) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-// configuredKind answers where a configured plugin's code lives. An internal
+// configuredKind answers where a configured plugin's code lives. A compiled-in
 // block names a plugin this binary carries, and an external block names a
 // program the daemon starts.
 func configuredKind(configuredPlugin PluginConfig) string {
-	if configuredPlugin.Internal {
+	if configuredPlugin.IsCompiled() {
 		return kindInternal
 	}
 	return kindExternal

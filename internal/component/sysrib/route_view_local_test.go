@@ -86,7 +86,11 @@ func TestRouteViewLocalAuthorityLease(t *testing.T) {
 // Refusing an unavailable optimization cannot become an external placement
 // restriction. The same external process can always open the normal feed.
 func TestRouteViewExternalLocalReaderRefusalPreservesFeed(t *testing.T) {
-	owner := process.NewProcess(plugin.PluginConfig{Name: "forked-system-rib", Run: "rib"})
+	owner := process.NewProcess(plugin.PluginConfig{
+		Name:            "forked-system-rib",
+		CompiledPlugin:  configRootRIB,
+		SeparateProcess: true,
+	})
 	rib := locrib.NewRIB()
 	var authority routeViewAuthority
 	if _, err := authority.open(context.Background(), owner, rib, rpc.RouteViewOpenInput{Reader: rpc.RouteViewReaderLocalAuthority}); err == nil {
@@ -104,6 +108,25 @@ func TestRouteViewExternalLocalReaderRefusalPreservesFeed(t *testing.T) {
 	page := routeViewReadTest(t, &authority, owner, opened.Session, 0, 1)
 	if !page.Complete {
 		t.Fatal("external default feed never became ready")
+	}
+}
+
+// VALIDATES: a foreign external program named "rib" carries an empty compiled
+// RegistrationName and is refused by routeViewAuthorize on both selected-feed
+// and local-authority readers.
+// PREVENTS: a foreign external program hijacking the system RIB's route-view
+// authority by naming its endpoint "rib".
+func TestRouteViewRefusesForeignExternalNamedRIB(t *testing.T) {
+	foreign := process.NewProcess(plugin.PluginConfig{
+		Name: configRootRIB,
+		Run:  "/usr/bin/fake",
+	})
+	rib := locrib.NewRIB()
+	var authority routeViewAuthority
+	for _, reader := range []string{"", rpc.RouteViewReaderSelectedFeed, rpc.RouteViewReaderLocalAuthority} {
+		if _, err := authority.open(context.Background(), foreign, rib, rpc.RouteViewOpenInput{Reader: reader}); err == nil {
+			t.Fatalf("foreign external named %q opened route view with reader %q", configRootRIB, reader)
+		}
 	}
 }
 

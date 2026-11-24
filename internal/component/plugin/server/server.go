@@ -386,22 +386,20 @@ func (s *Server) ConfigPath() string {
 	return s.config.ConfigPath
 }
 
-// hasConfiguredPlugin reports whether the operator already configured a process
-// for the given REGISTRY name. Stage-1 dependency validation and the auto-loader
-// both ask it before they start a plugin, so a false answer for a plugin that IS
-// configured launches a second instance of it.
-//
-// It is the reverse direction of plugin.RegistryNames, and it reads the same
-// answer: the process name plus the implementation the run/use spelling
-// resolves to. `plugin { external adj-rib-in { run ze plugin bgp-adj-rib-in } }`
-// therefore answers true for "bgp-adj-rib-in", and so does the `ze.` spelling of
-// the same implementation.
+// hasConfiguredPlugin reports whether the operator already configured an
+// endpoint whose compiled registration identity or endpoint name matches name.
+// Stage-1 dependency validation and the auto-loader both ask it before they
+// start a plugin, so a false answer for a configured plugin would launch a
+// duplicate instance.
 func (s *Server) hasConfiguredPlugin(name string) bool {
 	if name == "" || s.config == nil {
 		return false
 	}
 	for _, p := range s.config.Plugins {
-		if slices.Contains(plugin.RegistryNames(p), name) {
+		if p.CompiledIdentity() == name {
+			return true
+		}
+		if p.Name == name {
 			return true
 		}
 	}
@@ -409,18 +407,61 @@ func (s *Server) hasConfiguredPlugin(name string) bool {
 }
 
 // markPluginLoaded records that a plugin was loaded in a startup phase.
-// Used to prevent re-loading across phases (each phase creates a new ProcessManager).
+// Used to prevent re-loading across phases.
 func (s *Server) markPluginLoaded(name string) {
+	if name == "" {
+		return
+	}
 	s.loadedPluginsMu.Lock()
 	s.loadedPlugins[name] = true
 	s.loadedPluginsMu.Unlock()
 }
 
-// isPluginLoaded returns true if a plugin was loaded in any previous startup phase.
+// markPluginConfigLoaded records a compiled plugin's registration identity as
+// loaded. A foreign external program carries no compiled identity and is never
+// recorded as a compiled plugin.
+func (s *Server) markPluginConfigLoaded(cfg plugin.PluginConfig) {
+	if id := cfg.CompiledIdentity(); id != "" {
+		s.markPluginLoaded(id)
+	}
+}
+
+// unmarkPluginConfigLoaded clears the loaded mark for cfg's compiled
+// registration identity when no remaining running process serves that
+// registration, and clears any explicit endpoint-name mark when the endpoint
+// is no longer running.
+func (s *Server) unmarkPluginConfigLoaded(cfg plugin.PluginConfig) {
+	pm := s.procManager.Load()
+	if id := cfg.CompiledIdentity(); id != "" {
+		if pm == nil || len(pm.BlocksServing(id)) == 0 {
+			s.unmarkPluginLoaded(id)
+		}
+	}
+	if cfg.Name != "" && cfg.Name != cfg.CompiledIdentity() {
+		if pm == nil || pm.GetProcess(cfg.Name) == nil {
+			s.unmarkPluginLoaded(cfg.Name)
+		}
+	}
+}
+
+// isPluginLoaded reports whether a compiled registration identity (or
+// explicitly marked plugin name) is currently running in the process manager
+// or was loaded in an earlier startup phase. An aliased compiled plugin
+// satisfies checks for its compiled registration identity; a foreign external
+// program sharing a compiled plugin's name does not.
 func (s *Server) isPluginLoaded(name string) bool {
+	if name == "" {
+		return false
+	}
+	if pm := s.procManager.Load(); pm != nil {
+		if len(pm.BlocksServing(name)) > 0 {
+			return true
+		}
+	}
 	s.loadedPluginsMu.Lock()
-	defer s.loadedPluginsMu.Unlock()
-	return s.loadedPlugins[name]
+	loaded := s.loadedPlugins[name]
+	s.loadedPluginsMu.Unlock()
+	return loaded
 }
 
 // Context returns the server's context. Used by RPC handlers that need
@@ -544,10 +585,29 @@ func (s *Server) SetMetricsRegistry(reg metrics.Registry) {
 	}
 }
 
+// filterProcessIn resolves the process serving filter references prefixed with
+// pluginName: a compiled-in plugin running registration pluginName (under any
+// endpoint alias or transport), or a foreign external program whose endpoint
+// name is pluginName. An aliased compiled-in plugin is never matched by its
+// endpoint alias.
+func filterProcessIn(pm *process.ProcessManager, pluginName string) (*process.Process, error) {
+	proc, err := pm.ProcessServing(pluginName)
+	if err != nil {
+		return nil, err
+	}
+	if proc != nil {
+		return proc, nil
+	}
+	if proc = pm.GetProcess(pluginName); proc != nil && proc.RegistrationName() == "" {
+		return proc, nil
+	}
+	return nil, nil
+}
+
 // CallFilterUpdate judges route by a named plugin's filter, through the plugin's
 // typed filter slot. pluginName is the reference's prefix, the registration
-// name, and the process serving it answers whatever its block is called
-// (ProcessManager.ProcessServing). The route goes through the slot when the
+// name for a compiled-in plugin or the endpoint name for a foreign external
+// program. The route goes through the slot when the
 // plugin runs internal, and in its next filter-update batch otherwise (ipc
 // PluginConn.CallFilter, D-12). A plugin whose slot is closed
 // (stopped, crashed or respawning) answers an error naming it unavailable
@@ -559,7 +619,7 @@ func (s *Server) CallFilterUpdate(ctx context.Context, pluginName string, route 
 	if pm == nil {
 		return nil, errFilterUpdateNoProcessManager
 	}
-	proc, err := pm.ProcessServing(pluginName)
+	proc, err := filterProcessIn(pm, pluginName)
 	if err != nil {
 		return nil, fmt.Errorf("filter-update: %w", err)
 	}
@@ -621,7 +681,7 @@ func (s *Server) FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy 
 	if pm == nil {
 		return rpc.OnErrorReject
 	}
-	proc, err := pm.ProcessServing(pluginName)
+	proc, err := filterProcessIn(pm, pluginName)
 	// refuse-by-default: guards refuseAmbiguousRegistration -- Stage 1 refuses a second block, so no running chain meets two
 	if err != nil {
 		return rpc.OnErrorReject
@@ -710,7 +770,7 @@ func (s *Server) filterRegistration(pluginName, filterName string) *plugin.Filte
 	if pm == nil {
 		return nil
 	}
-	proc, err := pm.ProcessServing(pluginName)
+	proc, err := filterProcessIn(pm, pluginName)
 	// refuse-by-default: guards refuseAmbiguousRegistration -- Stage 1 refuses a second block, so no running chain meets two
 	if err != nil {
 		return nil
@@ -750,7 +810,7 @@ func (s *Server) declaredFilters(process string) ([]registry.DeclaredFilter, boo
 	if pm == nil {
 		return nil, false
 	}
-	proc, err := pm.ProcessServing(process)
+	proc, err := filterProcessIn(pm, process)
 	// refuse-by-default: guards refuseAmbiguousRegistration -- Stage 1 refuses a second block, so no running chain meets two
 	if err != nil {
 		return nil, false
@@ -787,9 +847,13 @@ func (s *Server) refuseAmbiguousRegistration(proc *process.Process, input *rpc.D
 	if pm == nil {
 		return errStage1NoProcessManager
 	}
-	blocks := pm.BlocksServing(proc.RegistrationName())
+	regName := proc.RegistrationName()
+	if regName == "" {
+		return nil
+	}
+	blocks := pm.BlocksServing(regName)
 	if len(blocks) > 1 {
-		return process.AmbiguousRegistration(proc.RegistrationName(), blocks)
+		return process.AmbiguousRegistration(regName, blocks)
 	}
 	return nil
 }

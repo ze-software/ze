@@ -416,7 +416,7 @@ func recordRestartOverlap(proc *Process, bound time.Duration, cause error) {
 func restartOverlapText(proc *Process, bound time.Duration) (message, fix string) {
 	var text textbuf.Buffer
 	text.Str("plugin ").Str(proc.Name())
-	if proc.config.Internal {
+	if proc.config.RunsInDaemon() {
 		if proc.Running() {
 			text.Str(" was restarted before its previous engine ended: that engine runs in the daemon and had not returned ").
 				Str(bound.String()).
@@ -473,7 +473,7 @@ func RecordStopUnfinished(proc *Process, bound time.Duration, cause error) {
 func stopUnfinishedText(proc *Process, bound time.Duration) (message, fix string) {
 	var text textbuf.Buffer
 	text.Str("plugin ").Str(proc.Name())
-	if proc.config.Internal {
+	if proc.config.RunsInDaemon() {
 		if proc.Running() {
 			text.Str(" was stopped at boot and its engine had not ended: that engine runs in the daemon and had not returned ").
 				Str(bound.String()).

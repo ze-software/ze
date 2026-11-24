@@ -84,16 +84,16 @@ func externalNameRow(name string) diagnostic.Diagnostic {
 	}
 }
 
-// checkExternalInProcess reports each `plugin external` block that runs a
-// plugin whose registration declares RunsInProcessOnly. Such a plugin reaches
-// daemon state a forked process does not hold, so the process starts and
-// silently does nothing. The check reads the field of the registration the
-// block resolves to, never a list of plugin names.
+// checkExternalInProcess reports each separate-process block that runs a
+// compiled-in plugin whose registration declares RunsInProcessOnly. Such a
+// plugin reaches daemon state a forked process does not hold, so the process
+// starts and silently does nothing. The check reads the field of the
+// registration the block resolves to, never a list of plugin names.
 func checkExternalInProcess(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	var rows []diagnostic.Diagnostic
 	for _, block := range ctx.Plugins {
-		if block.Internal {
-			continue // An internal block, or an external one with use, runs in the daemon.
+		if !block.RunsSeparateProcess() {
+			continue
 		}
 		if reg := inProcessOnlyRegistration(block); reg != nil {
 			rows = append(rows, externalInProcessRow(block.Name, reg.Name))

@@ -180,7 +180,7 @@ func TestDisseminationOwnerDeclarationTransports(t *testing.T) {
 	}))
 	for _, external := range []bool{false, true} {
 		name := "configured-alias"
-		configuration := plugin.PluginConfig{Name: name, Run: "dissemination-implementation"}
+		configuration := plugin.PluginConfig{Name: name, CompiledPlugin: "dissemination-implementation", Internal: true}
 		server := &Server{config: &ServerConfig{Plugins: []plugin.PluginConfig{configuration}}}
 		if external {
 			name = "external-not-in-registry"

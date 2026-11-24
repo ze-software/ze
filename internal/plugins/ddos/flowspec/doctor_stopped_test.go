@@ -6,6 +6,7 @@ package flowspec
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -66,10 +67,10 @@ func TestPluginRunFromSnapshotNamesEachState(t *testing.T) {
 		err      error
 		want     string
 	}{
-		{"running", snapshotOf(pluginserver.PluginDoctorState{Name: Name, Configured: true, HasProcess: true, Running: true}), nil, "running"},
-		{"recorded-down", snapshotOf(pluginserver.PluginDoctorState{Name: Name, Configured: true, Down: true, Stop: stop}), nil, "not-running:" + process.StoppedMessage(Name, &stop)},
-		{"held-not-yet-running", snapshotOf(pluginserver.PluginDoctorState{Name: Name, Configured: true, HasProcess: true}), nil, "not-running:" + notStartedWhy},
-		{"absent", snapshotOf(pluginserver.PluginDoctorState{Name: "ddos-local", Configured: true, Running: true}), nil, "not-run"},
+		{"running", snapshotOf(pluginserver.PluginDoctorState{Name: Name, RegistrationName: Name, Configured: true, HasProcess: true, Running: true}), nil, "running"},
+		{"recorded-down", snapshotOf(pluginserver.PluginDoctorState{Name: Name, RegistrationName: Name, Configured: true, Down: true, Stop: stop}), nil, "not-running:" + process.StoppedMessage(Name, &stop)},
+		{"held-not-yet-running", snapshotOf(pluginserver.PluginDoctorState{Name: Name, RegistrationName: Name, Configured: true, HasProcess: true}), nil, "not-running:" + notStartedWhy},
+		{"absent", snapshotOf(pluginserver.PluginDoctorState{Name: "ddos-local", RegistrationName: "ddos-local", Configured: true, Running: true}), nil, "not-run"},
 		{"no-snapshot", pluginserver.DoctorSnapshot{}, pluginserver.ErrDoctorSnapshotNotPublished, "unknown"},
 	}
 	for _, tc := range cases {
@@ -80,6 +81,85 @@ func TestPluginRunFromSnapshotNamesEachState(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestPluginRunFromSnapshotMatchesByCompiledIdentity proves that
+// pluginRunFromSnapshot and stoppedOrphanReport key on compiled registration
+// identity (PluginDoctorState.RegistrationName) while naming the operator's
+// configured endpoint alias (PluginDoctorState.Name) in stopped diagnostics
+// and restart fixes.
+//
+// VALIDATES: owned journal row 2026-11-14 (ddos/flowspec/doctor.go) — aliased
+// compiled ddos-flowspec is recognized when running and reports its alias when
+// stopped; a foreign external program named ddos-flowspec is treated as not run.
+// PREVENTS: doctor reporting a healthy aliased ddos-flowspec as unrun, offering
+// a restart for the hardcoded name instead of the alias, or treating a foreign
+// external program named ddos-flowspec as the compiled plugin.
+func TestPluginRunFromSnapshotMatchesByCompiledIdentity(t *testing.T) {
+	const alias = "my-ddos"
+	stop := process.PluginStop{Cause: process.StopPolicyExit, Policy: "unspecified"}
+
+	t.Run("aliased running reports healthy", func(t *testing.T) {
+		snap := snapshotOf(pluginserver.PluginDoctorState{
+			Name:             alias,
+			RegistrationName: Name,
+			Configured:       true,
+			HasProcess:       true,
+			Running:          true,
+		})
+		run := pluginRunFromSnapshot(&snap, nil)
+		if _, ok := run.(pluginRunning); !ok {
+			t.Fatalf("run = %#v, want pluginRunning", run)
+		}
+		diags := judgeStoppedRecord(configuredTestTree(), run, storedReading(t))
+		if len(diags) != 0 {
+			t.Fatalf("findings for running aliased plugin = %v, want none", diags)
+		}
+	})
+
+	t.Run("aliased stopped names alias in message and restart fix", func(t *testing.T) {
+		snap := snapshotOf(pluginserver.PluginDoctorState{
+			Name:             alias,
+			RegistrationName: Name,
+			Configured:       true,
+			Down:             true,
+			Stop:             stop,
+		})
+		run := pluginRunFromSnapshot(&snap, nil)
+		notRunning, ok := run.(pluginNotRunning)
+		if !ok {
+			t.Fatalf("run = %#v, want pluginNotRunning", run)
+		}
+		wantWhy := process.StoppedMessage(alias, &stop)
+		if notRunning.why != wantWhy {
+			t.Errorf("why = %q, want %q", notRunning.why, wantWhy)
+		}
+		diags := judgeStoppedRecord(configuredTestTree(), run, storedReading(t))
+		if len(diags) != 1 {
+			t.Fatalf("findings = %v, want one", diags)
+		}
+		wantFix := process.RestartCommand(alias)
+		if diags[0].Fix != wantFix {
+			t.Errorf("fix = %q, want %q", diags[0].Fix, wantFix)
+		}
+		if !strings.Contains(diags[0].Message, wantWhy) {
+			t.Errorf("message %q does not contain alias stop reason %q", diags[0].Message, wantWhy)
+		}
+	})
+
+	t.Run("foreign external named ddos-flowspec is treated as not running", func(t *testing.T) {
+		snap := snapshotOf(pluginserver.PluginDoctorState{
+			Name:             Name,
+			RegistrationName: "",
+			Configured:       true,
+			HasProcess:       true,
+			Running:          true,
+		})
+		run := pluginRunFromSnapshot(&snap, nil)
+		if _, ok := run.(pluginNotRun); !ok {
+			t.Fatalf("run = %#v, want pluginNotRun for foreign external named %s", run, Name)
+		}
+	})
 }
 
 // snapshotOf is a snapshot holding the given plugin states.

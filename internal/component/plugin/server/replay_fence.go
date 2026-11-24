@@ -17,10 +17,10 @@ func (s *Server) declaresReplayFence(name string) bool {
 }
 
 // sessionReplayDeclarations reads one current Process/configuration for both
-// declaration predicates. External programs, including forked built-ins, MUST
-// declare their flags through an accepted Stage 1 and be running. Real Internal
-// runners keep compiled readiness defaults; fencing additionally needs their
-// accepted running lifetime. No declaration or process is cached here.
+// declaration predicates. Foreign external programs MUST declare their flags
+// through an accepted Stage 1 and be running. Compiled-in plugins (in-daemon
+// or separate-process) keep compiled readiness defaults; fencing additionally
+// needs their accepted running lifetime. No declaration or process is cached here.
 func (s *Server) sessionReplayDeclarations(name string) (ready, fence bool) {
 	if s.stopEntered.Load() {
 		return false, false

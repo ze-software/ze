@@ -32,6 +32,15 @@ func newPluginShell(stopCtx context.Context, run string) *exec.Cmd {
 	return cmd
 }
 
+// newPluginExec answers a direct child fork without a shell, using the same
+// pgrp cancellation as newPluginShell.
+func newPluginExec(stopCtx context.Context, executable string, args ...string) *exec.Cmd {
+	// #nosec G204 -- executable is os.Executable() and args carry validated compiled registration tokens.
+	cmd := exec.CommandContext(stopCtx, executable, args...)
+	plugin.KillGroupOnCancel(cmd)
+	return cmd
+}
+
 // waitExitedUnreaped answers false at once on a platform without Linux's
 // waitid P_PID and WNOWAIT: there is no way here to hold the exited plugin's
 // pid until the group is signaled, so the caller reaps without signaling it.

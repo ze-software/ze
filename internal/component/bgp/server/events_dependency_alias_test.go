@@ -36,7 +36,7 @@ func TestStateDependencyOrderUsesImplementationIdentity(t *testing.T) {
 			configs: []plugin.PluginConfig{
 				{Name: "aaa-rib", Internal: true, Run: "ze.bgp-rib"},
 				{Name: "bgp-gr", Run: "/external/gr"},
-				{Name: "zzz-gr-2", Internal: true, Run: "ze plugin bgp-gr"},
+				{Name: "zzz-gr-2", CompiledPlugin: "bgp-gr", SeparateProcess: true},
 				{Name: "zzz-gr-1", Internal: true, Run: "ze.bgp-gr"},
 			},
 			want: []string{"zzz-gr-1", "zzz-gr-2", "aaa-rib", "bgp-gr"},

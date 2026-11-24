@@ -114,8 +114,8 @@ func TestDeriveName(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"ze_plugin_rib", "ze plugin rib", "rib"},
-		{"ze_plugin_gr", "ze plugin gr", "gr"},
+		{"ze_plugin_rib", "ze plugin rib", "ze"},
+		{"ze_plugin_gr", "ze plugin gr", "ze"},
 		{"local_path", "./myplugin", "myplugin"},
 		{"local_nested", "./path/to/plugin", "plugin"},
 		{"absolute_path", "/usr/lib/ze/myplugin", "myplugin"},

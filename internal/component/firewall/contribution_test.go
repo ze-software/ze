@@ -32,15 +32,15 @@ func TestContributionRefusesUnreservedTable(t *testing.T) {
 	MustReserveTableNames(owner, control, ownTable)
 	MustReserveTableNames(other, control, otherTable)
 
-	if err := refuseOwnerWithoutReservation(owner); err != nil {
+	if err := refuseOwnerWithoutReservation(owner, owner); err != nil {
 		t.Fatalf("owner %q reserved a table and was refused: %v", owner, err)
 	}
-	if err := refuseOwnerWithoutReservation("test-contribution-nobody"); err == nil {
+	if err := refuseOwnerWithoutReservation("test-contribution-nobody", "test-contribution-nobody"); err == nil {
 		t.Fatal("an owner that reserved no table was not refused")
 	}
 
 	for _, refused := range []string{otherTable, freeTable} {
-		err := refuseUnreservedContribution(owner, []Table{{Name: ownTable}, {Name: refused}})
+		err := refuseUnreservedContribution(owner, owner, []Table{{Name: ownTable}, {Name: refused}})
 		if err == nil {
 			t.Fatalf("table %q is not %q's and was accepted", refused, owner)
 		}
@@ -53,7 +53,7 @@ func TestContributionRefusesUnreservedTable(t *testing.T) {
 		}
 	}
 
-	if err := refuseUnreservedContribution(owner, []Table{{Name: ownTable}}); err != nil {
+	if err := refuseUnreservedContribution(owner, owner, []Table{{Name: ownTable}}); err != nil {
 		t.Fatalf("owner %q's own reserved table was refused: %v", owner, err)
 	}
 }

@@ -51,11 +51,11 @@ func fitTerminalCleanupText(value string, limit int) string {
 }
 
 // CheckTerminalCleanupDeclaration checks the compiled promise without
-// reserving capacity. A forked program owns its declaration regardless of
-// whether a compiled registration happens to have the same name.
+// reserving capacity. A foreign external program owns its declaration
+// regardless of whether a compiled registration happens to have the same name.
 // Safe for concurrent use; this MUST precede accepted Stage 1 publication.
 func (p *Process) CheckTerminalCleanupDeclaration(declared bool) error {
-	if !p.config.Internal {
+	if !p.config.IsCompiled() {
 		return nil
 	}
 	compiled := registry.Lookup(p.registryName)

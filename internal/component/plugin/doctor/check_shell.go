@@ -32,10 +32,7 @@ func diagnosePluginShell(plugins []zeplugin.PluginConfig, shellErr error) []diag
 	var named textbuf.Buffer
 	count := 0
 	for _, configured := range plugins {
-		if configured.Internal {
-			continue
-		}
-		if configured.Run == "" {
+		if !configured.RunsExternalProgram() {
 			continue
 		}
 		if count > 0 {

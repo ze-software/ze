@@ -28,7 +28,7 @@ func storedReading(t *testing.T) func() recordReading {
 // daemon records it (server/startup.go RecordStopped).
 func stoppedTestRun(cleanupOwed bool) pluginNotRunning {
 	stop := process.PluginStop{Cause: process.StopHandshakeFailed, Detail: "ddos-flowspec: event bus not configured"}
-	return pluginNotRunning{why: process.StoppedMessage(Name, &stop), cleanupOwed: cleanupOwed}
+	return pluginNotRunning{endpointName: Name, why: process.StoppedMessage(Name, &stop), cleanupOwed: cleanupOwed}
 }
 
 // TestOrphanRecordCheckStandsDownWhileTheSectionIsConfigured proves that the
@@ -509,8 +509,8 @@ func TestPluginRunFromSnapshotNamesTheStatesTheStoppedCheckActsOn(t *testing.T) 
 		err      error
 		want     string
 	}{
-		{"held-not-configured", snapshotOf(pluginserver.PluginDoctorState{Name: Name, HasProcess: true}), nil, "not-run"},
-		{"down-cleanup-owed", snapshotOf(pluginserver.PluginDoctorState{Name: Name, Configured: true, Down: true, Stop: stop, CleanupOwed: true}), nil,
+		{"held-not-configured", snapshotOf(pluginserver.PluginDoctorState{Name: Name, RegistrationName: Name, HasProcess: true}), nil, "not-run"},
+		{"down-cleanup-owed", snapshotOf(pluginserver.PluginDoctorState{Name: Name, RegistrationName: Name, Configured: true, Down: true, Stop: stop, CleanupOwed: true}), nil,
 			"not-running:" + process.StoppedMessage(Name, &stop) + " cleanup-owed"},
 		{"not-started", pluginserver.DoctorSnapshot{}, pluginserver.ErrDoctorSnapshotNotStarted, "unknown:" + pluginserver.ErrDoctorSnapshotNotStarted.Error()},
 	}

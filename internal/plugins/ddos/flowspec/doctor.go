@@ -432,20 +432,21 @@ type pluginRun interface{ pluginRun() }
 type pluginRunning struct{}
 
 // pluginNotRunning: the daemon holds the plugin configured and it is not
-// running. why is the sentence that says so, with the stop's cause when the
-// daemon recorded one. cleanupOwed is the snapshot's CleanupOwed: a stopped
-// process of the plugin has not run its cleanup, and ze refuses the restart
-// until it has.
+// running. endpointName is the operator's configured endpoint alias
+// (PluginDoctorState.Name), used for the restart command. why is the sentence
+// that says so, with the stop's cause when the daemon recorded one.
+// cleanupOwed is the snapshot's CleanupOwed: a stopped process of the plugin
+// has not run its cleanup, and ze refuses the restart until it has.
 type pluginNotRunning struct {
-	why         string
-	cleanupOwed bool
+	endpointName string
+	why          string
+	cleanupOwed  bool
 }
 
-// pluginNotRun: the snapshot holds no configured plugin named ddos-flowspec.
-// The process name is what the snapshot keys on (PluginDoctorState.Name), and
-// it carries no registry name, so a block that runs this implementation under
-// another name (`plugin { internal <other> { use ddos-flowspec } }`) is
-// pluginNotRun too.
+// pluginNotRun: the snapshot holds no configured plugin whose compiled
+// registration identity (PluginDoctorState.RegistrationName) is ddos-flowspec.
+// A foreign external program named ddos-flowspec carries an empty
+// RegistrationName and is therefore pluginNotRun.
 type pluginNotRun struct{}
 
 // pluginRunUnknown: the daemon has no plugin snapshot to ask yet (its plugin
@@ -457,10 +458,16 @@ func (pluginNotRunning) pluginRun() {}
 func (pluginNotRun) pluginRun()     {}
 func (pluginRunUnknown) pluginRun() {}
 
-// notStartedWhy is the reason of a configured plugin that is not running and
-// that no stop recorded: it is starting, or it ended and its stop is not
-// recorded yet.
+// notStartedWhy is the reason of a configured plugin named ddos-flowspec that
+// is not running and that no stop recorded: it is starting, or it ended and
+// its stop is not recorded yet.
 const notStartedWhy = "configured plugin " + Name + " is not running, and the daemon records no stop of it: it is starting, or it ended and its stop is not recorded yet"
+
+// notStartedWhyFor formats the not-started reason for the operator's
+// configured endpoint alias.
+func notStartedWhyFor(endpointName string) string {
+	return "configured plugin " + endpointName + " is not running, and the daemon records no stop of it: it is starting, or it ended and its stop is not recorded yet"
+}
 
 // readPluginRun asks the daemon's plugin snapshot whether ddos-flowspec runs.
 func readPluginRun() pluginRun {
@@ -469,25 +476,44 @@ func readPluginRun() pluginRun {
 }
 
 // pluginRunFromSnapshot reads ddos-flowspec's run from one snapshot answer.
+// Matches on PluginDoctorState.RegistrationName (compiled registration
+// identity), never on PluginDoctorState.Name (endpoint alias), so an aliased
+// compiled ddos-flowspec is recognized and a foreign external program named
+// ddos-flowspec is not.
 func pluginRunFromSnapshot(snapshot *pluginserver.DoctorSnapshot, err error) pluginRun {
 	if err != nil {
 		return pluginRunUnknown{err: err}
 	}
+	var stopped *pluginNotRunning
 	for i := range snapshot.Plugins {
 		state := &snapshot.Plugins[i]
-		if state.Name != Name {
+		if state.RegistrationName != Name {
 			continue
 		}
 		if state.Running {
 			return pluginRunning{}
 		}
 		if !state.Configured {
-			return pluginNotRun{}
+			continue
 		}
-		if state.Down {
-			return pluginNotRunning{why: process.StoppedMessage(Name, &state.Stop), cleanupOwed: state.CleanupOwed}
+		if stopped == nil {
+			if state.Down {
+				stopped = &pluginNotRunning{
+					endpointName: state.Name,
+					why:          process.StoppedMessage(state.Name, &state.Stop),
+					cleanupOwed:  state.CleanupOwed,
+				}
+			} else {
+				stopped = &pluginNotRunning{
+					endpointName: state.Name,
+					why:          notStartedWhyFor(state.Name),
+					cleanupOwed:  state.CleanupOwed,
+				}
+			}
 		}
-		return pluginNotRunning{why: notStartedWhy, cleanupOwed: state.CleanupOwed}
+	}
+	if stopped != nil {
+		return *stopped
 	}
 	return pluginNotRun{}
 }
@@ -627,7 +653,7 @@ func stoppedOrphanReport(run pluginNotRunning) orphanReport {
 			Code:     codeDoctorDDoSFlowspecOrphanAnnouncement,
 			Severity: string(diagnostic.SeverityWarning),
 			Message:  msg.String(),
-			Fix:      process.RestartCommand(Name),
+			Fix:      process.RestartCommand(run.endpointName),
 		}
 	}
 }

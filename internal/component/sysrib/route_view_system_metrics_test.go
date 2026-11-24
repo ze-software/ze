@@ -141,7 +141,11 @@ func openSystemMetricsFeed(t *testing.T, ctx context.Context, rib *locrib.RIB, b
 	p := sdk.NewWithConn(configRootRIB, sdk.ConnWithMetrics(pluginEnd, publisher))
 	engine := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
 	var authority routeViewAuthority
-	owner := process.NewProcess(plugin.PluginConfig{Name: "metrics-owner", Run: configRootRIB})
+	owner := process.NewProcess(plugin.PluginConfig{
+		Name:            "metrics-owner",
+		CompiledPlugin:  configRootRIB,
+		SeparateProcess: true,
+	})
 	published := make(chan rpc.MetricsPublishInput, 8)
 	done := make(chan struct{})
 	answer := func(request *rpc.Request) (any, error) {

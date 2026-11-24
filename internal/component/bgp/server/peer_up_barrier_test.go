@@ -304,3 +304,70 @@ func TestRequiresPeerUpBarrierByName(t *testing.T) {
 	require.False(t, registry.RequiresPeerUpBarrier(plainName))
 	require.False(t, registry.RequiresPeerUpBarrier("test-never-registered-plugin"))
 }
+
+// VALIDATES: AC-13 sibling #1 — countPeerUpBarrier and deliverPeerState resolve
+// RequiresPeerUpBarrier from proc.RegistrationName() (compiled identity), not
+// proc.Name() (endpoint alias), so an aliased compiled bgp-rs keeps the barrier
+// on both in-daemon and separate-process transports while a foreign external
+// program named "bgp-rs" never receives it.
+// PREVENTS: an aliased compiled bgp-rs silently losing its End-of-RIB barrier,
+// or a foreign external program named "bgp-rs" arming an unintended barrier.
+func TestPeerUpBarrierUsesCompiledRegistrationIdentity(t *testing.T) {
+	const (
+		rsName  = "bgp-rs"
+		rsAlias = "my-rs"
+	)
+	require.True(t, registry.RequiresPeerUpBarrier(rsName), "bgp-rs must declare PeerUpBarrier")
+
+	aliasedInDaemon := process.NewProcess(plugin.PluginConfig{
+		Name:           rsAlias,
+		CompiledPlugin: rsName,
+		Internal:       true,
+	})
+	aliasedSeparate := process.NewProcess(plugin.PluginConfig{
+		Name:            "my-rs-fork",
+		CompiledPlugin:  rsName,
+		SeparateProcess: true,
+	})
+	foreignNamedRS := process.NewProcess(plugin.PluginConfig{
+		Name: rsName,
+		Run:  "/usr/bin/fake",
+	})
+
+	require.Equal(t, 1, countPeerUpBarrier([]*process.Process{aliasedInDaemon}, pluginrpc.SessionStateUp))
+	require.Equal(t, 1, countPeerUpBarrier([]*process.Process{aliasedSeparate}, pluginrpc.SessionStateUp))
+	require.Equal(t, 0, countPeerUpBarrier([]*process.Process{foreignNamedRS}, pluginrpc.SessionStateUp))
+	require.Equal(t, 2, countPeerUpBarrier(
+		[]*process.Process{aliasedInDaemon, aliasedSeparate, foreignNamedRS},
+		pluginrpc.SessionStateUp,
+	))
+
+	srv, rec := newBarrierTestServer(t)
+
+	aliasedProc, aliasedConn := newConfiguredProcWithConn(t, plugin.PluginConfig{
+		Name:           rsAlias,
+		CompiledPlugin: rsName,
+		Internal:       true,
+	})
+	subscribeState(srv, aliasedProc)
+	go recordingResponder(t.Context(), aliasedConn, rec, rsAlias)
+
+	foreignProc, foreignConn := newConfiguredProcWithConn(t, plugin.PluginConfig{
+		Name: rsName,
+		Run:  "/usr/bin/fake",
+	})
+	subscribeState(srv, foreignProc)
+	go recordingResponder(t.Context(), foreignConn, rec, rsName)
+
+	attachForDelivery(t, srv, testPeerInfo(), rsAlias, rsName)
+
+	onPeerStateChange(srv, testPeerInfo(), pluginrpc.SessionStateUp, "")
+
+	steps := rec.recorded()
+	require.Equal(t, "arm:10.0.0.1:1", steps[0],
+		"only the aliased compiled bgp-rs must arm the barrier, never the foreign external program named bgp-rs")
+	require.Equal(t, 1, countStep(steps, "ack:10.0.0.1"),
+		"only the aliased compiled bgp-rs must acknowledge the barrier")
+	require.Less(t, indexOf(steps, "deliver:"+rsAlias), indexOf(steps, "ack:10.0.0.1"),
+		"the barrier acknowledgement must follow delivery to the aliased compiled bgp-rs")
+}

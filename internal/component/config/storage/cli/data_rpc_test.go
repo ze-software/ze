@@ -164,15 +164,15 @@ func TestKeyCommandsRefuseKeyOfRunningPlugin(t *testing.T) {
 	const key = "meta/test/owned"
 	granted := map[string][]string{key: {"test-owner"}}
 	ownerRuns := pluginserver.DoctorSnapshot{Plugins: []pluginserver.PluginDoctorState{
-		{Name: "test-other", Configured: true, HasProcess: true, Running: true},
-		{Name: "test-owner", Configured: true, HasProcess: true, Running: true},
+		{Name: "test-other", RegistrationName: "test-other", Configured: true, HasProcess: true, Running: true},
+		{Name: "test-owner", RegistrationName: "test-owner", Configured: true, HasProcess: true, Running: true},
 	}}
 	ownerStopped := pluginserver.DoctorSnapshot{Plugins: []pluginserver.PluginDoctorState{
-		{Name: "test-other", Configured: true, HasProcess: true, Running: true},
-		{Name: "test-owner", Configured: true, HasProcess: true, Running: false, Down: true},
+		{Name: "test-other", RegistrationName: "test-other", Configured: true, HasProcess: true, Running: true},
+		{Name: "test-owner", RegistrationName: "test-owner", Configured: true, HasProcess: true, Running: false, Down: true},
 	}}
 	ownerAbsent := pluginserver.DoctorSnapshot{Plugins: []pluginserver.PluginDoctorState{
-		{Name: "test-other", Configured: true, HasProcess: true, Running: true},
+		{Name: "test-other", RegistrationName: "test-other", Configured: true, HasProcess: true, Running: true},
 	}}
 
 	refused := []struct {
@@ -237,6 +237,55 @@ func TestKeyCommandsRefuseKeyOfRunningPlugin(t *testing.T) {
 			assert.ErrorIs(t, err, fs.ErrNotExist, "the key is gone from the live store")
 		})
 	}
+}
+
+// TestRunningOwnerGuardMatchesCompiledRegistrationIdentity verifies that
+// runningOwnerError checks compiled registration identity
+// (PluginDoctorState.RegistrationName) while naming the operator's endpoint
+// alias (PluginDoctorState.Name) in the refusal and restart fix.
+// VALIDATES: owned journal row 2026-11-14 (data_rpc.go) — aliased compiled
+// owner blocks removal naming the alias; foreign external with matching name
+// does not block removal.
+// PREVENTS: an aliased plugin's runtime key being deleted under it, or a
+// foreign external program blocking key cleanup by borrowing a compiled name.
+func TestRunningOwnerGuardMatchesCompiledRegistrationIdentity(t *testing.T) {
+	const (
+		key   = "meta/test/aliased-owned"
+		owner = "test-owner"
+		alias = "my-owner-alias"
+	)
+	granted := map[string][]string{key: {owner}}
+
+	t.Run("aliased running owner blocks delete and names alias", func(t *testing.T) {
+		store, _ := dataRPCStore(t, func(context.Context) error { return nil })
+		snapshot := pluginserver.DoctorSnapshot{Plugins: []pluginserver.PluginDoctorState{
+			{Name: alias, RegistrationName: owner, Configured: true, HasProcess: true, Running: true},
+		}}
+		standInPluginState(t, granted, snapshot, nil)
+		require.NoError(t, store.WriteKey(key, []byte("live state")))
+
+		response := keyCall(t, key)
+		assert.Equal(t, zePlugin.StatusError, response.Status)
+		assert.Contains(t, response.Error, "delete data key: plugin "+alias+" manages "+key+" while it runs")
+		assert.Contains(t, response.Error, "fix: ze request plugin restart "+alias)
+		data, err := store.ReadKey(key)
+		require.NoError(t, err, "the key must stay in the live store")
+		assert.Equal(t, "live state", string(data))
+	})
+
+	t.Run("foreign external with matching name does not match compiled owner", func(t *testing.T) {
+		store, _ := dataRPCStore(t, func(context.Context) error { return nil })
+		snapshot := pluginserver.DoctorSnapshot{Plugins: []pluginserver.PluginDoctorState{
+			{Name: owner, RegistrationName: "", Configured: true, HasProcess: true, Running: true},
+		}}
+		standInPluginState(t, granted, snapshot, nil)
+		require.NoError(t, store.WriteKey(key, []byte("stale state")))
+
+		response := keyCall(t, key)
+		require.Equal(t, zePlugin.StatusDone, response.Status, response.Error)
+		_, err := store.ReadKey(key)
+		assert.ErrorIs(t, err, fs.ErrNotExist, "foreign external must not block removal of compiled owner key")
+	})
 }
 
 // TestDataCommandsRefuseWithNoStore verifies every data RPC refuses while the

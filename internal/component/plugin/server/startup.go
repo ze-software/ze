@@ -572,9 +572,10 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 	// Retain the exact scope through failed-startup rollback and failure policy.
 	defer s.clearConfigureConfig(allProcesses)
 
-	// Track loaded plugins so later phases don't re-load them.
+	// Track loaded compiled plugins by registration identity so later phases
+	// do not re-load them.
 	for _, p := range plugins {
-		s.markPluginLoaded(p.Name)
+		s.markPluginConfigLoaded(p)
 	}
 
 	// Step (b): Compute dependency tiers from plugin configs.
@@ -722,7 +723,7 @@ func (s *Server) rollbackNonRunningStartupProcesses(pm *process.ProcessManager, 
 	for _, cfg := range plugins {
 		proc := pm.GetProcess(cfg.Name)
 		if proc == nil {
-			s.unmarkPluginLoaded(cfg.Name)
+			s.unmarkPluginConfigLoaded(cfg)
 			continue
 		}
 		if proc.Stage() >= plugin.StageRunning {
@@ -837,7 +838,12 @@ func (e *engineStartupSink) conn() *plugipc.PluginConn { return e.proc.Conn() }
 
 func (e *engineStartupSink) pluginName() string { return e.proc.Config().Name }
 
-func (e *engineStartupSink) registrationName() string { return e.proc.RegistrationName() }
+func (e *engineStartupSink) registrationName() string {
+	if reg := e.proc.RegistrationName(); reg != "" {
+		return reg
+	}
+	return e.proc.Name()
+}
 
 // OnRegistration validates and applies the plugin's declare-registration:
 // doctor-check and enricher declarations, cache-consumer state, dependency
@@ -1115,7 +1121,7 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 			coord.PluginFailed(proc.Index(), tb.Str("configure failed: ").Err(err).String())
 		}
 		proc.Stop()
-		if configRefusalIsFatal(proc.Name(), err) && !recovering {
+		if configRefusalIsFatal(proc.RegistrationName(), err) && !recovering {
 			s.recordStartupFailure(fmt.Errorf("%s: %w", proc.Name(), err))
 		}
 		return err
@@ -1154,14 +1160,18 @@ func isConfigRefusal(err error) bool {
 }
 
 // configRefusalIsFatal reports whether a Stage 2 failure stops ze. Only a
-// refusal can, and only for a plugin whose registration asked for it: a bad
-// configuration must not produce a running router silently missing the feature
-// that plugin owns.
-func configRefusalIsFatal(pluginName string, err error) bool {
+// refusal can, and only for a compiled-in plugin whose registration asked for
+// it: a bad configuration must not produce a running router silently missing
+// the feature that plugin owns. A foreign external program has an empty
+// registrationName and returns false.
+func configRefusalIsFatal(registrationName string, err error) bool {
+	if registrationName == "" {
+		return false
+	}
 	if !isConfigRefusal(err) {
 		return false
 	}
-	return registry.IsFatalOnConfigError(pluginName)
+	return registry.IsFatalOnConfigError(registrationName)
 }
 
 // deliverRegistryRPC sends the command registry to a plugin via RPC (Stage 4).
@@ -1248,20 +1258,16 @@ func registerPluginFamilies(families []rpc.FamilyDecl) ([]family.FamilyRegistrat
 	return added, nil
 }
 
-// registryRow answers the registry row of the implementation a process RUNS,
-// or nil when the process has none. The row is the implementation, which the
-// operator's block name does not have to match: `plugin { internal rpki { use
-// bgp-rpki } }` names the process "rpki" and runs "bgp-rpki", so a lookup by the
-// block name finds no row. plugin.RegistryName resolves the use/run spelling
-// first. An external program has no row, even where its block shares a
-// compiled-in row's name (`external bgp-rpki { run "/opt/x" }`):
-// PluginConfig.RunsExternalProgram is the rule config/loader.go applies to
-// dependencies, and it is applied here before the lookup, never after.
+// registryRow answers the registry row of the compiled implementation a
+// process runs, or nil for a foreign external program. An aliased compiled
+// plugin resolves via cfg.CompiledIdentity() regardless of endpoint name or
+// transport, and a foreign external program never borrows a compiled row even
+// when its endpoint shares a compiled registration name.
 func registryRow(cfg plugin.PluginConfig) *registry.Registration {
-	if cfg.RunsExternalProgram() {
+	if !cfg.IsCompiled() {
 		return nil
 	}
-	return registry.Lookup(plugin.RegistryName(cfg))
+	return registry.Lookup(cfg.CompiledIdentity())
 }
 
 // registryConfigReads answers the roots registryRow's row declares the process

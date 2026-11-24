@@ -494,10 +494,12 @@ var (
 // runningOwnerError refuses a change to a key while a plugin granted that key
 // runs: the plugin manages the key while it runs, so a change under it leaves
 // the plugin's view and the store disagreeing. The owner comes from the key
-// grants and the running state from the plugin snapshot, both by the process
-// name the daemon configured, which is the identity a plugin's state calls
-// carry, so the guard names no plugin, key or feature. commandPath is the
-// command the operator typed, which the refusal names first.
+// grants (compiled registration identity) and the running state from the plugin
+// snapshot (PluginDoctorState.RegistrationName), so an aliased compiled owner
+// still blocks operator writes while a foreign external program sharing that
+// name does not. The refusal message and restart command name the configured
+// endpoint alias (PluginDoctorState.Name). commandPath is the command the
+// operator typed, which the refusal names first.
 //
 // A nil answer means the key may change: no plugin holds a grant for it, or no
 // plugin holding one runs. A key no plugin is granted needs no snapshot, so it
@@ -521,7 +523,7 @@ func runningOwnerError(commandPath, key string) *opererr.Error {
 		if !state.Running {
 			continue
 		}
-		if slices.Contains(owners, state.Name) {
+		if state.RegistrationName != "" && slices.Contains(owners, state.RegistrationName) {
 			return opererr.New(
 				commandPath+": plugin "+state.Name+" manages "+key+" while it runs",
 				"a change made under the running plugin leaves its own view of the key and the store disagreeing, so the key is unchanged; a restart makes the plugin take up its own state again",

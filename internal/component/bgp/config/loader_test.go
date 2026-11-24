@@ -839,7 +839,7 @@ func TestMergeCliPlugins(t *testing.T) {
 			name:        "cli_command_with_args",
 			configPlugs: nil,
 			cliPlugs:    []string{"ze plugin rr"},
-			wantNames:   []string{"rr"},
+			wantNames:   []string{"ze"},
 		},
 		{
 			name:        "empty_cli",

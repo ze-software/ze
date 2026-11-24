@@ -70,7 +70,7 @@ func TestResolvePlugin(t *testing.T) {
 			name:     "command_with_args",
 			input:    "ze plugin rib",
 			wantType: PluginTypeExternal,
-			wantName: "rib",
+			wantName: "ze",
 			wantCmd:  []string{"ze", "plugin", "rib"},
 		},
 		{
@@ -184,17 +184,14 @@ func TestInternalPluginRegistry(t *testing.T) {
 	})
 }
 
-// TestRegistryNames pins the one rule that answers which registry row a process
-// configuration names.
+// TestRegistryNames pins the one rule that answers which compiled registration
+// identity a process configuration runs.
 //
-// VALIDATES: every legal spelling of an in-tree implementation resolves to that
-// implementation, and an external command line leaves the process name as the
-// answer.
-// PREVENTS: a caller growing its own reading of PluginConfig.Run. Four of them
-// had one before this function existed, and they disagreed about the `ze.`
-// prefix: the session-ready barrier answered "declares nothing" for
-// `run ze.bgp-rib`, which let a peer's End-of-RIB claim an initial routing
-// update the plugin had not finished (RFC 4724 Section 4).
+// VALIDATES: compiled-in configs resolve to their compiled registration
+// identity under any endpoint alias or transport, and foreign external programs
+// return no compiled registration identity even when sharing a compiled name.
+// PREVENTS: a caller deriving compiled identity from endpoint Name or Run for
+// foreign external programs, or losing compiled identity under an alias.
 func TestRegistryNames(t *testing.T) {
 	// A throwaway registration keeps every case independent of the feature tags
 	// this binary was built with. The registry is restored when the test ends.
@@ -221,37 +218,54 @@ func TestRegistryNames(t *testing.T) {
 			wantName:  implementation,
 		},
 		{
+			name:      "external_with_no_run",
+			config:    PluginConfig{Name: "external-with-no-run"},
+			wantNames: nil,
+			wantName:  "",
+		},
+		{
 			name:      "use_spelling_under_an_alias",
-			config:    PluginConfig{Name: "ribout", Run: implementation},
-			wantNames: []string{implementation, "ribout"},
+			config:    PluginConfig{Name: "ribout", Internal: true, Run: implementation},
+			wantNames: []string{implementation},
 			wantName:  implementation,
 		},
 		{
 			name:      "ze_dot_spelling_under_an_alias",
-			config:    PluginConfig{Name: "ribout", Run: "ze." + implementation},
-			wantNames: []string{implementation, "ribout"},
+			config:    PluginConfig{Name: "ribout", Internal: true, Run: "ze." + implementation},
+			wantNames: []string{implementation},
 			wantName:  implementation,
 		},
 		{
-			name:      "ze_plugin_verb_pair",
-			config:    PluginConfig{Name: "ribout", Run: "ze plugin " + implementation},
-			wantNames: []string{implementation, "ribout"},
+			name:      "compiled_separate_process",
+			config:    PluginConfig{Name: "ribout", CompiledPlugin: implementation, SeparateProcess: true},
+			wantNames: []string{implementation},
+			wantName:  implementation,
+		},
+		{
+			name:      "compiled_plugin_ze_dot",
+			config:    PluginConfig{Name: "ribout", CompiledPlugin: "ze." + implementation},
+			wantNames: []string{implementation},
 			wantName:  implementation,
 		},
 		{
 			name:      "external_command_line",
 			config:    PluginConfig{Name: "watcher", Run: "/usr/bin/watcher --verbose"},
-			wantNames: []string{"watcher"},
-			wantName:  "watcher",
+			wantNames: nil,
+			wantName:  "",
 		},
 		{
-			// The registry holds no row for it, so the process name is the answer
-			// and startInternal reports "unknown internal plugin" rather than
-			// starting something else.
+			name:      "foreign_external_same_name",
+			config:    PluginConfig{Name: implementation, Run: "/usr/bin/fake"},
+			wantNames: nil,
+			wantName:  "",
+		},
+		{
+			// An unknown compiled registration name is returned as-is so
+			// startInternal or startSeparateProcess refuses it explicitly.
 			name:      "ze_dot_spelling_of_no_registered_plugin",
-			config:    PluginConfig{Name: "ribout", Run: "ze.not-a-plugin"},
-			wantNames: []string{"ribout"},
-			wantName:  "ribout",
+			config:    PluginConfig{Name: "ribout", Internal: true, Run: "ze.not-a-plugin"},
+			wantNames: []string{"not-a-plugin"},
+			wantName:  "not-a-plugin",
 		},
 	}
 

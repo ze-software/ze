@@ -103,33 +103,38 @@ func TestDeclaresSessionReadyReadsTheStageOneDeclaration(t *testing.T) {
 }
 
 // TestDeclaresSessionReadyResolvesEveryInternalSpelling holds the barrier's
-// answer steady across the spellings an operator can legally write for one
-// in-tree implementation.
+// answer steady across compiled-in spellings and transports.
 //
-// VALIDATES: `run ze.<plugin>` and `run ze plugin <plugin>` name the same
-// registration as `use <plugin>`, so a peer that attaches either one waits for
-// that process before it sends its End-of-RIB (RFC 4724 Section 4).
-// PREVENTS: the `ze.` spelling answering "declares nothing". One config value
-// carries three legal forms -- `plugin { external X { run ze.bgp-rib } }`,
-// `plugin { internal X { use ze.bgp-rib } }` and an inline
-// `attach process X { run ze.bgp-rib }` (extractInlinePluginsFromMap,
-// internal/component/bgp/config/plugins.go) -- and each one lands in
-// PluginConfig.Run as "ze.bgp-rib". A lookup that reads the word whole finds no
-// registration, empties the barrier, and lets the marker claim an initial
-// routing update that has not finished, which is the defect the alias
-// resolution above fixed for the bare spelling.
+// VALIDATES: `Internal: true, Run: ze.<plugin>` and `CompiledPlugin: <plugin>`
+// with `SeparateProcess: true` resolve to the compiled registration, while a
+// foreign external program sharing the registration name does not.
+// PREVENTS: an aliased or separate-process compiled plugin answering "declares
+// nothing", or a foreign external program borrowing compiled readiness defaults.
 func TestDeclaresSessionReadyResolvesEveryInternalSpelling(t *testing.T) {
 	const declaring = "test-session-ready-spelling-implementation"
 	registerSessionReadyPlugin(t, declaring, true)
 
 	s := sessionReadyTestServer()
 	runningProcess(t, s, "dotted", "ze."+declaring)
-	runningProcess(t, s, "verbed", "ze plugin "+declaring)
+	pm := s.procManager.Load()
+	separate := process.NewProcess(plugin.PluginConfig{
+		Name:            "separate-alias",
+		CompiledPlugin:  declaring,
+		SeparateProcess: true,
+	})
+	require.NoError(t, pm.AddProcess("separate-alias", separate))
+	foreign := process.NewProcess(plugin.PluginConfig{
+		Name: declaring,
+		Run:  "/usr/local/bin/foreign-reporter",
+	})
+	require.NoError(t, pm.AddProcess(declaring, foreign))
 
 	assert.True(t, s.declaresSessionReady("dotted"),
 		"the ze. prefix names an in-tree implementation and must resolve to its registration")
-	assert.True(t, s.declaresSessionReady("verbed"),
-		"the ze plugin verb pair names the same implementation")
+	assert.True(t, s.declaresSessionReady("separate-alias"),
+		"a separate-process compiled plugin must keep its compiled registration readiness")
+	assert.False(t, s.declaresSessionReady(declaring),
+		"a foreign external program sharing a compiled name must not inherit compiled readiness")
 }
 
 // TestFencesLiveForwardsResolvesTheProcessAlias proves the replay fence asks

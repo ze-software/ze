@@ -45,7 +45,11 @@ func TestLinkRequestRefusesNamespaceMismatch(t *testing.T) {
 	if !ok {
 		t.Fatalf("the namespace answered no inode")
 	}
-	proc := process.NewProcess(plugin.PluginConfig{Name: linkTestOwner, Run: "test"})
+	proc := process.NewProcess(plugin.PluginConfig{
+		Name:           linkTestOwner,
+		CompiledPlugin: linkTestOwner,
+		Internal:       true,
+	})
 	request := func(inode uint64) error {
 		params, err := json.Marshal(rpc.OwnedLinkCreateInput{
 			Key: "wire", Bridge: linkTestPrefix + "-net", Slot: 1, PID: os.Getpid(),

@@ -160,7 +160,7 @@ func (s *Server) takeAndStopProcess(proc *process.Process) {
 // the plugin's loaded mark. It MUST follow takeAndStopProcess and the wait.
 func (s *Server) releaseStoppedProcess(proc *process.Process) {
 	s.releasePluginRegistrations(proc)
-	s.unmarkPluginLoaded(proc.Name())
+	s.unmarkPluginConfigLoaded(proc.Config())
 }
 
 func (s *Server) pluginRemovalPending(proc *process.Process) bool {

@@ -20,15 +20,11 @@ func CheckPluginBinaries(plugins []zeplugin.PluginConfig) []diagnostic.Diagnosti
 	var diags []diagnostic.Diagnostic
 
 	for _, p := range plugins {
-		if p.Run == "" {
+		if !p.RunsExternalProgram() {
 			continue
 		}
 		parts := strings.Fields(p.Run)
 		if len(parts) == 0 {
-			continue
-		}
-
-		if p.Internal {
 			continue
 		}
 

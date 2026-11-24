@@ -45,14 +45,21 @@ func stateInput(proc *process.Process, params json.RawMessage, access stateAcces
 	if proc == nil {
 		return in, errors.New("state request has no plugin owner")
 	}
+	regName := proc.RegistrationName()
 	switch access {
 	case stateAccessList:
 	case stateAccessRead:
-		if !statestore.PluginKeyReadable(proc.Name(), in.Key) {
+		if regName == "" {
+			return in, fmt.Errorf("plugin %s holds no grant to read state key %s", proc.Name(), in.Key)
+		}
+		if !statestore.PluginKeyReadable(regName, in.Key) {
 			return in, fmt.Errorf("plugin %s holds no grant to read state key %s", proc.Name(), in.Key)
 		}
 	case stateAccessWrite:
-		if !statestore.PluginKeyWritable(proc.Name(), in.Key) {
+		if regName == "" {
+			return in, fmt.Errorf("plugin %s holds no grant to write state key %s", proc.Name(), in.Key)
+		}
+		if !statestore.PluginKeyWritable(regName, in.Key) {
 			return in, fmt.Errorf("plugin %s holds no grant to write state key %s", proc.Name(), in.Key)
 		}
 	case stateAccessUnspecified:
@@ -135,7 +142,11 @@ func (s *Server) opStateList(ctx context.Context, proc *process.Process, params 
 	if err != nil {
 		return nil, err
 	}
-	keys, err := statestore.PluginList(proc.Name(), in.Key)
+	regName := proc.RegistrationName()
+	if regName == "" {
+		return rpc.StateOutput{Status: rpc.StateOK}, nil
+	}
+	keys, err := statestore.PluginList(regName, in.Key)
 	if err != nil {
 		return stateFailure(err, rpc.StateReadFailed), nil
 	}

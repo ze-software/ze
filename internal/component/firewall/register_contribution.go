@@ -44,26 +44,27 @@ func init() {
 }
 
 func tablesReplaceHandler(_ *pluginserver.Server, _ context.Context, proc *process.Process, params json.RawMessage) (any, error) {
-	owner := proc.Name()
-	if err := refuseOwnerWithoutReservation(owner); err != nil {
+	owner := proc.RegistrationName()
+	endpoint := proc.Name()
+	if err := refuseOwnerWithoutReservation(owner, endpoint); err != nil {
 		return nil, err
 	}
 	var input rpc.FirewallTablesReplaceInput
 	if err := pluginserver.DecodeEngineOperationInput(params, &input, "Firewall table contribution"); err != nil {
 		return nil, err
 	}
-	if err := refuseSectionWithoutTableMap(owner, input.Section); err != nil {
+	if err := refuseSectionWithoutTableMap(endpoint, input.Section); err != nil {
 		return nil, err
 	}
 	tables, err := ParseFirewallConfig(string(input.Section))
 	if err != nil {
 		return nil, opererr.Wrap(err,
-			"Plugin "+owner+" contributed a firewall section that does not parse",
+			"Plugin "+endpoint+" contributed a firewall section that does not parse",
 			"The section takes the firewall config form, and no table of a refused contribution is applied",
 			"Send the section in the wrapped firewall config form, {\"firewall\":{\"table\":{...}}}, with each table as the firewall YANG module declares it",
 		)
 	}
-	if err := refuseUnreservedContribution(owner, tables); err != nil {
+	if err := refuseUnreservedContribution(owner, endpoint, tables); err != nil {
 		return nil, err
 	}
 	output, err := replaceContributedTables(proc, tables)

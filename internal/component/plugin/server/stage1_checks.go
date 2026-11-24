@@ -79,7 +79,7 @@ func programAlone() stage1Site {
 // registry holds beside the plugin now (CommandRegistry.routingBeside).
 func (e *engineStartupSink) site() stage1Site {
 	cfg := e.proc.Config()
-	site := stage1Site{compiledIn: !cfg.RunsExternalProgram()}
+	site := stage1Site{compiledIn: cfg.IsCompiled()}
 	// A server with no dispatcher, or a dispatcher with no command registry,
 	// routes no command: no builtin and no other plugin's command can take a
 	// node from this plugin, so the site knows none.

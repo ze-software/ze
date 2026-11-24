@@ -43,8 +43,8 @@ func TestStage1BusDeclarationChecksAndAgreement(t *testing.T) {
 
 	s, _ := newLifecycleStartupServer(t)
 
-	// Separate-process internal plugin (Internal: true + Run: "ze plugin <compiledName>") with matching declaration passes.
-	sepCfg := plugin.PluginConfig{Name: "my-sep-alias", Run: "ze plugin " + compiledName, Internal: true}
+	// Separate-process compiled plugin with matching declaration passes.
+	sepCfg := plugin.PluginConfig{Name: "my-sep-alias", CompiledPlugin: compiledName, SeparateProcess: true}
 	procOK := process.NewProcess(sepCfg)
 	sinkOK := &engineStartupSink{s: s, proc: procOK}
 	err := sinkOK.onRegistration(&rpc.DeclareRegistrationInput{

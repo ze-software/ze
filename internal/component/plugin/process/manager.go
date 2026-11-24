@@ -554,6 +554,9 @@ func (pm *ProcessManager) GetProcess(name string) *Process {
 // filters or insertions (BlocksServing), so the error is a guard, not a path
 // a running daemon takes. Safe for concurrent use.
 func (pm *ProcessManager) ProcessServing(registration string) (*Process, error) {
+	if registration == "" {
+		return nil, nil
+	}
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	if proc := pm.processes[registration]; proc != nil && proc.registryName == registration {
@@ -577,6 +580,9 @@ func (pm *ProcessManager) ProcessServing(registration string) (*Process, error) 
 // accepted: more than one name means a chain reference to the plugin would
 // be ambiguous. Safe for concurrent use.
 func (pm *ProcessManager) BlocksServing(registration string) []string {
+	if registration == "" {
+		return nil
+	}
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	var names []string
@@ -587,6 +593,27 @@ func (pm *ProcessManager) BlocksServing(registration string) []string {
 	}
 	slices.Sort(names)
 	return names
+}
+
+// RegistrationFor returns the compiled registration identity for the
+// configured endpoint name, or empty string for a foreign external program or
+// an unknown endpoint. Works even when the endpoint is stopped or disabled.
+// Safe for concurrent use.
+func (pm *ProcessManager) RegistrationFor(name string) string {
+	if name == "" {
+		return ""
+	}
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+	for i := range pm.configs {
+		if pm.configs[i].Name == name {
+			return pm.configs[i].CompiledIdentity()
+		}
+	}
+	if proc := pm.processes[name]; proc != nil {
+		return proc.RegistrationName()
+	}
+	return ""
 }
 
 // AmbiguousRegistration is the refusal of a filter reference that more than

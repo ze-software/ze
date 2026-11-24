@@ -7,7 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
 )
@@ -57,24 +59,37 @@ func TestFlowSpecRefusesIncompleteExplicitRIBFeed(t *testing.T) {
 func TestFlowSpecAuthorizationRequiresInternalRIB(t *testing.T) {
 	for _, tc := range []struct {
 		name, declaration string
-		external          bool
+		separateProcess   bool
 	}{
 		{"internal process", "internal routes { use bgp-rib; }", false},
 		{"external stanza using an internal process", "external routes { use bgp-rib; }", false},
-		{"external subprocess", `external routes { run "ze plugin bgp-rib"; }`, true},
+		{"separate compiled process", "", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.separateProcess {
+				input := fmt.Sprintf(flowSpecDeliveryConfig, "")
+				schema, err := config.YANGSchema()
+				require.NoError(t, err)
+				tree, err := config.NewParser(schema).Parse(input)
+				require.NoError(t, err)
+				peers, _, err := peersAndDynamicGroups(tree)
+				require.NoError(t, err)
+				plugins := []plugin.PluginConfig{{
+					Name:            "routes",
+					CompiledPlugin:  bgpredist.LocRIBPlugin,
+					SeparateProcess: true,
+				}}
+				err = requireRIBDelivery(plugins, peers, "FlowSpec authorization", true)
+				require.Error(t, err, "separate-process event delivery cannot supply the synchronous authorization gate")
+				return
+			}
 			input := fmt.Sprintf(flowSpecDeliveryConfig, "") + "plugin { " + tc.declaration + " }"
 			schema, err := config.YANGSchema()
 			require.NoError(t, err)
 			_, err = config.NewParser(schema).Parse(input)
 			require.NoError(t, err, "both plugin modes are valid configuration syntax")
 			_, err = loadReactor(input)
-			if tc.external {
-				require.Error(t, err, "external event delivery cannot supply the synchronous authorization gate")
-			} else {
-				require.NoError(t, err)
-			}
+			require.NoError(t, err)
 		})
 	}
 }
@@ -107,21 +122,34 @@ func TestFlowSpecReplayRequiresReachableSelectingRIB(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			input := fmt.Sprintf(flowSpecDeliveryConfig, tc.flowBinding)
 			input = strings.Replace(input, "peer unicast-only {", "peer unicast-only {\n"+tc.unicastBinding, 1)
-			execution := fmt.Sprintf("run %q;", "ze plugin "+tc.role)
-			if tc.kind == "internal" || tc.use {
-				execution = "use " + tc.role + ";"
+			if tc.kind == "external" && !tc.use {
+				schema, err := config.YANGSchema()
+				require.NoError(t, err)
+				tree, err := config.NewParser(schema).Parse(input)
+				require.NoError(t, err)
+				peers, _, err := peersAndDynamicGroups(tree)
+				require.NoError(t, err)
+				plugins := []plugin.PluginConfig{{
+					Name:            "replay-owner",
+					CompiledPlugin:  tc.role,
+					SeparateProcess: true,
+				}}
+				err = requireRIBDelivery(plugins, peers, "FlowSpec authorization", true)
+				if tc.reject {
+					require.Error(t, err, "the replay owner cannot query the process-local selecting RIB")
+				} else {
+					require.NoError(t, err)
+				}
+				return
 			}
+			execution := "use " + tc.role + ";"
 			input += fmt.Sprintf("\nplugin { %s replay-owner { %s } }", tc.kind, execution)
 			schema, err := config.YANGSchema()
 			require.NoError(t, err)
 			_, err = config.NewParser(schema).Parse(input)
 			require.NoError(t, err, "the process mode and bindings are valid syntax")
 			_, err = loadReactor(input)
-			if tc.reject {
-				require.Error(t, err, "the replay owner cannot query the process-local selecting RIB")
-			} else {
-				require.NoError(t, err)
-			}
+			require.NoError(t, err)
 		})
 	}
 }

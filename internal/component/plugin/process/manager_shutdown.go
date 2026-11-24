@@ -83,7 +83,7 @@ func (pm *ProcessManager) admitSpawnLocked(cfg plugin.PluginConfig) *Process {
 	proc := NewProcess(cfg)
 	pm.wireMetrics(proc)
 	if pm.acceptor != nil {
-		if !cfg.Internal {
+		if cfg.RunsForked() {
 			proc.SetAcceptor(pm.acceptor)
 		}
 	}
@@ -216,7 +216,7 @@ func (pm *ProcessManager) stopEngines(ctx context.Context, processes []*Process,
 // boundary. Final process-group joins remain the stop owner's responsibility.
 func waitShutdownProcess(ctx context.Context, proc *Process, terminal bool) error {
 	if terminal {
-		if !proc.Config().Internal {
+		if proc.Config().RunsForked() {
 			if err := proc.Wait(ctx); err != nil {
 				select {
 				case <-proc.externalDone:

@@ -41,7 +41,7 @@ func TestPluginSnapshotNotPublished(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, snapshot.Plugins, 1, "a configured plugin with no process must still be listed")
 	got := snapshot.Plugins[0]
-	want := PluginDoctorState{Name: "never-spawned", Configured: true}
+	want := PluginDoctorState{Name: "never-spawned", RegistrationName: "never-spawned", Configured: true}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("snapshot entry = %+v, want %+v", got, want)
 	}

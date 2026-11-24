@@ -4,13 +4,17 @@
 package firewall
 
 import (
+	"encoding/json"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // The owner, tables and backend these tests use, names no producer uses.
@@ -86,7 +90,11 @@ func (l *contributionLab) appliedNames() []string {
 }
 
 func contributionProcess() *process.Process {
-	return process.NewProcess(plugin.PluginConfig{Name: replaceTestOwner, Run: "test"})
+	return process.NewProcess(plugin.PluginConfig{
+		Name:           replaceTestOwner,
+		CompiledPlugin: replaceTestOwner,
+		Internal:       true,
+	})
 }
 
 func inetTable(name string) Table { return Table{Name: name, Family: FamilyInet} }
@@ -204,4 +212,95 @@ func contributionWarningRaised() bool {
 		}
 	}
 	return false
+}
+
+// TestContributionAuthorizedByCompiledIdentity proves that firewall table
+// contribution grants key on compiled registration identity
+// (proc.RegistrationName()), not the operator's configured endpoint alias
+// (proc.Name()), while operator-facing errors and withdrawal failure fixes
+// name the endpoint alias.
+//
+// VALIDATES: Q-T2 compile-time grants for firewall contributions — aliased
+// compiled plugins (in-daemon and separate-process) are allowed to contribute
+// and withdraw their reserved tables, while a foreign external program named
+// after the reserved owner is refused before its section is read.
+// PREVENTS: an aliased compiled plugin losing its firewall table grant, or a
+// foreign external program impersonating a compiled plugin's reserved table.
+func TestContributionAuthorizedByCompiledIdentity(t *testing.T) {
+	lab := openContributionLab(t)
+	section := json.RawMessage(`{"firewall":{"table":{"` + strings.TrimPrefix(replaceTestTable, "ze_") + `":{"family":"inet"}}}}`)
+	params, err := json.Marshal(rpc.FirewallTablesReplaceInput{Section: section})
+	if err != nil {
+		t.Fatalf("marshal contribution input: %v", err)
+	}
+
+	const alias = "my-irr"
+	for _, tc := range []struct {
+		name string
+		cfg  plugin.PluginConfig
+	}{
+		{
+			name: "aliased in-daemon compiled plugin",
+			cfg:  plugin.PluginConfig{Name: alias, CompiledPlugin: replaceTestOwner, Internal: true},
+		},
+		{
+			name: "aliased separate-process compiled plugin",
+			cfg:  plugin.PluginConfig{Name: alias, CompiledPlugin: replaceTestOwner, SeparateProcess: true},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			proc := process.NewProcess(tc.cfg)
+			out, err := tablesReplaceHandler(nil, t.Context(), proc, params)
+			if err != nil {
+				t.Fatalf("aliased compiled owner was refused: %v", err)
+			}
+			got, ok := out.(*rpc.FirewallTablesReplaceOutput)
+			if !ok || !slices.Equal(got.Tables, []string{replaceTestTable}) {
+				t.Fatalf("output = %#v, want tables [%s]", out, replaceTestTable)
+			}
+			if !slices.Contains(lab.appliedNames(), replaceTestTable) {
+				t.Fatalf("backend does not hold %s: %v", replaceTestTable, lab.appliedNames())
+			}
+
+			lab.backend.applyErr = errors.New("simulated withdraw failure")
+			withdrawContributedTables(proc)
+			lab.backend.applyErr = nil
+
+			foundAliasFix := false
+			for _, issue := range report.Warnings() {
+				if issue.Source == contributionReportSource &&
+					issue.Code == codeDoctorFirewallContributedTables &&
+					strings.Contains(issue.Fix, "ze request plugin restart "+alias) {
+					foundAliasFix = true
+				}
+			}
+			if !foundAliasFix {
+				t.Fatalf("withdrawal failure warning did not name alias %q in restart fix: %v", alias, report.Warnings())
+			}
+			if err := ApplyAll(); err != nil {
+				t.Fatalf("reconcile after withdrawal: %v", err)
+			}
+		})
+	}
+
+	t.Run("foreign external named after reserved owner is refused", func(t *testing.T) {
+		foreign := process.NewProcess(plugin.PluginConfig{
+			Name: replaceTestOwner,
+			Run:  "/usr/bin/fake",
+		})
+		_, err := tablesReplaceHandler(nil, t.Context(), foreign, params)
+		if err == nil {
+			t.Fatal("foreign external program named after reserved owner was allowed")
+		}
+		var failure *opererr.Error
+		if !errors.As(err, &failure) {
+			t.Fatalf("refusal is not an operator error: %T %v", err, err)
+		}
+		if !strings.Contains(failure.Problem(), "Plugin "+replaceTestOwner+" may not contribute firewall tables") {
+			t.Fatalf("unexpected refusal problem: %q", failure.Problem())
+		}
+		if slices.Contains(lab.appliedNames(), replaceTestTable) {
+			t.Fatalf("refused foreign caller applied table: %v", lab.appliedNames())
+		}
+	})
 }

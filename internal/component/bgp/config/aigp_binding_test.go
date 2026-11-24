@@ -8,7 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
 )
@@ -83,9 +86,25 @@ func TestAIGPRefusesIncompleteExplicitRIBFeed(t *testing.T) {
 }
 
 func TestAIGPAllowsExternalRIBMetricFeed(t *testing.T) {
-	input := fmt.Sprintf(aigpDeliveryConfig, "") +
-		`plugin { external routes { run "ze plugin bgp-rib"; } }`
-	graph := graphFromConfig(t, input)
+	input := fmt.Sprintf(aigpDeliveryConfig, "")
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	tree, err := config.NewParser(schema).Parse(input)
+	require.NoError(t, err)
+	peers, _, err := peersAndDynamicGroups(tree)
+	require.NoError(t, err)
+
+	plugins := []plugin.PluginConfig{{
+		Name:            "routes",
+		CompiledPlugin:  bgpredist.LocRIBPlugin,
+		SeparateProcess: true,
+	}}
+	require.NoError(t, grantEveryPeer(plugins, peers, bgpredist.LocRIBPlugin, "update-received state", ""))
+	require.NoError(t, requireRIBDelivery(plugins, peers, "AIGP selection", false))
+
+	srv := &pluginserver.Server{}
+	srv.UpdateDeliveryGraph(bgpevents.Namespace, deliveryPeers(peers))
+	graph := srv.DeliveryGraph()
 	for _, peer := range []string{"10.0.0.2", "10.0.0.3"} {
 		require.Contains(t, fedBy(graph, bgpevents.EventUpdate, events.DirReceived, peer), "routes")
 		require.Contains(t, fedBy(graph, bgpevents.EventState, events.DirUnspecified, peer), "routes")

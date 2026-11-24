@@ -507,9 +507,10 @@ func ExtractPluginsFromTree(tree *Tree) ([]plugin.PluginConfig, error) {
 				return nil, fmt.Errorf("plugin %q: internal plugins do not support run", name)
 			}
 			plugins = append(plugins, plugin.PluginConfig{
-				Name:     name,
-				Internal: true,
-				Run:      useVal,
+				Name:           name,
+				CompiledPlugin: strings.TrimPrefix(useVal, "ze."),
+				Internal:       true,
+				Run:            useVal,
 			})
 		}
 
@@ -532,6 +533,7 @@ func ExtractPluginsFromTree(tree *Tree) ([]plugin.PluginConfig, error) {
 				pc.Run = runVal
 			}
 			if useVal != "" {
+				pc.CompiledPlugin = strings.TrimPrefix(useVal, "ze.")
 				pc.Internal = true
 				pc.Run = useVal
 			}
@@ -569,7 +571,7 @@ func ExtractPluginsFromTree(tree *Tree) ([]plugin.PluginConfig, error) {
 			if pc.Encoder == EncoderText {
 				pc.ReceiveUpdate = true
 			}
-			if !pc.Internal {
+			if !pc.IsCompiled() {
 				MarkInternalPlugin(&pc)
 			}
 			plugins = append(plugins, pc)
@@ -670,6 +672,7 @@ func MergeCliPlugins(plugins []plugin.PluginConfig, cliPlugins []string) ([]plug
 			Encoder: "json",
 		}
 		if resolved.Type == plugin.PluginTypeInternal {
+			pc.CompiledPlugin = resolved.Name
 			pc.Internal = true
 		} else {
 			pc.Run = textbuf.Join(resolved.Command, " ")
@@ -702,9 +705,10 @@ func ExpandDependencies(plugins []plugin.PluginConfig, needHolds registry.NeedHo
 		}
 		loaderLogger().Info("auto-adding dependency plugin", "name", name)
 		plugins = append(plugins, plugin.PluginConfig{
-			Name:     name,
-			Internal: true,
-			Encoder:  "json",
+			Name:           name,
+			CompiledPlugin: name,
+			Internal:       true,
+			Encoder:        "json",
 		})
 		existing[name] = true
 	}
@@ -722,38 +726,32 @@ func dependencyRequest(plugins []plugin.PluginConfig) (names []string, external 
 	names = make([]string, 0, len(plugins))
 	external = make(map[string]bool, len(plugins))
 	for _, p := range plugins {
-		// Keyed on the registered name, not the operator's label, and
-		// plugin.RegistryName is the one rule that answers which registry row a
-		// process config names. ResolveDependencies treats a name it cannot find
-		// in the registry as an external plugin and skips expanding it, so keying
-		// on the label silently dropped both Dependencies and OptionalDependencies:
-		// a route server configured as `internal rs { use bgp-rs }` never pulled in
-		// bgp-adj-rib-in, and lost its peer-up replay with no error and no warning.
-		//
-		// Only the resolved name is requested: requesting the label too could
-		// suppress a genuine dependency that happens to share the operator's chosen
-		// label.
-		name := plugin.RegistryName(p)
-		names = append(names, name)
-		// An `external` block names a PROGRAM, and that program declares its own
-		// dependencies over the protocol. Where this binary also carries a plugin
-		// of that name, the registration is NOT this block's: expanding it starts
-		// plugins the program never asked for, and the operator sees a plugin they
-		// did not configure fail on a platform they never named.
+		// An `external` block names a foreign program, and that program declares
+		// its own dependencies over the protocol. Where this binary also carries
+		// a plugin of that name, the registration is NOT this block's: expanding
+		// it starts plugins the program never asked for, and the operator sees a
+		// plugin they did not configure fail on a platform they never named.
 		if p.RunsExternalProgram() {
-			external[name] = true
+			names = append(names, p.Name)
+			external[p.Name] = true
+			continue
 		}
+		// Keyed on the compiled registration identity, not the operator's label,
+		// so aliased compiled plugins (in-daemon or separate-process) still
+		// pull in their Dependencies and OptionalDependencies.
+		name := p.CompiledIdentity()
+		names = append(names, name)
 	}
 
 	return names, external
 }
 
-// MarkInternalPlugin sets Internal=true if Run resolves to an internal plugin.
+// MarkInternalPlugin sets CompiledPlugin and Internal=true if Run resolves to
+// an internal plugin.
 //
 // It asks ResolvePlugin for the TRANSPORT, which is a different question from
-// the one plugin.RegistryName answers: this decides whether the engine runs the
-// plugin in a goroutine or forks it, where RegistryName decides which registry
-// row the config names. `run ze plugin bgp-rib` names bgp-rib and still forks.
+// the one CompiledIdentity answers: this decides whether the engine runs the
+// plugin in a goroutine or forks it.
 func MarkInternalPlugin(pc *plugin.PluginConfig) {
 	if pc.Run == "" {
 		return
@@ -763,6 +761,7 @@ func MarkInternalPlugin(pc *plugin.PluginConfig) {
 		return
 	}
 	if resolved.Type == plugin.PluginTypeInternal {
+		pc.CompiledPlugin = resolved.Name
 		pc.Internal = true
 	}
 }

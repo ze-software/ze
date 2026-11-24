@@ -94,7 +94,7 @@ func (authority *routeViewAuthority) open(ctx context.Context, owner *process.Pr
 	switch input.Reader {
 	case "", rpc.RouteViewReaderSelectedFeed:
 	case rpc.RouteViewReaderLocalAuthority:
-		if !owner.Config().Internal {
+		if !owner.Config().RunsInDaemon() {
 			return rpc.RouteViewOpenOutput{}, routeViewRefusal("The local routing reader is unavailable to this external process", "External system RIBs receive selected values through the routing feed", "Call ze-sysrib:route-view-open with reader selected-feed")
 		}
 		localReader = true

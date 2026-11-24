@@ -60,10 +60,10 @@ var stderrLogger = slogutil.LazyLogger("plugin.relay")
 // Callers MUST call Wait after Stop to avoid leaking goroutines.
 type Process struct {
 	config plugin.PluginConfig
-	// registryName is plugin.RegistryName(config), computed once at
-	// construction: the name a `<plugin>:<filter>` chain reference and a
-	// declared filter insertion give this process, whatever its block is
-	// called. The hot filter path resolves a reference through it.
+	// registryName is config.CompiledIdentity(), computed once at
+	// construction: the compiled registration identity this process runs
+	// (empty for a foreign external program). State grants, filter references
+	// and lifecycle lookups read it instead of the operator's endpoint alias.
 	registryName string
 	index        int // Plugin index for coordinator (0-based)
 	cmd          *exec.Cmd
@@ -180,7 +180,7 @@ type Process struct {
 func NewProcess(config plugin.PluginConfig) *Process {
 	proc := &Process{
 		config:             config,
-		registryName:       plugin.RegistryName(config),
+		registryName:       config.CompiledIdentity(),
 		capabilities:       &plugin.PluginCapabilities{},
 		stageCh:            make(chan struct{}),
 		runtimeCleanupDone: make(chan struct{}),
@@ -470,13 +470,10 @@ func (p *Process) Name() string {
 	return p.config.Name
 }
 
-// RegistrationName returns the name of the registration this process runs:
-// "bgp-gr" for `plugin { internal gr { use bgp-gr; } }`, and the process name
-// for a program no registry row describes (plugin.RegistryName). A chain
-// reference and a filter insertion name the plugin by it, never by the block
-// name, because the plugin that declares an insertion cannot know what the
-// operator called its block (docs/architecture/api/process-protocol.md,
-// "Filter Insertion").
+// RegistrationName returns the compiled registration identity this process
+// runs, or empty string for a foreign external program. State grants, doctor
+// snapshots, and compiled filter references key on this identity regardless of
+// endpoint alias or transport.
 func (p *Process) RegistrationName() string {
 	return p.registryName
 }
@@ -631,8 +628,9 @@ func (p *Process) Start() error {
 }
 
 // StartWithContext spawns the process with the given context.
-// For internal plugins (config.Internal=true), runs in-process via goroutine.
-// For external plugins, forks via exec.Command.
+// Compiled-in plugins run in-daemon via goroutine unless SeparateProcess is
+// set, in which case Ze forks its own binary over TLS connect-back. Foreign
+// external programs fork via plugin.Shell.
 func (p *Process) StartWithContext(ctx context.Context) error {
 	p.mu.Lock()
 	if p.started {
@@ -647,11 +645,13 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 	// Start long-lived event delivery goroutine (see rules/goroutine-lifecycle.md).
 	p.startDeliveryLocked()
 
-	// Internal plugins run in-process via goroutine
 	var err error
-	if p.config.Internal {
+	switch {
+	case p.config.RunsInDaemon():
 		err = p.startInternal()
-	} else {
+	case p.config.RunsSeparateProcess():
+		err = p.startSeparateProcess()
+	default:
 		err = p.startExternal()
 	}
 	p.mu.Unlock()
@@ -666,11 +666,7 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 // startInternal starts an internal plugin as a goroutine with a single net.Pipe.
 // Creates a MuxPluginConn for bidirectional YANG RPC protocol.
 func (p *Process) startInternal() error {
-	// Which registry row this process config names is one question with one
-	// answer, and plugin.RegistryName is it: `use bgp-rib`, `run ze.bgp-rib` and
-	// `run ze plugin bgp-rib` each name the same runner, and a config with no
-	// spelling is filed under the process name.
-	name := plugin.RegistryName(p.config)
+	name := p.config.CompiledIdentity()
 
 	runner := plugin.GetInternalPluginRunner(name)
 	if runner == nil {
@@ -767,14 +763,77 @@ func startFailure(startErr, shellErr error) error {
 	return startErr
 }
 
-// startExternal starts an external plugin via exec.Command.
+// startExternal starts a foreign external program via plugin.Shell.
 // Passes ZE_PLUGIN_HUB_HOST/PORT/TOKEN env vars and waits for TLS connect-back.
 func (p *Process) startExternal() error {
 	if p.config.Run == "" {
 		return fmt.Errorf("plugin %s: empty run command", p.config.Name)
 	}
+	// The fork is the platform's (newPluginShell, exitwait_*.go): on Linux it
+	// carries no context, because a stop owes the plugin its own exit first and
+	// superviseExit is what turns the end of p.ctx into the closed connection,
+	// then the kill. Elsewhere the end of p.ctx kills the child at once.
+	cmd := newPluginShell(p.ctx, p.config.Run)
+	if p.config.WorkDir != "" {
+		cmd.Dir = p.config.WorkDir
+	}
+	return p.startChildCmd(cmd, true)
+}
+
+// buildSeparateProcessCmd validates that p names a forkable compiled-in
+// registration and builds the direct child command invoking Ze's own binary
+// with ["plugin", p.registryName] (no shell invocation, no Run required).
+func (p *Process) buildSeparateProcessCmd(ctx context.Context) (*exec.Cmd, error) {
+	if p.registryName == "" {
+		return nil, opererr.New(
+			"Plugin "+p.config.Name+" has no compiled registration for separate process",
+			"process separate applies only to a compiled-in plugin registration",
+			"Set internal <registration> on endpoint "+p.config.Name,
+		)
+	}
+	reg := registry.Lookup(p.registryName)
+	if reg == nil {
+		return nil, opererr.New(
+			"Unknown compiled plugin "+p.registryName+" for separate process "+p.config.Name,
+			"This binary carries no compiled plugin registered under "+p.registryName,
+			"ze show plugin list",
+		)
+	}
+	if reg.RunsInProcessOnly {
+		return nil, opererr.New(
+			"Plugin "+p.registryName+" cannot run as a separate process",
+			"Registration "+p.registryName+" sets RunsInProcessOnly and runs in-daemon only",
+			"Remove `process separate` from endpoint "+p.config.Name+" so "+p.registryName+" runs in-daemon",
+		)
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("plugin %s: resolve ze executable: %w", p.config.Name, err)
+	}
+	cmd := newPluginExec(ctx, exe, "plugin", p.registryName)
+	if p.config.WorkDir != "" {
+		cmd.Dir = p.config.WorkDir
+	}
+	return cmd, nil
+}
+
+// startSeparateProcess starts a compiled-in plugin as a separate forked child
+// of Ze's own binary over TLS connect-back, keeping its compiled identity.
+func (p *Process) startSeparateProcess() error {
+	cmd, err := p.buildSeparateProcessCmd(p.ctx)
+	if err != nil {
+		return err
+	}
+	return p.startChildCmd(cmd, false)
+}
+
+// startChildCmd wires TLS connect-back environment variables, stderr relay,
+// process supervision, and connect-back waiting for a forked child command
+// (either a foreign external shell command or a separate-process compiled
+// plugin).
+func (p *Process) startChildCmd(cmd *exec.Cmd, usesShell bool) error {
 	if p.acceptor == nil {
-		return fmt.Errorf("plugin %s: no TLS acceptor configured (hub config required for external plugins)", p.config.Name)
+		return fmt.Errorf("plugin %s: no TLS acceptor configured (hub config required for forked plugins)", p.config.Name)
 	}
 
 	// Extract host:port from acceptor address.
@@ -785,36 +844,25 @@ func (p *Process) startExternal() error {
 	}
 	// A plugin process runs beside the hub, so an unspecified listen address
 	// (0.0.0.0 or ::) is reached on the loopback. Tell the child so, because
-	// the served leaf carries no SAN for an unspecified address: no peer can
-	// verify one, and the child validates the chain against the hub root.
+	// the served leaf carries no SAN for an unspecified address and the child
+	// validates the chain against the hub root.
 	if ip := net.ParseIP(host); ip != nil && ip.IsUnspecified() {
 		host = loopbackHost
 	}
 
-	// The fork is the platform's (newPluginShell, exitwait_*.go): on Linux it
-	// carries no context, because a stop owes the plugin its own exit first and
-	// superviseExit is what turns the end of p.ctx into the closed connection,
-	// then the kill. Elsewhere the end of p.ctx kills the group at once.
-	p.cmd = newPluginShell(p.ctx, p.config.Run)
-	if p.config.WorkDir != "" {
-		p.cmd.Dir = p.config.WorkDir
-	}
+	p.cmd = cmd
 
 	// Pass TLS connection info and plugin name via env vars.
-	// The engine binary's directory goes on PATH as a fallback, so run
-	// commands like "ze plugin bgp-rib" find the ze binary even when it is
-	// not installed system-wide (e.g., running from ./bin/ze in dev/test).
+	// The engine binary's directory goes on PATH as a fallback.
 	// plugin.ChildPathEnv states why it is a fallback rather than an override,
-	// and it is shared with the declaration query, which starts the same run
-	// string and owes the same PATH (../childenv.go).
+	// and it is shared with the declaration query (../childenv.go).
 	//
-	// The run string goes through a shell, and dash drops every variable whose
-	// name is not an identifier, so each ze key is passed under its shell
-	// spelling (env.ShellSafe): a dotted or hyphenated key the daemon holds
-	// then reaches the plugin rather than leaving it on the key's default. A
-	// connect-back variable the daemon inherited is renamed to the same
-	// ZE_PLUGIN_* name appended below, and exec keeps only the last value of a
-	// duplicated name, so the daemon's own value wins.
+	// Each ze key is passed under its shell spelling (env.ShellSafe) so a
+	// dotted or hyphenated key the daemon holds reaches the plugin rather than
+	// leaving it on the key's default. A connect-back variable the daemon
+	// inherited is renamed to the same ZE_PLUGIN_* name appended below, and
+	// exec keeps only the last value of a duplicated name, so the daemon's own
+	// value wins.
 	//
 	// A plugin forked before the full parse also gets the settings of the
 	// config's `environment` block, which the daemon has not applied to itself
@@ -843,24 +891,6 @@ func (p *Process) startExternal() error {
 	}
 	p.stderr = stderrRead
 
-	// The plugin is started in its own process group and the stop signals that
-	// group, so the stop reaches the plugin and not only the shell that was
-	// given the run string. A shell keeps the plugin as its own child for every
-	// run string it does not exec-optimize, and a stop that reached the shell
-	// alone would leave the plugin running after the daemon stopped it. The
-	// group is the plugin's (newPluginShell). On Linux pluginGroup below is the
-	// one place this start signals it from; elsewhere the end of p.ctx signals
-	// it too, through the fork's own Cancel.
-	//
-	// WaitDelay stays zero here, and it is set on the query's fork. WaitDelay
-	// bounds two waits: a child that outlives its canceled context, and a
-	// child that exits holding a pipe exec created. Neither reaches this fork.
-	// The kill is SIGKILL to the group, which nothing catches, and the only
-	// stream this child is given is an *os.File, which os/exec hands to the
-	// child directly rather than through a pipe of its own. The relay reading
-	// that file is bounded by stderrDrainGrace once the child is reaped
-	// (stderrRelayReader).
-
 	// The waiter exists before the child does: a child that dials back and
 	// authenticates before this goroutine reaches Wait is held for it, where a
 	// waiter registered after Start would find the connection already closed
@@ -874,7 +904,10 @@ func (p *Process) startExternal() error {
 		waiter.Cancel()
 		stderrWrite.Close() //nolint:errcheck,gosec // cleanup on error
 		stderrRead.Close()  //nolint:errcheck,gosec // cleanup on error
-		return fmt.Errorf("plugin %s: start: %w", p.config.Name, startFailure(err, plugin.ShellAvailable()))
+		if usesShell {
+			err = startFailure(err, plugin.ShellAvailable())
+		}
+		return fmt.Errorf("plugin %s: start: %w", p.config.Name, err)
 	}
 	// The child holds its own descriptor now. Closing the parent's copy of the
 	// write end is what turns the child's exit into EOF for the reader below.
@@ -884,7 +917,7 @@ func (p *Process) startExternal() error {
 
 	p.running.Store(true)
 
-	cmd := p.cmd
+	startedCmd := p.cmd
 	p.externalDone = make(chan struct{})
 	relayDone := make(chan struct{})
 	reaped := make(chan struct{})
@@ -893,10 +926,10 @@ func (p *Process) startExternal() error {
 		defer close(relayDone)
 		p.relayStderrFrom(relayRead)
 	})
-	group := &pluginGroup{name: p.config.Name, pid: cmd.Process.Pid}
-	p.wg.Go(func() { p.monitorCmd(cmd, relayDone, relayRead, reaped, group) })
+	pg := &pluginGroup{name: p.config.Name, pid: startedCmd.Process.Pid}
+	p.wg.Go(func() { p.monitorCmd(startedCmd, relayDone, relayRead, reaped, pg) })
 	if stopGivesExitGrace {
-		p.wg.Go(func() { p.superviseExit(reaped, group) })
+		p.wg.Go(func() { p.superviseExit(reaped, pg) })
 	}
 
 	// Wait for the child to connect back via TLS (bounded timeout).
@@ -907,11 +940,8 @@ func (p *Process) startExternal() error {
 	if waitErr != nil {
 		// Stop the child, and everything it started, to prevent orphaning. A
 		// plugin that never connected has no connection to close and nothing
-		// to flush to a daemon that will not read it, so it gets no exit grace:
-		// the kill signals the whole group at once. Killing the direct child
-		// alone would leave the plugin behind whenever the shell did not
-		// exec-optimize the run string.
-		group.kill()
+		// to flush to a daemon that will not read it, so it gets no exit grace.
+		pg.kill()
 		// Stop delivery goroutine started by startDeliveryLocked to prevent leak.
 		p.stopEventChan()
 		return fmt.Errorf("plugin %s: TLS connect-back: %w", p.config.Name, waitErr)
@@ -950,12 +980,13 @@ const stderrDrainGrace = 2 * time.Second
 const pluginExitGrace = time.Second
 
 // stopExitGrace is how long this process's goroutines can run on past a stop
-// before its plugin is gone: pluginExitGrace for an external plugin the stop
-// gives that grace, and nothing for an internal plugin, whose engine ends with
-// its closed connection, or where the stop kills at once (stopGivesExitGrace).
+// before its plugin is gone: pluginExitGrace for a forked plugin the stop
+// gives that grace (external program or separate-process compiled plugin), and
+// nothing for an in-daemon plugin, whose engine ends with its closed
+// connection, or where the stop kills at once (stopGivesExitGrace).
 // ProcessManager.Stop and the respawn join add it to their own waits.
 func (p *Process) stopExitGrace() time.Duration {
-	if p.config.Internal {
+	if p.config.RunsInDaemon() {
 		return 0
 	}
 	if !stopGivesExitGrace {

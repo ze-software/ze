@@ -617,38 +617,42 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 	}
 
 	// Dependencies name implementations, not the operator's process aliases.
-	// Resolve each internal process once, and deduplicate implementations so
-	// two aliases do not count the same node twice. An internal process takes
-	// its implementation's registry edges. An external program borrows no
-	// edges from a same-named registration: it takes the edges its own Stage 1
-	// declaration carries (plugin.PluginRegistration), under an identity no
-	// registry name can take, so a forked bgp-gr is ordered before bgp-rr and
-	// bgp-rs exactly as an internal one (D-11, the retention verdict queued
-	// ahead of their DOWN). A program that declared nothing stays at tier 0.
+	// Resolve each compiled-in process once (whether in-daemon or in a separate
+	// process), and deduplicate implementations so two aliases do not count the
+	// same node twice. A compiled-in process takes its implementation's registry
+	// edges. A foreign external program borrows no edges from a same-named
+	// registration: it takes the edges its own Stage 1 declaration carries
+	// (plugin.PluginRegistration), under an identity no registry name can take,
+	// so a forked bgp-gr is ordered before bgp-rr and bgp-rs exactly as an
+	// internal one (D-11, the retention verdict queued ahead of their DOWN). A
+	// program that declared nothing stays at tier 0.
 	identity := make(map[*process.Process]string, len(procs))
 	declared := make(map[string][3][]string, len(procs))
 	// implements maps an implementation name to the external programs that
-	// run it (plugin.RegistryNames: the name its command derives, and its
-	// process name). An edge naming bgp-rr must hold whether bgp-rr runs
-	// internal or forked: bgp-gr's start-after bgp-rr is what queues its
-	// retention verdict ahead of a forked reflector's DOWN.
+	// run it (their Stage 1 registration name and endpoint name). An edge
+	// naming bgp-rr must hold whether bgp-rr runs compiled or external:
+	// bgp-gr's start-after bgp-rr is what queues its retention verdict ahead of
+	// a forked reflector's DOWN.
 	implements := make(map[string][]string, len(procs))
 	for _, p := range procs {
 		cfg := p.Config()
-		if cfg.RunsExternalProgram() {
+		if !cfg.IsCompiled() {
 			name := externalIdentity + p.Name()
-			for _, implementation := range plugin.RegistryNames(cfg) {
-				implements[implementation] = append(implements[implementation], name)
-			}
 			reg := p.Registration()
 			if reg == nil {
 				continue
+			}
+			if reg.Name != "" {
+				implements[reg.Name] = append(implements[reg.Name], name)
+			}
+			if p.Name() != "" && p.Name() != reg.Name {
+				implements[p.Name()] = append(implements[p.Name()], name)
 			}
 			identity[p] = name
 			declared[name] = [3][]string{reg.Dependencies, reg.OptionalDependencies, reg.StartAfter}
 			continue
 		}
-		name := plugin.RegistryName(cfg)
+		name := cfg.CompiledIdentity()
 		identity[p] = name
 		if _, exists := declared[name]; exists {
 			continue
@@ -704,6 +708,16 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 	})
 }
 
+// procRequiresPeerUpBarrier reports whether proc runs a compiled-in plugin
+// whose registration declares PeerUpBarrier. Keyed on proc.RegistrationName()
+// rather than the operator's configured alias proc.Name(), so an aliased
+// compiled plugin keeps the barrier and a foreign external program sharing a
+// compiled plugin's name does not.
+func procRequiresPeerUpBarrier(proc *process.Process) bool {
+	regName := proc.RegistrationName()
+	return regName != "" && registry.RequiresPeerUpBarrier(regName)
+}
+
 // countPeerUpBarrier returns how many of procs declare
 // registry.Registration.PeerUpBarrier, i.e. how many acknowledgements the
 // peer's initial-sync End-of-RIB must wait for. Always zero for a state other
@@ -720,7 +734,7 @@ func countPeerUpBarrier(procs []*process.Process, state rpc.SessionState) int {
 	}
 	n := 0
 	for _, proc := range procs {
-		if registry.RequiresPeerUpBarrier(proc.Name()) {
+		if procRequiresPeerUpBarrier(proc) {
 			n++
 		}
 	}
@@ -925,7 +939,7 @@ func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*pr
 		if !proc.Deliver(delivery) {
 			// Says so: the only other trace of a refused delivery is the peer's
 			// End-of-RIB quietly meaning less than it claims.
-			if barrier > 0 && registry.RequiresPeerUpBarrier(proc.Name()) {
+			if barrier > 0 && procRequiresPeerUpBarrier(proc) {
 				logger().Warn("peer-up event refused by a plugin that registers this peer",
 					"peer", peerAddr, "proc", proc.Name())
 			}
@@ -939,7 +953,7 @@ func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*pr
 		// returned without error: for bgp-rs that is the critical section which
 		// sets Up and captures the peer-up cut. A failed delivery is not an
 		// acknowledgement, so it is not counted (ai/rules/evidence.md).
-		if barrier > 0 && r.Err == nil && registry.RequiresPeerUpBarrier(proc.Name()) {
+		if barrier > 0 && r.Err == nil && procRequiresPeerUpBarrier(proc) {
 			reactor.SignalPeerUpBarrier(peerAddr)
 			acknowledged++
 		}

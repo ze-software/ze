@@ -248,6 +248,9 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 	var needed []string
 	seen := make(map[string]bool)
 	for _, pluginName := range registry.PluginsForConfigPaths(newPaths) {
+		if s.isPluginLoaded(pluginName) {
+			continue
+		}
 		if s.hasConfiguredPlugin(pluginName) {
 			continue
 		}
@@ -270,7 +273,7 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 	needHolds := config.ConfigNeedHolds(newTree)
 	if needHolds != nil {
 		needed = appendHeldNeedProviders(needed, seen, needHolds, func(name string) bool {
-			return !s.hasConfiguredPlugin(name) && pm != nil && pm.GetProcess(name) != nil
+			return s.isRegistrationRunning(pm, name)
 		})
 	}
 
@@ -293,7 +296,13 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 
 	var plugins []plugin.PluginConfig
 	for _, name := range resolved {
-		if s.hasConfiguredPlugin(name) || (pm != nil && pm.GetProcess(name) != nil) {
+		if s.isPluginLoaded(name) {
+			continue
+		}
+		if s.hasConfiguredPlugin(name) {
+			continue
+		}
+		if pm != nil && pm.GetProcess(name) != nil {
 			continue
 		}
 		plugins = append(plugins, plugin.PluginConfig{
@@ -439,7 +448,14 @@ func (s *Server) collectProcessesForRemovedConfigPaths(removedRoots []string, tr
 
 	stopped := make(map[string]bool)
 	for pluginName, roots := range registry.ConfigRootsMap() {
-		if s.hasConfiguredPlugin(pluginName) || pm.GetProcess(pluginName) == nil {
+		if s.hasConfiguredPlugin(pluginName) {
+			continue
+		}
+		proc := pm.GetProcess(pluginName)
+		if proc == nil {
+			continue
+		}
+		if proc.RegistrationName() != pluginName {
 			continue
 		}
 		if rootRemovalStopsOwner(roots, removedSet, tree) {
@@ -566,26 +582,59 @@ func pluginDependsOn(reg *registry.Registration, candidate string) bool {
 }
 
 // collectOrphanedDependencies expands stopped with dependency-only plugins
-// that have no remaining dependents. It does not change process state.
+// that have no remaining dependents. Both stopped and remaining processes are
+// resolved by their compiled registration identity so aliased compiled plugins
+// participate accurately and foreign external programs never borrow compiled
+// dependency edges. It does not change process state.
 func (s *Server) collectOrphanedDependencies(pm *process.ProcessManager, stopped map[string]bool) map[string]bool {
 	result := make(map[string]bool, len(stopped))
 	for name := range stopped {
 		result[name] = true
 	}
 
+	lookupStopped := func(name string) *registry.Registration {
+		if proc := pm.GetProcess(name); proc != nil {
+			return registryRow(proc.Config())
+		}
+		if regName := pm.RegistrationFor(name); regName != "" {
+			return registry.Lookup(regName)
+		}
+		if s.config != nil {
+			for _, cfg := range s.config.Plugins {
+				if cfg.Name == name {
+					return registryRow(cfg)
+				}
+			}
+		}
+		return registry.Lookup(name)
+	}
+
 	for {
 		added := false
-		for candidate := range collectOrphanCandidates(result, registry.Lookup) {
-			if result[candidate] || s.hasConfiguredPlugin(candidate) || pm.GetProcess(candidate) == nil {
+		for candidate := range collectOrphanCandidates(result, lookupStopped) {
+			if result[candidate] {
+				continue
+			}
+			if s.hasConfiguredPlugin(candidate) {
+				continue
+			}
+			candProc := pm.GetProcess(candidate)
+			if candProc == nil {
+				continue
+			}
+			if candProc.RegistrationName() != candidate {
 				continue
 			}
 
 			hasDependent := false
 			for _, proc := range pm.AllProcesses() {
-				if result[proc.Name()] || proc.Name() == candidate {
+				if result[proc.Name()] {
 					continue
 				}
-				if pluginDependsOn(registry.Lookup(proc.Name()), candidate) {
+				if proc.RegistrationName() == candidate {
+					continue
+				}
+				if pluginDependsOn(registryRow(proc.Config()), candidate) {
 					hasDependent = true
 					break
 				}
@@ -694,6 +743,20 @@ func (s *Server) refuseUnresolvableDeferredAutoLoad() error {
 	}
 
 	return nil
+}
+
+// isRegistrationRunning reports whether any process currently held by pm runs
+// the compiled registration identity registration (under its own name or an
+// operator alias). A foreign external program sharing the same endpoint name
+// returns false.
+func (s *Server) isRegistrationRunning(pm *process.ProcessManager, registration string) bool {
+	if pm == nil {
+		return false
+	}
+	if registration == "" {
+		return false
+	}
+	return len(pm.BlocksServing(registration)) > 0
 }
 
 // appendHeldNeedProviders adds to needed each registered provider of a

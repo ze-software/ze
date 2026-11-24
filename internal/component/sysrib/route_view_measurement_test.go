@@ -45,7 +45,12 @@ func newRouteViewMeasurementEndpoint(tb testing.TB, internal bool, wrap func(net
 		cancel()
 		tb.Fatal(err)
 	}
-	endpoint := &routeViewMeasurementEndpoint{ctx: ctx, host: host, owner: process.NewProcess(plugin.PluginConfig{Name: "measured-system-rib", Run: "rib", Internal: internal})}
+	endpoint := &routeViewMeasurementEndpoint{ctx: ctx, host: host, owner: process.NewProcess(plugin.PluginConfig{
+		Name:            "measured-system-rib",
+		CompiledPlugin:  configRootRIB,
+		Internal:        internal,
+		SeparateProcess: !internal,
+	})}
 	pluginEnd, engineEnd := net.Pipe()
 	done := make(chan struct{})
 	var engine *rpc.MuxConn
