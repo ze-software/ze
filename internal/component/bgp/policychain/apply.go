@@ -52,6 +52,17 @@ func (c *Chain) Apply(view *policyview.View, sets *RunSets, acc *filterapi.ModAc
 		}
 		current.MED, current.HasMED = value, present
 	}
+	if folded.written&setKindNextHop.bit() != 0 && folded.nextHop.Mode == NextHopModeExplicit {
+		value, err := view.Read(c.prefix)
+		if err != nil {
+			return fmt.Errorf("next-hop: %w", err)
+		}
+		current.HasLegacyNLRI = len(value.Wire()) > 0
+		if mp := value.MPReach(); mp != nil {
+			current.MPFamily = mp.Family()
+			current.HasMPFamily = true
+		}
+	}
 	return folded.ApplyTo(acc, current)
 }
 

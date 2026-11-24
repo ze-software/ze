@@ -27,11 +27,16 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// Member names one chain member: a filter instance of the policy registry,
-// or, when Plugin is set, the filter Name that plugin declared at Stage 1.
+// Member names one chain member: a filter instance of the policy registry, a
+// built-in engine next-hop step (next-hop:auto, next-hop:self,
+// next-hop:unchanged), or, when Plugin is set, the filter Name that plugin
+// declared at Stage 1.
 type Member struct {
 	Name   string
 	Plugin string
+	// AutoDefault marks the engine-appended trailing next-hop:auto step (D-2,
+	// D-3, D-5). Valid only when Plugin is empty and Name is BuiltinNextHopAuto.
+	AutoDefault bool
 }
 
 // ExternalDeclaration is what a plugin declared for one filter at Stage 1.
@@ -328,7 +333,7 @@ func applyExternalSet(sets *Sets, kind setKind, set *rpc.FilterSet, target inten
 	case setKindLocalPreference, setKindAIGP:
 		return applyNumericSet(sets, kind, set)
 	case setKindOrigin, setKindNextHop, setKindLargeCommunity, setKindExtendedCommunity:
-		return applyAttributeSet(sets, kind, set)
+		return applyAttributeSet(sets, kind, set, target)
 	case setKindCommunity:
 		community, err := communityValue(set.Value)
 		if err != nil {

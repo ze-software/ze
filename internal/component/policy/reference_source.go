@@ -13,6 +13,7 @@ package policy
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -47,6 +48,10 @@ type chainLeaf struct {
 	// routeChain marks a site MustRegisterRouteChainPath declared: its check
 	// is checkRouteChain's over the policy root it is asked over.
 	routeChain bool
+	// builtins holds built-in reference names registered by
+	// MustRegisterChainBuiltins for this chain site (such as BGP export's
+	// next-hop:self, next-hop:unchanged, and next-hop:auto).
+	builtins []string
 }
 
 // chainLeaves holds the chain sites MustRegisterChainLeaf declared. Written
@@ -88,12 +93,50 @@ func MustRegisterChainLeaf(root, direction, attachment string, check ChainMember
 	chainLeaves.bySite[site] = chainLeaf{attachment: attachment, check: check}
 }
 
+// MustRegisterChainBuiltins registers built-in filter reference names offered
+// alongside policy instances during completion on `root ... filter direction
+// filters`. Each name is still filtered by the chain leaf's ChainMemberCheck
+// before being offered. Call it from init(), after MustRegisterChainLeaf. An
+// unregistered chain leaf, empty argument, or duplicate built-in name is a Ze
+// defect and panics.
+func MustRegisterChainBuiltins(root, direction string, names ...string) {
+	if root == "" {
+		panic("BUG: policy: chain builtins registered with no config root")
+	}
+	if direction == "" {
+		panic("BUG: policy: chain builtins for " + root + " registered with no direction")
+	}
+	if len(names) == 0 {
+		panic("BUG: policy: chain builtins for " + root + " filter " + direction + " registered with no names")
+	}
+	site := chainSite{root: root, direction: direction}
+	chainLeaves.mu.Lock()
+	defer chainLeaves.mu.Unlock()
+	leaf, ok := chainLeaves.bySite[site]
+	if !ok {
+		panic("BUG: policy: chain builtins for " + root + " filter " + direction + " registered before its chain leaf")
+	}
+	builtins := slices.Clone(leaf.builtins)
+	for _, name := range names {
+		if name == "" {
+			panic("BUG: policy: chain builtins for " + root + " filter " + direction + " contains an empty name")
+		}
+		if slices.Contains(builtins, name) {
+			panic("BUG: policy: chain builtin " + name + " for " + root + " filter " + direction + " registered twice")
+		}
+		builtins = append(builtins, name)
+	}
+	leaf.builtins = builtins
+	chainLeaves.bySite[site] = leaf
+}
+
 // filterReference is the policy-filter reference source. It answers the
-// filter instances the chain at `at` may hold: every instance its attachment's
-// owner accepts there, its fields fitting what that attachment's routes carry.
-// Commit asks the same owner check of each value, so a spelling the owner
-// accepts but completion does not offer (a qualified `<type>:<name>`, an
-// external plugin's `<plugin>:<filter>` on BGP) still commits.
+// filter instances and registered built-in references the chain at `at` may
+// hold: every candidate its attachment's owner accepts there, its fields
+// fitting what that attachment's routes carry. Commit asks the same owner
+// check of each value, so a spelling the owner accepts but completion does not
+// offer (a qualified `<type>:<name>`, an external plugin's `<plugin>:<filter>`
+// on BGP) still commits.
 func filterReference(root map[string]any, at []string) yang.ReferenceAnswer {
 	leaf, err := chainLeafAt(at)
 	if err != nil {
@@ -116,6 +159,13 @@ func filterReference(root map[string]any, at []string) yang.ReferenceAnswer {
 	for _, name := range reg.Names() {
 		if leaf.check(reg, name, context) == nil {
 			names = append(names, name)
+		}
+	}
+	for _, name := range leaf.builtins {
+		if leaf.check(reg, name, context) == nil {
+			if !slices.Contains(names, name) {
+				names = append(names, name)
+			}
 		}
 	}
 	return yang.ReferenceAnswer{

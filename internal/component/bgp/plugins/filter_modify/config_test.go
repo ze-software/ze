@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -157,4 +158,120 @@ func TestReadOptionalUint32RefusesAnIntAboveUint32(t *testing.T) {
 	top, ok := readOptionalUint32(int(4294967295))
 	require.True(t, ok)
 	require.Equal(t, uint32(4294967295), top)
+}
+
+// TestModifyNextHopUnionAndImportRefusal covers AC-16 on the filter-modify plugin.
+//
+// VALIDATES: set { next-hop } accepts explicit IPv4, explicit global IPv6, and
+// the export-only rewriting modes (self, unchanged, auto); refuses link-local,
+// loopback IPv6 (::1), unspecified, multicast, zoned, IPv4-mapped IPv6, and
+// unparseable values with actionable errors; marks egress-only modes on
+// modifyDef; and refuses export-only modes on import routes in evaluateModify
+// as defense in depth while keeping explicit IPv4 and global IPv6 usable on
+// both import and export.
+//
+// PREVENTS: IPv6 next-hop writes being rejected at config load, non-global IPv6
+// forms reaching the wire, or export-only rewriting modes silently running on an
+// import chain.
+func TestModifyNextHopUnionAndImportRefusal(t *testing.T) {
+	t.Run("accepted_values_and_filter_sets", func(t *testing.T) {
+		for _, tc := range []struct {
+			name        string
+			value       string
+			wantSet     string
+			wantDelta   string
+			egressOnly  bool
+			allowImport bool
+		}{
+			{"ipv4", "192.0.2.1", `next-hop set "192.0.2.1"`, "next-hop 192.0.2.1", false, true},
+			{"ipv6_global", "2001:db8::1", `next-hop set "2001:db8::1"`, "next-hop 2001:db8::1", false, true},
+			{"ipv6_ula", "fd00::1", `next-hop set "fd00::1"`, "next-hop fd00::1", false, true},
+			{"mode_self", nextHopModeSelf, `next-hop set "self"`, "next-hop self", true, false},
+			{"mode_unchanged", nextHopModeUnchanged, `next-hop set "unchanged"`, "next-hop unchanged", true, false},
+			{"mode_auto", nextHopModeAuto, `next-hop set "auto"`, "next-hop auto", true, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				instance := map[string]any{"set": map[string]any{nextHopAttr: tc.value}}
+				def := parseOne(t, "NH", instance)
+				wantSets(t, def.sets, tc.wantSet)
+				require.Equal(t, tc.wantDelta, def.delta)
+				require.Equal(t, tc.egressOnly, isEgressOnlyNextHop(tc.value))
+				if tc.egressOnly {
+					require.Equal(t, tc.value, def.egressOnlyNextHop)
+				} else {
+					require.Empty(t, def.egressOnlyNextHop)
+				}
+
+				defs := map[string]*modifyDef{"NH": def}
+				exportOut, err := evaluate(t, defs, modifyRoute("NH", directionExport, `{}`))
+				require.NoError(t, err)
+				require.Equal(t, sdk.FilterModify, exportOut.Action)
+				wantSets(t, exportOut.Sets, tc.wantSet)
+
+				importOut, err := evaluate(t, defs, modifyRoute("NH", directionImport, `{}`))
+				if tc.allowImport {
+					require.NoError(t, err)
+					require.Equal(t, sdk.FilterModify, importOut.Action)
+					wantSets(t, importOut.Sets, tc.wantSet)
+					return
+				}
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "export-only")
+				require.Contains(t, err.Error(), tc.value)
+			})
+		}
+	})
+
+	t.Run("conditional_egress_only_mode_refused_on_import_even_when_unmatched", func(t *testing.T) {
+		const condFilter = "COND-SELF"
+		def := parseOne(t, condFilter, map[string]any{
+			"match": map[string]any{"community": "65001:666"},
+			"set":   map[string]any{nextHopAttr: nextHopModeSelf},
+		})
+		defs := map[string]*modifyDef{condFilter: def}
+
+		_, err := evaluate(t, defs, modifyRoute(condFilter, directionImport, `{"community":["65001:100"]}`))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "export-only")
+
+		exportMiss, err := evaluate(t, defs, modifyRoute(condFilter, directionExport, `{"community":["65001:100"]}`))
+		require.NoError(t, err)
+		require.Equal(t, sdk.FilterAccept, exportMiss.Action)
+
+		exportHit, err := evaluate(t, defs, modifyRoute(condFilter, directionExport, `{"community":["65001:666"]}`))
+		require.NoError(t, err)
+		require.Equal(t, sdk.FilterModify, exportHit.Action)
+		wantSets(t, exportHit.Sets, `next-hop set "self"`)
+	})
+
+	t.Run("invalid_next_hops_refused", func(t *testing.T) {
+		for _, tc := range []struct {
+			name        string
+			value       string
+			wantSubstr  string
+			wantLinkLoc bool
+		}{
+			{"ipv6_link_local", "fe80::1", "link-local", true},
+			{"ipv6_loopback", "::1", "global unicast IPv6", false},
+			{"ipv6_zoned_global", "2001:db8::1%eth0", "zone", false},
+			{"ipv6_zoned_link_local", "fe80::1%eth0", "zone", false},
+			{"ipv6_unspecified", "::", "unspecified", false},
+			{"ipv4_unspecified", "0.0.0.0", "unspecified", false},
+			{"ipv6_multicast", "ff02::1", "multicast", false},
+			{"ipv4_multicast", "224.0.0.1", "multicast", false},
+			{"ipv4_mapped_ipv6", "::ffff:192.0.2.1", "IPv4-mapped", false},
+			{"unparseable", "not-an-address", "not a valid IP address or mode", false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := parseModifyDefs(map[string]any{"modify": map[string]any{
+					"BAD": map[string]any{"set": map[string]any{nextHopAttr: tc.value}},
+				}})
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.wantSubstr)
+				if tc.wantLinkLoc {
+					require.ErrorIs(t, err, attribute.ErrLinkLocalNextHop)
+				}
+			})
+		}
+	})
 }

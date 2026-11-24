@@ -19,7 +19,7 @@ import (
 // runs.
 type attributeWire struct {
 	origin    [1]byte
-	nextHop   [4]byte
+	nextHop   [16]byte
 	aigp      [attribute.AIGPWireLen]byte
 	large     [2][]byte
 	largeNext uint8
@@ -57,9 +57,17 @@ func (c *Chain) overlayAttributes(view *policyview.View, sets *RunSets) error {
 			return fmt.Errorf("origin: %w", err)
 		}
 	}
-	if member.written&setKindNextHop.bit() != 0 {
-		wire.nextHop = member.nextHop
-		if err := view.SetWire(c.nextHop, wire.nextHop[:]); err != nil {
+	if member.written&setKindNextHop.bit() != 0 && member.nextHop.Mode == NextHopModeExplicit {
+		var raw []byte
+		if member.nextHop.Addr.Is4() {
+			ip := member.nextHop.Addr.As4()
+			copy(wire.nextHop[:4], ip[:])
+			raw = wire.nextHop[:4]
+		} else {
+			wire.nextHop = member.nextHop.Addr.As16()
+			raw = wire.nextHop[:]
+		}
+		if err := view.SetWire(c.nextHop, raw); err != nil {
 			return fmt.Errorf("next-hop: %w", err)
 		}
 	}

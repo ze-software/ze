@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // communitiesMax bounds the communities one Sets adds, and separately the
@@ -210,7 +211,7 @@ type Sets struct {
 	intents         intents
 	// The attribute fields (sets_attributes.go).
 	origin   attribute.Origin
-	nextHop  [4]byte
+	nextHop  NextHopIntent
 	aigp     numericSet
 	large    valueList[attribute.LargeCommunity]
 	extended valueList[attribute.ExtendedCommunity]
@@ -250,6 +251,24 @@ func (s *Sets) Reset() {
 
 // Empty reports that the Sets asks no change.
 func (s *Sets) Empty() bool { return s.written == 0 && s.numbersN == 0 }
+
+// allowsRawOverride reports whether a later member's whole-UPDATE raw override
+// may safely run without discarding any wire change from earlier members.
+// On export chains, next-hop intents (next-hop:self, next-hop:unchanged,
+// next-hop:auto, or explicit next-hop <ip>) are resolved by the egress
+// forwarder with D-3 provenance after the raw override, so they do not
+// conflict with a subsequent raw answer. Import chains and all other
+// attribute/NLRI/treatment sets would be silently discarded by a raw rewrite
+// and remain refused.
+func (s *Sets) allowsRawOverride(direction string) bool {
+	if s.Empty() {
+		return true
+	}
+	if direction == directionImport {
+		return false
+	}
+	return s.numbersN == 0 && s.written == setKindNextHop.bit()
+}
 
 // LocalPreference records a LOCAL_PREF change (RFC 4271 Section 5.1.5).
 func (s *Sets) LocalPreference(action NumericAction, value uint32) error {
@@ -389,6 +408,12 @@ type Current struct {
 	// AIGP is the route's AIGP metric, read only when the sets change it.
 	AIGP    uint64
 	HasAIGP bool
+	// HasLegacyNLRI and HasMPFamily/MPFamily describe the route's announced
+	// NLRI sections, read only when applying an explicit next-hop set so IPv4
+	// targets attr 3 for legacy NLRI and MP_REACH_NLRI via MPNextHopProfile.
+	HasLegacyNLRI bool
+	MPFamily      family.Family
+	HasMPFamily   bool
 }
 
 // ApplyTo writes the sets as ModAccumulator operations, one per attribute

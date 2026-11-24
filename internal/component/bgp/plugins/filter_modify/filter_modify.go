@@ -27,6 +27,7 @@ package filter_modify
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"sync/atomic"
 
@@ -40,10 +41,19 @@ const (
 	// directionImport is the wire form the engine passes on an ingress chain
 	// (rpc.FilterUpdateInput.Direction, "import" or "export").
 	directionImport = "import"
+	// directionExport is the wire form the engine passes on an egress chain.
+	directionExport = "export"
 	// medRemoveText names the MULTI_EXIT_DISC removal in the delta text the
 	// "modify apply" log line carries. The removal itself is the med remove
 	// set (modifyDef.importSets).
 	medRemoveText = "med-remove"
+)
+
+// Export-only next-hop rewriting modes accepted by set { next-hop }.
+const (
+	nextHopModeSelf      = "self"
+	nextHopModeUnchanged = "unchanged"
+	nextHopModeAuto      = "auto"
 )
 
 // The attribute names of the modify vocabulary. Each one is a YANG leaf under
@@ -149,6 +159,16 @@ func evaluateModify(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error) {
 	def, ok := (*defsP)[route.Filter()]
 	if !ok {
 		return nil, errUnknownModify
+	}
+
+	// Defense in depth alongside config-load refusal: export-only next-hop
+	// modes (self, unchanged, auto) have no meaning on an import chain.
+	if def.egressOnlyNextHop != "" {
+		if route.Direction() == directionImport {
+			return nil, fmt.Errorf("filter-modify: %s: set next-hop %s is export-only and cannot run on an import chain; "+
+				"use an explicit IPv4 or global IPv6 address on import or move this modifier to export",
+				route.Filter(), def.egressOnlyNextHop)
+		}
 	}
 
 	// A route that does not meet the definition's condition passes through

@@ -9,6 +9,29 @@ import (
 	"github.com/ze-software/ze/internal/component/policy"
 )
 
+// ImpliedPosition names where Ze automatically inserted an implied filter
+// relative to the operator's written filter list.
+type ImpliedPosition uint8
+
+const (
+	ImpliedPositionUnspecified ImpliedPosition = iota
+	// ImpliedPositionHead marks a filter inserted before the operator's list.
+	ImpliedPositionHead
+	// ImpliedPositionTail marks a filter appended after the operator's list.
+	ImpliedPositionTail
+)
+
+// ImpliedFilter describes one filter-chain member Ze automatically inserted
+// (a built-in BGP engine step or a plugin-declared FilterInsertion) so display
+// surfaces such as `| implied` and `show bgp peer` can report what was added
+// and why without hardcoding filter names.
+type ImpliedFilter struct {
+	Direction string
+	Position  ImpliedPosition
+	Ref       string
+	ImpliedBy string
+}
+
 // Policy is BGP's compiled, immutable policy snapshot: the protocol-neutral
 // chain plus the BGP-only stage binding of each ref. Its zero value is an
 // absent operator policy. Internal filters do not imply presence. The session
@@ -31,13 +54,18 @@ import (
 // library, because the instance a member names, or whether the condition
 // holds, is known only once a peer's OPEN arrives. CompileResolved compiles
 // it then.
-// Safe for concurrent use: callers MUST NOT mutate borrowed refs or bindings.
+//
+// implied carries the pure-value provenance of every filter member Ze
+// automatically inserted (built-in engine steps and plugin FilterInsertions).
+// Safe for concurrent use: callers MUST NOT mutate borrowed refs, bindings or
+// implied entries.
 type Policy struct {
 	chain           policy.Chain
 	inProcess       []bool
 	requiresIngress bool
 	library         LibraryChain
 	templated       TemplatedChain
+	implied         []ImpliedFilter
 }
 
 // TemplatedChain judges and compiles, for one dynamic peer, the chain of a
@@ -233,9 +261,50 @@ func (p Policy) WithBoundFilters(filters []policy.Ref, inProcess []bool) Policy 
 	return p
 }
 
+// String returns the display name of pos. It is for display only; never
+// compare against it.
+func (pos ImpliedPosition) String() string {
+	switch pos {
+	case ImpliedPositionUnspecified:
+		return "unspecified"
+	case ImpliedPositionHead:
+		return "head"
+	case ImpliedPositionTail:
+		return "tail"
+	}
+	return "unknown"
+}
+
+// Implied returns borrowed implied-filter entries describing members Ze
+// automatically inserted. The caller MUST NOT mutate them.
+func (p Policy) Implied() []ImpliedFilter { return p.implied }
+
+// WithImplied appends entry to a fresh copy of the policy's implied-filter
+// list, leaving the receiver's slice untouched.
+func (p Policy) WithImplied(entry ImpliedFilter) Policy {
+	entries := make([]ImpliedFilter, len(p.implied)+1)
+	copy(entries, p.implied)
+	entries[len(p.implied)] = entry
+	p.implied = entries
+	return p
+}
+
+// WithImpliedList replaces the policy's implied-filter list with an owned copy
+// of entries (or nil when entries is empty), leaving the caller's slice free
+// to mutate.
+func (p Policy) WithImpliedList(entries []ImpliedFilter) Policy {
+	if len(entries) == 0 {
+		p.implied = nil
+		return p
+	}
+	p.implied = slices.Clone(entries)
+	return p
+}
+
 // Prepend puts ref, bound to its stage when inProcess is true, ahead of the
-// policy's refs, keeping every existing binding and the disposition. The
-// result owns new slices; the receiver's borrowed ones are never written.
+// policy's refs, keeping every existing binding, implied-filter entry, and the
+// disposition. The result owns new slices; the receiver's borrowed ones are
+// never written.
 func (p Policy) Prepend(ref policy.Ref, inProcess bool) Policy {
 	refs := make([]policy.Ref, 0, len(p.Filters())+1)
 	refs = append(refs, ref)
@@ -248,6 +317,27 @@ func (p Policy) Prepend(ref policy.Ref, inProcess bool) Policy {
 	bound := make([]bool, len(refs))
 	bound[0] = inProcess
 	copy(bound[1:], p.inProcess)
+	return p.WithBoundFilters(refs, bound)
+}
+
+// Append puts ref, bound to its stage when inProcess is true, at the tail of
+// the policy's refs, keeping every existing binding, implied-filter entry, and
+// the disposition (so an unconfigured policy stays Configured() == false for
+// RFC 8212). The result owns new slices; the receiver's borrowed ones are
+// never written.
+func (p Policy) Append(ref policy.Ref, inProcess bool) Policy {
+	old := p.Filters()
+	refs := make([]policy.Ref, 0, len(old)+1)
+	refs = append(refs, old...)
+	refs = append(refs, ref)
+	if !inProcess {
+		if p.inProcess == nil {
+			return p.WithBoundFilters(refs, nil)
+		}
+	}
+	bound := make([]bool, len(refs))
+	copy(bound, p.inProcess)
+	bound[len(old)] = inProcess
 	return p.WithBoundFilters(refs, bound)
 }
 

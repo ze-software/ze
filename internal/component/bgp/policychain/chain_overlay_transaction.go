@@ -18,7 +18,7 @@ import (
 type overlayState struct {
 	view                                                policyview.Overlay
 	origin                                              [1]byte
-	nextHop                                             [4]byte
+	nextHop                                             [16]byte
 	aigp                                                [attribute.AIGPWireLen]byte
 	communityNext, largeNext, extNext, bodyNext, mpNext uint8
 	received                                            policyview.Value

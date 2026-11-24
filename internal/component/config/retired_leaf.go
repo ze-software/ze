@@ -97,16 +97,22 @@ func withRetired(marks map[string]string, r retiredLeaf) map[string]string {
 // retiredLeafHint is the text an unknown-field refusal carries for r.
 func retiredLeafHint(r retiredLeaf) string {
 	var b textbuf.Buffer
-	return b.Str("\n  ").Str(r.name).Str(" is no longer a leaf of ").Str(strings.Join(r.path, " ")).
-		Str(": write ").Str(r.replacement).Str(" instead\n").
-		Str("  fix: ze config migrate -o <new-file> <file>\n").
-		Str("  this rewrites the old leaf into the current shape; then load <new-file>").String()
+	b.Str("\n  ").Str(r.name).Str(" is no longer a leaf of ").Str(strings.Join(r.path, " ")).
+		Str(": write ").Str(r.replacement).Str(" instead")
+	if r.node != nil {
+		b.Str("\n  fix: ze config migrate -o <new-file> <file>\n").
+			Str("  this rewrites the old leaf into the current shape; then load <new-file>")
+	}
+	return b.String()
 }
 
 // graftRetiredLeaves puts each retired leaf back under its old parent, for
 // MigrationSchema alone. The cached YANGSchema never carries them.
 func graftRetiredLeaves(schema *Schema) {
 	for _, r := range registeredRetiredLeaves() {
+		if r.node == nil {
+			continue
+		}
 		switch parent := schema.LookupTokenPath(r.path).(type) {
 		case *ContainerNode:
 			parent.children[r.name] = r.node

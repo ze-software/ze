@@ -134,6 +134,10 @@ type member struct {
 	// readsRPKIValidation is true when this member evaluates rpki-validation-state,
 	// so export chains run it in the post-egress validation pass (RFC 8893 Section 1).
 	readsRPKIValidation bool
+	// builtinNextHop records a compiled built-in next-hop engine step
+	// (next-hop:auto, next-hop:self, next-hop:unchanged) for SameDecisions,
+	// StaticNextHop, and HasAutoDefaultNextHop. Zero for non-builtin members.
+	builtinNextHop NextHopIntent
 }
 
 // Chain is one compiled in-process BGP chain. Immutable after Compile, so safe
@@ -195,9 +199,21 @@ func CompileUnconfigured(attachment string, reg *policy.Registry, members []Memb
 func compileChain(attachment string, reg *policy.Registry, members []Member, final policy.Final, bases Bases) (*Chain, error) {
 	names := make([]string, 0, len(members))
 	for _, m := range members {
-		if m.Plugin == "" {
-			names = append(names, m.Name)
+		if m.AutoDefault {
+			if m.Plugin != "" {
+				return nil, fmt.Errorf("%s: AutoDefault is valid only on built-in %q", attachment, BuiltinNextHopAuto)
+			}
+			if m.Name != BuiltinNextHopAuto {
+				return nil, fmt.Errorf("%s: AutoDefault is valid only on built-in %q", attachment, BuiltinNextHopAuto)
+			}
 		}
+		if m.Plugin != "" {
+			continue
+		}
+		if _, builtin := BuiltinNextHopMode(m.Name); builtin {
+			continue
+		}
+		names = append(names, m.Name)
 	}
 	if err := policy.CheckChain(attachment, reg, names); err != nil {
 		return nil, err
@@ -231,6 +247,14 @@ func compileChain(attachment string, reg *policy.Registry, members []Member, fin
 					treatmentSettable: treatmentsSettable(attachment, reference),
 				},
 			})
+			continue
+		}
+		if mode, builtin := BuiltinNextHopMode(m.Name); builtin {
+			compiled, err := compileBuiltinNextHop(attachment, m, mode)
+			if err != nil {
+				return nil, err
+			}
+			chain.members = append(chain.members, compiled)
 			continue
 		}
 		compiled, err := compileMember(attachment, reg, m.Name)
@@ -289,6 +313,9 @@ func (m *member) sameDecisions(other *member) bool {
 		return false
 	}
 	if m.onError != other.onError || m.settable != other.settable {
+		return false
+	}
+	if m.builtinNextHop != other.builtinNextHop {
 		return false
 	}
 	if (m.external == nil) != (other.external == nil) {
@@ -462,8 +489,10 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 			if err == nil && verdict.raw != nil {
 				// A raw answer is built from the route as the chain received it, so
 				// it discards what this pass's earlier members set and, on a pass
-				// over a rewritten body, the rewrite itself.
-				if sets.folded.Empty() && !sets.route.BodyRewritten {
+				// over a rewritten body, the rewrite itself. Mode-only next-hop
+				// intents (next-hop:self/unchanged/auto) are deferred until after
+				// the raw override (D-3) and are preserved.
+				if sets.folded.allowsRawOverride(sets.route.Direction) && !sets.route.BodyRewritten {
 					return c.rawOutcome(m, verdict.raw, view, sets, record)
 				}
 				err = errExternalRawAfterSets
@@ -581,6 +610,12 @@ func (c *Chain) judgeMember(m *member, view *policyview.View, sets *RunSets, rec
 	if m.external != nil {
 		verdict, onError, err = c.judgeExternal(m, view, sets)
 		return verdict.decision, verdict, onError, err
+	}
+	if m.builtinNextHop.Mode != NextHopModeUnspecified {
+		if nhErr := sets.member.NextHopMode(m.builtinNextHop.Mode, m.builtinNextHop.AutoDefault); nhErr != nil {
+			return DecisionUnspecified, externalVerdict{}, onError, nhErr
+		}
+		return DecisionPass, externalVerdict{}, onError, nil
 	}
 	decision, err = m.evaluate(view, &sets.member)
 	return decision, externalVerdict{}, onError, err

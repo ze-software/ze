@@ -52,10 +52,14 @@ func removeMED(sets *Sets, target intentTarget) error {
 	return nil
 }
 
+// errNextHopModeOnImport refuses egress-only next-hop modes (self, unchanged,
+// auto) answered on an import chain (D-4).
+var errNextHopModeOnImport = errors.New("next-hop mode (self, unchanged, auto) is honored on an export chain only; use an explicit IPv4 or global IPv6 address on import")
+
 // applyAttributeSet writes an origin or next-hop replacement, or a large or
 // extended community add or remove. Each value is a JSON string in the form
 // the UPDATE event's attr map writes.
-func applyAttributeSet(sets *Sets, kind setKind, set *rpc.FilterSet) error {
+func applyAttributeSet(sets *Sets, kind setKind, set *rpc.FilterSet, target intentTarget) error {
 	text, ok := plainString(set.Value)
 	if !ok {
 		return errors.New("the value is not a JSON string")
@@ -64,7 +68,7 @@ func applyAttributeSet(sets *Sets, kind setKind, set *rpc.FilterSet) error {
 	case setKindOrigin:
 		return setOrigin(sets, set.Action, text)
 	case setKindNextHop:
-		return setNextHop(sets, set.Action, text)
+		return setNextHop(sets, set.Action, text, target)
 	case setKindLargeCommunity:
 		community, err := attribute.ParseLargeCommunity(text)
 		if err != nil {
@@ -95,14 +99,22 @@ func setOrigin(sets *Sets, action rpc.FilterSetAction, text string) error {
 	return sets.Origin(origin)
 }
 
-// setNextHop writes an IPv4 NEXT_HOP (RFC 4271 Section 5.1.3).
-func setNextHop(sets *Sets, action rpc.FilterSetAction, text string) error {
+// setNextHop writes a next-hop mode ("self", "unchanged", "auto", export-only)
+// or an explicit IPv4 / global IPv6 address (RFC 4271 Section 5.1.3, RFC 2545
+// Section 3).
+func setNextHop(sets *Sets, action rpc.FilterSetAction, text string, target intentTarget) error {
 	if action != rpc.FilterSetActionSet {
 		return errors.New("the field takes set")
 	}
+	if mode, ok := nextHopModeKeyword(text); ok {
+		if target.importSide {
+			return errNextHopModeOnImport
+		}
+		return sets.NextHopMode(mode, false)
+	}
 	addr, err := netip.ParseAddr(text)
 	if err != nil {
-		return errors.New("the value is not an IPv4 address")
+		return errors.New("the value is not self, unchanged, auto, or an IPv4/IPv6 address")
 	}
 	return sets.NextHop(addr)
 }

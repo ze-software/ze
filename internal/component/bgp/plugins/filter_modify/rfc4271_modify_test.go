@@ -90,6 +90,10 @@ func TestBuildSets(t *testing.T) {
 		{"origin_incomplete", map[string]any{"origin": "incomplete"},
 			[]string{`origin set "incomplete"`}, "origin incomplete"},
 		{"next_hop", map[string]any{"next-hop": "10.0.0.1"}, []string{`next-hop set "10.0.0.1"`}, "next-hop 10.0.0.1"},
+		{"next_hop_ipv6", map[string]any{"next-hop": "2001:db8::1"}, []string{`next-hop set "2001:db8::1"`}, "next-hop 2001:db8::1"},
+		{"next_hop_self", map[string]any{"next-hop": "self"}, []string{`next-hop set "self"`}, "next-hop self"},
+		{"next_hop_unchanged", map[string]any{"next-hop": "unchanged"}, []string{`next-hop set "unchanged"`}, "next-hop unchanged"},
+		{"next_hop_auto", map[string]any{"next-hop": "auto"}, []string{`next-hop set "auto"`}, "next-hop auto"},
 		{"multiple_attributes", map[string]any{"local-preference": float64(200), "med": float64(50), "origin": "igp"},
 			[]string{"local-preference set 200", "med set 50", `origin set "igp"`}, "local-preference 200 med 50 origin igp"},
 		{"string_numeric", map[string]any{"local-preference": "300"},
@@ -138,24 +142,32 @@ func TestBuildSetsRefuses(t *testing.T) {
 	}
 }
 
-// VALIDATES: an IPv6 next-hop is refused when the config is read. NEXT_HOP
-// (RFC 4271 Section 5.1.3, type 3) carries an IPv4 address only, the
-// engine's next-hop set writes that attribute and nothing else, and the text
-// path before it logged "next-hop must be IPv4" and dropped the operation.
+// VALIDATES: invalid next-hop values (link-local, unspecified, IPv4-mapped,
+// multicast, zoned, and unparseable strings) are refused when the config is
+// read, while global IPv6 addresses are accepted.
 // PREVENTS: a definition the engine cannot apply being installed, so that
 // every route it meets fails instead of the commit.
-func TestBuildSetsRefusesAnIPv6NextHop(t *testing.T) {
-	_, err := parseModifyDefs(map[string]any{"modify": map[string]any{
-		"V6": map[string]any{"set": map[string]any{"next-hop": "2001:db8::1"}},
-	}})
-	if err == nil || !strings.Contains(err.Error(), "IPv4") {
-		t.Fatalf("error = %v, want the IPv6 next-hop refused naming IPv4", err)
-	}
-	_, err = parseModifyDefs(map[string]any{"modify": map[string]any{
-		"BAD": map[string]any{"set": map[string]any{"next-hop": "not-an-address"}},
-	}})
-	if err == nil {
-		t.Fatal("an unparseable next-hop was accepted")
+func TestBuildSetsRefusesInvalidNextHops(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		val  string
+	}{
+		{"link_local", "fe80::1"},
+		{"loopback_v6", "::1"},
+		{"unspecified_v6", "::"},
+		{"ipv4_mapped", "::ffff:192.0.2.1"},
+		{"multicast_v6", "ff02::1"},
+		{"zoned", "2001:db8::1%eth0"},
+		{"unparseable", "not-an-address"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := parseModifyDefs(map[string]any{"modify": map[string]any{
+				"BAD": map[string]any{"set": map[string]any{"next-hop": tc.val}},
+			}})
+			if err == nil {
+				t.Fatalf("invalid next-hop %q was accepted", tc.val)
+			}
+		})
 	}
 }
 
@@ -441,6 +453,13 @@ func TestModifyConformance(t *testing.T) {
 			"match": map[string]any{"community": "65001:666"},
 			"set":   map[string]any{"next-hop": "192.0.2.1"},
 		}),
+		"RTBH6": parseOne(t, "RTBH6", map[string]any{
+			"match": map[string]any{"community": "65001:666"},
+			"set":   map[string]any{"next-hop": "2001:db8::666"},
+		}),
+		"NH-SELF": parseOne(t, "NH-SELF", map[string]any{
+			"set": map[string]any{"next-hop": "self"},
+		}),
 	}
 	previous := defsByName.Load()
 	t.Cleanup(func() { defsByName.Store(previous) })
@@ -456,5 +475,8 @@ func TestModifyConformance(t *testing.T) {
 		route("DROP-MED", "export", `{}`),
 		route("RTBH", "import", `{"community":["65001:666"]}`),
 		route("RTBH", "import", `{"community":["65001:667"]}`),
+		route("RTBH6", "import", `{"community":["65001:666"]}`),
+		route("RTBH6", "export", `{"community":["65001:666"]}`),
+		route("NH-SELF", "export", `{}`),
 	})
 }

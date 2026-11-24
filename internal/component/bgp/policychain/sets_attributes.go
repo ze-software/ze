@@ -94,15 +94,49 @@ func (s *Sets) Origin(origin attribute.Origin) error {
 	return nil
 }
 
-// NextHop records a NEXT_HOP replacement (RFC 4271 Section 5.1.3). NEXT_HOP
-// carries an IPv4 address only.
+// NextHop records an explicit NEXT_HOP or MP_REACH_NLRI next-hop replacement
+// (RFC 4271 Section 5.1.3, RFC 2545 Section 3). Accepts unicast IPv4 or global
+// IPv6 addresses (refusing link-local, unspecified, multicast, zoned, and
+// IPv4-mapped IPv6 forms).
 func (s *Sets) NextHop(addr netip.Addr) error {
-	if !addr.Is4() {
-		return fmt.Errorf("next-hop %s is not an IPv4 address", addr)
+	if err := validateExplicitNextHop(addr); err != nil {
+		return err
 	}
-	s.nextHop = addr.As4()
+	s.nextHop = NextHopIntent{Mode: NextHopModeExplicit, Addr: addr}
 	s.written |= setKindNextHop.bit()
 	return nil
+}
+
+// NextHopMode records a reactor-resolved next-hop mode (auto, self, or
+// unchanged). Explicit IP addresses use NextHop. autoDefault is valid only for
+// NextHopModeAuto and marks the engine-appended trailing default step (D-3,
+// D-5), which fills only when no earlier member set next-hop and applies to
+// forwarded routes only.
+func (s *Sets) NextHopMode(mode NextHopMode, autoDefault bool) error {
+	switch mode {
+	case NextHopModeAuto:
+		s.nextHop = NextHopIntent{Mode: mode, AutoDefault: autoDefault}
+		s.written |= setKindNextHop.bit()
+		return nil
+	case NextHopModeSelf, NextHopModeUnchanged:
+		if autoDefault {
+			return fmt.Errorf("next-hop mode %s cannot be marked auto-default", mode)
+		}
+		s.nextHop = NextHopIntent{Mode: mode}
+		s.written |= setKindNextHop.bit()
+		return nil
+	case NextHopModeUnspecified, NextHopModeExplicit:
+	}
+	return fmt.Errorf("next-hop mode %d is not one of auto, self or unchanged", mode)
+}
+
+// NextHopIntent returns the folded next-hop decision, or the zero value
+// (Mode == NextHopModeUnspecified) when no chain member set next-hop.
+func (s *Sets) NextHopIntent() NextHopIntent {
+	if s.written&setKindNextHop.bit() == 0 {
+		return NextHopIntent{}
+	}
+	return s.nextHop
 }
 
 // AIGP records an AIGP metric change (RFC 7311 Section 3).
@@ -161,14 +195,16 @@ func (s *Sets) RemoveExtendedCommunity(community attribute.ExtendedCommunity) er
 }
 
 // mergeAttributes folds a later member's attribute sets onto s: a later
-// replacement wins, AIGP folds as the numeric fields do, and the two lists
-// fold as COMMUNITY does. Sets.merge MUST have checked list capacity first.
+// replacement wins (except an auto-appended trailing next-hop:auto, which
+// fills only when next-hop is still unset), AIGP folds as the numeric fields
+// do, and the two lists fold as COMMUNITY does. Sets.merge MUST have checked
+// list capacity first.
 func (s *Sets) mergeAttributes(later *Sets) {
 	if later.written&setKindOrigin.bit() != 0 {
 		s.origin = later.origin
 	}
 	if later.written&setKindNextHop.bit() != 0 {
-		s.nextHop = later.nextHop
+		s.nextHop = foldNextHopIntent(s.nextHop, later.nextHop)
 	}
 	if later.written&setKindAIGP.bit() != 0 {
 		s.aigp = foldNumeric(s.aigp, later.aigp)
@@ -209,8 +245,22 @@ func (s *Sets) applyAttributesTo(acc *filterapi.ModAccumulator, current Current)
 		acc.OpCopy(uint8(attribute.AttrOrigin), filterapi.AttrModSet, []byte{byte(s.origin)})
 	}
 	if s.written&setKindNextHop.bit() != 0 {
-		// RFC 4271 Section 5.1.3: "The NEXT_HOP is a well-known mandatory attribute that defines the IP address of the router that SHOULD be used as the next hop to the destinations listed in the UPDATE message."
-		acc.OpCopy(uint8(attribute.AttrNextHop), filterapi.AttrModSet, s.nextHop[:])
+		switch s.nextHop.Mode {
+		case NextHopModeExplicit:
+			if s.nextHop.Addr.Is4() {
+				if !current.HasMPFamily || current.HasLegacyNLRI {
+					// RFC 4271 Section 5.1.3: "The NEXT_HOP is a well-known mandatory attribute that defines the IP address of the router that SHOULD be used as the next hop to the destinations listed in the UPDATE message."
+					ip := s.nextHop.Addr.As4()
+					acc.OpCopy(uint8(attribute.AttrNextHop), filterapi.AttrModSet, ip[:])
+				}
+			}
+			if current.HasMPFamily {
+				writeExplicitMPNextHop(acc, current.MPFamily, s.nextHop.Addr)
+			}
+		case NextHopModeUnspecified, NextHopModeAuto, NextHopModeSelf, NextHopModeUnchanged:
+			// Reactor-resolved intents emit no attr bytes here; the reactor
+			// reads Sets.NextHopIntent and applies precomputed session facts.
+		}
 	}
 	if s.written&setKindAIGP.bit() != 0 {
 		if metric, run := resolveAIGP(s.aigp, current.AIGP, current.HasAIGP); run {
@@ -251,7 +301,17 @@ func (s *Sets) appendAttributesText(buf []byte) []byte {
 		buf = append(appendWord(buf, "origin "), s.origin.String()...)
 	}
 	if s.written&setKindNextHop.bit() != 0 {
-		buf = netip.AddrFrom4(s.nextHop).AppendTo(appendWord(buf, "next-hop "))
+		switch s.nextHop.Mode {
+		case NextHopModeExplicit:
+			buf = s.nextHop.Addr.AppendTo(appendWord(buf, "next-hop "))
+		case NextHopModeAuto:
+			buf = appendWord(buf, "next-hop auto")
+		case NextHopModeSelf:
+			buf = appendWord(buf, "next-hop self")
+		case NextHopModeUnchanged:
+			buf = appendWord(buf, "next-hop unchanged")
+		case NextHopModeUnspecified:
+		}
 	}
 	if s.written&setKindAIGP.bit() != 0 {
 		buf = appendNumericText(buf, "aigp", s.aigp.replace, s.aigp.metric, s.aigp.delta)

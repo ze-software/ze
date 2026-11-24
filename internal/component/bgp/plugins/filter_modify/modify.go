@@ -43,6 +43,10 @@ type modifyDef struct {
 	// (medRemoveFor).
 	importSets []rpc.FilterSet
 	medRemove  bool
+	// egressOnlyNextHop holds the export-only next-hop rewriting mode ("self",
+	// "unchanged", or "auto") when configured in set { next-hop }. Empty for
+	// explicit IPv4/IPv6 addresses or when next-hop is unset.
+	egressOnlyNextHop string
 	// delta and importDelta are the operations as text, for the "modify apply"
 	// log line, in the same two variants.
 	delta       string

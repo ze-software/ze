@@ -181,6 +181,9 @@ func buildSets(def *modifyDef, ops *modifyOps) error {
 		if err := validateNextHop(text); err != nil {
 			return err
 		}
+		if isEgressOnlyNextHop(text) {
+			def.egressOnlyNextHop = text
+		}
 	}
 	for _, attr := range [...]string{originAttr, nextHopAttr} {
 		if text, ok := setBlock[attr].(string); ok && text != "" {
@@ -328,24 +331,52 @@ func parseIncDecBlock(block map[string]any, kind string) ([]incdec, error) {
 	return ops, nil
 }
 
-// validateNextHop refuses a next-hop the engine's next-hop set cannot write:
-// that set writes the NEXT_HOP attribute (policychain Sets.NextHop), whose
-// value is one IPv4 address, so an IPv6 address is refused when the config is
-// read rather than failing every route it meets. An IPv6 next hop travels in
-// MP_REACH_NLRI, which a modify does not set. The text path before the sets
-// refused it too, logging "next-hop must be IPv4" and dropping the operation.
+// isEgressOnlyNextHop reports whether s is one of the export-only next-hop
+// rewriting modes (self, unchanged, auto).
+func isEgressOnlyNextHop(s string) bool {
+	switch s {
+	case nextHopModeSelf, nextHopModeUnchanged, nextHopModeAuto:
+		return true
+	}
+	return false
+}
+
+// validateNextHop validates a modify set { next-hop } value: either an
+// export-only rewriting mode (self, unchanged, auto) or an explicit unicast
+// IPv4 or global IPv6 address.
 //
 // RFC 4271 Section 4.3: "This is a well-known mandatory attribute that defines
 // the (unicast) IP address of the router that SHOULD be used as the next hop
 // to the destinations listed in the Network Layer Reachability Information
 // field of the UPDATE message."
+// RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
+// Address of Next Hop field the global IPv6 address of the next hop, potentially
+// followed by the link-local IPv6 address of the next hop."
 func validateNextHop(s string) error {
+	if isEgressOnlyNextHop(s) {
+		return nil
+	}
 	addr, err := netip.ParseAddr(s)
 	if err != nil {
-		return fmt.Errorf("set: next-hop %q is not an IP address", s)
+		return fmt.Errorf("set: next-hop %q is not a valid IP address or mode (expected self, unchanged, auto, IPv4, or global IPv6 address)", s)
 	}
-	if !addr.Is4() {
-		return fmt.Errorf("set: next-hop %s is not an IPv4 address: the NEXT_HOP attribute (RFC 4271 Section 4.3) carries IPv4 only, and an IPv6 next hop travels in MP_REACH_NLRI, which modify does not set; write an IPv4 address", s)
+	if addr.Zone() != "" {
+		return fmt.Errorf("set: next-hop %s carries an interface zone; BGP next-hop attributes carry no zone, so write a plain IPv4 or global IPv6 address", s)
+	}
+	if addr.Is4In6() {
+		return fmt.Errorf("set: next-hop %s is an IPv4-mapped IPv6 address; write a native IPv4 or global IPv6 address", s)
+	}
+	if err := attribute.ValidateGlobalNextHop(addr); err != nil {
+		return fmt.Errorf("set: %w; write a global IPv6 address or an IPv4 address", err)
+	}
+	if addr.IsUnspecified() {
+		return fmt.Errorf("set: next-hop %s is an unspecified address; write a unicast IPv4 or global IPv6 address", s)
+	}
+	if addr.IsMulticast() {
+		return fmt.Errorf("set: next-hop %s is a multicast address; write a unicast IPv4 or global IPv6 address", s)
+	}
+	if addr.Is6() && !addr.IsGlobalUnicast() {
+		return fmt.Errorf("set: next-hop %s is not a global unicast IPv6 address (RFC 2545 Section 3); write a global IPv6 or unicast IPv4 address", s)
 	}
 	return nil
 }

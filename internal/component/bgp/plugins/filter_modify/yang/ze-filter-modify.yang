@@ -14,6 +14,13 @@ module ze-filter-modify {
                  through unchanged.
                  Referenced from peer filter chains as modify:NAME.";
 
+    revision 2026-11-24 {
+        description
+          "Widen set next-hop to accept IPv4 or global IPv6 addresses on import and
+           export chains, plus the export-only rewriting modes self, unchanged, and
+           auto, unifying BGP egress next-hop rewriting into the export filter chain.";
+    }
+
     revision 2026-10-30 {
         description
           "Add the route source conditions (protocol, tag, level, route-type) to
@@ -144,11 +151,28 @@ and keeps every other attribute unchanged.";
                 }
 
                 leaf next-hop {
-                    type zt:ip-address;
-                    description "NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address
-only. An IPv6 next-hop travels in the MP_REACH attribute instead, which this leaf does
-not set, so an IPv6 address here is refused when the config is read.";
-                    ze:help "Set the NEXT_HOP attribute of the route.";
+                    type union {
+                        type zt:ip-address;
+                        type enumeration {
+                            enum self {
+                                ze:help "Rewrite next-hop to this session's local address (export only).";
+                            }
+                            enum unchanged {
+                                ze:help "Preserve the received next-hop without rewriting (export only).";
+                            }
+                            enum auto {
+                                ze:help "RFC 4271 default: rewrite to self for ordinary eBGP, preserve for iBGP and RS clients (export only).";
+                            }
+                        }
+                    }
+                    description "Sets the route's next hop. An explicit IPv4 address writes the NEXT_HOP
+                        attribute (RFC 4271 type 3), and an explicit global IPv6 address writes the
+                        MP_REACH_NLRI next-hop field (RFC 2545 Section 3); explicit addresses apply
+                        on both import and export chains, while link-local, unspecified, multicast,
+                        IPv4-mapped, and zoned addresses are refused at config load. The rewriting
+                        modes self, unchanged, and auto apply on export chains only and are refused
+                        on import chains at config load.";
+                    ze:help "Set the route next-hop to an IPv4/global-IPv6 address, or self/unchanged/auto (export only).";
                 }
 
                 leaf as-path-prepend {
