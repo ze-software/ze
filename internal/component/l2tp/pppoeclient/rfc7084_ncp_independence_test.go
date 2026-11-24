@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"testing"
 	"testing/synctest"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
@@ -219,7 +220,8 @@ func workerEnded(done chan struct{}) bool {
 // opens IPCP again and passes IPv4 with no LCP frame and no IPv6 mode change.
 // RFC requirement: RFC7084-4.2-10 negative -- an IPCP Terminate-Request on a
 // session with no IPv6CP, or an IPv6CP Terminate-Request while IPCP is
-// Stopped, ends the session, because no NCP is left on the link.
+// Stopped, leaves LCP up until the no-NCP idle-period timer expires (RFC 1661
+// Section 3.7), then transmits an LCP Terminate-Request and ends the session.
 func TestRFC7084WLL3IPCPIndependence(t *testing.T) {
 	t.Run("ipcp-terminates-and-reopens-alone", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
@@ -302,6 +304,9 @@ func TestRFC7084WLL3IPCPIndependence(t *testing.T) {
 	t.Run("no-ipv6cp-ends-the-session", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			w, s, done := ipcpIndependence(t, false, nil)
+			// Keep Echo-Requests past defaultNoNCPIdleTimeout so the idle-period
+			// timer decides session termination cleanly inside synctest.
+			s.cfg.keepaliveInterval = 2 * defaultNoNCPIdleTimeout
 			stop := make(chan struct{})
 			defer close(stop)
 			go keepaliveLoop(s, done, stop, slogutil.DiscardLogger())
@@ -309,8 +314,15 @@ func TestRFC7084WLL3IPCPIndependence(t *testing.T) {
 			w.send(ppp.ProtoIPCP, ppp.LCPTerminateRequest, 21, nil)
 			w.take(t, ppp.ProtoIPCP, ppp.LCPTerminateAck)
 			synctest.Wait()
+			if workerEnded(done) {
+				t.Fatal("closing the last NCP ended LCP before the no-NCP idle-period timer expired")
+			}
+			// sleep(timer): advance the full no-NCP idle period inside synctest.
+			time.Sleep(defaultNoNCPIdleTimeout)
+			synctest.Wait()
+			w.take(t, ppp.ProtoLCP, ppp.LCPTerminateRequest)
 			if !workerEnded(done) {
-				t.Fatal("the session went on with no NCP left")
+				t.Fatal("the session went on after the no-NCP idle-period timer expired")
 			}
 		})
 	})
@@ -319,6 +331,9 @@ func TestRFC7084WLL3IPCPIndependence(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			var v6 []pppkernel.NPMode
 			w, s, done := ipcpIndependence(t, true, &v6)
+			// Keep Echo-Requests past defaultNoNCPIdleTimeout so the idle-period
+			// timer decides session termination cleanly inside synctest.
+			s.cfg.keepaliveInterval = 2 * defaultNoNCPIdleTimeout
 			stop := make(chan struct{})
 			defer close(stop)
 			go keepaliveLoop(s, done, stop, slogutil.DiscardLogger())
@@ -332,11 +347,18 @@ func TestRFC7084WLL3IPCPIndependence(t *testing.T) {
 			w.send(ppp.ProtoIPv6CP, ppp.LCPTerminateRequest, 33, nil)
 			w.take(t, ppp.ProtoIPv6CP, ppp.LCPTerminateAck)
 			synctest.Wait()
-			if !workerEnded(done) {
-				t.Fatal("the session went on with IPCP Stopped and IPv6CP closed")
+			if workerEnded(done) {
+				t.Fatal("closing IPv6CP while IPCP is Stopped ended LCP before the no-NCP idle-period timer expired")
 			}
 			if len(v6) != 2 || v6[1] != pppkernel.NPModeDrop {
 				t.Fatalf("IPv6 modes %v, want pass then drop", v6)
+			}
+			// sleep(timer): advance the full no-NCP idle period inside synctest.
+			time.Sleep(defaultNoNCPIdleTimeout)
+			synctest.Wait()
+			w.take(t, ppp.ProtoLCP, ppp.LCPTerminateRequest)
+			if !workerEnded(done) {
+				t.Fatal("the session went on after the no-NCP idle-period timer expired")
 			}
 		})
 	})

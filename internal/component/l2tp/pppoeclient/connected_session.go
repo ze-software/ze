@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"reflect"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
@@ -39,8 +40,9 @@ type connectedSession struct {
 	seq     uint64
 	applied chan uint64
 	// ipv6 is nil when the pppoe-client configures no ipv6: that nil is a
-	// guard, keepaliveLoop then drops IPv6CP like any unconfigured protocol.
-	// enableIPv6CP sets it with setIPv6Mode.
+	// guard, and keepaliveLoop then answers IPv6CP and IPv6 with an LCP
+	// Protocol-Reject (RFC 1661 Section 5.7). enableIPv6CP sets it with
+	// setIPv6Mode.
 	ipv6        *clientIPv6CP
 	setIPv6Mode func(pppkernel.NPMode) error
 	// linkLocal is the local link-local address while IPv6CP is Opened, the
@@ -51,6 +53,15 @@ type connectedSession struct {
 	// it. False, the zero value, is the Opened state newConnectedSession
 	// admits and restart reaches.
 	ipcpStopped bool
+	// noNCPIdleTimeout overrides defaultNoNCPIdleTimeout when positive.
+	// Zero uses defaultNoNCPIdleTimeout (30s).
+	noNCPIdleTimeout time.Duration
+	// noNCPIdle bounds how long LCP stays Opened while no NCP is Opened
+	// (RFC 1661 Section 3.7). Created on first arm; nil until armed.
+	// noNCPIdleArmed distinguishes a running timer from a stopped one so
+	// repeated no-NCP events never reset a running timer.
+	noNCPIdle      *time.Timer
+	noNCPIdleArmed bool
 }
 
 // newConnectedSession admits the complete initial result without doing I/O.

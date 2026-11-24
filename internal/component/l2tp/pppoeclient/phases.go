@@ -76,7 +76,10 @@ func negotiatePhases(transport io.ReadWriteCloser, reader *frameReader,
 		chap := networkPhaseCHAPFor(lcp.authProto, cfg)
 		// RFC 1332 Section 2: run both IPCP directions on the existing sources,
 		// and IPv6CP beside them when it is configured (RFC 1661 Section 3.6).
-		ipcp, err := negotiateIPCP(transport, reader, buf[:], magic, lcp.peerMRU, chap, identifier, stop, logger, codeRejectID, ipv6)
+		// RFC 1661 Section 5.7: share lcpIdentifier so Protocol-Rejects advance
+		// the session's LCP Identifier sequence.
+		ipcp, err := runIPCP(transport, reader, buf[:], magic, lcp.peerMRU, chap, identifier, stop, logger, codeRejectID,
+			ipcpRun{ipv6: ipv6, lcpIdentifier: lcpIdentifier})
 		if err != nil {
 			if errors.As(err, &pending) {
 				if ipv6 != nil {

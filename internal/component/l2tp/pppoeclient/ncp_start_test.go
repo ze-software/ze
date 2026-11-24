@@ -6,6 +6,7 @@ package pppoeclient
 
 import (
 	"bytes"
+	"encoding/binary"
 	"net/netip"
 	"testing"
 	"testing/synctest"
@@ -164,9 +165,11 @@ func TestIPv6CPProtocolRejectDuringIPCP(t *testing.T) {
 }
 
 // TestIPv6CPDisabledDropsDuringIPCP checks that with no ipv6 configured the
-// client sends no IPv6CP and drops the peer's IPv6CP frames, as before.
+// client sends no IPv6CP and answers the peer's IPv6CP frame with an LCP
+// Protocol-Reject carrying Rejected-Protocol 0x8057 (RFC 1661 Section 5.7).
 // Method: run negotiateIPCP with a nil automaton, deliver an IPv6CP request,
-// and assert the only frame written is the IPCP Configure-Request.
+// and assert frame 0 is the IPCP Configure-Request and frame 1 is an LCP
+// Protocol-Reject naming IPv6CP, with no IPv6CP frame written.
 func TestIPv6CPDisabledDropsDuringIPCP(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w := &frameLog{}
@@ -182,11 +185,19 @@ func TestIPv6CPDisabledDropsDuringIPCP(t *testing.T) {
 		synctest.Wait()
 		frames <- ncpReadFrame(ppp.ProtoIPv6CP, ppp.LCPConfigureRequest, 41, ipv6cpOption(ppp.IPv6CPInterfaceID{0, 0, 0, 0, 0, 0, 0, 1}))
 		synctest.Wait()
-		if written := w.snapshot(); len(written) != 1 {
-			t.Fatalf("client wrote %d frames, want the IPCP Configure-Request alone", len(written))
+		written := w.snapshot()
+		if len(written) != 2 {
+			t.Fatalf("client wrote %d frames, want IPCP Configure-Request and LCP Protocol-Reject", len(written))
 		}
-		if proto, _ := recordedNCP(t, w, 0); proto != ppp.ProtoIPCP {
-			t.Fatalf("protocol %#x, want IPCP", proto)
+		if proto, pkt := recordedNCP(t, w, 0); proto != ppp.ProtoIPCP || pkt.Code != ppp.LCPConfigureRequest {
+			t.Fatalf("frame 0 = protocol %#x code %d, want IPCP Configure-Request", proto, pkt.Code)
+		}
+		proto, rej := recordedNCP(t, w, 1)
+		if proto != ppp.ProtoLCP || rej.Code != ppp.LCPProtocolReject {
+			t.Fatalf("frame 1 = protocol %#x code %d, want LCP Protocol-Reject", proto, rej.Code)
+		}
+		if len(rej.Data) < 2 || binary.BigEndian.Uint16(rej.Data[:2]) != ppp.ProtoIPv6CP {
+			t.Fatalf("Rejected-Protocol = % x, want 80 57 (IPv6CP)", rej.Data)
 		}
 		close(stop)
 		<-ended

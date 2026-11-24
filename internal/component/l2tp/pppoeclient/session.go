@@ -853,18 +853,23 @@ func learnedDNS(requested bool, value netip.Addr) netip.Addr {
 // only after PPPIOCCONNECT and dispatches channel control before unit input.
 //
 // ipv6 is nil when the pppoe-client configures no ipv6: that nil is a guard,
-// and an IPv6CP frame is then dropped like any unconfigured protocol.
+// and an IPv6CP or IPv6 frame is then answered with an LCP Protocol-Reject
+// (RFC 1661 Section 5.7) while LCP is Opened.
 // Otherwise IPv6CP starts here beside IPCP and runs on the same reader until
 // IPCP opens; the automaton keeps whatever state it reached, and the caller
 // applies it (connectedSession.enableIPv6CP, connectedSession.restart). IPv6
 // stays discarded on the unit for the whole call.
 func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, peerMRU uint16, chap *networkPhaseCHAP, identifier *uint8, stopCh <-chan struct{}, logger *slog.Logger, codeRejectID *uint8, ipv6 *clientIPv6CP) (ipcpResult, error) {
-	return runIPCP(w, reader, buf, magic, peerMRU, chap, identifier, stopCh, logger, codeRejectID, ipcpRun{ipv6: ipv6})
+	return runIPCP(w, reader, buf, magic, peerMRU, chap, identifier, stopCh, logger, codeRejectID, ipcpRun{ipv6: ipv6, lcpIdentifier: new(uint8)})
 }
 
 // runIPCP is negotiateIPCP with the run said by run; see ipcpRun.
 func runIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, peerMRU uint16, chap *networkPhaseCHAP, identifier *uint8, stopCh <-chan struct{}, logger *slog.Logger, codeRejectID *uint8, run ipcpRun) (ipcpResult, error) {
 	ipv6 := run.ipv6
+	lcpID := run.lcpIdentifier
+	if lcpID == nil {
+		lcpID = new(uint8)
+	}
 	var result ipcpResult
 	requested := ipcpInitialRequest()
 	// RFC 1332 Section 2 uses the LCP exchange mechanism. A new exchange
@@ -928,6 +933,10 @@ func runIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, peerMRU
 			return ipcpResult{}, errors.New("pppoe-client: stopped during IPCP")
 		case <-deadline.C:
 			return ipcpResult{}, ipcpStoppedError{reason: "pppoe-client: IPCP timeout"}
+		case <-run.idleChannel():
+			// RFC 1661 Section 3.7: the no-NCP idle-period timer expired before
+			// any NCP reached Opened.
+			return ipcpResult{}, errNoNCPIdleExpired
 		case <-restart.C:
 			if state == ppp.LCPStateAckRcvd {
 				*identifier++
@@ -954,6 +963,24 @@ func runIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, peerMRU
 		}
 		proto, payload, _, parseErr := ppp.ParseFrame(frame.data)
 		if parseErr != nil {
+			continue
+		}
+		if !clientSupportsProtocol(proto, ipv6 != nil) {
+			// RFC 1661 Section 5.7: "If the LCP automaton is in the Opened
+			// state, then this MUST be reported back to the peer by
+			// transmitting a Protocol-Reject."
+			*lcpID++
+			if err := sendProtocolReject(w, buf, proto, payload, *lcpID, peerMRU); err != nil {
+				return ipcpResult{}, err
+			}
+			continue
+		}
+		switch proto {
+		case ppp.ProtoIPv4, ppp.ProtoIPv6, ppp.ProtoPAP:
+			// RFC 1661 Section 3.6: "Any supported network-layer protocol
+			// packets received when the corresponding NCP is not in the Opened
+			// state MUST be silently discarded." PAP outside the Authentication
+			// phase is supported by this implementation and likewise discarded.
 			continue
 		}
 		pkt, pktErr := ppp.ParseLCPPacket(payload)
@@ -1312,6 +1339,108 @@ func sendTerminateAck(w io.Writer, buf []byte, req ppp.LCPPacket) error {
 	off += ppp.WriteLCPPacket(buf, off, ppp.LCPTerminateAck, req.Identifier, nil)
 	if err := writeClientPacket(w, buf[:off]); err != nil {
 		return fmt.Errorf("pppoe-client: LCP Terminate-Ack: %w", err)
+	}
+	return nil
+}
+
+// sendLCPTerminateRequest transmits an LCP Terminate-Request to close the link.
+//
+// RFC 1661 Section 3.7: "LCP is used to close the link through an exchange of
+// Terminate packets."
+// RFC 1661 Section 5.5: "The Identifier field MUST be changed whenever the
+// content of the Data field changes, and whenever a valid reply has been
+// received for a previous request."
+//
+// Wire format (RFC 1661 Section 5.5), offsets from the start of buf:
+//
+//	0       2        3            4        6
+//	+-------+--------+------------+--------+
+//	| c0 21 | Code=5 | Identifier | Len=4  |
+//	+-------+--------+------------+--------+
+func sendLCPTerminateRequest(w io.Writer, buf []byte, id uint8) error {
+	off := ppp.WriteFrame(buf, 0, ppp.ProtoLCP, nil)
+	off += ppp.WriteLCPPacket(buf, off, ppp.LCPTerminateRequest, id, nil)
+	if err := writeClientPacket(w, buf[:off]); err != nil {
+		return fmt.Errorf("pppoe-client: LCP Terminate-Request: %w", err)
+	}
+	return nil
+}
+
+// clientSupportsProtocol reports whether the PPPoE client implements proto on
+// this session while LCP is Opened.
+//
+// RFC 1661 Section 3.6: "While LCP is in the Opened state, any protocol packet
+// which is unsupported by the implementation MUST be returned in a Protocol-
+// Reject (described later).  Only protocols which are supported are silently
+// discarded."
+//
+// ipv6Configured is true when IPv6CP is configured for this session. When
+// false, IPv6CP and IPv6 are unsupported and draw a Protocol-Reject so a
+// dual-stack access concentrator stops retrying IPv6CP.
+func clientSupportsProtocol(proto uint16, ipv6Configured bool) bool {
+	switch proto {
+	case ppp.ProtoLCP, ppp.ProtoPAP, ppp.ProtoCHAP, ppp.ProtoIPCP, ppp.ProtoIPv4:
+		return true
+	case ppp.ProtoIPv6CP, ppp.ProtoIPv6:
+		return ipv6Configured
+	}
+	return false
+}
+
+// sendProtocolReject transmits an LCP Protocol-Reject for an unsupported PPP
+// protocol received while LCP is Opened.
+//
+// RFC 1661 Section 5.7: "Reception of a PPP packet with an unknown Protocol
+// field indicates that the peer is attempting to use a protocol which is
+// unsupported.  This usually occurs when the peer attempts to configure a new
+// protocol.  If the LCP automaton is in the Opened state, then this MUST be
+// reported back to the peer by transmitting a Protocol-Reject."
+//
+// Wire format (RFC 1661 Section 5.7), offsets from the start of the LCP
+// packet, which starts 2 octets into the frame:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|   Code = 8    |  Identifier   |            Length             |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|       Rejected-Protocol       |      Rejected-Information ...
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Octet 0 Code, 1 Identifier, 2-3 Length, 4-5 Rejected-Protocol, 6 onward
+// Rejected-Information (info, the received frame's Information field after the
+// 2-octet PPP Protocol field).
+//
+// RFC 1661 Section 5.7: "The Identifier field MUST be changed for each
+// Protocol-Reject sent." The caller owns the LCP Identifier counter and passes
+// the next value.
+//
+// RFC 1661 Section 5.7: "The Rejected-Information MUST be truncated to comply
+// with the peer's established MRU." When peerMRU is zero (peer omitted MRU),
+// the RFC 1661 Section 6.1 default of 1500 octets applies.
+func sendProtocolReject(w io.Writer, buf []byte, proto uint16, info []byte, id uint8, peerMRU uint16) error {
+	mru := int(peerMRU)
+	if mru == 0 {
+		mru = ppp.MaxFrameLen
+	}
+	limit := min(mru+ppp.ProtoFieldLen, len(buf))
+	room := limit - ppp.ProtoFieldLen - 4 - 2
+	if room < 0 {
+		return errors.New("pppoe-client: LCP Protocol-Reject: no room for the Rejected-Protocol header")
+	}
+	if len(info) > room {
+		info = info[:room]
+	}
+
+	off := ppp.WriteFrame(buf, 0, ppp.ProtoLCP, nil)
+	// Write Rejected-Protocol and Rejected-Information directly where
+	// WriteLCPPacket places its Data field so no scratch slice is allocated.
+	data := buf[off+4:]
+	binary.BigEndian.PutUint16(data[:2], proto)
+	n := copy(data[2:], info)
+	off += ppp.WriteLCPPacket(buf, off, ppp.LCPProtocolReject, id, data[:2+n])
+	if err := writeClientPacket(w, buf[:off]); err != nil {
+		return fmt.Errorf("pppoe-client: LCP Protocol-Reject: %w", err)
 	}
 	return nil
 }

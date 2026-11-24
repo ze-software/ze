@@ -102,6 +102,7 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 		logger.Error("pppoe-client: uninitialized connected session; restart the PPPoE client")
 		return
 	}
+	defer session.cancelNoNCPIdle()
 	if session.ipv6 != nil {
 		defer session.ipv6.restart.Stop()
 		// The session ends here, and IPv6 with it: the gauge that applyIPv6CP
@@ -146,6 +147,7 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 				return false
 			}
 		}
+		session.cancelNoNCPIdle()
 		// RFC 1661 Sections 3.4-3.6: DROP precedes scr and sca/scn.
 		// restart starts IPv6CP again beside IPCP and applies the
 		// state it reached.
@@ -185,10 +187,11 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 				logger.Warn("pppoe-client: IPv6CP write failed", "error", err)
 				return
 			}
-			if err := session.ncpsRemaining(); err != nil {
-				logger.Warn("pppoe-client: IPv6CP gave up while IPCP is down", "error", err)
-				return
-			}
+			session.syncNoNCPIdle()
+		case <-session.noNCPIdleChannel():
+			// RFC 1661 Section 3.7: close LCP after the no-NCP idle period expires.
+			_ = session.closeIdleLCP(frameBuf[:], logger)
+			return
 		case frame, ok := <-session.reader.next():
 			session.reader.received()
 			if !ok {
@@ -202,16 +205,24 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 			if parseErr != nil {
 				continue
 			}
-			if proto == ppp.ProtoIPv6CP {
-				if session.ipv6 == nil {
-					continue
+			if !clientSupportsProtocol(proto, session.ipv6 != nil) {
+				// RFC 1661 Section 5.7: "If the LCP automaton is in the Opened
+				// state, then this MUST be reported back to the peer by
+				// transmitting a Protocol-Reject."
+				session.lcpIdentifier++
+				if err := sendProtocolReject(session.transport, frameBuf[:], proto, payload, session.lcpIdentifier, session.current.peerMRU); err != nil {
+					reportLCPWriteFailure(logger, "protocol-reject", "pppoe-client: LCP Protocol-Reject write failed", err)
+					return
 				}
-			} else if proto != ppp.ProtoLCP {
-				if proto != ppp.ProtoCHAP {
-					if proto != ppp.ProtoIPCP {
-						continue
-					}
-				}
+				continue
+			}
+			switch proto {
+			case ppp.ProtoIPv4, ppp.ProtoIPv6, ppp.ProtoPAP:
+				// RFC 1661 Section 3.6: "Any supported network-layer protocol
+				// packets received when the corresponding NCP is not in the
+				// Opened state MUST be silently discarded." PAP outside the
+				// Authentication phase is supported and likewise discarded.
+				continue
 			}
 			pkt, pktErr := ppp.ParseLCPPacket(payload)
 			if pktErr != nil {
@@ -228,10 +239,7 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 					logger.Warn("pppoe-client: IPv6CP state could not be applied; the client will reconnect", "error", err)
 					return
 				}
-				if err := session.ncpsRemaining(); err != nil {
-					logger.Warn("pppoe-client: IPv6CP closed while IPCP is down", "error", err)
-					return
-				}
+				session.syncNoNCPIdle()
 				continue
 			}
 			if proto == ppp.ProtoIPCP {
@@ -246,7 +254,9 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 					continue
 				}
 				if err != nil {
-					logger.Warn("pppoe-client: IPCP ended the session", "error", err)
+					if !errors.Is(err, errNoNCPIdleExpired) {
+						logger.Warn("pppoe-client: IPCP ended the session", "error", err)
+					}
 					return
 				}
 				continue
@@ -298,10 +308,7 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 					logger.Warn("pppoe-client: IPv6CP state could not be applied; the client will reconnect", "error", err)
 					return
 				}
-				if err := session.ncpsRemaining(); err != nil {
-					logger.Warn("pppoe-client: IPv6CP rejected while IPCP is down", "error", err)
-					return
-				}
+				session.syncNoNCPIdle()
 			}
 		}
 	}

@@ -1,0 +1,21 @@
+{
+  "code": {
+    "internal/component/l2tp/pppoeclient/connected_session.go::newNegotiatedSession": "58ed8e055d7dcb83",
+    "internal/component/l2tp/pppoeclient/ipcp_independent.go::connectedSession.handleIPCP": "5f62afdfec448c11",
+    "internal/component/l2tp/pppoeclient/phases.go::negotiatePhases": "da25ef2946102d9b",
+    "internal/component/l2tp/pppoeclient/session.go::runIPCP": "bd5743ec6b05e5bf"
+  },
+  "note": "Audited against RFC 7084 Section 4.2 WLL-3 ('If the WAN interface supports PPP encapsulation, in a dual-stack environment with IPCP and IPV6CP running over one PPP logical channel, the Network Control Protocols (NCPs) MUST be treated as independent of each other and start and terminate independently.'). TestRFC7084WLL3NCPIndependence and TestRFC7084WLL3IPCPIndependence enforce independent termination and connected-session IPCP reopen once IPCP has first opened (IPv6CP Protocol-Reject/Configure-Reject/silence/Terminate leaves IPv4 untouched; IPCP Terminate drops IPv4 only and reopens while IPv6CP stays up; closing the last NCP arms the RFC 1661 Section 3.7 no-NCP idle timer before closing LCP). However, neither tagged test proves independent initial start, and the producing code still couples initial startup to IPCP: negotiatePhases (phases.go) and runIPCP (session.go) loop until IPCP reaches Opened and newNegotiatedSession (connected_session.go) refuses any result without global-unicast IPv4 local/peer addresses, so IPv6CP cannot bring up a PPPoE session at initial start if IPCP fails, times out or is rejected.",
+  "requirement_sha": "a9463e15c72f222b",
+  "tests": {
+    "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3IPCPIndependence": "0013e1c7b37ff1bf",
+    "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3IPCPIndependence#2": "0013e1c7b37ff1bf",
+    "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3NCPIndependence": "0013e1c7b37ff1bf"
+  },
+  "units": {
+    "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3IPCPIndependence": "76d6fa5c52438bb1",
+    "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3IPCPIndependence#2": "76d6fa5c52438bb1",
+    "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3NCPIndependence": "6e125b6808bea35e"
+  },
+  "verdict": "weak"
+}

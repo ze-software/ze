@@ -3,23 +3,23 @@
     "rid": "RFC7084-4.2-10",
     "polarity": "negative",
     "unit": "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3IPCPIndependence",
-    "unit-sha": "2a02b29495b2206f",
-    "claim-sha": "557ea362d7f23f3e",
-    "route": "mutant",
-    "producer": "internal/component/l2tp/pppoeclient/ipcp_independent.go::ncpsRemaining",
-    "producer-sha": "a1ce200dfb96ee33",
-    "break": "line 254: \"if !s.ipcpStopped {\" -\u003e \"if true || !s.ipcpStopped {\""
+    "unit-sha": "a4cea26f1989cc85",
+    "claim-sha": "5e3d4cec73b69fb6",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoeclient/ipcp_independent.go::syncNoNCPIdle",
+    "producer-sha": "85a332c18061733c",
+    "break": "body of syncNoNCPIdle replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7084-4.2-10",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go::TestRFC7084WLL3IPCPIndependence",
-    "unit-sha": "2a02b29495b2206f",
+    "unit-sha": "a4cea26f1989cc85",
     "claim-sha": "195686baff3ad080",
-    "route": "mutant",
+    "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/ipcp_independent.go::leaveOpenedIPCP",
-    "producer-sha": "e18d066b8ddce06a",
-    "break": "line 143: \"return s.waitForIPCP()\" -\u003e \"return errors.New(\\\"pppoe-client: IPCP left Opened\\\")\""
+    "producer-sha": "8231097fd01feecc",
+    "break": "body of leaveOpenedIPCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7084-4.2-10",

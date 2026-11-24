@@ -16,6 +16,7 @@ import (
 	"log/slog"
 	"testing"
 	"testing/synctest"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
@@ -34,7 +35,7 @@ func runUnitNetworkPhase(t *testing.T, stop chan struct{}, lastCodeRejectID uint
 		peerMRU:          1492,
 		ipcpCodeRejectID: lastCodeRejectID,
 	}
-	session := newTestConnectedSession(t, w, *result, sessionConfig{mtu: 1492})
+	session := newTestConnectedSession(t, w, *result, sessionConfig{mtu: 1492, keepaliveInterval: 2 * defaultNoNCPIdleTimeout})
 	go keepaliveLoop(session, done, stop, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return w, unit, done
 }
@@ -73,8 +74,9 @@ func TestClientUnitIPCPCodeRejected(t *testing.T) {
 }
 
 // TestClientUnitIPCPTerminateAcked feeds an IPCP Terminate-Request on the unit
-// and requires an IPCP Terminate-Ack carrying its Identifier, and the session
-// ended.
+// and requires an IPCP Terminate-Ack carrying its Identifier, LCP kept up
+// until the no-NCP idle-period timer expires (RFC 1661 Section 3.7), and then
+// an LCP Terminate-Request ending the session.
 func TestClientUnitIPCPTerminateAcked(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		stop := make(chan struct{})
@@ -82,8 +84,8 @@ func TestClientUnitIPCPTerminateAcked(t *testing.T) {
 		w, unit, done := runUnitNetworkPhase(t, stop, 0)
 		unit <- ipcpFrame(ppp.LCPTerminateRequest, 0x77, nil)
 		synctest.Wait()
-		if !sessionEnded(done) {
-			t.Fatal("the session outlived an IPCP Terminate-Request")
+		if sessionEnded(done) {
+			t.Fatal("the session ended immediately on an IPCP Terminate-Request; RFC 1661 Section 3.7 keeps LCP up")
 		}
 		if got := len(w.snapshot()); got != 1 {
 			t.Fatalf("the client wrote %d frames for one Terminate-Request, want one Terminate-Ack", got)
@@ -94,6 +96,20 @@ func TestClientUnitIPCPTerminateAcked(t *testing.T) {
 		}
 		if ack.Identifier != 0x77 {
 			t.Fatalf("Terminate-Ack Identifier = 0x%02x, want the request's 0x77", ack.Identifier)
+		}
+
+		// sleep(timer): advance the full no-NCP idle period inside synctest.
+		time.Sleep(defaultNoNCPIdleTimeout)
+		synctest.Wait()
+		if !sessionEnded(done) {
+			t.Fatal("the session stayed up after the no-NCP idle-period timer expired")
+		}
+		if got := len(w.snapshot()); got != 2 {
+			t.Fatalf("the client wrote %d frames after idle expiry, want IPCP Terminate-Ack and LCP Terminate-Request", got)
+		}
+		proto, term := recordedNCP(t, &w.frameLog, 1)
+		if proto != ppp.ProtoLCP || term.Code != ppp.LCPTerminateRequest {
+			t.Fatalf("frame 1 = protocol %#x code %d, want LCP Terminate-Request", proto, term.Code)
 		}
 	})
 }

@@ -20,6 +20,54 @@ import (
 	"github.com/ze-software/ze/internal/core/callsink"
 )
 
+const (
+	// reasonPADTMACMismatch labels the Debug log emitted when a PADT names a
+	// live SESSION_ID from a source MAC that does not own that session.
+	reasonPADTMACMismatch = "padt-mac-mismatch"
+	// padtMismatchLogWindowSec and padtMismatchLogBurst bound how many
+	// PADT MAC-mismatch Debug lines one InterfaceServer emits per second so a
+	// host forging PADTs at line rate cannot flood the log.
+	padtMismatchLogWindowSec = 1
+	padtMismatchLogBurst     = 5
+)
+
+// padtMismatchLogLimiter bounds PADT MAC-mismatch Debug logging per
+// InterfaceServer using a fixed one-second window. Its zero value is ready
+// to use and safe to copy on reload.
+// NOT safe for concurrent use: only the discovery reader goroutine calls it.
+type padtMismatchLogLimiter struct {
+	started     bool
+	windowStart int64
+	logged      int
+	suppressed  int
+}
+
+// allow reports whether a PADT MAC-mismatch log line may be emitted now.
+// When a new window opens after suppressed frames, suppressed carries how
+// many frames were omitted in the previous window.
+func (l *padtMismatchLogLimiter) allow() (allowed bool, suppressed int) {
+	now := nowUnix()
+	if l.started {
+		elapsed := now - l.windowStart
+		if elapsed >= 0 {
+			if elapsed < padtMismatchLogWindowSec {
+				if l.logged >= padtMismatchLogBurst {
+					l.suppressed++
+					return false, 0
+				}
+				l.logged++
+				return true, 0
+			}
+		}
+	}
+	prevSuppressed := l.suppressed
+	l.started = true
+	l.windowStart = now
+	l.logged = 1
+	l.suppressed = 0
+	return true, prevSuppressed
+}
+
 // InterfaceServer owns the PPPoE state for one access interface.
 // The shared discovery reader goroutine dispatches parsed packets
 // here by ifindex.
@@ -82,6 +130,10 @@ type InterfaceServer struct {
 	// contained discovery panic can end it (panic_guard.go). Only the
 	// discovery reader goroutine reads or writes it.
 	admitting admission
+
+	// padtMismatchLog rate-limits PADT MAC-mismatch Debug logging. Only the
+	// discovery reader goroutine reads or writes it.
+	padtMismatchLog padtMismatchLogLimiter
 }
 
 // HandleDiscovery dispatches a parsed discovery packet to the
@@ -461,8 +513,17 @@ func (s *InterfaceServer) handlePADT(pkt *Packet) {
 	}
 
 	if !bytes.Equal(sess.MAC, pkt.SrcMAC[:]) {
-		s.logger.Warn("pppoe: PADT MAC mismatch", "sid", pkt.SID,
-			"expected", sess.MAC, "got", net.HardwareAddr(pkt.SrcMAC[:]))
+		if allowed, suppressed := s.padtMismatchLog.allow(); allowed {
+			if suppressed > 0 {
+				s.logger.Debug("pppoe: PADT MAC mismatch", "sid", pkt.SID,
+					"expected", sess.MAC, "got", net.HardwareAddr(pkt.SrcMAC[:]),
+					"reason", reasonPADTMACMismatch, "suppressed", suppressed)
+			} else {
+				s.logger.Debug("pppoe: PADT MAC mismatch", "sid", pkt.SID,
+					"expected", sess.MAC, "got", net.HardwareAddr(pkt.SrcMAC[:]),
+					"reason", reasonPADTMACMismatch)
+			}
+		}
 		return
 	}
 

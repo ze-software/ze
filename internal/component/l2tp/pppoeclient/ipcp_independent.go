@@ -12,10 +12,19 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
+
+// defaultNoNCPIdleTimeout bounds how long LCP stays Opened while no NCP is
+// Opened (RFC 1661 Section 3.7). Matches ncpTimeout and ppp's defaultIPTimeout.
+const defaultNoNCPIdleTimeout = 30 * time.Second
+
+// errNoNCPIdleExpired reports that the no-NCP idle-period timer expired before
+// any NCP reached Opened, so the worker closed LCP and ends the session.
+var errNoNCPIdleExpired = errors.New("pppoe-client: no NCP opened within idle period")
 
 // ipcpRun says which IPCP negotiation runIPCP performs. Its zero value, or
 // one naming only ipv6, is the negotiation that enters the network phase:
@@ -26,10 +35,26 @@ import (
 // may be passing while IPCP renegotiates (RFC 7084 Section 4.2 WLL-3).
 // queued is a peer IPCP Configure-Request already read, which started the
 // renegotiation; runIPCP answers it after its own request.
+// lcpIdentifier points to the session's LCP Identifier sequence so Protocol-
+// Rejects emitted during IPCP advance the same sequence.
+// noNCPIdle returns the connected session's idle-period expiry channel when
+// renegotiating on an established link; nil during initial negotiation.
 type ipcpRun struct {
-	ipv6      *clientIPv6CP
-	applyIPv6 func(ipv6cpEvent) error
-	queued    *ppp.LCPPacket
+	ipv6          *clientIPv6CP
+	applyIPv6     func(ipv6cpEvent) error
+	queued        *ppp.LCPPacket
+	lcpIdentifier *uint8
+	noNCPIdle     func() <-chan time.Time
+}
+
+// idleChannel answers the current no-NCP idle expiry channel, or nil when no
+// idle timer applies to this run.
+func (run ipcpRun) idleChannel() <-chan time.Time {
+	// refuse-by-default: guards runIPCP -- initial negotiation has no connected idle timer and uses ncpTimeout
+	if run.noNCPIdle == nil {
+		return nil
+	}
+	return run.noNCPIdle()
 }
 
 // apply carries one IPv6CP event to the unit during a connected
@@ -140,7 +165,8 @@ func (s *connectedSession) leaveOpenedIPCP(buf []byte, pkt ppp.LCPPacket, stop <
 		if err := s.sendIPCPTerminate(buf, ppp.LCPTerminateAck, pkt.Identifier); err != nil {
 			return err
 		}
-		return s.waitForIPCP()
+		s.waitForIPCP()
+		return nil
 	case ppp.LCPCodeReject:
 		// RXJ-: IPCP sends only the seven codes it needs, so a Code-Reject of
 		// one of them is catastrophic and IPCP terminates (str).
@@ -148,13 +174,16 @@ func (s *connectedSession) leaveOpenedIPCP(buf []byte, pkt ppp.LCPPacket, stop <
 		if err := s.sendIPCPTerminate(buf, ppp.LCPTerminateRequest, s.ipcpIdentifier); err != nil {
 			return err
 		}
-		return s.waitForIPCP()
+		s.waitForIPCP()
+		return nil
 	case ppp.LCPConfigureRequest:
 		s.publish()
+		s.syncNoNCPIdle()
 		return s.renegotiateIPCP(buf, &pkt, stop, logger)
 	}
 	// RCA, RCN (Configure-Nak or Configure-Reject) and RTA.
 	s.publish()
+	s.syncNoNCPIdle()
 	return s.renegotiateIPCP(buf, nil, stop, logger)
 }
 
@@ -198,31 +227,39 @@ func (s *connectedSession) ipcpDown() error {
 	return nil
 }
 
-// waitForIPCP leaves IPCP Stopped, waiting for the peer to open it again,
-// and publishes the withdrawal of IPv4, unless no NCP is left on the link.
-func (s *connectedSession) waitForIPCP() error {
-	if err := s.ncpsRemaining(); err != nil {
-		return err
-	}
+// waitForIPCP leaves IPCP Stopped, publishes the withdrawal of IPv4, and
+// starts the no-NCP idle-period timer when no other NCP is Opened.
+// RFC 1661 Section 3.7: closing the last Opened NCP does not terminate LCP.
+func (s *connectedSession) waitForIPCP() {
 	s.publish()
-	return nil
+	s.syncNoNCPIdle()
 }
 
 // renegotiateIPCP runs IPCP again on the open link while LCP, and IPv6CP
 // when it runs, stay up. IPv4 is already discarded (ipcpDown). Success
-// publishes the new addresses and passes IPv4 again once the interface
-// consumer has applied them (awaitApplied). An IPCP-only failure
-// leaves IPCP Stopped and the link up while IPv6CP runs.
+// cancels the no-NCP idle timer, publishes the new addresses, and passes IPv4
+// again once the interface consumer has applied them (awaitApplied). An
+// IPCP-only failure leaves IPCP Stopped and LCP up under the no-NCP idle timer.
 func (s *connectedSession) renegotiateIPCP(buf []byte, queued *ppp.LCPPacket, stop <-chan struct{}, logger *slog.Logger) error {
-	run := ipcpRun{ipv6: s.ipv6, queued: queued, applyIPv6: func(event ipv6cpEvent) error {
-		return s.applyIPv6CP(event, logger)
-	}}
+	run := ipcpRun{
+		ipv6:          s.ipv6,
+		queued:        queued,
+		lcpIdentifier: &s.lcpIdentifier,
+		noNCPIdle:     s.noNCPIdleChannel,
+		applyIPv6: func(event ipv6cpEvent) error {
+			return s.applyIPv6CP(event, logger)
+		},
+	}
 	result, err := runIPCP(s.transport, s.reader, buf, s.current.magic, s.current.peerMRU, s.current.chap,
 		&s.ipcpIdentifier, stop, logger, &s.ipcpCodeRejectID, run)
+	if errors.Is(err, errNoNCPIdleExpired) {
+		return s.closeIdleLCP(buf, logger)
+	}
 	if stopped, ok := errors.AsType[ipcpStoppedError](err); ok {
 		logger.Warn("pppoe-client: IPCP stopped, so IPv4 stays down until the access concentrator opens IPCP again; check its IPv4 address pool",
 			"reason", stopped.reason)
-		return s.ncpsRemaining()
+		s.syncNoNCPIdle()
+		return nil
 	}
 	if err != nil {
 		return err
@@ -232,6 +269,7 @@ func (s *connectedSession) renegotiateIPCP(buf []byte, queued *ppp.LCPPacket, st
 	s.current.primaryDNS = result.primaryDNS
 	s.current.secondaryDNS = result.secondaryDNS
 	s.ipcpStopped = false
+	s.syncNoNCPIdle()
 	logger.Info("pppoe-client: IPCP reopened", "local-ip", result.localIP, "peer-ip", result.peerIP)
 	// IPv4 stays discarded until the interface carries the new addresses, so
 	// no packet leaves with the replaced source (connectedSession.restart).
@@ -246,18 +284,91 @@ func (s *connectedSession) renegotiateIPCP(buf []byte, queued *ppp.LCPPacket, st
 	return nil
 }
 
-// ncpsRemaining answers an error when no NCP is left on the link: IPCP is
-// Stopped and IPv6CP is neither Opened nor negotiating. The session then
-// ends and the dialer brings up a new one, as accel-ppp ends a PPP link once
-// every layer has finished (accel-pppd/ppp/ppp.c ppp_layer_finished).
-func (s *connectedSession) ncpsRemaining() error {
+// anyNCPOpened reports whether IPCP or IPv6CP is currently in the Opened state.
+func (s *connectedSession) anyNCPOpened() bool {
 	if !s.ipcpStopped {
-		return nil
+		return true
 	}
 	if s.ipv6 != nil {
-		if s.ipv6.running() {
-			return nil
-		}
+		return s.ipv6.opened()
 	}
-	return errors.New("pppoe-client: IPCP and IPv6CP are both down, so no network protocol runs on the session; the client will reconnect")
+	return false
+}
+
+// idleTimeout returns the configured no-NCP idle duration, defaulting to
+// defaultNoNCPIdleTimeout when unset.
+func (s *connectedSession) idleTimeout() time.Duration {
+	if s.noNCPIdleTimeout > 0 {
+		return s.noNCPIdleTimeout
+	}
+	return defaultNoNCPIdleTimeout
+}
+
+// syncNoNCPIdle keeps the no-NCP idle-period timer aligned with whether any
+// NCP is Opened. When no NCP is Opened, it arms the timer once without
+// resetting an already-armed timer, so repeated NCP events cannot extend the
+// idle period. When any NCP opens, it cancels the timer.
+//
+// RFC 1661 Section 3.7: "Conversely, the fact that one NCP has Closed is not
+// sufficient reason to cause the termination of the PPP link, even if that
+// NCP was the only NCP currently in the Opened state."
+// RFC 1661 Section 3.7: "This might happen because of the loss of carrier,
+// authentication failure, link quality failure, the expiration of an
+// idle-period timer, or the administrative closing of the link."
+func (s *connectedSession) syncNoNCPIdle() {
+	if s.anyNCPOpened() {
+		s.cancelNoNCPIdle()
+		return
+	}
+	if s.noNCPIdleArmed {
+		return
+	}
+	timeout := s.idleTimeout()
+	if s.noNCPIdle == nil {
+		s.noNCPIdle = time.NewTimer(timeout)
+	} else {
+		s.noNCPIdle.Reset(timeout)
+	}
+	s.noNCPIdleArmed = true
+}
+
+// cancelNoNCPIdle stops the no-NCP idle-period timer if running. Safe before
+// the first arm and safe to call repeatedly.
+func (s *connectedSession) cancelNoNCPIdle() {
+	if s.noNCPIdle != nil {
+		s.noNCPIdle.Stop()
+	}
+	s.noNCPIdleArmed = false
+}
+
+// noNCPIdleChannel returns the idle-period expiry channel while armed, or nil
+// when disabled so select ignores it.
+func (s *connectedSession) noNCPIdleChannel() <-chan time.Time {
+	if !s.noNCPIdleArmed {
+		return nil
+	}
+	if s.noNCPIdle == nil {
+		return nil
+	}
+	return s.noNCPIdle.C
+}
+
+// closeIdleLCP terminates LCP when the no-NCP idle-period timer expires and
+// returns the session-ending error.
+//
+// RFC 1661 Section 3.7: "PPP can terminate the link at any time.  This might
+// happen because of the loss of carrier, authentication failure, link quality
+// failure, the expiration of an idle-period timer, or the administrative
+// closing of the link."
+// RFC 1661 Section 3.7: "LCP is used to close the link through an exchange of
+// Terminate packets."
+func (s *connectedSession) closeIdleLCP(buf []byte, logger *slog.Logger) error {
+	s.cancelNoNCPIdle()
+	s.lcpIdentifier++
+	if err := sendLCPTerminateRequest(s.transport, buf, s.lcpIdentifier); err != nil {
+		reportLCPWriteFailure(logger, "no-ncp-idle", "pppoe-client: no-NCP idle timer expired and LCP Terminate-Request write failed", err)
+		return err
+	}
+	logger.Info("pppoe-client: no NCP opened within idle period; closing LCP", "timeout", s.idleTimeout())
+	return errNoNCPIdleExpired
 }

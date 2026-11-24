@@ -130,6 +130,16 @@ another. Linux then queues IPCP on the unit, not the channel (`ppp_input` and
 <!-- source: internal/component/l2tp/ppp/kernel/client_linux.go -- prepareOriginalClientPair -->
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateSession -->
 
+In the network phase, while LCP is Opened (in `runIPCP` and `keepaliveLoop`),
+any unsupported PPP protocol (such as CCP, an unknown protocol, or IPv6CP and
+IPv6 when `ipv6 enabled` is false) is answered with an LCP Protocol-Reject
+(`sendProtocolReject`, RFC 1661 Section 5.7) carrying a monotonically advancing
+LCP Identifier, the two-octet Rejected-Protocol, and the Rejected-Information
+truncated to the peer's MRU (1500 when none was negotiated). Supported
+protocols (LCP, PAP, CHAP, IPCP, IPv4, and IPv6CP/IPv6 when `ipv6 enabled` is
+true) are never Protocol-Rejected; supported network-layer packets received
+while their NCP is not Opened are silently discarded (RFC 1661 Section 3.6).
+
 In the network phase, the consumer answers
 an IPCP packet with an unknown Code with a Code-Reject whose Identifier goes on
 from the last one IPCP negotiation sent. Any other IPCP packet takes IPCP out
@@ -142,10 +152,13 @@ arrive; a Terminate-Request is answered with a Terminate-Ack, and a
 Code-Reject with a Terminate-Request, and IPCP then waits Stopped until the
 access concentrator sends a Configure-Request. A renegotiation that the peer
 terminates, refuses the address for, or never completes leaves IPCP Stopped.
-The session ends only when no NCP is left: IPCP Stopped and IPv6CP neither
-Opened nor negotiating, as accel-ppp ends a link once every layer has finished
-(`accel-pppd/ppp/ppp.c`, `ppp_layer_finished`). An IPv4-only session therefore
-still ends on an IPCP Terminate-Request. An LCP Configure-Request starts
+Closing the last Opened NCP does not end LCP immediately (RFC 1661 Section
+3.7): the family is withdrawn and a bounded no-NCP idle-period timer (30
+seconds by default, `defaultNoNCPIdleTimeout`) starts once and is not reset by
+repeated no-NCP events. Reopening IPCP or IPv6CP, or starting an LCP restart,
+cancels the timer; when the idle period expires with no NCP Opened, the client
+transmits an LCP Terminate-Request (`closeIdleLCP`) and ends the session. An
+LCP Configure-Request starts
 in-session renegotiation of every phase. Cleanup disconnects the exact attached
 pair while both original files remain live, then physically closes the channel
 to stop transport/read waits. After the phase, discovery and receive workers
@@ -162,8 +175,9 @@ for one attempt and releases it before retry. Original-file leases prevent
 descriptor reuse during native operations.
 Initial negotiation failures have no phase worker to join.
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial, cleanupConnected -->
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- runIPCP, clientSupportsProtocol, sendProtocolReject, sendLCPTerminateRequest -->
 <!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
-<!-- source: internal/component/l2tp/pppoeclient/ipcp_independent.go -- handleIPCP, leaveOpenedIPCP, answerStoppedIPCP, renegotiateIPCP, ncpsRemaining -->
+<!-- source: internal/component/l2tp/pppoeclient/ipcp_independent.go -- handleIPCP, leaveOpenedIPCP, answerStoppedIPCP, renegotiateIPCP, syncNoNCPIdle, closeIdleLCP -->
 
 ### IPv6CP
 

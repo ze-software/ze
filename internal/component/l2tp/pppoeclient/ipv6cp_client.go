@@ -36,9 +36,9 @@ const (
 )
 
 // clientIPv6CP is the PPPoE client's IPv6CP automaton (RFC 5072 over the RFC
-// 1661 option negotiation). It runs beside IPCP and ends the session only
-// when IPCP is down too (connectedSession.ncpsRemaining): a peer that rejects
-// or ignores IPv6CP leaves IPv4 up.
+// 1661 option negotiation). It runs beside IPCP and leaves LCP up under the
+// no-NCP idle-period timer when both NCPs are down (connectedSession.syncNoNCPIdle):
+// a peer that rejects or ignores IPv6CP leaves IPv4 up.
 //
 // RFC 7084 Section 4.2 WLL-3: "If the WAN interface supports PPP
 // encapsulation, in a dual-stack environment with IPCP and IPV6CP running
@@ -141,8 +141,7 @@ func (c *clientIPv6CP) lowerDown() ipv6cpEvent {
 
 // running reports whether IPv6CP is Opened or still on its way there or out:
 // every RFC 1661 Section 4.1 state before This-Layer-Finished. Initial,
-// Starting, Closed and Stopped have finished, so IPv6CP then keeps no link up
-// (connectedSession.ncpsRemaining).
+// Starting, Closed and Stopped have finished.
 func (c *clientIPv6CP) running() bool {
 	switch c.state {
 	case ppp.LCPStateReqSent, ppp.LCPStateAckRcvd, ppp.LCPStateAckSent, ppp.LCPStateOpened,
@@ -597,6 +596,7 @@ func (s *connectedSession) applyIPv6CP(event ipv6cpEvent, logger *slog.Logger) e
 		recordIPv6CPOpened(s.cfg.name, true)
 		logger.Info("pppoe-client: IPv6CP opened", "link-local", s.linkLocal)
 		s.publish()
+		s.syncNoNCPIdle()
 		return nil
 	case ipv6cpClosed:
 		// The gauge drops before the mode change: IPv6CP left Opened, so the
@@ -608,6 +608,7 @@ func (s *connectedSession) applyIPv6CP(event ipv6cpEvent, logger *slog.Logger) e
 		s.linkLocal = netip.Addr{}
 		logger.Info("pppoe-client: IPv6CP closed")
 		s.publish()
+		s.syncNoNCPIdle()
 		return nil
 	case ipv6cpEventUnspecified:
 		return errors.New("pppoe-client: IPv6CP produced no event")

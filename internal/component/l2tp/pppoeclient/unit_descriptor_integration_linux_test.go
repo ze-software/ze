@@ -31,7 +31,8 @@ import (
 // (ppp_input and ppp_receive_nonmp_frame, drivers/net/ppp/ppp_generic.c), so
 // the client answers them only if it reads the unit. The test requires an IPCP
 // Code-Reject of the Code 12 packet, then an IPCP Terminate-Ack carrying the
-// request's Identifier, then Done closed.
+// request's Identifier, then IPv4 withdrawn on Changes while Done remains open
+// under RFC 1661 Section 3.7.
 //
 // It runs in its own user, network and mount namespace (userns.Enter), as
 // TestPADTRetainsUnitUntilOwnerCleanup does, and needs /dev/ppp read-write.
@@ -167,8 +168,16 @@ func TestClientAnswersIPCPOnTheUnitDescriptor(t *testing.T) {
 		t.Fatalf("IPCP Terminate-Ack Identifier 0x%02x, want the request's 0x5a", ack.Identifier)
 	}
 	select {
-	case <-sess.Done:
+	case change := <-sess.Changes:
+		if change.LocalIP.IsValid() || change.PeerIP.IsValid() {
+			t.Fatalf("IPv4 %v/%v still published after IPCP Terminate-Request", change.LocalIP, change.PeerIP)
+		}
 	case <-ctx.Done():
-		t.Fatal("the session outlived an IPCP Terminate-Request")
+		t.Fatal("the client did not withdraw IPv4 after IPCP Terminate-Request")
+	}
+	select {
+	case <-sess.Done:
+		t.Fatal("the session ended immediately on IPCP Terminate-Request; RFC 1661 Section 3.7 keeps LCP up")
+	default:
 	}
 }
