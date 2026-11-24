@@ -126,6 +126,7 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/update-cmd/cmd"
 
 	// Event namespace packages -- events.RegisterNamespace registration.
+	_ "github.com/ze-software/ze/internal/component/command"
 	_ "github.com/ze-software/ze/internal/component/config/transaction"
 
 	// RPC command packages -- pluginserver.RegisterRPCs registration.

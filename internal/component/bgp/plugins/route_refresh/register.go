@@ -9,10 +9,16 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/route_refresh/yang" // init() registers the refresh api and command modules
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 func init() {
+	if err := events.RegisterMessage(bgpevents.Namespace, bgpevents.SendEnhancedRefresh); err != nil {
+		panic("BUG: route-refresh: register message enhanced-refresh: " + err.Error())
+	}
+
 	reg := registry.Registration{
 		Name:            "bgp-route-refresh",
 		Description:     "Route Refresh capability decoding",
@@ -22,7 +28,6 @@ func init() {
 		ConfigRoots:     []string{configRootBGP},
 		Dependencies:    []string{configRootBGP},
 		CapabilityCodes: []uint8{2, 70},
-		SendTypes:       []string{"enhanced-refresh"},
 		RunEngine:       RunRouteRefreshPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecodeMode(input, output)

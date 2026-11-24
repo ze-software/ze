@@ -116,6 +116,18 @@ type PluginRegistration struct {
 	// callback. See registry.Registration.Claims.
 	Claims []string
 
+	// ParticipantNodes declares the YANG schema nodes whose configured entries
+	// are participants of this plugin's kind on the message bus.
+	ParticipantNodes []rpc.ParticipantNodeDecl
+
+	// Sends declares the bus messages this participant may send, with their
+	// tags and default destinations.
+	Sends []rpc.MessageSendDecl
+
+	// Receives declares the bus messages this participant is willing to
+	// receive, with default senders and registered tag filters.
+	Receives []rpc.MessageReceiveDecl
+
 	// Dissemination is the validated Stage 1 peer-role declaration. Actual
 	// peer attachments remain the only source of receive/send permission.
 	Dissemination []rpc.DisseminationDecl

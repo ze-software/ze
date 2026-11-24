@@ -154,6 +154,33 @@ func stage1Cases() map[string]stage1Case {
 				return "invalid help text: " + stage1Subject + ": " + mustFail(t, validateHelpDecls(in.Commands))
 			},
 		},
+		"participant-nodes": {
+			failing: &rpc.DeclareRegistrationInput{
+				ProtocolVersion:  rpc.ProtocolVersion,
+				ParticipantNodes: []rpc.ParticipantNodeDecl{{SchemaPath: ""}},
+			},
+			want: func(t *testing.T, in *rpc.DeclareRegistrationInput) string {
+				return mustFail(t, registry.CheckParticipantNodeDecls(stage1Subject, in.ParticipantNodes))
+			},
+		},
+		"bus-sends": {
+			failing: &rpc.DeclareRegistrationInput{
+				ProtocolVersion: rpc.ProtocolVersion,
+				Sends:           []rpc.MessageSendDecl{{Message: "missing-namespace"}},
+			},
+			want: func(t *testing.T, in *rpc.DeclareRegistrationInput) string {
+				return mustFail(t, registry.CheckMessageSendDecls(stage1Subject, in.Sends))
+			},
+		},
+		"bus-receives": {
+			failing: &rpc.DeclareRegistrationInput{
+				ProtocolVersion: rpc.ProtocolVersion,
+				Receives:        []rpc.MessageReceiveDecl{{Message: "bad\x1b:msg"}},
+			},
+			want: func(t *testing.T, in *rpc.DeclareRegistrationInput) string {
+				return mustFail(t, registry.CheckMessageReceiveDecls(stage1Subject, in.Receives))
+			},
+		},
 		"command-nodes-served": {
 			// The declaration brings a -cmd module with two command nodes and
 			// declares a command for one: a checker joins the module itself.
@@ -293,7 +320,7 @@ func TestJudgeDeclarationNamesTheChecksItCannotJudge(t *testing.T) {
 		assert.NotEmpty(t, check.Section, "%s: no section", check.Check)
 	}
 	assert.Equal(t, []string{
-		"ambiguous-registration", "terminal-cleanup-agreement", "doctor-check-declared-twice", "respawn-agreement",
+		"ambiguous-registration", "terminal-cleanup-agreement", "doctor-check-declared-twice", "bus-declaration-agreement", "respawn-agreement",
 		"schema-unchanged", "dependencies", "registration-conflicts",
 	}, unjudged)
 	assert.Len(t, judgement.Verdicts, len(stage1Checks)-len(unjudged))
@@ -315,7 +342,7 @@ func TestTheServerFillsTheDeclarationJudgeSeam(t *testing.T) {
 // PREVENTS: the table changing what a plugin reads when the daemon refuses it.
 func TestOnRegistrationRefusesWithTheSameText(t *testing.T) {
 	cases := stage1Cases()
-	sinkChecks := []string{"drain", "resolver-caches", "doctor-checks", "enrichers", "pipe-aliases", "answer-shapes", "help-texts"}
+	sinkChecks := []string{"drain", "resolver-caches", "doctor-checks", "enrichers", "pipe-aliases", "answer-shapes", "help-texts", "participant-nodes", "bus-sends", "bus-receives"}
 
 	s, _ := newLifecycleStartupServer(t)
 	newSink := func() *engineStartupSink {

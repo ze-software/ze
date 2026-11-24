@@ -519,15 +519,12 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 	// Register typed batch-validate handler for DirectBridge fast path.
 	rpc.RegisterBatchValidator(r.handleBatchValidateTyped)
 
-	// Subscribe to received events with format=full (includes raw hex bytes).
-	// update-filtered carries route-server client UPDATEs denied on ingress
-	// (RFC 7947 Section 2.1) and reaches only subscribers asking for it.
-	p.SetStartupSubscriptions([]string{"update direction received", "update-filtered direction received", "state"}, nil, "full")
-	// The selecting RIB's flowspec-gate, and gate-query from a reader that
-	// needs this store's validation gate announced again; enveloped, so
-	// handleGateEvent tells them from the BGP events.
-	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventFlowSpecGate, ribevents.EventGateQuery})
-	p.AddStartupSubscriptionsIn(retention.Namespace, []string{retention.EventType, retention.CleanupEventType})
+	// Event subscriptions come from Stage 1 Receives (adjRIBInBusReceives in
+	// register.go), including received update, received update-filtered
+	// (RFC 7947 Section 2.1), state, ribevents, and retention. Request
+	// format=full (raw hex bytes) and enveloped delivery so handleGateEvent
+	// distinguishes non-BGP events from BGP events.
+	p.SetEventFormat("full")
 	p.SetEnvelope(true)
 	// Once the subscriptions are live, ask the RIB to announce its
 	// flowspec-gate again, in case it announced before this store subscribed.
@@ -538,6 +535,8 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 	err := p.Run(ctx, &sdk.Registration{
 		SignalsSessionReady: true,
 		Commands:            commandDecls(),
+		Sends:               adjRIBInBusSends(),
+		Receives:            adjRIBInBusReceives(),
 		FailurePolicy:       rpc.FailureFatal,
 	})
 	// Run drains SDK callbacks, but the scanner owns its own publication. Join

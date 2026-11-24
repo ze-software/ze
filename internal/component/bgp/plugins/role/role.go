@@ -418,8 +418,9 @@ func RunRolePlugin(conn net.Conn) int {
 
 	// A validator receives each OPEN and the peer's removal for its complete
 	// observation lifetime, including intervals with no role filter member.
-	// The state subscription intersects that generic removal grant.
-	p.SetStartupSubscriptions([]string{"state"}, nil, "full")
+	// The state reception (roleBusReceives in register.go) intersects that
+	// generic removal grant.
+	p.SetEventFormat("full")
 	p.OnStructuredEvent(handleRoleStructuredEvents)
 	p.OnEvent(handleRoleEvent)
 
@@ -434,6 +435,7 @@ func RunRolePlugin(conn net.Conn) int {
 		WantsConfig:      []string{configRootBGP, policy.RootName},
 		Filters:          roleFilterDecls(),
 		FilterInsertions: roleInsertions(),
+		Receives:         roleBusReceives(),
 	})
 	if err != nil {
 		logger().Error("role plugin failed", "error", err)

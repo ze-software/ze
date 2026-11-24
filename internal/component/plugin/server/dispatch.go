@@ -246,44 +246,30 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 	s.reconcileDelivery(proc)
 }
 
-// resolveSubscriptionNamespace resolves the namespace for a subscribe block.
-// An explicit namespace (Gap A) wins and is validated against the registry:
-// an unknown one is logged and the whole block is skipped (ok=false) rather
-// than registering silently-dead subscriptions under NamespaceUnknown. An
-// empty namespace falls back to the default registered by the owning protocol
-// component ("bgp" today) -- the exact pre-Gap-A behavior; a missing default
-// is logged but still returns ok=true to preserve that legacy warn-and-continue.
-// defaultEventNamespace answers the namespace a block that names none resolves
-// to. It is a var rather than a direct call so a test can drive the branch
-// where no protocol component registered one: every server test binary links
-// the composition root, whose BGP component registers "bgp" from init(), and
-// the registry has no reset. Same test seam as pluginStopGrace in
-// process/manager.go: never written outside a test.
-var defaultEventNamespace = plugin.DefaultEventNamespace
-
+// resolveSubscriptionNamespace validates an explicit subscription namespace
+// against the unified event registry. Every subscription must carry an explicit
+// namespace; an empty or unknown namespace is logged, recorded as a drop on
+// proc, and skipped (ok=false) so no dead NamespaceUnknown subscription is
+// registered.
 func (s *Server) resolveSubscriptionNamespace(proc *process.Process, requested string) (events.NamespaceID, string, bool) {
-	if requested != "" {
-		if !events.IsValidNamespace(requested) {
-			valid := events.ValidNamespaceNames()
-			logger().Warn("rpc event subscription: unknown namespace, skipping subscriptions",
-				"plugin", proc.Name(), "namespace", requested, "valid", valid,
-				"code", CodeDoctorPluginSubscriptionDropped)
-			proc.RecordSubscriptionDrop(process.SubscriptionDrop{
-				Cause: process.SubscriptionDropUnknownNamespace, Namespace: requested,
-				Detail: "valid namespaces: " + valid,
-			})
-			return events.NamespaceUnknown, "", false
-		}
-		return events.LookupNamespaceID(requested), requested, true
-	}
-
-	namespace := defaultEventNamespace()
-	if namespace == "" {
-		logger().Warn("rpc event subscription: no default event namespace registered, subscriptions will not match (call plugin.RegisterDefaultEventNamespace from the protocol component's register.go)",
+	if requested == "" {
+		logger().Warn("rpc event subscription: missing explicit namespace, skipping subscriptions",
 			"plugin", proc.Name(), "code", CodeDoctorPluginSubscriptionDropped)
 		proc.RecordSubscriptionDrop(process.SubscriptionDrop{Cause: process.SubscriptionDropNoDefaultNamespace})
+		return events.NamespaceUnknown, "", false
 	}
-	return events.LookupNamespaceID(namespace), namespace, true
+	if !events.IsValidNamespace(requested) {
+		valid := events.ValidNamespaceNames()
+		logger().Warn("rpc event subscription: unknown namespace, skipping subscriptions",
+			"plugin", proc.Name(), "namespace", requested, "valid", valid,
+			"code", CodeDoctorPluginSubscriptionDropped)
+		proc.RecordSubscriptionDrop(process.SubscriptionDrop{
+			Cause: process.SubscriptionDropUnknownNamespace, Namespace: requested,
+			Detail: "valid namespaces: " + valid,
+		})
+		return events.NamespaceUnknown, "", false
+	}
+	return events.LookupNamespaceID(requested), requested, true
 }
 
 // emitEvent is the JSON wrapper for emit-event (RPC and Direct).

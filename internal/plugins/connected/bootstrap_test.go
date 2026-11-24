@@ -36,6 +36,7 @@ type bootstrapHost struct {
 	seen        chan string
 	rib         *locrib.RIB
 	mu          sync.Mutex
+	reg         rpc.DeclareRegistrationInput
 	ready       rpc.ReadyInput
 	requests    int
 	batches     []redistevents.RouteChangeBatch
@@ -68,6 +69,12 @@ func (h *bootstrapHost) serve() {
 func (h *bootstrapHost) answer(method string, body json.RawMessage) (any, error) {
 	switch method {
 	case rpc.MethodDeclareRegistration:
+		h.mu.Lock()
+		err := json.Unmarshal(body, &h.reg)
+		h.mu.Unlock()
+		if err != nil {
+			return nil, err
+		}
 		return rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}, nil
 	case "ze-plugin-engine:ready":
 		h.mu.Lock()
@@ -277,25 +284,17 @@ func startBootstrapConsumer(t *testing.T, mode string, addresses map[string]json
 	if h.requests != 1 {
 		t.Fatalf("connected sent %d address replay requests after ready, want 1 for the warm owner", h.requests)
 	}
-	if h.ready.Subscribe == nil {
-		t.Fatal("connected registered no atomic startup subscriptions")
+	if !h.ready.Envelope {
+		t.Fatalf("ready envelope = false, want true")
 	}
-	if h.ready.Subscribe.Namespace != ifaceevents.Namespace || !h.ready.Subscribe.Envelope {
-		t.Fatalf("interface startup subscription = %+v, want interface envelope", h.ready.Subscribe)
-	}
-	for _, event := range []string{ifaceevents.EventAddrAdded, ifaceevents.EventAddrRemoved} {
-		if !slices.Contains(h.ready.Subscribe.Events, event) {
-			t.Fatalf("startup subscription omits %s", event)
+	for _, msg := range []string{
+		ifaceevents.Namespace + ":" + ifaceevents.EventAddrAdded,
+		ifaceevents.Namespace + ":" + ifaceevents.EventAddrRemoved,
+		redistevents.ReplayNamespace + ":" + redistevents.ReplayRequestEventType,
+	} {
+		if !slices.ContainsFunc(h.reg.Receives, func(decl rpc.MessageReceiveDecl) bool { return decl.Message == msg }) {
+			t.Fatalf("Stage 1 receives %+v omits %s", h.reg.Receives, msg)
 		}
-	}
-	replay := false
-	for _, sub := range h.ready.Subscriptions {
-		if sub.Namespace == redistevents.ReplayNamespace && slices.Contains(sub.Events, redistevents.ReplayRequestEventType) {
-			replay = true
-		}
-	}
-	if !replay {
-		t.Fatal("redistribution replay was not subscribed atomically with ready")
 	}
 	return h
 }

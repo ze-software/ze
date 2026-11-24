@@ -94,9 +94,8 @@ var ErrCustomValidation = errors.New("config validation failed")
 // radius. AddressFamilyValidator reads registry.FamilyMap(), which excludes the
 // builtin families, so adding `bgp` and `redistribute` would refuse 742 + 33
 // family sites across 687 shipped configs. `send-message-type` and
-// `receive-event-type` read registries that RegisterPluginSendTypes populates
-// from PeersFromTree and NewServer, both strictly later than LoadConfig, so
-// they would fail closed on valid input at exactly the point this walk runs.
+// `receive-event-type` read the unified BGP message registry (until attach is
+// removed in favor of bus filters).
 var validatedSections = []string{
 	sectionInterface, "sysctl", "fib", sectionPlugin, sectionWeb, "ssh", "dns",
 	sectionTelemetry, sectionLookingGlass, "mcp", "managed", "vpp",

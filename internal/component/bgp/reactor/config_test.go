@@ -978,7 +978,7 @@ func TestParseReceiveRefusesRetiredSentToken(t *testing.T) {
 // TestEveryStartupSubscriptionIsExpressible verifies that every in-tree
 // plugin's startup declaration can be stated in a peer's receive list.
 //
-// Plugin rows come from their SetStartupSubscriptions calls. The synthetic
+// Plugin rows come from their Stage 1 Receives declarations. The synthetic
 // mixed-directions row preserves independent sent-update and received-open
 // coverage without attributing that declaration to a registered plugin.
 //
@@ -1143,7 +1143,7 @@ func TestAutoLoadTypesSkipBaseTokens(t *testing.T) {
 	require.NoError(t, parseReceiveFlags("*", &wild))
 	assert.Empty(t, wild.AutoLoadReceiveTypes(), "the wildcard names no type to load a plugin for")
 
-	require.NoError(t, events.RegisterSendType("test-send-autoload"))
+	require.NoError(t, events.RegisterMessage(bgpevents.Namespace, "test-send-autoload"))
 	var send ProcessBinding
 	require.NoError(t, parseSendFlags("update test-send-autoload", &send))
 	assert.Equal(t, []string{"test-send-autoload"}, send.AutoLoadSendTypes())
@@ -1249,7 +1249,7 @@ func TestParseSendFlagsMixedValidInvalid(t *testing.T) {
 // VALIDATES: AC-1: Plugin registers SendTypes and they are accepted in config.
 // PREVENTS: Dynamically registered send types rejected by config parser.
 func TestParseOneSendFlagDynamic(t *testing.T) {
-	require.NoError(t, events.RegisterSendType("enhanced-refresh"))
+	require.NoError(t, events.RegisterMessage(bgpevents.Namespace, "enhanced-refresh"))
 	defer func() {}()
 
 	var b ProcessBinding

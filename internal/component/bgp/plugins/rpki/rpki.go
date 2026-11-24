@@ -450,15 +450,16 @@ func runRPKIPlugin(conn net.Conn) int {
 		return rp.replaceConfig(nil, current)
 	})
 
-	p.SetStartupSubscriptions([]string{"update direction received", "state"}, nil, "full")
+	p.SetEventFormat("full")
+	p.SetEnvelope(true)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	p.AddStartupSubscriptionsIn(retention.Namespace, []string{retention.EventType, retention.CleanupEventType})
-	p.SetEnvelope(true)
 	err := p.Run(ctx, &sdk.Registration{
 		Commands: commandDecls(),
 		Pipes:    pipeDecls(),
+		Sends:    rpkiBusSends(),
+		Receives: rpkiBusReceives(),
 		// pki is not repeated here: the registry's ConfigReads declares it, and
 		// the server joins it to what this plugin receives (joinConfigReads).
 		WantsConfig: []string{configRootBGP},

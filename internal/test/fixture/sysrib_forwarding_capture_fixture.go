@@ -41,7 +41,8 @@ func newSysribFIBCapture(prefixes ...string) *sysribFIBCapture {
 }
 
 func (c *sysribFIBCapture) setup(p *sdk.Plugin) error {
-	p.SetStartupSubscriptionsIn(sysribevents.Namespace, []string{sysribevents.EventBestChange}, nil, "json")
+	declareObserverReceives(p, nsReceiveDecls(sysribevents.Namespace, []string{sysribevents.EventBestChange}, nil)...)
+	p.SetEventFormat("json")
 	p.SetEnvelope(true)
 	p.OnEvent(func(event string) error {
 		envelope, err := rpc.ParseEventEnvelope(event)

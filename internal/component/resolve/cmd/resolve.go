@@ -9,15 +9,13 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/ze-software/ze/internal/core/bgp/asn"
-
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/resolve"
-
-	// Blank import triggers YANG schema registration.
-	"github.com/ze-software/ze/internal/component/command"
 	_ "github.com/ze-software/ze/internal/component/resolve/yang"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
+	"github.com/ze-software/ze/internal/core/events"
 )
 
 // argType is the CLI argument keyword that introduces a DNS record type.
@@ -60,6 +58,10 @@ func SetResolvers(r *resolve.Resolvers) {
 }
 
 func init() {
+	_ = events.RegisterNamespace("resolve", "dns")
+	if err := events.RegisterMessage("resolve", "dns"); err != nil {
+		panic("BUG: resolve: register message dns: " + err.Error())
+	}
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:dns-a", Handler: handleDNSA},
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:dns-aaaa", Handler: handleDNSAAAA},

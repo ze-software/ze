@@ -53,6 +53,12 @@ func init() {
 	registerVRRP()
 }
 
+func vrrpSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: Namespace + ":" + EventStateChange},
+	}
+}
+
 func registerVRRP() {
 	_ = events.RegisterNamespace(Namespace, EventStateChange)
 	registerVRRPDiagnosticCodes()
@@ -95,6 +101,7 @@ func registerVRRP() {
 		// plugin is ordered first when both run (./le plugin coupling check).
 		StartAfter:              []string{"firewall"},
 		RFCs:                    []string{"9568", "3768"},
+		Sends:                   vrrpSends(),
 		RunEngine:               runVRRPEngine,
 		Commands:                commandDecls(),
 		InProcessConfigVerifier: verifyVRRPConfigSections,
@@ -141,7 +148,7 @@ func verifyVRRPConfigSections(sections []rpc.ConfigSection) error {
 	if err := validateNoProxyARP(rpcConfigSections(sections)); err != nil {
 		return err
 	}
-	return validateGroups(specs, ifaceBackend(rpcConfigSections(sections)))
+	return validateGroups(specs)
 }
 
 func rpcConfigSections(sections []rpc.ConfigSection) []configSection {
@@ -252,6 +259,7 @@ func runVRRPEngine(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		Sends:        vrrpSends(),
 	}); err != nil {
 		log.Error("vrrp: plugin failed", "error", err)
 		return 1
@@ -278,7 +286,7 @@ func registerVRRPDoctor() {
 		Component:    pluginName,
 		Dependencies: []string{"config-tree"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{codeVRRPConfigInvalid, codeVRRPBackendUnusable},
+		Codes:        []string{codeVRRPConfigInvalid},
 		Check:        checkVRRPConfigSanity,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
@@ -351,7 +359,7 @@ func parseAndVerify(sections []configSection) ([]GroupSpec, error) {
 	if err := validateNoProxyARP(sections); err != nil {
 		return nil, err
 	}
-	if err := validateGroups(specs, ifaceBackend(sections)); err != nil {
+	if err := validateGroups(specs); err != nil {
 		return nil, err
 	}
 	return specs, nil

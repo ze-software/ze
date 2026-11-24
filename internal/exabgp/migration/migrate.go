@@ -1173,8 +1173,8 @@ func bindRIBProcess(peer, src *config.Tree) {
 	sendFlags += " ]"
 	ribProcess.Set("send", sendFlags)
 
-	// Receive flags: what bgp-rib DECLARES it consumes (rib.go
-	// SetStartupSubscriptions -- update in both directions, state, refresh).
+	// Receive flags: what bgp-rib DECLARES it consumes (register.go
+	// ribBusReceives -- update in both directions, state, refresh).
 	// Delivery is the overlap of the declaration and this grant
 	// (pluginserver.Server.PeerScopedProcs), so a narrower grant here silently
 	// costs the plugin the peer-up replay that `state` drives.

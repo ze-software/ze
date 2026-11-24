@@ -30,10 +30,12 @@ func replayPermissionClaimant(ctx context.Context, args []string) error {
 		return fmt.Errorf("connect replay permission claimant: %w", err)
 	}
 	defer plugin.Close() //nolint:errcheck // the Run result carries transport failures
-	plugin.SetStartupSubscriptions([]string{eventState}, nil, "")
 	plugin.OnEvent(func(string) error { return nil })
 	plugin.OnBye(func(string) error { return nil })
-	return plugin.Run(ctx, &sdk.Registration{Claims: []string{"bgp-peer-up-replay"}})
+	return plugin.Run(ctx, &sdk.Registration{
+		Claims:   []string{"bgp-peer-up-replay"},
+		Receives: bgpReceiveDecls([]string{eventState}, nil),
+	})
 }
 
 // These DTOs decode the existing operator command. Their zero values mean a

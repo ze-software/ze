@@ -37,9 +37,30 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	vppevents "github.com/ze-software/ze/internal/core/vpp/events"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func ifaceSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventDefault},
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventClearSourceDefaults},
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventClearProfileDefaults},
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventSet},
+		{Message: dnssource.Namespace + ":" + dnssource.SnapshotRequestEventType},
+		{Message: dnssource.Namespace + ":" + dnssource.PublicationEventType},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventRollback},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventCreated},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventUp},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventDown},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventAddrAdded},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventAddrRemoved},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventRouterDiscovered},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventRouterLost},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventNDUserOption},
+	}
+}
 
 // pppoeClientResolverOrigin is the resolv.conf origin of the servers a PPPoE
 // client learns from IPCP (RFC 1877). Rank 300 lists them after the DHCPv4
@@ -231,6 +252,7 @@ func init() {
 		}},
 		InProcessConfigVerifier: verifyIfaceConfig,
 		Commands:                commandDecls(),
+		Sends:                   ifaceSends(),
 		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -1070,6 +1092,7 @@ func runEngine(conn net.Conn) int {
 		VerifyBudget:     2,
 		ApplyBudget:      10,
 		Commands:         commandDecls(),
+		Sends:            ifaceSends(),
 		DoctorChecks:     []sdk.DoctorCheckDecl{pppoeCleanupDoctorDeclaration()},
 	}); err != nil {
 		log.Error("interface plugin failed", "error", err)

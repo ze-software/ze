@@ -33,6 +33,13 @@ var srv6OwnershipKey = zefs.MustRegister(zefs.KeyEntry{
 	Description: "VPP SRv6 policy, steering and ordinary fallback ownership (JSON)",
 })
 
+func fibVPPSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: mplsfib.Namespace + ":" + mplsfib.EventReplayRequest},
+		{Message: sysribevents.Namespace + ":" + sysribevents.EventReplayRequest},
+	}
+}
+
 func init() {
 	statestore.RegisterPluginKeys("fib-vpp", srv6OwnershipKey)
 	reg := registry.Registration{
@@ -49,6 +56,7 @@ func init() {
 		ProgramsFIB: true,
 		DataPlane:   "vpp",
 		YANG:        fibvppyang.ZeFibVPPConfYANG,
+		Sends:       fibVPPSends(),
 		RunEngine:   runFibVPPPlugin,
 		Commands:    commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -257,6 +265,7 @@ func engineRegistration() *sdk.Registration {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		Sends:        fibVPPSends(),
 		DoctorChecks: []rpc.DoctorCheckDecl{labelEntriesCheckDecl, staleRoutesCheckDecl, srv6CheckDecl},
 	}
 }

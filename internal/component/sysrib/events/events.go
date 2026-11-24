@@ -20,10 +20,12 @@ import (
 // Namespace is the event namespace for the system RIB plugin.
 const Namespace = "system-rib"
 
-// System-RIB event types.
+// System-RIB event and message types.
 const (
 	EventBestChange    = "best-change"    // sysrib published a system-wide best change
 	EventReplayRequest = "replay-request" // downstream consumer asking sysrib to replay
+	EventRouteInstall  = "route-install"  // plugin installing or removing a route in the system Loc-RIB
+	EventRouteMetrics  = "route-metrics"  // plugin querying route metrics from the system Loc-RIB
 )
 
 // RouteType identifies the forwarding action for a FIB entry. It is an alias

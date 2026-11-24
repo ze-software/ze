@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/plugin/registry"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 // TestInternalPluginRunnerRegistry verifies all internal plugins have runners.
@@ -183,31 +183,6 @@ func TestGetPluginForFamily(t *testing.T) {
 		t.Run(tt.family, func(t *testing.T) {
 			got := GetPluginForFamily(tt.family)
 			assert.Equal(t, tt.want, got, "family %q should map to plugin %q", tt.family, tt.want)
-		})
-	}
-}
-
-// TestGetPluginForEventType verifies event-type-to-plugin mapping.
-//
-// VALIDATES: Each event type maps to the correct producing plugin.
-// PREVENTS: Custom event types not auto-loading their producing plugins.
-func TestGetPluginForEventType(t *testing.T) {
-	tests := []struct {
-		name      string
-		eventType string
-		want      string
-	}{
-		// Known event type registered by bgp-rpki-decorator
-		{"update_rpki", "update-rpki", "bgp-rpki-decorator"},
-		// Unknown event types
-		{"unknown", "unknown-event", ""},
-		{"empty", "", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := GetPluginForEventType(tt.eventType)
-			assert.Equal(t, tt.want, got, "event type %q should map to plugin %q", tt.eventType, tt.want)
 		})
 	}
 }

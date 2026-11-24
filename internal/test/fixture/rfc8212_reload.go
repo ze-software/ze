@@ -21,9 +21,12 @@ func rfc8212ReloadDriver(scenario func(context.Context, *sdk.Plugin, *rfc8212Rel
 		}
 		wire := newRFC8212ReloadWire()
 		wire.snapshot = rfc8212DownstreamFile
-		return observeConfigured(ctx, "rfc8212-reload", &sdk.Registration{}, func(p *sdk.Plugin) error {
+		reg := &sdk.Registration{
+			Receives: bgpReceiveDecls([]string{eventUpdate, eventState}, nil),
+		}
+		return observeConfigured(ctx, "rfc8212-reload", reg, func(p *sdk.Plugin) error {
 			p.OnEvent(wire.receive)
-			p.SetStartupSubscriptions([]string{eventUpdate, eventState}, []string{"*"}, "full")
+			p.SetEventFormat("full")
 			return nil
 		}, func(ctx context.Context, p *sdk.Plugin) error {
 			defer wire.reportDiagnostics()

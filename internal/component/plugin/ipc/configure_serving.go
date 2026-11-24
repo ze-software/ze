@@ -14,14 +14,14 @@ import (
 // A serve error cancels and joins the configure waiter before returning it.
 // The caller MUST own startup reads exclusively. The mux remains the only wire
 // reader. Non-mux legacy connections keep their sequential configure behavior.
-func (pc *PluginConn) SendConfigureServing(ctx context.Context, sections []rpc.ConfigSection, claims []string, serve func(*rpc.Request) (bool, error)) error {
+func (pc *PluginConn) SendConfigureServing(ctx context.Context, sections []rpc.ConfigSection, claims []string, busCatalog []rpc.BusCatalogEntry, serve func(*rpc.Request) (bool, error)) error {
 	if pc.mux == nil {
-		return pc.SendConfigure(ctx, sections, claims)
+		return pc.SendConfigure(ctx, sections, claims, busCatalog)
 	}
 	configureCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	// One lifecycle worker for Stage 2, never one goroutine per nested request.
-	go func() { done <- pc.SendConfigure(configureCtx, sections, claims) }()
+	go pc.sendConfigureWorker(configureCtx, sections, claims, busCatalog, done)
 	defer cancel()
 	for {
 		select {
@@ -52,4 +52,8 @@ func (pc *PluginConn) SendConfigureServing(ctx context.Context, sections []rpc.C
 			return ctx.Err()
 		}
 	}
+}
+
+func (pc *PluginConn) sendConfigureWorker(ctx context.Context, sections []rpc.ConfigSection, claims []string, busCatalog []rpc.BusCatalogEntry, done chan<- error) {
+	done <- pc.SendConfigure(ctx, sections, claims, busCatalog)
 }

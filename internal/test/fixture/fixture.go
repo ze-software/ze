@@ -292,8 +292,102 @@ func fixtureNameByte(b byte) bool {
 // ObserverScenario runs after all daemon plugins are ready.
 type ObserverScenario func(context.Context, *sdk.Plugin) error
 
-// observerSetup installs callbacks and startup subscriptions before Stage 1.
+// observerSetup installs callbacks and wire delivery options before Stage 1.
 type observerSetup func(*sdk.Plugin) error
+
+const (
+	bgpPeerFromPrefix = "/bgp/ip/"
+	eventDirectionSep = " direction "
+	eventDirectionTag = "direction"
+)
+
+// observerReceivesMu guards pending Stage 1 Receives declarations registered
+// by shared capture setup callbacks before observeConfigured calls plugin.Run.
+var (
+	observerReceivesMu sync.Mutex
+	observerReceives   = make(map[*sdk.Plugin][]sdk.MessageReceiveDecl)
+)
+
+// declareObserverReceives attaches Stage 1 Receives declarations to an
+// observer's Registration when a shared setup callback cannot construct the
+// Registration directly. Safe for concurrent use.
+func declareObserverReceives(plugin *sdk.Plugin, decls ...sdk.MessageReceiveDecl) {
+	observerReceivesMu.Lock()
+	defer observerReceivesMu.Unlock()
+	observerReceives[plugin] = append(observerReceives[plugin], decls...)
+}
+
+func takeObserverReceives(plugin *sdk.Plugin) []sdk.MessageReceiveDecl {
+	observerReceivesMu.Lock()
+	defer observerReceivesMu.Unlock()
+	decls := observerReceives[plugin]
+	delete(observerReceives, plugin)
+	return decls
+}
+
+// mergeReceiveDecls appends extra declarations to base while skipping any
+// message name already present in base.
+func mergeReceiveDecls(base, extra []sdk.MessageReceiveDecl) []sdk.MessageReceiveDecl {
+	if len(extra) == 0 {
+		return base
+	}
+	seen := make(map[string]bool, len(base)+len(extra))
+	merged := make([]sdk.MessageReceiveDecl, 0, len(base)+len(extra))
+	for i := range base {
+		seen[base[i].Message] = true
+		merged = append(merged, base[i])
+	}
+	for i := range extra {
+		if seen[extra[i].Message] {
+			continue
+		}
+		seen[extra[i].Message] = true
+		merged = append(merged, extra[i])
+	}
+	return merged
+}
+
+// nsReceiveDecls builds Stage 1 MessageReceiveDecl entries for namespace,
+// events, and optional BGP peer addresses (nil or ["*"] means all senders).
+// An event entry carrying " direction <dir>" splits out a direction tag filter.
+func nsReceiveDecls(namespace string, events, peers []string) []sdk.MessageReceiveDecl {
+	if len(events) == 0 {
+		return nil
+	}
+	var from []string
+	for _, peer := range peers {
+		if peer == "" {
+			continue
+		}
+		if peer == "*" {
+			continue
+		}
+		var tb textbuf.Buffer
+		from = append(from, tb.Str(bgpPeerFromPrefix).Str(peer).String())
+	}
+	decls := make([]sdk.MessageReceiveDecl, 0, len(events))
+	for _, raw := range events {
+		name, dir, hasDir := strings.Cut(raw, eventDirectionSep)
+		var tb textbuf.Buffer
+		decl := sdk.MessageReceiveDecl{
+			Message: tb.Str(namespace).Byte(':').Str(name).String(),
+			From:    slices.Clone(from),
+		}
+		if hasDir {
+			if dir != "" {
+				decl.Tags = []sdk.MessageTagDecl{{Name: eventDirectionTag, Values: []string{dir}}}
+			}
+		}
+		decls = append(decls, decl)
+	}
+	return decls
+}
+
+// bgpReceiveDecls builds Stage 1 MessageReceiveDecl entries in the "bgp"
+// namespace.
+func bgpReceiveDecls(events, peers []string) []sdk.MessageReceiveDecl {
+	return nsReceiveDecls(namespaceBGP, events, peers)
+}
 
 // declareObserverAppliesNothing is the setup of an observer that wants the bgp
 // root to watch a reload's verify or its Stage 2 delivery and holds nothing a
@@ -326,8 +420,16 @@ func observeConfigured(
 	defer plugin.Close() //nolint:errcheck // the run result carries the useful transport error
 	if setup != nil {
 		if err := setup(plugin); err != nil {
+			takeObserverReceives(plugin)
 			return fmt.Errorf("configure observer %s: %w", name, err)
 		}
+	}
+	var reg sdk.Registration
+	if registration != nil {
+		reg = *registration
+	}
+	if extra := takeObserverReceives(plugin); len(extra) > 0 {
+		reg.Receives = mergeReceiveDecls(reg.Receives, extra)
 	}
 
 	result := make(chan error, 1)
@@ -363,7 +465,7 @@ func observeConfigured(
 		return nil
 	})
 
-	runErr := plugin.Run(ctx, registration)
+	runErr := plugin.Run(ctx, &reg)
 	return awaitObserverResult(started, result, runErr)
 }
 

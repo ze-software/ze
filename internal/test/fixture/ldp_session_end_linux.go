@@ -106,10 +106,9 @@ type ldpSessionEventLog struct {
 	undecodable []string
 }
 
-// setup subscribes the observer to session-up and session-down, enveloped so
-// each delivery names its event, before the plugin's first stage.
+// setup configures enveloped delivery and the event handler before the plugin's
+// first stage; Stage 1 Receives declares session-up and session-down.
 func (l *ldpSessionEventLog) setup(plugin *sdk.Plugin) error {
-	plugin.SetStartupSubscriptionsIn("ldp", []string{ldpSessionEventNameUp, ldpSessionEventNameDown}, nil, "")
 	plugin.SetEnvelope(true)
 	plugin.OnEvent(l.observe)
 	return nil
@@ -292,7 +291,10 @@ func runLDPNeighborScenario(ctx context.Context, args []string, scenario func(co
 		return err
 	}
 	events := &ldpSessionEventLog{}
-	runErr := observeConfigured(ctx, ldpObserverName, &sdk.Registration{}, events.setup,
+	reg := &sdk.Registration{
+		Receives: nsReceiveDecls("ldp", []string{ldpSessionEventNameUp, ldpSessionEventNameDown}, nil),
+	}
+	runErr := observeConfigured(ctx, ldpObserverName, reg, events.setup,
 		func(ctx context.Context, plugin *sdk.Plugin) error {
 			return scenario(ctx, plugin, neighbor, events)
 		})

@@ -393,8 +393,21 @@ type DeclareRegistrationInput struct {
 	// every plugin in ConfigureInput.Claims (Stage 2), so a plugin can stand
 	// its own default down BEFORE it can receive any runtime event. Tokens are
 	// opaque to the engine: the claiming plugin and the standing-down plugin
-	// agree on the spelling. Same shape as EventTypes/SendTypes.
+	// agree on the spelling.
 	Claims []string `json:"claims,omitempty"`
+
+	// ParticipantNodes declares the YANG schema nodes whose configured entries
+	// are participants of this plugin's kind on the message bus. Empty means
+	// the plugin is a single endpoint participant under /bus/endpoint/<name>.
+	ParticipantNodes []ParticipantNodeDecl `json:"participant-nodes,omitempty"`
+
+	// Sends declares the bus messages ("namespace:name" or "cli:<prefix>")
+	// this participant may send, with their tags and default destinations.
+	Sends []MessageSendDecl `json:"sends,omitempty"`
+
+	// Receives declares the bus messages ("namespace:name") this participant is
+	// willing to receive, with default senders and registered tag filters.
+	Receives []MessageReceiveDecl `json:"receives,omitempty"`
 
 	// Dissemination declares peer-output roles and their required grants. It
 	// creates no attachment; the engine judges the operator's actual blocks.
@@ -453,6 +466,52 @@ type DeclareRegistrationInput struct {
 	// SignalsSessionReady; the plugin MUST report the captured session token
 	// after its replay is out. Neither flag grants receive or send permission.
 	FencesLiveForwards bool `json:"fences-live-forwards,omitempty"`
+}
+
+// ParticipantNodeDecl declares a YANG schema node whose configured entries are
+// participants on the message bus (e.g. BGP peers and groups, or a plugin's own
+// config container). A plugin that declares none is the endpoint participant
+// /bus/endpoint/<name>.
+type ParticipantNodeDecl struct {
+	Module          string `json:"module,omitempty"`
+	Prefix          string `json:"prefix,omitempty"`
+	SchemaPath      string `json:"schema-path,omitempty"`
+	SecondaryIPPath string `json:"secondary-ip-path,omitempty"`
+}
+
+// MessageTagDecl declares one tag carried by a bus message or matched by a
+// reception filter. An empty Values slice means an open tag; a non-empty Values
+// slice names the closed set of values.
+type MessageTagDecl struct {
+	Name   string   `json:"name"`
+	Values []string `json:"values,omitempty"`
+}
+
+// MessageSendDecl declares one message kind ("namespace:name" or "cli:<prefix>")
+// a participant may send on the bus, the tags it carries, and its default
+// destinations (empty means broadcast or command owner).
+type MessageSendDecl struct {
+	Message             string           `json:"message"`
+	Tags                []MessageTagDecl `json:"tags,omitempty"`
+	DefaultDestinations []string         `json:"default-destinations,omitempty"`
+}
+
+// MessageReceiveDecl declares one message kind ("namespace:name") a participant
+// is willing to receive on the bus, the default senders it accepts (empty means
+// everybody), and any registered tag filters.
+type MessageReceiveDecl struct {
+	Message string           `json:"message"`
+	From    []string         `json:"from,omitempty"`
+	Tags    []MessageTagDecl `json:"tags,omitempty"`
+}
+
+// BusCatalogEntry describes one message registered on the daemon's bus,
+// delivered to every plugin in Stage 2 configure (ConfigureInput.BusCatalog)
+// beside Claims.
+type BusCatalogEntry struct {
+	Message     string           `json:"message"`
+	SenderKinds []string         `json:"sender-kinds,omitempty"`
+	Tags        []MessageTagDecl `json:"tags,omitempty"`
 }
 
 // PipeDecl declares a pipe word for one of the plugin's own commands, the word
@@ -909,6 +968,12 @@ type ConfigureInput struct {
 	// UPDATE, which is idempotent at the receiver, whereas standing down for an
 	// owner that never runs loses routes outright.
 	Claims []string `json:"claims,omitempty"`
+
+	// BusCatalog carries the settled catalog of messages registered on the
+	// daemon's bus (compiled-in and declared external sends), delivered at
+	// Stage 2 beside Claims so every plugin sees the complete message set
+	// before Stage 5 ready.
+	BusCatalog []BusCatalogEntry `json:"bus-catalog,omitempty"`
 }
 
 // DeclareCapabilitiesInput is the input for ze-plugin-engine:declare-capabilities (Stage 3).
@@ -1587,18 +1652,14 @@ func ParseEventEnvelope(event string) (EventEnvelope, error) {
 }
 
 // ReadyInput is the input for ze-plugin-engine:ready (Stage 5).
-// The Subscribe field allows plugins to register event subscriptions atomically
-// with startup completion, avoiding the race between SignalAPIReady and a
-// separate subscribe-events RPC that would arrive after routes are already sent.
+// It carries the negotiated transport and the per-process wire delivery
+// parameters applied when Stage 1 Receives declarations activate before
+// SignalAPIReady.
 type ReadyInput struct {
-	Subscribe *SubscribeEventsInput `json:"subscribe,omitempty"`
-	// Subscriptions carries further startup subscribe blocks, each in its own
-	// namespace (Namespace set), registered with Subscribe and as atomically.
-	// A plugin that hears events of more than one namespace from its first
-	// event onward (bgp-rr hears bgp state and bgp-gr retention) needs one
-	// block per namespace, because a block names one namespace.
-	Subscriptions []*SubscribeEventsInput `json:"subscriptions,omitempty"`
-	Transport     string                  `json:"transport,omitempty"` // "bridge" for internal plugins; pipe closed after ack
+	Transport string `json:"transport,omitempty"` // "bridge" for internal plugins; pipe closed after ack
+	Format    string `json:"format,omitempty"`
+	Encoding  string `json:"encoding,omitempty"`
+	Envelope  bool   `json:"envelope,omitempty"`
 }
 
 // ConfigVerifyInput is the input for ze-plugin-callback:config-verify.

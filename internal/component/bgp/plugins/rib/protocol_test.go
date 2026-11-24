@@ -15,16 +15,17 @@ import (
 )
 
 // TestRIBPluginFiveStageProtocol verifies that the rib plugin completes the
-// 5-stage startup handshake correctly and includes atomic event subscriptions
-// in the Stage 5 ready RPC.
+// 5-stage startup handshake correctly, declares its event receptions at
+// Stage 1, and sends its wire delivery options in the Stage 5 ready RPC.
 //
-// VALIDATES: The rib plugin sends startup subscriptions atomically with the
-// ready RPC, ensuring the engine registers them before SignalAPIReady. This
-// prevents the race where routes are sent before the rib is subscribed.
+// VALIDATES: The rib plugin declares its event receptions at Stage 1 and wire
+// format/envelope preferences at Stage 5 so the engine activates subscriptions
+// before SignalAPIReady. This prevents the race where routes are sent before
+// the rib is subscribed.
 //
-// PREVENTS: Regression where startup subscriptions are sent as a separate RPC
-// after ready, allowing a window where events (sent routes, state changes) are
-// missed by the rib plugin.
+// PREVENTS: Regression where startup receptions are omitted from Stage 1 or
+// sent as a separate RPC after ready, allowing a window where events (sent
+// routes, state changes) are missed by the rib plugin.
 func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	pluginEnd, engineEnd := net.Pipe()
 
@@ -83,6 +84,10 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	// Zero-copy forward-handle fast path (rib-arch-6)
 	assert.Contains(t, commandNames, "request bgp rib fastpath")
 
+	// Verify Stage 1 bus receptions match compiled registration (R-5).
+	require.Equal(t, ribBusReceives(), regInput.Receives,
+		"bgp rib declares its BGP, RIB, and redistribute receptions at Stage 1")
+
 	require.NoError(t, mux.SendResult(ctx, stage1.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
 	// ── Stage 2: configure ──────────────────────────────────────────────
@@ -107,25 +112,19 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	_, err = mux.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
 	require.NoError(t, err)
 
-	// ── Stage 5: ready (with atomic subscriptions) ──────────────────────
-	// This is the critical stage: the ready RPC MUST include the event
-	// subscriptions so the engine registers them BEFORE SignalAPIReady.
-	// Without atomic subscriptions, there is a race between the engine
-	// sending initial routes and the rib plugin subscribing to events.
+	// ── Stage 5: ready (wire delivery options for Stage 1 Receives) ─────
+	// Stage 1 Receives activate atomically on ready BEFORE SignalAPIReady,
+	// using the format and envelope options carried here.
 	stage5 := readMuxRequestTimeout(t, ctx, mux)
 	require.Equal(t, "ze-plugin-engine:ready", stage5.Method)
 
 	var readyInput rpc.ReadyInput
 	require.NoError(t, json.Unmarshal(stage5.Params, &readyInput))
 
-	require.NotNil(t, readyInput.Subscribe,
-		"ready RPC MUST include Subscribe — atomic subscription prevents race")
-	assert.ElementsMatch(t,
-		[]string{"update direction sent", "update direction received", "state", "refresh", "negotiated", "eor"},
-		readyInput.Subscribe.Events,
-		"bgp rib subscribes to sent/received updates, state changes, route-refresh, negotiated capabilities, and End-of-RIB")
-	assert.Equal(t, "full", readyInput.Subscribe.Format,
+	assert.Equal(t, "full", readyInput.Format,
 		"bgp rib uses full format for events")
+	assert.True(t, readyInput.Envelope,
+		"bgp rib opts into enveloped delivery for non-BGP events")
 
 	require.NoError(t, mux.SendOK(ctx, stage5.ID))
 

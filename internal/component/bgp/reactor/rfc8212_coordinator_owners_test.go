@@ -42,21 +42,23 @@ func TestRFC8212ImportSettlesValidationChangeSubscribers(t *testing.T) {
 				var written atomic.Int32
 				snapshot := registry.Snapshot()
 				t.Cleanup(func() { registry.Restore(snapshot) })
+				receives := []rpc.MessageReceiveDecl{{Message: ribevents.Namespace + ":" + ribevents.EventValidationChange}}
 				require.NoError(t, registry.Register(registry.Registration{
 					Name: rfc8212ValidationConsumerName, Description: "RFC 8212 validation-change consumer fixture",
+					Receives: receives,
 					RunEngine: func(conn net.Conn) int {
 						if wire {
 							conn = struct{ net.Conn }{conn}
 						}
 						p := sdk.NewWithConn(rfc8212ValidationConsumerName, conn)
 						defer p.Close() //nolint:errcheck // The server owns shutdown.
-						p.SetStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange}, nil, "json")
+						p.SetEventFormat("json")
 						p.OnEvent(func(string) error {
 							time.Sleep(rfc8212BestChangeWriteDelay)
 							written.Add(1)
 							return nil
 						})
-						if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+						if err := p.Run(context.Background(), &sdk.Registration{Receives: receives}); err != nil {
 							return 1
 						}
 						return 0

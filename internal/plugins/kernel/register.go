@@ -10,11 +10,20 @@ import (
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	kernelevents "github.com/ze-software/ze/internal/plugins/kernel/events"
 	kernelyang "github.com/ze-software/ze/internal/plugins/kernel/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func kernelSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: kernelevents.Namespace + ":" + redistevents.EventType},
+	}
+}
 
 const pluginName = "kernel"
 
@@ -42,6 +51,7 @@ func init() {
 		Features:    "yang",
 		YANG:        kernelyang.ZeKernelConfYANG,
 		ConfigRoots: []string{pluginName},
+		Sends:       kernelSends(),
 		RunEngine:   runKernelPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -84,6 +94,7 @@ func runKernelPlugin(conn net.Conn) int {
 	ctx := context.Background()
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{pluginName},
+		Sends:       kernelSends(),
 	}); err != nil {
 		logger().Error("kernel plugin failed", "error", err)
 		return 1

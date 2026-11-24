@@ -18,9 +18,9 @@ import (
 // locRIBReceive is the receive grant derived for a BGP redistribution source,
 // written in the vocabulary of an `attach process` block.
 //
-// It states exactly what the plugin declares it handles. bgp-rib subscribes to
-// `update direction sent`, `update direction received`, `state` and `refresh`
-// (SetStartupSubscriptions, internal/component/bgp/plugins/rib/rib.go).
+// It states exactly what the plugin declares it handles. bgp-rib declares
+// reception of `bgp:update` (sent/received), `bgp:state`, and `bgp:refresh`
+// (ribBusReceives, internal/component/bgp/plugins/rib/register.go).
 //
 // Naming the same set on both halves keeps the delivery reconcile silent. The
 // derived binding therefore adds no operator-facing warning
@@ -35,7 +35,7 @@ const locRIBReceive = "update state refresh"
 // it, the consumer's UpdateRoute is refused for every peer and the rule moves
 // nothing.
 //
-// `receive [ state ]` is what the plugin declares (SetStartupSubscriptions,
+// `receive [ state ]` is what the plugin declares (Stage 1 Receives,
 // internal/plugins/redistribute/register.go). It carries
 // the peer's down-to-up edge, which is what fires the peer-up replay.
 const (

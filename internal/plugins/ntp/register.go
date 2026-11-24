@@ -53,6 +53,12 @@ func getEventBus() ze.EventBus {
 	return eventBusRef
 }
 
+func ntpSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: ntpevents.Namespace + ":" + ntpevents.EventClockSynced},
+	}
+}
+
 func init() {
 	_ = events.RegisterNamespace(ntpevents.Namespace, ntpevents.EventClockSynced)
 
@@ -68,6 +74,7 @@ func init() {
 		YANG:                    ntpyang.ZeNTPConfYANG,
 		ConfigRoots:             []string{configPathNTP},
 		InProcessConfigVerifier: verifyNTPConfig,
+		Sends:                   ntpSends(),
 		RunEngine:               runNTPPlugin,
 		Commands:                commandDecls(),
 	}
@@ -360,6 +367,7 @@ func runNTPPlugin(conn net.Conn) int {
 	defer cancel()
 	runErr := p.Run(ctx, &sdk.Registration{
 		Commands:     commandDecls(),
+		Sends:        ntpSends(),
 		WantsConfig:  []string{configRootEnvironment},
 		VerifyBudget: 2,
 		// ApplyBudget in seconds (orchestrator sums per-tier maxima). The

@@ -41,7 +41,8 @@ func newRFC4271ProspectiveCapture() *rfc4271ProspectiveCapture {
 }
 
 func (c *rfc4271ProspectiveCapture) setup(plugin *sdk.Plugin) error {
-	plugin.SetStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventBestChange}, nil, "json")
+	declareObserverReceives(plugin, nsReceiveDecls(ribevents.Namespace, []string{ribevents.EventBestChange}, nil)...)
+	plugin.SetEventFormat("json")
 	plugin.SetEnvelope(true)
 	plugin.OnEvent(func(event string) error {
 		envelope, err := rpc.ParseEventEnvelope(event)

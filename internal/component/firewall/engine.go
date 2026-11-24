@@ -564,6 +564,7 @@ func runEngine(conn net.Conn) int {
 	ctx := context.Background()
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{ConfigRoot, configRootConntrack},
+		Sends:        firewallSends(),
 		VerifyBudget: 2,
 		ApplyBudget:  10,
 	}); err != nil {

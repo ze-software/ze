@@ -1014,52 +1014,13 @@ func (p *Plugin) OnAllPluginsReady(fn AllPluginsReadyHandler) {
 	}
 }
 
-// SetStartupSubscriptions sets event subscriptions to include in the "ready" RPC.
-// The engine registers these atomically before SignalAPIReady, ensuring the plugin
-// receives events from the very first route send. Must be called before Run().
-//
-// This replaces the pattern of calling SubscribeEvents in OnStarted, which had a
-// race condition: SignalAPIReady triggered route sends before the subscription RPC
-// could be processed.
-func (p *Plugin) SetStartupSubscriptions(events, peers []string, format string) {
+// SetEventFormat sets the wire event format preference (e.g. "full", "parsed",
+// "json") carried in the Stage 5 ready RPC for subscriptions activated from
+// Stage 1 Receives declarations. Must be called before Run().
+func (p *Plugin) SetEventFormat(format string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.startupSubscription = &rpc.SubscribeEventsInput{
-		Events: events,
-		Peers:  peers,
-		Format: format,
-	}
-}
-
-// SetStartupSubscriptionsIn is SetStartupSubscriptions with an explicit event
-// namespace, letting a plugin subscribe to a non-bgp namespace (e.g.
-// "vpn-ipsec") at startup. An empty namespace behaves exactly like
-// SetStartupSubscriptions (resolves to the engine's default namespace, "bgp"
-// today). Must be called before Run(). Added rather than changing
-// SetStartupSubscriptions so out-of-tree plugins keep compiling unchanged.
-func (p *Plugin) SetStartupSubscriptionsIn(namespace string, events, peers []string, format string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.startupSubscription = &rpc.SubscribeEventsInput{
-		Namespace: namespace,
-		Events:    events,
-		Peers:     peers,
-		Format:    format,
-	}
-}
-
-// AddStartupSubscriptionsIn adds a startup subscription in a further namespace,
-// beside the one SetStartupSubscriptions[In] sets. The engine registers it in
-// the same ready RPC, so the plugin hears these events from its first event
-// onward, as it hears the main block's. Format, encoding and envelope stay the
-// main block's: they are per process. Must be called before Run().
-func (p *Plugin) AddStartupSubscriptionsIn(namespace string, events []string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.startupSubscriptionsMore = append(p.startupSubscriptionsMore, &rpc.SubscribeEventsInput{
-		Namespace: namespace,
-		Events:    events,
-	})
+	p.readyFormat = format
 }
 
 // SetEnvelope opts this plugin into enveloped event delivery: each delivered
@@ -1068,27 +1029,21 @@ func (p *Plugin) AddStartupSubscriptionsIn(namespace string, events []string) {
 // without parsing payload-specific fields (parse with rpc.ParseEventEnvelope).
 // Like SetEncoding it applies process-wide. Default false preserves the
 // bare-payload delivery every pre-existing consumer relies on. Must be called
-// after SetStartupSubscriptions[In] and before Run().
+// before Run().
 func (p *Plugin) SetEnvelope(enabled bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.startupSubscription == nil {
-		p.startupSubscription = &rpc.SubscribeEventsInput{}
-	}
-	p.startupSubscription.Envelope = enabled
+	p.readyEnvelope = enabled
 }
 
 // SetEncoding sets the event encoding preference ("json" or "text").
-// Must be called after SetStartupSubscriptions and before Run().
+// Must be called before Run().
 // Text encoding uses space-delimited output parseable by strings.Fields
 // instead of nested JSON requiring json.Unmarshal.
 func (p *Plugin) SetEncoding(enc string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.startupSubscription == nil {
-		p.startupSubscription = &rpc.SubscribeEventsInput{}
-	}
-	p.startupSubscription.Encoding = enc
+	p.readyEncoding = enc
 }
 
 // marshalStatusError returns a JSON status error response with the given message.

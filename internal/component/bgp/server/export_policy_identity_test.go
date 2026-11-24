@@ -18,6 +18,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -38,18 +39,19 @@ func TestExportPolicyEventRejectsSameNameReplacement(t *testing.T) {
 			const address = "192.0.2.186"
 			var oldCalls, newCalls atomic.Int32
 			bindings := []plugin.PeerProcessBinding{{PluginName: name, Explicit: true, Receive: map[string]events.Direction{bgpevents.EventState: events.DirBoth}}}
+			receives := []rpc.MessageReceiveDecl{{Message: bgpevents.Namespace + ":" + bgpevents.EventState}}
 			start := func(implementation string, calls *atomic.Int32) *pluginserver.Server {
-				require.NoError(t, registry.Register(registry.Registration{Name: implementation, CLIHandler: func([]string) int { return 0 }, RunEngine: func(conn net.Conn) int {
+				require.NoError(t, registry.Register(registry.Registration{Name: implementation, Receives: receives, CLIHandler: func([]string) int { return 0 }, RunEngine: func(conn net.Conn) int {
 					if !typed {
 						conn = struct{ net.Conn }{conn}
 					}
 					p := sdk.NewWithConn(implementation, conn)
 					defer p.Close() //nolint:errcheck // The owning server stops and joins this SDK.
-					p.SetStartupSubscriptionsIn(bgpevents.Namespace, []string{bgpevents.EventState}, nil, "json")
+					p.SetEventFormat("json")
 					p.OnEvent(func(string) error { calls.Add(1); return nil })
 					p.OnStructuredEvent(func(batch []any) error { calls.Add(int32(len(batch))); return nil })
 					p.OnEventSettlement(func(context.Context) error { return nil })
-					if err := p.Run(ctx, &sdk.Registration{}); err != nil && ctx.Err() == nil {
+					if err := p.Run(ctx, &sdk.Registration{Receives: receives}); err != nil && ctx.Err() == nil {
 						return 1
 					}
 					return 0

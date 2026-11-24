@@ -17,6 +17,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -35,15 +36,16 @@ func TestExportPolicyEventJoinsCapturedOwnerDeferredOutput(t *testing.T) {
 			var observed atomic.Int32
 			var plugins []plugin.PluginConfig
 			const owner, observer = "policy-event-owner", "policy-event-observer"
+			receives := []rpc.MessageReceiveDecl{{Message: bgpevents.Namespace + ":" + bgpevents.EventState}}
 			for _, name := range []string{owner, observer} {
-				require.NoError(t, registry.Register(registry.Registration{Name: name,
+				require.NoError(t, registry.Register(registry.Registration{Name: name, Receives: receives,
 					CLIHandler: func([]string) int { return 0 }, RunEngine: func(conn net.Conn) int {
 						if !typed {
 							conn = struct{ net.Conn }{conn}
 						}
 						p := sdk.NewWithConn(name, conn)
 						defer p.Close() //nolint:errcheck // Test SDK connection ownership.
-						p.SetStartupSubscriptionsIn(bgpevents.Namespace, []string{"state"}, nil, "json")
+						p.SetEventFormat("json")
 						p.OnEvent(func(string) error {
 							if name == observer {
 								observed.Add(1)
@@ -67,7 +69,7 @@ func TestExportPolicyEventJoinsCapturedOwnerDeferredOutput(t *testing.T) {
 								}
 							})
 						}
-						if err := p.Run(ctx, &sdk.Registration{}); err != nil && ctx.Err() == nil {
+						if err := p.Run(ctx, &sdk.Registration{Receives: receives}); err != nil && ctx.Err() == nil {
 							return 1
 						}
 						return 0

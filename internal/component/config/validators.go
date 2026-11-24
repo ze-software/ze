@@ -78,7 +78,7 @@ func SendMessageValidator() yang.CustomValidator {
 			if slices.Contains(bgpevents.BaseSendTypes(), str) {
 				return nil
 			}
-			if events.IsValidSendType(str) {
+			if events.IsValidEvent(bgpevents.Namespace, str) {
 				return nil
 			}
 			return fmt.Errorf("%q is not a valid send type (valid: %s)",
@@ -107,13 +107,24 @@ func allBGPEventNames() []string {
 }
 
 // allSendTypeCompletions returns the sorted send tokens: the wildcard, the
-// built-in types, and every plugin-registered send type.
+// built-in types, and every message registered in the BGP namespace.
 func allSendTypeCompletions() []string {
-	names := append([]string{events.TokenWildcard}, bgpevents.BaseSendTypes()...)
-	extra := events.ValidSendTypeNames()
-	if extra != "" {
+	seen := make(map[string]bool)
+	var names []string
+	add := func(tok string) {
+		if seen[tok] {
+			return
+		}
+		seen[tok] = true
+		names = append(names, tok)
+	}
+	add(events.TokenWildcard)
+	for _, base := range bgpevents.BaseSendTypes() {
+		add(base)
+	}
+	if extra := events.ValidEventNames(bgpevents.Namespace); extra != "" {
 		for part := range strings.SplitSeq(extra, ", ") {
-			names = append(names, part)
+			add(part)
 		}
 	}
 	slices.Sort(names)
@@ -762,7 +773,7 @@ func CommunityRangeValidator() yang.CustomValidator {
 // ze-iface-conf.yang.
 //
 // The leaf has no reader. parseUnits (internal/component/iface/config.go) never
-// looks up "vrf" in the unit map, unitEntry carries no VRF field, and no netlink
+// looks up "vrf" in the unit map, unitEntry carries no VRF field, and no kernel
 // backend code creates a VRF device or enslaves a member. So the leaf used to
 // validate, commit, and do nothing: an operator who put a unit in a VRF for
 // isolation got traffic on the main table with no error at all.

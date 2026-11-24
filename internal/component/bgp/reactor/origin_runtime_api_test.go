@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
@@ -64,8 +65,9 @@ func newOriginRuntimeSDKFixtureWithIntakeSession(t *testing.T, typed bool, intak
 	const name = "origin-runtime-wire-provider"
 	declarations := []rpc.DisseminationDecl{{Namespace: "bgp", Role: SelectedDisseminationRole,
 		SourceReceive: []string{"update-received", "state"}, DestinationReceive: []string{"state", "refresh", "update-sent"}, DestinationSend: []string{"update"}}}
+	receives := []rpc.MessageReceiveDecl{{Message: bgpevents.Namespace + ":" + bgpevents.EventState}}
 	offers := make(chan rpc.OriginIntakeInput, 4)
-	require.NoError(t, registry.Register(registry.Registration{Name: name, CLIHandler: func([]string) int { return 0 }, Dissemination: declarations,
+	require.NoError(t, registry.Register(registry.Registration{Name: name, CLIHandler: func([]string) int { return 0 }, Dissemination: declarations, Receives: receives,
 		RunEngine: func(conn net.Conn) int {
 			if !typed {
 				conn = struct{ net.Conn }{conn}
@@ -75,7 +77,7 @@ func newOriginRuntimeSDKFixtureWithIntakeSession(t *testing.T, typed bool, intak
 			var revision uint64
 			current := make(map[string]uint64)
 			forget := func() { mu.Lock(); clear(current); mu.Unlock() }
-			provider.SetStartupSubscriptions([]string{"state"}, nil, "json")
+			provider.SetEventFormat("json")
 			provider.OnEvent(func(line string) error {
 				event, err := bgp.ParseEvent([]byte(line))
 				if err != nil {
@@ -152,7 +154,7 @@ func newOriginRuntimeSDKFixtureWithIntakeSession(t *testing.T, typed bool, intak
 					return out, nil
 				})
 			}
-			if err := provider.Run(ctx, &sdk.Registration{Dissemination: declarations}); err != nil && ctx.Err() == nil {
+			if err := provider.Run(ctx, &sdk.Registration{Dissemination: declarations, Receives: receives}); err != nil && ctx.Err() == nil {
 				t.Errorf("actual SDK provider: %v", err)
 				return 1
 			}

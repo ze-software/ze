@@ -107,7 +107,7 @@ func TestRPCConfigure(t *testing.T) {
 	// Engine sends configure via engine conn (callback write side)
 	done := make(chan error, 1)
 	go func() {
-		done <- engineConn.SendConfigure(context.Background(), sections, nil)
+		done <- engineConn.SendConfigure(context.Background(), sections, nil, nil)
 	}()
 
 	// Plugin receives via engine conn (callback read side)
@@ -145,7 +145,12 @@ func TestRPCConfigureCarriesClaims(t *testing.T) {
 	go func() {
 		done <- engineConn.SendConfigure(context.Background(),
 			[]rpc.ConfigSection{{Root: "bgp", Data: `{}`}},
-			[]string{"bgp-peer-up-replay"})
+			[]string{"bgp-peer-up-replay"},
+			[]rpc.BusCatalogEntry{{
+				Message:     "bgp:update",
+				SenderKinds: []string{"bgp"},
+				Tags:        []rpc.MessageTagDecl{{Name: "direction", Values: []string{"received", "sent"}}},
+			}})
 	}()
 
 	req, err := pluginConn.ReadRequest(context.Background())
@@ -156,6 +161,8 @@ func TestRPCConfigureCarriesClaims(t *testing.T) {
 	require.NoError(t, json.Unmarshal(req.Params, &input))
 	assert.Equal(t, []string{"bgp-peer-up-replay"}, input.Claims,
 		"the claim set must arrive with the Stage-2 configure callback")
+	assert.Len(t, input.BusCatalog, 1, "the bus catalog must arrive with the Stage-2 configure callback")
+	assert.Equal(t, "bgp:update", input.BusCatalog[0].Message)
 	assert.Equal(t, 1, len(input.Sections), "claims must not displace the config sections")
 
 	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
@@ -541,7 +548,7 @@ func TestRPCFullStartupCycle(t *testing.T) {
 	// Stage 2: engine sends configure
 	require.NoError(t, engineConn.SendConfigure(ctx, []rpc.ConfigSection{
 		{Root: "bgp", Data: `{"router-id":"1.2.3.4"}`},
-	}, nil))
+	}, nil, nil))
 
 	// Stage 3: engine reads declare-capabilities
 	req, err = engineConn.ReadRequest(ctx)

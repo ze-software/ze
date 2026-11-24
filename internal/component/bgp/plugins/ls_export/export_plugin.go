@@ -103,7 +103,7 @@ func runTopologyExporter(conn net.Conn) int {
 		exporter.resume(ctx, enabled, request)
 		return nil
 	})
-	p.SetStartupSubscriptions([]string{"state", "refresh"}, []string{"*"}, "json")
+	p.SetEventFormat("json")
 	p.OnEvent(func(payload string) error {
 		event, err := bgp.ParseEvent([]byte(payload))
 		if err != nil {
@@ -138,7 +138,11 @@ func runTopologyExporter(conn net.Conn) int {
 		defer finish()
 		return exporter.shutdown(shutdown)
 	})
-	if err := p.Run(ctx, &sdk.Registration{WantsConfig: []string{exporterName}}); err != nil {
+	if err := p.Run(ctx, &sdk.Registration{
+		WantsConfig: []string{exporterName},
+		Sends:       lsExportBusSends(),
+		Receives:    lsExportBusReceives(),
+	}); err != nil {
 		exportLogger.Error("native BGP-LS exporter stopped", "error", err)
 		return 1
 	}

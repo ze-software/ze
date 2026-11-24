@@ -56,6 +56,25 @@ type CommandDecl = rpc.CommandDecl
 // holds one for each module.
 type SchemaDecl = rpc.SchemaDecl
 
+// ParticipantNodeDecl declares a YANG schema node whose configured entries are
+// participants on the message bus.
+type ParticipantNodeDecl = rpc.ParticipantNodeDecl
+
+// MessageTagDecl declares one tag carried by a bus message or matched by a
+// reception filter.
+type MessageTagDecl = rpc.MessageTagDecl
+
+// MessageSendDecl declares one message kind a participant may send on the bus.
+type MessageSendDecl = rpc.MessageSendDecl
+
+// MessageReceiveDecl declares one message kind a participant is willing to
+// receive on the bus.
+type MessageReceiveDecl = rpc.MessageReceiveDecl
+
+// BusCatalogEntry describes one message registered on the daemon's bus,
+// delivered at Stage 2 configure beside Claims.
+type BusCatalogEntry = rpc.BusCatalogEntry
+
 // DeclareCapabilitiesInput is the input for declare-capabilities (Stage 3).
 type DeclareCapabilitiesInput = rpc.DeclareCapabilitiesInput
 

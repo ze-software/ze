@@ -214,56 +214,6 @@ func (s *Server) runPluginStartup() {
 		}
 	}
 
-	// Phase 4: Auto-load plugins for custom event types
-	// Config has receive [ update-rpki ] but no explicit decorator plugin configured.
-	autoLoadEvents, err := s.getUnclaimedEventTypePlugins()
-	if err != nil {
-		s.refuseBootAutoLoad("custom event type", err)
-		return
-	}
-	if len(autoLoadEvents) > 0 {
-		logger().Debug("auto-loading plugins for custom event types",
-			"count", len(autoLoadEvents))
-
-		if s.reactor != nil {
-			s.reactor.AddAPIProcessCount(len(autoLoadEvents))
-		}
-
-		if err := s.runPluginPhase(autoLoadEvents); err != nil {
-			logger().Error("auto-load event plugin startup failed", "error", err)
-			if s.reactor != nil {
-				s.reactor.AddAPIProcessCount(-len(autoLoadEvents))
-			}
-			s.signalStartupComplete()
-			return
-		}
-	}
-
-	// Phase 5: Auto-load plugins for custom send types
-	// Config has send [ enhanced-refresh ] but no explicit route-refresh plugin configured.
-	autoLoadSendTypes, err := s.getUnclaimedSendTypePlugins()
-	if err != nil {
-		s.refuseBootAutoLoad("custom send type", err)
-		return
-	}
-	if len(autoLoadSendTypes) > 0 {
-		logger().Debug("auto-loading plugins for custom send types",
-			"count", len(autoLoadSendTypes))
-
-		if s.reactor != nil {
-			s.reactor.AddAPIProcessCount(len(autoLoadSendTypes))
-		}
-
-		if err := s.runPluginPhase(autoLoadSendTypes); err != nil {
-			logger().Error("auto-load send type plugin startup failed", "error", err)
-			if s.reactor != nil {
-				s.reactor.AddAPIProcessCount(-len(autoLoadSendTypes))
-			}
-			s.signalStartupComplete()
-			return
-		}
-	}
-
 	// Signal that all plugin phases are complete
 	s.signalStartupComplete()
 }
@@ -975,6 +925,17 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 		logger().Error("plugin family registration conflict", "plugin", reg.Name, "error", err)
 		return fmt.Errorf("family registration conflict: %w", err)
 	}
+	if err := s.registerDeclaredBusSends(reg.Name, input.Sends); err != nil {
+		family.UnregisterFamilyBatch(addedFamilies)
+		command.UnregisterPluginShapes(reg.Name)
+		command.UnregisterPluginAliases(reg.Name)
+		command.UnregisterPluginPipeFilters(reg.Name)
+		s.registry.Unregister(reg.Name)
+		startupRegistrationMu.Unlock()
+		logger().Error("plugin bus send registration refused", "plugin", reg.Name, "error", err,
+			"code", diagnostic.CodeDoctorPluginStopped)
+		return fmt.Errorf("bus send registration: %w", err)
+	}
 	s.rememberPluginFamilies(reg.Name, addedFamilies)
 	startupRegistrationMu.Unlock()
 
@@ -1030,19 +991,16 @@ func (e *engineStartupSink) onReady(input *rpc.ReadyInput) error {
 
 	// Registering subscriptions here (before SignalAPIReady) ensures the plugin
 	// receives events from the very first route send -- no race with the reactor.
-	if input.Subscribe != nil && s.subscriptions != nil {
-		s.registerSubscriptions(proc, input.Subscribe)
-		logger().Debug("rpc startup: registered startup subscriptions",
-			"plugin", proc.Name(), "events", input.Subscribe.Events)
-	}
-	// Further namespaces' blocks register at the same moment, for the same reason.
-	for _, more := range input.Subscriptions {
-		if more == nil || s.subscriptions == nil {
-			continue
+	if s.subscriptions != nil {
+		var receives []rpc.MessageReceiveDecl
+		if reg := proc.Registration(); reg != nil {
+			receives = reg.Receives
 		}
-		s.registerSubscriptions(proc, more)
-		logger().Debug("rpc startup: registered startup subscriptions",
-			"plugin", proc.Name(), "namespace", more.Namespace, "events", more.Events)
+		s.registerReceiveDeclarations(proc, receives, input)
+		if len(receives) > 0 {
+			logger().Debug("rpc startup: registered declared receives",
+				"plugin", proc.Name(), "count", len(receives))
+		}
 	}
 
 	// Wire direct bridge dispatch BEFORE the OK is sent (in the driver), so the
@@ -1066,9 +1024,8 @@ func (e *engineStartupSink) onReady(input *rpc.ReadyInput) error {
 	return nil
 }
 
-// readyParamsRefused records that the ready parameters, which carry the
-// startup subscriptions, did not parse, so the plugin runs subscribed to
-// nothing (AC-14).
+// readyParamsRefused records that the ready parameters did not parse, so
+// per-process wire delivery options were dropped (AC-14).
 func (e *engineStartupSink) readyParamsRefused(err error) {
 	e.proc.RecordSubscriptionDrop(process.SubscriptionDrop{
 		Cause: process.SubscriptionDropReadyParamsUnparsable, Detail: err.Error(),
@@ -1145,7 +1102,8 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 			"plugin", proc.Name(), "roles", claims)
 	}
 
-	if err := conn.SendConfigureServing(ctx, sections, claims, func(req *rpc.Request) (bool, error) {
+	busCatalog := s.buildBusCatalog()
+	if err := conn.SendConfigureServing(ctx, sections, claims, busCatalog, func(req *rpc.Request) (bool, error) {
 		return s.serveConfigureEngineOp(ctx, proc, conn, req)
 	}); err != nil {
 		logger().Error("deliverConfigRPC failed", "plugin", proc.Name(), "error", err)
@@ -1376,6 +1334,9 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		DrainBudget:           time.Duration(input.DrainBudget) * time.Second,
 		WantsValidateOpen:     input.WantsValidateOpen,
 		Claims:                input.Claims,
+		ParticipantNodes:      slices.Clone(input.ParticipantNodes),
+		Sends:                 cloneMessageSendDecls(input.Sends),
+		Receives:              cloneMessageReceiveDecls(input.Receives),
 		Dissemination:         input.Dissemination,
 		SignalsSessionReady:   input.SignalsSessionReady,
 		FencesLiveForwards:    input.FencesLiveForwards,

@@ -38,7 +38,7 @@ func communityAttributes04(ctx context.Context, args []string) error {
 		}
 		return nil
 	})
-	p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+	p.SetEventFormat("parsed")
 	result := make(chan error, 1)
 	p.OnAllPluginsReady(func() error {
 		go func() {
@@ -56,7 +56,9 @@ func communityAttributes04(ctx context.Context, args []string) error {
 		}()
 		return nil
 	})
-	runErr := p.Run(ctx, &sdk.Registration{})
+	runErr := p.Run(ctx, &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+	})
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)

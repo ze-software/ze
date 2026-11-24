@@ -10,6 +10,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/trafficstat"
+	"github.com/ze-software/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
@@ -37,6 +39,17 @@ func loadBus() (ze.EventBus, error) {
 	return *p, nil
 }
 
+func ddosDetectSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: events.NamespaceCLI + ":show traffic usage"},
+		{Message: events.NamespaceCLI + ":show flow recent"},
+		{Message: ddosevent.Namespace + ":attack-detected"},
+		{Message: ddosevent.Namespace + ":attack-characterized"},
+		{Message: ddosevent.Namespace + ":attack-ongoing"},
+		{Message: ddosevent.Namespace + ":attack-cleared"},
+	}
+}
+
 func init() {
 	statestore.RegisterPluginKeys(Name, zefs.KeyDDoSDetectBaseline)
 
@@ -61,6 +74,7 @@ func init() {
 			Value:     "true",
 			Providers: []string{flowExportPlugin, trafficUsagePlugin},
 		}},
+		Sends:     ddosDetectSends(),
 		RunEngine: runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -313,6 +327,7 @@ func runEngine(conn net.Conn) int {
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRoot},
+		Sends:        ddosDetectSends(),
 		VerifyBudget: 2,
 		ApplyBudget:  10,
 		DrainBudget:  5,

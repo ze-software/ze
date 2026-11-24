@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -51,6 +52,12 @@ func loadBus() (ze.EventBus, error) {
 	return *p, nil
 }
 
+func ddosFlowspecSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate},
+	}
+}
+
 func init() {
 	// The plugin reads and writes its record through the SDK state calls, which
 	// the daemon answers only for a key the owning plugin was granted here.
@@ -77,6 +84,7 @@ func init() {
 			Value:     responseEnforce,
 			Providers: []string{bgpPlugin},
 		}},
+		Sends:     ddosFlowspecSends(),
 		RunEngine: runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -755,6 +763,7 @@ func runEngine(conn net.Conn) int {
 
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRoot},
+		Sends:        ddosFlowspecSends(),
 		VerifyBudget: 2,
 		ApplyBudget:  10,
 		DoctorChecks: []rpc.DoctorCheckDecl{orphanRuntimeCheckDecl},

@@ -229,14 +229,25 @@ func sentObservationServer(t *testing.T, ctx context.Context, native bool, consu
 	snapshot := registry.Snapshot()
 	t.Cleanup(func() { registry.Restore(snapshot) })
 	const name = "sent-retirement-rib"
+	receives := []rpc.MessageReceiveDecl{
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+		{
+			Message: bgpevents.Namespace + ":" + bgpevents.EventUpdate,
+			Tags: []rpc.MessageTagDecl{{
+				Name:   events.TagDirection,
+				Values: []string{events.DirectionSent},
+			}},
+		},
+	}
 	require.NoError(t, registry.Register(registry.Registration{
-		Name: name,
+		Name:     name,
+		Receives: receives,
 		RunEngine: func(conn net.Conn) int {
 			if !native {
 				conn = struct{ net.Conn }{conn}
 			}
 			p := sdk.NewWithConn(name, conn)
-			p.SetStartupSubscriptionsIn(bgpevents.Namespace, []string{"state", "update direction sent"}, nil, "full")
+			p.SetEventFormat("full")
 			p.OnEvent(func(payload string) error {
 				event, err := bgp.ParseEvent([]byte(payload))
 				if err != nil {
@@ -258,7 +269,7 @@ func sentObservationServer(t *testing.T, ctx context.Context, native bool, consu
 				}
 				return nil
 			})
-			if err := p.Run(ctx, &sdk.Registration{}); err != nil && ctx.Err() == nil {
+			if err := p.Run(ctx, &sdk.Registration{Receives: receives}); err != nil && ctx.Err() == nil {
 				return 1
 			}
 			return 0

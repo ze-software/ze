@@ -41,7 +41,7 @@ const attrCodeASPath = 2
 func asSetAcceptMigrated(ctx context.Context, _ []string) error {
 	events := make(chan string, 128)
 	setup := func(plugin *sdk.Plugin) {
-		plugin.SetStartupSubscriptions([]string{eventUpdate}, nil, "full")
+		plugin.SetEventFormat("full")
 		plugin.OnEvent(func(event string) error {
 			select {
 			case events <- event:
@@ -51,7 +51,10 @@ func asSetAcceptMigrated(ctx context.Context, _ []string) error {
 			return nil
 		})
 	}
-	return runPlugin13(ctx, "rfc9774-as-set-accept-migrated", setup, func(ctx context.Context, _ *sdk.Plugin) error {
+	reg := &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+	}
+	return runPlugin13WithRegistration(ctx, "rfc9774-as-set-accept-migrated", reg, setup, func(ctx context.Context, _ *sdk.Plugin) error {
 		idle := time.NewTimer(replayIdleTimeout13())
 		defer idle.Stop()
 		for {

@@ -6,10 +6,31 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	connectedevents "github.com/ze-software/ze/internal/plugins/connected/events"
 	connectedyang "github.com/ze-software/ze/internal/plugins/connected/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+func connectedSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: connectedevents.Namespace + ":" + redistevents.EventType},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventAddressReplayRequest},
+		{Message: sysribevents.Namespace + ":" + sysribevents.EventRouteInstall},
+	}
+}
+
+func connectedReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventAddrAdded},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventAddrRemoved},
+		{Message: redistevents.ReplayNamespace + ":" + redistevents.ReplayRequestEventType},
+	}
+}
 
 func init() {
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorPluginPanic}); err != nil {
@@ -43,6 +64,8 @@ func init() {
 		// policy is a hard dependency of every protocol with a filter attachment:
 		// the filter instances its chains name live under the policy root.
 		Dependencies: []string{policy.PluginName},
+		Sends:        connectedSends(),
+		Receives:     connectedReceives(),
 		RunEngine:    runConnectedPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

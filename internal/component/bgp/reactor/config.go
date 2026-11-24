@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
@@ -740,12 +739,6 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 // peer parser: PeersFromTree is this walk with the skipped list dropped, so a
 // caller that reports skipped peers sees exactly the set the daemon skips.
 func PeersAndSkippedFromTree(bgpTree map[string]any) ([]*PeerSettings, []SkippedPeer, error) {
-	// Ensure plugin-registered event and send types are available for validation.
-	// Idempotent -- safe to call multiple times. Needed here because config parsing
-	// happens before NewServer, and dynamic types must be valid.
-	plugin.RegisterPluginEventTypes()
-	plugin.RegisterPluginSendTypes()
-
 	// Extract global defaults (both optional -- peers can provide their own).
 	globals, err := GlobalsFromTree(bgpTree)
 	if err != nil {
@@ -1187,10 +1180,10 @@ func parseOneSendFlag(token string, b *ProcessBinding) error {
 		b.SendAll = true
 		return nil
 	}
-	if !slices.Contains(bgpevents.BaseSendTypes(), token) && !events.IsValidSendType(token) {
+	if !slices.Contains(bgpevents.BaseSendTypes(), token) && !events.IsValidEvent(bgpevents.Namespace, token) {
 		var tb textbuf.Buffer
 		tb.Str(events.TokenWildcard).Str(", ").Join(bgpevents.BaseSendTypes(), ", ")
-		if extra := events.ValidSendTypeNames(); extra != "" {
+		if extra := events.ValidEventNames(bgpevents.Namespace); extra != "" {
 			tb.Str(", ").Str(extra)
 		}
 		return fmt.Errorf("invalid value for send: %q (valid: %s)", token, tb.String())

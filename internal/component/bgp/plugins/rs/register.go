@@ -3,12 +3,59 @@ package rs
 import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rs/yang"
+	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+func rsParticipantNodes() []rpc.ParticipantNodeDecl {
+	return []rpc.ParticipantNodeDecl{{
+		Module:     "ze-rs-conf",
+		Prefix:     "rs",
+		SchemaPath: "/bgp:bgp/rs:route-server",
+	}}
+}
+
+func rsBusSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: events.NamespaceCLI + ":request bgp adj-rib-in claim-replay"},
+		{Message: events.NamespaceCLI + ":request bgp adj-rib-in replay-routes"},
+		{Message: events.NamespaceCLI + ":request bgp adj-rib-in replay-path"},
+		{Message: events.NamespaceCLI + ":request bgp adj-rib-in eligibility"},
+		{Message: events.NamespaceCLI + ":request bgp rib flowspec-gate"},
+		{Message: events.NamespaceCLI + ":request peer"},
+		{Message: ribevents.Namespace + ":" + ribevents.EventGateQuery},
+		{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate},
+	}
+}
+
+// rsBusReceives returns the bus messages bgp-rs receives. It excludes
+// update-filtered by design (RFC 7947 Section 2.1) and constrains update and
+// open to received direction only (server.go).
+func rsBusReceives() []rpc.MessageReceiveDecl {
+	recvDir := func() []rpc.MessageTagDecl {
+		return []rpc.MessageTagDecl{{
+			Name:   events.TagDirection,
+			Values: []string{events.DirectionReceived},
+		}}
+	}
+	return []rpc.MessageReceiveDecl{
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventUpdate, Tags: recvDir()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventOpen, Tags: recvDir()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventRefresh},
+		{Message: retention.Namespace + ":" + retention.EventType},
+		{Message: retention.Namespace + ":" + retention.CleanupEventType},
+		{Message: ribevents.Namespace + ":" + ribevents.EventValidationChange},
+		{Message: ribevents.Namespace + ":" + ribevents.EventFlowSpecGate},
+		{Message: ribevents.Namespace + ":" + ribevents.EventValidationGate},
+	}
+}
 
 func init() {
 	_ = events.RegisterNamespace(ribevents.Namespace, ribevents.EventValidationChange)
@@ -77,6 +124,9 @@ func init() {
 		Filters:          rsFilterDecls(),
 		FilterInsertions: rsInsertions(),
 		Commands:         commandDecls(),
+		ParticipantNodes: rsParticipantNodes(),
+		Sends:            rsBusSends(),
+		Receives:         rsBusReceives(),
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},

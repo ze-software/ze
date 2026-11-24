@@ -64,19 +64,12 @@ func TestReadyParamsRefusedRecordsDrop(t *testing.T) {
 }
 
 // TestSubscriptionWithNoDefaultNamespaceRecordsDrop registers a subscribe block
-// that names no namespace while no protocol component registered a default.
+// that names no namespace.
 //
 // VALIDATES: resolveSubscriptionNamespace records the NoDefaultNamespace drop
 // on the process, reached through registerSubscriptions.
 // PREVENTS: subscriptions that can never match reading as healthy.
-// METHOD: defaultEventNamespace answers empty for this test only; the test
-// binary's composition root always registers "bgp". Not parallel: it swaps a
-// package variable.
 func TestSubscriptionWithNoDefaultNamespaceRecordsDrop(t *testing.T) {
-	registered := defaultEventNamespace
-	defaultEventNamespace = func() string { return "" }
-	t.Cleanup(func() { defaultEventNamespace = registered })
-
 	proc := process.NewProcess(plugin.PluginConfig{Name: "no-default-namespace"})
 	newSubscriptionServer().registerSubscriptions(proc, &rpc.SubscribeEventsInput{Events: []string{"update"}})
 

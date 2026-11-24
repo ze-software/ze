@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/trafficfeature"
+	"github.com/ze-software/ze/internal/core/anomalyevent"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	detectyang "github.com/ze-software/ze/internal/plugins/anomaly/detect/yang"
@@ -55,6 +56,14 @@ func loadBus() (ze.EventBus, error) {
 	return *p, nil
 }
 
+func anomalyDetectSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: anomalyevent.Namespace + ":anomaly-detected"},
+		{Message: anomalyevent.Namespace + ":anomaly-ongoing"},
+		{Message: anomalyevent.Namespace + ":anomaly-cleared"},
+	}
+}
+
 func init() {
 	reg := registry.Registration{
 		Name:        Name,
@@ -75,6 +84,7 @@ func init() {
 			Value:     "true",
 			Providers: []string{flowExportPlugin, trafficUsagePlugin},
 		}},
+		Sends:     anomalyDetectSends(),
 		RunEngine: runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -212,6 +222,7 @@ func runEngine(conn net.Conn) int {
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRoot},
+		Sends:        anomalyDetectSends(),
 		VerifyBudget: 2,
 		ApplyBudget:  10,
 	}); err != nil {

@@ -202,7 +202,7 @@ func TestConfigureFailsWhenNestedReplyCannotEncode(t *testing.T) {
 			peerDone <- ctx.Err()
 		}
 	}()
-	err := conn.SendConfigureServing(ctx, nil, nil, func(request *rpc.Request) (bool, error) {
+	err := conn.SendConfigureServing(ctx, nil, nil, nil, func(request *rpc.Request) (bool, error) {
 		return s.serveConfigureEngineOp(ctx, proc, conn, request)
 	})
 	if _, unsupported := errors.AsType[*json.UnsupportedTypeError](err); !unsupported {

@@ -15,12 +15,21 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	containeryang "github.com/ze-software/ze/internal/plugins/container/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
+
+func containerSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventDefault},
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventClearSourceDefaults},
+	}
+}
 
 //nolint:gochecknoinits // registration: the plugin is discovered through the registry, never imported by name
 func init() {
@@ -54,6 +63,7 @@ func registerContainer() {
 		// starts after them when they are loaded. StartAfter loads neither: a
 		// config with no container network needs neither component.
 		StartAfter: []string{"interface", "firewall"},
+		Sends:      containerSends(),
 		RunEngine:  runContainerEngine,
 		Commands:   commandDecls(),
 		// `ze config validate` never calls a live verify callback. The static

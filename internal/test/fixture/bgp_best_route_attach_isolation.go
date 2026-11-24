@@ -107,7 +107,6 @@ func bgpBestRouteAttachObserver(ctx context.Context, args []string) error {
 	}
 	defer plugin.Close() //nolint:errcheck // Run owns the transport verdict.
 	events := attachIsolationEvents{sourceOnly: name == attachIsolationSource, announced: make(map[string]bool)}
-	plugin.SetStartupSubscriptions([]string{eventUpdate}, nil, "")
 	plugin.OnEvent(events.record)
 	settlements := 0
 	plugin.OnEventSettlement(func(ctx context.Context) error {
@@ -129,7 +128,9 @@ func bgpBestRouteAttachObserver(ctx context.Context, args []string) error {
 		}
 		return nil
 	})
-	return plugin.Run(ctx, &sdk.Registration{})
+	return plugin.Run(ctx, &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+	})
 }
 
 func attachIsolationRefusedSends(ctx context.Context, plugin *sdk.Plugin, name string) error {

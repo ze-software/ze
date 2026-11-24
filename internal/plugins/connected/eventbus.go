@@ -21,8 +21,8 @@ const connectedReplaySubject = "route-change replay"
 const connectedReplayFix = "ze show log recent level warn component connected"
 
 // followInterfaceAddresses installs the same event path in both transports.
-// Startup subscriptions MUST be registered before Run; OnStarted then asks
-// only an already-active address owner to replay its retained inventory.
+// Subscriptions are activated from Stage 1 Receives; OnStarted then asks only
+// an already-active address owner to replay its retained inventory.
 func followInterfaceAddresses(ctx context.Context, p *sdk.Plugin, obs *routeObserver) {
 	obs.publish = func(batch *redistevents.RouteChangeBatch) (int, error) {
 		// This is the registered route-change payload, encoded as the engine's
@@ -65,9 +65,6 @@ func followInterfaceAddresses(ctx context.Context, p *sdk.Plugin, obs *routeObse
 		warningRaised = true
 		return nil
 	}
-	p.SetStartupSubscriptionsIn(ifaceevents.Namespace,
-		[]string{ifaceevents.EventAddrAdded, ifaceevents.EventAddrRemoved}, nil, "")
-	p.AddStartupSubscriptionsIn(redistevents.ReplayNamespace, []string{redistevents.ReplayRequestEventType})
 	p.SetEnvelope(true)
 	p.OnEvent(obs.handleEvent)
 	p.OnBye(func(string) error { return obs.retire() })

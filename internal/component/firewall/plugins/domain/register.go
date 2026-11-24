@@ -9,8 +9,15 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
 )
+
+func firewallDomainSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: "resolve:dns"},
+	}
+}
 
 // configRoot is the YANG container this plugin reads, and dependencyFirewall is
 // the plugin it needs beside it. The two hold the same text and name two
@@ -31,6 +38,7 @@ func init() {
 		YANG:         domainyang.ZeFirewallDomainGroupYANG,
 		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{dependencyFirewall},
+		Sends:        firewallDomainSends(),
 		RunEngine:    runFirewallDomain,
 		Commands:     commandDecls(),
 		ConfigureMetrics: func(reg metrics.Registry) {

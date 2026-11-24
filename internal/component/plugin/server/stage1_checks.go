@@ -292,6 +292,47 @@ var stage1Checks = []stage1Check{
 		refusalLog: "plugin help text refused",
 	},
 	{
+		// Participant node declarations name YANG schema paths augmented with
+		// the bus grouping, so bounds and control characters are checked before
+		// storage.
+		name: "participant-nodes", section: sectionStage1, phase: stage1PhaseSink,
+		isolated: func(plugin string, input *rpc.DeclareRegistrationInput, _ stage1Site) error {
+			return registry.CheckParticipantNodeDecls(plugin, input.ParticipantNodes)
+		},
+		refusalLog: "plugin participant node declaration refused",
+	},
+	{
+		// Bus send declarations name canonical namespace:name (or cli:<prefix>)
+		// messages and their tags; malformed names or control characters are
+		// refused before storage or catalog registration.
+		name: "bus-sends", section: sectionStage1, phase: stage1PhaseSink,
+		isolated: func(plugin string, input *rpc.DeclareRegistrationInput, _ stage1Site) error {
+			return registry.CheckMessageSendDecls(plugin, input.Sends)
+		},
+		refusalLog: "plugin bus send declaration refused",
+	},
+	{
+		// Bus receive declarations name canonical namespace:name messages,
+		// default senders, and tag filters; malformed entries are refused
+		// before storage.
+		name: "bus-receives", section: sectionStage1, phase: stage1PhaseSink,
+		isolated: func(plugin string, input *rpc.DeclareRegistrationInput, _ stage1Site) error {
+			return registry.CheckMessageReceiveDecls(plugin, input.Receives)
+		},
+		refusalLog: "plugin bus receive declaration refused",
+	},
+	{
+		// A compiled-in plugin running in-daemon or as a separate process MUST
+		// declare the same participant nodes, sends, and receives as its
+		// compiled registry.Registration (spec R-5).
+		name: "bus-declaration-agreement", section: sectionStage1, phase: stage1PhaseSink,
+		live: func(e *engineStartupSink, input *rpc.DeclareRegistrationInput) error {
+			return refuseBusDeclarationDisagreement(e.proc.Config(), input)
+		},
+		daemonState: "it compares a compiled-in plugin's participant, send and receive declarations with its compiled registration",
+		refusalLog:  "plugin bus declaration agreement refused",
+	},
+	{
 		// The plugin has now said what its own failure means, and the
 		// configuration said what the operator expects. This is the first
 		// moment both are known, so it is where they are checked against each

@@ -75,8 +75,17 @@ func TestOpenObserversReceiveRemovalWithoutFilterBindings(t *testing.T) {
 	var generation atomic.Uint64
 	var plugins []plugin.PluginConfig
 	for index, name := range []string{"open-observer", "non-validator", "unsubscribed-validator", "other-peer-validator"} {
+		var receives []rpc.MessageReceiveDecl
+		if index != 2 {
+			decl := rpc.MessageReceiveDecl{Message: bgpevents.Namespace + ":" + bgpevents.EventState}
+			if index == 3 {
+				decl.From = []string{"192.0.2.99"}
+			}
+			receives = []rpc.MessageReceiveDecl{decl}
+		}
 		err := registry.Register(registry.Registration{
 			Name: name, Description: "OPEN observation lifecycle test",
+			Receives: receives,
 			RunEngine: func(conn net.Conn) int {
 				p := sdk.NewWithConn(name, conn)
 				defer p.Close() //nolint:errcheck // Test connection teardown.
@@ -87,11 +96,7 @@ func TestOpenObserversReceiveRemovalWithoutFilterBindings(t *testing.T) {
 					})
 				}
 				if index != 2 {
-					var peers []string
-					if index == 3 {
-						peers = []string{"192.0.2.99"}
-					}
-					p.SetStartupSubscriptionsIn(bgpevents.Namespace, []string{"state"}, peers, "full")
+					p.SetEventFormat("full")
 				}
 				p.OnEvent(func(payload string) error {
 					var event struct {
@@ -106,7 +111,7 @@ func TestOpenObserversReceiveRemovalWithoutFilterBindings(t *testing.T) {
 					delivered[index].Add(1)
 					return nil
 				})
-				if err := p.Run(ctx, &sdk.Registration{}); err != nil {
+				if err := p.Run(ctx, &sdk.Registration{Receives: receives}); err != nil {
 					return 1
 				}
 				return 0

@@ -54,6 +54,10 @@ func init() {
 // this path because their peer, rather than the plugin, decides when the test
 // has observed every expected wire message.
 func runPlugin11(ctx context.Context, name string, setup func(*sdk.Plugin), scenario ObserverScenario) error {
+	return runPlugin11WithRegistration(ctx, name, &sdk.Registration{}, setup, scenario)
+}
+
+func runPlugin11WithRegistration(ctx context.Context, name string, reg *sdk.Registration, setup func(*sdk.Plugin), scenario ObserverScenario) error {
 	plugin, err := newObserver(name)
 	if err != nil {
 		return fmt.Errorf("connect plugin %s: %w", name, err)
@@ -73,7 +77,7 @@ func runPlugin11(ctx context.Context, name string, setup func(*sdk.Plugin), scen
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, &sdk.Registration{})
+	runErr := plugin.Run(ctx, reg)
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)
@@ -215,7 +219,6 @@ func nexthopRoutes(ctx context.Context, _ []string) error {
 func refreshRoute(ctx context.Context, _ []string) error {
 	stateUp := make(chan struct{}, 1)
 	setup := func(p *sdk.Plugin) {
-		p.SetStartupSubscriptions([]string{eventState}, nil, "")
 		p.OnEvent(func(event string) error {
 			var doc map[string]any
 			if json.Unmarshal([]byte(event), &doc) != nil {
@@ -232,7 +235,10 @@ func refreshRoute(ctx context.Context, _ []string) error {
 			return nil
 		})
 	}
-	return runPlugin11(ctx, "announce-routes", setup, func(ctx context.Context, p *sdk.Plugin) error {
+	reg := &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventState}, nil),
+	}
+	return runPlugin11WithRegistration(ctx, "announce-routes", reg, setup, func(ctx context.Context, p *sdk.Plugin) error {
 		select {
 		case <-stateUp:
 		case <-time.After(5 * time.Second):

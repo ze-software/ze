@@ -125,13 +125,10 @@ type Plugin struct {
 	// the resolver caches whose clear this plugin answers.
 	resolverCaches []string
 
-	// Startup subscriptions: included in the "ready" RPC so the engine
-	// registers them atomically before SignalAPIReady, avoiding the race
-	// between reactor sending routes and the plugin subscribing.
-	startupSubscription *rpc.SubscribeEventsInput
-	// startupSubscriptionsMore holds the further namespaces' startup blocks
-	// (AddStartupSubscriptionsIn), carried in the same ready RPC.
-	startupSubscriptionsMore []*rpc.SubscribeEventsInput
+	// Per-process wire delivery options for Stage 1 Receives subscriptions.
+	readyFormat   string
+	readyEncoding string
+	readyEnvelope bool
 
 	// capabilities is the Stage 3 declaration. Its one writer is
 	// handleStartupConfigure, which runs the extractor capabilitySource holds.
@@ -156,6 +153,11 @@ type Plugin struct {
 	// the whole point of carrying the set here rather than in a post-startup
 	// callback, which is not ordered against peer startup.
 	claims map[string]bool
+
+	// busCatalog holds the settled bus message catalog delivered by the engine
+	// on the Stage-2 configure callback (rpc.ConfigureInput.BusCatalog).
+	// Read through BusCatalog. Populated before Stage 5 ready.
+	busCatalog []rpc.BusCatalogEntry
 
 	mu sync.Mutex
 }
@@ -230,6 +232,39 @@ func (p *Plugin) ClaimActive(role string) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.claims[role]
+}
+
+// BusCatalog returns a copy of the bus message catalog delivered by the engine
+// on the Stage-2 configure callback (rpc.ConfigureInput.BusCatalog).
+// Safe for concurrent use.
+func (p *Plugin) BusCatalog() []BusCatalogEntry {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return cloneBusCatalog(p.busCatalog)
+}
+
+func cloneBusCatalog(src []rpc.BusCatalogEntry) []rpc.BusCatalogEntry {
+	if len(src) == 0 {
+		return nil
+	}
+	out := make([]rpc.BusCatalogEntry, len(src))
+	for i := range src {
+		entry := rpc.BusCatalogEntry{
+			Message:     src[i].Message,
+			SenderKinds: slices.Clone(src[i].SenderKinds),
+		}
+		if len(src[i].Tags) > 0 {
+			entry.Tags = make([]rpc.MessageTagDecl, len(src[i].Tags))
+			for j := range src[i].Tags {
+				entry.Tags[j] = rpc.MessageTagDecl{
+					Name:   src[i].Tags[j].Name,
+					Values: slices.Clone(src[i].Tags[j].Values),
+				}
+			}
+		}
+		out[i] = entry
+	}
+	return out
 }
 
 // NewWithIO creates a plugin from separate reader and writer streams.
@@ -592,11 +627,11 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) (runErr err
 		}
 	}()
 	p.mu.Lock()
-	readyInput := &rpc.ReadyInput{}
-	if p.startupSubscription != nil {
-		readyInput.Subscribe = p.startupSubscription
+	readyInput := &rpc.ReadyInput{
+		Format:   p.readyFormat,
+		Encoding: p.readyEncoding,
+		Envelope: p.readyEnvelope,
 	}
-	readyInput.Subscriptions = p.startupSubscriptionsMore
 	if p.bridge != nil {
 		readyInput.Transport = "bridge"
 	}

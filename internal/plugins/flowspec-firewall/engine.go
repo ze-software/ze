@@ -55,7 +55,7 @@ func (b *bridge) applyRules() {
 }
 
 // clearStaleRules takes ownership of the previous process's table before
-// removing it. A fresh nft backend cannot remove an unclaimed ze_* table.
+// removing it. A fresh kernel firewall backend cannot remove an unclaimed ze_* table.
 func clearStaleRules() error {
 	claim := firewall.Table{Name: tableName, Family: firewall.FamilyInet}
 	if err := firewall.RegisterTables("flowspec", []firewall.Table{claim}); err != nil {
@@ -131,7 +131,7 @@ func runEngine(conn net.Conn) int {
 			return nil
 		}
 		// Dependencies finish configuration before this callback. Replaying
-		// earlier could autoload nft before the configured backend is ready.
+		// earlier could autoload the kernel backend before the configured backend is ready.
 		if err := clearStaleRules(); err != nil {
 			return err
 		}
@@ -155,7 +155,9 @@ func runEngine(conn net.Conn) int {
 	})
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, &sdk.Registration{}); err != nil {
+	if err := p.Run(ctx, &sdk.Registration{
+		Sends: flowspecFirewallSends(),
+	}); err != nil {
 		log.Error("flowspec-firewall plugin failed", "error", err)
 		return 1
 	}

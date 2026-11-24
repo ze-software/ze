@@ -48,7 +48,7 @@ func irrRestartKeepsBGPList(ctx context.Context, _ []string) error {
 			}
 			return nil
 		})
-		p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+		p.SetEventFormat("parsed")
 		return nil
 	}
 	scenario := func(ctx context.Context, p *sdk.Plugin) error {
@@ -67,5 +67,8 @@ func irrRestartKeepsBGPList(ctx context.Context, _ []string) error {
 		}
 		return irrSecondRunScenario(ctx, p, "show bgp irr", first)
 	}
-	return observeConfigured(ctx, name, &sdk.Registration{}, setup, scenario)
+	reg := &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+	}
+	return observeConfigured(ctx, name, reg, setup, scenario)
 }

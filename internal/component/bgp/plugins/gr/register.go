@@ -5,14 +5,45 @@ import (
 
 	gryang "github.com/ze-software/ze/internal/component/bgp/plugins/gr/yang"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
+	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+func grBusSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: events.NamespaceCLI + ":request bgp rib source retain-routes"},
+		{Message: events.NamespaceCLI + ":request bgp rib source mark-stale"},
+		{Message: events.NamespaceCLI + ":request bgp rib source purge-stale"},
+		{Message: events.NamespaceCLI + ":request bgp rib source release-routes"},
+		{Message: events.NamespaceCLI + ":request bgp rib source delete-with-community"},
+		{Message: events.NamespaceCLI + ":request bgp rib source attach-community"},
+		{Message: events.NamespaceCLI + ":clear bgp rib out-excluding-owner"},
+		{Message: retention.Namespace + ":" + retention.EventType},
+		{Message: retention.Namespace + ":" + retention.CleanupEventType},
+	}
+}
+
+func grBusReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{
+			Message: bgpevents.Namespace + ":" + bgpevents.EventOpen,
+			Tags: []rpc.MessageTagDecl{{
+				Name:   events.TagDirection,
+				Values: []string{events.DirectionReceived, events.DirectionSent},
+			}},
+		},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventEOR},
+	}
+}
 
 // grPluginName is the registration name of this plugin, and the name an
 // operator writes in `use bgp-gr` or `run "ze plugin bgp-gr"`.
@@ -78,6 +109,8 @@ func init() {
 		// inserted where a peer's config makes Ze advertise LLGR.
 		Filters:          grFilterDecls(),
 		FilterInsertions: grInsertions(),
+		Sends:            grBusSends(),
+		Receives:         grBusReceives(),
 		Dependencies:     append([]string{configRootBGP}, grDependencies...),
 		// Reverse dependency delivery puts GR's retention verdict before the
 		// route server and the route reflector decide which source families

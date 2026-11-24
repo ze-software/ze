@@ -14,15 +14,25 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/routeinstall"
 	"github.com/ze-software/ze/internal/core/routingtable"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	staticevents "github.com/ze-software/ze/internal/plugins/static/events"
 	staticyang "github.com/ze-software/ze/internal/plugins/static/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func staticSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: staticevents.Namespace + ":" + redistevents.EventType},
+		{Message: sysribevents.Namespace + ":" + sysribevents.EventRouteInstall},
+	}
+}
 
 const pluginName = "static"
 
@@ -166,6 +176,7 @@ func init() {
 		StartAfter:              []string{"bfd", "redistribute-orchestrator"},
 		InProcessConfigVerifier: verifyStaticConfig,
 		DoctorChecks:            staticDoctorChecks(),
+		Sends:                   staticSends(),
 		RunEngine:               runStaticPlugin,
 		Commands:                commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -421,6 +432,7 @@ func runStaticPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  2,
 		Commands:     commandDecls(),
+		Sends:        staticSends(),
 	})
 	if err != nil {
 		logger().Error("static plugin failed", "error", err)

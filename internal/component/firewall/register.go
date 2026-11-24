@@ -8,10 +8,19 @@ import (
 
 	firewallyang "github.com/ze-software/ze/internal/component/firewall/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func firewallSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventDefault},
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventClearSourceDefaults},
+	}
+}
 
 var (
 	eventBusMu  sync.Mutex
@@ -71,6 +80,7 @@ func init() { //nolint:gochecknoinits // plugin registration
 			Providers: []string{vppPlugin},
 		}},
 		InProcessConfigVerifier: VerifyConfig,
+		Sends:                   firewallSends(),
 		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

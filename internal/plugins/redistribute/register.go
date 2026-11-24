@@ -11,14 +11,28 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func redistributeSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: redistevents.ReplayNamespace + ":" + redistevents.ReplayRequestEventType},
+		{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate},
+	}
+}
+
+func redistributeReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+	}
+}
 
 // Compile-time contract: the SDK plugin is the engine connection a consumer
 // factory builds on (configredist.ConsumerFactory, buildFactoryConsumers).
@@ -59,6 +73,8 @@ func init() {
 		// a rule naming BGP without the block is refused before startup
 		// (config.RefuseRedistributeRules).
 		StartAfter: []string{"bgp"},
+		Sends:      redistributeSends(),
+		Receives:   redistributeReceives(),
 		RunEngine:  runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -130,16 +146,11 @@ func runPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	// Subscribe to peer state; on a down->up edge fire a targeted replay so a
+	// Peer state subscription is declared in Stage 1 Receives (dormant on
+	// non-BGP builds); on a down->up edge fire a targeted replay so a
 	// newly-established peer receives the current redistribute route set. Mirrors
 	// the watchdog's state-subscription pattern (in-process DirectBridge via
 	// OnStructuredEvent, text fallback via OnEvent).
-	// The state events are BGP's. A build without BGP registers no bgp
-	// namespace, so the plugin subscribes to nothing rather than ask for a
-	// namespace the engine cannot resolve.
-	if events.IsValidNamespace(bgpStateNamespace) {
-		p.SetStartupSubscriptionsIn(bgpStateNamespace, []string{"state"}, nil, "")
-	}
 	p.SetEncoding("text")
 	p.OnStructuredEvent(func(events []any) error {
 		bus := getEventBus()
@@ -173,15 +184,16 @@ func runPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	if err := p.Run(ctx, &sdk.Registration{WantsConfig: []string{configRoot, policy.RootName}}); err != nil {
+	if err := p.Run(ctx, &sdk.Registration{
+		WantsConfig: []string{configRoot, policy.RootName},
+		Sends:       redistributeSends(),
+		Receives:    redistributeReceives(),
+	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
 		return 1
 	}
 	return 0
 }
-
-// bgpStateNamespace is the event namespace the BGP peer state events live in.
-const bgpStateNamespace = "bgp"
 
 // Consumer constructors register optional SDK callbacks before Run. Registry
 // publication still waits for Started, because it can trigger source replay.

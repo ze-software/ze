@@ -4,8 +4,17 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/healthcheck/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+func healthcheckBusSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: events.NamespaceCLI + ":request bgp watchdog announce"},
+		{Message: events.NamespaceCLI + ":request bgp watchdog withdraw"},
+	}
+}
 
 func init() {
 	pluginSetup()
@@ -21,6 +30,7 @@ func pluginSetup() {
 		YANG:         yang.ZeHealthcheckConfYANG,
 		RunEngine:    runHealthcheckPlugin,
 		Commands:     commandDecls(),
+		Sends:        healthcheckBusSends(),
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},

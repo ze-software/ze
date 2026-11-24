@@ -84,9 +84,8 @@ func runIRR(conn net.Conn) int {
 	sdk.NewConfigTx(defaultOwnerConfig(), parseOwnerConfig, plug.configure).Register(p)
 
 	// A consumer's interest notice tells the owner to read the interest keys
-	// again. Subscribed at stage 5, before any event flows, so a notice a
-	// consumer sends from its own OnStarted is delivered.
-	p.AddStartupSubscriptionsIn(store.NoticeNamespace, []string{store.EventInterestChanged})
+	// again. Subscribed from Stage 1 Receives before any event flows, so a
+	// notice a consumer sends from its own OnStarted is delivered.
 	p.OnEvent(func(_ string) error {
 		plug.interestChanged()
 		return nil
@@ -112,6 +111,8 @@ func runIRR(conn net.Conn) int {
 		Commands:     commandDecls(),
 		WantsConfig:  []string{configRootSystem},
 		DoctorChecks: []sdk.DoctorCheckDecl{datasetCheckDecl},
+		Sends:        irrSends(),
+		Receives:     irrReceives(),
 		// The stored datasets outlive this process, so a crashed owner comes
 		// back and resumes the schedule; the consumers keep enforcing the
 		// stored copies meanwhile.

@@ -70,7 +70,7 @@ func setLogger(l *slog.Logger) {
 // Lifecycle:
 //  1. Stage 2 configure parses config tree, builds per-peer route pools; a
 //     reload's verify, apply and rollback reconcile them (config_tx.go)
-//  2. SetStartupSubscriptions — subscribes to state events
+//  2. Stage 1 Receives — subscribes to bgp:state events
 //  3. OnEvent — handles peer up/down, resends announced routes
 //  4. OnExecuteCommand — handles request bgp watchdog announce/withdraw commands
 func runWatchdogPlugin(conn net.Conn) int {
@@ -96,8 +96,8 @@ func runWatchdogPlugin(conn net.Conn) int {
 	tx := &watchdogConfigTx{srv: srv}
 	tx.register(p)
 
-	// Subscribe to state events for peer up/down lifecycle
-	p.SetStartupSubscriptions([]string{"state"}, nil, "")
+	// State event subscription comes from Stage 1 Receives (watchdogBusReceives
+	// in register.go); request text encoding for peer up/down lifecycle events.
 	p.SetEncoding("text")
 
 	// Runtime: handle structured events (peer state changes via DirectBridge).
@@ -142,6 +142,8 @@ func runWatchdogPlugin(conn net.Conn) int {
 		SignalsSessionReady: true,
 		WantsConfig:         []string{configRootBGP},
 		Commands:            commandDecls(),
+		Sends:               watchdogBusSends(),
+		Receives:            watchdogBusReceives(),
 	})
 	if err != nil {
 		logger().Error("watchdog plugin failed", "error", err)

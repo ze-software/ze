@@ -2,12 +2,46 @@ package rpki
 
 import (
 	rpkiyang "github.com/ze-software/ze/internal/component/bgp/plugins/rpki/yang"
+	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+func rpkiBusSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: events.NamespaceCLI + ":request bgp adj-rib-in disable-validation"},
+		{Message: events.NamespaceCLI + ":request bgp adj-rib-in enable-validation"},
+		{Message: events.NamespaceCLI + ":request bgp adj-rib-in batch-validate"},
+		{
+			Message: bgpevents.Namespace + ":" + bgpevents.EventRPKI,
+			Tags: []rpc.MessageTagDecl{{
+				Name:   events.TagDirection,
+				Values: []string{events.DirectionReceived},
+			}},
+		},
+	}
+}
+
+func rpkiBusReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{
+			Message: bgpevents.Namespace + ":" + bgpevents.EventUpdate,
+			Tags: []rpc.MessageTagDecl{{
+				Name:   events.TagDirection,
+				Values: []string{events.DirectionReceived},
+			}},
+		},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+		{Message: retention.Namespace + ":" + retention.EventType},
+		{Message: retention.Namespace + ":" + retention.CleanupEventType},
+	}
+}
 
 func init() {
 	reg := registry.Registration{
@@ -26,6 +60,8 @@ func init() {
 		FatalOnConfigError:      true,
 		Commands:                commandDecls(),
 		Pipes:                   pipeDecls(),
+		Sends:                   rpkiBusSends(),
+		Receives:                rpkiBusReceives(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

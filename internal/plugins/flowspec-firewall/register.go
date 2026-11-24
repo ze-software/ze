@@ -7,9 +7,17 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func flowspecFirewallSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: ribevents.Namespace + ":" + ribevents.EventReplayRequest},
+	}
+}
 
 var (
 	eventBusMu  sync.Mutex
@@ -33,6 +41,7 @@ func init() { //nolint:gochecknoinits // plugin registration
 		Name:         "flowspec-firewall",
 		Description:  "Translates BGP FlowSpec routes into nftables firewall rules",
 		Dependencies: []string{"firewall", "bgp-rib"},
+		Sends:        flowspecFirewallSends(),
 		RunEngine:    runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

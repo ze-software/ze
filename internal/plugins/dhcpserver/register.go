@@ -22,12 +22,26 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	dhcpyang "github.com/ze-software/ze/internal/plugins/dhcpserver/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 const configRootService = "service"
 
 var loggerPtr atomic.Pointer[slog.Logger]
+
+func dhcpServerSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: dnssource.Namespace + ":" + dnssource.SnapshotRequestEventType},
+		{Message: dnssource.Namespace + ":" + dnssource.PublicationEventType},
+	}
+}
+
+func dhcpServerReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: dnssource.Namespace + ":" + dnssource.SnapshotEventType},
+	}
+}
 
 func init() {
 	loggerPtr.Store(slogutil.DiscardLogger())
@@ -45,6 +59,8 @@ func init() {
 		ConfigRoots:             []string{configRootService},
 		StartAfter:              []string{"interface"},
 		InProcessConfigVerifier: verifyDHCPConfig,
+		Sends:                   dhcpServerSends(),
+		Receives:                dhcpServerReceives(),
 		RunEngine:               runDHCPServerPlugin,
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
@@ -103,6 +119,8 @@ func runDHCPServerPlugin(conn net.Conn) int {
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRootService},
+		Sends:        dhcpServerSends(),
+		Receives:     dhcpServerReceives(),
 		VerifyBudget: 2,
 		ApplyBudget:  5,
 	}); err != nil {
@@ -174,8 +192,8 @@ func learnedSnapshotHandler(learned *dnssource.Follower, publisher *dhcpPublishe
 }
 
 // followLearnedResolvers keeps learned on the newest system-dns snapshot, so
-// each reply's option 6 reads the current learned resolvers. The startup
-// subscription and the snapshot request at OnStarted give a plugin that
+// each reply's option 6 reads the current learned resolvers. The Stage 1
+// Receives declaration and the snapshot request at OnStarted give a plugin that
 // starts after the leases the records already held (AC-13). Replies wait for
 // that replay (dnssource.Follower.AwaitReplay in offerDNS, bounded by
 // dnssource.ReplayWaitMax), so none carries the option 6 list and lease time
@@ -184,7 +202,6 @@ func learnedSnapshotHandler(learned *dnssource.Follower, publisher *dhcpPublishe
 // selection again for show system dns and ze doctor.
 func followLearnedResolvers(p *sdk.Plugin, learned *dnssource.Follower, publisher *dhcpPublisher, log *slog.Logger) {
 	learned.ExpectReplay()
-	p.SetStartupSubscriptionsIn(dnssource.Namespace, []string{dnssource.SnapshotEventType}, nil, "")
 	p.OnEvent(learnedSnapshotHandler(learned, publisher, learnedRejectedCounter, log))
 	// A plugin the engine removes while the daemon runs withdraws its
 	// selections, so show system dns and ze doctor stop reporting them. On

@@ -470,14 +470,13 @@ func RunRouteServer(conn net.Conn) int {
 	// The env var takes precedence over the leaf at boot and on reload.
 	newQueueSizeConfigTx(rs.workers, env.Get("ze.bgp.route-server.worker-queue-size") != "").Register(p)
 
-	// Register event subscriptions atomically with startup completion.
-	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
-	// ensuring the rr sees every event from the very first route.
+	// Event subscriptions come from Stage 1 Receives (rsBusReceives in
+	// register.go), activated atomically at Stage 5 before SignalAPIReady.
 	//
 	// Subscribe to received-direction only for UPDATE events. Subscribing to
 	// "both" (the default) creates a circular deadlock: ForwardUpdate sends
 	// UPDATEs to peers → onMessageSent fires → tries to deliver sent-event
-	// to RR via MuxConn → blocks on callMu → request handler blocks →
+	// to RS via MuxConn → blocks on callMu → request handler blocks →
 	// forward worker blocks → workCh fills → OnEvent blocks → deadlock.
 	//
 	// The "refresh" subscription also delivers "borr" and "eorr" events (RFC 7313)
@@ -490,19 +489,11 @@ func RunRouteServer(conn net.Conn) int {
 	// overwrites Families each time, so the last OPEN wins. If the sent OPEN
 	// arrives last, the peer's families are wrong and selectForwardTargets
 	// excludes it from forwarding.
-	p.SetStartupSubscriptions(routeServerStartupSubscriptions(), nil, "")
-
+	//
 	// Request text encoding — strings.Fields parsing instead of json.Unmarshal.
+	// Envelope wraps non-BGP events (retention, ribevents) so dispatchText tells
+	// them from the BGP text events.
 	p.SetEncoding("text")
-	// bgp-gr's per-DOWN retention verdict, enveloped so dispatchText tells it
-	// from the BGP text events. RFC 4724 Section 4.2 (handleStateDown).
-	p.AddStartupSubscriptionsIn(retention.Namespace, []string{retention.EventType, retention.CleanupEventType})
-	// The receive store's eligibility change, through the SDK so a forked
-	// bgp-rs hears it too: the daemon's own bus never reaches a subprocess.
-	// The selecting RIB's flowspec-gate names the command that answers its
-	// FlowSpec lookup, so a forked bgp-rs (or one beside a forked bgp-rib)
-	// replays FlowSpec rules rather than withdrawing every one.
-	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange, ribevents.EventFlowSpecGate, ribevents.EventValidationGate})
 	p.SetEnvelope(true)
 
 	ctx := context.Background()
@@ -515,17 +506,6 @@ func RunRouteServer(conn net.Conn) int {
 	}
 
 	return 0
-}
-
-// routeServerStartupSubscriptions returns the base BGP startup subscriptions
-// registered by bgp-rs. It excludes update-filtered by design (RFC 7947 §2.1).
-func routeServerStartupSubscriptions() []string {
-	return []string{
-		eventUpdate + " direction received", //nolint:goconst // const folded at compile time
-		eventState,
-		eventOpen + " direction received", //nolint:goconst // const folded at compile time
-		eventRefresh,
-	}
 }
 
 // handleStructuredEvent dispatches one structured BGP event received over the
@@ -1135,8 +1115,12 @@ func routeServerRegistration() *sdk.Registration {
 		WantsConfig: []string{configRootBGP},
 		Commands:    commandDecls(),
 		// The same declarations register.go makes (rsFilterDecls,
-		// rsInsertions), so Stage 1 and the compiled registry agree.
+		// rsInsertions, rsParticipantNodes, rsBusSends, rsBusReceives), so
+		// Stage 1 and the compiled registry agree.
 		Filters:          rsFilterDecls(),
 		FilterInsertions: rsInsertions(),
+		ParticipantNodes: rsParticipantNodes(),
+		Sends:            rsBusSends(),
+		Receives:         rsBusReceives(),
 	}
 }

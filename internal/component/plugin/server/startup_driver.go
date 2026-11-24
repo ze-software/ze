@@ -251,12 +251,12 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 		_ = conn.SendError(ctx, req.ID, tb.Str("expected ready, got ").Str(req.Method).String())
 		return fmt.Errorf("stage 5: expected ready, got %s", req.Method)
 	}
-	// Startup subscriptions ride in the ready params. A parse failure is
-	// non-fatal: startup proceeds with a zero-value ReadyInput (no subscription,
-	// no bridge transport), matching the pre-refactor engine behavior. The
-	// params decode into their own value, published only on success:
-	// encoding/json goes on past a field of the wrong type, so a failed decode
-	// still holds every field that did parse, and registering those would
+	// Transport and per-process wire delivery options ride in the ready params.
+	// A parse failure is non-fatal: startup proceeds with a zero-value ReadyInput
+	// (default wire options, no bridge transport), matching the pre-refactor
+	// engine behavior. The params decode into their own value, published only on
+	// success: encoding/json goes on past a field of the wrong type, so a failed
+	// decode still holds every field that did parse, and applying those would
 	// contradict the drop the refusal records.
 	var readyInput rpc.ReadyInput
 	if req.Params != nil {

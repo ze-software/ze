@@ -161,6 +161,7 @@ func engineRegistration() *sdk.Registration {
 	return &sdk.Registration{
 		WantsConfig:   []string{configRoot},
 		Commands:      commandDecls(),
+		Sends:         containerSends(),
 		DrainBudget:   drainBudgetSeconds,
 		FailurePolicy: rpc.FailureRestart,
 		DoctorChecks:  runtimeDoctorCheckDecls(),

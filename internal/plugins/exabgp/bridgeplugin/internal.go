@@ -132,11 +132,11 @@ func runInternalBridge(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 
-	// Subscribe to all events so the bridge can translate them for the scripts.
-	// Set before Run in the decoded form, and set again at OnConfigure once the
-	// scripts' grants are known: Stage 5 reads it after both, and a bridge
-	// with no script, which OnConfigure does not reach, still needs the events.
-	p.SetStartupSubscriptions([]string{"*"}, nil, plugin.FormatParsed)
+	// Request parsed events initially, then refine at OnConfigure once the
+	// scripts' grants are known: Stage 5 reads the format after both, and a
+	// bridge with no script, which OnConfigure does not reach, still receives
+	// its declared BGP events in parsed form.
+	p.SetEventFormat(plugin.FormatParsed)
 
 	// ze events -> external JSON on every subprocess stdin. Registered before Run
 	// so the bridge (Stage 5) captures it; no-ops until the subprocesses start.
@@ -167,7 +167,7 @@ func runInternalBridge(conn net.Conn) int {
 			// UPDATE or a packet form (bridgerun.EventFormat). A reload cannot change
 			// the grants (verifyReload), so the Stage 2 answer holds for the
 			// life of the plugin.
-			p.SetStartupSubscriptions([]string{"*"}, nil, bridgerun.EventFormat(cfg.Scripts))
+			p.SetEventFormat(bridgerun.EventFormat(cfg.Scripts))
 			return nil
 		}
 		return nil
@@ -330,6 +330,8 @@ func bridgeRegistration() *sdk.Registration {
 	return &sdk.Registration{
 		Families:      familyDecls([]string{defaultFamily}),
 		WantsConfig:   []string{configRoot},
+		Sends:         bridgerun.BridgeSends(),
+		Receives:      bridgerun.BridgeReceives(),
 		FailurePolicy: sdk.FailureRestart,
 	}
 }

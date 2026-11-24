@@ -10,6 +10,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
@@ -19,9 +21,18 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	fibevents "github.com/ze-software/ze/internal/plugins/fib/kernel/events"
 	fibyang "github.com/ze-software/ze/internal/plugins/fib/kernel/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func fibKernelSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: fibevents.Namespace + ":" + fibevents.EventExternalChange},
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventDefault},
+		{Message: sysribevents.Namespace + ":" + sysribevents.EventReplayRequest},
+	}
+}
 
 // configRoot is the YANG container this plugin reads.
 const configRoot = "fib/kernel"
@@ -200,6 +211,7 @@ func init() {
 		DataPlane:                "netlink",
 		PreservesForwardingState: preservesForwardingState,
 		InProcessConfigVerifier:  verifyFIBConfig,
+		Sends:                    fibKernelSends(),
 		RunEngine:                runFIBKernelPlugin,
 		Commands:                 commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -324,6 +336,7 @@ func runFIBKernelPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		Sends:        fibKernelSends(),
 	})
 	if err != nil {
 		logger().Error("fib-kernel plugin failed", "error", err)

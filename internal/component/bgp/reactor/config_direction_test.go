@@ -49,7 +49,7 @@ import (
 var noSentUpdates = map[string]string{
 	"bgp-rr": "forwarding an UPDATE raises the sent event the forward is waiting on " +
 		"(rr.go: ForwardUpdate -> onMessageSent -> deliver -> block)",
-	"bgp-rs": "same circular deadlock as bgp-rr (server.go, above SetStartupSubscriptions)",
+	"bgp-rs": "same circular deadlock as bgp-rr (server.go, rsBusReceives)",
 	"bgp-rpki": "origin validation judges what the peer announced; ze's own announcements " +
 		"carry no origin to validate (rpki.go declares update direction received)",
 	"bgp-rpki-decorator": "it decorates a received UPDATE with its validation state " +

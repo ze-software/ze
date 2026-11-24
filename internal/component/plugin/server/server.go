@@ -125,6 +125,12 @@ type Server struct {
 	advertisedClaims   map[string]map[string]bool
 	advertisedClaimsMu sync.Mutex
 
+	// busDeclaredSends records each live plugin's Stage 1 Sends declarations
+	// so buildBusCatalog delivers compiled-in and runtime-declared external
+	// sends together at Stage 2 configure (bus_catalog.go).
+	busCatalogMu     sync.Mutex
+	busDeclaredSends map[string][]rpc.MessageSendDecl
+
 	startupDone        chan struct{} // closed when signalStartupComplete runs
 	startupDoneOnce    sync.Once
 	postStartupStarted atomic.Bool // Replacements admitted during the initial fan-out owe the same callback.
@@ -321,10 +327,6 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		setPluginPanicMetrics(config.MetricsRegistry)
 		pluginipc.SetFilterMetrics(config.MetricsRegistry)
 	}
-
-	// Register plugin-declared event and send types before any subscriptions.
-	plugin.RegisterPluginEventTypes()
-	plugin.RegisterPluginSendTypes()
 
 	// Build WireMethod -> CLI path mapping from shared YANG loader. The maps
 	// built here, and the argument definitions seeded below, are kept for the

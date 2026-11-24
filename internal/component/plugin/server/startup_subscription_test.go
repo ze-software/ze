@@ -233,22 +233,22 @@ func TestBgpStartupSubscriptionUnchanged(t *testing.T) {
 	}
 }
 
-// AC-3 fallback: an empty namespace resolves to the process-global default
-// exactly as before Gap A (here the default is unregistered, so "" -> ok=true,
-// preserving the legacy warn-and-continue rather than skipping).
-func TestEmptyNamespaceUsesDefault(t *testing.T) {
+// VALIDATES: resolveSubscriptionNamespace requires an explicit namespace and
+// refuses an empty namespace rather than guessing a global default.
+// PREVENTS: silent subscription drops or unintended cross-namespace matching.
+func TestEmptyNamespaceRejected(t *testing.T) {
 	s := newSubscriptionServer()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "default-probe"})
 
 	nsID, ns, ok := s.resolveSubscriptionNamespace(proc, "")
-	if !ok {
-		t.Fatal("empty namespace must resolve (ok=true), preserving legacy behavior")
+	if ok {
+		t.Fatalf("empty namespace must be rejected, got ok=true (ns=%q, nsID=%d)", ns, nsID)
 	}
-	if ns != plugin.DefaultEventNamespace() {
-		t.Fatalf("resolved namespace = %q, want default %q", ns, plugin.DefaultEventNamespace())
+	if ns != "" {
+		t.Fatalf("resolved namespace = %q, want empty", ns)
 	}
-	if nsID != events.LookupNamespaceID(plugin.DefaultEventNamespace()) {
-		t.Fatalf("resolved nsID = %d, want default's ID", nsID)
+	if nsID != events.NamespaceUnknown {
+		t.Fatalf("resolved nsID = %d, want NamespaceUnknown", nsID)
 	}
 }
 

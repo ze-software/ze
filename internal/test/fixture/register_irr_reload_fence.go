@@ -68,7 +68,7 @@ func irrReloadFence(ctx context.Context, _ []string) error {
 			}
 			return nil
 		})
-		p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+		p.SetEventFormat("parsed")
 		return nil
 	}
 	scenario := func(ctx context.Context, p *sdk.Plugin) error {
@@ -87,5 +87,8 @@ func irrReloadFence(ctx context.Context, _ []string) error {
 		}
 		return irrListedUpdateAccepted(ctx, updates)
 	}
-	return observeConfigured(ctx, name, &sdk.Registration{}, setup, scenario)
+	reg := &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+	}
+	return observeConfigured(ctx, name, reg, setup, scenario)
 }

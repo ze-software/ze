@@ -24,7 +24,6 @@ import (
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bgp/transaction"
 	bgpyang "github.com/ze-software/ze/internal/component/bgp/yang"
-	zeplugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/configop"
@@ -34,6 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/core/health"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -55,6 +55,51 @@ var (
 // stamps on the config operations it decomposes (operation.go).
 const pluginNameBGP = "bgp"
 
+func bgpParticipantNodes() []rpc.ParticipantNodeDecl {
+	return []rpc.ParticipantNodeDecl{
+		{Module: "ze-bgp-conf", Prefix: "bgp", SchemaPath: "/bgp:bgp/bgp:group"},
+		{Module: "ze-bgp-conf", Prefix: "bgp", SchemaPath: "/bgp:bgp/bgp:peer", SecondaryIPPath: "/bgp/ip"},
+		{Module: "ze-bgp-conf", Prefix: "bgp", SchemaPath: "/bgp:bgp/bgp:group/bgp:peer", SecondaryIPPath: "/bgp/ip"},
+	}
+}
+
+func bgpDirTags() []rpc.MessageTagDecl {
+	return []rpc.MessageTagDecl{{
+		Name:   events.TagDirection,
+		Values: []string{events.DirectionReceived, events.DirectionSent},
+	}}
+}
+
+func bgpBusSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventUpdate, Tags: bgpDirTags()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventUpdateFiltered, Tags: bgpDirTags()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventUpdatePrePolicyOut, Tags: bgpDirTags()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventOpen, Tags: bgpDirTags()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventNotification, Tags: bgpDirTags()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventKeepalive, Tags: bgpDirTags()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventRefresh, Tags: bgpDirTags()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventNegotiated},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventEOR},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventCongested},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventResumed},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventListenerReady},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventUpdateNotification},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventConnected},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventFSM},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventSignal},
+	}
+}
+
+func bgpBusReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate},
+		{Message: bgpevents.Namespace + ":" + bgpevents.SendRefresh},
+		{Message: bgpevents.Namespace + ":" + bgpevents.SendRaw},
+	}
+}
+
 func init() {
 	// The "bgp import" and "bgp export" filter attachments are declared by
 	// internal/component/bgp/config/register.go, beside the check that reads
@@ -72,20 +117,51 @@ func init() {
 		bgpevents.EventNegotiated, bgpevents.EventEOR, bgpevents.EventCongested,
 		bgpevents.EventResumed, bgpevents.EventRPKI, bgpevents.EventListenerReady,
 		bgpevents.EventUpdateNotification, bgpevents.EventConnected, bgpevents.EventFSM,
-		bgpevents.EventSignal,
+		bgpevents.EventSignal, bgpevents.SendRaw,
 	)
 
-	// BGP owns the namespace for plugin-declared event types and
-	// namespace-less plugin RPC subscriptions; the plugin host stays
-	// protocol-neutral (ai/rules/plugins.md).
-	zeplugin.RegisterDefaultEventNamespace(bgpevents.Namespace)
+	dirTag := events.DirectionTagDef()
+	for _, msg := range []string{
+		bgpevents.EventUpdate,
+		bgpevents.EventRefresh,
+		bgpevents.EventOpen,
+		bgpevents.EventNotification,
+		bgpevents.EventKeepalive,
+		bgpevents.EventUpdateFiltered,
+		bgpevents.EventUpdatePrePolicyOut,
+		bgpevents.EventRPKI,
+	} {
+		if err := events.RegisterMessage(bgpevents.Namespace, msg, dirTag); err != nil {
+			panic("BUG: bgp: register message " + msg + ": " + err.Error())
+		}
+	}
+	for _, msg := range []string{
+		bgpevents.EventState,
+		bgpevents.EventNegotiated,
+		bgpevents.EventEOR,
+		bgpevents.EventCongested,
+		bgpevents.EventResumed,
+		bgpevents.EventListenerReady,
+		bgpevents.EventUpdateNotification,
+		bgpevents.EventConnected,
+		bgpevents.EventFSM,
+		bgpevents.EventSignal,
+		bgpevents.SendRaw,
+	} {
+		if err := events.RegisterMessage(bgpevents.Namespace, msg); err != nil {
+			panic("BUG: bgp: register message " + msg + ": " + err.Error())
+		}
+	}
 
 	reg := registry.Registration{
-		Name:        pluginNameBGP,
-		Description: "BGP routing daemon",
-		Features:    "yang",
-		YANG:        bgpyang.ZeBGPConfYANG,
-		ConfigRoots: []string{configRootBGP},
+		Name:             pluginNameBGP,
+		Description:      "BGP routing daemon",
+		Features:         "yang",
+		YANG:             bgpyang.ZeBGPConfYANG,
+		ConfigRoots:      []string{configRootBGP},
+		ParticipantNodes: bgpParticipantNodes(),
+		Sends:            bgpBusSends(),
+		Receives:         bgpBusReceives(),
 		// A peer's `connection bfd { profile ... }` names a profile under the
 		// bfd root, so commit hands BGP the candidate bfd section to check it
 		// against (reactor.VerifyPeerBFDProfiles). A read never auto-loads BGP.
@@ -476,7 +552,10 @@ func runBGPEngine(conn net.Conn) (result int) {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{configRootBGP},
+		WantsConfig:      []string{configRootBGP},
+		ParticipantNodes: bgpParticipantNodes(),
+		Sends:            bgpBusSends(),
+		Receives:         bgpBusReceives(),
 		ConfigOperations: []sdk.ConfigOperationDecl{{
 			Root:      configRootBGP,
 			Decompose: true,

@@ -5,11 +5,25 @@ package irr
 import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/statestore"
 	irryang "github.com/ze-software/ze/internal/plugins/irr/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
 )
+
+func irrSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: store.NoticeNamespace + ":" + store.EventDatasetStored},
+	}
+}
+
+func irrReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: store.NoticeNamespace + ":" + store.EventInterestChanged},
+	}
+}
 
 func init() {
 	// The owner is the only writer of the datasets, the AS-SET pointers, the
@@ -34,6 +48,8 @@ func init() {
 		Features:    "yang",
 		YANG:        irryang.ZeIrrConfYANG,
 		ConfigRoots: []string{configPathIRR},
+		Sends:       irrSends(),
+		Receives:    irrReceives(),
 		RunEngine:   runIRR,
 		Commands:    commandDecls(),
 		// The owner is the only IRR fetcher, so it registers the IRR refresh

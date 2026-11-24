@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -32,21 +33,23 @@ func registerRFC8212BestChangeConsumer(t *testing.T, wire bool, written *atomic.
 	t.Helper()
 	snapshot := registry.Snapshot()
 	t.Cleanup(func() { registry.Restore(snapshot) })
+	receives := []rpc.MessageReceiveDecl{{Message: ribevents.Namespace + ":" + ribevents.EventBestChange}}
 	require.NoError(t, registry.Register(registry.Registration{
 		Name: rfc8212BestChangeConsumerName, Description: "RFC 8212 best-change consumer fixture",
+		Receives: receives,
 		RunEngine: func(conn net.Conn) int {
 			if wire {
 				conn = struct{ net.Conn }{conn}
 			}
 			p := sdk.NewWithConn(rfc8212BestChangeConsumerName, conn)
 			defer p.Close() //nolint:errcheck // The server owns shutdown.
-			p.SetStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventBestChange}, nil, "json")
+			p.SetEventFormat("json")
 			p.OnEvent(func(string) error {
 				time.Sleep(rfc8212BestChangeWriteDelay)
 				written.Add(1)
 				return nil
 			})
-			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+			if err := p.Run(context.Background(), &sdk.Registration{Receives: receives}); err != nil {
 				return 1
 			}
 			return 0

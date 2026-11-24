@@ -69,18 +69,24 @@ func CmdEngineSteps(args []string) int {
 	buf := runner.NewEngineEventBuffer()
 	p.OnEvent(buf.OnEvent)
 
-	// A startup subscription rides the "ready" RPC, so it is registered before
-	// any plugin's OnAllPluginsReady runs. That is what lets an expect=event
-	// step observe the FIRST delivery of an event the daemon emits while it
-	// starts, which a subscribe dispatched from a step can never see.
+	// Stage 1 Receives declarations are activated during the "ready" RPC,
+	// before any plugin's OnAllPluginsReady runs. That is what lets an
+	// expect=event step observe the FIRST delivery of an event the daemon
+	// emits while it starts, which a late subscribe can never see.
 	//
 	// Envelope delivery tags each event with its (namespace, event) identity,
 	// which is what tells one subscribed event from another once several share
-	// this one subscription (rpc.EventEnvelope). Format is deliberately empty:
+	// this process (rpc.EventEnvelope). Format is deliberately empty:
 	// it is the BGP wire format (hex, base64, parsed, full), not an encoding,
 	// and these steps subscribe to whichever namespace they named.
+	var receives []sdk.MessageReceiveDecl
 	if len(sub.Events) > 0 {
-		p.SetStartupSubscriptionsIn(sub.Namespace, sub.Events, nil, "")
+		receives = make([]sdk.MessageReceiveDecl, 0, len(sub.Events))
+		for _, event := range sub.Events {
+			receives = append(receives, sdk.MessageReceiveDecl{
+				Message: sub.Namespace + ":" + event,
+			})
+		}
 		p.SetEncoding("json")
 		p.SetEnvelope(true)
 	}
@@ -115,7 +121,7 @@ func CmdEngineSteps(args []string) int {
 		return nil
 	})
 
-	runErr := p.Run(ctx, &sdk.Registration{})
+	runErr := p.Run(ctx, &sdk.Registration{Receives: receives})
 
 	select {
 	case err := <-stepResult:

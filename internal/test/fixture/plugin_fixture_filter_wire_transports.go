@@ -37,14 +37,17 @@ func filterWireTransports(ctx context.Context, args []string) error {
 		counts[i] = value
 	}
 	var forwarded atomic.Int32
-	registration := sdk.Registration{CacheConsumer: true}
+	registration := sdk.Registration{
+		CacheConsumer: true,
+		Receives:      bgpReceiveDecls([]string{eventUpdate}, nil),
+	}
 	if args[0] == "dryrun" {
 		registration.Filters = []sdk.FilterDecl{{Name: "check", Direction: sdk.FilterImport,
 			Reads: []string{"local-preference"}, Sets: []string{"med"}, OnError: sdk.OnErrorReject}}
 	}
 	setup := func(p *sdk.Plugin) error {
 		p.OnFilter(filterWireTransportsCheckLP)
-		p.SetStartupSubscriptions([]string{"update"}, nil, "parsed")
+		p.SetEventFormat("parsed")
 		p.OnEvent(func(raw string) error {
 			var event struct {
 				BGP struct {

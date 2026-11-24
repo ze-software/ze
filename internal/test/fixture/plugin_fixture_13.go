@@ -180,6 +180,10 @@ func observe13(ctx context.Context, name string, scenario ObserverScenario) erro
 }
 
 func runPlugin13(ctx context.Context, name string, setup func(*sdk.Plugin), scenario func(context.Context, *sdk.Plugin) error, shutdown bool) error {
+	return runPlugin13WithRegistration(ctx, name, &sdk.Registration{}, setup, scenario, shutdown)
+}
+
+func runPlugin13WithRegistration(ctx context.Context, name string, reg *sdk.Registration, setup func(*sdk.Plugin), scenario func(context.Context, *sdk.Plugin) error, shutdown bool) error {
 	plugin, err := newObserver(name)
 	if err != nil {
 		return err
@@ -207,7 +211,7 @@ func runPlugin13(ctx context.Context, name string, setup func(*sdk.Plugin), scen
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, &sdk.Registration{})
+	runErr := plugin.Run(ctx, reg)
 	return awaitObserverResult(started, result, runErr)
 }
 
@@ -421,7 +425,7 @@ func routeServerReplay13(name, prefix string, seed bool) Driver {
 	return func(ctx context.Context, args []string) error {
 		events := make(chan string, 128)
 		setup := func(plugin *sdk.Plugin) {
-			plugin.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+			plugin.SetEventFormat("parsed")
 			plugin.OnEvent(func(event string) error {
 				select {
 				case events <- event:
@@ -431,7 +435,10 @@ func routeServerReplay13(name, prefix string, seed bool) Driver {
 				return nil
 			})
 		}
-		return runPlugin13(ctx, name, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
+		reg := &sdk.Registration{
+			Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+		}
+		return runPlugin13WithRegistration(ctx, name, reg, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
 			if seed {
 				if err := withdrawSourceReady03(ctx, plugin, 2); err != nil {
 					return err
@@ -494,8 +501,11 @@ func routeServerReplay13(name, prefix string, seed bool) Driver {
 }
 
 func rfc7606Withdraw13(ctx context.Context, args []string) error {
-	return runPlugin13(ctx, "rfc7606-test", func(plugin *sdk.Plugin) {
-		plugin.SetStartupSubscriptions([]string{eventState}, nil, "parsed")
+	reg := &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventState}, nil),
+	}
+	return runPlugin13WithRegistration(ctx, "rfc7606-test", reg, func(plugin *sdk.Plugin) {
+		plugin.SetEventFormat("parsed")
 	}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		pollCommand13(ctx, plugin, "show bgp peer peer1 detail", 20, 250*time.Millisecond, func(result commandResult13) bool {
 			state, _ := peerField13(result, "state")

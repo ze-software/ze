@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	resolveryang "github.com/ze-software/ze/internal/plugins/dnsresolver/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -38,6 +39,19 @@ var loggerPtr atomic.Pointer[slog.Logger]
 // handlers read; nil while the plugin is not running.
 var activeResolver atomic.Pointer[resolver]
 
+func dnsResolverSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: dnssource.Namespace + ":" + dnssource.SnapshotRequestEventType},
+		{Message: dnssource.Namespace + ":" + dnssource.PublicationEventType},
+	}
+}
+
+func dnsResolverReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: dnssource.Namespace + ":" + dnssource.SnapshotEventType},
+	}
+}
+
 func init() {
 	loggerPtr.Store(slogutil.DiscardLogger())
 
@@ -48,6 +62,8 @@ func init() {
 		YANG:                    resolveryang.ZeDNSResolverConfYANG,
 		ConfigRoots:             []string{configRootService},
 		InProcessConfigVerifier: verifyResolverConfig,
+		Sends:                   dnsResolverSends(),
+		Receives:                dnsResolverReceives(),
 		RunEngine:               runResolverPlugin,
 	}
 	reg.DoctorChecks = doctorChecks()
@@ -129,6 +145,8 @@ func runResolverPlugin(conn net.Conn) int {
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRootService},
+		Sends:        dnsResolverSends(),
+		Receives:     dnsResolverReceives(),
 		VerifyBudget: 2,
 		ApplyBudget:  5,
 	}); err != nil {
@@ -175,7 +193,6 @@ func learnedSnapshotHandler(res *resolver, rejected func() metrics.Counter, log 
 // rebinding a listener.
 func followLearnedResolvers(p *sdk.Plugin, res *resolver, log *slog.Logger) {
 	res.learned.ExpectReplay()
-	p.SetStartupSubscriptionsIn(dnssource.Namespace, []string{dnssource.SnapshotEventType}, nil, "")
 	p.OnEvent(learnedSnapshotHandler(res, learnedRejectedCounter, log))
 	// A plugin the engine removes while the daemon runs withdraws its
 	// selection, so show system dns and ze doctor stop reporting it. On

@@ -174,10 +174,9 @@ func runFilterIRR(conn net.Conn) int {
 	})
 	p.OnDoctorCheck(plug.answerDoctorCheck)
 
-	// The irr plugin's notice of a stored or removed dataset. Subscribed at
-	// stage 5, before any event flows, so a notice sent between the
-	// subscription and the OnStarted read is delivered and queued.
-	p.AddStartupSubscriptionsIn(store.NoticeNamespace, []string{store.EventDatasetStored})
+	// The irr plugin's notice of a stored or removed dataset comes from Stage 1
+	// Receives (filterIRRBusReceives in register.go), activated at stage 5
+	// before any event flows so notices sent before OnStarted are queued.
 	p.OnEvent(func(event string) error {
 		plug.reader.notice(event)
 		return nil
@@ -201,6 +200,8 @@ func runFilterIRR(conn net.Conn) int {
 
 	if err := p.Run(ctx, &sdk.Registration{
 		Commands:     commandDecls(),
+		Sends:        filterIRRBusSends(),
+		Receives:     filterIRRBusReceives(),
 		WantsConfig:  []string{configRootBGP},
 		Filters:      filterDecls(),
 		DoctorChecks: []sdk.DoctorCheckDecl{storedCopyCheckDecl},

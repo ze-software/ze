@@ -80,8 +80,13 @@ func startRemovalCaptureServer(t *testing.T, gate *sync.RWMutex, inFlight chan<-
 	}
 	var plugins []plugin.PluginConfig
 	for _, spec := range specs {
+		var receives []rpc.MessageReceiveDecl
+		if spec.subscribe {
+			receives = []rpc.MessageReceiveDecl{{Message: bgpevents.Namespace + ":" + bgpevents.EventState}}
+		}
 		err := registry.Register(registry.Registration{
 			Name: spec.name, Description: "removal capture test",
+			Receives: receives,
 			RunEngine: func(conn net.Conn) int {
 				p := sdk.NewWithConn(spec.name, conn)
 				defer p.Close() //nolint:errcheck // Test connection teardown.
@@ -91,10 +96,10 @@ func startRemovalCaptureServer(t *testing.T, gate *sync.RWMutex, inFlight chan<-
 					})
 				}
 				if spec.subscribe {
-					p.SetStartupSubscriptionsIn(bgpevents.Namespace, []string{"state"}, nil, "full")
+					p.SetEventFormat("full")
 				}
 				p.OnEvent(spec.handler)
-				if err := p.Run(ctx, &sdk.Registration{}); err != nil {
+				if err := p.Run(ctx, &sdk.Registration{Receives: receives}); err != nil {
 					return 1
 				}
 				return 0

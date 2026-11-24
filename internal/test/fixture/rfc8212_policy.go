@@ -43,9 +43,12 @@ func rfc8212PolicyDriver(mode string) Driver {
 		if mode == directionExport {
 			state.forbidden[addrLoopbackSecond] = map[string]bool{prefix82First: true, "10.82.10.0/24": true, "10.82.11.0/24": true, "10.82.12.0/24": true, "10.82.13.0/24": true, "10.82.14.0/24": true, "10.82.15.0/24": true, "10.82.16.0/24": true}
 		}
-		return observeConfigured(ctx, "rfc8212-policy", &sdk.Registration{}, func(plugin *sdk.Plugin) error {
+		reg := &sdk.Registration{
+			Receives: bgpReceiveDecls([]string{eventUpdate}, []string{addrLoopbackSecond, addrLoopbackThird}),
+		}
+		return observeConfigured(ctx, "rfc8212-policy", reg, func(plugin *sdk.Plugin) error {
 			plugin.OnEvent(state.receive)
-			plugin.SetStartupSubscriptions([]string{eventUpdate}, []string{addrLoopbackSecond, addrLoopbackThird}, "full")
+			plugin.SetEventFormat("full")
 			return nil
 		}, func(ctx context.Context, plugin *sdk.Plugin) error {
 			if mode == directionExport {

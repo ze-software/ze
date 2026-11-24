@@ -61,12 +61,15 @@ func routeOverflowDriver(ctx context.Context, args []string) error {
 	}
 	state := new(routeOverflowObservation)
 	setup := func(plugin *sdk.Plugin) error {
-		plugin.SetStartupSubscriptionsIn(namespaceL2TP, []string{"route-change", "session-ip-assigned"}, nil, "full")
+		plugin.SetEventFormat("full")
 		plugin.SetEnvelope(true)
 		plugin.OnEvent(state.receive)
 		return nil
 	}
-	return observeConfigured(ctx, "route-overflow-test", &sdk.Registration{}, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
+	reg := &sdk.Registration{
+		Receives: nsReceiveDecls(namespaceL2TP, []string{"route-change", "session-ip-assigned"}, nil),
+	}
+	return observeConfigured(ctx, "route-overflow-test", reg, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
 		work, cancel := context.WithTimeout(ctx, 120*time.Second)
 		defer cancel()
 		return state.run(work, plugin, port)

@@ -19,15 +19,15 @@ import (
 	"testing"
 	"time"
 
+	"go.fd.io/govpp/adapter/socketclient"
+	"go.fd.io/govpp/binapi/sr"
+	"go.fd.io/govpp/core"
+
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
-
-	"go.fd.io/govpp/adapter/socketclient"
-	"go.fd.io/govpp/binapi/sr"
-	"go.fd.io/govpp/core"
 )
 
 var vppSRv6Plugin = flag.Bool("vpp-srv6-plugin", false, "run the managed VPP proof as an external Ze plugin")
@@ -47,7 +47,7 @@ func TestVPPSRv6ManagedProbe(t *testing.T) {
 	defer cancel()
 	ready := make(chan struct{})
 	requests := make(chan struct{}, 16)
-	p.SetStartupSubscriptionsIn(sysribevents.Namespace, []string{sysribevents.EventReplayRequest}, nil, "json")
+	p.SetEventFormat("json")
 	p.OnAllPluginsReady(func() error { close(ready); return nil })
 	p.OnEvent(func(_ string) error {
 		select {
@@ -61,7 +61,11 @@ func TestVPPSRv6ManagedProbe(t *testing.T) {
 	})
 	// This goroutine has one owner: cancellation plus the joined Run result.
 	done := make(chan error, 1)
-	go func() { done <- p.Run(ctx, &sdk.Registration{}) }()
+	go func() {
+		done <- p.Run(ctx, &sdk.Registration{
+			Receives: []sdk.MessageReceiveDecl{{Message: sysribevents.Namespace + ":" + sysribevents.EventReplayRequest}},
+		})
+	}()
 	joined := false
 	defer func() {
 		cancel()

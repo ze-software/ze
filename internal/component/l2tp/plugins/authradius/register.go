@@ -16,12 +16,15 @@ import (
 
 	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
 	"github.com/ze-software/ze/internal/component/l2tp"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/plugins/authradius/yang"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/radius"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -41,6 +44,16 @@ var (
 // configRootL2TP is the YANG container this plugin reads.
 const configRootL2TP = "l2tp"
 
+func authRadiusSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: events.NamespaceCLI + ":request l2tp shaper rate"},
+		{Message: events.NamespaceCLI + ":request class-of-service session"},
+		{Message: l2tpevents.Namespace + ":" + l2tpevents.SessionRateChangeEvent},
+		{Message: subevents.Namespace + ":" + subevents.SessionRateChangeEvent},
+		{Message: l2tpevents.Namespace + ":" + l2tpevents.SessionCoSChangeEvent},
+	}
+}
+
 func init() {
 	registerDoctorCodes()
 	reg := registry.Registration{
@@ -50,6 +63,7 @@ func init() {
 		YANG:                    yang.ZeL2TPAuthRadiusConfYANG,
 		ConfigRoots:             []string{configRootL2TP},
 		InProcessConfigVerifier: verifyRadiusAuthConfig,
+		Sends:                   authRadiusSends(),
 		RunEngine:               runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -309,6 +323,7 @@ func runPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		DoctorChecks: runtimeCheckDeclarations(),
+		Sends:        authRadiusSends(),
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
 		return 1

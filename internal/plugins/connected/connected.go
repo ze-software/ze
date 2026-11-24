@@ -378,6 +378,8 @@ func runConnectedPlugin(conn net.Conn) int {
 
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{pluginName},
+		Sends:       connectedSends(),
+		Receives:    connectedReceives(),
 	}); err != nil {
 		logger().Error("connected plugin failed", "error", err)
 		return 1

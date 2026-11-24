@@ -49,7 +49,7 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 		return err
 	}
 	p.OnEvent(state.record)
-	p.SetStartupSubscriptions([]string{eventUpdate, eventState}, []string{"*"}, "full")
+	p.SetEventFormat("full")
 	p.OnConfigApply(func([]sdk.ConfigDiffSection) error {
 		return errors.New("operation participant unexpectedly received coarse apply")
 	})
@@ -187,6 +187,7 @@ func rfc8212ReloadFaultDriver(ctx context.Context, args []string) error {
 		// preflight sees: retained source state it cannot invalidate.
 		SourcePolicyOwner: unsupported,
 		ConfigOperations:  []rpc.ConfigOperationDecl{{Root: rfc8212RootEnvironment, Decompose: true, Operations: []rpc.ConfigOperationType{rfc8212FaultOperation}}},
+		Receives:          bgpReceiveDecls([]string{eventUpdate, eventState}, nil),
 	})
 	state.mu.Lock()
 	died := state.died

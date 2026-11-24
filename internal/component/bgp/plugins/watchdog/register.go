@@ -6,9 +6,25 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+func watchdogBusSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: events.NamespaceCLI + ":request peer"},
+		{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate},
+	}
+}
+
+func watchdogBusReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+	}
+}
 
 func init() {
 	pluginSetup()
@@ -24,6 +40,8 @@ func pluginSetup() {
 		Dependencies: []string{configRootBGP},
 		RunEngine:    runWatchdogPlugin,
 		Commands:     commandDecls(),
+		Sends:        watchdogBusSends(),
+		Receives:     watchdogBusReceives(),
 		// A peer-up resends this peer's announced pool, and the resend reports
 		// when it is out (watchdog.go).
 		SignalsSessionReady: true,

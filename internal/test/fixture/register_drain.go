@@ -67,7 +67,6 @@ func drainRequester(ctx context.Context, args []string) error {
 	// shows here as a state event other than up before the drain. Seeing the
 	// up first keeps the check from passing on a peer that never attached.
 	var sessionUp, sessionDown atomic.Bool
-	plugin.SetStartupSubscriptions([]string{eventState}, nil, "")
 	plugin.OnEvent(func(event string) error {
 		if eventIsUp02(event) {
 			sessionUp.Store(true)
@@ -90,7 +89,10 @@ func drainRequester(ctx context.Context, args []string) error {
 		go requestStopAfterSettle(plugin, command)
 		return nil
 	})
-	return drainAnsweredOrFail(answered, plugin.Run(ctx, &sdk.Registration{DrainBudget: drain.Budget}))
+	return drainAnsweredOrFail(answered, plugin.Run(ctx, &sdk.Registration{
+		DrainBudget: drain.Budget,
+		Receives:    bgpReceiveDecls([]string{eventState}, nil),
+	}))
 }
 
 // drainAnsweredOrFail is the end of every responder fixture: Run returned,

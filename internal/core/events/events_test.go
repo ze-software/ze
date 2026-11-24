@@ -189,64 +189,185 @@ func TestRegisterConfigPerPluginEvent(t *testing.T) {
 	}
 }
 
-// unregisterSendType removes a dynamically registered send type. Test helper only.
-func unregisterSendType(sendType string) {
-	sendTypesMu.Lock()
-	defer sendTypesMu.Unlock()
-	delete(ValidSendTypes, sendType)
-}
-
-func TestRegisterSendType(t *testing.T) {
-	if err := RegisterSendType("enhanced-refresh"); err != nil {
-		t.Fatalf("RegisterSendType failed: %v", err)
-	}
-	defer unregisterSendType("enhanced-refresh")
-
-	if !IsValidSendType("enhanced-refresh") {
-		t.Fatal("enhanced-refresh should be a valid send type after registration")
+// unregisterMessage removes a test-registered message from both maps. Test helper only.
+func unregisterMessage(namespace, name string) {
+	eventsMu.Lock()
+	defer eventsMu.Unlock()
+	delete(registeredMessages, namespace+":"+name)
+	if evts, ok := ValidEvents[namespace]; ok {
+		delete(evts, name)
 	}
 }
 
-func TestRegisterSendTypeDuplicate(t *testing.T) {
-	if err := RegisterSendType("test-send-dup"); err != nil {
-		t.Fatalf("first registration failed: %v", err)
+// VALIDATES: SplitMessageName parses valid "namespace:name" tokens (including
+// multi-word "cli:<command path>") and rejects malformed, unbounded, or
+// control-character inputs.
+// PREVENTS: malformed message names entering the registry or Stage 1 declarations.
+func TestSplitMessageName(t *testing.T) {
+	valid := []struct {
+		input string
+		ns    string
+		name  string
+	}{
+		{"bgp:update", "bgp", "update"},
+		{"system-rib:route-install", "system-rib", "route-install"},
+		{"cli:show bgp peer", "cli", "show bgp peer"},
+		{"cli:clear bgp rib in", "cli", "clear bgp rib in"},
+		{"acme:alert", "acme", "alert"},
 	}
-	defer unregisterSendType("test-send-dup")
-
-	if err := RegisterSendType("test-send-dup"); err != nil {
-		t.Fatalf("duplicate registration should be idempotent: %v", err)
+	for _, tc := range valid {
+		ns, name, ok := SplitMessageName(tc.input)
+		if !ok {
+			t.Errorf("SplitMessageName(%q) returned ok=false, want true", tc.input)
+			continue
+		}
+		if ns != tc.ns || name != tc.name {
+			t.Errorf("SplitMessageName(%q) = (%q, %q), want (%q, %q)", tc.input, ns, name, tc.ns, tc.name)
+		}
 	}
-}
 
-func TestRegisterSendTypeEmpty(t *testing.T) {
-	if err := RegisterSendType(""); err == nil {
-		t.Fatal("expected error for empty send type")
+	invalid := []string{
+		"",
+		"no-colon",
+		":missing-ns",
+		"missing-name:",
+		"bad ns:update",
+		"bgp:has space",
+		"bgp:tab\there",
+		"bgp:new\nline",
+		"bgp:esc\x1bseq",
+		"cli: leading",
+		"cli:trailing ",
+		"cli:tab\tcmd",
+		"cli:esc\x1bcmd",
+		"cli:   ",
+		strings.Repeat("a", MaxMessageNamespaceLen+1) + ":x",
+		"bgp:" + strings.Repeat("b", MaxMessageNameLen+1),
 	}
-}
-
-func TestRegisterSendTypeWhitespace(t *testing.T) {
-	for _, input := range []string{"enhanced refresh", "tab\there", "new\nline"} {
-		if err := RegisterSendType(input); err == nil {
-			t.Fatalf("expected error for send type with whitespace: %q", input)
+	for _, input := range invalid {
+		if ns, name, ok := SplitMessageName(input); ok {
+			t.Errorf("SplitMessageName(%q) = (%q, %q, true), want ok=false", input, ns, name)
 		}
 	}
 }
 
-func TestValidSendTypeNamesIncludesRegistered(t *testing.T) {
-	if err := RegisterSendType("enhanced-refresh"); err != nil {
-		t.Fatalf("RegisterSendType failed: %v", err)
+// VALIDATES: RegisterMessageDef accepts unique messages, is idempotent on
+// identical re-registration, rejects conflicting duplicate definitions, and
+// AllMessages returns zero duplicate (namespace, name) entries.
+// PREVENTS: silent tag drift or colliding message registrations in the unified registry.
+func TestMessageRegistryNoDuplicates(t *testing.T) {
+	if err := RegisterMessage("test-msg-ns", "alpha", DirectionTagDef()); err != nil {
+		t.Fatalf("first RegisterMessage failed: %v", err)
 	}
-	defer unregisterSendType("enhanced-refresh")
+	defer func() {
+		unregisterMessage("test-msg-ns", "alpha")
+		eventsMu.Lock()
+		delete(ValidEvents, "test-msg-ns")
+		eventsMu.Unlock()
+	}()
 
-	names := ValidSendTypeNames()
-	if !strings.Contains(names, "enhanced-refresh") {
-		t.Fatalf("ValidSendTypeNames should include enhanced-refresh, got: %s", names)
+	// Identical re-registration is idempotent.
+	if err := RegisterMessage("test-msg-ns", "alpha", DirectionTagDef()); err != nil {
+		t.Fatalf("identical re-registration failed: %v", err)
+	}
+
+	// Conflicting tags on the same message must fail.
+	if err := RegisterMessage("test-msg-ns", "alpha", TagDef{Name: "source", Values: []string{"bgp"}}); err == nil {
+		t.Fatal("expected error for conflicting duplicate message registration")
+	}
+
+	// AllMessages must contain every (namespace, name) at most once and be sorted.
+	all := AllMessages()
+	seen := make(map[string]bool, len(all))
+	for i, def := range all {
+		full := def.FullName()
+		if seen[full] {
+			t.Fatalf("AllMessages returned duplicate entry %q", full)
+		}
+		seen[full] = true
+		if i > 0 {
+			prev := all[i-1]
+			if prev.Namespace > def.Namespace || (prev.Namespace == def.Namespace && prev.Name >= def.Name) {
+				t.Fatalf("AllMessages not sorted at %d: %q before %q", i, prev.FullName(), full)
+			}
+		}
+	}
+	if !seen["test-msg-ns:alpha"] {
+		t.Fatal("AllMessages missing test-msg-ns:alpha")
 	}
 }
 
-func TestIsValidSendTypeRejectsUnregistered(t *testing.T) {
-	if IsValidSendType("nonexistent-send-type") {
-		t.Fatal("nonexistent send type should not be valid")
+// VALIDATES: RegisterMessage / LookupMessage preserve closed and open tag
+// definitions, populate ValidEvents and typed IDs, and reject malformed tags.
+// PREVENTS: dropped tag metadata or broken ID lookup on message registration.
+func TestMessageRegistryTags(t *testing.T) {
+	def := MessageDef{
+		Namespace: "test-tag-ns",
+		Name:      "route-change",
+		Tags: []TagDef{
+			DirectionTagDef(),
+			{Name: "source", Values: []string{"bgp", "static"}},
+			{Name: "peer"}, // open tag (empty Values)
+		},
+		DefaultDestinations: []string{"/bgp"},
+	}
+	if err := RegisterMessageDef(def); err != nil {
+		t.Fatalf("RegisterMessageDef failed: %v", err)
+	}
+	defer func() {
+		unregisterMessage("test-tag-ns", "route-change")
+		eventsMu.Lock()
+		delete(ValidEvents, "test-tag-ns")
+		eventsMu.Unlock()
+	}()
+
+	if !IsValidMessage("test-tag-ns:route-change") {
+		t.Fatal("IsValidMessage returned false for registered message")
+	}
+	if !IsValidEvent("test-tag-ns", "route-change") {
+		t.Fatal("IsValidEvent returned false for message registered via RegisterMessageDef")
+	}
+	if LookupNamespaceID("test-tag-ns") == NamespaceUnknown {
+		t.Fatal("NamespaceID not assigned by RegisterMessageDef")
+	}
+	if LookupEventTypeID("route-change") == EventTypeUnknown {
+		t.Fatal("EventTypeID not assigned by RegisterMessageDef")
+	}
+
+	got, ok := LookupMessage("test-tag-ns:route-change")
+	if !ok {
+		t.Fatal("LookupMessage returned ok=false")
+	}
+	if len(got.Tags) != 3 {
+		t.Fatalf("got %d tags, want 3", len(got.Tags))
+	}
+	if got.Tags[0].Name != TagDirection || len(got.Tags[0].Values) != 2 {
+		t.Fatalf("unexpected direction tag: %+v", got.Tags[0])
+	}
+	if got.Tags[2].Name != "peer" || len(got.Tags[2].Values) != 0 {
+		t.Fatalf("expected open peer tag, got %+v", got.Tags[2])
+	}
+
+	// Mutating returned copy must not mutate registry.
+	got.Tags[0].Values[0] = "mutated"
+	fresh, ok := LookupMessage("test-tag-ns:route-change")
+	if !ok || fresh.Tags[0].Values[0] != DirectionReceived {
+		t.Fatalf("LookupMessage did not return a defensive copy: %+v", fresh.Tags[0])
+	}
+
+	// Duplicate tag name rejected.
+	if err := RegisterMessage("test-tag-ns", "bad-dup-tag",
+		TagDef{Name: "source"}, TagDef{Name: "source"}); err == nil {
+		t.Fatal("expected error for duplicate tag name")
+	}
+	// Control character in tag value rejected.
+	if err := RegisterMessage("test-tag-ns", "bad-ctrl-val",
+		TagDef{Name: "source", Values: []string{"bgp\x1b"}}); err == nil {
+		t.Fatal("expected error for control character in tag value")
+	}
+	// Unregistered message returns false.
+	if IsValidMessage("test-tag-ns:nonexistent") {
+		t.Fatal("IsValidMessage returned true for unregistered message")
 	}
 }
 

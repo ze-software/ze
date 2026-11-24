@@ -10,7 +10,10 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/linkstateevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 const exporterName = "bgp-ls-export"
@@ -45,6 +48,20 @@ var sourceNeeds = []registry.ConfigNeed{sourceNeed(isisSource), sourceNeed(ospfS
 
 var exportLogger = slog.Default()
 
+func lsExportBusSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: linkstateevents.Request.Namespace() + ":" + linkstateevents.Request.EventType()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate},
+	}
+}
+
+func lsExportBusReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventRefresh},
+	}
+}
+
 func init() {
 	// UPDATE RPCs are statically registered by the BGP feature, not a plugin dependency.
 	reg := registry.Registration{Name: exporterName, Description: "Export native routing databases through BGP-LS",
@@ -52,6 +69,8 @@ func init() {
 		ConfigRoots: []string{exporterName}, Dependencies: []string{"bgp-nlri-ls"},
 		OptionalDependencies: []string{isisSource, ospfSource},
 		ConfigNeeds:          sourceNeeds,
+		Sends:                lsExportBusSends(),
+		Receives:             lsExportBusReceives(),
 		RunEngine:            runTopologyExporter, InProcessConfigVerifier: verifyExporterConfig,
 		ConfigureEngineLogger: func(name string) { exportLogger = slogutil.Logger(name) }}
 	reg.CLIHandler = func(args []string) int {

@@ -29,18 +29,20 @@ const (
 	EventSignal             = "signal"              // BGP reactor: the daemon took an operating-system signal, told per peer
 )
 
-// Built-in send types. A send type names a message kind a process may generate
-// toward a peer, which is a permission rather than a subscription. Plugins add
-// more through events.RegisterSendType (e.g. "enhanced-refresh").
+// Built-in BGP send message kinds. Under the unified bus message registry
+// (A-5), update and refresh are single bidirectional messages in the "bgp"
+// namespace carrying tag direction [ received | sent ], while raw and
+// enhanced-refresh are registered directly in "bgp".
 //
 // SendRaw names a whole BGP message the caller chose, an OPEN or a NOTIFICATION
 // included, written to the peer's socket with nothing built around it. It is the
 // widest permission in the list, so it is granted on its own line and never
 // implied by another type.
 const (
-	SendUpdate  = "update"
-	SendRefresh = "refresh"
-	SendRaw     = "raw"
+	SendUpdate          = "update"
+	SendRefresh         = "refresh"
+	SendRaw             = "raw"
+	SendEnhancedRefresh = "enhanced-refresh"
 )
 
 // BaseSendTypes returns the built-in send types. The config parser and the

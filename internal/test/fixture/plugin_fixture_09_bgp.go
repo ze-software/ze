@@ -272,7 +272,7 @@ func rsObserver09(_ string, expectedPeers int) Driver {
 			return err
 		}
 		defer plugin.Close() //nolint:errcheck // fixture teardown
-		plugin.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+		plugin.SetEventFormat("parsed")
 		plugin.SetEncoding("json")
 		var mu sync.Mutex
 		forwardSeen := prefix == ""
@@ -310,7 +310,9 @@ func rsObserver09(_ string, expectedPeers int) Driver {
 			}()
 			return nil
 		})
-		runErr := plugin.Run(ctx, &sdk.Registration{})
+		runErr := plugin.Run(ctx, &sdk.Registration{
+			Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+		})
 		select {
 		case scenarioErr := <-result:
 			if scenarioErr != nil {
@@ -533,7 +535,7 @@ func accumulatorIsolation09(ctx context.Context, _ []string) error {
 	defer plugin.Close() //nolint:errcheck // fixture teardown
 	clients := map[string]bool{addrLoopbackSecond: false, addrLoopbackThird: false, addrLoopbackFourth: false}
 	var mu sync.Mutex
-	plugin.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+	plugin.SetEventFormat("parsed")
 	plugin.SetEncoding("json")
 	plugin.OnEvent(func(event string) error {
 		var decoded map[string]any
@@ -587,6 +589,8 @@ func accumulatorIsolation09(ctx context.Context, _ []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, &sdk.Registration{})
+	runErr := plugin.Run(ctx, &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+	})
 	return awaitObserverResult(started, result, runErr)
 }

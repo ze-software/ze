@@ -41,9 +41,9 @@ func CmdTextPlugin(_ []string) int {
 		cancel()
 	}()
 
-	p.SetStartupSubscriptions([]string{"update"}, nil, "")
-
-	reg := sdk.Registration{}
+	reg := sdk.Registration{
+		Receives: []sdk.MessageReceiveDecl{{Message: "bgp:update"}},
+	}
 	if err := p.Run(ctx, &reg); err != nil {
 		fmt.Fprintf(os.Stderr, "text-plugin: run: %v\n", err)
 		return 1

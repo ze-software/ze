@@ -51,29 +51,36 @@ func newAppliedEmitterGroup(t *testing.T, typed, self bool, handler func(string)
 	ownerReady := make(chan *sdk.Plugin, 1)
 	names := append([]string{"applied-emitter"}, consumers...)
 	for _, name := range names {
-		registerLifecyclePlugin(t, name, nil, func(conn net.Conn) int {
-			if !typed {
-				conn = struct{ net.Conn }{conn}
-			}
-			p := sdk.NewWithConn(name, conn)
-			defer p.Close() //nolint:errcheck // Fixture owns this SDK connection through server stop.
-			if name != "applied-emitter" || self {
-				p.AddStartupSubscriptionsIn(appliedEventNamespace, []string{appliedEventType})
-			}
-			if name != "applied-emitter" {
-				p.OnEvent(handler)
-				if settle != nil {
-					p.OnEventSettlement(func(ctx context.Context) error { return settle(ctx, name) })
+		var receives []rpc.MessageReceiveDecl
+		if name != "applied-emitter" || self {
+			receives = []rpc.MessageReceiveDecl{{Message: appliedEventNamespace + ":" + appliedEventType}}
+		}
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        name,
+			Description: "applied event settlement test plugin",
+			Receives:    receives,
+			RunEngine: func(conn net.Conn) int {
+				if !typed {
+					conn = struct{ net.Conn }{conn}
 				}
-			}
-			if name == "applied-emitter" {
-				p.OnStarted(func(context.Context) error { ownerReady <- p; return nil })
-			}
-			if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
-				return 1
-			}
-			return 0
-		})
+				p := sdk.NewWithConn(name, conn)
+				defer p.Close() //nolint:errcheck // Fixture owns this SDK connection through server stop.
+				if name != "applied-emitter" {
+					p.OnEvent(handler)
+					if settle != nil {
+						p.OnEventSettlement(func(ctx context.Context) error { return settle(ctx, name) })
+					}
+				}
+				if name == "applied-emitter" {
+					p.OnStarted(func(context.Context) error { ownerReady <- p; return nil })
+				}
+				if err := p.Run(context.Background(), &sdk.Registration{Receives: receives}); err != nil {
+					return 1
+				}
+				return 0
+			},
+			CLIHandler: func([]string) int { return 0 },
+		}))
 	}
 	host, _ := newLifecycleStartupServer(t)
 	configs := make([]plugin.PluginConfig, 0, len(names))

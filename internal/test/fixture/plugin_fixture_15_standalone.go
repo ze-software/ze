@@ -551,7 +551,7 @@ func plugin15SummaryFormat(ctx context.Context, _ []string) error {
 		return err
 	}
 	defer p.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
-	p.SetStartupSubscriptions([]string{eventUpdate}, nil, "summary")
+	p.SetEventFormat("summary")
 	var validated sync.Once
 	validatedCh := make(chan struct{})
 	p.OnEvent(func(event string) error {
@@ -632,7 +632,9 @@ func plugin15SummaryFormat(ctx context.Context, _ []string) error {
 		})
 		return nil
 	})
-	runErr := p.Run(ctx, &sdk.Registration{})
+	runErr := p.Run(ctx, &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+	})
 	if timer != nil {
 		timer.Stop()
 	}

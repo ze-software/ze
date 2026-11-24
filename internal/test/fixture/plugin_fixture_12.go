@@ -69,9 +69,9 @@ func p12ObserveDriver(name string, scenario p12Scenario) Driver {
 	}
 }
 
-// p12SubscribedDriver is the subscription-capable counterpart to Observe. The
-// SDK must install the event handler and carry subscriptions in the ready RPC
-// before its event loop starts.
+// p12SubscribedDriver is the subscription-capable counterpart to Observe. It
+// declares the requested events in Stage 1 Receives before its event loop
+// starts.
 func p12SubscribedDriver(name string, events []string, setup func(*sdk.Plugin) p12Scenario) Driver {
 	return func(ctx context.Context, _ []string) error {
 		plugin, err := newObserver(name)
@@ -80,7 +80,6 @@ func p12SubscribedDriver(name string, events []string, setup func(*sdk.Plugin) p
 		}
 		defer plugin.Close() //nolint:errcheck // the run result carries transport failures
 
-		plugin.SetStartupSubscriptions(events, nil, "")
 		scenario := setup(plugin)
 		result := make(chan error, 1)
 		plugin.OnAllPluginsReady(func() error {
@@ -94,7 +93,9 @@ func p12SubscribedDriver(name string, events []string, setup func(*sdk.Plugin) p
 			return nil
 		})
 
-		runErr := plugin.Run(ctx, &sdk.Registration{})
+		runErr := plugin.Run(ctx, &sdk.Registration{
+			Receives: bgpReceiveDecls(events, nil),
+		})
 		select {
 		case scenarioErr := <-result:
 			if scenarioErr != nil {

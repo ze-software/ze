@@ -439,6 +439,8 @@ func runBMPPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, &sdk.Registration{
 		Commands:    commandDecls(),
+		Sends:       bmpBusSends(),
+		Receives:    bmpBusReceives(),
 		WantsConfig: []string{configRootBGP, configRootEnvironment, configRootSystem},
 	})
 	if err != nil {
@@ -503,21 +505,12 @@ func (bp *BMPPlugin) registerCallbacks() {
 		return nil
 	})
 
-	// Subscribe to peer state (up/down), received/sent updates, and OPEN messages.
-	// OPEN subscriptions cache real OPEN PDUs for Peer Up (RFC 7854 S4.10).
-	// Notification/keepalive/refresh subscriptions support Route Mirroring (RFC 7854 S4.7).
-	// All subscribed unconditionally: config loads after subscriptions, and
-	// route-mirroring can be toggled via config reload. Cost is one type-check
-	// per event when mirroring is disabled.
-	p.SetStartupSubscriptions([]string{
-		"state",
-		"update direction received", "update direction sent",
-		"update-pre-policy-out direction sent",
-		"open direction received", "open direction sent",
-		"notification direction received", "notification direction sent",
-		"keepalive direction received", "keepalive direction sent",
-		"refresh direction received", "refresh direction sent",
-	}, nil, "full")
+	// Event subscriptions come from Stage 1 Receives (bmpBusReceives in
+	// register.go): peer state (up/down), received/sent updates, pre-policy
+	// outbound updates, OPEN PDUs for Peer Up (RFC 7854 S4.10), and
+	// notification/keepalive/refresh for Route Mirroring (RFC 7854 S4.7).
+	// Request format=full for raw PDU hex bytes.
+	p.SetEventFormat("full")
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		// RFC 9069 Section 5.4: refuse an unavailable feed before any session starts.

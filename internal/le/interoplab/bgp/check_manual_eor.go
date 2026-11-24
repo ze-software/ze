@@ -269,7 +269,6 @@ func runManualEORProcess(name string) error {
 
 	var mu sync.Mutex
 	var records []manualEORRequest
-	plugin.SetStartupSubscriptions([]string{manualEORStateEvent}, nil, "")
 	plugin.OnEvent(func(event string) error {
 		peer, up, decodeErr := manualEORPeerUp(event)
 		if decodeErr != nil {
@@ -295,7 +294,9 @@ func runManualEORProcess(name string) error {
 		}
 		return requestErr
 	})
-	runErr := plugin.Run(ctx, &sdk.Registration{})
+	runErr := plugin.Run(ctx, &sdk.Registration{
+		Receives: []sdk.MessageReceiveDecl{{Message: "bgp:" + manualEORStateEvent}},
+	})
 	if errors.Is(runErr, context.Canceled) {
 		return nil
 	}

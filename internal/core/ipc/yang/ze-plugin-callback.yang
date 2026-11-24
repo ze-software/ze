@@ -594,6 +594,31 @@ module ze-plugin-callback {
                     ze:help "JSON-encoded config data for this root";
                 }
             }
+            list bus-catalog {
+                key "message";
+                description
+                    "Complete catalog of messages registered on the daemon's bus (compiled-in
+                     and declared external sends), delivered at Stage 2 beside claims.";
+                ze:help "Registered bus message catalog.";
+                leaf message {
+                    type string { length "3..256"; }
+                    mandatory true;
+                    ze:help "Canonical message name (namespace:name or cli:<prefix>)";
+                    description "Registered message identifier on the bus.";
+                }
+                leaf-list sender-kinds {
+                    type string { length "1..128"; }
+                    ze:help "Participant kinds that declared sending this message";
+                    description "Sorted list of registered sender kinds for this message.";
+                }
+                list tags {
+                    key "name";
+                    max-elements 32;
+                    ze:help "Tags declared for this message";
+                    description "Tag definitions registered for this bus message.";
+                    uses engine:message-tag;
+                }
+            }
         }
     }
 

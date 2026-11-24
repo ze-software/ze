@@ -86,7 +86,7 @@ func filterIRRDecision07(ctx context.Context, _ []string) error {
 			}
 			return nil
 		})
-		p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+		p.SetEventFormat("parsed")
 		return nil
 	}
 	scenario := func(ctx context.Context, p *sdk.Plugin) error {
@@ -110,7 +110,10 @@ func filterIRRDecision07(ctx context.Context, _ []string) error {
 		}
 		return nil
 	}
-	return observeConfigured(ctx, name, &sdk.Registration{}, setup, scenario)
+	reg := &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+	}
+	return observeConfigured(ctx, name, reg, setup, scenario)
 }
 
 // filterIRRReadmit07 observes test/plugin/filter-irr-readmit.ci. Its goal is
@@ -149,7 +152,7 @@ func filterIRRReadmit07(ctx context.Context, _ []string) error {
 			}
 			return nil
 		})
-		p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+		p.SetEventFormat("parsed")
 		return nil
 	}
 	scenario := func(ctx context.Context, p *sdk.Plugin) error {
@@ -197,7 +200,10 @@ func filterIRRReadmit07(ctx context.Context, _ []string) error {
 			return ctx.Err()
 		}
 	}
-	return observeConfigured(ctx, name, &sdk.Registration{}, setup, scenario)
+	reg := &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+	}
+	return observeConfigured(ctx, name, reg, setup, scenario)
 }
 
 // filterIRRFail07 observes test/plugin/filter-irr-fail.ci. Its goal is to
@@ -586,7 +592,7 @@ func filterIRRUnresolved07(ctx context.Context, _ []string) error {
 			}
 			return nil
 		})
-		p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+		p.SetEventFormat("parsed")
 		return nil
 	}
 	scenario := func(ctx context.Context, p *sdk.Plugin) error {
@@ -649,5 +655,8 @@ func filterIRRUnresolved07(ctx context.Context, _ []string) error {
 			return ctx.Err()
 		}
 	}
-	return observeConfigured(ctx, name, &sdk.Registration{}, setup, scenario)
+	reg := &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+	}
+	return observeConfigured(ctx, name, reg, setup, scenario)
 }

@@ -877,24 +877,12 @@ func runRIBPlugin(conn net.Conn) int {
 	// The notation is recorded here only when this rib runs outside the daemon.
 	r.newConfigTx(!p.IsInternal()).Register(p)
 
-	// Register event subscriptions atomically with startup completion.
-	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
-	// ensuring the rib sees every "sent" event from the very first route.
-	p.SetStartupSubscriptions([]string{"update direction sent", "update direction received", stateEvent, "refresh", "negotiated", "eor"}, nil, "full")
-	// The receive store's eligibility change, through the SDK so a forked
-	// bgp-rib hears it too: the daemon's own bus never reaches a subprocess.
-	// Enveloped, so dispatchText tells it from the BGP events. The gate's
-	// state comes the same way: a forked bgp-rib cannot reach the receive
-	// store's lookup in memory, so it must learn the gate exists, and the
-	// command that answers it (ribevents.NoteValidationGate), rather than
-	// select every path.
-	// gate-query asks this RIB to announce its flowspec-gate again, for a
-	// reader whose subscription went live after the announcement.
-	// replay-request, on both hops, asks this RIB for its whole best-path
-	// table (replayBestPaths, replayRedistribute); through the SDK too, so a
-	// forked RIB answers it.
-	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange, ribevents.EventValidationGate, ribevents.EventGateQuery, ribevents.EventReplayRequest})
-	p.AddStartupSubscriptionsIn(redistevents.ReplayNamespace, []string{redistevents.ReplayRequestEventType})
+	// Event subscriptions come from Stage 1 Receives (ribBusReceives in
+	// register.go), activated atomically at Stage 5 before SignalAPIReady so
+	// the RIB sees every sent/received event, validation/gate event, and
+	// replay-request from the first route onward. Request format=full for raw
+	// bytes and enveloped delivery so dispatchText tells non-BGP events apart.
+	p.SetEventFormat("full")
 	p.SetEnvelope(true)
 	// A forked RIB has no daemon bus: its best-change, FlowSpec change and
 	// validation-change emissions reach the engine through the SDK instead,
@@ -940,6 +928,8 @@ func runRIBPlugin(conn net.Conn) int {
 		WantsConfig:         []string{configRootBGP, "rib"},
 		Commands:            commandDecls(),
 		Dissemination:       disseminationDecls(),
+		Sends:               ribBusSends(),
+		Receives:            ribBusReceives(),
 		SignalsSessionReady: true,
 		FencesLiveForwards:  true,
 		DoctorChecks: []rpc.DoctorCheckDecl{

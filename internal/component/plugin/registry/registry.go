@@ -82,12 +82,20 @@ type Registration struct {
 	// are selected for startup. It never loads a plugin, unlike either kind
 	// of dependency. Cycles among selected plugins are still refused.
 	StartAfter []string
-	EventTypes []string // Event types this plugin produces (e.g., ["update-rpki"]). Registered dynamically at startup.
-	SendTypes  []string // Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup.
+	// ParticipantNodes declares the YANG schema nodes whose configured entries
+	// are participants of this plugin's kind on the message bus. Empty means
+	// the plugin is a single endpoint participant under /bus/endpoint/<name>.
+	ParticipantNodes []rpc.ParticipantNodeDecl
+	// Sends declares the bus messages ("namespace:name" or "cli:<prefix>")
+	// this participant may send, with their tags and default destinations.
+	Sends []rpc.MessageSendDecl
+	// Receives declares the bus messages ("namespace:name") this participant
+	// is willing to receive, with default senders and registered tag filters.
+	Receives []rpc.MessageReceiveDecl
 	// Claims are exclusive runtime roles this plugin takes over from another
-	// plugin's default behavior (e.g., ["bgp-peer-up-replay"]). Same token
-	// shape as EventTypes/SendTypes: opaque to the engine, agreed between the
-	// claiming plugin and the plugin that stands its default down.
+	// plugin's default behavior (e.g., ["bgp-peer-up-replay"]). Tokens are
+	// opaque to the engine, agreed between the claiming plugin and the plugin
+	// that stands its default down.
 	//
 	// The engine unions the claims of every plugin in the startup set and
 	// delivers the union on the Stage-2 configure callback (ConfigureInput.
@@ -617,6 +625,15 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 		return err
 	}
 	if err := CheckDisseminationDeclarations(reg.Name, reg.Dissemination); err != nil {
+		return err
+	}
+	if err := CheckParticipantNodeDecls(reg.Name, reg.ParticipantNodes); err != nil {
+		return err
+	}
+	if err := CheckMessageSendDecls(reg.Name, reg.Sends); err != nil {
+		return err
+	}
+	if err := CheckMessageReceiveDecls(reg.Name, reg.Receives); err != nil {
 		return err
 	}
 	// Filter types must be globally unique across plugins so chain refs
@@ -1388,20 +1405,6 @@ func PluginForFamily(family string) string {
 	return ""
 }
 
-// PluginForEventType returns the plugin name that produces a given event type.
-// Returns empty string if no plugin declares that event type.
-func PluginForEventType(eventType string) string {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	for _, reg := range plugins {
-		if slices.Contains(reg.EventTypes, eventType) {
-			return reg.Name
-		}
-	}
-	return ""
-}
-
 // PluginForDataPlane returns the plugin that programs the named data plane,
 // and whether one is registered. An unknown data plane reports false rather
 // than an empty name, which a caller could otherwise start as a plugin.
@@ -1441,20 +1444,6 @@ func NeedsDataPlane(name string) bool {
 
 	reg, ok := plugins[name]
 	return ok && reg.NeedsDataPlane
-}
-
-// PluginForSendType returns the plugin name that enables a given send type.
-// Returns empty string if no plugin declares that send type.
-func PluginForSendType(sendType string) string {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	for _, reg := range plugins {
-		if slices.Contains(reg.SendTypes, sendType) {
-			return reg.Name
-		}
-	}
-	return ""
 }
 
 // RequiredPlugins returns deduplicated plugin names needed for the given families.

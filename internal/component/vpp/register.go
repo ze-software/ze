@@ -15,9 +15,18 @@ import (
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	vppevents "github.com/ze-software/ze/internal/core/vpp/events"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func vppSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: vppevents.Namespace + ":" + vppevents.EventConnected},
+		{Message: vppevents.Namespace + ":" + vppevents.EventReconnected},
+		{Message: vppevents.Namespace + ":" + vppevents.EventDisconnected},
+	}
+}
 
 // defaultVPPBinary is the default path to the VPP executable.
 const (
@@ -40,6 +49,7 @@ func init() {
 		YANG:                    vppyang.ZeVPPConfYANG,
 		ConfigRoots:             []string{componentVPP},
 		InProcessConfigVerifier: verifyVPPConfig,
+		Sends:                   vppSends(),
 		RunEngine:               runVPPEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setVPPLogger(slogutil.Logger(loggerName))
@@ -91,6 +101,7 @@ func runVPPEngine(conn net.Conn) int {
 	rc := 0
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: startupConfigRoots(),
+		Sends:       vppSends(),
 		// Candidate startup and restoration each have a 45-second bound.
 		// The remaining allowance covers their cancellation and joined stops.
 		ApplyBudget: 120,

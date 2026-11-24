@@ -198,6 +198,15 @@ const (
 	configRoot = "ldp"
 )
 
+func ldpSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: Namespace + ":" + EventSessionUp},
+		{Message: Namespace + ":" + EventSessionDown},
+		{Message: Namespace + ":" + EventLabelBind},
+		{Message: mplsfibevents.Namespace + ":" + mplsfibevents.EventEntry},
+	}
+}
+
 func registerLDP() {
 	_ = events.RegisterNamespace(Namespace, EventSessionUp, EventSessionDown, EventLabelBind)
 	registerLDPDiagnosticCodes()
@@ -210,10 +219,11 @@ func registerLDP() {
 		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{"sysctl"},
 		// LDP's label entries reach forwarding only through the writer of the
-		// data plane `interface { backend }` selects (fib-kernel on netlink,
+		// data plane `interface { backend }` selects (fib-kernel on kernel,
 		// fib-vpp on VPP), so the engine resolves and loads that writer. Naming
 		// fib-kernel here would load the kernel writer on a VPP deployment.
 		NeedsDataPlane: true,
+		Sends:          ldpSends(),
 		RunEngine:      runLDPEngine,
 		Commands:       commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -432,6 +442,7 @@ func runLDPEngine(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		Sends:        ldpSends(),
 		DoctorChecks: []rpc.DoctorCheckDecl{labelEntriesCheckDecl},
 	})
 	if err != nil {

@@ -6,9 +6,25 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
 )
+
+func filterIRRBusSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: events.NamespaceCLI + ":show bgp peer"},
+		{Message: events.NamespaceCLI + ":request peer"},
+		{Message: store.NoticeNamespace + ":" + store.EventInterestChanged},
+	}
+}
+
+func filterIRRBusReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: store.NoticeNamespace + ":" + store.EventDatasetStored},
+	}
+}
 
 func init() {
 	// The filter tells the irr plugin what it enforces through its own interest
@@ -35,6 +51,8 @@ func init() {
 		Dependencies: []string{configRootBGP, store.OwnerPlugin},
 		RunEngine:    runFilterIRR,
 		Commands:     commandDecls(),
+		Sends:        filterIRRBusSends(),
+		Receives:     filterIRRBusReceives(),
 		Filters:      filterDecls(), // the Stage 1 declaration: config load knows irr serves filters
 	}
 	reg.CLIHandler = func(args []string) int {

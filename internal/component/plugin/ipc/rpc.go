@@ -261,15 +261,14 @@ func (pc *PluginConn) sendDeclareRegistration(ctx context.Context, input *rpc.De
 // SendConfigure sends Stage 2: configure to the plugin.
 //
 // claims is the union of exclusive runtime roles claimed by the plugins in this
-// daemon's startup set (rpc.ConfigureInput.Claims). It rides the configure
-// callback rather than a separate message because Stage 2 is part of the
-// sequential startup handshake: it completes before Stage 5 (ready) and
-// therefore before the reactor starts peers, giving a plugin a deterministic
-// point -- with no timing window against session establishment -- to stand its
-// own default behavior down for a claiming plugin. Pass nil when the caller has
-// no claim set to share (the hub subsystem sink).
-func (pc *PluginConn) SendConfigure(ctx context.Context, sections []rpc.ConfigSection, claims []string) error {
-	input := &rpc.ConfigureInput{Sections: sections, Claims: claims}
+// daemon's startup set (rpc.ConfigureInput.Claims). busCatalog is the settled
+// catalog of messages registered on the daemon's bus (rpc.ConfigureInput.BusCatalog).
+// Both ride the configure callback rather than separate messages because Stage 2
+// is part of the sequential startup handshake: it completes before Stage 5 (ready)
+// and therefore before the reactor starts peers. Pass nil when the caller has no
+// claims or catalog to share (the hub subsystem sink).
+func (pc *PluginConn) SendConfigure(ctx context.Context, sections []rpc.ConfigSection, claims []string, busCatalog []rpc.BusCatalogEntry) error {
+	input := &rpc.ConfigureInput{Sections: sections, Claims: claims, BusCatalog: busCatalog}
 	_, err := pc.CallRPC(ctx, "ze-plugin-callback:configure", input)
 	return err
 }

@@ -203,14 +203,10 @@ func runGRPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	// Subscribe to events needed for Receiving Speaker procedures:
-	//   open direction received — capture peer's GR capability from OPEN
-	//   state — detect peer up/down (with reason for GR vs normal teardown)
-	//   eor — track End-of-RIB per fam for stale route purge
-	p.SetStartupSubscriptions(
-		[]string{"open direction received", "open direction sent", "state", "eor"},
-		nil, "full",
-	)
+	// Event subscriptions come from Stage 1 Receives (grBusReceives in
+	// register.go): open (received/sent), state, and eor. Request format=full
+	// so OPEN and EOR carry raw bytes for Receiving Speaker procedures.
+	p.SetEventFormat("full")
 
 	// Structured event handler: dispatch via DirectBridge without JSON parsing.
 	// State events use metadata fields directly; OPEN/EOR decode from RawMessage.
@@ -241,9 +237,12 @@ func runGRPlugin(conn net.Conn) int {
 	err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{configRootBGP},
 		// The same declarations register.go makes (grFilterDecls,
-		// grInsertions), so Stage 1 and the compiled registry agree.
+		// grInsertions, grBusSends, grBusReceives), so Stage 1 and the
+		// compiled registry agree.
 		Filters:          grFilterDecls(),
 		FilterInsertions: grInsertions(),
+		Sends:            grBusSends(),
+		Receives:         grBusReceives(),
 		// The plugin ordering edges register.go declares. The config root
 		// dependency is not one: the BGP subsystem delivers the state events
 		// this plugin is ordered among, and takes none of them.

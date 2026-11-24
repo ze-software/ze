@@ -25,7 +25,7 @@ var (
 	errNamespaceIdOverflowMax255   = errors.New("namespace ID overflow (max 255)")
 	errEventTypeIdOverflowMax65535 = errors.New("event type ID overflow (max 65535)")
 	errEventTypeMustNotBeEmpty     = errors.New("event type must not be empty")
-	errSendTypeMustNotBeEmpty      = errors.New("send type must not be empty")
+	errMessageNameInvalid          = errors.New("message name must be namespace:name with no control characters")
 )
 
 // Direction constants for event filtering.
@@ -34,6 +34,59 @@ const (
 	DirectionSent     = "sent"
 	DirectionBoth     = "both"
 )
+
+// NamespaceCLI is the namespace for command-path prefix messages (e.g.
+// "cli:show bgp peer"), where single spaces separate command words after the
+// namespace separator.
+const NamespaceCLI = "cli"
+
+// TagDirection is the canonical tag name for bidirectional protocol messages.
+const TagDirection = "direction"
+
+// Bounds on registered bus message metadata. Every input arriving from
+// registrations or wire declarations is checked against these limits.
+const (
+	MaxMessageNamespaceLen        = 64
+	MaxMessageNameLen             = 192
+	MaxMessageFullLen             = 256
+	MaxMessageTagNameLen          = 64
+	MaxMessageTagValueLen         = 128
+	MaxMessageTags                = 32
+	MaxMessageTagValues           = 64
+	MaxMessageDefaultDestinations = 64
+)
+
+// TagDef describes one tag a bus message carries.
+// An empty Values slice denotes an open tag (any valid value token is accepted);
+// a non-empty Values slice names the closed set of allowed values.
+type TagDef struct {
+	Name   string
+	Values []string
+}
+
+// MessageDef describes one registered bus message kind, canonically identified
+// as Namespace + ":" + Name.
+type MessageDef struct {
+	Namespace           string
+	Name                string
+	Tags                []TagDef
+	DefaultDestinations []string
+}
+
+// FullName returns the canonical "namespace:name" identifier for m.
+func (m MessageDef) FullName() string {
+	var tb textbuf.Buffer
+	return tb.Str(m.Namespace).Byte(':').Str(m.Name).String()
+}
+
+// DirectionTagDef returns the closed TagDef for bidirectional messages
+// ("received" and "sent").
+func DirectionTagDef() TagDef {
+	return TagDef{
+		Name:   TagDirection,
+		Values: []string{DirectionReceived, DirectionSent},
+	}
+}
 
 // eventsMu protects ValidEvents from concurrent read/write.
 // Writes happen during RegisterEventType and RegisterNamespace (startup).
@@ -243,55 +296,327 @@ func validNamespaceNamesLocked() string {
 	return textbuf.Join(names, ", ")
 }
 
-// sendTypesMu protects ValidSendTypes from concurrent read/write.
-// Writes happen during RegisterSendType (startup).
-// Reads happen during parseOneSendFlag (config parsing).
-var sendTypesMu sync.RWMutex
+// registeredMessages maps canonical "namespace:name" keys to their registered
+// MessageDef metadata. Protected by eventsMu alongside ValidEvents.
+var registeredMessages = map[string]MessageDef{}
 
-// ValidSendTypes is the set of plugin-registered send types.
-// Base types (update, refresh) are handled by dedicated bool fields;
-// this map holds only plugin-registered types (e.g., "enhanced-refresh").
-// Protected by sendTypesMu for concurrent access.
-var ValidSendTypes = map[string]bool{}
+// SplitMessageName splits a canonical "namespace:name" bus message identifier
+// on the first ':'. For the "cli" namespace, single spaces between command
+// words are permitted (e.g. "cli:show bgp peer"); for all other namespaces,
+// whitespace is rejected. Control characters, empty parts, and values past
+// their bounds return ok=false.
+func SplitMessageName(full string) (namespace, name string, ok bool) {
+	if full == "" {
+		return "", "", false
+	}
+	if len(full) > MaxMessageFullLen {
+		return "", "", false
+	}
+	ns, rest, found := strings.Cut(full, ":")
+	if !found {
+		return "", "", false
+	}
+	if !validMessageNamespace(ns) {
+		return "", "", false
+	}
+	if !validMessagePartName(ns, rest) {
+		return "", "", false
+	}
+	return ns, rest, true
+}
 
-// RegisterSendType adds a plugin-registered send type to ValidSendTypes.
-// Plugins call this to register send types they enable (e.g., "enhanced-refresh").
-// Duplicate registration is idempotent.
-// Send type names must be non-empty and contain no whitespace.
-// Safe for concurrent use.
-func RegisterSendType(sendType string) error {
-	if sendType == "" {
-		return errSendTypeMustNotBeEmpty
+func validMessageNamespace(ns string) bool {
+	if ns == "" {
+		return false
 	}
-	if strings.ContainsAny(sendType, " \t\n\r") {
-		return fmt.Errorf("send type %q must not contain whitespace", sendType)
+	if len(ns) > MaxMessageNamespaceLen {
+		return false
 	}
-	sendTypesMu.Lock()
-	defer sendTypesMu.Unlock()
-	ValidSendTypes[sendType] = true
+	for i := range len(ns) {
+		c := ns[i]
+		if c <= 0x20 {
+			return false
+		}
+		if c == 0x7f {
+			return false
+		}
+		if c == ':' {
+			return false
+		}
+	}
+	return true
+}
+
+func validMessagePartName(ns, name string) bool {
+	if name == "" {
+		return false
+	}
+	if len(name) > MaxMessageNameLen {
+		return false
+	}
+	if ns == NamespaceCLI {
+		if strings.TrimSpace(name) != name {
+			return false
+		}
+		for i := range len(name) {
+			c := name[i]
+			if c < 0x20 {
+				return false
+			}
+			if c == 0x7f {
+				return false
+			}
+		}
+		return true
+	}
+	for i := range len(name) {
+		c := name[i]
+		if c <= 0x20 {
+			return false
+		}
+		if c == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+func validMessageToken(token string, maxLen int) bool {
+	if token == "" {
+		return false
+	}
+	if len(token) > maxLen {
+		return false
+	}
+	for i := range len(token) {
+		c := token[i]
+		if c <= 0x20 {
+			return false
+		}
+		if c == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+func validateMessageDef(def MessageDef) error {
+	if !validMessageNamespace(def.Namespace) {
+		return fmt.Errorf("%w: invalid namespace %q", errMessageNameInvalid, def.Namespace)
+	}
+	if !validMessagePartName(def.Namespace, def.Name) {
+		return fmt.Errorf("%w: invalid name %q in namespace %q", errMessageNameInvalid, def.Name, def.Namespace)
+	}
+	if len(def.Namespace)+1+len(def.Name) > MaxMessageFullLen {
+		return fmt.Errorf("%w: full name exceeds %d bytes", errMessageNameInvalid, MaxMessageFullLen)
+	}
+	if len(def.Tags) > MaxMessageTags {
+		return fmt.Errorf("message %s:%s declares %d tags (max %d)", def.Namespace, def.Name, len(def.Tags), MaxMessageTags)
+	}
+	seenTags := make(map[string]bool, len(def.Tags))
+	for _, tag := range def.Tags {
+		if !validMessageToken(tag.Name, MaxMessageTagNameLen) {
+			return fmt.Errorf("message %s:%s has invalid tag name %q", def.Namespace, def.Name, tag.Name)
+		}
+		if seenTags[tag.Name] {
+			return fmt.Errorf("message %s:%s declares duplicate tag %q", def.Namespace, def.Name, tag.Name)
+		}
+		seenTags[tag.Name] = true
+		if len(tag.Values) > MaxMessageTagValues {
+			return fmt.Errorf("message %s:%s tag %q declares %d values (max %d)", def.Namespace, def.Name, tag.Name, len(tag.Values), MaxMessageTagValues)
+		}
+		seenVals := make(map[string]bool, len(tag.Values))
+		for _, v := range tag.Values {
+			if !validMessageToken(v, MaxMessageTagValueLen) {
+				return fmt.Errorf("message %s:%s tag %q has invalid value %q", def.Namespace, def.Name, tag.Name, v)
+			}
+			if seenVals[v] {
+				return fmt.Errorf("message %s:%s tag %q declares duplicate value %q", def.Namespace, def.Name, tag.Name, v)
+			}
+			seenVals[v] = true
+		}
+	}
+	if len(def.DefaultDestinations) > MaxMessageDefaultDestinations {
+		return fmt.Errorf("message %s:%s declares %d default destinations (max %d)", def.Namespace, def.Name, len(def.DefaultDestinations), MaxMessageDefaultDestinations)
+	}
+	for _, dst := range def.DefaultDestinations {
+		if !validMessageToken(dst, MaxMessageFullLen) {
+			return fmt.Errorf("message %s:%s has invalid default destination %q", def.Namespace, def.Name, dst)
+		}
+	}
 	return nil
 }
 
-// IsValidSendType returns true if the send type is a registered plugin send type.
-// Safe for concurrent use.
-func IsValidSendType(sendType string) bool {
-	sendTypesMu.RLock()
-	defer sendTypesMu.RUnlock()
-	return ValidSendTypes[sendType]
+func cloneMessageDef(def MessageDef) MessageDef {
+	out := MessageDef{
+		Namespace:           def.Namespace,
+		Name:                def.Name,
+		DefaultDestinations: slices.Clone(def.DefaultDestinations),
+	}
+	if len(def.Tags) > 0 {
+		out.Tags = make([]TagDef, len(def.Tags))
+		for i, t := range def.Tags {
+			out.Tags[i] = TagDef{
+				Name:   t.Name,
+				Values: slices.Clone(t.Values),
+			}
+		}
+	}
+	return out
 }
 
-// ValidSendTypeNames returns a sorted, comma-separated list of valid plugin-registered
-// send types. Used in error messages. Safe for concurrent use.
-func ValidSendTypeNames() string {
-	sendTypesMu.RLock()
-	defer sendTypesMu.RUnlock()
-	if len(ValidSendTypes) == 0 {
-		return ""
+func messageDefsEqual(a, b MessageDef) bool {
+	if a.Namespace != b.Namespace {
+		return false
 	}
-	names := make([]string, 0, len(ValidSendTypes))
-	for k := range ValidSendTypes {
-		names = append(names, k)
+	if a.Name != b.Name {
+		return false
 	}
-	slices.Sort(names)
-	return textbuf.Join(names, ", ")
+	if !slices.Equal(a.DefaultDestinations, b.DefaultDestinations) {
+		return false
+	}
+	if len(a.Tags) != len(b.Tags) {
+		return false
+	}
+	for i := range a.Tags {
+		if a.Tags[i].Name != b.Tags[i].Name {
+			return false
+		}
+		if !slices.Equal(a.Tags[i].Values, b.Tags[i].Values) {
+			return false
+		}
+	}
+	return true
+}
+
+// RegisterMessage registers a bus message with optional tag definitions in the
+// unified message registry, populates ValidEvents, and assigns interned
+// NamespaceID and EventTypeID values. Re-registering an identical definition is
+// idempotent; re-registering with a conflicting tag set or destination list
+// returns an error. Safe for concurrent use.
+func RegisterMessage(namespace, name string, tags ...TagDef) error {
+	return RegisterMessageDef(MessageDef{
+		Namespace: namespace,
+		Name:      name,
+		Tags:      tags,
+	})
+}
+
+// RegisterMessageDef registers a complete MessageDef in the unified message
+// registry, populates ValidEvents, and assigns interned NamespaceID and
+// EventTypeID values. Re-registering an identical definition is idempotent;
+// conflicting duplicate definitions return an error. Safe for concurrent use.
+func RegisterMessageDef(def MessageDef) error {
+	if err := validateMessageDef(def); err != nil {
+		return err
+	}
+	cloned := cloneMessageDef(def)
+	full := cloned.FullName()
+
+	eventsMu.Lock()
+	defer eventsMu.Unlock()
+
+	if existing, exists := registeredMessages[full]; exists {
+		if !messageDefsEqual(existing, cloned) {
+			return fmt.Errorf("conflicting duplicate message registration for %q", full)
+		}
+		return nil
+	}
+
+	if _, ok := namespaceIDs[cloned.Namespace]; !ok {
+		if nextNS == 0 {
+			return errNamespaceIdOverflowMax255
+		}
+		namespaceIDs[cloned.Namespace] = nextNS
+		namespaceNames[nextNS] = cloned.Namespace
+		nextNS++
+	}
+	if _, ok := eventTypeIDs[cloned.Name]; !ok {
+		if nextET == 0 {
+			return errEventTypeIdOverflowMax65535
+		}
+		eventTypeIDs[cloned.Name] = nextET
+		eventTypeNames[nextET] = cloned.Name
+		nextET++
+	}
+
+	evts, exists := ValidEvents[cloned.Namespace]
+	if !exists {
+		evts = make(map[string]bool)
+		ValidEvents[cloned.Namespace] = evts
+	}
+	evts[cloned.Name] = true
+	registeredMessages[full] = cloned
+	return nil
+}
+
+// IsValidMessage reports whether full ("namespace:name") is a registered bus
+// message (either registered via RegisterMessage/RegisterMessageDef or via
+// RegisterNamespace/RegisterEventType). Safe for concurrent use.
+func IsValidMessage(full string) bool {
+	ns, name, ok := SplitMessageName(full)
+	if !ok {
+		return false
+	}
+	eventsMu.RLock()
+	defer eventsMu.RUnlock()
+	if _, exists := registeredMessages[full]; exists {
+		return true
+	}
+	evts := ValidEvents[ns]
+	return evts[name]
+}
+
+// LookupMessage returns a defensive copy of the MessageDef for full
+// ("namespace:name"), or ok=false if not registered. Messages registered only
+// via RegisterNamespace/RegisterEventType synthesize a tagless MessageDef.
+// Safe for concurrent use.
+func LookupMessage(full string) (MessageDef, bool) {
+	ns, name, ok := SplitMessageName(full)
+	if !ok {
+		return MessageDef{}, false
+	}
+	eventsMu.RLock()
+	defer eventsMu.RUnlock()
+	if def, exists := registeredMessages[full]; exists {
+		return cloneMessageDef(def), true
+	}
+	if ValidEvents[ns][name] {
+		return MessageDef{Namespace: ns, Name: name}, true
+	}
+	return MessageDef{}, false
+}
+
+// AllMessages returns every registered message across all namespaces, sorted
+// deterministically by namespace then name. Entries registered via
+// RegisterMessage/RegisterMessageDef include their full tag and destination
+// metadata; entries registered only via RegisterNamespace/RegisterEventType
+// are included as tagless MessageDef records. Safe for concurrent use.
+func AllMessages() []MessageDef {
+	eventsMu.RLock()
+	defer eventsMu.RUnlock()
+
+	seen := make(map[string]MessageDef, len(registeredMessages))
+	var tb textbuf.Buffer
+	for ns, evts := range ValidEvents {
+		for name := range evts {
+			full := tb.Reset().Str(ns).Byte(':').Str(name).String()
+			seen[full] = MessageDef{Namespace: ns, Name: name}
+		}
+	}
+	for full, def := range registeredMessages {
+		seen[full] = cloneMessageDef(def)
+	}
+
+	out := make([]MessageDef, 0, len(seen))
+	for _, def := range seen {
+		out = append(out, def)
+	}
+	slices.SortFunc(out, func(a, b MessageDef) int {
+		if a.Namespace != b.Namespace {
+			return strings.Compare(a.Namespace, b.Namespace)
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+	return out
 }

@@ -48,19 +48,22 @@ func windowNotice(t *testing.T) string {
 	return string(payload)
 }
 
+func windowConsumerReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{{Message: store.NoticeNamespace + ":" + store.EventDatasetStored}}
+}
+
 // runWindowConsumer runs an SDK consumer of irr/dataset-stored over conn,
-// subscribed the way bgp-filter-irr and firewall-irr subscribe: through
-// AddStartupSubscriptionsIn, carried by the Stage 5 ready request. Its
-// OnStarted calls emit first, which sends one notice from outside the
-// consumer, records what emit answered, and only then reaches the point
-// where a real consumer reads the store. Every notice OnEvent receives goes
-// to arrivals, marked with whether OnStarted had returned.
+// subscribed the way bgp-filter-irr and firewall-irr subscribe: through Stage 1
+// Receives declarations activated at Stage 5 ready. Its OnStarted calls emit
+// first, which sends one notice from outside the consumer, records what emit
+// answered, and only then reaches the point where a real consumer reads the
+// store. Every notice OnEvent receives goes to arrivals, marked with whether
+// OnStarted had returned.
 func runWindowConsumer(name string, conn net.Conn, emit func(context.Context) (int, error),
 	emitted chan<- windowEmit, arrivals chan<- windowArrival,
 ) int {
 	p := sdk.NewWithConn(name, conn)
 	var returned atomic.Bool
-	p.AddStartupSubscriptionsIn(store.NoticeNamespace, []string{store.EventDatasetStored})
 	p.OnEvent(func(event string) error {
 		arrivals <- windowArrival{event: event, afterOnStarted: returned.Load()}
 		return nil
@@ -74,7 +77,7 @@ func runWindowConsumer(name string, conn net.Conn, emit func(context.Context) (i
 		returned.Store(true)
 		return nil
 	})
-	if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+	if err := p.Run(context.Background(), &sdk.Registration{Receives: windowConsumerReceives()}); err != nil {
 		return 1
 	}
 	return 0
@@ -91,7 +94,7 @@ func awaitWindow(t *testing.T, emitted <-chan windowEmit, arrivals <-chan window
 		t.Fatal("the consumer's OnStarted never ran its emit")
 	}
 	require.NoError(t, result.err, "emit-event refused the notice")
-	// Red: remove the registerSubscriptions calls from engineStartupSink.onReady.
+	// Red: remove the registerReceiveDeclarations call from engineStartupSink.onReady.
 	require.Equal(t, 1, result.delivered,
 		"deliverEvent matched no subscriber while the consumer ran OnStarted: the stage 5 subscription was not live yet")
 	select {
@@ -166,9 +169,15 @@ func TestStartupSubscriptionLiveBeforeOnStartedRead(t *testing.T) {
 			}
 			return owner.Load().EmitEvent(ctx, store.NoticeNamespace, store.EventDatasetStored, "", "", payload)
 		}
-		registerLifecyclePlugin(t, consumerName, nil, func(conn net.Conn) int {
-			return runWindowConsumer(consumerName, conn, emit, emitted, arrivals)
-		})
+		require.NoError(t, registry.Register(registry.Registration{
+			Name:        consumerName,
+			Description: "startup notice window consumer test plugin",
+			Receives:    windowConsumerReceives(),
+			RunEngine: func(conn net.Conn) int {
+				return runWindowConsumer(consumerName, conn, emit, emitted, arrivals)
+			},
+			CLIHandler: func([]string) int { return 0 },
+		}))
 
 		s, _ := newLifecycleStartupServer(t)
 		require.NoError(t, s.runPluginPhase([]plugin.PluginConfig{

@@ -56,7 +56,6 @@ func eventObserver02(name string, events []string, scenario eventScenario02) Dri
 		eventCh := make(chan string, 256)
 		shutdown := make(chan struct{})
 		var shutdownOnce sync.Once
-		plugin.SetStartupSubscriptions(events, nil, "")
 		plugin.OnEvent(func(event string) error {
 			select {
 			case eventCh <- event:
@@ -85,7 +84,9 @@ func eventObserver02(name string, events []string, scenario eventScenario02) Dri
 			return nil
 		})
 
-		runErr := plugin.Run(runCtx, &sdk.Registration{})
+		runErr := plugin.Run(runCtx, &sdk.Registration{
+			Receives: bgpReceiveDecls(events, nil),
+		})
 		shutdownOnce.Do(func() { close(shutdown) })
 		cancel()
 		select {

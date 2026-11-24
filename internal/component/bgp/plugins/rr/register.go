@@ -3,10 +3,15 @@ package rr
 import (
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // appendOriginatorIDJSON renders ORIGINATOR_ID as the address it is.
@@ -68,6 +73,38 @@ func appendClusterListJSON(buf []byte, attr attribute.Attribute) []byte {
 // internal one does.
 var rrDependencies = []string{"bgp-adj-rib-in", "bgp-rib"}
 
+func rrBusSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: events.NamespaceCLI + ":request bgp adj-rib-in claim-replay"},
+		{Message: events.NamespaceCLI + ":request bgp adj-rib-in replay-routes"},
+		{Message: events.NamespaceCLI + ":request bgp adj-rib-in replay-path"},
+		{Message: events.NamespaceCLI + ":request bgp adj-rib-in eligibility"},
+		{Message: events.NamespaceCLI + ":request bgp rib flowspec-gate"},
+		{Message: events.NamespaceCLI + ":request peer"},
+		{Message: ribevents.Namespace + ":" + ribevents.EventGateQuery},
+		{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate},
+	}
+}
+
+func rrBusReceives() []rpc.MessageReceiveDecl {
+	recvDir := func() []rpc.MessageTagDecl {
+		return []rpc.MessageTagDecl{{
+			Name:   events.TagDirection,
+			Values: []string{events.DirectionReceived},
+		}}
+	}
+	return []rpc.MessageReceiveDecl{
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventUpdate, Tags: recvDir()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventOpen, Tags: recvDir()},
+		{Message: retention.Namespace + ":" + retention.EventType},
+		{Message: retention.Namespace + ":" + retention.CleanupEventType},
+		{Message: ribevents.Namespace + ":" + ribevents.EventValidationChange},
+		{Message: ribevents.Namespace + ":" + ribevents.EventFlowSpecGate},
+		{Message: ribevents.Namespace + ":" + ribevents.EventValidationGate},
+	}
+}
+
 func init() {
 	attribute.RegisterJSONFormatter(attribute.AttrOriginatorID, "originator-id", appendOriginatorIDJSON)
 	attribute.RegisterJSONFormatter(attribute.AttrClusterList, "cluster-list", appendClusterListJSON)
@@ -92,6 +129,8 @@ func init() {
 		FencesLiveForwards: true,
 		RunEngine:          runRouteReflector,
 		Commands:           commandDecls(),
+		Sends:              rrBusSends(),
+		Receives:           rrBusReceives(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

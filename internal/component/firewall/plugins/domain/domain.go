@@ -212,6 +212,7 @@ func runFirewallDomain(conn net.Conn) int {
 		Enrichers:    []sdk.EnricherDecl{{Command: enrichCommand, Key: enrichKey}},
 		WantsConfig:  []string{configRoot},
 		DoctorChecks: []sdk.DoctorCheckDecl{unsavedAnswerCheckDecl},
+		Sends:        firewallDomainSends(),
 		// The resolved addresses survive a restart in the owned store, so a
 		// crashed process comes back and programs its sets again from the cache.
 		// Without the restart the registry holds back every table naming a

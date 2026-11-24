@@ -344,6 +344,22 @@ module ze-plugin-engine {
 
     // Stage 1: Plugin declares itself to the engine.
 
+    grouping message-tag {
+        description "One tag carried by a bus message or matched by a reception filter.";
+        leaf name {
+            type string { length "1..64"; pattern '[^ \t\r\n]+'; }
+            mandatory true;
+            ze:help "Tag name";
+            description "Canonical name of the message tag (e.g., direction, source).";
+        }
+        leaf-list values {
+            type string { length "1..128"; pattern '[^ \t\r\n]+'; }
+            max-elements 64;
+            ze:help "Allowed values (empty = open tag)";
+            description "Closed set of tag values when non-empty; empty declares an open tag.";
+        }
+    }
+
     rpc declare-registration {
         ze:method "ze-plugin-engine:declare-registration";
         description "Called during Stage 1 of the 5-stage startup protocol.";
@@ -831,6 +847,90 @@ module ze-plugin-engine {
                     ze:help "The operator chain the name stands for, for example: display kind vrp-count";
                 }
             }
+            list participant-nodes {
+                key "schema-path";
+                max-elements 64;
+                description
+                    "YANG schema nodes whose configured entries are participants on the
+                     message bus. Absent means the plugin is a single endpoint participant
+                     under /bus/endpoint/<name>.";
+                ze:help "Schema nodes that define bus participants for this plugin kind.";
+                leaf module {
+                    type string { length "1..128"; }
+                    ze:help "YANG module defining the participant node";
+                    description "Module name that owns the declared schema path.";
+                }
+                leaf prefix {
+                    type string { length "1..64"; }
+                    ze:help "YANG module prefix";
+                    description "Prefix of the YANG module defining the participant node.";
+                }
+                leaf schema-path {
+                    type string { length "1..256"; }
+                    mandatory true;
+                    ze:help "Schema path of the participant container or list";
+                    description "Absolute schema path augmented with the bus grouping.";
+                }
+                leaf secondary-ip-path {
+                    type string { length "1..256"; }
+                    ze:help "Secondary IP lookup path (optional)";
+                    description "Optional secondary address lookup path registered by the owner (e.g., /bgp/ip/<address>).";
+                }
+            }
+            list sends {
+                key "message";
+                max-elements 256;
+                description
+                    "Bus messages (namespace:name or cli:<command prefix>) this participant
+                     may send, along with their tags and default destinations.";
+                ze:help "Bus messages this participant may send.";
+                leaf message {
+                    type string { length "3..256"; }
+                    mandatory true;
+                    ze:help "Canonical message name (namespace:name or cli:<prefix>)";
+                    description "Message identifier declared in the bus message registry.";
+                }
+                list tags {
+                    key "name";
+                    max-elements 32;
+                    ze:help "Tags carried by this message";
+                    description "Tag definitions for this sent message.";
+                    uses message-tag;
+                }
+                leaf-list default-destinations {
+                    type string { length "1..256"; }
+                    max-elements 64;
+                    ze:help "Default bus destinations (empty = broadcast or command owner)";
+                    description "Short participant paths targeted when the operator writes no send > to override.";
+                }
+            }
+            list receives {
+                key "message";
+                max-elements 256;
+                description
+                    "Bus messages (namespace:name) this participant is willing to receive,
+                     along with default senders and registered tag filters.";
+                ze:help "Bus messages this participant receives.";
+                leaf message {
+                    type string { length "3..256"; }
+                    mandatory true;
+                    ze:help "Canonical message name (namespace:name)";
+                    description "Message identifier this participant registers to receive.";
+                }
+                leaf-list from {
+                    type string { length "1..256"; }
+                    max-elements 64;
+                    ze:help "Default sender paths (empty = everybody)";
+                    description "Short participant paths accepted by default when the operator writes no receive > from override.";
+                }
+                list tags {
+                    key "name";
+                    max-elements 32;
+                    ze:help "Registered inbound tag filters";
+                    description "Tag filters narrowing which messages of this kind are delivered.";
+                    uses message-tag;
+                }
+            }
         }
         output {
             leaf protocol-version {
@@ -914,6 +1014,37 @@ module ze-plugin-engine {
         ze:method "ze-plugin-engine:ready";
         description "Called during Stage 5 of the 5-stage startup protocol.";
         ze:help "Plugin signals it is operational and ready to process events.";
+        input {
+            leaf transport {
+                type string;
+                description
+                    "Transport negotiated for runtime traffic. Internal plugins send
+                     \"bridge\" to switch delivery to the direct bridge after ack.";
+                ze:help "Runtime transport (empty for framed pipe, or \"bridge\")";
+            }
+            leaf format {
+                type string;
+                description
+                    "Per-process wire event format applied when Stage 1 receives
+                     declarations activate before SignalAPIReady.";
+                ze:help "Event format (hex, base64, parsed, full, summary, json)";
+            }
+            leaf encoding {
+                type string;
+                description
+                    "Per-process wire event encoding applied when Stage 1 receives
+                     declarations activate.";
+                ze:help "Event encoding (json or text)";
+            }
+            leaf envelope {
+                type boolean;
+                default false;
+                description
+                    "When true, each delivered event string is wrapped in an event
+                     envelope carrying namespace, event, and payload.";
+                ze:help "Wrap delivered events in an envelope";
+            }
+        }
     }
 
     grouping update-route-result {

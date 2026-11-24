@@ -354,9 +354,9 @@ var ValidationChange = events.Register[[]ValidationRoute](Namespace, EventValida
 // DecodeValidationChange reads an enveloped delivered event: matched reports
 // whether it is the ValidationChange event, and err refuses a batch that does
 // not decode, so a consumer never acts on half a batch. A plugin process
-// subscribed to ValidationChange through the SDK (AddStartupSubscriptionsIn
-// with SetEnvelope) receives it this way on both transports, where the
-// typed Subscribe reaches only a subscriber holding the daemon's own bus.
+// declaring ValidationChange in its Stage 1 Receives (with SetEnvelope)
+// receives it this way on both transports, where the typed Subscribe reaches
+// only a subscriber holding the daemon's own bus.
 func DecodeValidationChange(delivered string) (routes []ValidationRoute, matched bool, err error) {
 	payload, matched := envelopedPayload(delivered, EventValidationChange)
 	if !matched {

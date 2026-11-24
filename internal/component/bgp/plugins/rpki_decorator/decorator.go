@@ -78,14 +78,14 @@ func runDecorator(conn net.Conn) int {
 		return nil
 	})
 
-	p.SetStartupSubscriptions([]string{
-		"update direction received",
-		"rpki",
-	}, nil, "full")
+	p.SetEventFormat("full")
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, &sdk.Registration{})
+	err := p.Run(ctx, &sdk.Registration{
+		Sends:    rpkiDecoratorSends(),
+		Receives: rpkiDecoratorReceives(),
+	})
 	if err != nil {
 		logger().Error("bgp-rpki-decorator plugin failed", "error", err)
 		return 1

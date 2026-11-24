@@ -5,15 +5,11 @@ package plugin
 
 import (
 	"errors"
-	"log/slog"
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/events"
-	"github.com/ze-software/ze/internal/core/report"
 )
 
 // PluginType represents the type of plugin resolution.
@@ -100,100 +96,11 @@ func pluginInfo(reg *registry.Registration) PluginInfo {
 	return info
 }
 
-// defaultEventNamespace holds the event namespace under which plugin-declared
-// EventTypes and namespace-less RPC event subscriptions are registered. The
-// protocol component that owns the plugin host registers it from its
-// register.go init() (BGP registers "bgp"); the host itself stays
-// protocol-neutral. Empty until registered: consumers fail closed with an
-// error log instead of guessing a namespace.
-var (
-	defaultEventNamespaceMu sync.RWMutex
-	defaultEventNamespace   string
-)
-
-// RegisterDefaultEventNamespace sets the namespace for plugin-declared event
-// types and namespace-less plugin RPC subscriptions. Must be called from a
-// protocol component's init() (register.go). Calling twice with the same
-// value is idempotent; a conflicting second registration is a programmer
-// error and panics.
-func RegisterDefaultEventNamespace(namespace string) {
-	if namespace == "" {
-		panic("BUG: plugin: RegisterDefaultEventNamespace called with empty namespace")
-	}
-	defaultEventNamespaceMu.Lock()
-	defer defaultEventNamespaceMu.Unlock()
-	if defaultEventNamespace != "" && defaultEventNamespace != namespace {
-		panic("BUG: plugin: conflicting default event namespace registration")
-	}
-	defaultEventNamespace = namespace
-}
-
-// DefaultEventNamespace returns the registered default event namespace, or
-// "" when no protocol component has registered one.
-func DefaultEventNamespace() string {
-	defaultEventNamespaceMu.RLock()
-	defer defaultEventNamespaceMu.RUnlock()
-	return defaultEventNamespace
-}
-
-// registerEventTypesOnce ensures plugin event types are registered exactly once.
-var registerEventTypesOnce sync.Once
-
-// RegisterPluginEventTypes iterates all registered plugins and registers
-// their declared EventTypes into ValidEvents. Safe to call multiple times
-// (idempotent via sync.Once). Called from PeersFromTree (config parsing)
-// and NewServer (startup).
-func RegisterPluginEventTypes() {
-	registerEventTypesOnce.Do(func() {
-		// Plugin event types go into the default event namespace registered
-		// by the owning protocol component ("bgp" today). If a future plugin
-		// needs another namespace, EventTypes would need namespace info.
-		namespace := DefaultEventNamespace()
-		for _, reg := range registry.All() {
-			for _, et := range reg.EventTypes {
-				if namespace == "" {
-					slog.Error("register plugin event type failed: no default event namespace registered (call plugin.RegisterDefaultEventNamespace from the protocol component's register.go)",
-						"plugin", reg.Name, "event", et, "code", report.CodeInternalDefect)
-					report.RaiseErrorFix(pluginEventSource, report.CodeInternalDefect, reg.Name,
-						"register plugin event type "+et+" failed: no default event namespace registered", "ze show errors")
-					continue
-				}
-				if err := events.RegisterEventType(namespace, et); err != nil {
-					slog.Error("register plugin event type failed", "plugin", reg.Name, "event", et, "error", err, "code", report.CodeInternalDefect)
-					report.RaiseErrorFix(pluginEventSource, report.CodeInternalDefect, reg.Name,
-						"register plugin event type "+et+" failed: "+err.Error(), "ze show errors")
-				}
-			}
-		}
-	})
-}
-
 // pluginEventSource is the report-bus source of a fault the plugin package
 // meets: a registration refused at startup, or a reactor the coordinator
 // could not attach. Each is a state only a defect produces, raised under
 // report.CodeInternalDefect because this package cannot import diagnostic.
 const pluginEventSource = "plugin-registry"
-
-// registerSendTypesOnce ensures plugin send types are registered exactly once.
-var registerSendTypesOnce sync.Once
-
-// RegisterPluginSendTypes iterates all registered plugins and registers
-// their declared SendTypes into ValidSendTypes. Safe to call multiple times
-// (idempotent via sync.Once). Called from PeersFromTree (config parsing)
-// and NewServer (startup).
-func RegisterPluginSendTypes() {
-	registerSendTypesOnce.Do(func() {
-		for _, reg := range registry.All() {
-			for _, st := range reg.SendTypes {
-				if err := events.RegisterSendType(st); err != nil {
-					slog.Error("register plugin send type failed", "plugin", reg.Name, "send-type", st, "error", err, "code", report.CodeInternalDefect)
-					report.RaiseErrorFix(pluginEventSource, report.CodeInternalDefect, reg.Name,
-						"register plugin send type "+st+" failed: "+err.Error(), "ze show errors")
-				}
-			}
-		}
-	})
-}
 
 // ErrEmptyPlugin is returned when an empty plugin string is provided.
 var ErrEmptyPlugin = errors.New("empty plugin string")

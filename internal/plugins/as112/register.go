@@ -16,7 +16,9 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/dnsserver"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	as112events "github.com/ze-software/ze/internal/plugins/as112/events"
 	as112yang "github.com/ze-software/ze/internal/plugins/as112/yang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -108,6 +110,12 @@ func computeSerial(prevSerial uint32, now time.Time) uint32 {
 
 var loggerPtr atomic.Pointer[slog.Logger]
 
+func as112Sends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: as112events.Namespace + ":" + redistevents.EventType},
+	}
+}
+
 func init() {
 	loggerPtr.Store(slogutil.DiscardLogger())
 	// Register the redistribute source at init so `import as112` resolves during
@@ -125,6 +133,7 @@ func init() {
 		// BGP simply never asks (./le plugin coupling check).
 		StartAfter:              []string{"redistribute-orchestrator"},
 		InProcessConfigVerifier: verifyAS112Config,
+		Sends:                   as112Sends(),
 		RunEngine:               runAS112Plugin,
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
@@ -268,6 +277,7 @@ func runAS112Plugin(conn net.Conn) int {
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRootService},
+		Sends:        as112Sends(),
 		VerifyBudget: 2,
 		ApplyBudget:  5,
 	}); err != nil {

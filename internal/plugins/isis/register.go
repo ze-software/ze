@@ -25,17 +25,32 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/linkstateevents"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	isisredistribute "github.com/ze-software/ze/internal/plugins/isis/redistribute"
 	"github.com/ze-software/ze/internal/plugins/isis/transport"
 	isisyang "github.com/ze-software/ze/internal/plugins/isis/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func isisSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: Namespace + ":" + EventSessionUp},
+		{Message: Namespace + ":" + EventSessionDown},
+		{Message: Namespace + ":" + EventLSPChange},
+		{Message: Namespace + ":" + redistevents.EventType},
+		{Message: Namespace + ":" + linkstateevents.EventType},
+		{Message: sysribevents.Namespace + ":" + sysribevents.EventRouteInstall},
+	}
+}
 
 var (
 	loggerPtr       atomic.Pointer[slog.Logger]
@@ -181,11 +196,12 @@ func registerISIS() {
 		// the filter instances its chains name live under the policy root.
 		Dependencies: []string{"sysctl", policy.PluginName},
 		// IS-IS's routes reach forwarding only through the writer of the data
-		// plane `interface { backend }` selects (fib-kernel on netlink, fib-vpp
+		// plane `interface { backend }` selects (fib-kernel on kernel, fib-vpp
 		// on VPP), so the engine resolves and loads that writer. Naming
 		// fib-kernel here would load the kernel writer on a VPP deployment.
 		NeedsDataPlane: true,
 		RFCs:           []string{"1195", "5301", "5303", "5305", "5308", "5310"},
+		Sends:          isisSends(),
 		RunEngine:      runISISEngine,
 		Commands:       commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -484,6 +500,7 @@ func runISISPlugin(p *sdk.Plugin, eng *engine) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		Sends:        isisSends(),
 	})
 	if err != nil {
 		log.Error("isis engine failed", "error", err)

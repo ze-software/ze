@@ -92,7 +92,7 @@ func runEPEProducer(conn net.Conn) int {
 		configMu.Unlock()
 		return source.Configure(cfg)
 	})
-	p.SetStartupSubscriptions([]string{"state"}, []string{"*"}, "json")
+	p.SetEventFormat("json")
 	p.OnEvent(func(payload string) error {
 		event, err := bgp.ParseEvent([]byte(payload))
 		if err != nil {
@@ -115,6 +115,8 @@ func runEPEProducer(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{WantsConfig: []string{Name},
+		Sends:        epeBusSends(),
+		Receives:     epeBusReceives(),
 		DoctorChecks: []rpc.DoctorCheckDecl{labelEntriesCheckDecl}}); err != nil {
 		epeLogger.Error("BGP EPE producer stopped", "error", err)
 		return 1

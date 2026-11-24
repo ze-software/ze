@@ -25,9 +25,17 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func l2tpPoolSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: dnssource.Namespace + ":" + dnssource.PublicationEventType},
+		{Message: dnssource.Namespace + ":" + dnssource.SnapshotRequestEventType},
+	}
+}
 
 var poolInstance = &poolPlugin{}
 
@@ -102,6 +110,7 @@ func init() {
 		ConfigRoots:             []string{configRootL2TP},
 		InProcessConfigVerifier: verifyPoolConfig,
 		RunsInProcessOnly:       true,
+		Sends:                   l2tpPoolSends(),
 		RunEngine:               runPlugin,
 		Commands:                commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -436,6 +445,7 @@ func runPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		Sends:        l2tpPoolSends(),
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
 		return 1

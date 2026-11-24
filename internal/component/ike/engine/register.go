@@ -23,11 +23,23 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/ikeprobe"
 	"github.com/ze-software/ze/internal/core/ipsecinventory"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func ikeSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: Namespace + ":sa-up"},
+		{Message: Namespace + ":sa-down"},
+		{Message: Namespace + ":child-up"},
+		{Message: Namespace + ":child-down"},
+		{Message: Namespace + ":child-rekey"},
+		{Message: ipsecName + ":" + redistevents.EventType},
+	}
+}
 
 // peersWithoutLocalAddress counts the peers that named no local-address of their own, so
 // the engine has to take one from the configured `interface`. It bounds nothing: the
@@ -298,6 +310,7 @@ func init() {
 		// The IPv6 tunnel-source guard fills the firewall (kernelGuard.publish), as copp
 		// does. firewall is ungated, so every build with ike carries it: a hard edge.
 		Dependencies: []string{"firewall"},
+		Sends:        ikeSends(),
 		RunEngine:    runEngine,
 		// The SAME chain the runtime OnConfigVerify below runs, reached OFFLINE by
 		// ze config validate and by the web and hub commit paths
@@ -643,6 +656,7 @@ func runEngine(conn net.Conn) int {
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRootVPN},
 		DoctorChecks: engineDoctorCheckDecls(),
+		Sends:        ikeSends(),
 	}); err != nil {
 		log.Error("ike engine failed", "error", err)
 		return 1

@@ -7,11 +7,19 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	fibp4yang "github.com/ze-software/ze/internal/plugins/fib/p4/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func fibP4Sends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: sysribevents.Namespace + ":" + sysribevents.EventReplayRequest},
+	}
+}
 
 func init() {
 	reg := registry.Registration{
@@ -29,6 +37,7 @@ func init() {
 		// auto-loading it would answer a producer's need with silence.
 		ProgramsFIB: true,
 		YANG:        fibp4yang.ZeFibP4ConfYANG,
+		Sends:       fibP4Sends(),
 		RunEngine:   runFIBP4Plugin,
 		Commands:    commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -105,6 +114,7 @@ func runFIBP4Plugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		Sends:        fibP4Sends(),
 	})
 	if err != nil {
 		logger().Error("fib-p4 plugin failed", "error", err)

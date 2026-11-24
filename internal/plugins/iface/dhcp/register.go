@@ -10,10 +10,20 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/clock"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func ifaceDHCPSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventDHCPAcquired},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventDHCPRenewed},
+		{Message: ifaceevents.Namespace + ":" + ifaceevents.EventDHCPExpired},
+	}
+}
 
 // The DHCP lease origins of resolv.conf. Their ranks keep DHCPv4 servers
 // before DHCPv6 servers; a lease protocol registered later ranks after both
@@ -35,6 +45,7 @@ func init() {
 		Name:         "iface-dhcp",
 		Description:  "DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal",
 		Dependencies: []string{"interface"},
+		Sends:        ifaceDHCPSends(),
 		RunEngine:    runDHCPPlugin,
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
@@ -93,7 +104,9 @@ func runDHCPPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, &sdk.Registration{}); err != nil {
+	if err := p.Run(ctx, &sdk.Registration{
+		Sends: ifaceDHCPSends(),
+	}); err != nil {
 		log.Error("iface-dhcp plugin failed", "error", err)
 		return 1
 	}

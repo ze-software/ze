@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/events"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/core/linkstateevents"
 	"github.com/ze-software/ze/internal/core/metrics"
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/internal/core/replay"
@@ -454,6 +455,16 @@ func validateBypasses(cfg rsvpteConfig) error {
 	return nil
 }
 
+func rsvpteSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: Namespace + ":" + EventLSPUp},
+		{Message: Namespace + ":" + EventLSPDown},
+		{Message: Namespace + ":" + EventPathErr},
+		{Message: linkstateevents.Request.Namespace() + ":" + linkstateevents.Request.EventType()},
+		{Message: mplsfibevents.Namespace + ":" + mplsfibevents.EventEntry},
+	}
+}
+
 func registerRSVPTE() {
 	_ = events.RegisterNamespace(Namespace, EventLSPUp, EventLSPDown, EventPathErr)
 
@@ -466,10 +477,11 @@ func registerRSVPTE() {
 		Dependencies: []string{"interface", "sysctl"},
 		// RSVP-TE's label entries reach forwarding only through the writer of
 		// the data plane `interface { backend }` selects (fib-kernel on
-		// netlink, fib-vpp on VPP), so the engine resolves and loads that
+		// kernel, fib-vpp on VPP), so the engine resolves and loads that
 		// writer. Naming fib-kernel here would load the kernel writer on a VPP
 		// deployment.
 		NeedsDataPlane: true,
+		Sends:          rsvpteSends(),
 		RunEngine:      runRSVPTEEngine,
 		Commands:       commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -740,6 +752,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		Sends:        rsvpteSends(),
 		DoctorChecks: []rpc.DoctorCheckDecl{labelEntriesCheckDecl},
 	})
 	if err != nil {

@@ -18,7 +18,6 @@ import (
 func fixtureObserveInitialReplay(ctx context.Context, name string, registration *sdk.Registration, scenario func(context.Context, *sdk.Plugin, uint64) error) error {
 	receipt := make(chan uint64, 1)
 	setup := func(plugin *sdk.Plugin) error {
-		plugin.SetStartupSubscriptions([]string{eventState}, nil, "")
 		plugin.OnEvent(func(event string) error {
 			var envelope struct {
 				BGP struct {
@@ -59,7 +58,12 @@ func fixtureObserveInitialReplay(ctx context.Context, name string, registration 
 		})
 		return nil
 	}
-	return observeConfigured(ctx, name, registration, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
+	var reg sdk.Registration
+	if registration != nil {
+		reg = *registration
+	}
+	reg.Receives = mergeReceiveDecls(reg.Receives, bgpReceiveDecls([]string{eventState}, nil))
+	return observeConfigured(ctx, name, &reg, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
 		timer := time.NewTimer(5 * time.Second)
 		defer timer.Stop()
 		select {

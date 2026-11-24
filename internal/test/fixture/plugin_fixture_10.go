@@ -328,7 +328,7 @@ func fixture10MonitorSystemNetlink(ctx context.Context, plugin *sdk.Plugin) erro
 	}
 	bogus := fixture10Call(ctx, plugin, "monitor system netlink bogus")
 	if bogus.status != statusError && bogus.err == nil {
-		return fmt.Errorf("netlink bogus group: expected error, got status=%q data=%s", bogus.status, bogus.raw)
+		return fmt.Errorf("netlink monitor bogus group: expected error, got status=%q data=%s", bogus.status, bogus.raw)
 	}
 	fmt.Fprintln(os.Stderr, "OK: monitor system netlink all/route refused, bogus group refused")
 	return nil
@@ -592,8 +592,12 @@ func fixture10NextHopMode(ctx context.Context, plugin *sdk.Plugin, mode string) 
 		return err
 	}
 	text := string(reply.raw)
-	if !strings.Contains(text, `"next-hop"`) || !strings.Contains(text, `"`+mode+`"`) {
-		return fmt.Errorf("peer detail does not show next-hop %s: %.300s", mode, text)
+	if !strings.Contains(text, `"export-policy"`) {
+		return fmt.Errorf("peer detail does not show export-policy: %.300s", text)
+	}
+	wantRef := `"next-hop:` + mode + `"`
+	if !strings.Contains(text, wantRef) {
+		return fmt.Errorf("peer detail does not show export-policy %s: %.300s", wantRef, text)
 	}
 	if !Poll(ctx, 60, fixture10PollDelay, func() bool {
 		rows, err := fixture10BestPaths(fixture10Call(ctx, plugin, "show bgp rib best"))
@@ -932,7 +936,6 @@ func fixture10EORDuringInitialSync(ctx context.Context, _ []string) error {
 	requested := make(chan error, 1)
 	var once sync.Once
 	setup := func(plugin *sdk.Plugin) error {
-		plugin.SetStartupSubscriptions([]string{eventState}, nil, "")
 		plugin.OnEvent(func(event string) error {
 			up, err := fixture10IsPeerUp(event, netip.MustParseAddr("127.0.0.1"))
 			if err != nil {
@@ -950,7 +953,10 @@ func fixture10EORDuringInitialSync(ctx context.Context, _ []string) error {
 		})
 		return nil
 	}
-	return observeConfigured(ctx, pluginNameAddRemove, &sdk.Registration{}, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
+	reg := &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventState}, nil),
+	}
+	return observeConfigured(ctx, pluginNameAddRemove, reg, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
 		timer := time.NewTimer(10 * time.Second)
 		defer timer.Stop()
 		select {
@@ -1184,7 +1190,7 @@ func fixture10PluginCheck(ctx context.Context, _ []string) error {
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 	matched := make(chan struct{}, 1)
 	result := make(chan error, 1)
-	plugin.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
+	plugin.SetEventFormat("parsed")
 	plugin.SetEncoding("json")
 	plugin.OnEvent(func(event string) error {
 		var root map[string]any
@@ -1247,7 +1253,9 @@ func fixture10PluginCheck(ctx context.Context, _ []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, &sdk.Registration{})
+	runErr := plugin.Run(ctx, &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, nil),
+	})
 	select {
 	case scenarioErr := <-result:
 		return errors.Join(scenarioErr, runErr)

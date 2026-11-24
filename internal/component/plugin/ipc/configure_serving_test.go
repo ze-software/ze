@@ -31,7 +31,7 @@ func TestConfigureServingRetainsNextStage(t *testing.T) {
 	nextRead := make(chan *rpc.Request, 1)
 	configureDone := make(chan error, 1)
 	go func() {
-		configureDone <- engine.SendConfigureServing(ctx, nil, nil, func(request *rpc.Request) (bool, error) {
+		configureDone <- engine.SendConfigureServing(ctx, nil, nil, nil, func(request *rpc.Request) (bool, error) {
 			nextRead <- request
 			return false, nil
 		})
@@ -93,7 +93,7 @@ func TestConfigureServingCancellation(t *testing.T) {
 	engine := NewMuxPluginConn(engineMux)
 	done := make(chan error, 1)
 	go func() {
-		done <- engine.SendConfigureServing(ctx, nil, nil, func(*rpc.Request) (bool, error) { return true, nil })
+		done <- engine.SendConfigureServing(ctx, nil, nil, nil, func(*rpc.Request) (bool, error) { return true, nil })
 	}()
 	select {
 	case <-pluginMux.Requests():
@@ -124,7 +124,7 @@ func TestConfigureServingReplyFailure(t *testing.T) {
 	replyFailure := errors.New("nested response write failed")
 	done := make(chan error, 1)
 	go func() {
-		done <- engine.SendConfigureServing(ctx, nil, nil, func(*rpc.Request) (bool, error) {
+		done <- engine.SendConfigureServing(ctx, nil, nil, nil, func(*rpc.Request) (bool, error) {
 			return true, replyFailure
 		})
 	}()

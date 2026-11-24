@@ -17,9 +17,19 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func sysctlSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventApplied},
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventShowResult},
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventListResult},
+		{Message: sysctlevents.Namespace + ":" + sysctlevents.EventDescribeResult},
+	}
+}
 
 var (
 	errSysctlDescribeRequiresKeyArgument        = errors.New("sysctl describe: requires key argument")
@@ -63,6 +73,7 @@ func init() {
 		YANG:                    sysctlyang.ZeSysctlConfYANG,
 		ConfigRoots:             []string{configRoot},
 		InProcessConfigVerifier: verifySysctlConfig,
+		Sends:                   sysctlSends(),
 		RunEngine:               runSysctlPlugin,
 		Commands:                commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -420,6 +431,7 @@ func runSysctlPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		Sends:        sysctlSends(),
 	})
 	if err != nil {
 		log.Error("sysctl plugin failed", "error", err)

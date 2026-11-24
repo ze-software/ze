@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 	bridgeyang "github.com/ze-software/ze/internal/plugins/exabgp/bridgeplugin/yang"
+	"github.com/ze-software/ze/internal/plugins/exabgp/bridgerun"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -50,6 +51,8 @@ func init() {
 		// `./le plugin coupling check`, so this edge is declared by hand.
 		Dependencies:            []string{"bgp"},
 		InProcessConfigVerifier: verifyConfig,
+		Sends:                   bridgerun.BridgeSends(),
+		Receives:                bridgerun.BridgeReceives(),
 		RunEngine:               runInternalBridge,
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }

@@ -1346,7 +1346,7 @@ func rsvpProducerObserve(path string) error {
 		defer mu.Unlock()
 		return json.NewEncoder(file).Encode(row)
 	}
-	plugin.SetStartupSubscriptionsIn(Namespace, []string{EventLSPUp}, []string{"*"}, "full")
+	plugin.SetEventFormat("full")
 	plugin.OnAllPluginsReady(func() error { return write(rsvpProducerObservation{Ready: true}) })
 	plugin.OnEvent(func(body string) error {
 		var row rsvpProducerObservation
@@ -1386,7 +1386,9 @@ func rsvpProducerObserve(path string) error {
 	})
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	return plugin.Run(ctx, &sdk.Registration{})
+	return plugin.Run(ctx, &sdk.Registration{
+		Receives: []sdk.MessageReceiveDecl{{Message: Namespace + ":" + EventLSPUp}},
+	})
 }
 
 func (node *rsvpProducerNode) observations(t *testing.T) []rsvpProducerObservation {

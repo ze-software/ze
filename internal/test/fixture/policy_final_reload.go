@@ -18,9 +18,12 @@ func policyFinalReloadDriver(ctx context.Context, args []string) error {
 		return errors.New("reload/bgp-policy-final-reload takes no arguments")
 	}
 	state := &policyFinalWireState{routes: make(map[string]bool)}
-	return observeConfigured(ctx, "policy-final-reload", &sdk.Registration{}, func(plugin *sdk.Plugin) error {
+	reg := &sdk.Registration{
+		Receives: bgpReceiveDecls([]string{eventUpdate}, []string{addrLoopbackSecond}),
+	}
+	return observeConfigured(ctx, "policy-final-reload", reg, func(plugin *sdk.Plugin) error {
 		plugin.OnEvent(state.receive)
-		plugin.SetStartupSubscriptions([]string{eventUpdate}, []string{addrLoopbackSecond}, "full")
+		plugin.SetEventFormat("full")
 		return nil
 	}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		return policyFinalReloadScenario(ctx, plugin, state)

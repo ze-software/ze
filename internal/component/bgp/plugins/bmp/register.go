@@ -4,11 +4,49 @@ import (
 	bmpyang "github.com/ze-software/ze/internal/component/bgp/plugins/bmp/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+func bmpBusSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: events.NamespaceCLI + ":request bgp rib withdraw-router"},
+		{Message: events.NamespaceCLI + ":show bgp rib protocol"},
+		{Message: events.NamespaceCLI + ":request bgp rib withdraw-protocol"},
+		{Message: ribevents.Namespace + ":" + ribevents.EventReplayRequest},
+		{Message: bgpevents.Namespace + ":" + bgpevents.SendRaw},
+	}
+}
+
+func bmpBusReceives() []rpc.MessageReceiveDecl {
+	bothDir := func() []rpc.MessageTagDecl {
+		return []rpc.MessageTagDecl{{
+			Name:   events.TagDirection,
+			Values: []string{events.DirectionReceived, events.DirectionSent},
+		}}
+	}
+	sentDir := func() []rpc.MessageTagDecl {
+		return []rpc.MessageTagDecl{{
+			Name:   events.TagDirection,
+			Values: []string{events.DirectionSent},
+		}}
+	}
+	return []rpc.MessageReceiveDecl{
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventUpdate, Tags: bothDir()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventUpdatePrePolicyOut, Tags: sentDir()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventOpen, Tags: bothDir()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventNotification, Tags: bothDir()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventKeepalive, Tags: bothDir()},
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventRefresh, Tags: bothDir()},
+	}
+}
 
 func init() {
 	reg := registry.Registration{
@@ -25,6 +63,8 @@ func init() {
 		ConfigRoots: []string{configRootBGP, configPathReceiver},
 		RunEngine:   runBMPPlugin,
 		Commands:    commandDecls(),
+		Sends:       bmpBusSends(),
+		Receives:    bmpBusReceives(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

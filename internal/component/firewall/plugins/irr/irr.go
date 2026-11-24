@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
@@ -141,10 +142,9 @@ func runFirewallIRR(conn net.Conn) int {
 	})
 	p.OnDoctorCheck(plug.answerDoctorCheck)
 
-	// The irr plugin's notice of a stored or removed dataset. Subscribed at
-	// stage 5, before any event flows, so a notice sent between the
+	// The irr plugin's notice of a stored or removed dataset. Subscribed from
+	// Stage 1 Receives before any event flows, so a notice sent between the
 	// subscription and the OnStarted read is delivered and queued.
-	p.AddStartupSubscriptionsIn(store.NoticeNamespace, []string{store.EventDatasetStored})
 	p.OnEvent(func(event string) error {
 		plug.reader.notice(event)
 		return nil
@@ -167,6 +167,8 @@ func runFirewallIRR(conn net.Conn) int {
 		Commands:     commandDecls(),
 		WantsConfig:  []string{configRoot},
 		DoctorChecks: []sdk.DoctorCheckDecl{storedCopyCheckDecl},
+		Sends:        firewallIRRSends(),
+		Receives:     firewallIRRReceives(),
 		// The lists this plugin enforces survive its crash in the irr plugin's
 		// store, so a restarted process reads them again and programs its sets.
 		// Without the restart the registry holds back every table naming an IRR
@@ -452,6 +454,92 @@ func extractIfaceRefs(root map[string]any) []irrRef {
 		refs = append(refs, irrRef{Name: asSet, IsASSet: true, IsSrc: true})
 	}
 	return refs
+}
+
+// buildIfaceBindingShapeTables reads firewall irr interface bindings from tree
+// without mutating tree and returns the table shape (ze_irr_iface with its
+// ingress chain, named set and input-interface terms) that each binding
+// produces once its IRR list holds prefixes, regardless of stored prefix
+// contents. Unlike buildIfaceTables on the apply path (which intentionally
+// emits nothing for an empty prefix list so an interface is never blackholed),
+// commit-time backend verification must see the shape even on a cold cache.
+//
+// Safe for concurrent use.
+func buildIfaceBindingShapeTables(tree *config.Tree) ([]firewall.Table, error) {
+	// refuse-by-default: guards firewall.RegisterConfigTableBuilder -- a nil tree holds no IRR interface bindings
+	if tree == nil {
+		return nil, nil
+	}
+	fwTree := tree.GetContainer(configRoot)
+	// refuse-by-default: guards firewall.RegisterConfigTableBuilder -- absent firewall container holds no IRR interface bindings
+	if fwTree == nil {
+		return nil, nil
+	}
+	// refuse-by-default: guards firewall.RegisterConfigTableBuilder -- inactive firewall container holds no IRR interface bindings
+	if fwTree.IsInactive() {
+		return nil, nil
+	}
+	irrTree := fwTree.GetContainer("irr")
+	// refuse-by-default: guards firewall.RegisterConfigTableBuilder -- absent firewall irr container holds no interface bindings
+	if irrTree == nil {
+		return nil, nil
+	}
+	// refuse-by-default: guards firewall.RegisterConfigTableBuilder -- inactive firewall irr container holds no interface bindings
+	if irrTree.IsInactive() {
+		return nil, nil
+	}
+
+	sections, err := config.BuildPluginConfigSections(tree.ToPluginMap(), []string{configRoot})
+	if err != nil {
+		return nil, err
+	}
+	bindings := parseIRRConfig(sections).ifaceBindings
+	if len(bindings) == 0 {
+		return nil, nil
+	}
+
+	seenSets := make(map[string]bool, len(bindings))
+	sets := make([]firewall.Set, 0, len(bindings))
+	terms := make([]firewall.Term, 0, len(bindings)*2)
+	for _, ib := range bindings {
+		v4Name, _ := setNames(ib.ASSet)
+		if !seenSets[ib.ASSet] {
+			seenSets[ib.ASSet] = true
+			sets = append(sets, familySet(v4Name, firewall.SetTypeIPv4, nil))
+		}
+		terms = append(terms,
+			firewall.Term{
+				Name: ifaceTermName(ib.Interface, "v4"),
+				Matches: []firewall.Match{
+					firewall.MatchInputInterface{Name: ib.Interface},
+					firewall.MatchInSet{SetName: v4Name, MatchField: firewall.SetFieldSourceAddr},
+				},
+				Actions: []firewall.Action{firewall.Accept{}},
+			},
+			firewall.Term{
+				Name: ifaceTermName(ib.Interface, "drop"),
+				Matches: []firewall.Match{
+					firewall.MatchInputInterface{Name: ib.Interface},
+				},
+				Actions: []firewall.Action{firewall.Drop{}},
+			},
+		)
+	}
+
+	return []firewall.Table{{
+		Name:   ifaceTableName,
+		Family: firewall.FamilyInet,
+		Sets:   sets,
+		Chains: []firewall.Chain{{
+			Name:     ifaceChainName,
+			IsBase:   true,
+			Type:     firewall.ChainFilter,
+			Hook:     firewall.HookPrerouting,
+			Priority: ifaceChainPrio,
+			Policy:   firewall.PolicyAccept,
+			Terms:    terms,
+		}},
+	}}, nil
 }
 
 // commandDecls names the commands this plugin serves and states what each

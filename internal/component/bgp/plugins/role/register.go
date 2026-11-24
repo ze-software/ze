@@ -9,10 +9,17 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+func roleBusReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+	}
+}
 
 // The route metadata keys this plugin's ingress step writes (otc.go), as
 // fields of the BGP route view: a filter declares a read of them, and a
@@ -77,6 +84,7 @@ func init() {
 		// the role peers each is inserted on.
 		Filters:          roleFilterDecls(),
 		FilterInsertions: roleInsertions(),
+		Receives:         roleBusReceives(),
 		YANG:             roleyang.ZeRoleYANG,
 		CapabilityCodes:  []uint8{roleCapCode},
 		RunEngine:        RunRolePlugin,

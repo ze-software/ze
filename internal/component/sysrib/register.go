@@ -17,10 +17,23 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 const configRootRIB = "rib"
+
+func sysRIBSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: sysribevents.Namespace + ":" + sysribevents.EventBestChange},
+	}
+}
+
+func sysRIBReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: sysribevents.Namespace + ":" + sysribevents.EventReplayRequest},
+	}
+}
 
 func init() {
 	if err := diagnostic.Register(diagnostic.CodeMeta{
@@ -42,7 +55,18 @@ func init() {
 
 	_ = events.RegisterNamespace(sysribevents.Namespace,
 		sysribevents.EventBestChange, sysribevents.EventReplayRequest,
+		sysribevents.EventRouteInstall, sysribevents.EventRouteMetrics,
 	)
+	for _, msg := range []string{
+		sysribevents.EventBestChange,
+		sysribevents.EventReplayRequest,
+		sysribevents.EventRouteInstall,
+		sysribevents.EventRouteMetrics,
+	} {
+		if err := events.RegisterMessage(sysribevents.Namespace, msg); err != nil {
+			panic("BUG: sysrib: register message " + msg + ": " + err.Error())
+		}
+	}
 
 	reg := registry.Registration{
 		Name:        configRootRIB,
@@ -58,6 +82,8 @@ func init() {
 		// the filter instances its chains name live under the policy root.
 		Dependencies:            []string{policy.PluginName},
 		InProcessConfigVerifier: verifySysRIBConfig,
+		Sends:                   sysRIBSends(),
+		Receives:                sysRIBReceives(),
 		RunEngine:               runSysRIBPlugin,
 		Commands:                commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -162,7 +188,7 @@ func runRouteViewPlugin(ctx context.Context, p *sdk.Plugin) (err error) {
 	// Register MUST precede Run. The parser declares defaults even when Stage2
 	// delivers no rib section, so the boot installer always reaches the daemon.
 	tx.Register(p)
-	p.SetStartupSubscriptionsIn(sysribevents.Namespace, []string{sysribevents.EventReplayRequest}, nil, "json")
+	p.SetEventFormat("json")
 	p.SetEnvelope(true)
 	return p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRootRIB},
@@ -170,6 +196,8 @@ func runRouteViewPlugin(ctx context.Context, p *sdk.Plugin) (err error) {
 		ApplyBudget:  int(routeViewConfigurationApplyBudget / time.Second),
 		Commands:     commandDecls(),
 		DoctorChecks: routeViewDoctorDeclarations(),
+		Sends:        sysRIBSends(),
+		Receives:     sysRIBReceives(),
 	})
 }
 

@@ -427,7 +427,7 @@ func (s *Server) restoreRemovedPlugin(ctx context.Context, proc *process.Process
 		return err
 	}
 	defer s.clearConfigureConfig(scoped)
-	if err := conn.SendConfigure(configureCtx, sections, s.advertiseClaims(proc.Name())); err != nil {
+	if err := conn.SendConfigure(configureCtx, sections, s.advertiseClaims(proc.Name()), s.buildBusCatalog()); err != nil {
 		if !removalConnectionFailed(proc, err) {
 			return err
 		}

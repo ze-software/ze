@@ -292,25 +292,12 @@ func serveRouteReflector(p *sdk.Plugin) int {
 		return err
 	})
 
-	// Subscribe to received-direction only for UPDATE and OPEN events.
-	// Same rationale as bgp-rs: subscribing to "both" for UPDATEs creates
-	// a circular deadlock (ForwardUpdate -> onMessageSent -> deliver -> block).
-	p.SetStartupSubscriptions([]string{
-		eventUpdate + " direction received",
-		eventState,
-		eventOpen + " direction received",
-	}, nil, "")
-
+	// Event subscriptions come from Stage 1 Receives (rrBusReceives in
+	// register.go): received-direction only for UPDATE and OPEN (subscribing
+	// to "both" for UPDATEs creates a circular deadlock: ForwardUpdate ->
+	// onMessageSent -> deliver -> block), plus state, retention, and ribevents.
+	// Envelope wraps non-BGP events so dispatchText tells them from BGP text.
 	p.SetEncoding("text")
-	// bgp-gr's per-DOWN retention verdict, enveloped so dispatchText tells it
-	// from the BGP text events. RFC 4724 Section 4.2 (handleStateDown).
-	p.AddStartupSubscriptionsIn(retention.Namespace, []string{retention.EventType, retention.CleanupEventType})
-	// The receive store's eligibility change, through the SDK so a forked
-	// bgp-rr hears it too: the daemon's own bus never reaches a subprocess.
-	// The selecting RIB's flowspec-gate names the command that answers its
-	// FlowSpec lookup, so a forked bgp-rr (or one beside a forked bgp-rib)
-	// replays FlowSpec rules rather than withdrawing every one.
-	p.AddStartupSubscriptionsIn(ribevents.Namespace, []string{ribevents.EventValidationChange, ribevents.EventFlowSpecGate, ribevents.EventValidationGate})
 	p.SetEnvelope(true)
 
 	ctx, cancel := sdk.SignalContext()
@@ -1226,6 +1213,8 @@ func routeReflectorRegistration() *sdk.Registration {
 		FencesLiveForwards:  true,
 		EventSettlement:     true,
 		Commands:            commandDecls(),
+		Sends:               rrBusSends(),
+		Receives:            rrBusReceives(),
 		// The registry's edges, so a forked reflector takes a DOWN before
 		// the stores it depends on, as an internal one does.
 		Dependencies: rrDependencies,

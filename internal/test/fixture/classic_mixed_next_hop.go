@@ -49,11 +49,15 @@ func classicMixedNextHopDriver(ctx context.Context, args []string) error {
 		}
 	}
 	state := new(classicMixedNextHopState)
-	registration := &sdk.Registration{CacheConsumer: args[0] == classicMixedNextHopRailCached, Filters: []sdk.FilterDecl{{
-		Name: "rewrite", Direction: sdk.FilterExport, Reads: []string{sdk.FilterFieldRaw}, OnError: sdk.OnErrorReject,
-	}}}
+	registration := &sdk.Registration{
+		CacheConsumer: args[0] == classicMixedNextHopRailCached,
+		Filters: []sdk.FilterDecl{{
+			Name: "rewrite", Direction: sdk.FilterExport, Reads: []string{sdk.FilterFieldRaw}, OnError: sdk.OnErrorReject,
+		}},
+		Receives: bgpReceiveDecls([]string{eventUpdate}, []string{addrLoopbackSecond}),
+	}
 	setup := func(plugin *sdk.Plugin) error {
-		plugin.SetStartupSubscriptions([]string{eventUpdate}, []string{addrLoopbackSecond}, "parsed")
+		plugin.SetEventFormat("parsed")
 		plugin.SetEnvelope(true)
 		plugin.OnEvent(state.receive)
 		plugin.OnFilter(state.rewrite)

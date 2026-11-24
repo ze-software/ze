@@ -72,7 +72,7 @@ func atomicAggregatePolicyForwarder(ctx context.Context, args []string) error {
 		return err
 	}
 	defer plugin.Close() //nolint:errcheck // The run result carries the useful transport error.
-	plugin.SetStartupSubscriptions([]string{eventUpdate}, []string{addrLoopbackSecond}, "parsed")
+	plugin.SetEventFormat("parsed")
 	plugin.OnEvent(func(raw string) error {
 		var event struct {
 			BGP struct {
@@ -104,7 +104,10 @@ func atomicAggregatePolicyForwarder(ctx context.Context, args []string) error {
 		}
 		return nil
 	})
-	return plugin.Run(ctx, &sdk.Registration{CacheConsumer: true})
+	return plugin.Run(ctx, &sdk.Registration{
+		CacheConsumer: true,
+		Receives:      bgpReceiveDecls([]string{eventUpdate}, []string{addrLoopbackSecond}),
+	})
 }
 
 // atomicAggregatePolicyAnswer deliberately proposes the unsafe answer. A

@@ -369,20 +369,17 @@ func (p *Plugin) answerExecuteCommand(ctx context.Context, req *rpc.Request) err
 // the sequential startup protocol, before the event loop starts).
 
 func (p *Plugin) handleConfigure(params json.RawMessage) error {
-	var input struct {
-		Sections []ConfigSection `json:"sections"`
-		Claims   []string        `json:"claims,omitempty"`
-	}
+	var input rpc.ConfigureInput
 	if params != nil {
 		if err := json.Unmarshal(params, &input); err != nil {
 			return fmt.Errorf("unmarshal configure: %w", err)
 		}
 	}
 
-	// Record the claim set BEFORE running the plugin's configure handler, so a
-	// handler that stands its own default behavior down for a claiming plugin
-	// can read it here -- at Stage 2, which completes before Stage 5 ready and
-	// therefore before this plugin can receive any runtime event.
+	// Record the claim set and bus catalog BEFORE running the plugin's configure
+	// handler, so a handler that stands its own default behavior down or inspects
+	// registered bus messages can read them here -- at Stage 2, which completes
+	// before Stage 5 ready and therefore before any runtime event arrives.
 	p.mu.Lock()
 	if len(input.Claims) > 0 {
 		p.claims = make(map[string]bool, len(input.Claims))
@@ -392,6 +389,7 @@ func (p *Plugin) handleConfigure(params json.RawMessage) error {
 	} else {
 		p.claims = nil
 	}
+	p.busCatalog = cloneBusCatalog(input.BusCatalog)
 	fn := p.onConfigure
 	p.mu.Unlock()
 

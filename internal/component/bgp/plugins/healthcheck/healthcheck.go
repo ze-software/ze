@@ -123,6 +123,7 @@ func runHealthcheckPlugin(conn net.Conn) int {
 	err := p.Run(ctx, &sdk.Registration{
 		WantsConfig: []string{configRootBGP},
 		Commands:    commandDecls(),
+		Sends:       healthcheckBusSends(),
 	})
 	if err != nil {
 		logger().Error("healthcheck plugin failed", "error", err)
@@ -235,7 +236,7 @@ func (m *probeManager) validateConfig(configs []ProbeConfig) error {
 	}
 	for i := range configs {
 		if len(configs[i].IPs) > 0 || configs[i].IPInterface != "" {
-			return fmt.Errorf("probe %q: ip-setup requires internal plugin mode (ip management needs in-process netlink access)", configs[i].Name)
+			return fmt.Errorf("probe %q: ip-setup requires internal plugin mode (ip management needs in-process netlink socket access)", configs[i].Name)
 		}
 	}
 	return nil

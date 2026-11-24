@@ -125,9 +125,6 @@ func plugin14EventObserver(name string, subscriptions []string, scenario plugin1
 	return func(ctx context.Context, _ []string) error {
 		events := make(chan plugin14Event, 256)
 		setup := func(plugin *sdk.Plugin) error {
-			if len(subscriptions) != 0 {
-				plugin.SetStartupSubscriptions(subscriptions, nil, "")
-			}
 			plugin.OnEvent(func(event string) error {
 				var decoded plugin14Event
 				if err := json.Unmarshal([]byte(event), &decoded); err != nil {
@@ -142,7 +139,10 @@ func plugin14EventObserver(name string, subscriptions []string, scenario plugin1
 			})
 			return nil
 		}
-		return observeConfigured(ctx, name, &sdk.Registration{}, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
+		reg := &sdk.Registration{
+			Receives: bgpReceiveDecls(subscriptions, nil),
+		}
+		return observeConfigured(ctx, name, reg, setup, func(ctx context.Context, plugin *sdk.Plugin) error {
 			if err := scenario(ctx, plugin, events); err != nil {
 				return err
 			}

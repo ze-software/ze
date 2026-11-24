@@ -87,11 +87,11 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 		Respawn: true,
 	}}
 
-	// Subscribe to all events, in the format the scripts' forms read
-	// (bridgerun.EventFormat): a script with no feed list receives every
-	// UPDATE, whose decoded line reads its AS_PATH and communities off the
-	// message's bytes (bridge.NeedsBytes), so this runner subscribes `full`.
-	p.SetStartupSubscriptions([]string{"*"}, nil, bridgerun.EventFormat(scripts))
+	// Request the event format the scripts' forms read (bridgerun.EventFormat):
+	// a script with no feed list receives every UPDATE, whose decoded line
+	// reads its AS_PATH and communities off the message's bytes
+	// (bridge.NeedsBytes), so this runner selects `full`.
+	p.SetEventFormat(bridgerun.EventFormat(scripts))
 
 	// The script is NOT started here: the OnAllPluginsReady registration below
 	// starts it, and says what an early start cost.
@@ -133,6 +133,8 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	reg := sdk.Registration{
 		Families:    familyDecls,
 		WantsConfig: []string{"bgp"},
+		Sends:       bridgerun.BridgeSends(),
+		Receives:    bridgerun.BridgeReceives(),
 	}
 	if sdkErr := p.Run(ctx, &reg); sdkErr != nil {
 		if ctx.Err() == nil {

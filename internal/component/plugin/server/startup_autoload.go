@@ -69,21 +69,6 @@ func (s *Server) unclaimedFamilyPlugins() []string {
 	return needed
 }
 
-// getUnclaimedEventTypePlugins returns plugins to auto-load for custom event types
-// referenced in peer process receive config but not produced by any explicitly configured plugin.
-// For example, receive [ update-rpki ] triggers auto-loading bgp-rpki-decorator and its
-// dependency bgp-rpki. Dependencies are resolved transitively via registry.ResolveDependencies.
-func (s *Server) getUnclaimedEventTypePlugins() ([]plugin.PluginConfig, error) {
-	return s.getUnclaimedPluginsForTokens(s.config.ConfiguredCustomEvents, plugin.GetPluginForEventType, "event type")
-}
-
-// getUnclaimedSendTypePlugins returns plugins to auto-load for custom send types
-// referenced in peer process send config but not enabled by any explicitly configured plugin.
-// For example, send [ enhanced-refresh ] triggers auto-loading bgp-route-refresh.
-func (s *Server) getUnclaimedSendTypePlugins() ([]plugin.PluginConfig, error) {
-	return s.getUnclaimedPluginsForTokens(s.config.ConfiguredCustomSendTypes, plugin.GetPluginForSendType, "send type")
-}
-
 // getConfigPathPlugins returns plugins to auto-load based on config section presence.
 // Matches ConfiguredPaths (present config containers) against ConfigRoots declared
 // by registered plugins. Paths on both sides use the config package's PathSep ("/").
@@ -641,20 +626,6 @@ func parentRemoved(path string, removed map[string]bool) bool {
 	return false
 }
 
-// getUnclaimedPluginsForTokens is the shared implementation for auto-loading plugins
-// based on token-to-plugin lookup (event types, send types). The lookupFn maps a token
-// to the plugin name that provides it. The kind string is used in log messages.
-// An error is a hard dependency the set cannot resolve; the caller MUST refuse
-// startup on it and MUST NOT start the set without the dependency.
-func (s *Server) getUnclaimedPluginsForTokens(tokens []string, lookupFn func(string) string, kind string) ([]plugin.PluginConfig, error) {
-	needed := s.unclaimedPluginsForTokens(tokens, lookupFn, kind)
-	if len(needed) == 0 {
-		return nil, nil
-	}
-
-	return s.resolveAutoLoad(needed, "custom "+kind)
-}
-
 // resolveAutoLoad expands needed with its dependencies for the boot config and
 // answers the configs of the plugins to start: every resolved name that is not
 // loaded, configured or running. kind names the trigger in log lines.
@@ -696,43 +667,12 @@ func (s *Server) resolveAutoLoad(needed []string, kind string) ([]plugin.PluginC
 	return plugins, nil
 }
 
-// unclaimedPluginsForTokens answers the plugin names that provide tokens of
-// kind (event type or send type) and are neither configured nor running.
-func (s *Server) unclaimedPluginsForTokens(tokens []string, lookupFn func(string) string, kind string) []string {
-	var needed []string
-	seen := make(map[string]bool)
-
-	for _, token := range tokens {
-		pluginName := lookupFn(token)
-		if pluginName == "" {
-			logger().Debug("no plugin provides "+kind+", skipping", kind, token)
-			continue
-		}
-
-		// Skip if already configured or running
-		pm := s.procManager.Load()
-		if s.hasConfiguredPlugin(pluginName) || (pm != nil && pm.GetProcess(pluginName) != nil) {
-			logger().Debug(kind+" plugin already configured, skipping auto-load",
-				kind, token, "plugin", pluginName)
-			continue
-		}
-
-		if !seen[pluginName] {
-			seen[pluginName] = true
-			needed = append(needed, pluginName)
-		}
-	}
-
-	return needed
-}
-
 // refuseUnresolvableDeferredAutoLoad resolves the dependencies of every plugin
-// the unclaimed families and the custom event and send types will auto-load,
-// before boot starts any plugin. Those sets start in startup phases 3 to 5,
-// after the config-path and explicit plugins are already running, so a refusal
-// found only there would leave a half-started daemon. The answer is the first
-// *registry.MissingDependencyError (or cycle) found; nil means every set
-// resolves.
+// the unclaimed families will auto-load, before boot starts any plugin. Those
+// sets start in startup phase 3, after the config-path and explicit plugins are
+// already running, so a refusal found only there would leave a half-started
+// daemon. The answer is the first *registry.MissingDependencyError (or cycle)
+// found; nil means every set resolves.
 //
 // No explicit plugin has declared its families yet, so the family set here is
 // every configured family's internal plugin. An external plugin that claims a
@@ -742,8 +682,6 @@ func (s *Server) unclaimedPluginsForTokens(tokens []string, lookupFn func(string
 func (s *Server) refuseUnresolvableDeferredAutoLoad() error {
 	deferredSets := [][]string{
 		s.unclaimedFamilyPlugins(),
-		s.unclaimedPluginsForTokens(s.config.ConfiguredCustomEvents, plugin.GetPluginForEventType, "event type"),
-		s.unclaimedPluginsForTokens(s.config.ConfiguredCustomSendTypes, plugin.GetPluginForSendType, "send type"),
 	}
 	for _, needed := range deferredSets {
 		if len(needed) == 0 {

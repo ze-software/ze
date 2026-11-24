@@ -19,9 +19,13 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/linkstateevents"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
 	ospfredistribute "github.com/ze-software/ze/internal/plugins/ospf/redistribute"
@@ -99,6 +103,21 @@ func setRouteInstallClient(p *sdk.Plugin) {
 // routeInstallClient returns the forked route-install SDK handle, or nil in-process.
 func routeInstallClient() *sdk.Plugin { return routeInstallPtr.Load() }
 
+func ospfSends() []rpc.MessageSendDecl {
+	return []rpc.MessageSendDecl{
+		{Message: Namespace + ":" + EventNeighborUp},
+		{Message: Namespace + ":" + EventNeighborDown},
+		{Message: Namespace + ":" + EventInterfaceState},
+		{Message: Namespace + ":" + EventDRChange},
+		{Message: Namespace + ":" + EventNeighborChange},
+		{Message: Namespace + ":" + EventLastKeyExpiration},
+		{Message: Namespace + ":" + redistevents.EventType},
+		{Message: Namespace + ":" + linkstateevents.EventType},
+		{Message: mplsfib.Namespace + ":" + mplsfib.EventEntry},
+		{Message: sysribevents.Namespace + ":" + sysribevents.EventRouteInstall},
+	}
+}
+
 func registerOSPF() {
 	// The filter attachment points this plugin's config holds, with the route
 	// fields their routes carry and a filter there may set (the route field
@@ -166,11 +185,12 @@ func registerOSPF() {
 		// the filter instances its chains name live under the policy root.
 		Dependencies: []string{"interface", "sysctl", policy.PluginName},
 		// OSPF's routes reach forwarding only through the writer of the data
-		// plane `interface { backend }` selects (fib-kernel on netlink, fib-vpp
+		// plane `interface { backend }` selects (fib-kernel on kernel, fib-vpp
 		// on VPP), so the engine resolves and loads that writer. Naming
 		// fib-kernel here would load the kernel writer on a VPP deployment.
 		NeedsDataPlane:          true,
 		RFCs:                    []string{"2328", "5709", "7474", "9129"},
+		Sends:                   ospfSends(),
 		RunEngine:               runOSPFEngine,
 		Commands:                commandDecls(),
 		InProcessConfigVerifier: verifyOSPFConfigSections,
@@ -834,6 +854,7 @@ func runOSPFEngine(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		Sends:        ospfSends(),
 		DoctorChecks: []rpc.DoctorCheckDecl{{
 			Name: "ospf-state", Phase: rpc.DoctorPhasePostConfig,
 			Codes: []string{codeOSPFGracefulRestartNVS},
