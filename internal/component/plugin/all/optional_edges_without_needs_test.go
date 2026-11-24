@@ -15,9 +15,9 @@ import (
 //
 // VALIDATES: spec-plugin-optional-dependency-refusal AC-17 and A-3. With a
 // config that sets nothing, route server still pulls bgp-adj-rib-in, graceful
-// restart still pulls bgp-rs, and static still pulls interface, each ordered
-// before its owner: the conditional pull changes nothing for an edge no need
-// names.
+// restart still pulls bgp-rs, and static and connected still pull interface,
+// each ordered before its owner: the conditional pull changes nothing for an
+// edge no need names.
 // PREVENTS: the conditional pull dropping an unconditional optional provider.
 func TestOptionalEdgesWithoutNeedsPullAsBefore(t *testing.T) {
 	emptyConfig := config.ConfigNeedHolds(map[string]any{})
@@ -25,6 +25,7 @@ func TestOptionalEdgesWithoutNeedsPullAsBefore(t *testing.T) {
 		{owner: "bgp-rs", provider: "bgp-adj-rib-in"},
 		{owner: "bgp-gr", provider: "bgp-rs"},
 		{owner: "static", provider: "interface"},
+		{owner: "connected", provider: "interface"},
 	} {
 		t.Run(edge.owner, func(t *testing.T) {
 			reg := registry.Lookup(edge.owner)

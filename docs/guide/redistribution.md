@@ -491,13 +491,17 @@ token first.
 | `ipsec` | the IKE engine | every remote traffic selector of each established Child SA, one route per selector: a Child SA that negotiated an IPv4 pair and an IPv6 pair contributes both prefixes, and withdraws both when it goes. A Child SA rekey that changes the set withdraws only the prefixes it dropped and announces only the ones it added; a prefix kept across the rekey is not withdrawn and re-announced <!-- source: internal/component/ike/engine/redistribute.go -- emitRouteAdd, emitRouteRemove, rekeyTunnelRoutes --> |
 
 `connected` needs an active interface provider to learn interface addresses.
-An empty `interface { }` root starts the configured backend's monitor, including
-addresses already present on the host. When connected starts or restarts, it
-subscribes before requesting that inventory, so addresses need no new change
-to reach the Loc-RIB and redistribution. The same path serves internal and
-external connected plugins. The request does not start an absent provider:
-without one, connected has no initial address inventory and continues without
-waiting for a reply.
+It declares `interface` as an unconditional optional dependency, so loading
+`connected { }` pulls the interface plugin and starts the configured backend's
+monitor ahead of `connected`, even without an `interface { }` stanza. When
+connected starts or restarts, it subscribes before requesting that inventory,
+so addresses already present on the host need no new change to reach the
+Loc-RIB and redistribution. The same path serves internal and external
+connected plugins. The replay request itself does not start an absent provider:
+in a build without the interface plugin, or if the provider is not running,
+connected has no initial address inventory and continues without waiting for a
+reply.
+<!-- source: internal/plugins/connected/register.go -- init -->
 <!-- source: internal/component/iface/register.go -- runEngine, OnConfigure -->
 <!-- source: internal/plugins/connected/eventbus.go -- followInterfaceAddresses, handleEvent -->
 

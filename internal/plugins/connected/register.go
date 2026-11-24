@@ -64,9 +64,16 @@ func init() {
 		// policy is a hard dependency of every protocol with a filter attachment:
 		// the filter instances its chains name live under the policy root.
 		Dependencies: []string{policy.PluginName},
-		Sends:        connectedSends(),
-		Receives:     connectedReceives(),
-		RunEngine:    runConnectedPlugin,
+		// OptionalDependencies pulls the interface component whenever connected
+		// loads, with or without an `interface` stanza, and orders interface
+		// before connected so the address monitor and replay handler are active
+		// before connected requests the initial address inventory. It is
+		// optional only in that a build without the interface plugin still runs
+		// connected.
+		OptionalDependencies: []string{"interface"},
+		Sends:                connectedSends(),
+		Receives:             connectedReceives(),
+		RunEngine:            runConnectedPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
