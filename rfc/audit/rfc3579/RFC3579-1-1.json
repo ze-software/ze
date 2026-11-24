@@ -1,14 +1,14 @@
 {
-  "note": "+ TestRFC3579EAPAttributesServeALiveEAPMethod: the NAS that implements EAP-Message offers EAP (admin login, auth-method eap-mschapv2 completes, every Access-Request carries EAP-Message; red when authenticateEAP is disabled). - TestRFC3579SubscriberNASRefusesEAPMessage: the L2TP subscriber NAS, which offers PPP peers no EAP, answers CoA-Request and Disconnect-Request carrying EAP-Message with NAK Error-Cause 401, no event, no teardown; adding EAP-Message to coaSupportedAttrs/disconnectSupportedAttrs turns it red (recorded at coa.go unsupportedAttr). The older dictionary units stay as declaration-only supplementary tags.",
+  "note": "Independent rejudgment 2026-11-24 against RFC 3579 Section 1 (rfc/full/rfc3579.txt): \"As noted in [RFC2865], a Network Access Server (NAS) that does not implement a given service MUST NOT implement the RADIUS attributes for that service. This implies that a NAS that is unable to offer EAP service MUST NOT implement the RADIUS attributes for EAP.\" Verified the sole change in the tagged units since dcc219072a (585fcdb081): TestRFC3579SubscriberNASRefusesEAPMessage passes t to oneSessionService(t); every assertion is unchanged. TestRFC3579EAPAttributesServeALiveEAPMethod (positive) proves Ze's admin RADIUS NAS offers live EAP-MSCHAPv2 authentication and carries EAP-Message on every Access-Request. TestRFC3579SubscriberNASRefusesEAPMessage (negative) proves the L2TP subscriber NAS, which offers PPP peers no EAP, rejects both CoA-Request and Disconnect-Request carrying EAP-Message with NAK Error-Cause 401 (Unsupported Attribute), zero events, and zero teardowns. Both dict.go boundary tests remain intact. Verdict stands: enforced.",
   "requirement_sha": "aad6c53c7b5fd4f1",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC3579SubscriberNASRefusesEAPMessage": "b439fffbe386e859",
+    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC3579SubscriberNASRefusesEAPMessage": "46f1683216aff121",
     "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryCoversTheServicesZeOffers": "5f2ad3bca62785d7",
     "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService": "5f2ad3bca62785d7",
     "internal/component/radius/rfc3579_nas_obligations_test.go::TestRFC3579EAPAttributesServeALiveEAPMethod": "2b1b1ce908f454a5"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC3579SubscriberNASRefusesEAPMessage": "d459dfd5f3a5c539",
+    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC3579SubscriberNASRefusesEAPMessage": "640d311212afd199",
     "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryCoversTheServicesZeOffers": "987750fa14bb745b",
     "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService": "4e59f2261d508766",
     "internal/component/radius/rfc3579_nas_obligations_test.go::TestRFC3579EAPAttributesServeALiveEAPMethod": "c8803292d52bcf96"

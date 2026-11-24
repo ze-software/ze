@@ -1,13 +1,17 @@
 {
-  "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Forbidden: a DNS server responding to a cleartext DNS message on its DoT port, including after the TLS handshake fails. TestDoTRefusesCleartext sends a cleartext query whose bytes fail the TLS handshake and fails at t.Fatalf(\"server answered a cleartext DNS query on the DoT port\") on any unpackable reply with the matching Id. Positive: TestDoTListener asserts the TLS-wrapped query on the same kind of port is answered with the expected A record.",
+  "note": "Independent rejudgment 2026-11-24 against RFC 7858 Section 3.1 (rfc/full/rfc7858.txt): \"DNS clients MUST NOT send and DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS (including, for example, after a failed TLS handshake).\" Verified changes since dcc219072a (cd9c79b63c): TestDoTListener (positive: TLS-wrapped query on DoT port answered with A record) and TestDoTRefusesCleartext (negative: raw TCP cleartext query failing TLS handshake receives no DNS answer) are unchanged. Two new tagged geodns config tests strengthen the \"any port used for DNS over TLS\" clause: TestGeoDNSListenerOnDoTListenPortRefused (negative) verifies parseListeners calls dnsserver.RefuseCleartextOnConfiguredDoTPort to refuse a cleartext listener sharing a custom DoT listen-port (8853) with the exact operator fix, and TestGeoDNSListenerOffDoTListenPortAccepted (positive) proves the refusal is gated on DoT being enabled on that port. Verified dnsresolver serves no DoT and as112 cleartext is fixed on port 53 (refused as DoT port). Verdict stands: enforced.",
   "requirement_sha": "edba80c2bc5727c9",
   "tests": {
     "internal/core/dnsserver/secure_test.go::TestDoTListener": "8772da30b26b9efc",
-    "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "8772da30b26b9efc"
+    "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "8772da30b26b9efc",
+    "internal/plugins/geodns/rfc7858_cleartext_port_test.go::TestGeoDNSListenerOffDoTListenPortAccepted": "6b85be20cabe9f34",
+    "internal/plugins/geodns/rfc7858_cleartext_port_test.go::TestGeoDNSListenerOnDoTListenPortRefused": "6b85be20cabe9f34"
   },
   "units": {
     "internal/core/dnsserver/secure_test.go::TestDoTListener": "5a13f43dda020cb1",
-    "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "57372c3b27a38923"
+    "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "57372c3b27a38923",
+    "internal/plugins/geodns/rfc7858_cleartext_port_test.go::TestGeoDNSListenerOffDoTListenPortAccepted": "6221d1c6c31d8361",
+    "internal/plugins/geodns/rfc7858_cleartext_port_test.go::TestGeoDNSListenerOnDoTListenPortRefused": "62a5958a99dd95b3"
   },
   "verdict": "enforced"
 }

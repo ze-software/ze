@@ -1,13 +1,13 @@
 {
-  "note": "Re-judged 2026-10-24 (independent auditor, after 8a340e018a). RFC 4760 Section 7: \"If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute.\" The only changed unit is TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes, and only its claim: it now names rfc7606ResetNotification instead of rfc7606SessionReset. Read session_validation.go: applyRFC7606 sends a result carrying a Notification straight to rfc7606ResetNotification, and rfc7606SessionReset itself only builds a 3/1 Notification and delegates to rfc7606ResetNotification, so the reworded claim is true on every reset path and claims nothing the body does not assert. The body is unchanged: an IPv4 MP_REACH whose /24 overruns by one octet (prefix length legal, so only the overrun can fire) through a real Established session must give an error, Idle, zero plugin callbacks and a NOTIFICATION with code 3; it does not pin the subcode, and the claim does not claim one. A discrimination record (rfc7606ResetNotification panicked, observed red) backs question 2 for this tag. The other units (message-level exact SessionReset + 3/9 for next-hop and MP_UNREACH length; the correct-MP_REACH negative; the rib and reactor peer-down deletion units) are unchanged and still carry the deletion half: Idle raises the peer-down that clears the neighbor's routes, a superset of the offending AFI/SAFI. Ran the reactor TestRFC4760IncorrectMP*/CorrectMP* units green. Verdict stands.",
+  "note": "Independent rejudgment 2026-11-24 against RFC 4760 Section 7 (rfc/full/rfc4760.txt): \"If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute.\" Verified changes since 9ab57ae45c (ba0f3a3a7d): TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes and TestHandleState_PeerDown migrated peer-table keying from IP address to PeerOwner ID with DestinationSession; both still assert the offender's PeerRIB is deleted on peer-down while a bystander neighbor's routes remain untouched. All message and reactor units (TestRFC4760IncorrectMPAttributeResetsTheSession, TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB, TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes, TestRFC4760IncorrectMPUnreachDeletesTheNeighborsRoutes, and all three CorrectMPReach negatives) are unchanged and prove both the reset trigger and route deletion. Verdict stands: enforced.",
   "requirement_sha": "dbfbd3ffc825a942",
   "tests": {
     "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession": "2d1f50d1a06c16aa",
     "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession#2": "2d1f50d1a06c16aa",
-    "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "1e325e2440456595",
-    "internal/component/bgp/plugins/rib/rib_test.go::TestHandleState_PeerDown": "c73bf5b0b1e12d0f",
-    "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760CorrectMPReachRaisesNoPeerDown": "9a38324256a757f7",
-    "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB": "9a38324256a757f7",
+    "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "bd3fdf75c496be98",
+    "internal/component/bgp/plugins/rib/rib_test.go::TestHandleState_PeerDown": "9d7397f14d743cf5",
+    "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760CorrectMPReachRaisesNoPeerDown": "f93b38a1a6538331",
+    "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB": "f93b38a1a6538331",
     "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes": "74a8c92e4465ea65",
     "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes": "74a8c92e4465ea65",
     "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760IncorrectMPUnreachDeletesTheNeighborsRoutes": "74a8c92e4465ea65"
@@ -15,8 +15,8 @@
   "units": {
     "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession": "1b7b713f805b5598",
     "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession#2": "1b7b713f805b5598",
-    "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "85629bc873b9317c",
-    "internal/component/bgp/plugins/rib/rib_test.go::TestHandleState_PeerDown": "2b64b74db58b8189",
+    "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "102c70faa78af098",
+    "internal/component/bgp/plugins/rib/rib_test.go::TestHandleState_PeerDown": "89c8c736bcdd39d8",
     "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760CorrectMPReachRaisesNoPeerDown": "ea688bcd8765c19a",
     "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB": "73585c4cf823dfef",
     "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes": "39d13d3b848c9f6d",

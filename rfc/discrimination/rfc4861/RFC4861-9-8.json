@@ -3,11 +3,11 @@
     "rid": "RFC4861-9-8",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc4861_solicitation_reader_linux_test.go::TestRFC4861SubscriberSolicitationReaderIgnoresReservedAndOptions",
-    "unit-sha": "2d8611888bccedb6",
+    "unit-sha": "a727669218784d7b",
     "claim-sha": "0967f8e0aeec77af",
     "route": "revert",
-    "producer": "internal/component/l2tp/ppp/ra_linux.go::rsReaderLoop",
-    "producer-sha": "4e8c790cede9713f",
+    "producer": "internal/component/l2tp/ppp/ra_carrier.go::rsReaderLoop",
+    "producer-sha": "91ab443f5e7ff27a",
     "break": "body of rsReaderLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

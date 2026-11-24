@@ -1,11 +1,11 @@
 {
   "code": {
-    "internal/component/ike/engine/fsm.go::handleAuthResponse": "d0fb979d6adc431d",
+    "internal/component/ike/engine/fsm.go::handleAuthResponse": "396bcea47c28d7a6",
     "internal/component/ike/engine/fsm.go::handleEAPResponse": "1fbb8ecd5a6ac8e9",
     "internal/component/ike/engine/held_successor.go::handleHeldSuccessorInbound": "686d1297b5c40794",
     "internal/component/ike/engine/protected_input.go::openProtected": "5d44134a06a0ab2c"
   },
-  "note": "Re-judged 2026-11-20 by an independent agent after 11f6e1a3fe changed protected_input.go::openProtected. RFC 7296 Section 2.4: \"Since IKE is designed to operate in spite of DoS attacks from the network, an endpoint MUST NOT conclude that the other endpoint has failed based on any routing information (e.g., ICMP messages) or IKE messages that arrive without cryptographic protection (e.g., Notify messages complaining about unknown SPIs).\" The change adds two refusals ahead of the existing ones: a message whose last payload is not the Encrypted payload is passed to dropUnauthenticated and dropped before anything decrypts, the same route the tagged units already prove leaves the SA, its timers and its state untouched; an authenticated chain holding a nested Encrypted payload is an errInnerChain error, which comes from the peer and is outside this clause. Neither lets unprotected input end an SA. The tagged units, which cover the initiator and responder handshakes, the established, unowned and held-successor SAs, MOBIKE retransmission, ICMP and the strongSwan interop check, are unchanged. Verdict stands.",
+  "note": "Independent rejudgment 2026-11-24 against RFC 7296 Section 2.4 (rfc/full/rfc7296.txt): \"Since IKE is designed to operate in spite of DoS attacks from the network, an endpoint MUST NOT conclude that the other endpoint has failed based on any routing information (e.g., ICMP messages) or IKE messages that arrive without cryptographic protection (e.g., Notify messages complaining about unknown SPIs).\" Verified changes since f804b97b80: fsm.go::handleAuthResponse (f4a0df7781) moved the doctor diagnostic code to a package-local constant with identical value; unprotected_response.go::authInjectBypassCommand (ba30c73b7c) pre-allocated its slice and used xfrmDirOut with zero behavioral change. openProtected, handleEAPResponse, handleHeldSuccessorInbound, and all 20 tagged test units (initiator/responder handshakes, established/unowned/held-successor SAs, MOBIKE retransmit, ICMP, strongSwan interop, and ike-auth-corrupt-response.ci) remain intact. Verdict stands: enforced.",
   "requirement_sha": "cf7c5c842e6cd8d6",
   "tests": {
     "internal/component/ike/engine/mobike_test.go::TestMobikeRetransmitArmCountsUnprotectedMessage": "c03cfd3d4a94ad4c",
@@ -26,7 +26,7 @@
     "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorAuthSurvivesUnprotectedIKEAuthResponse": "ef097bc05ba276fc",
     "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorEAPSurvivesUnprotectedIKEAuthResponse": "ef097bc05ba276fc",
     "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorSecondAuthExchangeCountsUnprotectedResponse": "ef097bc05ba276fc",
-    "internal/le/interoplab/ipsec/unprotected_response.go::checkInitiatorSurvivesUnprotectedAuthResponse": "6c4f74a79a5c1721",
+    "internal/le/interoplab/ipsec/unprotected_response.go::checkInitiatorSurvivesUnprotectedAuthResponse": "ac09919b041882f7",
     "test/ipsec/ike-auth-corrupt-response.ci": "d253e0d161f20561"
   },
   "units": {

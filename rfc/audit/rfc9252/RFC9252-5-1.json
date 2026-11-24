@@ -1,19 +1,19 @@
 {
-  "note": "Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). RFC 9252 Section 7: 'The path having any such Prefix-SID attribute without any valid SRv6 SID information MUST be considered ineligible during the selection of the best path for the corresponding prefix.' The earlier findings are answered: isSRv6Ineligible now calls ExtractSRv6SIDFull and srv6SIDValidForFamily, so an invalid SID Structure or a transposition wider than the label field excludes the path. Negatives: TestIsSRv6Ineligible_InvalidSIDStructure (sum 200) and TestSRv6TranspositionWiderThanLabelFieldIsIneligible (24 bits into 20) feed a received VPNv4 UPDATE and assert candidateAdmitted, the gate checkRouteBestChange applies, refuses the stored path; srv6-invalid-sid-ineligible.ci asserts through the daemon that only the valid path of three has a best path. Positives: TestSRv6TranspositionAtLabelWidthIsEligible (exactly 20 bits) is admitted with its SID reconstructed, and TestIsSRv6Ineligible_ValidSID. TestIsSRv6Ineligible_InvalidSID is a structurally malformed Sub-TLV (treat-as-withdraw upstream) and is supplementary.",
+  "note": "Re-judged 2026-11-24 (independent reader) against RFC 9252 Section 7: 'The path having any such Prefix-SID attribute without any valid SRv6 SID information MUST be considered ineligible during the selection of the best path for the corresponding prefix.' candidateAdmitted gates best-path admission via isSRv6Ineligible, which delegates to pool.ExtractSRv6SIDFull and srv6SIDValidForFamily (rejecting Section 3.2.1 SID Structure failures and transpositions wider than the family label width). Positives: TestSRv6TranspositionAtLabelWidthIsEligible (20-bit VPNv4 transposition admitted and SID reconstructed) and TestIsSRv6Ineligible_ValidSID. Negatives: TestIsSRv6Ineligible_InvalidSIDStructure (sum 200 > 128 excluded), TestSRv6TranspositionWiderThanLabelFieldIsIneligible (24 > 20 excluded), and test/plugin/srv6-invalid-sid-ineligible.ci (daemon test with static /32 next-hop cover resolving 10.0.0.1 for all 3 stored VPNv4 paths, confirming P1 and P2 are stored without treat-as-withdraw yet excluded from show bgp rib best while valid control P3 is selected). The peer-owner fixture migration and terminal cover addition preserve all assertions and isolate isSRv6Ineligible; all 5 discrimination records are fresh. Verdict remains enforced.",
   "requirement_sha": "9e89afa433b86ebd",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestIsSRv6Ineligible_InvalidSIDStructure": "922705a6a64345d9",
-    "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestSRv6TranspositionAtLabelWidthIsEligible": "922705a6a64345d9",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestIsSRv6Ineligible_InvalidSIDStructure": "9a145aab22a64d79",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestSRv6TranspositionAtLabelWidthIsEligible": "9a145aab22a64d79",
     "internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go::TestIsSRv6Ineligible_ValidSID": "894e6dd4de84a1d9",
-    "internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible": "9768740c84c6ef17",
-    "test/plugin/srv6-invalid-sid-ineligible.ci": "84c3f974ad07fcda"
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible": "6b47b83f6744131c",
+    "test/plugin/srv6-invalid-sid-ineligible.ci": "3b973331cce5e1ef"
   },
   "units": {
-    "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestIsSRv6Ineligible_InvalidSIDStructure": "078b14d3ef4bb02c",
-    "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestSRv6TranspositionAtLabelWidthIsEligible": "6456786a7e4480a1",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestIsSRv6Ineligible_InvalidSIDStructure": "1114e40510dfd106",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestSRv6TranspositionAtLabelWidthIsEligible": "5008c3bfd22d99b8",
     "internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go::TestIsSRv6Ineligible_ValidSID": "eb417d5a58e12ca9",
-    "internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible": "efd74bbdde43d3eb",
-    "test/plugin/srv6-invalid-sid-ineligible.ci": "84c3f974ad07fcda"
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible": "6370a0e91b165a99",
+    "test/plugin/srv6-invalid-sid-ineligible.ci": "3b973331cce5e1ef"
   },
   "verdict": "enforced"
 }
