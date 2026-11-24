@@ -7,9 +7,9 @@
 | Priority | P1 |
 | Release reason | Each row is incorrect operator-facing behaviour: a secret echoed, a commit not audited, a list shown as empty, a YANG statement ignored, markup that does not render |
 | Depends | - |
-| Phase | E1 backup-folder commit activation implemented; unrelated parent work stopped |
+| Phase | Closure audit and independent review gate complete |
 | Handoff | verify |
-| Updated | 2026-11-18 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -1312,11 +1312,39 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 ## Files to Modify
 - The producer files under Current Behavior; a goyang patch file beside the vendored module.
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Core `request` and `show policy` YANG summaries in stripped core modules + `ze init --sha256` value flag (`8b2a59ad0b`) | `./le test unit pkg path ./internal/component/config/yang/ ./internal/plugins/init/ ./internal/plugins/completion/`; `./le yang glue check` |
+| Web `/config/edit/` view routing, lock-safe `snapshotTree` replacing unlocked `EditorManager.Tree`, bare list `show`, terminal secret-masking and workbench pending marker tests (`051d7bf09d`) | `./le test unit pkg path ./internal/component/web/ ./cmd/ze/hub/` |
+| CLI `Update` vs dispatched-commit fence, bare list `show`, live `compare`, fail-closed `newEditor`, path-qualified `Editor.Diff` (`0d3b9e36c7`) | `./le test unit pkg path ./internal/component/cli/ ./internal/component/config/cli/` |
+| Set-format comment preservation (`SerializeSetWithMeta` / `SetParser`) and fail-closed OSPF `keyedList` (`74086112f3`) | `./le test unit pkg path ./internal/component/config/ ./internal/plugins/ospf/` |
+| Opt-in SSH exec answer framing (`ZE_ANSWER_FRAME=1`), YAML 1.2 quoting in `command/format.go`, offline-root local-data exclusion on `SurfaceCLI` (`7f1bd4d7f7`) | `./le test unit pkg path ./internal/component/ssh/ ./internal/component/command/ ./internal/component/cli/sshclient/ ./internal/component/cli/client/` |
+| Functional proofs `test/plugin/exec-answer-unconditional.ci` and `test/plugin/ze-reference-mcp.ci` qualified 80/80 under load (`bc96aab4a1`) | `./le test bgp plugin --pattern exec-answer-unconditional`; `./le test bgp plugin --pattern ze-reference-mcp` |
+| Browser & markup proofs (`test/web/chaos-stream-swaps.wb`, `TestPublishedGuideTablesAreTables`, `TestPublishedBFDDetailCardContrast`, `internal/chaos/web`, `internal/le/site`) | `./le test web --pattern chaos-stream-swaps`; `./le test unit pkg path ./internal/chaos/web/ ./internal/le/site/ ./internal/le/site/browsertest/` |
+| All 59 owned journal rows under `plan/journal/*.md` closed as `fixed:` with concrete evidence | `./le spec journal check file <path>` across all 26 modified journal files |
+
+### Security Review Checklist
+
+| Check | What to look for |
+|-------|------------------|
+| Secret masking across display and feedback paths | `ze:sensitive` values masked in `ze config set` and web `/cli/terminal` feedback (`cli_terminal_secret_test.go`) |
+| Concurrency and shared-state isolation | No unlocked read of `EditorManager.Tree` (`snapshotTree` + `editor_tree_race_test.go`); no Bubble Tea `Update` read of `m.editor` while `m.dispatch.busy()` (`model_commit_race_test.go`); no per-request state on shared web completer |
+| Untrusted input and fail-closed parsing | `newEditor` fails closed on parse errors (`editor_parse_error_test.go`); OSPF `keyedList` refuses non-map list/entry inputs (`config_keyed_list_test.go`); YAML formatter quotes/escapes control characters and indicators (`format_quoting_test.go`); SSH `ZE_ANSWER_FRAME` env parser accepts only exact opt-in |
+| Authorization and route preservation | `/config/edit/` routes through `showHandler` preserving auth, UI mode, and per-user candidate (`service_web_config_edit_route_test.go`); backup private permissions and root boundaries preserved (`fa22596364`, `d16ed42cf5`, `4c734d149d`) |
+| Resource bounds and DoS resistance | CLI live-view `outputBuffer` bounded to 512 KiB (`b49fbcf2f8`); SSH `idle-timeout` uses `wish.WithIdleTimeout` |
+
 ### Integration Checklist
-- [ ] Each fix reached through the CLI, web terminal or page the operator uses
+- [x] Each fix reached through the CLI, web terminal or page the operator uses
 
 ### Documentation Update Checklist (BLOCKING)
-- [ ] `docs/guide/firewall.md`, `docs/guide/command-reference.md` (AC-17)
+- [x] `docs/guide/firewall.md`, `docs/guide/command-reference.md` (AC-17, verified via `TestPublishedGuideTablesAreTables`)
+- [x] `docs/guide/api.md` (`ParamMeta` optional `anchor`/`flag` keys, `8b2a59ad0b`)
+- [x] `docs/architecture/web-interface.md`, `ai/digests/web.md` (`/config/edit/` routing, `snapshotTree`, bare list `show`, `051d7bf09d`)
+- [x] `docs/architecture/config/syntax.md`, `docs/architecture/ospf/ospf-4-component-config.md` (set-meta comments, fail-closed `keyedList`, `74086112f3`)
+- [x] `docs/architecture/api/ipc_protocol.md`, `docs/architecture/cli/command-completion.md`, `docs/architecture/api/commands.md` (opt-in `ZE_ANSWER_FRAME=1`, YAML 1.2 quoting, `SurfaceCLI` offline-root exclusion, `7f1bd4d7f7`)
+- [x] `docs/functional-tests.md` (`exec-answer-unconditional.ci`, `ze-reference-mcp.ci`, `bc96aab4a1`)
 
 ## Implementation Steps
 1. Read each producer at HEAD; move a fixed row to "Rows found already fixed".
@@ -1395,7 +1423,194 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 ## Checklist
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (red recorded per AC)
-- [ ] Tests PASS
-- [ ] Scoped runs: `./le job run go test ./internal/component/web/... ./internal/component/cli/... ./internal/component/config/...`, `./le test functional ui`, `./le test editor`
+- [x] Tests written
+- [x] Tests FAIL (red recorded per AC)
+- [x] Tests PASS
+- [x] Scoped runs: `./le test unit pkg` across reached packages, `./le test bgp plugin`, `./le test web`, `./le test editor`, `./le test ui`
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Web UI primary graphical editor, CLI parity, backup workspace, system backup, and live backup-folder activation** (`8c68a6c289` through `fa22596364`): Finder YANG editor as default UI with explicit Workbench fallback; multi-valued/freeform graphical editors and advanced config actions; browser CLI streaming, masked durable command history, operational routing, and live completion; standalone root/flag parity (S1–S5); explicit browser recovery for unreadable pending change files (`/config/recover`); independent offline `.zefs` backup workspace (`/backups/`); full system-backup creation and download; `environment/backup/directory` configuration with commit-time preparation and accepted-only activation.
+- **Core YANG command summaries and `ze init --sha256` completion** (`8b2a59ad0b`): moved top-level `request` and `show policy` `ze:help` and `description` to always-on core modules (`internal/core/ipc/yang/ze-system-cmd.yang`, `internal/component/cmd/show/yang/ze-cli-show-cmd.yang`) so stripped `ze_core` builds emit zero missing-summary warnings; fixed `--sha256` `ValueHint` to `FlagValueText` in `internal/plugins/init/register.go` with an AST parity guard; documented `ParamMeta` `anchor`/`flag` keys in `docs/guide/api.md`.
+- **Web `/config/edit/` view routing, lock-safe tree snapshots, and bare list `show`** (`051d7bf09d`): routed `/config/edit/` through `showHandler` via `web.IsViewRoutePath` (`cmd/ze/hub/service_web.go`, `internal/component/web/fragment.go`); deleted unlocked `EditorManager.Tree` and migrated all production and test callers to `ReadTree` / deep-cloning `snapshotTree`; added `isBareListPath` + `serializeBareListAtPath` for bare keyed list rendering; added HTTP `/cli/terminal` secret-masking and `entryHasPendingChange` regressions.
+- **CLI commit-race fencing, bare list `show`, live `compare`, fail-closed `newEditor`, and path-qualified `Editor.Diff`** (`0d3b9e36c7`): fenced every Bubble Tea `Update`-side editor read against `m.dispatch.busy()` and queued `finishPasteMode` onto `m.dispatch`; added `walkBareListFrom` / `serializeBareListAtPath` and argument preservation on `show confirmed/saved <path>`; read live committed storage in `compare committed/confirmed`; split explicit raw fallback into `newRawFallbackEditor` so stored `newEditor` fails closed on parse errors; replaced path-less `computeDiff` with path-qualified `PendingReview` / `diffOrderedLines` (AC-30).
+- **Set-meta comment preservation and fail-closed OSPF `keyedList`** (`74086112f3`): added `comment <slot> [<path...>] <text>` emission and parsing across `SerializeSet`, `SerializeSetWithMeta`, `SetParser`, `DetectFormat`, and `FilterSetByPath` (`serialize_set_comments.go`, `setparser_comments.go`); changed `ospf.keyedList` to return `([]listEntry, error)` accepting valid empty `{}` entries while failing closed on non-map lists or entries, propagating errors across all callers and SR doctor checks.
+- **Opt-in SSH exec framing, YAML 1.2 quoting, and console offline-root exclusion** (`7f1bd4d7f7`): gated SSH exec stderr answer framing on `ZE_ANSWER_FRAME=1` via `execAnswerFramed` (sent by `sshclient.ExecCommand` / `ExecCommandStream`, refusing duplicate or unknown values); added YAML 1.2 key/scalar quoting and escaping in `internal/component/command/format.go`; excluded offline-root local-data commands (`DaemonPath != ""`) from `SurfaceCLI` completion in `command.AnswerSurface` and `client.mergeLocalDataCommands`.
+- **Functional proofs and journal closure** (`bc96aab4a1` + closure commit): updated `test/plugin/exec-answer-unconditional.ci` (`fixture06ExecAnswerDriver`) to prove both plain OpenSSH clean output/JSON with zero frame lines and opt-in `ZE_ANSWER_FRAME=1` framing; replaced the incidental `ze-bgp:show-` pin in `test/plugin/ze-reference-mcp.ci` with full `server/discover`, `ze_reference`, `ze_execute`, and `ze_show_version` discovery/invocation proof (both qualified 80/80 under 64-burner load); closed all 59 owned rows across 26 `plan/journal/*.md` files as `fixed:`.
+
+### Bugs Found/Fixed
+- Unlocked `EditorManager.Tree` reads after mutex release (`051d7bf09d`, covered by `internal/component/web/editor_tree_race_test.go` under `-race`).
+- Bubble Tea `Update` reading `m.editor` concurrently with an in-flight dispatched commit (`0d3b9e36c7`, covered by `internal/component/cli/model_commit_race_test.go` under `-race`).
+- `ze init --sha256` registered with `FlagValueNone` instead of `FlagValueText` (`8b2a59ad0b`, covered by `TestInitRegisteredFlagsMatchFlagSet` in `internal/plugins/init/register_test.go`).
+- `ospf.keyedList` silently dropping non-map lists/entries (`74086112f3`, covered by `internal/plugins/ospf/config_keyed_list_test.go`).
+- `applySRConfig` logging a warning without a registered doctor code (`74086112f3`, added `codeOSPFSegmentRoutingOverlap`, verified in `internal/plugins/ospf/sr_doctor_test.go`).
+- Unconditional stderr answer frame trailer breaking plain `ssh <host> "<cmd> | json"` consumers (`7f1bd4d7f7` + `bc96aab4a1`, covered by `TestExecAnswerOptIn`, `answer_frame_optin_test.go`, and `test/plugin/exec-answer-unconditional.ci`).
+
+### Documentation Updates
+- `docs/guide/api.md` (`8b2a59ad0b`): documented optional `ParamMeta` `anchor` and `flag` JSON keys (`<!-- source: internal/component/api/types.go -- CommandMeta, ParamMeta json tags -->`, `<!-- source: cmd/ze/hub/command_meta.go -- anchoredParams -->`).
+- `docs/architecture/web-interface.md` and `ai/digests/web.md` (`051d7bf09d`): documented `/config/edit/` active-UI routing, removal of `EditorManager.Tree` in favor of `ReadTree`/`viewTree`/`snapshotTree`, and bare list `show`.
+- `docs/architecture/config/syntax.md` and `docs/architecture/ospf/ospf-4-component-config.md` (`74086112f3`): documented set/set-meta `comment` statements (`<!-- source: internal/component/config/serialize_set_comments.go -- ... -->`, `<!-- source: internal/component/config/setparser_comments.go -- ... -->`) and fail-closed `ospf.keyedList` (`<!-- source: internal/plugins/ospf/config.go -- keyedList, ... -->`).
+- `docs/architecture/api/commands.md`, `docs/architecture/api/ipc_protocol.md`, and `docs/architecture/cli/command-completion.md` (`7f1bd4d7f7`): documented opt-in `ZE_ANSWER_FRAME=1` exec framing (`<!-- source: internal/component/ssh/session.go -- execAnswerFramed -->`), YAML 1.2 quoting, and `SurfaceCLI` offline-root exclusion (`<!-- source: internal/component/command/surface.go -- AnswerSurface, ListedOnDaemonSurfaces -->`).
+- `docs/functional-tests.md` (`bc96aab4a1`): updated exec-channel framing documentation and `test/plugin/exec-answer-unconditional.ci` contract (`<!-- source: internal/test/fixture/plugin_fixture_06_shell.go -- fixture06ExecAnswerDriver, fixture06CheckPlainResult, fixture06CheckFramedResult -->`).
+- `./le doc check all`: 562/562 YANG commands validated, 831/831 command nodes carry summaries, 3180/3180 digest anchors resolve, 0 broken source anchors in any file touched by this spec (3 unrelated concurrent BGP/LG anchors and 1 unrelated concurrent working-tree compile failure in `internal/component/plugin/resolve.go` for live `doc-drift`).
+
+### Deviations from Plan
+- **P6e (configured-plugin conformance through the daemon) removed from release scope by owner decision on 2026-11-17** ("I am fine without this feature / it can be considered after release"). The local shell checker (`ze show plugin conformance run`) and its remote-execution refusal remain intact; configured-name daemon conformance may be considered post-release.
+- **AC-31 numbering collision in spec history:** the 2026-11-15 web amendment and the 2026-11-17 original-table addition both used label `AC-31` (default UI mode vs. `MissingArgumentError` refusal). Both requirements are implemented and verified independently below.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Earlier pass stopped after the backup amendment instead of completing the remaining original journal rows and ACs | The owner's instruction covered the whole agreed spec scope (retaining the explicit P6e post-release exception) | Owner correction on 2026-11-17 | Resumed and completed all remaining ACs (AC-1 through AC-31) and closed all 59 owned journal rows |
+| escalation | Unconditional SSH exec stderr framing broke plain OpenSSH JSON consumers, requiring explicit opt-in (`ZE_ANSWER_FRAME=1`) | Plain `ssh` clients expect clean stdout and zero protocol frame lines on stderr; `ze cli` / `sshclient` opt in explicitly | Journal `declared-format-contradicts-payload` 2026-10-10 and AC-25 review | Gated framing on `ZE_ANSWER_FRAME=1` (`7f1bd4d7f7`), proved both plain and opt-in paths under OpenSSH (`bc96aab4a1`) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| All 59 owned web UI, CLI, SSH, command/pipe, YANG, and rendered-markup journal rows | Done | `plan/journal/*.md` (26 files), commits `8c68a6c289`..`bc96aab4a1` | 59/59 rows closed as `fixed:` with concrete commit and test evidence |
+| Read-only discard audit snapshots and saved-leaf discard | Done | `internal/component/web/editor*.go`, `internal/component/cli/editor*.go` (`f50d2ec1c0`, `76bd92008e`) | Verified in AC-52 and AC-53 regressions |
+| Primary graphical YANG web UI, CLI parity, standalone equivalence, browser recovery, offline backup workspace, system backup, and live backup-folder commit activation | Done | `8c68a6c289`..`fa22596364` | P6e explicitly removed from release scope by owner on 2026-11-17 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `d22e9b1135`, `test/ui/isis-decode-input.ci`, `test/ui/ospf-decode-input.ci` | Offline decoders take path or `-` and refuse TTY stdin |
+| AC-2 | Done | `TestPublishedBFDDetailCardContrast` (`internal/le/site/browsertest`, 17.4s Chrome) | Dark-theme BFD detail card contrast verified |
+| AC-3 | Done | `8b2a59ad0b`, `TestStrippedCoreCommandModulesCarryAllSummaries`, `TestEveryCommandNodeHasASummary` | `request` and `show policy` owned by always-on core modules; 0 warnings |
+| AC-4 | Done | `5845439eca`, `internal/component/command/` unit tests | `selectRecord` resolves uniquely matched display column |
+| AC-5 | Done | `internal/component/lg/` (22.3s passed at HEAD) | LG mock answers with producer numeric types |
+| AC-6 | Done | `4d74b5ce47`, `test/ui/plain-whole-inactive-roundtrip.ci` | Inactive leaf-list round-trips through set format |
+| AC-7 | Done | `internal/component/plugin/server/command_quote_refusal_test.go`, `internal/component/command/invocation_execution_test.go` | Escaped quotes work; unclosed quotes refused with column |
+| AC-8 | Done | `8c83416bfc`, `test/ui/leaf-list-native-range.ci` | Leaf-list `range` and `length` enforced |
+| AC-9 | Done | `internal/component/web/cli*.go`, `test/web/cli-set-commit.wb` | Web/CLI-bar `set` builds keyed list entries like SSH |
+| AC-10 | Done | `051d7bf09d`, `76bd92008e`, `internal/component/web/editor*.go` | Rollback hook, single-producer pending count/diff, commit audit |
+| AC-11 | Done | `f27f494019`, `cmd/ze/ze_core_usage_test.go` | Help for help prints generated usage; root verbs listed once |
+| AC-12 | Done | `d9e2105bb4`, `b1dfc14a18`, `b84f7276eb`, `7340a7317c` | Inert plugins omitted; `ze:hidden` respected; `Module.Registrar` read-only |
+| AC-13 | Done | `test/web/nav-*.wb`, `test/web/edit-text-field.wb` | Zero htmx `closest` PAGEERROR on `/show/system/identity/` |
+| AC-14 | Done | `2899f5fbd2`, `internal/le/cli/catalog` (121.4s passed) | Catalog, grammar, and usage derive from one walk |
+| AC-15 | Done | `c0581c048e`, `goyang-uses-augment.patch`, `goyang-deviate-add-presence.patch`, `rfc7950_uses_deviation_test.go` | RFC 7950 §7.13.1 `uses` augments and §7.20.3.2 singleton `deviate add` refusal |
+| AC-16 | Done | `internal/component/cli/client/main_test.go` | Locally served `ze cli -c` commands logged to `ze.cli.transcript` |
+| AC-17 | Done | `194025bf47`, `TestPublishedGuideTablesAreTables`, `test/web/chaos-stream-swaps.wb` (8/8 Chrome), `internal/le/site` | Toast class once, tables render as HTML tables, CSS comment check, `markdownCell` scoped |
+| AC-18 | Done | `051d7bf09d`, `internal/component/web/cli_terminal_secret_test.go`, `internal/component/config/cli/` | `ze:sensitive` values masked in `ze config set` and web terminal feedback |
+| AC-19 | Done | `internal/component/command/` (38.1s passed) | `foldFilters` refuses unknown pipe operator |
+| AC-20 | Done | `051d7bf09d`, `0d3b9e36c7` (`serializeBareListAtPath`, `liveCommittedContent`) | Bare list renders entries or explicit empty notice; `compare` reads live committed storage |
+| AC-21 | Done | `c7dd57e25c`, `74086112f3`, `test/editor/validation/ospf-empty-area-parity.et`, `config_keyed_list_test.go` | Empty OSPF area accepted across validate/editor/OSPF; non-map keyedList fails closed |
+| AC-22 | Done | `b49fbcf2f8`, `internal/component/cli/` | Bounded 512 KiB `outputBuffer` |
+| AC-23 | Done | `b49fbcf2f8`, `TestExplanationPaging*` | PgUp/PgDn paging and cursor-safe prompt sizing |
+| AC-24 | Done | `internal/component/ssh/idle_timeout_test.go` | `wish.WithIdleTimeout` wired from `idle-timeout` |
+| AC-25 | Done | `8b2a59ad0b`, `051d7bf09d`, `7f1bd4d7f7`, `bc96aab4a1` (`TestExecAnswerOptIn`, `exec-answer-unconditional.ci`) | REST kebab-case, plain SSH clean JSON/stdout with opt-in `ZE_ANSWER_FRAME=1`, workbench pending marker |
+| AC-26 | Done | `528409e0a1`, `internal/component/bgp/plugins/cmd/peer/all_import_test.go` | `show bgp` alias barrier and declared shapes derived from registered children |
+| AC-27 | Done | `internal/le/cli/grammar` (107.4s passed at HEAD) | CLI grammar R1 and `TestTheRealCheckoutPassesAndWasRead` green |
+| AC-28 | Done | `c71484be05`, `8b2a59ad0b`, `0d3b9e36c7`, `TestInitRegisteredFlagsMatchFlagSet`, `editor_parse_error_test.go` | `ze init` value hints, list-key validation & fail-closed `newEditor`, syntax test parity |
+| AC-29 | Done | `bc96aab4a1`, `test/plugin/ze-reference-mcp.ci`, `TestWebGoldenOutput` | Web goldens regenerated; MCP test proves derived `aihelp.Build` discovery + invocation |
+| AC-30 | Done | `0d3b9e36c7`, `internal/component/cli/editor_diff_path_test.go` | Path-qualified `Editor.Diff` via `PendingReview` / `diffOrderedLines` |
+| AC-31 (2026-11-17) | Done | `2ec7abaa6f`, `internal/component/command/` (`argbind.go`, `ArgumentFaults`) | Missing mandatory argument names leaf, why, and corrected command |
+| AC-31..AC-53, B-AC-1..6, C-AC-1..4, D-AC-1..4, E-AC-1..5, S1..S5 | Done | Commits `8c68a6c289`..`fa22596364` (detailed evidence in spec body) | All web UI, CLI parity, backup workspace, system backup, backup-directory, and standalone parity criteria implemented and verified; P6e removed from release scope by owner 2026-11-17 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Red-first unit tests per AC | Done | `internal/component/{web,cli,config,command,ssh,lg,api/rest}`, `internal/plugins/{init,ospf}`, `cmd/ze/hub` | All passed under `-race` in scoped main-thread runs |
+| Functional `.ci`, `.et`, `.wb` tests | Done | `test/plugin/{exec-answer-unconditional,ze-reference-mcp,data-restore-full*}.ci`, `test/editor/**`, `test/web/**`, `test/ui/**` | Promoted `.ci` proofs qualified 80/80 under 64-burner load |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Producer files under Current Behavior & amendments | Done | 1,180 code files across 74 `Spec-work: web-cli-config-one-off-defects` commits |
+| Vendored goyang patches | Done | `internal/le/vendorpatch/patches/goyang-uses-augment.patch`, `goyang-deviate-add-presence.patch` |
+| Journal rows (`plan/journal/*.md`) | Done | 26 files closing all 59 owned rows as `fixed:` |
+| News fragment (`website/changes/fragments/web-cli-config-one-off-defects.md`) | Done | Operator-facing Before/After/Exposure summary |
+
+### Audit Summary
+- **Total items:** 59 owned journal rows + AC-1..AC-31 (original) + AC-31..AC-53 + B-AC-1..6 + C-AC-1..4 + D-AC-1..4 + E-AC-1..5 + S1..S5
+- **Done:** All in-scope items (100%)
+- **Partial:** 0
+- **Skipped:** 0 (P6e explicitly removed from release scope by Thomas on 2026-11-17)
+- **Changed:** 2 (recorded in Deviations from Plan: P6e post-release exception; AC-31 dual-label clarification)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Close all 59 web UI, CLI, SSH, command/pipe, YANG, and rendered-markup journal defects | Unit + functional + browser + site tests | 59/59 rows closed as `fixed:` across 26 `plan/journal/*.md` files; `./le spec journal check` clean on all 26 files; scoped package suites passed across `config/yang`, `plugins/init`, `web`, `hub`, `cli`, `config`, `ospf`, `command`, `ssh`, `sshclient`, `client`, `site`, `site/browsertest`, `chaos/web`, `lg`, `api/rest`, `plugin/server`, `cli/grammar`, `cli/catalog` |
+| Plain OpenSSH exec receives clean JSON/stdout while opt-in `ZE_ANSWER_FRAME=1` receives exact byte-counted frames | Functional `.ci` (live OpenSSH + daemon, 80/80 load qualified) | `test/plugin/exec-answer-unconditional.ci` passed 80/80 under 64-burner load and passed live (2.0s); `TestFixture06` passed (1.3s) |
+| MCP consumer discovery and invocation match derived `aihelp.Build` contract | Functional `.ci` (live daemon over Streamable HTTP, 80/80 load qualified) | `test/plugin/ze-reference-mcp.ci` passed 80/80 under 64-burner load and passed live (1.4s) |
+| Primary graphical YANG web UI, CLI parity, backup workspace, system backup, and live backup-folder commit activation | Native Chrome browser journeys + unit + functional suites | `TestBrowserBackupWorkspace`, `TestBrowserBackupSystemDownload`, `TestBrowserConfigRecoveryFromBrokenFinder`, `test/web/chaos-stream-swaps.wb` (8/8 Chrome), `TestBackupDirectoryCommitSelection`, `test/plugin/data-restore-full*.ci` (80/80 load qualified) |
+| Read-only discard audit snapshots and saved-leaf discard | Unit + integration tests | `f50d2ec1c0`, `76bd92008e` (`TestDiscard*`, `TestWebEditorRecovery*`, `TestCorruptChangeRecovery*`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None — all in-scope items are complete (P6e configured-plugin daemon conformance was explicitly removed from release scope by Thomas on 2026-11-17: "I am fine without this feature / it can be considered after release"). | - | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/web-cli-config-one-off-defects-7d4f5542-5dec-4029-a170-a953ff63f38c.md` |
+| `./le spec review check` | clean (`review_gate: OK (18 code files, clean, hashes match)` and `./le commit check` `clean true` over all 1,180 `specWorkPopulation` code files at `HEAD^{tree}`) |
+| Rounds | 1 |
+| Reviewer lenses used | logic+wiring, security+edge-cases, style+spec-completeness (independent `ze-work` closure agent; ran full `docs/contributing/ze-go-style.md` 7-question style pass and `./le go style check` across all 40 production Go files of the 6 recent commits — 0 BLOCKER, 0 ISSUE) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | Spec predates the `## Design documents` section, so there are no `agrees`/`departs` rows to judge (`/ze-review-spec` step 8). | `plan/release/fixes/spec-web-cli-config-one-off-defects.md` | Recorded as NOTE |
+| 2 | NOTE | Three sibling specs cited `plan/release/fixes/spec-web-cli-config-one-off-defects.md` by path; restated using bare stem `spec-web-cli-config-one-off-defects` so Commit B leaves zero dangling citations. | `spec-review-typed-config-decode.md:119`, `spec-typed-identity-keys.md:416`, `spec-web-field-save-loses-typed-value.md:159` | Updated in Commit A |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/config/serialize_set_comments.go`, `setparser_comments.go`, `serialize_set_comments_test.go` | Yes | `ls -1` verified on disk |
+| `internal/component/command/format_quoting_test.go`, `internal/component/cli/sshclient/answer_frame_optin_test.go` | Yes | `ls -1` verified on disk |
+| `internal/component/cli/model_commit_race_test.go`, `editor_parse_error_test.go`, `editor_diff_path_test.go` | Yes | `ls -1` verified on disk |
+| `internal/component/web/cli_terminal_secret_test.go`, `editor_tree_race_test.go`, `cmd/ze/hub/service_web_config_edit_route_test.go` | Yes | `ls -1` verified on disk |
+| `internal/plugins/init/register_test.go`, `internal/plugins/ospf/config_keyed_list_test.go` | Yes | `ls -1` verified on disk |
+| `test/plugin/exec-answer-unconditional.ci`, `test/plugin/ze-reference-mcp.ci`, `test/web/chaos-stream-swaps.wb` | Yes | `ls -1` verified on disk |
+| `website/changes/fragments/web-cli-config-one-off-defects.md` | Yes | Created for Commit A following `website/changes/fragments/README.md` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-3, AC-28 | Stripped core summaries (`request`, `show policy`) & `ze init --sha256` `FlagValueText` | `internal/core/ipc/yang/ze-system-cmd.yang`, `ze-cli-show-cmd.yang`, `internal/plugins/init/register.go:38`; `./le doc check all` reports 831/831 command nodes with summaries; `8b2a59ad0b` tests passed |
+| AC-18, AC-20, AC-25 | `/config/edit/` routing, lock-safe `snapshotTree`, bare list `show`, terminal secret masking | `internal/component/web/fragment.go:298` (`IsViewRoutePath`), `editor.go` (`snapshotTree`, `EditorManager.Tree` deleted — `grep '\.Tree('` shows 0 unlocked callers), `cli_terminal.go:727` (`serializeBareListAtPath`); `051d7bf09d` tests passed |
+| AC-20, AC-28, AC-30 | Commit-race fence, live `compare`, fail-closed `newEditor`, path-qualified `Editor.Diff` | `internal/component/cli/editor.go:203` (`newRawFallbackEditor`), `editor.go:1429` (`diffOrderedLines`), `model.go:721` (`editorOwns`); `0d3b9e36c7` tests passed |
+| AC-6, AC-21 | Set-meta comment preservation and fail-closed `ospf.keyedList` | `internal/component/config/serialize_set_comments.go`, `setparser_comments.go`, `internal/plugins/ospf/config.go:1833` (`keyedList`), `doctor_codes.go:16` (`codeOSPFSegmentRoutingOverlap`); `74086112f3` tests passed |
+| AC-12, AC-25, AC-29 | Opt-in `ZE_ANSWER_FRAME=1`, YAML 1.2 quoting, `SurfaceCLI` offline-root exclusion, MCP discovery | `internal/component/ssh/session.go:159` (`execAnswerFramed`), `command/format.go:202` (`writeYAMLString`), `command/surface.go:281` (`answerOfflineRoot`); `7f1bd4d7f7` & `bc96aab4a1` tests passed |
+| Owned journal rows | All 59 owned rows closed as `fixed:` | Python audit verified 59/59 rows closed (`still_open=0`) and `./le spec journal check file` exited 0 on all 26 modified journal files |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Plain & opt-in `ZE_ANSWER_FRAME=1` OpenSSH exec against live daemon | `test/plugin/exec-answer-unconditional.ci` | Yes (read full `.ci` + `fixture06ExecAnswerDriver`; passed 80/80 load and live 2.0s) |
+| Live MCP `server/discover`, `tools/list`, `ze_reference`, `ze_execute`, `ze_show_version` | `test/plugin/ze-reference-mcp.ci` | Yes (read full `.ci`; passed 80/80 load and live 1.4s) |
+| Web terminal secret masking, bare list show, backup workspace, chaos swaps | `test/web/chaos-stream-swaps.wb`, `test/web/cli-set-commit.wb`, `TestBrowserBackupWorkspace` | Yes (verified on disk and passing in live Chrome runs) |
+| Offline decoders, inactive leaf-list round-trip, OSPF empty area, full restore | `test/ui/isis-decode-input.ci`, `test/ui/plain-whole-inactive-roundtrip.ci`, `test/editor/validation/ospf-empty-area-parity.et`, `test/plugin/data-restore-full.ci` | Yes (verified in `HEAD` tree and spec execution logs) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| Original goyang patch assumption | confirmed | `c0581c048e` kept both vendored changes as patches under `internal/le/vendorpatch/patches/` (`goyang-uses-augment.patch`, `goyang-deviate-add-presence.patch`) |
+| A-B1 | confirmed | `TestBrowserBackupWorkspace` opens committed text first and preserves preexisting draft/pending raw keys byte-identically |
+| A-B2 | confirmed | `TestBackupHTTPMalformedSourceKeepsArtifact` and `TestBackupHTTPUnavailableSchemaKeepsArtifact` keep raw inspection, refuse save with diagnostics, and preserve raw keys |
+| A-P1 | confirmed | `ebf02ca594` confirmed partial browser fixture composition over daemon base |
+| A-P2 | confirmed | Executable parity probes added alongside registry-derived surface inventory (`b93ff713b3`, `d7061f9e75`) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/api.md` (`ParamMeta` `anchor`/`flag`) | `internal/component/api/types.go`, `cmd/ze/hub/command_meta.go` (`anchoredParams`) | Yes (`./le doc check all` anchor check green) |
+| `docs/architecture/web-interface.md`, `ai/digests/web.md` (`/config/edit/`, `snapshotTree`, bare list) | `cmd/ze/hub/service_web.go`, `internal/component/web/fragment.go`, `editor.go`, `cli_terminal.go` | Yes (`./le doc check all`: 3180/3180 digest anchors resolve) |
+| `docs/architecture/config/syntax.md`, `docs/architecture/ospf/ospf-4-component-config.md` | `serialize_set_comments.go`, `setparser_comments.go`, `internal/plugins/ospf/config.go` | Yes (`./le doc check all` anchor check green) |
+| `docs/architecture/api/commands.md`, `ipc_protocol.md`, `docs/architecture/cli/command-completion.md` | `internal/component/ssh/session.go`, `answer.go`, `command/surface.go`, `cli/client/main.go` | Yes (`./le doc check all` anchor check green) |
+| `docs/functional-tests.md` | `internal/test/fixture/plugin_fixture_06_shell.go`, `test/plugin/exec-answer-unconditional.ci` | Yes (`./le doc check all` anchor check green) |
+| Sibling spec citations cleared | `git grep "spec-web-cli-config-one-off-defects\.md"` returns 0 matches | Yes (3 citers restated with bare stem `spec-web-cli-config-one-off-defects`) |

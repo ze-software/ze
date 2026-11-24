@@ -11,4 +11,4 @@ an update that touches only what changed.
 
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
-| 2026-09-27 | spec-web-cli-config-one-off-defects (AC-22) | CLI monitor/command output and ping/traceroute log views | outputBuf kept every event and rendered the whole growing transcript | open: model_output.go bounds raw and sanitized display to 512 KiB with UTF-8-safe eviction, visible omission and clear. All four retention roots and full CLI race pass; monitor/save UI controls pass. Measured coverage and final lint/docs acceptance pending. |
+| 2026-09-27 | spec-web-cli-config-one-off-defects (AC-22) | CLI monitor/command output and ping/traceroute log views | outputBuf kept every event and rendered the whole growing transcript | fixed: `b49fbcf2f8` bounded `outputBuffer` to 512 KiB with UTF-8-safe eviction; `TestOutputBuffer*` passed in `internal/component/cli` (-race). |

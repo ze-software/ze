@@ -116,7 +116,7 @@ Added 2026-11-14 when this spec took the uint64 row of piece A from
 | Value-type derivation | `internal/component/config/yang_schema.go` `yangTypeToValueType` | Maps `Yuint32` and `Yuint64` to `TypeUint32` (verified 2026-11-14) | Extends: a 64-bit value type for `Yuint64` |
 | Value check | `internal/component/config/schema.go` `ValidateValue` | Parses a `TypeUint32` value with a 32-bit limit, so a `uint64` leaf above 2^32-1 is refused | Extends: the 64-bit type parses with a 64-bit limit |
 | Ranged decimal64 | `internal/component/config/leaf_value.go` `validateDecimal64Leaf` (833c08af3f) | Compares a ranged `decimal64` by its fraction digits | Does not apply: already fixed |
-| Leaf-list range and length | `internal/component/config/leaf_value.go` `memberLeaf` | Carries enums, format and patterns, no `Ranges` or `Lengths` | Does not apply: owned by `plan/release/fixes/spec-web-cli-config-one-off-defects.md` AC-8 |
+| Leaf-list range and length | `internal/component/config/leaf_value.go` `memberLeaf` | Carries enums, format and patterns, no `Ranges` or `Lengths` | Does not apply: fixed in spec-web-cli-config-one-off-defects (`8c83416bfc`) |
 | BGP reload seam | `internal/component/bgp/reactor/reactor_api.go` `loadPeersFullOrTree` | Calls `reloadFunc(configPath)` when set, else parses the handed tree (verified 2026-11-14) | Extends: AC-1 |
 | Transaction diff | `internal/component/config/transaction/types.go` `DiffSection` | String `Added`, `Removed`, `Changed` per root | Does not apply: AC-5 keeps it |
 | Plugin lowering | `internal/component/config/tree.go` `ToPluginMap` | Delivers every value as a JSON string | Does not apply: AC-5 keeps the delivery format |

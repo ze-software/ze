@@ -156,7 +156,7 @@ so the typed text is neither shown nor sent.
 
 | Spec | Relation |
 |------|----------|
-| `plan/release/fixes/spec-web-cli-config-one-off-defects.md` | Owns the other web UI one-off journal rows. This row would sit there, but that spec's edit gate asks for sections and source reads covering all of its rows |
+| spec-web-cli-config-one-off-defects | Owned the other web UI one-off journal rows (now closed). This row remained separate while that spec completed its closure |
 
 ## Checklist
 
