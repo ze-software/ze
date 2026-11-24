@@ -135,22 +135,6 @@ func isValidIPv6CPInterfaceID(id [ipv6cpInterfaceIDLen]byte) bool {
 	return !allZero && !allOnes
 }
 
-// generateIPv6CPInterfaceID draws a random 8-byte Interface-Identifier
-// via crypto/rand. Rejects the all-zero and all-ones values and
-// retries; the odds of hitting either are 2 / 2^64, negligible.
-func generateIPv6CPInterfaceID() ([ipv6cpInterfaceIDLen]byte, error) {
-	var id [ipv6cpInterfaceIDLen]byte
-	for range magicDrawMaxAttempts {
-		if _, err := rand.Read(id[:]); err != nil {
-			return [ipv6cpInterfaceIDLen]byte{}, err
-		}
-		if isValidIPv6CPInterfaceID(id) {
-			return id, nil
-		}
-	}
-	return [ipv6cpInterfaceIDLen]byte{}, errors.New("ppp: failed to draw valid IPv6CP Interface-Identifier")
-}
-
 // ipv6cpUniversalLocalBitMask isolates the "u" bit within the first
 // octet of an Interface-Identifier.
 //
@@ -160,6 +144,30 @@ func generateIPv6CPInterfaceID() ([ipv6cpInterfaceIDLen]byte, error) {
 // bit". Bit 6 counted from the most significant bit of an 8-bit octet
 // (bit 0 = 0x80) is 0x02.
 const ipv6cpUniversalLocalBitMask = 0x02
+
+// generateIPv6CPInterfaceID draws a random 8-byte Interface-Identifier
+// via crypto/rand with the universal/local ("u") bit cleared. Clearing
+// the bit can turn an otherwise-valid draw into the all-zero value (the
+// single bit was the only one set), so the validity check runs after
+// clearing and retries; the odds of exhausting magicDrawMaxAttempts are
+// negligible.
+//
+// RFC 5072 Section 4.1: "If a good source of uniqueness cannot be found,
+// it is recommended that a random number be generated.  In this case,
+// the "u" bit of the interface identifier MUST be set to zero (0)."
+func generateIPv6CPInterfaceID() ([ipv6cpInterfaceIDLen]byte, error) {
+	var id [ipv6cpInterfaceIDLen]byte
+	for range magicDrawMaxAttempts {
+		rand.Read(id[:]) //nolint:errcheck // crypto/rand.Read never returns an error since Go 1.24
+		// RFC 5072 Section 4.1: "In this case, the "u" bit of the
+		// interface identifier MUST be set to zero (0)."
+		id[0] &^= ipv6cpUniversalLocalBitMask
+		if isValidIPv6CPInterfaceID(id) {
+			return id, nil
+		}
+	}
+	return [ipv6cpInterfaceIDLen]byte{}, errors.New("ppp: failed to draw valid IPv6CP Interface-Identifier")
+}
 
 // suggestIPv6CPInterfaceID draws the non-zero identifier
 // buildNakOrReject (ncp.go) proposes in a Configure-Nak.
@@ -176,20 +184,15 @@ const ipv6cpUniversalLocalBitMask = 0x02
 // identifier MUST be set to zero (0) regardless of its source unless
 // the globally unique EUI-48/EUI-64 derived identifier is provided for
 // the exclusive use by the remote peer." Ze never derives a suggestion
-// from such an identifier, so the bit is always cleared. Clearing it
-// can turn an otherwise-valid draw into the all-zero value (the single
-// bit was the only one set), so the validity check runs AFTER the bit
-// is cleared, on the value actually transmitted -- the same
-// isValidIPv6CPInterfaceID the transmit path shares with receive
-// (AC-9).
+// from such an identifier; generateIPv6CPInterfaceID clears the "u" bit
+// before checking isValidIPv6CPInterfaceID on every draw.
 func suggestIPv6CPInterfaceID(local [ipv6cpInterfaceIDLen]byte) ([ipv6cpInterfaceIDLen]byte, error) {
 	for range magicDrawMaxAttempts {
 		id, err := generateIPv6CPInterfaceID()
 		if err != nil {
 			return [ipv6cpInterfaceIDLen]byte{}, err
 		}
-		id[0] &^= ipv6cpUniversalLocalBitMask
-		if id == local || !isValidIPv6CPInterfaceID(id) {
+		if id == local {
 			continue
 		}
 		return id, nil

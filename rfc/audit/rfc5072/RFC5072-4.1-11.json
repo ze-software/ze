@@ -1,0 +1,18 @@
+{
+  "code": {
+    "internal/component/l2tp/ppp/ipv6cp.go::generateIPv6CPInterfaceID": "c7d3651972e00b0b",
+    "internal/component/l2tp/ppp/ipv6cp_client.go::TentativeIPv6CPInterfaceID": "194b679c7e446e5b",
+    "internal/component/l2tp/ppp/ncp.go::requestIPv6CPInterfaceID": "a90af9a03ac3baad"
+  },
+  "note": "Re-audited independently against RFC 5072 Section 4.1 case 3 ('If a good source of uniqueness cannot be found, it is recommended that a random number be generated. In this case, the \"u\" bit of the interface identifier MUST be set to zero (0).'). generateIPv6CPInterfaceID (ipv6cp.go) is the sole random tentative identifier generator for both server (requestIPv6CPInterfaceID in ncp.go) and client fallback (TentativeIPv6CPInterfaceID in ipv6cp_client.go); it draws 8 bytes from crypto/rand.Read, clears octet 0 bit 0x02 (canonical bit 6, the u bit) before isValidIPv6CPInterfaceID, and retries if clearing produces all-zero. TestIPv6CPTentativeInterfaceIDHasUniversalBitClear proves 256 random draws are valid with bit 0x02 clear, a scripted {0x02, 0...} draw is retried rather than returned as zero, and a scripted {0x02, 0x02...} draw through requestIPv6CPInterfaceID emits {0x00, 0x02...} in the initial IPv6CP Configure-Request (removing id[0] &^= ipv6cpUniversalLocalBitMask fails deterministically). TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit (doc comment edited require. -> mandate., assertions unchanged) provides the contrasting case-1 negative: a globally unique EUI-48 MAC (00:11:22:33:44:55) keeps u bit 1 (0x02), failing if bit 0x02 is unconditionally cleared.",
+  "requirement_sha": "1837059c5f3959bd",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit": "f6c5806e4f425969",
+    "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPTentativeInterfaceIDHasUniversalBitClear": "f6c5806e4f425969"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit": "01d047ba1ff20ddb",
+    "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPTentativeInterfaceIDHasUniversalBitClear": "d74f3d71bb8165ab"
+  },
+  "verdict": "enforced"
+}

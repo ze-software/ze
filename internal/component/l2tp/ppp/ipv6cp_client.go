@@ -80,17 +80,7 @@ func TentativeIPv6CPInterfaceID(mac []byte) (IPv6CPInterfaceID, error) {
 			return id, nil
 		}
 	}
-	id, err := generateIPv6CPInterfaceID()
-	if err != nil {
-		return IPv6CPInterfaceID{}, err
-	}
-	id[0] &^= ipv6cpUniversalLocalBitMask
-	if !isValidIPv6CPInterfaceID(id) {
-		// Clearing the bit left the all-zero value: draw a suggestion, which
-		// clears the bit and re-checks validity on the value it returns.
-		return suggestIPv6CPInterfaceID(IPv6CPInterfaceID{})
-	}
-	return id, nil
+	return generateIPv6CPInterfaceID()
 }
 
 // IPv6LinkLocal is the link-local address fe80::/64 plus id.

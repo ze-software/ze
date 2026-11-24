@@ -2,8 +2,8 @@
   "note": "Forbidden: Nak/Reject of a different non-zero identifier, or an Ack carrying a value other than the requested one. TestIPv6CPAcksDifferentNonZeroInterfaceID fails on response code != Configure-Ack and on ackOpts.InterfaceID != the requested ipv6cpTestPeerID. Negative TestIPv6CPNaksZeroInterfaceID fails when a zero identifier is Acked, bounding the non-zero condition.",
   "requirement_sha": "95e22bd6299fe20a",
   "tests": {
-    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPAcksDifferentNonZeroInterfaceID": "aa9b68b6d4bdb846",
-    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNaksZeroInterfaceID": "aa9b68b6d4bdb846"
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPAcksDifferentNonZeroInterfaceID": "5de66f5fa4f394ae",
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNaksZeroInterfaceID": "5de66f5fa4f394ae"
   },
   "units": {
     "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPAcksDifferentNonZeroInterfaceID": "708b3c185c899bb0",

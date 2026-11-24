@@ -1291,20 +1291,18 @@ func TestIPv6CPSuggestionDiffersFromLocalIdentifier(t *testing.T) {
 
 // ipv6cpAlwaysZeroAfterUBitClear is fed to crypto/rand.Reader by
 // TestIPv6CPNakSuggestionFailureRejectsAndKeepsIPv4Session. Every draw
-// this produces is valid on its own (0x02 in octet 0, not all-zero,
-// not all-ones) so generateIPv6CPInterfaceID accepts it immediately,
-// but suggestIPv6CPInterfaceID's own "u" bit clear (octet 0 &^= 0x02)
-// turns EVERY draw into the all-zero value, which
-// isValidIPv6CPInterfaceID then refuses -- guaranteeing
-// suggestIPv6CPInterfaceID exhausts its retry budget and returns an
+// this produces has only the "u" bit set (0x02 in octet 0), so
+// generateIPv6CPInterfaceID's "u" bit clear (octet 0 &^= 0x02) turns
+// EVERY draw into the all-zero value, which isValidIPv6CPInterfaceID
+// then refuses -- guaranteeing generateIPv6CPInterfaceID (and therefore
+// suggestIPv6CPInterfaceID) exhausts its retry budget and returns an
 // error, regardless of what ze's own localInterfaceID happens to be.
 //
 // This does not go through crypto/rand.Read's error path at all
-// (plan/journal/crypto-rand-read-error-branch-is-dead-code.md: on this
-// toolchain a real read failure crashes the process rather than
-// returning a Go error). bytes.Reader never errors; the failure this
-// drives is suggestIPv6CPInterfaceID's OWN retry-exhaustion, a
-// reachable path independent of rand.Read's contract.
+// (crypto/rand.Read never returns an error since Go 1.24; a real read
+// failure crashes the process). bytes.Reader never errors; the failure
+// this drives is the retry-exhaustion path, reachable independently of
+// rand.Read's contract.
 var ipv6cpAlwaysZeroAfterUBitClear = bytes.Repeat([]byte{0x02, 0, 0, 0, 0, 0, 0, 0}, 32)
 
 // TestIPv6CPNakSuggestionFailureRejectsAndKeepsIPv4Session drives

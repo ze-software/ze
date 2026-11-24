@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5072-4.1-10",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit",
+    "unit-sha": "2c53647c2201f232",
+    "claim-sha": "45d3c413af83af1d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ipv6cp_client.go::TentativeIPv6CPInterfaceID",
+    "producer-sha": "b697819ab2690352",
+    "break": "body of TentativeIPv6CPInterfaceID replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5072-4.1-10",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPLocallyAdministeredMACClearsUniversalBit",
+    "unit-sha": "fc98329184e321ab",
+    "claim-sha": "57b9ee1147b9c0ce",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ipv6cp_client.go::TentativeIPv6CPInterfaceID",
+    "producer-sha": "b697819ab2690352",
+    "break": "body of TentativeIPv6CPInterfaceID replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5072-4.1-10",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPTentativeInterfaceIDHasUniversalBitClear",
+    "unit-sha": "cc224fd65c520f5f",
+    "claim-sha": "3bd1a17016625d03",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ipv6cp.go::generateIPv6CPInterfaceID",
+    "producer-sha": "42a60b14616b0242",
+    "break": "body of generateIPv6CPInterfaceID replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,22 +1,26 @@
 {
   "code": {
+    "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition": "5d8dbd54e9961d01",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "8c830d6f84bc273a",
     "internal/le/interoplab/l2tp/ppp_code_reject.go::injectedTerminate": "56fb5da608f119fc",
     "internal/le/interoplab/l2tp/ppp_code_reject.go::sessionKept": "20cf7716a71fbbb1",
     "internal/le/interoplab/l2tp/ppp_code_reject.go::zeTerminateAck": "b3f4356f74e06954",
     "internal/le/interoplab/l2tp/ppp_framing.go::armedPPPFrames": "60132ad705f47c61",
     "internal/le/interoplab/l2tp/ppp_framing.go::readPPPFramingLog": "4e9fcdd82a3df485"
   },
-  "note": "Rejudged after checkPPPCodeReject gained assertions 9 and 10. Re-read Section 5.5. Assertion 6 is unchanged in substance. triggerIPCPTerminate touches the same /run/ipcp-terminate marker and sends one detached LAC echo as the trigger datagram, and injectedTerminate still requires the fifth injected frame to be exactly IPCP 05 5a 00 04. The wire wait still requires Ze's IPCP Terminate-Ack carrying that Identifier, after assertion 5 has excluded earlier Code 1-6 traffic. Assertion 9, between the trigger and that wait, observes the IPv4 address leaving pppN (the tld half of Opened RTR) and is no substitute for the Terminate-Ack. Assertion 10 observes pppd renegotiating IPCP after the Ack and Ze reinstalling the address on the same pppN. That is Section 3.6 and Section 4.1 behaviour, not Section 5.5, and it adds no state to this row. The unit pair TestRFC1661TerminateAckSentAndLinkHeld and TestRFC1661NoTerminateAckForTerminateAck is unchanged. The whole-row gap stands: LCPDoTransition's sta edges in Stopped, Closing, Stopping, Ack-Rcvd and Ack-Sent are untagged, an open row in plan/journal/requirement-proven-in-one-state-of-many.md owned by spec-ppp-l2tp-aaa-one-off-defects. Weak stands, and no test was reduced.",
+  "note": "Rejudged after adding TestRFC1661TerminateAckAcrossAllStates (rfc1661_rtr_ruc_states_test.go) and after 7db39c4b2d replaced checkPPPCodeReject's constant-arg fail(7, parseErr) closure with equivalent pppCodeRejectFailure(name, 7, parseErr). Re-read RFC 1661 Section 5.5 ('Upon reception of a Terminate-Request, a Terminate-Ack MUST be transmitted.') and Section 4.1 row RTR. The former whole-row gap (untagged non-Opened states) is closed: TestRFC1661TerminateAckAcrossAllStates drives handleLCPPacket with Terminate-Request (Identifier 0x77) in all eight packet-receiving states (Closed, Stopped, Closing, Stopping, Req-Sent, Ack-Rcvd, Ack-Sent, Opened), asserting the exact Section 4.1 next state, exact ended boolean, exactly one LCP frame, Code Terminate-Ack and echoed Identifier 0x77 (dropping LCPActSTA from any state's LCPEventRTR arm in LCPDoTransition fails that state's subtest). Existing TestRFC1661TerminateAckSentAndLinkHeld keeps the Opened no-EventSessionDown check, TestRFC1661NoTerminateAckForTerminateAck provides the negative control (Terminate-Ack draws no Terminate-Ack), and checkPPPCodeReject proves live xl2tpd/pppd Terminate-Ack echoing Identifier 0x5a.",
   "requirement_sha": "71d5c82cfcaeb473",
   "tests": {
+    "internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go::TestRFC1661TerminateAckAcrossAllStates": "04a286e13cd2bb94",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck": "3ac1fd8ae501d890",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "3ac1fd8ae501d890",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "a0037eb000d133bc"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "efd8340a13661503"
   },
   "units": {
+    "internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go::TestRFC1661TerminateAckAcrossAllStates": "b13b0ac9326ca7bb",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck": "603e6a540427ca0e",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "3825213225d359e1",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "7c61f9b6f42d0268"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "0ef9501217309db2"
   },
-  "verdict": "weak"
+  "verdict": "enforced"
 }

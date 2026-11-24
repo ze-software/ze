@@ -1,0 +1,20 @@
+{
+  "code": {
+    "internal/component/l2tp/ppp/ipv6cp.go::generateIPv6CPInterfaceID": "c7d3651972e00b0b",
+    "internal/component/l2tp/ppp/ipv6cp_client.go::TentativeIPv6CPInterfaceID": "194b679c7e446e5b",
+    "internal/component/l2tp/ppp/ncp.go::requestIPv6CPInterfaceID": "a90af9a03ac3baad"
+  },
+  "note": "Re-audited independently against RFC 5072 Section 4.1 case 2 ('If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the \"u\" bit of the interface identifier MUST be set to zero (0).'). TestIPv6CPLocallyAdministeredMACClearsUniversalBit supplies a non-IEEE locally-administered 48-bit link-layer MAC (02:11:22:33:44:55, U/L bit 1) to TentativeIPv6CPInterfaceID (ipv6cp_client.go) and asserts both octet 0 bit 0x02 == 0 and exact modified EUI-64 {0x00, 0x11, 0x22, 0xff, 0xfe, 0x33, 0x44, 0x55} (removing or breaking the XOR with ipv6cpUniversalLocalBitMask fails deterministically). TestIPv6CPTentativeInterfaceIDHasUniversalBitClear proves the non-IEEE fallback/server generator (generateIPv6CPInterfaceID in ipv6cp.go and requestIPv6CPInterfaceID in ncp.go) clears canonical bit 6 (octet 0 mask 0x02) across 256 random draws, retries a scripted {0x02, 0...} draw instead of emitting all-zero, and sends octet 0 = 0x00 on the wire in the initial IPv6CP Configure-Request. TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit (doc comment edited require. -> mandate., assertions unchanged) provides the contrasting case-1 negative: a globally unique EUI-48 MAC (00:11:22:33:44:55) produces modified EUI-64 {0x02, 0x11, 0x22, 0xff, 0xfe, 0x33, 0x44, 0x55} with u bit 1, failing if bit 0x02 is unconditionally cleared.",
+  "requirement_sha": "4fec774dd238f3b5",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit": "f6c5806e4f425969",
+    "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPLocallyAdministeredMACClearsUniversalBit": "f6c5806e4f425969",
+    "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPTentativeInterfaceIDHasUniversalBitClear": "f6c5806e4f425969"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit": "01d047ba1ff20ddb",
+    "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPLocallyAdministeredMACClearsUniversalBit": "3e148ad8e81f26bf",
+    "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPTentativeInterfaceIDHasUniversalBitClear": "d74f3d71bb8165ab"
+  },
+  "verdict": "enforced"
+}

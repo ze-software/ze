@@ -2,6 +2,17 @@
   {
     "rid": "RFC1661-5.6-1",
     "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go::TestRFC1661CodeRejectAcrossAllStates",
+    "unit-sha": "f80d97a31cc20d9e",
+    "claim-sha": "3e362baae6456775",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
+    "producer-sha": "796174bb0f8b3d29",
+    "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.6-1",
+    "polarity": "positive",
     "unit": "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject",
     "unit-sha": "b872c2f341afd0c9",
     "claim-sha": "bbf9d5c4acbe2c12",

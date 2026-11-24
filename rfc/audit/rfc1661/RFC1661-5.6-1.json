@@ -1,22 +1,26 @@
 {
   "code": {
+    "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition": "5d8dbd54e9961d01",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "8c830d6f84bc273a",
     "internal/le/interoplab/l2tp/ppp_code_reject.go::injectedProbes": "f996508e0f380fea",
     "internal/le/interoplab/l2tp/ppp_code_reject.go::sessionKept": "20cf7716a71fbbb1",
     "internal/le/interoplab/l2tp/ppp_code_reject.go::zeCodeRejects": "8908a41e7cdfd1c0",
     "internal/le/interoplab/l2tp/ppp_framing.go::armedPPPFrames": "60132ad705f47c61",
     "internal/le/interoplab/l2tp/ppp_framing.go::readPPPFramingLog": "4e9fcdd82a3df485"
   },
-  "note": "Rejudged after checkPPPCodeReject gained assertions 9 and 10, which run after the Code-Reject assertions and only add the IPCP withdrawal and reopen. Re-read Section 5.6. Assertion 2 is unchanged: two LCP and two IPCP Code-Rejects for exactly four observed injected probes. Assertions 3 and 4 still keep the exact counts, the distinct response Identifiers and the rejected packet's identity and prefix. The unit pair TestRFC1661CodeRejectForUnknownCode and TestRFC1661NoCodeRejectForKnownCode is unchanged. Those proofs isolate the report of an unknown Code in the exercised states. LCPDoTransition's RUC-to-scj edges in Closing and Stopping are still untagged, an open row in plan/journal/requirement-proven-in-one-state-of-many.md owned by spec-ppp-l2tp-aaa-one-off-defects. Weak stands, and no assertion was weakened.",
+  "note": "Rejudged after adding TestRFC1661CodeRejectAcrossAllStates (rfc1661_rtr_ruc_states_test.go) and after 7db39c4b2d replaced checkPPPCodeReject's constant-arg fail(7, parseErr) closure with equivalent pppCodeRejectFailure(name, 7, parseErr). Re-read RFC 1661 Section 5.6 ('This MUST be reported back to the sender of the unknown Code by transmitting a Code-Reject.') and Section 4.1 row RUC. The former whole-row gap (untagged Closing and Stopping states) is closed: TestRFC1661CodeRejectAcrossAllStates drives handleLCPPacket with unknownLCPCode (Identifier 0x41, payload aabb) across all eight packet-receiving states (Closed, Stopped, Closing, Stopping, Req-Sent, Ack-Rcvd, Ack-Sent, Opened), asserting unchanged state, exact ended boolean, exactly one LCP Code-Reject frame and exact Rejected-Packet bytes (dropping LCPActSCJ from any state's LCPEventRUC arm in LCPDoTransition fails that state's subtest). Existing TestRFC1661CodeRejectForUnknownCode and TestRFC1661NoCodeRejectForKnownCode keep the positive and negative unit controls, and checkPPPCodeReject proves two LCP and two IPCP Code-Rejects with distinct Identifiers and rejected packet prefixes against live xl2tpd/pppd.",
   "requirement_sha": "ee40e5c7a7172d2a",
   "tests": {
+    "internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go::TestRFC1661CodeRejectAcrossAllStates": "04a286e13cd2bb94",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CodeRejectForUnknownCode": "3ac1fd8ae501d890",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode": "3ac1fd8ae501d890",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "a0037eb000d133bc"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "efd8340a13661503"
   },
   "units": {
+    "internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go::TestRFC1661CodeRejectAcrossAllStates": "44928ff379d86a8e",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CodeRejectForUnknownCode": "609e1d202c32e1e2",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode": "44d57804605012ad",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "7c61f9b6f42d0268"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "0ef9501217309db2"
   },
-  "verdict": "weak"
+  "verdict": "enforced"
 }

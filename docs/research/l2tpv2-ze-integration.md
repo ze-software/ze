@@ -837,21 +837,23 @@ without changing the admitted NCP policy.
    as any other malformed option list (`parseIPv6CPOptions`, `ipv6cp.go`). A
    request whose identifier equals ze's own AND is zero draws a
    Configure-Reject carrying a zero identifier, which ends that identifier's
-   negotiation. ze's own local identifier is never legitimately zero
-   (`generateIPv6CPInterfaceID` retries until it draws a valid one), so the
-   last case is a defensive branch rather than one a conformant peer reaches
-   in practice.
+   negotiation. ze's own local identifier is never legitimately zero and
+   always has its "u" (universal/local) bit -- canonical bit 6,
+   `octet[0] & 0x02` -- cleared (`generateIPv6CPInterfaceID` clears the bit
+   before validating and retries until it draws a valid identifier, per
+   RFC 5072 Section 4.1 case 3), so the last case is a defensive branch
+   rather than one a conformant peer reaches in practice.
 
    Every Configure-Nak's suggestion is drawn by `suggestIPv6CPInterfaceID`
    (`internal/component/l2tp/ppp/ipv6cp.go`), never read raw from
    `peerInterfaceID`: it retries `generateIPv6CPInterfaceID`'s draw until the
    value differs from ze's own `localInterfaceID` (the identifier of ze's
    last-sent Configure-Request, which RFC 5072 Section 4.1's comparison is
-   against) and clears the "u" (universal/local) bit -- canonical bit 6,
-   `octet[0] & 0x02` -- which the RFC requires of a suggested identifier ze
-   never derives from a globally unique EUI-48/EUI-64 source. The result
-   passes `isValidIPv6CPInterfaceID`, the same validator ze applies to a
-   received identifier, so ze never proposes a value it would itself refuse.
+   against). Because `generateIPv6CPInterfaceID` clears the "u" bit and
+   checks `isValidIPv6CPInterfaceID` on every draw, every suggestion has its
+   "u" bit zero (as RFC 5072 requires when not derived from a globally
+   unique EUI-48/EUI-64 source) and passes the same validator ze applies to
+   a received identifier, so ze never proposes a value it would itself refuse.
 
 2. **DHCPv6-PD** (RFC 3633): runs over the established PPP link to delegate
    an IPv6 prefix (e.g., /48 or /56) to the subscriber. This is a separate
