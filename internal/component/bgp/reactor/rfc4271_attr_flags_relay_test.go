@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
@@ -34,7 +35,7 @@ func TestRFC4271RelayedLowNibbleClearedOnBothRails(t *testing.T) {
 	for _, routeServer := range []bool{false, true} {
 		name := map[bool]string{false: "general", true: "route-server"}[routeServer]
 		t.Run(name, func(t *testing.T) {
-			out := egressWrite(t, "relay", rfc8669RelayUpdate(t, routeServer, NextHopUnchanged, in))
+			out := egressWrite(t, "relay", rfc8669RelayUpdate(t, routeServer, policychain.BuiltinNextHopUnchanged, in))
 			sections, err := wire.ParseUpdateSections(out)
 			require.NoError(t, err)
 			got := map[byte]egressAttr{}

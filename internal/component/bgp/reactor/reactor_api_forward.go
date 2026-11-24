@@ -18,15 +18,14 @@ import (
 	"maps"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-
-	"github.com/ze-software/ze/internal/component/bgp/message"
-
-	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -918,6 +917,13 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		// may produce a full wire override.
 		var exportWireOverride *wireu.WireUpdate
 		var exportRemovals [][]byte
+		var egressNextHop policychain.NextHopIntent
+		var egressRawOverride bool
+		var egressNextHopAfterRaw bool
+		var egressHasAutoDefault bool
+		if facts.hasStaticNextHop {
+			egressNextHop = facts.staticNextHop
+		}
 		// treatments collects the forwarding treatments the destination's
 		// export chain set (egressStepResult.treatments).
 		var treatments uint8
@@ -942,6 +948,12 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				}
 				treatments |= res.treatments
 				exportRemovals = res.removals
+				if !facts.hasStaticNextHop {
+					egressNextHop = res.nextHop
+					egressRawOverride = res.rawOverride
+					egressNextHopAfterRaw = res.nextHopAfterRaw
+					egressHasAutoDefault = res.hasAutoDefaultNextHop
+				}
 				if res.wireOverride != nil {
 					exportWireOverride = res.wireOverride
 					// A policy replaces bytes, never the ingress path identity.
@@ -1022,9 +1034,12 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			// RIB's verdict on that route still holds for it.
 			baseNextHop.mpRedirectRefused = baseNextHop.mpRedirect && srcNextHop.mpRedirectRefused
 		}
-		applyFactsNextHop(facts, &mods, baseNextHop.mpFamily)
+		selfWithheld := applyEgressNextHopIntent(facts, egressNextHop, egressRawOverride, egressNextHopAfterRaw, egressHasAutoDefault,
+			srcNextHop, baseNextHop, sourceWire.Payload(), peerBaseWire.Payload(), &mods)
 		applyFactsSendCommunity(facts, &mods)
-		applyNextHopFamily(facts, &mods, baseNextHop, peerBaseWire.Payload())
+		redirect := resolveRedirectNextHop(facts, egressNextHop, egressRawOverride, egressHasAutoDefault,
+			srcNextHop, baseNextHop, sourceWire.Payload(), peerBaseWire.Payload())
+		applyNextHopFamilyRedirect(&redirect, &mods, baseNextHop, peerBaseWire.Payload())
 		// A raw policy can introduce a second next hop even when the received
 		// UPDATE was single-field. Its AIGP decision needs each output section,
 		// but always the original received metric and next hop.
@@ -1056,7 +1071,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		if !mods.IsWithdraw() {
 			// RFC 4271 Section 5.1.3, RFC 8950 Section 4,
 			// draft-ietf-idr-linklocal-capability Sections 2 and 4.
-			if gate := egressNextHopWithheld(peer, facts, &mods, baseNextHop, isReflected, srcAddr); gate != withholdNone {
+			if gate := egressNextHopWithheldWithSelf(peer, facts, &mods, baseNextHop, isReflected, srcAddr, selfWithheld); gate != withholdNone {
 				// A mixed output must retain its allowed sibling announcement.
 				// Finish its edits, then judge the resulting sections without
 				// running policy again.
@@ -1170,7 +1185,14 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				if withdrawAll {
 					mods.SetWithdraw()
 				} else {
-					gate := egressNextHopWithheld(peer, facts, &mods, baseNextHop, isReflected, srcAddr)
+					sectionSelfWithheld := selfWithheld
+					if egressRawOverride && selfWithheld {
+						sectionSelfWithheld = rawOverrideSelfWithheldForSection(
+							facts, egressNextHop, egressNextHopAfterRaw, egressHasAutoDefault,
+							srcNextHop, baseNextHop, sourceWire.Payload(), peerBaseWire.Payload(),
+						)
+					}
+					gate := egressNextHopWithheldWithSelf(peer, facts, &mods, baseNextHop, isReflected, srcAddr, sectionSelfWithheld)
 					if nextHopRefusal == withholdInvalidWidth && baseNextHop.mpFamily != (family.Family{}) {
 						// A wrong-width operation can be unsupported by the
 						// materializer. Its refusal must survive mods.Reset rather

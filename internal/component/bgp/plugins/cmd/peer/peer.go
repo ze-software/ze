@@ -153,7 +153,7 @@ func registerColumns() {
 		command.ColumnOrder{
 			fieldName, fieldHostname, fieldDomain, fieldGroup, fieldRemoteAS, fieldLocalAS, fieldPeerType, fieldRouterID,
 			fieldState, fieldUptime, "last-notification",
-			"local-ip", "next-hop", "next-hop-address", "timer", "capabilities",
+			"local-ip", "timer", "capabilities",
 		},
 	)
 	// A transition row reads as a sentence: when it happened, what it left,
@@ -204,14 +204,12 @@ func registerShapes() {
 	command.RegisterAddressFields([]string{cmdBgp}, fieldAddress)
 	command.RegisterAddressFields([]string{cmdBgpPeerList})
 
-	// `show bgp peer detail` carries two fields that hold an address: the
-	// local end of the session, and the next hop this speaker was configured
-	// to advertise. Three more values in the row are dotted quads and are NOT
-	// addresses: "next-hop" holds the MODE ("auto", "self", "unchanged",
-	// "explicit"), and RFC 6286 Section 2.1 makes the BGP Identifier a 4-octet
+	// `show bgp peer detail` carries one field that holds an address: the local
+	// end of the session. Two more values in the row are dotted quads and are
+	// NOT addresses: RFC 6286 Section 2.1 makes the BGP Identifier a 4-octet
 	// unsigned integer that no longer needs to be an IPv4 address, which
 	// governs "router-id" and, through RFC 4456 Section 7, "cluster-id".
-	command.RegisterAddressFields([]string{cmdBgpPeerDetail}, "local-ip", "next-hop-address")
+	command.RegisterAddressFields([]string{cmdBgpPeerDetail}, "local-ip")
 
 	// A transition row carries a timestamp and two state names
 	// (handlePeerHistory), so neither operator has a field to decorate and both
@@ -502,13 +500,6 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, validated command.Val
 		if p.ClusterID != 0 {
 			cid := p.ClusterID
 			row["cluster-id"] = netip.AddrFrom4([4]byte{byte(cid >> 24), byte(cid >> 16), byte(cid >> 8), byte(cid)}).String()
-		}
-		nhModes := [4]string{"auto", "self", "unchanged", "explicit"}
-		if p.NextHopMode < 4 && p.NextHopMode != 0 {
-			row["next-hop"] = nhModes[p.NextHopMode]
-			if p.NextHopMode == 3 && p.NextHopAddress.IsValid() {
-				row["next-hop-address"] = p.NextHopAddress.String()
-			}
 		}
 		if p.NegotiatedHoldTime > 0 {
 			row["negotiated-hold-time"] = int(p.NegotiatedHoldTime.Seconds())

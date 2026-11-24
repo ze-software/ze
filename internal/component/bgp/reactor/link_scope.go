@@ -271,21 +271,17 @@ func (ls *linkScope) thirdPartyLinkLocal(global netip.Addr) netip.Addr {
 	}
 }
 
-// applyLinkLocalNextHop upgrades a single-address IPv6 next-hop wire form to the
-// 32-octet global-plus-link-local form, and only when RFC 2545 Section 3's
-// condition holds for the global address that form already carries.
+// applyLinkLocalNextHop upgrades a single-address IPv6 next-hop-self wire form
+// to the 32-octet global-plus-link-local form, and only when RFC 2545 Section
+// 3's condition holds for the global address that form already carries.
 //
 // It runs after precomputeNextHop (peer_forward_facts.go), which settles the
-// global address: for next hop self the session's connected endpoint
-// (connectedLocalAddress) or else the configured local address, and for an
-// explicit next hop the configured one. Section 3 is decided against the host
-// interface table rather than against config, so the two steps read different
-// inputs and stay separate.
+// session's self global address from the connected endpoint
+// (connectedLocalAddress) or else the configured local address. Section 3 is
+// decided against the host interface table rather than against config, so the
+// two steps read different inputs and stay separate.
 func applyLinkLocalNextHop(s *PeerSettings, f *peerForwardFacts, scope *linkScope) {
-	switch f.nhMode {
-	case nhModeSelfV6, nhModeExplicitV6:
-		// The single-address IPv6 forms, the only ones Section 3 can raise.
-	default:
+	if f.selfMode != nhModeSelfV6 {
 		return
 	}
 	// draft-ietf-idr-linklocal-capability Section 4: "If the route is directly
@@ -318,7 +314,10 @@ func applyLinkLocalNextHop(s *PeerSettings, f *peerForwardFacts, scope *linkScop
 		return
 	}
 
-	f.nhMode = nhModeSelfV6LL
+	f.selfMode = nhModeSelfV6LL
+	if f.nhMode == nhModeSelfV6 {
+		f.nhMode = nhModeSelfV6LL
+	}
 	ll := linkLocal.As16()
 	copy(f.nhGlobalLL[:16], f.nhGlobal[:])
 	copy(f.nhGlobalLL[16:], ll[:])

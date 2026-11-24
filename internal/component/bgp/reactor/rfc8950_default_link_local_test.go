@@ -3,11 +3,14 @@ package reactor
 import (
 	"errors"
 	"net/netip"
+	"strconv"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy reaches each actual
@@ -31,27 +34,60 @@ func TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy(t *testing.T) {
 				t.Run(peerClass, func(t *testing.T) {
 					for _, tc := range []struct {
 						name     string
-						mode     uint8
+						mode     policychain.NextHopMode
 						explicit string
 						want     string
 					}{
-						{name: "auto", mode: NextHopAuto, want: "192.0.2.1"},
-						{name: "self", mode: NextHopSelf, want: "192.0.2.1"},
-						{name: "explicit", mode: NextHopExplicit, explicit: "192.0.2.9", want: "192.0.2.9"},
-						{name: "unchanged", mode: NextHopUnchanged},
-						{name: "explicit-link-local", mode: NextHopExplicit, explicit: "fe80::9"},
+						{name: "auto", mode: policychain.NextHopModeAuto, want: "192.0.2.1"},
+						{name: "self", mode: policychain.NextHopModeSelf, want: "192.0.2.1"},
+						{name: "explicit", mode: policychain.NextHopModeExplicit, explicit: "192.0.2.9", want: "192.0.2.9"},
+						{name: "unchanged", mode: policychain.NextHopModeUnchanged},
+						{name: "explicit-link-local", mode: policychain.NextHopModeExplicit, explicit: "fe80::9"},
 					} {
 						t.Run(tc.name, func(t *testing.T) {
 							peer, conn := newDefaultNextHopControlPeer(t, rail)
 							if peerClass == "internal" {
 								peer.settings.PeerAS = peer.settings.LocalAS
 							}
-							peer.settings.NextHopMode = tc.mode
-							if tc.explicit != "" {
-								peer.settings.NextHopAddress = netip.MustParseAddr(tc.explicit)
-							}
 							adapter := defaultNextHopControlAdapter(peer)
-							batch := defaultNextHopControlBatch("10.30.0.0/24", bgptypes.NewNextHopDefault(netip.MustParseAddr("fe80::1")))
+							hop := bgptypes.NewNextHopDefault(netip.MustParseAddr("fe80::1"))
+							switch tc.mode {
+							case policychain.NextHopModeAuto:
+								peer.settings.ExportPolicy = setExportNextHopAuto(peer.settings.ExportPolicy)
+							case policychain.NextHopModeSelf:
+								peer.settings.ExportPolicy = setExportNextHopSelf(peer.settings.ExportPolicy)
+							case policychain.NextHopModeUnchanged:
+								peer.settings.ExportPolicy = setExportNextHopUnchanged(peer.settings.ExportPolicy)
+							case policychain.NextHopModeExplicit:
+								explicitAddr := netip.MustParseAddr(tc.explicit)
+								if explicitAddr.IsLinkLocalUnicast() {
+									hop = bgptypes.NewNextHopExplicit(explicitAddr)
+								} else {
+									peer.reactor = adapter.r
+									adapter.r.orderedEgressSteps = buildOrderedEgressSteps()
+									adapter.r.filterTransportSeam = &answerTransport{
+										reads: []string{"prefix"},
+										sets:  []string{exportNHField},
+										answer: func(in rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+											if answerFieldsContain(in, "10.30.0.0/24") {
+												return answerSet(exportNHField, strconv.Quote(explicitAddr.String()))
+											}
+											return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
+										},
+									}
+									peer.settings.ExportPolicy = exportNextHopPolicy(t, []policychain.Member{
+										{Name: exportNHFilter, Plugin: answerPlugin},
+										{Name: policychain.BuiltinNextHopAuto, AutoDefault: true},
+									})
+									peer.fwdFacts.Store(peer.buildForwardFacts())
+									peer.session.egressRouteFilter = peer.egressGate(peer.session)
+								}
+							case policychain.NextHopModeUnspecified:
+								t.Fatalf("unexpected unspecified next-hop mode")
+							default:
+								t.Fatalf("unexpected next-hop mode %v", tc.mode)
+							}
+							batch := defaultNextHopControlBatch("10.30.0.0/24", hop)
 							err := adapter.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender())
 							refused := tc.want == ""
 							if rail == "direct" && refused {

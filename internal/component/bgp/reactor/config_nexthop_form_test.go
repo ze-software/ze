@@ -11,96 +11,53 @@ import (
 )
 
 // peerTreeWith builds the smallest config tree parsePeerFromTree accepts, with
-// the named leaves overridden.
-func peerTreeWith(localIP, nextHop string) map[string]any {
-	session := map[string]any{"asn": map[string]any{"remote": "65001"}}
-	if nextHop != "" {
-		session["next-hop"] = nextHop
-	}
+// the local IP leaf set.
+func peerTreeWith(localIP string) map[string]any {
 	return map[string]any{
 		"connection": map[string]any{
 			"remote": map[string]any{"ip": "2001:db8::2"},
 			"local":  map[string]any{"ip": localIP},
 		},
-		"session": session,
+		"session": map[string]any{"asn": map[string]any{"remote": "65001"}},
 	}
 }
 
-// TestParsePeerFromTreeRejectsLinkLocalGlobalNextHop drives the RFC 2545 Section 3
-// next-hop form guard from the explicit session next-hop leaf, rather than from
-// the helper alone. The TCP source address is independent of that field.
+// TestValidatePeerGlobalNextHop drives the RFC 2545 Section 3 next-hop form
+// guard directly. Explicit next-hop values in export policies are validated by
+// filter_modify using the same attribute.ValidateGlobalNextHop check.
 //
 // RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
 // Address of Next Hop field the global IPv6 address of the next hop, potentially
-// followed by the link-local IPv6 address of the next hop." `session > next-hop`
-// supplies an explicit address for that global slot.
+// followed by the link-local IPv6 address of the next hop."
 //
-// VALIDATES: the explicit next-hop leaf refuses a link-local address, and the
-// error names the leaf.
-// PREVENTS: a configured explicit address bypassing the global-next-hop guard.
-func TestParsePeerFromTreeRejectsLinkLocalGlobalNextHop(t *testing.T) {
-	tests := []struct {
-		name     string
-		tree     map[string]any
-		wantLeaf string
-	}{
-		{"next-hop", peerTreeWith("2001:db8::1", "fe80::cafe"), "next-hop"},
-	}
+// VALIDATES: ValidatePeerGlobalNextHop refuses link-local IPv6 addresses, names
+// the peer and leaf, and accepts global IPv6 and IPv4 addresses.
+// PREVENTS: a link-local address occupying the global next-hop slot.
+func TestValidatePeerGlobalNextHop(t *testing.T) {
+	err := ValidatePeerGlobalNextHop("peer1", "next-hop", netip.MustParseAddr("fe80::cafe"))
+	require.Error(t, err)
+	assert.ErrorIs(t, err, attribute.ErrLinkLocalNextHop)
+	assert.Contains(t, err.Error(), "peer1")
+	assert.Contains(t, err.Error(), "next-hop")
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := parsePeerFromTree("peer1", tt.tree, 65000, 0x0a000001)
-			require.Error(t, err)
-			assert.ErrorIs(t, err, attribute.ErrLinkLocalNextHop)
-			assert.Contains(t, err.Error(), tt.wantLeaf)
+	for _, raw := range []string{"2001:db8::ffff", "192.0.2.1"} {
+		t.Run("accept_"+raw, func(t *testing.T) {
+			require.NoError(t, ValidatePeerGlobalNextHop("peer1", "next-hop", netip.MustParseAddr(raw)))
 		})
 	}
 }
 
-// TestParsePeerFromTreeAcceptsGlobalNextHop is the other side of the guard.
+// TestParsePeerFromTreeAcceptsLocalIP verifies applyLocalAddress accepts global
+// IPv6, loopback, IPv4, and "auto" local transport endpoints.
 //
-// VALIDATES: a global IPv6 address, an IPv4 address, "auto" and the three next-hop
-// MODES all parse. Without these rows the guard could refuse everything and still
-// pass the negative test.
-func TestParsePeerFromTreeAcceptsGlobalNextHop(t *testing.T) {
+// VALIDATES: applyLocalAddress parses valid local IP values without error.
+// PREVENTS: transport parsing rejecting valid local endpoint forms.
+func TestParsePeerFromTreeAcceptsLocalIP(t *testing.T) {
 	for _, localIP := range []string{"2001:db8::1", "::1", "192.0.2.1", "auto"} {
 		t.Run("local ip "+localIP, func(t *testing.T) {
-			ps, err := parsePeerFromTree("peer1", peerTreeWith(localIP, ""), 65000, 0x0a000001)
+			ps, err := parsePeerFromTree("peer1", peerTreeWith(localIP), 65000, 0x0a000001)
 			require.NoError(t, err)
 			require.NotNil(t, ps)
-		})
-	}
-	for _, nextHop := range []string{"2001:db8::ffff", "192.0.2.1", "self", "unchanged", "auto"} {
-		t.Run("next-hop "+nextHop, func(t *testing.T) {
-			ps, err := parsePeerFromTree("peer1", peerTreeWith("2001:db8::1", nextHop), 65000, 0x0a000001)
-			require.NoError(t, err)
-			require.NotNil(t, ps)
-		})
-	}
-}
-
-// TestParsePeerFromTreeNextHopModesUnchanged pins the mode parsing that moved into
-// applyNextHopMode with the guard.
-//
-// VALIDATES: each keyword still maps to its mode, and an explicit global address
-// still lands in NextHopAddress.
-func TestParsePeerFromTreeNextHopModesUnchanged(t *testing.T) {
-	tests := []struct {
-		value    string
-		wantMode uint8
-		wantAddr netip.Addr
-	}{
-		{"self", NextHopSelf, netip.Addr{}},
-		{"unchanged", NextHopUnchanged, netip.Addr{}},
-		{"auto", NextHopAuto, netip.Addr{}},
-		{"2001:db8::ffff", NextHopExplicit, netip.MustParseAddr("2001:db8::ffff")},
-	}
-	for _, tt := range tests {
-		t.Run(tt.value, func(t *testing.T) {
-			ps, err := parsePeerFromTree("peer1", peerTreeWith("2001:db8::1", tt.value), 65000, 0x0a000001)
-			require.NoError(t, err)
-			assert.Equal(t, tt.wantMode, ps.NextHopMode)
-			assert.Equal(t, tt.wantAddr, ps.NextHopAddress)
 		})
 	}
 }

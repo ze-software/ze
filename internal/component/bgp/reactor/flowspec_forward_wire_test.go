@@ -44,7 +44,7 @@ func TestFlowSpecForwardingOmitsNextHop(t *testing.T) {
 						negotiateForwardTestFamilies(peer, tc.fam)
 					}
 					f.destination.settings.PeerAS = 65000
-					flowForwardNextHopSettings(f.destination.settings, mode)
+					flowForwardApplyNextHop(t, f.r, f.destination, mode)
 					f.destination.refreshForwardFacts()
 					raw := mustHex(t, tc.nlri)
 					originalSession := f.source.currentSession()
@@ -82,21 +82,27 @@ func TestFlowSpecForwardingOmitsNextHop(t *testing.T) {
 	}
 }
 
+func flowForwardApplyNextHop(t testing.TB, r *Reactor, dest *Peer, mode string) {
+	t.Helper()
+	switch mode {
+	case "explicit4":
+		attachExplicitNextHop(t, r, dest, netip.MustParseAddr("192.0.2.99"))
+	case "explicit6":
+		attachExplicitNextHop(t, r, dest, netip.MustParseAddr("2001:db8::99"))
+	default:
+		flowForwardNextHopSettings(dest.settings, mode)
+	}
+}
+
 func flowForwardNextHopSettings(settings *PeerSettings, mode string) {
 	switch mode {
 	case "auto":
-		settings.NextHopMode = NextHopAuto
+		settings.ExportPolicy = setExportNextHopAuto(settings.ExportPolicy)
 	case "unchanged":
-		settings.NextHopMode = NextHopUnchanged
+		settings.ExportPolicy = setExportNextHopUnchanged(settings.ExportPolicy)
 	case "self":
-		settings.NextHopMode = NextHopSelf
+		settings.ExportPolicy = setExportNextHopSelf(settings.ExportPolicy)
 		settings.LocalAddress = netip.MustParseAddr("192.0.2.254")
-	case "explicit4":
-		settings.NextHopMode = NextHopExplicit
-		settings.NextHopAddress = netip.MustParseAddr("192.0.2.99")
-	case "explicit6":
-		settings.NextHopMode = NextHopExplicit
-		settings.NextHopAddress = netip.MustParseAddr("2001:db8::99")
 	}
 }
 

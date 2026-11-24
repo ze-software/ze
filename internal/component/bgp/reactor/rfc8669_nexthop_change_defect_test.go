@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
@@ -67,14 +68,14 @@ func rfc8669RelayBody(sid []byte) []byte {
 // placed inside the SR domain (so RFC 8669 Section 8 keeps the attribute), with the given
 // next-hop mode, over the general rail or the route-server rail. It returns the one raw
 // UPDATE body the destination was asked to write.
-func rfc8669Relay(t *testing.T, routeServer bool, mode uint8, sid []byte) []byte {
+func rfc8669Relay(t *testing.T, routeServer bool, nextHopRef string, sid []byte) []byte {
 	t.Helper()
-	return rfc8669RelayUpdate(t, routeServer, mode, rfc8669RelayBody(sid))
+	return rfc8669RelayUpdate(t, routeServer, nextHopRef, rfc8669RelayBody(sid))
 }
 
 // rfc8669RelayUpdate relays the UPDATE body received as rfc8669Relay does, for a
 // caller that needs a body of another family than IPv4 unicast.
-func rfc8669RelayUpdate(t *testing.T, routeServer bool, mode uint8, received []byte) []byte {
+func rfc8669RelayUpdate(t *testing.T, routeServer bool, nextHopRef string, received []byte) []byte {
 	t.Helper()
 
 	ctx := bgpctx.EncodingContextForASN4(true)
@@ -82,7 +83,7 @@ func rfc8669RelayUpdate(t *testing.T, routeServer bool, mode uint8, received []b
 	require.NoError(t, err)
 
 	dest := wkPeer(t, "10.0.0.2", 65002, ctx, ctxID)
-	dest.Settings().NextHopMode = mode
+	dest.Settings().ExportPolicy = ExportPolicyWithNextHop(dest.Settings().ExportPolicy, nextHopRef)
 	dest.Settings().PropagateSRv6PrefixSID = true
 	dest.refreshForwardFacts()
 
@@ -149,12 +150,12 @@ func TestRFC8669UnknownTLVPropagatedAcrossANextHopChange(t *testing.T) {
 		routeServer bool
 	}{{name: "general rail"}, {name: "route-server rail", routeServer: true}} {
 		t.Run(rail.name+"/next hop unchanged", func(t *testing.T) {
-			attrs := decodeBodyAttrs(t, rfc8669Relay(t, rail.routeServer, NextHopUnchanged, received))
+			attrs := decodeBodyAttrs(t, rfc8669Relay(t, rail.routeServer, policychain.BuiltinNextHopUnchanged, received))
 			assert.Equal(t, []byte{192, 0, 2, 99}, attrs[3], "the next hop is the source's")
 			assert.Equal(t, received, attrs[prefixSIDCodeByte], "RFC 8669 Section 5: the Prefix-SID is advertised without modification")
 		})
 		t.Run(rail.name+"/next-hop-self", func(t *testing.T) {
-			attrs := decodeBodyAttrs(t, rfc8669Relay(t, rail.routeServer, NextHopSelf, received))
+			attrs := decodeBodyAttrs(t, rfc8669Relay(t, rail.routeServer, policychain.BuiltinNextHopSelf, received))
 			assert.Equal(t, []byte{10, 0, 0, 254}, attrs[3], "the next hop really changed")
 			assert.Equal(t, kept, attrs[prefixSIDCodeByte],
 				"RFC 8669 Section 3: the unknown TLV is propagated unmodified; only the SRv6 Service TLVs leave")
@@ -177,7 +178,7 @@ func TestRFC8669UnknownTLVPropagatedAcrossANextHopChange(t *testing.T) {
 func TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange(t *testing.T) {
 	serviceOnly := slices.Concat(rfc9252ReservedServiceTLV(5), rfc8669ServiceTLV(6))
 	for _, routeServer := range []bool{false, true} {
-		body := rfc8669Relay(t, routeServer, NextHopSelf, serviceOnly)
+		body := rfc8669Relay(t, routeServer, policychain.BuiltinNextHopSelf, serviceOnly)
 		attrs := decodeBodyAttrs(t, body)
 		_, present := attrs[prefixSIDCodeByte]
 		assert.False(t, present, "no TLV remains, so the attribute leaves (route server %v)", routeServer)
@@ -194,7 +195,7 @@ func TestPrefixSIDUnknownTLVSurvivesANextHopChange(t *testing.T) {
 		t.Run(rail, func(t *testing.T) {
 			// RFC 8669 Section 3 and RFC 9252 Section 2.
 			rfc9252EffectiveNextHopCase(t, rail, "ipv6", rfc9252NextHopCase{
-				mode: NextHopExplicit, explicitChange: true, changed: true,
+				mode: policychain.NextHopModeExplicit, explicitChange: true, changed: true,
 			})
 		})
 	}

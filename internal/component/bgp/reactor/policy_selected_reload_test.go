@@ -49,7 +49,7 @@ func TestPolicySelectedFinalReloadRestoresSameSession(t *testing.T) {
 			}
 
 			next := destination.peer.settingsSnapshot()
-			next.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+			next.ExportPolicy = setExportNextHopUnchanged(mustPolicy(t, nil, routepolicy.FinalAccept))
 			mustApplyHotSwappableSettings(t, destination.peer, next, hotSwappableSettings)
 			ordinarySelectedWire(t, destination, subject, "198.18.249.1")
 			ordinaryBoundaryCapture(t, destination)

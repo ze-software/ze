@@ -54,9 +54,9 @@ func TestRFC7311SourceLinkCostReachesRecipient(t *testing.T) {
 				f.source.refreshForwardFacts()
 				f.destination.settings.AIGPLinkMetric = 43
 				f.destination.settings.RSClient = rail == "rs-cached"
-				f.destination.settings.NextHopMode = NextHopUnchanged
+				f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 				if tc.self {
-					f.destination.settings.NextHopMode = NextHopSelf
+					f.destination.settings.ExportPolicy = setExportNextHopSelf(f.destination.settings.ExportPolicy)
 				}
 				f.destination.refreshForwardFacts()
 				if distance := igpcost.Lookup(f.source.Settings().Address); distance.Resolved {

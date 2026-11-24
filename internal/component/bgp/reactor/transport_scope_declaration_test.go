@@ -274,11 +274,13 @@ bgp {
     router-id 1.2.3.4;
     peer first {
         connection { local { ip fe80::1%%%s; port 1179; accept true; } remote { ip fe80::2%%%s; port 2179; connect true; } }
-        session { asn { local 65000; remote 65001; } next-hop unchanged; }
+        session { asn { local 65000; remote 65001; } }
+        filter { export { filters [ next-hop:unchanged ]; final accept; } }
     }
     peer second {
         connection { local { ip fe80::1%%%s; port 1179; accept true; } remote { ip fe80::2%%%s; port 2179; connect true; } }
-        session { asn { local 65000; remote 65001; } next-hop unchanged; }
+        session { asn { local 65000; remote 65001; } }
+        filter { export { filters [ next-hop:unchanged ]; final accept; } }
     }
 }`, zones[0], zones[1], zones[0], zones[0], zones[1], zones[1]))
 	require.NoError(t, err)

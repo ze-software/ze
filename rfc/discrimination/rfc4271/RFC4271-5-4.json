@@ -36,7 +36,7 @@
     "rid": "RFC4271-5-4",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_partial_protocol_rewrite_test.go::TestPrefixSIDPartialSurvivesNextHopCleanup",
-    "unit-sha": "a182c27efccc2d44",
+    "unit-sha": "e8c1a386ad6eadd3",
     "claim-sha": "04060b93b4bb5d5d",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDNextHopHandler",

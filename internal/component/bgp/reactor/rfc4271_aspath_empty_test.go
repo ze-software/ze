@@ -43,7 +43,7 @@ func TestForwardPresentEmptyASPath(t *testing.T) {
 					peer.settings.LocalAS = 65000
 					peer.settings.PeerAS = tc.peerAS
 					peer.settings.RSClient = tc.rs
-					peer.settings.NextHopMode = NextHopUnchanged
+					peer.settings.ExportPolicy = setExportNextHopUnchanged(peer.settings.ExportPolicy)
 					ctx := bgpctx.EncodingContextForASN4(asn4)
 					ctxID, err := bgpctx.Registry.Register(ctx)
 					if err != nil {

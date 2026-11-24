@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -84,36 +86,33 @@ func applyLinkLocal(ps *PeerSettings, name string, sessionMap map[string]any) er
 	return nil
 }
 
-// applyNextHopMode parses `session > next-hop`: one of the three rewriting modes
-// of RFC 4271 Section 5.1.3, or an explicit address.
+// staticExportNextHop answers the folded next-hop intent and true when p can
+// take the zero-allocation static fast path without running an export policy
+// chain per route: either p's compiled library chain holds ONLY built-in
+// next-hop:* steps, or p carries no compiled library and no active filters at
+// all (which preserves the RFC 4271 Section 5.1.3 default next-hop:auto for
+// direct reactor callers that build PeerSettings without bgp/config).
 //
-// An explicit address supplies the global next-hop slot, so RFC 2545 Section 3
-// governs that address independently of the session's TCP endpoint.
-func applyNextHopMode(ps *PeerSettings, name string, sessionMap map[string]any) error {
-	if sessionMap == nil {
-		return nil
+// Templated dynamic policies and policies requiring the ingress stage never
+// take the static fast path.
+func staticExportNextHop(p filterapi.Policy) (policychain.NextHopIntent, bool) {
+	if p.RequiresIngress() {
+		return policychain.NextHopIntent{}, false
 	}
-	nhVal, ok := mapString(sessionMap, "next-hop")
-	if !ok {
-		return nil
+	if p.Templated() {
+		return policychain.NextHopIntent{}, false
 	}
-	switch nhVal {
-	case "auto", "": // empty treated as auto
-		ps.NextHopMode = NextHopAuto
-	case "self":
-		ps.NextHopMode = NextHopSelf
-	case "unchanged":
-		ps.NextHopMode = NextHopUnchanged
-	default: // must be an IP address
-		nhAddr, err := netip.ParseAddr(nhVal)
-		if err != nil {
-			return fmt.Errorf("peer %s: invalid next-hop %q: expected auto, self, unchanged, or IP address", name, nhVal)
+	if lib := p.Library(); lib != nil {
+		chain, ok := lib.(*policychain.Chain)
+		if !ok {
+			return policychain.NextHopIntent{}, false
 		}
-		if err := ValidatePeerGlobalNextHop(name, "next-hop", nhAddr); err != nil {
-			return err
-		}
-		ps.NextHopMode = NextHopExplicit
-		ps.NextHopAddress = nhAddr
+		return chain.StaticNextHop()
 	}
-	return nil
+	for _, ref := range p.Filters() {
+		if !ref.Inactive {
+			return policychain.NextHopIntent{}, false
+		}
+	}
+	return policychain.NextHopIntent{Mode: policychain.NextHopModeAuto, AutoDefault: true}, true
 }

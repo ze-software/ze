@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -533,29 +534,66 @@ func TestClusterIDSync(t *testing.T) {
 	})
 }
 
-// TestDynamicGroupTemplateRefusesLinkLocalGlobalNextHop drives the RFC 2545
-// Section 3 guard for an explicit global next hop from the dynamic-group entry point.
+// TestDynamicGroupRejectsRemovedSessionNextHop verifies that `session { next-hop }`
+// is no longer accepted by the YANG schema on a dynamic group and that export
+// next-hop policy is carried through `filter { export { filters [ next-hop:* ]; } }`
+// (while explicit IPv6 link-local validation lives in filter_modify).
 //
-// RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
-// Address of Next Hop field the global IPv6 address of the next hop, potentially
-// followed by the link-local IPv6 address of the next hop." This field is
-// independent of the TCP endpoint parsed from connection > local > ip.
-//
-// VALIDATES: a link-local session > next-hop fails parsing and names the group.
-// PREVENTS: an explicit global next hop bypassing its wire-form guard.
-func TestDynamicGroupTemplateRefusesLinkLocalGlobalNextHop(t *testing.T) {
-	t.Run("next-hop", func(t *testing.T) {
-		_, err := reactor.ParseDynamicGroupTemplate("ix", map[string]any{
-			"connection": map[string]any{"local": map[string]any{"ip": "2001:db8::1"}},
-			"session":    map[string]any{"next-hop": "fe80::cafe"},
-		}, 65000, 0x0a000001)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "ix")
+// VALIDATES: YANG rejects `session { next-hop }` on a dynamic group and dynamic
+// group export policy carries built-in `next-hop:*` steps.
+// PREVENTS: removed `session { next-hop }` silently surviving in dynamic group
+// config or dynamic group export policy dropping `next-hop:*`.
+func TestDynamicGroupRejectsRemovedSessionNextHop(t *testing.T) {
+	noInsertingPluginLoaded(t)
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+
+	t.Run("session_next_hop_rejected_by_yang", func(t *testing.T) {
+		const badCfg = `
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65000; } }
+	group ix {
+		connection {
+			remote { ip dynamic; connect false; range 2001:db8::/32; }
+			local  { ip 2001:db8::1; accept true; }
+		}
+		session { next-hop fe80::cafe; }
+	}
+}
+`
+		_, parseErr := config.NewParser(schema).Parse(badCfg)
+		require.Error(t, parseErr)
+	})
+
+	t.Run("export_policy_carries_builtin_next_hop", func(t *testing.T) {
+		const goodCfg = `
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65000; } }
+	group ix {
+		connection {
+			remote { ip dynamic; connect false; range 2001:db8::/32; }
+			local  { ip 2001:db8::1; accept true; }
+		}
+		filter {
+			export { filters [ next-hop:self ]; final accept; }
+		}
+	}
+}
+`
+		tree, parseErr := config.NewParser(schema).Parse(goodCfg)
+		require.NoError(t, parseErr)
+		_, groups, loadErr := peersAndDynamicGroups(tree)
+		require.NoError(t, loadErr)
+		require.Len(t, groups, 1)
+		assert.Equal(t, netip.MustParseAddr("2001:db8::1"), groups[0].Settings.LocalAddress)
+		assert.Equal(t, refs(policychain.BuiltinNextHopSelf), groups[0].Settings.ExportPolicy.Filters())
 	})
 }
 
 // TestDynamicGroupTemplateAcceptsLinkLocalTransport parses both spellings of a
-// link-local TCP endpoint and checks that neither sets an explicit next hop.
+// link-local TCP endpoint and checks that neither sets an explicit export filter.
 // Peer admission later refuses an unscoped local bind; next-hop resolution
 // separately checks the emitted address's wire form and negotiated capabilities.
 func TestDynamicGroupTemplateAcceptsLinkLocalTransport(t *testing.T) {
@@ -568,8 +606,7 @@ func TestDynamicGroupTemplateAcceptsLinkLocalTransport(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, ps)
 			assert.Equal(t, netip.MustParseAddr(localIP), ps.LocalAddress)
-			assert.Equal(t, reactor.NextHopAuto, ps.NextHopMode)
-			assert.False(t, ps.NextHopAddress.IsValid(), "a TCP endpoint is not an explicit next hop")
+			assert.Empty(t, ps.ExportPolicy.Filters(), "a TCP endpoint sets no explicit export filter")
 		})
 	}
 }
@@ -584,22 +621,6 @@ func TestDynamicGroupTemplateRefusesMalformedLocalTransport(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ix")
 	assert.Contains(t, err.Error(), "invalid local ip")
-}
-
-// TestDynamicGroupTemplateAcceptsGlobalNextHop is the other side of the guard.
-//
-// VALIDATES: a global IPv6 address reaches both leaves. Without this row the guard
-// could refuse everything and still pass the negative test.
-func TestDynamicGroupTemplateAcceptsGlobalNextHop(t *testing.T) {
-	ps, err := reactor.ParseDynamicGroupTemplate("ix", map[string]any{
-		"connection": map[string]any{"local": map[string]any{"ip": "2001:db8::1"}},
-		"session":    map[string]any{"next-hop": "2001:db8::ffff"},
-	}, 65000, 0x0a000001)
-
-	require.NoError(t, err)
-	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), ps.LocalAddress)
-	assert.Equal(t, reactor.NextHopExplicit, ps.NextHopMode)
-	assert.Equal(t, netip.MustParseAddr("2001:db8::ffff"), ps.NextHopAddress)
 }
 
 // TestDynamicGroupTemplateBuildsFamilyCapabilities pins the group's `session >

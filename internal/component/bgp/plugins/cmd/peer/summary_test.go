@@ -1194,7 +1194,7 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 		{command: "show bgp peer detail", orders: []command.ColumnOrder{{
 			"name", "hostname", "domain", "group", "remote-as", "local-as", "peer-type", "router-id",
 			"state", "uptime", "last-notification",
-			"local-ip", "next-hop", "next-hop-address", "timer", "capabilities",
+			"local-ip", "timer", "capabilities",
 		}}},
 		{command: "show bgp peer history", orders: []command.ColumnOrder{{"timestamp", "from", "to", "reason"}}},
 		{command: "show bgp peer list", orders: []command.ColumnOrder{{"name", "hostname", "domain", "group", "remote-as", "state", "uptime"}}},
@@ -1217,7 +1217,7 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 		{command: "show bgp peer 192.0.2.1 detail", orders: []command.ColumnOrder{{
 			"name", "hostname", "domain", "group", "remote-as", "local-as", "peer-type", "router-id",
 			"state", "uptime", "last-notification",
-			"local-ip", "next-hop", "next-hop-address", "timer", "capabilities",
+			"local-ip", "timer", "capabilities",
 		}}},
 		{command: "show bgp peer 192.0.2.1 history", orders: []command.ColumnOrder{{"timestamp", "from", "to", "reason"}}},
 		{command: "show bgp peer 192.0.2.1 rib", orders: []command.ColumnOrder{ribRoutes}},

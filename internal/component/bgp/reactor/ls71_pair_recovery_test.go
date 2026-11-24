@@ -5,11 +5,13 @@
 package reactor
 
 import (
+	"encoding/json"
 	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -64,14 +66,14 @@ func TestLS71PairPeerOwnRecovery(t *testing.T) {
 						} else {
 							ls71PairSelectGlobal(f, mode, topology.recipient)
 						}
-						ls71PairRelay(t, f, body, native, native && policy)
+						ls71PairRelay(t, f, body, native, native && (policy || mode.mode == policychain.NextHopModeExplicit))
 						ls71PairAssert(t, f, nil, true, true)
 
 						f.conn.reset()
 						replacement = seed
 						if !mode.preserving {
 							global := topology.self
-							if mode.mode == NextHopExplicit {
+							if mode.mode == policychain.NextHopModeExplicit {
 								global = topology.explicit
 							}
 							ls71PairSelectGlobal(f, mode, global)
@@ -130,7 +132,7 @@ func TestLS71PairScopedPeerOwnRecovery(t *testing.T) {
 						} else {
 							body = ls71PairBody(t, bad, true)
 						}
-						ls71PairRelay(t, f, body, native, native && policy)
+						ls71PairRelay(t, f, body, native, native && (policy || mode.mode == policychain.NextHopModeExplicit))
 						ls71PairAssert(t, f, nil, true, true)
 						ls71PairAssertZone(t, f)
 
@@ -234,7 +236,7 @@ func TestLS71PairInvalidBeforeTrim(t *testing.T) {
 							if policy {
 								replacement, body = body, seed
 							}
-							ls71PairRelay(t, f, body, native, native && policy)
+							ls71PairRelay(t, f, body, native, native && (policy || mode.mode == policychain.NextHopModeExplicit))
 							ls71PairAssert(t, f, nil, true, true)
 							f.conn.reset()
 							replacement = seed
@@ -253,8 +255,25 @@ func ls71PairReceived(topology ls71PairTopology) []byte {
 }
 
 func ls71PairSelectGlobal(f *aigpReplayFixture, mode ls71PairMode, global netip.Addr) {
-	if mode.mode == NextHopExplicit {
-		f.destination.settings.NextHopAddress = global
+	if mode.mode == policychain.NextHopModeExplicit {
+		rawValue, err := json.Marshal(global.String())
+		if err != nil {
+			panic("BUG: marshal explicit next-hop: " + err.Error())
+		}
+		f.r.filterTransportSeam = &answerTransport{
+			reads: []string{"prefix"},
+			sets:  []string{exportNHField},
+			answer: func(_ rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+				return rpc.FilterUpdateOutput{
+					Action: rpc.FilterModify,
+					Sets: []rpc.FilterSet{{
+						Field:  exportNHField,
+						Action: rpc.FilterSetActionSet,
+						Value:  rawValue,
+					}},
+				}
+			},
+		}
 	} else {
 		f.destination.session.transport.Store(&sessionTransport{local: global, localString: global.String()})
 	}

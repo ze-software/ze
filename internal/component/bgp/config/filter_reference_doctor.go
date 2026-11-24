@@ -18,6 +18,7 @@
 package bgpconfig
 
 import (
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -111,7 +112,9 @@ func filterRegistryDiagnostic(err error) diagnostic.Diagnostic {
 }
 
 // undefinedFilterRefs reports the import and export entries of one chain that
-// name a policy the defined set does not hold.
+// name a policy the defined set does not hold. Built-in export next-hop:*
+// engine steps (next-hop:self, next-hop:unchanged, next-hop:auto) need no
+// policy root entry and are accepted on export chains.
 //
 // It reads the structural member view, so a deactivated reference is judged
 // too: a deactivated entry pointing at a name nothing defines is still wrong,
@@ -119,12 +122,17 @@ func filterRegistryDiagnostic(err error) diagnostic.Diagnostic {
 func undefinedFilterRefs(filter *config.Tree, defined *policy.Registry, path string) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
 	var tb textbuf.Buffer
-	for _, direction := range []string{"import", "export"} {
+	for _, direction := range []string{directionImport, directionExport} {
 		chain := filter.GetContainer(direction)
 		if chain == nil {
 			continue
 		}
 		for _, member := range chain.GetMultiValuesState("filters") {
+			if direction == directionExport {
+				if _, builtin := policychain.BuiltinNextHopMode(member.Value); builtin {
+					continue
+				}
+			}
 			name := filterInstanceName(member.Value)
 			if _, ok := defined.Lookup(name); ok {
 				continue

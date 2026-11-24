@@ -71,7 +71,7 @@ func TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair(t *testing.T) {
 				delete(f.r.peers, f.destination.Settings().PeerKey())
 				f.destination.settings.Address = netip.MustParseAddr(tc.remote)
 				f.destination.settings.PeerAS = 65002
-				f.destination.settings.NextHopMode = NextHopUnchanged
+				f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 				// Configuration deliberately disagrees with the connection. Only
 				// the captured established-session endpoint can license the form.
 				f.destination.settings.LocalAddress = netip.MustParseAddr("fe80::ffff")

@@ -207,8 +207,7 @@ func TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy(t *testing.T) 
 		peer.settings.LocalAS = 65000
 		peer.settings.PeerAS = 65002
 		peer.settings.ASOverride = true
-		peer.settings.NextHopMode = NextHopUnchanged
-		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "drop-invalid"}})
+		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: policychain.BuiltinNextHopUnchanged}, {Name: "drop-invalid"}})
 		peer.refreshForwardFacts()
 
 		// Received origin AS is 65002 (Invalid for 203.0.113.0/24), but as-override
@@ -352,8 +351,7 @@ func TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy(t 
 		peer.settings.LocalAS = 65000
 		peer.settings.PeerAS = 65002
 		peer.settings.ASOverride = true
-		peer.settings.NextHopMode = NextHopUnchanged
-		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "drop-invalid"}})
+		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: policychain.BuiltinNextHopUnchanged}, {Name: "drop-invalid"}})
 		peer.refreshForwardFacts()
 
 		// Pre-egress origin 65002 is Valid, but as-override rewrites it to 65000 (Invalid).
@@ -485,8 +483,7 @@ func TestRFC8893ASPathModificationsChangingEffectiveOriginAS(t *testing.T) {
 		peer.settings.LocalAS = 65000
 		peer.settings.PeerAS = 65002
 		peer.settings.ASOverride = true
-		peer.settings.NextHopMode = NextHopUnchanged
-		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
+		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: policychain.BuiltinNextHopUnchanged}, {Name: "only-valid"}})
 		peer.refreshForwardFacts()
 
 		// Received AS_PATH=[65001, 65002] (unauthorized 65002 for 198.51.100.0/24);
@@ -570,8 +567,7 @@ func TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected(t *testing.T) {
 		peer.settings.LocalAS = 65000
 		peer.settings.PeerAS = 65002
 		peer.settings.ASOverride = true
-		peer.settings.NextHopMode = NextHopUnchanged
-		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
+		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: policychain.BuiltinNextHopUnchanged}, {Name: "only-valid"}})
 		peer.refreshForwardFacts()
 
 		// VRP authorizes 65002, NOT 65000; as-override rewrites 65002 -> 65000 (Invalid -> rejected).
@@ -782,8 +778,7 @@ func TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS(t *testing.T) {
 		peer.settings.LocalAS = 65000
 		peer.settings.PeerAS = 65002
 		peer.settings.ASOverride = true
-		peer.settings.NextHopMode = NextHopUnchanged
-		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
+		peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: policychain.BuiltinNextHopUnchanged}, {Name: "only-valid"}})
 		peer.refreshForwardFacts()
 
 		// Received AS_PATH=[65001, 65002]; as-override + eBGP prepend announces
@@ -864,8 +859,7 @@ func TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS(t *testing.T) {
 	peer.settings.LocalAS = 65000
 	peer.settings.PeerAS = 65002
 	peer.settings.ASOverride = true
-	peer.settings.NextHopMode = NextHopUnchanged
-	peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: "only-valid"}})
+	peer.settings.ExportPolicy = compileRFC8893ExportChain(t, reg, []policychain.Member{{Name: policychain.BuiltinNextHopUnchanged}, {Name: "only-valid"}})
 	peer.refreshForwardFacts()
 
 	attrs := makeAttr(0x40, byte(attribute.AttrOrigin), []byte{0})

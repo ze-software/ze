@@ -60,6 +60,8 @@ func a2Payload(nextHop []byte) []byte {
 // a2Dest builds an established external destination. A valid explicit address
 // sets the explicit next-hop mode; pair says whether the destination negotiated
 // the <1/1, IPv6> Extended Next Hop pair.
+//
+//nolint:unparam // explicit kept as a tripwire so callers wire explicit next-hop via a2ForwardWith + attachExplicitNextHop
 func a2Dest(t *testing.T, addr string, peerAS uint32, explicit netip.Addr, pair bool) *Peer {
 	t.Helper()
 	caps := &capability.EncodingCaps{ASN4: true}
@@ -74,9 +76,7 @@ func a2Dest(t *testing.T, addr string, peerAS uint32, explicit netip.Addr, pair 
 
 	peer := wkPeer(t, addr, peerAS, ctx, ctxID)
 	if explicit.IsValid() {
-		peer.settings.NextHopMode = NextHopExplicit
-		peer.settings.NextHopAddress = explicit
-		peer.refreshForwardFacts()
+		t.Fatalf("a2Dest: explicit next-hop %s must be wired via a2ForwardWith + attachExplicitNextHop", explicit)
 	}
 	return peer
 }
@@ -134,9 +134,26 @@ func a2ForwardWith(t *testing.T, rs bool, configure func(*Reactor, *forwardSourc
 		configure(r, &source)
 	}
 	if rs {
-		source := makeRSPeer(t, "203.0.113.9", 65009, ctx, ctxID)
-		peerMap[source.Settings().PeerKey()] = source
-		reactorForwardRS(r, update, id, source.Settings().Address, source)
+		rsSrc := makeRSPeer(t, "203.0.113.9", 65009, ctx, ctxID)
+		peerMap[rsSrc.Settings().PeerKey()] = rsSrc
+		skipped, _ := reactorForwardRS(r, update, id, rsSrc.Settings().Address, rsSrc)
+		if len(skipped) > 0 {
+			// A destination whose active export chain hits withdrawalBySection
+			// is handed back to the cached rail (forward_rs.go), which bgp-rs
+			// forwards via forwardUpdateCore.
+			var handedBack []*Peer
+			for _, target := range skipped {
+				for _, d := range dests {
+					if d.sourceOwner == target.DestinationOwner {
+						handedBack = append(handedBack, d)
+					}
+				}
+			}
+			if len(handedBack) > 0 {
+				adapter := &reactorAPIAdapter{r: r}
+				_ = adapter.forwardUpdateCore(update, id, handedBack, source)
+			}
+		}
 	} else {
 		adapter := &reactorAPIAdapter{r: r}
 		_ = adapter.forwardUpdateCore(update, id, dests, source)
@@ -228,18 +245,25 @@ func TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair(t *testing.T) 
 		{"route-server rail, explicit", true, received4[:], explicit6, explicit6},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			paired := a2Dest(t, "192.0.2.21", 65021, tc.explicit, true)
-			unpaired := a2Dest(t, "192.0.2.22", 65022, tc.explicit, false)
-			if !tc.explicit.IsValid() {
+			paired := a2Dest(t, "192.0.2.21", 65021, netip.Addr{}, true)
+			unpaired := a2Dest(t, "192.0.2.22", 65022, netip.Addr{}, false)
+			var configure func(*Reactor, *forwardSourceInfo)
+			if tc.explicit.IsValid() {
+				configure = func(r *Reactor, _ *forwardSourceInfo) {
+					for _, destination := range []*Peer{paired, unpaired} {
+						attachExplicitNextHop(t, r, destination, tc.explicit)
+					}
+				}
+			} else {
 				// These cases exercise the received IPv6 field, independently of
 				// ordinary eBGP Auto selecting the speaker's IPv4 next hop.
 				for _, destination := range []*Peer{paired, unpaired} {
-					destination.settings.NextHopMode = NextHopUnchanged
+					destination.settings.ExportPolicy = setExportNextHopUnchanged(destination.settings.ExportPolicy)
 					destination.refreshForwardFacts()
 				}
 			}
 
-			got := a2Forward(t, tc.rs, a2Payload(tc.nextHop), paired, unpaired)
+			got := a2ForwardWith(t, tc.rs, configure, a2Payload(tc.nextHop), paired, unpaired)
 
 			sent, ok := got[netip.MustParseAddr("192.0.2.21")]
 			require.True(t, ok, "the destination that negotiated <1/1, IPv6> is owed the route")

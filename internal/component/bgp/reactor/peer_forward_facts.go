@@ -11,14 +11,14 @@ import (
 	"slices"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/core/bgp/msgtype"
-
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/network"
@@ -26,17 +26,13 @@ import (
 )
 
 const (
-	nhModeNone   uint8 = iota // No next-hop ops (Auto or Unchanged)
+	nhModeNone   uint8 = iota // No precomputed next-hop rewrite
 	nhModeSelf4               // Self IPv4: legacy NEXT_HOP + family-permitted MP_REACH
 	nhModeSelfV6              // Self IPv6: MP_REACH global only
 	// nhModeSelfV6LL is the RFC 2545 Section 3 two-address form: MP_REACH carries
 	// the global address then the link-local one. applyLinkLocalNextHop
-	// (link_scope.go) raises BOTH nhModeSelfV6 and nhModeExplicitV6 to it, so the
-	// "Self" in the name is historical: what it names is the wire form, and the
-	// global address it carries is already in nhGlobal either way.
+	// (link_scope.go) raises nhModeSelfV6 to it when the common-subnet condition holds.
 	nhModeSelfV6LL
-	nhModeExplicit4  // Explicit IPv4: legacy NEXT_HOP + family-permitted MP_REACH
-	nhModeExplicitV6 // Explicit IPv6: MP_REACH global only
 )
 
 type sendCommunityMask uint8
@@ -115,10 +111,22 @@ type peerForwardFacts struct {
 	// Addr when the session holds none a next hop can carry
 	// (connectedLocalAddress). precomputeNextHop builds next-hop self from it.
 	connectedLocal netip.Addr
-	// nhSelfWithheld is a GUARD: self is configured or selected by auto, and no local
-	// address exists to put in the received next hop's place, so both forward
-	// rails withhold the announcement toward this peer rather than pass the
-	// third-party NEXT_HOP the operator disabled (RFC 4271 Section 5.1.3).
+	// staticNextHop is the folded intent when exportPolicy holds only built-in
+	// next-hop:* steps or no active filters (hasStaticNextHop == true), letting
+	// both forward rails keep their zero-allocation static fast path.
+	staticNextHop    policychain.NextHopIntent
+	hasStaticNextHop bool
+	// selfMode and selfWithheld hold this session's precomputed next-hop-self
+	// wire form unconditionally, so both static next-hop:self/auto and dynamic
+	// export-chain self intents reuse the same immutable buffers with zero
+	// per-UPDATE allocations.
+	selfMode     uint8
+	selfWithheld bool
+	// nhSelfWithheld is a GUARD for the static fast path: self is selected by
+	// the static export policy (next-hop:self, or next-hop:auto on ordinary
+	// eBGP) and no local address exists to put in the received next hop's
+	// place, so both forward rails withhold the announcement toward this peer
+	// rather than pass the third-party NEXT_HOP (RFC 4271 Section 5.1.3).
 	nhSelfWithheld bool
 
 	nhMode     uint8
@@ -126,8 +134,8 @@ type peerForwardFacts struct {
 	nhMapped   [16]byte
 	nhGlobal   [16]byte
 	nhGlobalLL [32]byte
-	// The RD-framed forms of the same addresses (precomputeVPNNextHop).
-	// applyFactsNextHop selects framing from the profile, independently of scope.
+	// The RD-framed forms of the same self addresses (precomputeVPNNextHop).
+	// applyNextHopWire selects framing from the profile, independently of scope.
 	nhVPNv4     [12]byte                   // RD + IPv4
 	nhVPNMapped [24]byte                   // RD + IPv4-mapped IPv6
 	nhVPNPair   [vpnNextHopPairOctets]byte // RD + global, RD + link-local
@@ -139,8 +147,14 @@ type peerForwardFacts struct {
 
 	scMask sendCommunityMask
 
-	// redirect is the next hop a FlowSpec redirect-to-IP route leaves with
-	// (precomputeRedirectNextHop, applyNextHopFamily).
+	// redirectEnabled reports whether FlowSpec 0x0800 redirect-to-IP next-hop
+	// carriage is opted in and extended communities are not suppressed.
+	redirectEnabled bool
+	// redirectSelf holds this session's precomputed self addresses for FlowSpec
+	// redirect-to-IP rewriting under dynamic export-chain intents.
+	redirectSelf redirectNextHop
+	// redirect is the precomputed FlowSpec redirect-to-IP decision for static
+	// export policies (precomputeRedirectNextHop, applyNextHopFamily).
 	redirect redirectNextHop
 }
 
@@ -600,73 +614,79 @@ func (p localASPrepend) prependTo(path *attribute.ASPath) {
 	path.Prepend(p.primary)
 }
 
-// precomputeNextHop fixes the next-hop wire form this peer will send, from
-// config and the session's connected local endpoint (f.connectedLocal). An
-// IPv6 next hop lands on the single-address form here; applyLinkLocalNextHop
-// then decides whether RFC 2545 Section 3 puts a second address beside it.
+// precomputeNextHop fixes the session's immutable next-hop-self wire buffers
+// once per facts snapshot from the connected local endpoint (f.connectedLocal)
+// or configured LocalAddress, and arms the zero-allocation static fast path
+// when f.exportPolicy resolves statically (staticExportNextHop). An IPv6 self
+// address lands on the single-address form here; applyLinkLocalNextHop then
+// decides whether RFC 2545 Section 3 puts a second address beside it.
 func precomputeNextHop(s *PeerSettings, f *peerForwardFacts) {
-	nextHopMode := s.NextHopMode
-	// RFC 4271 Section 5.1.3 items 2 and 3: by default the speaker SHOULD
-	// use the interface address with which it establishes the eBGP connection.
-	// RFC 7947 Section 2.2.1: "As the route server does not participate in the
-	// actual routing of traffic, the NEXT_HOP attribute MUST be passed
-	// unmodified to the route server clients, similar to the "third-party"
-	// next-hop feature described in Section 5.1.3. of [RFC4271]."
-	// Internal peers also retain their received next hop unless self was
-	// explicitly configured.
-	if nextHopMode == NextHopAuto && f.isEBGP && !f.rsClient {
-		nextHopMode = NextHopSelf
+	// RFC 4271 Section 5.1.3: "A BGP speaker MUST be able to support the
+	// disabling advertisement of third party NEXT_HOP attributes in order to
+	// handle imperfectly bridged media."
+	f.staticNextHop, f.hasStaticNextHop = staticExportNextHop(f.exportPolicy)
+	f.nhMode = nhModeNone
+	f.nhSelfWithheld = false
+	if f.hasStaticNextHop && !intentUsesSelf(f, f.staticNextHop) {
+		// Static unchanged / iBGP auto / RS-client auto never rewrites to self;
+		// leave selfMode and all self wire buffers zero so downstream scope
+		// code never populates speaker link-local addresses for this peer.
+		f.selfMode = nhModeNone
+		f.selfWithheld = false
+		return
 	}
-	switch nextHopMode {
-	case NextHopAuto, NextHopUnchanged:
-		f.nhMode = nhModeNone
-	case NextHopSelf:
-		// RFC 4271 Section 5.1.3: "A BGP speaker MUST be able to support the
-		// disabling advertisement of third party NEXT_HOP attributes in order to
-		// handle imperfectly bridged media."
-		//
-		// Next-hop self is that disabling, so it is built from the address the
-		// peer reaches this speaker on: the connected endpoint, which is also
-		// what the announce rail sends (resolveNextHop). `local ip auto` leaves
-		// LocalAddress unset, and the endpoint is the only answer there. The
-		// configured address is read only when the session holds no endpoint;
-		// the socket is bound to it, so the two agree whenever both exist.
-		local := f.connectedLocal
-		if !local.IsValid() {
-			local = s.LocalAddress.Unmap()
-		}
-		if !local.IsValid() {
-			// No address of this speaker exists to put in the received next
-			// hop's place. Arming no rewrite would pass the third-party NEXT_HOP
-			// the operator disabled, so the forward rails withhold the
-			// announcement instead (nhSelfWithheld).
-			f.nhMode = nhModeNone
-			f.nhSelfWithheld = true
-			return
-		}
-		switch {
-		case local.Is4():
-			f.nhMode = nhModeSelf4
-			f.nhLegacy = local.As4()
-			f.nhMapped = local.As16()
-		default:
-			f.nhMode = nhModeSelfV6
-			f.nhGlobal = local.As16()
-		}
-	case NextHopExplicit:
-		if !s.NextHopAddress.IsValid() {
-			f.nhMode = nhModeNone
-			return
-		}
-		explicit := s.NextHopAddress.Unmap()
-		if explicit.Is4() {
-			f.nhMode = nhModeExplicit4
-			f.nhLegacy = explicit.As4()
-			f.nhMapped = explicit.As16()
-		} else {
-			f.nhMode = nhModeExplicitV6
-			f.nhGlobal = explicit.As16()
-		}
+
+	// Next-hop self is built from the address the peer reaches this speaker
+	// on: the connected endpoint, which is also what the announce rail sends
+	// (resolveNextHop). `local ip auto` leaves LocalAddress unset, and the
+	// endpoint is the only answer there. The configured address is read only
+	// when the session holds no endpoint; the socket is bound to it, so the
+	// two agree whenever both exist.
+	local := f.connectedLocal
+	if !local.IsValid() {
+		local = s.LocalAddress.Unmap()
+	}
+	switch {
+	case !local.IsValid():
+		f.selfMode = nhModeNone
+		f.selfWithheld = true
+	case local.Is4():
+		f.selfMode = nhModeSelf4
+		f.selfWithheld = false
+		f.nhLegacy = local.As4()
+		f.nhMapped = local.As16()
+	default:
+		f.selfMode = nhModeSelfV6
+		f.selfWithheld = false
+		f.nhGlobal = local.As16()
+	}
+
+	if f.hasStaticNextHop {
+		f.nhMode = f.selfMode
+		f.nhSelfWithheld = f.selfWithheld
+	}
+}
+
+// intentUsesSelf reports whether intent resolves to next-hop self for
+// destination f.
+//
+// RFC 4271 Section 5.1.3 items 2 and 3: by default (auto) the speaker SHOULD
+// use the interface address with which it establishes the eBGP connection.
+// RFC 7947 Section 2.2.1: "As the route server does not participate in the
+// actual routing of traffic, the NEXT_HOP attribute MUST be passed
+// unmodified to the route server clients, similar to the "third-party"
+// next-hop feature described in Section 5.1.3. of [RFC4271]."
+// Internal peers also retain their received next hop unless self was selected.
+func intentUsesSelf(f *peerForwardFacts, intent policychain.NextHopIntent) bool {
+	switch intent.Mode {
+	case policychain.NextHopModeSelf:
+		return true
+	case policychain.NextHopModeAuto:
+		return f.isEBGP && !f.rsClient
+	case policychain.NextHopModeUnspecified, policychain.NextHopModeUnchanged, policychain.NextHopModeExplicit:
+		return false
+	default:
+		panic("BUG: reactor: invalid policychain.NextHopMode")
 	}
 }
 
@@ -728,6 +748,7 @@ func precomputeRedirectNextHop(s *PeerSettings, f *peerForwardFacts) {
 	// hop for the 0x0800 redirect-to-IP community (draft-simpson-idr-flowspec-
 	// redirect-02 Section 3) is an explicit per-session opt-in.
 	if !s.FlowSpecRedirectNextHop {
+		f.redirectEnabled = false
 		f.redirect.action = redirectStrip
 		return
 	}
@@ -735,54 +756,65 @@ func precomputeRedirectNextHop(s *PeerSettings, f *peerForwardFacts) {
 	// not sent extended communities receives no redirect action, so its next
 	// hop is the RFC 8955 Section 4 one: "MUST be set to 0".
 	if f.scMask&scSuppressExtended != 0 {
+		f.redirectEnabled = false
 		f.redirect.action = redirectStrip
 		return
 	}
-	switch s.NextHopMode {
-	case NextHopUnchanged:
-		f.redirect.action = redirectKeep
-	case NextHopSelf, NextHopExplicit:
-		f.redirect.action = redirectStrip
-		if f.nhSelfWithheld {
-			// No address to write. egressNextHopWithheld judges a FlowSpec
-			// rule by the field it emits, and the empty one has no address,
-			// so the rule is not withheld: it leaves with the RFC 8955
-			// Section 4 zero length and no redirect target.
-			return
-		}
-		// Only the modes precomputeNextHop armed carry an address.
-		switch f.nhMode {
-		case nhModeSelf4, nhModeExplicit4:
-			f.redirect.add(netip.AddrFrom4(f.nhLegacy))
-		case nhModeSelfV6, nhModeSelfV6LL, nhModeExplicitV6:
-			f.redirect.add(netip.AddrFrom16(f.nhGlobal))
-		}
-		f.redirect.rewriteIfAddressed()
-	case NextHopAuto:
+	f.redirectEnabled = true
+	f.redirectSelf = redirectNextHop{action: redirectStrip}
+	f.redirectSelf.add(f.connectedLocal)
+	f.redirectSelf.add(s.LocalAddress)
+	f.redirectSelf.rewriteIfAddressed()
+
+	if f.hasStaticNextHop {
+		f.redirect = redirectForIntent(f, f.staticNextHop)
+		return
+	}
+	// Direct callers that invoke precomputeRedirectNextHop without
+	// precomputeNextHop still resolve a static export policy.
+	if intent, static := staticExportNextHop(f.exportPolicy); static {
+		f.redirect = redirectForIntent(f, intent)
+		return
+	}
+	f.redirect.action = redirectStrip
+}
+
+// redirectForIntent answers the FlowSpec 0x0800 redirect-to-IP next-hop
+// decision for destination f under resolved export-chain intent.
+func redirectForIntent(f *peerForwardFacts, intent policychain.NextHopIntent) redirectNextHop {
+	if !f.redirectEnabled {
+		return redirectNextHop{action: redirectStrip}
+	}
+	switch intent.Mode {
+	case policychain.NextHopModeUnchanged:
+		return redirectNextHop{action: redirectKeep}
+	case policychain.NextHopModeSelf:
+		// With no usable self address, f.redirectSelf.action is redirectStrip:
+		// the FlowSpec rule leaves with the RFC 8955 Section 4 zero length.
+		return f.redirectSelf
+	case policychain.NextHopModeAuto:
 		// RFC 7947 Section 2.2.1: "the NEXT_HOP attribute MUST be passed
 		// unmodified to the route server clients".
 		if f.rsClient {
-			f.redirect.action = redirectKeep
-			return
+			return redirectNextHop{action: redirectKeep}
 		}
 		if !f.isEBGP {
-			f.redirect.action = redirectKeep
-			return
+			return redirectNextHop{action: redirectKeep}
 		}
 		// draft-simpson-idr-flowspec-redirect-02 Section 3: "When a flow-spec
 		// route with this community is advertised to an EBGP peer the
 		// next-hop address in the MP_REACH_NLRI SHOULD be reset to an address
 		// of the advertising router by default, per normal BGP procedures."
-		// The addresses are the ones next-hop self uses (precomputeNextHop).
-		// With none usable, passing the received one is the configured-only
-		// alternative the same paragraph names, so the redirect action is
-		// voided with the zero length (redirectStrip).
-		f.redirect.action = redirectStrip
-		f.redirect.add(f.connectedLocal)
-		f.redirect.add(s.LocalAddress)
-		f.redirect.rewriteIfAddressed()
+		return f.redirectSelf
+	case policychain.NextHopModeExplicit:
+		r := redirectNextHop{action: redirectStrip}
+		r.add(intent.Addr)
+		r.rewriteIfAddressed()
+		return r
+	case policychain.NextHopModeUnspecified:
+		return redirectNextHop{action: redirectStrip}
 	default:
-		f.redirect.action = redirectStrip
+		panic("BUG: reactor: invalid policychain.NextHopMode")
 	}
 }
 
@@ -796,11 +828,45 @@ func (r *redirectNextHop) rewriteIfAddressed() {
 }
 
 func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, mpFamily family.Family) {
-	switch f.nhMode {
+	applyNextHopWire(f, f.nhMode, mods, mpFamily)
+}
+
+func applyNextHopWire(f *peerForwardFacts, mode uint8, mods *filterapi.ModAccumulator, mpFamily family.Family) {
+	if mode == nhModeNone {
+		return
+	}
+	applySelfLegacyNextHop(f, mode, mods)
+	applySelfMPNextHop(f, mode, mods, mpFamily)
+}
+
+// applyNextHopWireForBase records next-hop-self rewrites only for the NLRI
+// sections actually carried by baseNextHop. A pure MP_REACH UPDATE carries no
+// classic IPv4 NLRI (classicPresence == nextHopClassicAbsent) and no code-3
+// NEXT_HOP, so recording AttrModSet(3) would synthesize a spurious legacy
+// NEXT_HOP attribute on pure multiprotocol announcements (RFC 4760 Section 3).
+func applyNextHopWireForBase(f *peerForwardFacts, mode uint8, baseNextHop nextHopValue, mods *filterapi.ModAccumulator) {
+	if mode == nhModeNone {
+		return
+	}
+	if baseNextHop.legacy.IsValid() || baseNextHop.classicPresence != nextHopClassicAbsent {
+		applySelfLegacyNextHop(f, mode, mods)
+	}
+	if baseNextHop.mpFamily != (family.Family{}) && baseNextHop.mpFamily.NeedsNextHop() {
+		applySelfMPNextHop(f, mode, mods, baseNextHop.mpFamily)
+	}
+}
+
+func applySelfLegacyNextHop(f *peerForwardFacts, mode uint8, mods *filterapi.ModAccumulator) {
+	if mode == nhModeSelf4 {
+		mods.Op(3, filterapi.AttrModSet, f.nhLegacy[:])
+	}
+}
+
+func applySelfMPNextHop(f *peerForwardFacts, mode uint8, mods *filterapi.ModAccumulator, mpFamily family.Family) {
+	switch mode {
 	case nhModeNone:
 		return
-	case nhModeSelf4, nhModeExplicit4:
-		mods.Op(3, filterapi.AttrModSet, f.nhLegacy[:])
+	case nhModeSelf4:
 		profile := attribute.MPNextHopProfile(attribute.AFI(mpFamily.AFI), attribute.SAFI(mpFamily.SAFI))
 		// This value witnesses the address form only; its bytes never leave.
 		// The actual address already has immutable native and mapped buffers.
@@ -827,13 +893,13 @@ func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, mpFa
 			return
 		}
 		mods.Op(14, filterapi.AttrModSet, f.nhMapped[:])
-	case nhModeSelfV6, nhModeSelfV6LL, nhModeExplicitV6:
+	case nhModeSelfV6, nhModeSelfV6LL:
 		profile := attribute.MPNextHopProfile(attribute.AFI(mpFamily.AFI), attribute.SAFI(mpFamily.SAFI))
 		if profile.RDPerAddress {
-			mods.Op(14, filterapi.AttrModSet, f.rdIPv6NextHop(mpFamily))
+			mods.Op(14, filterapi.AttrModSet, f.rdIPv6NextHop(mpFamily, mode))
 			return
 		}
-		if f.nhMode == nhModeSelfV6LL {
+		if mode == nhModeSelfV6LL {
 			mods.Op(14, filterapi.AttrModSet, f.nhGlobalLL[:])
 			return
 		}
@@ -849,8 +915,8 @@ func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, mpFa
 // global address is present, and to 48 if a link-local address is also
 // included in the Next Hop field." Only that family's peer-only condition uses
 // nhVPNLinkLocal; RD framing alone does not confer its exception on LS-VPN.
-func (f *peerForwardFacts) rdIPv6NextHop(fam family.Family) []byte {
-	includeLinkLocal := f.nhMode == nhModeSelfV6LL
+func (f *peerForwardFacts) rdIPv6NextHop(fam family.Family, mode uint8) []byte {
+	includeLinkLocal := mode == nhModeSelfV6LL
 	if linkLocalConditionFor(fam) == linkLocalConditionPeer {
 		includeLinkLocal = f.nhVPNLinkLocal
 	}
@@ -878,7 +944,7 @@ func precomputeVPNNextHop(f *peerForwardFacts) {
 	v4Profile.WriteNextHops(f.nhVPNv4[:], 0, netip.AddrFrom4(f.nhLegacy), netip.Addr{})
 	v6Profile.WriteNextHops(f.nhVPNMapped[:], 0, netip.AddrFrom16(f.nhMapped), netip.Addr{})
 	var linkLocal netip.Addr
-	if f.nhMode == nhModeSelfV6LL {
+	if f.selfMode == nhModeSelfV6LL || f.nhMode == nhModeSelfV6LL {
 		// The joint condition may select another router's neighbor-table
 		// address, which the VPN peer-only decision deliberately does not.
 		linkLocal = netip.AddrFrom16([16]byte(f.nhGlobalLL[16:]))

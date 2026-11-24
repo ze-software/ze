@@ -27,7 +27,7 @@ func TestFlowSpecForwardingKeepsLegacyNextHop(t *testing.T) {
 				negotiateForwardTestFamilies(peer, family.IPv4Unicast, fam)
 			}
 			f.destination.settings.PeerAS = 65000
-			f.destination.settings.NextHopMode = NextHopUnchanged
+			f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 			f.destination.refreshForwardFacts()
 			raw := mustHex(t, "050118c00002")
 			originalSession := f.source.currentSession()

@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
@@ -276,7 +277,7 @@ func newFanoutHarnessWith(t testing.TB, n, g int, opts fanoutOpts) *fanoutHarnes
 		if modify {
 			// The group's own next-hop. Identical within a group and distinct
 			// across groups, which is what makes the equality classes exactly g.
-			s.NextHopMode = NextHopSelf
+			s.ExportPolicy = setExportNextHopSelf(s.ExportPolicy)
 			s.LocalAddress = netip.AddrFrom4([4]byte{10, 99, byte(group / 256), byte(group % 256)}) //nolint:gosec // fixture index
 		}
 		p := NewPeer(s)
@@ -645,7 +646,10 @@ func TestDifferentBaseSameEditSetNeverShares(t *testing.T) {
 	// override. The second runs the same chain step, finds no filters, and keeps
 	// the original payload as its base.
 	overridden := h.dests[0]
-	overridden.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "rewrite")
+	overridden.settings.ExportPolicy = exportNextHopPolicy(t, []policychain.Member{
+		{Name: policychain.BuiltinNextHopSelf},
+		{Name: "rewrite", Plugin: answerPlugin},
+	})
 	overridden.refreshForwardFacts()
 	require.False(t, h.dests[1].forwardFacts().exportChainActive,
 		"the second destination must stay on the static fast path with no active filter chain, so its base stays the original")

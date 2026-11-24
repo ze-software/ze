@@ -27,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -1895,32 +1896,32 @@ func defaultOriginationNextHop(s *PeerSettings, candidate netip.Addr) (bgptypes.
 	if !candidate.IsValid() {
 		return bgptypes.RouteNextHop{}, ErrNextHopUnset
 	}
-	switch s.NextHopMode {
-	case NextHopSelf:
-		return bgptypes.NewNextHopSelf(), nil
-	case NextHopExplicit:
-		return bgptypes.NewNextHopExplicit(s.NextHopAddress), nil
-	case NextHopUnchanged:
-		return bgptypes.NewNextHopExplicit(candidate), nil
-	case NextHopAuto:
-		if !s.IsIBGP() {
+	if intent, static := staticExportNextHop(s.ExportPolicy); static {
+		switch intent.Mode {
+		case policychain.NextHopModeUnchanged:
+			return bgptypes.NewNextHopExplicit(candidate), nil
+		case policychain.NextHopModeSelf:
 			return bgptypes.NewNextHopSelf(), nil
+		case policychain.NextHopModeAuto, policychain.NextHopModeExplicit, policychain.NextHopModeUnspecified:
+			// Apply RFC 4271 Section 5.1.3 default below.
+		default:
+			panic("BUG: reactor: invalid policychain.NextHopMode")
 		}
-		// The IPv6 gateway's interface scope does not identify a next hop on
-		// this BGP session. Use self before checking its advertised wire form.
-		if candidate.Is6() {
-			if candidate.IsLinkLocalUnicast() {
-				return bgptypes.NewNextHopSelf(), nil
-			}
-		}
-		if candidate == s.Address {
-			return bgptypes.NewNextHopSelf(), nil
-		}
-		return bgptypes.NewNextHopExplicit(candidate), nil
-	default:
-		// A caller-supplied setting is open until config validates it.
-		return bgptypes.RouteNextHop{}, ErrNextHopUnset
 	}
+	if !s.IsIBGP() {
+		return bgptypes.NewNextHopSelf(), nil
+	}
+	// The IPv6 gateway's interface scope does not identify a next hop on
+	// this BGP session. Use self before checking its advertised wire form.
+	if candidate.Is6() {
+		if candidate.IsLinkLocalUnicast() {
+			return bgptypes.NewNextHopSelf(), nil
+		}
+	}
+	if candidate == s.Address {
+		return bgptypes.NewNextHopSelf(), nil
+	}
+	return bgptypes.NewNextHopExplicit(candidate), nil
 }
 
 // linkLocalOnlyNextHopRefused reports whether addr, written alone in the Next

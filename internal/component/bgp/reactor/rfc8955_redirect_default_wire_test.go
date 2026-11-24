@@ -139,7 +139,7 @@ func runFlowSpecRedirectForwardCase(t *testing.T, fam family.Family, nlriHex str
 		negotiateForwardTestFamilies(peer, fam)
 	}
 	f.destination.settings.PeerAS = 65000
-	f.destination.settings.NextHopMode = NextHopAuto
+	f.destination.settings.ExportPolicy = setExportNextHopAuto(f.destination.settings.ExportPolicy)
 	f.destination.settings.FlowSpecRedirectNextHop = optIn
 	f.destination.refreshForwardFacts()
 

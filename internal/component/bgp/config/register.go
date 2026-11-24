@@ -32,6 +32,12 @@ const attachmentOwnerBGP = "bgp"
 // attachmentImportBGP names the BGP import policy attachment.
 const attachmentImportBGP = "bgp import"
 
+// directionImport and directionExport name the two BGP policy chain directions.
+const (
+	directionImport = "import"
+	directionExport = "export"
+)
+
 func init() {
 	configyang.RegisterBusParticipantTarget("/bgp/peer")
 	configyang.RegisterBusParticipantTarget("/bgp/group")
@@ -63,9 +69,9 @@ func init() {
 	// otc by bgp-role); the chain lets only the owner's filters do so.
 	settableAt := map[string]func() []policy.Field{
 		attachmentImportBGP: importSettable,
-		"bgp export":        exportSettable,
+		attachmentExport:    exportSettable,
 	}
-	for _, attachment := range []string{attachmentImportBGP, "bgp export"} {
+	for _, attachment := range []string{attachmentImportBGP, attachmentExport} {
 		policy.MustRegisterDerivedAttachment(attachmentOwnerBGP, attachment, policyview.Fields, settableAt[attachment])
 		policy.MustRegisterFieldSynonym(attachment, policy.FieldMetric, policy.FieldMED)
 		direction := strings.TrimPrefix(attachment, attachmentOwnerBGP+" ")
@@ -75,14 +81,30 @@ func init() {
 			return validateChainNames(reg, []policy.Ref{{Name: member}}, true, attachment, context)
 		})
 	}
+	policy.MustRegisterChainBuiltins(
+		attachmentOwnerBGP,
+		directionExport,
+		policychain.BuiltinNextHopSelf,
+		policychain.BuiltinNextHopUnchanged,
+		policychain.BuiltinNextHopAuto,
+	)
+	for _, path := range [][]string{
+		{"bgp", "session"},
+		{"bgp", "group", "session"},
+		{"bgp", "peer", "session"},
+		{"bgp", "group", "peer", "session"},
+	} {
+		zeconfig.MustRegisterRetiredLeaf(path, "next-hop", nil,
+			"export policy (filter { export { filters [ next-hop:self | next-hop:unchanged ]; } } or policy { modify <name> { set { next-hop ...; } } })")
+	}
 
+	if err := zeconfig.RegisterTreeValidator("bgp-filter-policy", validateFilterPolicies); err != nil {
+		panic("BUG: BGP filter policy validator registration failed: " + err.Error())
+	}
 	zeconfig.RegisterBusSecondaryPathResolver(zeconfig.BusSecondaryPathResolver{
 		Prefix:  bgpSecondaryIPPrefix,
 		Resolve: resolveBGPSecondaryIPPath,
 	})
-	if err := zeconfig.RegisterTreeValidator("bgp-filter-policy", validateFilterPolicies); err != nil {
-		panic("BUG: BGP filter policy validator registration failed: " + err.Error())
-	}
 	zeconfig.RegisterBusRequirementValidator("bgp-features", validateBGPBusRequirements)
 	registry.RegisterReactorFactory(createReactorFromCoordinator)
 

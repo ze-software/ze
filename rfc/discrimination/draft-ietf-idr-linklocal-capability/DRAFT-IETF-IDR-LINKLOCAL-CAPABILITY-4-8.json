@@ -3,45 +3,45 @@
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer",
-    "unit-sha": "fb0d61908af62273",
+    "unit-sha": "b3a10d01b8cee9cd",
     "claim-sha": "2c1aad3d4a625b64",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
-    "producer-sha": "48ad3df5e514d285",
+    "producer-sha": "1325078e7c3515aa",
     "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer",
-    "unit-sha": "998dc6bc6f35c07f",
+    "unit-sha": "d3c12398be2987a4",
     "claim-sha": "033d698c4a5cb930",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
-    "producer-sha": "48ad3df5e514d285",
-    "break": "line 733: \"field[:globalOctets]\" -\u003e \"field\""
+    "producer-sha": "1325078e7c3515aa",
+    "break": "line 1116: \"field[:globalOctets]\" -\u003e \"field[:len(field)+0*globalOctets]\""
   },
   {
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient",
-    "unit-sha": "570ecde6a8b007dd",
+    "unit-sha": "a007ddc0dc43907c",
     "claim-sha": "e5310a9f8cd4b72f",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
-    "producer-sha": "48ad3df5e514d285",
+    "producer-sha": "1325078e7c3515aa",
     "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient",
-    "unit-sha": "5e719b515f6fd051",
+    "unit-sha": "08c2a45627faed5b",
     "claim-sha": "260c4404ca8be907",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
-    "producer-sha": "48ad3df5e514d285",
-    "break": "line 733: \"field[:globalOctets]\" -\u003e \"field\""
+    "producer-sha": "1325078e7c3515aa",
+    "break": "line 1116: \"field[:globalOctets]\" -\u003e \"field[:len(field)+0*globalOctets]\""
   },
   {
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",

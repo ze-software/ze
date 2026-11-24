@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -46,7 +47,7 @@ func TestNextHopAutoLSVPNFraming(t *testing.T) {
 						original := bytes.Clone(body)
 						ls71PairRelay(t, f, body, native, false)
 						global := topology.self
-						if mode.mode == NextHopExplicit {
+						if mode.mode == policychain.NextHopModeExplicit {
 							global = topology.explicit
 						}
 						if mode.preserving {

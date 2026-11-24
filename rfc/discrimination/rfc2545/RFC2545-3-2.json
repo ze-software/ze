@@ -25,23 +25,23 @@
     "rid": "RFC2545-3-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopForwardAdmission",
-    "unit-sha": "1f3b3c77a3155a8a",
+    "unit-sha": "27ffe6a6bbe90650",
     "claim-sha": "a3dfdd71df4a41a6",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-    "producer-sha": "21fe78825d93b5dc",
-    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheldWithSelf",
+    "producer-sha": "35d7a15943e81dba",
+    "break": "body of egressNextHopWithheldWithSelf replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopForwardAdmission",
-    "unit-sha": "1f3b3c77a3155a8a",
+    "unit-sha": "27ffe6a6bbe90650",
     "claim-sha": "0d5094e884bcbd91",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-    "producer-sha": "21fe78825d93b5dc",
-    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheldWithSelf",
+    "producer-sha": "35d7a15943e81dba",
+    "break": "body of egressNextHopWithheldWithSelf replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-2",
@@ -201,23 +201,23 @@
     "rid": "RFC2545-3-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling",
-    "unit-sha": "fef109445fd618b1",
+    "unit-sha": "5108887208b64723",
     "claim-sha": "7da55248ea1e84df",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-    "producer-sha": "21fe78825d93b5dc",
-    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheldWithSelf",
+    "producer-sha": "35d7a15943e81dba",
+    "break": "body of egressNextHopWithheldWithSelf replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling",
-    "unit-sha": "fef109445fd618b1",
+    "unit-sha": "5108887208b64723",
     "claim-sha": "4c684d2087c0780f",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
-    "producer-sha": "1d62d7092f0bab86",
-    "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopIntent",
+    "producer-sha": "e0b26ccf934dfbc5",
+    "break": "body of applyEgressNextHopIntent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-2",

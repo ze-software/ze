@@ -20,7 +20,7 @@ func TestDraftLinkLocalOnlyRouteCannotCrossMultihopEgress(t *testing.T) {
 	for _, external := range []bool{false, true} {
 		t.Run(fmt.Sprintf("external=%v", external), func(t *testing.T) {
 			peer := llnhClient(t, llnhOffSegmentAddr, llnhSegment, false)
-			peer.settings.NextHopMode = NextHopUnchanged
+			peer.settings.ExportPolicy = setExportNextHopUnchanged(peer.settings.ExportPolicy)
 			if external {
 				peer.settings.PeerAS = 65002
 			}

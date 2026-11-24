@@ -20,18 +20,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// NextHopMode values for PeerSettings.NextHopMode.
-const (
-	// NextHopAuto is the default: rewrite for eBGP, preserve for iBGP (RFC 4271 Section 5.1.3).
-	NextHopAuto uint8 = iota
-	// NextHopSelf always rewrites next-hop to local address.
-	NextHopSelf
-	// NextHopUnchanged never rewrites next-hop.
-	NextHopUnchanged
-	// NextHopExplicit sets next-hop to PeerSettings.NextHopAddress.
-	NextHopExplicit
-)
-
 // DefaultBGPPort is the standard BGP port per RFC 4271.
 // Source of truth: ze-bgp-conf.yang (environment > tcp > port, default 179).
 // Used as fallback when YANG schema defaults are not applied (tests, PeerKey).
@@ -649,17 +637,6 @@ type PeerSettings struct {
 	// Prepended to CLUSTER_LIST on reflected routes.
 	// 0 means use RouterID (default per RFC 4456).
 	ClusterID uint32
-
-	// NextHopMode controls next-hop rewriting for forwarded UPDATEs.
-	// RFC 4271 Section 5.1.3.
-	//   NextHopAuto (0): rewrite for eBGP, preserve for iBGP (default)
-	//   NextHopSelf (1): always rewrite to local address
-	//   NextHopUnchanged (2): never rewrite
-	//   NextHopExplicit (3): set to NextHopAddress
-	NextHopMode uint8
-
-	// NextHopAddress is the explicit next-hop IP when NextHopMode == NextHopExplicit.
-	NextHopAddress netip.Addr
 
 	// ASOverride replaces the peer's ASN with local ASN in outbound AS_PATH.
 	// Used in VPN/multi-site scenarios.

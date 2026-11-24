@@ -421,11 +421,11 @@ func TestApplyNextHopMod_IPv4EmitsBothOps(t *testing.T) {
 	t.Parallel()
 
 	dest := &PeerSettings{
-		NextHopMode:  NextHopSelf,
+		ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 		LocalAddress: netip.MustParseAddr("127.0.0.2"),
 	}
 	var mods filterapi.ModAccumulator
-	var facts peerForwardFacts
+	facts := peerForwardFacts{exportPolicy: dest.ExportPolicy}
 	precomputeNextHop(dest, &facts)
 	applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
 
@@ -454,11 +454,11 @@ func TestApplyNextHopMod_IPv6EmitsOnlyMPReach(t *testing.T) {
 	t.Parallel()
 
 	dest := &PeerSettings{
-		NextHopMode:  NextHopSelf,
+		ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 		LocalAddress: netip.MustParseAddr("2001:db8::1"),
 	}
 	var mods filterapi.ModAccumulator
-	facts := peerForwardFacts{isEBGP: true}
+	facts := peerForwardFacts{isEBGP: true, exportPolicy: dest.ExportPolicy}
 	precomputeNextHop(dest, &facts)
 	applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
 	// A received Prefix-SID is present and this external peer is outside the SR domain.
@@ -483,12 +483,12 @@ func TestApplyNextHopModIPv6LinkLocalBytes(t *testing.T) {
 	globalAddr := netip.MustParseAddr("2001:db8::1")
 	linkLocalAddr := netip.MustParseAddr("fe80::1")
 	dest := &PeerSettings{
-		NextHopMode:  NextHopSelf,
+		ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 		LocalAddress: globalAddr,
 		LinkLocal:    linkLocalAddr,
 	}
 	var mods filterapi.ModAccumulator
-	facts := peerForwardFacts{isEBGP: true}
+	facts := peerForwardFacts{isEBGP: true, exportPolicy: dest.ExportPolicy}
 	precomputeNextHop(dest, &facts)
 	scope := newLinkScopeFrom([]netip.Prefix{netip.MustParsePrefix("2001:db8::/64")}, netip.MustParseAddr("2001:db8::2"))
 	applyLinkLocalNextHop(dest, &facts, scope)
@@ -517,11 +517,11 @@ func TestApplyNextHopModIPv6LinkLocalBytes(t *testing.T) {
 func TestApplyNextHopModIPv6LinkLocalNoAlloc(t *testing.T) {
 
 	dest := &PeerSettings{
-		NextHopMode:  NextHopSelf,
+		ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 		LocalAddress: netip.MustParseAddr("2001:db8::1"),
 		LinkLocal:    netip.MustParseAddr("fe80::1"),
 	}
-	facts := peerForwardFacts{isEBGP: true}
+	facts := peerForwardFacts{isEBGP: true, exportPolicy: dest.ExportPolicy}
 	scope := newLinkScopeFrom([]netip.Prefix{netip.MustParsePrefix("2001:db8::/64")}, netip.MustParseAddr("2001:db8::2"))
 	var mods filterapi.ModAccumulator
 	mods.Op(0, filterapi.AttrModSuppress, nil)

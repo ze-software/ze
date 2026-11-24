@@ -89,6 +89,13 @@ func compileLibraryChain(p filterapi.Policy, reg *policy.Registry, bases policyc
 		if p.InProcess(i) {
 			continue // a compiled-in stage filter runs in the ingress pass
 		}
+		if _, builtin := policychain.BuiltinNextHopMode(ref.Name); builtin {
+			members = append(members, policychain.Member{
+				Name:        ref.Name,
+				AutoDefault: isImpliedTailAuto(p, i, ref.Name),
+			})
+			continue
+		}
 		entry, ok := policyChainInstance(reg, ref, typesMap)
 		if ok && policychain.HasEvaluator(entry.Type) {
 			members = append(members, policychain.Member{Name: entry.Name})
@@ -105,6 +112,27 @@ func compileLibraryChain(p filterapi.Policy, reg *policy.Registry, bases policyc
 		return p, fmt.Errorf("%s: %w", context, err)
 	}
 	return p.WithLibrary(chain), nil
+}
+
+// isImpliedTailAuto reports whether the ref at index i of p is the
+// engine-appended trailing next-hop:auto step (D-2, D-3): it must be
+// next-hop:auto at the tail of p.Filters() and recorded as an
+// ImpliedPositionTail entry on p.Implied().
+func isImpliedTailAuto(p filterapi.Policy, index int, name string) bool {
+	if name != policychain.BuiltinNextHopAuto {
+		return false
+	}
+	if index != len(p.Filters())-1 {
+		return false
+	}
+	for _, entry := range p.Implied() {
+		if entry.Position == filterapi.ImpliedPositionTail {
+			if entry.Ref == policychain.BuiltinNextHopAuto {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // compileMembers compiles members under p's final, or, for a policy the

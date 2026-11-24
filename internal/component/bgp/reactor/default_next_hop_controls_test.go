@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -42,26 +43,23 @@ func TestQueuedDefaultNextHopDrains(t *testing.T) {
 				name      string
 				internal  bool
 				candidate string
-				mode      uint8
-				explicit  string
+				ref       string
 				want      string
 			}{
 				{name: "external", candidate: "10.1.0.2", want: "192.0.2.1"},
 				{name: "external-ipv6-candidate", candidate: "2001:db8::9", want: "192.0.2.1"},
 				{name: "internal", internal: true, candidate: "10.1.0.2", want: "10.1.0.2"},
 				{name: "internal-peer-is-gateway", internal: true, candidate: "10.0.0.2", want: "192.0.2.1"},
-				{name: "configured-self", internal: true, candidate: "10.1.0.2", mode: NextHopSelf, want: "192.0.2.1"},
-				{name: "configured-explicit", candidate: "10.1.0.2", mode: NextHopExplicit, explicit: "192.0.2.9", want: "192.0.2.9"},
-				{name: "configured-unchanged", candidate: "10.1.0.2", mode: NextHopUnchanged, want: "10.1.0.2"},
+				{name: "configured-self", internal: true, candidate: "10.1.0.2", ref: policychain.BuiltinNextHopSelf, want: "192.0.2.1"},
+				{name: "configured-unchanged", candidate: "10.1.0.2", ref: policychain.BuiltinNextHopUnchanged, want: "10.1.0.2"},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
 					peer, conn := newDefaultNextHopControlPeer(t, rail)
 					if tc.internal {
 						peer.settings.PeerAS = peer.settings.LocalAS
 					}
-					peer.settings.NextHopMode = tc.mode
-					if tc.explicit != "" {
-						peer.settings.NextHopAddress = netip.MustParseAddr(tc.explicit)
+					if tc.ref != "" {
+						peer.settings.ExportPolicy = ExportPolicyWithNextHop(peer.settings.ExportPolicy, tc.ref)
 					}
 					batch := defaultNextHopControlBatch("10.30.0.0/24", bgptypes.NewNextHopDefault(netip.MustParseAddr(tc.candidate)))
 					if err := defaultNextHopControlAdapter(peer).AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()); err != nil {
@@ -151,7 +149,7 @@ func TestDefaultNextHopIPv6RequiresExactExtendedPair(t *testing.T) {
 								peer.session.transport.Store(&sessionTransport{local: netip.MustParseAddr("2001:db8::9")})
 								hop = bgptypes.NewNextHopDefault(netip.MustParseAddr("10.1.0.2"))
 							case "explicit-api":
-								peer.settings.NextHopMode = NextHopSelf
+								peer.settings.ExportPolicy = setExportNextHopSelf(peer.settings.ExportPolicy)
 								hop = bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::9"))
 							default:
 								t.Fatal("unknown test policy")

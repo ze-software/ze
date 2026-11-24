@@ -64,13 +64,12 @@ func prefixSIDPeer(addr string, peerAS, routerID uint32, propagate, rsClient boo
 	}
 	p := NewPeer(&PeerSettings{
 		ImportPolicy:           accept,
-		ExportPolicy:           accept,
+		ExportPolicy:           setExportNextHopUnchanged(accept),
 		Connection:             ConnectionBoth,
 		Address:                netip.MustParseAddr(addr),
 		LocalAS:                65000,
 		PeerAS:                 peerAS,
 		RouterID:               routerID,
-		NextHopMode:            NextHopUnchanged,
 		RSFastPath:             true,
 		RSClient:               rsClient,
 		PropagateSRv6PrefixSID: propagate,
@@ -235,9 +234,9 @@ func TestPrefixSIDSuppressIsRecordedOnce(t *testing.T) {
 	}
 
 	t.Run("next-hop unchanged records exactly one", func(t *testing.T) {
-		var facts peerForwardFacts
-		facts.isEBGP = true
-		precomputeNextHop(&PeerSettings{NextHopMode: NextHopUnchanged}, &facts)
+		s := &PeerSettings{ExportPolicy: setExportNextHopUnchanged(filterapi.Policy{})}
+		facts := peerForwardFacts{isEBGP: true, exportPolicy: s.ExportPolicy}
+		precomputeNextHop(s, &facts)
 		require.Equal(t, nhModeNone, facts.nhMode)
 
 		var mods filterapi.ModAccumulator
@@ -249,12 +248,12 @@ func TestPrefixSIDSuppressIsRecordedOnce(t *testing.T) {
 	})
 
 	t.Run("next-hop self still records exactly one", func(t *testing.T) {
-		var facts peerForwardFacts
-		facts.isEBGP = true
-		precomputeNextHop(&PeerSettings{
-			NextHopMode:  NextHopSelf,
+		s := &PeerSettings{
+			ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 			LocalAddress: netip.MustParseAddr("2001:db8::1"),
-		}, &facts)
+		}
+		facts := peerForwardFacts{isEBGP: true, exportPolicy: s.ExportPolicy}
+		precomputeNextHop(s, &facts)
 		require.NotEqual(t, nhModeNone, facts.nhMode)
 
 		var mods filterapi.ModAccumulator
@@ -266,9 +265,9 @@ func TestPrefixSIDSuppressIsRecordedOnce(t *testing.T) {
 	})
 
 	t.Run("a source without the attribute records none", func(t *testing.T) {
-		var facts peerForwardFacts
-		facts.isEBGP = true
-		precomputeNextHop(&PeerSettings{NextHopMode: NextHopUnchanged}, &facts)
+		s := &PeerSettings{ExportPolicy: setExportNextHopUnchanged(filterapi.Policy{})}
+		facts := peerForwardFacts{isEBGP: true, exportPolicy: s.ExportPolicy}
+		precomputeNextHop(s, &facts)
 
 		var mods filterapi.ModAccumulator
 		applyFactsPrefixSID(&facts, false, &mods)
@@ -276,9 +275,9 @@ func TestPrefixSIDSuppressIsRecordedOnce(t *testing.T) {
 	})
 
 	t.Run("a filter that sets the attribute is overruled", func(t *testing.T) {
-		var facts peerForwardFacts
-		facts.isEBGP = true
-		precomputeNextHop(&PeerSettings{NextHopMode: NextHopUnchanged}, &facts)
+		s := &PeerSettings{ExportPolicy: setExportNextHopUnchanged(filterapi.Policy{})}
+		facts := peerForwardFacts{isEBGP: true, exportPolicy: s.ExportPolicy}
+		precomputeNextHop(s, &facts)
 
 		var mods filterapi.ModAccumulator
 		mods.Op(prefixSIDCodeByte, filterapi.AttrModSet, prefixSIDValue)

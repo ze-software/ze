@@ -72,7 +72,7 @@ func staleSenderASPathWrite(t *testing.T, judgeAll bool, delta string, peerAS, m
 	peer := f.destination
 	peer.settings.PeerAS = peerAS
 	peer.settings.MigrationAS = migration
-	peer.settings.NextHopMode = NextHopUnchanged
+	peer.settings.ExportPolicy = setExportNextHopUnchanged(peer.settings.ExportPolicy)
 	require.Equal(t, internal, peer.IsIBGP(), "configured peer classification")
 	negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 	ctx := bgpctx.NewEncodingContext(&capability.PeerIdentity{

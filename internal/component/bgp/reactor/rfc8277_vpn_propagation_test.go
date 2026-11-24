@@ -31,9 +31,9 @@ import (
 func TestLabeledVPNPropagationUnchangedNextHopKeepsLabels(t *testing.T) {
 	t.Parallel()
 
-	dest := &PeerSettings{NextHopMode: NextHopUnchanged}
+	dest := &PeerSettings{ExportPolicy: setExportNextHopUnchanged(filterapi.Policy{})}
 	var mods filterapi.ModAccumulator
-	var facts peerForwardFacts
+	facts := peerForwardFacts{exportPolicy: dest.ExportPolicy}
 	precomputeNextHop(dest, &facts)
 	applyFactsNextHop(&facts, &mods, family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN})
 	require.Empty(t, mods.Ops(), "next-hop-unchanged emits no next-hop rewrite op")

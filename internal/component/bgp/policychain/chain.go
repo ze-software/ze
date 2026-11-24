@@ -493,7 +493,7 @@ func (c *Chain) run(view *policyview.View, sets *RunSets, record func(MemberTrac
 				// intents (next-hop:self/unchanged/auto) are deferred until after
 				// the raw override (D-3) and are preserved.
 				if sets.folded.allowsRawOverride(sets.route.Direction) && !sets.route.BodyRewritten {
-					return c.rawOutcome(m, verdict.raw, view, sets, record)
+					return c.rawOutcome(i, m, verdict.raw, view, sets, record)
 				}
 				err = errExternalRawAfterSets
 			}
@@ -747,10 +747,24 @@ func (s *RunSets) Raw() []byte { return s.raw }
 // are not judged, and the chain's final still decides the route.
 // A display-only run records the member's step as TraceRewrite, with the body
 // it answered, before the final decides.
-func (c *Chain) rawOutcome(m *member, raw []byte, view *policyview.View, sets *RunSets, record func(MemberTrace)) Outcome {
+func (c *Chain) rawOutcome(index int, m *member, raw []byte, view *policyview.View, sets *RunSets, record func(MemberTrace)) Outcome {
 	traceRewrite(record, m, raw)
 	switch c.endFinal(view) {
 	case policy.FinalAccept:
+		if view.Session().IsExport() {
+			for j := index + 1; j < len(c.members); j++ {
+				nh := c.members[j].builtinNextHop
+				if nh.Mode == NextHopModeUnspecified {
+					continue
+				}
+				if nh.AutoDefault {
+					continue
+				}
+				sets.folded.nextHop = foldNextHopIntent(sets.folded.nextHop, nh)
+				sets.folded.written |= setKindNextHop.bit()
+				sets.folded.nextHopAfterRaw = true
+			}
+		}
 		sets.raw = raw
 		return Outcome{Action: OutcomeAccept}
 	case policy.FinalReject:

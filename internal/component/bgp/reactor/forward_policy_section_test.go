@@ -36,7 +36,6 @@ func testRawExportMixedSectionsPreservePolicy(t *testing.T, aigp bool) {
 	t.Helper()
 	h := newFanoutHarnessWith(t, 1, 1, fanoutOpts{groups: true})
 	peer := h.dests[0]
-	peer.settings.NextHopMode = NextHopUnchanged
 	peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "mixed-raw")
 	peer.negotiated.Load().families[family.IPv6Unicast] = true
 	peer.settings.AIGPSession = &aigp
@@ -142,7 +141,6 @@ func TestRawExportMixedBadASPathStillWithdraws(t *testing.T) {
 	h := newFanoutHarnessWith(t, 1, 1, fanoutOpts{groups: true})
 	peer := h.dests[0]
 	peer.settings.PeerAS = 65002
-	peer.settings.NextHopMode = NextHopUnchanged
 	peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "bad-path")
 	peer.negotiated.Load().families[family.IPv6Unicast] = true
 	peer.refreshForwardFacts()

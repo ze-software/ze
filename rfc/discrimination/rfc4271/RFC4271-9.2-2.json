@@ -36,18 +36,18 @@
     "rid": "RFC4271-9.2-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_forwardability_session_test.go::TestRFC4271OrdinaryOutputRequiresForwardableRoute",
-    "unit-sha": "a5e22af42e9b85f3",
+    "unit-sha": "b7f67149fe6b5cfa",
     "claim-sha": "dc2c532fde44a7dd",
     "route": "mutant",
-    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
-    "producer-sha": "b84de229617e04b3",
-    "break": "line 49: \"return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"return true /* MUTATION-APPLIED: bypass local CIDR next-hop admission */\""
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::nextHopResolved",
+    "producer-sha": "d471845b921f6a72",
+    "break": "line 59: \"return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"return true /* MUTATION-APPLIED: bypass local CIDR next-hop admission */\""
   },
   {
     "rid": "RFC4271-9.2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_forwardability_session_test.go::TestRFC4271OrdinaryOutputRequiresForwardableRoute",
-    "unit-sha": "a5e22af42e9b85f3",
+    "unit-sha": "b7f67149fe6b5cfa",
     "claim-sha": "5352eb1800d524b8",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
@@ -58,11 +58,11 @@
     "rid": "RFC4271-9.2-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_forwardability_session_test.go::TestRFC4271OrdinaryReplacementRecipientSkipsUnresolvedRoute",
-    "unit-sha": "19a989d3113c3f1c",
+    "unit-sha": "8ddc666e160b49d9",
     "claim-sha": "f30af29fe3ecdb73",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/adj_rib_in/rib.go::handleStructuredState",
     "producer-sha": "a6422d62df91831c",
-    "break": "line 812: \"if se.OrdinaryReplayOwned {\" -\u003e \"if false \u0026\u0026 se.OrdinaryReplayOwned { // MUTATION-APPLIED: permit auxiliary replay for ordinary destination\""
+    "break": "line 833: \"if se.OrdinaryReplayOwned {\" -\u003e \"if false \u0026\u0026 se.OrdinaryReplayOwned { // MUTATION-APPLIED: permit auxiliary replay for ordinary destination\""
   }
 ]

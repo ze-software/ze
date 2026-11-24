@@ -8,6 +8,10 @@ module ze-bgp-conf {
 
     description "BGP configuration for ZeBGP";
 
+    revision 2026-11-24 {
+        description "Remove session/next-hop in favor of export filter chains (built-in next-hop:self, next-hop:unchanged, next-hop:auto, and policy { modify { set { next-hop ... } } }).";
+    }
+
     revision 2026-10-21 {
         description "Add the peer shutdown container: the peer is held administratively down.";
     }
@@ -785,7 +789,7 @@ module ze-bgp-conf {
 
         // Session container - BGP session settings
         container session {
-            description "The container holds the ASN, the capabilities, the address families, the next-hop policy, and the
+            description "The container holds the ASN, the capabilities, the address families, and the
                 community control. A peer inherits these from its group, and a peer value overrides the group value.";
             ze:help "BGP session parameters for this peer or group.";
 
@@ -990,30 +994,6 @@ module ze-bgp-conf {
                 type zt:ipv4-address;
                 description "The default is the router-id. Ze prepends the cluster ID to CLUSTER_LIST on a reflected route.";
                 ze:help "Override the cluster ID for route reflection (RFC 4456 Section 7).";
-            }
-
-            leaf next-hop {
-                type union {
-                    type zt:ip-address;
-                    type enumeration {
-                        enum self {
-                            ze:help "Rewrite next-hop to local address (common for iBGP)";
-                        }
-                        enum unchanged {
-                            ze:help "Never rewrite next-hop (route-server, third-party NH)";
-                        }
-                        enum auto {
-                            ze:help "RFC 4271 default: rewrite for eBGP, preserve for iBGP";
-                        }
-                    }
-                }
-                default "auto";
-                description "auto rewrites the next hop for an ordinary eBGP peer, and preserves it for an iBGP peer or
-                    route-server client. self rewrites to the session's connected local address. If no usable self
-                    address exists, Ze withholds the announcement and withdraws a previously advertised route.
-                    unchanged preserves the received next hop when its wire form is usable. An IP address sets
-                    the next hop to that address.";
-                ze:help "Next-hop rewriting policy for a forwarded UPDATE (RFC 4271 Section 5.1.3).";
             }
 
             leaf link-local {

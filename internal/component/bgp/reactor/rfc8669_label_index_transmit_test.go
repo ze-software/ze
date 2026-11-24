@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -34,7 +35,7 @@ func TestRFC8669LabelIndexTransmissionClearsReservedAndFlags(t *testing.T) {
 				sid := append(append(label, rfc8669UnknownTLV...), srgb...)
 				body := rfc8669LabeledUnicastBody(sid)
 				if rail == "general" || rail == "route-server" {
-					body = rfc8669RelayUpdate(t, rail == "route-server", NextHopUnchanged, body)
+					body = rfc8669RelayUpdate(t, rail == "route-server", policychain.BuiltinNextHopUnchanged, body)
 				}
 				source := bytes.Clone(body)
 				peer, conn := newAnnouncePeer(t, "192.0.2.2")

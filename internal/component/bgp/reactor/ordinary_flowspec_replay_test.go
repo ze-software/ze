@@ -28,7 +28,6 @@ func TestOrdinarySelectedFlowSpecReplaysToReplacementRecipient(t *testing.T) {
 		acceptingLiveSettings(t, "192.0.2.242", 65000, 65000),
 	}
 	for _, setting := range settings {
-		setting.NextHopMode = NextHopAuto
 		setting.Capabilities = append(setting.Capabilities, &capability.Multiprotocol{AFI: 1, SAFI: 133})
 	}
 	peers := lowLiveStart(t, lowLiveOptions{withoutRS: true}, settings...)

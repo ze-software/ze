@@ -295,7 +295,7 @@ func tePropagationPeer(t *testing.T, address string, peerAS uint32, families ...
 	t.Helper()
 	settings := NewPeerSettings(netip.MustParseAddr(address), 65001, peerAS, 0x01020301)
 	settings.LocalAddress = netip.MustParseAddr("192.0.2.254")
-	settings.NextHopMode = NextHopUnchanged
+	settings.ExportPolicy = setExportNextHopUnchanged(settings.ExportPolicy)
 	// The propagation fixture's peers belong to one SR domain. An EBGP source
 	// must opt in; otherwise RFC 8669 Section 4 correctly discards Prefix-SID.
 	settings.AcceptSRv6PrefixSID = true

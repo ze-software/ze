@@ -29,7 +29,7 @@ func TestNextHopAutoInternalMultihopUsesOnlyUsableNextHop(t *testing.T) {
 				peer.negotiated.Load().LinkLocalNextHop = true
 			}
 			f.destination.settings.PeerAS = f.destination.settings.LocalAS
-			f.destination.settings.NextHopMode = NextHopAuto
+			f.destination.settings.ExportPolicy = setExportNextHopAuto(f.destination.settings.ExportPolicy)
 			f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 			rfc4271ProofRelay(t, f, nextHopAutoBody(t, tc, tc.prefix, nil), native)
 			updates := nextHopAutoUpdates(t, f)
@@ -51,7 +51,7 @@ func TestNextHopAutoInternalMultihopUsesOnlyUsableNextHop(t *testing.T) {
 			require.Equal(t, tc.prefix, withdrawn, "the previously advertised route is withdrawn")
 
 			f.conn.reset()
-			f.destination.settings.NextHopMode = NextHopSelf
+			f.destination.settings.ExportPolicy = setExportNextHopSelf(f.destination.settings.ExportPolicy)
 			f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 			rfc4271ProofRelay(t, f, nextHopAutoBody(t, linkLocal, tc.prefix, nil), native)
 			updates = nextHopAutoUpdates(t, f)
@@ -75,7 +75,7 @@ func TestNextHopAutoIPv6PairFollowsConnectedSubnet(t *testing.T) {
 		for _, native := range []bool{false, true} {
 			t.Run(nextHopAutoCaseName(tc, direct, native), func(t *testing.T) {
 				f := nextHopAutoFixture(t, tc, direct)
-				f.destination.settings.NextHopMode = NextHopAuto
+				f.destination.settings.ExportPolicy = setExportNextHopAuto(f.destination.settings.ExportPolicy)
 				f.destination.settings.LinkLocal = linkLocal
 				f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 				rfc4271ProofRelay(t, f, nextHopAutoBody(t, tc, tc.prefix, nil), native)
@@ -111,7 +111,7 @@ func TestNextHopAutoMissingOwnAddressWarnsForThePeer(t *testing.T) {
 		t.Run(nextHopAutoRailName(native), func(t *testing.T) {
 			before := strings.Count(sink.String(), withholdLine)
 			f := nextHopAutoFixture(t, tc, true)
-			f.destination.settings.NextHopMode = NextHopAuto
+			f.destination.settings.ExportPolicy = setExportNextHopAuto(f.destination.settings.ExportPolicy)
 			f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 			rfc4271ProofRelay(t, f, nextHopAutoBody(t, tc, tc.prefix, nil), native)
 			updates := nextHopAutoUpdates(t, f)

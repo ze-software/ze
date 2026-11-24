@@ -45,7 +45,7 @@ func TestFlowSpecRedirectRefusedForward(t *testing.T) {
 				negotiateForwardTestFamilies(peer, fam)
 			}
 			f.destination.settings.PeerAS = 65001
-			f.destination.settings.NextHopMode = NextHopUnchanged
+			f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 			f.destination.settings.FlowSpecRedirectNextHop = true
 			f.destination.refreshForwardFacts()
 			source := f.source.Settings().Address

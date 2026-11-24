@@ -405,7 +405,7 @@ func TestForwardNextHopSelfLeavesAWithdrawalUntouched(t *testing.T) {
 			LocalAS:      65000,
 			PeerAS:       65002, // external
 			RouterID:     0x01020301,
-			NextHopMode:  NextHopSelf,
+			ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 			LocalAddress: netip.MustParseAddr("192.0.2.1"),
 		}
 	}

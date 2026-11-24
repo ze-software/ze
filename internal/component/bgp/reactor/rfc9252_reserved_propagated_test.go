@@ -15,6 +15,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 )
 
 // rfc9252ReservedServiceTLV builds an SRv6 Service TLV of the given type (5 is L3, 6 is
@@ -60,7 +62,7 @@ func TestRFC9252ReservedFieldsPropagatedUnchanged(t *testing.T) {
 		routeServer bool
 	}{{name: "general rail"}, {name: "route-server rail", routeServer: true}} {
 		t.Run(rail.name, func(t *testing.T) {
-			attrs := decodeBodyAttrs(t, rfc8669Relay(t, rail.routeServer, NextHopUnchanged, received))
+			attrs := decodeBodyAttrs(t, rfc8669Relay(t, rail.routeServer, policychain.BuiltinNextHopUnchanged, received))
 			assert.Equal(t, []byte{192, 0, 2, 99}, attrs[3], "the next hop is the source's")
 			assert.Equal(t, received, attrs[prefixSIDCodeByte],
 				"RFC 9252 Section 2: every Reserved field, and every unrecognized Sub-TLV and Sub-Sub-TLV, propagated unchanged")

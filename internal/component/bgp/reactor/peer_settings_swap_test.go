@@ -399,7 +399,7 @@ func TestPeerSettingsRestartRequiredIsFailClosed(t *testing.T) {
 		"MinTTL":         func(p *PeerSettings) { p.MinTTL = 254 },
 		"LinkLocal":      func(p *PeerSettings) { p.LinkLocal = mustParseAddr("fe80::1") },
 		"SendCommunity":  func(p *PeerSettings) { p.SendCommunity = []string{"none"} },
-		"NextHopMode":    func(p *PeerSettings) { p.NextHopMode = NextHopSelf },
+		"ASOverride":     func(p *PeerSettings) { p.ASOverride = true },
 		"PrefixTeardown": func(p *PeerSettings) { p.PrefixTeardown = map[string]bool{"ipv4/unicast": false} },
 	}
 

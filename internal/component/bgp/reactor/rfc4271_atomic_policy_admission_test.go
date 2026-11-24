@@ -763,7 +763,7 @@ func atomicAdmissionMPFixture(t *testing.T) *aigpReplayFixture {
 	f := newAIGPReplayFixture(t, nil)
 	for _, peer := range []*Peer{f.source, f.destination} {
 		negotiateForwardTestFamilies(peer, family.IPv4Unicast, family.IPv6Unicast)
-		peer.settings.NextHopMode = NextHopUnchanged
+		peer.settings.ExportPolicy = setExportNextHopUnchanged(peer.settings.ExportPolicy)
 		peer.refreshForwardFacts()
 	}
 	return f

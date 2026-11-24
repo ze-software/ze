@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -59,7 +60,7 @@ func TestRFC2545ReceivedPairSubnetConditions(t *testing.T) {
 				for _, peer := range []*Peer{f.source, f.destination} {
 					negotiateForwardTestFamilies(peer, native.fam)
 				}
-				f.destination.settings.NextHopMode = NextHopUnchanged
+				f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 				f.destination.settings.PeerAS = 65002
 				rfc2545ForwardScope(f, scope.peerOnLink, true)
 				global := netip.MustParseAddr(scope.global).AsSlice()
@@ -168,7 +169,7 @@ func TestRFC2545ReceivedUnusableGlobalRefused(t *testing.T) {
 					peer.session.negotiated = neg
 					peer.negotiated.Store(NewNegotiatedCapabilities(neg))
 				}
-				f.destination.settings.NextHopMode = NextHopUnchanged
+				f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 				f.destination.settings.PeerAS = 65002
 				rfc2545ForwardScope(f, true, true)
 				hop := netip.MustParseAddr(tc.hop).AsSlice()
@@ -271,7 +272,7 @@ func TestRFC2545ReceivedPairSecondAddressValidated(t *testing.T) {
 				} {
 					t.Run(rail+"/"+caps.name+"/"+scope.name+"/"+tc.name, func(t *testing.T) {
 						f := newAIGPReplayFixture(t, nil)
-						f.destination.settings.NextHopMode = NextHopUnchanged
+						f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 						f.destination.settings.PeerAS = 65002
 						for _, peer := range []*Peer{f.source, f.destination} {
 							localLL, remoteLL := tc.source77, tc.source77
@@ -376,7 +377,7 @@ func rfc2545ReceiveFixture(t *testing.T, cap77, peerOnLink, globalOnLink bool) *
 func rfc2545ReceiveFixtureCaps(t *testing.T, sourceCap77, destinationCap77, peerOnLink, globalOnLink bool) *aigpReplayFixture {
 	t.Helper()
 	f := newAIGPReplayFixture(t, nil)
-	f.destination.settings.NextHopMode = NextHopUnchanged
+	f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 	f.destination.settings.PeerAS = 65002
 	for _, peer := range []*Peer{f.source, f.destination} {
 		caps := []capability.Capability{
@@ -811,25 +812,25 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 								}
 							})
 						}
-						// repairWith arms the destination's configured next hop to
-						// write hop over the export chain's raw base
-						// (applyFactsNextHop): next-hop self over the speaker's own
-						// global and Link-Local for a pair, next-hop self over a
-						// link-local connected endpoint for a standalone
-						// link-local, next-hop explicit for a global.
+						// repairWith arms the destination's export next-hop:self step
+						// to write hop over the export chain's raw base
+						// (applyRawOverrideNextHopIntent): speaker global and
+						// Link-Local for a pair, link-local connected endpoint for a
+						// standalone link-local, or speaker global without Link-Local
+						// for a single global.
+						repairSelf := false
 						repairWith := func(hop []byte) {
 							addr := netip.AddrFrom16([16]byte(hop[:16]))
+							repairSelf = true
 							switch {
 							case len(hop) == 32:
-								f.destination.settings.NextHopMode = NextHopSelf
 								f.destination.settings.LocalAddress = addr
 								f.destination.settings.LinkLocal = netip.AddrFrom16([16]byte(hop[16:]))
 							case addr.IsLinkLocalUnicast():
-								f.destination.settings.NextHopMode = NextHopSelf
 								f.destination.session.transport.Store(&sessionTransport{local: addr})
 							default:
-								f.destination.settings.NextHopMode = NextHopExplicit
-								f.destination.settings.NextHopAddress = addr
+								f.destination.settings.LocalAddress = addr
+								f.destination.settings.LinkLocal = netip.Addr{}
 							}
 						}
 						raw := mustHex(t, "4020010db800070000")
@@ -848,9 +849,9 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 							// a raw body carrying the field itself. A raw export
 							// response replaces the whole offered body, so retain its
 							// independent legacy section. A superseded field is the
-							// obsolete one the filter leaves; the destination's
-							// configured next hop writes the legal replacement over
-							// that raw base, as it writes tc.afterRaw.
+							// obsolete one the filter leaves; an earlier next-hop:self
+							// step writes the legal replacement over that raw base, as
+							// it writes tc.afterRaw.
 							field := tc.replacement
 							if tc.earlier != nil {
 								field = tc.earlier
@@ -874,13 +875,20 @@ func TestRFC2545EffectivePairPolicyAndMixedSibling(t *testing.T) {
 								}
 								return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 							}}
-							f.destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "raw-next-hop")
+							nhStep := policychain.BuiltinNextHopUnchanged
+							if repairSelf {
+								nhStep = policychain.BuiltinNextHopSelf
+							}
+							f.destination.settings.ExportPolicy = exportNextHopPolicy(t, []policychain.Member{
+								{Name: "raw-next-hop", Plugin: answerPlugin},
+								{Name: nhStep},
+							})
 							// Publish the policy without replacing this fixture's
 							// explicit connected-prefix scope with host interfaces.
 							f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 							f.r.orderedEgressSteps = buildOrderedEgressSteps()
 							if tc.earlier != nil || tc.afterRaw != nil {
-								if facts := f.destination.fwdFacts.Load(); facts == nil || facts.nhMode == nhModeNone {
+								if facts := f.destination.fwdFacts.Load(); facts == nil || facts.selfMode == nhModeNone {
 									t.Fatal("configured next-hop repair over the raw export base is not armed")
 								}
 							}

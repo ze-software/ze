@@ -105,6 +105,10 @@ func isTokenByte(c byte) bool {
 // and whether the attachment admits it, is judged when the peer resolves the
 // chain (templatedChain.CompileResolved).
 func checkTemplatedMember(reg *policy.Registry, name string, dynamic bool, attachment, context string) error {
+	if strings.HasPrefix(name, policychain.BuiltinNextHopPrefix+":") {
+		return fmt.Errorf("%s: unknown built-in next-hop reference %q; valid built-in next-hop references are %s, %s, and %s",
+			context, name, policychain.BuiltinNextHopSelf, policychain.BuiltinNextHopUnchanged, policychain.BuiltinNextHopAuto)
+	}
 	if !dynamic {
 		return fmt.Errorf("%s: %q names a filter through a config variable, which only a dynamic group resolves (from the peer's OPEN); "+
 			"name the filter itself, or move the chain to a dynamic group", context, name)
@@ -180,7 +184,7 @@ func (c *templatedChain) CompileResolved(resolved filterapi.Policy, peer filtera
 }
 
 func (c *templatedChain) compile(resolved filterapi.Policy, peer filterapi.PeerFilterInfo) (filterapi.Policy, error) {
-	refs, bound, members, err := c.keepHolding(resolved, peer)
+	refs, bound, members, implied, err := c.keepHolding(resolved, peer)
 	if err != nil {
 		return resolved, err
 	}
@@ -206,17 +210,18 @@ func (c *templatedChain) compile(resolved filterapi.Policy, peer filterapi.PeerF
 			bound[i] = binding[0]
 		}
 	}
-	return compileLibraryChain(resolved.WithBoundFilters(refs, bound), c.reg, c.bases, c.attachment, c.context)
+	updated := resolved.WithBoundFilters(refs, bound).WithImpliedList(implied)
+	return compileLibraryChain(updated, c.reg, c.bases, c.attachment, c.context)
 }
 
-// keepHolding answers the refs and bindings of resolved, less each member a
-// plugin inserted under a session condition that does not hold for peer
-// (policyview.SessionConditionHolds), in chain order, and where in the
-// answer each member that named its filter through a variable now sits
-// (c.members indexes the template). The variables are already resolved, so
-// the names no longer show which members those are. The answer owns new
-// slices; resolved's borrowed ones are never written.
-func (c *templatedChain) keepHolding(resolved filterapi.Policy, peer filterapi.PeerFilterInfo) ([]policy.Ref, []bool, []int, error) {
+// keepHolding answers the refs, bindings, variable-resolved member indexes, and
+// surviving implied-filter entries of resolved, less each member a plugin
+// inserted under a session condition that does not hold for peer
+// (policyview.SessionConditionHolds), in chain order. Built-in next-hop:* steps
+// and trailing next-hop:auto implied metadata are always retained. The variables
+// are already resolved, so the names no longer show which members those are.
+// The answer owns new slices; resolved's borrowed ones are never written.
+func (c *templatedChain) keepHolding(resolved filterapi.Policy, peer filterapi.PeerFilterInfo) ([]policy.Ref, []bool, []int, []filterapi.ImpliedFilter, error) {
 	bindings := resolved.Bindings()
 	refs := make([]policy.Ref, 0, len(resolved.Filters()))
 	var bound []bool
@@ -224,12 +229,14 @@ func (c *templatedChain) keepHolding(resolved filterapi.Policy, peer filterapi.P
 		bound = make([]bool, 0, len(bindings))
 	}
 	var members []int
+	var dropped []string
 	for i, ref := range resolved.Filters() {
 		holds, err := c.conditionHolds(ref.Name, peer)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 		if !holds {
+			dropped = append(dropped, ref.Name)
 			continue
 		}
 		if slices.Contains(c.members, i) {
@@ -240,7 +247,28 @@ func (c *templatedChain) keepHolding(resolved filterapi.Policy, peer filterapi.P
 			bound = append(bound, bindings[i])
 		}
 	}
-	return refs, bound, members, nil
+	implied := filterSurvivingImplied(resolved.Implied(), dropped)
+	return refs, bound, members, implied, nil
+}
+
+// filterSurvivingImplied removes implied entries whose ref was dropped because
+// its session condition did not hold for this dynamic peer, while keeping every
+// surviving implied member (including trailing next-hop:auto).
+func filterSurvivingImplied(implied []filterapi.ImpliedFilter, dropped []string) []filterapi.ImpliedFilter {
+	if len(dropped) == 0 {
+		return implied
+	}
+	if len(implied) == 0 {
+		return implied
+	}
+	kept := make([]filterapi.ImpliedFilter, 0, len(implied))
+	for _, entry := range implied {
+		if slices.Contains(dropped, entry.Ref) {
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	return kept
 }
 
 // conditionHolds reports whether the member named name stays in the peer's

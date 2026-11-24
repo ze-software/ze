@@ -25,11 +25,11 @@
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestNextHopSelfWithheldRouteServerWithdraws",
-    "unit-sha": "8e073f5fd8bc2666",
+    "unit-sha": "81df03e41551e202",
     "claim-sha": "431bab11d4a38f22",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-    "producer-sha": "21fe78825d93b5dc",
-    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheldWithSelf",
+    "producer-sha": "35d7a15943e81dba",
+    "break": "body of egressNextHopWithheldWithSelf replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

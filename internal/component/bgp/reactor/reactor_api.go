@@ -216,8 +216,6 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			RSClient:             s.RSClient,
 			RouteReflectorClient: s.RouteReflectorClient,
 			ClusterID:            s.ClusterID,
-			NextHopMode:          s.NextHopMode,
-			NextHopAddress:       s.NextHopAddress,
 			ImportPolicy:         importPolicy,
 			ExportPolicy:         exportPolicy,
 

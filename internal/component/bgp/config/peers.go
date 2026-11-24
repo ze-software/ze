@@ -397,6 +397,12 @@ func validateChainNames(reg *policy.Registry, refs []policy.Ref, dynamic bool, a
 	typesMap := registry.FilterTypesMap()
 	names := make([]string, 0, len(refs))
 	for _, ref := range refs {
+		if handled, err := validateBuiltinNextHopRef(ref, attachment, context); handled {
+			if err != nil {
+				return err
+			}
+			continue
+		}
 		if isTemplatedMember(ref.Name) {
 			if err := checkTemplatedMember(reg, ref.Name, dynamic, attachment, context); err != nil {
 				return err
@@ -427,6 +433,54 @@ func validateChainNames(reg *policy.Registry, refs []policy.Ref, dynamic bool, a
 	}
 	if err := policy.CheckChain(attachment, reg, names); err != nil {
 		return fmt.Errorf("%s: %w", context, err)
+	}
+	return nil
+}
+
+// validateBuiltinNextHopRef validates a built-in next-hop:* reference and
+// reports whether ref used the built-in next-hop: namespace. Unknown
+// next-hop:<other> names are refused here so they never queue as external
+// plugins.
+func validateBuiltinNextHopRef(ref policy.Ref, attachment, context string) (bool, error) {
+	if mode, ok := policychain.BuiltinNextHopMode(ref.Name); ok {
+		if attachment == attachmentImportBGP {
+			return true, fmt.Errorf("%s: built-in %q is valid on export chains only; remove it from import, or use a policy modify filter with an explicit IPv4 or global IPv6 next-hop address", context, ref.Name)
+		}
+		if ref.Inactive {
+			if mode == policychain.NextHopModeAuto {
+				return true, fmt.Errorf("%s: inactive:%s is refused because %s is the built-in export default; write %s instead to preserve received next hops",
+					context, policychain.BuiltinNextHopAuto, policychain.BuiltinNextHopAuto, policychain.BuiltinNextHopUnchanged)
+			}
+		}
+		return true, nil
+	}
+	if strings.HasPrefix(ref.Name, policychain.BuiltinNextHopPrefix+":") {
+		return true, fmt.Errorf("%s: unknown built-in next-hop reference %q; valid built-in next-hop references are %s, %s, and %s",
+			context, ref.Name, policychain.BuiltinNextHopSelf, policychain.BuiltinNextHopUnchanged, policychain.BuiltinNextHopAuto)
+	}
+	return false, nil
+}
+
+// checkImportModifyNextHop refuses a policy { modify } instance attached to a
+// BGP import chain when its set { next-hop } leaf uses an egress-only mode
+// (self, unchanged, auto). Explicit IPv4 and global IPv6 addresses remain
+// permitted on import for inbound steering and RTBH (D-4).
+func checkImportModifyNextHop(entry policy.Instance, context string) error {
+	if entry.Type != "modify" {
+		return nil
+	}
+	setBlock, ok := entry.Config["set"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	val, ok := setBlock[policychain.BuiltinNextHopPrefix].(string)
+	if !ok {
+		return nil
+	}
+	if _, egressOnly := policychain.BuiltinNextHopMode(policychain.BuiltinNextHopPrefix + ":" + val); egressOnly {
+		return fmt.Errorf("%s: modify filter %q sets next-hop %q, which is an egress-only mode and cannot run on an import chain; "+
+			"remove %q from import, move it to export, or set an explicit IPv4 or global IPv6 next-hop address",
+			context, entry.Name, val, entry.Name)
 	}
 	return nil
 }
@@ -483,6 +537,9 @@ func bgpServesFilterType(ref policy.Ref, entry policy.Instance, typesMap map[str
 func validateExportPolicyReferences(chain policy.Chain, reg *policy.Registry, path ...string) error {
 	for _, ref := range chain.Refs() {
 		if ref.Inactive {
+			continue
+		}
+		if _, builtin := policychain.BuiltinNextHopMode(ref.Name); builtin {
 			continue
 		}
 		entry, ok := reg.Lookup(filterInstanceName(ref.Name))
@@ -853,6 +910,42 @@ func prependDefaultFilters(policyTree *config.Tree, peers []*reactor.PeerSetting
 			})
 		}
 	}
+}
+
+// appendDefaultExportFilters appends the built-in next-hop:auto step to the
+// tail of every peer and dynamic group template's export chain unless an active
+// built-in next-hop:self, next-hop:unchanged, or next-hop:auto is already
+// present (D-2). It uses Policy.Append so an unconfigured export policy stays
+// Configured() == false for RFC 8212 default-deny, and records the provenance
+// on Policy.Implied() so `| implied` and peer inspection report it.
+func appendDefaultExportFilters(settings []*reactor.PeerSettings) {
+	ref := policy.Ref{Name: policychain.BuiltinNextHopAuto}
+	implied := filterapi.ImpliedFilter{
+		Direction: directionExport,
+		Position:  filterapi.ImpliedPositionTail,
+		Ref:       policychain.BuiltinNextHopAuto,
+		ImpliedBy: "RFC 4271 default next-hop",
+	}
+	for _, ps := range settings {
+		if hasActiveBuiltinNextHop(ps.ExportPolicy.Filters()) {
+			continue
+		}
+		ps.ExportPolicy = ps.ExportPolicy.Append(ref, false).WithImplied(implied)
+	}
+}
+
+// hasActiveBuiltinNextHop reports whether chain already carries an active
+// built-in next-hop:self, next-hop:unchanged, or next-hop:auto step.
+func hasActiveBuiltinNextHop(chain []policy.Ref) bool {
+	for _, ref := range chain {
+		if ref.Inactive {
+			continue
+		}
+		if _, ok := policychain.BuiltinNextHopMode(ref.Name); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // filterChainContains checks a canonical reference, or a plain instance name,

@@ -9,9 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	updatecmd "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 )
@@ -21,6 +24,7 @@ import (
 // resolved result observable without a BGP neighbor or a second route producer.
 type redistributionNextHopBoundary struct {
 	t      *testing.T
+	r      *Reactor
 	peer   *Peer
 	queued bool
 	got    netip.Addr
@@ -55,6 +59,20 @@ func (b *redistributionNextHopBoundary) UpdateRoute(ctx context.Context, sel, co
 	if err != nil {
 		return 0, 0, err
 	}
+	if b.r != nil {
+		attrs := makeAttr(0x40, byte(attribute.AttrOrigin), []byte{2})
+		attrs = append(attrs, makeAttr(0x40, byte(attribute.AttrASPath), nil)...)
+		attrs = append(attrs, makeAttr(0x40, byte(attribute.AttrNextHop), b.got.AsSlice())...)
+		body := buildUpdatePayload(attrs, []byte{32, 10, 0, 0, 9})
+		facts := new(peerForwardFacts)
+		b.peer.captureOriginatedFacts(facts)
+		facts.sendCtxID = bgpctx.APIContextID
+		suppress, override, _ := b.r.exportFilterFromFacts(b.peer, facts, true, body)
+		require.False(b.t, suppress)
+		if override != nil {
+			b.got = payloadNextHop(override).legacy
+		}
+	}
 	b.count++
 	return 1, 0, nil
 }
@@ -80,26 +98,30 @@ func TestRedistributedGatewayUsesDestinationNextHopPolicy(t *testing.T) {
 				name     string
 				peerAS   uint32
 				gateway  string
-				mode     uint8
+				nhRef    string
 				explicit string
 				want     string
 			}{
 				{name: "external", peerAS: 65002, gateway: "10.1.0.2", want: "127.0.0.1"},
 				{name: "internal", peerAS: 65001, gateway: "10.1.0.2", want: "10.1.0.2"},
 				{name: "internal gateway is peer", peerAS: 65001, gateway: "192.0.2.2", want: "127.0.0.1"},
-				{name: "configured self", peerAS: 65001, gateway: "10.1.0.2", mode: NextHopSelf, want: "127.0.0.1"},
-				{name: "configured explicit", peerAS: 65002, gateway: "10.1.0.2", mode: NextHopExplicit, explicit: "192.0.2.9", want: "192.0.2.9"},
-				{name: "configured unchanged", peerAS: 65002, gateway: "10.1.0.2", mode: NextHopUnchanged, want: "10.1.0.2"},
+				{name: "configured self", peerAS: 65001, gateway: "10.1.0.2", nhRef: policychain.BuiltinNextHopSelf, want: "127.0.0.1"},
+				{name: "configured explicit", peerAS: 65002, gateway: "10.1.0.2", explicit: "192.0.2.9", want: "192.0.2.9"},
+				{name: "configured unchanged", peerAS: 65002, gateway: "10.1.0.2", nhRef: policychain.BuiltinNextHopUnchanged, want: "10.1.0.2"},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
 					settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65001, tc.peerAS, 0x01010101)
-					settings.NextHopMode = tc.mode
-					if tc.explicit != "" {
-						settings.NextHopAddress = netip.MustParseAddr(tc.explicit)
+					if tc.nhRef != "" {
+						settings.ExportPolicy = ExportPolicyWithNextHop(settings.ExportPolicy, tc.nhRef)
 					}
 					peer := NewPeer(settings)
 					peer.session, _ = newConnectedLocalSession(t, settings, "127.0.0.1")
-					boundary := &redistributionNextHopBoundary{t: t, peer: peer, queued: queued}
+					var r *Reactor
+					if tc.explicit != "" {
+						r = &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
+						attachExplicitNextHop(t, r, peer, netip.MustParseAddr(tc.explicit))
+					}
+					boundary := &redistributionNextHopBoundary{t: t, r: r, peer: peer, queued: queued}
 					bgpredist.NewBGPConsumer(boundary).InjectRoute(t.Context(), family.IPv4Unicast, configredist.RouteEntry{Protocol: redistevents.RegisterProtocol("ospf"),
 						Prefix: "10.0.0.9/32", NextHop: tc.gateway, Source: "ospf",
 					})
@@ -116,7 +138,7 @@ func TestRedistributedGatewayUsesDestinationNextHopPolicy(t *testing.T) {
 // PREVENTS: fixing redistribution by changing existing API/ExaBGP announcements.
 func TestExplicitOriginationNextHopKeepsItsAddress(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65001, 65002, 0x01010101)
-	settings.NextHopMode = NextHopSelf
+	settings.ExportPolicy = setExportNextHopSelf(settings.ExportPolicy)
 	peer := NewPeer(settings)
 	peer.session, _ = newConnectedLocalSession(t, settings, "127.0.0.1")
 	boundary := &redistributionNextHopBoundary{t: t, peer: peer}

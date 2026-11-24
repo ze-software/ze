@@ -218,9 +218,9 @@ func (f *aigpReplayFixture) addSource(t *testing.T, address string) *Peer {
 	peer.settings.AIGPSession = new(true)
 	peer.settings.GlobalLocalAS = 65000
 	peer.settings.LocalAddress = netip.MustParseAddr("10.0.0.254")
-	peer.settings.NextHopMode = NextHopSelf
 	peer.settings.Bus = testBusSendAll("aigp-forwarder")
 	acceptingPolicies(t, peer.settings)
+	peer.settings.ExportPolicy = setExportNextHopSelf(peer.settings.ExportPolicy)
 	negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 	peer.sendCtx.Store(bgpctx.Registry.Get(f.ctxID))
 	peer.sendCtxID, peer.recvCtxID = f.ctxID, f.ctxID

@@ -94,8 +94,8 @@ func TestInsertedMemberVerdicts(t *testing.T) {
 	}
 	require.Equal(t, []string{"fake-inserter:early"}, refNames(byName["A import"].Filters()),
 		"peer A's import list holds the member only by insertion")
-	require.Equal(t, []string{"fake-inserter:early"}, refNames(byName["A export"].Filters()),
-		"peer A's export list holds the member only by insertion")
+	require.Equal(t, []string{"fake-inserter:early", policychain.BuiltinNextHopAuto}, refNames(byName["A export"].Filters()),
+		"peer A's export list holds the inserted member followed by the trailing next-hop:auto default")
 
 	answer := func(out rpc.FilterUpdateOutput) func() (*rpc.FilterUpdateOutput, error) {
 		return func() (*rpc.FilterUpdateOutput, error) { return &out, nil }
@@ -143,8 +143,20 @@ func TestInsertedMemberVerdicts(t *testing.T) {
 				if got.Action != tc.action || got.Failed != tc.failed || got.Member != member {
 					t.Fatalf("outcome = %+v, want action %v failed %v member %q", got, tc.action, tc.failed, member)
 				}
-				if inserted.folded.Empty() == tc.sets {
-					t.Fatalf("folded sets empty = %v, want the member's set kept = %v", inserted.folded.Empty(), tc.sets)
+				if direction == directionImport {
+					if inserted.folded.Empty() == tc.sets {
+						t.Fatalf("folded sets empty = %v, want the member's set kept = %v", inserted.folded.Empty(), tc.sets)
+					}
+					return
+				}
+				var acc filterapi.ModAccumulator
+				require.NoError(t, inserted.folded.ApplyTo(&acc, policychain.Current{}))
+				if (acc.Len() > 0) != tc.sets {
+					t.Fatalf("export member attribute ops = %d, want the member's set kept = %v", acc.Len(), tc.sets)
+				}
+				if tc.action == policychain.OutcomeAccept {
+					require.Equal(t, policychain.NextHopIntent{Mode: policychain.NextHopModeAuto, AutoDefault: true}, inserted.folded.NextHopIntent(),
+						"accepted export route carries trailing next-hop:auto intent")
 				}
 			})
 		}

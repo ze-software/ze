@@ -45,7 +45,7 @@ func TestForwardASOverrideComposition(t *testing.T) {
 					peer.settings.PeerAS = tc.target
 					peer.settings.RSClient = tc.rs
 					peer.settings.ASOverride = true
-					peer.settings.NextHopMode = NextHopUnchanged
+					peer.settings.ExportPolicy = setExportNextHopUnchanged(peer.settings.ExportPolicy)
 					ctx := bgpctx.EncodingContextForASN4(asn4)
 					ctxID, err := bgpctx.Registry.Register(ctx)
 					if err != nil {

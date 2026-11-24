@@ -14,11 +14,11 @@
     "rid": "RFC4659-3.2.1.1-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4659_link_local_peering_test.go::TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair",
-    "unit-sha": "d9d01157a9a166c3",
+    "unit-sha": "97c5bccc87a73480",
     "claim-sha": "2805d4adac751e46",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
-    "producer-sha": "21fe78825d93b5dc",
-    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheldWithSelf",
+    "producer-sha": "35d7a15943e81dba",
+    "break": "body of egressNextHopWithheldWithSelf replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

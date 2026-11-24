@@ -25,23 +25,23 @@
     "rid": "RFC8955-4-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop",
-    "unit-sha": "ab0ca6dd920bbdab",
+    "unit-sha": "ec7137f46b7a09c7",
     "claim-sha": "7f6a1458ee09bec2",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamily",
-    "producer-sha": "d4ad07c1e061d239",
-    "break": "body of applyNextHopFamily replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamilyRedirect",
+    "producer-sha": "536a2ed7159b78aa",
+    "break": "body of applyNextHopFamilyRedirect replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8955-4-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop",
-    "unit-sha": "ab0ca6dd920bbdab",
+    "unit-sha": "ec7137f46b7a09c7",
     "claim-sha": "02a2159a3d547a48",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamily",
-    "producer-sha": "d4ad07c1e061d239",
-    "break": "body of applyNextHopFamily replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyNextHopFamilyRedirect",
+    "producer-sha": "536a2ed7159b78aa",
+    "break": "body of applyNextHopFamilyRedirect replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8955-4-3",
@@ -91,7 +91,7 @@
     "rid": "RFC8955-4-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go::TestFlowSpecForwardingKeepsLegacyNextHop",
-    "unit-sha": "788d1849b352043b",
+    "unit-sha": "1ba3964257a54a47",
     "claim-sha": "0c5a426726d16e25",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::payloadNextHop",

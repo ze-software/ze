@@ -46,7 +46,6 @@ func newAIGPReplayFixture(t *testing.T, before func([]fwdItem)) *aigpReplayFixtu
 		peer.settings.AIGPSession = new(true)
 		peer.settings.GlobalLocalAS = 65000
 		peer.settings.LocalAddress = netip.MustParseAddr("10.0.0.254")
-		peer.settings.NextHopMode = NextHopSelf
 		// rsRelaySendBinding is the route server's send grant: the RS fast
 		// path reaches no destination without it, as the cached rail does not.
 		peer.settings.Bus = testBusBlockForGrants(
@@ -56,7 +55,7 @@ func newAIGPReplayFixture(t *testing.T, before func([]fwdItem)) *aigpReplayFixtu
 		// Both sessions are EBGP, and RFC 8212 Section 3 rejects at an absent
 		// policy, so each carries explicit accepting import and export policies.
 		peer.settings.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
-		peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+		peer.settings.ExportPolicy = setExportNextHopSelf(mustPolicy(t, nil, routepolicy.FinalAccept))
 		negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 		peer.sendCtx.Store(ctx)
 		peer.sendCtxID, peer.recvCtxID = ctxID, ctxID

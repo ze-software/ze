@@ -56,9 +56,9 @@ func TestPrefixSIDPartialSurvivesNextHopCleanup(t *testing.T) {
 				payload := partialPrefixSIDPayload(flagCase.flags, tc.value)
 				original := append([]byte(nil), payload...)
 				settings := NewPeerSettings(netip.MustParseAddr("192.0.2.9"), 65000, 65000, 0x01020304)
-				settings.NextHopMode = NextHopExplicit
-				settings.NextHopAddress = tc.nextHop
-				facts := peerForwardFacts{isEBGP: !settings.IsIBGP()}
+				settings.LocalAddress = tc.nextHop
+				settings.ExportPolicy = setExportNextHopSelf(settings.ExportPolicy)
+				facts := peerForwardFacts{isEBGP: !settings.IsIBGP(), exportPolicy: settings.ExportPolicy}
 				precomputeNextHop(settings, &facts)
 				var mods filterapi.ModAccumulator
 				applyFactsNextHop(&facts, &mods, family.IPv4Unicast)

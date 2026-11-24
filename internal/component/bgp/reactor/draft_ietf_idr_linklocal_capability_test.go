@@ -16,6 +16,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 )
 
 // llnhFacts runs the next-hop precompute and the Section 3 upgrade over one peer,
@@ -29,9 +31,9 @@ func llnhFacts(connected []netip.Prefix, peer, global, linkLocal netip.Addr) *pe
 		Address:      peer,
 		LocalAddress: global,
 		LinkLocal:    linkLocal,
-		NextHopMode:  NextHopSelf,
+		ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 	}
-	facts := &peerForwardFacts{}
+	facts := &peerForwardFacts{exportPolicy: settings.ExportPolicy}
 	precomputeNextHop(settings, facts)
 	applyLinkLocalNextHop(settings, facts, newLinkScopeFrom(connected, peer))
 	return facts
@@ -124,9 +126,9 @@ func llnhUnchangedFacts(connected []netip.Prefix, peer, global, linkLocal netip.
 		Address:      peer,
 		LocalAddress: global,
 		LinkLocal:    linkLocal,
-		NextHopMode:  NextHopUnchanged,
+		ExportPolicy: setExportNextHopUnchanged(filterapi.Policy{}),
 	}
-	facts := &peerForwardFacts{}
+	facts := &peerForwardFacts{exportPolicy: settings.ExportPolicy}
 	precomputeNextHop(settings, facts)
 	applyLinkLocalNextHop(settings, facts, newLinkScopeFrom(connected, peer))
 	return facts
@@ -173,7 +175,7 @@ func TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress(t *testing.T) {
 		PeerAS:        65000,
 		RouterID:      0x0a000001,
 		LinkLocal:     llnhLinkLocal,
-		NextHopMode:   NextHopSelf,
+		ExportPolicy:  setExportNextHopSelf(filterapi.Policy{}),
 	}
 	peer := NewPeer(settings)
 	session := NewSession(settings)

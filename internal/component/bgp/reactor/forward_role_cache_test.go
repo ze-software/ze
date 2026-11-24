@@ -147,7 +147,6 @@ func testForwardOpaqueTreatment(t *testing.T, preserve [2]bool, modify bool) {
 					peer.settings.GlobalLocalAS = 65000
 					peer.settings.PeerAS = 65000
 					peer.settings.RSClient = i == 0
-					peer.settings.NextHopMode = NextHopUnchanged
 					// The LOCAL_PREF 101 edit, when modify, is the destination's
 					// own export chain's, as every egress edit is in production.
 					peer.settings.ExportPolicy = opaqueExportPolicy(t, preserve[i], modify)

@@ -117,8 +117,8 @@ func TestPeerSettingsEqualDetectsEachSignificantField(t *testing.T) {
 			why:    "RFC 8669 Section 8 admits PrefixSID (code 40) onto an EBGP peer's egress; an ignored edit leaves the operator's new boundary unenforced until restart",
 		},
 		{
-			name:   "NextHopMode",
-			mutate: func(s *PeerSettings) { s.NextHopMode++ },
+			name:   "ExportPolicy next-hop",
+			mutate: func(s *PeerSettings) { s.ExportPolicy = setExportNextHopSelf(s.ExportPolicy) },
 			why:    "controls next-hop rewriting for forwarded UPDATEs",
 		},
 		{

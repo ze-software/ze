@@ -91,7 +91,7 @@ func TestRFC8950WithheldRouteWithdrawnFromPeerLackingThePair(t *testing.T) {
 		unpaired := a2Dest(t, "192.0.2.22", 65022, netip.Addr{}, false)
 		// This case judges the received IPv6 field, not Auto-to-Self substitution.
 		for _, dest := range []*Peer{paired, unpaired} {
-			dest.settings.NextHopMode = NextHopUnchanged
+			dest.settings.ExportPolicy = setExportNextHopUnchanged(dest.settings.ExportPolicy)
 			dest.refreshForwardFacts()
 		}
 

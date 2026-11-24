@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 )
 
 // A usable IPv4 address must leave as four native octets for BGP-LS on either
@@ -20,17 +22,27 @@ func TestNextHopAutoBGPLSNativeIPv4(t *testing.T) {
 		for _, native := range []bool{false, true} {
 			for _, mode := range []struct {
 				name string
-				mode uint8
+				mode policychain.NextHopMode
 				hop  netip.Addr
 			}{
-				{"auto", NextHopAuto, tc.self},
-				{"self", NextHopSelf, tc.self},
-				{"explicit", NextHopExplicit, tc.explicit},
+				{"auto", policychain.NextHopModeAuto, tc.self},
+				{"self", policychain.NextHopModeSelf, tc.self},
+				{"explicit", policychain.NextHopModeExplicit, tc.explicit},
 			} {
 				t.Run(nextHopAutoCaseName(tc, direct, native)+"/"+mode.name, func(t *testing.T) {
 					f := nextHopAutoFixture(t, tc, direct)
-					f.destination.settings.NextHopMode = mode.mode
-					f.destination.settings.NextHopAddress = tc.explicit
+					switch mode.mode {
+					case policychain.NextHopModeAuto:
+						f.destination.settings.ExportPolicy = setExportNextHopAuto(f.destination.settings.ExportPolicy)
+					case policychain.NextHopModeSelf:
+						f.destination.settings.ExportPolicy = setExportNextHopSelf(f.destination.settings.ExportPolicy)
+					case policychain.NextHopModeExplicit:
+						attachExplicitNextHop(t, f.r, f.destination, tc.explicit)
+					case policychain.NextHopModeUnchanged, policychain.NextHopModeUnspecified:
+						t.Fatalf("unexpected next-hop mode %v", mode.mode)
+					default:
+						t.Fatalf("unexpected next-hop mode %v", mode.mode)
+					}
 					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 					rfc4271ProofRelay(t, f, nextHopAutoBody(t, tc, tc.prefix, nil), native)
 					updates := nextHopAutoUpdates(t, f)
@@ -55,7 +67,7 @@ func TestNextHopAutoBGPLSPreservesReceivedIPv4(t *testing.T) {
 			for _, role := range []string{"ibgp", "rs-client", "unchanged"} {
 				t.Run(nextHopAutoCaseName(tc, direct, native)+"/"+role, func(t *testing.T) {
 					f := nextHopAutoFixture(t, tc, direct)
-					f.destination.settings.NextHopMode = NextHopAuto
+					f.destination.settings.ExportPolicy = setExportNextHopAuto(f.destination.settings.ExportPolicy)
 					if role == "ibgp" {
 						f.destination.settings.PeerAS = f.destination.settings.LocalAS
 					}
@@ -63,7 +75,7 @@ func TestNextHopAutoBGPLSPreservesReceivedIPv4(t *testing.T) {
 						f.destination.settings.RSClient = true
 					}
 					if role == "unchanged" {
-						f.destination.settings.NextHopMode = NextHopUnchanged
+						f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 					}
 					negotiateForwardTestFamilies(f.destination, tc.family)
 					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
@@ -89,7 +101,7 @@ func TestNextHopAutoBGPLSPeerOwnRecovery(t *testing.T) {
 		for _, native := range []bool{false, true} {
 			t.Run(nextHopAutoCaseName(tc, direct, native), func(t *testing.T) {
 				f := nextHopAutoFixture(t, tc, direct)
-				f.destination.settings.NextHopMode = NextHopAuto
+				f.destination.settings.ExportPolicy = setExportNextHopAuto(f.destination.settings.ExportPolicy)
 				f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 				rfc4271ProofRelay(t, f, nextHopAutoBody(t, tc, tc.prefix, nil), native)
 				updates := nextHopAutoUpdates(t, f)
@@ -100,9 +112,7 @@ func TestNextHopAutoBGPLSPeerOwnRecovery(t *testing.T) {
 				require.Empty(t, withdrawn)
 
 				f.conn.reset()
-				f.destination.settings.NextHopMode = NextHopExplicit
-				f.destination.settings.NextHopAddress = f.destination.Settings().Address
-				f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+				attachExplicitNextHop(t, f.r, f.destination, f.destination.Settings().Address)
 				rfc4271ProofRelay(t, f, nextHopAutoBody(t, tc, tc.prefix, nil), native)
 				updates = nextHopAutoUpdates(t, f)
 				require.Len(t, updates, 1)
@@ -112,7 +122,7 @@ func TestNextHopAutoBGPLSPeerOwnRecovery(t *testing.T) {
 				require.Equal(t, tc.prefix, withdrawn)
 
 				f.conn.reset()
-				f.destination.settings.NextHopMode = NextHopAuto
+				f.destination.settings.ExportPolicy = setExportNextHopAuto(f.destination.settings.ExportPolicy)
 				f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 				rfc4271ProofRelay(t, f, nextHopAutoBody(t, tc, tc.prefix, nil), native)
 				updates = nextHopAutoUpdates(t, f)

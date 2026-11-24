@@ -32,7 +32,7 @@ func TestDraftLinkLocalOneHopLostNextHopWithdraws(t *testing.T) {
 	f.destination, f.conn = dest, conn
 	dest.settings.LocalAddress = netip.MustParseAddr("2001:db8:1::254")
 	dest.settings.LinkLocal = netip.MustParseAddr("fe80::254")
-	dest.settings.NextHopMode = NextHopSelf
+	dest.settings.ExportPolicy = setExportNextHopSelf(dest.settings.ExportPolicy)
 	dest.settings.PeerAS = 65003
 	caps := []capability.Capability{
 		&capability.ASN4{ASN: dest.settings.LocalAS},

@@ -90,7 +90,13 @@ func TestLoopPolicyExportRemedy(t *testing.T) {
 							}
 							inactive++
 						}
-						if !reflect.DeepEqual(exportPolicy.WithFilters(external), before[i].ExportPolicy) {
+						if (exportPolicy.Library() == nil) != (before[i].ExportPolicy.Library() == nil) {
+							t.Fatal("export remediation changed whether the export policy has a compiled chain")
+						}
+						if exportPolicy.Library() != nil && !exportPolicy.Library().SameDecisions(before[i].ExportPolicy.Library()) {
+							t.Fatalf("remediation changed export library chain decisions: %+v -> %+v", before[i].ExportPolicy, exportPolicy)
+						}
+						if !reflect.DeepEqual(exportPolicy.WithFilters(external).WithLibrary(nil), before[i].ExportPolicy.WithLibrary(nil)) {
 							t.Fatalf("remediation changed unrelated export refs or final: %+v -> %+v", before[i].ExportPolicy, exportPolicy)
 						}
 						// The import chain names a match instance, so it carries a

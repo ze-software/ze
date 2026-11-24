@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -53,7 +54,7 @@ func forwardSocketBarrier(t *testing.T, r *Reactor) {
 func TestForwardValidationOverflowRecoveryReachesSocket(t *testing.T) {
 	f := newAIGPReplayFixture(t, nil)
 	f.destination.settings.RSClient = true
-	f.destination.settings.NextHopMode = NextHopSelf
+	f.destination.settings.ExportPolicy = setExportNextHopSelf(f.destination.settings.ExportPolicy)
 	f.destination.refreshForwardFacts()
 	route := storedIPv4Route(f.source.Settings().Address.String())
 	route.SourcePolicyEpoch = f.source.sourcePolicyEpoch.Load()
@@ -273,6 +274,10 @@ func TestForwardAIGPMixedNextHopsReachSocket(t *testing.T) {
 			acc.OpCopy(uint8(attribute.AttrNextHop), filterapi.AttrModSet, legacySelf.AsSlice())
 		})
 	}, f.destination)
+	f.destination.settings.ExportPolicy = exportNextHopPolicy(t, []policychain.Member{
+		{Name: exportLibraryFilter, Plugin: answerPlugin},
+		{Name: policychain.BuiltinNextHopAuto, AutoDefault: true},
+	})
 	for _, peer := range []*Peer{f.source, f.destination} {
 		negotiateForwardTestFamilies(peer, family.IPv4Unicast, family.IPv6Unicast)
 		peer.refreshForwardFacts()
@@ -373,7 +378,7 @@ func TestForwardFlowSpecOnlyGatePreservesUnicastSections(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ribevents.RegisterValidationLookup(nil, nil)
 			f := newAIGPReplayFixture(t, nil)
-			f.destination.settings.NextHopMode = NextHopUnchanged
+			f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 			f.destination.settings.RSClient = true
 			fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 			for _, peer := range []*Peer{f.source, f.destination} {
@@ -504,7 +509,7 @@ func TestForwardConfiguredIPv4MPNextHopFamily(t *testing.T) {
 		} {
 			t.Run(rail+"/"+tc.name, func(t *testing.T) {
 				f := rfc2545ReceiveFixture(t, false, true, true)
-				f.destination.settings.NextHopMode = NextHopSelf
+				f.destination.settings.ExportPolicy = setExportNextHopSelf(f.destination.settings.ExportPolicy)
 				// Fix the IPv4 source of next-hop self independently of the
 				// shared fixture's IPv6 recipient identity.
 				f.destination.settings.LocalAddress = netip.MustParseAddr("198.18.232.254")

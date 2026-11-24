@@ -4,6 +4,7 @@
 package bgpconfig
 
 import (
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/reactor/loopdetect"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -65,8 +66,10 @@ func validatePolicyLayer(tree *config.Tree, path string) error {
 //
 // A configured loop-detection instance receives the loop step's ownership
 // and the owner-qualified name loopdetect.BindLoopDetection gives it; a matching prefix alone
-// never grants it. Every other ref is rewritten by policy.CanonicalName, which
-// accepts the plugin, filter-type and plain forms, and keeps RPC dispatch.
+// never grants it. Built-in next-hop:* steps keep their exact name with
+// inProcess false because they compile directly into policychain.Chain.
+// Every other ref is rewritten by policy.CanonicalName, which accepts the
+// plugin, filter-type and plain forms, and keeps RPC dispatch.
 // Deactivation state (policy.Ref.Inactive) is carried structurally and
 // preserved across the rewrite; the name itself is always clean.
 func canonicalizeFilterRefs(chain []policy.Ref, reg *policy.Registry) ([]policy.Ref, []bool) {
@@ -78,6 +81,9 @@ func canonicalizeFilterRefs(chain []policy.Ref, reg *policy.Registry) ([]policy.
 	typesMap := registry.FilterTypesMap()
 	for i, ref := range chain {
 		out[i] = ref
+		if _, builtin := policychain.BuiltinNextHopMode(ref.Name); builtin {
+			continue
+		}
 		if reg != nil {
 			if entry, ok := reg.Lookup(filterInstanceName(ref.Name)); ok {
 				if named, inProcess := loopdetect.BindLoopDetection(ref, entry.Type); inProcess {

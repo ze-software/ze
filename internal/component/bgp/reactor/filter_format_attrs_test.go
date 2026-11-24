@@ -259,7 +259,6 @@ func TestFilterSubjectReadsUnmodifiableAttributes(t *testing.T) {
 				f.r.orderedEgressSteps = buildOrderedEgressSteps()
 				f.destination.settings.ExportPolicy = policy
 				f.destination.settings.PeerAS = f.destination.settings.LocalAS
-				f.destination.settings.NextHopMode = NextHopUnchanged
 				f.destination.refreshForwardFacts()
 				// A policy reject withdraws only a route the destination was
 				// advertised (RFC 4271 Section 3.1).

@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
@@ -31,11 +32,13 @@ func TestNextHopAutoMatchesSelfForEBGP(t *testing.T) {
 				t.Run(nextHopAutoCaseName(tc, direct, native), func(t *testing.T) {
 					parsed, err := parsePeerFromTree("default", peerTreeWith(tc.self.String()), 65000, 0x01020301)
 					require.NoError(t, err)
-					require.Equal(t, NextHopAuto, parsed.NextHopMode, "omitted next-hop selects auto")
-					for _, mode := range []uint8{parsed.NextHopMode, NextHopSelf} {
+					intent, static := staticExportNextHop(parsed.ExportPolicy)
+					require.True(t, static, "omitted export policy takes static fast path")
+					require.Equal(t, policychain.NextHopModeAuto, intent.Mode, "omitted next-hop selects auto")
+					for _, ref := range []string{policychain.BuiltinNextHopAuto, policychain.BuiltinNextHopSelf} {
 						for _, connected := range []bool{false, true} {
 							f := nextHopAutoFixture(t, tc, direct)
-							f.destination.settings.NextHopMode = mode
+							f.destination.settings.ExportPolicy = ExportPolicyWithNextHop(f.destination.settings.ExportPolicy, ref)
 							if connected {
 								f.destination.settings.LocalAddress = netip.MustParseAddr("192.0.2.254")
 							} else {
@@ -68,7 +71,7 @@ func TestNextHopAutoPreservesRSClientAndIBGP(t *testing.T) {
 			for _, native := range []bool{false, true} {
 				t.Run(tc.name+"/"+role+"/"+nextHopAutoRailName(native), func(t *testing.T) {
 					f := nextHopAutoFixture(t, tc, true)
-					f.destination.settings.NextHopMode = NextHopAuto
+					f.destination.settings.ExportPolicy = setExportNextHopAuto(f.destination.settings.ExportPolicy)
 					if role == "rs-client" {
 						f.destination.settings.RSClient = true
 					} else {
@@ -95,21 +98,35 @@ func TestNextHopAutoPreservesRSClientAndIBGP(t *testing.T) {
 func TestNextHopAutoChangePreservesExplicitModes(t *testing.T) {
 	for _, tc := range nextHopAutoFamilies() {
 		for _, native := range []bool{false, true} {
-			for _, mode := range []uint8{NextHopUnchanged, NextHopSelf, NextHopExplicit} {
+			for _, mode := range []policychain.NextHopMode{
+				policychain.NextHopModeUnchanged,
+				policychain.NextHopModeSelf,
+				policychain.NextHopModeExplicit,
+			} {
 				t.Run(tc.name+"/"+nextHopAutoRailName(native)+"/"+nextHopAutoModeName(mode), func(t *testing.T) {
 					f := nextHopAutoFixture(t, tc, true)
-					f.destination.settings.NextHopMode = mode
-					f.destination.settings.NextHopAddress = tc.explicit
+					switch mode {
+					case policychain.NextHopModeUnchanged:
+						f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
+					case policychain.NextHopModeSelf:
+						f.destination.settings.ExportPolicy = setExportNextHopSelf(f.destination.settings.ExportPolicy)
+					case policychain.NextHopModeExplicit:
+						attachExplicitNextHop(t, f.r, f.destination, tc.explicit)
+					case policychain.NextHopModeAuto, policychain.NextHopModeUnspecified:
+						t.Fatalf("unexpected next-hop mode %v", mode)
+					default:
+						t.Fatalf("unexpected next-hop mode %v", mode)
+					}
 					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 					rfc4271ProofRelay(t, f, nextHopAutoBody(t, tc, tc.prefix, nil), native)
 					updates := nextHopAutoUpdates(t, f)
 					require.Len(t, updates, 1)
 					hop, announced, withdrawn := nextHopAutoFields(t, tc, updates[0])
 					want := tc.received
-					if mode == NextHopSelf {
+					if mode == policychain.NextHopModeSelf {
 						want = tc.self
 					}
-					if mode == NextHopExplicit {
+					if mode == policychain.NextHopModeExplicit {
 						want = tc.explicit
 					}
 					require.Equal(t, want.AsSlice(), hop)
@@ -137,7 +154,7 @@ func TestNextHopAutoWithoutOwnAddressPreservesMixedWithdrawals(t *testing.T) {
 				require.Equal(t, seed, announced)
 				require.Empty(t, withdrawn)
 				f.conn.reset()
-				f.destination.settings.NextHopMode = NextHopAuto
+				f.destination.settings.ExportPolicy = setExportNextHopAuto(f.destination.settings.ExportPolicy)
 				f.destination.settings.LocalAddress = netip.Addr{}
 				f.destination.session.transport.Store(nil)
 				f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
@@ -257,14 +274,20 @@ func nextHopAutoFields(t *testing.T, tc nextHopAutoFamily, update *message.Updat
 	return hop, announce, withdraw
 }
 
-func nextHopAutoModeName(mode uint8) string {
+func nextHopAutoModeName(mode policychain.NextHopMode) string {
 	switch mode {
-	case NextHopUnchanged:
+	case policychain.NextHopModeUnchanged:
 		return "unchanged"
-	case NextHopSelf:
+	case policychain.NextHopModeSelf:
 		return "self"
-	default:
+	case policychain.NextHopModeExplicit:
 		return "explicit"
+	case policychain.NextHopModeAuto:
+		return "auto"
+	case policychain.NextHopModeUnspecified:
+		return "unspecified"
+	default:
+		panic("BUG: invalid policychain.NextHopMode")
 	}
 }
 

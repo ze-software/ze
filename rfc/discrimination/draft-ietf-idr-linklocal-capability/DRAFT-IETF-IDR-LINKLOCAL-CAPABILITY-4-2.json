@@ -25,22 +25,22 @@
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalReceivedPairStrippedForMultihopInternalPeer",
-    "unit-sha": "d77156b914833b04",
+    "unit-sha": "83fa1f4b45b2a2bd",
     "claim-sha": "e66f91774733ceb6",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
-    "producer-sha": "48ad3df5e514d285",
+    "producer-sha": "1325078e7c3515aa",
     "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalReceivedPairStrippedForMultihopInternalPeer",
-    "unit-sha": "d77156b914833b04",
+    "unit-sha": "83fa1f4b45b2a2bd",
     "claim-sha": "90dd71f7ca487ded",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
-    "producer-sha": "48ad3df5e514d285",
+    "producer-sha": "1325078e7c3515aa",
     "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

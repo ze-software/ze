@@ -288,9 +288,8 @@ func atomicPreparationExtraPeer(t *testing.T, f *aigpReplayFixture, last byte) (
 	peer, conn := newAnnouncePeer(t, netip.AddrFrom4([4]byte{198, 18, 235, last}).String())
 	peer.settings.LocalAddress = f.destination.settings.LocalAddress
 	peer.settings.GlobalLocalAS = f.destination.settings.GlobalLocalAS
-	peer.settings.NextHopMode = NextHopUnchanged
 	peer.settings.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
-	peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+	peer.settings.ExportPolicy = setExportNextHopUnchanged(mustPolicy(t, nil, routepolicy.FinalAccept))
 	peer.settings.Bus = testBusBlockForGrants(
 		testPeerEndpointGrant{Name: "aigp-forwarder", SendAll: true},
 		testPeerEndpointGrant{Name: rsFixtureRelay, Send: []string{"update"}},

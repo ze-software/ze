@@ -14,23 +14,23 @@
     "rid": "RFC8669-3-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange",
-    "unit-sha": "a4d3a86c51ff08fa",
+    "unit-sha": "33b068b52600c05a",
     "claim-sha": "c925df0199ab87aa",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDNextHopHandler",
-    "producer-sha": "bd514d1db85a0ca1",
-    "break": "body of prefixSIDNextHopHandler replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "9129fdd3b0ad1eb1",
+    "break": "body of prefixSIDNextHopHandler replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8669-3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange",
-    "unit-sha": "a4d3a86c51ff08fa",
+    "unit-sha": "33b068b52600c05a",
     "claim-sha": "27d5df1f5210766c",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
-    "producer-sha": "1d62d7092f0bab86",
-    "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopIntent",
+    "producer-sha": "e0b26ccf934dfbc5",
+    "break": "body of applyEgressNextHopIntent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8669-3-1",

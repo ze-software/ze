@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
@@ -62,16 +63,16 @@ func TestFlowSpecRedirectForwardNextHop(t *testing.T) {
 		for _, dest := range []struct {
 			name      string
 			peerAS    uint32
-			mode      uint8
+			ref       string
 			community []string
 			want      []byte
 			action    bool
 		}{
-			{"ibgp-auto-keeps", 65000, NextHopAuto, nil, tc.received.AsSlice(), true},
-			{"ebgp-auto-resets-to-self", 65001, NextHopAuto, nil, selfHop, true},
-			{"ebgp-unchanged-keeps", 65001, NextHopUnchanged, nil, tc.received.AsSlice(), true},
-			{"ibgp-self-rewrites", 65000, NextHopSelf, nil, selfHop, true},
-			{"ebgp-no-extended-strips", 65001, NextHopAuto, []string{"standard"}, nil, false},
+			{"ibgp-auto-keeps", 65000, policychain.BuiltinNextHopAuto, nil, tc.received.AsSlice(), true},
+			{"ebgp-auto-resets-to-self", 65001, policychain.BuiltinNextHopAuto, nil, selfHop, true},
+			{"ebgp-unchanged-keeps", 65001, policychain.BuiltinNextHopUnchanged, nil, tc.received.AsSlice(), true},
+			{"ibgp-self-rewrites", 65000, policychain.BuiltinNextHopSelf, nil, selfHop, true},
+			{"ebgp-no-extended-strips", 65001, policychain.BuiltinNextHopAuto, []string{"standard"}, nil, false},
 		} {
 			t.Run(tc.name+"/"+dest.name, func(t *testing.T) {
 				f := newAIGPReplayFixture(t, nil)
@@ -79,7 +80,7 @@ func TestFlowSpecRedirectForwardNextHop(t *testing.T) {
 					negotiateForwardTestFamilies(peer, tc.fam)
 				}
 				f.destination.settings.PeerAS = dest.peerAS
-				f.destination.settings.NextHopMode = dest.mode
+				f.destination.settings.ExportPolicy = ExportPolicyWithNextHop(f.destination.settings.ExportPolicy, dest.ref)
 				f.destination.settings.SendCommunity = dest.community
 				f.destination.settings.FlowSpecRedirectNextHop = true
 				f.destination.refreshForwardFacts()

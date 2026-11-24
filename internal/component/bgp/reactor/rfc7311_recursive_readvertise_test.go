@@ -116,7 +116,7 @@ func TestRFC7311ReceivedRecursiveAIGPChangeReachesWire(t *testing.T) {
 				settings.LocalAddress = netip.MustParseAddr("127.0.0.1")
 				settings.LocalPort = localPort
 			}
-			destination.NextHopMode = NextHopSelf
+			destination.ExportPolicy = setExportNextHopSelf(destination.ExportPolicy)
 			peers := lowLiveRouter(t, source, destination)
 			update := func(prefix []byte, nextHop netip.Addr, metric uint64) *message.Update {
 				// All replacements have the same peer, prefix, AS_PATH, next hop,

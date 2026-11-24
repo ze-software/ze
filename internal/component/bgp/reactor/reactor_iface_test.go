@@ -319,7 +319,7 @@ func TestInterfaceAddrEventRefreshesEveryPeerLinkScope(t *testing.T) {
 			s := NewPeerSettings(netip.MustParseAddr("2001:db8:1::2"), 65000, 65000, 0x01010101)
 			s.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
 			s.LinkLocal = netip.MustParseAddr("fe80::1")
-			s.NextHopMode = NextHopSelf
+			s.ExportPolicy = setExportNextHopSelf(s.ExportPolicy)
 			peer := NewPeer(s)
 			r.peers[s.PeerKey()] = peer
 

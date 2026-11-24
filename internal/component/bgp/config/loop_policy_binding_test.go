@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/policy"
-
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/policy"
 )
 
 // TestLoopPolicyBinding exercises the real config producer and external-chain
@@ -191,7 +191,7 @@ func TestLoopPolicyUnsupportedDirection(t *testing.T) {
 			}
 			exportPolicy := peers[0].ExportPolicy
 			filters := exportPolicy.Filters()
-			if exportPolicy.Final() != policy.FinalReject || len(filters) != 2 || !slices.Equal(filters[:1], insertedExport(peers[0])) || !filters[1].Inactive {
+			if exportPolicy.Final() != policy.FinalReject || len(filters) != 3 || filters[0].Name != blackholeAgreement || !filters[1].Inactive || filters[2].Name != policychain.BuiltinNextHopAuto {
 				t.Fatalf("inactive export decision lost: %+v", exportPolicy)
 			}
 			if peers[0].ImportPolicy.Configured() || len(peers[0].ImportPolicy.Filters()) != 1 {

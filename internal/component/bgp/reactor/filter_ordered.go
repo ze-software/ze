@@ -117,6 +117,17 @@ type egressStepResult struct {
 	// (policyview.Treatment.Bit): the forward path applies each one when it
 	// builds the destination's UPDATE.
 	treatments uint8
+	// nextHop is the folded next-hop intent resolved by the accepting export chain.
+	nextHop policychain.NextHopIntent
+	// rawOverride is true when a member ended the export chain early with a
+	// whole-UPDATE raw override payload (D-3 next-hop provenance).
+	rawOverride bool
+	// nextHopAfterRaw is true when an explicit built-in next-hop:* step sat
+	// after the raw override in the export chain (D-3 last-write-wins).
+	nextHopAfterRaw bool
+	// hasAutoDefaultNextHop is true when the export chain carries an
+	// auto-appended trailing next-hop:auto step.
+	hasAutoDefaultNextHop bool
 }
 
 // buildOrderedIngressSteps builds the stage-ordered ingress pass from the
@@ -313,10 +324,25 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 			return egressStepResult{failed: true} // a guard miss: suppress for this peer
 		}
 		if res.modifiedPayload != nil {
-			return egressStepResult{accept: true, wireOverride: wireu.NewWireUpdate(res.modifiedPayload, wireUpdate.SourceCtxID()),
-				treatments: res.treatments, removals: res.removals}
+			return egressStepResult{
+				accept:                true,
+				wireOverride:          wireu.NewWireUpdate(res.modifiedPayload, wireUpdate.SourceCtxID()),
+				treatments:            res.treatments,
+				removals:              res.removals,
+				nextHop:               res.nextHop,
+				rawOverride:           res.rawOverride,
+				nextHopAfterRaw:       res.nextHopAfterRaw,
+				hasAutoDefaultNextHop: res.hasAutoDefaultNextHop,
+			}
 		}
-		return egressStepResult{accept: true, treatments: res.treatments}
+		return egressStepResult{
+			accept:                true,
+			treatments:            res.treatments,
+			nextHop:               res.nextHop,
+			rawOverride:           res.rawOverride,
+			nextHopAfterRaw:       res.nextHopAfterRaw,
+			hasAutoDefaultNextHop: res.hasAutoDefaultNextHop,
+		}
 	}
 	// Every active plugin filter is a member of the library chain the config
 	// loader compiles (bgpconfig compileLibraryChain; a dynamic peer's

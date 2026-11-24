@@ -25,7 +25,7 @@ var labeledMPReachNLRI = []byte{48, 0x00, 0x06, 0x41, 10, 0, 0}
 // copies the source attribute verbatim when no Set op reaches it, so the label
 // octets inside the NLRI are the ones that were received.
 //
-// VALIDATES: precomputeNextHop and applyFactsNextHop emit no op for NextHopUnchanged, and
+// VALIDATES: precomputeNextHop and applyFactsNextHop emit no op for next-hop:unchanged, and
 // mpReachNextHopHandler with no op reproduces the labeled MP_REACH byte for
 // byte (AFI/SAFI, next-hop, reserved octet, label entry and prefix).
 // PREVENTS: a propagated labeled route carrying a label the downstream router
@@ -36,9 +36,9 @@ func TestLabeledPropagationUnchangedNextHopKeepsLabels(t *testing.T) {
 	t.Parallel()
 
 	// A peer configured next-hop-unchanged produces no next-hop modification.
-	dest := &PeerSettings{NextHopMode: NextHopUnchanged}
+	dest := &PeerSettings{ExportPolicy: setExportNextHopUnchanged(filterapi.Policy{})}
 	var mods filterapi.ModAccumulator
-	var facts peerForwardFacts
+	facts := peerForwardFacts{exportPolicy: dest.ExportPolicy}
 	precomputeNextHop(dest, &facts)
 	applyFactsNextHop(&facts, &mods, family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel})
 	require.Empty(t, mods.Ops(), "next-hop-unchanged emits no next-hop rewrite op")

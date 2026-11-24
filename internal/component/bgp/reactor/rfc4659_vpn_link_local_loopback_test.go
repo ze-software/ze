@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -43,7 +44,7 @@ func TestRFC4659VPNv6LinkLocalLoopbackGlobal(t *testing.T) {
 	nextHop := netip.MustParseAddr(vpnLoopbackGlobal)
 
 	t.Run("configured route", func(t *testing.T) {
-		peer := vpnNHRewritePeer(t, vpnLLOnLink, vpnLoopbackGlobal, NextHopUnchanged, "")
+		peer := vpnNHRewritePeer(t, vpnLLOnLink, vpnLoopbackGlobal, policychain.BuiltinNextHopUnchanged, "")
 		route := &StaticRoute{
 			Prefix:  netip.MustParsePrefix("2001:db8:5601::/48"),
 			RD:      "65001:100",
@@ -57,18 +58,18 @@ func TestRFC4659VPNv6LinkLocalLoopbackGlobal(t *testing.T) {
 	})
 
 	t.Run("relay", func(t *testing.T) {
-		dest := vpnNHRewritePeer(t, vpnLLOnLink, vpnLoopbackGlobal, NextHopUnchanged, "")
+		dest := vpnNHRewritePeer(t, vpnLLOnLink, vpnLoopbackGlobal, policychain.BuiltinNextHopUnchanged, "")
 		assert.Equal(t, pair, vpnNHRelay(t, dest, vpnv6, single, vpnNHNLRIv6), "raised to the 48-octet pair")
 		assert.Equal(t, pair, vpnNHRelay(t, dest, vpnv6, pair, vpnNHNLRIv6), "a received pair is kept")
 	})
 
 	t.Run("next-hop self", func(t *testing.T) {
-		dest := vpnNHRewritePeer(t, vpnLLOnLink, vpnLoopbackGlobal, NextHopSelf, "")
+		dest := vpnNHRewritePeer(t, vpnLLOnLink, vpnLoopbackGlobal, policychain.BuiltinNextHopSelf, "")
 		assert.Equal(t, pair, vpnNHRelay(t, dest, vpnv6, vpnNHReceived, vpnNHNLRIv6))
 	})
 
 	t.Run("off-link recipient", func(t *testing.T) {
-		dest := vpnNHRewritePeer(t, vpnLLOffLink, vpnLoopbackGlobal, NextHopSelf, "")
+		dest := vpnNHRewritePeer(t, vpnLLOffLink, vpnLoopbackGlobal, policychain.BuiltinNextHopSelf, "")
 		assert.Equal(t, single, vpnNHRelay(t, dest, vpnv6, vpnNHReceived, vpnNHNLRIv6))
 	})
 }
@@ -83,7 +84,7 @@ func TestRFC4659VPNv6LinkLocalLoopbackGlobal(t *testing.T) {
 // PREVENTS: the RFC 4659 literal reading leaking into ordinary IPv6.
 func TestRFC2545IPv6LinkLocalLoopbackGlobalOmitted(t *testing.T) {
 	nextHop := netip.MustParseAddr(vpnLoopbackGlobal)
-	peer := vpnNHRewritePeer(t, vpnLLOnLink, vpnLoopbackGlobal, NextHopUnchanged, "")
+	peer := vpnNHRewritePeer(t, vpnLLOnLink, vpnLoopbackGlobal, policychain.BuiltinNextHopUnchanged, "")
 	assert.False(t, peer.linkLocalNextHopFor(nil, nextHop, family.IPv6Unicast).IsValid())
 
 	nlri, err := hex.DecodeString("20" + "20010db8")

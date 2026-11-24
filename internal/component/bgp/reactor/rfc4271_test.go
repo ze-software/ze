@@ -346,17 +346,17 @@ func TestRFC4271ExplicitPortOverridesDefault(t *testing.T) {
 func TestRFC4271ThirdPartyNextHopCanBeDisabled(t *testing.T) {
 	s := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	s.LocalAddress = netip.MustParseAddr("198.51.100.7")
-	s.NextHopMode = NextHopSelf
+	s.ExportPolicy = setExportNextHopSelf(s.ExportPolicy)
 
-	facts := &peerForwardFacts{}
+	facts := &peerForwardFacts{exportPolicy: s.ExportPolicy}
 	precomputeNextHop(s, facts)
 	require.Equal(t, nhModeSelf4, facts.nhMode, "self rewrite armed")
 	assert.Equal(t, [4]byte{198, 51, 100, 7}, facts.nhLegacy)
 
 	unchanged := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65001, 65002, 0x01020301)
 	unchanged.LocalAddress = netip.MustParseAddr("198.51.100.7")
-	unchanged.NextHopMode = NextHopUnchanged
-	other := &peerForwardFacts{}
+	unchanged.ExportPolicy = setExportNextHopUnchanged(unchanged.ExportPolicy)
+	other := &peerForwardFacts{exportPolicy: unchanged.ExportPolicy}
 	precomputeNextHop(unchanged, other)
 	assert.Equal(t, nhModeNone, other.nhMode, "unchanged mode performs no rewrite")
 }
@@ -375,14 +375,14 @@ func TestRFC4271ThirdPartyNextHopCanBeDisabled(t *testing.T) {
 // RFC requirement: RFC4271-5.1.3-3 negative -- a next-hop-self with no local address is refused rather than approximated: precomputeNextHop sets nhSelfWithheld with no rewrite armed, and resolveNextHop with no session returns ErrNextHopSelfNoLocal.
 func TestRFC4271ThirdPartyNextHopDisableFailsClosed(t *testing.T) {
 	s := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
-	s.NextHopMode = NextHopSelf // LocalAddress deliberately unset
+	s.ExportPolicy = setExportNextHopSelf(s.ExportPolicy) // LocalAddress deliberately unset
 
-	facts := &peerForwardFacts{}
+	facts := &peerForwardFacts{exportPolicy: s.ExportPolicy}
 	precomputeNextHop(s, facts)
 	assert.Equal(t, nhModeNone, facts.nhMode, "no rewrite armed without a local address")
 	assert.True(t, facts.nhSelfWithheld, "the forward rails are told to withhold the route")
 
-	satisfied := &peerForwardFacts{connectedLocal: netip.MustParseAddr("198.51.100.9")}
+	satisfied := &peerForwardFacts{connectedLocal: netip.MustParseAddr("198.51.100.9"), exportPolicy: s.ExportPolicy}
 	precomputeNextHop(s, satisfied)
 	assert.False(t, satisfied.nhSelfWithheld, "a connected endpoint satisfies next-hop self")
 	assert.Equal(t, nhModeSelf4, satisfied.nhMode)

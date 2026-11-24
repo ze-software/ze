@@ -38,7 +38,7 @@ func TestRefreshPeerLinkScopesSkipsAnUnchangedTable(t *testing.T) {
 		s := NewPeerSettings(netip.MustParseAddr(addr), 65000, 65000, 0x01010101)
 		s.LocalAddress = netip.MustParseAddr(addr)
 		s.LinkLocal = netip.MustParseAddr("fe80::1")
-		s.NextHopMode = NextHopSelf
+		s.ExportPolicy = setExportNextHopSelf(s.ExportPolicy)
 		peer := NewPeer(s)
 		r.peers[s.PeerKey()] = peer
 		peer.llScope.Store(scope)

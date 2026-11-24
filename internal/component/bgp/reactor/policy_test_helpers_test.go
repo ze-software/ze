@@ -63,7 +63,20 @@ func acceptingPolicies(t testing.TB, settings ...*PeerSettings) []*PeerSettings 
 	t.Helper()
 	for _, s := range settings {
 		s.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
-		s.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+		exportPolicy := mustPolicy(t, nil, routepolicy.FinalAccept)
+		if intent, static := staticExportNextHop(s.ExportPolicy); static && !intent.AutoDefault {
+			// Preserve an explicit built-in next-hop step already set on the fixture.
+			//exhaustive:ignore
+			switch intent.Mode {
+			case policychain.NextHopModeSelf:
+				exportPolicy = setExportNextHopSelf(exportPolicy)
+			case policychain.NextHopModeUnchanged:
+				exportPolicy = setExportNextHopUnchanged(exportPolicy)
+			case policychain.NextHopModeAuto:
+				exportPolicy = setExportNextHopAuto(exportPolicy)
+			}
+		}
+		s.ExportPolicy = exportPolicy
 	}
 	return settings
 }

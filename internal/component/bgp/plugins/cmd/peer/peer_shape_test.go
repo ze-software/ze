@@ -427,8 +427,6 @@ func fullyPopulatedPeer() plugin.PeerInfo {
 		LocalAddress:            netip.MustParseAddr("192.0.2.2"),
 		LocalPort:               179,
 		RemotePort:              54321,
-		NextHopMode:             3,
-		NextHopAddress:          netip.MustParseAddr("192.0.2.3"),
 		UpdatesReceived:         10,
 		UpdatesSent:             11,
 		KeepalivesReceived:      12,

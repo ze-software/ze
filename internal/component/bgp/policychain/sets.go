@@ -210,11 +210,15 @@ type Sets struct {
 	communityRemN   uint8
 	intents         intents
 	// The attribute fields (sets_attributes.go).
-	origin   attribute.Origin
-	nextHop  NextHopIntent
-	aigp     numericSet
-	large    valueList[attribute.LargeCommunity]
-	extended valueList[attribute.ExtendedCommunity]
+	origin  attribute.Origin
+	nextHop NextHopIntent
+	// nextHopAfterRaw records that an explicit built-in next-hop:* step sat
+	// after a whole-UPDATE raw override in the export chain, so its intent
+	// supersedes the raw override's next-hop bytes (D-3 last-write-wins).
+	nextHopAfterRaw bool
+	aigp            numericSet
+	large           valueList[attribute.LargeCommunity]
+	extended        valueList[attribute.ExtendedCommunity]
 	// The route metadata sets (sets_metadata.go).
 	meta  [metadataSetsMax]metadataSet
 	metaN uint8
@@ -459,6 +463,10 @@ func (s *Sets) ApplyTo(acc *filterapi.ModAccumulator, current Current) error {
 	s.applyAttributeNumbersTo(acc)
 	return nil
 }
+
+// NextHopAfterRaw reports whether an explicit built-in next-hop:* step sat
+// after a whole-UPDATE raw override in the export chain (D-3 last-write-wins).
+func (s *Sets) NextHopAfterRaw() bool { return s.nextHopAfterRaw }
 
 // removesCommunity reports whether s removes community.
 func (s *Sets) removesCommunity(community uint32) bool {

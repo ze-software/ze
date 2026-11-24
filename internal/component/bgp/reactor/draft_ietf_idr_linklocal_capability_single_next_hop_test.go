@@ -63,7 +63,7 @@ func singleNextHopReceivedMultihop(t *testing.T, native bool) {
 	t.Helper()
 	tc := nextHopAutoFamilies()[1]
 	f := singleNextHopExternalFixture(t, tc, false)
-	f.destination.settings.NextHopMode = NextHopUnchanged
+	f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 	f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 	rfc4271ProofRelay(t, f, nextHopAutoBody(t, tc, tc.prefix, nil), native)
 	hop, announced, withdrawn := singleNextHopSocketUpdate(t, f, tc)
@@ -81,7 +81,7 @@ func singleNextHopReceivedMultihop(t *testing.T, native bool) {
 	require.Equal(t, tc.prefix, withdrawn)
 
 	f.conn.reset()
-	f.destination.settings.NextHopMode = NextHopSelf
+	f.destination.settings.ExportPolicy = setExportNextHopSelf(f.destination.settings.ExportPolicy)
 	f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 	rfc4271ProofRelay(t, f, nextHopAutoBody(t, bare, tc.prefix, nil), native)
 	hop, announced, withdrawn = singleNextHopSocketUpdate(t, f, tc)
@@ -98,7 +98,7 @@ func singleNextHopPolicyMultihop(t *testing.T, native bool) {
 	t.Helper()
 	tc := nextHopAutoFamilies()[1]
 	f := singleNextHopExternalFixture(t, tc, false)
-	f.destination.settings.NextHopMode = NextHopUnchanged
+	f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 	policy := tc
 	policy.received = tc.self
 	singleNextHopRawPolicy(t, f, nextHopAutoBody(t, policy, tc.prefix, nil))
@@ -140,7 +140,7 @@ func singleNextHopAttached(t *testing.T, native bool) {
 		}
 		t.Run(name, func(t *testing.T) {
 			f := singleNextHopExternalFixture(t, tc, true)
-			f.destination.settings.NextHopMode = NextHopUnchanged
+			f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
 			f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 			input := tc
 			input.received = netip.MustParseAddr("fe80::1")

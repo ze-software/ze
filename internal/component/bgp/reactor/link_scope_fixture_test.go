@@ -9,24 +9,25 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/network"
 )
 
 type ls71PairMode struct {
 	name                           string
-	mode                           uint8
+	mode                           policychain.NextHopMode
 	internal, rsClient, preserving bool
 }
 
 func ls71PairModes() []ls71PairMode {
 	return []ls71PairMode{
-		{name: "auto", mode: NextHopAuto},
-		{name: "self", mode: NextHopSelf},
-		{name: "explicit", mode: NextHopExplicit},
-		{name: "unchanged", mode: NextHopUnchanged, preserving: true},
-		{name: "ibgp-auto", mode: NextHopAuto, internal: true, preserving: true},
-		{name: "rs-auto", mode: NextHopAuto, rsClient: true, preserving: true},
+		{name: "auto", mode: policychain.NextHopModeAuto},
+		{name: "self", mode: policychain.NextHopModeSelf},
+		{name: "explicit", mode: policychain.NextHopModeExplicit},
+		{name: "unchanged", mode: policychain.NextHopModeUnchanged, preserving: true},
+		{name: "ibgp-auto", mode: policychain.NextHopModeAuto, internal: true, preserving: true},
+		{name: "rs-auto", mode: policychain.NextHopModeAuto, rsClient: true, preserving: true},
 	}
 }
 
@@ -74,14 +75,26 @@ func ls71PairFixture(t *testing.T, mode ls71PairMode, topology ls71PairTopology)
 	if topology.ownLL {
 		f.destination.settings.LinkLocal = netip.MustParseAddr("fe80::1")
 	}
-	f.destination.settings.NextHopMode = mode.mode
-	f.destination.settings.NextHopAddress = topology.explicit
 	f.destination.settings.RSClient = mode.rsClient
 	f.destination.settings.PeerAS = 65002
 	if mode.internal {
 		f.destination.settings.PeerAS = f.destination.settings.LocalAS
 	}
 	f.destination.session.transport.Store(&sessionTransport{local: topology.self, localString: topology.self.String()})
+	switch mode.mode {
+	case policychain.NextHopModeAuto:
+		f.destination.settings.ExportPolicy = setExportNextHopAuto(f.destination.settings.ExportPolicy)
+	case policychain.NextHopModeSelf:
+		f.destination.settings.ExportPolicy = setExportNextHopSelf(f.destination.settings.ExportPolicy)
+	case policychain.NextHopModeUnchanged:
+		f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
+	case policychain.NextHopModeExplicit:
+		attachExplicitNextHop(t, f.r, f.destination, topology.explicit)
+	case policychain.NextHopModeUnspecified:
+		t.Fatalf("unexpected unspecified next-hop mode")
+	default:
+		t.Fatalf("unexpected next-hop mode %v", mode.mode)
+	}
 	if topology.recipient.Zone() != "" {
 		// Retain the recording sink while modeling the actual scoped remote
 		// endpoint. The zone belongs to transport, never to wire NH bytes.

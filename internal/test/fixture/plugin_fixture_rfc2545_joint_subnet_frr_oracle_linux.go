@@ -51,9 +51,9 @@ bgp {
   session {
    asn { local 65001; remote 65004; }
    router-id 10.254.5.1;
-   next-hop unchanged;
    family { ipv6/unicast { prefix { maximum 10000; } } }
   }
+  filter { export { filters [ next-hop:unchanged ]; final accept; } }
   behavior { rs-fast-path enable; }
   attach process rs { receive [ update-received ]; send [ update ]; }
   timer { connect-retry 2; }
@@ -63,9 +63,9 @@ bgp {
   session {
    asn { local 65001; remote 65003; }
    router-id 10.254.5.1;
-   next-hop unchanged;
    family { ipv6/unicast { prefix { maximum 10000; } } }
   }
+  filter { export { filters [ next-hop:unchanged ]; final accept; } }
   behavior { rs-fast-path enable; }
   attach process rs { receive [ update-received ]; send [ update ]; }
   timer { connect-retry 2; }

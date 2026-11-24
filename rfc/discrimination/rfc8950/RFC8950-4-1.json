@@ -1,25 +1,25 @@
 [
   {
     "rid": "RFC8950-4-1",
-    "polarity": "positive",
-    "unit": "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair",
-    "unit-sha": "5e58e9ac911dc9ae",
-    "claim-sha": "857a23a194752ceb",
-    "route": "mutant",
-    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-    "producer-sha": "f5de8d610f57837f",
-    "break": "line 436: \"neg.buildSubComponents()\" -\u003e \"delete(neg.extendedNextHop, Family{AFI: AFIIPv4, SAFI: SAFIUnicast}); neg.buildSubComponents()\""
-  },
-  {
-    "rid": "RFC8950-4-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair",
-    "unit-sha": "5e58e9ac911dc9ae",
+    "unit-sha": "509a079fd765c768",
     "claim-sha": "a66dedb312bfa883",
     "route": "mutant",
     "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-    "producer-sha": "f5de8d610f57837f",
-    "break": "line 436: \"neg.buildSubComponents()\" -\u003e \"neg.extendedNextHop[Family{AFI: AFIIPv4, SAFI: SAFIUnicast}] = AFIIPv6; neg.buildSubComponents()\""
+    "producer-sha": "b46aa59a5bf3130b",
+    "break": "line 448: \"neg.buildSubComponents()\" -\u003e \"neg.extendedNextHop[Family{AFI: AFIIPv4, SAFI: SAFIUnicast}] = AFIIPv6; neg.buildSubComponents()\""
+  },
+  {
+    "rid": "RFC8950-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair",
+    "unit-sha": "509a079fd765c768",
+    "claim-sha": "857a23a194752ceb",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "b46aa59a5bf3130b",
+    "break": "line 448: \"neg.buildSubComponents()\" -\u003e \"delete(neg.extendedNextHop, Family{AFI: AFIIPv4, SAFI: SAFIUnicast}); neg.buildSubComponents()\""
   },
   {
     "rid": "RFC8950-4-1",
@@ -91,12 +91,12 @@
     "rid": "RFC8950-4-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc8950_default_link_local_test.go::TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy",
-    "unit-sha": "2a91e75afe374089",
+    "unit-sha": "7a028d5b3cf57989",
     "claim-sha": "fc36c98485ec3d56",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer.go::resolveNextHop",
     "producer-sha": "a48dfc4d7335e606",
-    "break": "line 1852: \"addr = nh.Addr\" -\u003e \"addr = nh.Addr; if addr.Is6() \u0026\u0026 addr.IsLinkLocalUnicast() { phantomCaps := []capability.Capability{\u0026capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}, \u0026capability.ExtendedNextHop{Families: []capability.ExtendedNextHopFamily{{NLRIAFI: capability.AFIIPv4, NLRISAFI: capability.SAFIUnicast, NextHopAFI: capability.AFIIPv6}}}, \u0026capability.LinkLocalNextHop{}}; forged := capability.Negotiate(phantomCaps, phantomCaps, capability.PeerIdentity{LocalASN: p.settings.LocalAS, PeerASN: p.settings.PeerAS, Internal: p.settings.IsIBGP()}); p.negotiated.Store(NewNegotiatedCapabilities(forged)); p.sendCtx.Store(bgpctx.FromNegotiatedSend(forged)); session.negotiated = forged }\""
+    "break": "line 1856: \"addr = nh.Addr\" -\u003e \"addr = nh.Addr; if addr.Is6() \u0026\u0026 addr.IsLinkLocalUnicast() { phantomCaps := []capability.Capability{\u0026capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}, \u0026capability.ExtendedNextHop{Families: []capability.ExtendedNextHopFamily{{NLRIAFI: capability.AFIIPv4, NLRISAFI: capability.SAFIUnicast, NextHopAFI: capability.AFIIPv6}}}, \u0026capability.LinkLocalNextHop{}}; forged := capability.Negotiate(phantomCaps, phantomCaps, capability.PeerIdentity{LocalASN: p.settings.LocalAS, PeerASN: p.settings.PeerAS, Internal: p.settings.IsIBGP()}); p.negotiated.Store(NewNegotiatedCapabilities(forged)); p.sendCtx.Store(bgpctx.FromNegotiatedSend(forged)); session.negotiated = forged }\""
   },
   {
     "rid": "RFC8950-4-1",
@@ -124,7 +124,7 @@
     "rid": "RFC8950-4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair",
-    "unit-sha": "b8b06ab66b8379e5",
+    "unit-sha": "0c28b0fc6f13e1a9",
     "claim-sha": "40b17fb879a7486e",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLacksExtendedNextHop",
@@ -135,7 +135,7 @@
     "rid": "RFC8950-4-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair",
-    "unit-sha": "b8b06ab66b8379e5",
+    "unit-sha": "0c28b0fc6f13e1a9",
     "claim-sha": "130590b45afdfdab",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLacksExtendedNextHop",

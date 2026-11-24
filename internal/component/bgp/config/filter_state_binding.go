@@ -8,8 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ze-software/ze/internal/component/bgp/reactor"
-	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
@@ -24,6 +23,9 @@ import (
 // nowhere, answer false.
 func filterOwnerProcess(ref policy.Ref, plugins []plugin.PluginConfig, types map[string]string) (string, bool) {
 	if ref.Inactive {
+		return "", false
+	}
+	if _, builtin := policychain.BuiltinNextHopMode(ref.Name); builtin {
 		return "", false
 	}
 	prefix, _, qualified := strings.Cut(ref.Name, ":")

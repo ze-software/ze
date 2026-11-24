@@ -12,8 +12,10 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // A raw policy base can carry classic NLRI without code 3. A configured IPv4
@@ -34,7 +36,7 @@ func TestEffectiveNextHopClassicPresence(t *testing.T) {
 			body := classicPresenceBody(t, tc.classic, tc.code3)
 			original := bytes.Clone(body)
 			base := payloadNextHop(body)
-			facts := &peerForwardFacts{addr: peer, nhMode: nhModeExplicit4, nhLegacy: [4]byte{192, 0, 2, 2}}
+			facts := &peerForwardFacts{addr: peer, nhMode: nhModeSelf4, nhLegacy: [4]byte{192, 0, 2, 2}}
 			var mods filterapi.ModAccumulator
 			applyFactsNextHop(facts, &mods, base.mpFamily)
 			applyNextHopFamily(facts, &mods, base, body)
@@ -62,27 +64,26 @@ func TestEffectiveNextHopClassicPresence(t *testing.T) {
 }
 
 // The received source is valid classic IPv4. Its real export policy introduces
-// a zero-hop FlowSpec sibling and later omits code 3; Explicit4 repairs the
-// attribute. The selected recipient-owned repair must withdraw only classic
-// NLRI, retain the useful FlowSpec rule, and recover both after correction.
+// a zero-hop FlowSpec sibling and later omits code 3; a preceding next-hop:self
+// repairs the attribute over the raw policy base. The selected recipient-owned
+// repair must withdraw only classic NLRI, retain the useful FlowSpec rule, and
+// recover both after correction.
 func TestNextHopClassicPolicyRepairRecovery(t *testing.T) {
 	for _, native := range []bool{false, true} {
 		t.Run(nextHopAutoRailName(native), func(t *testing.T) {
 			f, source, replacement := classicPresenceFixture(t)
-			ls71PairChangingPolicy(t, f, replacement)
+			classicPresenceChangingPolicy(t, f, replacement)
 			ls71PairRelay(t, f, source, native, false)
 			classicPresenceAssert(t, f, netip.MustParseAddr("192.0.2.99"), false)
 
 			f.conn.reset()
 			*replacement = classicPresenceBody(t, true, false)
-			f.destination.settings.NextHopAddress = f.destination.settings.Address
-			f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+			classicPresenceSetRepairAddr(f, f.destination.settings.Address)
 			ls71PairRelay(t, f, source, native, native)
 			classicPresenceAssert(t, f, netip.Addr{}, true)
 
 			f.conn.reset()
-			f.destination.settings.NextHopAddress = netip.MustParseAddr("192.0.2.99")
-			f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+			classicPresenceSetRepairAddr(f, netip.MustParseAddr("192.0.2.99"))
 			ls71PairRelay(t, f, source, native, false)
 			classicPresenceAssert(t, f, netip.MustParseAddr("192.0.2.99"), false)
 		})
@@ -96,7 +97,7 @@ func TestNextHopClassicPolicyUsefulRepair(t *testing.T) {
 		t.Run(nextHopAutoRailName(native), func(t *testing.T) {
 			f, source, replacement := classicPresenceFixture(t)
 			*replacement = classicPresenceBody(t, true, false)
-			ls71PairChangingPolicy(t, f, replacement)
+			classicPresenceChangingPolicy(t, f, replacement)
 			ls71PairRelay(t, f, source, native, false)
 			classicPresenceAssert(t, f, netip.MustParseAddr("192.0.2.99"), false)
 		})
@@ -107,8 +108,7 @@ func classicPresenceFixture(t *testing.T) (*aigpReplayFixture, []byte, *[]byte) 
 	t.Helper()
 	tc := nextHopAutoFamilies()[0]
 	f := nextHopAutoFixture(t, tc, true)
-	f.destination.settings.NextHopMode = NextHopExplicit
-	f.destination.settings.NextHopAddress = netip.MustParseAddr("192.0.2.99")
+	classicPresenceSetRepairAddr(f, netip.MustParseAddr("192.0.2.99"))
 	for _, peer := range []*Peer{f.source, f.destination} {
 		peer.settings.AIGPSession = new(false)
 		negotiateForwardTestFamilies(peer, family.IPv4Unicast, flowRedirectIPv4)
@@ -116,6 +116,32 @@ func classicPresenceFixture(t *testing.T) (*aigpReplayFixture, []byte, *[]byte) 
 	}
 	replacement := classicPresenceBody(t, true, true)
 	return f, nextHopAutoBody(t, tc, tc.prefix, nil), &replacement
+}
+
+func classicPresenceSetRepairAddr(f *aigpReplayFixture, addr netip.Addr) {
+	f.destination.settings.LocalAddress = addr
+	f.destination.session.transport.Store(&sessionTransport{local: addr, localString: addr.String()})
+	f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+}
+
+func classicPresenceChangingPolicy(t *testing.T, f *aigpReplayFixture, replacement *[]byte) {
+	t.Helper()
+	scope := f.destination.llScope.Load()
+	f.r.orderedEgressSteps = buildOrderedEgressSteps()
+	transport := &answerTransport{
+		reads: []string{rpc.FilterFieldRaw},
+		answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+			return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: *replacement}
+		},
+	}
+	f.r.filterTransportSeam = transport
+	f.destination.settings.ExportPolicy = exportNextHopPolicy(t, []policychain.Member{
+		{Name: policychain.BuiltinNextHopSelf},
+		{Name: exportLibraryFilter, Plugin: answerPlugin},
+	})
+	f.destination.llScope.Store(scope)
+	f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
+	t.Cleanup(func() { require.Positive(t, transport.calls(), "the real export policy must run") })
 }
 
 func classicPresenceReach(t *testing.T) []byte {

@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -90,7 +91,7 @@ func llnhLinkLocalOnlyPayload(t *testing.T) ([]byte, []byte) {
 func TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer(t *testing.T) {
 	payload, withdrawal := llnhLinkLocalOnlyPayload(t)
 	for _, internal := range []bool{true, false} {
-		multihop := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, NextHopUnchanged)
+		multihop := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, policychain.BuiltinNextHopUnchanged)
 		if internal {
 			multihop.settings.PeerAS = 65000
 			multihop.refreshForwardFacts()
@@ -98,7 +99,7 @@ func TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer(t *testing.T) {
 			// fixture's interface table is the one under test.
 			multihop.llScope.Store(newLinkScopeFrom(llnhSegment, multihop.settings.Address))
 		}
-		attached := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, NextHopUnchanged)
+		attached := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, policychain.BuiltinNextHopUnchanged)
 
 		got := llnhForwardWritten(t, payload, llnhExternalSource, multihop, attached)
 
@@ -128,8 +129,8 @@ func TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer(t *testing.T) {
 // fan-out, is written the Link-Local-only next hop.
 func TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient(t *testing.T) {
 	payload, withdrawal := llnhLinkLocalOnlyPayload(t)
-	multihop := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, NextHopUnchanged)
-	attached := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, NextHopUnchanged)
+	multihop := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, policychain.BuiltinNextHopUnchanged)
+	attached := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, policychain.BuiltinNextHopUnchanged)
 
 	got := llnhForwardRSWritten(t, payload, multihop, attached)
 
@@ -160,7 +161,7 @@ func TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient(t *testing.T) {
 func TestLinkLocalReceivedPairStrippedForMultihopInternalPeer(t *testing.T) {
 	global := netip.MustParseAddr(llnhAdvertiserAddr).As16()
 	linkLocal := netip.MustParseAddr("fe80::9").As16()
-	for _, mode := range []uint8{NextHopUnchanged, NextHopAuto} {
+	for _, mode := range []string{policychain.BuiltinNextHopUnchanged, policychain.BuiltinNextHopAuto} {
 		multihop := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, mode)
 		attached := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, mode)
 		for _, p := range []*Peer{multihop, attached} {
@@ -174,9 +175,9 @@ func TestLinkLocalReceivedPairStrippedForMultihopInternalPeer(t *testing.T) {
 		got := llnhForwardWritten(t, llnhReceivedPairPayload(), llnhExternalSource, multihop, attached)
 
 		assert.Equal(t, global[:], got[netip.MustParseAddr(llnhMultihopAddr)].nextHop,
-			"mode %d: the multihop internal peer is written the Global alone", mode)
+			"mode %s: the multihop internal peer is written the Global alone", mode)
 		assert.Equal(t, append(global[:], linkLocal[:]...), got[netip.MustParseAddr(llnhOnSegmentAddr)].nextHop,
-			"mode %d: the attached internal peer keeps the pair", mode)
+			"mode %s: the attached internal peer keeps the pair", mode)
 	}
 }
 
@@ -195,7 +196,7 @@ func TestLinkLocalReceivedPairStrippedForMultihopInternalPeer(t *testing.T) {
 // MP_UNREACH_NLRI withdrawing the prefix.
 func TestNextHopSelfWithheldRouteServerWithdraws(t *testing.T) {
 	payload, withdrawal := llnhLinkLocalOnlyPayload(t)
-	client := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, NextHopSelf)
+	client := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, policychain.BuiltinNextHopSelf)
 	require.True(t, client.forwardFacts().nhSelfWithheld, "fixture did not reach the no-next-hop procedure")
 
 	got := llnhForwardRSWritten(t, payload, client)

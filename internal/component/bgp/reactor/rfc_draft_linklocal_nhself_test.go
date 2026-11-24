@@ -65,7 +65,7 @@ func nhSelfLinkLocalDest(t *testing.T, addr string, nextHopSelf, llnh bool) *Pee
 		Bus: rsRelaySendBinding(),
 	}
 	if nextHopSelf {
-		settings.NextHopMode = NextHopSelf
+		settings.ExportPolicy = setExportNextHopSelf(settings.ExportPolicy)
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))

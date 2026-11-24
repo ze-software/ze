@@ -198,7 +198,7 @@ func nhForwardRS(t testing.TB, payload []byte, dests ...*Peer) map[netip.Addr]wk
 func nhDest(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID) *Peer {
 	t.Helper()
 	peer := wkPeer(t, addr, peerAS, ctx, ctxID)
-	peer.settings.NextHopMode = NextHopUnchanged
+	peer.settings.ExportPolicy = setExportNextHopUnchanged(peer.settings.ExportPolicy)
 	peer.refreshForwardFacts()
 	return peer
 }

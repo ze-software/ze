@@ -20,11 +20,12 @@ import (
 	"testing"
 	"time"
 
-	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/family"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // unregisteredCtxID returns a ContextID the global registry does not hold.
@@ -85,7 +86,7 @@ func makeNextHopSelfIBGPPeer(t testing.TB, addr string, ctx *bgpctx.EncodingCont
 		PeerAS:        65000, // IBGP
 		RouterID:      0x01020300 | uint32(peerAddr.As4()[3]),
 		LocalAddress:  netip.MustParseAddr("10.0.0.254"),
-		NextHopMode:   NextHopSelf,
+		ExportPolicy:  setExportNextHopSelf(filterapi.Policy{}),
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))

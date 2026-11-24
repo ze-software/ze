@@ -29,6 +29,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -100,6 +101,11 @@ func (r *Reactor) exportFilterFromFacts(peer *Peer, facts *peerForwardFacts, pen
 	r.emitPrePolicyAdjRIBOut(peer, facts, body, facts.sendCtxID, nhUnknown)
 	// Final-only decisions run without transport or text formatting. Withdrawals
 	// survive rejection so an already advertised route can leave the peer.
+	origBody := body
+	var egressNH policychain.NextHopIntent
+	var egressRawOverride bool
+	var egressNextHopAfterRaw bool
+	overrideOwned := false
 	if hasActiveFilter(facts.exportPolicy, directionExport) {
 		var update wireu.WireUpdate
 		wireu.InitWireUpdate(&update, body, facts.sendCtxID)
@@ -120,14 +126,58 @@ func (r *Reactor) exportFilterFromFacts(peer *Peer, facts *peerForwardFacts, pen
 			}
 			return true, nil, nil
 		}
+		egressNH = res.nextHop
+		egressRawOverride = res.rawOverride
+		egressNextHopAfterRaw = res.nextHopAfterRaw
 		follow = res.removals
 		if res.wireOverride != nil {
 			override = res.wireOverride.Payload()
 			body = override
 		}
-	} else if !facts.exportPolicy.AcceptsExportAtEnd(facts.isEBGP, filterapi.ExportExplicit) { // RFC 8212 Section 3.
-		withdrawals := policyWithdrawals(body)
-		return withdrawals == nil, withdrawals, nil
+	} else {
+		if !facts.exportPolicy.AcceptsExportAtEnd(facts.isEBGP, filterapi.ExportExplicit) { // RFC 8212 Section 3.
+			withdrawals := policyWithdrawals(body)
+			return withdrawals == nil, withdrawals, nil
+		}
+		if facts.hasStaticNextHop {
+			egressNH = facts.staticNextHop
+		}
+	}
+
+	// D-5 & D-3: auto-appended trailing next-hop:auto preserves the originator-
+	// chosen next hop; explicit export-chain next-hop actions apply uniformly
+	// to originated routes. After a raw override, an earlier explicit/self
+	// intent applies only to fields untouched by the later raw filter.
+	if egressRawOverride {
+		rewritten, withheld, fail := r.applyOriginatedRawOverrideNextHop(facts, egressNH, egressNextHopAfterRaw, origBody, body)
+		r.recordModifyFailureAddr(fail, modifySiteExportChain, facts.addr)
+		if fail.failed() {
+			return true, nil, follow
+		}
+		if withheld {
+			withdrawals := policyWithdrawals(body)
+			return withdrawals == nil, withdrawals, follow
+		}
+		if rewritten != nil {
+			override = rewritten
+			body = override
+			overrideOwned = true
+		}
+	} else if originatedIntentUsesSelf(facts, egressNH) {
+		rewritten, withheld, fail := r.applyOriginatedSelfNextHop(facts, body)
+		r.recordModifyFailureAddr(fail, modifySiteExportChain, facts.addr)
+		if fail.failed() {
+			return true, nil, follow
+		}
+		if withheld {
+			withdrawals := policyWithdrawals(body)
+			return withdrawals == nil, withdrawals, follow
+		}
+		if rewritten != nil {
+			override = rewritten
+			body = override
+			overrideOwned = true
+		}
 	}
 
 	// RFC 2545 Section 3: the common-subnet condition judges the effective
@@ -144,11 +194,95 @@ func (r *Reactor) exportFilterFromFacts(peer *Peer, facts *peerForwardFacts, pen
 	if override == nil {
 		return false, nil, follow
 	}
+	if overrideOwned {
+		return false, override, follow
+	}
 	// A raw policy override may alias the session's writeBuf. Only copy when
 	// normalization did not already rebuild it into independently owned bytes.
 	out := make([]byte, len(override))
 	copy(out, override)
 	return false, out, follow
+}
+
+// originatedIntentUsesSelf reports whether intent demands rewriting an
+// originated route's next hop to this speaker's session address. Auto-appended
+// trailing next-hop:auto (AutoDefault == true) applies to forwarded routes only
+// and preserves the originator-chosen next hop (D-5).
+func originatedIntentUsesSelf(f *peerForwardFacts, intent policychain.NextHopIntent) bool {
+	if intent.AutoDefault {
+		return false
+	}
+	return intentUsesSelf(f, intent)
+}
+
+// applyOriginatedRawOverrideNextHop reconciles an earlier non-default export-
+// chain next-hop intent with a later raw full-UPDATE override on an originated
+// route (D-3, D-5): fields rewritten by the raw filter keep their raw next hop,
+// while untouched fields receive the earlier explicit or self intent.
+func (r *Reactor) applyOriginatedRawOverrideNextHop(facts *peerForwardFacts, intent policychain.NextHopIntent, afterRaw bool, srcBody, body []byte) ([]byte, bool, modifyFailure) {
+	if intent.Mode == policychain.NextHopModeUnspecified {
+		return nil, false, modifyFailureNone
+	}
+	if intent.AutoDefault {
+		return nil, false, modifyFailureNone
+	}
+	if intent.Mode == policychain.NextHopModeUnchanged {
+		return nil, false, modifyFailureNone
+	}
+	srcNH := payloadNextHop(srcBody)
+	baseNH := payloadNextHop(body)
+	if !baseNH.valid() && baseNH.classicPresence != nextHopClassicPresent {
+		return nil, false, modifyFailureNone
+	}
+	legacyUntouched, mpUntouched := rawOverrideUntouchedFields(srcNH, baseNH, srcBody, body)
+	if afterRaw {
+		legacyUntouched = baseNH.legacy.IsValid() || baseNH.classicPresence != nextHopClassicAbsent
+		mpUntouched = baseNH.mpFamily != (family.Family{}) && baseNH.mpFamily.NeedsNextHop()
+	}
+	var mods filterapi.ModAccumulator
+	switch {
+	case intent.Mode == policychain.NextHopModeExplicit:
+		applyExplicitNextHopSections(intent.Addr, baseNH, legacyUntouched, mpUntouched, &mods)
+	case originatedIntentUsesSelf(facts, intent):
+		if applySelfSections(facts, baseNH, legacyUntouched, mpUntouched, &mods) {
+			withholdNextHopSelfAbsent.warn(facts, netip.Addr{}, &mods, baseNH)
+			return nil, true, modifyFailureNone
+		}
+	}
+	if mods.Len() == 0 {
+		return nil, false, modifyFailureNone
+	}
+	out, _, fail := buildModifiedPayloadWithLimit(body, &mods, r.attrModHandlers, nil, nil, maxUpdateBody+vpnNextHopPairOctets+1)
+	return out, false, fail
+}
+
+// applyOriginatedSelfNextHop rewrites the next-hop field(s) of an originated
+// UPDATE body to this session's precomputed self address when an explicit
+// export-chain action (next-hop:self, modify { set { next-hop self; } }, or
+// explicit next-hop:auto on eBGP) selected self. Pure withdrawals pass
+// untouched; missing local address withholds announcements (RFC 4271 §5.1.3).
+func (r *Reactor) applyOriginatedSelfNextHop(facts *peerForwardFacts, body []byte) ([]byte, bool, modifyFailure) {
+	base := payloadNextHop(body)
+	if !base.valid() {
+		return nil, false, modifyFailureNone
+	}
+	if facts.selfWithheld {
+		var empty filterapi.ModAccumulator
+		withholdNextHopSelfAbsent.warn(facts, netip.Addr{}, &empty, base)
+		return nil, true, modifyFailureNone
+	}
+	var mods filterapi.ModAccumulator
+	if base.legacy.IsValid() || base.classicPresence == nextHopClassicPresent {
+		applySelfLegacyNextHop(facts, facts.selfMode, &mods)
+	}
+	if base.mpFamily != (family.Family{}) && base.mpFamily.NeedsNextHop() {
+		applySelfMPNextHop(facts, facts.selfMode, &mods, base.mpFamily)
+	}
+	if mods.Len() == 0 {
+		return nil, false, modifyFailureNone
+	}
+	out, _, fail := buildModifiedPayloadWithLimit(body, &mods, r.attrModHandlers, nil, nil, maxUpdateBody+vpnNextHopPairOctets+1)
+	return out, false, fail
 }
 
 // captureOriginatedFacts fills the pre-publication facts shared by the ordinary
@@ -163,6 +297,7 @@ func (peer *Peer) captureOriginatedFacts(pending *peerForwardFacts) {
 	pending.peerAS = peer.settings.PeerAS
 	pending.localAS = peer.settings.LocalAS
 	pending.isEBGP = peer.settings.IsEBGP()
+	pending.rsClient = peer.settings.RSClient
 	pending.asOverride = peer.settings.ASOverride
 	pending.secondaryAS = secondaryPrependAS(peer.settings)
 	pending.filterInfo = peer.settings.SessionFacts(peer.settings.PeerAS)
@@ -181,6 +316,9 @@ func (peer *Peer) captureOriginatedFacts(pending *peerForwardFacts) {
 	if ctx := peer.sendCtx.Load(); ctx != nil {
 		pending.sendASN4 = ctx.ASN4()
 	}
+	precomputeNextHop(peer.settings, pending)
+	applyLinkLocalNextHop(peer.settings, pending, peer.llScope.Load())
+	precomputeVPNNextHop(pending)
 }
 
 // normalizeOrdinaryNextHop applies the forwarding rails' shared scope decision

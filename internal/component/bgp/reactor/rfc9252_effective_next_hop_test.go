@@ -6,12 +6,14 @@ import (
 	"bytes"
 	"net/netip"
 	"slices"
+	"strconv"
 	"testing"
 
-	routepolicy "github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestRFC9252EffectiveNextHopControlsServiceTLVs observes the recipient Session's
@@ -39,17 +41,17 @@ func TestRFC9252EffectiveNextHopControlsServiceTLVs(t *testing.T) {
 	for _, rail := range []string{"cached", "rs"} {
 		for _, carrier := range []string{"legacy", "ipv6", "mapped", "vpn6", "pair-trim"} {
 			for _, tc := range []rfc9252NextHopCase{
-				{name: "auto-received", mode: NextHopAuto},
-				{name: "auto-already-self", mode: NextHopAuto, receivedSelf: true},
-				{name: "auto-policy-change-restored-to-self", mode: NextHopAuto, receivedSelf: true, policy: true, policyChanged: true},
-				{name: "unchanged-received", mode: NextHopUnchanged},
-				{name: "explicit-equal", mode: NextHopExplicit},
-				{name: "explicit-changed", mode: NextHopExplicit, explicitChange: true, changed: true},
-				{name: "auto-policy-equal", mode: NextHopAuto, policy: true},
-				{name: "auto-policy-changed", mode: NextHopAuto, policy: true, policyChanged: true, changed: true},
-				{name: "unchanged-policy-equal", mode: NextHopUnchanged, policy: true},
-				{name: "unchanged-policy-changed", mode: NextHopUnchanged, policy: true, policyChanged: true, changed: true},
-				{name: "explicit-restores-original", mode: NextHopExplicit, policy: true, policyChanged: true},
+				{name: "auto-received", mode: policychain.NextHopModeAuto},
+				{name: "auto-already-self", mode: policychain.NextHopModeAuto, receivedSelf: true},
+				{name: "auto-policy-change-restored-to-self", mode: policychain.NextHopModeAuto, receivedSelf: true, policy: true, policyChanged: true},
+				{name: "unchanged-received", mode: policychain.NextHopModeUnchanged},
+				{name: "explicit-equal", mode: policychain.NextHopModeExplicit},
+				{name: "explicit-changed", mode: policychain.NextHopModeExplicit, explicitChange: true, changed: true},
+				{name: "auto-policy-equal", mode: policychain.NextHopModeAuto, policy: true},
+				{name: "auto-policy-changed", mode: policychain.NextHopModeAuto, policy: true, policyChanged: true, changed: true},
+				{name: "unchanged-policy-equal", mode: policychain.NextHopModeUnchanged, policy: true},
+				{name: "unchanged-policy-changed", mode: policychain.NextHopModeUnchanged, policy: true, policyChanged: true, changed: true},
+				{name: "explicit-restores-original", mode: policychain.NextHopModeExplicit, policy: true, policyChanged: true},
 			} {
 				if tc.receivedSelf {
 					// The connected self is native IPv6; these equality controls
@@ -63,7 +65,7 @@ func TestRFC9252EffectiveNextHopControlsServiceTLVs(t *testing.T) {
 				}
 				// Configured explicit VPN next-hop encoding is not the subject:
 				// its policy operations below carry the complete valid zero-RD field.
-				if carrier == "vpn6" && tc.mode == NextHopExplicit {
+				if carrier == "vpn6" && tc.mode == policychain.NextHopModeExplicit {
 					continue
 				}
 				for _, rawPolicy := range []bool{false, true} {
@@ -88,7 +90,7 @@ func TestRFC9252EffectiveNextHopControlsServiceTLVs(t *testing.T) {
 			}
 			t.Run(rail+"/service-only/"+name, func(t *testing.T) {
 				rfc9252EffectiveNextHopCase(t, rail, "ipv6", rfc9252NextHopCase{
-					mode: NextHopUnchanged, policy: true, policyChanged: true,
+					mode: policychain.NextHopModeUnchanged, policy: true, policyChanged: true,
 					changed: true, rawPolicy: rawPolicy, serviceOnly: true,
 				})
 			})
@@ -100,7 +102,7 @@ func TestRFC9252EffectiveNextHopControlsServiceTLVs(t *testing.T) {
 		}
 		t.Run(rail+"/legacy/absent-mp-companion", func(t *testing.T) {
 			rfc9252EffectiveNextHopCase(t, rail, "legacy", rfc9252NextHopCase{
-				mode: NextHopExplicit, explicit: netip.MustParseAddr("2001:db8:1::10"),
+				mode: policychain.NextHopModeExplicit, explicit: netip.MustParseAddr("2001:db8:1::10"),
 			})
 		})
 		for _, field := range []struct {
@@ -111,9 +113,9 @@ func TestRFC9252EffectiveNextHopControlsServiceTLVs(t *testing.T) {
 			{name: "eight", value: make([]byte, 8)},
 		} {
 			for _, tc := range []rfc9252NextHopCase{
-				{name: "self-changed", mode: NextHopSelf, changed: true},
-				{name: "explicit-changed", mode: NextHopExplicit, explicitChange: true, changed: true},
-				{name: "explicit-equal", mode: NextHopExplicit},
+				{name: "self-changed", mode: policychain.NextHopModeSelf, changed: true},
+				{name: "explicit-changed", mode: policychain.NextHopModeExplicit, explicitChange: true, changed: true},
+				{name: "explicit-equal", mode: policychain.NextHopModeExplicit},
 			} {
 				t.Run(rail+"/raw-mp-repair/"+field.name+"/"+tc.name, func(t *testing.T) {
 					tc.policy, tc.rawPolicy = true, true
@@ -132,7 +134,7 @@ func TestRFC9252EffectiveNextHopControlsServiceTLVs(t *testing.T) {
 
 type rfc9252NextHopCase struct {
 	name           string
-	mode           uint8
+	mode           policychain.NextHopMode
 	policy         bool
 	policyChanged  bool
 	explicitChange bool
@@ -152,7 +154,6 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 	f.source.settings.AcceptSRv6PrefixSID = true
 	f.source.session.settings.AcceptSRv6PrefixSID = true
 	f.destination.settings.PropagateSRv6PrefixSID = true
-	f.destination.settings.NextHopMode = tc.mode
 	f.destination.settings.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
 	conn := &rfc4659PeeringConn{
 		recordingConn: f.conn,
@@ -167,7 +168,7 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 		original = netip.MustParseAddr("2001:db8:1::1")
 	}
 	replacement := netip.MustParseAddr("2001:db8:1::10")
-	if tc.mode == NextHopSelf {
+	if tc.mode == policychain.NextHopModeSelf {
 		replacement = f.destination.settings.LocalAddress
 	}
 	fam := family.IPv6Unicast
@@ -212,18 +213,18 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 		}
 		return addr.AsSlice()
 	}
-	f.destination.settings.NextHopAddress = original
+	explicitAddr := original
 	if tc.explicitChange {
-		f.destination.settings.NextHopAddress = replacement
+		explicitAddr = replacement
 	}
 	if tc.explicit.IsValid() {
-		f.destination.settings.NextHopAddress = tc.explicit
+		explicitAddr = tc.explicit
 	}
 	wantAddress := original
 	if tc.changed {
 		wantAddress = replacement
 	}
-	if tc.mode == NextHopAuto {
+	if tc.mode == policychain.NextHopModeAuto {
 		if carrier != "legacy" {
 			// The literal connected endpoint supersedes received and policy
 			// MP fields. IPv6 self has no usable replacement for legacy NLRI.
@@ -267,25 +268,87 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 	}
 	// Without a policy no transport is installed, so nothing asks it.
 	transport := &answerTransport{}
+	wantCalls := 0
 	dispatch := rail
 	if tc.policy {
+		policyAddr := original
 		policyHop := field(original)
 		if tc.policyChanged {
+			policyAddr = replacement
 			policyHop = field(replacement)
 		}
 		if tc.rawPolicy && tc.rawNextHop != nil {
 			policyHop = tc.rawNextHop
 		}
-		// The destination's export filter answers a raw body carrying the
-		// next-hop field itself: a plugin filter expresses a next-hop
-		// rewrite only that way.
-		override := bodyFor(policyHop)
-		transport = rawAnswerTransport(override)
-		f.r.filterTransportSeam = transport
-		f.destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "effective-next-hop")
 		f.r.orderedEgressSteps = buildOrderedEgressSteps()
+		if tc.mode == policychain.NextHopModeExplicit && !tc.rawPolicy {
+			// Two export-chain next-hop sets: the first rewrites to policyAddr,
+			// the second restores or replaces with explicitAddr (last-write-wins).
+			transport = &answerTransport{
+				reads: []string{rpc.FilterFieldRaw},
+				sets:  []string{exportNHField},
+				answer: func(in rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+					if in.Filter == "effective-next-hop" {
+						return answerSet(exportNHField, strconv.Quote(policyAddr.String()))
+					}
+					return answerSet(exportNHField, strconv.Quote(explicitAddr.String()))
+				},
+			}
+			f.r.filterTransportSeam = transport
+			f.destination.settings.ExportPolicy = exportNextHopPolicy(t, []policychain.Member{
+				{Name: "effective-next-hop", Plugin: answerPlugin},
+				{Name: "explicit-next-hop", Plugin: answerPlugin},
+				{Name: policychain.BuiltinNextHopAuto, AutoDefault: true},
+			})
+			wantCalls = 2
+		} else {
+			var builtinRef string
+			switch tc.mode {
+			case policychain.NextHopModeAuto:
+				builtinRef = policychain.BuiltinNextHopAuto
+			case policychain.NextHopModeSelf:
+				builtinRef = policychain.BuiltinNextHopSelf
+			case policychain.NextHopModeUnchanged:
+				builtinRef = policychain.BuiltinNextHopUnchanged
+			case policychain.NextHopModeExplicit:
+				// Whole-UPDATE raw overrides terminate the chain early; a preceding
+				// next-hop:self with the target session endpoint exercises the same
+				// post-raw next-hop repair/restoration onto explicitAddr.
+				f.destination.settings.LocalAddress = explicitAddr
+				conn.local = explicitAddr
+				f.destination.session.transport.Store(connectedTransport(conn))
+				builtinRef = policychain.BuiltinNextHopSelf
+			case policychain.NextHopModeUnspecified:
+				t.Fatalf("unexpected unspecified next-hop mode")
+			default:
+				t.Fatalf("unexpected next-hop mode %v", tc.mode)
+			}
+			override := bodyFor(policyHop)
+			transport = rawAnswerTransport(override)
+			f.r.filterTransportSeam = transport
+			f.destination.settings.ExportPolicy = exportNextHopPolicy(t, []policychain.Member{
+				{Name: "effective-next-hop", Plugin: answerPlugin},
+				{Name: builtinRef},
+			})
+			wantCalls = 1
+		}
 		if rail == "rs" {
 			dispatch = "rs-export"
+		}
+	} else {
+		switch tc.mode {
+		case policychain.NextHopModeAuto:
+			f.destination.settings.ExportPolicy = setExportNextHopAuto(f.destination.settings.ExportPolicy)
+		case policychain.NextHopModeSelf:
+			f.destination.settings.ExportPolicy = setExportNextHopSelf(f.destination.settings.ExportPolicy)
+		case policychain.NextHopModeUnchanged:
+			f.destination.settings.ExportPolicy = setExportNextHopUnchanged(f.destination.settings.ExportPolicy)
+		case policychain.NextHopModeExplicit:
+			attachExplicitNextHop(t, f.r, f.destination, explicitAddr)
+		case policychain.NextHopModeUnspecified:
+			t.Fatalf("unexpected unspecified next-hop mode")
+		default:
+			t.Fatalf("unexpected next-hop mode %v", tc.mode)
 		}
 	}
 	f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
@@ -296,10 +359,6 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 	// RFC 9252 Section 2: both identity comparisons are about the actual
 	// received and emitted address, after policy and configured overrides.
 	updates := rfc2545ReceiveForward(t, f, dispatch, bodyFor(receivedHop))
-	wantCalls := 0
-	if tc.policy {
-		wantCalls = 1
-	}
 	if policyCalls := transport.calls(); policyCalls != wantCalls {
 		t.Errorf("policy calls=%d, want %d", policyCalls, wantCalls)
 	}
@@ -373,18 +432,25 @@ func rfc9252MixedNextHopCase(t *testing.T, rail, change string, rawPolicy bool, 
 		// next-hop fields itself: a plugin filter expresses a next-hop
 		// rewrite only that way.
 		policyHop := mpHop
+		builtinRef := policychain.BuiltinNextHopUnchanged
 		if rawPolicy && rawNextHop != nil {
 			// The raw policy leaves an existing MP carrier with no usable
-			// intermediate address. Configured rewriting repairs it before
-			// admission; the repaired MP entity must still govern its services.
+			// intermediate address. Export-chain next-hop:self repairs the IPv6
+			// MP carrier before admission without touching the legacy sibling;
+			// the repaired MP entity must still govern its services.
 			policyHop = rawNextHop
-			f.destination.settings.NextHopMode = NextHopExplicit
-			f.destination.settings.NextHopAddress = netip.AddrFrom16([16]byte(mpHop))
+			repairAddr := netip.AddrFrom16([16]byte(mpHop))
+			f.destination.settings.LocalAddress = repairAddr
+			f.destination.session.transport.Store(&sessionTransport{local: repairAddr})
+			builtinRef = policychain.BuiltinNextHopSelf
 		}
 		override := bodyFor(legacyHop, policyHop)
 		transport = rawAnswerTransport(override)
 		f.r.filterTransportSeam = transport
-		f.destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "mixed-next-hop")
+		f.destination.settings.ExportPolicy = exportNextHopPolicy(t, []policychain.Member{
+			{Name: "mixed-next-hop", Plugin: answerPlugin},
+			{Name: builtinRef},
+		})
 		f.r.orderedEgressSteps = buildOrderedEgressSteps()
 		if rail == "rs" {
 			dispatch = "rs-export"

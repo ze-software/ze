@@ -13,14 +13,15 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
 // vpnNHRewritePeer builds an established destination with a configured
-// next-hop mode. A recipient inside vpnLLSegment gets its link scope settled
-// against that segment; an IPv4 recipient gets none.
-func vpnNHRewritePeer(t *testing.T, recipient, local string, mode uint8, explicit string) *Peer {
+// export next-hop policy. A recipient inside vpnLLSegment gets its link scope
+// settled against that segment; an IPv4 recipient gets none.
+func vpnNHRewritePeer(t *testing.T, recipient, local, nhRef, explicit string) *Peer {
 	t.Helper()
 	settings := &PeerSettings{
 		Connection:    ConnectionBoth,
@@ -30,19 +31,28 @@ func vpnNHRewritePeer(t *testing.T, recipient, local string, mode uint8, explici
 		GlobalLocalAS: 65000,
 		PeerAS:        65002,
 		RouterID:      0x0a000001,
-		NextHopMode:   mode,
 	}
-	if explicit != "" {
-		settings.NextHopAddress = netip.MustParseAddr(explicit)
+	if nhRef != "" {
+		settings.ExportPolicy = ExportPolicyWithNextHop(settings.ExportPolicy, nhRef)
 	}
 	if settings.Address.Is6() {
 		settings.LinkLocal = netip.MustParseAddr(vpnLLLinkLocal)
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
-	peer.sendCtx.Store(bgpctx.EncodingContextForASN4(true))
+	sendCtx := bgpctx.EncodingContextForASN4(true)
+	peer.sendCtx.Store(sendCtx)
 	if settings.Address.Is6() {
 		peer.llScope.Store(newLinkScopeFrom(vpnLLSegment, settings.Address))
+	}
+	if explicit != "" {
+		ctxID, err := bgpctx.Registry.Register(sendCtx)
+		require.NoError(t, err)
+		peer.sendCtxID = ctxID
+		r := &Reactor{attrModHandlers: attrModHandlersWithDefaults()}
+		attachExplicitNextHop(t, r, peer, netip.MustParseAddr(explicit))
+		peer.reactor = r
+		return peer
 	}
 	peer.fwdFacts.Store(peer.buildForwardFacts())
 	return peer
@@ -58,6 +68,15 @@ func vpnNHRelay(t *testing.T, dest *Peer, fam family.Family, field, nlri string)
 	nlriBytes, err := hex.DecodeString(nlri)
 	require.NoError(t, err)
 	src := buildMPReachSource(uint16(fam.AFI), byte(fam.SAFI), fieldBytes, nlriBytes)
+	if !dest.forwardFacts().hasStaticNextHop && dest.reactor != nil {
+		body := buildUpdatePayload(src, nil)
+		suppress, override, _ := dest.reactor.exportFilterFromFacts(dest, dest.forwardFacts(), false, body)
+		require.False(t, suppress, "explicit next-hop rewrite must not suppress the route")
+		require.NotNil(t, override, "explicit next-hop rewrite emits an override body")
+		update, err := message.UnpackUpdate(override)
+		require.NoError(t, err)
+		return vpnLLNextHopField(t, update.PathAttributes)
+	}
 	var mods filterapi.ModAccumulator
 	applyFactsNextHop(dest.forwardFacts(), &mods, fam)
 	applyEgressNextHopScope(dest, dest.forwardFacts(), &mods, buildUpdatePayload(src, nil), fam)
@@ -91,16 +110,16 @@ func TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		recipient string
-		mode      uint8
+		nhRef     string
 		explicit  string
 		want      string
 	}{
-		{name: "self on-link", recipient: vpnLLOnLink, mode: NextHopSelf, want: vpnLLRDZero + vpnLLGlobal + vpnLLRDZero + vpnLLLL},
-		{name: "self off-link", recipient: vpnLLOffLink, mode: NextHopSelf, want: vpnLLRDZero + vpnLLGlobal},
-		{name: "explicit off-link", recipient: vpnLLOffLink, mode: NextHopExplicit, explicit: "2001:db8:77::1", want: vpnLLRDZero + "20010db8007700000000000000000001"},
+		{name: "self on-link", recipient: vpnLLOnLink, nhRef: policychain.BuiltinNextHopSelf, want: vpnLLRDZero + vpnLLGlobal + vpnLLRDZero + vpnLLLL},
+		{name: "self off-link", recipient: vpnLLOffLink, nhRef: policychain.BuiltinNextHopSelf, want: vpnLLRDZero + vpnLLGlobal},
+		{name: "explicit off-link", recipient: vpnLLOffLink, explicit: "2001:db8:77::1", want: vpnLLRDZero + "20010db8007700000000000000000001"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			dest := vpnNHRewritePeer(t, tc.recipient, vpnLLSpeaker, tc.mode, tc.explicit)
+			dest := vpnNHRewritePeer(t, tc.recipient, vpnLLSpeaker, tc.nhRef, tc.explicit)
 			assert.Equal(t, tc.want, vpnNHRelay(t, dest, vpnv6, vpnNHReceived, vpnNHNLRIv6))
 		})
 	}
@@ -115,7 +134,7 @@ func TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD(t *testing.T) {
 // PREVENTS: the rewrite writing the bare 16-octet mapped address, which no
 // SAFI 128 length admits, or the materializer refusing the 12-octet field.
 func TestRFC4364ForwardVPNIPv4TransportNextHopRewrite(t *testing.T) {
-	dest := vpnNHRewritePeer(t, "10.0.0.3", "10.0.0.2", NextHopSelf, "")
+	dest := vpnNHRewritePeer(t, "10.0.0.3", "10.0.0.2", policychain.BuiltinNextHopSelf, "")
 	vpnv4 := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
 	vpnv6 := family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}
 	assert.Equal(t, vpnLLRDZero+"0a000002", vpnNHRelay(t, dest, vpnv4, vpnLLRDZero+"0a090909", vpnNHNLRIv4))

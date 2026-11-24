@@ -390,9 +390,6 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 		}
 	}
 
-	if err := applyNextHopMode(ps, name, sessionMap); err != nil {
-		return nil, err
-	}
 	if err := applyAIGPSettings(ps, name, sessionMap); err != nil {
 		return nil, err
 	}

@@ -1912,52 +1912,6 @@ func TestParsePeerFromTree_ClusterID(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid cluster-id")
 }
 
-// TestParsePeerFromTree_NextHopMode verifies next-hop mode extraction.
-//
-// VALIDATES: AC-7 through AC-11 (next-hop modes).
-// PREVENTS: Next-hop mode not parsed or wrong mode assigned.
-func TestParsePeerFromTree_NextHopMode(t *testing.T) {
-	base := func(nhVal string) map[string]any {
-		session := map[string]any{"asn": map[string]any{"remote": "65001"}}
-		if nhVal != "" {
-			session["next-hop"] = nhVal
-		}
-		return map[string]any{
-			"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.2"}, "local": map[string]any{"ip": "auto"}},
-			"session":    session,
-		}
-	}
-
-	tests := []struct {
-		name    string
-		nhVal   string
-		mode    uint8
-		addr    netip.Addr
-		wantErr bool
-	}{
-		{"default (absent)", "", NextHopAuto, netip.Addr{}, false},
-		{"auto", "auto", NextHopAuto, netip.Addr{}, false},
-		{"self", "self", NextHopSelf, netip.Addr{}, false},
-		{"unchanged", "unchanged", NextHopUnchanged, netip.Addr{}, false},
-		{"explicit IPv4", "192.168.1.1", NextHopExplicit, netip.MustParseAddr("192.168.1.1"), false},
-		{"explicit IPv6", "2001:db8::1", NextHopExplicit, netip.MustParseAddr("2001:db8::1"), false},
-		{"invalid", "bogus", 0, netip.Addr{}, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ps, err := parsePeerFromTree("peer1", base(tt.nhVal), 65000, 0x01010101)
-			if tt.wantErr {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), "invalid next-hop")
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.mode, ps.NextHopMode)
-			assert.Equal(t, tt.addr, ps.NextHopAddress)
-		})
-	}
-}
-
 // TestParsePeerFromTree_ASOverride verifies as-override extraction.
 //
 // VALIDATES: AC-12 (as-override from config), AC-13 (default false).

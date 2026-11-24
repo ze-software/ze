@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -91,13 +92,44 @@ func ls71PairBody(t *testing.T, field []byte, sibling bool) []byte {
 func ls71PairPolicy(t *testing.T, f *aigpReplayFixture, replacement []byte) {
 	t.Helper()
 	scope := f.destination.llScope.Load()
-	exportLibraryAnswer(t, f.r, func(string) rpc.FilterUpdateOutput {
-		return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: replacement}
-	}, f.destination)
+	var builtinRef string
+	if intent, static := staticExportNextHop(f.destination.settings.ExportPolicy); static {
+		switch intent.Mode {
+		case policychain.NextHopModeAuto:
+			builtinRef = policychain.BuiltinNextHopAuto
+		case policychain.NextHopModeSelf:
+			builtinRef = policychain.BuiltinNextHopSelf
+		case policychain.NextHopModeUnchanged:
+			builtinRef = policychain.BuiltinNextHopUnchanged
+		case policychain.NextHopModeExplicit, policychain.NextHopModeUnspecified:
+			t.Fatalf("unexpected static next-hop mode %v", intent.Mode)
+		default:
+			t.Fatalf("unexpected static next-hop mode %v", intent.Mode)
+		}
+	} else {
+		// Whole-UPDATE raw overrides terminate the chain early; a preceding
+		// next-hop:self with LocalAddress (topology.explicit) exercises the
+		// same post-raw next-hop selection onto the explicit global address.
+		f.destination.session.transport.Store(&sessionTransport{
+			local:       f.destination.settings.LocalAddress,
+			localString: f.destination.settings.LocalAddress.String(),
+		})
+		builtinRef = policychain.BuiltinNextHopSelf
+	}
+	f.r.orderedEgressSteps = buildOrderedEgressSteps()
+	transport := &answerTransport{
+		reads: []string{rpc.FilterFieldRaw},
+		answer: func(rpc.FilterUpdateInput) rpc.FilterUpdateOutput {
+			return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: replacement}
+		},
+	}
+	f.r.filterTransportSeam = transport
+	f.destination.settings.ExportPolicy = exportNextHopPolicy(t, []policychain.Member{
+		{Name: builtinRef},
+		{Name: exportLibraryFilter, Plugin: answerPlugin},
+	})
 	f.destination.llScope.Store(scope)
 	f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
-	transport, ok := f.r.filterTransportSeam.(*answerTransport)
-	require.True(t, ok)
 	t.Cleanup(func() { require.Positive(t, transport.calls(), "export policy must actually run") })
 }
 
@@ -105,7 +137,7 @@ func ls71PairWanted(mode ls71PairMode, topology ls71PairTopology, receivedPair b
 	global := topology.self
 	ll := netip.MustParseAddr("fe80::1")
 	wantPair := topology.joint && topology.ownLL
-	if mode.mode == NextHopExplicit {
+	if mode.mode == policychain.NextHopModeExplicit {
 		global = topology.explicit
 	}
 	if mode.preserving {

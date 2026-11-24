@@ -20,9 +20,9 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
-	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -285,8 +285,10 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			destination.testInitialSync().sendingInitialRoutes.Store(0)
 			destination.session.setSendCtxID(ctxID)
 			destination.session.onMessageReceived = r.capturedMessageReceiver
-			destination.settings.NextHopMode = NextHopUnchanged
-			destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "mixed-raw")
+			destination.settings.ExportPolicy = exportNextHopPolicy(t, []policychain.Member{
+				{Name: policychain.BuiltinNextHopUnchanged},
+				{Name: "mixed-raw", Plugin: answerPlugin},
+			})
 			destination.negotiated.Load().families[family.IPv6Unicast] = true
 			destination.session.negotiated = forwardFixtureNegotiation(destination)
 			destination.refreshForwardFacts()

@@ -94,7 +94,7 @@ func s5ForwardAttrs(t testing.TB, payload []byte, peers ...*Peer) map[netip.Addr
 func s5NextHopSelfEBGPPeer(t testing.TB, addr string, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID) *Peer {
 	t.Helper()
 	peer := wkPeer(t, addr, 65002, ctx, ctxID)
-	peer.settings.NextHopMode = NextHopSelf
+	peer.settings.ExportPolicy = setExportNextHopSelf(peer.settings.ExportPolicy)
 	peer.refreshForwardFacts()
 	require.Equal(t, nhModeSelf4, peer.forwardFacts().nhMode,
 		"precondition: the destination must rewrite its next hop")

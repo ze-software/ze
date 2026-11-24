@@ -287,7 +287,7 @@ func TestPolicyFinalRecoveryWithdrawsAfterDeniedSurvivor(t *testing.T) {
 		destination.testInitialSync().sendingInitialRoutes.Store(0)
 		destination.session.setSendCtxID(ctxID)
 		destination.session.onMessageReceived = r.capturedMessageReceiver
-		destination.settings.NextHopMode = NextHopUnchanged
+		destination.settings.ExportPolicy = setExportNextHopUnchanged(destination.settings.ExportPolicy)
 		destination.refreshForwardFacts()
 		failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
 		before := len(conn.written())

@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
@@ -226,7 +227,7 @@ func mixedRails(t *testing.T, configure func(*Reactor)) []mixedRun {
 	t.Helper()
 	return []mixedRun{
 		{info: llnhExternalSource, configure: configure},
-		{rs: true, source: llnhExternalPeer(t, llnhAdvertiserAddr, llnhSegment, NextHopUnchanged), configure: configure},
+		{rs: true, source: llnhExternalPeer(t, llnhAdvertiserAddr, llnhSegment, policychain.BuiltinNextHopUnchanged), configure: configure},
 	}
 }
 
@@ -236,7 +237,7 @@ func mixedRails(t *testing.T, configure func(*Reactor)) []mixedRun {
 // more than one IP hop away.
 func mixedDest(t *testing.T, addr string) *Peer {
 	t.Helper()
-	peer := llnhExternalPeer(t, addr, llnhSegment, NextHopUnchanged)
+	peer := llnhExternalPeer(t, addr, llnhSegment, policychain.BuiltinNextHopUnchanged)
 	negotiated := peer.negotiated.Load()
 	negotiated.families[family.IPv4Unicast] = true
 	negotiated.families[family.Family{AFI: family.AFIIPv6, SAFI: family.SAFI(128)}] = true

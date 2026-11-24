@@ -92,6 +92,17 @@ type libraryResult struct {
 	// treatments is the mask of the forwarding treatments the accepting
 	// run's members set (policychain.Sets.Treatments), zero otherwise.
 	treatments uint8
+	// nextHop is the folded next-hop intent resolved by the accepting chain.
+	nextHop policychain.NextHopIntent
+	// rawOverride is true when a member ended the chain early with a whole-UPDATE
+	// raw override payload (D-3 next-hop provenance).
+	rawOverride bool
+	// nextHopAfterRaw is true when an explicit built-in next-hop:* step sat
+	// after the raw override in the export chain (D-3 last-write-wins).
+	nextHopAfterRaw bool
+	// hasAutoDefaultNextHop is true when the chain carries an auto-appended
+	// trailing next-hop:auto step (D-3 raw-override fallback).
+	hasAutoDefaultNextHop bool
 	// wireChanges names the attribute operations the rewrite applied
 	// (describeWireOps), filled by a display-only run alone.
 	wireChanges []string
@@ -196,11 +207,22 @@ func (r *Reactor) evaluateLibraryChain(library filterapi.LibraryChain, wireUpdat
 		return libraryResult{outcome: outcome}
 	}
 	treatments := run.sets.Folded().Treatments()
+	nextHopIntent := run.sets.Folded().NextHopIntent()
+	nextHopAfterRaw := run.sets.Folded().NextHopAfterRaw()
+	hasAutoDefault := chain.HasAutoDefaultNextHop()
 	if raw := run.sets.Raw(); raw != nil {
 		// libraryCaller checked and normalized this body before the member
 		// could end the chain. A refusal therefore used that member's
 		// on-error, rather than becoming a late unconditional route drop.
-		return libraryResult{outcome: outcome, modifiedPayload: raw, treatments: treatments}
+		return libraryResult{
+			outcome:               outcome,
+			modifiedPayload:       raw,
+			treatments:            treatments,
+			nextHop:               nextHopIntent,
+			rawOverride:           true,
+			nextHopAfterRaw:       nextHopAfterRaw,
+			hasAutoDefaultNextHop: hasAutoDefault,
+		}
 	}
 	if err := chain.Apply(&run.view, &run.sets, &run.mods); err != nil {
 		if record != nil {
@@ -228,9 +250,24 @@ func (r *Reactor) evaluateLibraryChain(library filterapi.LibraryChain, wireUpdat
 		return libraryResult{outcome: outcome, failed: true}
 	}
 	if record != nil {
-		return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, deniedPayload: rewrite.deniedPayload, wireChanges: describeWireOps(&run.mods), treatments: treatments}
+		return libraryResult{
+			outcome:               outcome,
+			modifiedPayload:       rewrite.payload,
+			deniedPayload:         rewrite.deniedPayload,
+			wireChanges:           describeWireOps(&run.mods),
+			treatments:            treatments,
+			nextHop:               nextHopIntent,
+			hasAutoDefaultNextHop: hasAutoDefault,
+		}
 	}
-	return libraryResult{outcome: outcome, modifiedPayload: rewrite.payload, deniedPayload: rewrite.deniedPayload, treatments: treatments}
+	return libraryResult{
+		outcome:               outcome,
+		modifiedPayload:       rewrite.payload,
+		deniedPayload:         rewrite.deniedPayload,
+		treatments:            treatments,
+		nextHop:               nextHopIntent,
+		hasAutoDefaultNextHop: hasAutoDefault,
+	}
 }
 
 // rewrote reports whether an accepting run changed the route's body.
@@ -264,6 +301,12 @@ func (r *Reactor) runFinalJudges(library filterapi.LibraryChain, res libraryResu
 		last.removals = res.removals
 	}
 	last.treatments |= res.treatments
+	if last.nextHop.Mode == policychain.NextHopModeUnspecified {
+		last.nextHop = res.nextHop
+	}
+	last.rawOverride = last.rawOverride || res.rawOverride
+	last.nextHopAfterRaw = last.nextHopAfterRaw || res.nextHopAfterRaw
+	last.hasAutoDefaultNextHop = last.hasAutoDefaultNextHop || res.hasAutoDefaultNextHop
 	last.wireChanges = append(res.wireChanges, last.wireChanges...)
 	return last
 }
@@ -331,6 +374,12 @@ func (r *Reactor) runPostEgressRPKIValidation(library filterapi.LibraryChain, re
 		}
 	}
 	last.treatments |= res.treatments
+	if last.nextHop.Mode == policychain.NextHopModeUnspecified {
+		last.nextHop = res.nextHop
+	}
+	last.rawOverride = last.rawOverride || res.rawOverride
+	last.nextHopAfterRaw = last.nextHopAfterRaw || res.nextHopAfterRaw
+	last.hasAutoDefaultNextHop = last.hasAutoDefaultNextHop || res.hasAutoDefaultNextHop
 	last.wireChanges = append(res.wireChanges, last.wireChanges...)
 	return last
 }

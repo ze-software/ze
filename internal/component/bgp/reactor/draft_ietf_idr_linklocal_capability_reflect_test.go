@@ -89,7 +89,7 @@ func llnhClient(t *testing.T, addr string, connected []netip.Prefix, nextHopSelf
 		Bus: rsRelaySendBinding(),
 	}
 	if nextHopSelf {
-		settings.NextHopMode = NextHopSelf
+		settings.ExportPolicy = setExportNextHopSelf(settings.ExportPolicy)
 		settings.LocalAddress = netip.MustParseAddr("2001:db8:1::254")
 	}
 	peer := NewPeer(settings)
@@ -264,7 +264,7 @@ func TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment(t *testin
 		offSegment := llnhClient(t, llnhOffSegmentAddr, connected, false /*nextHopSelf*/)
 		onSegment := llnhClient(t, llnhOnSegmentAddr, connected, false /*nextHopSelf*/)
 		for _, client := range []*Peer{offSegment, onSegment} {
-			client.settings.NextHopMode = NextHopUnchanged
+			client.settings.ExportPolicy = setExportNextHopUnchanged(client.settings.ExportPolicy)
 			client.fwdFacts.Store(client.buildForwardFacts())
 		}
 

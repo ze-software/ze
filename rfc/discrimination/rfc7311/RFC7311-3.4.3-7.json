@@ -91,22 +91,22 @@
     "rid": "RFC7311-3.4.3-7",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311ReceivedRecursiveAIGPChangeReachesWire",
-    "unit-sha": "45fde847cbe7f05c",
+    "unit-sha": "ce7f655671140165",
     "claim-sha": "9ec7907bd793a063",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
+    "producer-sha": "48bb523d2ee3b3fd",
     "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7311-3.4.3-7",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311ReceivedRecursiveAIGPChangeReachesWire",
-    "unit-sha": "45fde847cbe7f05c",
+    "unit-sha": "ce7f655671140165",
     "claim-sha": "86170910a072ad03",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
+    "producer-sha": "48bb523d2ee3b3fd",
     "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

@@ -13,6 +13,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
@@ -201,6 +202,280 @@ func flowSpecRedirectNextHop(attrs []byte, nhLen int) bool {
 	return attribute.FlowSpecRedirectsToNextHop(value)
 }
 
+// applyEgressNextHopIntent records the destination's next-hop rewrite on mods
+// from the resolved export-chain intent, and returns true when next-hop self
+// was required and the session holds no usable local address (selfWithheld).
+//
+// When f.hasStaticNextHop is true, this delegates straight to the precomputed
+// zero-allocation static fast path (applyNextHopWireForBase). For dynamic
+// export chains:
+//   - Explicit IPv4/IPv6 addresses (NextHopModeExplicit) were already written
+//     onto the chain's wire override by policychain.Apply and MUST NOT be
+//     overwritten with self. When an explicit address is cross-family for a
+//     section (for example an IPv6 address on a classic IPv4 route) and the
+//     chain carries trailing auto-default next-hop:auto on ordinary eBGP,
+//     trailing auto still applies to the untouched section so a third-party
+//     next hop is never leaked.
+//   - NextHopModeSelf and NextHopModeAuto (on ordinary eBGP) reuse f's
+//     precomputed self wire buffers without allocating.
+//   - Whole-UPDATE raw overrides (rawOverride) follow D-3 provenance checking
+//     (matching forward_med.go): a later raw override that deliberately rewrote
+//     a field's next-hop bytes wins; an earlier intent or trailing auto applies
+//     only to fields left unchanged (or cleared code 3 with classic NLRI).
+func applyEgressNextHopIntent(
+	f *peerForwardFacts,
+	intent policychain.NextHopIntent,
+	rawOverride, afterRaw, hasAutoDefault bool,
+	srcNextHop, baseNextHop nextHopValue,
+	srcPayload, basePayload []byte,
+	mods *filterapi.ModAccumulator,
+) bool {
+	if f.hasStaticNextHop {
+		applyNextHopWireForBase(f, f.nhMode, baseNextHop, mods)
+		return f.nhSelfWithheld
+	}
+	if rawOverride {
+		return applyRawOverrideNextHopIntent(f, intent, afterRaw, hasAutoDefault, srcNextHop, baseNextHop, srcPayload, basePayload, mods)
+	}
+	if intent.Mode == policychain.NextHopModeExplicit && hasAutoDefault && f.isEBGP && !f.rsClient {
+		return applyCrossFamilyFallbackAuto(f, intent.Addr, baseNextHop, mods)
+	}
+	if intentUsesSelf(f, intent) {
+		if f.selfWithheld {
+			return true
+		}
+		applyNextHopWireForBase(f, f.selfMode, baseNextHop, mods)
+		return false
+	}
+	return false
+}
+
+// applyCrossFamilyFallbackAuto applies trailing next-hop:auto (self on eBGP)
+// to any section of baseNextHop that an explicit export-chain next-hop address
+// could not rewrite (e.g. an explicit IPv6 address on a classic IPv4 route).
+func applyCrossFamilyFallbackAuto(f *peerForwardFacts, addr netip.Addr, baseNextHop nextHopValue, mods *filterapi.ModAccumulator) bool {
+	withheld := false
+	hasLegacy := baseNextHop.legacy.IsValid() || baseNextHop.classicPresence == nextHopClassicPresent
+	if hasLegacy && !addr.Is4() {
+		if f.selfWithheld {
+			withheld = true
+		} else {
+			applySelfLegacyNextHop(f, f.selfMode, mods)
+		}
+	}
+	if baseNextHop.mpFamily != (family.Family{}) && baseNextHop.mpFamily.NeedsNextHop() &&
+		!explicitMPNextHopApplies(addr, baseNextHop.mpFamily) {
+		if f.selfWithheld {
+			withheld = true
+		} else {
+			applySelfMPNextHop(f, f.selfMode, mods, baseNextHop.mpFamily)
+		}
+	}
+	return withheld
+}
+
+// explicitMPNextHopApplies reports whether addr can be encoded as an MP_REACH
+// next hop for mpFamily under its NextHopProfile.
+func explicitMPNextHopApplies(addr netip.Addr, mpFamily family.Family) bool {
+	if !addr.IsValid() {
+		return false
+	}
+	addr = addr.Unmap()
+	profile := attribute.MPNextHopProfile(attribute.AFI(mpFamily.AFI), attribute.SAFI(mpFamily.SAFI))
+	selected := addr
+	if addr.Is4() {
+		mapV4 := false
+		if len(profile.Lengths) != 0 {
+			mapV4 = !slices.Contains(profile.Lengths, profile.NextHopOctets(addr))
+		}
+		if mapV4 && !profile.MappedIPv4 {
+			return false
+		}
+		selected = profile.SelectAddress(addr, mapV4)
+	}
+	size := profile.NextHopLen(selected, netip.Addr{})
+	return size > 0 && profile.AdmitsNextHopOctets(size)
+}
+
+// rawOverrideUntouchedFields reports which next-hop sections of baseNextHop
+// were NOT rewritten to a new address by a raw full-UPDATE override compared
+// against srcNextHop/srcPayload. A raw override that stripped code 3 while
+// keeping classic NLRI counts as untouched for legacy so an earlier explicit
+// or self intent can supply the required NEXT_HOP.
+func rawOverrideUntouchedFields(srcNextHop, baseNextHop nextHopValue, srcPayload, basePayload []byte) (legacyUntouched, mpUntouched bool) {
+	if baseNextHop.legacy.IsValid() {
+		legacyUntouched = baseNextHop.legacy == srcNextHop.legacy
+	} else if baseNextHop.classicPresence == nextHopClassicPresent {
+		legacyUntouched = true
+	}
+	if baseNextHop.mpFamily != (family.Family{}) && baseNextHop.mpFamily.NeedsNextHop() {
+		mpUntouched = baseNextHop.mpFamily == srcNextHop.mpFamily &&
+			bytes.Equal(payloadMPNextHopField(basePayload), payloadMPNextHopField(srcPayload))
+	}
+	return legacyUntouched, mpUntouched
+}
+
+// applyRawOverrideNextHopIntent applies D-3 next-hop provenance checking after
+// a whole-UPDATE raw override ended the export chain early. A later raw
+// override that deliberately changed a field's next-hop bytes wins (last-write-
+// wins); an earlier explicit/self intent or trailing next-hop:auto applies
+// only to fields left unchanged by the raw override.
+func applyRawOverrideNextHopIntent(
+	f *peerForwardFacts,
+	intent policychain.NextHopIntent,
+	afterRaw, hasAutoDefault bool,
+	srcNextHop, baseNextHop nextHopValue,
+	srcPayload, basePayload []byte,
+	mods *filterapi.ModAccumulator,
+) bool {
+	legacyUntouched, mpUntouched := rawOverrideUntouchedFields(srcNextHop, baseNextHop, srcPayload, basePayload)
+	if afterRaw {
+		legacyUntouched = baseNextHop.legacy.IsValid() || baseNextHop.classicPresence != nextHopClassicAbsent
+		mpUntouched = baseNextHop.mpFamily != (family.Family{}) && baseNextHop.mpFamily.NeedsNextHop()
+	}
+	if intent.Mode != policychain.NextHopModeUnspecified && !intent.AutoDefault {
+		if intent.Mode == policychain.NextHopModeUnchanged {
+			return false
+		}
+		if intent.Mode == policychain.NextHopModeExplicit {
+			applyExplicitNextHopSections(intent.Addr, baseNextHop, legacyUntouched, mpUntouched, mods)
+			return false
+		}
+		if intentUsesSelf(f, intent) {
+			return applySelfSections(f, baseNextHop, legacyUntouched, mpUntouched, mods)
+		}
+		return false
+	}
+	if !hasAutoDefault {
+		return false
+	}
+	if !f.isEBGP {
+		return false
+	}
+	if f.rsClient {
+		return false
+	}
+	return applySelfSections(f, baseNextHop, legacyUntouched, mpUntouched, mods)
+}
+
+func applySelfSections(f *peerForwardFacts, baseNextHop nextHopValue, applyLegacy, applyMP bool, mods *filterapi.ModAccumulator) bool {
+	withheld := false
+	if applyLegacy {
+		if f.selfWithheld {
+			withheld = true
+		} else {
+			applySelfLegacyNextHop(f, f.selfMode, mods)
+		}
+	}
+	if applyMP {
+		if f.selfWithheld {
+			withheld = true
+		} else {
+			applySelfMPNextHop(f, f.selfMode, mods, baseNextHop.mpFamily)
+		}
+	}
+	return withheld
+}
+
+// rawOverrideSelfWithheldForSection reports whether next-hop-self withholding
+// applies specifically to sectionBase when a mixed UPDATE is partitioned after
+// a raw override, so a sibling whose next hop was rewritten by the raw filter
+// is not wrongly withheld by another sibling's missing local address.
+func rawOverrideSelfWithheldForSection(
+	f *peerForwardFacts,
+	intent policychain.NextHopIntent,
+	afterRaw, hasAutoDefault bool,
+	srcNextHop, sectionBase nextHopValue,
+	srcPayload, sectionPayload []byte,
+) bool {
+	if !f.selfWithheld {
+		return false
+	}
+	legacyUntouched, mpUntouched := rawOverrideUntouchedFields(srcNextHop, sectionBase, srcPayload, sectionPayload)
+	if afterRaw {
+		legacyUntouched = sectionBase.legacy.IsValid() || sectionBase.classicPresence != nextHopClassicAbsent
+		mpUntouched = sectionBase.mpFamily != (family.Family{}) && sectionBase.mpFamily.NeedsNextHop()
+	}
+	if !legacyUntouched && !mpUntouched {
+		return false
+	}
+	if intent.Mode != policychain.NextHopModeUnspecified && !intent.AutoDefault {
+		return intentUsesSelf(f, intent)
+	}
+	return hasAutoDefault && f.isEBGP && !f.rsClient
+}
+
+// applyExplicitNextHopSections records an earlier chain member's explicit
+// next-hop address onto mods for each untouched section after a whole-UPDATE
+// raw override ended the chain early (D-3), honoring NextHopProfile width and
+// MappedIPv4 rules.
+func applyExplicitNextHopSections(addr netip.Addr, baseNextHop nextHopValue, applyLegacy, applyMP bool, mods *filterapi.ModAccumulator) {
+	if !addr.IsValid() {
+		return
+	}
+	addr = addr.Unmap()
+	if applyLegacy && addr.Is4() {
+		v4 := addr.As4()
+		mods.OpCopy(3, filterapi.AttrModSet, v4[:])
+	}
+	if applyMP && baseNextHop.mpFamily != (family.Family{}) && baseNextHop.mpFamily.NeedsNextHop() {
+		profile := attribute.MPNextHopProfile(attribute.AFI(baseNextHop.mpFamily.AFI), attribute.SAFI(baseNextHop.mpFamily.SAFI))
+		selected := addr
+		if addr.Is4() {
+			mapV4 := false
+			if len(profile.Lengths) != 0 {
+				mapV4 = !slices.Contains(profile.Lengths, profile.NextHopOctets(addr))
+			}
+			if mapV4 && !profile.MappedIPv4 {
+				return
+			}
+			selected = profile.SelectAddress(addr, mapV4)
+		}
+		size := profile.NextHopLen(selected, netip.Addr{})
+		if size == 0 {
+			return
+		}
+		if !profile.AdmitsNextHopOctets(size) {
+			return
+		}
+		var buf [vpnNextHopPairOctets]byte
+		n := profile.WriteNextHops(buf[:], 0, selected, netip.Addr{})
+		if n > 0 {
+			mods.OpCopy(14, filterapi.AttrModSet, buf[:n])
+		}
+	}
+}
+
+// resolveRedirectNextHop chooses the FlowSpec 0x0800 redirect-to-IP next-hop
+// decision for one destination from either its precomputed static facts or the
+// export chain's resolved next-hop intent (with D-3 raw-override provenance).
+func resolveRedirectNextHop(
+	f *peerForwardFacts,
+	intent policychain.NextHopIntent,
+	rawOverride, hasAutoDefault bool,
+	srcNextHop, baseNextHop nextHopValue,
+	srcPayload, basePayload []byte,
+) redirectNextHop {
+	if f.hasStaticNextHop {
+		return f.redirect
+	}
+	if !f.redirectEnabled {
+		return redirectNextHop{action: redirectStrip}
+	}
+	if rawOverride {
+		if intent.Mode != policychain.NextHopModeUnspecified && !intent.AutoDefault {
+			return redirectForIntent(f, intent)
+		}
+		if hasAutoDefault && baseNextHop.mpRedirect &&
+			baseNextHop.mpFamily == srcNextHop.mpFamily &&
+			bytes.Equal(payloadMPNextHopField(basePayload), payloadMPNextHopField(srcPayload)) {
+			return redirectForIntent(f, policychain.NextHopIntent{Mode: policychain.NextHopModeAuto, AutoDefault: true})
+		}
+		return redirectNextHop{action: redirectKeep}
+	}
+	return redirectForIntent(f, intent)
+}
+
 // applyNextHopFamily enforces the same family contract as origination before
 // any egress next-hop decision. RFC 8955 Section 4: "When advertising Flow
 // Specifications, the Length of the Next-Hop Network Address MUST be set to 0.
@@ -219,6 +494,12 @@ func flowSpecRedirectNextHop(attrs []byte, nhLen int) bool {
 // and keeps the forwarding identity path. MUST be called after every egress
 // step and applyFactsSendCommunity, whose operations it reads.
 func applyNextHopFamily(f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue, payload []byte) {
+	applyNextHopFamilyRedirect(&f.redirect, mods, base, payload)
+}
+
+// applyNextHopFamilyRedirect is applyNextHopFamily against an already-resolved
+// FlowSpec redirect decision (static or dynamic export-chain intent).
+func applyNextHopFamilyRedirect(redirect *redirectNextHop, mods *filterapi.ModAccumulator, base nextHopValue, payload []byte) {
 	if base.mpFamily.NeedsNextHop() {
 		return
 	}
@@ -227,7 +508,7 @@ func applyNextHopFamily(f *peerForwardFacts, mods *filterapi.ModAccumulator, bas
 		return
 	}
 	if base.mpRedirect {
-		applyRedirectNextHop(f, mods, base.mpFamily.AFI, payload)
+		applyRedirectNextHop(redirect, mods, base.mpFamily.AFI, payload)
 		return
 	}
 	setMPNextHop(mods, nil, base.mpIgnored)
@@ -244,15 +525,15 @@ func applyNextHopFamily(f *peerForwardFacts, mods *filterapi.ModAccumulator, bas
 // advertising Flow Specifications, the Length of the Next-Hop Network Address
 // MUST be set to 0", holds for every route that leaves without the action, and
 // a next hop sent without it is an address no action names.
-func applyRedirectNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, afi family.AFI, payload []byte) {
+func applyRedirectNextHop(redirect *redirectNextHop, mods *filterapi.ModAccumulator, afi family.AFI, payload []byte) {
 	var hop []byte
-	switch f.redirect.action {
+	switch redirect.action {
 	case redirectKeep:
 		if redirectActionLeaves(mods, payload) {
 			return
 		}
 	case redirectRewrite:
-		hop = f.redirect.hop(afi)
+		hop = redirect.hop(afi)
 		if hop != nil && !redirectActionLeaves(mods, payload) {
 			hop = nil
 		}
@@ -1049,7 +1330,16 @@ func (g withholdGate) warn(f *peerForwardFacts, advertiser netip.Addr, mods *fil
 //   - draft-ietf-idr-linklocal-capability Section 2: "When the capability has
 //     not been negotiated, the procedures in this document do not apply."
 //     (egressNextHopLinkLocalOnlyRefused).
+//
+//nolint:unparam // convenience wrapper for direct unit tests; reflected is exercised via egressNextHopWithheldWithSelf
 func egressNextHopWithheld(dest *Peer, f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue, reflected bool, advertiser netip.Addr) withholdGate {
+	return egressNextHopWithheldWithSelf(dest, f, mods, base, reflected, advertiser, f.nhSelfWithheld)
+}
+
+// egressNextHopWithheldWithSelf is egressNextHopWithheld taking the resolved
+// selfWithheld outcome for this route (from either the static fast path or a
+// dynamic export-chain next-hop self / auto intent).
+func egressNextHopWithheldWithSelf(dest *Peer, f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue, reflected bool, advertiser netip.Addr, selfWithheld bool) withholdGate {
 	// RFC 2545 Section 3 requires a global IPv6 next-hop entity. RFC 4659
 	// Section 3.2.1.1 permits the canonical absent-global VPN pair only for
 	// link-local peering. This is separate from capability 77's single-address
@@ -1075,7 +1365,7 @@ func egressNextHopWithheld(dest *Peer, f *peerForwardFacts, mods *filterapi.ModA
 		}
 		return withholdNone
 	}
-	if f.nhSelfWithheld {
+	if selfWithheld {
 		return withholdNextHopSelfAbsent
 	}
 	// RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the

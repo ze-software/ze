@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -178,14 +180,19 @@ func insertForPeer(ps *reactor.PeerSettings, resolved map[string]any,
 		if ins.Direction == rpc.FilterImport {
 			if filterChainContains(ps.ImportPolicy.Filters(), ref.Name) {
 				if ins.Required {
-					return members, requiredInsertionRefusal(ps, "import", ins)
+					return members, requiredInsertionRefusal(ps, directionImport, ins)
 				}
 				continue
 			}
-			if err := validateChainNames(reg, refs, ps.IsDynamic, "bgp import", "peer "+ps.Name+" import filters"); err != nil {
+			if err := validateChainNames(reg, refs, ps.IsDynamic, attachmentImportBGP, "peer "+ps.Name+" import filters"); err != nil {
 				return members, err
 			}
-			ps.ImportPolicy = ps.ImportPolicy.Prepend(ref, inProcess)
+			ps.ImportPolicy = ps.ImportPolicy.Prepend(ref, inProcess).WithImplied(filterapi.ImpliedFilter{
+				Direction: directionImport,
+				Position:  filterapi.ImpliedPositionHead,
+				Ref:       ref.Name,
+				ImpliedBy: insertionImpliedBy(ins),
+			})
 			if deferred {
 				members.imports = append(members.imports, member)
 			}
@@ -193,14 +200,19 @@ func insertForPeer(ps *reactor.PeerSettings, resolved map[string]any,
 		}
 		if filterChainContains(ps.ExportPolicy.Filters(), ref.Name) {
 			if ins.Required {
-				return members, requiredInsertionRefusal(ps, "export", ins)
+				return members, requiredInsertionRefusal(ps, directionExport, ins)
 			}
 			continue
 		}
 		if err := validateChainNames(reg, refs, ps.IsDynamic, attachmentExport, "peer "+ps.Name+" export filters"); err != nil {
 			return members, err
 		}
-		ps.ExportPolicy = ps.ExportPolicy.Prepend(ref, inProcess)
+		ps.ExportPolicy = ps.ExportPolicy.Prepend(ref, inProcess).WithImplied(filterapi.ImpliedFilter{
+			Direction: directionExport,
+			Position:  filterapi.ImpliedPositionHead,
+			Ref:       ref.Name,
+			ImpliedBy: insertionImpliedBy(ins),
+		})
 		if deferred {
 			members.exports = append(members.exports, member)
 		}
@@ -274,4 +286,36 @@ func requiredInsertionRefusal(ps *reactor.PeerSettings, direction string, ins *r
 		"needs it, so it cannot be named, moved or deactivated: %s\n"+
 		"  remove %s from the %s filter list; it runs wherever the config that needs it is set",
 		ps.Name, direction, ins.Filter, ins.Reason, ins.Filter, direction)
+}
+
+// insertionImpliedBy formats a generic human-readable provenance reason for
+// ins from its declared scope, config path/values, or session facts without
+// hardcoding any plugin name.
+func insertionImpliedBy(ins *rpc.FilterInsertion) string {
+	var tb textbuf.Buffer
+	if ins.Scope == rpc.FilterScopeAnyPeer {
+		tb.Str("any-peer ")
+	}
+	if len(ins.Config) > 0 {
+		tb.Join(ins.Config, " ")
+		if len(ins.Values) > 0 {
+			tb.Byte('=').Join(ins.Values, "|")
+		}
+		return tb.String()
+	}
+	if len(ins.Session) > 0 {
+		tb.Str("session ")
+		for i := range ins.Session {
+			if i > 0 {
+				tb.Str(", ")
+			}
+			fact := &ins.Session[i]
+			tb.Str(fact.Fact)
+			if len(fact.Values) > 0 {
+				tb.Byte('=').Join(fact.Values, "|")
+			}
+		}
+		return tb.String()
+	}
+	return "plugin filter insertion"
 }

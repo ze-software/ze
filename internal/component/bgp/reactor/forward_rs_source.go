@@ -13,7 +13,15 @@ import (
 // hasActiveFilter reports whether the per-peer chain must execute or refuse a
 // reference. In-process ownership is proved only for import; a manually built
 // export policy containing an active internal ref must not take a bypass.
+// An export policy containing only built-in next-hop:* steps (staticExportNextHop)
+// takes peerForwardFacts's zero-allocation static fast path rather than running
+// the chain per route.
 func hasActiveFilter(policy filterapi.Policy, direction string) bool {
+	if direction == directionExport {
+		if _, static := staticExportNextHop(policy); static {
+			return false
+		}
+	}
 	if policy.Library() != nil {
 		return true // the in-process chain is an active filter in both directions
 	}

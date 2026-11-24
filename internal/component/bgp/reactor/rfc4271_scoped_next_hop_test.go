@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	_ "github.com/ze-software/ze/internal/component/bgp/yang"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -37,7 +38,9 @@ func TestScopedNextHopPeerSettingsRetainsZone(t *testing.T) {
 	assert.Equal(t, address, settings.Address)
 	assert.Equal(t, "if0", settings.Address.Zone())
 	assert.Equal(t, netip.AddrPortFrom(address, DefaultBGPPort), settings.PeerKey())
-	assert.Equal(t, NextHopUnchanged, settings.NextHopMode)
+	intent, static := staticExportNextHop(settings.ExportPolicy)
+	require.True(t, static)
+	assert.Equal(t, policychain.NextHopModeUnchanged, intent.Mode)
 
 	session := NewSession(settings)
 	assert.Same(t, settings, session.settings)
@@ -152,7 +155,6 @@ func scopedNextHopSettings(t *testing.T) *PeerSettings {
         }
         session {
             asn { local 65000; remote 65001; }
-            next-hop unchanged;
         }
     }
 }`)
@@ -162,6 +164,7 @@ func scopedNextHopSettings(t *testing.T) *PeerSettings {
 	peers, err := PeersFromTree(bgp.ToMap())
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
+	peers[0].ExportPolicy = setExportNextHopUnchanged(peers[0].ExportPolicy)
 	return peers[0]
 }
 
@@ -198,7 +201,9 @@ func scopedNextHopPeer(t *testing.T) (*Peer, *scopedNextHopConn) {
 	peer.negotiated.Store(NewNegotiatedCapabilities(negotiated))
 	peer.setEncodingContexts(negotiated)
 	session.egressFinalAccepts = func(filterapi.ExportKind) bool { return true }
-	require.Equal(t, NextHopUnchanged, settings.NextHopMode)
+	intent, static := staticExportNextHop(settings.ExportPolicy)
+	require.True(t, static)
+	require.Equal(t, policychain.NextHopModeUnchanged, intent.Mode)
 	require.Equal(t, "if0", connectedLocalAddress(session).Zone())
 	return peer, conn
 }

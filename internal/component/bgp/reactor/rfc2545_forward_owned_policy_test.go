@@ -6,7 +6,7 @@ import (
 	"net/netip"
 	"testing"
 
-	routepolicy "github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -29,9 +29,13 @@ func TestRFC2545ForwardPolicyOwnGlobalJointSubnet(t *testing.T) {
 	received := append(netip.MustParseAddr("2001:db8:1::9").AsSlice(), netip.MustParseAddr("fe80::9").AsSlice()...)
 	for _, rail := range []string{"cached", "rs"} {
 		for _, mode := range []struct {
-			name string
-			mode uint8
-		}{{"auto", NextHopAuto}, {"unchanged", NextHopUnchanged}} {
+			name        string
+			ref         string
+			autoDefault bool
+		}{
+			{"auto", policychain.BuiltinNextHopAuto, true},
+			{"unchanged", policychain.BuiltinNextHopUnchanged, false},
+		} {
 			for _, onLink := range []bool{true, false} {
 				subnet := "common-link"
 				if !onLink {
@@ -42,7 +46,6 @@ func TestRFC2545ForwardPolicyOwnGlobalJointSubnet(t *testing.T) {
 				// policy form is the raw answer.
 				t.Run(rail+"/"+mode.name+"/"+subnet+"/raw", func(t *testing.T) {
 					f := rfc2545ReceiveFixture(t, false, onLink, true)
-					f.destination.settings.NextHopMode = mode.mode
 					f.destination.settings.LocalAddress = ownGlobal
 					f.destination.settings.LinkLocal = ownLL
 					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
@@ -67,7 +70,17 @@ func TestRFC2545ForwardPolicyOwnGlobalJointSubnet(t *testing.T) {
 						}
 						return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 					}}
-					f.destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "own-global")
+					members := []policychain.Member{
+						{Name: "own-global", Plugin: answerPlugin},
+						{Name: mode.ref, AutoDefault: mode.autoDefault},
+					}
+					if !mode.autoDefault {
+						members = []policychain.Member{
+							{Name: mode.ref},
+							{Name: "own-global", Plugin: answerPlugin},
+						}
+					}
+					f.destination.settings.ExportPolicy = exportNextHopPolicy(t, members)
 					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())
 					f.r.orderedEgressSteps = buildOrderedEgressSteps()
 					if rail == "rs" {

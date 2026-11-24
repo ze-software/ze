@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -180,7 +181,7 @@ func nextHopScopeFamilyName(rd bool) string {
 
 func nextHopScopeFixture(t *testing.T, rd bool, topology ls71PairTopology) *aigpReplayFixture {
 	t.Helper()
-	mode := ls71PairMode{name: "unchanged", mode: NextHopUnchanged, preserving: true}
+	mode := ls71PairMode{name: "unchanged", mode: policychain.NextHopModeUnchanged, preserving: true}
 	if rd {
 		return ls72Fixture(t, mode, topology)
 	}

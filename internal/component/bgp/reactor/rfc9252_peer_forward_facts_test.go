@@ -4,15 +4,15 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestForwardFactsNilBeforeEstablished(t *testing.T) {
@@ -213,20 +213,20 @@ func TestPrecomputeNextHop(t *testing.T) {
 	}{
 		{
 			name:     "auto mode",
-			settings: &PeerSettings{NextHopMode: NextHopAuto},
+			settings: &PeerSettings{ExportPolicy: setExportNextHopAuto(filterapi.Policy{})},
 			wantMode: nhModeNone,
 			wantOps:  0,
 		},
 		{
 			name:     "unchanged mode",
-			settings: &PeerSettings{NextHopMode: NextHopUnchanged},
+			settings: &PeerSettings{ExportPolicy: setExportNextHopUnchanged(filterapi.Policy{})},
 			wantMode: nhModeNone,
 			wantOps:  0,
 		},
 		{
 			name: "self IPv4",
 			settings: &PeerSettings{
-				NextHopMode:  NextHopSelf,
+				ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 				LocalAddress: netip.MustParseAddr("192.168.1.1"),
 			},
 			wantMode: nhModeSelf4,
@@ -235,7 +235,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 		{
 			name: "self IPv6",
 			settings: &PeerSettings{
-				NextHopMode:  NextHopSelf,
+				ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 				LocalAddress: netip.MustParseAddr("2001:db8::1"),
 			},
 			wantMode: nhModeSelfV6,
@@ -247,7 +247,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 			// and the peer both sit on a locally connected subnet.
 			name: "self IPv6 with link-local, shared subnet",
 			settings: &PeerSettings{
-				NextHopMode:  NextHopSelf,
+				ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 				LocalAddress: netip.MustParseAddr("2001:db8::1"),
 				LinkLocal:    netip.MustParseAddr("fe80::1"),
 			},
@@ -265,7 +265,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 			// on the wire. This row is what stops the leaf alone deciding the form.
 			name: "self IPv6 with link-local, peer off link",
 			settings: &PeerSettings{
-				NextHopMode:  NextHopSelf,
+				ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 				LocalAddress: netip.MustParseAddr("2001:db8::1"),
 				LinkLocal:    netip.MustParseAddr("fe80::1"),
 			},
@@ -282,7 +282,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 			// and the link-local is not appended.
 			name: "self IPv6 with link-local, no link scope",
 			settings: &PeerSettings{
-				NextHopMode:  NextHopSelf,
+				ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 				LocalAddress: netip.MustParseAddr("2001:db8::1"),
 				LinkLocal:    netip.MustParseAddr("fe80::1"),
 			},
@@ -290,26 +290,8 @@ func TestPrecomputeNextHop(t *testing.T) {
 			wantOps:  1, // MP_REACH NH.
 		},
 		{
-			name: "explicit IPv4",
-			settings: &PeerSettings{
-				NextHopMode:    NextHopExplicit,
-				NextHopAddress: netip.MustParseAddr("192.168.1.1"),
-			},
-			wantMode: nhModeExplicit4,
-			wantOps:  2, // NEXT_HOP + MP_REACH NH.
-		},
-		{
-			name: "explicit IPv6",
-			settings: &PeerSettings{
-				NextHopMode:    NextHopExplicit,
-				NextHopAddress: netip.MustParseAddr("2001:db8::1"),
-			},
-			wantMode: nhModeExplicitV6,
-			wantOps:  1, // MP_REACH NH.
-		},
-		{
 			name:     "self no local address",
-			settings: &PeerSettings{NextHopMode: NextHopSelf},
+			settings: &PeerSettings{ExportPolicy: setExportNextHopSelf(filterapi.Policy{})},
 			wantMode: nhModeNone,
 			wantOps:  0,
 		},
@@ -317,7 +299,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var facts peerForwardFacts
+			facts := peerForwardFacts{exportPolicy: tt.settings.ExportPolicy}
 			precomputeNextHop(tt.settings, &facts)
 			applyLinkLocalNextHop(tt.settings, &facts, tt.scope)
 			assert.Equal(t, tt.wantMode, facts.nhMode)
@@ -325,6 +307,27 @@ func TestPrecomputeNextHop(t *testing.T) {
 			var mods filterapi.ModAccumulator
 			applyFactsNextHop(&facts, &mods, family.IPv6Unicast)
 			assert.Equal(t, tt.wantOps, mods.Len())
+		})
+	}
+
+	for _, tc := range []struct {
+		name    string
+		addr    netip.Addr
+		wantOps int
+	}{
+		{name: "explicit IPv4", addr: netip.MustParseAddr("192.168.1.1"), wantOps: 2},
+		{name: "explicit IPv6", addr: netip.MustParseAddr("2001:db8::1"), wantOps: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var sets policychain.Sets
+			require.NoError(t, sets.NextHop(tc.addr))
+			var mods filterapi.ModAccumulator
+			require.NoError(t, sets.ApplyTo(&mods, policychain.Current{
+				HasLegacyNLRI: true,
+				HasMPFamily:   true,
+				MPFamily:      family.IPv6Unicast,
+			}))
+			assert.Equal(t, tc.wantOps, mods.Len())
 		})
 	}
 }
@@ -343,9 +346,9 @@ func TestPrecomputeNextHop(t *testing.T) {
 func TestPrefixSIDPropagationNextHop(t *testing.T) {
 	for _, rail := range []string{"cached", "rs"} {
 		for _, tc := range []rfc9252NextHopCase{
-			{name: "unchanged", mode: NextHopUnchanged},
-			{name: "explicit-equal", mode: NextHopExplicit},
-			{name: "self-changed", mode: NextHopSelf, changed: true},
+			{name: "unchanged", mode: policychain.NextHopModeUnchanged},
+			{name: "explicit-equal", mode: policychain.NextHopModeExplicit},
+			{name: "self-changed", mode: policychain.NextHopModeSelf, changed: true},
 		} {
 			t.Run(rail+"/"+tc.name, func(t *testing.T) {
 				// RFC 9252 Section 2: assert emitted route and attribute bytes,

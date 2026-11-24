@@ -7,6 +7,8 @@ package reactor
 import (
 	"net/netip"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 )
 
 // Seed each single-address route, then make the effective received, policy or
@@ -52,7 +54,7 @@ func TestNextHopLSVPNPeerOwnRecovery(t *testing.T) {
 								ls71PairChangingPolicy(t, f, &replacement)
 							}
 							want := topology.self
-							if mode.mode == NextHopExplicit {
+							if mode.mode == policychain.NextHopModeExplicit {
 								want = topology.explicit
 							}
 							if mode.preserving {
@@ -133,14 +135,14 @@ func TestLSVPNPairPeerOwnRecovery(t *testing.T) {
 						} else {
 							ls71PairSelectGlobal(f, mode, topology.recipient)
 						}
-						ls71PairRelay(t, f, body, native, native && policy)
+						ls71PairRelay(t, f, body, native, native && (policy || mode.mode == policychain.NextHopModeExplicit))
 						ls72Assert(t, f, nil, true, true)
 
 						f.conn.reset()
 						replacement = seed
 						if !mode.preserving {
 							global := topology.self
-							if mode.mode == NextHopExplicit {
+							if mode.mode == policychain.NextHopModeExplicit {
 								global = topology.explicit
 							}
 							ls71PairSelectGlobal(f, mode, global)
@@ -195,7 +197,7 @@ func TestLSVPNPairScopedPeerOwnRecovery(t *testing.T) {
 							replacement = body
 							body = seed
 						}
-						ls71PairRelay(t, f, body, native, native && policy)
+						ls71PairRelay(t, f, body, native, native && (policy || mode.mode == policychain.NextHopModeExplicit))
 						ls72Assert(t, f, nil, true, true)
 						ls71PairAssertZone(t, f)
 
@@ -249,7 +251,7 @@ func TestLSVPNPairInvalidBeforeTrim(t *testing.T) {
 								replacement = body
 								body = seed
 							}
-							ls71PairRelay(t, f, body, native, native && policy)
+							ls71PairRelay(t, f, body, native, native && (policy || mode.mode == policychain.NextHopModeExplicit))
 							ls72Assert(t, f, nil, true, true)
 							f.conn.reset()
 							replacement = seed

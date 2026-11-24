@@ -41,7 +41,7 @@ var a2ThirdPartyNextHop = []byte{192, 0, 2, 254}
 // RFC requirement: RFC4271-5.1.3-3 positive -- an internal destination configured next-hop self with a local address is sent that local address as NEXT_HOP on the general forward rail, while a default internal destination in the same fan-out is sent the received third-party NEXT_HOP.
 func TestRFC4271NextHopSelfDisablesThirdPartyNextHopOnTheWire(t *testing.T) {
 	self := a2Dest(t, "192.0.2.61", 65000, netip.Addr{}, false)
-	self.settings.NextHopMode = NextHopSelf
+	self.settings.ExportPolicy = setExportNextHopSelf(self.settings.ExportPolicy)
 	self.refreshForwardFacts()
 	passing := a2Dest(t, "192.0.2.62", 65000, netip.Addr{}, false)
 
@@ -73,7 +73,7 @@ func autoLocalSelfDest(t *testing.T, addr string, connected netip.Addr) (*Peer, 
 	t.Helper()
 	dest := a2Dest(t, addr, 65000, netip.Addr{}, false)
 	dest.settings.LocalAddress = netip.Addr{} // local ip auto
-	dest.settings.NextHopMode = NextHopSelf
+	dest.settings.ExportPolicy = setExportNextHopSelf(dest.settings.ExportPolicy)
 	var session *Session
 	if connected.IsValid() {
 		session = NewSession(dest.settings)

@@ -7,10 +7,10 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
-	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -290,16 +290,20 @@ func TestFamilyNextHopForwardAdmission(t *testing.T) {
 					// The destination's export filter replaces the MP_REACH_NLRI next
 					// hop of the received fc.fam route: a plugin filter expresses an
 					// MP next-hop rewrite only as a raw body, so it answers the body
-					// carrying that field itself. A later repair is the destination's
-					// configured next hop, which the forward rail writes over the
-					// filter's raw base (applyFactsNextHop): the filter leaves the
-					// obsolete VPN-shaped field tc.earlier, and next-hop explicit
-					// 2001:db8:1::9 supersedes it before admission.
+					// carrying that field itself. A later repair is a preceding
+					// next-hop:self step in the export chain, which the forward rail
+					// writes over the filter's raw base (applyRawOverrideNextHopIntent):
+					// the filter leaves the obsolete VPN-shaped field tc.earlier, and
+					// next-hop:self 2001:db8:1::9 supersedes it before admission.
 					field := tc.replacement
+					nhStep := policychain.BuiltinNextHopUnchanged
 					if tc.earlier != nil {
 						field = tc.earlier
-						f.destination.settings.NextHopMode = NextHopExplicit
-						f.destination.settings.NextHopAddress = netip.AddrFrom16([16]byte(global))
+						nhStep = policychain.BuiltinNextHopSelf
+						globalAddr := netip.AddrFrom16([16]byte(global))
+						f.destination.settings.LocalAddress = globalAddr
+						f.destination.settings.LinkLocal = netip.Addr{}
+						f.destination.session.transport.Store(&sessionTransport{local: globalAddr, localString: globalAddr.String()})
 					}
 					override := bodyFor(field)
 					f.r.filterTransportSeam = &answerTransport{
@@ -312,7 +316,10 @@ func TestFamilyNextHopForwardAdmission(t *testing.T) {
 							return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: override}
 						},
 					}
-					f.destination.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, exportLibraryFilter)
+					f.destination.settings.ExportPolicy = exportNextHopPolicy(t, []policychain.Member{
+						{Name: exportLibraryFilter, Plugin: answerPlugin},
+						{Name: nhStep},
+					})
 					// Publish the policy without replacing this fixture's explicit
 					// connected-prefix scope with host interfaces.
 					f.destination.fwdFacts.Store(f.destination.buildForwardFacts())

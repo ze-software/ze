@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/adj_rib_in"
 	bgprib "github.com/ze-software/ze/internal/component/bgp/plugins/rib"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rr"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rs"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -46,7 +47,7 @@ func lowLiveSettings(address string, local, remote uint32) *PeerSettings {
 	s := NewPeerSettings(netip.MustParseAddr(address), local, remote, 0x0a0000fe)
 	s.Connection = ConnectionPassive
 	s.ReceiveHoldTime = 90 * time.Second
-	s.NextHopMode = NextHopUnchanged
+	s.ExportPolicy = setExportNextHopUnchanged(s.ExportPolicy)
 	s.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: local},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -62,6 +63,12 @@ func lowLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 		t.Fatal("live router fixture requires an absent validation owner")
 	}
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
+	needsRR := false
+	for _, s := range settings {
+		if s.RouteReflectorClient {
+			needsRR = true
+		}
+	}
 	for _, s := range settings {
 		// This fixture declares the selecting RIB's bus grant explicitly.
 		// Preserve any bus block the individual scenario already supplied.
@@ -69,12 +76,19 @@ func lowLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 		// This fixture runs the route server's forward and replay rails. Its
 		// complete explicit role takes precedence over ordinary RIB output.
 		lowLiveAttachProcess(t, s, "bgp-rs", "update-received state open-received refresh")
+		if needsRR {
+			lowLiveAttachProcess(t, s, "bgp-rr", "update-received state open-received")
+		}
 		lowLiveAttachProcess(t, s, "bgp-adj-rib-in", "update-received state")
 		if err := r.AddPeer(s); err != nil {
 			t.Fatal(err)
 		}
 	}
-	srv := newBorrowedPluginServer(t, r, "bgp-rib", "bgp-adj-rib-in", "bgp-rs")
+	pluginNames := []string{"bgp-rib", "bgp-adj-rib-in", "bgp-rs"}
+	if needsRR {
+		pluginNames = append(pluginNames, "bgp-rr")
+	}
+	srv := newBorrowedPluginServer(t, r, pluginNames...)
 	// Stop clears the manager's process map. Keep the actual engine handles so
 	// a fatal shutdown during the test cannot hide an unfinished owner release.
 	processes := srv.ProcessManager().AllProcesses()
@@ -324,7 +338,7 @@ func TestRFC7705MigrationWireSemantics(t *testing.T) {
 			for _, p := range []*Peer{f.source, f.destination} {
 				p.settings.LocalAS, p.settings.PeerAS = 65000, tc.remote
 				p.settings.MigrationAS = tc.migration
-				p.settings.NextHopMode = NextHopUnchanged
+				p.settings.ExportPolicy = setExportNextHopUnchanged(p.settings.ExportPolicy)
 				p.refreshForwardFacts()
 			}
 			id := f.receive(t, buildUpdatePayload(attrs, prefix))

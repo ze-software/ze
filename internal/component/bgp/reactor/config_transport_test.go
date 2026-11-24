@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/family"
@@ -18,23 +19,26 @@ import (
 
 // TestConfiguredLinkLocalTransportRetainsScope drives the config-file-to-peer
 // entry point with a link-local TCP source. The endpoint remains usable under
-// every configured next-hop mode, and the parser retains both interface zones.
+// every export next-hop policy, and the parser retains both interface zones.
 func TestConfiguredLinkLocalTransportRetainsScope(t *testing.T) {
 	for _, localIP := range []string{"fe80::1", "fe80::1%if0"} {
 		for _, mode := range []struct {
-			value string
-			want  uint8
+			name string
+			ref  string
+			want policychain.NextHopMode
 		}{
-			{"unchanged", NextHopUnchanged},
-			{"self", NextHopSelf},
-			{"auto", NextHopAuto},
-			{"2001:db8::9", NextHopExplicit},
+			{"unchanged", policychain.BuiltinNextHopUnchanged, policychain.NextHopModeUnchanged},
+			{"self", policychain.BuiltinNextHopSelf, policychain.NextHopModeSelf},
+			{"auto", policychain.BuiltinNextHopAuto, policychain.NextHopModeAuto},
 		} {
-			t.Run(localIP+"/"+mode.value, func(t *testing.T) {
-				settings := configuredLinkLocalTransport(t, localIP, mode.value)
+			t.Run(localIP+"/"+mode.name, func(t *testing.T) {
+				settings := configuredLinkLocalTransport(t, localIP)
+				settings.ExportPolicy = ExportPolicyWithNextHop(settings.ExportPolicy, mode.ref)
 				assert.Equal(t, netip.MustParseAddr(localIP), settings.LocalAddress)
 				assert.Equal(t, netip.MustParseAddr("fe80::2%if0"), settings.Address)
-				assert.Equal(t, mode.want, settings.NextHopMode)
+				intent, static := staticExportNextHop(settings.ExportPolicy)
+				require.True(t, static)
+				assert.Equal(t, mode.want, intent.Mode)
 				assert.Equal(t, netip.MustParseAddrPort("[fe80::2%if0]:179"), settings.PeerKey())
 				session := NewSession(settings)
 				assert.Same(t, settings, session.settings)
@@ -50,7 +54,8 @@ func TestConfiguredLinkLocalTransportRetainsScope(t *testing.T) {
 func TestConfiguredLinkLocalTransportSelfNeedsCapability(t *testing.T) {
 	for _, negotiated := range []bool{false, true} {
 		t.Run(fmt.Sprintf("capability77=%v", negotiated), func(t *testing.T) {
-			settings := configuredLinkLocalTransport(t, "fe80::1%if0", "self")
+			settings := configuredLinkLocalTransport(t, "fe80::1%if0")
+			settings.ExportPolicy = setExportNextHopSelf(settings.ExportPolicy)
 			peer := NewPeer(settings)
 			peer.negotiated.Store(&NegotiatedCapabilities{LinkLocalNextHop: negotiated})
 			session := NewSession(settings)
@@ -70,12 +75,12 @@ func TestConfiguredLinkLocalTransportSelfNeedsCapability(t *testing.T) {
 // TestParsePeerFromTreeRefusesMalformedLocalTransport preserves syntax
 // validation when the local TCP endpoint stops using the global-next-hop guard.
 func TestParsePeerFromTreeRefusesMalformedLocalTransport(t *testing.T) {
-	_, err := parsePeerFromTree("scoped", peerTreeWith("not-an-ip", "unchanged"), 65000, 0x0a000001)
+	_, err := parsePeerFromTree("scoped", peerTreeWith("not-an-ip"), 65000, 0x0a000001)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid local ip")
 }
 
-func configuredLinkLocalTransport(t *testing.T, localIP, nextHop string) *PeerSettings {
+func configuredLinkLocalTransport(t *testing.T, localIP string) *PeerSettings {
 	t.Helper()
 	tree, err := config.ParseTreeForValidation(fmt.Sprintf(`bgp {
     router-id 1.2.3.4;
@@ -86,10 +91,9 @@ func configuredLinkLocalTransport(t *testing.T, localIP, nextHop string) *PeerSe
         }
         session {
             asn { local 65000; remote 65001; }
-            next-hop %s;
         }
     }
-}`, localIP, nextHop))
+}`, localIP))
 	require.NoError(t, err)
 	bgp := tree.GetContainer("bgp")
 	require.NotNil(t, bgp)

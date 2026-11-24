@@ -58,12 +58,12 @@
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress",
-    "unit-sha": "2b3a31cbafdc7295",
+    "unit-sha": "37bcf3a2729733a0",
     "claim-sha": "14c11588111ada14",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop",
-    "producer-sha": "04aaa23d9f5c1540",
-    "break": "body of applyLinkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "9ca856f614f32162",
+    "break": "body of applyLinkLocalNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",

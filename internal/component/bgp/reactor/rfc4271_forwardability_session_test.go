@@ -45,7 +45,7 @@ func TestRFC4271OrdinaryOutputRequiresForwardableRoute(t *testing.T) {
 		acceptingLiveSettings(t, "192.0.2.233", 65000, 65000),
 	}
 	for _, setting := range settings {
-		setting.NextHopMode = NextHopAuto
+		setting.ExportPolicy = setExportNextHopAuto(setting.ExportPolicy)
 	}
 	peers := lowLiveStart(t, lowLiveOptions{withoutRS: true}, settings...)
 	loc := locrib.Default()
@@ -175,7 +175,7 @@ func TestRFC4271OrdinaryReplacementRecipientSkipsUnresolvedRoute(t *testing.T) {
 		acceptingLiveSettings(t, "192.0.2.236", 65000, 65000),
 	}
 	for _, setting := range settings {
-		setting.NextHopMode = NextHopAuto
+		setting.ExportPolicy = setExportNextHopAuto(setting.ExportPolicy)
 	}
 	peers := lowLiveStart(t, lowLiveOptions{withoutRS: true}, settings...)
 	loc := locrib.Default()

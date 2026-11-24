@@ -14,15 +14,15 @@ package reactor
 import (
 	"net/netip"
 
-	"github.com/ze-software/ze/pkg/plugin/rpc"
-
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // reactorForwardRS forwards a received UPDATE to all RS-eligible peers directly
@@ -499,6 +499,13 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 		// (egressStepResult.treatments); a chain that did not run sets none.
 		var treatments uint8
 		var policyRemovals [][]byte
+		var egressNextHop policychain.NextHopIntent
+		var egressRawOverride bool
+		var egressNextHopAfterRaw bool
+		var egressHasAutoDefault bool
+		if facts.hasStaticNextHop {
+			egressNextHop = facts.staticNextHop
+		}
 		// RFC 8671 Section 5.2: emit pre-policy Adj-RIB-Out candidate before export policy runs.
 		if !mods.IsWithdraw() {
 			r.emitPrePolicyAdjRIBOut(peer, facts, wire.Payload(), wire.SourceCtxID(), prePolicyNextHopUnknownForFacts(facts))
@@ -510,6 +517,10 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 			if res.accept {
 				treatments = res.treatments
 				policyRemovals = res.removals
+				egressNextHop = res.nextHop
+				egressRawOverride = res.rawOverride
+				egressNextHopAfterRaw = res.nextHopAfterRaw
+				egressHasAutoDefault = res.hasAutoDefaultNextHop
 				if res.wireOverride != nil {
 					// A policy replaces bytes, never the ingress path identity.
 					res.wireOverride.SetSourceID(wire.SourceID())
@@ -574,9 +585,12 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 			mods.Op(10, filterapi.AttrModPrepend, facts.clusterIDBytes[:])
 		}
 
-		applyFactsNextHop(facts, &mods, base.nextHop.mpFamily)
-		applyNextHopFamily(facts, &mods, base.nextHop, base.wire.Payload())
+		selfWithheld := applyEgressNextHopIntent(facts, egressNextHop, egressRawOverride, egressNextHopAfterRaw, egressHasAutoDefault,
+			srcNextHop, base.nextHop, wire.Payload(), base.wire.Payload(), &mods)
 		applyFactsSendCommunity(facts, &mods)
+		redirect := resolveRedirectNextHop(facts, egressNextHop, egressRawOverride, egressHasAutoDefault,
+			srcNextHop, base.nextHop, wire.Payload(), base.wire.Payload())
+		applyNextHopFamilyRedirect(&redirect, &mods, base.nextHop, base.wire.Payload())
 		aigpCostWithheld := applyFactsAIGP(facts, srcAIGP, srcNextHop, base.wire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
 
 		// RFC 2545 Section 3; draft-ietf-idr-linklocal-capability Section 4.
@@ -593,7 +607,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 		if !mods.IsWithdraw() {
 			// RFC 4271 Section 5.1.3, RFC 8950 Section 4,
 			// draft-ietf-idr-linklocal-capability Sections 2 and 4.
-			if gate := egressNextHopWithheld(peer, facts, &mods, base.nextHop, reflected, sourcePeerAddr); gate != withholdNone {
+			if gate := egressNextHopWithheldWithSelf(peer, facts, &mods, base.nextHop, reflected, sourcePeerAddr, selfWithheld); gate != withholdNone {
 				nextHopWithheld = true
 				// A mixed UPDATE is judged again per section
 				// (withdrawalBySection), and the section logs the refusal.

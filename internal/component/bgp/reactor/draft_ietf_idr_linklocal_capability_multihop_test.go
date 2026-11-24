@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -56,10 +57,11 @@ func llnhReceivedPairPayload() []byte {
 }
 
 // llnhExternalPeer builds an established external peer (AS 65002) at addr whose
-// configured next-hop mode is mode. connected is the interface table its link
-// scope is settled against. It negotiated IPv6 unicast and the Link-Local Next
-// Hop Capability, so the draft's procedures apply to its session (Section 2).
-func llnhExternalPeer(t *testing.T, addr string, connected []netip.Prefix, mode uint8) *Peer {
+// configured export next-hop policy is nextHopRef. connected is the interface
+// table its link scope is settled against. It negotiated IPv6 unicast and the
+// Link-Local Next Hop Capability, so the draft's procedures apply to its
+// session (Section 2).
+func llnhExternalPeer(t *testing.T, addr string, connected []netip.Prefix, nextHopRef string) *Peer {
 	t.Helper()
 	settings := &PeerSettings{
 		Connection:    ConnectionBoth,
@@ -68,14 +70,13 @@ func llnhExternalPeer(t *testing.T, addr string, connected []netip.Prefix, mode 
 		GlobalLocalAS: 65000,
 		PeerAS:        65002,
 		RouterID:      0x0a000001,
-		NextHopMode:   mode,
 		// The route server's send grant: the RS fast path reaches no
 		// destination without it, as the cached rail does not.
 		Bus: rsRelaySendBinding(),
 		// The peer is EBGP, and RFC 8212 Section 3 rejects at an absent
 		// policy, so it carries explicit accepting import and export policies.
 		ImportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
-		ExportPolicy: mustPolicy(t, nil, routepolicy.FinalAccept),
+		ExportPolicy: ExportPolicyWithNextHop(mustPolicy(t, nil, routepolicy.FinalAccept), nextHopRef),
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -110,22 +111,22 @@ var llnhExternalSource = forwardSourceInfo{resolved: true, globalLocalAS: 65000}
 func TestLinkLocalReceivedPairStrippedForMultihopExternalPeer(t *testing.T) {
 	global := netip.MustParseAddr(llnhAdvertiserAddr).As16()
 	ownGlobal := netip.MustParseAddr("2001:db8:ffff::254")
-	for _, mode := range []uint8{NextHopUnchanged, NextHopAuto} {
+	for _, mode := range []string{policychain.BuiltinNextHopUnchanged, policychain.BuiltinNextHopAuto} {
 		multihop := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, mode)
 		// This recipient is ordinary eBGP, including on the native relay path.
 		require.False(t, multihop.Settings().RSClient)
 		multihop.settings.LocalAddress = ownGlobal
 		multihop.fwdFacts.Store(multihop.buildForwardFacts())
 		want := global[:]
-		if mode == NextHopAuto {
+		if mode == policychain.BuiltinNextHopAuto {
 			want = ownGlobal.AsSlice()
 		}
 
 		got := llnhForward(t, llnhReceivedPairPayload(), llnhExternalSource, multihop)
 
 		field, sent := got[netip.MustParseAddr(llnhMultihopAddr)]
-		require.True(t, sent, "mode %d: the route reached the multihop peer", mode)
-		assert.Equal(t, want, field, "mode %d: the correct Global alone, no Link-Local", mode)
+		require.True(t, sent, "mode %s: the route reached the multihop peer", mode)
+		assert.Equal(t, want, field, "mode %s: the correct Global alone, no Link-Local", mode)
 	}
 }
 
@@ -140,7 +141,7 @@ func TestLinkLocalReceivedPairStrippedForMultihopExternalPeer(t *testing.T) {
 //
 // RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 negative -- the same relayed route sent to an external peer one IP hop away (2001:db8:1::3, on the connected 2001:db8:1::/64) keeps the 32-octet field: the Global 2001:db8:1::1 followed by the received Link-Local fe80::9.
 func TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer(t *testing.T) {
-	attached := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, NextHopUnchanged)
+	attached := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, policychain.BuiltinNextHopUnchanged)
 
 	got := llnhForward(t, llnhReceivedPairPayload(), llnhExternalSource, attached)
 
@@ -194,7 +195,7 @@ func llnhForwardRSRead[T any](t *testing.T, payload []byte, read func(*testing.T
 		pool.registerOutgoingPool(key, 4096)
 		peerMap[key.peerAddr] = c
 	}
-	source := llnhExternalPeer(t, llnhAdvertiserAddr, llnhSegment, NextHopUnchanged)
+	source := llnhExternalPeer(t, llnhAdvertiserAddr, llnhSegment, policychain.BuiltinNextHopUnchanged)
 	peerMap[source.Settings().PeerKey()] = source
 
 	r := &Reactor{
@@ -232,22 +233,22 @@ func llnhForwardRSRead[T any](t *testing.T, payload []byte, read func(*testing.T
 func TestLinkLocalRouteServerStripsReceivedPairForMultihopClient(t *testing.T) {
 	global := netip.MustParseAddr(llnhAdvertiserAddr).As16()
 	ownGlobal := netip.MustParseAddr("2001:db8:ffff::254")
-	for _, mode := range []uint8{NextHopUnchanged, NextHopAuto} {
+	for _, mode := range []string{policychain.BuiltinNextHopUnchanged, policychain.BuiltinNextHopAuto} {
 		multihop := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, mode)
 		// This recipient is ordinary eBGP, including on the native relay path.
 		require.False(t, multihop.Settings().RSClient)
 		multihop.settings.LocalAddress = ownGlobal
 		multihop.fwdFacts.Store(multihop.buildForwardFacts())
 		want := global[:]
-		if mode == NextHopAuto {
+		if mode == policychain.BuiltinNextHopAuto {
 			want = ownGlobal.AsSlice()
 		}
 
 		got := llnhForwardRS(t, llnhReceivedPairPayload(), multihop)
 
 		field, sent := got[netip.MustParseAddr(llnhMultihopAddr)]
-		require.True(t, sent, "mode %d: the route reached the multihop client", mode)
-		assert.Equal(t, want, field, "mode %d: the correct Global alone, no Link-Local", mode)
+		require.True(t, sent, "mode %s: the route reached the multihop client", mode)
+		assert.Equal(t, want, field, "mode %s: the correct Global alone, no Link-Local", mode)
 	}
 }
 
@@ -261,7 +262,7 @@ func TestLinkLocalRouteServerStripsReceivedPairForMultihopClient(t *testing.T) {
 //
 // RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 negative -- the same route relayed through the route-server rail (reactorForwardRS) to an external client one IP hop away (2001:db8:1::3, on the connected 2001:db8:1::/64) keeps the 32-octet field: the Global 2001:db8:1::1 followed by the received Link-Local fe80::9.
 func TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient(t *testing.T) {
-	attached := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, NextHopUnchanged)
+	attached := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, policychain.BuiltinNextHopUnchanged)
 
 	got := llnhForwardRS(t, llnhReceivedPairPayload(), attached)
 
@@ -301,9 +302,9 @@ func TestEgressNextHopGlobalHalf(t *testing.T) {
 		require.True(t, found)
 		return value[4 : 4+int(value[3])]
 	}
-	onLink := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, NextHopUnchanged)
-	offLink := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, NextHopUnchanged)
-	unscoped := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, NextHopUnchanged)
+	onLink := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, policychain.BuiltinNextHopUnchanged)
+	offLink := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, policychain.BuiltinNextHopUnchanged)
+	unscoped := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, policychain.BuiltinNextHopUnchanged)
 	unscoped.llScope.Store(nil)
 
 	assert.Equal(t, pair, normalize(onLink, pair, nil, family.IPv6Unicast), "an on-link destination keeps the pair")

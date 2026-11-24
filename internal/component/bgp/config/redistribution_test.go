@@ -5,14 +5,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/policy"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_prefix"
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/policy"
 )
 
 // TestFilterConfigParse verifies parsing explicit filter policies.
@@ -62,7 +62,7 @@ bgp {
 
 	ps := peers[0]
 	assert.Equal(t, refs("rpki:validate", "community:scrub"), ps.ImportPolicy.Filters())
-	assert.Equal(t, refs(blackholeAgreement, "aspath:prepend"), ps.ExportPolicy.Filters())
+	assert.Equal(t, refs(blackholeAgreement, "aspath:prepend", policychain.BuiltinNextHopAuto), ps.ExportPolicy.Filters())
 }
 
 // TestFilterChainResolution verifies bgp > group > peer cumulative merging.
@@ -154,7 +154,7 @@ bgp {
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
 	assert.Equal(t, refs("global:filter"), peers[0].ImportPolicy.Filters())
-	assert.Equal(t, refs(blackholeAgreement, "peer:export"), peers[0].ExportPolicy.Filters())
+	assert.Equal(t, refs(blackholeAgreement, "peer:export", policychain.BuiltinNextHopAuto), peers[0].ExportPolicy.Filters())
 }
 
 // TestFilterEmpty verifies empty filter block is valid.
@@ -193,7 +193,7 @@ bgp {
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
 	assert.Empty(t, peers[0].ImportPolicy.Filters())
-	assert.Equal(t, refs(blackholeAgreement), peers[0].ExportPolicy.Filters())
+	assert.Equal(t, refs(blackholeAgreement, policychain.BuiltinNextHopAuto), peers[0].ExportPolicy.Filters())
 	// The inserted member does not make the export chain operator-configured:
 	// with no filter block, RFC 8212 still rejects at the end of the eBGP chain.
 	assert.False(t, peers[0].ExportPolicy.Configured())
@@ -412,12 +412,13 @@ func mustPolicyRegistry(t *testing.T, instances ...policy.Instance) *policy.Regi
 const blackholeAgreement = "bgp-filter-community:blackhole-agreement"
 
 // insertedExport is the export list a peer resolves to before any operator
-// member: the BLACKHOLE agreement check on an eBGP session, nothing on iBGP.
+// member: the BLACKHOLE agreement check on an eBGP session, plus the trailing
+// RFC 4271 default next-hop:auto on every session.
 func insertedExport(ps *reactor.PeerSettings) []policy.Ref {
 	if ps.IsEBGP() {
-		return refs(blackholeAgreement)
+		return refs(blackholeAgreement, policychain.BuiltinNextHopAuto)
 	}
-	return nil
+	return refs(policychain.BuiltinNextHopAuto)
 }
 
 // refs builds a policy.Ref chain from canonical strings, mapping an "inactive:"

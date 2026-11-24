@@ -62,10 +62,9 @@ func rsASPathSockets(t *testing.T, received []uint32, delta string, override boo
 		peer.settings.PeerAS = tc.peerAS
 		peer.settings.MigrationAS = tc.migration
 		peer.settings.ASOverride = override
-		peer.settings.NextHopMode = NextHopUnchanged
 		peer.settings.Bus = rsRelaySendBinding()
 		peer.settings.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
-		peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
+		peer.settings.ExportPolicy = setExportNextHopUnchanged(mustPolicy(t, nil, routepolicy.FinalAccept))
 		if delta != "" {
 			peer.settings.ExportPolicy = answerPolicyAt(t, libraryIntentExport, routepolicy.FinalAccept, "aspath-edit")
 		}

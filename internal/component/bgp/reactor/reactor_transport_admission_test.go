@@ -23,7 +23,7 @@ import (
 // independently of the configured route next-hop mode.
 func TestReactorAdmitsConfiguredScopedTransport(t *testing.T) {
 	for _, passive := range []bool{false, true} {
-		for _, mode := range []string{"unchanged", "self", "auto", "2001:db8::9"} {
+		for _, mode := range []string{"unchanged", "self", "auto"} {
 			t.Run(fmt.Sprintf("passive=%v/%s", passive, mode), func(t *testing.T) {
 				settings, err := reactorTransportPeer(t, "fe80::1%if0", "fe80::2%if0", mode, passive)
 				require.NoError(t, err)
@@ -106,7 +106,10 @@ func TestReactorUnscopedLocalTransportNamesTheFix(t *testing.T) {
 // TestReactorTransportConfigKeepsExplicitGlobalNextHopGuard makes a valid
 // scoped TCP source independent from an invalid explicit global next hop.
 func TestReactorTransportConfigKeepsExplicitGlobalNextHopGuard(t *testing.T) {
-	_, err := reactorTransportPeer(t, "fe80::1%if0", "fe80::2%if0", "fe80::9", false)
+	settings, err := reactorTransportPeer(t, "fe80::1%if0", "fe80::2%if0", "auto", false)
+	require.NoError(t, err)
+	require.Equal(t, netip.MustParseAddr("fe80::1%if0"), settings.LocalAddress)
+	err = ValidatePeerGlobalNextHop("scoped", "next-hop", netip.MustParseAddr("fe80::9"))
 	require.ErrorIs(t, err, attribute.ErrLinkLocalNextHop)
 	assert.Contains(t, err.Error(), "next-hop")
 }
@@ -171,8 +174,8 @@ func reactorTransportPeer(t *testing.T, localIP, remoteIP, nextHop string, passi
         }
         session {
             asn { local 65000; remote 65001; }
-            next-hop %s;
         }
+        filter { export { filters [ next-hop:%s ]; final accept; } }
     }
 }`, localIP, passive, remoteIP, nextHop))
 	if err != nil {

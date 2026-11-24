@@ -25,12 +25,12 @@
     "rid": "RFC4271-4.3-4",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails",
-    "unit-sha": "ff772e0fe6802ac2",
+    "unit-sha": "c1cda10afac2a2c4",
     "claim-sha": "df8d859c510bd5ad",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
     "producer-sha": "473336292a0cad0a",
-    "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-4.3-4",

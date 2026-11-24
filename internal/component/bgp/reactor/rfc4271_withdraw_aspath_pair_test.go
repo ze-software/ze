@@ -8,6 +8,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -31,7 +32,7 @@ func TestForwardWithdrawalDoesNotCreateASPath(t *testing.T) {
 		LocalAS:      65000,
 		PeerAS:       65002,
 		RouterID:     0x01020301,
-		NextHopMode:  NextHopSelf,
+		ExportPolicy: setExportNextHopSelf(filterapi.Policy{}),
 		LocalAddress: netip.MustParseAddr("192.0.2.1"),
 	}
 	t.Run("withdrawal", func(t *testing.T) {

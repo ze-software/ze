@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/policychain"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -436,7 +437,7 @@ func TestRSFastPathRedoHandsAFencedDestinationBack(t *testing.T) {
 	), mixedV4Legacy)
 	dst := mixedDest(t, destAddr.String())
 	other := mixedDest(t, otherAddr.String())
-	source := llnhExternalPeer(t, llnhAdvertiserAddr, llnhSegment, NextHopUnchanged)
+	source := llnhExternalPeer(t, llnhAdvertiserAddr, llnhSegment, policychain.BuiltinNextHopUnchanged)
 
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	require.NoError(t, err)
@@ -508,7 +509,7 @@ func TestRSFastPathDispatchHandsAFencedDestinationBack(t *testing.T) {
 		mixedReach(1, mixedGlobalNH, mixedV6Prefix),
 	), nil)
 	dst := mixedDest(t, destAddr.String())
-	source := llnhExternalPeer(t, llnhAdvertiserAddr, llnhSegment, NextHopUnchanged)
+	source := llnhExternalPeer(t, llnhAdvertiserAddr, llnhSegment, policychain.BuiltinNextHopUnchanged)
 
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	require.NoError(t, err)
