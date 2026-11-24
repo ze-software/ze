@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | config |
 | Priority | P1 |
 | Release reason | Ze accepts configurations whose features program a data plane other than the one the interfaces run on. The config commits and the feature then does nothing, or fails when it is applied. Accepted but ineffective configuration is incorrect shipped behavior. |
