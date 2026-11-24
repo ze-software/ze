@@ -9,9 +9,16 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Loc-RIB integration | Make DHCPv4, IPv6 RA, PPPoE, and PPP NCP routes unified Loc-RIB producers competing by administrative distance. |
+| YANG distance leaves and per-interface override | Expose per-source leaves under `rib { distance { dhcp; ra; ppp; } }` (defaulting above `ibgp 200`, e.g. 210 or 254), with per-interface `route-priority` acting as that interface's administrative-distance override. |
 
 ## Task
 
@@ -46,7 +53,7 @@ ownership check. `DHCPClient.installV4Route`
 (`internal/plugins/iface/dhcp/dhcp_v4_linux.go`), `handleRouterDiscovered` and
 the link handlers in `internal/component/iface/register.go`, and the PPPoE client
 (`internal/component/iface/pppoe_client.go`) all call `AddRoute`, which the
-netlink backend implements as `netlink.RouteReplace`
+kernel backend implements as `netlink.RouteReplace`
 (`internal/plugins/iface/netlink/manage_linux.go`). The kernel replaces the
 route that holds the same table, prefix and metric, whoever installed it, so a
 lease or an RA silently replaces a Ze static blackhole or reject default route,

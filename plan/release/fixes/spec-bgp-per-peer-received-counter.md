@@ -7,7 +7,13 @@
 | Release reason | Received-count semantics and existing enforcement count-mode identity must not mislead operators. |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-08-08 |
+| Updated | 2026-11-24 |
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| AC-5 (`offered`/`installed` metric count-mode labels) vs AC-1..AC-4 (pre-policy received count) | Split AC-5 as a v1.0 release fix now so enforcement metrics identify their count mode (`offered` vs `installed`). Do not pay per-peer pre-policy NLRI-key RAM by default; populate pre-policy `routes-received` only when identity tracking is enabled via `count installed` or post-release `plan/post-release/features/spec-bgp-filtered-route-storage.md`. |
 
 ## The offered-versus-installed question is ANSWERED (2026-08-07)
 
@@ -163,6 +169,14 @@ the meaning of the reported values, with any metric-label migration documented.
 **Behavior to change:**
 - `show bgp` per-peer rows gain a pre-policy received count, distinct from accepted, family-scopable like the existing counts.
 - Birdwatcher `routes_received` is remapped to the pre-policy count so its semantics match BIRD (received = pre-import, imported = post-import).
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Per-session prefix counting and enforcement metrics | `internal/component/bgp/reactor/session_prefix.go` `prefixCounts`, `applyInstalledPrefixSections`, `setPrefixCountMetric`; `internal/component/bgp/reactor/reactor_metrics.go` | Tracks per-family `offered` counts and `installed` NLRI identity sets on the session read goroutine and publishes enforcement metrics labeled by peer and family | Extends: AC-5 adds count-mode (`offered`/`installed`) label identity and retires obsolete label series on mode change; AC-1..AC-4 reuse `count installed` identity tracking rather than allocating a second default per-peer NLRI set |
+| Lock-free peer stats snapshot | `internal/component/bgp/reactor/peer_stats.go` `peerCounters`, `Peer.Stats`; `internal/component/bgp/reactor/reactor_api.go` `reactorAPIAdapter.Peers` | Reads per-peer atomic counters into `[]plugin.PeerInfo` under `r.mu.RLock` without touching session-owned maps | Extends: publishes any per-peer received count without introducing a lock on the session hot path |
+| Post-policy Adj-RIB-In route counts | `internal/component/bgp/plugins/rib/rib_commands.go` `status`; `internal/component/bgp/plugins/cmd/peer/summary.go`; `internal/component/lg/handler_api.go` `transformProtocols` | Reports post-policy Adj-RIB-In sizes (`route-counts.in`) in peer summaries and maps birdwatcher `routes_received` and `routes_imported` from the same accepted count | Extends: preserves `routes-accepted` / `routes_imported` as post-policy and surfaces the distinct pre-policy count when identity tracking is enabled |
 
 ## Data Flow (withdrawn atomic-snapshot proposal)
 

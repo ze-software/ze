@@ -8,9 +8,16 @@
 | Scope | config |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-09-12 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Release 1 scope, priority order, and shared library | Commissioned for release 1 in priority order: `ike` and `l2tp`, then `gnmi`, `api`, `ssh`, and `web`, then `dhcp`, then `ntp` and `tftp`. Build a shared reusable IP-migration library usable by all protocols. |
+| Disturbance scope per listener binding | Scope disturbance to the listener binding: explicit-IP listeners bounce only when that IP moves; interface-bound listeners bounce only when that interface changes; wildcard listeners do not bounce unless backed by per-address sockets. |
 
 ## Task
 

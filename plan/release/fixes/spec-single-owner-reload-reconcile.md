@@ -9,11 +9,17 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-19 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Family S3 of the journal backlog analysis (2026-10-23), part 2 of 3.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| AC-10 (reload starting newly declared `external` plugins) | Dropped and superseded by `RefuseChangedDeclarations` (`ai/doors/plugin-infra.md`). External plugin declarations stay fixed while the daemon runs; `plan/release/fixes/spec-reload-starts-declared-external-programs.md` is likewise superseded and marked for removal. |
 
 ## Task
 
@@ -202,7 +208,7 @@ write outside the apply function does not compile
 | AC-7 | An operator table whose name collides with a ze owner table | the commit is refused with what, why and the rename command |
 | AC-8 | A web form save where the third field is refused | the working tree is unchanged |
 | AC-9 | A reload narrows a redistribute import's route-policy chain (`redistribute { destination <d> { import <s> { filters [ ... ]; final ...; } } }`: a chain of the route policy library at the `redistribute import` attachment, `docs/guide/route-policy.md` "Where you attach a chain" and `docs/guide/redistribution.md` "Route Redistribution", compiled by `compileRuleChains` in `internal/plugins/redistribute/config.go`; an import rule carries no family or tag field, and family and tag are `match` conditions of the `policy` root) | routes the old chain admitted and the new chain refuses are withdrawn at the destination |
-| AC-10 | A reload adds an `external` plugin program | the program starts and completes its stages |
+| AC-10 | ~~A reload adds an `external` plugin program~~ | **DROPPED (2026-11-24):** superseded by `RefuseChangedDeclarations` (`ai/doors/plugin-infra.md`); external plugin declarations remain fixed while the daemon runs |
 | AC-11 | A commit changes isis `net` or `system-id`, or bmp `environment` listeners | the running circuits or listeners reflect the change without a restart |
 | AC-12 | iface carrier or address flap between two reads | the reconcile acts on event-ordered state; the counter its functional test reads counts each repair once |
 

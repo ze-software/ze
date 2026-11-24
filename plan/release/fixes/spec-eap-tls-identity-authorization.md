@@ -9,9 +9,16 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-21 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Default when no identity constraint is configured | Fail-closed at commit unless an explicit identity constraint (allow-list, realm, or explicit opt-in wildcard on authenticator; or unambiguous remote FQDN / `server-identity` on client) is configured. |
+| YANG grammar | Authenticator `allowed-identities` leaf-list (supporting exact SANs, wildcards, and NAI realms) plus peer `server-identity` leaf. |
 
 ## Task
 

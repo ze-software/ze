@@ -9,9 +9,18 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-11 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+**SUPERSEDED on 2026-11-24 by `RefuseChangedDeclarations` (`ai/doors/plugin-infra.md`).**
+External plugin declarations stay fixed while the daemon runs; changing or adding `plugin { external ... }` requires a daemon restart. Do not implement from this file. Its removal goes through `./le commit create ... remove plan/release/fixes/spec-reload-starts-declared-external-programs.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Reloading added/changed `plugin { external ... }` declarations | Keep `RefuseChangedDeclarations` (`ai/doors/plugin-infra.md`). Close and remove this stale spec, and drop AC-10 of `plan/release/fixes/spec-single-owner-reload-reconcile.md`. |
 
 ## Task
 

@@ -9,13 +9,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | skeleton |
 | Priority | P1 |
 | Release reason | IKE replies on multihomed hosts must use the request destination address and port. |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-08-02 |
+| Updated | 2026-11-24 |
 
 <!-- Scope drives which optional blocks below apply. Say which one this is, so
      an absent section reads as "inapplicable" rather than "skipped".
@@ -25,9 +25,13 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-**Status set to `blocked` on 2026-08-05**, from `skeleton`. Reason: blocked: open owner question OR-WP8-1, both routes change listener lifecycle. It was
-reachable from `/ze-status` as actionable until now, which is what a triage of every
-`*-deferred-*` spec found.
+**Unblocked on 2026-11-24** (`blocked` → `skeleton`): Thomas resolved `OR-WP8-1` below. (Previously set to `blocked` on 2026-08-05 while `OR-WP8-1` was open.)
+
+## Owner decisions (2026-11-24)
+
+| Question | Decision |
+|----------|----------|
+| `OR-WP8-1` (multihomed IKE reply source address) | Keep wildcard UDP sockets (`:500`, `:4500`) and use `IP_PKTINFO` / `IPV6_PKTINFO` via `ReadMsgUDP` / `WriteMsgUDP` to capture the destination address on receive and specify the source address per datagram on send. |
 
 ## Task
 
@@ -253,7 +257,7 @@ measure what each costs before choosing.
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
 | Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink socket, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 

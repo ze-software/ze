@@ -10,7 +10,13 @@
 | Depends | - |
 | Phase | Sites found and verified; per-site design owed |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-24 |
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Forked-plugin resolution vs external-start refusal | Build cross-boundary logical-to-OS interface resolution in release 1 so internal and forked plugins behave identically, rather than refusing external start as a workaround. |
 
 ## Task
 
@@ -35,7 +41,7 @@ command instead, `show interface rate` (`iface.RateCommand`, forwarded with
 rewired, `iface.ListRates` and `GetRate` are deleted. Handed over from
 spec-command-surface-parity at its closure.
 
-The nft firewall backend is the same defect with no resolver call at all:
+The kernel firewall backend is the same defect with no resolver call at all:
 `lowerIfaceMatch` (`internal/plugins/firewall/nft/lower_linux.go`) writes the
 configured name into the `iifname`/`oifname` comparison, so a firewall or NAT
 match on an `ethernet` entry with `os-name` or `mac match` matches nothing.

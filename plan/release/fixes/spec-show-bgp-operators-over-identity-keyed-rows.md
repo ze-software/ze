@@ -9,9 +9,15 @@
 | Depends | spec-cli-show-bgp-answer-shapes |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| `\| resolve` and `\| origin` decoration shape on identity-keyed maps | Keep the raw IP address as the map key and inject `<key>-name` / `<key>-origin` inside each row object. |
 
 ## Task
 

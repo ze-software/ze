@@ -9,9 +9,18 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Scope / leaves | Decision |
+|----------------|----------|
+| `attach/process/{processes, processes-match, content/attribute}` | Drop from this spec; `plan/release/fixes/spec-explicit-plugin-and-attach-config.md` removes `attach`. |
+| `connection/link-local`, `rib/out/group-updates` | Delete both duplicate leaves (`session/link-local` and `behavior/group-updates` are the live surfaces). |
+| `rib/adj/in`, `rib/adj/out` | Delete both leaves; plugin loading and bus scope control Adj-RIB storage. |
+| `rib/out/auto-commit-delay`, `rib/out/max-batch-size` | Delete both leaves and the now-empty `peer { rib }` container; defer per-peer outbound batching post-release. |
 
 ## Owned journal rows
 
@@ -276,7 +285,7 @@ the right level for it.
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
 | Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink socket, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 

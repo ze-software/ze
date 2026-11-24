@@ -9,9 +9,17 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Leaf / value | Decision |
+|--------------|----------|
+| `close-action` (`none`, `restart`) and `dead-peer-detection action` (`clear`, `restart`) | Implement `none` / `clear` (tear down SA and do not reconnect) versus `restart` (tear down and reconnect on backoff). |
+| `close-action start` | Drop the redundant `start` value from `close-action`. |
+| `dead-peer-detection action hold` | Remove and defer `hold` (XFRM `ACQUIRE` trap policies) post-release, and change the `dead-peer-detection action` default from `hold` to `restart` or `clear`. |
 
 ## Task
 
@@ -226,7 +234,7 @@ rather than a name, so an acceptance test can tell them apart
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
 | Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink socket, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 

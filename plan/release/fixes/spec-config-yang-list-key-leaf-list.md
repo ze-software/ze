@@ -9,9 +9,16 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-21 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Requirement | Decision |
+|-------------|----------|
+| `RFC7950-7.7-1` (duplicate leaf-list values) | Keep in v1.0 release fixes: refuse duplicate leaf-list values at validate and commit. |
+| `RFC7950-7.7.2-1` (multi-default leaf-lists) and `RFC7950-7.8.2-1` (keyless config lists) | Move both remaining RFC 7950 loader rows to `plan/post-release/` so this release-fix spec covers leaf-list uniqueness only. |
 
 ## Required Reading
 

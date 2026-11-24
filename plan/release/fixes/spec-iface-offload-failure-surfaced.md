@@ -10,9 +10,15 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Unsupported NIC offload disposition | Refuse the commit on an unsupported NIC offload (`exact-or-reject`, matching ethernet speed/duplex). |
 
 ## Task
 

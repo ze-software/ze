@@ -12,9 +12,15 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| VPP apply before connect | Record desired state, return cleanly without waiting in `OnConfigure`, program on VPP `connected` / `reconnected`, surface pending state in `ze doctor`, and keep VPP links admin-down until firewall ACLs are programmed. |
 
 ## Task
 
@@ -59,8 +65,8 @@ spec owns all three (2026-11-11, "Owned journal rows"). The traffic vpp backend
 waits in its config stage exactly as the firewall does and fails the stage when
 VPP has not connected. Static routes choose their backend once, before the
 handshake: with no VPP connector published yet they keep the kernel backend for
-the daemon's life, so a named-table static route is written to the kernel by
-netlink (main-table routes go through the Loc-RIB and are not affected).
+the daemon's life, so a named-table static route is written to the kernel via
+the netlink socket (main-table routes go through the Loc-RIB and are not affected).
 Whether such a kernel route forwards anything on a VPP deployment was not
 confirmed. The file keeps its name because other records cite its path.
 
@@ -111,7 +117,7 @@ N-A: Scope is plugin.
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - A table the vpp backend cannot hold is refused by the backend verifier before any apply.
 - An absent VPP is not reported as a wedged dataplane (`asDataplaneTimeout`).
-- `firewall { backend nft; }` and a configuration with no firewall block do not load or wait for VPP.
+- `firewall { backend kernel; }` and a configuration with no firewall block do not load or wait for VPP.
 
 **Behavior to change:** (only what the user asked for)
 - The boot outcome with `firewall { backend vpp; }` when VPP is not yet connected, as the open design question settles it.
@@ -304,7 +310,7 @@ for the residual until this spec closes.
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
 | Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink socket, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Doctor code per problem class | | For each problem class the feature can produce (refusal, `Warn`/`Error` log line, transient report-bus event): the doctor check, its code and its phase (`ai/rules/user-facing-errors.md`, `docs/architecture/doctor-and-health-checks.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |

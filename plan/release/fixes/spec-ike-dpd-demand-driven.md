@@ -15,9 +15,17 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-08-07 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Question | Decision |
+|----------|----------|
+| Q-1 and Q-3 (liveness sources and idle tunnels) | Reset the DPD clock on fresh inbound IKE SA messages and inbound Child SA ESP counters (Q-1 option B); still probe completely idle tunnels after `interval` seconds (Q-3 option i, matching RFC 7296 Section 2.4 and strongSwan). |
+| Q-2 (dataplanes without Child SA counters) | On dataplanes where the SAD cannot be read (VPP, noop, non-Linux, or unprivileged), fall back to periodic probing and surface a warning and `ze doctor` notice (Q-2 option b). |
+| Q-5 (config leaf semantics) | Redefine `dead-peer-detection interval` in place with updated YANG help and docs rather than adding a sibling quiet-period leaf. |
 
 ## Task
 
@@ -243,7 +251,7 @@ Two entry points exist today and a third is proposed but not chosen.
 
 1. **A timer tick.** `maintainSA`'s 1-second ticker (`established.go` line 158) reaches the `shouldSend` arm at line 300. Format at entry: a `time.Time`.
 2. **An inbound datagram.** `ps.inbound` delivers a `transport.Packet` to `handleOwnedInbound` (`inbound.go` line 42). Format at entry: raw UDP bytes carrying an IKE header and an Encrypted payload.
-3. **(Proposed, not chosen) A kernel SAD record.** `dp.ListSAs(0)` returns `[]dataplane.SAInfo`, one entry per SAD state, carrying `SPI`, `PacketsCurrent`, `BytesCurrent` and `UsedAt`. Format at entry: a netlink XFRM state dump parsed by `saInfoFromState`.
+3. **(Proposed, not chosen) A kernel SAD record.** `dp.ListSAs(0)` returns `[]dataplane.SAInfo`, one entry per SAD state, carrying `SPI`, `PacketsCurrent`, `BytesCurrent` and `UsedAt`. Format at entry: an XFRM netlink dump parsed by `saInfoFromState`.
 
 ### Transformation Path
 
@@ -307,7 +315,7 @@ Path B, the Child SA liveness signal that does not exist:
 |----|------|--------------|----------------------|
 | R-1 | Suppressing probes on a busy tunnel makes `test/ipsec/ipsec-dpd-holds-tunnel.ci` vacuous: its `dpd: sent probe` assertion could stop firing for the right reason and the test would then prove nothing | The `.ci` goes red, or worse stays green while asserting a log line produced by a different path | Re-read the fixture before changing the schedule. The test pins the responder's interval at 3600 so probe traffic has one direction; that fixture may need a quiet-tunnel variant |
 | R-2 | A failed SAD read is treated as "no traffic seen", so a probe fires that should not have, or is treated as "traffic seen", so DPD goes silent on a dead peer | Health output or DPD logs disagree with the kernel | `driftingPeers` already models the correct shape: return a second `known` result and never let an unread dataplane render as a value. `ai/rules/evidence.md` |
-| R-3 | Per-peer per-second SAD dumps at scale cost measurable CPU and netlink traffic | Profiling, or `le perf` on a many-peer fixture | Share one dump across peers with a cadence independent of the 1-second tick |
+| R-3 | Per-peer per-second SAD dumps at scale cost measurable CPU and netlink message traffic | Profiling, or `le perf` on a many-peer fixture | Share one dump across peers with a cadence independent of the 1-second tick |
 | R-4 | A design that reads only the INBOUND Child SPI misses the S-2 "outgoing traffic only" case, which is the case the RFC calls essential | Review finds the outbound SPI unused | Both SPIs are already in `PeerInfo`; decide deliberately, not by omission |
 | R-5 | The behavior diverges between the XFRM and VPP backends, so a VPP deployment keeps periodic DPD while a Linux one does not, and nothing tells the operator | Nothing today would surface it | Q-2 must be answered before implementation. Whatever the answer, the difference is stated in `docs/features/rfc-status.md` and the operator-facing docs |
 | R-6 | The `interval` leaf's meaning changes under the operator's feet: today it is "probe every N seconds", after the fix it becomes "probe when N seconds have passed with no proof of life" | An operator reports fewer probes than configured | This is the intended change and it is user-visible. It belongs in `docs/guide/` and in the YANG description, not only in the code |
@@ -343,7 +351,7 @@ not exist. None of them asks whether to comply.
 
 VPP refuses (`vppBackend.ListSAs`, `vpp.go`), noop refuses (`noop.go`), non-Linux
 refuses (`xfrm_other.go`), and an unprivileged process without CAP_NET_ADMIN gets
-an error from netlink.
+an error from the netlink socket.
 
 | Option | Behavior when the SAD cannot be read | Cost | What it does NOT satisfy |
 |--------|--------------------------------------|------|--------------------------|
@@ -524,7 +532,7 @@ solution this skeleton exists to defer.)
 |-------|-----------------|
 | Replay cannot mask a dead peer | Every new writer of the liveness timestamp is reached only after authentication AND the Message ID window, per A-4. `handleOwnedInbound`'s out-of-window and cached-retransmit arms must stay non-crediting |
 | Kernel counters are not attacker-controlled in a useful way | A peer that sends ESP traffic Ze cannot decrypt still increments the inbound SAD counters only if the packet passes the integrity check. Verify this against the kernel before relying on the counter as proof of liveness |
-| Resource exhaustion | A per-peer per-second full SAD dump is an amplification of peer count into netlink load. R-3 |
+| Resource exhaustion | A per-peer per-second full SAD dump is an amplification of peer count into netlink socket load. R-3 |
 
 ### Failure Routing
 

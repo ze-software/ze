@@ -9,7 +9,13 @@
 | Depends | - |
 | Phase | design required |
 | Handoff | - |
-| Updated | 2026-10-02 |
+| Updated | 2026-11-24 |
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| SRv6 locator configuration | Define a shared top-level `segment-routing { srv6 { locator <name> { prefix <ipv6-prefix>; } } }` configuration surface, and fail closed with a clear diagnostic when unset. |
 
 ## Task
 

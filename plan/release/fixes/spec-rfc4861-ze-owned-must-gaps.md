@@ -10,9 +10,16 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-26 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| ND Proxy (`RFC4861-7.2.8-1`, `RFC4861-7.2.8-2`) and AH/ESP-secured ND (`RFC4861-11.2-1`, `RFC4861-11.2-2`) | Move both unstarted features to `plan/post-release/features/` as honest post-release gaps (not declined). |
+| RA design decision D-6 (`RFC4861-6.2.4-1`, `RFC4861-6.2.5-2`) | Reverse D-6: suppress non-zero Router Lifetime RAs when IPv6 forwarding is off, send a final RA with Router Lifetime 0 when forwarding turns off, keep the `ze doctor` warning, and update the RA design document. |
 
 ## Task
 

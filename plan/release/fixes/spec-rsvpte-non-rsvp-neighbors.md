@@ -16,7 +16,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-23 |
+| Updated | 2026-11-24 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later session reviews that commit and closes, on Opus when the model is an Anthropic one. `-` closes in the same session. -->
 
@@ -27,6 +27,13 @@
      without, plan/ for everything else (plan/README.md). -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Requirements | Decision |
+|--------------|----------|
+| `RFC2205-3-30` (TTL vs `Send_TTL` non-RSVP hop detection) | Keep in `plan/release/fixes/` and implement for release 1. |
+| `RFC3209-4.2.5-1` (non-RSVP neighbor tracking) and `RFC2205-3-31` (IP-tunnel notification) | Split out and move both unstarted capabilities to `plan/post-release/features/`. |
 
 ## Task
 

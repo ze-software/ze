@@ -7,7 +7,13 @@
 | Release reason | Guard existing private-key bundle exposure independently of a new key-only output command. |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-03 |
+| Updated | 2026-11-24 |
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Guard on `show pki certificate name <name> bundle pem` | Require BOTH an explicit RBAC `authz` grant (default-deny) AND an explicit `confirm` keyword, with redacted audit logging so private-key bytes never appear in logs or command history. |
 
 ## Task
 
@@ -20,6 +26,14 @@ Guard the private key already exposed by the existing `bundle pem` command. Pres
 | AC-4 | existing `bundle pem` | now also subject to the guard; output otherwise unchanged |
 | AC-5 | `pem` (cert-only) | unchanged, no guard needed |
 | AC-3-bundle | Unauthorized or unconfirmed existing bundle request | Reject without returning private-key material |
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| PKI bundle PEM RPC handler | `internal/component/pki/show.go` `handleShowPKICertificateBundlePEM`, `certBundlePEM`, `marshalPrivateKeyPEM` | Registers `ze-pki:show-certificate-bundle-pem` and concatenates the certificate chain with the PKCS#8 private key without an authorization or confirmation guard | Extends: gates `bundle pem` behind both the default-deny `authz` check and explicit `confirm` while leaving `certPEM` (`pem`) unchanged |
+| PKI show command YANG grammar | `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` | Defines `show pki certificate name <name>` with `pem`, `bundle pem`, and `fingerprint` | Extends: adds the explicit `confirm` keyword requirement on `bundle pem` |
+| Profile-based command authorization | `internal/component/authz/authz.go` `Action`, `Entry`, `authzLogger` | Evaluates ordered allow/deny rules in user authorization profiles against operational command paths and logs authorization decisions | Extends: applies a default-deny authorization check to private-key bundle export and records redacted audit entries |
 
 ## Work Not Done and Split Ownership
 

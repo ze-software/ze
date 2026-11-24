@@ -9,9 +9,15 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Uniform route payload shape and pipe lookup | Nest `show bgp rib` path attributes under `attributes` to match `show bgp rib best` uniformly (separating route metadata from BGP path attributes on both commands), and teach pipe operators (`display`, `where`, `resolve`, `origin`) nested attribute lookup. |
 
 ## Task
 

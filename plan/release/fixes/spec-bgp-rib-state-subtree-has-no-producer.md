@@ -9,9 +9,15 @@
 | Depends | spec-improve-2-gnmi-state |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| `bgp/rib/{adj-rib-in,adj-rib-out}` (`config false`) | Keep the declared state subtree and wire a real operational-state producer once `plan/release/fixes/spec-improve-2-gnmi-state.md` lands. |
 
 ## Task
 
@@ -215,7 +221,7 @@ the same work (`ai/rules/documentation.md`).
 | Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
 | Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
+| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink socket, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 

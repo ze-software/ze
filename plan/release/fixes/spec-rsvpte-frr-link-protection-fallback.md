@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-27 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -45,11 +45,11 @@ backup, a different protection method; neither spec depends on the other).
 | Rows | a verbatim row for the Section 6 fallback sentence in `rfc/short/rfc4090.md`, tagged and discriminated with `./le rfc record` |
 | Interop | an RSVP-TE FRR scenario against FRR or another RSVP-TE speaker as head end, the PLR holding only a link bypass |
 
-## Owner decisions
+## Owner decisions (2026-11-24)
 
-| Row | Question |
+| Row | Decision |
 |-----|----------|
-| D1 | The sentence is a SHOULD and `TestNodeProtectionNeedsNodeBypass` pins the opposite choice. Implement the link-protection fallback and rewrite that test, or keep the refusal as an owner-approved deviation recorded with its RFC section and reason (it is then not counted as conformant)? |
+| D1 and D2 | Implement the RFC 4090 Section 6 link-protection fallback when node protection is requested and unavailable, fix `rroProtectionFlags` (`RFC4090-6-6`) so the RRO node-protection flag reflects the armed bypass, and rewrite `TestNodeProtectionNeedsNodeBypass` through `ze-test-judge`. |
 
 ## Required Reading
 

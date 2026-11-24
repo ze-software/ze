@@ -8,7 +8,13 @@
 | Depends | mpls-4-rsvp-te-fast-reroute (facility backup), mpls-3-rsvp-te (closed), mpls-1-kernel (closed) (inherited from the combined spec) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-22 |
+| Updated | 2026-11-24 |
+
+## Owner decisions (2026-11-24)
+
+| Node | Decision |
+|------|----------|
+| `enum one-to-one` in `internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang` | Comment out `enum one-to-one` in place (do not delete the lines; keep commented out with a pointer to `plan/post-release/features/spec-mpls-9-rsvp-te-one-to-one-backup.md`) so v1.0 accepts `backup facility` only and refuses `backup one-to-one` cleanly. |
 
 ## Task
 

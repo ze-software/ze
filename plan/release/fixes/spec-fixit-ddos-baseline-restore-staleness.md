@@ -9,9 +9,15 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Stale persisted baseline behavior and threshold | Discard a stale persisted baseline and warm fresh (`Ready = false`), using a fixed internal staleness threshold (`max(24h, 2 * baseline-window)`) with no new YANG leaf. |
 
 ## Task
 

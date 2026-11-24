@@ -10,9 +10,15 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| YANG placement | Nest `speed`, `duplex`, and `autonegotiation` inside a `link` container under `interface ethernet <name>` (beside `mac` and `offload`). |
 
 ## Task
 
@@ -73,9 +79,9 @@ first release.
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Offload ethtool path | `offload_linux.go` `applyOffloads`, `ethtoolIoctl`; `docs/architecture/iface/offload.md` | Sets GRO, GSO, TSO, LRO, SG and hw-tc-offload by `SIOCETHTOOL` on the resolved device; an absent leaf makes no call | Extends: link settings use the same socket pattern and the same per-entry loop, with the tri-state rule. Does not copy its warn-only failure handling |
-| Speed and duplex read | `Backend.LinkSpeedDuplex`, netlink `show_linux.go` | Reads the negotiated speed and duplex from sysfs | Extends: `show interface` reports configured beside negotiated, and the read stays the source of the negotiated value |
+| Speed and duplex read | `Backend.LinkSpeedDuplex`, `iface/netlink/show_linux.go` | Reads the negotiated speed and duplex from sysfs | Extends: `show interface` reports configured beside negotiated, and the read stays the source of the negotiated value |
 | Host NIC inventory | `internal/component/host/nic_linux.go`, `ethtool_linux.go` | Reports driver, PCI ids, speed, duplex and rings | Does not apply to config. Reference for the ioctl pattern only |
-| Backend capability gate | `ze:backend` and `config.validateBackendFeatures` (`core-design.md` 14a), `validateBackendGate` in `register.go` | Refuses at commit a node the selected backend cannot implement | Extends: the new leaves carry `ze:backend "netlink"` unless A-2 finds a VPP mechanism |
+| Backend capability gate | `ze:backend` and `config.validateBackendFeatures` (`core-design.md` 14a), `validateBackendGate` in `register.go` | Refuses at commit a node the selected backend cannot implement | Extends: the new leaves carry `ze:backend "kernel"` unless A-2 finds a VPP mechanism |
 | NIC-capability validation | `plan/release/fixes/spec-config-bound-authority.md` (VPP queue counts read by `ETHTOOL_GCHANNELS`) | Design: validate reads a NIC maximum, refuses above it, warns when it cannot read | Extends the same pattern: verify reads `ETHTOOL_GLINKSETTINGS` supported modes. An unreadable or unbound NIC does not refuse at commit |
 | Selector binding | `config_apply.go` `bindDevices`, `deviceFor` | Resolves `os-name` and `mac match` once per apply | Extends: link settings apply on the bound device. An unbound entry is skipped and applied when the device appears |
 

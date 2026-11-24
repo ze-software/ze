@@ -12,9 +12,15 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Question | Decision |
+|----------|----------|
+| DQ-3 (forked `bgp-bmp`) | Support forked `bgp-bmp` over the RPC/event rail rather than refusing external start, honoring the `ai/doors/plugin-infra.md` and `ai/doors/bgp-plugins.md` invariant that internal and forked plugins behave identically. |
 
 ## Task
 

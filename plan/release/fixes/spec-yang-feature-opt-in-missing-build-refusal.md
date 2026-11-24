@@ -9,7 +9,14 @@
 | Depends | `spec-bgp-live-receive-binding-and-bfd-keep-session`, closed 2026-10-13 (it edits the BGP `connection bfd` readers and the BFD client commit refusal; this spec moves the schema those readers read, so it lands after that spec closes) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-22 |
+| Updated | 2026-11-24 |
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| BGP BFD leaves (`strict`, `hold-down`, `hold-time`) | Move them together with BGP BFD into BFD's compound-gated augment (`ze_bgp && ze_bfd`). |
+| BFD client grammar across BGP, OSPFv2/OSPFv3, and static routes | Standardize all BFD clients on the BGP form `bfd { profile <name>; }`, replacing OSPF's inline timer leaves (`min-tx`, `min-rx`, `multiplier`) and static's `bfd-profile <name>`. |
 
 ## Task
 

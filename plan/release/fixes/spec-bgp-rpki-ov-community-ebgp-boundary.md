@@ -10,9 +10,15 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-30 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Scope and YANG override leaf | Implement the MUST-only default inbound eBGP drop (`RFC8097-2-4`) with no new YANG leaf in this fix; defer the SHOULD egress strip and configured override leaf to the full RFC 8097 feature. |
 
 ## Task
 

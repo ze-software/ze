@@ -9,9 +9,15 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| `peer` vs `address` field names across all five `show bgp` peer-row commands | Carry both fields with distinct meanings on all five commands (`show bgp`, `show bgp peer statistics`, `show bgp rs peers`, `show bgp peer capabilities`, `show bgp health`): `peer` holds the configured peer name (for example `"edge1"`) and `address` holds the peer's IP address (for example `"192.0.2.1"`). |
 
 ## Task
 

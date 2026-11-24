@@ -10,9 +10,15 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-26 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| RFC 4638 Section 5.2 MRU probe (`RFC4638-5.2-2`) | Implement the post-LCP MRU-sized Echo-Request probe and automatic fallback to 1492 octets rather than excluding it as out of scope. |
 
 ## Task
 

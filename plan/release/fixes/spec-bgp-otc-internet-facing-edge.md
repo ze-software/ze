@@ -10,9 +10,15 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Owner decisions (2026-11-24)
+
+| Topic | Decision |
+|-------|----------|
+| Internet-facing edge detection and private-ASN OTC handling | Automatic on eBGP egress when `local-as` is a public ASN: if an incoming OTC carries an RFC 6996 private ASN, rewrite it to `local-as` (when the peer role requires OTC) or strip it (when the peer role does not), verified against FRR and BIRD source at design. |
 
 ## Task
 
