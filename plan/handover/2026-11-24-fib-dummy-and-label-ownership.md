@@ -76,6 +76,35 @@ not Thomas's, unless it changes what he decided):
   needs no reordering, and closes the window for every label source at once.
   Write it as an AC with a test where a live apply lands in the window.
 
+## Update: the label-ownership fifth judge refused (dd2f9a383fcc)
+
+Record: `tmp/spec-design/judged/spec-fib-kernel-label-ownership.md`. The
+fourth judge's defect is resolved; one new defect, with the fix the judge gave:
+
+- **The superseded record has no slot priority.** `supersededTables`
+  (`map[string][]uint32`), `recordSupersededTableLocked`,
+  `appendSupersededTableLocked` and `supersededDeleteError{table, count, err}`
+  hold a table only, and `cleanupOtherSupersededTablesLocked` /
+  `cleanupAllSupersededTablesLocked` delete through `delListedLocked` →
+  `delRichRoute(prefix, table)`. Path: push at main/0, system-RIB route at
+  metric 20 moves to 30 and the cleanup delete at 20 fails, then a withdraw
+  deletes in main with no priority, removing the push and leaving the
+  metric-20 route forwarding a withdrawn prefix with no record. A table move
+  whose old-table delete fails reaches the same place.
+- **Fix:** the superseded record keeps the slot priority of each failed
+  cleanup delete (`supersededDeleteError` carries them; `appendSupersededTableLocked`
+  takes the previous metric from `prevFwd`); `ownsSlotLocked`, the cleanup set,
+  `delListedLocked`, the withdraw and the flush read it by slot; the moved-table
+  delete in `cleanupAfterInstallLocked` names the previous slot. Add an AC and a
+  unit test (refused cleanup beside a push at main/0, then a withdraw: the push
+  stays, the superseded route goes at its own priority). No RFC-tagged test
+  reads `supersededTables`.
+- **Non-blocking:** the guarded IPv4 priority-0 delete has a race with a device
+  flush between lookup and delete; name the push's gateway, device and encap in
+  that delete, or list the race under Known limits.
+
+Next: one revision for this, then the sixth judge.
+
 ## Choices waiting for Thomas
 
 | Spec | Choice | Options | Recommended |
