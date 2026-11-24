@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Priority | P2 |
 | Release reason | Rich-route implementation remains subject to functional, interop, cost-change and backend-parity proof. |
 | Depends | - |
@@ -962,3 +962,9 @@ refactor in `internal/component/plugin/server/` causes fresh `ze` builds to fail
 - [x] Implementation Audit filled
 - [x] Lessons routed to governing surfaces (journal rows + docs; no separate `plan/learned/` summary required per `ai/rules/planning.md`)
 - [x] Operator change fragment written (`website/changes/fragments/fib-depth.md`)
+
+## Blocker
+
+- **What blocks closure:** Rung-2 live Docker interop revert-and-rebuild discrimination walks (`ai/rules/interop-and-goal-validation.md:12`) for the three new/upgraded BGP FIB interop scenarios — `bgp-ecmp-frr` (`sysRIB.ecmpGroup`, `internal/component/sysrib/ecmp.go:168-192`), `bgp-recursive-nh-frr` (`nhResolver.Resolve`, `internal/component/sysrib/nhresolver.go:67-111`), and `bgp-igp-cost-bird` (`compareAfterMED`, `internal/component/bgp/plugins/rib/bestpath.go:437-470`). All three passed live against FRR 10.7.1 / BIRD 3.4.0 on `6d04ee6acb`, unit and `.ci` discrimination are recorded, and the independent `/ze-close` Review Gate is CLEAN (`bc2e58d6b7`, 0 code BLOCKER / 0 code ISSUE across all 10 prior commits).
+- **Producing surface:** Concurrent uncommitted `plugin {} -> bus {}` config-retirement edits in `internal/component/config/loader.go` and `internal/component/plugin/server/server.go` reject `test/interop/scenarios/bgp-ecmp-frr/ze.conf` line 11 during lab setup (`parse ze.conf for the interop lab: parse config: line 11: unknown top-level keyword: plugin`), preventing an honest green-vs-red rebuild comparison on the current working tree.
+- **What clears it:** Once the `bus {}` migration lands and updates `test/interop/scenarios/*/ze.conf`, set `Status` back to `in-progress`, run the three revert-and-rebuild discrimination walks via `./le test integration interop`, record the RED results in `docs/architecture/testing/interop.md` rows 34/70/71 and this spec's Review Gate, run `./le spec review record`, land Commit B (`remove plan/release/validation/spec-fib-depth.md`), and run `./le spec release`. (Note: an extra uncommitted 12-line zero-withdrawal assertion in `internal/test/fixture/sysrib_ecmp_daemon_fixture.go` remains held out pending cached 7.3 runtime kernel `1fc606ec`; AC-14 is already covered without it by unit tests, 80/80 VPP stub zero-withdrawal, live real-VPP `fib-ecmp`, and live `bgp-ecmp-frr`.)
