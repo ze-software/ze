@@ -17,7 +17,7 @@ first-release standard at `plan/release/features/spec-fib-dummy.md`.
 
 | Spec | Status | Last commit | Judge state |
 |------|--------|-------------|-------------|
-| `plan/release/features/spec-fib-dummy.md` | design | bc32a56254 (a later revision may be uncommitted, see below) | Ten judges refused; the tenth record is `tmp/spec-design/judged/spec-fib-dummy.md` at digest af864e9e99f4 |
+| `plan/release/features/spec-fib-dummy.md` | ready | e38da3f4aa (choices and `ready` transition committed after approval) | Approved by judge at digest 6e51c0e84de3 and approved by Thomas (C-1a, C-2a, C-3a, C-4a, C-5a, C-6b) on 2026-11-24 |
 | `plan/release/fixes/spec-fib-kernel-label-ownership.md` | design | ab580c27e5 | Four judges refused; a fifth judge was judging digest dd2f9a383fcc when this was written |
 | `plan/release/fixes/spec-bgp-graceful-restart-rfc-defects.md` | design (amended) | 4f5789f7cb | D7 recorded, not designed or judged |
 
