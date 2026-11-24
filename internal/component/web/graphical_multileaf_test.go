@@ -67,7 +67,7 @@ func TestGraphicalMultiWordLeafRefusesMemberActivation(t *testing.T) {
 			assert.Contains(t, rec.Body.String(), "whole setting")
 			assert.Equal(t, before, mgr.ContentAtPath("testuser", nil))
 			assert.Equal(t, changes, mgr.ChangeCount("testuser"))
-			assert.Equal(t, []string{"first", "second"}, mgr.Tree("testuser").GetSlice("graphical-words"))
+			assert.Equal(t, []string{"first", "second"}, mgr.snapshotTree("testuser").GetSlice("graphical-words"))
 		})
 	}
 }

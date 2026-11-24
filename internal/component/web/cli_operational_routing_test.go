@@ -23,7 +23,7 @@ func TestWebRegisteredOperationalDeleteReachesDispatcher(t *testing.T) {
 	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
 	_, err := mgr.GetOrCreate("testuser")
 	require.NoError(t, err)
-	before := config.Serialize(mgr.Tree("testuser"), schema)
+	before := config.Serialize(mgr.snapshotTree("testuser"), schema)
 	const line = "delete agent skill agent all"
 	var caller plugin.CallerIdentity
 	var seen string
@@ -39,7 +39,7 @@ func TestWebRegisteredOperationalDeleteReachesDispatcher(t *testing.T) {
 	assert.Equal(t, "192.0.2.1:1234", caller.RemoteAddr)
 	assert.Contains(t, answer.Output, "daemon answer")
 	assert.Equal(t, terminalModeOperational, answer.Mode)
-	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), schema))
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), schema))
 }
 
 // TestWebStreamSelectionPreservesRegisteredOperationalInput proves stream
@@ -90,7 +90,7 @@ func TestWebOperationalRecognitionIsOneRequestDecision(t *testing.T) {
 	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
 	_, err := mgr.GetOrCreate("testuser")
 	require.NoError(t, err)
-	before := config.Serialize(mgr.Tree("testuser"), schema)
+	before := config.Serialize(mgr.snapshotTree("testuser"), schema)
 	const line = "delete bgp"
 	lookups := 0
 	registered := func(string) bool {
@@ -108,7 +108,7 @@ func TestWebOperationalRecognitionIsOneRequestDecision(t *testing.T) {
 	assert.Equal(t, line, seen)
 	assert.Equal(t, terminalModeOperational, answer.Mode)
 	assert.Contains(t, answer.Output, "operational answer")
-	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), schema))
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), schema))
 }
 
 // TestWebConfigDeleteRetainsMutationAuthorization checks registry precedence

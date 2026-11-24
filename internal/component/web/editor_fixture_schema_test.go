@@ -17,7 +17,7 @@ func TestWebEditorFixtureStartsWithParsedTree(t *testing.T) {
 	manager := newTestEditorManager(t)
 	_, err := manager.GetOrCreate("fixture-reader")
 	require.NoError(t, err)
-	tree := manager.Tree("fixture-reader")
+	tree := manager.snapshotTree("fixture-reader")
 	require.NotNil(t, tree)
 	bgp := tree.GetContainer("bgp")
 	require.NotNil(t, bgp)

@@ -30,10 +30,10 @@ func TestGraphicalActionsCopyRenameAndActivation(t *testing.T) {
 	assert.NotContains(t, mgr.ContentAtPath("testuser", []string{"bgp"}), "group copied")
 	deactivated := graphicalActionRequest(t, handler, "deactivate", "bgp/group/renamed", nil)
 	requireStatus(t, http.StatusOK, deactivated)
-	assert.True(t, walkTree(mgr.Tree("testuser"), schema, []string{"bgp", "group", "renamed"}).IsInactive())
+	assert.True(t, walkTree(mgr.snapshotTree("testuser"), schema, []string{"bgp", "group", "renamed"}).IsInactive())
 	reactivated := graphicalActionRequest(t, handler, "activate", "bgp/group/renamed", nil)
 	requireStatus(t, http.StatusOK, reactivated)
-	assert.False(t, walkTree(mgr.Tree("testuser"), schema, []string{"bgp", "group", "renamed"}).IsInactive())
+	assert.False(t, walkTree(mgr.snapshotTree("testuser"), schema, []string{"bgp", "group", "renamed"}).IsInactive())
 	assert.Contains(t, mgr.ContentAtPath("testuser", []string{"bgp", "group", "source"}), "original")
 }
 
@@ -42,13 +42,13 @@ func TestGraphicalActionsCopyRenameAndActivation(t *testing.T) {
 func TestGraphicalActionsRespectPermissionsAndRejectUnknownActions(t *testing.T) {
 	mgr, schema, _, _ := setupCLITerminalYANGTest(t)
 	require.NoError(t, mgr.SetValue("testuser", []string{"bgp", "group", "source"}, "description", "original"))
-	before := config.Serialize(mgr.Tree("testuser"), schema)
+	before := config.Serialize(mgr.snapshotTree("testuser"), schema)
 	denied := HandleGraphicalAction(mgr, schema, nil, fakeAuthorizer{allowEdit: false}, nil, nil)
 	requireStatus(t, http.StatusForbidden, graphicalActionRequest(t, denied, "copy", "bgp/group/source", url.Values{"target": {"denied"}}))
 	allowed := HandleGraphicalAction(mgr, schema, nil, nil, nil, nil)
 	requireStatus(t, http.StatusBadRequest, graphicalActionRequest(t, allowed, "run", "bgp/group/source", nil))
 	requireStatus(t, http.StatusBadRequest, graphicalActionRequest(t, allowed, "copy", "bgp/../source", url.Values{"target": {"bad"}}))
-	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), schema))
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), schema))
 }
 
 // TestGraphicalActionsConfirmedCommitUsesDaemonWindow verifies the buttons use
@@ -160,13 +160,13 @@ func TestGraphicalActionsRestoreAStableRevision(t *testing.T) {
 	committed, err := mgr.committedConfig()
 	require.NoError(t, err)
 	requireStatus(t, http.StatusOK, graphicalActionRequest(t, handler, "rollback", "", url.Values{"revision": {selected}}))
-	assert.Equal(t, config.Serialize(expected, schema), config.Serialize(mgr.Tree("testuser"), schema))
+	assert.Equal(t, config.Serialize(expected, schema), config.Serialize(mgr.snapshotTree("testuser"), schema))
 	unchanged, err := mgr.committedConfig()
 	require.NoError(t, err)
 	assert.Equal(t, committed, unchanged)
-	before := config.Serialize(mgr.Tree("testuser"), schema)
+	before := config.Serialize(mgr.snapshotTree("testuser"), schema)
 	requireStatus(t, http.StatusBadRequest, graphicalActionRequest(t, handler, "rollback", "", url.Values{"revision": {"/not-in-this-history"}}))
-	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), schema))
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), schema))
 }
 
 // TestGraphicalActionsRefreshEntryNavigation proves successful structural

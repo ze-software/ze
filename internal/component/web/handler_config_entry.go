@@ -90,7 +90,10 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		} else if len(path) > 0 {
 			// Keyless list: auto-generate a sequential key.
 			if listNode, ok := findListNode(schema, path); ok && listNode.KeyName == "" {
-				existing := collectListKeys(mgr.Tree(username), schema, path)
+				var existing []string
+				mgr.ReadTree(username, func(tree *config.Tree) {
+					existing = collectListKeys(tree, schema, path)
+				})
 				path = append(path, textbuf.StringInt(int64(len(existing)+1)))
 			}
 		}
@@ -115,7 +118,7 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		// Validate all fields BEFORE creating the entry.
 		entryKey := target.Address.Key
 		listPath := path[:len(target.ParentPath)+1]
-		tree := mgr.Tree(username)
+		tree := mgr.snapshotTree(username)
 		listNode, walkErr := walkSchema(schema, listPath)
 		if walkErr != nil {
 			http.Error(w, "invalid list path", http.StatusBadRequest)
@@ -268,7 +271,7 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 				return
 			}
 
-			tree = mgr.Tree(username)
+			tree = mgr.snapshotTree(username)
 			data := buildFragmentData(schema, tree, listPath)
 			// A list with no unique field renders no table, so there is no
 			// table to swap: reload the list view instead.
@@ -412,7 +415,7 @@ func returnAddError(w http.ResponseWriter, r *http.Request, renderer *Renderer, 
 		http.Error(w, errMsg, http.StatusConflict)
 		return
 	}
-	tree := mgr.Tree(username)
+	tree := mgr.snapshotTree(username)
 	data := buildFragmentData(schema, tree, listPath)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	notifHTML := renderer.renderComponent("notification_error", notificationError(notificationErrorData{Message: errMsg}))
@@ -501,7 +504,7 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 		}
 
 		// Resolve inherited defaults from parent context in the config tree.
-		tree := mgr.Tree(username)
+		tree := mgr.snapshotTree(username)
 		parentTree := resolveParentDefaults(tree, schema, listPath)
 
 		// Track fields already added to avoid duplicates (required/suggest may overlap unique).

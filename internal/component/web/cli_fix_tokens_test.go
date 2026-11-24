@@ -35,12 +35,12 @@ func TestWebPrintedEnumFixPreservesListKey(t *testing.T) {
 				accepted := webTerminalLine(t, terminal, position, fix)
 				require.False(t, strings.HasPrefix(accepted.Output, "error:"), "printed fix %q: %s", fix, accepted.Output)
 				assert.Equal(t, position, accepted.Path)
-				group := mgr.Tree("testuser").GetContainer("bgp").GetList("group")[key]
+				group := mgr.snapshotTree("testuser").GetContainer("bgp").GetList("group")[key]
 				require.NotNil(t, group)
 				value, ok := group.GetContainer("session").GetContainer("capability").Get("route-refresh")
 				assert.True(t, ok)
 				assert.Equal(t, "require", value)
-				assert.Nil(t, mgr.Tree("testuser").GetContainer("bgp").GetList("group")["edge"])
+				assert.Nil(t, mgr.snapshotTree("testuser").GetContainer("bgp").GetList("group")["edge"])
 			})
 		}
 	}

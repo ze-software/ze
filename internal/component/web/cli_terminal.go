@@ -142,8 +142,7 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 			}
 		}
 
-		// Keep the committed hub tree as the compare baseline. Display commands
-		// use the per-user working tree when one exists.
+		// Fallback display tree when the user has no cached editor session yet.
 		viewTree := tree
 
 		result := executeTerminalCommand(r.Context(), schema, viewTree, mgr, username, r.RemoteAddr, contextPath, mode, cmd, commandText, dispatch, registeredInput)
@@ -663,18 +662,41 @@ func parseConfigContent(content string, schema *config.Schema) (*config.Tree, er
 
 func displayTree(fallback *config.Tree, mgr *EditorManager, username string) *config.Tree {
 	if mgr != nil {
-		if tree := mgr.Tree(username); tree != nil {
+		if tree := mgr.snapshotTree(username); tree != nil {
 			return tree
 		}
 	}
 	return fallback
 }
 
+// singleChildSchemaNode exposes one schema child to config.SerializeSubtree so
+// a bare list path renders through the canonical list serializer without
+// including sibling nodes from the parent container.
+type singleChildSchemaNode struct {
+	name string
+	node config.Node
+}
+
+func (singleChildSchemaNode) Kind() config.NodeKind { return config.NodeContainer }
+
+func (n singleChildSchemaNode) Children() []string { return []string{n.name} }
+
+func (n singleChildSchemaNode) Get(name string) config.Node {
+	if name == n.name {
+		return n.node
+	}
+	return nil
+}
+
 // serializeTreeAtPath returns the config text at the given path. At root it
-// serializes the full tree; at a subpath it walks to the subtree and serializes
-// that section.
+// serializes the full tree; at a bare list path it renders every entry of the
+// list or an explicit empty-list message when no entries exist; at any other
+// subpath it walks to the subtree and serializes that section.
 func serializeTreeAtPath(tree *config.Tree, schema *config.Schema, path []string) string {
-	if tree == nil || schema == nil {
+	if tree == nil {
+		return ""
+	}
+	if schema == nil {
 		return ""
 	}
 	// Mask every secret leaf for display (web CLI terminal show/nav/compare).
@@ -685,15 +707,41 @@ func serializeTreeAtPath(tree *config.Tree, schema *config.Schema, path []string
 	if len(path) == 0 {
 		return config.Serialize(tree, schema)
 	}
+	node, err := walkSchema(schema, path)
+	if err != nil {
+		return ""
+	}
+	if node == nil {
+		return ""
+	}
+	if isBareListPath(schema, path) {
+		return serializeBareListAtPath(tree, schema, path, node)
+	}
 	subtree := walkTree(tree, schema, path)
 	if subtree == nil {
 		return ""
 	}
-	node, err := walkSchema(schema, path)
-	if err != nil || node == nil {
-		return ""
-	}
 	return config.SerializeSubtree(subtree, node)
+}
+
+func serializeBareListAtPath(tree *config.Tree, schema *config.Schema, path []string, node config.Node) string {
+	parentTree := tree
+	if len(path) > 1 {
+		parentTree = walkTree(tree, schema, path[:len(path)-1])
+	}
+	listName := path[len(path)-1]
+	if parentTree != nil {
+		entries := parentTree.GetListOrdered(listName)
+		if len(entries) > 0 {
+			listTree := config.NewTree()
+			for _, entry := range entries {
+				listTree.AddListEntry(listName, entry.Key, entry.Value)
+			}
+			return config.SerializeSubtree(listTree, singleChildSchemaNode{name: listName, node: node})
+		}
+	}
+	var tb textbuf.Buffer
+	return tb.Str("(no ").Join(path, " ").Str(" entries)").String()
 }
 
 // webCommitRequest parses the arguments after `commit` with the grammar every
@@ -820,7 +868,7 @@ func HandleCLIModeToggle(mgr *EditorManager, schema *config.Schema, renderer *Re
 		}
 
 		// Integrated mode: render normal GUI content.
-		tree := mgr.Tree(username)
+		tree := mgr.snapshotTree(username)
 		viewData, err := buildConfigViewData(schema, tree, contextPath)
 		if err != nil {
 			serverLogger.Warn("mode toggle build view failed", "error", err)

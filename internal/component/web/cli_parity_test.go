@@ -68,13 +68,13 @@ func TestWebTerminalLoadChangesCandidateOnly(t *testing.T) {
 	})
 	assert.NotContains(t, response.Output, "unknown command")
 	assert.Contains(t, webTerminalLine(t, terminal, "", "show bgp").Output, "192.0.2.88")
-	before := config.Serialize(mgr.Tree("testuser"), mgr.schema)
+	before := config.Serialize(mgr.snapshotTree("testuser"), mgr.schema)
 	refused := runTerminalCommandForm(t, terminal, url.Values{
 		"command": {"load terminal relative replace"}, "path": {"bgp"},
 		"content": {"unknown-setting 123;"},
 	})
 	assert.Contains(t, refused.Output, "error:")
-	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), mgr.schema))
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), mgr.schema))
 	assert.Positive(t, mgr.ChangeCount("testuser"))
 }
 
@@ -122,10 +122,10 @@ func TestWebTerminalOptionsPersistWithinUser(t *testing.T) {
 func TestWebTerminalRefusesMutationPipe(t *testing.T) {
 	mgr, terminal := newYANGTerminal(t)
 	webTerminalLine(t, terminal, "", "show")
-	before := config.Serialize(mgr.Tree("testuser"), mgr.schema)
+	before := config.Serialize(mgr.snapshotTree("testuser"), mgr.schema)
 	answer := webTerminalLine(t, terminal, "", "set bgp router-id 192.0.2.77 | head 1")
 	assert.Contains(t, answer.Output, "does not support piping")
-	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), mgr.schema))
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), mgr.schema))
 }
 
 // TestWebTerminalInsertUsesCLIOrdering proves first/before/after affect the
@@ -141,7 +141,7 @@ func TestWebTerminalInsertUsesCLIOrdering(t *testing.T) {
 		answer := webTerminalLine(t, terminal, "", line)
 		require.NotContains(t, answer.Output, "error:", line)
 	}
-	policy := mgr.Tree("testuser").GetContainer("bgp").GetContainer("filter").GetContainer("import")
+	policy := mgr.snapshotTree("testuser").GetContainer("bgp").GetContainer("filter").GetContainer("import")
 	assert.Equal(t, []string{"alpha", "charlie", "bravo"}, policy.GetMultiValues("filters"))
 	final, exists := policy.Get("final")
 	assert.True(t, exists)
@@ -170,7 +170,7 @@ func TestWebTerminalDiscardUsesCurrentContext(t *testing.T) {
 	webTerminalLine(t, terminal, "", "set bgp group retained description retained")
 	answer := webTerminalLine(t, terminal, "bgp", "discard router-id")
 	assert.NotContains(t, answer.Output, "error:")
-	shown := config.Serialize(mgr.Tree("testuser"), mgr.schema)
+	shown := config.Serialize(mgr.snapshotTree("testuser"), mgr.schema)
 	assert.NotContains(t, shown, "192.0.2.91")
 	assert.Contains(t, shown, "retained")
 }

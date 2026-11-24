@@ -73,7 +73,8 @@ Each input type is one file. `fieldInputFor` (`field_input.go`) reads the `field
 ## URL Scheme
 
 ```
-/show/<yang-path>           Full page or HTMX fragment (GET)
+/show/<yang-path>           Full page or HTMX fragment (GET; active UI mode)
+/config/edit/<yang-path>    Full page or HTMX fragment (GET; active UI mode, emitted by config redirects)
 /fragment/detail?path=X     HTMX partial: detail + OOB sidebar/breadcrumb (GET)
 /config/set/<path>          Save field value (POST, returns OOB commit bar or error)
 /config/diff                Diff modal with changes (GET, returns open modal HTML)
@@ -433,7 +434,7 @@ origin-name test. Saving and rebuilding the web candidate preserve that choice.
 <!-- source: internal/component/cli/editor.go -- NewIsolatedEditorWithStorage -->
 <!-- source: internal/component/cli/editor_view.go -- workingViewMetadata, projectSessionTree -->
 
-Each session has an isolated working tree, change tracking, and serialized access via per-user mutex. Operations: `SetValue`, `DeleteValue`, `ApplyFormEdits`, `Commit`, `Discard`, `Diff`, `ChangeCount`, `Tree`, `ReadTree`.
+Each session has an isolated working tree, change tracking, and serialized access via per-user mutex. Operations: `SetValue`, `DeleteValue`, `ApplyFormEdits`, `Commit`, `Discard`, `Diff`, `ChangeCount`, `ReadTree`. Tree reads either run inside `ReadTree` while holding the per-user mutex or receive an isolated deep clone (`viewTree`, `snapshotTree`); `EditorManager` never returns an unlocked live `*config.Tree` pointer.
 
 A newly opened editor resumes this account's pending web intent before it enters
 the manager's cache. Recovery includes saved metadata and unsaved assignments
@@ -1672,8 +1673,8 @@ The birdwatcher API uses `snake_case` JSON keys (`router_id`, `neighbor_address`
 
 | Method | Config |
 |--------|--------|
-| Config | `environment { looking-glass { enabled true; server main { ip 0.0.0.0; port 8443; } } }` |
-| Env vars | `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.tls=false` (TLS is on by default), `ze.looking-glass.token=<token>` |
+| Config | `environment { looking-glass { enabled true; server main { ip 0.0.0.0; port 8443; } } }`. Each `server` entry carries its own `tls` leaf (default true) |
+| Env vars | `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.token=<token>`. No variable switches TLS: only the `tls` leaf of a server entry does |
 
 The hub builds the looking-glass service with `buildLGService` and starts its
 server with `serveLG` in `cmd/ze/hub/service_lg.go`.

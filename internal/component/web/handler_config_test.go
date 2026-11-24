@@ -603,7 +603,7 @@ func TestWebConfigSetRBACDeny(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusForbidden, rec.Code)
-	tree := mgr.Tree("alice")
+	tree := mgr.snapshotTree("alice")
 	if tree != nil {
 		if bgp := tree.GetContainer("bgp"); bgp != nil {
 			_, ok := bgp.Get("router-id")
@@ -628,7 +628,7 @@ func TestWebConfigAddRBACDeny(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusForbidden, rec.Code)
-	tree := mgr.Tree("alice")
+	tree := mgr.snapshotTree("alice")
 	if tree != nil {
 		if bgp := tree.GetContainer("bgp"); bgp != nil {
 			assert.Nil(t, bgp.GetList("peer")["denied"], "peer must not be created when RBAC denies add")
@@ -651,7 +651,7 @@ func TestWebConfigDeleteRBACDeny(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusForbidden, rec.Code)
-	value, ok := mgr.Tree("alice").GetContainer("bgp").Get("router-id")
+	value, ok := mgr.snapshotTree("alice").GetContainer("bgp").Get("router-id")
 	assert.True(t, ok)
 	assert.Equal(t, "9.9.9.9", value)
 }
@@ -671,7 +671,7 @@ func TestWebConfigRenameRBACDeny(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusForbidden, rec.Code)
-	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	peers := mgr.snapshotTree("alice").GetContainer("bgp").GetList("peer")
 	require.NotNil(t, peers["london"])
 	assert.Nil(t, peers["paris"])
 }
@@ -778,7 +778,7 @@ func TestWebConfigSetAdminAllowed(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
-	value, ok := mgr.Tree("alice").GetContainer("bgp").Get("router-id")
+	value, ok := mgr.snapshotTree("alice").GetContainer("bgp").Get("router-id")
 	assert.True(t, ok)
 	assert.Equal(t, "5.6.7.8", value)
 }
@@ -825,7 +825,7 @@ func TestHandleConfigSet(t *testing.T) {
 		"redirect must go to parent path under /config/edit/")
 
 	// Verify the value was actually set in the user's tree.
-	tree := mgr.Tree("alice")
+	tree := mgr.snapshotTree("alice")
 	require.NotNil(t, tree, "user tree must exist after set")
 
 	bgp := tree.GetContainer("bgp")
@@ -890,7 +890,7 @@ func TestAddPeerFormFields(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	peers := mgr.snapshotTree("alice").GetContainer("bgp").GetList("peer")
 	peer := peers["lab-peer"]
 	require.NotNil(t, peer, "peer entry must be created")
 
@@ -935,7 +935,7 @@ func TestHandleConfigRename(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "/config/edit/bgp/peer/", rec.Header().Get("HX-Redirect"))
 
-	tree := mgr.Tree("alice")
+	tree := mgr.snapshotTree("alice")
 	require.NotNil(t, tree)
 	bgp := tree.GetContainer("bgp")
 	require.NotNil(t, bgp)
@@ -968,7 +968,7 @@ func TestHandleConfigRenameNormalizesKey(t *testing.T) {
 	bad.Header.Set("HX-Request", "true")
 	handler.ServeHTTP(refused, bad)
 	require.Equal(t, http.StatusBadRequest, refused.Code)
-	peersBefore := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	peersBefore := mgr.snapshotTree("alice").GetContainer("bgp").GetList("peer")
 	require.NotNil(t, peersBefore["london"])
 	assert.Nil(t, peersBefore["Paris"])
 	assert.Nil(t, peersBefore[" Paris "])
@@ -981,7 +981,7 @@ func TestHandleConfigRenameNormalizesKey(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
-	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	peers := mgr.snapshotTree("alice").GetContainer("bgp").GetList("peer")
 	assert.Nil(t, peers["london"])
 	require.NotNil(t, peers["Paris"], "the accepted key keeps its case")
 	assert.Nil(t, peers["paris"])
@@ -1002,7 +1002,7 @@ func TestHandleConfigRenameInvalidKey(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	peers := mgr.snapshotTree("alice").GetContainer("bgp").GetList("peer")
 	require.NotNil(t, peers["london"])
 }
 
@@ -1023,7 +1023,7 @@ func TestHandleConfigRenameTargetExists(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusConflict, rec.Code)
-	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	peers := mgr.snapshotTree("alice").GetContainer("bgp").GetList("peer")
 	require.NotNil(t, peers["london"])
 	require.NotNil(t, peers["paris"])
 }
@@ -1086,7 +1086,7 @@ func TestHandleConfigDiscard(t *testing.T) {
 		"discard must redirect to config root")
 
 	// After discard, the user's tree should be nil (session removed).
-	tree := mgr.Tree("alice")
+	tree := mgr.snapshotTree("alice")
 	assert.Nil(t, tree, "user tree must be nil after discard")
 }
 
@@ -1160,7 +1160,7 @@ func TestBoolCheckboxConversion(t *testing.T) {
 	// error (if any) mentions "true" or the handler redirected.
 	if rec.Code == http.StatusSeeOther {
 		// Success: value was set. Verify it was stored as "true".
-		tree := mgr.Tree("alice")
+		tree := mgr.snapshotTree("alice")
 		if tree != nil {
 			bgp := tree.GetContainer("bgp")
 			if bgp != nil {
@@ -1485,7 +1485,7 @@ func TestConfigFormIgnoresEmptyUnconfiguredLeaves(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	tree := mgr.Tree("alice")
+	tree := mgr.snapshotTree("alice")
 	require.NotNil(t, tree)
 	sys := tree.GetContainer("system")
 	require.NotNil(t, sys)
@@ -1662,12 +1662,12 @@ func TestConfigFormKeepsASecretTheOperatorDidNotTouch(t *testing.T) {
 	handler.ServeHTTP(rec, first)
 	require.Equal(t, http.StatusOK, rec.Code, "first save: %s", rec.Body.String())
 
-	stored := getConfigValue(mgr.Tree("alice"), "environment/api-server/token")
+	stored := getConfigValue(mgr.snapshotTree("alice"), "environment/api-server/token")
 	require.Equal(t, storedSecret, stored, "the first save must store the value")
 
 	// The page the operator now reads carries the placeholder, not the secret.
 	page := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/api/", http.NoBody)
-	content, handled := renderPageContent(renderer, page, []string{segAPI}, mgr.Tree("alice"), schema, nil, nil, nil)
+	content, handled := renderPageContent(renderer, page, []string{segAPI}, mgr.snapshotTree("alice"), schema, nil, nil, nil)
 	require.True(t, handled, "the workbench must serve the API page")
 	require.NotContains(t, string(content), storedSecret, "the secret must not reach the browser")
 	require.Contains(t, string(content), config.SecretDataPlaceholder)
@@ -1681,7 +1681,7 @@ func TestConfigFormKeepsASecretTheOperatorDidNotTouch(t *testing.T) {
 	handler.ServeHTTP(rec, second)
 	require.Equal(t, http.StatusOK, rec.Code, "second save: %s", rec.Body.String())
 
-	after := mgr.Tree("alice")
+	after := mgr.snapshotTree("alice")
 	assert.Equal(t, storedSecret, getConfigValue(after, "environment/api-server/token"),
 		"an untouched secret field must leave the stored value alone")
 
@@ -1694,6 +1694,6 @@ func TestConfigFormKeepsASecretTheOperatorDidNotTouch(t *testing.T) {
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, third)
 	require.Equal(t, http.StatusOK, rec.Code, "third save: %s", rec.Body.String())
-	assert.Empty(t, getConfigValue(mgr.Tree("alice"), "environment/api-server/token"),
+	assert.Empty(t, getConfigValue(mgr.snapshotTree("alice"), "environment/api-server/token"),
 		"an emptied secret field must delete the leaf")
 }

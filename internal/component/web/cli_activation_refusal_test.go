@@ -39,7 +39,7 @@ func TestWebTerminalActivationFramesKeyRefusal(t *testing.T) {
 				mgr, terminal := newYANGTerminal(t)
 				_, err := mgr.GetOrCreate("testuser")
 				require.NoError(t, err)
-				before := config.Serialize(mgr.Tree("testuser"), mgr.schema)
+				before := config.Serialize(mgr.snapshotTree("testuser"), mgr.schema)
 				line := verb + " activation-probe lane bogus member one"
 				position := ""
 				if behindTop {
@@ -50,7 +50,7 @@ func TestWebTerminalActivationFramesKeyRefusal(t *testing.T) {
 				assert.Contains(t, refused.Output, `activation-probe lane bogus: "bogus" is not an accepted value`)
 				assert.Equal(t, "fix: "+strings.Replace(line, "bogus", "<blue|red>", 1), lastLine(refused.Output))
 				assert.Equal(t, position, refused.Path)
-				assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), mgr.schema))
+				assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), mgr.schema))
 
 				set := webTerminalLine(t, terminal, "", "set activation-probe lane blue member one")
 				require.False(t, strings.HasPrefix(set.Output, "error:"), "%s", set.Output)
@@ -61,7 +61,7 @@ func TestWebTerminalActivationFramesKeyRefusal(t *testing.T) {
 				accepted := webTerminalLine(t, terminal, position, strings.Replace(line, "bogus", "blue", 1))
 				require.False(t, strings.HasPrefix(accepted.Output, "error:"), "%s", accepted.Output)
 				assert.Equal(t, position, accepted.Path)
-				entry := mgr.Tree("testuser").GetContainer("activation-probe").GetList("lane")["blue"]
+				entry := mgr.snapshotTree("testuser").GetContainer("activation-probe").GetList("lane")["blue"]
 				require.NotNil(t, entry)
 				assert.Equal(t, []config.MemberState{{Value: "one", Inactive: verb == "deactivate"}}, entry.GetMultiValuesState("member"))
 			})

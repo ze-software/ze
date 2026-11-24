@@ -34,7 +34,11 @@ func handleInlineListAdd(w http.ResponseWriter, r *http.Request, mgr *EditorMana
 		return
 	}
 	where := slices.Concat(path, []string{key})
-	if walkTree(mgr.Tree(username), schema, where) != nil {
+	exists := false
+	mgr.ReadTree(username, func(tree *config.Tree) {
+		exists = walkTree(tree, schema, where) != nil
+	})
+	if exists {
 		http.Error(w, graphicalRefusal("An entry with that key already exists.").Error(), http.StatusConflict)
 		return
 	}

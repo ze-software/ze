@@ -139,7 +139,7 @@ func TestWebTerminalKeyLeafFormStoresKeyedEntry(t *testing.T) {
 	assert.Equal(t, "created redistribute connected", created.Output)
 	// The tree, not its printed form, is judged: Serialize writes a keyed list
 	// whose entries hold nothing as `redistribute { connected }`.
-	ospf := mgr.Tree("testuser").GetContainer("ospf")
+	ospf := mgr.snapshotTree("testuser").GetContainer("ospf")
 	require.NotNil(t, ospf, "the set created no ospf container")
 	assert.Equal(t, []string{"connected"}, ospf.ListKeys("redistribute"),
 		"the entry is stored under its key, and no anonymous entry beside it")
@@ -153,12 +153,12 @@ func TestWebTerminalKeyLeafFormStoresKeyedEntry(t *testing.T) {
 func TestWebTerminalInEntryKeyLeafRefused(t *testing.T) {
 	mgr, terminal := newYANGTerminal(t)
 	require.False(t, strings.HasPrefix(webTerminalLine(t, terminal, "", "set ospf redistribute source connected").Output, "error"))
-	before := config.Serialize(mgr.Tree("testuser"), mgr.schema)
+	before := config.Serialize(mgr.snapshotTree("testuser"), mgr.schema)
 
 	refused := webTerminalLine(t, terminal, "", "set ospf redistribute connected source static")
 	assert.Contains(t, refused.Output, "source is the key of list redistribute and cannot be set inside an entry")
 	assert.Equal(t, "fix: rename ospf redistribute connected to <new-key>", lastLine(refused.Output))
-	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), mgr.schema), "the refused line changed the tree")
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), mgr.schema), "the refused line changed the tree")
 }
 
 // TestWebTopCommandKeepsPosition types `top <command>` at position
@@ -177,7 +177,7 @@ func TestWebTopCommandKeepsPosition(t *testing.T) {
 	set := webTerminalLine(t, terminal, at, "top set ospf router-id 192.0.2.9")
 	assert.Equal(t, at, set.Path)
 	assert.Equal(t, "set ospf router-id 192.0.2.9", set.Output)
-	assert.Contains(t, config.Serialize(mgr.Tree("testuser"), mgr.schema), "192.0.2.9", "the set did not run at the root")
+	assert.Contains(t, config.Serialize(mgr.snapshotTree("testuser"), mgr.schema), "192.0.2.9", "the set did not run at the root")
 
 	shown := webTerminalLine(t, terminal, at, "top show")
 	assert.Equal(t, at, shown.Path)
@@ -230,7 +230,7 @@ func TestCLIBarTopRunsTheRestOfTheLine(t *testing.T) {
 	bar := HandleCLICommandWithAuthorizerAndAudit(mgr, schema, renderer, nil, nil)
 
 	webBarLine(t, bar, "bgp", "top set ospf router-id 192.0.2.9")
-	assert.Contains(t, config.Serialize(mgr.Tree("testuser"), mgr.schema), "192.0.2.9", "the bar dropped the rest of the top line")
+	assert.Contains(t, config.Serialize(mgr.snapshotTree("testuser"), mgr.schema), "192.0.2.9", "the bar dropped the rest of the top line")
 }
 
 // TestCLIBarSetRefusesEnum types the refused value on the CLI bar inside a
@@ -252,7 +252,7 @@ func TestCLIBarSetRefusesEnum(t *testing.T) {
 	body := webBarLine(t, bar, "ospf", "top set "+routeRefreshPath+" requre")
 	assert.Contains(t, body, routeRefreshWhy)
 	assert.Contains(t, body, routeRefreshTopFix)
-	assert.NotContains(t, config.Serialize(mgr.Tree("testuser"), mgr.schema), "requre", "a refused value was stored")
+	assert.NotContains(t, config.Serialize(mgr.snapshotTree("testuser"), mgr.schema), "requre", "a refused value was stored")
 }
 
 // TestWebFormRefusesEnumAtSet posts the refused value to the form's set
@@ -284,7 +284,7 @@ func TestWebFormRefusesEnumAtSet(t *testing.T) {
 	assert.Contains(t, body, routeRefreshProblem)
 	assert.Contains(t, body, routeRefreshWhy)
 	assert.Equal(t, routeRefreshRootFix, lastLine(body))
-	assert.NotContains(t, config.Serialize(mgr.Tree("alice"), mgr.schema), "requre", "a refused value was stored")
+	assert.NotContains(t, config.Serialize(mgr.snapshotTree("alice"), mgr.schema), "requre", "a refused value was stored")
 }
 
 // storeRefusedRouteRefresh writes `route-refresh requre` into user's candidate
@@ -365,7 +365,7 @@ func TestWebTerminalEntryVerbFixKeepsThePosition(t *testing.T) {
 	t.Cleanup(configyang.RegisterModuleForTest("ze-web-insert-position-conf.yang", module))
 	mgr, terminal := newYANGTerminal(t)
 	require.False(t, strings.HasPrefix(webTerminalLine(t, terminal, "", "set ospf redistribute source connected").Output, "error"))
-	before := config.Serialize(mgr.Tree("testuser"), mgr.schema)
+	before := config.Serialize(mgr.snapshotTree("testuser"), mgr.schema)
 
 	for _, verb := range []string{"rename", "copy"} {
 		line := verb + " ospf redistribute connected to bogus"
@@ -384,10 +384,10 @@ func TestWebTerminalEntryVerbFixKeepsThePosition(t *testing.T) {
 	assert.Equal(t, "fix: top insert insert-probe lane <blue|red> member one last", lastLine(insertedBehindTop.Output))
 	assert.Equal(t, "bgp", insertedBehindTop.Path)
 
-	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), mgr.schema), "a refused line changed the tree")
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), mgr.schema), "a refused line changed the tree")
 	accepted := webTerminalLine(t, terminal, "", "insert insert-probe lane blue member one last")
 	require.NotContains(t, accepted.Output, "error:", "the valid key must still reach insertion")
-	entry := mgr.Tree("testuser").GetContainer("insert-probe").GetList("lane")["blue"]
+	entry := mgr.snapshotTree("testuser").GetContainer("insert-probe").GetList("lane")["blue"]
 	require.NotNil(t, entry)
 	assert.Equal(t, []string{"one"}, entry.GetMultiValues("member"))
 }
@@ -410,5 +410,5 @@ func TestWebFormRenameRefusalFixIsTheRename(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
 	assert.Contains(t, rec.Body.String(), "bogus")
 	assert.Equal(t, "fix: rename ospf redistribute connected to "+ospfSourceChoices, lastLine(rec.Body.String()))
-	assert.Equal(t, []string{"connected"}, mgr.Tree("testuser").GetContainer("ospf").ListKeys("redistribute"))
+	assert.Equal(t, []string{"connected"}, mgr.snapshotTree("testuser").GetContainer("ospf").ListKeys("redistribute"))
 }

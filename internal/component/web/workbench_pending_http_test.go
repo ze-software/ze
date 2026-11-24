@@ -81,7 +81,7 @@ func TestWorkbenchHTTPPendingMarkerBelongsToTheEditingAccount(t *testing.T) {
 	})
 	require.NotContains(t, answer.Output, "error:")
 	require.Equal(t, 1, manager.ChangeCount("testuser"))
-	entry := walkTree(manager.Tree("testuser"), schema,
+	entry := walkTree(manager.snapshotTree("testuser"), schema,
 		[]string{"policy", "prefix-list", "alpha", "entry", "192.0.2.0/24"})
 	require.NotNil(t, entry)
 	action, found := entry.Get("action")

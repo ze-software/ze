@@ -42,7 +42,7 @@ func TestWebTypedKeyRefusalMasksTheFollowingSecret(t *testing.T) {
 			assert.True(t, errors.As(err, &operator), "the operator error remains typed")
 			assert.NotContains(t, err.Error(), secret)
 			assert.Equal(t, "fix: set key-secret lane blue secret /* SECRET-DATA */", lastLine(err.Error()))
-			if tree := mgr.Tree("testuser"); tree != nil {
+			if tree := mgr.snapshotTree("testuser"); tree != nil {
 				assert.Nil(t, tree.GetContainer("key-secret"))
 			}
 		})

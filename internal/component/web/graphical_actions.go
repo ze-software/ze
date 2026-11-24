@@ -108,10 +108,10 @@ func HandleGraphicalAction(mgr *EditorManager, schema *config.Schema, renderer *
 					result.output = "error: " + err.Error()
 				}
 			} else {
-				result = executeTerminalCommand(r.Context(), schema, mgr.Tree(username), mgr, username, r.RemoteAddr, path, terminalModeConfig, command, line, nil)
+				result = executeTerminalCommand(r.Context(), schema, mgr.snapshotTree(username), mgr, username, r.RemoteAddr, path, terminalModeConfig, command, line, nil)
 			}
 		case verbWho, verbOption:
-			result = executeTerminalCommand(r.Context(), schema, mgr.Tree(username), mgr, username, r.RemoteAddr, path, terminalModeConfig, command, line, nil)
+			result = executeTerminalCommand(r.Context(), schema, mgr.snapshotTree(username), mgr, username, r.RemoteAddr, path, terminalModeConfig, command, line, nil)
 		case verbRollback:
 			result.output, err = mgr.rollbackGraphicalRevision(username, r.FormValue(configWordRevision))
 			if err != nil {
@@ -134,7 +134,7 @@ func HandleGraphicalAction(mgr *EditorManager, schema *config.Schema, renderer *
 				}
 			}
 		default:
-			result = executeTerminalCommand(r.Context(), schema, mgr.Tree(username), mgr, username, r.RemoteAddr, nil, terminalModeConfig, command, line, nil)
+			result = executeTerminalCommand(r.Context(), schema, mgr.snapshotTree(username), mgr, username, r.RemoteAddr, nil, terminalModeConfig, command, line, nil)
 		}
 		if terminalAuditSucceeded(command, result) {
 			if command.Verb == verbDiscard {
@@ -155,7 +155,7 @@ func HandleGraphicalAction(mgr *EditorManager, schema *config.Schema, renderer *
 			status = http.StatusBadRequest
 			responsePath = path
 		} else if r.FormValue("action") == "discard-path" {
-			responsePath = graphicalSurvivingPath(schema, mgr.Tree(username), responsePath)
+			responsePath = graphicalSurvivingPath(schema, mgr.snapshotTree(username), responsePath)
 		}
 		if renderer == nil {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -165,10 +165,11 @@ func HandleGraphicalAction(mgr *EditorManager, schema *config.Schema, renderer *
 			}
 			return
 		}
-		data := buildFragmentData(schema, mgr.Tree(username), responsePath)
+		tree := mgr.snapshotTree(username)
+		data := buildFragmentData(schema, tree, responsePath)
 		data.Username = username
 		data.ReadOnly = !canEdit(r, authorizer)
-		data.Actions = mgr.graphicalActions(schema, mgr.Tree(username), responsePath, username)
+		data.Actions = mgr.graphicalActions(schema, tree, responsePath, username)
 		data.Actions.Supplied = buildGraphicalSuppliedPanel(suppliedTree)
 		if data.Actions.Output != "" {
 			result.output += "\n" + data.Actions.Output

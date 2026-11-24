@@ -50,7 +50,7 @@ func newFileModeTestManager(t *testing.T) *EditorManager {
 func peerEntries(t *testing.T, mgr *EditorManager, username string) map[string]*config.Tree { //nolint:unparam // username is explicit for test readability, matching postConfigRequest
 	t.Helper()
 
-	tree := mgr.Tree(username)
+	tree := mgr.snapshotTree(username)
 	require.NotNil(t, tree, "user working tree must exist")
 	bgp := tree.GetContainer("bgp")
 	require.NotNil(t, bgp, "bgp container must exist")
@@ -128,7 +128,7 @@ func TestHandleConfigDeleteLeafStillRemovesValue(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusSeeOther, rec.Code)
-	value, ok := mgr.Tree("alice").GetContainer("bgp").Get("router-id")
+	value, ok := mgr.snapshotTree("alice").GetContainer("bgp").Get("router-id")
 	assert.False(t, ok, "router-id must be cleared from the working tree, got %q", value)
 }
 

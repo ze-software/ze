@@ -31,10 +31,10 @@ func TestWebTerminalChangesDisplaysInactiveCandidateUntilCommit(t *testing.T) {
 		answer := terminalAsUser(t, mgr, "testuser", nil, line)
 		require.Contains(t, answer.Output, "Deactivated")
 	}
-	bgp := mgr.Tree("testuser").GetContainer("bgp")
+	bgp := mgr.snapshotTree("testuser").GetContainer("bgp")
 	require.True(t, bgp.IsLeafInactive("router-id"))
 	require.True(t, bgp.GetList("peer")["view-peer"].IsInactive())
-	require.Contains(t, config.Serialize(mgr.Tree("testuser"), mgr.schema), "inactive: router-id 10.0.0.9")
+	require.Contains(t, config.Serialize(mgr.snapshotTree("testuser"), mgr.schema), "inactive: router-id 10.0.0.9")
 	issues := terminalAsUser(t, mgr, "testuser", nil, "errors")
 	assert.Equal(t, "No issues", issues.Output)
 	changes := terminalAsUser(t, mgr, "testuser", nil, "show | changes")

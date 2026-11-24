@@ -63,7 +63,7 @@ func TestWebCLIControlClearKeepsCandidateAndPosition(t *testing.T) {
 		t.Run(tc.mode+"/"+tc.line, func(t *testing.T) {
 			mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
 			terminalAsUser(t, mgr, "testuser", nil, "set bgp router-id 192.0.2.241")
-			before := config.Serialize(mgr.Tree("testuser"), schema)
+			before := config.Serialize(mgr.snapshotTree("testuser"), schema)
 			calls := 0
 			dispatch := func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
 				calls++
@@ -77,7 +77,7 @@ func TestWebCLIControlClearKeepsCandidateAndPosition(t *testing.T) {
 			assert.Equal(t, tc.mode, answer.Mode)
 			assert.Equal(t, "bgp", answer.Path)
 			assert.NotContains(t, answer.Output, "error")
-			assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), schema))
+			assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), schema))
 			if tc.mode == terminalModeConfig {
 				assert.Contains(t, answer.Output, "192.0.2.241", "SSH clear restores the current candidate view")
 			} else {
@@ -119,20 +119,20 @@ func TestWebCLIControlOperationalExitNavigates(t *testing.T) {
 func TestWebCLIControlPendingExitRequiresConfirmation(t *testing.T) {
 	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
 	terminalAsUser(t, mgr, "testuser", nil, "set bgp router-id 192.0.2.242")
-	before := config.Serialize(mgr.Tree("testuser"), schema)
+	before := config.Serialize(mgr.snapshotTree("testuser"), schema)
 	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, nil)
 	form := url.Values{"command": {"exit"}, "mode": {terminalModeConfig}, "path": {"bgp"}}
 	first := cliControlJSON(t, handler, form)
 	assert.NotEmpty(t, first["confirmation"], "the operator must be offered the same force-exit choice as SSH")
 	assert.Equal(t, terminalModeConfig, first["mode"])
 	assert.Empty(t, first["navigate"])
-	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), schema))
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), schema))
 	form.Set("confirm", "true")
 	confirmed := cliControlJSON(t, handler, form)
 	assert.Equal(t, terminalModeOperational, confirmed["mode"])
 	assert.Empty(t, confirmed["confirmation"])
 	assert.Equal(t, "bgp", confirmed["path"])
-	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), schema))
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), schema))
 }
 
 // cliControlJSON deliberately decodes existing HTTP JSON rather than requiring

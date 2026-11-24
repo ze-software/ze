@@ -91,7 +91,7 @@ func TestGraphicalLeafListReplacementUsesCandidate(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	tree := walkTree(mgr.Tree("testuser"), schema, []string{"bgp", "filter", "import"})
+	tree := walkTree(mgr.snapshotTree("testuser"), schema, []string{"bgp", "filter", "import"})
 	require.NotNil(t, tree)
 	assert.Equal(t, []string{"second", "first"}, tree.GetSlice("filters"))
 	value, present := tree.Get("final")
@@ -159,7 +159,7 @@ func TestGraphicalCollectionRefusalKeepsCandidate(t *testing.T) {
 		rec := httptest.NewRecorder()
 		handler(rec, req)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
-		assert.Equal(t, []string{"standard"}, walkTree(mgr.Tree("testuser"), schema, path).GetSlice("send"))
+		assert.Equal(t, []string{"standard"}, walkTree(mgr.snapshotTree("testuser"), schema, path).GetSlice("send"))
 	}
 }
 
@@ -198,7 +198,7 @@ func TestGraphicalMemberActivationPreservesOrder(t *testing.T) {
 		rec := httptest.NewRecorder()
 		handler(rec, req)
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-		assert.Equal(t, []config.MemberState{{Value: "first", Inactive: true}, {Value: "second", Inactive: tc.inactive}, {Value: "third"}}, walkTree(mgr.Tree("testuser"), schema, path).GetMultiValuesState("filters"))
+		assert.Equal(t, []config.MemberState{{Value: "first", Inactive: true}, {Value: "second", Inactive: tc.inactive}, {Value: "third"}}, walkTree(mgr.snapshotTree("testuser"), schema, path).GetMultiValuesState("filters"))
 		assert.Contains(t, rec.Body.String(), "collection-deactivate-filters-2")
 	}
 }

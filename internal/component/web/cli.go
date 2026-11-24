@@ -400,7 +400,7 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 		http.Error(w, editorSessionRefusal(err).Error(), http.StatusInternalServerError)
 		return
 	}
-	result := executeTerminalCommand(r.Context(), schema, mgr.Tree(username), mgr, username, r.RemoteAddr, contextPath, terminalModeConfig, cmd, line, dispatch)
+	result := executeTerminalCommand(r.Context(), schema, mgr.snapshotTree(username), mgr, username, r.RemoteAddr, contextPath, terminalModeConfig, cmd, line, dispatch)
 	if result.completion != nil {
 		defer result.completion.TransportComplete()
 	}
@@ -451,7 +451,7 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 		}
 	}
 	if result.navigated {
-		view, err := buildConfigViewData(schema, mgr.Tree(username), result.path)
+		view, err := buildConfigViewData(schema, mgr.snapshotTree(username), result.path)
 		if err != nil {
 			writeCLINotification(w, renderer, err.Error(), "error")
 			return

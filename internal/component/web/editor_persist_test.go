@@ -27,7 +27,7 @@ func TestEditorManagerListEntryPersistence(t *testing.T) {
 	require.NoError(t, err, "SetValue must succeed")
 
 	// Check the tree
-	tree := mgr.Tree("insecure")
+	tree := mgr.snapshotTree("insecure")
 	require.NotNil(t, tree, "Tree must not be nil after SetValue")
 
 	t.Logf("Root containers: %v", tree.ContainerNames())

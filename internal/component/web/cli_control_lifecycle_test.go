@@ -27,7 +27,7 @@ func TestWebCLIControlLifecycleConfirmsBeforeDispatch(t *testing.T) {
 		t.Run(tc.mode+"/"+tc.line, func(t *testing.T) {
 			mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
 			terminalAsUser(t, mgr, "testuser", nil, "set bgp router-id 192.0.2.244")
-			before := config.Serialize(mgr.Tree("testuser"), schema)
+			before := config.Serialize(mgr.snapshotTree("testuser"), schema)
 			var seen []string
 			completed := false
 			dispatch := func(_ context.Context, caller plugin.CallerIdentity, line string) (*plugin.Response, error) {
@@ -52,7 +52,7 @@ func TestWebCLIControlLifecycleConfirmsBeforeDispatch(t *testing.T) {
 			assert.True(t, completed, "the transport must release the shared daemon action")
 			assert.Equal(t, "bgp", confirmed["path"])
 			assert.Equal(t, tc.mode, confirmed["mode"])
-			assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), schema))
+			assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), schema))
 		})
 	}
 }

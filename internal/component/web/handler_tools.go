@@ -151,7 +151,7 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 		// Resolve placeholders against the user's working tree.
 		viewTree := tree
 		if mgr != nil {
-			if userTree := mgr.Tree(username); userTree != nil {
+			if userTree := mgr.snapshotTree(username); userTree != nil {
 				viewTree = userTree
 			}
 		}

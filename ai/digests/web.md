@@ -58,9 +58,13 @@ unmarshal it back into a `map[string]any` for template rendering.
    `HX-Redirect`. LG has **no** auth middleware by design
    (`internal/component/lg/server.go`); only `securityHeaders`
    (`internal/component/lg/server.go`) wraps its mux.
-5. **Full-page GET `/show/<path>`.** `HandleWorkbench`
-   (`internal/component/web/handler_workbench.go`) resolves the per-user
-   working tree via `mgr.Tree(username)` (falls back to committed), then tries
+5. **Full-page GET `/show/<path>`, `/monitor/<path>`, `/config/edit/<path>`.** `startWebServer`
+   routes view paths matching `IsViewRoutePath` (`internal/component/web/fragment.go`)
+   through `showHandler`, which dispatches to `HandleWorkbench` or `HandleFragment`
+   according to `ReadUIModeFromRequest`. `HandleWorkbench`
+   (`internal/component/web/handler_workbench.go`) opens the per-user
+   working tree snapshot via `mgr.viewTree(username)` (cloned under the per-user
+   mutex; falls back to committed when unauthenticated), then tries
    `renderPageContent` (`internal/component/web/workbench_pages.go`) for
    purpose-built pages (interfaces, BGP, IP, firewall, system, L2TP, tools,
    logs, dashboard, dispatched by `path[0]`). Otherwise it walks the YANG
@@ -262,10 +266,11 @@ unmarshal it back into a `map[string]any` for template rendering.
   (`internal/component/lg/handler_api.go`) before it is concatenated
   into the dispatched command string; there is no downstream escaping to
   fall back on.
-- **Working tree vs committed tree.** View/edit handlers prefer
-  `mgr.Tree(username)` (per-user `EditorManager` session tree) and fall back
-  to the committed tree with no session
-  (`internal/component/web/handler_workbench.go`). Commit is
+- **Working tree vs committed tree.** View/edit handlers read an isolated
+  snapshot via `mgr.viewTree(username)` / `mgr.snapshotTree(username)` or lock
+  the session with `mgr.ReadTree(username, ...)` (`EditorManager` never returns
+  an unlocked live `*config.Tree`) and fall back to the committed tree with no
+  session (`internal/component/web/handler_workbench.go`). Commit is
   `EditorManager.Commit` → `CommitSessionCandidate` → `commitHook` →
   `MarkCommittedContent` (`internal/component/web/editor.go`), the
   same stage/notify/mark shape as the SSH CLI editor

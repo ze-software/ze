@@ -22,7 +22,7 @@ firewall { backend nft; table flags { family inet; chain input {
 	answer := terminalAsUser(t, mgr, "testuser", nil, "set firewall table flags chain input term allow then accept")
 	assert.Contains(t, answer.Output, "set firewall table flags chain input term allow then accept")
 	parent := []string{"firewall", "table", "flags", "chain", "input", "term", "allow", "then"}
-	target := walkTree(mgr.Tree("testuser"), schema, parent)
+	target := walkTree(mgr.snapshotTree("testuser"), schema, parent)
 	require.NotNil(t, target)
 	value, found := target.Get("accept")
 	assert.True(t, found)
@@ -45,7 +45,7 @@ func TestWebTerminalSetEmptyFlagRefusesAnExtraValue(t *testing.T) {
 	require.NoError(t, err)
 	answer := terminalAsUser(t, mgr, "testuser", nil, "set system conntrack accounting")
 	assert.Contains(t, answer.Output, "set system conntrack accounting")
-	system := mgr.Tree("testuser").GetContainer("system")
+	system := mgr.snapshotTree("testuser").GetContainer("system")
 	require.NotNil(t, system)
 	target := system.GetContainer("conntrack")
 	require.NotNil(t, target)

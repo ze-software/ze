@@ -18,6 +18,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/cli/contract"
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zeconfigcmd "github.com/ze-software/ze/internal/component/config/cli"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zeweb "github.com/ze-software/ze/internal/component/web"
@@ -44,7 +45,7 @@ func TestWebEditorRecoveryStorageFailureKeepsCustody(t *testing.T) {
 				require.Equal(t, http.StatusInternalServerError, response.Code, response.Body.String())
 				assert.Contains(t, response.Body.String(), "synthetic recovery publication failure")
 				require.True(t, fault.failed, "the requested recovery boundary must have been reached")
-				assert.Nil(t, manager.Tree("alice"), "failed publication must not cache an editor")
+				assert.False(t, manager.ReadTree("alice", func(*zeconfig.Tree) {}), "failed publication must not cache an editor")
 				committed, err := fixture.store.ReadFile("config.conf")
 				require.NoError(t, err)
 				assert.Equal(t, []byte(webEditorRecoveryBase), committed)

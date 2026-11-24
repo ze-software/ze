@@ -91,7 +91,7 @@ func TestEditorManagerSetValue(t *testing.T) {
 	err := mgr.SetValue("alice", []string{"bgp"}, "router-id", "10.0.0.1")
 	require.NoError(t, err, "SetValue must succeed for valid YANG path and value")
 
-	tree := mgr.Tree("alice")
+	tree := mgr.snapshotTree("alice")
 	require.NotNil(t, tree, "Tree must not be nil after SetValue")
 
 	// Walk into the bgp container to check the value.
@@ -116,7 +116,7 @@ func TestEditorManagerRenameListEntry(t *testing.T) {
 	err = mgr.RenameListEntry("alice", []string{"bgp"}, "peer", "london", []string{"paris"})
 	require.NoError(t, err)
 
-	tree := mgr.Tree("alice")
+	tree := mgr.snapshotTree("alice")
 	require.NotNil(t, tree)
 	bgp := tree.GetContainer("bgp")
 	require.NotNil(t, bgp)

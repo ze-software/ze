@@ -85,7 +85,7 @@ func TestWebTerminalSetTakesATokenPath(t *testing.T) {
 		output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbSet, Args: line})
 		require.NotContains(t, output, "error", "set %v", line)
 	}
-	bgp := mgr.Tree("alice").GetContainer("bgp")
+	bgp := mgr.snapshotTree("alice").GetContainer("bgp")
 	require.NotNil(t, bgp, "the set lines created no bgp container")
 	routerID, ok := bgp.Get("router-id")
 	require.True(t, ok, "the leaf lands at its full path")
@@ -127,7 +127,7 @@ func checkWebSessionCopyAfterCommit(t *testing.T, base string) {
 
 	require.NoError(t, mgr.CopyListEntry("alice", []string{"bgp"}, "peer", "wbsrc", []string{"wbdst"}))
 
-	bgp := mgr.Tree("alice").GetContainer("bgp")
+	bgp := mgr.snapshotTree("alice").GetContainer("bgp")
 	require.NotNil(t, bgp)
 	peers := bgp.GetList("peer")
 	assert.Contains(t, peers, "wbsrc")
@@ -148,7 +148,7 @@ func TestWebTerminalListEntryOpWording(t *testing.T) {
 				want = "Renamed peer a to b"
 			}
 			assert.Equal(t, want, out)
-			peers := walkTree(mgr.Tree("alice"), schema, []string{"bgp"}).GetList("peer")
+			peers := walkTree(mgr.snapshotTree("alice"), schema, []string{"bgp"}).GetList("peer")
 			require.NotNil(t, peers["b"])
 			value, exists := peers["b"].Get("description")
 			assert.True(t, exists)
@@ -189,7 +189,7 @@ func TestWebTerminalDeactivateLeafAndEntry(t *testing.T) {
 	}
 
 	assert.Equal(t, "Deactivated bgp router-id", run(verbDeactivate, "bgp", "router-id"))
-	assert.True(t, mgr.Tree("alice").GetContainer("bgp").IsLeafInactive("router-id"), "the leaf is marked inactive")
+	assert.True(t, mgr.snapshotTree("alice").GetContainer("bgp").IsLeafInactive("router-id"), "the leaf is marked inactive")
 	assert.Equal(t, "Deactivated bgp peer wbsrc", run(verbDeactivate, "bgp", "peer", "wbsrc"))
 	assert.Equal(t, "Activated bgp router-id", run(verbActivate, "bgp", "router-id"))
 	assert.Equal(t, "Activated bgp peer wbsrc", run(verbActivate, "bgp", "peer", "wbsrc"))

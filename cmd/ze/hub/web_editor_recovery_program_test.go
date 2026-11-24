@@ -40,8 +40,12 @@ func TestWebEditorRecoveryReplaysSavedThenUnsavedProgram(t *testing.T) {
 	response := f.get(t, manager, "finder", "/show/bgp/group/final/")
 	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 	assert.Contains(t, response.Body.String(), "unsaved-own")
-	require.NotNil(t, manager.Tree("alice"))
-	assert.Equal(t, want, recoveryGroupOrder(manager.Tree("alice")))
+	var gotOrder []string
+	require.True(t, manager.ReadTree("alice", func(tree *zeconfig.Tree) {
+		require.NotNil(t, tree)
+		gotOrder = recoveryGroupOrder(tree)
+	}))
+	assert.Equal(t, want, gotOrder)
 	assert.Equal(t, 8, manager.ChangeCount("alice"), "five owned assignments and three address operations")
 	diff, err := manager.Diff("alice")
 	require.NoError(t, err)

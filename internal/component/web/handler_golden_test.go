@@ -773,7 +773,7 @@ func newWebGoldenEnv(t *testing.T, readOnly bool, policies ...aaaAuthorizer) *we
 			return
 		}
 
-		if strings.HasPrefix(r.URL.Path, "/show/") || strings.HasPrefix(r.URL.Path, "/monitor/") {
+		if IsViewRoutePath(r.URL.Path) {
 			authWrap(showHandler).ServeHTTP(w, r)
 
 			return

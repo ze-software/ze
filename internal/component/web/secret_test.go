@@ -179,7 +179,7 @@ func secretEditorManager(t *testing.T, schema *config.Schema) *EditorManager {
 	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	_, err := mgr.GetOrCreate(secretUser)
 	require.NoError(t, err)
-	require.Equal(t, storedSecret, getConfigValue(mgr.Tree(secretUser), "environment/api-server/token"),
+	require.Equal(t, storedSecret, getConfigValue(mgr.snapshotTree(secretUser), "environment/api-server/token"),
 		"the fixture config must reach the editor tree, or every case built on it proves nothing")
 
 	return mgr
@@ -196,7 +196,7 @@ func terminalShowOutput(t *testing.T, schema *config.Schema) string {
 	t.Helper()
 
 	mgr := secretTransportManager(t, schema)
-	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, mgr.Tree(secretUser), nil, nil, nil)
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, mgr.snapshotTree(secretUser), nil, nil, nil)
 
 	req := postConfigRequest(t, "/cli/terminal", url.Values{"command": {"show"}, "mode": {"config"}}, secretUser)
 	rec := httptest.NewRecorder()
@@ -256,8 +256,8 @@ func secretTransportManager(t *testing.T, schema *config.Schema) *EditorManager 
 	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	_, err := mgr.GetOrCreate(secretUser)
 	require.NoError(t, err)
-	assert.Equal(t, storedSecret, getConfigValue(mgr.Tree(secretUser), "web-render-secret/api-server/token"))
-	assert.Equal(t, storedEphemeralSecret, getConfigValue(mgr.Tree(secretUser), "web-render-secret/api-server/plaintext-token"))
+	assert.Equal(t, storedSecret, getConfigValue(mgr.snapshotTree(secretUser), "web-render-secret/api-server/token"))
+	assert.Equal(t, storedEphemeralSecret, getConfigValue(mgr.snapshotTree(secretUser), "web-render-secret/api-server/plaintext-token"))
 	return mgr
 }
 
@@ -301,7 +301,7 @@ func commitReviewMarkup(t *testing.T, schema *config.Schema, renderer *Renderer)
 
 	mgr := secretTransportManager(t, schema)
 	require.NoError(t, mgr.SetValue(secretUser, []string{"web-render-secret", "api-server"}, "token", replacementSecret))
-	require.Equal(t, replacementSecret, getConfigValue(mgr.Tree(secretUser), "web-render-secret/api-server/token"),
+	require.Equal(t, replacementSecret, getConfigValue(mgr.snapshotTree(secretUser), "web-render-secret/api-server/token"),
 		"the replacement must reach the real editor tree before the review is rendered")
 
 	handler := HandleConfigCommitWithAuthorizerAndAudit(mgr, renderer, nil, nil, nil)
@@ -439,12 +439,12 @@ func TestCompareNamesARotatedSecretAndPublishesNeitherValue(t *testing.T) {
 	fixture, _ := secretSchemaAndTree(true)
 	schema := registerSecretTransportSchema(t, fixture)
 	mgr := secretTransportManager(t, schema)
-	original := mgr.Tree(secretUser).Clone()
+	original := mgr.snapshotTree(secretUser).Clone()
 	assert.Empty(t, terminalAsUser(t, mgr, secretUser, nil, "compare").Output,
 		"the shared CLI comparison emits no changes for an unchanged tree")
 
 	require.NoError(t, mgr.SetValue(secretUser, []string{"web-render-secret", "api-server"}, "token", replacementSecret))
-	rotated := mgr.Tree(secretUser)
+	rotated := mgr.snapshotTree(secretUser)
 	require.Equal(t, serializeTreeAtPath(original, schema, nil), serializeTreeAtPath(rotated, schema, nil),
 		"the mask must hide the rotation from the text, or this test proves nothing")
 
@@ -523,19 +523,19 @@ func TestAnUntouchedSecretIsNeitherRewrittenNorDeleted(t *testing.T) {
 	}
 
 	set(t, storedSecret)
-	require.Equal(t, storedSecret, getConfigValue(mgr.Tree("alice"), "environment/api-server/token"),
+	require.Equal(t, storedSecret, getConfigValue(mgr.snapshotTree("alice"), "environment/api-server/token"),
 		"the first save must store the value")
 
 	set(t, config.SecretDataPlaceholder)
-	assert.Equal(t, storedSecret, getConfigValue(mgr.Tree("alice"), "environment/api-server/token"),
+	assert.Equal(t, storedSecret, getConfigValue(mgr.snapshotTree("alice"), "environment/api-server/token"),
 		"posting the placeholder must leave the stored secret alone")
 
 	set(t, "a-new-secret-4471bc")
-	assert.Equal(t, "a-new-secret-4471bc", getConfigValue(mgr.Tree("alice"), "environment/api-server/token"),
+	assert.Equal(t, "a-new-secret-4471bc", getConfigValue(mgr.snapshotTree("alice"), "environment/api-server/token"),
 		"a new value must be written")
 
 	set(t, "")
-	assert.Empty(t, getConfigValue(mgr.Tree("alice"), "environment/api-server/token"),
+	assert.Empty(t, getConfigValue(mgr.snapshotTree("alice"), "environment/api-server/token"),
 		"clearing the field must delete the leaf")
 }
 

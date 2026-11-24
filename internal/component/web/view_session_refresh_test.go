@@ -30,7 +30,7 @@ func TestWebNewUserViewsReadCurrentCommit(t *testing.T) {
 				require.NoError(t, mgr.SetValue("writer", []string{"bgp", "group", "source"}, "description", "accepted"))
 				_, err = mgr.CommitNow("writer")
 				require.NoError(t, err)
-				require.Nil(t, mgr.Tree("reader"))
+				require.Nil(t, mgr.snapshotTree("reader"))
 				renderer, err := NewRenderer()
 				require.NoError(t, err)
 				auth := fakeAuthorizer{allowEdit: !readOnly}
@@ -91,7 +91,7 @@ func TestWebDiscardHistoryRestorationReopensCurrentView(t *testing.T) {
 			HandleConfigDiscardWithAuthorizerAndAudit(mgr, nil, nil).ServeHTTP(response, request)
 			require.Equal(t, http.StatusSeeOther, response.Code, response.Body.String())
 			assert.False(t, mgr.store.Exists(cli.ChangePath(mgr.configPath, "testuser")), "discard must remove persisted restoration intent")
-			assert.Nil(t, mgr.Tree("testuser"), "discard still ends the cached editor")
+			assert.Nil(t, mgr.snapshotTree("testuser"), "discard still ends the cached editor")
 			unchanged, err = mgr.committedConfig()
 			require.NoError(t, err)
 			assert.Equal(t, committed, unchanged, "discard must not publish restored content")
@@ -103,7 +103,7 @@ func TestWebDiscardHistoryRestorationReopensCurrentView(t *testing.T) {
 			view.ServeHTTP(response, authedRequest(t, http.MethodGet, "/show/bgp/group/source/", nil))
 			require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 			assert.Contains(t, response.Body.String(), `value="accepted"`)
-			require.NotNil(t, mgr.Tree("testuser"))
+			require.NotNil(t, mgr.snapshotTree("testuser"))
 			assert.Contains(t, mgr.ContentAtPath("testuser", path), "description accepted")
 			assert.Zero(t, mgr.ChangeCount("testuser"))
 		})
@@ -129,7 +129,7 @@ func TestWebViewStoreFailureCannotRenderStartupSnapshot(t *testing.T) {
 			view.ServeHTTP(response, authedRequest(t, http.MethodGet, "/show/bgp/", nil))
 			assert.Equal(t, http.StatusInternalServerError, response.Code, response.Body.String())
 			assert.NotContains(t, response.Body.String(), `value="10.0.0.250"`)
-			assert.Nil(t, mgr.Tree("testuser"))
+			assert.Nil(t, mgr.snapshotTree("testuser"))
 		})
 	}
 }

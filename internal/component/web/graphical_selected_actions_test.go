@@ -92,7 +92,7 @@ func TestGraphicalSelectedPathDiscardRefreshesRemovedEntry(t *testing.T) {
 	handler := HandleGraphicalAction(mgr, schema, renderer, nil, nil, nil)
 	response := graphicalActionRequest(t, handler, "discard-path", encodeConfigPath(path), nil)
 	requireStatus(t, http.StatusOK, response)
-	assert.Nil(t, walkTree(mgr.Tree("testuser"), schema, path))
+	assert.Nil(t, walkTree(mgr.snapshotTree("testuser"), schema, path))
 	assert.Equal(t, "/show/bgp/group/", response.Header().Get("HX-Push-Url"))
 	assert.Contains(t, response.Body.String(), "retained")
 	assert.NotContains(t, response.Body.String(), `id="graphical-entry-target"`)
@@ -109,7 +109,7 @@ func TestGraphicalSelectedItemDeleteStagesOnlyCandidate(t *testing.T) {
 	handler := HandleGraphicalAction(mgr, schema, nil, nil, nil, nil)
 	response := graphicalActionRequest(t, handler, "delete", "bgp/group/remove", nil)
 	requireStatus(t, http.StatusOK, response)
-	assert.Nil(t, walkTree(mgr.Tree("testuser"), schema, []string{"bgp", "group", "remove"}))
+	assert.Nil(t, walkTree(mgr.snapshotTree("testuser"), schema, []string{"bgp", "group", "remove"}))
 	assert.Contains(t, mgr.ContentAtPath("testuser", []string{"bgp", "group", "retained"}), "kept")
 	unchanged, err := mgr.committedConfig()
 	require.NoError(t, err)
@@ -122,7 +122,7 @@ func TestGraphicalSelectedItemReadOnlyHidesAndRefusesMutations(t *testing.T) {
 	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
 	path := []string{"bgp", "group", "selected"}
 	require.NoError(t, mgr.SetValue("testuser", path, "description", "retained"))
-	before := config.Serialize(mgr.Tree("testuser"), schema)
+	before := config.Serialize(mgr.snapshotTree("testuser"), schema)
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 	view := HandleFragment(renderer, schema, tree, mgr, false, fakeAuthorizer{})
@@ -136,7 +136,7 @@ func TestGraphicalSelectedItemReadOnlyHidesAndRefusesMutations(t *testing.T) {
 		forged := graphicalActionRequest(t, handler, action, encodeConfigPath(path), nil)
 		requireStatus(t, http.StatusForbidden, forged)
 	}
-	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), schema))
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), schema))
 }
 
 // TestGraphicalSelectedRootActionsAreRefused keeps selected-item operations
@@ -144,7 +144,7 @@ func TestGraphicalSelectedItemReadOnlyHidesAndRefusesMutations(t *testing.T) {
 func TestGraphicalSelectedRootActionsAreRefused(t *testing.T) {
 	mgr, schema, _, _ := setupCLITerminalYANGTest(t)
 	require.NoError(t, mgr.SetValue("testuser", []string{"bgp", "group", "retained"}, "description", "retained"))
-	before := config.Serialize(mgr.Tree("testuser"), schema)
+	before := config.Serialize(mgr.snapshotTree("testuser"), schema)
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
 	handler := HandleGraphicalAction(mgr, schema, nil, nil, recorder, nil)
@@ -152,6 +152,6 @@ func TestGraphicalSelectedRootActionsAreRefused(t *testing.T) {
 		response := graphicalActionRequest(t, handler, action, "", nil)
 		requireStatus(t, http.StatusBadRequest, response)
 	}
-	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), schema))
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), schema))
 	assert.Empty(t, recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard}))
 }

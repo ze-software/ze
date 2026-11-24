@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -730,10 +729,11 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 			http.Redirect(w, r, "/show/", http.StatusFound)
 			return
 		}
-		// /show and /monitor go through the active UI handler; everything else
-		// (e.g. /fragment/detail HTMX requests) keeps using the Finder fragment
-		// handler so the OOB swap protocol is identical across both UIs.
-		if strings.HasPrefix(r.URL.Path, "/show/") || strings.HasPrefix(r.URL.Path, "/monitor/") {
+		// /show/, /monitor/ and /config/edit/ go through the active UI handler
+		// (Finder or Workbench); everything else (e.g. /fragment/detail HTMX
+		// requests) keeps using the Finder fragment handler so the OOB swap
+		// protocol is identical across both UIs.
+		if zeweb.IsViewRoutePath(r.URL.Path) {
 			authWrap(showHandler).ServeHTTP(w, r)
 			return
 		}

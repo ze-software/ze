@@ -683,9 +683,11 @@ func (m *EditorManager) ChangeCount(username string) int {
 	return 0
 }
 
-// Tree returns the user's working configuration tree for rendering.
-// Returns nil if no session exists.
-func (m *EditorManager) Tree(username string) *config.Tree {
+// snapshotTree returns an isolated clone of the user's working tree when a
+// session is cached, or nil when no session exists. Safe for concurrent use:
+// the clone happens under the per-user mutex so callers never read an unlocked
+// live *config.Tree while another request mutates the same user's session.
+func (m *EditorManager) snapshotTree(username string) *config.Tree {
 	m.mu.RLock()
 	us, ok := m.sessions[username]
 	m.mu.RUnlock()
@@ -698,7 +700,10 @@ func (m *EditorManager) Tree(username string) *config.Tree {
 	defer us.mu.Unlock()
 
 	t, _ := us.editor.Tree().(*config.Tree)
-	return t
+	if t == nil {
+		return nil
+	}
+	return t.Clone()
 }
 
 // viewTree opens the authenticated user's current editor and takes a snapshot

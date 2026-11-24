@@ -150,18 +150,18 @@ func TestWebRenameOfMultiLeafKeyEntryChangesOnlyTheFirstValue(t *testing.T) {
 	rec = post("fe80::b")
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Contains(t, rec.Body.String(), "new key must differ from current key")
-	assert.Len(t, sessionList(t, mgr.Tree("alice")), 2, "the refusals change nothing")
+	assert.Len(t, sessionList(t, mgr.snapshotTree("alice")), 2, "the refusals change nothing")
 
-	before := config.Serialize(mgr.Tree("alice"), schema)
+	before := config.Serialize(mgr.snapshotTree("alice"), schema)
 	out := terminalAsUser(t, mgr, "alice", nil,
 		"copy bfd single-hop-session fe80::b interface zbl1 to fe80::b interface zbl2").Output
 	assert.Contains(t, out, "copy refused: interface is part of the key of single-hop-session")
-	assert.Len(t, sessionList(t, mgr.Tree("alice")), 2, "the terminal refusal changes nothing")
-	assert.Equal(t, before, config.Serialize(mgr.Tree("alice"), schema))
+	assert.Len(t, sessionList(t, mgr.snapshotTree("alice")), 2, "the terminal refusal changes nothing")
+	assert.Equal(t, before, config.Serialize(mgr.snapshotTree("alice"), schema))
 
 	rec = post("fe80::c")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	sessions := sessionList(t, mgr.Tree("alice"))
+	sessions := sessionList(t, mgr.snapshotTree("alice"))
 	assert.Nil(t, sessions["fe80::b interface zbl0"])
 	moved := sessions["fe80::c interface zbl0"]
 	require.NotNil(t, moved, "the rename changes only the first value: %v", sessions)
@@ -201,7 +201,7 @@ func TestWebRenameAndTerminalRefuseAKeylessListEntry(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
 	us, err := mgr.GetOrCreate("alice")
 	require.NoError(t, err)
-	before := config.Serialize(mgr.Tree("alice"), schema)
+	before := config.Serialize(mgr.snapshotTree("alice"), schema)
 	beforeDirty := us.editor.Dirty()
 	historyKey := zefs.KeyHistory.Key("alice", cli.ModeConfig.String())
 	var writes atomic.Int64
@@ -237,7 +237,7 @@ func TestWebRenameAndTerminalRefuseAKeylessListEntry(t *testing.T) {
 			out := terminalAsUser(t, mgr, "alice", nil, line).Output
 			assert.Equal(t, "error: "+verb+" refused: rule has no key, so its entries cannot be renamed or copied.", out, "%v", path)
 		}
-		assert.Equal(t, before, config.Serialize(mgr.Tree("alice"), schema), "the refused paths preserve the candidate")
+		assert.Equal(t, before, config.Serialize(mgr.snapshotTree("alice"), schema), "the refused paths preserve the candidate")
 		assert.Equal(t, beforeDirty, us.editor.Dirty(), "the refusals stage no mutation")
 	}
 	assert.Zero(t, writes.Load(), "a refused rename or copy never writes a mutation to the editor store")
@@ -288,8 +288,8 @@ func TestWebAddKeepsTheCaseOfTheFirstKeyValue(t *testing.T) {
 		"field:session/asn/remote":   {"65001"},
 	})
 	require.Less(t, rec.Code, http.StatusBadRequest, rec.Body.String())
-	require.NotNil(t, mgr.Tree("alice"), "the add reached the editor: %s", rec.Body.String())
-	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	require.NotNil(t, mgr.snapshotTree("alice"), "the add reached the editor: %s", rec.Body.String())
+	peers := mgr.snapshotTree("alice").GetContainer("bgp").GetList("peer")
 	assert.NotNil(t, peers["Eth0"], "the first key value keeps its case: %v", peers)
 	assert.Nil(t, peers["eth0"])
 
@@ -297,7 +297,7 @@ func TestWebAddKeepsTheCaseOfTheFirstKeyValue(t *testing.T) {
 	require.Less(t, rec.Code, http.StatusBadRequest, rec.Body.String())
 	assert.Equal(t, showPathPrefix+"bfd/single-hop-session/", rec.Header().Get("HX-Redirect"),
 		"a list with no table to swap reloads its list view")
-	sessions := sessionList(t, mgr.Tree("alice"))
+	sessions := sessionList(t, mgr.snapshotTree("alice"))
 	entry := sessions["fe80::b interface zbl1"]
 	require.NotNil(t, entry, "the posted key leaf completes the address: %v", sessions)
 	link, _ := entry.Get("interface")
@@ -331,12 +331,12 @@ func TestWebAddRefusesASecondCreateOfOneMultiLeafAddress(t *testing.T) {
 
 	rec := add(url.Values{"name": {"fe80::b"}, "field:interface": {"zbl0"}})
 	require.Less(t, rec.Code, http.StatusBadRequest, rec.Body.String())
-	require.NotNil(t, sessionList(t, mgr.Tree("alice"))["fe80::b interface zbl0"], rec.Body.String())
+	require.NotNil(t, sessionList(t, mgr.snapshotTree("alice"))["fe80::b interface zbl0"], rec.Body.String())
 
 	rec = add(url.Values{"name": {"fe80::b"}, "field:interface": {"zbl0"}, "field:vrf": {"default"}})
 	assert.Contains(t, rec.Body.String(), `entry &#34;fe80::b interface zbl0&#34; already exists`,
 		"the second create is refused as the entry the first one made")
-	sessions := sessionList(t, mgr.Tree("alice"))
+	sessions := sessionList(t, mgr.snapshotTree("alice"))
 	assert.Len(t, sessions, 1, "one entry, never two: %v", sessions)
 	_, vrfWritten := sessions["fe80::b interface zbl0"].Get("vrf")
 	assert.False(t, vrfWritten, "the refused create wrote nothing into the existing entry")

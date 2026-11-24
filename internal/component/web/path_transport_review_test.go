@@ -60,7 +60,7 @@ func TestGraphicalDotKeyThroughWebMux(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 	path := []string{"bgp", "group", "."}
-	listing := buildFragmentData(mgr.schema, mgr.Tree("testuser"), path[:2])
+	listing := buildFragmentData(mgr.schema, mgr.snapshotTree("testuser"), path[:2])
 	var entryURL string
 	for _, column := range listing.Columns {
 		for _, item := range column.NamedItems {
@@ -71,7 +71,7 @@ func TestGraphicalDotKeyThroughWebMux(t *testing.T) {
 	}
 	require.NotEmpty(t, entryURL)
 	srv := &WebServer{mux: http.NewServeMux()}
-	srv.HandleFunc("/show/", HandleFragment(renderer, mgr.schema, mgr.Tree("testuser"), mgr, false, nil))
+	srv.HandleFunc("/show/", HandleFragment(renderer, mgr.schema, mgr.snapshotTree("testuser"), mgr, false, nil))
 	srv.HandleFunc("/config/set/", HandleConfigSetWithAuthorizer(mgr, mgr.schema, renderer, nil))
 	shown := httptest.NewRecorder()
 	srv.mux.ServeHTTP(shown, authedRequest(t, http.MethodGet, entryURL, nil))
@@ -82,7 +82,7 @@ func TestGraphicalDotKeyThroughWebMux(t *testing.T) {
 	save.Header.Set("HX-Request", htmxRequestTrue)
 	srv.mux.ServeHTTP(changed, save)
 	require.Equal(t, http.StatusOK, changed.Code, changed.Body.String())
-	value, present := walkTree(mgr.Tree("testuser"), mgr.schema, path).Get("description")
+	value, present := walkTree(mgr.snapshotTree("testuser"), mgr.schema, path).Get("description")
 	require.True(t, present)
 	assert.Equal(t, "saved", value)
 	reloaded := httptest.NewRecorder()
@@ -171,24 +171,24 @@ func TestWorkbenchGroupedPeerOpensEditor(t *testing.T) {
 		require.True(t, strings.HasPrefix(answer.Output, "set "), "seed command %q failed: %s", line, answer.Output)
 	}
 	peerPath := []string{"bgp", "group", "group/100%", "peer", "peer-100"}
-	peer := walkTree(mgr.Tree("testuser"), mgr.schema, peerPath)
+	peer := walkTree(mgr.snapshotTree("testuser"), mgr.schema, peerPath)
 	require.NotNil(t, peer, "seeded grouped peer is absent from the typed candidate")
 	description, present := peer.Get("description")
 	require.True(t, present)
 	require.Equal(t, "grouped-description", description)
-	remote := walkTree(mgr.Tree("testuser"), mgr.schema, slices.Concat(peerPath, []string{"connection", "remote"}))
+	remote := walkTree(mgr.snapshotTree("testuser"), mgr.schema, slices.Concat(peerPath, []string{"connection", "remote"}))
 	require.NotNil(t, remote)
 	address, present := remote.Get("ip")
 	require.True(t, present)
 	require.Equal(t, "192.0.2.41", address)
-	other := walkTree(mgr.Tree("testuser"), mgr.schema, []string{"bgp", "group", "other", "peer", "elsewhere"})
+	other := walkTree(mgr.snapshotTree("testuser"), mgr.schema, []string{"bgp", "group", "other", "peer", "elsewhere"})
 	require.NotNil(t, other, "the group-filter control must exist before requests")
 	outside, present := other.Get("description")
 	require.True(t, present)
 	require.Equal(t, "outside-group", outside)
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
-	handler := HandleWorkbench(renderer, mgr.schema, mgr.Tree("testuser"), mgr, false)
+	handler := HandleWorkbench(renderer, mgr.schema, mgr.snapshotTree("testuser"), mgr, false)
 	listPath := []string{"bgp", "group", "group/100%", "peer"}
 	list := httptest.NewRecorder()
 	handler(list, authedRequest(t, http.MethodGet, showPathPrefix+encodeConfigPath(listPath)+"/", nil))

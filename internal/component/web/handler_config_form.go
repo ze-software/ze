@@ -127,7 +127,11 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			}
 
 			// Check unique constraints for inline table edits.
-			if uniqueErr := validateUniqueOnSet(mgr.Tree(username), schema, path, leaf, value); uniqueErr != "" {
+			var uniqueErr string
+			mgr.ReadTree(username, func(tree *config.Tree) {
+				uniqueErr = validateUniqueOnSet(tree, schema, path, leaf, value)
+			})
+			if uniqueErr != "" {
 				errPath := textbuf.Join(append(path, leaf), "/")
 				message := maskSecretInMessage(leafNode, uniqueErr, value)
 				if renderer != nil {

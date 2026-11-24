@@ -1,6 +1,8 @@
 package web
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -291,4 +293,64 @@ func TestEnrichWorkbenchTable_MultiLeafKeyRows(t *testing.T) {
 		"fe80::b interface zbl0": false,
 		"fe80::b interface zbl1": true,
 	}, flagged)
+}
+
+// TestEditorManagerPendingChangePathsLightsUpEntryMarker stages a real edit
+// through EditorManager and verifies that mgr.pendingChangePaths(user) matches
+// entryHasPendingChange and lights up enrichWorkbenchTable end-to-end.
+//
+// VALIDATES: AC-25 -- EditorManager pending-change paths (slash-encoded from
+// MetaTree's space-joined paths) match workbench row keys, isolate unchanged
+// siblings and other users, and clear on Discard.
+// PREVENTS: format drift between EditorManager.pendingChangePaths and
+// entryHasPendingChange leaving every workbench row marker permanently dark.
+func TestEditorManagerPendingChangePathsLightsUpEntryMarker(t *testing.T) {
+	const seeded = `bgp {
+	router-id 1.2.3.4;
+	session { asn { local 65000; } }
+	peer peer1 {
+		connection { remote { ip 192.0.2.1; } }
+	}
+	peer peer2 {
+		connection { remote { ip 192.0.2.2; } }
+	}
+}
+`
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	configPath := filepath.Join(t.TempDir(), "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(seeded), 0o600))
+	store := testConfigStore(t, configPath)
+	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
+
+	listPath := []string{"bgp", "peer"}
+	listNode, ok := findListNode(schema, listPath)
+	require.True(t, ok, "bgp/peer must be a ListNode")
+
+	assert.Empty(t, mgr.pendingChangePaths("alice"), "unmodified editor has no pending changes")
+
+	// Stage a real edit under peer1 only.
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp", "peer", "peer1"}, "description", "staged-edit"))
+	paths := mgr.pendingChangePaths("alice")
+	require.NotEmpty(t, paths)
+
+	assert.True(t, entryHasPendingChange(paths, listPath, listNode, "peer1"), "edited peer1 must match")
+	assert.False(t, entryHasPendingChange(paths, listPath, listNode, "peer2"), "unchanged peer2 must not match")
+	assert.False(t, entryHasPendingChange(mgr.pendingChangePaths("bob"), listPath, listNode, "peer1"), "other user must not see alice's pending marker")
+
+	tree := mgr.snapshotTree("alice")
+	require.NotNil(t, tree)
+	data := buildFragmentData(schema, tree, listPath)
+	require.NotNil(t, data.ListTable)
+	enrichWorkbenchTable(data, schema, tree, listPath, paths)
+
+	flagged := make(map[string]bool, len(data.ListTable.Rows))
+	for _, row := range data.ListTable.Rows {
+		flagged[row.KeyValue] = row.HasPendingChanges
+	}
+	assert.Equal(t, map[string]bool{"peer1": true, "peer2": false}, flagged)
+
+	require.NoError(t, mgr.Discard("alice"))
+	assert.False(t, entryHasPendingChange(mgr.pendingChangePaths("alice"), listPath, listNode, "peer1"), "discard must clear pending marker")
 }

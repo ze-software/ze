@@ -23,7 +23,7 @@ func TestCLIBarLoadHandoffKeepsCommandAndContext(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 	handler := HandleCLICommand(mgr, mgr.schema, renderer)
-	before := config.Serialize(mgr.Tree("testuser"), mgr.schema)
+	before := config.Serialize(mgr.snapshotTree("testuser"), mgr.schema)
 	for _, line := range []string{"load terminal relative merge", `top load file absolute replace "two words.conf"`} {
 		req := authedRequest(t, http.MethodPost, "/cli", url.Values{"command": {line}, "path": {"bgp"}})
 		req.Header.Set("HX-Request", "true")
@@ -34,7 +34,7 @@ func TestCLIBarLoadHandoffKeepsCommandAndContext(t *testing.T) {
 		assert.Equal(t, "/cli", target.Path)
 		assert.Equal(t, line, target.Query().Get("command"))
 		assert.Equal(t, "bgp", target.Query().Get("path"))
-		assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), mgr.schema))
+		assert.Equal(t, before, config.Serialize(mgr.snapshotTree("testuser"), mgr.schema))
 	}
 }
 

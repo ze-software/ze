@@ -51,7 +51,12 @@ func handleGraphicalValues(w http.ResponseWriter, r *http.Request, mgr *EditorMa
 		htmxRedirect(w, r, showPathPrefix+strings.Trim(values.Path+"/"+name, "/")+"/")
 		return
 	}
-	current := buildGraphicalValues(path, name, node, walkTree(mgr.Tree(username), schema, path))
+	var current GraphicalValues
+	if !mgr.ReadTree(username, func(tree *config.Tree) {
+		current = buildGraphicalValues(path, name, node, walkTree(tree, schema, path))
+	}) {
+		current = buildGraphicalValues(path, name, node, nil)
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if _, err := w.Write([]byte(renderer.renderComponent("graphical values", graphicalValues(current, false)))); err != nil {
 		return

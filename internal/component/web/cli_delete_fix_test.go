@@ -71,7 +71,7 @@ func TestWebPrintedDeleteFixKeepsAcceptedMembers(t *testing.T) {
 						bar := HandleCLICommandWithAuthorizerAndAudit(mgr, mgr.schema, renderer, nil, nil)
 						require.NotContains(t, webBarLine(t, bar, position, fix), "delete error:")
 					}
-					probe := mgr.Tree("testuser").GetContainer("member-repair")
+					probe := mgr.snapshotTree("testuser").GetContainer("member-repair")
 					require.NotNil(t, probe, "printed fix removed the containing subtree")
 					assert.Equal(t, []string{"blue"}, probe.GetMultiValues(memberKind))
 					sentinel, ok := probe.Get("sentinel")

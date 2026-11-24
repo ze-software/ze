@@ -4,6 +4,11 @@
 package web
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -63,4 +68,58 @@ func TestWebTerminalSetStillEchoesAValueTheSchemaDoesNotMark(t *testing.T) {
 	assert.Contains(t, output, "10.9.8.7",
 		"the terminal masked a leaf the schema does not mark, so its mask reads something other than the schema")
 	assert.NotContains(t, output, config.SecretDataPlaceholder)
+}
+
+// TestWebTerminalHTTPSetMasksSecretInOutputAndFeedback drives the real HTTP
+// POST /cli/terminal handler and checks both JSON `output` and JSON `feedback`.
+//
+// VALIDATES: AC-18 -- setting a ze:sensitive leaf (`plaintext-password`) masks
+// the value in both JSON `output` and JSON `feedback`, while a non-secret leaf
+// preserves its clear value in both fields.
+// PREVENTS: terminalFeedback echoing raw `set` arguments after executeTerminalSet
+// masked `output`.
+func TestWebTerminalHTTPSetMasksSecretInOutputAndFeedback(t *testing.T) {
+	mgr := newTestEditorManager(t)
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, nil, nil, nil, nil)
+
+	postTerminal := func(path, command string) terminalResponse {
+		t.Helper()
+		form := url.Values{
+			"command": {command},
+			"path":    {path},
+			"mode":    {terminalModeConfig},
+		}
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/cli/terminal", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req = req.WithContext(withUsername(req.Context(), "alice"))
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		var resp terminalResponse
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		return resp
+	}
+
+	secretResp := postTerminal("system/authentication/user/alice", "set plaintext-password "+typedTerminalSecret)
+	for _, field := range []struct {
+		name  string
+		value string
+	}{
+		{name: "output", value: secretResp.Output},
+		{name: "feedback", value: secretResp.Feedback},
+	} {
+		require.Contains(t, field.value, "plaintext-password", "JSON %s must name the leaf", field.name)
+		assert.Contains(t, field.value, config.SecretDataPlaceholder, "JSON %s must show secret placeholder", field.name)
+		assert.NotContains(t, field.value, typedTerminalSecret, "JSON %s leaked the secret", field.name)
+		assert.NotContains(t, field.value, typedTerminalSecretTail, "JSON %s leaked the secret tail", field.name)
+	}
+
+	// Non-secret control: clear value must be preserved in both output and feedback.
+	plainResp := postTerminal("bgp", "set router-id 10.9.8.7")
+	assert.Contains(t, plainResp.Output, "10.9.8.7")
+	assert.NotContains(t, plainResp.Output, config.SecretDataPlaceholder)
+	assert.Contains(t, plainResp.Feedback, "10.9.8.7")
+	assert.NotContains(t, plainResp.Feedback, config.SecretDataPlaceholder)
 }

@@ -26,7 +26,7 @@ func TestGraphicalActionsKeepLiteralPipeKeys(t *testing.T) {
 			path := encodeConfigPath([]string{"bgp", "group", source})
 			rec := graphicalActionRequest(t, handler, action, path, url.Values{"target": {target}})
 			requireStatus(t, http.StatusOK, rec)
-			groups := mgr.Tree("testuser").GetContainer("bgp").GetList("group")
+			groups := mgr.snapshotTree("testuser").GetContainer("bgp").GetList("group")
 			require.NotNil(t, groups[target], rec.Body.String())
 			value, ok := groups[target].Get("description")
 			assert.True(t, ok)

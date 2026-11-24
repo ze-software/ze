@@ -51,7 +51,7 @@ func TestBrowserCLIContextKeepsQuotedKey(t *testing.T) {
 	context := request(`edit bgp group "`+key+`"`, "")
 	assert.Equal(t, "bgp/group/"+url.PathEscape(key), context.Path)
 	request("set description second", context.Path)
-	value, present := walkTree(mgr.Tree("testuser"), mgr.schema, []string{"bgp", "group", key}).Get("description")
+	value, present := walkTree(mgr.snapshotTree("testuser"), mgr.schema, []string{"bgp", "group", key}).Get("description")
 	assert.True(t, present)
 	assert.Equal(t, "second", value)
 }
@@ -108,7 +108,7 @@ func TestGraphicalPrefixKeyURLSaveReadback(t *testing.T) {
 	path := []string{"policy", "prefix-list", "edge", "entry", "192.0.2.0/24"}
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
-	list := buildFragmentData(mgr.schema, mgr.Tree("testuser"), path[:len(path)-1])
+	list := buildFragmentData(mgr.schema, mgr.snapshotTree("testuser"), path[:len(path)-1])
 	require.NotEmpty(t, list.Columns)
 	var entryURL string
 	for _, column := range list.Columns {
@@ -122,7 +122,7 @@ func TestGraphicalPrefixKeyURLSaveReadback(t *testing.T) {
 	parsed, err := ParseURL(httptest.NewRequestWithContext(t.Context(), http.MethodGet, entryURL, http.NoBody))
 	require.NoError(t, err)
 	require.Equal(t, path, parsed.Path)
-	data := buildFragmentData(mgr.schema, mgr.Tree("testuser"), parsed.Path)
+	data := buildFragmentData(mgr.schema, mgr.snapshotTree("testuser"), parsed.Path)
 	require.NotEmpty(t, data.Fields)
 	var fieldPath string
 	for _, field := range data.Fields {
@@ -138,12 +138,12 @@ func TestGraphicalPrefixKeyURLSaveReadback(t *testing.T) {
 	rec := httptest.NewRecorder()
 	HandleConfigSetWithAuthorizer(mgr, mgr.schema, renderer, nil)(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	value, exists := walkTree(mgr.Tree("testuser"), mgr.schema, path).Get("action")
+	value, exists := walkTree(mgr.snapshotTree("testuser"), mgr.schema, path).Get("action")
 	require.True(t, exists)
 	assert.Equal(t, "reject", value)
 	reload := authedRequest(t, http.MethodGet, fragmentURL(fieldPath), nil)
 	shown := httptest.NewRecorder()
-	HandleFragment(renderer, mgr.schema, mgr.Tree("testuser"), mgr, false, nil)(shown, reload)
+	HandleFragment(renderer, mgr.schema, mgr.snapshotTree("testuser"), mgr, false, nil)(shown, reload)
 	require.Equal(t, http.StatusOK, shown.Code, shown.Body.String())
 	assert.Contains(t, shown.Body.String(), `value="reject" selected`)
 	// Read-only denial and schema rejection keep the same literal-key candidate.
@@ -153,7 +153,7 @@ func TestGraphicalPrefixKeyURLSaveReadback(t *testing.T) {
 	invalid := httptest.NewRecorder()
 	HandleConfigSetWithAuthorizer(mgr, mgr.schema, renderer, nil)(invalid, authedRequest(t, http.MethodPost, target, url.Values{"leaf": {"action"}, "value": {"invented"}}))
 	assert.Equal(t, http.StatusBadRequest, invalid.Code)
-	value, _ = walkTree(mgr.Tree("testuser"), mgr.schema, path).Get("action")
+	value, _ = walkTree(mgr.snapshotTree("testuser"), mgr.schema, path).Get("action")
 	assert.Equal(t, "reject", value)
 }
 
@@ -178,12 +178,12 @@ func TestGraphicalQuotedKeyAddRenameKeepsLiteralBytes(t *testing.T) {
 	add := httptest.NewRecorder()
 	HandleConfigAddWithAuthorizer(mgr, mgr.schema, nil, nil)(add, authedRequest(t, http.MethodPost, "/config/add/bgp/group/", url.Values{"name": {key}}))
 	require.Equal(t, http.StatusOK, add.Code, add.Body.String())
-	require.NotNil(t, walkTree(mgr.Tree("testuser"), mgr.schema, []string{"bgp", "group", key}))
+	require.NotNil(t, walkTree(mgr.snapshotTree("testuser"), mgr.schema, []string{"bgp", "group", key}))
 	rename := httptest.NewRecorder()
 	HandleConfigRenameWithAuthorizer(mgr, mgr.schema, nil)(rename, authedRequest(t, http.MethodPost, "/config/rename/"+encodeConfigPath([]string{"bgp", "group", key}), url.Values{"new-key": {newKey}}))
 	require.Equal(t, http.StatusSeeOther, rename.Code, rename.Body.String())
-	assert.Nil(t, walkTree(mgr.Tree("testuser"), mgr.schema, []string{"bgp", "group", key}))
-	assert.NotNil(t, walkTree(mgr.Tree("testuser"), mgr.schema, []string{"bgp", "group", newKey}))
+	assert.Nil(t, walkTree(mgr.snapshotTree("testuser"), mgr.schema, []string{"bgp", "group", key}))
+	assert.NotNil(t, walkTree(mgr.snapshotTree("testuser"), mgr.schema, []string{"bgp", "group", newKey}))
 }
 
 // TestPendingRowsKeepEditorQuotedKey converts the editor's own path grammar

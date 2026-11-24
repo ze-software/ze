@@ -72,7 +72,7 @@ func TestWebEditorRecoveryRefusesUnreadableIntent(t *testing.T) {
 	assert.Contains(t, response.Body.String(), path)
 	assert.Contains(t, response.Body.String(), "pending changes")
 	assert.NotContains(t, response.Body.String(), "value=\"recovery-original\"")
-	assert.Nil(t, manager.Tree("alice"), "a refused open must not publish an empty editor")
+	assert.False(t, manager.ReadTree("alice", func(*zeconfig.Tree) {}), "a refused open must not publish an empty editor")
 	unchanged, err := fixture.store.ReadFile(path)
 	require.NoError(t, err)
 	assert.Equal(t, bad, unchanged)

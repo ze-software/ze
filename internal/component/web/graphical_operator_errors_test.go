@@ -68,5 +68,5 @@ func TestGraphicalCollectionKeepsProducerCorrection(t *testing.T) {
 	HandleConfigSetWithAuthorizer(mgr, schema, nil, nil)(rec, req)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Equal(t, refusal.Error()+"\n", rec.Body.String())
-	assert.Equal(t, []string{"standard"}, walkTree(mgr.Tree("testuser"), schema, path).GetSlice("send"))
+	assert.Equal(t, []string{"standard"}, walkTree(mgr.snapshotTree("testuser"), schema, path).GetSlice("send"))
 }

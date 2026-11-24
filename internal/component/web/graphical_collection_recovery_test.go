@@ -36,7 +36,7 @@ func TestGraphicalCollectionRefusalAllowsCorrection(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "Choose or enter the new member")
 	assert.Contains(t, rec.Body.String(), `id="error-list"`)
 	assert.Contains(t, rec.Body.String(), `hx-swap-oob="beforeend"`)
-	assert.Equal(t, []string{"standard"}, walkTree(mgr.Tree("testuser"), schema, path).GetSlice("send"))
+	assert.Equal(t, []string{"standard"}, walkTree(mgr.snapshotTree("testuser"), schema, path).GetSlice("send"))
 	assert.Equal(t, changes, mgr.ChangeCount("testuser"))
 
 	form.Set("new-member", "large")
@@ -47,8 +47,8 @@ func TestGraphicalCollectionRefusalAllowsCorrection(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Empty(t, rec.Header().Get("HX-Reswap"))
 	assert.Contains(t, rec.Body.String(), `id="collection-add-send"`)
-	assert.Equal(t, []string{"standard", "large"}, walkTree(mgr.Tree("testuser"), schema, path).GetSlice("send"))
-	value, present := walkTree(mgr.Tree("testuser"), schema, sibling).Get("router-id")
+	assert.Equal(t, []string{"standard", "large"}, walkTree(mgr.snapshotTree("testuser"), schema, path).GetSlice("send"))
+	value, present := walkTree(mgr.snapshotTree("testuser"), schema, sibling).Get("router-id")
 	assert.True(t, present)
 	assert.Equal(t, "10.0.0.77", value)
 }

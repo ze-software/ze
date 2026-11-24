@@ -480,3 +480,48 @@ func collectListKeys(tree *config.Tree, schema *config.Schema, path []string) []
 
 	return keys
 }
+
+// isBareListPath reports whether path terminates at a ListNode or
+// InlineListNode with no entry key following it.
+func isBareListPath(schema *config.Schema, path []string) bool {
+	if schema == nil {
+		return false
+	}
+	if len(path) == 0 {
+		return false
+	}
+	var current schemaGetter = schema
+	for i := 0; i < len(path); {
+		node := current.Get(path[i])
+		if node == nil {
+			return false
+		}
+		switch n := node.(type) {
+		case *config.ListNode:
+			if i == len(path)-1 {
+				return true
+			}
+			span := config.ListAddressLen(n, path[i+1:])
+			i += 1 + span
+			current = n
+		case *config.InlineListNode:
+			if i == len(path)-1 {
+				return true
+			}
+			if n.Get(path[i+1]) != nil {
+				i++
+			} else {
+				i += 2
+			}
+			current = n
+		default:
+			sg, ok := node.(schemaGetter)
+			if !ok {
+				return false
+			}
+			current = sg
+			i++
+		}
+	}
+	return false
+}

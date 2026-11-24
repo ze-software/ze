@@ -62,7 +62,7 @@ func TestEditorManagerPendingReviewUsesCurrentCommitted(t *testing.T) {
 	before := us.editor.PendingChanges(us.editor.SessionID())
 	require.Len(t, before, 1)
 	require.Equal(t, "1.2.3.4", before[0].Previous)
-	committed := mgr.Tree("alice").Clone()
+	committed := mgr.snapshotTree("alice").Clone()
 	bgp := committed.GetContainer("bgp")
 	require.NotNil(t, bgp)
 	bgp.Set("router-id", "192.0.2.20")

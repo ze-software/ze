@@ -78,7 +78,7 @@ func TestWebTerminalUnfinishedQuoteRefusesWithoutChangingCandidate(t *testing.T)
 			if strings.HasPrefix(seeded.Output, "error") {
 				t.Fatal(seeded.Output)
 			}
-			before := config.Serialize(mgr.Tree("testuser"), mgr.schema)
+			before := config.Serialize(mgr.snapshotTree("testuser"), mgr.schema)
 			const secret = "private unfinished quote sentinel"
 			input := path + quote + secret
 			refused := webTerminalLine(t, terminal, "", input)
@@ -97,14 +97,14 @@ func TestWebTerminalUnfinishedQuoteRefusesWithoutChangingCandidate(t *testing.T)
 			if refused.Path != "" {
 				t.Errorf("refusal moved operator to %q", refused.Path)
 			}
-			if got := config.Serialize(mgr.Tree("testuser"), mgr.schema); got != before {
+			if got := config.Serialize(mgr.snapshotTree("testuser"), mgr.schema); got != before {
 				t.Error("unfinished quote changed the complete candidate")
 			}
 			accepted := webTerminalLine(t, terminal, "", path+quote+"accepted-password"+quote)
 			if strings.HasPrefix(accepted.Output, "error") {
 				t.Fatal(accepted.Output)
 			}
-			password, ok := mgr.Tree("testuser").GetContainer("bgp").GetList("peer")["peer1"].GetContainer("connection").GetContainer("md5").Get("password")
+			password, ok := mgr.snapshotTree("testuser").GetContainer("bgp").GetList("peer")["peer1"].GetContainer("connection").GetContainer("md5").Get("password")
 			if !ok {
 				t.Fatal("completed quoted command did not store the password")
 			}

@@ -293,7 +293,23 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 	}
 }
 
-// extractPath parses the YANG path from the URL, handling both /show/X and ?path=X.
+// IsViewRoutePath reports whether path belongs to the active UI view handler
+// (Finder or Workbench, selected per request by ReadUIModeFromRequest).
+func IsViewRoutePath(path string) bool {
+	if strings.HasPrefix(path, showPathPrefix) {
+		return true
+	}
+	if strings.HasPrefix(path, "/monitor/") {
+		return true
+	}
+	if strings.HasPrefix(path, configEditPath) {
+		return true
+	}
+	return path == "/config/edit"
+}
+
+// extractPath parses the YANG path from the URL, handling /show/X, /monitor/X,
+// /config/edit/X, /fragment/detail/X and ?path=X.
 func extractPath(r *http.Request) ([]string, error) {
 	query, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
@@ -309,6 +325,9 @@ func extractPath(r *http.Request) ([]string, error) {
 	for _, prefix := range []string{showPathPrefix, "/monitor/", "/fragment/detail/", configEditPath} {
 		if suffix, ok := strings.CutPrefix(raw, prefix); ok {
 			return decodeConfigPath(suffix)
+		}
+		if raw == strings.TrimSuffix(prefix, "/") {
+			return nil, nil
 		}
 	}
 	return decodeConfigPath(raw)
