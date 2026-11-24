@@ -23,9 +23,12 @@ func TestParseSegmentRoutingResolves(t *testing.T) {
 			"10.0.0.1/32": map[string]any{"index": float64(1), "node-sid": true, "no-php": true},
 		},
 	}
-	cfg := parseSegmentRouting(m)
-	if cfg == nil || !cfg.Enabled {
-		t.Fatalf("SR must be enabled: %+v", cfg)
+	cfg, present, err := parseSegmentRouting(m)
+	if err != nil {
+		t.Fatalf("parseSegmentRouting: %v", err)
+	}
+	if !present || !cfg.Enabled {
+		t.Fatalf("SR must be enabled: present=%v cfg=%+v", present, cfg)
 	}
 	if len(cfg.SRGB) != 1 || cfg.SRGB[0].Base != 16000 || cfg.SRGB[0].Size != 8000 {
 		t.Fatalf("SRGB = %+v want base 16000 size 8000", cfg.SRGB)
@@ -46,12 +49,20 @@ func TestParseSegmentRoutingResolves(t *testing.T) {
 }
 
 func TestParseSegmentRoutingEmptyIsInert(t *testing.T) {
-	// An absent or empty block yields nil (SR off, AC-20).
-	if parseSegmentRouting(nil) != nil {
-		t.Fatalf("nil map must yield nil SR config")
+	// An absent or empty block yields present=false (SR off, AC-20).
+	_, present, err := parseSegmentRouting(nil)
+	if err != nil {
+		t.Fatalf("nil map returned error: %v", err)
 	}
-	if parseSegmentRouting(map[string]any{}) != nil {
-		t.Fatalf("empty map must yield nil SR config")
+	if present {
+		t.Fatalf("nil map must yield inactive SR config")
+	}
+	_, present, err = parseSegmentRouting(map[string]any{})
+	if err != nil {
+		t.Fatalf("empty map returned error: %v", err)
+	}
+	if present {
+		t.Fatalf("empty map must yield inactive SR config")
 	}
 }
 

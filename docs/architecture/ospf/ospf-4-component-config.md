@@ -88,6 +88,14 @@ lifecycle callbacks, transport enrollment and config validation.
 
 - **The Go parser enforces the IPv4 range as well as YANG.** Unit tests and SDK
   paths call the resolver directly, outside native YANG validation.
+- **Keyed list decoding fails closed on non-map entries while accepting empty
+  objects (`{}`).** An empty OSPF area (`area 0.0.0.0 {}`) arrives from
+  `Tree.ToPluginMap` as an empty JSON object and resolves with default area
+  parameters. A non-map list value or a non-map entry value (such as `null`, a
+  scalar or an array) returns an error from `keyedList` rather than being
+  silently skipped.
+  <!-- source: internal/plugins/ospf/config.go -- keyedList, applyTree, parseArea, parseVirtualLinks, parseNBMANeighbors, parseKeyChain -->
+  <!-- source: internal/plugins/ospf/sr_config.go -- parseSegmentRouting, extractSRConfigs, validateSRConfig -->
 - **One function answers what an interface costs, and every consumer calls it.**
   The Router-LSA topology, the `show ospf interface` runtime config, the
   LDP-sync restore value and the RFC 3630 TE metric fallback each need the same

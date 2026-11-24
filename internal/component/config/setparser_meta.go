@@ -258,9 +258,11 @@ func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, e
 		return nil
 	case cmdInactive:
 		return p.parseInactive(tree, tokens, lineNum)
+	case cmdComment:
+		return p.parseComment(tree, tokens, lineNum)
 	}
 
-	return lineErrorf(lineNum, "unknown command: %s (expected set/nop/delete/inactive)", cmd)
+	return lineErrorf(lineNum, "unknown command: %s (expected set/nop/delete/inactive/comment)", cmd)
 }
 
 // parseSetWithMeta handles: set <path...> <value> and records metadata along the path.

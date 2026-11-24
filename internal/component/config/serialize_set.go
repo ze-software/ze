@@ -70,10 +70,10 @@ func DetectFormat(content string) ConfigFormat {
 			return FormatSetMeta
 		}
 
-		// Record set/nop/delete/inactive but keep scanning for metadata.
+		// Record set/nop/delete/inactive/comment but keep scanning for metadata.
 		// "inactive <path>" (no colon) is the legacy set-format deactivation line;
 		// the hierarchical form is "inactive: <field>" inside a block.
-		if strings.HasPrefix(line, "set ") || strings.HasPrefix(line, "nop ") || strings.HasPrefix(line, "delete ") || strings.HasPrefix(line, "inactive ") {
+		if isSetFormatLine(line) {
 			hasSet = true
 			continue
 		}
@@ -90,12 +90,33 @@ func DetectFormat(content string) ConfigFormat {
 	return FormatSet
 }
 
+// isSetFormatLine reports whether line begins with a set-format command keyword.
+func isSetFormatLine(line string) bool {
+	if strings.HasPrefix(line, "set ") {
+		return true
+	}
+	if strings.HasPrefix(line, "nop ") {
+		return true
+	}
+	if strings.HasPrefix(line, "delete ") {
+		return true
+	}
+	if strings.HasPrefix(line, "inactive ") {
+		return true
+	}
+	return strings.HasPrefix(line, "comment ")
+}
+
 // SerializeSet converts a Tree to flat set commands in YANG schema order.
 // Each leaf value becomes one "set <path> <value>" line. A ze:sensitive leaf
-// prints in its $9$ form (encodeSecrets), never in clear.
+// prints in its $9$ form (encodeSecrets), never in clear. Tree comments are
+// emitted as `comment <slot> ...` statements so SetParser round-trips them.
 func SerializeSet(tree *Tree, schema *Schema) string {
 	var b textbuf.Buffer
-	serializeSetNode(&b, EncodeSecrets(tree, schema), schema.root, "")
+	printed := EncodeSecrets(tree, schema)
+	writeSetRootHeadComments(&b, printed)
+	serializeSetNode(&b, printed, schema.root, "")
+	writeSetRootClosingComments(&b, printed)
 	return b.String()
 }
 
@@ -134,6 +155,8 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 	switch n := node.(type) {
 	case *LeafNode:
 		if v, ok := tree.values[name]; ok {
+			leafPath := prefix + name
+			writeSetLeafLeading(b, tree, name, leafPath)
 			b.Str(setOrNop(tree, name))
 			b.Str(prefix)
 			b.Str(name)
@@ -142,26 +165,35 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 				b.Str(QuoteIfNeeded(normalizeBool(v)))
 			}
 			b.Str("\n")
+			writeSetLeafTrailing(b, tree, name, leafPath)
 		}
 
 	case *MultiLeafNode:
 		if v, ok := tree.values[name]; ok {
+			leafPath := prefix + name
+			writeSetLeafLeading(b, tree, name, leafPath)
 			b.Str(setOrNop(tree, name))
 			b.Str(prefix)
 			b.Str(name)
 			b.Str(" ")
 			b.Str(v)
 			b.Str("\n")
+			writeSetLeafTrailing(b, tree, name, leafPath)
 		}
 
 	case *BracketLeafListNode:
 		if body, ok := bracketBody(tree, name); ok {
+			leafPath := prefix + name
+			writeSetLeafLeading(b, tree, name, leafPath)
 			b.Str(setOrNop(tree, name)).Str(prefix).Str(name).Str(" [ ").Str(body).Str(" ]\n")
+			writeSetLeafTrailing(b, tree, name, leafPath)
 			writeInactiveMemberLines(b, tree, name, prefix)
 		}
 
 	case *ValueOrArrayNode:
 		if items := tree.multiValues[name]; len(items) > 0 {
+			leafPath := prefix + name
+			writeSetLeafLeading(b, tree, name, leafPath)
 			bare, inactive := splitInactiveMembers(items, tree.inactiveMembers[name])
 			if len(inactive) > 0 || tree.inactiveValues[name] {
 				emitValueOrArrayNop(b, tree, name, prefix, bare, inactive)
@@ -184,6 +216,7 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 				}
 				b.Str("\n")
 			}
+			writeSetLeafTrailing(b, tree, name, leafPath)
 		}
 
 	case *ContainerNode:
@@ -210,9 +243,12 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 // leaf-list too (emitValueOrArrayNop), so the format has one spelling for it.
 // Caller holds tree.mu.RLock.
 func writeInactiveMemberLines(b *textbuf.Buffer, tree *Tree, name, prefix string) {
+	leafPath := prefix + name
 	for _, member := range tree.multiValues[name] {
 		if tree.inactiveMembers[name][member] {
+			writeSetMemberLeading(b, tree, name, member, leafPath)
 			b.Str("nop ").Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(member)).Byte('\n')
+			writeSetMemberTrailing(b, tree, name, member, leafPath)
 		}
 	}
 }
@@ -270,8 +306,10 @@ func emitValueOrArrayNop(b *textbuf.Buffer, tree *Tree, name, prefix string, bar
 	for _, m := range inactive {
 		inactiveSet[m] = true
 	}
+	leafPath := prefix + name
 	for _, member := range bare {
 		if inactiveSet[member] {
+			writeSetMemberLeading(b, tree, name, member, leafPath)
 			b.Str("nop ")
 		} else {
 			b.Str("set ")
@@ -281,6 +319,9 @@ func emitValueOrArrayNop(b *textbuf.Buffer, tree *Tree, name, prefix string, bar
 		b.Str(" ")
 		b.Str(QuoteIfNeeded(member))
 		b.Str("\n")
+		if inactiveSet[member] {
+			writeSetMemberTrailing(b, tree, name, member, leafPath)
+		}
 	}
 }
 
@@ -314,7 +355,11 @@ func emitMetaValueOrArrayNop(b *textbuf.Buffer, meta *MetaTree, tree *Tree, name
 		return
 	}
 
+	leafPath := prefix + name
 	for _, member := range bare {
+		if inactiveSet[member] {
+			writeSetMemberLeading(b, tree, name, member, leafPath)
+		}
 		if hasEntry {
 			writeMetaPrefix(b, entry)
 		}
@@ -328,6 +373,9 @@ func emitMetaValueOrArrayNop(b *textbuf.Buffer, meta *MetaTree, tree *Tree, name
 		b.Str(" ")
 		b.Str(QuoteIfNeeded(member))
 		b.Str("\n")
+		if inactiveSet[member] {
+			writeSetMemberTrailing(b, tree, name, member, leafPath)
+		}
 	}
 }
 
@@ -345,8 +393,10 @@ func emitStructuralNop(b *textbuf.Buffer, sub *Tree, path string) {
 // serializeSetContainer handles container nodes, including presence containers.
 func serializeSetContainer(b *textbuf.Buffer, tree *Tree, name string, node *ContainerNode, prefix string) {
 	var tb textbuf.Buffer
+	blockPath := tb.Reset().Str(prefix).Str(name).String()
 	if node.Presence {
 		if v, ok := tree.values[name]; ok {
+			writeSetLeafLeading(b, tree, name, blockPath)
 			b.Str(setOrNop(tree, name))
 			b.Str(prefix)
 			b.Str(name)
@@ -355,22 +405,27 @@ func serializeSetContainer(b *textbuf.Buffer, tree *Tree, name string, node *Con
 				b.Str(QuoteIfNeeded(v))
 			}
 			b.Str("\n")
+			writeSetLeafTrailing(b, tree, name, blockPath)
 		}
 		if child := tree.containers[name]; child != nil {
+			writeSetBlockBefore(b, child, blockPath)
 			// nop names the value flag; inactive names the block carrier.
 			if child.IsInactive() {
 				b.Str(cmdInactive).Byte(' ').Str(prefix).Str(name).Byte('\n')
 			}
 			childPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 			serializeSetNode(b, child, node, childPrefix)
+			writeSetBlockAfter(b, child, blockPath)
 		}
 		return
 	}
 
 	if child := tree.containers[name]; child != nil {
-		emitStructuralNop(b, child, tb.Reset().Str(prefix).Str(name).String())
+		writeSetBlockBefore(b, child, blockPath)
+		emitStructuralNop(b, child, blockPath)
 		childPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 		serializeSetNode(b, child, node, childPrefix)
+		writeSetBlockAfter(b, child, blockPath)
 	}
 }
 
@@ -393,6 +448,7 @@ func serializeSetList(b *textbuf.Buffer, tree *Tree, name string, node *ListNode
 		tb.Reset().Str(prefix).Str(name).Byte(' ')
 		writeListAddress(&tb, addressTokens)
 		entryPath := tb.String()
+		writeSetBlockBefore(b, entry, entryPath)
 		start := b.Len()
 		emitStructuralNop(b, entry, entryPath)
 		emitAddressLine(b, entry, addressTokens, entryPath)
@@ -402,6 +458,7 @@ func serializeSetList(b *textbuf.Buffer, tree *Tree, name string, node *ListNode
 		if b.Len() == start {
 			b.Str("set ").Str(entryPath).Byte('\n')
 		}
+		writeSetBlockAfter(b, entry, entryPath)
 	}
 }
 
@@ -412,11 +469,12 @@ func serializeSetFreeform(b *textbuf.Buffer, tree *Tree, name, prefix string) {
 		return
 	}
 
+	blockPath := prefix + name
+	writeSetBlockBefore(b, child, blockPath)
+
 	// child is a separate Tree from the outer RLock holder; lock it
 	// before reading its values map.
 	child.mu.RLock()
-	defer child.mu.RUnlock()
-
 	keys := make([]string, 0, len(child.values))
 	for k := range child.values {
 		keys = append(keys, k)
@@ -436,25 +494,30 @@ func serializeSetFreeform(b *textbuf.Buffer, tree *Tree, name, prefix string) {
 		}
 		b.Str("\n")
 	}
+	child.mu.RUnlock()
+
+	writeSetBlockAfter(b, child, blockPath)
 }
 
 // serializeSetFlex handles flex nodes (flag, value, container, or list forms).
 func serializeSetFlex(b *textbuf.Buffer, tree *Tree, name string, node *FlexNode, prefix string) {
 	var tb textbuf.Buffer
-	// Simple value or flag
-	if v, ok := tree.values[name]; ok {
-		b.Str("set ")
-		b.Str(prefix)
-		b.Str(name)
-		if v != configTrue {
-			b.Str(" ")
-			b.Str(QuoteIfNeeded(v))
+	leafPath := prefix + name
+	_, hasVal := tree.values[name]
+	mv := tree.multiValues[name]
+	if hasVal || len(mv) > 0 {
+		writeSetLeafLeading(b, tree, name, leafPath)
+		if hasVal {
+			v := tree.values[name]
+			b.Str("set ")
+			b.Str(prefix)
+			b.Str(name)
+			if v != configTrue {
+				b.Str(" ")
+				b.Str(QuoteIfNeeded(v))
+			}
+			b.Str("\n")
 		}
-		b.Str("\n")
-	}
-
-	// Multi-values
-	if mv := tree.multiValues[name]; len(mv) > 0 {
 		for _, v := range mv {
 			b.Str("set ")
 			b.Str(prefix)
@@ -463,12 +526,15 @@ func serializeSetFlex(b *textbuf.Buffer, tree *Tree, name string, node *FlexNode
 			b.Str(QuoteIfNeeded(v))
 			b.Str("\n")
 		}
+		writeSetLeafTrailing(b, tree, name, leafPath)
 	}
 
 	// Container form
 	if child := tree.containers[name]; child != nil {
+		writeSetBlockBefore(b, child, leafPath)
 		childPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 		serializeSetNode(b, child, node, childPrefix)
+		writeSetBlockAfter(b, child, leafPath)
 	}
 
 	// List entries
@@ -476,8 +542,11 @@ func serializeSetFlex(b *textbuf.Buffer, tree *Tree, name string, node *FlexNode
 		keys := ListEntryKeys(entries, tree.listOrder[name])
 		for _, key := range keys {
 			entry := entries[key]
-			entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(key)).Byte(' ').String()
+			entryPath := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(key)).String()
+			writeSetBlockBefore(b, entry, entryPath)
+			entryPrefix := tb.Reset().Str(entryPath).Byte(' ').String()
 			serializeSetNode(b, entry, node, entryPrefix)
+			writeSetBlockAfter(b, entry, entryPath)
 		}
 	}
 }
@@ -495,8 +564,10 @@ func serializeSetInlineList(b *textbuf.Buffer, tree *Tree, name string, node *In
 	for _, key := range keys {
 		entry := entries[key]
 		displayKey := StripListKeySuffix(key)
-		entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(displayKey)).Byte(' ').String()
+		entryPath := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(displayKey)).String()
+		entryPrefix := tb.Reset().Str(entryPath).Byte(' ').String()
 
+		writeSetBlockBefore(b, entry, entryPath)
 		// entry is a separate Tree: lock it before reading entry.values
 		// directly (the caller's lock covers tree, not entry).
 		entry.mu.RLock()
@@ -505,14 +576,18 @@ func serializeSetInlineList(b *textbuf.Buffer, tree *Tree, name string, node *In
 			if !ok {
 				continue
 			}
+			childPath := entryPrefix + childName
+			writeSetLeafLeading(b, entry, childName, childPath)
 			b.Str("set ")
 			b.Str(entryPrefix)
 			b.Str(childName)
 			b.Str(" ")
 			b.Str(QuoteIfNeeded(v))
 			b.Str("\n")
+			writeSetLeafTrailing(b, entry, childName, childPath)
 		}
 		entry.mu.RUnlock()
+		writeSetBlockAfter(b, entry, entryPath)
 	}
 }
 
@@ -532,12 +607,15 @@ func serializeSetExtraValues(b *textbuf.Buffer, tree *Tree, children []string, p
 	slices.Sort(extraKeys)
 
 	for _, k := range extraKeys {
+		leafPath := prefix + k
+		writeSetLeafLeading(b, tree, k, leafPath)
 		b.Str("set ")
 		b.Str(prefix)
 		b.Str(k)
 		b.Str(" ")
 		b.Str(QuoteIfNeeded(tree.values[k]))
 		b.Str("\n")
+		writeSetLeafTrailing(b, tree, k, leafPath)
 	}
 }
 
@@ -548,11 +626,14 @@ func serializeSetExtraValues(b *textbuf.Buffer, tree *Tree, children []string, p
 // Lines without metadata in the MetaTree are emitted as bare set commands.
 // A ze:sensitive leaf prints in its $9$ form (encodeSecrets), never in clear,
 // and so does every session entry for one, its ^previous key included
-// (encodeSecretMeta).
+// (encodeSecretMeta). Tree comments are emitted as `comment <slot> ...` lines
+// so SetParser.ParseWithMeta round-trips them alongside metadata prefixes.
 func SerializeSetWithMeta(tree *Tree, meta *MetaTree, schema *Schema) string {
 	var b textbuf.Buffer
 	printed := EncodeSecrets(tree, schema)
+	writeSetRootHeadComments(&b, printed)
 	serializeSetMetaNode(&b, printed, encodeSecretMeta(printed, meta, schema), schema.root, "")
+	writeSetRootClosingComments(&b, printed)
 	return b.String()
 }
 
@@ -642,25 +723,33 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 	switch n := node.(type) {
 	case *LeafNode:
 		if v, ok := tree.values[name]; ok {
+			leafPath := tb.Reset().Str(prefix).Str(name).String()
+			writeSetLeafLeading(b, tree, name, leafPath)
 			if n.Type == TypeEmpty {
-				pathPfx := tb.Reset().Str(prefix).Str(name).String()
-				writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, setFlagValue(v), setFlagValue)
+				writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), leafPath, setFlagValue(v), setFlagValue)
 			} else {
 				pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 				writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, QuoteIfNeeded(normalizeBool(v)), QuoteIfNeeded)
 			}
+			writeSetLeafTrailing(b, tree, name, leafPath)
 		}
 
 	case *MultiLeafNode:
 		if v, ok := tree.values[name]; ok {
+			leafPath := tb.Reset().Str(prefix).Str(name).String()
+			writeSetLeafLeading(b, tree, name, leafPath)
 			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 			writeMetaLeafLineCmd(b, meta, name, setOrNop(tree, name), pathPfx, v)
+			writeSetLeafTrailing(b, tree, name, leafPath)
 		}
 
 	case *BracketLeafListNode:
 		if body, ok := bracketBody(tree, name); ok {
+			leafPath := tb.Reset().Str(prefix).Str(name).String()
+			writeSetLeafLeading(b, tree, name, leafPath)
 			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 			writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, bracketValue(body), bracketValue)
+			writeSetLeafTrailing(b, tree, name, leafPath)
 			writeInactiveMemberLines(b, tree, name, prefix)
 		}
 		if meta != nil {
@@ -671,6 +760,7 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 		// Direct access: caller holds tree.mu.RLock (and meta.mu.RLock when
 		// meta is non-nil; see serializeSetMetaNode).
 		items := tree.multiValues[name]
+		leafPath := tb.Reset().Str(prefix).Str(name).String()
 		var entries []MetaEntry
 		if meta != nil {
 			entries = meta.entries[name]
@@ -682,24 +772,29 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 			}
 		}
 		if wholeAssignment {
+			writeSetLeafLeading(b, tree, name, leafPath)
 			writeValueOrArrayAssignments(b, tree, name, prefix, entries)
+			writeSetLeafTrailing(b, tree, name, leafPath)
 			writeInactiveMemberLines(b, tree, name, prefix)
 			if hasMemberEntries(entries) {
-				writeLeafListMemberLines(b, name, prefix, nil, nil, entries)
+				writeLeafListMemberLines(b, tree, name, prefix, nil, nil, entries)
 			}
 			return
 		}
 		if hasMemberEntries(entries) {
-			writeLeafListMemberLines(b, name, prefix, items, tree.inactiveMembers[name], entries)
+			writeSetLeafLeading(b, tree, name, leafPath)
+			writeLeafListMemberLines(b, tree, name, prefix, items, tree.inactiveMembers[name], entries)
 			if tree.inactiveValues[name] {
 				// As for a session whole assignment, this marker changes only
 				// activation. Replacing the members here would discard member
 				// operations the metadata retained beside the tree's current view.
 				b.Str(cmdInactive).Byte(' ').Str(prefix).Str(name).Byte('\n')
 			}
+			writeSetLeafTrailing(b, tree, name, leafPath)
 			return
 		}
 		if len(items) > 0 {
+			writeSetLeafLeading(b, tree, name, leafPath)
 			bare, inactive := splitInactiveMembers(items, tree.inactiveMembers[name])
 			if len(inactive) > 0 || tree.inactiveValues[name] {
 				emitMetaValueOrArrayNop(b, meta, tree, name, prefix, bare, inactive)
@@ -711,6 +806,7 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 					writeMetaLeafLine(b, meta, name, pathPfx, bracketValue(JoinLeafListMembers(bare)))
 				}
 			}
+			writeSetLeafTrailing(b, tree, name, leafPath)
 		}
 
 	case *ContainerNode:
@@ -808,7 +904,7 @@ func findMemberAddEntry(entries []MetaEntry, member string) *MetaEntry {
 // session removed. This per-member form is what makes concurrent add-member
 // sessions mergeable; it round-trips through the set parser's member-merge.
 // Caller must hold tree.mu.RLock and meta.mu.RLock (see serializeSetMetaNode).
-func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []string, inactiveMembers map[string]bool, entries []MetaEntry) {
+func writeLeafListMemberLines(b *textbuf.Buffer, tree *Tree, name, prefix string, items []string, inactiveMembers map[string]bool, entries []MetaEntry) {
 	bare, inactive := splitInactiveMembers(items, inactiveMembers)
 	inactiveSet := make(map[string]bool, len(inactive))
 	for _, m := range inactive {
@@ -829,7 +925,11 @@ func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []st
 		b.Str("delete ").Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(e.Member)).Byte('\n')
 		deletedFirst[e.Member] = true
 	}
+	leafPath := prefix + name
 	for _, member := range bare {
+		if inactiveSet[member] {
+			writeSetMemberLeading(b, tree, name, member, leafPath)
+		}
 		if e := findMemberAddEntry(entries, member); e != nil {
 			writeMetaPrefix(b, *e)
 			emitted[member] = true
@@ -844,6 +944,9 @@ func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []st
 		b.Str(" ")
 		b.Str(QuoteIfNeeded(member))
 		b.Str("\n")
+		if inactiveSet[member] {
+			writeSetMemberTrailing(b, tree, name, member, leafPath)
+		}
 	}
 	for i := range entries {
 		e := entries[i]
@@ -940,28 +1043,35 @@ func writeMetaLeafLineFormat(b *textbuf.Buffer, meta *MetaTree, name, cmd, pathP
 // serializeSetMetaContainer handles container nodes with metadata.
 func serializeSetMetaContainer(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *ContainerNode, prefix string) {
 	var tb textbuf.Buffer
+	blockPath := tb.Reset().Str(prefix).Str(name).String()
 	if node.Presence {
 		if v, ok := tree.values[name]; ok {
+			writeSetLeafLeading(b, tree, name, blockPath)
 			if v == configTrue {
-				writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), tb.Reset().Str(prefix).Str(name).String(), "", setFlagValue)
+				writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), blockPath, "", setFlagValue)
 			} else {
 				writeMetaLeafLineCmd(b, meta, name, setOrNop(tree, name), tb.Reset().Str(prefix).Str(name).Byte(' ').String(), QuoteIfNeeded(v))
 			}
+			writeSetLeafTrailing(b, tree, name, blockPath)
 		}
 		if child := tree.containers[name]; child != nil {
+			writeSetBlockBefore(b, child, blockPath)
 			if child.IsInactive() {
 				b.Str(cmdInactive).Byte(' ').Str(prefix).Str(name).Byte('\n')
 			}
 			childPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 			serializeSetMetaNode(b, child, metaContainerChild(meta, name), node, childPrefix)
+			writeSetBlockAfter(b, child, blockPath)
 		}
 		return
 	}
 
 	if child := tree.containers[name]; child != nil {
-		emitStructuralNop(b, child, tb.Reset().Str(prefix).Str(name).String())
+		writeSetBlockBefore(b, child, blockPath)
+		emitStructuralNop(b, child, blockPath)
 		childPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 		serializeSetMetaNode(b, child, metaContainerChild(meta, name), node, childPrefix)
+		writeSetBlockAfter(b, child, blockPath)
 	}
 }
 
@@ -984,6 +1094,7 @@ func serializeSetMetaList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name st
 		tb.Reset().Str(prefix).Str(name).Byte(' ')
 		writeListAddress(&tb, addressTokens)
 		entryPath := tb.String()
+		writeSetBlockBefore(b, entry, entryPath)
 		start := b.Len()
 		emitStructuralNop(b, entry, entryPath)
 		emitAddressLine(b, entry, addressTokens, entryPath)
@@ -994,6 +1105,7 @@ func serializeSetMetaList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name st
 		if b.Len() == start {
 			b.Str("set ").Str(entryPath).Byte('\n')
 		}
+		writeSetBlockAfter(b, entry, entryPath)
 	}
 }
 
@@ -1031,14 +1143,15 @@ func writeFreeformLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name, pre
 		return
 	}
 
+	blockPath := prefix + name
+	writeSetBlockBefore(b, child, blockPath)
+
 	childMeta := metaContainerChild(meta, name)
 
 	// child is a separate Tree; lock it before reading its values map.
 	child.mu.RLock()
-	defer child.mu.RUnlock()
 	if childMeta != nil {
 		childMeta.mu.RLock()
-		defer childMeta.mu.RUnlock()
 	}
 
 	keys := make([]string, 0, len(child.values))
@@ -1069,6 +1182,12 @@ func writeFreeformLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name, pre
 			writeLine(b, childMeta, k, tb.Reset().Str(keyPrefix).Byte(' ').String(), QuoteIfNeeded(v))
 		}
 	}
+	if childMeta != nil {
+		childMeta.mu.RUnlock()
+	}
+	child.mu.RUnlock()
+
+	writeSetBlockAfter(b, child, blockPath)
 }
 
 // writeFlexLines is the shared implementation for flex node serialization.
@@ -1076,38 +1195,50 @@ func writeFreeformLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name, pre
 // through the standard child dispatch, reaching leaves that call writeLine).
 func writeFlexLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *FlexNode, prefix string, writeLine leafLineWriter) {
 	var tb textbuf.Buffer
-	if meta != nil && len(meta.entries[name]) > 1 {
-		// The line writer emits every competing whole-leaf assignment.
-		// Calling it per occurrence would multiply the contested records.
-		writeLine(b, meta, name, prefix+name+" ", "")
-	} else {
-		if v, ok := tree.values[name]; ok {
-			if v == configTrue {
-				writeLine(b, meta, name, prefix+name, "")
-			} else {
-				writeLine(b, meta, name, prefix+name+" ", QuoteIfNeeded(v))
+	leafPath := prefix + name
+	contested := meta != nil && len(meta.entries[name]) > 1
+	_, hasVal := tree.values[name]
+	mv := tree.multiValues[name]
+	if contested || hasVal || len(mv) > 0 {
+		writeSetLeafLeading(b, tree, name, leafPath)
+		if contested {
+			// The line writer emits every competing whole-leaf assignment.
+			// Calling it per occurrence would multiply the contested records.
+			writeLine(b, meta, name, prefix+name+" ", "")
+		} else {
+			if hasVal {
+				v := tree.values[name]
+				if v == configTrue {
+					writeLine(b, meta, name, prefix+name, "")
+				} else {
+					writeLine(b, meta, name, prefix+name+" ", QuoteIfNeeded(v))
+				}
 			}
-		}
 
-		if mv := tree.multiValues[name]; len(mv) > 0 {
 			for _, v := range mv {
 				writeLine(b, meta, name, prefix+name+" ", QuoteIfNeeded(v))
 			}
 		}
+		writeSetLeafTrailing(b, tree, name, leafPath)
 	}
 
 	if child := tree.containers[name]; child != nil {
+		writeSetBlockBefore(b, child, leafPath)
 		childPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 		serializeSetMetaNode(b, child, metaContainerChild(meta, name), node, childPrefix)
+		writeSetBlockAfter(b, child, leafPath)
 	}
 
 	if entries := tree.lists[name]; entries != nil {
 		keys := ListEntryKeys(entries, tree.listOrder[name])
 		for _, key := range keys {
 			entry := entries[key]
-			entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(key)).Byte(' ').String()
+			entryPath := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(key)).String()
+			writeSetBlockBefore(b, entry, entryPath)
+			entryPrefix := tb.Reset().Str(entryPath).Byte(' ').String()
 			entryMeta := metaListEntry(meta, name, key)
 			serializeSetMetaNode(b, entry, entryMeta, node, entryPrefix)
+			writeSetBlockAfter(b, entry, entryPath)
 		}
 	}
 }
@@ -1125,9 +1256,11 @@ func writeInlineListLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name st
 	for _, key := range keys {
 		entry := entries[key]
 		displayKey := StripListKeySuffix(key)
-		entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(displayKey)).Byte(' ').String()
+		entryPath := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(displayKey)).String()
+		entryPrefix := tb.Reset().Str(entryPath).Byte(' ').String()
 		entryMeta := metaListEntry(meta, name, key)
 
+		writeSetBlockBefore(b, entry, entryPath)
 		// entry and entryMeta are separate nodes; lock each before
 		// reading entry.values / entryMeta.entries.
 		entry.mu.RLock()
@@ -1139,12 +1272,16 @@ func writeInlineListLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name st
 			if !ok {
 				continue
 			}
+			childPath := entryPrefix + childName
+			writeSetLeafLeading(b, entry, childName, childPath)
 			writeLine(b, entryMeta, childName, entryPrefix+childName+" ", QuoteIfNeeded(v))
+			writeSetLeafTrailing(b, entry, childName, childPath)
 		}
 		if entryMeta != nil {
 			entryMeta.mu.RUnlock()
 		}
 		entry.mu.RUnlock()
+		writeSetBlockAfter(b, entry, entryPath)
 	}
 }
 
@@ -1164,7 +1301,10 @@ func serializeSetMetaExtraValues(b *textbuf.Buffer, tree *Tree, meta *MetaTree, 
 	slices.Sort(extraKeys)
 
 	for _, k := range extraKeys {
+		leafPath := prefix + k
+		writeSetLeafLeading(b, tree, k, leafPath)
 		writeMetaLeafLine(b, meta, k, prefix+k+" ", QuoteIfNeeded(tree.values[k]))
+		writeSetLeafTrailing(b, tree, k, leafPath)
 	}
 }
 
@@ -1225,9 +1365,9 @@ func writeDeleteMetaLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, prefix 
 	}
 }
 
-// FilterSetByPath returns only the set/nop/inactive lines whose path matches
-// the given prefix, segment by segment: the schema groups each list entry's
-// address into one segment (setPathSegments), so the path of entry
+// FilterSetByPath returns only the set/nop/inactive/comment lines whose path
+// matches the given prefix, segment by segment: the schema groups each list
+// entry's address into one segment (setPathSegments), so the path of entry
 // `fe80::b` never matches a line of entry `fe80::b interface zbl0`. Returns
 // all content when path is empty.
 func FilterSetByPath(content string, schema *Schema, path []string) string {
@@ -1246,6 +1386,13 @@ func FilterSetByPath(content string, schema *Schema, path []string) string {
 		if err != nil {
 			continue // SerializeSet writes no unterminated quote; such a line names no path.
 		}
+		if verb == cmdComment {
+			pathTokens, ok := commentLinePathTokens(tokens)
+			if !ok {
+				continue
+			}
+			tokens = pathTokens
+		}
 		got := setPathSegments(schema, tokens)
 		if len(got) < len(want) {
 			continue
@@ -1261,7 +1408,16 @@ func FilterSetByPath(content string, schema *Schema, path []string) string {
 // isSetFormVerb reports whether verb opens a set-form line FilterSetByPath
 // keeps.
 func isSetFormVerb(verb string) bool {
-	return verb == "set" || verb == "nop" || verb == "inactive"
+	if verb == cmdSet {
+		return true
+	}
+	if verb == cmdNop {
+		return true
+	}
+	if verb == cmdInactive {
+		return true
+	}
+	return verb == cmdComment
 }
 
 // setPathSegments groups path tokens into segments: a list entry's address

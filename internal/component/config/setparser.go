@@ -19,13 +19,14 @@ import (
 
 // The keywords a set-format line starts with. set and delete are the canonical
 // CLI verbs in their engine path form, so their spelling comes from the verb
-// registry (internal/component/command). nop and inactive belong to this file
-// format alone.
+// registry (internal/component/command). nop, inactive, comment and
+// replace-members belong to this file format alone.
 const (
 	cmdSet      = command.VerbSet
 	cmdNop      = "nop"
 	cmdDelete   = command.VerbDelete
 	cmdInactive = "inactive"
+	cmdComment  = "comment"
 	// cmdReplaceMembers is an annotated session-file assignment, not a CLI verb.
 	cmdReplaceMembers = "replace-members"
 )
@@ -113,6 +114,12 @@ func (p *SetParser) skipsLine(verb string, path []string) bool {
 	switch verb {
 	case cmdSet, cmdNop, cmdDelete, cmdInactive:
 		return p.schema.Get(path[0]) == nil
+	case cmdComment:
+		pathTokens, ok := commentLinePathTokens(path)
+		if !ok {
+			return false
+		}
+		return p.schema.Get(pathTokens[0]) == nil
 	}
 	return false
 }
@@ -189,8 +196,10 @@ func (p *SetParser) parseLine(tree *Tree, line string, lineNum int) error {
 		return p.parseDelete(tree, tokens, lineNum)
 	case cmdInactive:
 		return p.parseInactive(tree, tokens, lineNum)
+	case cmdComment:
+		return p.parseComment(tree, tokens, lineNum)
 	default:
-		return lineErrorf(lineNum, "unknown command: %s (expected set/nop/delete/inactive)", cmd)
+		return lineErrorf(lineNum, "unknown command: %s (expected set/nop/delete/inactive/comment)", cmd)
 	}
 }
 

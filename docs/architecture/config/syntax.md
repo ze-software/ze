@@ -619,8 +619,8 @@ activation is a 3-byte in-place edit (`set` <-> `nop`):
 `set` and `delete` in this format are the canonical CLI verbs in their engine
 path form, and the parser takes their spelling from `command.Verbs` rather than
 writing the words again, so renaming a verb renames the file keyword with it.
-`nop` and `inactive` belong to this format alone and the verb registry holds
-neither.
+`nop`, `inactive`, `comment` and `replace-members` belong to this format alone
+and the verb registry holds none of them.
 <!-- source: internal/component/config/setparser.go -- cmdNop, cmdSet, cmdDelete, parseNop, nopBracketMember, setBracketLine, bracketMembers, isMemberLeafList -->
 <!-- source: internal/component/config/serialize_set.go -- writeInactiveMemberLines -->
 <!-- source: internal/component/command/verbs.go -- VerbSet, VerbDelete -->
@@ -739,20 +739,32 @@ keeps the one-line spelling.
 
 Blank lines are presentation: fmt keeps only the one after a head group.
 A comment never makes `PruneUnchanged` keep an unchanged node. The set and
-set-meta printers do not print comments yet, so a commit from an editing
-session, which writes the set-meta form, drops them; an editor with no session
-writes the hierarchical form and keeps them, its stamp replaced rather than
-stacked (`SerializeStamped`).
+set-meta printers (`SerializeSet` and `SerializeSetWithMeta`) preserve every
+`Tree` comment as a `comment <slot> [<path...>] <text>` statement (and
+`comment member-leading` / `comment member-trailing <path...> <member> <text>`
+for inactive leaf-list members), using `QuoteIfNeeded` so arbitrary comment
+text never collides with `#user`, `@source`, `%time` or `^prev` metadata
+prefixes. A leading root `# ze-schema:` stamp is omitted from `comment head` so
+persistence writers that prepend `FormatSchemaStamp()` do not stack stale
+stamps. `DetectFormat` recognizes `comment ` lines as part of set/set-meta
+files, `SetParser.Parse` and `SetParser.ParseWithMeta` attach them back to
+their exact `Tree` slots, `SetParser.SkipUnknownRoots` skips comments targeting
+unknown roots, and `FilterSetByPath` keeps comments under the selected path.
+An editor with no session writes the hierarchical form and keeps its comments,
+its stamp replaced rather than stacked (`SerializeStamped`).
 
 The editor's displays print the operator's comments where the tree carries
 them: `show` prints through `config.Serialize`, or `SerializeSubtree` below
-the root (the set display prints set lines, which carry none). The
+the root, and set output prints `comment` lines alongside `set`/`nop` lines. The
 editor's change view ignores comments when it compares configuration, so a
 comment never marks a line changed. It prints no comment line; its validation
 highlight still lands on the statement's line in the working text, below any
 comment above it.
 <!-- source: internal/component/config/parser_comments.go -- commentScope -->
 <!-- source: internal/component/config/serialize_comments.go -- writeBlock, writeCommentsAbove -->
+<!-- source: internal/component/config/serialize_set_comments.go -- writeSetRootHeadComments, writeSetBlockBefore, writeSetBlockAfter, writeSetLeafLeading, writeSetLeafTrailing, writeSetMemberLeading, writeSetMemberTrailing -->
+<!-- source: internal/component/config/setparser_comments.go -- SetParser.parseComment, commentLinePathTokens -->
+<!-- source: internal/component/config/serialize_set.go -- DetectFormat, SerializeSet, SerializeSetWithMeta, FilterSetByPath -->
 <!-- source: internal/component/config/serialize.go -- CanInlineContainer -->
 <!-- source: internal/component/config/flatten.go -- canFlattenContainer -->
 <!-- source: internal/component/config/prune.go -- PruneUnchanged -->

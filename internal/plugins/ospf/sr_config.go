@@ -11,18 +11,20 @@ package ospf
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/plugins/ospf/sr"
 )
 
-// parseSegmentRouting resolves a `segment-routing` container into sr.SRConfig. It
-// returns nil when nothing is configured so an empty block is inert (AC-20).
-func parseSegmentRouting(m map[string]any) *sr.SRConfig {
+// parseSegmentRouting resolves a `segment-routing` container into sr.SRConfig.
+// It returns present=false when nothing is configured so an empty block is
+// inert (AC-20).
+func parseSegmentRouting(m map[string]any) (sr.SRConfig, bool, error) {
 	if len(m) == 0 {
-		return nil
+		return sr.SRConfig{}, false, nil
 	}
-	cfg := &sr.SRConfig{Enabled: configBool(m["enable"], false)}
+	cfg := sr.SRConfig{Enabled: configBool(m["enable"], false)}
 	if g, ok := m["srgb"].(map[string]any); ok {
 		if r, ok := parseLabelRange(g); ok {
 			cfg.SRGB = append(cfg.SRGB, r)
@@ -33,7 +35,11 @@ func parseSegmentRouting(m map[string]any) *sr.SRConfig {
 			cfg.SRLB = append(cfg.SRLB, r)
 		}
 	}
-	for _, entry := range keyedList(m["prefix-sid"], false) {
+	prefixEntries, err := keyedList("prefix-sid", m["prefix-sid"], false)
+	if err != nil {
+		return sr.SRConfig{}, false, err
+	}
+	for _, entry := range prefixEntries {
 		if p, ok := parsePrefixSID(entry); ok {
 			cfg.Prefixes = append(cfg.Prefixes, p)
 		}
@@ -43,9 +49,9 @@ func parseSegmentRouting(m map[string]any) *sr.SRConfig {
 		cfg.SRMSPreference = v
 	}
 	if !cfg.Enabled && len(cfg.SRGB) == 0 && len(cfg.SRLB) == 0 && len(cfg.Prefixes) == 0 {
-		return nil
+		return sr.SRConfig{}, false, nil
 	}
-	return cfg
+	return cfg, true, nil
 }
 
 // parseLabelRange resolves a `{ lower-bound; upper-bound }` container into a
@@ -80,22 +86,26 @@ func parsePrefixSID(entry listEntry) (sr.PrefixSIDConfig, bool) {
 
 // extractSRConfigs pulls the IPv4 (top-level) and IPv6 (address-family) SR blocks
 // from the raw config sections.
-func extractSRConfigs(sections []configSection) (v4, v6 *sr.SRConfig) {
+func extractSRConfigs(sections []configSection) (v4, v6 *sr.SRConfig, err error) {
 	for _, s := range sections {
 		if s.Root != Namespace || s.Data == "" {
 			continue
 		}
 		var wrapper map[string]any
 		if err := json.Unmarshal([]byte(s.Data), &wrapper); err != nil {
-			continue
+			return nil, nil, fmt.Errorf("ospf: invalid segment-routing config JSON: %w", err)
 		}
 		tree, _ := wrapper[Namespace].(map[string]any)
 		if tree == nil {
 			continue
 		}
 		if m, ok := tree["segment-routing"].(map[string]any); ok {
-			if r := parseSegmentRouting(m); r != nil {
-				v4 = r
+			r, present, err := parseSegmentRouting(m)
+			if err != nil {
+				return nil, nil, err
+			}
+			if present {
+				v4 = &r
 			}
 		}
 		if af, ok := tree["address-family"].(map[string]any); ok {
@@ -105,14 +115,18 @@ func extractSRConfigs(sections []configSection) (v4, v6 *sr.SRConfig) {
 					continue
 				}
 				if m, ok := sub["segment-routing"].(map[string]any); ok {
-					if r := parseSegmentRouting(m); r != nil {
-						v6 = r
+					r, present, err := parseSegmentRouting(m)
+					if err != nil {
+						return nil, nil, err
+					}
+					if present {
+						v6 = &r
 					}
 				}
 			}
 		}
 	}
-	return v4, v6
+	return v4, v6, nil
 }
 
 // applySRConfig parses the SR blocks and populates srWire keyed by the router ID.
@@ -123,7 +137,12 @@ func extractSRConfigs(sections []configSection) (v4, v6 *sr.SRConfig) {
 // node Prefix-SIDs rather than the (IPv4-only) shared block's. Removing SR from the
 // config clears the store entry (AC-20).
 func applySRConfig(sections []configSection, cfg ospfConfig) {
-	v4, v6 := extractSRConfigs(sections)
+	v4, v6, err := extractSRConfigs(sections)
+	if err != nil {
+		logger().Warn("ospf segment-routing configuration could not be parsed during apply; run `ze config validate` and correct the ospf segment-routing section",
+			"code", codeOSPFSegmentRoutingOverlap, "error", err)
+		return
+	}
 	eff := v4
 	if eff == nil {
 		eff = v6
@@ -162,7 +181,10 @@ func applySRConfig(sections []configSection, cfg ospfConfig) {
 // validateSRConfig validates the SR blocks in the config sections (SRGB/SRLB
 // Range Size > 0, non-overlap, label bounds, prefix-SID index within the SRGB).
 func validateSRConfig(sections []configSection) error {
-	v4, v6 := extractSRConfigs(sections)
+	v4, v6, err := extractSRConfigs(sections)
+	if err != nil {
+		return err
+	}
 	for _, c := range []*sr.SRConfig{v4, v6} {
 		if c == nil {
 			continue

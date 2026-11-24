@@ -787,11 +787,19 @@ func applyTree(cfg *ospfConfig, tree map[string]any) error {
 	if m, ok := tree["timers"].(map[string]any); ok {
 		cfg.Timers = parseTimers(m)
 	}
-	for _, entry := range keyedList(tree["redistribute"], false) {
+	redistEntries, err := keyedList("redistribute", tree["redistribute"], false)
+	if err != nil {
+		return err
+	}
+	for _, entry := range redistEntries {
 		cfg.Redistribute = append(cfg.Redistribute, parseRedistribute(entry))
 	}
 	if areas, ok := tree["areas"].(map[string]any); ok {
-		for _, entry := range keyedList(areas[labelArea], false) {
+		areaEntries, err := keyedList(labelArea, areas[labelArea], false)
+		if err != nil {
+			return err
+		}
+		for _, entry := range areaEntries {
 			area, err := parseArea(entry)
 			if err != nil {
 				return err
@@ -808,7 +816,11 @@ func applyTree(cfg *ospfConfig, tree map[string]any) error {
 		}
 	}
 	if interfaces, ok := tree["interfaces"].(map[string]any); ok {
-		for _, entry := range keyedList(interfaces[labelInterface], false) {
+		ifaceEntries, err := keyedList(labelInterface, interfaces[labelInterface], false)
+		if err != nil {
+			return err
+		}
+		for _, entry := range ifaceEntries {
 			ic, err := parseInterface(entry)
 			if err != nil {
 				return err
@@ -816,8 +828,16 @@ func applyTree(cfg *ospfConfig, tree map[string]any) error {
 			cfg.Interfaces = append(cfg.Interfaces, ic)
 		}
 	}
-	for _, entry := range keyedList(tree["key-chains"], false) {
-		cfg.KeyChains = append(cfg.KeyChains, parseKeyChain(entry))
+	kcEntries, err := keyedList("key-chains", tree["key-chains"], false)
+	if err != nil {
+		return err
+	}
+	for _, entry := range kcEntries {
+		kc, err := parseKeyChain(entry)
+		if err != nil {
+			return err
+		}
+		cfg.KeyChains = append(cfg.KeyChains, kc)
 	}
 	if v, ok := configUint8(tree["instance-id"]); ok {
 		cfg.InstanceID = v
@@ -1248,7 +1268,11 @@ func parseArea(entry listEntry) (areaConfig, error) {
 		a.AuthKeyChain = configString(auth["key-chain"])
 	}
 	if ranges, ok := entry.data["ranges"].(map[string]any); ok {
-		for _, rangeEntry := range keyedList(ranges["range"], false) {
+		rangeEntries, err := keyedList("range", ranges["range"], false)
+		if err != nil {
+			return areaConfig{}, err
+		}
+		for _, rangeEntry := range rangeEntries {
 			r, err := parseRange(rangeEntry)
 			if err != nil {
 				return areaConfig{}, err
@@ -1285,7 +1309,10 @@ func parseRange(entry listEntry) (rangeConfig, error) {
 // parseVirtualLinks resolves the `virtual-link` list nested under one area (the transit
 // area) into virtualLinkConfig entries. It is called once per area during applyTree.
 func parseVirtualLinks(transit types.AreaID, areaData map[string]any) ([]virtualLinkConfig, error) {
-	entries := keyedList(areaData["virtual-link"], false)
+	entries, err := keyedList("virtual-link", areaData["virtual-link"], false)
+	if err != nil {
+		return nil, err
+	}
 	if len(entries) == 0 {
 		return nil, nil
 	}
@@ -1561,7 +1588,10 @@ func configInstanceIDs(v any) ([]uint8, error) {
 // (default 0 = ineligible) and an optional `link-local` leaf (IPv6 only) refine each
 // entry.
 func parseNBMANeighbors(ifaceName string, v any) ([]nbmaNeighborConfig, error) {
-	entries := keyedList(v, false)
+	entries, err := keyedList("nbma-neighbor", v, false)
+	if err != nil {
+		return nil, err
+	}
 	if len(entries) == 0 {
 		return nil, nil
 	}
@@ -1601,13 +1631,17 @@ func parseAuth(m map[string]any, defMode string) authConfig {
 	return a
 }
 
-func parseKeyChain(entry listEntry) keyChainConfig {
+func parseKeyChain(entry listEntry) (keyChainConfig, error) {
 	kc := keyChainConfig{Name: entry.key}
 	if s := configString(entry.data["name"]); s != "" {
 		kc.Name = s
 	}
 	kc.ExtendedSequence = configBool(entry.data["extended-sequence"], false)
-	for _, keyEntry := range keyedList(entry.data["key"], true) {
+	keyEntries, err := keyedList("key", entry.data["key"], true)
+	if err != nil {
+		return keyChainConfig{}, err
+	}
+	for _, keyEntry := range keyEntries {
 		k := keyConfig{Algorithm: packet.AuthMD5}
 		if v, ok := configUint32(keyEntry.data["key-id"]); ok {
 			k.KeyID = v
@@ -1626,7 +1660,7 @@ func parseKeyChain(entry listEntry) keyChainConfig {
 		}
 		kc.Keys = append(kc.Keys, k)
 	}
-	return kc
+	return kc, nil
 }
 
 func parseLifetime(m map[string]any) lifetimeConfig {
@@ -1792,27 +1826,39 @@ type listEntry struct {
 	data map[string]any
 }
 
-func keyedList(v any, numericKey bool) []listEntry {
+// keyedList reads a YANG keyed list delivered as a map[string]any of entry key
+// to entry object map (empty `{}` maps are valid, e.g. `area 0.0.0.0 {}`).
+// Absent lists (v == nil) return (nil, nil). Any non-map list value or non-map
+// entry value returns an error rather than being silently skipped.
+func keyedList(listName string, v any, numericKey bool) ([]listEntry, error) {
+	if v == nil {
+		return nil, nil
+	}
 	m, ok := v.(map[string]any)
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("ospf: %s list must be an object, got %T", listName, v)
 	}
-	entries := make([]listEntry, 0, len(m))
-	for key, raw := range m {
-		em, ok := raw.(map[string]any)
-		if !ok {
-			continue
-		}
-		entries = append(entries, listEntry{key: key, data: em})
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
 	}
 	if numericKey {
-		sort.Slice(entries, func(i, j int) bool {
-			ai, _ := strconv.ParseUint(entries[i].key, 10, 64)
-			bj, _ := strconv.ParseUint(entries[j].key, 10, 64)
+		sort.Slice(keys, func(i, j int) bool {
+			ai, _ := strconv.ParseUint(keys[i], 10, 64)
+			bj, _ := strconv.ParseUint(keys[j], 10, 64)
 			return ai < bj
 		})
 	} else {
-		sort.Slice(entries, func(i, j int) bool { return entries[i].key < entries[j].key })
+		slices.Sort(keys)
 	}
-	return entries
+	entries := make([]listEntry, 0, len(keys))
+	for _, key := range keys {
+		raw := m[key]
+		em, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("ospf: %s %q entry must be an object, got %T", listName, key, raw)
+		}
+		entries = append(entries, listEntry{key: key, data: em})
+	}
+	return entries, nil
 }

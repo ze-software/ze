@@ -54,7 +54,17 @@ func checkOSPFSegmentRouting(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 	if err != nil {
 		return nil
 	}
-	v4, v6 := extractSRConfigs([]configSection{{Root: Namespace, Data: string(data)}})
+	v4, v6, err := extractSRConfigs([]configSection{{Root: Namespace, Data: string(data)}})
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("ospf segment-routing configuration could not be parsed: ").Err(err)
+		return []diagnostic.Diagnostic{{
+			Code:     codeOSPFSegmentRoutingOverlap,
+			Severity: diagnostic.SeverityWarning,
+			Message:  tb.String(),
+			Fix:      "run `ze config validate` and correct the ospf segment-routing section",
+		}}
+	}
 	diags := make([]diagnostic.Diagnostic, 0, 2)
 	diags = append(diags, srConfigDiagnostics(v4)...)
 	diags = append(diags, srConfigDiagnostics(v6)...)
