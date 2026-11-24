@@ -76,9 +76,15 @@ ze show mpls forwarding              # all installed MPLS entries
 ze show mpls forwarding limit 500    # cap the response size
 ```
 
-Each row reports the incoming label (`in-label`), the `operation` (`swap` or
-`pop`), any outgoing `out-labels`, the `next-hop`, and the egress `device`. The
-data is read directly from the kernel AF_MPLS routing table.
+Each row reports the incoming label (`in-label`) or destination prefix (`fec`),
+the `operation` (`push`, `swap`, or `pop`), any outgoing `out-labels`, the
+`next-hop`, and the egress `device`. `show mpls forwarding` reads from the
+selected data plane's registered reader: the kernel AF_MPLS table and labeled IP
+routes under `netlink`, or VPP MPLS table 0 and VPP's labeled IP routes under
+`vpp`.
+<!-- source: internal/component/mpls/show_forwarding.go -- handleShowMPLSForwarding, selectedForwardingReader -->
+<!-- source: internal/core/mplsfib/forwarding.go -- RegisterForwardingReader, ForwardingReaderFor -->
+<!-- source: internal/plugins/fib/vpp/mplsforwarding.go -- readMPLSForwarding -->
 
 ## Metrics
 

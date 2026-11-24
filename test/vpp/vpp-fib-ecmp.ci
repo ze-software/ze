@@ -1,0 +1,29 @@
+# Test: fib-vpp programs a 2-path BGP ECMP route into VPP via the GoVPP stub
+# and atomically updates it to 1 path when one ECMP member is withdrawn.
+#
+# Question: when two equal-cost BGP routes for 10.20.0.0/24 (next hops
+# 10.0.0.11 and 10.0.0.12, both covered by dummy vpp-ecmp0 10.0.0.2/24) are
+# injected into bgp-rib under `bgp { multipath { maximum-paths 4; } }`, does
+# the full daemon pipeline (bgp-rib -> sysrib -> fib-vpp -> GoVPP wire) send an
+# ip_route_add_del_v2 with is_add=true, n_paths=2 and both next hops, and when
+# 10.0.0.11 is withdrawn does fib-vpp send an is_add=true update with n_paths=1
+# and 10.0.0.12 with no intervening is_add=false withdrawal? A unit test exercises
+# fib-vpp alone; only the daemon proves bgp-rib multipath selection, sysrib ECMP
+# resolution against a VPP connected route, and GoVPP wire framing end-to-end.
+#
+# Flow: the compiled driver starts the VPP stub on a per-test Unix socket with
+# a JSONL request log, then ze with vpp.external, connected {}, dummy vpp-ecmp0
+# (10.0.0.2/24), bgp multipath, fib.vpp.enabled=true, and the observer plugin.
+# The observer waits for bgp-rib, fib-vpp, and the 10.0.0.0/24 connected cover,
+# injects both BGP paths, verifies the 2-path stub entry, withdraws 10.0.0.11,
+# verifies the 1-path update for 10.0.0.12 with no delete between them, and
+# shuts ze down cleanly.
+#
+# VALIDATES: spec-fib-depth AC-5 (VPP multi-path FibPath programming),
+#            AC-14 (ECMP member failure updates route without full withdrawal)
+# PREVENTS:  sysrib ECMP paths dropped before fib-vpp, or fib-vpp emitting a
+#            withdraw before replacing a shrinking ECMP group on VPP.
+
+cmd=foreground:seq=1:exec=le test fixture vpp/vpp-fib-ecmp:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=OK: fib-vpp programmed 2-path ECMP and updated to 1-path for 10.20.0.0/24

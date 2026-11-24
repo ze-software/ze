@@ -117,7 +117,7 @@ func vppMPLSLDPPopDriver(ctx context.Context, args []string) error {
 		return errors.New("stub socket did not appear")
 	}
 	ze, err := startVPPZe(ctx, vppMPLSLDPPopConfig(socket), map[string]string{
-		envConfigDir: dir, envLogVPP: logLevelInfo, "ze.log.fib.vpp": logLevelDebug, envLogBGP: logLevelWarn,
+		envConfigDir: dir, envLogVPP: logLevelInfo, envLogFIBVPP: logLevelDebug, envLogBGP: logLevelWarn,
 	})
 	if err != nil {
 		return err

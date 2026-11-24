@@ -285,11 +285,26 @@ func changeToRichRoute(c *incomingChange) vppRichRoute {
 		NextHop:   c.NextHop,
 		Interface: c.Interface,
 		Weight:    c.Weight,
+		Labels:    c.Labels,
 		RouteType: c.RouteType,
 		Metric:    c.Metric,
 		TableID:   c.TableID,
 		ECMPPaths: c.ECMPPaths,
 	}
+}
+
+// isSinglePathMPLS reports whether c belongs to the single-path MPLS push
+// handler rather than the rich multipath IP route path. An entry carrying
+// ECMPPaths always takes the rich path so every member keeps its own next hop
+// and label stack.
+func (f *fibVPP) isSinglePathMPLS(c *incomingChange) bool {
+	if len(c.ECMPPaths) > 0 {
+		return false
+	}
+	if len(c.Labels) > 0 {
+		return true
+	}
+	return f.mplsInstalled[c.Prefix.String()]
 }
 
 // addVPPRoute dispatches to rich, multi-path, or single-path based on fields present.
@@ -376,7 +391,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 				continue
 			}
 		}
-		if len(c.Labels) > 0 || f.mplsInstalled[c.Prefix.String()] {
+		if f.isSinglePathMPLS(c) {
 			f.processMPLSChange(c)
 			continue
 		}
@@ -388,6 +403,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 			}
 			key, _ := f.srv6ChangeKey(c.Prefix, c.TableID, false)
 			f.installed[key] = installedRoute{nextHop: c.NextHop.String()}
+			delete(f.mplsInstalled, c.Prefix.String())
 			delete(f.srv6Refusals, key)
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeInstalls.Inc()
@@ -400,6 +416,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 			}
 			key, _ := f.srv6ChangeKey(c.Prefix, c.TableID, false)
 			f.installed[key] = installedRoute{nextHop: c.NextHop.String()}
+			delete(f.mplsInstalled, c.Prefix.String())
 			delete(f.srv6Refusals, key)
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeUpdates.Inc()
@@ -437,6 +454,7 @@ func (f *fibVPP) processMPLSChange(c *incomingChange) {
 		}
 		f.mplsInstalled[pfxStr] = true
 		key, _ := f.srv6ChangeKey(c.Prefix, c.TableID, false) //nolint:errcheck // recoverTable=false cannot fail
+		delete(f.installed, key)
 		delete(f.srv6Refusals, key)
 		if m := fibVPPMetricsPtr.Load(); m != nil {
 			m.routeInstalls.Inc()

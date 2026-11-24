@@ -89,6 +89,7 @@ produce continuously-updating output.
 | Announce | route, flow, vpls, eor, operational |
 | Withdraw | route, flow, vpls, watchdog |
 | RIB | routes, best, status, clear |
+| System RIB | show rib, show rib candidates, show nexthop-table, show ecmp-groups |
 | Log | levels, set (runtime log levels) |
 | Metrics | values, list (Prometheus metrics) |
 | Group | start, end (batching) |
@@ -97,6 +98,7 @@ produce continuously-updating output.
 | OSPF | show ospf neighbor, interface, database, route, border-routers, spf; for OSPFv3, show ospf ipv6 neighbor, interface, database, route, spf, graceful-restart, segment-routing, each answering every running address family and taking `address-family <af>` to narrow |
 | Reports | show warnings, show errors (cross-subsystem operational report bus) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
+<!-- source: internal/component/sysrib/register.go -- commandDecls, routeViewCommandHandler -->
 <!-- source: internal/plugins/ospf/register.go -- sdk.CommandDecl show ospf commands -->
 
 ### Dispatch keys are YANG paths

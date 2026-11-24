@@ -300,7 +300,7 @@ func runVPPRouteProgramming(ctx context.Context, args []string, mpls bool) error
 	}
 	defer stopFixtureProcess(peer, 2*time.Second)
 	ze, err := startVPPZe(ctx, vppRouteConfig(socket, mpls, false), map[string]string{
-		envConfigDir: dir, envLogVPP: logLevelInfo, "ze.log.fib.vpp": logLevelDebug, envLogBGP: logLevelInfo, envTestBGPPort: strconv.Itoa(port),
+		envConfigDir: dir, envLogVPP: logLevelInfo, envLogFIBVPP: logLevelDebug, envLogBGP: logLevelInfo, envTestBGPPort: strconv.Itoa(port),
 	})
 	if err != nil {
 		return err

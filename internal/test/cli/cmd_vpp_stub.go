@@ -433,13 +433,24 @@ const vppStubFibSourceID = 20
 // Where the first fib_path of an ip_route_add_del body starts: is_add,
 // is_multipath, then the route's table_id, stats_index, prefix and n_paths
 // (offset 28). ip_route_v2 adds the src byte after n_paths.
+// Each fib_path is 167 octets on the wire: sw_if_index (4), table_id (4),
+// rpf_id (4), weight (1), preference (1), type (4), flags (4), proto (4),
+// nh (28: 16-octet address + 3 u32), n_labels (1), label_stack[16] (16*7=112).
 const (
-	ipRoutePathsV1 = 29
-	ipRoutePathsV2 = 30
+	ipRoutePathsV1      = 29
+	ipRoutePathsV2      = 30
+	fibPathSize         = 167
+	fibPathWeightOffset = 12
+	fibPathProtoOffset  = 22
+	fibPathAddrOffset   = 26
+	fibPathAddrEnd      = 42
+	fibPathLabelsOffset = 54
 )
 
 // decodeIPRoute decodes an ip_route_add_del or ip_route_add_del_v2 body
-// whose first path starts at pathOffset.
+// whose first path starts at pathOffset. Every decodable fib_path is logged
+// under "paths", while top-level "next_hop" and "labels" keep path 0's values
+// for existing stub log consumers.
 func decodeIPRoute(body []byte, pathOffset int) map[string]any {
 	fields := make(map[string]any)
 	if len(body) < pathOffset {
@@ -450,14 +461,43 @@ func decodeIPRoute(body []byte, pathOffset int) map[string]any {
 	fields["table_id"] = binary.BigEndian.Uint32(body[2:6])
 	fields["prefix"] = vppAddress(body[10], body[11:27]) + "/" + strconv.Itoa(int(body[27]))
 	fields["n_paths"] = body[28]
-	if body[28] > 0 && len(body) >= pathOffset+42 {
-		proto := byte(binary.BigEndian.Uint32(body[pathOffset+22 : pathOffset+26]))
-		fields["next_hop"] = vppAddress(proto, body[pathOffset+26:pathOffset+42])
+	nPaths := int(body[28])
+	if nPaths == 0 {
+		return fields
 	}
-	if body[28] > 0 && len(body) >= pathOffset+55 {
+	maxPaths := min(nPaths, (len(body)-pathOffset)/fibPathSize+1)
+	paths := make([]map[string]any, 0, maxPaths)
+	for index := range maxPaths {
+		at := pathOffset + index*fibPathSize
+		entry, ok := decodeFIBPath(body, at)
+		if !ok {
+			break
+		}
+		paths = append(paths, entry)
+	}
+	if len(paths) > 0 {
+		fields["paths"] = paths
+		fields["next_hop"] = paths[0]["next_hop"]
+	}
+	if len(body) >= pathOffset+fibPathLabelsOffset+1 {
 		fields["labels"] = vppLabels(body, pathOffset)
 	}
 	return fields
+}
+
+func decodeFIBPath(body []byte, at int) (map[string]any, bool) {
+	if at+fibPathAddrEnd > len(body) {
+		return nil, false
+	}
+	proto := byte(binary.BigEndian.Uint32(body[at+fibPathProtoOffset : at+fibPathAddrOffset]))
+	entry := map[string]any{
+		"next_hop": vppAddress(proto, body[at+fibPathAddrOffset:at+fibPathAddrEnd]),
+		"weight":   body[at+fibPathWeightOffset],
+	}
+	if labels := vppLabels(body, at); len(labels) > 0 {
+		entry["labels"] = labels
+	}
+	return entry, true
 }
 func decodeMPLSRoute(body []byte) map[string]any {
 	fields := make(map[string]any)

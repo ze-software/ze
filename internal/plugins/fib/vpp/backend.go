@@ -8,12 +8,13 @@ import (
 	"fmt"
 	"net/netip"
 
-	"github.com/ze-software/ze/internal/component/iface"
-	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
-
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/fib_types"
 	"go.fd.io/govpp/binapi/ip_types"
+
+	"github.com/ze-software/ze/internal/component/iface"
+	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/mplsfib"
 )
 
 // A missing API reply cannot prove that VPP rejected an ordinary mutation.
@@ -28,6 +29,7 @@ type vppRichRoute struct {
 	Interface string
 	Weight    uint8
 	NextHop   netip.Addr
+	Labels    []uint32
 	RouteType sysribevents.RouteType
 	Metric    uint32
 	TableID   uint32
@@ -118,6 +120,9 @@ func (b *govppBackend) addRichRouteInTable(r vppRichRoute, tableID uint32) error
 				return err
 			}
 			p.Type = pathType
+			if err := applyPathLabels(&p, r.Labels); err != nil {
+				return err
+			}
 			paths = append(paths, p)
 		}
 		for _, ep := range r.ECMPPaths {
@@ -129,6 +134,9 @@ func (b *govppBackend) addRichRouteInTable(r vppRichRoute, tableID uint32) error
 				return err
 			}
 			p.Type = pathType
+			if err := applyPathLabels(&p, ep.Labels); err != nil {
+				return err
+			}
 			paths = append(paths, p)
 		}
 	case namesATarget(r.NextHop, r.Interface):
@@ -137,6 +145,9 @@ func (b *govppBackend) addRichRouteInTable(r vppRichRoute, tableID uint32) error
 			return err
 		}
 		p.Type = pathType
+		if err := applyPathLabels(&p, r.Labels); err != nil {
+			return err
+		}
 		paths = []fib_types.FibPath{p}
 	}
 
@@ -145,6 +156,20 @@ func (b *govppBackend) addRichRouteInTable(r vppRichRoute, tableID uint32) error
 	}
 	key := ipRouteKey{table: tableID, prefix: r.Prefix}
 	return b.source.sendRoute("ip_route_add_del_v2 rich", true, key, paths)
+}
+
+// applyPathLabels validates and attaches a uniform-mode MPLS push label stack
+// to path when labels is non-empty.
+func applyPathLabels(path *fib_types.FibPath, labels []uint32) error {
+	if len(labels) == 0 {
+		return nil
+	}
+	if err := mplsfib.ValidateOutLabels(labels); err != nil {
+		return err
+	}
+	// RFC 3032 Section 2.4.3
+	uniformLabels(path, labels)
+	return nil
 }
 
 func routeTypeToVPP(rt sysribevents.RouteType) fib_types.FibPathType {

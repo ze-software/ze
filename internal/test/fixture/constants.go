@@ -47,6 +47,7 @@ const (
 	envLEBuildName     = "ZE_LE_BUILD_NAME"
 	envLogBFD          = "ze.log.bfd"
 	envLogBGP          = "ze.log.bgp"
+	envLogFIBVPP       = "ze.log.fib.vpp"
 	envLogInterface    = "ze.log.interface"
 	envLogVPP          = "ze.log.vpp"
 	envNoColor         = "NO_COLOR"
