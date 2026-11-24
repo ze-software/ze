@@ -1,19 +1,19 @@
 {
   "code": {
     "internal/component/bgp/policyview/rpki_origin.go::View.EffectiveOriginAS": "f59a04c85ed88321",
-    "internal/component/bgp/reactor/filter_library.go::Reactor.runPostEgressRPKIValidation": "2ad131a042fc11bc",
-    "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4": "ff7418cc9804e9a1",
+    "internal/component/bgp/reactor/filter_library.go::Reactor.runPostEgressRPKIValidation": "04431a3d72aef84e",
+    "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4": "b8feaadfbea730d9",
     "internal/component/bgp/reactor/peer_forward_facts.go::Peer.buildForwardFacts": "28aa51a6e3208489"
   },
-  "note": "Independent re-judgment against RFC 8893 Section 3 ('When applied to egress policy, validation state MUST be determined using the effective origin AS of the route as it will (or would) be announced to the peer.') after adding intent.readvertise = false to Reactor.runPostEgressRPKIValidation and updating sibling tests in rfc8893_egress_validation_test.go. Positive TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS drives a live forwarding fixture (newAIGPReplayFixture) with real buildOrderedEgressSteps, peer.refreshForwardFacts, ASOverride=true, and live Session socket writes, unpacking the actual transmitted wire UPDATE ([65000, 65001, 65000]) and asserting the validator queried originAS equals wireASNs[len-1] (65000); a second subtest verifies 2-octet destination body reconstruction from AS4_PATH yields 4-octet origin 4200000100. Negative TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS drives the same live forwarding fixture where only stale received origin 65002 is authorized by VRP and post-as-override origin 65000 is unauthorized, asserting zero transmitted wire UPDATEs and asserting every validator query passed 65000 and never queried 65002, plus a control verifying withdrawal-only UPDATEs pass unblocked. Both units carry fresh revert discrimination records on View.EffectiveOriginAS and PASS; the one-line intent.readvertise=false reset in runPostEgressRPKIValidation preserves all egress validation semantics.",
+  "note": "Independent re-judgment against RFC 8893 Section 3 (\"When applied to egress policy, validation state MUST be determined using the effective origin AS of the route as it will (or would) be announced to the peer.\"). Re-read rfc/full/rfc8893.txt, runPostEgressRPKIValidation at HEAD, and diffs since d103bf2cda across filter_library.go, filter_ordered.go, peer_forward_facts.go, and rfc8893_egress_validation_test.go. Changes were strictly *policyview.Session pointer passing, compileRFC8893ExportChain helper cleanup, ingress-only retainDenied fields, and unrelated FlowSpecRedirectNextHop. Both tagged units still verify live transmitted wire UPDATE effective origin AS matching validator queries, 2-octet AS4_PATH 4-octet origin reconstruction, rejection when stale received origin is authorized but effective post-as-override origin is not, and withdrawal passthrough. Verdict unchanged: enforced.",
   "requirement_sha": "21fb31a734b2d704",
   "tests": {
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS": "b245f0bf6aa42e4c",
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS": "b245f0bf6aa42e4c"
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS": "a3558ce366af90ef",
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS": "a3558ce366af90ef"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS": "b7d4dc48c14d6472",
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS": "f05eb3094ea3ecc9"
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS": "4af358c2e7b535c9",
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS": "21129c49480e20df"
   },
   "verdict": "enforced"
 }

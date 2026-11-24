@@ -1,44 +1,44 @@
 {
   "code": {
     "internal/component/bgp/reactor/adj_rib_out.go::adjOutSourceKeyFor": "187f5d07dbd82b34",
-    "internal/component/bgp/reactor/adj_rib_out.go::clearRoutes": "a7d426aaf84a0c34",
+    "internal/component/bgp/reactor/adj_rib_out.go::clearRoutes": "4b19bb99a52edc0f",
     "internal/component/bgp/reactor/adj_rib_out.go::releasePath": "1764c405b6ac7083",
     "internal/component/bgp/reactor/adj_rib_out.go::setOwner": "0bb2cf4418584a3a",
-    "internal/component/bgp/reactor/forward_path_id.go::generate": "3c9fb5b7d1f26dcc",
-    "internal/component/bgp/reactor/forward_path_id.go::generatePath": "88b5a97ade3e9755",
-    "internal/component/bgp/reactor/forward_path_id.go::lookupPath": "98cf615641db73b5",
+    "internal/component/bgp/reactor/forward_path_id.go::generate": "2a47f5dfda2e4110",
+    "internal/component/bgp/reactor/forward_path_id.go::generatePath": "959d62c937a816b2",
+    "internal/component/bgp/reactor/forward_path_id.go::lookupPath": "ee520f2ad68578a1",
     "internal/component/bgp/reactor/forward_path_id.go::mintLocked": "4a760e402244a0f1",
     "internal/component/bgp/reactor/forward_path_id.go::release": "3d9db5a38ec2b5c0",
     "internal/component/bgp/reactor/forward_path_id.go::releaseLocked": "7480fe9442b153e0",
-    "internal/component/bgp/reactor/forward_path_id.go::releasePath": "ea72bc9524e9b6a6",
-    "internal/component/bgp/reactor/forward_path_id.go::releaseSource": "8a85e0965ed30bd1",
+    "internal/component/bgp/reactor/forward_path_id.go::releasePath": "d7ecf64079eb4755",
+    "internal/component/bgp/reactor/forward_path_id.go::releaseSource": "93248cc7d449f9a7",
     "internal/component/bgp/reactor/forward_path_id.go::reserve": "4280d67a383d192c",
     "internal/component/bgp/reactor/forward_path_id.go::retain": "228bba38516d7670",
     "internal/component/bgp/reactor/forward_provenance_withdraw.go::fwdProvenance.bindWithdrawalChunk": "61d15847a8a43249",
     "internal/component/bgp/reactor/forward_provenance_withdraw.go::projectFwdWithdrawals": "43cea9de240c9605",
-    "internal/component/bgp/reactor/session_ownership.go::allow": "da4eedcf4cb498f1",
-    "internal/component/bgp/reactor/session_ownership.go::beginAdjOut": "e9ae4d388272af7c",
+    "internal/component/bgp/reactor/session_ownership.go::allow": "762d702da57fab83",
+    "internal/component/bgp/reactor/session_ownership.go::beginAdjOut": "c44a4c606887edda",
     "internal/component/bgp/reactor/session_ownership.go::bindSourcePath": "e9fb3f220c4c91c2",
     "internal/component/bgp/reactor/session_ownership.go::filter": "bd62e97c08afa619",
-    "internal/component/bgp/reactor/session_ownership.go::recordDeletion": "56c645b7aa5cc8af",
+    "internal/component/bgp/reactor/session_ownership.go::recordDeletion": "e83dfdd359eb21a4",
     "internal/component/bgp/reactor/session_ownership.go::recordSection": "7cf9e2e0ede7807f",
-    "internal/component/bgp/reactor/session_ownership.go::release": "9c1aca5c5037c673",
+    "internal/component/bgp/reactor/session_ownership.go::release": "bf070a89a241b7ee",
     "internal/component/bgp/reactor/session_ownership_walk.go::allowNLRI": "0ecd4eae79be1689",
-    "internal/component/bgp/reactor/session_ownership_walk.go::recordNLRI": "1a567afd68772de3",
-    "internal/component/bgp/reactor/session_rfc7607.go::Session.transmittedASZeroAttribute": "245d33c167a8d118",
-    "internal/component/bgp/reactor/session_rfc7607.go::Session.writeASZeroAsWithdrawal": "a7e571ab838cfac8",
+    "internal/component/bgp/reactor/session_ownership_walk.go::recordNLRI": "0a6724f3f19c6299",
+    "internal/component/bgp/reactor/session_rfc7607.go::Session.transmittedASZeroAttribute": "32c09e0db94f7bbb",
+    "internal/component/bgp/reactor/session_rfc7607.go::Session.writeASZeroAsWithdrawal": "f21ba4ea2de8c928",
     "internal/component/bgp/reactor/session_write.go::retireWrite": "0f66c169e878e86a",
-    "internal/component/bgp/reactor/session_write.go::writeUpdateBody": "e8a76efe09e9e7f2"
+    "internal/component/bgp/reactor/session_write.go::writeUpdateBody": "5ec501d6d94507e4"
   },
-  "note": "RFC 7911 Section 2: \"However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor.\" Both tagged units were re-read. TestForwardPathIDsDifferForCollidingSources forces two ingress sources to use the same native prefix and received identifier, reads their destination identifier fields and requires inequality. TestForwardPathIDStableAcrossUpdates requires a repeat of one path to keep its local identifier while a colliding source remains distinct. Source tracing covers source/native-path allocation, recipient collision binding and retention, final ownership filtering, recorded deletion and session retirement. The new writeUpdateBody AS-zero gate reads the destination's negotiated ASN width, which the repaired fixtures now publish coherently. Its withdrawal branch projects original ingress identities through projectFwdWithdrawals and bindWithdrawalChunk instead of interpreting outgoing identifiers as source identifiers; normal valid advertisements keep the existing ownership path. These tagged units exercise buildFwdBody rather than the final AS-zero writer or a failed socket write. The independently inspected main AS-zero provenance fault additionally fails both ADD-PATH rails when original identities are replaced by outgoing ones, but is not an RFC7911 discrimination record. Rejudgment retains the identifier-uniqueness verdict without claiming allocator reclamation policy, complete session integration or a new foreign-peer run.",
+  "note": "Independent re-judgment against RFC 7911 Section 2 (\"However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor.\"). Re-read tagged units TestForwardPathIDsDifferForCollidingSources and TestForwardPathIDStableAcrossUpdates plus diffs since fc9391009c across all 29 cited producer functions in adj_rib_out.go, forward_path_id.go, forward_provenance_withdraw.go, session_ownership.go, session_ownership_walk.go, session_rfc7607.go, and session_write.go. Test edits only supplied fwdPathIDFixtureOrigin(wire) to buildFwdBody; assertions on distinct local IDs for colliding sources and stability across repeated updates are unchanged. Producer updates strengthened source scoping (fwdPathSource keyed by {sourceID, peerOwner}), unlocked remote retention checks in releasePath with invalidating claim pointers, and added owner-keyed adjOutSelected/sourceOwner tracking without relaxing (Prefix, Path Identifier) uniqueness. All 29 producer keys remain present. Verdict unchanged: enforced.",
   "requirement_sha": "5df8a5af519ff87a",
   "tests": {
-    "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "8e4558cf2659911f",
-    "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "8e4558cf2659911f"
+    "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "30ecf3ff38c54f19",
+    "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "30ecf3ff38c54f19"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "0c6e63ef01257c68",
-    "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "9b8b501ceef0bd1f"
+    "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "e5044819f5680a42"
   },
   "verdict": "enforced"
 }

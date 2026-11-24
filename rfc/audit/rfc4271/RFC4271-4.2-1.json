@@ -1,25 +1,5 @@
 {
-  "code": {
-    "internal/component/bgp/message/header.go": "fcc4893165d080ee",
-    "internal/component/bgp/message/message.go::writeHeader": "4659f2a4dc52a6b2",
-    "internal/component/bgp/message/open.go::Open.Len": "7f8b3d95d1515343",
-    "internal/component/bgp/message/open.go::Open.WriteTo": "3d74834336b73509",
-    "internal/component/bgp/message/open.go::ValidateHoldTime": "77a26bb0dde38f3f",
-    "internal/component/bgp/message/open.go::writeFixedFields": "c1755f8484c32561",
-    "internal/component/bgp/reactor/peer_settings.go": "22f095acb48c96ba",
-    "internal/component/bgp/reactor/reactor_api_forward_test.go": "8920aa39ac625ef1",
-    "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::splitMessages": "5ef103970113c6d1",
-    "internal/component/bgp/reactor/session.go::NewSession": "03b411c8d83f0681",
-    "internal/component/bgp/reactor/session_negotiate.go::Session.buildOpenFromSnapshot": "cc08ea7c9a65ad0f",
-    "internal/component/bgp/reactor/session_negotiate.go::Session.openSettingsSnapshot": "b7284f919e14a534",
-    "internal/component/bgp/reactor/session_negotiate.go::Session.prepareOpen": "db2cb54e6b356b68",
-    "internal/component/bgp/reactor/session_negotiate.go::Session.sendOpen": "1b2b6294140101e1",
-    "internal/component/bgp/reactor/session_write.go::Session.flushWrites": "e366cafdbd5a21f6",
-    "internal/component/bgp/reactor/session_write.go::Session.writeMessage": "40d67e5d57d829e4",
-    "internal/component/bgp/reactor/session_write.go::Session.writeMessageHeld": "cf3339d516be054b",
-    "internal/component/bgp/reactor/session_write.go::Session.writeMessageWithin": "5bb18eb4acfbc592"
-  },
-  "note": "Independent re-judgment against RFC 4271 Section 4.2 (\"The Hold Time MUST be either zero or at least three seconds.\") after RFC 8893 edit to internal/component/bgp/reactor/peer_settings.go. Inspected git diff: PeerSettings.SessionFacts adds two read-only egress policy metadata fields (ASOverride: n.ASOverride and SecondaryAS: secondaryPrependAS(n)) onto filterapi.PeerFilterInfo; HoldTime, openSettingsSnapshot, buildOpenFromSnapshot, prepareOpen, sendOpen, ValidateHoldTime, and OPEN message framing are completely untouched. Both tagged tests (TestOpenValidateHoldTime and TestRFC4271OpenHoldTimeOnWire) are byte-identical and PASS (go test -tags ze_bgp ./internal/component/bgp/message ./internal/component/bgp/reactor). All 18 existing code bindings (including bare peer_settings.go) and prior discrimination records remain valid; the enforced verdict stands.",
+  "note": "Re-judged at HEAD against RFC 4271 Section 4.2 (\"The Hold Time MUST be either zero or at least three seconds.\"). Positive: TestRFC4271OpenHoldTimeOnWire inspects flushed sendOpen wire bytes for default (90s), configured 0s, and configured 3s; TestOpenValidateHoldTime verifies ValidateHoldTime accepts 0, 3, 90, 180, and 65535. Negative: TestOpenValidateHoldTime verifies ValidateHoldTime (called from session_handlers.go) rejects 1 and 2 with NOTIFICATION 2/6 (OPEN Message Error / Unacceptable Hold Time).",
   "requirement_sha": "04995bc703ecf1f8",
   "tests": {
     "internal/component/bgp/message/open_test.go::TestOpenValidateHoldTime": "f521e1893abce145",

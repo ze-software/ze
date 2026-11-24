@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc4271): \"A BGP speaker SHALL calculate the degree of preference for each external route based on the locally-configured policy, and include the degree of preference when advertising a route to its internal peers.\" be95c10053 gave receiveExternalRoute an explicit import policy in both cases (FinalAccept, no refs, plus the set-local-pref ref in the policy case) and reworded the negative tag from 'no import policy' to 'an import policy that sets none'; faf7c5c380 renamed filterapi to routepolicy in the same fixture. Under RFC 8212 a route with no import policy is ineligible and is never advertised, so the old negative input no longer reaches the decision; the reworded input keeps its point (nothing on the route names a degree of preference) and the assertions are unchanged: dispatched to the RIB with no LOCAL_PREF (never 200), advertised internally with the default 100. The tag now states the input the body drives. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Re-judged at HEAD against RFC 4271 Section 5.1.5 (\"A BGP speaker SHALL calculate the degree of preference for each external route based on the locally-configured policy, and include the degree of preference when advertising a route to its internal peers.\"). Positive: TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy proves extractCandidate seeds external routes with default preference 100; TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers proves an external route with no received LOCAL_PREF gets LOCAL_PREF 200 from import policy on dispatch to RIB and reaches an internal peer with LOCAL_PREF 200 (and external peer with none). Negative: TestRFC4271DegreeOfPreferenceNotAHardcodedConstant proves received LOCAL_PREF 250 overrides the 100 default; TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally proves an external route with no policy carries no LOCAL_PREF to RIB yet still advertises default LOCAL_PREF 100 internally.",
   "requirement_sha": "8c672a1a8f1ce19c",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "0df229125a9cf20f",
-    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "0df229125a9cf20f",
+    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "ed3253717593b703",
+    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "ed3253717593b703",
     "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers": "c27e9f3983920127",
     "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally": "c27e9f3983920127"
   },
   "units": {
-    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "5fc5f0caeaad3e50",
-    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "500dfbdcd473b3e3",
+    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "f31ccd39fdcdacb4",
+    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "3fa55ff5a4989a29",
     "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers": "43c55f48d016d5fd",
     "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally": "ef91e4fc6bb2cc93"
   },

@@ -1,15 +1,15 @@
 {
-  "note": "Section 9 requires removal of the destinations named in a nonempty WITHDRAWN ROUTES field. The receive positive feeds handleReceivedStructured and checks Adj-RIB-In count 2 to 1, the named prefix absent from Loc-RIB and a BestChangeWithdraw for that prefix. The receive negative keeps the unrelated 11/8 in Adj-RIB-In and Loc-RIB without a withdrawal and verifies withdrawing unknown 12/8 removes nothing. Both polarities of the unchanged storage TestRFC4271WithdrawRemovesFromAdjRIBIn remain supplementary exact-key removal proof. Independent rejudgment preserves the existing verdict, requirement quote, level and full tagged scope. Main receive baseline 4f70ab4b passed all 11 roots (12 leaf cases), race enabled, without skips; supplementary baseline d3723dd3 passed TestLocRIBMirror and TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute. Main native refresh 32c5b989 completed all 13 existing receive-cover records: each named clean baseline passed and its existing revert route disabled the named producer with an intentional panic, producing the recorded red. Those observations retain their original producer-disable route and provenance; they are not normal-return semantic-mutant proof and do not add credit to unrecorded supplementary carriers.",
+  "note": "RFC 4271 Section 9 requires removing routes named in a non-empty WITHDRAWN ROUTES field from Adj-RIB-In. TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn drives handleReceivedStructured with two announced prefixes then withdraws 10.0.0.0/8, asserting Adj-RIB-In drops to 1, Loc-RIB drops 10.0.0.0/8, and BestChangeWithdraw is emitted. TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes verifies unwithdrawn 11.0.0.0/8 stays in Adj-RIB-In and Loc-RIB and withdrawing an unannounced prefix removes nothing; storage TestRFC4271WithdrawRemovesFromAdjRIBIn confirms FamilyRIB.Remove selectivity.",
   "requirement_sha": "bcbe9f2bf1dabb56",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes": "7cc7f52355e6418d",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn": "7cc7f52355e6418d",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes": "e9b70d21df551f8a",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn": "e9b70d21df551f8a",
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "d8b54efb525e6be8",
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn#2": "d8b54efb525e6be8"
   },
   "units": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes": "3bf39b8ab1542fb3",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn": "ce594419c6e92d80",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes": "add03b53a77216db",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn": "2507e0dff05fc32b",
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "b31ce68fe4addcd8",
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn#2": "b31ce68fe4addcd8"
   },

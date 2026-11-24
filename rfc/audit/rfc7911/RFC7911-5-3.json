@@ -1,19 +1,19 @@
 {
-  "note": "RFC 7911 Section 5 makes the extended encoding conditional on local send and remote receive capability for the corresponding AFI/SAFI; without that condition the ordinary RFC4271 encoding applies. The complete scoped subject is this per-family generation/framing choice, not all requirements of the separately implemented base BGP specification. All five tagged covers were read. Both family-generation polarities negotiate local Send and remote Receive in turn for IPv4 unicast, IPv6 unicast and IPv4 multicast, call AnnounceNLRIBatch, and compare exact concatenated NLRI bytes: only the selected family carries identifiers 7 and 9; crossed AFI/SAFI cases remain plain. The direct body edit only publishes that existing Negotiated value to Session in addition to Peer. AnnounceNLRIBatch reaches announceFactsFor, buildBatchAnnounceUpdate and writeBatchNLRI with the destination family's addPath fact. TestForwardSplitConvertsAddPathContext strips identifiers and compares all 80 plain prefixes after destination-context splitting. TestForwardSplitSameContextKeepsRawSplit checks complete extended parsing, exact prefix order and separate identities for colliding sources after raw splitting. TestForwardPathIDLeavesNonAddPathDestinationAlone is principally the unchanged-buffer/no-borrow control; exact framing is supplied by the other covers. The repaired recording fixture exposes the same family/direction/ASN-width facts to the AS-zero final guard without changing these assertions. Retain enforced for the declared generation choice. Current source was independently re-read; native proof renewal is a separate main-thread prerequisite to stamping this judgment.",
+  "note": "Independent re-judgment against RFC 7911 Section 5 (\"A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular <AFI, SAFI> to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the <AFI, SAFI>, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the <AFI, SAFI>\"). Re-read all diffs since ff53522a63 in rfc7911_forward_body_test.go and rfc7911_forward_path_id_gen_test.go. Changes only passed fwdPathOrigin to buildFwdBody; all 5 tagged covers (per-family generation positive/negative, cross-context ADD-PATH stripping, same-context extended split, and non-ADD-PATH destination control) retain identical assertions. Verdict unchanged: enforced.",
   "requirement_sha": "2f4282463a2b43ec",
   "tests": {
     "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily": "4c8abb89d4dab163",
     "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily#2": "4c8abb89d4dab163",
-    "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitConvertsAddPathContext": "2a095660aef74838",
-    "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitSameContextKeepsRawSplit": "2a095660aef74838",
-    "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDLeavesNonAddPathDestinationAlone": "82e40c3cbdbf2999"
+    "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitConvertsAddPathContext": "3276650527c5bb88",
+    "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitSameContextKeepsRawSplit": "3276650527c5bb88",
+    "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDLeavesNonAddPathDestinationAlone": "82d2fea191be5405"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily": "1987071ab8df0a37",
     "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily#2": "1987071ab8df0a37",
-    "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitConvertsAddPathContext": "bccf1cdd632bbb94",
-    "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitSameContextKeepsRawSplit": "a6f0a041455239bf",
-    "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDLeavesNonAddPathDestinationAlone": "0f01203fb3b57761"
+    "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitConvertsAddPathContext": "6e04be0a68fe6271",
+    "internal/component/bgp/reactor/rfc7911_forward_body_test.go::TestForwardSplitSameContextKeepsRawSplit": "22bdbcb9d906e712",
+    "internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go::TestForwardPathIDLeavesNonAddPathDestinationAlone": "5ef377f07ec6f7be"
   },
   "verdict": "enforced"
 }

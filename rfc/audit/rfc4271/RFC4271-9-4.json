@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: a new NLRI not placed. handleReceivedStructured (the reactor UPDATE entry) asserts Len 1 then 2 and Get(10.0.0.0/8) with its own NEXT_HOP, red on a route not stored. Negative (the condition false, identical NLRI): Len stays 2 and the slot holds the newer NEXT_HOP, red on a route placed beside the existing one.",
+  "note": "RFC 4271 Section 9 requires placing a new route in Adj-RIB-In when no identical NLRI is held. TestRFC4271AdjRIBInPlacesNewRoute drives AdjRIBInManager.handleReceivedStructured with 10.0.0.0/8 then 10.1.0.0/16, asserting two distinct entries and preserved NEXT_HOP for the first, then re-announces 10.0.0.0/8 with a new NEXT_HOP as the negative check, asserting count stays 2 and the existing slot updates in place.",
   "requirement_sha": "120e0e1395960bdf",
   "tests": {
-    "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute": "dee86a4c10627190",
-    "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute#2": "dee86a4c10627190"
+    "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute": "4fd96995aa4a89f4",
+    "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute#2": "4fd96995aa4a89f4"
   },
   "units": {
-    "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute": "fba8abfd85ae853d",
-    "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute#2": "fba8abfd85ae853d"
+    "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute": "b3ebac67b40e1a96",
+    "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute#2": "b3ebac67b40e1a96"
   },
   "verdict": "enforced"
 }

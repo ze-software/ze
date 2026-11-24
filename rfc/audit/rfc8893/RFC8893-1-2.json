@@ -4,15 +4,15 @@
     "internal/component/bgp/reactor/peer_forward_facts.go::Peer.buildForwardFacts": "28aa51a6e3208489",
     "internal/component/bgp/reactor/peer_settings.go::PeerSettings.SessionFacts": "1a12bbb7f7e6c394"
   },
-  "note": "Independent re-judgment against RFC 8893 Section 1 ('Any AS_PATH modifications resulting in effective origin AS change MUST be taken into account.'). All prior audit findings are resolved: positive TestRFC8893ASPathModificationsChangingEffectiveOriginAS now matches its claim verbatim across all five effective-origin-changing mechanisms\u2014remove-private-as stripping to empty (LocalAS becomes origin), remove-private-as peer-as replacement (PeerAS becomes origin), live-forwarded as-override via newAIGPReplayFixture + refreshForwardFacts (PeerAS -> LocalAS), RFC 7705 SecondaryAS via PeerSettings.SessionFacts on empty AS_PATH, and external raw AS_PATH rewrite. Negative TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected rejects live-forwarded as-override flipping Valid PeerAS to unauthorized LocalAS and unauthorized RFC 7705 SecondaryAS via PeerSettings.SessionFacts, while retaining the transit-only as-override control keeping a Valid rightmost origin unchanged. Both units carry fresh revert discrimination records on View.EffectiveOriginAS and PASS.",
+  "note": "Independent re-judgment against RFC 8893 Section 1 (\"Any AS_PATH modifications resulting in effective origin AS change MUST be taken into account.\"). Re-read rfc/full/rfc8893.txt and diffs since d103bf2cda across peer_forward_facts.go, peer_settings.go, and rfc8893_egress_validation_test.go. Changes were limited to *policyview.Session pointer passing, compileRFC8893ExportChain helper cleanup, and unrelated FlowSpecRedirectNextHop opt-in settings. All five effective-origin-changing mechanisms (remove-private-as stripping, peer-as replacement, live-forwarded as-override, RFC 7705 SecondaryAS, external raw AS_PATH rewrite) and negative rejection / transit-only control assertions remain unchanged. Verdict unchanged: enforced.",
   "requirement_sha": "3032a3a8b3da9688",
   "tests": {
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected": "b245f0bf6aa42e4c",
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationsChangingEffectiveOriginAS": "b245f0bf6aa42e4c"
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected": "a3558ce366af90ef",
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationsChangingEffectiveOriginAS": "a3558ce366af90ef"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected": "553aa90290b0e431",
-    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationsChangingEffectiveOriginAS": "84eade1cfa8ac1e5"
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected": "edfccd765a881a75",
+    "internal/component/bgp/reactor/rfc8893_egress_validation_test.go::TestRFC8893ASPathModificationsChangingEffectiveOriginAS": "b05ffbb279b67202"
   },
   "verdict": "enforced"
 }

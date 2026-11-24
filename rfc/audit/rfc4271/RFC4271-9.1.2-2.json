@@ -1,15 +1,15 @@
 {
-  "note": "Section 9.1.2 requires installation of the selected route in Loc-RIB replacing the previous route to that destination. The receive positive moves the best from peer A/10.0.0.1 to better peer B/10.0.0.2; the negative inspects the destination group and requires exactly one BGP path, B's, rather than an additional retained A path. The supplementary TestLocRIBMirror retains its exact install, eBGP distance, next-hop and withdrawal checks and now uses a real connected /32 for its unchanged 192.168.1.1 next hop. Independent rejudgment preserves the existing verdict, requirement quote, level and full tagged scope. Main receive baseline 4f70ab4b passed all 11 roots (12 leaf cases), race enabled, without skips; supplementary baseline d3723dd3 passed TestLocRIBMirror and TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute. Main native refresh 32c5b989 completed all 13 existing receive-cover records: each named clean baseline passed and its existing revert route disabled the named producer with an intentional panic, producing the recorded red. Those observations retain their original producer-disable route and provenance; they are not normal-return semantic-mutant proof and do not add credit to unrecorded supplementary carriers. This fixture maintenance changes sibling test setup in rfc4271_rib_bestchange_test.go while TestLocRIBMirror and its claims remain byte-identical. Its selected path, exact eBGP distance and next hop, and post-withdrawal absence assertions are retained. Main focused streaming baseline b535c0e1 passed TestLocRIBMirror within its ten-root scope; this adds no discrimination record for that supplementary carrier. Existing receive-cover producer-disable observations retain their revert/panic provenance and reachability limits. The full existing three-cover population and enforced verdict are preserved.",
+  "note": "RFC 4271 Section 9.1.2 requires installing the selected route in Loc-RIB, replacing any route to the same destination currently held there. TestRFC4271SelectedRouteReplacesTheLocRIBRoute drives handleReceivedStructured with peer A then better peer B and asserts Loc-RIB best moves to peer B; TestRFC4271LocRIBHoldsOnlyTheReplacingRoute inspects Loc-RIB paths and asserts strictly one BGP path survives; TestLocRIBMirror confirms checkBestPathChange mirroring into Loc-RIB.",
   "requirement_sha": "83f1b8937ef8d555",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "7cc7f52355e6418d",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "7cc7f52355e6418d",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "2dff4fab7bf33055"
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "e9b70d21df551f8a",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "e9b70d21df551f8a",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "6e8026a784f2892c"
   },
   "units": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "6cc64399990bed0a",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "1c6a00a6474068fc",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "6d18b79225c57d67"
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "074195e04e1ca04e",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "a7cd8a6152adab1c",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "2a73d73c639f0c08"
   },
   "verdict": "enforced"
 }
