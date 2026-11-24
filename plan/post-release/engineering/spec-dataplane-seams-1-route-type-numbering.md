@@ -39,7 +39,7 @@ out-of-tree plugin authors who cannot be migrated.
 
 ### Related Specs
 - [ ] `plan/post-release/engineering/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-1
-- [ ] `plan/release/validation/spec-fib-depth.md` - in-progress, owns FIB programming depth
+- [ ] `spec-fib-depth` - in-progress, owns FIB programming depth
 
 **Key insights:** (minimal context to resume after compaction)
 - The change is small in code and is a published-contract change in effect. Decide the compatibility story before touching the values.
@@ -50,7 +50,7 @@ out-of-tree plugin authors who cannot be migrated.
 - [ ] `internal/component/sysrib/events/events.go` - declares `RouteType uint8` with the four constants and the RTN_ comment, and `BestChangeEntry.RouteType`
 
 **Source files to read before design:**
-- [ ] `internal/plugins/fib/kernel/` - every reader of `RouteType`, and how it reaches netlink
+- [ ] `internal/plugins/fib/kernel/` - every reader of `RouteType`, and how it reaches the netlink socket
 - [ ] `internal/plugins/fib/vpp/` - whether it reads `RouteType` at all
 - [ ] `internal/component/sysrib/` - every producer that sets the field
 

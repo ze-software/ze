@@ -1,4 +1,4 @@
-// Design: plan/release/validation/spec-fib-depth.md -- Linux netlink rich route programming
+// Design: docs/architecture/core-design.md -- Linux kernel rich route programming
 // Related: richroute.go -- RichRoute struct and richRouteBackend interface
 // Related: backend_linux.go -- base netlinkBackend
 

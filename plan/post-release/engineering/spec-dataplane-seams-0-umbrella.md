@@ -54,9 +54,9 @@ and child 4 still requires the design decision recorded below.
 |---|---------|----------|-------|
 | F-1 | `sysribevents.RouteType` uses values 1/6/7/8, documented "Values match Linux RTN_ constants for direct mapping in the kernel backend". Linux numbering inside a payload that external plugin processes decode | `RouteType` in `internal/component/sysrib/events/events.go` | 1 |
 | F-2 | `iface.Binding.Ifindex` is an `int` documented "the kernel interface index of the resolved OS device". The VPP iface backend fills the same `InterfaceInfo.Index` with its `sw_if_index`. One field, two namespaces, and the guard against confusing them is a function each caller must remember to call | `Binding` in `internal/component/iface/iface.go`; `int(d.SwIfIndex)` in `internal/plugins/iface/vpp/query.go`; `ActiveBackendName` in `internal/component/iface/backend.go` | 2 |
-| F-3 | `BestChangeEntry` and `ECMPPath` have no egress-interface field. Routes cross that seam as next-hop IP only. Static routes CAN name an interface, but they reach the dataplane by a different path: `internal/plugins/static` declares its own `routeBackend` with netlink and VPP implementations, imports no sysrib, and separately emits `redistevents`. Whether the missing field is a gap or a deliberate boundary is an open question child 3 answers first, and cancelling that child is a legitimate outcome | `BestChangeEntry` in `internal/component/sysrib/events/events.go`; `routeBackend` in `internal/plugins/static/backend.go`; `emitRouteChange` in `internal/plugins/static/inject.go` | 3 |
+| F-3 | `BestChangeEntry` and `ECMPPath` have no egress-interface field. Routes cross that seam as next-hop IP only. Static routes CAN name an interface, but they reach the dataplane by a different path: `internal/plugins/static` declares its own `routeBackend` with kernel and VPP implementations, imports no sysrib, and separately emits `redistevents`. Whether the missing field is a gap or a deliberate boundary is an open question child 3 answers first, and cancelling that child is a legitimate outcome | `BestChangeEntry` in `internal/component/sysrib/events/events.go`; `routeBackend` in `internal/plugins/static/backend.go`; `emitRouteChange` in `internal/plugins/static/inject.go` | 3 |
 | F-4 | Ten protocols each open their own receive socket, with four unrelated per-packet metadata structs and no shared type. No receive path anywhere carries a VLAN tag: `PACKET_AUXDATA`, `TP_STATUS_VLAN` and `VlanTCI` do not appear in the tree. DHCP learns neither its source nor its ingress interface | `serveMulti` in `internal/plugins/dhcpserver/register.go`; `transport.Inbound` (bfd), `wire.RawPacket` (ospf), `transport.RawFrame` (isis), `packet.RxMeta` (vrrp) | 4 |
-| F-5 | `copp` polices TCP only. Its translation hardcodes a TCP protocol match in both the trusted-source term and the rate-limit term, so DHCP, ND, OSPF, IS-IS, BFD and PPPoE are unpoliced. This is the extension the copp design anticipated, not a defect. What that design did NOT anticipate: its `FamilyInet` choice means an nft `inet` table cannot reach ARP, IS-IS or PPPoE at all, since none is IP. That half is a new design question | `translatePolicy` in `internal/plugins/copp/translate.go`; `docs/architecture/traffic/cp-survival-2-copp-port179.md` | 5 |
+| F-5 | `copp` polices TCP only. Its translation hardcodes a TCP protocol match in both the trusted-source term and the rate-limit term, so DHCP, ND, OSPF, IS-IS, BFD and PPPoE are unpoliced. This is the extension the copp design anticipated, not a defect. What that design did NOT anticipate: its `FamilyInet` choice means an nftables `inet` table cannot reach ARP, IS-IS or PPPoE at all, since none is IP. That half is a new design question | `translatePolicy` in `internal/plugins/copp/translate.go`; `docs/architecture/traffic/cp-survival-2-copp-port179.md` | 5 |
 
 ### Children
 
@@ -64,7 +64,7 @@ and child 4 still requires the design decision recorded below.
 |---|------|------|------------------|
 | 1 | `plan/post-release/engineering/spec-dataplane-seams-1-route-type-numbering.md` | small | - |
 | 2 | `plan/release/fixes/spec-dataplane-seams-2-backend-typed-index.md` | medium | the static-interface-nexthops ruling, `docs/architecture/iface/logical-name-resolution.md` |
-| 3 | `plan/post-release/engineering/spec-dataplane-seams-3-route-egress-interface.md` | research first, may cancel | `plan/release/validation/spec-fib-depth.md` (in-progress) |
+| 3 | `plan/post-release/engineering/spec-dataplane-seams-3-route-egress-interface.md` | research first, may cancel | `spec-fib-depth` (in-progress) |
 | 4 | `plan/post-release/engineering/spec-dataplane-seams-4-control-packet-rx.md` | design only | `spec-cp-survival-0-umbrella` (closed) |
 | 5 | `plan/post-release/features/spec-dataplane-seams-5-copp-non-tcp.md` | medium | `spec-cp-survival-0-umbrella` (closed; owned copp) |
 
@@ -92,7 +92,7 @@ and child 4 still requires the design decision recorded below.
 - [ ] `docs/architecture/iface/logical-name-resolution.md` - `Binding` is a pure value type; no second resolver
 
 ### Related Specs
-- [ ] `plan/release/validation/spec-fib-depth.md` - in-progress, owns FIB programming depth; child 3 lands in its territory
+- [ ] `spec-fib-depth` - in-progress, owns FIB programming depth; child 3 lands in its territory
 - [ ] `spec-cp-survival-0-umbrella` - closed 2026-08-12; it owned copp, and children 4 and 5 must not contradict its closure record (read it from git history)
 - [ ] `plan/release/fixes/spec-lifecycle-invariants.md` - ready, written by the same cross-cutting review method
 
@@ -108,7 +108,7 @@ and child 4 still requires the design decision recorded below.
 - [ ] `internal/component/iface/backend.go` - defines `Backend` (about 40 methods), `VLANSpec` (single tag: parent plus one VLAN id), `RegisterBackend`, `LoadBackend`, `ActiveBackendName`, `GetBackend`, `CloseBackend`. Exactly one backend is active at a time
 - [ ] `internal/component/iface/iface.go` - defines `Binding` with `Ifindex int`
 - [ ] `internal/plugins/iface/vpp/query.go` - fills `InterfaceInfo.Index` from the VPP `sw_if_index`
-- [ ] `internal/plugins/copp/translate.go` - `translatePolicy` builds the nft `ze_copp` inet table with an input base chain
+- [ ] `internal/plugins/copp/translate.go` - `translatePolicy` builds the nftables `ze_copp` inet table with an input base chain
 - [ ] `internal/plugins/dhcpserver/register.go` - `serveMulti` reads with `ReadFromUDP`, discards the returned address, then tries each handler in order until one produces a reply
 
 **Behavior to preserve:**

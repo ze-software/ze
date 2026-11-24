@@ -265,7 +265,7 @@ Route wins in a protocol, then gets programmed in the kernel:
 - **The writer of a data plane owns all of its forwarding state, labels included.**
   fib-kernel is the single kernel-FIB owner for the Loc-RIB path and for MPLS, fib-vpp the
   VPP one. Package comment at `internal/core/mplsfib/events.go`: RSVP-TE/LDP route through
-  the writer rather than writing netlink themselves, to keep stale-sweep/re-assertion/metrics unified. A
+  the writer rather than writing netlink routes themselves, to keep stale-sweep/re-assertion/metrics unified. A
   named-table static route is the one dynamic exception (its own backend), because the
   Loc-RIB is keyed by (family, prefix) and carries no table.
 - **Multiple dataplane backends subscribe the same event.** `fib/kernel`, `fib/vpp`,
@@ -281,6 +281,6 @@ Route wins in a protocol, then gets programmed in the kernel:
 ## See also
 - `ai/digests/rib.md`: the upstream layer, BGP's own Adj-RIB-In/Loc-RIB and best-path
   selection, whose winner is what step 1 mirrors into the shared Loc-RIB here
-- `plan/release/validation/spec-fib-depth.md`: ECMP/backup/recursive-next-hop-resolution spec
+- `spec-fib-depth`: ECMP/backup/recursive-next-hop-resolution spec (closed)
 - `docs/architecture/core-design.md`: overall component map referenced by every plugin's
   design header in this subsystem

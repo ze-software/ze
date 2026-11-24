@@ -16,7 +16,7 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Spun out of `plan/release/validation/spec-fib-depth.md` on 2026-11-24 by owner decision so the last open owned journal row (`plan/journal/kernel-refuses-what-the-installer-sends.md`, 2026-11-13) has a dedicated design and implementation home while `spec-fib-depth.md` closes once its remaining proofs finish.
+Spun out of `spec-fib-depth` on 2026-11-24 by owner decision so the last open owned journal row (`plan/journal/kernel-refuses-what-the-installer-sends.md`, 2026-11-13) has a dedicated design and implementation home while `spec-fib-depth` closes once its remaining proofs finish.
 
 ## Task
 

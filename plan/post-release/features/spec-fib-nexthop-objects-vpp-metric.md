@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Split out of `plan/release/validation/spec-fib-depth.md` by the owner on 2026-10-08.
+Split out of `spec-fib-depth` by the owner on 2026-10-08.
 
 -> Decision (owner, 2026-10-08): AC-4 (Linux nexthop objects) and AC-8 (VPP metric), plus the TableID production they need, move out of `spec-fib-depth` into this spec, which depends on `plan/post-release/features/spec-vrf-0-umbrella.md`.
 
@@ -42,7 +42,7 @@ Behavior.
 
 ## Acceptance Criteria
 
-Moved verbatim from `plan/release/validation/spec-fib-depth.md`:
+Moved verbatim from `spec-fib-depth`:
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
@@ -60,7 +60,7 @@ route identity; backend TableID consumption alone does not satisfy AC-9."
 
 | Spec | Relation |
 |------|----------|
-| `plan/release/validation/spec-fib-depth.md` | Parent; it keeps every other AC, including AC-14 |
+| `spec-fib-depth` | Parent; it keeps every other AC, including AC-14 |
 | `plan/post-release/features/spec-vrf-0-umbrella.md` | Dependency; the VRF design decides how a table reaches `BestChangeEntry.TableID` |
 
 <!-- Skeleton: every section below is written at design time (plan/templates/TEMPLATE.md). -->
@@ -71,7 +71,7 @@ route identity; backend TableID consumption alone does not satisfy AC-9."
 - [ ] `docs/architecture/<doc>.md` - [chosen at design time]
 
 ### RFC Summaries
-Moved verbatim from `plan/release/validation/spec-fib-depth.md` (2026-10-09):
+Moved verbatim from `spec-fib-depth` (2026-10-09):
 - [ ] `rfc/short/rfc4364.md` -- BGP/MPLS IP VPNs (VRF route installation)
   → Constraint: VPN routes install into per-VRF tables identified by RD
 
@@ -102,14 +102,14 @@ Moved verbatim from `plan/release/validation/spec-fib-depth.md` (2026-10-09):
 
 [written at design time]
 
-Design decisions moved verbatim from `plan/release/validation/spec-fib-depth.md` (2026-10-09):
+Design decisions moved verbatim from `spec-fib-depth` (2026-10-09):
 
 | Decision | Detail | Rationale |
 |----------|--------|-----------|
 | Kernel backend uses nexthop objects | Linux 5.3+ `ip nexthop` API for NH groups rather than per-route multipath expansion | Atomic failover, shared NH state across routes, matches FRR/iproute2 direction |
 | VRF table wired through BestChangeEntry.TableID | FIB backends use this to program into the correct kernel table or VPP table | Unblocks vrf-0-umbrella FIB programming without changing backend interfaces |
 
-Security review rows moved verbatim from `plan/release/validation/spec-fib-depth.md` (2026-10-09):
+Security review rows moved verbatim from `spec-fib-depth` (2026-10-09):
 
 | Check | What to look for |
 |-------|-----------------|
@@ -134,10 +134,10 @@ Security review rows moved verbatim from `plan/release/validation/spec-fib-depth
 | `TestVPPTable` | `internal/plugins/fib/vpp/fibvpp_test.go` | Per-change table override | |
 | [rest written at design time] | | | |
 
-The four rows above moved verbatim from `plan/release/validation/spec-fib-depth.md` (2026-10-09).
+The four rows above moved verbatim from `spec-fib-depth` (2026-10-09).
 
 ### Boundary Tests
-Moved verbatim from `plan/release/validation/spec-fib-depth.md` (2026-10-09):
+Moved verbatim from `spec-fib-depth` (2026-10-09):
 
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
@@ -145,7 +145,7 @@ Moved verbatim from `plan/release/validation/spec-fib-depth.md` (2026-10-09):
 | Metric | 0-4294967295 | 4294967295 | N/A (0=best) | N/A (uint32) |
 
 ### Functional Tests
-Moved verbatim from `plan/release/validation/spec-fib-depth.md` with AC-9 (2026-10-09):
+Moved verbatim from `spec-fib-depth` with AC-9 (2026-10-09):
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|

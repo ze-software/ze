@@ -121,7 +121,7 @@ this spec's enhancement.** The current producer path is:
 
 | Producer | What it does | What it means |
 |----------|-------------|---------------|
-| `applyProgrammed` and `insertPathLocked` (`internal/plugins/static/locrib.go`) | Insert main-table routes into the local Loc-RIB or forward them through the route-install channel; named-table routes retain the direct backend write | Main-table routes already enter shared arbitration. The named-table dimension remains owned by `plan/release/validation/spec-fib-depth.md` |
+| `applyProgrammed` and `insertPathLocked` (`internal/plugins/static/locrib.go`) | Insert main-table routes into the local Loc-RIB or forward them through the route-install channel; named-table routes retain the direct backend write | Main-table routes already enter shared arbitration. The named-table dimension remains owned by `spec-fib-depth` |
 | `staticPath` in the same file | Stamps `AdminDistance` from `ribdistance.OrDefault("static", DefaultAdminDistance)` | The current path carries the protocol-wide configured distance; this spec must carry the member or group override into the selection path |
 | `effectivePriority` and `processEvent` (`internal/component/sysrib/sysrib.go`) | Resolve the protocol-wide distance and consume Loc-RIB-selected changes | Design must trace the per-route override through selection and downstream consumers rather than assume an event's `Priority` overrides the configured protocol value |
 

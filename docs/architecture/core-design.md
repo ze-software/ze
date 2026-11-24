@@ -3609,21 +3609,33 @@ admission remain part of the advertiser work in progress.
 
 ### FIB VPP
 
-The `fib-vpp` plugin subscribes to `system-rib/best-change` and programs VPP's FIB
-via GoVPP binary API. For entries with MPLS labels, it dispatches to the MPLS backend:
-label push uses `IPRouteAddDel` with `LabelStack` on the FibPath, label swap/pop uses
-`MplsRouteAddDel`. Entries without labels use standard `IPRouteAddDel`. The MPLS table
-(0) is created implicitly by VPP on first use. Interface MPLS enable uses
-`SwInterfaceSetMplsEnable`.
+The `fib-vpp` plugin subscribes to `system-rib/best-change` and `(mpls-fib, entry)`
+and programs VPP's FIB via the GoVPP binary API. Every IP route and labeled push
+is installed through `ip_route_add_del_v2` under `fib-vpp`'s own VPP FIB source
+`ze-fib-vpp`, so a restarted writer can mark and sweep unclaimed IP routes from a
+previous run (`docs/architecture/fib/fib-vpp-route-ownership.md`). Single-path
+MPLS pushes dispatch through `processMPLSChange`, while labeled or unlabeled ECMP
+entries (`len(ECMPPaths) > 0`) dispatch through `addRichRoute` with per-path
+uniform-mode MPLS labels (`applyPathLabels`). Label swap and pop entries from
+LDP, RSVP-TE, OSPF-SR, and BGP EPE program VPP MPLS table 0 via `MplsRouteAddDel`
+(both `eos` and `neos` entries) after creating table 0 explicitly with
+`MplsTableAddDel`. Interface MPLS enable uses `SwInterfaceSetMplsEnable` through
+the VPP interface backend. Plain IP and MPLS routes program and flush without a
+persistent daemon state store; SRv6 service routes require durable state and are
+refused and reported via the `fib-vpp-srv6` runtime doctor check when none is
+configured.
 
 When `BestChangeEntry` carries rich fields (route type, metric, table ID, or ECMP
 paths), the backend dispatches to `addRichRoute` which maps route types to VPP path
 types (`FIB_API_PATH_TYPE_DROP`/`ICMP_UNREACH`/`ICMP_PROHIBIT`), propagates declared
-path weights to `FibPath.Weight`, uses per-change table ID, and builds multi-path
-routes with `NPaths > 1`. The metric does not set the path weight.
-<!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent, processMPLSChange, hasRichFields -->
-<!-- source: internal/plugins/fib/vpp/backend.go -- vppRichRoute, addRichRoute, addRichRouteInTable, routeTypeToVPP, toFibPath -->
-<!-- source: internal/plugins/fib/vpp/mpls.go -- govppMPLSBackend, mplsBackend interface -->
+path weights to `FibPath.Weight`, attaches per-path uniform-mode label stacks, uses
+per-change table ID, and builds multi-path routes with `NPaths > 1`. The metric does
+not set the path weight.
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent, isSinglePathMPLS, processMPLSChange, hasRichFields -->
+<!-- source: internal/plugins/fib/vpp/backend.go -- vppRichRoute, addRichRoute, addRichRouteInTable, applyPathLabels, routeTypeToVPP, toFibPath -->
+<!-- source: internal/plugins/fib/vpp/routesource.go -- openRouteSource, sendRoute, markStale, sweepStaleRoutes -->
+<!-- source: internal/plugins/fib/vpp/mpls.go -- govppMPLSBackend, mplsBackend interface, createMPLSTable -->
+<!-- source: internal/plugins/fib/vpp/doctor_srv6.go -- srv6CheckDecl, srv6DoctorFindings -->
 <!-- source: internal/plugins/fib/vpp/register.go -- fib-vpp plugin registration -->
 
 ### Flow Export

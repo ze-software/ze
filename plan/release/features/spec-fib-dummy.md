@@ -506,7 +506,7 @@ purpose they defeat.
 |----------|--------|
 | What breaks if this is wrong? | The plugin: a display that misstates what a control-plane box holds. The reload judgement: a reload that stops the kernel writer of a forwarding router, or leaves it running beside a block that says nothing is programmed |
 | How is it reverted? | The plugin is one package and its generated registrations: a single commit revert. The reload judgement is a separate commit and reverts alone |
-| Who else touches this path? | `plan/release/fixes/spec-dataplane-compatibility-guard.md` (in progress): `plugin/registry/registry.go`, the plane names, the pages on data planes. `plan/release/validation/spec-fib-depth.md` (in progress): `fib/vpp`, label writers. `plan/release/fixes/spec-explicit-plugin-and-attach-config.md`: the loaders of `startup_autoload.go` |
+| Who else touches this path? | `plan/release/fixes/spec-dataplane-compatibility-guard.md` (in progress): `plugin/registry/registry.go`, the plane names, the pages on data planes. `spec-fib-depth` (in progress): `fib/vpp`, label writers. `plan/release/fixes/spec-explicit-plugin-and-attach-config.md`: the loaders of `startup_autoload.go` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

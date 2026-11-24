@@ -12,7 +12,7 @@
 | Real-path tests | test/plugin/fib-sysrib.ci, test/plugin/fib-recursive.ci, test/plugin/fib-ecmp.ci, test/plugin/fib-ecmp-realtime.ci, test/plugin/fib-metric.ci, test/plugin/fib-blackhole.ci, test/plugin/fib-table.ci, test/plugin/fib-rib-event.ci, test/plugin/fib-mpls-kernel.ci, test/plugin/fib-srv6-kernel.ci, test/plugin/fib-vpp-plugin-load.ci, test/plugin/fib-vpp-coexist-with-fib-kernel.ci |
 | Docs | docs/guide/configuration.md |
 | Doc review | 2026-11-09: re-read after the docs/guide/configuration.md edits since 2026-10-07 (rpf-check, flowspec-redirect-check, LSDB-kept routes); the FIB pipeline the description states is unchanged, every source anchor resolves. Earlier, 2026-10-07: every source anchor in the Description resolves to its file and symbol; recursion max depth 8 is maxRecursionDepth in internal/component/sysrib/nhresolver.go; ECMP max 128 is MaxECMPPaths in internal/component/sysrib/events/events.go |
-| Defect review | 2026-10-07: plan/release/validation/spec-fib-depth.md open |
+| Defect review | 2026-11-24: `spec-fib-depth` implementation & Review Gate clean (closure pending live interop revert discrimination; `plan/release/fixes/spec-fib-lfa-backup-takeover.md` owns LFA backup takeover; `plan/post-release/features/spec-fib-nexthop-objects-vpp-metric.md` owns nexthop objects, VPP metric, and TableID) |
 | Extra criteria | supported: kernel and VPP backends program the same route set for the same RIB = test/plugin/fib-kernel-vpp-parity.ci |
 
 ## Description

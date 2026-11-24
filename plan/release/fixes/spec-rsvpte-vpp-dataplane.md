@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | RSVP-TE (RFC 3209, RFC 4090) is a shipped capability, and on a VPP data plane two of its parts have no form or no proof: facility-backup control contexts are refused, and transit swap forwarding is unit-tested only |
 | RFC gaps | - |
-| Depends | `plan/release/validation/spec-fib-depth.md` (Phase 13) |
+| Depends | `spec-fib-depth` (Phase 13) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-11 |
@@ -16,7 +16,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Split out of `plan/release/validation/spec-fib-depth.md` Phase 13, which makes
+Split out of `spec-fib-depth` Phase 13, which makes
 fib-vpp consume `(mpls-fib, entry)` label entries. Two RSVP-TE items it does
 not do:
 

@@ -1,4 +1,4 @@
-// Design: plan/release/validation/spec-fib-depth.md -- ECMP grouping
+// Design: docs/architecture/core-design.md -- ECMP grouping
 // Related: sysrib.go -- recomputeForwarding renders authority-selected members.
 
 package sysrib

@@ -46,7 +46,7 @@ before writing any acceptance criteria.
 |---|----------|---------------------------|
 | Q-1 | Does `fibkernel` also program static routes from the merged best path, or does it skip routes whose protocol is static? | If both program, routes are installed twice and the real defect is duplication, not a missing field |
 | Q-2 | Which protocols actually need an interface-scoped route on the `BestChangeEntry` path? | If none do today, adding the field is speculative and the spec should be cancelled or narrowed |
-| Q-3 | Is the two-path arrangement deliberate? | Check `plan/learned/` and `plan/release/validation/spec-fib-depth.md` before treating it as a defect |
+| Q-3 | Is the two-path arrangement deliberate? | Check `plan/learned/` and `spec-fib-depth` before treating it as a defect |
 | Q-4 | Would a future subscriber or access feature need per-session routes on the merged path? | This is the strongest argument for the field, and it is a forward-looking one, not a present defect |
 
 **Cancelling this spec is a legitimate outcome.** If the answer to Q-2 is "none",
@@ -62,7 +62,7 @@ external plugin processes decode.
 
 ### Related Specs
 - [ ] `plan/post-release/engineering/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-3
-- [ ] `plan/release/validation/spec-fib-depth.md` - **in-progress, owns FIB programming depth.** Read its current state before starting. Its own header warns that its Current Behavior table is stale
+- [ ] `spec-fib-depth` - **in-progress, owns FIB programming depth.** Read its current state before starting. Its own header warns that its Current Behavior table is stale
 - [ ] `plan/release/fixes/spec-dataplane-seams-2-backend-typed-index.md` - if the field carries an interface index rather than a name, it inherits that spec's problem
 
 **Key insights:** (minimal context to resume after compaction)

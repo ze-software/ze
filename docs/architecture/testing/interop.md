@@ -864,28 +864,48 @@ and require the packet proof to pass before claiming closure.
 <!-- source: internal/le/test/deployment/vpp_srv6_oracle_integration_linux_test.go -- TestVPPSRv6StateOracle, TestVPPSRv6PacketOracle -->
 <!-- source: internal/le/test/deployment/vpp_srv6_integration_test.go -- TestVPPSRv6ServiceRoute -->
 
-## Real VPP label pop proof (`mpls-label-pop`)
+## Real VPP label pop, ECMP, and stale-sweep proofs (`mpls-label-pop`, `fib-ecmp`, `fib-stale-sweep`)
 
-`./le test deployment vpp` runs nine scenarios in order against one VPP
-container. `mpls-label-pop` is the fourth, after `mpls-fib`, and it proves
-that an LDP egress pop reaches VPP's MPLS table 0 when the engine, not a
-`fib { }` block, chooses the label writer.
+`./le test deployment vpp` runs eleven scenarios in order against one VPP
+container, or a chosen subset in declaration order when repeatable
+`scenario <name>` arguments are passed. VPP userspace proofs (`vpp`,
+`vpp-iface`, `vpp-srv6-service-route`) declare `KernelCapabilitiesNone` and
+skip the host kernel-capabilities probe. `mpls-label-pop` is the fourth
+scenario, after `mpls-fib`, and proves that an LDP egress pop reaches VPP's
+MPLS table 0 when the engine, not a `fib { }` block, chooses the label writer
+and that `ze show mpls forwarding` reads that live table back from VPP.
 
 Before Ze starts, the harness creates the packet-generator interface `pg0`, so
 the VPP interface backend's first interface dump names it. Ze then runs with
 `interface { backend vpp; ethernet pg0 { unit default { mpls { enable true; } } } }`
 and `ldp { lsr-id 10.0.0.1; transport-address 10.0.0.1; interfaces lo; }`, and
 no `fib { }` block. The container's Linux loopback offers LDP no advertisable
-prefix, so the LSR-ID host route is the only FEC LDP originates. Every verdict
-comes from VPP's own CLI:
+prefix, so the LSR-ID host route is the only FEC LDP originates. Five verdicts
+come from VPP's own CLI and two from `ze cli -c "show mpls forwarding | json"`:
 
-| Check | VPP query | What passes |
-|-------|-----------|-------------|
+| Check | Query | What passes |
+|-------|-------|-------------|
 | `installed` | `show mpls fib table 0` | Exactly one label of 16 or above holds an `eos` entry whose path is an `ip4` deag and a `neos` entry whose path is an `mpls` deag |
 | `mpls-input` | `show mpls interface` | `pg0` is followed by `MPLS enabled` |
+| `mpls-forwarding-show` | `ze cli -c "show mpls forwarding \| json"` | The live JSON array lists the LDP label with `operation` `"pop"` |
 | `popped` | `show trace` | A frame carrying that label, S set, reaches `mpls-lookup` and then `lookup-ip4-dst` or `ip4-lookup` |
 | `unprogrammed-drop` | `show trace` | A frame carrying label 999999 reaches `mpls-lookup`, then `mpls-drop`, and no IPv4 lookup |
 | `removed` | `show mpls fib table 0` | After the configuration loses `ldp { }` and the running daemon gets SIGHUP, the label has neither entry |
+| `mpls-forwarding-removed` | `ze cli -c "show mpls forwarding \| json"` | After the reload removes `ldp { }`, the LDP label no longer appears in `show mpls forwarding` |
+
+Two FIB parity scenarios follow `mpls-label-pop`:
+
+- **`fib-ecmp`** (`ecmp-installed`, `member-withdrawn`, `withdrawn`): installs
+  a two-path static ECMP route (`10.28.0.0/24` via `10.28.98.1` and
+  `10.28.99.1`) under FIB source `ze-fib-vpp`, reloads to remove one member
+  while keeping the surviving next hop, and reloads again to withdraw the
+  prefix.
+- **`fib-stale-sweep`** (`installed`, `survived-stop`, `control-installed`,
+  `stale-swept`, `control-preserved`): installs `10.29.0.0/24` under
+  `ze-fib-vpp`, kills Ze with `SIGKILL` so graceful shutdown cannot remove the
+  route, confirms the orphan survives in VPP, starts a second Ze with only a
+  control route (`10.29.1.0/24`), waits past the 30-second sweep window for
+  `10.29.0.0/24` to disappear, and confirms the live control route remains.
 
 The parsers follow VPP's formatters in FDio/vpp v26.06, the release of the
 `ligato/vpp-base:26.06-release` image. `mpls_fib_show` prints each entry with
@@ -911,8 +931,10 @@ with the `(mpls-fib, entry)` subscription in fib-vpp's `register.go` removed,
 or when LDP names `fib-kernel` in `Dependencies` again: `installed` then fails.
 The daemon binary is rebuilt by the run itself, so reverting the source and
 rerunning `./le test deployment vpp` is enough to show it.
-<!-- source: internal/le/test/deployment/vppevidencempls.go -- runMPLSLabelPop, singlePoppedLabel, traceMPLSFrame, vppMPLSInputEnabled -->
-<!-- source: internal/le/test/deployment/vppevidencescenarios.go -- vppMPLSLabelPopConfig -->
+<!-- source: internal/le/test/deployment/vppevidencempls.go -- runMPLSLabelPop, singlePoppedLabel, traceMPLSFrame, vppMPLSInputEnabled, queryMPLSForwarding -->
+<!-- source: internal/le/test/deployment/vppevidencefib.go -- runFIBECMP, runFIBStaleSweep, vppFIBSourceNextHops -->
+<!-- source: internal/le/test/deployment/vppevidence.go -- VPP, selectedScenarioRuns -->
+<!-- source: internal/le/test/deployment/vppevidencescenarios.go -- vppMPLSLabelPopConfig, vppStaticFIBConfig -->
 
 ## Real VPP cleartext proof (part of `ipsec`)
 
