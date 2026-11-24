@@ -1077,7 +1077,7 @@ func TestRouteDetailAsksForExactlyThePrefix(t *testing.T) {
 		answer := fakeSelectedAnswer(rib, "routes", "peer", query)
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(answer)), nil
 	}
-	srv, err := NewLGServer(LGConfig{ListenAddrs: []string{"127.0.0.1:0"}, Dispatch: dispatch})
+	srv, err := NewLGServer(LGConfig{ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}}, Dispatch: dispatch})
 	if err != nil {
 		t.Fatalf("new lg server: %v", err)
 	}

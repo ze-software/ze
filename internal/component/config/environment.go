@@ -84,7 +84,6 @@ var (
 	// Looking glass.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.listen", Type: env.TypeString, Default: "0.0.0.0:8443", Description: "Looking glass listen address (ip:port)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.enabled", Type: env.TypeBool, Description: "Enable looking glass server"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: env.TypeBool, Default: configTrue, Description: "Enable TLS for looking glass (default true; set false to serve plaintext)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.token", Type: env.TypeString, Description: "Looking glass bearer token (empty leaves it open)", Secret: true})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.certificate", Type: env.TypeString, Description: "Name of the PKI store certificate to serve on the looking glass (empty means self-signed)"})
 

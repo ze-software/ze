@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/netip"
 	"slices"
 	"sync"
@@ -64,6 +65,22 @@ type nextHopRangesUpdatable interface {
 	UpdateNextHopRanges(ranges map[netip.Prefix]string) (restore func(), err error)
 }
 
+// lgTransportUpdatable is implemented by the looking glass, whose listeners each
+// serve HTTPS or HTTP and can change it on reload without rebinding. It extends
+// tlsUpdatable: the certificate is installed first, then the protocol of each
+// listener. Declared here for the reason tlsUpdatable is, and the protocols
+// cross the seam as a standard-library map keyed by listen address.
+type lgTransportUpdatable interface {
+	tlsUpdatable
+	// ListenerTLS answers, per bound address, whether it serves TLS now.
+	ListenerTLS() map[string]bool
+	// UpdateListenerTLS switches each bound listener it names, true for TLS,
+	// and records the protocol of an address that is bound later: Reconfigure
+	// binds an address with its record and refuses one that has none. It
+	// refuses TLS on a server that holds no certificate.
+	UpdateListenerTLS(tlsByAddr map[string]bool) error
+}
+
 // authReporter is implemented by a server whose request gate follows live
 // accepted authentication state. The migrator uses it for exposure checks
 // without installing candidate credential material in the server.
@@ -106,7 +123,11 @@ type listenerMigrator struct {
 	web    Reconfigurable
 	webTLS tlsUpdatable
 	lg     Reconfigurable
-	lgTLS  tlsUpdatable
+	// lgTransport is the running looking glass as the holder of its listeners'
+	// protocols and certificate. It is set whenever a looking glass runs,
+	// whatever it serves: a reload can switch a listener between HTTP and
+	// HTTPS. Nil while no looking glass runs.
+	lgTransport lgTransportUpdatable
 	// lgNextHopRanges is the running looking glass as the holder of the named
 	// next-hop ranges. Nil while no looking glass runs.
 	lgNextHopRanges nextHopRangesUpdatable
@@ -314,14 +335,14 @@ func (m *listenerMigrator) setLG(s Reconfigurable) {
 	m.registerAuthReporter(svcLG, s)
 }
 
-// setLGTLS updates the looking glass's certificate-rotation reference. Takes
-// tlsUpdatable (not *lg.LGServer) so always-on code never imports the lg
-// package, the same reason setLG takes Reconfigurable.
-func (m *listenerMigrator) setLGTLS(s tlsUpdatable) { m.lgTLS = s }
+// setLGTransport updates the looking glass's protocol and certificate
+// reference. Takes lgTransportUpdatable (not *lg.LGServer) so always-on code
+// never imports the lg package, the same reason setLG takes Reconfigurable.
+func (m *listenerMigrator) setLGTransport(s lgTransportUpdatable) { m.lgTransport = s }
 
 // setLGNextHopRanges updates the looking glass's named-range reference. Takes
-// nextHopRangesUpdatable (not *lg.LGServer) for the reason setLGTLS takes
-// tlsUpdatable.
+// nextHopRangesUpdatable (not *lg.LGServer) for the reason setLGTransport takes
+// lgTransportUpdatable.
 func (m *listenerMigrator) setLGNextHopRanges(s nextHopRangesUpdatable) { m.lgNextHopRanges = s }
 
 // updateLGNextHopRanges hands the named next-hop ranges of the reloaded config
@@ -349,45 +370,81 @@ func (m *listenerMigrator) updateLGNextHopRanges(ranges map[netip.Prefix]string)
 	return restore, nil
 }
 
-// updateLGCertificate resolves the certificate the reloaded config describes
-// for the looking glass and installs it on the running looking glass, without
-// rebinding its listeners. Called on reload AFTER the new store is installed,
-// so a commit that rotates the certificate's material takes effect on the next
-// handshake (AC-6).
+// checkLGTransport refuses a config the running looking glass cannot serve,
+// before the reload applies anything: a server entry whose operator wrote
+// `tls true` on a daemon with no certificate to present there. It is the
+// refusal buildLGService gives the same config at start (planLGTransports), so
+// a reload and a restart agree.
+//
+// With no handle no looking glass is running, and there is nothing to refuse.
+func (m *listenerMigrator) checkLGTransport(cfg lgListenerConfig) error {
+	if m.lgTransport == nil {
+		return nil
+	}
+	certStore, _ := m.lgTransport.selfSignedSource()
+	_, err := planLGTransports(cfg.listeners, cfg.certName, certStore != nil)
+	return err
+}
+
+// updateLGTransport makes the running looking glass serve what the reloaded
+// config describes, without rebinding a listener: the certificate its TLS
+// listeners present, and HTTPS or HTTP on each address. Called on reload AFTER
+// the new store is installed and BEFORE the listeners move, so a commit that
+// rotates the certificate's material takes effect on the next handshake (AC-6),
+// a commit that changes one entry's protocol takes effect on that listener's
+// next connection, and an address the commit adds is bound with its own
+// protocol: the looking glass records the protocol of an address it has not
+// bound yet, and refuses to bind one it has no record for. A rollback calls it
+// with the running config before it moves the listeners back, for the same
+// reason.
 //
 // It reads its OWN handle and its OWN name. The web listener and the looking
 // glass hold separate certificates, and one migrator carries both, so a method
 // that shared either would serve one listener's identity on the other (R-1).
 //
-// The certificate is the one a restart with the same config would serve:
-// listenerTLSMaterial decides it, as it does at start. A set certName installs
-// the named chain. An empty certName installs the self-signed pair, so a commit
-// that removes environment.looking-glass.certificate stops the listener
-// presenting the chain the config dropped. A name that does not resolve is an
-// ERROR that fails the reload, never a silent downgrade to the self-signed
-// certificate (R-5). So is an empty name on a looking glass that runs without a
-// store, which has no self-signed pair to return to: a reload never rebinds a
-// listener to plaintext.
+// The result is the one a restart with the same config would give:
+// planLGTransports decides each listener's protocol, as it does at start, and
+// listenerTLSMaterial decides the certificate. So an entry that left tls unset
+// moves to HTTP, with a warning, when a commit drops the certificate name on a
+// daemon without a store, and moves back to HTTPS when a commit names one. A
+// name that does not resolve is an ERROR that fails the reload, never a silent
+// downgrade to the self-signed certificate (R-5).
 //
-// With no handle the looking glass serves plaintext and holds no certificate,
-// and two cases are reported apart, because they are not the same answer to the
-// operator. No name is the ordinary case and says nothing. A name means this
-// commit is accepted and the certificate it names reaches no listener until a
-// restart. Nothing else on this path would tell the operator that, and a
-// configuration change that takes no effect in silence is the failure this
-// separation exists to prevent (ai/rules/principles.md).
-func (m *listenerMigrator) updateLGCertificate(certName string) error {
-	if m.lgTLS != nil {
-		return installListenerCertificate(m.lgTLS, "looking glass", certName)
-	}
-	if certName == "" {
+// The certificate is installed first, and only when a listener will present
+// one. A config that describes the listeners answers that by its own plan. A
+// config that starts no looking glass describes none: the running listeners
+// keep their protocol, and the ones that serve TLS take the certificate that
+// config names.
+//
+// With no handle no looking glass is running, and there is nothing to change.
+func (m *listenerMigrator) updateLGTransport(cfg lgListenerConfig) error {
+	if m.lgTransport == nil {
 		return nil
 	}
-	m.log().Warn("looking glass certificate not applied: the listener serves plaintext",
-		"leaf", "environment.looking-glass.certificate",
-		"certificate", certName,
-		"remedy", "restart ze to serve this certificate over TLS",
-	)
+	certStore, _ := m.lgTransport.selfSignedSource()
+	plan, err := planLGTransports(cfg.listeners, cfg.certName, certStore != nil)
+	if err != nil {
+		return err
+	}
+
+	presentsCertificate := plan.servesTLS()
+	if len(plan.bindings) == 0 {
+		presentsCertificate = slices.Contains(slices.Collect(maps.Values(m.lgTransport.ListenerTLS())), true)
+	}
+	if presentsCertificate {
+		if err := installListenerCertificate(m.lgTransport, "looking glass", cfg.certName); err != nil {
+			return err
+		}
+	}
+	if err := m.lgTransport.UpdateListenerTLS(plan.tlsByAddr()); err != nil {
+		return fmt.Errorf("looking glass listener protocol: %w", err)
+	}
+
+	for _, addr := range plan.downgraded {
+		warning := lgDowngradeWarning(addr)
+		m.log().LogAttrs(context.Background(), slog.LevelWarn, warning.Problem(),
+			warning.LogAttrs(slog.String("code", codeDoctorLGPlainHTTP), slog.String("address", addr))...)
+	}
 	return nil
 }
 
@@ -650,8 +707,18 @@ func (m *listenerMigrator) buildChanges(tree *zeconfig.Tree) []serviceChange {
 	}
 
 	if m.lg != nil {
-		if lgCfg, ok := zeconfig.ExtractLGConfig(tree); ok {
-			if sc, ok := m.buildChange(svcLG, m.lg, endpointsToAddrs(lgCfg.Servers)); ok {
+		// The addresses the start path would bind for this config
+		// (resolveLGListeners). Its one error is an unreadable
+		// ze.looking-glass.listen, which the reload has already refused over
+		// by the time it migrates (main_reload.go), so here it is reported and
+		// the looking glass keeps its listeners. `ze doctor` reports the same
+		// value under the same code (lg_doctor.go).
+		listeners, err := resolveLGListeners(tree)
+		if err != nil {
+			m.log().Warn("looking glass listeners not migrated", "code", codeDoctorLGListenUnreadable, "error", err)
+		}
+		if len(listeners) > 0 {
+			if sc, ok := m.buildChange(svcLG, m.lg, lgListenerAddrs(listeners)); ok {
 				changes = append(changes, sc)
 			}
 		}

@@ -50,7 +50,8 @@ kill -HUP $(pidof ze)               # Direct signal
 | An API token added, rotated, or removed | The running REST and gRPC servers rebuild their credentials without rebinding |
 | A web `certificate` reference changed | The listener serves the new chain on the next handshake with no rebind |
 | A looking-glass `certificate` reference changed | The same, on the looking-glass listener. A name the new store does not define refuses the whole commit and puts the prior store back |
-| A web or looking-glass `certificate` reference removed | The listener serves its self-signed certificate from the next handshake with no rebind, as a restart would. A looking glass running without a `database/` store has no self-signed certificate to return to: the commit is refused, the web listener keeps the certificate of the running config even when the same commit changed it, and `ze init` then a restart lets the looking glass serve one |
+| A web or looking-glass `certificate` reference removed | The listener serves its self-signed certificate from the next handshake with no rebind, as a restart would. A looking glass running without a `database/` store has no self-signed certificate to return to: an entry that left `tls` unset serves plain HTTP from its next connection, with a warning, and when an entry says `tls true` the commit is refused, the web listener keeps the certificate of the running config even when the same commit changed it, and `ze init` then a restart lets the looking glass serve one |
+| The `tls` leaf of a looking-glass `server` entry changed, or an entry added | The endpoint serves the new protocol, HTTPS or plain HTTP, from its next connection with no rebind, and a new entry is bound with the protocol it asks for. Open connections finish on the protocol they started with. A looking glass that served an entry over HTTP for want of a certificate serves it over HTTPS once the commit names one |
 
 <!-- source: internal/component/config/transaction/orchestrator.go -- brokenRollbackLine -->
 <!-- source: internal/component/cmd/show/system.go -- handleShowSystemSubsystemList -->
@@ -60,6 +61,7 @@ kill -HUP $(pidof ze)               # Direct signal
 <!-- source: internal/component/bgp/reactor/peer_settings_negotiation.go -- pluginDeclarationsKept -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- reactorAPIAdapter.ReloadRunning, withPeerEntries -->
 <!-- source: cmd/ze/hub/main_reload.go -- lgCertificateName and the looking-glass certificate gate -->
+<!-- source: cmd/ze/hub/lg_transport.go -- planLGTransports, the protocol of each looking-glass entry -->
 <!-- source: cmd/ze/hub/listener_migrate.go -- updateLGCertificate -->
 
 Changing the export final decision reconciles advertisements without a new source UPDATE.

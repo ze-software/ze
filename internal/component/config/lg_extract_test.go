@@ -2,31 +2,41 @@ package config
 
 import "testing"
 
-// lgTree builds an enabled environment.looking-glass block. Pass tls="" to omit
-// the leaf entirely, which is the case the TLS default governs.
+// lgTree builds an enabled environment.looking-glass block with one server
+// entry. Pass tls="" to omit the entry's tls leaf entirely, which is the case
+// the TLS default governs.
 func lgTree(tls, token string) *Tree {
 	tree := NewTree()
 	env := tree.GetOrCreateContainer("environment")
 	lg := env.GetOrCreateContainer("looking-glass")
 	lg.Set("enabled", "true")
-	if tls != "" {
-		lg.Set("tls", tls)
-	}
 	if token != "" {
 		lg.Set("token", token)
 	}
 	srv := NewTree()
 	srv.Set("ip", "0.0.0.0")
 	srv.Set("port", "8443")
+	if tls != "" {
+		srv.Set("tls", tls)
+	}
 	lg.AddListEntry("server", "default", srv)
 	return tree
 }
 
+// lgServerTLS returns the tls state of the one server entry lgTree builds.
+func lgServerTLS(t *testing.T, cfg LGListenConfig) LGServerTLS {
+	t.Helper()
+	if len(cfg.Servers) != 1 {
+		t.Fatalf("got %d server entries, want 1", len(cfg.Servers))
+	}
+	return cfg.Servers[0].TLS
+}
+
 func TestExtractLGConfigTLSDefaultOn(t *testing.T) {
-	// VALIDATES: AC-5 -- the looking-glass TLS default is ON. The raw config
-	// tree carries no YANG defaults (a leaf the operator did not write is simply
-	// absent), so flipping the YANG default alone would change nothing: the
-	// extractor must read an absent leaf as true.
+	// VALIDATES: AC-5 -- a looking-glass server entry asks for TLS by default.
+	// The raw config tree carries no YANG defaults (a leaf the operator did not
+	// write is simply absent), so the YANG default alone would change nothing:
+	// the extractor must read an absent leaf as a request for TLS.
 	// PREVENTS: a looking glass serving plaintext because the operator wrote no
 	// tls leaf, which is the MEDIUM finding this AC closes.
 	t.Run("absent leaf reads true", func(t *testing.T) {
@@ -34,15 +44,15 @@ func TestExtractLGConfigTLSDefaultOn(t *testing.T) {
 		if !ok {
 			t.Fatal("expected an enabled looking-glass config")
 		}
-		if !cfg.TLS {
-			t.Fatal("an absent tls leaf must default to TLS ON")
+		if got := lgServerTLS(t, cfg); got != LGServerTLSInherited {
+			t.Fatalf("an absent tls leaf must default to TLS ON: got state %d, want LGServerTLSInherited", got)
 		}
 	})
 
 	t.Run("explicit true reads true", func(t *testing.T) {
 		cfg, _ := ExtractLGConfig(lgTree("true", ""))
-		if !cfg.TLS {
-			t.Fatal("tls true must enable TLS")
+		if got := lgServerTLS(t, cfg); got != LGServerTLSRequired {
+			t.Fatalf("tls true must enable TLS: got state %d, want LGServerTLSRequired", got)
 		}
 	})
 
@@ -50,18 +60,94 @@ func TestExtractLGConfigTLSDefaultOn(t *testing.T) {
 		// The documented opt-out (R-2): an operator with a plaintext
 		// birdwatcher client keeps working by writing tls false.
 		cfg, _ := ExtractLGConfig(lgTree("false", ""))
-		if cfg.TLS {
-			t.Fatal("an explicit tls false must serve plaintext")
+		if got := lgServerTLS(t, cfg); got != LGServerTLSOff {
+			t.Fatalf("an explicit tls false must serve plaintext: got state %d, want LGServerTLSOff", got)
 		}
 	})
 }
 
+func TestExtractLGConfigTLSPerServerEntry(t *testing.T) {
+	// VALIDATES: each server entry carries its own tls leaf, read in list
+	// order with the entry it was written on, so one looking glass asks for
+	// HTTP on one endpoint and HTTPS on another.
+	// PREVENTS: one entry's leaf deciding its sibling's protocol, and a tls
+	// leaf written on the block, where the schema no longer has one, deciding
+	// any entry's.
+	tree := lgTree("false", "")
+	lg := tree.GetContainer("environment").GetContainer("looking-glass")
+	secure := NewTree()
+	secure.Set("ip", "0.0.0.0")
+	secure.Set("port", "443")
+	lg.AddListEntry("server", "secure", secure)
+	demanded := NewTree()
+	demanded.Set("ip", "0.0.0.0")
+	demanded.Set("port", "9443")
+	demanded.Set("tls", "true")
+	lg.AddListEntry("server", "demanded", demanded)
+	// The schema refuses this leaf; a raw tree that holds it anyway reads as
+	// if it were absent.
+	lg.Set("tls", "false")
+
+	cfg, ok := ExtractLGConfig(tree)
+	if !ok {
+		t.Fatal("expected an enabled looking-glass config")
+	}
+	if len(cfg.Servers) != 3 {
+		t.Fatalf("got %d server entries, want 3", len(cfg.Servers))
+	}
+	want := []struct {
+		port string
+		tls  LGServerTLS
+	}{
+		{"8443", LGServerTLSOff},
+		{"443", LGServerTLSInherited},
+		{"9443", LGServerTLSRequired},
+	}
+	for i, w := range want {
+		if cfg.Servers[i].Port != w.port {
+			t.Fatalf("entry %d: port %q, want %q", i, cfg.Servers[i].Port, w.port)
+		}
+		if cfg.Servers[i].TLS != w.tls {
+			t.Errorf("entry %d (port %s): tls state %d, want %d", i, w.port, cfg.Servers[i].TLS, w.tls)
+		}
+	}
+
+	endpoints := cfg.Endpoints()
+	if len(endpoints) != 3 {
+		t.Fatalf("Endpoints: got %d, want 3", len(endpoints))
+	}
+	if endpoints[1].Listen() != "0.0.0.0:443" {
+		t.Errorf("Endpoints[1]: got %q, want 0.0.0.0:443", endpoints[1].Listen())
+	}
+}
+
+func TestExtractLGConfigDefaultEndpointInheritsTLS(t *testing.T) {
+	// VALIDATES: a block that names no server yields the default endpoint with
+	// the tls leaf unset, never the zero state.
+	// PREVENTS: the synthesized endpoint reaching the hub as
+	// LGServerTLSUnspecified, which the transport plan treats as a Ze defect.
+	tree := NewTree()
+	lg := tree.GetOrCreateContainer("environment").GetOrCreateContainer("looking-glass")
+	lg.Set("enabled", "true")
+
+	cfg, ok := ExtractLGConfig(tree)
+	if !ok {
+		t.Fatal("expected an enabled looking-glass config")
+	}
+	if got := lgServerTLS(t, cfg); got != LGServerTLSInherited {
+		t.Fatalf("the default endpoint: got %d, want LGServerTLSInherited", got)
+	}
+	if cfg.Servers[0].Listen() != "0.0.0.0:8443" {
+		t.Fatalf("the default endpoint: got %q, want 0.0.0.0:8443", cfg.Servers[0].Listen())
+	}
+}
+
 func TestExtractLGSettingsSurviveDisabledBlock(t *testing.T) {
 	// VALIDATES: a looking-glass block that does NOT say `enabled true` still
-	// yields its tls and token settings. ze.looking-glass.enabled and
-	// ze.looking-glass.listen start the server without that leaf, so gating the
-	// settings on it threw the operator's instruction away: a block asking for
-	// TLS and a bearer token produced a PLAINTEXT, OPEN looking glass.
+	// yields its server entries, with their tls leaf, and its token.
+	// ze.looking-glass.enabled starts the server without that leaf, so gating
+	// the settings on it threw the operator's instruction away: a block asking
+	// for TLS and a bearer token produced a PLAINTEXT, OPEN looking glass.
 	// PREVENTS: the environment.mcp defect (spec finding 5) repeated for the
 	// looking glass -- config asks for authentication, daemon provides none
 	// (ai/rules/protocol.md).
@@ -78,8 +164,8 @@ func TestExtractLGSettingsSurviveDisabledBlock(t *testing.T) {
 	if !ok {
 		t.Fatal("settings must be available for any looking-glass block")
 	}
-	if !cfg.TLS || !cfg.TLSExplicit {
-		t.Fatalf("explicit tls true must survive: TLS=%v TLSExplicit=%v", cfg.TLS, cfg.TLSExplicit)
+	if got := lgServerTLS(t, cfg); got != LGServerTLSRequired {
+		t.Fatalf("explicit tls true must survive: got state %d, want LGServerTLSRequired", got)
 	}
 	if cfg.Token != "lg-s3cret" {
 		t.Fatalf("token must survive: got %q", cfg.Token)
@@ -95,22 +181,28 @@ func TestExtractLGSettingsAbsentBlock(t *testing.T) {
 }
 
 func TestExtractLGConfigTLSExplicitFlag(t *testing.T) {
-	// VALIDATES: TLSExplicit separates "the operator demands TLS" from "TLS is
-	// the default nobody overrode". It is the whole discriminator behind the
-	// warned plaintext fallback when no certificate store exists, so a wrong
+	// VALIDATES: the extractor separates "the operator demands TLS" from "TLS
+	// is the default nobody overrode". It is the whole discriminator behind the
+	// warned fallback to HTTP when no certificate store exists, so a wrong
 	// value there either bricks a working looking glass or silently downgrades
 	// one the operator explicitly secured.
 	absent, _ := ExtractLGConfig(lgTree("", ""))
-	if absent.TLSExplicit {
+	if lgServerTLS(t, absent) != LGServerTLSInherited {
 		t.Fatal("an absent tls leaf is the default, not an explicit demand")
 	}
 	on, _ := ExtractLGConfig(lgTree("true", ""))
-	if !on.TLSExplicit {
+	if lgServerTLS(t, on) != LGServerTLSRequired {
 		t.Fatal("tls true is an explicit demand")
 	}
 	off, _ := ExtractLGConfig(lgTree("false", ""))
-	if !off.TLSExplicit {
+	if lgServerTLS(t, off) != LGServerTLSOff {
 		t.Fatal("tls false is an explicit choice too")
+	}
+	// The schema admits true and false only. A raw value that is neither is
+	// never read as plain HTTP.
+	junk, _ := ExtractLGConfig(lgTree("maybe", ""))
+	if lgServerTLS(t, junk) != LGServerTLSRequired {
+		t.Fatal("a written value that is not false must demand TLS, never serve in the clear")
 	}
 }
 

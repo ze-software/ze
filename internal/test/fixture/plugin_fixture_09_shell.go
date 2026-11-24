@@ -195,10 +195,10 @@ func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
 	plaintextConfig := fmt.Sprintf(`environment {
 	looking-glass {
 		enabled true
-		tls false
 		server main {
 			ip 127.0.0.1;
 			port %d;
+			tls false;
 		}
 	}
 }
@@ -316,11 +316,11 @@ func lgTokenGate09(ctx context.Context, _ []string) error {
 	config := fmt.Sprintf(`environment {
 	looking-glass {
 		enabled true
-		tls false
 		token lg-s3cret-token
 		server main {
 			ip 127.0.0.1;
 			port %d;
+			tls false;
 		}
 	}
 }

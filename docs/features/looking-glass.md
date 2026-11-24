@@ -20,7 +20,7 @@ Ze includes a built-in looking glass that exposes BGP session state and route in
 | TLS certificate | `certificate` names a `pki { certificate <name> }` entry. The listener serves that leaf and every intermediate the store holds, so a visitor's browser accepts the chain. A named certificate needs no blob storage, so it serves on a deployment that never ran `ze init` |
 | Certificate fails closed | A name the PKI store does not hold stops the daemon at start, and a reload that introduces one is rejected as a whole. Ze never falls back to the self-signed certificate for a configured name. `ze doctor` reports a broken reference, and an expiry less than 30 days away, before the operator commits |
 | Certificate rotation | A commit that changes the name installs the new chain on the running server. The listener keeps its socket, and the next handshake serves the new chain. A looking glass serving plaintext takes no rotation, and a restart is what puts a certificate on the wire |
-| YANG configuration | `environment/looking-glass` block with enabled, server (ip, port), tls (default true), certificate, token, and the `next-hop-range` list |
+| YANG configuration | `environment/looking-glass` block with enabled, server (ip, port, tls default true), certificate, token, and the `next-hop-range` list |
 
 <!-- source: internal/component/lg/server.go -- LGServer, HTTP lifecycle -->
 <!-- source: internal/component/lg/handler_api.go -- Birdwatcher REST API handlers -->

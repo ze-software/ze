@@ -11,6 +11,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
+	"maps"
 	"math/big"
 	"strconv"
 	"strings"
@@ -30,16 +31,47 @@ import (
 // fakeTLSUpdatable records the material handed to the rotation seam. It lives
 // in an untagged file because tlsUpdatable is always-on hub code. certStore is
 // the listener's self-signed store, nil for a listener that runs without one.
+//
+// It stands for the looking glass too (lgTransportUpdatable). There it is one
+// listener on fakeListenAddr that serves TLS, unless listenerTLS says otherwise,
+// and requestedTLS holds the protocols the last reload asked of it.
 type fakeTLSUpdatable struct {
-	certPEM   []byte
-	keyPEM    []byte
-	calls     int
-	err       error
-	certStore selfcert.CertStore
+	certPEM      []byte
+	keyPEM       []byte
+	calls        int
+	err          error
+	certStore    selfcert.CertStore
+	listenerTLS  map[string]bool
+	requestedTLS map[string]bool
+}
+
+// fakeListenAddr is the address fakeTLSUpdatable listens on.
+const fakeListenAddr = "127.0.0.1:3443"
+
+func (f *fakeTLSUpdatable) ListenerTLS() map[string]bool {
+	if f.listenerTLS == nil {
+		return map[string]bool{fakeListenAddr: true}
+	}
+	return maps.Clone(f.listenerTLS)
+}
+
+func (f *fakeTLSUpdatable) UpdateListenerTLS(tlsByAddr map[string]bool) error {
+	f.requestedTLS = maps.Clone(tlsByAddr)
+	return nil
+}
+
+// lgCertNameOf returns the certificate name tree gives the looking glass,
+// through the reader the startup gate and the reload gate share.
+func lgCertNameOf(t *testing.T, tree *zeconfig.Tree) string {
+	t.Helper()
+
+	cfg, err := lgListenerConfigFrom(tree)
+	require.NoError(t, err)
+	return cfg.certName
 }
 
 func (f *fakeTLSUpdatable) selfSignedSource() (certStore selfcert.CertStore, listenAddr string) {
-	return f.certStore, "127.0.0.1:3443"
+	return f.certStore, fakeListenAddr
 }
 
 func (f *fakeTLSUpdatable) UpdateTLSCertificate(certPEM, keyPEM []byte) error {
@@ -210,9 +242,10 @@ func TestLGCertificateEnvWins(t *testing.T) {
 	// through the environment, which would serve one identity after a reload and
 	// another after the next restart.
 	//
-	// Both paths call lgCertificateName (main_reload.go): the startup gate in
-	// cmd/ze/hub/main.go takes its value from it, and the reload subtest below
-	// drives runReload, which reaches the same function through the real reload.
+	// Both paths call lgListenerConfigFrom (lg_transport.go), which reads the
+	// name through lgCertificateName: the startup gate in cmd/ze/hub/main.go
+	// takes its value from it, and the reload subtest below drives runReload,
+	// which reaches the same function through the real reload.
 	require.NoError(t, env.Set("ze.looking-glass.certificate", "pinned"))
 	t.Cleanup(func() { _ = env.Set("ze.looking-glass.certificate", "") })
 
@@ -222,7 +255,7 @@ func TestLGCertificateEnvWins(t *testing.T) {
 				"looking-glass": map[string]any{"enabled": "true", "certificate": "from-config"},
 			},
 		}
-		require.Equal(t, "pinned", lgCertificateName(treeFromMap(tree)))
+		require.Equal(t, "pinned", lgCertNameOf(t, treeFromMap(tree)))
 	})
 
 	t.Run("the reload path serves the environment value", func(t *testing.T) {
@@ -246,7 +279,7 @@ func TestLGCertificateEnvWins(t *testing.T) {
 
 		fake := &fakeTLSUpdatable{}
 		lm := &listenerMigrator{}
-		lm.setLGTLS(fake)
+		lm.setLGTransport(fake)
 
 		load := func() (map[string]any, *zeconfig.Tree, error) {
 			return newTree, treeFromMap(newTree), nil
@@ -274,21 +307,21 @@ func TestLGCertificateNameReadsSettingsNotAddresses(t *testing.T) {
 			"looking-glass": map[string]any{"enabled": "false", "certificate": "still-mine"},
 		},
 	}
-	require.Equal(t, "still-mine", lgCertificateName(treeFromMap(tree)),
+	require.Equal(t, "still-mine", lgCertNameOf(t, treeFromMap(tree)),
 		"a disabled block still states which certificate the operator wants served")
 
-	require.Empty(t, lgCertificateName(nil))
-	require.Empty(t, lgCertificateName(treeFromMap(map[string]any{})))
+	require.Empty(t, lgCertNameOf(t, nil))
+	require.Empty(t, lgCertNameOf(t, treeFromMap(map[string]any{})))
 }
 
 func TestReloadPlaintextLGKeepsCertificateInert(t *testing.T) {
-	// VALIDATES: a looking glass running plaintext serves no certificate, so a
-	// reload neither checks the name nor rotates anything.
+	// VALIDATES: a looking glass whose every server entry says `tls false`
+	// presents no certificate, so a reload neither checks the name nor installs
+	// anything.
 	// PREVENTS: the two paths disagreeing about one config. Startup resolves the
-	// name only when TLS is on (service_lg.go), so a daemon that boots this
-	// config happily must not have its next reload refused over the same leaf --
-	// and the lg server refuses a rotation it could never serve, which would
-	// turn that disagreement into a rejected commit.
+	// name only when an entry serves TLS (service_lg.go), so a daemon that boots
+	// this config happily must not have its next reload refused over the same
+	// leaf.
 	t.Cleanup(func() { _ = zepki.Load(nil) })
 	require.NoError(t, zepki.Load(nil))
 
@@ -296,13 +329,31 @@ func TestReloadPlaintextLGKeepsCertificateInert(t *testing.T) {
 		"environment": map[string]any{
 			"looking-glass": map[string]any{
 				"enabled":     "true",
-				"tls":         "false",
 				"certificate": "absent-cert",
+				"server": map[string]any{
+					"main": map[string]any{"ip": "127.0.0.1", "port": "3443", "tls": "false"},
+				},
 			},
 		},
 	}
-	require.Empty(t, lgCertificateName(treeFromMap(plaintext)),
-		"a plaintext looking glass presents no certificate, so it names none")
+	require.Empty(t, lgCertNameOf(t, treeFromMap(plaintext)),
+		"a looking glass with no TLS entry presents no certificate, so it names none")
+
+	// One entry that leaves tls unset is enough for the name to be read.
+	mixed := map[string]any{
+		"environment": map[string]any{
+			"looking-glass": map[string]any{
+				"enabled":     "true",
+				"certificate": "absent-cert",
+				"server": map[string]any{
+					"public": map[string]any{"ip": "127.0.0.1", "port": "3080", "tls": "false"},
+					"secure": map[string]any{"ip": "127.0.0.1", "port": "3443"},
+				},
+			},
+		},
+	}
+	require.Equal(t, "absent-cert", lgCertNameOf(t, treeFromMap(mixed)),
+		"an entry that serves TLS presents the certificate, whatever its sibling serves")
 
 	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
 	require.NoError(t, err)
@@ -312,7 +363,7 @@ func TestReloadPlaintextLGKeepsCertificateInert(t *testing.T) {
 
 	fake := &fakeTLSUpdatable{}
 	lm := &listenerMigrator{}
-	lm.setLGTLS(fake)
+	lm.setLGTransport(fake)
 
 	load := func() (map[string]any, *zeconfig.Tree, error) {
 		return plaintext, treeFromMap(plaintext), nil
@@ -324,7 +375,7 @@ func TestReloadPlaintextLGKeepsCertificateInert(t *testing.T) {
 		"the reload must reach plugin apply, which means the certificate gate let it through")
 	require.NotContains(t, err.Error(), "absent-cert",
 		"a name a plaintext listener never reads must not refuse the commit")
-	require.Zero(t, fake.calls, "nothing may be rotated onto a plaintext looking glass")
+	require.Zero(t, fake.calls, "nothing may be installed on a looking glass with no TLS entry")
 }
 
 func TestReloadRejectsBrokenLGCertificateReference(t *testing.T) {
@@ -362,7 +413,7 @@ func TestReloadRejectsBrokenLGCertificateReference(t *testing.T) {
 
 	fake := &fakeTLSUpdatable{}
 	lm := &listenerMigrator{}
-	lm.setLGTLS(fake)
+	lm.setLGTransport(fake)
 
 	load := func() (map[string]any, *zeconfig.Tree, error) {
 		return newTree, treeFromMap(newTree), nil
@@ -396,9 +447,9 @@ func TestReloadRotatesLGCertificate(t *testing.T) {
 
 	fake := &fakeTLSUpdatable{}
 	lm := &listenerMigrator{}
-	lm.setLGTLS(fake)
+	lm.setLGTransport(fake)
 
-	require.NoError(t, lm.updateLGCertificate("lg-cert"))
+	require.NoError(t, lm.updateLGTransport(lgListenerConfig{certName: "lg-cert"}))
 	require.Equal(t, 1, fake.calls)
 
 	pair, err := tls.X509KeyPair(fake.certPEM, fake.keyPEM)
@@ -582,7 +633,7 @@ func TestRollbackReloadRestoresInstalledListenerCertificate(t *testing.T) {
 	lookingGlass := &fakeTLSUpdatable{} // no certStore: a looking glass that runs without a store
 	lm := &listenerMigrator{}
 	lm.setWebTLS(web)
-	lm.setLGTLS(lookingGlass)
+	lm.setLGTransport(lookingGlass)
 
 	load := func() (map[string]any, *zeconfig.Tree, error) {
 		return reloaded, treeFromMap(reloaded), nil

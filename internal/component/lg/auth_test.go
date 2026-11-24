@@ -14,7 +14,7 @@ func startTokenTestServer(t *testing.T, token string) (string, *http.Client) {
 	t.Helper()
 
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}},
 		Dispatch:    mockDispatch(),
 		Token:       token,
 	})

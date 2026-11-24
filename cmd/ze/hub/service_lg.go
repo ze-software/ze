@@ -29,12 +29,12 @@ import (
 
 // lgService adapts *lg.LGServer to the Service interface (it already satisfies
 // Reconfigurable + Shutdown; Name is added), and carries what a reload needs to
-// return the listener to its self-signed pair (selfSignedSource).
+// give a TLS listener its self-signed pair (selfSignedSource).
 type lgService struct {
 	*lg.LGServer
 	// certStore is the store the self-signed pair lives in. Nil when the daemon
-	// runs without one: a looking glass that started on a named certificate
-	// needs none, and a reload that drops the name is then refused.
+	// runs without one: a listener then serves TLS on a named certificate only,
+	// and planLGTransports decides what each entry does with no name.
 	certStore selfcert.CertStore
 	// sanHint is the first address the looking glass was built with.
 	sanHint string
@@ -42,9 +42,10 @@ type lgService struct {
 
 func (lgService) Name() string { return "looking-glass" }
 
-// The reload migrator installs the certificate a reloaded config describes
-// through this seam (listener_migrate.go, updateLGCertificate).
-var _ tlsUpdatable = lgService{}
+// The reload migrator installs the certificate a reloaded config describes,
+// and the protocol of each listener, through this seam (listener_migrate.go,
+// updateLGTransport).
+var _ lgTransportUpdatable = lgService{}
 
 // selfSignedSource answers the store and the SAN hint the looking glass's
 // self-signed pair comes from (tlsUpdatable). The hint names a SAN only when
@@ -61,35 +62,47 @@ var _ nextHopRangesUpdatable = lgService{}
 // buildLGService builds and starts the looking-glass HTTP server from deps. It
 // returns a nil Service (not an error) when lg is not configured or fails to
 // start -- preserving the prior best-effort, non-fatal behavior of
-// startLGServer. Every entry in deps.LGAddrs becomes a bound listener; Shutdown
-// closes all of them.
+// startLGServer. Every entry in deps.LGListeners becomes a bound listener, on
+// HTTPS or HTTP as planLGTransports decides for it; Shutdown closes all of
+// them.
 func buildLGService(deps *serviceDeps) (Service, error) {
-	if len(deps.LGAddrs) == 0 || deps.Dispatch == nil {
-		// Not configured: a skip, not a failure. buildServices treats a nil
-		// service as "feature absent" and moves on.
+	// Not configured: a skip, not a failure. buildServices treats a nil service
+	// as "feature absent" and moves on.
+	if len(deps.LGListeners) == 0 {
 		return nil, nil //nolint:nilnil // not-configured is an intentional skip
 	}
-
-	dispatch := deps.Dispatch
-
-	// A storeless stdin daemon cannot persist a self-signed looking-glass
-	// certificate. Named certificates remain usable without persistence.
-	useTLS := deps.LGTLS
-	selfSignedTLS := useTLS && deps.LGCertificate == ""
-	if selfSignedTLS && deps.Store == nil {
-		if deps.LGTLSExplicit {
-			return nil, errors.New("looking glass TLS requires persistent storage (run ze init first)")
-		}
-		fmt.Fprintln(os.Stderr,
-			"warning: looking glass serving plaintext: TLS is on by default but needs persistent storage for certificates")
-		fmt.Fprintln(os.Stderr,
-			"  run `ze init` to enable TLS, or set looking-glass tls false to silence this warning")
-		useTLS = false
+	if deps.Dispatch == nil {
+		return nil, nil //nolint:nilnil // no dispatcher to serve from is the same skip
 	}
 
+	// A typed nil store would read as a store, so certStore stays an untyped
+	// nil when the daemon has none (listenerTLSMaterial refuses on nil).
+	var certStore selfcert.CertStore
+	if deps.Store != nil {
+		certStore = &blobCertStore{store: deps.Store}
+	}
+
+	// Each entry chooses HTTPS or HTTP. A daemon without a store cannot keep a
+	// self-signed certificate, so with no named one an entry that left tls
+	// unset serves HTTP with the warning below, and an entry whose operator
+	// wrote `tls true` refuses the looking glass. A reload decides with the
+	// same function (listener_migrate.go, updateLGTransport).
+	plan, err := planLGTransports(deps.LGListeners, deps.LGCertificate, certStore != nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, addr := range plan.downgraded {
+		fmt.Fprintln(os.Stderr, "warning: "+lgDowngradeWarning(addr).Error())
+	}
+
+	listen := make([]lg.ListenAddr, 0, len(plan.bindings))
+	for _, binding := range plan.bindings {
+		listen = append(listen, lg.ListenAddr{Addr: binding.addr, TLS: binding.tls})
+	}
+	sanHint := plan.bindings[0].addr
+
 	cfg := lg.LGConfig{
-		ListenAddrs: deps.LGAddrs,
-		TLS:         useTLS,
+		ListenAddrs: listen,
 		Token:       deps.LGToken,
 		// The names an operator gave to next-hop ranges. A reload replaces
 		// them through lgService.UpdateNextHopRanges (listener_migrate.go).
@@ -99,16 +112,15 @@ func buildLGService(deps *serviceDeps) (Service, error) {
 		// It also names AS numbers, by asking the resolve component's
 		// `resolve cymru asn-name` command (internal/component/lg/as_names.go),
 		// so the looking glass holds no resolver of its own.
-		Dispatch: dispatch,
+		Dispatch: deps.Dispatch,
 	}
 
-	// When TLS is enabled, resolve the material the listener serves through the
+	// When a listener serves TLS, resolve the material it presents through the
 	// selector the web listener shares. Build failures are returned as errors;
 	// buildServices logs them and leaves lg unstarted (best-effort, matching the
 	// prior non-fatal behavior).
-	if useTLS {
-		certStore := &blobCertStore{store: deps.Store}
-		certPEM, keyPEM, err := listenerTLSMaterial(deps.LGCertificate, certStore, deps.LGAddrs[0])
+	if plan.servesTLS() {
+		certPEM, keyPEM, err := listenerTLSMaterial(deps.LGCertificate, certStore, sanHint)
 		if err != nil {
 			return nil, fmt.Errorf("looking glass TLS cert: %w", err)
 		}
@@ -131,20 +143,15 @@ func buildLGService(deps *serviceDeps) (Service, error) {
 		return nil, fmt.Errorf("looking glass failed to start: %w", waitErr)
 	}
 
-	scheme := "http"
-	if cfg.TLS {
-		scheme = "https"
-	}
-	for _, addr := range srv.Addresses() {
+	// Addresses answers the bound addresses in the order of the plan.
+	for i, addr := range srv.Addresses() {
+		scheme := "http"
+		if plan.bindings[i].tls {
+			scheme = "https"
+		}
 		fmt.Fprintf(os.Stderr, "looking glass listening on %s://%s/\n", scheme, addr)
 	}
-	service := lgService{LGServer: srv, sanHint: deps.LGAddrs[0]}
-	// A typed nil store would read as a store, so the field stays an untyped
-	// nil when the daemon has none (listenerTLSMaterial refuses on nil).
-	if deps.Store != nil {
-		service.certStore = &blobCertStore{store: deps.Store}
-	}
-	return service, nil
+	return lgService{LGServer: srv, certStore: certStore, sanHint: sanHint}, nil
 }
 
 // serveLG runs the LG server's ListenAndServe in a background goroutine.

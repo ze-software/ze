@@ -181,47 +181,53 @@ func TestBuildMCPFormData_SensitiveFields(t *testing.T) {
 	assert.Equal(t, "password", tlsKeyField.Type)
 }
 
-func TestBuildLookingGlassFormData(t *testing.T) {
+func TestBuildLookingGlassFormDataListsServerEntries(t *testing.T) {
+	// VALIDATES: the form has three fields, the enable switch, the server
+	// entries by name and the token, and each entry's tls leaf is edited on the
+	// entry.
+	// PREVENTS: the form losing the server list when the block-wide TLS toggle
+	// went away.
 	tree := config.NewTree()
 	env := tree.GetOrCreateContainer("environment")
 	lg := env.GetOrCreateContainer("looking-glass")
 	lg.Set("enabled", "true")
-	lg.Set("tls", "false")
+	public := config.NewTree()
+	public.Set("port", "80")
+	public.Set("tls", "false")
+	lg.AddListEntry("server", "public", public)
 
 	form := buildLookingGlassFormData(tree)
 	assert.Equal(t, "Looking Glass Configuration", form.Title)
-	require.Len(t, form.Fields, 4)
+	require.Len(t, form.Fields, 3)
 	assert.Equal(t, "true", form.Fields[0].Value)
-	assert.Equal(t, "false", form.Fields[2].Value, "an explicit tls false must render as off")
+	assert.Equal(t, []string{"public"}, form.Fields[1].Items, "the server entries are listed by name")
 }
 
-func TestBuildLookingGlassFormDataTLSDefaultsOn(t *testing.T) {
-	// VALIDATES: the TLS toggle reflects the looking glass's real default when
-	// the operator wrote no tls leaf. The config tree holds only what was
-	// written, so reading it raw gives "" -- which renders the toggle OFF and,
-	// because the toggle template always posts a companion hidden "false",
-	// makes the next save of ANY field on this form write `tls false`.
-	// PREVENTS: the web UI silently downgrading a TLS looking glass to plaintext
-	// while displaying a state that never matched the running daemon.
+func TestBuildLookingGlassFormDataHasNoBlockWideTLS(t *testing.T) {
+	// VALIDATES: the form offers no TLS toggle for the whole looking glass. The
+	// tls leaf belongs to each server entry, and the block has none, so a
+	// toggle here would post `tls` to a path the schema does not define.
+	// PREVENTS: a save of any field on this form writing a leaf Ze refuses, and
+	// the page showing one protocol for a looking glass that serves two.
 	tree := config.NewTree()
 	env := tree.GetOrCreateContainer("environment")
 	lg := env.GetOrCreateContainer("looking-glass")
 	lg.Set("enabled", "true")
 
 	form := buildLookingGlassFormData(tree)
-	require.Len(t, form.Fields, 4)
-	assert.Equal(t, "tls", form.Fields[2].Name)
-	assert.Equal(t, "true", form.Fields[2].Value,
-		"an absent tls leaf must render as ON, matching ExtractLGConfig")
+	require.Len(t, form.Fields, 3)
+	for _, field := range form.Fields {
+		assert.NotEqual(t, "tls", field.Name, "the block-wide tls field was removed with its leaf")
+	}
 }
 
 func TestBuildLookingGlassFormDataTokenIsSensitive(t *testing.T) {
 	// The token gates every looking-glass route, so the form must offer it and
 	// must not render it as readable text.
 	form := buildLookingGlassFormData(nil)
-	require.Len(t, form.Fields, 4)
-	assert.Equal(t, "token", form.Fields[3].Name)
-	assert.Equal(t, "password", form.Fields[3].Type)
+	require.Len(t, form.Fields, 3)
+	assert.Equal(t, "token", form.Fields[2].Name)
+	assert.Equal(t, "password", form.Fields[2].Type)
 }
 
 func TestBuildAPIFormData(t *testing.T) {

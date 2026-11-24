@@ -36,31 +36,54 @@ environment {
 | `enabled` | `false` | Enable the looking glass server. |
 | `server <name> { ip }` | `0.0.0.0` | Listen address. Set to `127.0.0.1` to restrict to local access. |
 | `server <name> { port }` | `8443` | Listen port. Must differ from the web UI port. |
-| `tls` | `true` | Serve HTTPS. Set `false` to serve plaintext. |
-| `certificate` | (empty) | Name of a `pki { certificate <name> }` entry to serve. Empty selects a self-signed certificate in the live store. |
+| `server <name> { tls }` | `true` | This endpoint serves HTTPS. Set `false` to serve plain HTTP on it. See [HTTP and HTTPS](#http-and-https). |
+| `certificate` | (empty) | Name of a `pki { certificate <name> }` entry to serve on every HTTPS endpoint. Empty selects a self-signed certificate in the live store. |
 | `token` | (empty) | Bearer token. When set, every `/api/` and `/lg/` route needs `Authorization: Bearer <token>`. Empty leaves the looking glass open. |
 | `next-hop-range <prefix> { name }` | (none) | A name for one range of next-hop addresses, shown beside a next hop inside it. See [Names for next hops and peers](#names-for-next-hops-and-peers). |
 
-Environment variable overrides: `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.tls=false`, `ze.looking-glass.token=<token>`, `ze.looking-glass.certificate=<name>`.
+Environment variable overrides: `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.token=<token>`, `ze.looking-glass.certificate=<name>`. No environment variable chooses HTTP or HTTPS: write `tls` in the `server` entry.
 
-### TLS is on by default
+### HTTP and HTTPS
 
-The looking glass binds `0.0.0.0` and publishes route data and session state, so
-it serves HTTPS unless you turn TLS off. Two rules apply:
+What a looking glass publishes is public, so you choose for each endpoint
+whether it serves HTTPS or plain HTTP, and one looking glass serves both at the
+same time:
 
-- Write `tls false` (or set `ze.looking-glass.tls=false`) to serve plaintext,
-  for example behind a proxy that terminates TLS.
-- Without a live store or named certificate, Ze cannot persist a self-signed
-  certificate. Explicit `tls true` refuses the looking-glass listener.
-  With the default TLS setting, it serves plaintext and warns that `ze init`
-  is required for persistence. An explicit-file start creates a live store.
+```
+environment {
+    looking-glass {
+        enabled true
+        server public {
+            ip 0.0.0.0
+            port 80
+            tls false
+        }
+        server secure {
+            ip 0.0.0.0
+            port 8443
+        }
+    }
+}
+```
+
+| Rule | Detail |
+|------|--------|
+| Default | An endpoint serves HTTPS unless its entry says `tls false`. |
+| Plain HTTP | Write `tls false` in the entry, for port 80 or behind a proxy that terminates TLS. The other entries are not affected. |
+| No certificate to present | HTTPS needs a named `certificate` or the live store, where Ze keeps its self-signed certificate. With neither, an entry that left `tls` unset serves plain HTTP, and Ze prints a warning that names the entry: run `ze init` and restart for HTTPS, or write `tls false` to serve HTTP on purpose. An entry that says `tls true` cannot be served: the looking glass does not start, and a reload is refused, with the same message. `ze doctor` reports both before you start, as `doctor-lg-plain-http` and `doctor-lg-tls-unservable`. An explicit-file start creates a live store. |
+| Reload | Change `tls` on an entry, add an entry, or remove one, and reload. An endpoint that stays keeps its socket: open connections finish on the protocol they started with, and the next connection takes the new one. A reload serves what a restart with the same config serves. |
+| `ze.looking-glass.listen` | An address from this variable has no entry, so it serves HTTPS. Write the `server` entry to serve HTTP on it. |
+| RFC 8522 API | `/.well-known/looking-glass/` answers on HTTPS endpoints only. See [RFC 8522](#rfc-8522-looking-glass-command-set-api). |
+
+<!-- source: cmd/ze/hub/lg_transport.go -- planLGTransports, resolveLGListeners -->
+<!-- source: internal/component/lg/server.go -- ListenAddr, UpdateListenerTLS -->
 
 ### Serve your own certificate
 
 A visitor to a public looking glass has not installed your root, so a
 self-signed certificate gives them a browser warning. Set `certificate` to the
 name of a `pki { certificate <name> }` entry and the listener serves that leaf
-and every intermediate the entry holds:
+and every intermediate the entry holds, on every endpoint that serves HTTPS:
 
 ```
 environment {
@@ -76,9 +99,9 @@ environment {
 | Default | No `certificate` leaf means Ze generates and serves a self-signed certificate, which is the behavior of every release before this leaf existed. |
 | Fail closed | A name the store does not hold, or an entry with no `private { key }`, refuses the start: Ze exits and names the missing certificate. A reload that names one is rejected as a whole, and the running looking glass keeps the chain it is serving. Ze never falls back to a self-signed certificate for a name you configured. |
 | Rotation | Load new material under the same name and reload: the listener serves the new chain from the next handshake, with no rebind, so a viewer's open connection survives. |
-| Removal | Delete the `certificate` leaf and reload: the listener serves its self-signed certificate from the next handshake, with no rebind, as a restart would. Without a `database/` store there is no self-signed certificate to return to, so that reload is refused; run `ze init` and restart. |
-| TLS off | `tls false` serves no certificate, so the leaf is inert. Neither the start nor a reload reads the name. |
-| Plaintext by downgrade | A storeless stdin daemon took the TLS default and started the looking glass in plaintext. A later certificate name does not enable TLS; restart to serve the named chain. |
+| Removal | Delete the `certificate` leaf and reload: the listener serves its self-signed certificate from the next handshake, with no rebind, as a restart would. Without a `database/` store there is no self-signed certificate to return to. An entry that left `tls` unset then serves plain HTTP from its next connection, with a warning, and an entry that says `tls true` refuses the reload: run `ze init` and restart, or name a certificate. |
+| TLS off | When every entry says `tls false` no endpoint presents a certificate, so the leaf is inert. Neither the start nor a reload reads the name. One HTTPS entry is enough for the name to be read. |
+| HTTP for want of a certificate | A daemon with no live store took the TLS default and serves an entry over plain HTTP. Name a certificate and reload: that endpoint serves the named chain over HTTPS from its next connection, with no restart. |
 | No live store needed | A named certificate comes from the `pki {}` container. Only the self-signed certificate needs the live store. |
 | Name | 1 to 255 characters, `A-Z a-z 0-9 . _ -`. It is a store key, never a file path. |
 | Own leaf | The looking glass and the web UI have separate `certificate` leaves, so each listener serves the certificate that matches its own hostname. |
@@ -88,7 +111,7 @@ environment {
 <!-- source: cmd/ze/hub/service_tls.go -- listenerTLSMaterial (fail-closed selection) -->
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig, the looking-glass certificate startup gate -->
 <!-- source: cmd/ze/hub/main_reload.go -- lgCertificateName and the reload refusal -->
-<!-- source: cmd/ze/hub/listener_migrate.go -- updateLGCertificate (rotation without rebind) -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- updateLGTransport (rotation and protocol change without rebind) -->
 
 ### Optional bearer token
 
@@ -103,8 +126,8 @@ When the `looking-glass` block is absent, no HTTP server is started and no resou
 
 ## Web UI
 
-The HTMX web UI is available at `https://<host>:<port>/lg/` (`http://` when you
-set `tls false`). No authentication is required unless you set `token`.
+The HTMX web UI is available at `https://<host>:<port>/lg/` (`http://` on an
+endpoint whose entry says `tls false`). No authentication is required unless you set `token`.
 
 | Tab / View | URL | Description |
 |------------|-----|-------------|
@@ -451,7 +474,7 @@ The looking glass also implements the [RFC 8522](https://www.rfc-editor.org/info
 | `GET /.well-known/looking-glass/v1/routers/{number}` | Mandatory | Returns router details (`id`, `name`, supported `format`, `vendor`, `autonomous_system`). |
 | `GET /.well-known/looking-glass/v1/cmd` | Mandatory | Lists all supported commands and their URI templates. |
 
-HTTPS is required for `/.well-known/looking-glass/` per RFC 8522 Section 6: plaintext HTTP requests are refused with HTTP `400` and a JSend error envelope, while `/api/looking-glass/` and `/lg/` continue to honor `tls false`. Requests are rate-limited per client IP (default 60 requests per minute, HTTP `429` when exceeded). Supported query parameters are `protocol`, `router`, `routerindex`, `random` (ignored), `vrf`, `runtime` (seconds, default 30, 0 disables), and `format` (`text/plain` or `application/json`).
+HTTPS is required for `/.well-known/looking-glass/` per RFC 8522 Section 6: plaintext HTTP requests are refused with HTTP `400` and a JSend error envelope, on every endpoint whose entry says `tls false`, while `/api/looking-glass/` and `/lg/` answer there. Requests are rate-limited per client IP (default 60 requests per minute, HTTP `429` when exceeded). Supported query parameters are `protocol`, `router`, `routerindex`, `random` (ignored), `vrf`, `runtime` (seconds, default 30, 0 disables), and `format` (`text/plain` or `application/json`).
 
 <!-- source: internal/component/lg/handler_rfc8522.go -- handleRFC8522, rfc8522RateLimiter -->
 
@@ -481,6 +504,6 @@ The looking glass is designed for public IXP deployment. It is read-only, and op
 <!-- source: internal/component/lg/markup_check_test.go -- TestTemplatesAvoidInlineScriptAndStyle, lgMarkupExempt -->
 <!-- source: internal/component/lg/layout.go -- renderGraphSVG label escaping -->
 
-When TLS is enabled, the server uses TLS 1.2 minimum. It reads its own
+An HTTPS endpoint uses TLS 1.2 minimum. The looking glass reads its own
 `certificate` leaf, resolved against the same PKI store the web UI reads, and
 serves a self-signed certificate when that leaf is unset.

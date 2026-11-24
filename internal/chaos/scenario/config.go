@@ -91,16 +91,16 @@ func GenerateConfig(params ConfigParams) string {
 			fmt.Fprintf(&b, "    }\n")                                  //nolint:errcheck // buffer output
 		}
 		if params.LGPort > 0 {
-			fmt.Fprintf(&b, "    looking-glass {\n")   //nolint:errcheck // buffer output
-			fmt.Fprintf(&b, "        enabled true;\n") //nolint:errcheck // buffer output
+			b.Str("    looking-glass {\n")
+			b.Str("        enabled true;\n")
+			b.Str("        server main {\n")
+			b.Str("            ip 127.0.0.1;\n")
+			b.Str("            port ").Int(int64(params.LGPort)).Str(";\n")
 			if params.LGPlaintext {
-				fmt.Fprintf(&b, "        tls false;\n") //nolint:errcheck // buffer output
+				b.Str("            tls false;\n")
 			}
-			fmt.Fprintf(&b, "        server main {\n")               //nolint:errcheck // buffer output
-			fmt.Fprintf(&b, "            ip 127.0.0.1;\n")           //nolint:errcheck // buffer output
-			fmt.Fprintf(&b, "            port %d;\n", params.LGPort) //nolint:errcheck // buffer output
-			fmt.Fprintf(&b, "        }\n")                           //nolint:errcheck // buffer output
-			fmt.Fprintf(&b, "    }\n")                               //nolint:errcheck // buffer output
+			b.Str("        }\n")
+			b.Str("    }\n")
 		}
 		if params.MCPPort > 0 {
 			fmt.Fprintf(&b, "    mcp {\n")                        //nolint:errcheck // buffer output

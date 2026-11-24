@@ -49,6 +49,10 @@ exporter (`telemetry`). Their wiring lives in `cmd/ze/hub` (`hub-engine.md`).
 
 Each surface carries its own authentication and TLS. A listener that serves
 without it is a security defect, not a default (`plan/journal/enabled-gate-discards-settings.md`).
+The looking glass is the one surface an operator may serve over plain HTTP,
+because what it publishes is public: each of its `server` entries chooses in its
+own `tls` leaf, default true, by an owner ruling
+(`docs/architecture/pki/tls-listeners.md`, "Design decisions").
 
 ## Boundaries
 

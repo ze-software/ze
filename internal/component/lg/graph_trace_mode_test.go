@@ -79,7 +79,7 @@ func traceModeRequest(t *testing.T, engine traceModeEngine, query string) (*http
 	}
 
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs:   []string{"127.0.0.1:0"},
+		ListenAddrs:   []ListenAddr{{Addr: "127.0.0.1:0"}},
 		Dispatch:      dispatch,
 		NextHopRanges: map[netip.Prefix]string{netip.MustParsePrefix("203.0.113.0/24"): "ixp-lan-a"},
 	})

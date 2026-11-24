@@ -16,6 +16,7 @@ import (
 	"sync"
 	"testing"
 
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/lg"
 	"github.com/ze-software/ze/internal/component/plugin"
 	resolvecmd "github.com/ze-software/ze/internal/component/resolve/cmd"
@@ -25,6 +26,12 @@ func lgTestDispatch() plugin.CommandDispatcher {
 	return func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	}
+}
+
+// lgTestListeners returns one loopback looking-glass listener on a port the
+// kernel chooses, whose server entry says tls about its protocol.
+func lgTestListeners(tls zeconfig.LGServerTLS) []lgListener {
+	return []lgListener{{addr: "127.0.0.1:0", tls: tls}}
 }
 
 // TestLGUnknownASNameMatchesTheResolveCommand compares the two copies of the
@@ -65,9 +72,8 @@ func TestBuildLGService_NamesASThroughTheDispatcher(t *testing.T) {
 	}
 
 	svc, err := buildLGService(&serviceDeps{
-		Dispatch: dispatch,
-		LGAddrs:  []string{"127.0.0.1:0"},
-		LGTLS:    false,
+		Dispatch:    dispatch,
+		LGListeners: lgTestListeners(zeconfig.LGServerTLSOff),
 	})
 	if err != nil {
 		t.Fatalf("build: %v", err)
@@ -121,18 +127,16 @@ func TestBuildLGService_NotConfigured(t *testing.T) {
 }
 
 func TestBuildLGService_ExplicitTLSWithoutBlobStorageFails(t *testing.T) {
-	// VALIDATES: an operator who WROTE `tls true` (or set ze.looking-glass.tls)
-	// and has no certificate store gets an error, never a quiet plaintext
+	// VALIDATES: an operator who WROTE `tls true` on a server entry and has
+	// no certificate store gets an error, never a quiet plaintext
 	// looking glass. Their instruction cannot be honored, so it is refused
 	// rather than approximated (ai/rules/protocol.md).
 	// PREVENTS: the default-on fallback below widening into a downgrade of TLS
 	// the operator explicitly demanded.
 	svc, err := buildLGService(&serviceDeps{
-		Dispatch:      lgTestDispatch(),
-		LGAddrs:       []string{"127.0.0.1:0"},
-		LGTLS:         true,
-		LGTLSExplicit: true,
-		Store:         nil,
+		Dispatch:    lgTestDispatch(),
+		LGListeners: lgTestListeners(zeconfig.LGServerTLSRequired),
+		Store:       nil,
 	})
 	if err == nil {
 		t.Fatal("explicit TLS without persistent storage must fail, not fall back to plaintext")
@@ -148,13 +152,16 @@ func TestBuildLGService_DefaultTLSWithoutBlobStorageServesPlaintext(t *testing.T
 	// hardening default must not turn a working looking glass into a missing
 	// one; the warning on stderr names `ze init` as the remedy.
 	// PREVENTS: every file-config deployment that never ran `ze init` losing its
-	// looking glass to a silent build failure.
-	svc, err := buildLGService(&serviceDeps{
-		Dispatch:      lgTestDispatch(),
-		LGAddrs:       []string{"127.0.0.1:0"},
-		LGTLS:         true,
-		LGTLSExplicit: false,
-		Store:         nil,
+	// looking glass to a silent build failure, and a warning that drops the
+	// address of the entry it is about.
+	var svc Service
+	var err error
+	warned := captureStderrFile(t, func() {
+		svc, err = buildLGService(&serviceDeps{
+			Dispatch:    lgTestDispatch(),
+			LGListeners: lgTestListeners(zeconfig.LGServerTLSInherited),
+			Store:       nil,
+		})
 	})
 	if err != nil {
 		t.Fatalf("defaulted TLS with no blob storage must still start: %v", err)
@@ -163,4 +170,13 @@ func TestBuildLGService_DefaultTLSWithoutBlobStorageServesPlaintext(t *testing.T
 		t.Fatal("want a running looking glass, got nil")
 	}
 	t.Cleanup(func() { _ = svc.Shutdown(context.Background()) })
+	want := "warning: " + lgDowngradeWarning(lgTestListeners(zeconfig.LGServerTLSInherited)[0].addr).Error()
+	if !strings.Contains(warned, want) {
+		t.Fatalf("stderr does not carry the downgrade warning %q:\n%s", want, warned)
+	}
+	for _, part := range []string{"127.0.0.1:0 serves plain HTTP", "\nfix: ", "ze init", "tls false"} {
+		if !strings.Contains(warned, part) {
+			t.Fatalf("the downgrade warning does not name %q:\n%s", part, warned)
+		}
+	}
 }

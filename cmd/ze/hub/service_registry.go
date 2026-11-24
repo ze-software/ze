@@ -67,16 +67,13 @@ type serviceDeps struct {
 	// Looking-glass resolved binding (pilot). LGToken is a plain string (no lg
 	// import): empty leaves the looking glass open, which is its default
 	// posture as a public read-only surface.
-	LGAddrs []string
-	LGTLS   bool
-	// LGTLSExplicit reports that the operator wrote the tls setting, rather than
-	// inheriting the default-on. It decides what a missing certificate store
-	// means: a demand that cannot be met (error), or a default that yields to
-	// the prior plaintext behavior with a warning.
-	LGTLSExplicit bool
-	LGToken       string
+	//
+	// LGListeners is one entry per listener, with what its server entry says
+	// about TLS (lg_transport.go). Empty means nothing starts a looking glass.
+	LGListeners []lgListener
+	LGToken     string
 	// LGCertificate names an entry in the PKI store to serve on the looking
-	// glass. Empty selects the self-signed certificate. A plain string (no pki
+	// glass listeners that serve TLS. Empty selects the self-signed certificate. A plain string (no pki
 	// type crosses this boundary); the factory resolves it through
 	// pki.ServerTLSMaterial.
 	LGCertificate string

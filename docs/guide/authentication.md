@@ -455,9 +455,9 @@ without TLS`) and the fix `set environment mcp tls cert <cert.pem> and set
 environment mcp tls key <key.pem>`. `ze config validate` and `ze doctor` print
 the same block for the same config.
 
-**The looking glass serves TLS by default.** A `looking-glass` block with no
-`tls` leaf now serves `https://`, so a plaintext client fails the handshake.
-Write `tls false` in the block, or set `ze.looking-glass.tls=false`, to keep
+**The looking glass serves TLS by default.** A `looking-glass` server entry
+with no `tls` leaf now serves `https://`, so a plaintext client fails the
+handshake. Write `tls false` on each `server` entry that should keep
 plaintext. One case still serves plaintext on its own: a box with no blob
 storage that only inherited the default gets a warning naming `ze init` instead
 of a failure, because a hardening default must not remove a working looking

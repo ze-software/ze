@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zepki "github.com/ze-software/ze/internal/component/pki"
 )
@@ -172,9 +173,7 @@ func TestBuildLGServiceResolvesNamedCertificate(t *testing.T) {
 	t.Run("a named certificate is served with its chain", func(t *testing.T) {
 		svc, err := buildLGService(&serviceDeps{
 			Dispatch:      lgTestDispatch(),
-			LGAddrs:       []string{"127.0.0.1:0"},
-			LGTLS:         true,
-			LGTLSExplicit: true,
+			LGListeners:   lgTestListeners(zeconfig.LGServerTLSRequired),
 			LGCertificate: "lg-cert",
 			Store:         lgBlobStorage(t),
 		})
@@ -199,9 +198,7 @@ func TestBuildLGServiceResolvesNamedCertificate(t *testing.T) {
 		t.Run("an unresolvable name refuses the listener: "+name, func(t *testing.T) {
 			svc, err := buildLGService(&serviceDeps{
 				Dispatch:      lgTestDispatch(),
-				LGAddrs:       []string{"127.0.0.1:0"},
-				LGTLS:         true,
-				LGTLSExplicit: true,
+				LGListeners:   lgTestListeners(zeconfig.LGServerTLSRequired),
 				LGCertificate: name,
 				Store:         lgBlobStorage(t),
 			})
@@ -228,9 +225,7 @@ func TestBuildLGServiceNamedCertificateWithoutBlobStorage(t *testing.T) {
 
 	svc, err := buildLGService(&serviceDeps{
 		Dispatch:      lgTestDispatch(),
-		LGAddrs:       []string{"127.0.0.1:0"},
-		LGTLS:         true,
-		LGTLSExplicit: true,
+		LGListeners:   lgTestListeners(zeconfig.LGServerTLSRequired),
 		LGCertificate: "lg-cert",
 		Store:         nil,
 	})
@@ -263,9 +258,7 @@ func TestBuildLGServiceEmptyNameKeepsStorageRules(t *testing.T) {
 	t.Run("explicit TLS without blob storage is an error", func(t *testing.T) {
 		svc, err := buildLGService(&serviceDeps{
 			Dispatch:      lgTestDispatch(),
-			LGAddrs:       []string{"127.0.0.1:0"},
-			LGTLS:         true,
-			LGTLSExplicit: true,
+			LGListeners:   lgTestListeners(zeconfig.LGServerTLSRequired),
 			LGCertificate: "",
 			Store:         nil,
 		})
@@ -280,9 +273,7 @@ func TestBuildLGServiceEmptyNameKeepsStorageRules(t *testing.T) {
 	t.Run("defaulted TLS without blob storage serves plaintext", func(t *testing.T) {
 		svc, err := buildLGService(&serviceDeps{
 			Dispatch:      lgTestDispatch(),
-			LGAddrs:       []string{"127.0.0.1:0"},
-			LGTLS:         true,
-			LGTLSExplicit: false,
+			LGListeners:   lgTestListeners(zeconfig.LGServerTLSInherited),
 			LGCertificate: "",
 			Store:         nil,
 		})
@@ -337,69 +328,26 @@ func captureMigratorLog(lm *listenerMigrator) func() string {
 	return sink.String
 }
 
-func TestPlaintextLGHoldsNoRotationHandle(t *testing.T) {
-	// VALIDATES: the certificate is inert on every path a looking glass serves
-	// plaintext. A deployment Ze dropped to plaintext for want of a blob store
-	// still reads `tls true` from its config, so lgCertificateName reports the
-	// name and the reload resolves it; the handle is what withholds the
-	// rotation.
-	// PREVENTS: the operator adding `certificate x` to that deployment and
-	// having the WHOLE reload rejected with "lg server: TLS is not enabled",
-	// which refuses unrelated config over a leaf that listener never reads.
+func TestTLSLGHoldsRotationHandle(t *testing.T) {
+	// VALIDATES: a looking glass whose server entry requires TLS and names a
+	// certificate is wired through the registration hook with the
+	// certificate-rotation handle, and a reload naming that certificate rotates
+	// it without error.
+	// PREVENTS: a TLS looking glass registered without the handle, which would
+	// leave a reload that renews its certificate with nothing to apply it to.
 	loadLGPKIStore(t)
-
-	t.Run("a downgraded looking glass takes no rotation", func(t *testing.T) {
-		// The config asks for TLS by inheriting the default, names no
-		// certificate, and has no blob store: buildLGService serves plaintext.
-		lm := lgMigratorFor(t, &serviceDeps{
-			Dispatch:      lgTestDispatch(),
-			LGAddrs:       []string{"127.0.0.1:0"},
-			LGTLS:         true,
-			LGTLSExplicit: false,
-			Store:         nil,
-		})
-		if lm.lg == nil {
-			t.Fatal("the looking glass must still be wired for listener migration")
-		}
-		if lm.lgTLS != nil {
-			t.Fatal("a plaintext looking glass must hold no certificate-rotation handle")
-		}
-
-		// The operator now writes `certificate lg-cert` and reloads. The reload
-		// is accepted and rotates nothing, so the log line is the ONLY thing
-		// that tells the operator their certificate reached no listener. An
-		// accepted change that takes no effect in silence is the failure this
-		// assertion exists to prevent (ai/rules/principles.md).
-		logged := captureMigratorLog(lm)
-		if err := lm.updateLGCertificate("lg-cert"); err != nil {
-			t.Fatalf("naming a certificate must not refuse the reload: %v", err)
-		}
-		line := logged()
-		for _, want := range []string{
-			"the listener serves plaintext",
-			"environment.looking-glass.certificate",
-			"lg-cert",
-			"restart ze",
-		} {
-			if !strings.Contains(line, want) {
-				t.Fatalf("the accepted reload must say why the certificate is inert: %q missing from %q", want, line)
-			}
-		}
-	})
 
 	t.Run("a TLS looking glass takes the rotation", func(t *testing.T) {
 		lm := lgMigratorFor(t, &serviceDeps{
 			Dispatch:      lgTestDispatch(),
-			LGAddrs:       []string{"127.0.0.1:0"},
-			LGTLS:         true,
-			LGTLSExplicit: true,
+			LGListeners:   lgTestListeners(zeconfig.LGServerTLSRequired),
 			LGCertificate: "lg-cert",
 			Store:         nil,
 		})
-		if lm.lgTLS == nil {
+		if lm.lgTransport == nil {
 			t.Fatal("a looking glass serving TLS must hold the certificate-rotation handle")
 		}
-		if err := lm.updateLGCertificate("lg-cert"); err != nil {
+		if err := lm.updateLGTransport(lgListenerConfig{certName: "lg-cert"}); err != nil {
 			t.Fatalf("rotating onto a TLS looking glass: %v", err)
 		}
 	})
@@ -430,13 +378,11 @@ func TestReloadDroppingLGCertificateNameServesSelfSigned(t *testing.T) {
 
 	lm := lgMigratorFor(t, &serviceDeps{
 		Dispatch:      lgTestDispatch(),
-		LGAddrs:       []string{"127.0.0.1:0"},
-		LGTLS:         true,
-		LGTLSExplicit: true,
+		LGListeners:   lgTestListeners(zeconfig.LGServerTLSRequired),
 		LGCertificate: "lg-cert",
 		Store:         lgBlobStorage(t),
 	})
-	if lm.lgTLS == nil {
+	if lm.lgTransport == nil {
 		t.Fatal("a looking glass serving TLS must hold the certificate-rotation handle")
 	}
 	before := lgMigratorServedChain(t, lm)
@@ -445,7 +391,7 @@ func TestReloadDroppingLGCertificateNameServesSelfSigned(t *testing.T) {
 	}
 	addressesBefore := lm.lg.Addresses()
 
-	if err := lm.updateLGCertificate(""); err != nil {
+	if err := lm.updateLGTransport(lgListenerConfig{certName: ""}); err != nil {
 		t.Fatalf("dropping the certificate name must be accepted: %v", err)
 	}
 
@@ -481,17 +427,15 @@ func TestReloadDroppingLGCertificateNameWithoutStoreRefuses(t *testing.T) {
 
 	lm := lgMigratorFor(t, &serviceDeps{
 		Dispatch:      lgTestDispatch(),
-		LGAddrs:       []string{"127.0.0.1:0"},
-		LGTLS:         true,
-		LGTLSExplicit: true,
+		LGListeners:   lgTestListeners(zeconfig.LGServerTLSRequired),
 		LGCertificate: "lg-cert",
 		Store:         nil,
 	})
-	if lm.lgTLS == nil {
+	if lm.lgTransport == nil {
 		t.Fatal("a looking glass serving a named certificate must hold the certificate-rotation handle")
 	}
 
-	err := lm.updateLGCertificate("")
+	err := lm.updateLGTransport(lgListenerConfig{certName: ""})
 	if err == nil {
 		t.Fatal("dropping the name with no store to hold a self-signed pair must refuse the reload")
 	}

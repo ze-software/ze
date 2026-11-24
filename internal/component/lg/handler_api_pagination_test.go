@@ -45,7 +45,7 @@ func manyRouteDispatch(n int) CommandDispatcher {
 // startPagServer starts a looking-glass server backed by the given dispatcher.
 func startPagServer(t *testing.T, dispatch CommandDispatcher) (string, *http.Client) {
 	t.Helper()
-	srv, err := NewLGServer(LGConfig{ListenAddrs: []string{"127.0.0.1:0"}, Dispatch: dispatch})
+	srv, err := NewLGServer(LGConfig{ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}}, Dispatch: dispatch})
 	if err != nil {
 		t.Fatalf("NewLGServer: %v", err)
 	}

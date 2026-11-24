@@ -141,7 +141,7 @@ func TestConfigGenCollectorForTopology(t *testing.T) {
 	assert.NotContains(t, config, "bgp-rs")
 	assert.NotContains(t, config, "external")
 	assert.Equal(t, len(profiles), strings.Count(config, "attach process bgp-rib {"))
-	assert.Contains(t, config, "looking-glass {\n        enabled true;\n        tls false;\n")
+	assert.Contains(t, config, "looking-glass {\n        enabled true;\n        server main {\n            ip 127.0.0.1;\n            port 8080;\n            tls false;\n        }\n")
 
 	for index, speaker := range topology.Speakers() {
 		assert.Contains(t, config, fmt.Sprintf("ip %s;\n                connect false;", speaker.Address), "speaker %d", index)

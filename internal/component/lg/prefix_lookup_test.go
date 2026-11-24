@@ -160,7 +160,7 @@ func lookupRequest(t *testing.T, target, form string) (*httptest.ResponseRecorde
 	}
 
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}},
 		Dispatch:    recording,
 	})
 	if err != nil {

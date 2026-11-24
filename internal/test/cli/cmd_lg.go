@@ -46,7 +46,7 @@ func CmdLG(args []string) int {
 	}
 
 	srv, err := lg.NewLGServer(lg.LGConfig{
-		ListenAddrs: []string{*listen},
+		ListenAddrs: []lg.ListenAddr{{Addr: *listen}},
 		Dispatch: func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
 			return nil, errLGEngineUnavailable
 		},

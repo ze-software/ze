@@ -1,0 +1,52 @@
+# Test: each looking-glass server entry serves the protocol its own tls leaf
+# names, side by side on one daemon, and a SIGHUP reload that flips one entry's
+# leaf switches that listener alone, on the socket it already had.
+#
+# QUESTION: with `server public { tls false; }` and `server secure { }` (tls at
+# its default, true) on one looking glass, does public answer plain HTTP and
+# secure answer HTTPS at the same time, and does a reload that flips one entry
+# on an unchanged address change that entry's protocol without a rebind while
+# the other keeps its own? A unit test drives transportListener and
+# planLGTransports in the test process with the hub's wiring replaced; only
+# `ze start`, the config file and SIGHUP reach buildLGService, checkLGTransport
+# and updateLGTransport together (docs/architecture/pki/tls-listeners.md,
+# "each looking-glass listener serves HTTPS or HTTP").
+#
+# VALIDATES: at start public answers a plain GET with 200 and refuses a TLS
+# handshake, secure completes a handshake verified against the operator's root
+# and gives a plain GET no 200, and the RFC 8522 API
+# (/.well-known/looking-glass/v1/cmd) answers 400 "HTTPS is required" on public
+# and 200 on secure. A reload writing `tls true` on public turns it to HTTPS and
+# leaves secure on HTTPS; a reload writing `tls false` on secure turns it to
+# HTTP and leaves public on HTTPS; neither adds a listener banner, and the
+# RFC 8522 check holds again once the protocols have traded places.
+# PREVENTS: one protocol for every listener of the looking glass, a reload that
+# leaves a listener on the protocol a restart with the same config would not
+# serve, a protocol change that rebinds the socket, a `tls false` entry warned
+# about as a downgrade, and the RFC 8522 API served over plain HTTP.
+#
+# The assertions are in the compiled fixture
+# (internal/test/fixture/lg_transport_fixture.go): the observer sandbox cannot
+# drive a TLS handshake. The fixture starts the daemon on the two ports the
+# runner leased, waits only on state (a listener banner, a reload verdict), and
+# returns an error, reported through ZE-OBSERVER-FAIL, at the first assertion
+# that does not hold.
+
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=le test fixture reload/lg-transport-mixed $PORT $PORT2:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: the looking glass bound one listener per server entry and warned of no downgrade
+expect=stderr:contains=OK: at start, server public serves plain HTTP: a GET answers 200 and a TLS handshake fails
+expect=stderr:contains=OK: at start, server secure serves HTTPS: a handshake verified against the operator root answers 200 and a plain GET does not
+expect=stderr:contains=OK: at start, the RFC 8522 API answers 400, HTTPS required, on HTTP server public
+expect=stderr:contains=OK: at start, the RFC 8522 API answers 200 on HTTPS server secure
+expect=stderr:contains=OK: the reload turned server public to HTTPS with no rebind: listener banners before and after: 2
+expect=stderr:contains=OK: after public turned to tls true, server public serves HTTPS: a handshake verified against the operator root answers 200 and a plain GET does not
+expect=stderr:contains=OK: after public turned to tls true, server secure serves HTTPS: a handshake verified against the operator root answers 200 and a plain GET does not
+expect=stderr:contains=OK: the reload turned server secure to HTTP with no rebind: listener banners before and after: 2
+expect=stderr:contains=OK: after secure turned to tls false, server public serves HTTPS: a handshake verified against the operator root answers 200 and a plain GET does not
+expect=stderr:contains=OK: after secure turned to tls false, server secure serves plain HTTP: a GET answers 200 and a TLS handshake fails
+expect=stderr:contains=OK: after secure turned to tls false, the RFC 8522 API answers 200 on HTTPS server public
+expect=stderr:contains=OK: after secure turned to tls false, the RFC 8522 API answers 400, HTTPS required, on HTTP server secure
+expect=stderr:contains=sighup reload complete

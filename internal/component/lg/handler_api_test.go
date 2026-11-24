@@ -909,7 +909,7 @@ func lgServeAPI(t *testing.T, target string) map[string]any {
 	t.Helper()
 
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}},
 		Dispatch:    lgCountsDispatch(),
 	})
 	if err != nil {

@@ -721,15 +721,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// multi-listener and binds the full slice.
 	var (
 		webAddrs []string
-		lgAddrs  []string
 		mcpAddrs []string
 	)
-	// The looking glass serves TLS by default: it binds 0.0.0.0 and publishes
-	// route data and session state. lgTLSSet records that the operator stated a
-	// choice through the environment, so an explicit `false` opts out instead of
-	// being overwritten by the config file's own default-true.
-	lgTLS := true
-	lgTLSSet := false
 	lgToken := env.Get("ze.looking-glass.token")
 	// Names the PKI store entry the HTTPS listener serves. Env first; the config
 	// file fills it in below only when the environment left it blank, matching
@@ -739,29 +732,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		webAddrs = []string{webListenAddr}
 		webEnabled = true
 	}
-
-	if listen := env.Get("ze.looking-glass.listen"); listen != "" {
-		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
-		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "error: ze.looking-glass.listen: %v\n", parseErr)
-			logStartupFailure("ze.looking-glass.listen", parseErr)
-			return 1
-		}
-		lgAddrs = make([]string, 0, len(endpoints))
-		for _, ep := range endpoints {
-			lgAddrs = append(lgAddrs, ep.String())
-		}
-	}
-	if env.Get("ze.looking-glass.tls") != "" {
-		lgTLS = env.GetBool("ze.looking-glass.tls", true)
-		lgTLSSet = true
-	}
-	// ze.looking-glass.enabled says START, and says nothing about WHERE. Its
-	// 0.0.0.0:8443 default is applied below, after the config block has been
-	// read, so an env-started looking glass still binds the address the operator
-	// wrote. Applying it here published on every interface a block that named
-	// 127.0.0.1 (same defect as environment.gnmi, cmd/ze/hub/gnmi_infra.go).
-	lgEnabledByEnv := env.IsEnabled("ze.looking-glass.enabled")
 
 	if listen := env.Get("ze.web.listen"); listen != "" && len(webAddrs) == 0 {
 		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
@@ -888,42 +858,28 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		mcpCfg = mcpEffectiveSettings(mcpCfg, mcpTokenBase)
 		mcpToken = mcpCfg.Token
 	}
-	// Two questions, asked separately (the same split as ExtractMCPSettings).
-	//
-	// ADDRESSES come only from a block that asks for a listener, so
-	// `enabled false` still means "config does not start the looking glass".
-	if lgListenCfg, ok := zeconfig.ExtractLGConfig(loadResult.Tree); ok && len(lgAddrs) == 0 {
-		lgAddrs = endpointsToAddrs(lgListenCfg.Servers)
+	// The looking-glass listeners and the certificate their TLS entries present.
+	// One function answers this for the startup path and the reload path, so a
+	// restart and a reload cannot bind different addresses, serve a different
+	// protocol on one of them, or present different certificates from one
+	// config (lg_transport.go). Each server entry chooses HTTPS or HTTP in its
+	// own tls leaf, and no environment variable does. The name is empty when
+	// every listener serves HTTP, because none presents a certificate.
+	lgConfig, lgConfigErr := lgListenerConfigFrom(loadResult.Tree)
+	if lgConfigErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", lgConfigErr)
+		logStartupFailure("looking glass listeners", lgConfigErr)
+		return 1
 	}
-	// SETTINGS (tls, token, and the address the block names) apply whenever the
-	// block exists, whatever said START. Gating them on `enabled` discarded the
-	// operator's TLS and token instruction when ze.looking-glass.enabled or
-	// ze.looking-glass.listen started the server, leaving a plaintext, open
-	// looking glass (ai/rules/protocol.md).
-	//
-	// Precedence: env var > config file > default-on. The config file's own TLS
-	// value already defaults true, so the config lowers TLS only when the
-	// operator wrote `tls false`, and an env var overrides both.
+	lgCertificate := lgConfig.certName
+	// The token is a SETTING: it applies whenever the block exists, whatever
+	// said START. Gating it on `enabled` left an open looking glass when
+	// ze.looking-glass.enabled or ze.looking-glass.listen started the server.
 	if lgCfg, ok := zeconfig.ExtractLGSettings(loadResult.Tree); ok {
-		// Only when something else already said START: a dormant block must not
-		// supply an address, because a non-empty lgAddrs is what starts the
-		// looking glass.
-		if lgEnabledByEnv && len(lgAddrs) == 0 {
-			lgAddrs = endpointsToAddrs(lgCfg.Servers)
-		}
-		if !lgTLSSet {
-			lgTLS = lgCfg.TLS
-			lgTLSSet = lgCfg.TLSExplicit
-		}
 		if lgToken == "" {
 			lgToken = lgCfg.Token
 		}
 	}
-	// Names the PKI store entry the looking glass serves. One function answers
-	// this for the startup path and the reload path, so a restart and a reload
-	// cannot serve different certificates from one config; it reads the env var
-	// first and reports no name for a plaintext looking glass.
-	lgCertificate := lgCertificateName(loadResult.Tree)
 	// The names of next-hop ranges are read whatever said START and whatever
 	// the `enabled` leaf says: a looking glass started by ze.looking-glass.enabled
 	// or ze.looking-glass.listen shows them too. The reader takes no `enabled`
@@ -933,11 +889,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if lgNextHopRangesErr != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", lgNextHopRangesErr)
 		return 1
-	}
-	// No looking-glass block at all, so nothing named an address: bind the same
-	// default extractServerList synthesizes for a block that names no server.
-	if lgEnabledByEnv && len(lgAddrs) == 0 {
-		lgAddrs = []string{"0.0.0.0:8443"}
 	}
 
 	// Phase 2: Populate ConfigProvider.
@@ -974,11 +925,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	// The same refusal for the looking glass (AC-3, AC-4). A non-empty lgAddrs
-	// is what starts it, so that is the enable condition. lgCertificate is
-	// already empty when the listener serves plaintext, because a plaintext
-	// listener presents no certificate to resolve.
-	if len(lgAddrs) > 0 && lgCertificate != "" {
+	// The same refusal for the looking glass (AC-3, AC-4). A listener is what
+	// starts it, so that is the enable condition. lgCertificate is already
+	// empty when every listener serves HTTP, because none of them presents a
+	// certificate to resolve.
+	if len(lgConfig.listeners) > 0 && lgCertificate != "" {
 		if _, _, certErr := zepki.ServerTLSMaterial(lgCertificate); certErr != nil {
 			var tb textbuf.Buffer
 			tb.Str("error: environment.looking-glass.certificate: ").Str(certErr.Error()).Byte('\n')
@@ -1713,16 +1664,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// freezes. A plugin startup failure returns before these factories can bind
 	// their listeners. With a feature's ze_<feature> tag off, its factory is not
 	// registered and the service is silently skipped. Looking-glass (ze_lg) is
-	// the pilot; its listen binding (lgAddrs/lgTLS) is resolved above.
+	// the pilot; its listeners (lgConfig) are resolved above.
 	builtServices := buildServices(&serviceDeps{
 		Store:           store,
 		ConfigPath:      configPath,
 		Resolvers:       resolvers,
 		Dispatch:        webDispatch,
 		Streams:         zePlugin.CommandStreamHandlers{Dispatch: serverStreamDispatcher(apiServer), Admit: serverStreamAdmission(apiServer)},
-		LGAddrs:         lgAddrs,
-		LGTLS:           lgTLS,
-		LGTLSExplicit:   lgTLSSet,
+		LGListeners:     lgConfig.listeners,
 		LGToken:         lgToken,
 		LGCertificate:   lgCertificate,
 		LGNextHopRanges: lgNextHopRanges,

@@ -25,7 +25,7 @@ func apiRequest(t *testing.T, dispatch CommandDispatcher, target string) *httpte
 	t.Helper()
 
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}},
 		Dispatch:    dispatch,
 	})
 	if err != nil {
@@ -364,7 +364,7 @@ func TestAPIBMPProtocolsListsOnlyNamesRoutesAnswers(t *testing.T) {
 
 	var logged bytes.Buffer
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}},
 		Dispatch:    dispatch,
 		Logger:      slog.New(slog.NewTextHandler(&logged, nil)),
 	})

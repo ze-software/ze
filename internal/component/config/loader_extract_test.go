@@ -443,7 +443,6 @@ func TestExtractLGConfig_MultipleServers(t *testing.T) {
 environment {
 	looking-glass {
 		enabled true;
-		tls true;
 		server v4 {
 			ip 0.0.0.0;
 			port 8443;
@@ -451,6 +450,7 @@ environment {
 		server v6 {
 			ip ::1;
 			port 8444;
+			tls false;
 		}
 	}
 }
@@ -463,8 +463,9 @@ environment {
 
 	cfg, ok := ExtractLGConfig(tree)
 	require.True(t, ok)
-	assert.True(t, cfg.TLS)
 	require.Len(t, cfg.Servers, 2)
+	assert.Equal(t, LGServerTLSInherited, cfg.Servers[0].TLS, "an entry with no tls leaf inherits the default")
+	assert.Equal(t, LGServerTLSOff, cfg.Servers[1].TLS, "tls false is read on the entry that wrote it")
 	assert.Equal(t, "0.0.0.0", cfg.Servers[0].Host)
 	assert.Equal(t, "8443", cfg.Servers[0].Port)
 	assert.Equal(t, "::1", cfg.Servers[1].Host)
@@ -491,6 +492,7 @@ environment {
 	require.Len(t, cfg.Servers, 1)
 	assert.Equal(t, "0.0.0.0", cfg.Servers[0].Host)
 	assert.Equal(t, "8443", cfg.Servers[0].Port)
+	assert.Equal(t, LGServerTLSInherited, cfg.Servers[0].TLS, "the default endpoint has no tls leaf")
 }
 
 // -----------------------------------------------------------------------------

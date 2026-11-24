@@ -743,11 +743,21 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 	// looking glass is the surface a stranger visits, so a name that stopped
 	// resolving must stop the commit here rather than leave the listener on a
 	// certificate the config no longer describes.
-	lgCertName := lgCertificateName(parsedTree)
-	if lgCertName != "" {
-		if _, _, certErr := zepki.ServerTLSMaterial(lgCertName); certErr != nil {
+	lgConfig, lgConfigErr := lgListenerConfigFrom(parsedTree)
+	if lgConfigErr != nil {
+		return restorePKIAfter(priorPKI, clearCandidate, fmt.Errorf("reload: %w", lgConfigErr))
+	}
+	if lgConfig.certName != "" {
+		if _, _, certErr := zepki.ServerTLSMaterial(lgConfig.certName); certErr != nil {
 			return restorePKIAfter(priorPKI, clearCandidate,
 				fmt.Errorf("reload: environment.looking-glass.certificate: %w", certErr))
+		}
+	}
+	// A server entry that says `tls true` with no certificate to present is
+	// refused here, before anything is applied, as a start refuses it.
+	if lm != nil {
+		if err := lm.checkLGTransport(lgConfig); err != nil {
+			return restorePKIAfter(priorPKI, clearCandidate, fmt.Errorf("reload: %w", err))
 		}
 	}
 
@@ -894,10 +904,13 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 	// and the page must not keep the names of a config that is not in force.
 	restoreLGNextHopRanges := func() {}
 	// restoreCertificates puts back the certificate each listener served before
-	// this reload installed the reloaded config's. It does nothing until an
-	// install succeeds. Every return that leaves the reload unapplied after an
-	// install calls rollbackReload first, so the running store is back when it
-	// runs and the names resolve to the running config's material.
+	// this reload installed the reloaded config's, and the protocol of each
+	// looking-glass listener. It runs before restoreListeners, so an address the
+	// looking glass binds again has its running protocol recorded. It does
+	// nothing until an install succeeds. Every return that leaves the reload
+	// unapplied after an install calls rollbackReload first, so the running
+	// store is back when it runs and the names resolve to the running config's
+	// material.
 	restoreCertificates := func() error { return nil }
 	reloadApplied := false
 	defer func() {
@@ -914,7 +927,47 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		}
 		restoreIdentity()
 	}()
+	// The store is already installed (above). Push the certificate the reloaded
+	// config describes onto each running TLS listener: the named chain, possibly
+	// rotated, or the self-signed pair when the config names none, and hand the
+	// looking glass the protocol of each of its listeners. A listener serves the
+	// certificate from the next handshake with no rebind, so open SSE streams
+	// survive the rotation (AC-9).
+	//
+	// This runs BEFORE the listeners move. The looking glass binds an address a
+	// reload adds with the protocol named here, so a `tls false` entry the
+	// reload adds answers plain HTTP from its first connection, and a TLS one
+	// presents the reloaded config's certificate from its first handshake. Moved
+	// first, a new listener had no protocol yet and served TLS until this ran.
 	if lm != nil && parsedTree != nil {
+		// Each listener takes its OWN name onto its OWN handle, so rotating one
+		// can never install the other's identity (R-1). A viewer holding an
+		// open looking-glass connection keeps it across the swap (AC-6).
+		//
+		// Only for a reload that parsed a tree, as for the listener move and the
+		// next-hop ranges below: a reload with no tree says nothing about either
+		// leaf, and an empty name now installs the self-signed pair, so pushing
+		// it would replace a named chain the config still describes.
+		//
+		// A listener whose install succeeded gets its running certificate and
+		// protocol back when a later step fails, the listener move included:
+		// the deferred rollback above calls restoreCertificates before it moves
+		// the listeners back. A failed install leaves that listener on what it
+		// was serving, so only the installs before it are undone.
+		err := lm.updateWebCertificate(webCertName)
+		if err == nil {
+			restoreCertificates = priorCertificates.restoreOn(lm, false)
+			err = lm.updateLGTransport(lgConfig)
+		}
+		if err == nil {
+			restoreCertificates = priorCertificates.restoreOn(lm, true)
+		}
+		if err != nil {
+			rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI)
+			return withUnwind(fmt.Errorf("reload: %w", err),
+				unwindStep{unwindRollback, rollbackErr}, unwindStep{unwindCandidateCleanup, clearCandidate()})
+		}
+
 		undo, err := lm.reloadListeners(reloadCtx, parsedTree)
 		restoreListeners = undo
 		if err != nil {
@@ -922,55 +975,19 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 			return withUnwind(fmt.Errorf("reload: listener migration: %w", err),
 				unwindStep{unwindRollback, rollbackErr}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 		}
-	}
 
-	// The store is already installed (above). Push the certificate the reloaded
-	// config describes onto each running TLS listener: the named chain, possibly
-	// rotated, or the self-signed pair when the config names none. The listener
-	// serves it from the next handshake with no rebind, so open SSE streams
-	// survive the rotation (AC-9).
-	if lm != nil {
-		// Each listener takes its OWN name onto its OWN handle, so rotating one
-		// can never install the other's identity (R-1). A viewer holding an
-		// open looking-glass connection keeps it across the swap (AC-6).
-		//
-		// Only for a reload that parsed a tree, as for the next-hop ranges
-		// below: a reload with no tree says nothing about either leaf, and an
-		// empty name now installs the self-signed pair, so pushing it would
-		// replace a named chain the config still describes.
-		//
-		// A listener whose install succeeded gets its running certificate back
+		// Last, and only for a reload that parsed a tree: a reload with no tree
+		// says nothing about the list, and handing the looking glass an empty
+		// one would erase the names it shows. The names it replaced go back
 		// when a later step fails: the deferred rollback above calls
-		// restoreCertificates. A failed install leaves that listener on what it
-		// was serving, so only the installs before it are undone.
-		var err error
-		if parsedTree != nil {
-			err = lm.updateWebCertificate(webCertName)
-			if err == nil {
-				restoreCertificates = priorCertificates.restoreOn(lm, false)
-				err = lm.updateLGCertificate(lgCertName)
-			}
-			if err == nil {
-				restoreCertificates = priorCertificates.restoreOn(lm, true)
-			}
-		}
-		// Last of the three, and only for a reload that parsed a tree: a
-		// reload with no tree says nothing about the list, and handing the
-		// looking glass an empty one would erase the names it shows.
-		// The names it replaced go back when a later step fails: the deferred
-		// rollback above calls restoreLGNextHopRanges.
-		if err == nil && parsedTree != nil {
-			var restore func()
-			restore, err = lm.updateLGNextHopRanges(lgNextHopRanges)
-			if err == nil {
-				restoreLGNextHopRanges = restore
-			}
-		}
+		// restoreLGNextHopRanges.
+		restore, err := lm.updateLGNextHopRanges(lgNextHopRanges)
 		if err != nil {
 			rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI)
 			return withUnwind(fmt.Errorf("reload: %w", err),
 				unwindStep{unwindRollback, rollbackErr}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 		}
+		restoreLGNextHopRanges = restore
 	}
 
 	if candidateSet {
@@ -1165,20 +1182,21 @@ func restorePKIAfter(priorPKI *zepki.PKIConfig, clearCandidate func() error, cau
 		unwindStep{unwindPKIRestore, restorePKI(priorPKI)}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 }
 
-// listenerCertificateNames is the certificate name one config gives each hub
-// TLS listener. An empty name is the listener's self-signed pair, as it is for
-// listenerTLSMaterial.
+// listenerCertificateNames is what one config gives each hub TLS listener: the
+// web listener's certificate name, and the looking glass's listeners with the
+// name their TLS entries present. An empty name is the listener's self-signed
+// pair, as it is for listenerTLSMaterial.
 type listenerCertificateNames struct {
 	web string
-	lg  string
+	lg  lgListenerConfig
 }
 
 // runningListenerCertificates answers the certificate names of the running
 // config, read from the provider snapshot runReloadContext takes before it
 // applies anything. It reads them through the readers the reload uses for the
-// reloaded config (reloadWebCertificate, lgCertificateName), so a rollback
-// returns each listener to the certificate a restart with the running config
-// would serve.
+// reloaded config (reloadWebCertificate, lgListenerConfigFrom), so a rollback
+// returns each listener to the certificate, and each looking-glass listener to
+// the protocol, a restart with the running config would serve.
 func runningListenerCertificates(prior map[string]map[string]any) (*listenerCertificateNames, error) {
 	roots := make(map[string]any, 1)
 	if environment, ok := prior["environment"]; ok {
@@ -1188,7 +1206,11 @@ func runningListenerCertificates(prior map[string]map[string]any) (*listenerCert
 	if err != nil {
 		return nil, err
 	}
-	return &listenerCertificateNames{web: reloadWebCertificate(tree), lg: lgCertificateName(tree)}, nil
+	lgConfig, err := lgListenerConfigFrom(tree)
+	if err != nil {
+		return nil, err
+	}
+	return &listenerCertificateNames{web: reloadWebCertificate(tree), lg: lgConfig}, nil
 }
 
 // restoreOn answers the undo of the certificate installs a reload made on lm:
@@ -1207,7 +1229,7 @@ func (names *listenerCertificateNames) restoreOn(lm *listenerMigrator, lookingGl
 		if !lookingGlass {
 			return err
 		}
-		return errors.Join(err, lm.updateLGCertificate(names.lg))
+		return errors.Join(err, lm.updateLGTransport(names.lg))
 	}
 }
 
@@ -1232,21 +1254,27 @@ func reloadWebCertificate(parsedTree *zeconfig.Tree) string {
 }
 
 // lgCertificateName returns the environment.looking-glass.certificate name the
-// looking glass serves. The startup gate (cmd/ze/hub/main.go) and the reload
-// gate both call it, so a restart and a reload cannot disagree about which
-// certificate one config asks for.
+// looking glass presents on listeners, the ones parsedTree describes
+// (resolveLGListeners). The startup gate (cmd/ze/hub/main.go) and the reload
+// gate both reach it through lgListenerConfigFrom, so a restart and a reload
+// cannot disagree about which certificate one config asks for.
 //
 // The env var wins, exactly as it does for the web certificate, so a deployment
 // that pins the certificate through ze.looking-glass.certificate is not
 // silently re-pointed by a config edit.
 //
-// A looking glass without TLS presents no certificate, so it reports no name.
-// The leaf is inert there rather than refused: the listener resolves it only
-// when TLS is on (service_lg.go, buildLGService), so a commit rejected here over
-// a name nothing reads would refuse a config the same daemon boots happily.
-func lgCertificateName(parsedTree *zeconfig.Tree) string {
-	if !lgTLSEnabled(parsedTree) {
-		return ""
+// A looking glass whose every server entry says `tls false` presents no
+// certificate, so it reports no name. The leaf is inert there rather than
+// refused: no listener resolves it (service_lg.go, buildLGService), so a
+// commit rejected here over a name nothing reads would refuse a config the same
+// daemon boots happily. A config that describes no listener says nothing
+// about their protocol, and the name is reported: a looking glass that keeps
+// running on TLS presents it.
+func lgCertificateName(parsedTree *zeconfig.Tree, listeners []lgListener) string {
+	if len(listeners) > 0 {
+		if !lgAsksForTLS(listeners) {
+			return ""
+		}
 	}
 	if name := env.Get("ze.looking-glass.certificate"); name != "" {
 		return name
@@ -1261,29 +1289,6 @@ func lgCertificateName(parsedTree *zeconfig.Tree) string {
 		return ""
 	}
 	return cfg.Certificate
-}
-
-// lgTLSEnabled reports whether the looking glass this config describes
-// terminates TLS. Precedence: the env var, then the config block, then the
-// default-on posture a public read-only listener keeps.
-//
-// It answers the same question as the startup resolution in cmd/ze/hub/main.go
-// and returns the same value for every config. Startup tracks a second fact
-// this one does not, whether the operator STATED the choice, because only the
-// self-signed path needs it (service_lg.go turns the storage rule on it).
-func lgTLSEnabled(parsedTree *zeconfig.Tree) bool {
-	if env.Get("ze.looking-glass.tls") != "" {
-		return env.GetBool("ze.looking-glass.tls", true)
-	}
-	if parsedTree == nil {
-		return true
-	}
-	cfg, ok := zeconfig.ExtractLGSettings(parsedTree)
-	// refuse-by-default: guards lgCertificateName -- a config with no looking-glass block keeps TLS on, the default
-	if !ok {
-		return true
-	}
-	return cfg.TLS
 }
 
 func rootsSet(roots []string) map[string]struct{} {

@@ -56,9 +56,10 @@ const (
 
 // ServerEndpoint is one parsed "ip:port" pair from a YANG `list server {}`
 // under any environment.<service> block. Shared by web, mcp, and looking-glass
-// extraction helpers. Transport-level flags (auth, tls, cors) live on the
+// extraction helpers. Transport-level flags (auth, cors) live on the
 // surrounding config struct, not on the endpoint, because they apply to every
-// listener of the same service.
+// listener of the same service. The looking glass is the exception: each of
+// its entries chooses HTTPS or HTTP, and LGServerEndpoint carries that choice.
 type ServerEndpoint struct {
 	Host string // Listen host (e.g. 0.0.0.0)
 	Port string // Listen port
@@ -595,29 +596,98 @@ func extractLeafList(t *Tree, name string) []string {
 // LGListenConfig holds parsed environment.looking-glass settings.
 // Servers is guaranteed non-empty when ExtractLGConfig returns ok=true.
 type LGListenConfig struct {
-	Servers []ServerEndpoint
-	TLS     bool // Enable TLS on every listener (default ON)
-	// TLSExplicit records that the operator wrote the tls leaf. It separates
-	// "the operator demands TLS" from "TLS is the default nobody overrode",
-	// which decides whether a missing certificate store is a hard failure or a
-	// warned fallback to plaintext.
-	TLSExplicit bool
-	Token       string // Optional bearer token gating every route; empty leaves the LG open
-	// Certificate names an entry in the PKI store to serve on the listener.
-	// Empty selects the self-signed certificate. A non-empty name that does not
-	// resolve is a startup/reload error, never a fallback.
+	// Servers is one entry per YANG `server <name> {}` block, each with its own
+	// transport. A block that names no server yields the default endpoint,
+	// 0.0.0.0:8443 with the tls leaf unset.
+	Servers []LGServerEndpoint
+	Token   string // Optional bearer token gating every route; empty leaves the LG open
+	// Certificate names an entry in the PKI store to serve on every endpoint
+	// that serves HTTPS. Empty selects the self-signed certificate. A non-empty
+	// name that does not resolve is a startup/reload error, never a fallback.
 	Certificate string
 }
 
-// ExtractLGSettings returns the transport and authentication settings of an
-// environment.looking-glass block, whatever supplied the listen address.
+// Endpoints returns the listen endpoints of the block, in list order, without
+// their transport.
+func (c LGListenConfig) Endpoints() []ServerEndpoint {
+	out := make([]ServerEndpoint, 0, len(c.Servers))
+	for _, server := range c.Servers {
+		out = append(out, server.ServerEndpoint)
+	}
+	return out
+}
+
+// LGServerEndpoint is one environment.looking-glass `server` entry: where it
+// listens, and what its tls leaf says.
+type LGServerEndpoint struct {
+	ServerEndpoint
+	TLS LGServerTLS
+}
+
+// LGServerTLS is what one looking-glass `server` entry says about the protocol
+// its endpoint serves. The three written states are kept apart because a
+// daemon with no database store treats them differently: an entry that left
+// the leaf unset serves HTTP with a warning there, and an entry whose operator
+// wrote `tls true` is refused (docs/architecture/pki/tls-listeners.md).
+type LGServerTLS uint8
+
+const (
+	// LGServerTLSUnspecified is the zero value. No extractor returns it.
+	LGServerTLSUnspecified LGServerTLS = iota
+	// LGServerTLSInherited says the entry has no tls leaf, so the YANG default,
+	// true, applies.
+	LGServerTLSInherited
+	// LGServerTLSRequired says the operator wrote `tls true`.
+	LGServerTLSRequired
+	// LGServerTLSOff says the operator wrote `tls false`: the endpoint serves
+	// plain HTTP.
+	LGServerTLSOff
+)
+
+// extractLGServerList reads the `server` list of the looking-glass block with
+// the tls leaf of each entry. extractServerList answers the endpoints, in list
+// order, and synthesizes the default endpoint for an empty list: that one has
+// no entry, so no tls leaf, and is read as inherited.
+//
+// The raw tree carries no YANG defaults, so an absent tls leaf is the default,
+// true, and is kept apart from a written true (LGServerTLSInherited).
+func extractLGServerList(lg *Tree) []LGServerEndpoint {
+	endpoints := extractServerList(lg, "0.0.0.0", "8443")
+	entries := lg.GetListOrdered("server")
+	out := make([]LGServerEndpoint, 0, len(endpoints))
+	for i, endpoint := range endpoints {
+		server := LGServerEndpoint{ServerEndpoint: endpoint, TLS: LGServerTLSInherited}
+		if i < len(entries) {
+			if v, ok := entries[i].Value.Get("tls"); ok {
+				server.TLS = lgServerTLSWritten(v)
+			}
+		}
+		out = append(out, server)
+	}
+	return out
+}
+
+// lgServerTLSWritten reads a tls leaf the operator wrote. The schema admits
+// true and false only. A value that is neither is read as a demand for TLS,
+// never as plain HTTP: the caller has no error to return, and of the two
+// answers that one cannot publish in the clear what the operator did not ask
+// to.
+func lgServerTLSWritten(value string) LGServerTLS {
+	if value == configFalse {
+		return LGServerTLSOff
+	}
+	return LGServerTLSRequired
+}
+
+// ExtractLGSettings returns the settings of an environment.looking-glass
+// block, whatever supplied the listen address.
 //
 // ok=true means "the block exists". It deliberately does NOT mean "config
 // starts a looking glass" -- see ExtractLGConfig for that half. The split
-// matters because ze.looking-glass.enabled and ze.looking-glass.listen start
-// the server without any `enabled true` leaf. Gating the settings on that leaf
-// discarded the operator's `tls true` and `token`, so a block that asked for
-// TLS and a bearer token produced a plaintext, open looking glass
+// matters because ze.looking-glass.enabled starts the server without any
+// `enabled true` leaf. Gating the settings on that leaf discarded the
+// operator's server entries and `token`, so a block that asked for a bearer
+// token produced an open looking glass
 // (ai/rules/protocol.md; same defect as environment.mcp).
 func ExtractLGSettings(tree *Tree) (LGListenConfig, bool) {
 	cfg, _, present := extractLGBlock(tree)
@@ -657,22 +727,12 @@ func extractLGBlock(tree *Tree) (LGListenConfig, bool, bool) {
 
 	// Service must be explicitly enabled (default false) for config to START a
 	// looking glass. Reported, not enforced here: the settings below are parsed
-	// either way, so an address supplied by an env var still gets the operator's
-	// TLS and token.
+	// either way, so a looking glass an env var starts still gets the operator's
+	// server entries and token.
 	enabledLeaf, _ := lg.Get("enabled")
 	enabled := enabledLeaf == configTrue
 
-	cfg := LGListenConfig{Servers: extractServerList(lg, "0.0.0.0", "8443")}
-
-	// TLS defaults ON. The raw tree carries no YANG defaults, so an absent leaf
-	// must be read as true here; only an explicit `tls false` opts out. The
-	// looking glass binds 0.0.0.0 by default, so a plaintext default published
-	// route data and session state in the clear.
-	cfg.TLS = true
-	if v, ok := lg.Get("tls"); ok {
-		cfg.TLS = v == configTrue
-		cfg.TLSExplicit = true
-	}
+	cfg := LGListenConfig{Servers: extractLGServerList(lg)}
 
 	if v, ok := lg.Get("token"); ok {
 		cfg.Token = v

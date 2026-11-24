@@ -3,7 +3,7 @@
     "rid": "RFC8522-2.3.3-2",
     "polarity": "positive",
     "unit": "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming",
-    "unit-sha": "0ee7b0334b8d3839",
+    "unit-sha": "abf49d969b59ed7b",
     "claim-sha": "ecb9345e27faf3ab",
     "route": "revert",
     "producer": "internal/component/lg/handler_rfc8522.go::LGServer.writeRFC8522EngineFailure",

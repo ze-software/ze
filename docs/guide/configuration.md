@@ -1702,19 +1702,24 @@ all filters receives the final decision. An empty policy such as
 
 Without a configured policy at any level, EBGP rejects announcements in that
 direction under RFC 8212. The session can still establish. IBGP keeps its
-existing behavior when policy is absent. Automatic loop-detection filters and
-inactive references do not establish operator policy.
-<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, InternalPolicy -->
+existing behavior when policy is absent. Automatic `loop-detection` import
+filters, auto-appended trailing `next-hop:auto` export steps, and inactive
+references do not establish operator policy.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, Policy.Append, InternalPolicy -->
 
 An inherited global or group policy supplies explicit operator intent.
 Configure `final accept` only where route exchange is intended, with any filters
-that the routing agreement requires. Loop-detection entries are prepended unless
-the chain already names them. `inactive: filters NAME;` retains a reference but
-disables its execution without changing an explicitly configured final.
+that the routing agreement requires. Loop-detection entries are prepended on
+import unless the chain already names them, and built-in `next-hop:auto` is
+appended at the export tail unless an unconditional `next-hop:self`,
+`next-hop:unchanged`, or `next-hop:auto` is already present (`inactive:next-hop:auto`
+is refused; write `next-hop:unchanged` explicitly to preserve received next hops
+on eBGP). `inactive: filters NAME;` retains a reference but disables its
+execution without changing an explicitly configured final.
 A plugin can also insert a member of its own on the peers whose config asks
 for it, ahead of yours; an inserted member does not establish operator policy
 either ([Route Policy](route-policy.md), "Members a plugin inserts for you").
-<!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
+<!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters, appendDefaultExportFilters -->
 <!-- source: internal/component/bgp/config/filter_insertion.go -- insertDeclaredFilters -->
 <!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
 
@@ -2149,7 +2154,7 @@ bgp {
 | `med` | uint32 | 0-4294967295 | Set MED |
 | `del/med` | empty | present | Remove MULTI_EXIT_DISC from the route |
 | `origin` | enum | igp, egp, incomplete | Set ORIGIN |
-| `next-hop` | IP address | IPv4 | Set NEXT_HOP |
+| `next-hop` | union (`self`, `unchanged`, `auto`, IPv4, or global IPv6) | IPv4, global IPv6, or egress-only mode | Set NEXT_HOP (attr 3) or MP_REACH_NLRI next hop; `self`, `unchanged`, and `auto` are allowed on export chains only (refused on import at config load) |
 | `as-path-prepend` | uint8 | 1-32 | Prepend local AS N times. In an export filter it is not applied toward an internal peer (peer AS equals local AS, or the configured migration AS, RFC 7705 Section 4.2): RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to one, so the route leaves with its AS_PATH unchanged and the rest of the filter's answer still applies |
 
 `increment` and `decrement` compute from the value the route carries. When the
@@ -2882,20 +2887,20 @@ config selects a backend that does not implement a used feature, commit and
 
 For `traffic/control` today the gate enforces only the "no backend configured"
 case (non-Linux startup, or an explicit empty `backend` leaf); per-feature
-annotations for tc-specific qdiscs and filter types land with
+annotations for kernel-specific qdiscs and filter types land with
 `spec-fw-7-traffic-vpp` when a second backend exists to reject against.
 
 Example: the `bridge`, `tunnel`, `wireguard`, `veth`, and `mirror` nodes are
-annotated `ze:backend "netlink"`. Selecting `backend vpp` while using any of
+annotated `ze:backend "kernel"`. Selecting `backend vpp` while using any of
 them produces a diagnostic naming the YANG path, the active backend, and the
 list of backends that DO implement the feature:
 
 ```
-/interface/bridge: feature not supported by backend "vpp" (supported: netlink)
-/interface/tunnel: feature not supported by backend "vpp" (supported: netlink)
+/interface/bridge: feature not supported by backend "vpp" (supported: kernel)
+/interface/tunnel: feature not supported by backend "vpp" (supported: kernel)
 ```
 
-Fix: change `backend` back to `netlink` (the default on Linux), or remove the
+Fix: change `backend` back to `kernel` (the default on Linux), or remove the
 unsupported entries. The same gate runs at daemon reload (`SIGHUP`) and on
 first-apply at startup, so the daemon cannot boot into an unworkable state.
 
@@ -3220,7 +3225,7 @@ verbatim into internal QoS bits, so ingress maps must be identity
 (pcp == priority for every entry, e.g. `pcp 6 { priority 6; }`). Non-identity
 ingress maps (e.g. `pcp 6 { priority 3; }`) are rejected at config validation.
 Egress maps are fully supported via VPP's `qos egress-map` + `qos mark`
-pipeline. Use the netlink backend if remapped ingress is required.
+pipeline. Use the kernel backend if remapped ingress is required.
 
 <!-- source: internal/plugins/iface/vpp/ifacevpp.go -- enableVLANQoS qos-record + egress-map + mark -->
 <!-- source: internal/component/iface/config.go -- validateVPPQoSMaps identity check -->
@@ -3332,7 +3337,7 @@ to a multicast address or to 255.255.255.255 always pass, so DHCP works.
 `vppctl show interface features <vpp-name>` lists `ip4-rx-urpf-strict` or
 `ip4-rx-urpf-loose`, and `vppctl show errors` counts the drops as `uRPF Drop`.
 
-IPv6 `rpf-check` is implemented on the netlink backend only. With `backend vpp`
+IPv6 `rpf-check` is implemented on the kernel backend only. With `backend vpp`
 a commit that sets it is refused, naming the leaf, because VPP's uRPF drops
 every unicast packet from a link-local source, which would break neighbor
 discovery.
@@ -3353,12 +3358,12 @@ IPv6 Router Advertisements on that unit (RFC 4861). Hosts on the link build
 addresses by stateless address autoconfiguration (SLAAC), learn a default
 router, and learn DNS resolvers. This is the job radvd does on other systems.
 
-The container is Linux only and netlink only. A tree with `backend vpp` rejects
+The container is Linux only and kernel backend only. A tree with `backend vpp` rejects
 it at config verify with `feature not supported by backend "vpp"`.
 
 ```
 interface {
-    backend netlink;
+    backend kernel;
     ethernet eth0 {
         unit 0 {
             ipv6 {
@@ -4020,12 +4025,12 @@ no intermediate serves the leaf alone.
 |------|--------|
 | Default | No `certificate` leaf means ze generates and serves a self-signed certificate, which is the behavior of every release before this leaf existed. |
 | Fail closed | A `certificate` that names no store entry, or names one with no `private { key }`, stops the listener. ze never falls back to a self-signed certificate for a name the operator configured. Web and looking glass: the daemon refuses to start, and a reload naming a bad certificate is rejected. DoT/DoH: the secure listeners do not start, the error is logged, and cleartext DNS is unaffected. |
-| Plaintext | A listener with TLS off presents no certificate, so its `certificate` leaf is inert. `looking-glass { tls false }` with a `certificate` starts and reloads with the name unread, rather than failing over a name nothing serves. |
+| Plain HTTP | Each looking-glass `server` entry chooses HTTPS or plain HTTP in its own `tls` leaf (default true), so one looking glass serves both at once. An entry with `tls false` presents no certificate. When every entry says `tls false` the `certificate` leaf is inert: the daemon starts and reloads with the name unread, rather than failing over a name nothing serves. |
 | Mutually exclusive | In a `tls {}` container, `certificate` and `cert-file`/`key-file` are two sources of the same material. Setting both is rejected at commit. |
 | Name | 1 to 255 characters, `A-Z a-z 0-9 . _ -`. It is a store key, never a file path. |
 | Rotation | Changing the referenced certificate's material and reloading rotates it live. The web listener and the looking glass serve the new chain from the next handshake without rebinding, so an open SSE stream and a viewer's open connection both survive. DoT/DoH rebind, because their listener signature folds in the certificate fingerprint. |
 | One commit | A single commit can add a certificate AND reference it. The reload installs the store before any consumer applies its config. |
-| Removal | Removing the web or looking-glass `certificate` leaf and reloading makes the listener serve its self-signed certificate from the next handshake, without rebinding, as a restart would. A looking glass running without the `database/` store has no self-signed certificate, so that reload is refused. |
+| Removal | Removing the web or looking-glass `certificate` leaf and reloading makes the listener serve its self-signed certificate from the next handshake, without rebinding, as a restart would. A looking glass running without the `database/` store has no self-signed certificate: an entry that left `tls` unset then serves plain HTTP from its next connection, with a warning, and an entry that says `tls true` refuses that reload. |
 | Env override | `ze.web.certificate` and `ze.looking-glass.certificate` set their listener's certificate and take precedence over the config file. |
 | Store | A named certificate comes from the `pki {}` container, so the looking glass serves one on a deployment that never ran `ze init`. The `database/` store holds the self-signed certificate only. The web server needs the store whatever it serves, because its credentials and config live there. |
 | Pre-flight | `ze doctor` reports a reference that is missing, keyless, expired, or whose intermediate does not reach a configured CA, as `doctor-tls-reference` or `doctor-tls-expired`. Run it before deploying. |

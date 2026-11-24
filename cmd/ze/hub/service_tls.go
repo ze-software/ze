@@ -8,7 +8,8 @@
 // certificate one config asks for.
 //
 // Related: cert_store.go -- the live store the self-signed branch persists into
-// Related: listener_migrate.go -- updateWebCertificate and updateLGCertificate
+// Related: listener_migrate.go -- updateWebCertificate and updateLGTransport
+// Related: lg_transport.go -- which looking-glass listeners serve TLS at all
 
 package hub
 
@@ -20,9 +21,13 @@ import (
 
 // errSelfSignedNeedsStore refuses the self-signed branch for a listener that has
 // no store to keep the pair in. Startup never reaches it: the web server is
-// disabled without a store, and the looking glass decides plaintext or an error
-// before it asks (service_lg.go). A reload does, when it drops the certificate
-// name of a looking glass that started on a named certificate without a store.
+// disabled without a store, and the looking glass decides HTTP or an error for
+// each of its entries before it asks (planLGTransports). A reload of a config
+// that describes the looking-glass listeners never reaches it either, for the
+// same reason. It is reached when a reloaded config no longer starts a looking
+// glass and names no certificate, while the running one serves TLS on a named
+// certificate without a store: its listeners stay, and they have no
+// self-signed pair to return to.
 var errSelfSignedNeedsStore = opererr.New(
 	"The listener cannot return to its self-signed certificate.",
 	"No certificate is named, and the self-signed certificate is kept in the database store, which this daemon runs without.",

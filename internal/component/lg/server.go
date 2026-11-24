@@ -13,11 +13,12 @@
 // and open unless LGConfig.Token is set: a looking glass is an intentionally
 // public surface, so the bearer gate in auth.go is opt-in.
 //
-// TLS is on by default (LGConfig.TLS), because the server binds 0.0.0.0 and
-// publishes route data; a deployment behind a TLS-terminating proxy turns it
-// off. When TLS is enabled, the caller supplies the PEM material: a self-signed
-// certificate, or a chain from the PKI store. UpdateTLSCertificate replaces it
-// on a running server without rebinding a listener.
+// Each listener serves HTTPS or plain HTTP (ListenAddr.TLS), so one looking
+// glass serves both at once: what it publishes is public, and the operator
+// chooses per endpoint. When a listener serves HTTPS, the caller supplies the
+// PEM material: a self-signed certificate, or a chain from the PKI store.
+// UpdateTLSCertificate replaces it, and UpdateListenerTLS switches the protocol
+// of a bound listener, both on a running server and without rebinding.
 //
 // All BGP data is accessed via CommandDispatcher, preserving plugin
 // isolation. The LG never imports RIB or peer plugin packages directly.
@@ -59,7 +60,11 @@ var (
 	errLgServerTlsEnabledButCertificate    = errors.New("lg server: TLS enabled but certificate/key PEM data missing")
 	errLgServerShutDown                    = errors.New("lg server: server has been shut down")
 	errLgServerNoCertificate               = errors.New("lg server: no TLS certificate installed")
-	errLgServerTLSNotEnabled               = errors.New("lg server: TLS is not enabled on this server")
+	// errLgServerNoRecordedProtocol is Reconfigure's refusal of an address no
+	// configuration gave a protocol: only a Ze defect in the caller's order
+	// reaches it, because the hub names every address through
+	// UpdateListenerTLS before it moves the listeners.
+	errLgServerNoRecordedProtocol = errors.New("lg server: no protocol recorded for the listen address; UpdateListenerTLS must name it before Reconfigure binds it")
 )
 
 // lgLogger is the structured logger for the looking glass subsystem.
@@ -76,19 +81,18 @@ type CommandDispatcher = plugin.CommandDispatcher
 
 // LGConfig holds the configuration for creating an LG server.
 type LGConfig struct {
-	// ListenAddrs is the list of addresses to bind (e.g., []string{"0.0.0.0:8443"}).
-	// At least one entry is required. Every entry becomes a separate listener
-	// on the same *http.Server; Shutdown closes all of them.
-	ListenAddrs []string
+	// ListenAddrs is the list of addresses to bind, each with the protocol it
+	// serves. At least one entry is required. Every entry becomes a separate
+	// listener on the same *http.Server; Shutdown closes all of them.
+	ListenAddrs []ListenAddr
 
-	// TLS enables HTTPS. When false, the server uses plain HTTP.
-	TLS bool
-
-	// CertPEM is optional PEM-encoded certificate data (required when TLS is
-	// true). A chain is the leaf first, then one block per intermediate.
+	// CertPEM is PEM-encoded certificate data, required when an entry of
+	// ListenAddrs serves TLS. A chain is the leaf first, then one block per
+	// intermediate.
 	CertPEM []byte
 
-	// KeyPEM is optional PEM-encoded private key data (required when TLS is true).
+	// KeyPEM is PEM-encoded private key data, required when an entry of
+	// ListenAddrs serves TLS.
 	KeyPEM []byte
 
 	// Dispatch is the command dispatcher for querying the BGP engine. It also
@@ -125,6 +129,46 @@ type LGConfig struct {
 	Logger *slog.Logger
 }
 
+// ListenAddr is one address the looking glass binds, and the protocol it serves
+// there.
+type ListenAddr struct {
+	// Addr is the ip:port to bind (e.g., "0.0.0.0:8443").
+	Addr string
+	// TLS is true for HTTPS and false for plain HTTP.
+	TLS bool
+}
+
+// transportListener is one bound listener of the looking glass. Its Accept
+// answers a TLS connection or the bare one, as serveTLS says at that moment, so
+// UpdateListenerTLS switches the protocol of an address without closing its
+// socket: a connection already accepted keeps the protocol it was accepted
+// with, and the next one takes the new one. http.Server handshakes a *tls.Conn
+// it is handed and sets Request.TLS from it, so a handler tells the two apart
+// per connection (handler_rfc8522.go).
+//
+// Safe for concurrent use.
+type transportListener struct {
+	net.Listener
+	// tlsCfg is the server's one TLS configuration. Its certificate is read
+	// per handshake (LGServer.getCertificate).
+	tlsCfg   *tls.Config
+	serveTLS atomic.Bool
+}
+
+// Accept waits for the next connection and wraps it in TLS when this listener
+// serves HTTPS. The accept error is returned as the listener gave it:
+// http.Server reads its type to tell a closed listener from a transient fault.
+func (l *transportListener) Accept() (net.Conn, error) {
+	conn, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	if !l.serveTLS.Load() {
+		return conn, nil
+	}
+	return tls.Server(conn, l.tlsCfg), nil
+}
+
 // LGServer is the looking glass HTTP server.
 // Routes are registered internally during construction.
 // Caller MUST call Shutdown to release resources when the server is no longer needed.
@@ -133,24 +177,35 @@ type LGConfig struct {
 // closed and ListenAndServe returns the error.
 type LGServer struct {
 	mux *http.ServeMux
-	// configured holds the addresses passed in by the caller, in original order.
-	configured []string
+	// configured holds the addresses passed in by the caller, in original
+	// order, each with the protocol it serves.
+	configured []ListenAddr
 	// bound holds the actual listen addresses once ListenAndServe has bound
 	// them. Populated under mu.
 	bound     []string
-	listeners map[string]net.Listener // bound addr -> listener
-	mu        sync.RWMutex            // protects bound, listeners, stopped
-	ready     chan struct{}           // closed once every listener is bound
-	readyOnce sync.Once               // prevents double-close panic on ready channel
-	stopped   bool                    // set by Shutdown; Reconfigure checks this
+	listeners map[string]*transportListener // bound addr -> listener
+	// transport is the protocol a configuration gives an address: true for
+	// TLS. Reconfigure reads it when it binds an address and refuses one it
+	// holds no entry for, so a listener a reload adds, or a rollback puts
+	// back, serves the protocol its entry asks for from its first connection.
+	// NewLGServer, UpdateListenerTLS and Reconfigure write it.
+	transport map[string]bool
+	mu        sync.RWMutex  // protects configured, bound, listeners, transport, stopped
+	ready     chan struct{} // closed once every listener is bound
+	readyOnce sync.Once     // prevents double-close panic on ready channel
+	stopped   bool          // set by Shutdown; Reconfigure checks this
 	logger    *slog.Logger
 	server    *http.Server
-	useTLS    bool
-	tlsCfg    *tls.Config
+	// tlsCfg is the one TLS configuration every TLS-serving listener shares. It
+	// is built whether or not a listener serves TLS at start, because a reload
+	// can switch one to it.
+	tlsCfg *tls.Config
 	// cert is the certificate every handshake serves. tls.Config.GetCertificate
 	// reads it per handshake rather than per listener, so UpdateTLSCertificate
-	// rotates the served material without touching a bound listener. Nil when
-	// useTLS is false; never nil after NewLGServer returns with TLS enabled.
+	// rotates the served material without touching a bound listener. Nil while
+	// no certificate was ever installed, which is the state of a server whose
+	// listeners all serve plain HTTP. NewLGServer and UpdateListenerTLS refuse
+	// a TLS listener on a server that holds none.
 	cert       atomic.Pointer[tls.Certificate]
 	dispatch   CommandDispatcher
 	sseClients atomic.Int32 // concurrent SSE connection counter
@@ -170,14 +225,23 @@ type LGServer struct {
 }
 
 // NewLGServer creates a new looking glass HTTP server from the given configuration.
-// When TLS is enabled, CertPEM and KeyPEM must be provided.
+// When an entry of cfg.ListenAddrs serves TLS, CertPEM and KeyPEM must be provided.
 // Requires at least one entry in cfg.ListenAddrs.
 func NewLGServer(cfg LGConfig) (*LGServer, error) {
 	if len(cfg.ListenAddrs) == 0 {
 		return nil, errLgServerAtLeastOneListen
 	}
-	if slices.Contains(cfg.ListenAddrs, "") {
-		return nil, errLgServerListenAddressMustNot
+	configured := append([]ListenAddr(nil), cfg.ListenAddrs...)
+	transport := make(map[string]bool, len(configured))
+	servesTLS := false
+	for _, listen := range configured {
+		if listen.Addr == "" {
+			return nil, errLgServerListenAddressMustNot
+		}
+		transport[listen.Addr] = listen.TLS
+		if listen.TLS {
+			servesTLS = true
+		}
 	}
 
 	if cfg.Dispatch == nil {
@@ -189,21 +253,20 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 		log = lgLogger
 	}
 
-	var tlsCfg *tls.Config
-	if cfg.TLS {
-		if len(cfg.CertPEM) == 0 || len(cfg.KeyPEM) == 0 {
+	var cert *tls.Certificate
+	if servesTLS {
+		if len(cfg.CertPEM) == 0 {
+			return nil, errLgServerTlsEnabledButCertificate
+		}
+		if len(cfg.KeyPEM) == 0 {
 			return nil, errLgServerTlsEnabledButCertificate
 		}
 
-		cert, err := tls.X509KeyPair(cfg.CertPEM, cfg.KeyPEM)
+		pair, err := tls.X509KeyPair(cfg.CertPEM, cfg.KeyPEM)
 		if err != nil {
 			return nil, fmt.Errorf("lg server: parse TLS key pair: %w", err)
 		}
-
-		tlsCfg = &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			MinVersion:   tls.VersionTLS12,
-		}
+		cert = &pair
 	}
 
 	ranges, rangesErr := newNextHopRanges(cfg.NextHopRanges)
@@ -221,22 +284,20 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 	}
 
 	mux := http.NewServeMux()
-	configured := append([]string(nil), cfg.ListenAddrs...)
 
 	s := &LGServer{
 		mux:            mux,
 		configured:     configured,
-		listeners:      make(map[string]net.Listener),
+		listeners:      make(map[string]*transportListener),
+		transport:      transport,
 		ready:          make(chan struct{}),
 		logger:         log,
-		useTLS:         cfg.TLS,
-		tlsCfg:         tlsCfg,
 		dispatch:       cfg.Dispatch,
 		hostname:       hostname,
 		rfc8522Limiter: newRFC8522RateLimiter(cfg.RFC8522RateLimitPerMin),
 		server: &http.Server{
 			// Addr is informational; multi-listener serving uses Serve(ln).
-			Addr: configured[0],
+			Addr: configured[0].Addr,
 			// bearerAuth sits between the headers and the mux, so it gates
 			// every route the mux serves -- including any registered later.
 			// With no token it returns the mux unchanged (public looking glass).
@@ -259,18 +320,21 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 
 	s.nextHopRanges.Store(ranges)
 
-	if tlsCfg != nil {
-		s.server.TLSConfig = tlsCfg
-
-		// Move the certificate behind a per-handshake lookup. crypto/tls
-		// consults GetCertificate before Certificates, so a bound listener
-		// serves rotated material on its NEXT handshake, with no rebind and no
-		// dropped connection. Certificates is cleared in the same statement
-		// group so the two can never disagree about what is served.
-		s.cert.Store(&tlsCfg.Certificates[0])
-		tlsCfg.Certificates = nil
-		tlsCfg.GetCertificate = s.getCertificate
+	// The certificate sits behind a per-handshake lookup, and the configuration
+	// holds no fixed Certificates list. crypto/tls serves that list ahead of
+	// the callback when the client sends no SNI, so a populated one would let
+	// the pointer and the wire disagree. A bound listener therefore serves
+	// rotated material on its NEXT handshake, with no rebind and no dropped
+	// connection. The configuration exists on an all-HTTP server too, because
+	// UpdateListenerTLS can switch a listener to it.
+	if cert != nil {
+		s.cert.Store(cert)
 	}
+	s.tlsCfg = &tls.Config{
+		MinVersion:     tls.VersionTLS12,
+		GetCertificate: s.getCertificate,
+	}
+	s.server.TLSConfig = s.tlsCfg
 
 	// Register route handlers.
 	if err := s.registerRoutes(); err != nil {
@@ -280,19 +344,68 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 	return s, nil
 }
 
-// ServesTLS reports whether this looking glass serves TLS. It is false for a
-// plaintext listener. It is false too for one that asked for TLS and was
-// dropped to plaintext, because no certificate store was available
-// (cmd/ze/hub/service_lg.go).
+// ListenerTLS answers, for every bound address, whether it serves TLS now.
+// The hub reads it to learn whether any listener will present a certificate
+// once a reloaded configuration is applied (cmd/ze/hub/listener_migrate.go).
+// The map is the caller's own. Safe for concurrent use.
+func (s *LGServer) ListenerTLS() map[string]bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	out := make(map[string]bool, len(s.listeners))
+	for addr, ln := range s.listeners {
+		out[addr] = ln.serveTLS.Load()
+	}
+	return out
+}
+
+// UpdateListenerTLS records the protocol each address in tlsByAddr serves, true
+// for TLS, and switches every bound listener it names. A switched listener
+// keeps its socket: its open connections finish on the protocol they started
+// with, and its next connection takes the new one. An address that is not
+// bound is recorded only, and Reconfigure reads the record when it binds it:
+// a caller that moves the listeners MUST name every address of the new set
+// here first, and the hub does, so a listener a reload adds serves its
+// entry's protocol from its first connection. A bound address is named as
+// Addresses reports it, an address to bind as Reconfigure will be given it.
 //
-// The hub gates the certificate-rotation seam on it. A plaintext looking glass
-// holds no certificate to replace, so it never receives a rotation. A later
-// config that names a certificate then does not fail the whole reload over a
-// leaf this listener cannot serve.
+// The record grows by at most one entry per address named here, and the next
+// Reconfigure that moves a listener rebuilds it from the addresses it keeps
+// and the ones it removes.
 //
-// useTLS is written once, in NewLGServer, and never again, so this is safe for
-// concurrent use.
-func (s *LGServer) ServesTLS() bool { return s.useTLS }
+// It refuses, and changes nothing, when an address would serve TLS on a server
+// that holds no certificate: every handshake there would fail on a listener
+// that answered a moment earlier. Callers MUST install the certificate with
+// UpdateTLSCertificate first.
+//
+// Safe for concurrent use.
+func (s *LGServer) UpdateListenerTLS(tlsByAddr map[string]bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.stopped {
+		return errLgServerShutDown
+	}
+	if s.cert.Load() == nil {
+		for _, serveTLS := range tlsByAddr {
+			if serveTLS {
+				return errLgServerNoCertificate
+			}
+		}
+	}
+
+	for addr, serveTLS := range tlsByAddr {
+		s.transport[addr] = serveTLS
+		ln, bound := s.listeners[addr]
+		if !bound {
+			continue
+		}
+		if ln.serveTLS.Swap(serveTLS) != serveTLS {
+			s.logger.Info("lg server listener protocol changed", "address", addr, "tls", serveTLS)
+		}
+	}
+	return nil
+}
 
 // getCertificate is the tls.Config.GetCertificate callback. It returns the
 // certificate installed now, which UpdateTLSCertificate can replace at any time.
@@ -300,11 +413,13 @@ func (s *LGServer) ServesTLS() bool { return s.useTLS }
 func (s *LGServer) getCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	cert := s.cert.Load()
 	if cert == nil {
-		// Unreachable: NewLGServer installs a certificate before it returns
-		// with TLS enabled, and UpdateTLSCertificate never installs nil. Refuse
-		// the handshake rather than let crypto/tls fall through to an empty
-		// Certificates list, which would serve nothing while the listener still
-		// looks healthy.
+		// No listener should reach this. A TLS listener is made by
+		// NewLGServer or UpdateListenerTLS, which both refuse it on a server
+		// with no certificate, or by Reconfigure from a record one of them
+		// wrote, or from a listener that served TLS when it was removed. And
+		// UpdateTLSCertificate never installs nil. A handshake is a peer's
+		// action, so this refuses it rather than panic, and rather than let
+		// crypto/tls fall through to an empty Certificates list.
 		return nil, errLgServerNoCertificate
 	}
 	return cert, nil
@@ -317,15 +432,18 @@ func (s *LGServer) getCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error
 // It is fail-closed on bad material: material that does not parse is refused
 // and the certificate installed before it keeps serving. Installing unparseable
 // material, or clearing the certificate, would break every later handshake on a
-// listener that worked a moment earlier. A server running plaintext refuses too,
-// because it would never serve what it accepted.
+// listener that worked a moment earlier.
+//
+// A server whose listeners all serve plain HTTP accepts the certificate too:
+// that is how a reload switches one of them to TLS, certificate first, then
+// UpdateListenerTLS.
 //
 // Safe for concurrent use.
 func (s *LGServer) UpdateTLSCertificate(certPEM, keyPEM []byte) error {
-	if !s.useTLS {
-		return errLgServerTLSNotEnabled
+	if len(certPEM) == 0 {
+		return errLgServerTlsEnabledButCertificate
 	}
-	if len(certPEM) == 0 || len(keyPEM) == 0 {
+	if len(keyPEM) == 0 {
 		return errLgServerTlsEnabledButCertificate
 	}
 
@@ -429,18 +547,23 @@ func (s *LGServer) ListenAndServe(ctx context.Context) error {
 
 	var lc net.ListenConfig
 
-	lnSlice := make([]net.Listener, 0, len(s.configured))
-	lnMap := make(map[string]net.Listener, len(s.configured))
-	bound := make([]string, 0, len(s.configured))
-	for _, addr := range s.configured {
-		ln, err := lc.Listen(ctx, "tcp", addr)
+	s.mu.RLock()
+	configured := append([]ListenAddr(nil), s.configured...)
+	s.mu.RUnlock()
+
+	lnSlice := make([]*transportListener, 0, len(configured))
+	lnMap := make(map[string]*transportListener, len(configured))
+	bound := make([]string, 0, len(configured))
+	for _, listen := range configured {
+		ln, err := lc.Listen(ctx, "tcp", listen.Addr)
 		if err != nil {
 			closeAllLGListeners(lnSlice, s.logger)
-			return fmt.Errorf("lg server bind %s: %w", addr, err)
+			return fmt.Errorf("lg server bind %s: %w", listen.Addr, err)
 		}
 		resolvedAddr := ln.Addr().String()
-		lnSlice = append(lnSlice, ln)
-		lnMap[resolvedAddr] = ln
+		served := s.newTransportListener(ln, listen.TLS)
+		lnSlice = append(lnSlice, served)
+		lnMap[resolvedAddr] = served
 		bound = append(bound, resolvedAddr)
 	}
 
@@ -451,8 +574,8 @@ func (s *LGServer) ListenAndServe(ctx context.Context) error {
 
 	s.readyOnce.Do(func() { close(s.ready) })
 
-	for _, addr := range bound {
-		if s.useTLS {
+	for i, addr := range bound {
+		if configured[i].TLS {
 			s.logger.Info("lg server listening (TLS)", "address", addr)
 		} else {
 			s.logger.Info("lg server listening", "address", addr)
@@ -462,14 +585,17 @@ func (s *LGServer) ListenAndServe(ctx context.Context) error {
 	return s.serveAll(lnSlice)
 }
 
-func (s *LGServer) serveAll(lns []net.Listener) error {
+// newTransportListener wraps a bound listener with the protocol it serves.
+func (s *LGServer) newTransportListener(ln net.Listener, serveTLS bool) *transportListener {
+	served := &transportListener{Listener: ln, tlsCfg: s.tlsCfg}
+	served.serveTLS.Store(serveTLS)
+	return served
+}
+
+func (s *LGServer) serveAll(lns []*transportListener) error {
 	errCh := make(chan error, len(lns))
 	var wg sync.WaitGroup
 	for _, ln := range lns {
-		serveLn := ln
-		if s.useTLS {
-			serveLn = tls.NewListener(ln, s.tlsCfg)
-		}
 		wg.Add(1)
 		go func(serveLn net.Listener) {
 			defer wg.Done()
@@ -478,7 +604,7 @@ func (s *LGServer) serveAll(lns []net.Listener) error {
 				!isLGClosedConnError(serveErr) {
 				errCh <- serveErr
 			}
-		}(serveLn)
+		}(ln)
 	}
 	wg.Wait()
 	close(errCh)
@@ -490,13 +616,9 @@ func (s *LGServer) serveAll(lns []net.Listener) error {
 	return nil
 }
 
-func (s *LGServer) serveOne(ln net.Listener) {
-	serveLn := ln
-	if s.useTLS {
-		serveLn = tls.NewListener(ln, s.tlsCfg)
-	}
+func (s *LGServer) serveOne(ln *transportListener) {
 	go func() {
-		if serveErr := s.server.Serve(serveLn); serveErr != nil &&
+		if serveErr := s.server.Serve(ln); serveErr != nil &&
 			!errors.Is(serveErr, http.ErrServerClosed) &&
 			!isLGClosedConnError(serveErr) {
 			s.logger.Error("lg server serve error", "error", serveErr)
@@ -506,6 +628,14 @@ func (s *LGServer) serveOne(ln net.Listener) {
 
 // Reconfigure migrates listeners to a new set of addresses.
 // Bind-before-close: new listeners start serving before old ones are removed.
+//
+// An address it binds serves, from its first connection, the protocol recorded
+// for it: the one UpdateListenerTLS named, or the one it served when an earlier
+// call removed it, which is what a rollback puts back. The hub names every
+// address of the reloaded configuration through UpdateListenerTLS before this
+// call. An address with no record is refused before anything is bound: the
+// server does not choose a protocol the configuration never gave it. A
+// listener that stays bound keeps its socket and its protocol here.
 func (s *LGServer) Reconfigure(ctx context.Context, newAddrs []string) error {
 	if len(newAddrs) == 0 {
 		return errLgServerAtLeastOneListen
@@ -526,8 +656,14 @@ func (s *LGServer) Reconfigure(ctx context.Context, newAddrs []string) error {
 		return nil
 	}
 
+	for _, addr := range toAdd {
+		if _, recorded := s.transport[addr]; !recorded {
+			return fmt.Errorf("lg server reconfigure %s: %w", addr, errLgServerNoRecordedProtocol)
+		}
+	}
+
 	var lc net.ListenConfig
-	newLns := make([]net.Listener, 0, len(toAdd))
+	newLns := make([]*transportListener, 0, len(toAdd))
 	resolved := make(map[string]string, len(toAdd))
 	for _, addr := range toAdd {
 		ln, err := lc.Listen(ctx, "tcp", addr)
@@ -535,20 +671,28 @@ func (s *LGServer) Reconfigure(ctx context.Context, newAddrs []string) error {
 			closeAllLGListeners(newLns, s.logger)
 			return fmt.Errorf("lg server reconfigure bind %s: %w", addr, err)
 		}
-		newLns = append(newLns, ln)
+		newLns = append(newLns, s.newTransportListener(ln, s.transport[addr]))
 		resolved[addr] = ln.Addr().String()
 	}
 
 	for _, ln := range newLns {
 		resolvedAddr := ln.Addr().String()
 		s.listeners[resolvedAddr] = ln
-		s.logger.Info("lg server listener added", "address", resolvedAddr)
+		s.logger.Info("lg server listener added", "address", resolvedAddr, "tls", ln.serveTLS.Load())
 		s.serveOne(ln)
 	}
 
+	// The record of protocols is bounded: it keeps one entry per address of
+	// newAddrs, as written and as bound, and one per address this call
+	// removes, with the protocol it served when it was closed. The second set
+	// is what a rollback reads: the hub undoes a failed reload by calling
+	// Reconfigure with the addresses it had, and a listener put back that way
+	// serves what it served before. The next call drops those entries.
+	transport := make(map[string]bool, 2*len(newAddrs)+len(toRemove))
 	for _, addr := range toRemove {
 		if ln, ok := s.listeners[addr]; ok {
 			s.logger.Info("lg server listener removed", "address", addr)
+			transport[addr] = ln.serveTLS.Load()
 			if closeErr := ln.Close(); closeErr != nil {
 				s.logger.Warn("lg server close listener", "address", addr, "error", closeErr)
 			}
@@ -557,15 +701,25 @@ func (s *LGServer) Reconfigure(ctx context.Context, newAddrs []string) error {
 	}
 
 	bound := make([]string, 0, len(newAddrs))
+	configured := make([]ListenAddr, 0, len(newAddrs))
 	for _, a := range newAddrs {
+		boundAddr := a
 		if r, ok := resolved[a]; ok {
-			bound = append(bound, r)
-		} else if _, ok := s.listeners[a]; ok {
-			bound = append(bound, a)
+			boundAddr = r
 		}
+		ln, ok := s.listeners[boundAddr]
+		if !ok {
+			continue
+		}
+		serveTLS := ln.serveTLS.Load()
+		bound = append(bound, boundAddr)
+		configured = append(configured, ListenAddr{Addr: a, TLS: serveTLS})
+		transport[a] = serveTLS
+		transport[boundAddr] = serveTLS
 	}
 	s.bound = bound
-	s.configured = append([]string(nil), newAddrs...)
+	s.configured = configured
+	s.transport = transport
 	return nil
 }
 
@@ -598,7 +752,7 @@ func isLGClosedConnError(err error) bool {
 }
 
 // closeAllLGListeners closes every listener in the slice, logging any errors.
-func closeAllLGListeners(listeners []net.Listener, log *slog.Logger) {
+func closeAllLGListeners(listeners []*transportListener, log *slog.Logger) {
 	for _, ln := range listeners {
 		if closeErr := ln.Close(); closeErr != nil {
 			log.Warn("lg server: close partial listener", "error", closeErr)
@@ -619,8 +773,10 @@ func (s *LGServer) Addresses() []string {
 		copy(out, s.bound)
 		return out
 	}
-	out := make([]string, len(s.configured))
-	copy(out, s.configured)
+	out := make([]string, 0, len(s.configured))
+	for _, listen := range s.configured {
+		out = append(out, listen.Addr)
+	}
 	return out
 }
 

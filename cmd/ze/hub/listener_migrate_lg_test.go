@@ -80,9 +80,9 @@ func TestListenerMigratorUpdateLGCertificate(t *testing.T) {
 	lgFake := &fakeTLSUpdatable{}
 	lm := &listenerMigrator{}
 	lm.setWebTLS(webFake)
-	lm.setLGTLS(lgFake)
+	lm.setLGTransport(lgFake)
 
-	require.NoError(t, lm.updateLGCertificate("lg-cert"))
+	require.NoError(t, lm.updateLGTransport(lgListenerConfig{certName: "lg-cert"}))
 	require.Equal(t, 1, lgFake.calls)
 	require.Zero(t, webFake.calls, "rotating the looking glass must not touch the web listener")
 	require.Equal(t, "lg leaf", installedLeafCN(t, lgFake))
@@ -105,30 +105,32 @@ func TestListenerMigratorUpdateLGCertificateFailsClosed(t *testing.T) {
 
 	lgFake := &fakeTLSUpdatable{}
 	lm := &listenerMigrator{}
-	lm.setLGTLS(lgFake)
+	lm.setLGTransport(lgFake)
 
-	err := lm.updateLGCertificate("typo-cert")
+	err := lm.updateLGTransport(lgListenerConfig{certName: "typo-cert"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "typo-cert")
 	require.Zero(t, lgFake.calls, "unresolvable material must never reach the listener")
 }
 
 func TestListenerMigratorUpdateLGCertificateNoOp(t *testing.T) {
-	// VALIDATES: the cases that are not a rotation -- no looking glass holds a
-	// TLS handle, because it serves plaintext or is not in this build, whether
-	// or not the operator names a certificate.
-	// PREVENTS: a reload failing on a deployment whose looking glass presents
-	// no certificate, and a nil handle panicking the daemon on a build without
-	// the ze_lg tag, where nothing ever calls setLGTLS.
+	// VALIDATES: with no handle no looking glass runs, in this build or on this
+	// daemon, and a reload changes nothing on it and says nothing, whether or
+	// not the config names a certificate.
+	// PREVENTS: a reload failing on a daemon that runs no looking glass, and a
+	// nil handle panicking the daemon on a build without the ze_lg tag, where
+	// nothing ever calls setLGTransport.
 	//
-	// An empty name on a looking glass that DOES hold a handle is not a no-op:
-	// it returns the listener to its self-signed pair
-	// (TestReloadDroppingLGCertificateNameServesSelfSigned, ze_lg).
+	// A looking glass that runs always holds the handle, whatever it serves
+	// (register_lg.go): an empty name on one returns its TLS listeners to the
+	// self-signed pair (TestReloadDroppingLGCertificateNameServesSelfSigned,
+	// ze_lg), or moves an entry that left tls unset to HTTP when the daemon has
+	// no store (TestReloadDroppingLGCertificateNameWithoutStore, ze_lg).
 	loadTwoCertStore(t)
 
 	var logged strings.Builder
 	noHandle := &listenerMigrator{logger: slog.New(slog.NewTextHandler(&logged, nil))}
-	require.NoError(t, noHandle.updateLGCertificate(""))
-	require.Empty(t, logged.String(), "no name on a plaintext looking glass is the ordinary case and says nothing")
-	require.NoError(t, noHandle.updateLGCertificate("lg-cert"))
+	require.NoError(t, noHandle.updateLGTransport(lgListenerConfig{certName: ""}))
+	require.NoError(t, noHandle.updateLGTransport(lgListenerConfig{certName: "lg-cert"}))
+	require.Empty(t, logged.String(), "a daemon that runs no looking glass has nothing to say about its certificate")
 }

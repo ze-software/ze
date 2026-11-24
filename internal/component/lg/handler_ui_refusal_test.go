@@ -87,7 +87,7 @@ func TestUIPagesRefuseAFailedCommand(t *testing.T) {
 // PREVENTS: a failed search reading as a search that matched nothing.
 func TestUISearchBannerNamesTheFailure(t *testing.T) {
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}},
 		Dispatch:    failingDispatch,
 	})
 	if err != nil {

@@ -33,7 +33,7 @@ func statusRequest(t *testing.T, dispatch CommandDispatcher) *httptest.ResponseR
 	t.Helper()
 
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}},
 		Dispatch:    dispatch,
 	})
 	if err != nil {

@@ -83,8 +83,7 @@ func startTLSTestServer(t *testing.T, certPEM, keyPEM []byte) *LGServer {
 	t.Helper()
 
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
-		TLS:         true,
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0", TLS: true}},
 		CertPEM:     certPEM,
 		KeyPEM:      keyPEM,
 		Dispatch:    mockDispatch(),
@@ -259,24 +258,5 @@ func TestLGUpdateTLSCertificateRejectsBadMaterial(t *testing.T) {
 	}
 	if peers[0].Subject.CommonName != "keep me" {
 		t.Errorf("served leaf: got %q, want the previous leaf", peers[0].Subject.CommonName)
-	}
-}
-
-func TestLGUpdateTLSCertificateWithoutTLS(t *testing.T) {
-	// VALIDATES: a plaintext looking glass refuses a rotation instead of
-	// accepting material it will never serve.
-	// PREVENTS: a silent success that reads, to the hub's reload path, exactly
-	// like a certificate that reached the wire.
-	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
-		Dispatch:    mockDispatch(),
-	})
-	if err != nil {
-		t.Fatalf("NewLGServer: %v", err)
-	}
-
-	chainPEM, keyPEM := testChain(t, "never served")
-	if err := srv.UpdateTLSCertificate(chainPEM, keyPEM); err == nil {
-		t.Error("rotation on a plaintext server: got no error, want a refusal")
 	}
 }

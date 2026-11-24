@@ -116,7 +116,7 @@ func rfc8522Request(t *testing.T, srv *LGServer, method, target string, useTLS b
 func newRFC8522TestServer(t *testing.T, dispatch CommandDispatcher, rateLimit int) *LGServer {
 	t.Helper()
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs:            []string{"127.0.0.1:0"},
+		ListenAddrs:            []ListenAddr{{Addr: "127.0.0.1:0"}},
 		Dispatch:               dispatch,
 		Hostname:               testRFC8522Hostname,
 		RFC8522RateLimitPerMin: rateLimit,
@@ -539,7 +539,7 @@ func TestRFC8522JSendEnvelopeAndTiming(t *testing.T) {
 
 	// 5. Unauthorized error via auth.go middleware (HTTP 401 JSend error).
 	authSrv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}},
 		Dispatch:    rfc8522MockDispatch(nil),
 		Hostname:    testRFC8522Hostname,
 		Token:       "rfc8522-secret-token",

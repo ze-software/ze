@@ -39,18 +39,6 @@ func getConfigValue(tree *config.Tree, path string) string {
 	return ""
 }
 
-// configValueOrDefault reads a leaf like getConfigValue but substitutes def
-// when the leaf is absent. The config tree holds only what the operator wrote,
-// so a leaf whose YANG default is not false needs its default supplied here.
-// Without it a toggle renders unchecked and the next save writes the opposite
-// of the running behavior, because the toggle always posts a value.
-func configValueOrDefault(tree *config.Tree, path, def string) string {
-	if v := getConfigValue(tree, path); v != "" {
-		return v
-	}
-	return def
-}
-
 // splitConfigPath splits a slash-separated config path into segments.
 func splitConfigPath(path string) []string {
 	var parts []string
@@ -483,21 +471,7 @@ func buildLookingGlassFormData(tree *config.Tree) WorkbenchFormData {
 				Label:       labelListenEndpoints,
 				Type:        wbFormListType,
 				Items:       getConfigListItems(tree, "environment/looking-glass", "server"),
-				Description: "Looking glass listen endpoints",
-			},
-			{
-				Name: "tls",
-				// getConfigValue reads the RAW tree, which carries no YANG
-				// defaults, so an absent leaf reads "". The looking glass
-				// defaults TLS ON, and a toggle rendered from "" shows OFF and
-				// posts `tls false` on the next save of ANY field on this form.
-				// That would silently downgrade a TLS looking glass to plaintext
-				// (ai/rules/protocol.md), so the default is applied here
-				// exactly as ExtractLGConfig applies it.
-				Label:       "TLS",
-				Type:        wbFormToggleType,
-				Value:       configValueOrDefault(tree, "environment/looking-glass/tls", boolTrue),
-				Description: "Serve HTTPS (needs blob storage for certificates). Default on; turn off to serve plaintext",
+				Description: "Looking glass listen endpoints. Each entry serves HTTPS unless it says tls false",
 			},
 			{
 				Name:        wbFormTokenField,

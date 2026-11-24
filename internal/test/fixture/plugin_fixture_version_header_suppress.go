@@ -64,12 +64,12 @@ environment {
 	}
 	looking-glass {
 		enabled true
-		# The banner, not the transport, is what this scenario reads, so the
-		# looking glass serves plaintext and the probe needs no handshake.
-		tls false
 		server main {
 			ip 127.0.0.1;
 			port `).Int(int64(lgPort)).Str(`;
+			# The banner, not the transport, is what this scenario reads, so the
+			# looking glass serves plaintext and the probe needs no handshake.
+			tls false;
 		}
 	}
 }

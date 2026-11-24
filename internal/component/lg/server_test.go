@@ -106,7 +106,7 @@ func startTestServer(t *testing.T) (*LGServer, string, *http.Client) {
 	t.Helper()
 
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}},
 		Dispatch:    mockDispatch(),
 	})
 	if err != nil {
@@ -132,7 +132,7 @@ func TestNewLGServer(t *testing.T) {
 	// VALIDATES: AC-1 -- server created with config.
 	// PREVENTS: nil dispatcher or empty address accepted.
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}},
 		Dispatch:    mockDispatch(),
 	})
 	if err != nil {
@@ -156,7 +156,7 @@ func TestNewLGServerRequiresAddr(t *testing.T) {
 func TestNewLGServerRequiresDispatch(t *testing.T) {
 	// VALIDATES: validation rejects nil dispatcher.
 	_, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}},
 	})
 	if err == nil {
 		t.Fatal("expected error for nil dispatcher")
@@ -188,8 +188,7 @@ func TestLGServerPlainHTTP(t *testing.T) {
 func TestLGServerTLSRequiresCert(t *testing.T) {
 	// VALIDATES: AC-3 -- TLS enabled without cert fails.
 	_, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
-		TLS:         true,
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0", TLS: true}},
 		Dispatch:    mockDispatch(),
 	})
 	if err == nil {
@@ -752,7 +751,7 @@ func TestRouteDetailValidation(t *testing.T) {
 // first endpoint.
 func TestLGServer_MultiListener(t *testing.T) {
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0", "127.0.0.1:0"},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}, {Addr: "127.0.0.1:0"}},
 		Dispatch:    mockDispatch(),
 	})
 	if err != nil {
@@ -812,7 +811,7 @@ func TestLGServer_BindFailureClosesPartialListeners(t *testing.T) {
 	squattedAddr := squatter.Addr().String()
 
 	srv, err := NewLGServer(LGConfig{
-		ListenAddrs: []string{"127.0.0.1:0", squattedAddr},
+		ListenAddrs: []ListenAddr{{Addr: "127.0.0.1:0"}, {Addr: squattedAddr}},
 		Dispatch:    mockDispatch(),
 	})
 	if err != nil {

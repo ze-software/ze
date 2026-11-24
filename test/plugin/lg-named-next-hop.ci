@@ -55,10 +55,10 @@ plugin {
 environment {
 	looking-glass {
 		enabled true
-		tls false
 		server main {
 			ip 127.0.0.1
 			port $PORT2
+			tls false
 		}
 		next-hop-range 198.51.100.0/24 {
 			name ixp-lan-b
@@ -119,12 +119,12 @@ plugin {
 environment {
 	looking-glass {
 		enabled true
-		# This test asserts looking-glass CONTENT over plain HTTP, so it takes
-		# the documented TLS opt-out.
-		tls false
 		server main {
 			ip 127.0.0.1
 			port $PORT2
+			# This test asserts looking-glass CONTENT over plain HTTP, so it takes
+			# the documented TLS opt-out.
+			tls false
 		}
 		next-hop-range 198.51.100.0/24 {
 			name ixp-lan-a

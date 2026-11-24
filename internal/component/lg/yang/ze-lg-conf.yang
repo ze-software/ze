@@ -13,13 +13,14 @@ module ze-lg-conf {
 
     container environment {
         description "The looking-glass container under it carries every looking glass
-                     setting: the enable switch, the listen endpoints, the TLS switch and
-                     the bearer token.";
+                     setting: the enable switch, the listen endpoints with the protocol
+                     each one serves, the certificate and the bearer token.";
         ze:help "Environment settings for the looking glass.";
 
         container looking-glass {
-            description "The container holds the enable switch, the listen endpoints, the
-                         TLS switch, the bearer token and the named next-hop ranges.";
+            description "The container holds the enable switch, the listen endpoints, each
+                         with its own tls leaf, the certificate, the bearer token and the
+                         named next-hop ranges.";
             ze:help "Looking glass HTTP server settings.";
 
             leaf enabled {
@@ -33,8 +34,10 @@ module ze-lg-conf {
             list server {
                 key "name";
                 ze:listener;
-                description "Each entry names one listen endpoint. The default endpoint
-                             is 0.0.0.0 on port 8443.";
+                description "Each entry names one listen endpoint and says, in its tls
+                             leaf, whether that endpoint serves HTTPS or plain HTTP, so
+                             one looking glass serves both at once on two entries. The
+                             default endpoint is 0.0.0.0 on port 8443, over HTTPS.";
                 ze:help "Looking glass listen endpoints.";
 
                 leaf name {
@@ -52,17 +55,24 @@ module ze-lg-conf {
                         default 8443;
                     }
                 }
-            }
 
-            leaf tls {
-                type boolean;
-                default true;
-                description "Self-signed TLS certificates persist in the configuration store. The default
-                             true holds because the looking glass binds 0.0.0.0 and
-                             publishes route data. Set it to false to serve plaintext,
-                             for example when a proxy in front of Ze serves TLS.";
-                ze:help "Enable TLS. Override with the ze.looking-glass.tls variable.";
-
+                leaf tls {
+                    type boolean;
+                    default true;
+                    description "The endpoint serves HTTPS while this leaf is true, which
+                                 is the default, and plain HTTP when it is false. What a
+                                 looking glass publishes is public, so plain HTTP is a
+                                 normal choice, on port 80 or behind a proxy. HTTPS
+                                 serves the certificate the certificate leaf names, or a
+                                 self-signed one kept in the database store. On a daemon
+                                 with no database store and no named certificate, an
+                                 endpoint that leaves this leaf unset serves HTTP with a
+                                 warning, and an endpoint that says true is refused, at
+                                 start and at reload. The RFC 8522 API under
+                                 /.well-known/looking-glass/ answers on HTTPS endpoints
+                                 only. No environment variable sets this leaf.";
+                    ze:help "Serve HTTPS on this endpoint (default); false serves plain HTTP.";
+                }
             }
 
             leaf certificate {
@@ -75,6 +85,8 @@ module ze-lg-conf {
                     "The listener sends the leaf certificate and every
                      intermediate certificate the store entry holds, so a client
                      can build the full chain.
+                     Every server entry that serves HTTPS presents it; an entry
+                     with tls false presents none.
                      When this leaf is not set, ze generates a self-signed
                      certificate and serves that.
                      If the store holds no entry with that name, or the entry

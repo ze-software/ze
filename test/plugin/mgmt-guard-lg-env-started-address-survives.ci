@@ -17,13 +17,13 @@ stdin=ze-bgp:terminator=EOF_CONF
 environment {
 	looking-glass {
 		# No `enabled true`: ze.looking-glass.enabled above starts the server,
-		# and these settings say how it serves and where it binds. `tls false`
-		# keeps certificates out of a test about the address.
-		tls false
+		# and these settings say how it serves and where it binds.
 		token lg-env-started-token
 		server main {
 			ip 127.0.0.1
 			port 18447
+			# `tls false` keeps certificates out of a test about the address.
+			tls false
 		}
 	}
 }

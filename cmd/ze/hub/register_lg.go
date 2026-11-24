@@ -12,29 +12,24 @@ func init() {
 	registerService("looking-glass", buildLGService, func(lm *listenerMigrator, svc Service) {
 		lm.setLG(svc)
 
-		// The same handle also carries the certificate-rotation seam, so a
-		// reload that rotates the PKI material reaches the running listener.
-		//
-		// A looking glass serving plaintext gets no such handle, and
-		// updateLGCertificate then no-ops on the nil one. It holds no
-		// certificate to replace, and its server refuses a rotation it can
-		// never serve. That refusal would fail the WHOLE reload over a leaf
-		// this listener never reads.
-		//
-		// lgCertificateName (main_reload.go) already reports no name for a
-		// config that turns TLS off. This gate covers the config that leaves
-		// TLS on and gets plaintext anyway, because the self-signed path found
-		// no blob store (service_lg.go).
 		lgSvc, ok := svc.(lgService)
 		if !ok {
 			panic("BUG: the looking-glass migrator hook got a service buildLGService did not build")
 		}
-		// The named next-hop ranges are replaced on reload whatever the
-		// transport, so this handle is set before the TLS gate below.
+		// The named next-hop ranges are replaced on reload whatever each
+		// listener serves.
 		lm.setLGNextHopRanges(lgSvc)
-		if !lgSvc.ServesTLS() {
-			return
-		}
-		lm.setLGTLS(lgSvc)
+		// The same handle carries the protocol and certificate seam, so a
+		// reload that rotates the PKI material, or changes the tls leaf of a
+		// server entry, reaches the running listeners.
+		//
+		// It is installed whatever the looking glass serves at start. A
+		// listener that serves HTTP today, because its entry says `tls false`
+		// or because Ze had no certificate to present, serves HTTPS after a
+		// reload whose config asks for it, and the reverse
+		// (listener_migrate.go, updateLGTransport). A handle withheld from an
+		// all-HTTP looking glass would leave that reload accepted and applied
+		// to nothing.
+		lm.setLGTransport(lgSvc)
 	})
 }

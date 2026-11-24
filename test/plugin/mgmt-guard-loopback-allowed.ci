@@ -29,10 +29,10 @@ environment {
 	}
 	looking-glass {
 		enabled true
-		tls false
 		server main {
 			ip 127.0.0.1
 			port 18446
+			tls false
 		}
 	}
 }

@@ -473,10 +473,10 @@ func zeTestEnv(vars []webtesting.WBEnvVar, extra ...string) []string {
 const lgConfigTemplate = `environment {
 	looking-glass {
 		enabled true
-		tls false
 		server main {
 			ip 127.0.0.1
 			port $LG_PORT
+			tls false
 		}
 	}
 }
