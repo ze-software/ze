@@ -1,0 +1,174 @@
+# Test: the route-path perf DUT plugin set (`bgp-rib`, `rib` pulled in by
+#       `fib { dummy { } }`, and a covering static route with no `bgp-rs`)
+#       delivers a sender's BGP routes to the receiver AND holds them in
+#       `fib-dummy`.
+#
+# VALIDATES: spec-fib-dummy AC-19, A-10 -- `bgp-rib` without `bgp-rs` selects
+#            and advertises best routes to the receiving eBGP peer while
+#            installing them through the system RIB into `fib-dummy`, and
+#            `show fib dummy counters | json` reports `routes-held` equal to
+#            the held routes (the covering static route plus the BGP routes
+#            sent).
+# PREVENTS:  the route-path perf overlay (`test/perf/configs-route-path/ze.conf`)
+#            failing to deliver routes to `perf-receiver` or bypassing
+#            `fib-dummy`.
+#
+# Flow:
+# 1. Start two `le test peer` processes mirroring the perf lab's two eBGP
+#    peers: `sender` (AS 65001, 127.0.0.1) announces 198.51.100.0/24 with
+#    next-hop 192.0.2.1; `receiver` (AS 65002, 127.0.0.2) expects NLRI
+#    198.51.100.0/24 (`18C63364`) on the wire.
+# 2. Boot `ze` with the route-path overlay plugin set: `bgp-rib` alone (no
+#    `bgp-rs`), `fib { dummy { } }` (pulls in `rib`), and a covering static
+#    route for 192.0.2.0/24 so 192.0.2.1 resolves per RFC 4271 Section 9.1.2.1.
+# 3. Verify both peers establish, `show bgp rib | sent` carries 198.51.100.0/24
+#    (and `receiver` observes `18C63364` on the wire), `show fib dummy | json`
+#    holds 198.51.100.0/24 with `programmed: "no"`, and
+#    `show fib dummy counters | json` reports `forwarding: "none"`,
+#    `routes-held: 2`, and `installs: 2`.
+
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via
+# Linux netlink and `127.0.0.2` loopback binding works natively on Linux.
+option=needs-linux
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+stdin=sender:terminator=EOF_SENDER
+option=tcp_connections:value=1
+option=timeout:value=80s
+option=asn:value=65001
+option=open:value=router-id:id=10.0.1.1
+option=linger:value=true
+option=update:value=send-route:prefix=198.51.100.0/24:origin-as=65001:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SENDER
+
+stdin=receiver:terminator=EOF_RECEIVER
+option=tcp_connections:value=1
+option=timeout:value=80s
+option=asn:value=65002
+option=open:value=router-id:id=10.0.2.1
+option=linger:value=true
+# 198.51.100.0/24 encoded as IPv4 NLRI: length 24 (0x18), 198.51.100 (C6 33 64).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=18C63364
+EOF_RECEIVER
+
+tmpfs=perf-route-path-dut.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 192.0.2.0/24 {
+			next { interface lo { } }
+		}
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer perf-sender {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.3; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 10.0.0.1;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer perf-receiver {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.4; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 10.0.0.1;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --bind 127.0.0.1 --port $PORT:stdin=sender
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=receiver
+cmd=foreground:seq=3:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=4:exec=ze start perf-route-path-dut.conf:name=daemon:ready=Ze running.
+
+cmd=foreground:seq=5:exec=le test fixture daemon/await-answer-all "show bgp peer list" 127.0.0.1 127.0.0.2 established:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=6:exec=le test fixture daemon/await-answer-all "show fib dummy" 192.0.2.0/24 198.51.100.0/24:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=7:exec=le test fixture daemon/await-answer-all "show bgp rib | sent" 198.51.100.0/24:exit=0
+expect=stdout:contains=OK:
+
+# A-10: `bgp-rib` advertises the selected route to `perf-receiver` (neither peer
+# is an `rs-client`, so `bgp-rs` does not relay) while `fib-dummy` holds it as
+# not programmed and `fib-kernel` does not run.
+cmd=foreground:seq=8:exec=ze cli -c "show system subsystem list | json":exit=0
+expect=stdout:pattern="name": ?"bgp-rib"
+expect=stdout:pattern="name": ?"fib-dummy"
+reject=stdout:pattern="name": ?"fib-kernel"
+
+cmd=foreground:seq=9:exec=ze cli -c "show fib dummy | json":exit=0
+expect=stdout:pattern="prefix": ?"198\.51\.100\.0/24"
+expect=stdout:pattern="next-hop": ?"192\.0\.2\.1"
+expect=stdout:pattern="protocol": ?"bgp"
+expect=stdout:pattern="programmed": ?"no"
+reject=stdout:pattern="programmed": ?"yes"
+
+# AC-19: `show fib dummy counters | json` reports `forwarding: "none"` and
+# `routes-held` equal to the held routes (1 covering static + 1 BGP route).
+cmd=foreground:seq=10:exec=ze cli -c "show fib dummy counters | json":exit=0
+expect=stdout:pattern="forwarding": ?"none"
+expect=stdout:pattern="routes-held": ?2
+expect=stdout:pattern="installs": ?2
+expect=stdout:pattern="removals": ?0
+expect=stdout:pattern="invalid-changes": ?0
+expect=stdout:pattern="label-entries-refused": ?0
+
+cmd=stop:seq=11:name=daemon:signal=term

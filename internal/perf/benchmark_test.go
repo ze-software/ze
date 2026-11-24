@@ -99,6 +99,111 @@ func TestRunResultRecordsPass(t *testing.T) {
 	}
 }
 
+// VALIDATES: spec-fib-dummy AC-19 -- BenchmarkConfig.ConfigDir flows into the
+// Result that RunBenchmark builds and serializes under the kebab-case key
+// "config-dir", while a result written without that key reads as
+// perf.DefaultConfigDir and is not classified as an overlay.
+// METHOD: run RunBenchmark against the in-process test forwarder with an
+// overlay ConfigDir, inspect the NDJSON line, and unmarshal JSON payloads with
+// an absent key, the default key, and an overlay key.
+// PREVENTS: an overlay run (such as test/perf/configs-route-path) producing a
+// Result indistinguishable from the default route-server DUT, or older history
+// lines without "config-dir" failing to read as default.
+func TestResultCarriesConfigDir(t *testing.T) {
+	const overlayDir = "test/perf/configs-route-path"
+
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+
+	fwd := perf.NewTestForwarder(t)
+	go fwd.Run(ctx)
+
+	host, portText, err := net.SplitHostPort(fwd.Addr())
+	if err != nil {
+		t.Fatalf("splitting forwarder address %q: %v", fwd.Addr(), err)
+	}
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		t.Fatalf("parsing port %q: %v", portText, err)
+	}
+
+	cfg := perf.BenchmarkConfig{
+		DUTAddr:        host,
+		DUTPort:        port,
+		DUTASN:         65000,
+		DUTName:        "ze",
+		ConfigDir:      overlayDir,
+		SenderAddr:     "127.0.0.1",
+		SenderASN:      65001,
+		ReceiverAddr:   "127.0.0.1",
+		ReceiverASN:    65002,
+		Routes:         10,
+		Family:         "ipv4/unicast",
+		Seed:           42,
+		Warmup:         100 * time.Millisecond,
+		ConnectTimeout: 5 * time.Second,
+		Duration:       10 * time.Second,
+		Repeat:         1,
+	}
+
+	result, err := perf.RunBenchmark(ctx, cfg, io.Discard)
+	if err != nil {
+		t.Fatalf("RunBenchmark: %v", err)
+	}
+	if result.ConfigDir != overlayDir {
+		t.Errorf("Result.ConfigDir = %q, want %q", result.ConfigDir, overlayDir)
+	}
+	if got := result.EffectiveConfigDir(); got != overlayDir {
+		t.Errorf("EffectiveConfigDir() = %q, want %q", got, overlayDir)
+	}
+	if !result.IsOverlayConfig() {
+		t.Errorf("IsOverlayConfig() = false for %q, want true", overlayDir)
+	}
+
+	var line bytes.Buffer
+	if err := perf.WriteNDJSON(&line, result); err != nil {
+		t.Fatalf("WriteNDJSON: %v", err)
+	}
+	var object map[string]any
+	if err := json.Unmarshal(line.Bytes(), &object); err != nil {
+		t.Fatalf("unmarshal NDJSON line: %v", err)
+	}
+	if got := object["config-dir"]; got != overlayDir {
+		t.Errorf(`result JSON "config-dir" = %v, want %q`, got, overlayDir)
+	}
+
+	var missing perf.Result
+	if err := json.Unmarshal([]byte(`{"dut-name":"ze"}`), &missing); err != nil {
+		t.Fatalf("unmarshal legacy result: %v", err)
+	}
+	if got := missing.EffectiveConfigDir(); got != perf.DefaultConfigDir {
+		t.Errorf("missing config-dir EffectiveConfigDir() = %q, want %q", got, perf.DefaultConfigDir)
+	}
+	if missing.IsOverlayConfig() {
+		t.Error("missing config-dir reported IsOverlayConfig() = true, want false")
+	}
+	encoded, err := json.Marshal(missing)
+	if err != nil {
+		t.Fatalf("marshal legacy result: %v", err)
+	}
+	if strings.Contains(string(encoded), `"config-dir"`) {
+		t.Errorf("result without ConfigDir wrote a config-dir key: %s", encoded)
+	}
+
+	var stock perf.Result
+	if err := json.Unmarshal([]byte(`{"dut-name":"ze","config-dir":"test/perf/configs"}`), &stock); err != nil {
+		t.Fatalf("unmarshal default config-dir result: %v", err)
+	}
+	if got := stock.EffectiveConfigDir(); got != perf.DefaultConfigDir {
+		t.Errorf("default config-dir EffectiveConfigDir() = %q, want %q", got, perf.DefaultConfigDir)
+	}
+	if stock.IsOverlayConfig() {
+		t.Error("default config-dir reported IsOverlayConfig() = true, want false")
+	}
+
+	cancel()
+}
+
 // VALIDATES: the security review row "Result JSON with an unknown pass value
 // is refused with the value and the accepted values"; a missing field reads
 // as PassUnrecorded and a recorded value reads back as itself.

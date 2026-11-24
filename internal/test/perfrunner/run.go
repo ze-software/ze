@@ -20,10 +20,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/linuxle"
 	"github.com/ze-software/ze/internal/perf"
+	_ "github.com/ze-software/ze/internal/plugins/fib/dummy/yang"
+	_ "github.com/ze-software/ze/internal/plugins/fib/kernel/yang"
+	_ "github.com/ze-software/ze/internal/plugins/fib/p4/yang"
+	_ "github.com/ze-software/ze/internal/plugins/fib/vpp/yang"
 )
 
 // The benchmark network: one fixed /24 with the sender, the receiver address
@@ -73,6 +78,24 @@ const imageBuildTimeout = 10 * time.Minute
 // cleanupCommand is what an operator runs to remove a container or network
 // this run could not remove: every one carries the owner labels it matches.
 const cleanupCommand = "./le test integration clean"
+
+const (
+	// fibDummyCountersCommand queries the running DUT's fib-dummy counters as JSON.
+	fibDummyCountersCommand = "show fib dummy counters | json"
+	// defaultCounterPoll is the interval between post-pass counter reads while
+	// waiting for routes-held to return to its pre-pass value.
+	defaultCounterPoll = 250 * time.Millisecond
+	// fibDummyConfigPath is the parsed config container path for `fib { dummy { } }`.
+	fibDummyConfigPath = "fib" + config.PathSep + "dummy"
+)
+
+// fibDummyCounters is the subset of `show fib dummy counters | json` read
+// before and after each pass when the DUT mounts `fib dummy`.
+type fibDummyCounters struct {
+	RoutesHeld int    `json:"routes-held"`
+	Installs   uint64 `json:"installs"`
+	Removals   uint64 `json:"removals"`
+}
 
 // Steps selects what one suite run does. The runner refuses a run that selects
 // neither, because it would do nothing and answer success.
@@ -200,6 +223,18 @@ type Runner struct {
 	// removalFailed records that a container, a network or an image tag this
 	// run created could not be removed, which fails the run.
 	removalFailed bool
+	// execDUT runs one command inside a running DUT container and returns its
+	// stdout. Nil uses Runner.Docker.Exec; tests set it to script
+	// `show fib dummy counters | json` answers without Docker.
+	execDUT func(context.Context, string, []string) (string, error)
+	// waitAfterStart pauses after the DUT container reports running. Nil waits
+	// five seconds; tests override it to avoid sleeping.
+	waitAfterStart func(context.Context) error
+	// counterPollInterval and counterSettleTimeout bound polling for
+	// routes-held to return after a pass. Zero uses defaultCounterPoll and the
+	// pass convergence timeout.
+	counterPollInterval  time.Duration
+	counterSettleTimeout time.Duration
 }
 
 // New answers a Runner over the checkout at root. reporter is the argv prefix
@@ -230,6 +265,64 @@ func (runner *Runner) config(name string) string {
 		}
 	}
 	return filepath.Join(runner.configDir, name)
+}
+
+func dutConfigFiles(name string) []string {
+	switch name {
+	case dutZE:
+		return []string{"ze.conf"}
+	case dutFRR:
+		return []string{"frr.conf"}
+	case dutBIRD:
+		return []string{"bird.conf"}
+	case dutGoBGP:
+		return []string{"gobgp.toml"}
+	case dutRustBGPd:
+		return []string{"rustbgpd.toml"}
+	case dutRustyBGP:
+		return []string{"rustybgp.toml"}
+	case dutFreeRtr:
+		return []string{"freertr-hw.txt", "freertr-sw.txt"}
+	case dutOpenBGPd:
+		return []string{"openbgpd.conf"}
+	}
+	return nil
+}
+
+// dutConfigDir answers the configuration directory recorded in the result for
+// dut: the overlay directory when Runner.config resolved any of dut's mounted
+// configs from ConfigOverlay, otherwise the default config directory.
+func (runner *Runner) dutConfigDir(name string) string {
+	if runner.ConfigOverlay != "" {
+		for _, file := range dutConfigFiles(name) {
+			if filepath.Dir(runner.config(file)) != runner.configDir {
+				return runner.relativeConfigDir(runner.ConfigOverlay)
+			}
+		}
+	}
+	return runner.relativeConfigDir(runner.configDir)
+}
+
+func (runner *Runner) relativeConfigDir(dir string) string {
+	if dir == "" {
+		return perf.DefaultConfigDir
+	}
+	absDir := dir
+	if !filepath.IsAbs(absDir) {
+		absDir = filepath.Join(runner.Root, absDir)
+	}
+	if rel, err := filepath.Rel(runner.Root, absDir); err == nil {
+		if rel != "" && !strings.HasPrefix(rel, "..") {
+			return filepath.ToSlash(filepath.Clean(rel))
+		}
+	}
+	return filepath.ToSlash(filepath.Clean(dir))
+}
+
+// convergenceSeconds is the per-iteration convergence bound runPerf passes to
+// `le perf send` and waitFIBDummyCounters reuses for post-pass settling.
+func (runner *Runner) convergenceSeconds() int {
+	return max(30, (runner.Routes/1000)*4+30)
 }
 func (runner *Runner) containerName(name string) string {
 	return "le-perf-" + name + "-" + runner.suffix
@@ -477,6 +570,9 @@ func (runner *Runner) waitDUT(ctx context.Context, name string) error {
 	for time.Now().Before(deadline) {
 		running, err := runner.Docker.ContainerRunning(ctx, container)
 		if err == nil && running {
+			if runner.waitAfterStart != nil {
+				return runner.waitAfterStart(ctx)
+			}
 			return pause(ctx, 5*time.Second)
 		}
 		last = err
@@ -559,14 +655,14 @@ func (runner *Runner) runPerf(ctx context.Context, dut DUT, pass perf.Pass) (str
 		runner.prepareSender(ctx, container, "apk", "add", "--no-cache", "ethtool")
 		runner.prepareSender(ctx, container, "ethtool", "-K", "eth0", "tx", "off")
 	}
-	convergence := max(30, (runner.Routes/1000)*4+30)
+	convergence := runner.convergenceSeconds()
 	// OpenBGPD holds a peer in Idle after each session reset, 30 s after the
 	// second and doubling after each later one, and closes every connection
 	// the peer opens meanwhile. le perf ends every iteration with a Cease, so
 	// iteration 3 of 4 waits about 30 s and iteration 4 about 60 s. Ten
 	// minutes covers DUT_REPEAT=5 (a 240 s hold before iteration 6).
 	reconnectWait := "10m"
-	args := []string{containerLe, "perf", "send", "--dut-addr", dut.IP.String(), "--dut-port", strconv.Itoa(dut.Port), "--dut-asn", "65000", "--dut-name", dut.Name, "--sender-addr", senderIP.String(), "--sender-asn", "65001", "--receiver-addr", receiverIP.String(), "--receiver-asn", "65002", "--routes", strconv.Itoa(runner.Routes), "--seed", strconv.Itoa(runner.Seed), "--repeat", strconv.Itoa(runner.Repeat), "--warmup-runs", "1", "--iter-delay", "8s", "--warmup", "2s", "--connect-timeout", "20s", "--reconnect-wait", reconnectWait, "--duration", strconv.Itoa(convergence) + "s", "--output", "/results/" + result}
+	args := []string{containerLe, "perf", "send", "--dut-addr", dut.IP.String(), "--dut-port", strconv.Itoa(dut.Port), "--dut-asn", "65000", "--dut-name", dut.Name, "--config-dir", runner.dutConfigDir(dut.Name), "--sender-addr", senderIP.String(), "--sender-asn", "65001", "--receiver-addr", receiverIP.String(), "--receiver-asn", "65002", "--routes", strconv.Itoa(runner.Routes), "--seed", strconv.Itoa(runner.Seed), "--repeat", strconv.Itoa(runner.Repeat), "--warmup-runs", "1", "--iter-delay", "8s", "--warmup", "2s", "--connect-timeout", "20s", "--reconnect-wait", reconnectWait, "--duration", strconv.Itoa(convergence) + "s", "--output", "/results/" + result}
 	if version != "" {
 		args = append(args, "--dut-version", version)
 	}
@@ -869,44 +965,255 @@ func (runner *Runner) measureIfPresent(ctx context.Context, dut DUT, found *meas
 	runner.stop(ctx, dut.Name)
 }
 
-// measureDUT starts one DUT, waits for it, and measures it into found. It
-// answers false when the DUT did not start, a pass failed, or a pass lost
-// routes; the ze DUT also runs the propagation pass, judged the same way. A
-// complete pass is kept for the comparison even when the DUT's other pass
-// fails. The caller removes the DUT's container either way.
-func (runner *Runner) measureDUT(ctx context.Context, dut DUT, found *measurement) bool {
-	if err := runner.startDUT(ctx, dut); err != nil {
-		say(runner.Stderr, "  error: start ", dut.Name, ": ", err.Error())
+// zeConfigHasFIBDummy parses the mounted ze.conf with Ze's config parser over
+// the registered `fib` YANG schema (skipping unrelated top-level roots) and
+// reports whether an active `fib { dummy { } }` block is configured.
+func zeConfigHasFIBDummy(path string) (bool, error) {
+	data, err := os.ReadFile(path) //nolint:gosec // path is Runner.config("ze.conf")
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// refuse-by-default: guards Runner.measureDUT -- unit fixtures run
+			// over a temporary checkout without a default test/perf/configs/ze.conf.
+			return false, nil
+		}
+		return false, err
+	}
+	fullSchema, err := config.YANGSchema()
+	if err != nil {
+		return false, fmt.Errorf("load YANG schema: %w", err)
+	}
+	fibNode := fullSchema.LookupTokenPath([]string{"fib"})
+	if fibNode == nil {
+		return false, errors.New("YANG schema lacks the fib container")
+	}
+	fibSchema := config.NewSchema()
+	fibSchema.Define("fib", fibNode)
+	input := string(data)
+	var tree *config.Tree
+	switch config.DetectFormat(input) {
+	case config.FormatHierarchical:
+		parser := config.NewParser(fibSchema)
+		parser.SkipUnknownRoots()
+		tree, err = parser.Parse(input)
+	case config.FormatSet:
+		parser := config.NewSetParser(fibSchema)
+		parser.SkipUnknownRoots()
+		tree, err = parser.Parse(input)
+	case config.FormatSetMeta:
+		parser := config.NewSetParser(fibSchema)
+		parser.SkipUnknownRoots()
+		tree, _, err = parser.ParseWithMeta(input)
+	default:
+		panic("BUG: invalid detected config format")
+	}
+	if err != nil {
+		return false, err
+	}
+	config.PruneInactive(tree, fibSchema)
+	return tree.GetContainerPath(fibDummyConfigPath) != nil, nil
+}
+
+// runDUTCommand runs command inside dut's container and answers stdout.
+func (runner *Runner) runDUTCommand(ctx context.Context, dut string, command []string) (string, error) {
+	container := runner.containerName(dut)
+	if runner.execDUT != nil {
+		return runner.execDUT(ctx, container, command)
+	}
+	answer, err := runner.Docker.Exec(ctx, container, command, nil)
+	if err != nil {
+		return "", err
+	}
+	return answer.Stdout, nil
+}
+
+// readFIBDummyCounters queries `show fib dummy counters | json` inside the
+// running Ze DUT container and decodes the held/install/removal counters.
+func (runner *Runner) readFIBDummyCounters(ctx context.Context, dut string) (fibDummyCounters, error) {
+	stdout, err := runner.runDUTCommand(ctx, dut, interoplab.ZeCLICommand(fibDummyCountersCommand))
+	if err != nil {
+		return fibDummyCounters{}, err
+	}
+	var counters fibDummyCounters
+	if err := json.Unmarshal([]byte(stdout), &counters); err != nil {
+		return fibDummyCounters{}, fmt.Errorf("decode %s: %w", fibDummyCountersCommand, err)
+	}
+	return counters, nil
+}
+
+// waitFIBDummyCounters polls `show fib dummy counters | json` until
+// routes-held returns to wantHeld, bounded by the pass convergence timeout.
+func (runner *Runner) waitFIBDummyCounters(ctx context.Context, dut string, wantHeld int) (fibDummyCounters, bool, error) {
+	timeout := runner.counterSettleTimeout
+	if timeout <= 0 {
+		timeout = time.Duration(runner.convergenceSeconds()) * time.Second
+	}
+	poll := runner.counterPollInterval
+	if poll <= 0 {
+		poll = defaultCounterPoll
+	}
+	deadline := time.Now().Add(timeout)
+	for {
+		counters, err := runner.readFIBDummyCounters(ctx, dut)
+		if err != nil {
+			return fibDummyCounters{}, false, err
+		}
+		if counters.RoutesHeld == wantHeld {
+			return counters, true, nil
+		}
+		if !time.Now().Before(deadline) {
+			return counters, false, nil
+		}
+		remaining := time.Until(deadline)
+		if err := pause(ctx, min(poll, remaining)); err != nil {
+			return fibDummyCounters{}, false, err
+		}
+	}
+}
+
+func (runner *Runner) recordIncomplete(ctx context.Context, dut DUT, pass perf.Pass, cause string, found *measurement) {
+	found.incomplete = append(found.incomplete, incompleteRun{dut: dut.Name, pass: pass, cause: cause})
+	say(runner.Stdout, "  ", pass.Phrase(), " of ", dut.Name, " ", cause, "; the last lines of its log:")
+	runner.printLogs(ctx, runner.containerName(dut.Name))
+}
+
+// formatFIBDummyCounterState formats the observed fib-dummy counter fields into b.
+func formatFIBDummyCounterState(b *textbuf.Buffer, before, after fibDummyCounters) {
+	b.Str("routes-held=").Int(int64(after.RoutesHeld)).
+		Str(", installs=").Uint(before.Installs).Str("->").Uint(after.Installs).
+		Str(", removals=").Uint(before.Removals).Str("->").Uint(after.Removals)
+}
+
+// checkFIBDummyCounters verifies that routes-held returned to its pre-pass
+// value and that installs and removals each rose by routes * (1 + repeat).
+func (runner *Runner) checkFIBDummyCounters(ctx context.Context, dut DUT, pass perf.Pass, before fibDummyCounters, found *measurement) bool {
+	if runner.Routes < 0 {
+		runner.recordIncomplete(ctx, dut, pass, "had a negative route count", found)
 		return false
 	}
-	if err := runner.waitDUT(ctx, dut.Name); err != nil {
-		say(runner.Stderr, "  error: ", err.Error())
+	if runner.Repeat < 0 {
+		runner.recordIncomplete(ctx, dut, pass, "had a negative repeat count", found)
 		return false
+	}
+	expectedRise := uint64(runner.Routes) * uint64(1+runner.Repeat)
+	after, settled, err := runner.waitFIBDummyCounters(ctx, dut.Name, before.RoutesHeld)
+	// refuse-by-default: guards Runner.measurePass -- counter read failure is recorded in found.incomplete and fails the pass
+	if err != nil {
+		runner.recordIncomplete(ctx, dut, pass, "could not read fib-dummy counters after pass: "+err.Error(), found)
+		return false
+	}
+	var b textbuf.Buffer
+	if !settled {
+		b.Str("fib-dummy routes-held did not return to ").Int(int64(before.RoutesHeld)).Str(" (read ")
+		formatFIBDummyCounterState(&b, before, after)
+		b.Str("; expected rise ").Uint(expectedRise).Byte(')')
+		runner.recordIncomplete(ctx, dut, pass, b.String(), found)
+		return false
+	}
+	if after.Installs < before.Installs {
+		b.Str("fib-dummy installs went backwards (").Uint(before.Installs).Str("->").Uint(after.Installs).
+			Str("; expected rise ").Uint(expectedRise).Str(", ")
+		formatFIBDummyCounterState(&b, before, after)
+		b.Byte(')')
+		runner.recordIncomplete(ctx, dut, pass, b.String(), found)
+		return false
+	}
+	if after.Removals < before.Removals {
+		b.Str("fib-dummy removals went backwards (").Uint(before.Removals).Str("->").Uint(after.Removals).
+			Str("; expected rise ").Uint(expectedRise).Str(", ")
+		formatFIBDummyCounterState(&b, before, after)
+		b.Byte(')')
+		runner.recordIncomplete(ctx, dut, pass, b.String(), found)
+		return false
+	}
+	installsRise := after.Installs - before.Installs
+	removalsRise := after.Removals - before.Removals
+	if installsRise != expectedRise {
+		b.Str("fib-dummy installs rose by ").Uint(installsRise).Str(", want ").Uint(expectedRise).Str(" (")
+		formatFIBDummyCounterState(&b, before, after)
+		b.Byte(')')
+		runner.recordIncomplete(ctx, dut, pass, b.String(), found)
+		return false
+	}
+	if removalsRise != expectedRise {
+		b.Str("fib-dummy removals rose by ").Uint(removalsRise).Str(", want ").Uint(expectedRise).Str(" (")
+		formatFIBDummyCounterState(&b, before, after)
+		b.Byte(')')
+		runner.recordIncomplete(ctx, dut, pass, b.String(), found)
+		return false
+	}
+	return true
+}
+
+// measurePass executes one pass of dut, optionally bracketing it with
+// `show fib dummy counters` checks when the DUT mounts `fib dummy`.
+func (runner *Runner) measurePass(ctx context.Context, dut DUT, pass perf.Pass, checkCounters, capturePProf bool, found *measurement) bool {
+	var before fibDummyCounters
+	if checkCounters {
+		var err error
+		before, err = runner.readFIBDummyCounters(ctx, dut.Name)
+		// refuse-by-default: guards Runner.measureDUT -- pre-pass counter read failure is recorded in found.incomplete and fails the pass
+		if err != nil {
+			runner.recordIncomplete(ctx, dut, pass, "could not read fib-dummy counters before pass: "+err.Error(), found)
+			return false
+		}
 	}
 	var profile sync.WaitGroup
-	if dut.Name == dutZE && runner.PProf {
+	if capturePProf {
 		profile.Go(func() {
 			runner.captureProfiles(ctx, runner.containerName(dut.Name), filepath.Join(runner.PProfDir, strconv.Itoa(runner.Routes)))
 		})
 	}
-	result, ok := runner.runPerf(ctx, dut, perf.PassLiveForwarding)
+	result, ok := runner.runPerf(ctx, dut, pass)
 	profile.Wait()
 	if !ok {
 		return false
 	}
-	if !runner.judgeResult(ctx, dut, perf.PassLiveForwarding, result, found) {
+	if !runner.judgeResult(ctx, dut, pass, result, found) {
 		return false
 	}
+	if checkCounters {
+		if !runner.checkFIBDummyCounters(ctx, dut, pass, before, found) {
+			return false
+		}
+	}
 	found.results = append(found.results, result)
+	return true
+}
+
+// measureDUT starts one DUT, waits for it, and measures it into found. It
+// answers false when the DUT did not start, a pass failed, a pass lost routes,
+// or a `fib dummy` DUT's counter check failed; the ze DUT also runs the
+// propagation pass, judged the same way. A complete pass is kept for the
+// comparison even when the DUT's other pass fails. The caller removes the
+// DUT's container either way.
+func (runner *Runner) measureDUT(ctx context.Context, dut DUT, found *measurement) bool {
+	// refuse-by-default: guards Runner.measure -- start failure is printed to Stderr and fails this DUT
+	if err := runner.startDUT(ctx, dut); err != nil {
+		say(runner.Stderr, "  error: start ", dut.Name, ": ", err.Error())
+		return false
+	}
+	// refuse-by-default: guards Runner.measure -- readiness failure is printed to Stderr and fails this DUT
+	if err := runner.waitDUT(ctx, dut.Name); err != nil {
+		say(runner.Stderr, "  error: ", err.Error())
+		return false
+	}
+	checkCounters := false
 	if dut.Name == dutZE {
-		propagation, ok := runner.runPerf(ctx, dut, perf.PassRIBPropagation)
-		if !ok {
+		var err error
+		checkCounters, err = zeConfigHasFIBDummy(runner.config("ze.conf"))
+		// refuse-by-default: guards Runner.measure -- unreadable ze.conf is printed to Stderr and fails this DUT
+		if err != nil {
+			say(runner.Stderr, "  error: read ", runner.config("ze.conf"), ": ", err.Error())
 			return false
 		}
-		if !runner.judgeResult(ctx, dut, perf.PassRIBPropagation, propagation, found) {
+	}
+	if !runner.measurePass(ctx, dut, perf.PassLiveForwarding, checkCounters, dut.Name == dutZE && runner.PProf, found) {
+		return false
+	}
+	if dut.Name == dutZE {
+		if !runner.measurePass(ctx, dut, perf.PassRIBPropagation, checkCounters, false, found) {
 			return false
 		}
-		found.results = append(found.results, propagation)
 	}
 	found.passed++
 	return true

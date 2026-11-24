@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/perf"
@@ -163,7 +164,7 @@ func (r *dockerRecorder) send(argv []string) error {
 	if !short {
 		received = routes
 	}
-	result := perf.Result{DUTName: flag("--dut-name"), DUTVersion: flag("--dut-version"), Pass: perf.PassFor(slices.Contains(argv, "-sender-first")), RoutesSent: routes, RoutesReceived: received, RoutesLost: routes - received}
+	result := perf.Result{DUTName: flag("--dut-name"), DUTVersion: flag("--dut-version"), ConfigDir: flag("--config-dir"), Pass: perf.PassFor(slices.Contains(argv, "-sender-first")), RoutesSent: routes, RoutesReceived: received, RoutesLost: routes - received}
 	data, err := json.Marshal(&result)
 	if err != nil {
 		return err
@@ -849,4 +850,289 @@ func TestRunPerfRefusesAnUnnamedPass(t *testing.T) {
 	if lines := recorder.recorded(); len(lines) != 0 {
 		t.Errorf("runPerf ran Docker commands for an unnamed pass: %q", lines)
 	}
+}
+
+// VALIDATES: spec-fib-dummy AC-19, A-11 -- when the mounted ze.conf holds
+// `fib { dummy { } }`, Runner.measureDUT reads `show fib dummy counters`
+// before and after each pass (live-forwarding and rib-propagation), verifies
+// `routes-held` returns to its pre-pass value (including non-zero pre-pass
+// values) and `installs`/`removals` each rise by routes * (1 + repeat), and
+// records an `incompleteRun` naming the pass on a short rise, an unsettled
+// `routes-held` at the bound, or an unanswered command; when ze.conf holds no
+// `fib dummy`, measureDUT runs zero counter execs. Also verifies `--config-dir`
+// reaches the written result JSON.
+// METHOD: drive Runner.measureDUT with scripted execDUT responses over a
+// temporary checkout whose ze.conf either holds `fib { dummy { } }` (in an
+// overlay) or omits it (with a commented-out fib dummy block).
+// PREVENTS: a route-path perf run passing when routes bypassed fib-dummy,
+// leaving routes stuck held after a pass, or running counter execs against a
+// route-server DUT that has no fib-dummy plugin.
+func TestRoutesHeldCheckJudgesEachPass(t *testing.T) {
+	const (
+		fibDummyConf      = "fib {\n\tdummy { }\n}\nbgp {\n\tfilter { import { final accept; } export { final accept; } }\n}\n"
+		noDummyConf       = "# fib { dummy { } }\nbgp {\n\tfilter { import { final accept; } export { final accept; } }\n}\n"
+		countersZero      = `{"forwarding":"none","routes-held":0,"installs":0,"removals":0}`
+		countersPassOne   = `{"forwarding":"none","routes-held":0,"installs":400,"removals":400}`
+		countersPassTwo   = `{"forwarding":"none","routes-held":0,"installs":800,"removals":800}`
+		expectedRiseLabel = "400"
+	)
+
+	type execReply struct {
+		stdout string
+		err    error
+	}
+
+	setupRunner := func(t *testing.T, conf string, useOverlay bool) *Runner {
+		t.Helper()
+		var stdout strings.Builder
+		runner, recorder := fixtureRunner(t, io.Discard)
+		runner.Stdout = &stdout
+		runner.Routes = 100
+		runner.Repeat = 3 // expectedRise = 100 * (1 + 3) = 400
+		runner.waitAfterStart = func(context.Context) error { return nil }
+		runner.counterPollInterval = time.Millisecond
+		runner.counterSettleTimeout = 15 * time.Millisecond
+		recorder.answer = func(argv []string) (interoplab.ProcessResult, error) {
+			if slices.Contains(argv, "{{.State.Running}}") {
+				return interoplab.ProcessResult{Stdout: "true\n"}, nil
+			}
+			return interoplab.ProcessResult{}, nil
+		}
+
+		dir := runner.configDir
+		if useOverlay {
+			dir = filepath.Join(runner.Root, "test", "perf", "configs-route-path")
+			runner.ConfigOverlay = dir
+		}
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "ze.conf"), []byte(conf), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return runner
+	}
+
+	scripted := func(t *testing.T, replies []execReply) (func(context.Context, string, []string) (string, error), *int) {
+		t.Helper()
+		calls := 0
+		fn := func(_ context.Context, _ string, command []string) (string, error) {
+			joined := strings.Join(command, " ")
+			if !strings.Contains(joined, fibDummyCountersCommand) {
+				t.Errorf("unexpected DUT exec command: %q", joined)
+			}
+			idx := calls
+			calls++
+			if idx >= len(replies) {
+				return replies[len(replies)-1].stdout, replies[len(replies)-1].err
+			}
+			return replies[idx].stdout, replies[idx].err
+		}
+		return fn, &calls
+	}
+
+	t.Run("exact rise zero pre-pass both passes", func(t *testing.T) {
+		runner := setupRunner(t, fibDummyConf, true)
+		fn, calls := scripted(t, []execReply{
+			{stdout: countersZero},
+			{stdout: countersPassOne},
+			{stdout: countersPassOne},
+			{stdout: countersPassTwo},
+		})
+		runner.execDUT = fn
+
+		var found measurement
+		if !runner.measureDUT(t.Context(), DUTs()[0], &found) {
+			t.Fatalf("measureDUT returned false, want true; incomplete=%+v", found.incomplete)
+		}
+		if found.passed != 1 || len(found.results) != 2 || len(found.incomplete) != 0 {
+			t.Fatalf("found = %+v, want 1 passed, 2 results, 0 incomplete", found)
+		}
+		if *calls != 4 {
+			t.Errorf("counter exec calls = %d, want 4 (before and after each of the 2 passes)", *calls)
+		}
+		for _, path := range found.results {
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read result %s: %v", path, err)
+			}
+			var res perf.Result
+			if err := json.Unmarshal(raw, &res); err != nil {
+				t.Fatalf("decode result %s: %v", path, err)
+			}
+			if res.ConfigDir != "test/perf/configs-route-path" {
+				t.Errorf("%s config-dir = %q, want test/perf/configs-route-path", filepath.Base(path), res.ConfigDir)
+			}
+		}
+	})
+
+	t.Run("exact rise non-zero pre-pass with delayed settle", func(t *testing.T) {
+		runner := setupRunner(t, fibDummyConf, true)
+		fn, calls := scripted(t, []execReply{
+			// Pass 1: 1 static route held before; poll sees 42 held then settles back to 1.
+			{stdout: `{"forwarding":"none","routes-held":1,"installs":1,"removals":0}`},
+			{stdout: `{"forwarding":"none","routes-held":42,"installs":401,"removals":359}`},
+			{stdout: `{"forwarding":"none","routes-held":1,"installs":401,"removals":400}`},
+			// Pass 2: 1 route held before and after, installs/removals rise by 400.
+			{stdout: `{"forwarding":"none","routes-held":1,"installs":401,"removals":400}`},
+			{stdout: `{"forwarding":"none","routes-held":1,"installs":801,"removals":800}`},
+		})
+		runner.execDUT = fn
+
+		var found measurement
+		if !runner.measureDUT(t.Context(), DUTs()[0], &found) {
+			t.Fatalf("measureDUT returned false, want true; incomplete=%+v", found.incomplete)
+		}
+		if found.passed != 1 || len(found.results) != 2 || len(found.incomplete) != 0 {
+			t.Fatalf("found = %+v, want 1 passed, 2 results, 0 incomplete", found)
+		}
+		if *calls != 5 {
+			t.Errorf("counter exec calls = %d, want 5", *calls)
+		}
+	})
+
+	t.Run("installs rise one short records incompleteRun", func(t *testing.T) {
+		runner := setupRunner(t, fibDummyConf, true)
+		fn, _ := scripted(t, []execReply{
+			{stdout: countersZero},
+			{stdout: `{"forwarding":"none","routes-held":0,"installs":399,"removals":400}`},
+		})
+		runner.execDUT = fn
+
+		var found measurement
+		if runner.measureDUT(t.Context(), DUTs()[0], &found) {
+			t.Fatal("measureDUT returned true for installs rise 399 of 400, want false")
+		}
+		if len(found.results) != 0 {
+			t.Errorf("incomplete live pass was added to results: %v", found.results)
+		}
+		if len(found.incomplete) != 1 || found.incomplete[0].pass != perf.PassLiveForwarding {
+			t.Fatalf("incomplete = %+v, want one PassLiveForwarding entry", found.incomplete)
+		}
+		for _, want := range []string{"399", expectedRiseLabel} {
+			if !strings.Contains(found.incomplete[0].cause, want) {
+				t.Errorf("cause %q lacks %q", found.incomplete[0].cause, want)
+			}
+		}
+	})
+
+	t.Run("removals rise one short on propagation pass keeps live result", func(t *testing.T) {
+		runner := setupRunner(t, fibDummyConf, true)
+		fn, _ := scripted(t, []execReply{
+			{stdout: countersZero},
+			{stdout: countersPassOne},
+			{stdout: countersPassOne},
+			{stdout: `{"forwarding":"none","routes-held":0,"installs":800,"removals":799}`},
+		})
+		runner.execDUT = fn
+
+		var found measurement
+		if runner.measureDUT(t.Context(), DUTs()[0], &found) {
+			t.Fatal("measureDUT returned true for removals rise 399 of 400, want false")
+		}
+		if len(found.results) != 1 || filepath.Base(found.results[0]) != "ze.json" {
+			t.Errorf("results = %v, want only the complete ze.json kept", found.results)
+		}
+		if len(found.incomplete) != 1 || found.incomplete[0].pass != perf.PassRIBPropagation {
+			t.Fatalf("incomplete = %+v, want one PassRIBPropagation entry", found.incomplete)
+		}
+		for _, want := range []string{"399", expectedRiseLabel} {
+			if !strings.Contains(found.incomplete[0].cause, want) {
+				t.Errorf("cause %q lacks %q", found.incomplete[0].cause, want)
+			}
+		}
+	})
+
+	t.Run("routes-held never returns to pre-pass value by bound", func(t *testing.T) {
+		runner := setupRunner(t, fibDummyConf, true)
+		fn, _ := scripted(t, []execReply{
+			{stdout: `{"forwarding":"none","routes-held":1,"installs":1,"removals":0}`},
+			{stdout: `{"forwarding":"none","routes-held":2,"installs":401,"removals":399}`},
+		})
+		runner.execDUT = fn
+
+		var found measurement
+		if runner.measureDUT(t.Context(), DUTs()[0], &found) {
+			t.Fatal("measureDUT returned true when routes-held stayed at 2 instead of 1, want false")
+		}
+		if len(found.incomplete) != 1 || found.incomplete[0].pass != perf.PassLiveForwarding {
+			t.Fatalf("incomplete = %+v, want one PassLiveForwarding entry", found.incomplete)
+		}
+		for _, want := range []string{"routes-held", "1", "2", expectedRiseLabel} {
+			if !strings.Contains(found.incomplete[0].cause, want) {
+				t.Errorf("cause %q lacks %q", found.incomplete[0].cause, want)
+			}
+		}
+	})
+
+	t.Run("unanswered command before pass records incompleteRun", func(t *testing.T) {
+		runner := setupRunner(t, fibDummyConf, true)
+		fn, _ := scripted(t, []execReply{
+			{err: errors.New("ssh: connection refused")},
+		})
+		runner.execDUT = fn
+
+		var found measurement
+		if runner.measureDUT(t.Context(), DUTs()[0], &found) {
+			t.Fatal("measureDUT returned true when pre-pass counter exec failed, want false")
+		}
+		if len(found.incomplete) != 1 || found.incomplete[0].pass != perf.PassLiveForwarding {
+			t.Fatalf("incomplete = %+v, want one PassLiveForwarding entry", found.incomplete)
+		}
+		if !strings.Contains(found.incomplete[0].cause, "ssh: connection refused") {
+			t.Errorf("cause %q lacks command error", found.incomplete[0].cause)
+		}
+	})
+
+	t.Run("unanswered command after pass records incompleteRun", func(t *testing.T) {
+		runner := setupRunner(t, fibDummyConf, true)
+		fn, _ := scripted(t, []execReply{
+			{stdout: countersZero},
+			{err: errors.New("container exec timed out")},
+		})
+		runner.execDUT = fn
+
+		var found measurement
+		if runner.measureDUT(t.Context(), DUTs()[0], &found) {
+			t.Fatal("measureDUT returned true when post-pass counter exec failed, want false")
+		}
+		if len(found.incomplete) != 1 || found.incomplete[0].pass != perf.PassLiveForwarding {
+			t.Fatalf("incomplete = %+v, want one PassLiveForwarding entry", found.incomplete)
+		}
+		if !strings.Contains(found.incomplete[0].cause, "container exec timed out") {
+			t.Errorf("cause %q lacks command error", found.incomplete[0].cause)
+		}
+	})
+
+	t.Run("ze.conf without fib dummy runs zero execs", func(t *testing.T) {
+		runner := setupRunner(t, noDummyConf, false)
+		execCalls := 0
+		runner.execDUT = func(_ context.Context, _ string, command []string) (string, error) {
+			execCalls++
+			t.Errorf("unexpected counter exec on config without fib dummy: %v", command)
+			return "", nil
+		}
+
+		var found measurement
+		if !runner.measureDUT(t.Context(), DUTs()[0], &found) {
+			t.Fatalf("measureDUT returned false, want true; incomplete=%+v", found.incomplete)
+		}
+		if execCalls != 0 {
+			t.Errorf("execCalls = %d, want 0", execCalls)
+		}
+		if len(found.results) != 2 {
+			t.Fatalf("results = %v, want 2 passes", found.results)
+		}
+		raw, err := os.ReadFile(found.results[0])
+		if err != nil {
+			t.Fatalf("read result: %v", err)
+		}
+		var res perf.Result
+		if err := json.Unmarshal(raw, &res); err != nil {
+			t.Fatalf("decode result: %v", err)
+		}
+		if res.ConfigDir != perf.DefaultConfigDir {
+			t.Errorf("default run config-dir = %q, want %q", res.ConfigDir, perf.DefaultConfigDir)
+		}
+	})
 }

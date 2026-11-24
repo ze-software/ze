@@ -559,3 +559,113 @@ func TestRunStagesTheZeTheKernelCheckProbes(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: spec-fib-dummy AC-19 -- HistoryRecord and EvidenceRecord refuse a
+// benchmark result produced with a config overlay (naming the overlay
+// directory and the fix without PERF_CONFIGS_DIR) and write no history line,
+// while accepting results carrying the default test/perf/configs directory.
+// METHOD: write result JSON files with config-dir set to
+// test/perf/configs-route-path and test/perf/configs, drive HistoryRecord and
+// EvidenceRecord through fixtureBench, and also test PERF_CONFIGS_DIR set in
+// the environment before EvidenceRecord starts a run.
+// PREVENTS: a route-path or filter-overlay figure being appended into the
+// committed route-server history read by the nightly regression check.
+func TestOverlayResultIsRefusedByRecord(t *testing.T) {
+	const (
+		overlayDir = "test/perf/configs-route-path"
+		overlayEnv = "PERF_CONFIGS_DIR"
+		fixLabel   = "fix: "
+	)
+	const overlayResult = `{
+  "dut-name": "ze",
+  "config-dir": "test/perf/configs-route-path",
+  "routes": 100000,
+  "convergence-ms": 4200,
+  "throughput-avg": 240000,
+  "latency-p99-ms": 12
+}`
+	const defaultResult = `{
+  "dut-name": "ze",
+  "config-dir": "test/perf/configs",
+  "routes": 100000,
+  "convergence-ms": 4200,
+  "throughput-avg": 240000,
+  "latency-p99-ms": 12
+}`
+
+	t.Run("HistoryRecord refuses overlay result without partial writes", func(t *testing.T) {
+		bench, _ := fixtureBench(t)
+		writeResult(t, bench, "bird", sampleResult)
+		writeResult(t, bench, zeDUT, overlayResult)
+
+		report, code := bench.HistoryRecord()
+		if code != 1 {
+			t.Fatalf("HistoryRecord answered %d, want 1", code)
+		}
+		for _, want := range []string{overlayDir, overlayEnv, fixLabel} {
+			if !strings.Contains(report.Error, want) {
+				t.Errorf("HistoryRecord error %q lacks %q", report.Error, want)
+			}
+		}
+		for _, dut := range []string{"bird", zeDUT} {
+			if _, err := os.Stat(bench.historyFile(dut)); !os.IsNotExist(err) {
+				t.Errorf("history file for %s was written despite overlay refusal: %v", dut, err)
+			}
+		}
+	})
+
+	t.Run("EvidenceRecord refuses overlay result", func(t *testing.T) {
+		t.Setenv(overlayEnv, "")
+		bench, rec := fixtureBench(t)
+		writeResult(t, bench, zeDUT, overlayResult)
+
+		report, code := bench.EvidenceRecord(t.Context())
+		if code != 1 {
+			t.Fatalf("EvidenceRecord answered %d, want 1", code)
+		}
+		for _, want := range []string{overlayDir, overlayEnv, fixLabel} {
+			if !strings.Contains(report.Error, want) {
+				t.Errorf("EvidenceRecord error %q lacks %q", report.Error, want)
+			}
+		}
+		if _, err := os.Stat(bench.historyFile(zeDUT)); !os.IsNotExist(err) {
+			t.Errorf("ze history file was written despite overlay refusal: %v", err)
+		}
+		for _, done := range rec.steps {
+			if done.Action == checkAction {
+				t.Error("regression check ran after overlay result was refused")
+			}
+		}
+	})
+
+	t.Run("EvidenceRecord refuses PERF_CONFIGS_DIR upfront", func(t *testing.T) {
+		t.Setenv(overlayEnv, overlayDir)
+		bench, rec := fixtureBench(t)
+
+		report, code := bench.EvidenceRecord(t.Context())
+		if code != 1 {
+			t.Fatalf("EvidenceRecord answered %d, want 1", code)
+		}
+		for _, want := range []string{overlayDir, overlayEnv, fixLabel} {
+			if !strings.Contains(report.Error, want) {
+				t.Errorf("EvidenceRecord error %q lacks %q", report.Error, want)
+			}
+		}
+		if len(rec.steps) != 0 {
+			t.Errorf("EvidenceRecord ran steps %v despite PERF_CONFIGS_DIR overlay", stepActions(rec.steps))
+		}
+	})
+
+	t.Run("default config-dir is accepted by both records", func(t *testing.T) {
+		t.Setenv(overlayEnv, "")
+		bench, _ := fixtureBench(t)
+		writeResult(t, bench, zeDUT, defaultResult)
+
+		if report, code := bench.HistoryRecord(); code != 0 {
+			t.Fatalf("HistoryRecord(default config-dir) answered %d: %s", code, report.Error)
+		}
+		if report, code := bench.EvidenceRecord(t.Context()); code != 0 {
+			t.Fatalf("EvidenceRecord(default config-dir) answered %d: %s", code, report.Error)
+		}
+	})
+}

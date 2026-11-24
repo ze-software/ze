@@ -63,6 +63,7 @@ type BenchmarkConfig struct {
 	DUTASN         int
 	DUTName        string
 	DUTVersion     string
+	ConfigDir      string
 	SenderAddr     string
 	SenderASN      int
 	SenderPort     int // 0 = use DUTPort
@@ -163,6 +164,7 @@ func RunBenchmark(ctx context.Context, cfg BenchmarkConfig, progress io.Writer) 
 	result := Result{
 		DUTName:             cfg.DUTName,
 		DUTVersion:          cfg.DUTVersion,
+		ConfigDir:           cfg.ConfigDir,
 		DUTAddr:             cfg.DUTAddr,
 		DUTPort:             cfg.DUTPort,
 		DUTASN:              cfg.DUTASN,

@@ -26,6 +26,7 @@ func cmdRun(args []string) int {
 	dutASN := fs.Int("dut-asn", 0, "DUT autonomous system number (required)")
 	dutName := fs.String("dut-name", "unknown", "DUT implementation name")
 	dutVersion := fs.String("dut-version", "", "DUT version string")
+	configDir := fs.String("config-dir", "", "DUT configuration directory recorded in the result (default: "+perf.DefaultConfigDir+")")
 
 	// Sender/receiver flags.
 	senderAddr := fs.String("sender-addr", "127.0.0.1", "Sender local address")
@@ -136,6 +137,7 @@ func cmdRun(args []string) int {
 		DUTASN:         *dutASN,
 		DUTName:        *dutName,
 		DUTVersion:     *dutVersion,
+		ConfigDir:      *configDir,
 		SenderAddr:     *senderAddr,
 		SenderASN:      *senderASN,
 		SenderPort:     *senderPort,

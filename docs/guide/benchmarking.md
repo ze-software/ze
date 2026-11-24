@@ -230,6 +230,37 @@ images themselves are kept, so the next `step test` finds them.
 
 Results are written to `test/perf/results/` as JSON files. An HTML comparison report is generated automatically.
 
+### Route-path variant (`fib dummy`)
+
+The stock Ze DUT (`test/perf/configs/ze.conf`) benchmarks route-server forwarding
+(`bgp-rs` + `bgp-adj-rib-in`), which does not feed the system RIB or a FIB
+writer. To measure the full route path (`bgp-rib` -> system RIB -> `best-change`
+-> `fib-dummy`) without the cost of programming the kernel, run with the
+route-path overlay:
+
+```bash
+PERF_CONFIGS_DIR=test/perf/configs-route-path ./le perf run dut ze
+```
+
+The overlay (`test/perf/configs-route-path/ze.conf`) configures `bgp-rib` and `fib { dummy { } }` (which pulls in `rib` and suppresses `fib-kernel` auto-load).
+Neither peer sets `rs-client true`, so `bgp-rib` owns best-path selection and dissemination.
+A covering static route for `172.31.0.10/32` resolves the sender's BGP next hop.
+The loopback SSH CLI account lets the runner query `fib-dummy`.
+
+When the mounted `ze.conf` configures `fib { dummy { } }`, `Runner.measureDUT` reads `show fib dummy counters | json` before and after each pass.
+After each pass (`live-forwarding` and `rib-propagation`), the runner polls until `routes-held` returns to its pre-pass value.
+It checks that `installs` and `removals` each rose by `routes * (1 + repeat)` (one warmup plus `DUT_REPEAT` measured iterations).
+Any shortfall, timeout, or failed counter read marks the pass incomplete and excludes it from comparison reports.
+Runs whose `ze.conf` does not configure `fib dummy` run no counter query.
+
+Every result records its configuration directory in `config-dir` (empty reads as `test/perf/configs`).
+`./le perf record history` and `./le perf record evidence` refuse any overlay result, so `test/perf/history/` stays comparable.
+Record throughput figures only from a known host (the owner's Mac).
+Running on an unknown VM proves only that the variant reaches the writer.
+<!-- source: internal/test/perfrunner/run.go -- zeConfigHasFIBDummy, Runner.measureDUT, Runner.checkFIBDummyCounters, Runner.dutConfigDir -->
+<!-- source: internal/perf/result.go -- DefaultConfigDir, Result.EffectiveConfigDir, Result.IsOverlayConfig -->
+<!-- source: internal/le/perf/bench.go -- Bench.HistoryRecord, Bench.EvidenceRecord, refuseOverlayResult -->
+
 ### Passes
 
 Every result records the pass it measured in its `pass` field:
@@ -436,6 +467,7 @@ The JSON result object contains these key fields:
 | `routes-received` | count | Routes received by receiver |
 | `routes-lost` | count | Difference between sent and received |
 | `pass` | name | `live-forwarding` or `rib-propagation` (see "Passes"); absent in a result written before the field existed |
+| `config-dir` | path | DUT configuration directory (`test/perf/configs` when absent or default; overlay path when run under `PERF_CONFIGS_DIR`) |
 | `repeat` | count | Total iterations run |
 | `repeat-kept` | count | Iterations kept after outlier removal |
 

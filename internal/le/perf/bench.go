@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
@@ -73,6 +74,11 @@ const (
 	// jsonSuffix and ndjsonSuffix name the result and history file types.
 	jsonSuffix   = ".json"
 	ndjsonSuffix = ".ndjson"
+
+	// historyOverlayFix and evidenceOverlayFix tell the operator how to rerun
+	// without PERF_CONFIGS_DIR when an overlay result is refused.
+	historyOverlayFix  = "env -u PERF_CONFIGS_DIR ./le perf run && ./le perf record history"
+	evidenceOverlayFix = "env -u PERF_CONFIGS_DIR ./le perf record evidence"
 )
 
 // RunReport is the answer of the three verbs that execute a benchmark. It
@@ -339,13 +345,14 @@ func (b *Bench) Run(ctx context.Context, steps perfrunner.Steps, duts []string) 
 }
 
 // HistoryRecord appends every result of the last measurement to its DUT's
-// committed history, then records the marker.
+// committed history, then records the marker. A result produced by a config
+// overlay (PERF_CONFIGS_DIR) is refused so committed history stays comparable.
 func (b *Bench) HistoryRecord() (RunReport, int) {
 	results, err := b.results()
 	if err != nil {
 		return fail(historyVerb, 1, err)
 	}
-	appended, err := b.appendAll(results)
+	appended, err := b.appendAll(results, historyOverlayFix)
 	if err != nil {
 		return fail(historyVerb, 1, err)
 	}
@@ -358,13 +365,21 @@ func (b *Bench) HistoryRecord() (RunReport, int) {
 
 // EvidenceRecord measures the ze DUT, appends its result to the committed
 // history, and fails when that history shows a regression. It is the release
-// evidence gate the retired ze-evidence-perf-record target carried.
+// evidence gate the retired ze-evidence-perf-record target carried. An overlay
+// configuration (PERF_CONFIGS_DIR) or an overlay result is refused before any
+// history line is written.
 func (b *Bench) EvidenceRecord(ctx context.Context) (RunReport, int) {
+	if overlay := os.Getenv("PERF_CONFIGS_DIR"); overlay != "" {
+		probe := perf.Result{ConfigDir: overlay}
+		if probe.IsOverlayConfig() {
+			return fail(evidenceVerb, 1, refuseOverlayResult("PERF_CONFIGS_DIR", probe.EffectiveConfigDir(), evidenceOverlayFix))
+		}
+	}
 	if report, code := b.Run(ctx, bothSteps(), []string{zeDUT}); code != 0 {
 		report.Action = evidenceVerb
 		return report, code
 	}
-	appended, err := b.appendAll([]string{b.resultFile(zeDUT)})
+	appended, err := b.appendAll([]string{b.resultFile(zeDUT)}, evidenceOverlayFix)
 	if err != nil {
 		return fail(evidenceVerb, 1, err)
 	}
@@ -432,55 +447,80 @@ func (b *Bench) results() ([]string, error) {
 	return found, nil
 }
 
-// appendAll adds each result to its DUT's history and answers the history
-// files it wrote.
-func (b *Bench) appendAll(results []string) ([]string, error) {
-	written := make([]string, 0, len(results))
+type pendingHistoryLine struct {
+	history string
+	line    []byte
+}
+
+// refuseOverlayResult builds the operator error for a result or run produced
+// with a config overlay instead of perf.DefaultConfigDir.
+func refuseOverlayResult(source, configDir, fix string) error {
+	var problem, why textbuf.Buffer
+	problem.Str(source).Str(" was produced with config overlay ").Quoted(configDir)
+	why.Str("overlay results (such as route-path or filter variants) are not comparable to the default ").
+		Str(perf.DefaultConfigDir).Str(" series in ").Str(historyDir)
+	return opererr.New(problem.String(), why.String(), fix)
+}
+
+// appendAll validates every result before writing any history file, then
+// appends each result to its DUT's history and answers the files it wrote.
+func (b *Bench) appendAll(results []string, overlayFix string) ([]string, error) {
+	pending := make([]pendingHistoryLine, 0, len(results))
 	for _, result := range results {
-		history, err := b.appendResult(result)
+		entry, err := b.prepareResult(result, overlayFix)
 		if err != nil {
 			return nil, err
 		}
-		written = append(written, history)
+		pending = append(pending, entry)
+	}
+	written := make([]string, 0, len(pending))
+	for _, entry := range pending {
+		if err := writeHistoryLine(entry.history, entry.line); err != nil {
+			return nil, err
+		}
+		written = append(written, entry.history)
 	}
 	return written, nil
 }
 
-// appendResult adds one result to its DUT's history as a single NDJSON line,
-// and answers the history file it wrote.
-//
-// The result is decoded before it is appended, so a truncated or foreign file
-// fails here instead of making the whole history unreadable to the regression
-// check. The bytes appended are the file's own, compacted, so nothing the
-// result carries is dropped on the way in.
-func (b *Bench) appendResult(result string) (string, error) {
+// prepareResult decodes and validates one result file, refusing truncated
+// files and results produced by a config overlay, and returns the compacted
+// NDJSON line with its destination history path.
+func (b *Bench) prepareResult(result, overlayFix string) (pendingHistoryLine, error) {
 	raw, err := os.ReadFile(result) // #nosec G304 -- a benchmark output this chain just wrote
 	if err != nil {
-		return "", err
+		return pendingHistoryLine{}, err
 	}
 	var decoded perf.Result
 	if err := json.Unmarshal(raw, &decoded); err != nil {
-		return "", fmt.Errorf("%s is not a benchmark result: %w", result, err)
+		return pendingHistoryLine{}, fmt.Errorf("%s is not a benchmark result: %w", result, err)
+	}
+	if decoded.IsOverlayConfig() {
+		return pendingHistoryLine{}, refuseOverlayResult(result, decoded.EffectiveConfigDir(), overlayFix)
 	}
 	var line bytes.Buffer
 	if err := json.Compact(&line, raw); err != nil {
-		return "", fmt.Errorf("%s: %w", result, err)
+		return pendingHistoryLine{}, fmt.Errorf("%s: %w", result, err)
 	}
 	line.WriteByte('\n')
 
 	history := b.historyFile(strings.TrimSuffix(filepath.Base(result), jsonSuffix))
+	return pendingHistoryLine{history: history, line: line.Bytes()}, nil
+}
+
+func writeHistoryLine(history string, line []byte) error {
 	if err := os.MkdirAll(filepath.Dir(history), 0o750); err != nil {
-		return "", err
+		return err
 	}
 	file, err := os.OpenFile(history, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600) // #nosec G304 -- a history file this area owns
 	if err != nil {
-		return "", err
+		return err
 	}
-	if _, err := file.Write(line.Bytes()); err != nil {
+	if _, err := file.Write(line); err != nil {
 		_ = file.Close()
-		return "", err
+		return err
 	}
-	return history, file.Close()
+	return file.Close()
 }
 
 // validateDUTs refuses a name the runner does not know, before the chain spends

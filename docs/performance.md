@@ -76,6 +76,27 @@ the receiver.
 
 Config files: `test/perf/configs/`
 
+### Route-path variant (`fib dummy`)
+
+The stock Ze DUT runs the route-server path (`bgp-rs` and `bgp-adj-rib-in`).
+Its routes do not pass through the protocol RIB, the system RIB, or a FIB writer.
+To exercise the full control-plane route path without kernel FIB programming, select the route-path overlay:
+
+```bash
+PERF_CONFIGS_DIR=test/perf/configs-route-path ./le perf run dut ze
+```
+
+The overlay runs `bgp-rib`, `rib` (pulled in by `fib { dummy { } }`), a covering static route for the sender's next hop, and `fib-dummy`.
+Neither peer sets `rs-client true`, so `bgp-rib` owns best-path selection and dissemination.
+Around each pass (`live-forwarding` and `rib-propagation`), the perf runner reads `show fib dummy counters | json` before and after the pass.
+It fails the pass as incomplete unless `routes-held` returns to its pre-pass value and both `installs` and `removals` rise by `routes * (1 + repeat)`.
+
+Each result JSON records its configuration directory in `config-dir`.
+Both `./le perf record history` and `./le perf record evidence` refuse any overlay result.
+Committed route-server history in `test/perf/history/` never receives a route-path figure.
+Record throughput figures only from a known host (the owner's Mac).
+Running the variant elsewhere verifies that the route path reaches the writer.
+
 ## Results
 
 ### ipv4/unicast (2026-11-22, 8 GB VM, commit `6803c60c8a`, `live-forwarding`)

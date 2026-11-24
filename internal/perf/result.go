@@ -9,9 +9,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
+
+// DefaultConfigDir is the stock DUT configuration directory recorded for
+// baseline runs. A result without a config-dir field (including committed
+// history lines written before the field existed) reads as DefaultConfigDir.
+const DefaultConfigDir = "test/perf/configs"
 
 // SessionSetup holds session establishment timing in milliseconds.
 type SessionSetup struct {
@@ -153,6 +159,7 @@ func acceptedPasses() string {
 type Result struct {
 	DUTName             string       `json:"dut-name"`
 	Pass                Pass         `json:"pass,omitempty"`
+	ConfigDir           string       `json:"config-dir,omitempty"`
 	DUTVersion          string       `json:"dut-version"`
 	DUTAddr             string       `json:"dut-addr"`
 	DUTPort             int          `json:"dut-port"`
@@ -185,6 +192,21 @@ type Result struct {
 	WithdrawalStddevMs  int          `json:"withdrawal-stddev-ms"`
 
 	convergenceZeroMeasured bool
+}
+
+// EffectiveConfigDir answers the DUT configuration directory recorded in r,
+// returning DefaultConfigDir when the optional config-dir field is empty.
+func (r *Result) EffectiveConfigDir() string {
+	if r.ConfigDir == "" {
+		return DefaultConfigDir
+	}
+	return filepath.ToSlash(filepath.Clean(r.ConfigDir))
+}
+
+// IsOverlayConfig reports whether r was produced with a configuration
+// directory other than DefaultConfigDir.
+func (r *Result) IsOverlayConfig() bool {
+	return r.EffectiveConfigDir() != DefaultConfigDir
 }
 
 // RecordConvergence records a measured duration, including a legitimate zero.

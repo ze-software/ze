@@ -167,8 +167,8 @@ steps and reusable jobs rather than accepting a pinned example in a comment.
 
 The performance nightly reads committed history and never measures the hosted
 runner. `Bench.HistoryRecord` appends existing measurements, while
-`Bench.EvidenceRecord` measures Ze, records it and checks the history. Both write
-the per-DUT series under `test/perf/history/`. Missing or empty Ze history fails
+`Bench.EvidenceRecord` measures Ze, records it and checks the history. Both write the per-DUT series under `test/perf/history/`.
+Both refuse any result produced with a config overlay, so committed history never receives a route-path or filter-overlay figure. Missing or empty Ze history fails
 the nightly before comparison; it asks the owner to run
 `./le perf record evidence` on the Mac and commit the resulting history.
 <!-- source: internal/le/perf/bench.go -- Bench.HistoryRecord, Bench.EvidenceRecord, Bench.historyFile -->
