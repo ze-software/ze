@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/fttx-edge.json](../..
 
 ## Figures
 
-- **MUST bar**: Ze verified 420, Tests awaiting verification 48, OS testing gap 120, Not assessed 1, Not built 186
-- **Overview bar**: Ze MUST verified 420, SHOULD verified 14, Not owed 2, Tests awaiting verification 49, OS testing gap 120, Not assessed 339, Not built 189
+- **MUST bar**: Ze verified 422, Tests awaiting verification 48, OS testing gap 120, Not assessed 1, Not built 184
+- **Overview bar**: Ze MUST verified 422, SHOULD verified 14, Not owed 2, Tests awaiting verification 49, OS testing gap 120, Not assessed 339, Not built 187
 
 | Figure | Rows |
 |---|---|
@@ -18,13 +18,13 @@ Figures as of the last build, read from [data/rfc/profiles/fttx-edge.json](../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 777 |
 | MUST rows kept (the MUST bar) | 775 |
-| Ze verified | 420 |
+| Ze verified | 422 |
 | OS verified | 0 |
 | Tests awaiting verification | 48 |
 | OS testing gap | 120 |
 | Exclusion unchecked | 0 |
 | Not assessed | 1 |
-| Not built | 186 |
+| Not built | 184 |
 | MUST rows not owed | 2 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -87,7 +87,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 2308](../../rfc2308/) | Negative Caching of DNS Queries (DNS NCACHE) | Ze verified 8, Not built 4 | Ze MUST verified 8, Not assessed 4, Not built 6 | fttx-edge: required by rfc/short/rfc2308.md |
-| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze verified 10, Tests awaiting verification 2, Not built 4 | Ze MUST verified 10, Tests awaiting verification 2, Not assessed 12, Not built 4 | fttx-edge: required by rfc/short/rfc5072.md |
+| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze verified 12, Tests awaiting verification 2, Not built 2 | Ze MUST verified 12, Tests awaiting verification 2, Not assessed 12, Not built 2 | fttx-edge: required by rfc/short/rfc5072.md |
 | [RFC 9915](../../rfc9915/) | Dynamic Host Configuration Protocol for IPv6 (DHCPv6) | Ze verified 85, OS testing gap 3, Not built 38 | Ze MUST verified 85, OS testing gap 3, Not built 38 | fttx-edge: required by rfc/short/rfc9915.md |
 
 ### Level 5

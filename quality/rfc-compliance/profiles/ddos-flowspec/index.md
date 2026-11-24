@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/ddos-flowspec.json](.
 
 ## Figures
 
-- **MUST bar**: Ze verified 276, Tests awaiting verification 1, OS testing gap 1, Not built 57
-- **Overview bar**: Ze MUST verified 276, SHOULD verified 17, Not owed 10, Tests awaiting verification 1, OS testing gap 1, Not assessed 107, Not built 57
+- **MUST bar**: Ze verified 281, Tests awaiting verification 1, OS testing gap 1, Not built 52
+- **Overview bar**: Ze MUST verified 281, SHOULD verified 17, Not owed 10, Tests awaiting verification 1, OS testing gap 1, Not assessed 107, Not built 52
 
 | Figure | Rows |
 |---|---|
@@ -20,13 +20,13 @@ Figures as of the last build, read from [data/rfc/profiles/ddos-flowspec.json](.
 | Mandatory requirements complete | not complete |
 | MUST rows | 345 |
 | MUST rows kept (the MUST bar) | 335 |
-| Ze verified | 276 |
+| Ze verified | 281 |
 | OS verified | 0 |
 | Tests awaiting verification | 1 |
 | OS testing gap | 1 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 57 |
+| Not built | 52 |
 | MUST rows not owed | 10 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -66,7 +66,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 126, Not built 7 | Ze MUST verified 126, SHOULD verified 4, Not assessed 30, Not built 7 | ddos-flowspec: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 131, Not built 2 | Ze MUST verified 131, SHOULD verified 4, Not assessed 30, Not built 2 | ddos-flowspec: required by rfc/short/rfc4271.md |
 | [SFLOW-V5](../../sflow-v5/) | sFlow: A Method for Monitoring Traffic in Switched and Routed Networks | Ze verified 21, OS testing gap 1, Not built 9 | Ze MUST verified 21, SHOULD verified 3, OS testing gap 1, Not assessed 8, Not built 9 | ddos-flowspec: required by rfc/short/sflow-v5.md |
 
 ### Level 4

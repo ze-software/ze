@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 
 ## Figures
 
-- **MUST bar**: Ze verified 67, Tests awaiting verification 2, Not built 66
-- **Overview bar**: Ze MUST verified 67, SHOULD verified 14, Not owed 7, Tests awaiting verification 2, Not assessed 64, Not built 68
+- **MUST bar**: Ze verified 69, Not built 66
+- **Overview bar**: Ze MUST verified 69, SHOULD verified 14, Not owed 7, Not assessed 64, Not built 68
 
 | Figure | Rows |
 |---|---|
@@ -20,9 +20,9 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 | Mandatory requirements complete | not complete |
 | MUST rows | 142 |
 | MUST rows kept (the MUST bar) | 135 |
-| Ze verified | 67 |
+| Ze verified | 69 |
 | OS verified | 0 |
-| Tests awaiting verification | 2 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -74,7 +74,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 |---|---|---|---|
 | [RFC 6810](../../rfc6810/) | The Resource Public Key Infrastructure (RPKI) to Router Protocol | Ze verified 20, Not built 17 | Ze MUST verified 20, SHOULD verified 8, Not owed 3, Not assessed 20, Not built 17 |
 | [RFC 8097](../../rfc8097/) | BGP Prefix Origin Validation State Extended Community | Ze verified 5 | Ze MUST verified 5, Not assessed 5 |
-| [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | Ze verified 2, Tests awaiting verification 2 | Ze MUST verified 2, Tests awaiting verification 2, Not assessed 2 |
+| [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | Ze verified 4 | Ze MUST verified 4, Not assessed 2 |
 | [RFC 9319](../../rfc9319/) | The Use of maxLength in the Resource Public Key Infrastructure (RPKI) | Not built 4 | Not assessed 7, Not built 4 |
 
 ### Level 9

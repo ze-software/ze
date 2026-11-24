@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 31 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 31 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 31 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>86</strong><b>86 of 107 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>88</strong><b>88 of 109 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -147,7 +147,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>31</strong><b>of 32 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>31</strong><b>of 33 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
 </div>
 <p>The 9 counts marked as a part above are the whole of the 31 mandatory requirements: they add up to 31. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -225,7 +225,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Included</td>
 </tr>
 <tr><td>Requirements</td>
-<td>32</td>
+<td>33</td>
 </tr>
 <tr><td>Mandatory requirements (MUST level)</td>
 <td>31</td>
@@ -246,16 +246,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>116</td>
+<td>118</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>107</td>
+<td>109</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>22</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>86</td>
+<td>88</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2865.md</code></td>
@@ -324,7 +324,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>MUST bar</strong></p>
 <div data-ze-rfc-bar="rfc2865:must">Ze verified 31</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc2865:overview">Ze MUST verified 31, Not assessed 1</div>
+<div data-ze-rfc-bar="rfc2865:overview">Ze MUST verified 31, SHOULD verified 1, Not assessed 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -378,10 +378,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc2865:must.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
 <tr><td>SHOULD / MAY rows</td>
-<td><span data-ze-rfc="rfc2865:should.total">1</span></td>
+<td><span data-ze-rfc="rfc2865:should.total">2</span></td>
 </tr>
 <tr><td>SHOULD verified</td>
-<td><span data-ze-rfc="rfc2865:should.proven">0</span></td>
+<td><span data-ze-rfc="rfc2865:should.proven">1</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
 <td><span data-ze-rfc="rfc2865:should.os-verified">0</span></td>
@@ -464,8 +464,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4.2 - Access-Accept</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L396" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientAuthenticatorVerify</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L407" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientAuthenticatorVerify</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L425" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientAuthenticatorVerify</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L436" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientAuthenticatorVerify</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-2.5-1">RFC2865-2.5-1</code></td><td colspan="3"><span class="rfc-subject">If the NAS is retransmitting a RADIUS request to the same server as before, and the attributes haven&#39;t changed, you MUST use the same Request Authenticator, ID, and source port. (§2.5)</span></td></tr>
@@ -473,7 +473,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.5 - Retransmission Hints</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-2.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L200" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientRetransmit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L212" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientRetransmit</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_wire_rules_test.go#L111" title="internal/component/radius/rfc2865_wire_rules_test.go" target="_blank" rel="noopener"><code>TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a retransmission resends the identical pre-encoded request buffer (internal/component/radius/client.go:159), so the Identifier and Request Authenticator are unchanged by construction and there is no divergent-retransmit code path</p></td>
@@ -583,7 +583,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4.1 - Access-Request</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-4.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L198" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAdminAuthenticationTransmitsAccessRequest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L433" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L428" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L99" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccountingRequestDoesNotCarryTheAccessRequestCode</code></a></span></div>
 </div></td>
 </tr>
@@ -604,7 +604,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4.1 - Access-Request</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-4.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L216" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAdminAccessRequestIdentifiesTheNAS</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L435" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L430" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L50" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured</code></a></span></div>
 </div></td>
 </tr>
@@ -762,6 +762,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5.8-1">RFC2865-5.8-1</code></td><td colspan="3"><span class="rfc-subject">The value 0xFFFFFFFF indicates that the NAS Should allow the user to select an address (e.g. Negotiated). (§5.8)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.8 - Framed-IP-Address</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-5.8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_framed_ip_negotiated_test.go#L27" title="internal/component/l2tp/plugins/authradius/rfc2865_framed_ip_negotiated_test.go" target="_blank" rel="noopener"><code>TestRFC2865FramedIPUserSelectsMarksNegotiated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_framed_ip_negotiated_test.go#L78" title="internal/component/l2tp/plugins/authradius/rfc2865_framed_ip_negotiated_test.go" target="_blank" rel="noopener"><code>TestRFC2865FramedIPNASSelectsDoesNotMarkNegotiated</code></a></span></div>
+</div></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -874,12 +883,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L407" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientAuthenticatorVerify</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L436" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientAuthenticatorVerify</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L396" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientAuthenticatorVerify</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L425" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientAuthenticatorVerify</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -888,13 +897,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-2.5-1"><code>RFC2865-2.5-1</code></a></h3>
 <p>If the NAS is retransmitting a RADIUS request to the same server as before, and the attributes haven&#39;t changed, you MUST use the same Request Authenticator, ID, and source port. (§2.5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after BlastRADIUS (only change: Exchange takes a Server, buildResponse now signs non-accounting answers). TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort still leaves the first datagram unanswered and byte-compares Identifier, all 16 Request Authenticator octets, attributes and source addr:port of every retransmit against the first; the signed answer only lets the exchange complete under the default presence check, it does not touch what is compared. {single-polarity: positive} holds. TestClientRetransmit remains a floor assertion.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged after TestClientRetransmit (rfc2865_client_test.go) was strengthened to capture the raw bytes of attempt 1 and attempt 2 and assert both Identifier (byte 1) and all 16 Request Authenticator octets (bytes 4..20) remain identical across retransmission (no longer a floor assertion). Re-read RFC 2865 Section 2.5 (&#39;If the NAS is retransmitting a RADIUS request to the same server as before, and the attributes haven&#39;t changed, you MUST use the same Request Authenticator, ID, and source port.&#39;). TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort (rfc2865_wire_rules_test.go) is unchanged and additionally byte-compares Identifier, all 16 Request Authenticator octets, attributes and UDP source addr:port across attempts; TestAccessRequestRetransmitIsByteIdentical guards full-packet equality including User-Name and User-Password. {single-polarity: positive} holds because Exchange resends the identical pre-encoded buffer over the same UDP socket.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L200" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientRetransmit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L212" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientRetransmit</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1184,7 +1193,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L433" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L428" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1228,7 +1237,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-4.1-2"><code>RFC2865-4.1-2</code></a></h3>
 <p>It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both). (§4.1, restated at §5.44 Note 2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress moved. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: &#39;It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both).&#39; TestRADIUSAuthNASIPAddress reads Code 1 and the exact configured IPv4 address from the captured subscriber request. TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured sets neither identity leaf and still requires a nonempty NAS-Identifier with no invented address. The unchanged admin unit reads the wire and requires at least one NAS identity attribute. All requests retain usable PAP credentials, so failure to build a credential cannot substitute for the identity checks. The only subscriber fixture change is the canonical ID required before provider dispatch; packet and assertion inputs are unchanged. These cases retain the whole existing either/or identity obligation. Native discrimination refresh remains separate main-thread evidence.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: &#39;It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both).&#39; TestRADIUSAuthNASIPAddress reads Code 1 and the exact configured IPv4 address from the captured subscriber request. TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured sets neither identity leaf and still requires a nonempty NAS-Identifier with no invented address. The unchanged admin unit reads the wire and requires at least one NAS identity attribute. All requests retain usable PAP credentials, so failure to build a credential cannot substitute for the identity checks. The only subscriber fixture change is the canonical ID required before provider dispatch; packet and assertion inputs are unchanged. These cases retain the whole existing either/or identity obligation. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1239,7 +1248,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L435" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L430" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1610,6 +1619,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L583" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestStateIsNotInterpretedLocally</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2865-5.8-1"><code>RFC2865-5.8-1</code></a></h3>
+<p>The value 0xFFFFFFFF indicates that the NAS Should allow the user to select an address (e.g. Negotiated). (§5.8)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_framed_ip_negotiated_test.go#L78" title="internal/component/l2tp/plugins/authradius/rfc2865_framed_ip_negotiated_test.go" target="_blank" rel="noopener"><code>TestRFC2865FramedIPNASSelectsDoesNotMarkNegotiated</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_framed_ip_negotiated_test.go#L27" title="internal/component/l2tp/plugins/authradius/rfc2865_framed_ip_negotiated_test.go" target="_blank" rel="noopener"><code>TestRFC2865FramedIPUserSelectsMarksNegotiated</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2412,7 +2441,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 23:44 UTC</span>
                 </div>
             </div>
         </footer>

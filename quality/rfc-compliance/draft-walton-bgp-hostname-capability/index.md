@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 0 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 0 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 0 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 0 | 0 of 0 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 0 | 0 of 5 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 | Audit verdicts | 0 | of 0 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -71,8 +71,8 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tests linked to requirements | 0 |
+| Test tags | 5 |
+| Tests linked to requirements | 5 |
 | Recorded audit verdicts | 0 |
 | Fault test records | 0 |
 | Summary | `rfc/short/draft-walton-bgp-hostname-capability.md` |
@@ -101,7 +101,7 @@ DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY lists no mandatory requirements for these c
 ## Figures
 
 - **MUST bar**: no rows
-- **Overview bar**: Not assessed 1
+- **Overview bar**: Tests awaiting verification 1
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY lists no mandatory requirements for these c
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 0 |
+| SHOULD tests awaiting verification | 1 |
 | SHOULD exclusion unchecked | 0 |
-| SHOULD not assessed | 1 |
+| SHOULD not assessed | 0 |
 | SHOULD not built | 0 |
 
 The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
@@ -142,7 +142,7 @@ Source: [data/rfc/draft-walton-bgp-hostname-capability.json](../../../data/rfc/d
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1` | The FQDN Capability SHOULD only be used for displaying the hostname and/or domain name of a speaker in order to make troubleshooting easier. (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
+| `DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1` | The FQDN Capability SHOULD only be used for displaying the hostname and/or domain name of a speaker in order to make troubleshooting easier. (§4) | SHOULD | 4 - Operation | **positive:** `unit/verify` [`TestFQDNCapabilityUnilateralReceiveAndDisplay`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_walton_bgp_hostname_capability_test.go#L82). **positive:** `unit/verify` [`TestPeerShowCommandsDisplayFQDN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/draft_walton_bgp_hostname_capability_fqdn_test.go#L50). **positive:** `unit/verify` [`TestReactorSessionPropagatesAndClearsPeerFQDN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_walton_bgp_hostname_capability_fqdn_peer_status_test.go#L22). **negative:** `unit/verify` [`TestFQDNCapabilityDecidesNothing`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_walton_bgp_hostname_capability_test.go#L30). **positive:** `functional/verify` [`bgp-peer-fqdn-display.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-peer-fqdn-display.ci#L16) |
 
 ## Gaps and untested MUSTs
 
@@ -150,7 +150,21 @@ DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY lists no missing behavior, and every mandat
 
 ## Test status
 
-DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY has no requirements included in automatic checks, linked to tests, or reviewed, so there is no test evidence to show.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
+
+### [`DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1`](#draft-walton-bgp-hostname-capability-4-1)
+
+The FQDN Capability SHOULD only be used for displaying the hostname and/or domain name of a speaker in order to make troubleshooting easier. (§4)
+
+Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestFQDNCapabilityDecidesNothing`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_walton_bgp_hostname_capability_test.go#L30) | unit/verify | not verified |
+| positive | [`TestPeerShowCommandsDisplayFQDN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/draft_walton_bgp_hostname_capability_fqdn_test.go#L50) | unit/verify | not verified |
+| positive | [`TestReactorSessionPropagatesAndClearsPeerFQDN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_walton_bgp_hostname_capability_fqdn_peer_status_test.go#L22) | unit/verify | not verified |
+| positive | [`TestFQDNCapabilityUnilateralReceiveAndDisplay`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_walton_bgp_hostname_capability_test.go#L82) | unit/verify | not verified |
+| positive | [`bgp-peer-fqdn-display.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-peer-fqdn-display.ci#L16) | functional/verify | not verified |
 
 ## Requirement list review
 

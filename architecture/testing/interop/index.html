@@ -59,6 +59,7 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#marked-raw-policy-output-at-a-native-receiver">Marked raw policy output at a native receiver</a></li>
 <li><a href="#role-export-policy-on-a-roleless-destination">Role export policy on a roleless destination</a></li>
 <li><a href="#ordinary-selected-bgp-transit">Ordinary selected BGP transit</a></li>
+<li><a href="#route-server-pre-policy-adj-rib-in-retention-and-replay-exclusion">Route server pre-policy Adj-RIB-In retention and replay exclusion</a></li>
 </ol></li>
 <li><a href="#tested-daemons">Tested Daemons</a>
 <ol>
@@ -366,6 +367,19 @@ their images, daemon arguments and readiness checks come from the lab's
 prepared native peer. No new role is inferred by the common dispatcher.
 These are scenario assertions; a source file or unit oracle alone is not a
 passing interop result.</p>
+<h3 id="route-server-pre-policy-adj-rib-in-retention-and-replay-exclusion">Route server pre-policy Adj-RIB-In retention and replay exclusion</h3>
+<p><code>bgp-route-server-filtered-adj-rib-in-frr</code> extends <code>bgp-route-server-frr</code> with
+FRR 10.7.1 originating both an accepted prefix (<code>10.99.0.0/24</code>) and an
+import-policy-denied prefix (<code>10.99.1.0/24</code>) to a <code>rs-client true</code> Ze route
+server, with BIRD 3.4.0 as the second <code>rs-client true</code> peer. Ze's
+<code>show bgp adj-rib-in</code> must retain both prefixes under FRR's peer address with
+<code>10.99.1.0/24</code> marked <code>filtered: true</code> and <code>filter-step: peer-policy-chain</code>,
+<code>show bgp adj-rib-in status</code> must report <code>total-routes: 2</code> and
+<code>filtered-routes: 1</code>, and <code>show bgp rib</code> must omit <code>10.99.1.0/24</code>. BIRD must
+receive <code>10.99.0.0/24</code> with transparent AS_PATH <code>65002</code> and never receive
+<code>10.99.1.0/24</code>, both on the live rail and after bouncing <code>ze_peer</code>
+(<code>birdc disable ze_peer</code> then <code>birdc enable ze_peer</code>) so <code>bgp-rs</code> replays from
+<code>bgp-adj-rib-in</code>.</p>
 <h2 id="tested-daemons">Tested Daemons</h2>
 <table>
 <thead>
@@ -5541,8 +5555,8 @@ is not packet-forwarding evidence.</p>
 <tr>
 <td>34</td>
 <td>bgp-ecmp-frr</td>
-<td>Ze, FRR, GoBGP</td>
-<td>FRR ECMP selection for the same prefix from Ze and GoBGP</td>
+<td>Ze (bgp-rib, rib, fib-kernel, connected), FRR 10.7.1, FRR-sink 10.7.1, GoBGP 4.11.0</td>
+<td>Symmetric eBGP ECMP FIB parity and member withdrawal (<code>spec-fib-depth</code> AC-3, AC-14): both Ze (<code>.2</code>, AS 65001, <code>multipath { maximum-paths 2; relax-as-path true; }</code>) and FRR (<code>.3</code>, AS 65002, <code>bgp bestpath as-path multipath-relax</code>, <code>maximum-paths 2</code>) peer with <code>frr-sink</code> (<code>.15</code>, AS 65003) and GoBGP (<code>.5</code>, AS 65004). Equal-cost must land in both FRR (<code>show ip route 10.100.0.0/24 json</code>, active+fib) and Ze's kernel FIB (<code>ip -4 -j -N route show exact 10.100.0.0/24</code>, proto 250) with exact nexthop set <code>{.5.15}</code>, and appear in <code>show ecmp-groups</code>. Unequal-cost control (<code>frr-sink</code> prepends 65003) must install sole nexthop <code>{.5}</code> on both. Withdrawing on GoBGP must transition both kernel FIBs to sole nexthop <code>{.15}</code>. Describes scenario assertions; live run pending. <span class="ev-src"><span class="ev-ref"><code>10.100.0.0/24</code></span><span class="ev-ref"><code>10.100.2.0/24</code></span><span class="ev-ref"><code>10.100.0.0/24</code></span></span></td>
 </tr>
 <tr>
 <td>35</td>
@@ -5765,6 +5779,18 @@ is not packet-forwarding evidence.</p>
 <td>bgp-manual-eor-requested-frr</td>
 <td>Ze, FRR 10.7.1</td>
 <td>On a <code>behavior { manual-eor true; }</code> peer, Ze sends no End-of-RIB nobody asked for, and sends the one a process asks for from inside the initial sync after the route that process announced first. Session 1: the process announces inside its peer-UP handler and asks for nothing; FRR's log must hold the route decode and no <code>bgp_update_receive_eor</code> line through a 10 s hold. After <code>clear bgp &lt;ze&gt;</code>, session 2: the process announces and asks for the IPv4 unicast End-of-RIB inside its peer-UP handler; the log written after the clear must hold the route decode, then exactly one marker through a 10 s hold. FRR's <code>connectionsEstablished</code> must read 1, then 2, and the process's records must show each session's requests answered within 4 s. Recorded 2026-11-14 in the Docker lab, each run with the Ze image rebuilt from the tree under test: green on the fix (ze image); red with the requested form suppressed during the sync again in <code>announceEOR</code> (assertion 7: FRR never logged the End-of-RIB after the second route; image); red with the sync's marker forced on the <code>manual-eor</code> peer in <code>sendInitialRoutes</code> (assertion 3: FRR decoded 1 End-of-RIB on the first session, where nothing asked for one; image <code>sha256:fe2dd16c5cfc. </code>). <span class="ev-src"><span class="ev-ref"><code>10.84.1.0/24</code></span><span class="ev-ref"><code>10.84.2.0/24</code></span><span class="ev-ref"><code>sha256:4da4a47314f2...</code></span><span class="ev-ref"><code>sha256:883e8bd4bf3b...</code></span></span></td>
+</tr>
+<tr>
+<td>70</td>
+<td>bgp-recursive-nh-frr</td>
+<td>Ze (bgp-rib, rib, fib-kernel, connected, static), FRR 10.7.1, GoBGP 4.11.0</td>
+<td>Recursive iBGP next-hop resolution and covering-route withdrawal cascade (<code>spec-fib-depth</code> AC-2, AC-12): Ze (<code>.2</code>), FRR (<code>.3</code>), and GoBGP (<code>.5</code>) peer in iBGP AS 65001; Ze and FRR hold static <code>.15</code>. GoBGP injects (<code>NEXT_HOP 10.250.0.1</code>), unresolvable control (<code>NEXT_HOP 10.252.0.1</code>), and direct control (<code>NEXT_HOP.5</code>). Both FRR and Ze kernel FIBs (proto 250 on Ze) must install <code>{.15}</code> and <code>{.5}</code>, omit <code>show nexthop-table</code> must resolve <code>10.250.0.1</code> to <code>.15</code>. Removing (SIGHUP <code>ze-reload.conf</code> on Ze; <code>no ip route</code> on FRR) must withdraw from both kernel FIBs while and Ze's iBGP session stay up. Describes scenario assertions; live run pending. <span class="ev-src"><span class="ev-ref"><code>10.250.0.0/24</code></span><span class="ev-ref"><code>10.200.0.0/24</code></span><span class="ev-ref"><code>10.200.1.0/24</code></span><span class="ev-ref"><code>10.200.2.0/24</code></span><span class="ev-ref"><code>10.200.0.0/24</code></span><span class="ev-ref"><code>10.200.2.0/24</code></span><span class="ev-ref"><code>10.200.1.0/24</code></span><span class="ev-ref"><code>10.250.0.0/24</code></span><span class="ev-ref"><code>10.200.0.0/24</code></span><span class="ev-ref"><code>10.200.2.0/24</code></span></span></td>
+</tr>
+<tr>
+<td>71</td>
+<td>bgp-igp-cost-bird</td>
+<td>Ze (bgp-rib, rib, fib-kernel, connected, static), FRR 10.7.1, BIRD 3.4.0, GoBGP 4.11.0</td>
+<td>iBGP IGP-cost best-path selection and cost-change reselection (<code>spec-fib-depth</code> AC-1, AC-13, RFC 4271 Section 9.1.2.2(e)): all four peers run iBGP AS 65001. FRR (<code>.3</code>, lower Router ID and Peer IP) advertises <code>NEXT_HOP 10.221.0.1</code> (IGP cost 20); GoBGP (<code>.5</code>) advertises <code>NEXT_HOP 10.222.0.1</code> (initial IGP cost 10), tying on LOCAL_PREF 100, empty AS_PATH, ORIGIN igp, and MED 0. Phase 1 requires both candidates in Ze's received RIB, Ze <code>show bgp rib best | prefix 10.210.0.0/24 | reason</code> selecting <code>.5</code> at step <code>igp-cost</code>, Ze kernel FIB (proto 250) via <code>.5</code>, and BIRD (<code>show route for 10.210.0.0/24 all</code>) holding both <code>peer_a</code> and <code>peer_b</code> with <code>*</code>-selected <code>peer_b</code> (<code>via.5</code>, <code>bgp_next_hop: 10.222.0.1</code>). Phase 2 reloads Ze (<code>ze-reload.conf</code>, metric 10 -&gt; 30) and flips BIRD (<code>igp_cost_b_expensive</code> on, <code>igp_cost_b_cheap</code> off), requiring both Ze (reason + kernel FIB proto 250) and BIRD (<code>*</code>-selected <code>peer_a</code>, <code>via.3</code>, <code>bgp_next_hop: 10.221.0.1</code>) to flip to <code>.3</code> with no BGP session drops. Describes scenario assertions; live run pending. <span class="ev-src"><span class="ev-ref"><code>10.210.0.0/24</code></span><span class="ev-ref"><code>10.210.0.0/24</code></span></span></td>
 </tr>
 </tbody>
 </table>
@@ -6355,7 +6381,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 23 November 2026 01:40 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 23:44 UTC</span>
                 </div>
             </div>
         </footer>

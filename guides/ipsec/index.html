@@ -2228,7 +2228,7 @@ VPP backend:</p>
 <tr>
 <td>The install itself fails when the configuration is applied, which includes a daemon without <code>CAP_NET_ADMIN</code>: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install</td>
 <td>A commit fails with the error and is not reported applied. A start installs every entry the kernel accepts, logs the failure at Error, and <code>ze doctor</code> reports that the default discard is not in force</td>
-<td>Same as <code>discard</code>, the finding naming the bypass entry. Fix: give the daemon <code>CAP_NET_ADMIN</code>, then a restart of Ze (<code>sudo systemctl restart ze</code> under ze.service, otherwise <code>ze signal stop</code>, then start ze again the way it was started)</td>
+<td>Same as <code>discard</code>, the finding naming the bypass entry. Fix: the one for the kernel's answer, in the table below</td>
 </tr>
 <tr>
 <td>Before the first configuration is applied, and after the engine stops</td>
@@ -2312,12 +2312,55 @@ start is not refused: the daemon logs it at Error and <code>ze doctor</code>
 (<code>doctor-ipsec-spd-catch-all-missing</code>) says that interface's default discard is
 not in force. Either way no <code>if_id</code> 0 entry hands that interface any traffic. Without its final entry the
 kernel would still accept an unmatched inbound packet that arrived under a
-transport-mode or offloaded state. Fix: give the daemon <code>CAP_NET_ADMIN</code>, then
-commit again. An interface address change meets the same failure with no commit
+transport-mode or offloaded state. Fix: the one for the kernel's answer, in the
+table below, then commit again. An interface address change meets the same failure with no commit
 to refuse, so the daemon logs it as an error and the next commit fails until
 the entry goes in. On a reload that
 turns <code>discard</code> on, the entries go in before the catch-all changes, so a
 running tunnel never loses traffic.</p>
+<p>Each of these refusals, of the node-wide catch-all, of an interface's final
+entry or of an <code>if_id</code> 0 exemption, names its cause from the kernel's answer,
+and so does a refused tunnel-source rule (NETLINK_ROUTE) or a refused
+publication of the tunnel-source guard's nft table (NETLINK_NETFILTER). The fix
+ends in a restart of Ze (<code>sudo systemctl restart ze</code> under ze.service, otherwise
+<code>ze signal stop</code>, then start ze again the way it was started); a refused commit
+also needs the commit again.</p>
+<table>
+<thead>
+<tr>
+<th>Kernel answer</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EPERM</code></td>
+<td>Ze runs without <code>CAP_NET_ADMIN</code>, which the kernel asks of the request</td>
+<td>under ze.service <code>sudo systemctl stop ze &amp;&amp; sudo ze install systemd --force --start</code>; otherwise restart ze as root or holding <code>CAP_NET_ADMIN</code></td>
+</tr>
+<tr>
+<td><code>EPROTONOSUPPORT</code> (XFRM, nft), <code>EOPNOTSUPP</code> (nft), <code>EAFNOSUPPORT</code> (IPv6 rule)</td>
+<td>the kernel is built without <code>CONFIG_XFRM_USER</code>, <code>CONFIG_NF_TABLES</code> or <code>CONFIG_IPV6_MULTIPLE_TABLES</code></td>
+<td>boot a kernel built with it (Ze's own kernel carries all three), then restart Ze</td>
+</tr>
+<tr>
+<td><code>EACCES</code></td>
+<td>SELinux or AppArmor refused the netlink request; no capability changes that</td>
+<td>find the denial with <code>sudo journalctl -b --grep 'avc:|apparmor="DENIED"'</code>, allow Ze those netlink requests in that policy, then restart Ze</td>
+</tr>
+<tr>
+<td>Ze's own SPD record refused the entry</td>
+<td>the kernel was not asked: another entry holds that selector, as the error says</td>
+<td>remove that cause, then restart Ze</td>
+</tr>
+<tr>
+<td>anything else</td>
+<td>Ze does not classify the answer, so the error is the only account of the cause</td>
+<td>remove that cause, then restart Ze</td>
+</tr>
+</tbody>
+</table>
 <p>The IPv6 source entry is wider than the interface it stands for: an IPv6
 packet sourced from the XFRM interface's own address but routed out of another
 interface would match it too. Under <code>unmatched discard</code> Ze therefore guards each
@@ -2335,7 +2378,12 @@ source the kernel picked after routing it, which no source rule sees.</li>
 </ul>
 <p>So traffic from a tunnel address leaves only through its tunnel, and the
 operator's own routing table IDs 1000 to 3999 are refused because Ze reserves
-them. A peer whose <code>local-address</code> is an address of an interface some peer
+them. If the kernel refuses the rule or the nft table, the address gets no
+source entry, so IPv6 host traffic from it routed into the interface is dropped
+by the catch-all. The daemon logs an error and <code>ze doctor</code> reports the
+interface, the address and the refused step
+(<code>doctor-ipsec-source-guard-missing</code>), with the cause and the fix from the
+table above, until the next commit or address change installs it. A peer whose <code>local-address</code> is an address of an interface some peer
 binds with <code>vti bind</code> is refused at commit: the guard would send its IKE
 traffic into its own tunnel. Set <code>local-address</code> to an address of the WAN
 interface instead.</p>
@@ -2383,9 +2431,36 @@ version matters on a distribution kernel: the guard names its caller with
 6.10 (<code>bpf_base_func_proto</code> in <code>kernel/bpf/helpers.c</code>; 6.9's
 <code>cg_sockopt_func_proto</code> does not offer it), so an older kernel refuses to load the
 guard. When any of them is missing the apply fails rather than run without the
-guard:</p>
-<pre><code>vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root (&lt;kernel error&gt;). Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. Run ze with CAP_BPF and CAP_NET_ADMIN (&lt;capability remedy for this process&gt;) on Linux 6.10 or later (an older kernel refuses the guard's bpf_get_ns_current_pid_tgid call), mount cgroup2 at /sys/fs/cgroup, or set `vpn ipsec application-override allow` to accept that risk.
+guard, and the refusal names the cause Ze reads from the kernel's answer, that
+cause's fix and no other cause's, and <code>allow</code> as the way to accept the risk instead:</p>
+<pre><code>vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root: &lt;cause&gt; (&lt;kernel error&gt;). Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. To fix it: &lt;fix&gt;
 </code></pre>
+<table>
+<thead>
+<tr>
+<th>Kernel answer</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EPERM</code></td>
+<td>ze lacks <code>CAP_BPF</code> or <code>CAP_NET_ADMIN</code>, which <code>bpf_prog_load</code> asks of a cgroup setsockopt program</td>
+<td>the capability remedy for this process, then commit again, or set <code>vpn ipsec application-override allow</code> to accept that risk</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>the guard has no cgroup2 hierarchy to attach to</td>
+<td><code>sudo mount -t cgroup2 none /sys/fs/cgroup</code>, then commit again, or set <code>vpn ipsec application-override allow</code> to accept that risk</td>
+</tr>
+<tr>
+<td>anything else</td>
+<td>Ze cannot tell the cause: a kernel before Linux 6.10 refuses the guard's <code>bpf_get_ns_current_pid_tgid</code> call (<code>EINVAL</code>), and a security module can refuse the program (<code>EACCES</code>, which the verifier also answers)</td>
+<td><code>set vpn ipsec application-override allow</code> to accept that risk, or keep <code>deny</code> on Linux 6.10 or later (Ze's own kernel)</td>
+</tr>
+</tbody>
+</table>
 <p>Until an apply succeeds, <code>show doctor</code> reports the same refusal as
 <code>doctor-ipsec-override-guard</code> with its cause-specific fix (the systemd repair
 only when Ze established that it runs under <code>ze.service</code>, otherwise the
@@ -3270,7 +3345,8 @@ no <code>catch-all</code> row for that direction and address family. The <code>p
 <code>vti bind</code>) and <code>displaced-final-action</code> reads the disposition, <code>discard</code> or <code>bypass</code>, that Ze
 puts back when the peer's policy is removed. Every other row shows <code>none</code> in both.</p>
 <p>A read that cannot happen is an error, never an empty table. No backend loaded, a backend
-that cannot enumerate, and a process without CAP_NET_ADMIN each get their own message. An
+that cannot enumerate, a process without CAP_NET_ADMIN, a security module's denial and a
+kernel without <code>CONFIG_XFRM_USER</code> each get their own message and fix. An
 empty table answers "is my tunnel programmed?" with "no", and that is the wrong answer when
 the truth is that nobody asked the kernel.</p>
 <p>Drift compares expected SA identities: SPI, destination, protocol, and XFRM
@@ -3612,7 +3688,7 @@ request reached (RFC 7296 Section 2.11; tracked by
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 23 November 2026 05:43 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 15:02 UTC</span>
                 </div>
             </div>
         </footer>

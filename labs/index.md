@@ -13,7 +13,7 @@ Labs run against real third-party daemons (xl2tpd, accel-ppp, strongSwan), or bo
 `Daemon` `Docker`
 
 - BGP sessions with **FRR, BIRD, and GoBGP**
-- 423 scenarios across core protocol and **extensions**
+- 425 scenarios across core protocol and **extensions**
 
 ### [netlab Topology Lab](https://ze-software.net/labs/netlab/)
 

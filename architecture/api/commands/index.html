@@ -238,6 +238,12 @@
 <td>plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md, 69944ce197</td>
 <td>2026-11-20</td>
 </tr>
+<tr>
+<td>A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does</td>
+<td>Describing or restricting a pipe as a filter only; refusing a pipe operation because it adds to an answer or sends it elsewhere</td>
+<td>plan/release/fixes/spec-explicit-plugin-and-attach-config.md</td>
+<td>2026-11-23</td>
+</tr>
 </tbody>
 </table>
 <hr>
@@ -344,6 +350,10 @@ produce continuously-updating output.</p>
 <tr>
 <td>RIB</td>
 <td>routes, best, status, clear</td>
+</tr>
+<tr>
+<td>System RIB</td>
+<td>show rib, show rib candidates, show nexthop-table, show ecmp-groups</td>
 </tr>
 <tr>
 <td>Log</td>
@@ -666,7 +676,8 @@ route validates its arguments against the leaves of the daemon path
 (<code>command.ModelPath</code>). <code>loadLocalData</code> serves the handler under the daemon
 path, or leaves it to the builtin that holds it, and refuses to start when no
 node declares the path. <code>command.AnswerSurface</code> offers the root on shell
-completion and <code>ze cli</code>, and the daemon path on every daemon surface. The
+completion only, and the daemon path on every daemon surface (the attached
+console of <code>ze start --cli</code> included). The
 <code>command-contract</code> gate counts the local handler as served by the daemon
 path, reading the field from the registration's source, so its value is a
 string literal.</p>
@@ -1079,7 +1090,7 @@ kind and the expected answer.</p>
 </tr>
 <tr>
 <td>Local or local-data at an offline root, with a declared daemon path</td>
-<td><code>ze cli</code> offers a local-data one, which <code>ze cli -c</code> answers in its own process; SSH, and the interactive <code>ze cli</code> shell it carries, does not, and offers the daemon path</td>
+<td>Not offered: the daemon path is, as its own registration (only <code>ze cli -c</code> still answers local-data in its own process)</td>
 <td>Offered</td>
 <td>Not offered: the daemon path is, as its own registration</td>
 </tr>
@@ -5787,7 +5798,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
+                    <span class="footer-published">Published 24 November 2026 00:05 UTC</span>
                 </div>
             </div>
         </footer>

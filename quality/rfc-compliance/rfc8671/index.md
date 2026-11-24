@@ -190,7 +190,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-r
 
 The L flag MUST be set to 1 to indicate post-policy. (§5.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn, internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBOut moved. Re-read 2026-10-23 against section 5.1 'The L flag MUST be set to 1 to indicate post-policy.' after peerHeaderFromEvent became (PeerHeader, error) and refuses an unknown peer AS. Both units changed only to build the AS as rpc.RemoteASOf(65001) and read the header through mustPeerHeader, which fails the test on any error, so the new refusal branch cannot satisfy or mask either assertion. TestPeerHeaderFromEventAdjRIBOut still fails if the sent (Adj-RIB-Out, post-policy only in ze) header lacks PeerFlagL; TestPeerHeaderFromEventAdjRIBIn shows L is not set unconditionally.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-10-23 against section 5.1 'The L flag MUST be set to 1 to indicate post-policy.' after peerHeaderFromEvent became (PeerHeader, error) and refuses an unknown peer AS. Both units changed only to build the AS as rpc.RemoteASOf(65001) and read the header through mustPeerHeader, which fails the test on any error, so the new refusal branch cannot satisfy or mask either assertion. TestPeerHeaderFromEventAdjRIBOut still fails if the sent (Adj-RIB-Out, post-policy only in ze) header lacks PeerFlagL; TestPeerHeaderFromEventAdjRIBIn shows L is not set unconditionally.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

@@ -2673,8 +2673,9 @@ result.
 
 A backend that cannot enumerate the dataplane, VPP and the noop backend among
 them, reports that it cannot rather than rendering an empty table. So does a
-process without CAP_NET_ADMIN, and so does a daemon that loaded no dataplane
-backend at all. An empty table would answer "nothing is installed" to a question
+process without CAP_NET_ADMIN, a security module's denial (`EACCES`), a kernel
+built without `CONFIG_XFRM_USER`, and a daemon that loaded no dataplane backend
+at all, each with its own fix. An empty table would answer "nothing is installed" to a question
 nobody asked the kernel.
 
 RFC 4303 Section 2.1 reserves SPI 0, so the `spi` selector refuses it rather
@@ -4293,6 +4294,15 @@ limit is in neither map, because no limit is not a limit of zero. The same
 object appears under `capabilities` on `show bgp peer <sel> detail`.
 <!-- source: internal/component/bgp/plugins/cmd/peer/fields.go -- addPathsLimitFields -->
 
+When a peer advertised a valid FQDN capability (code 73,
+`draft-walton-bgp-hostname-capability`), `show bgp`, `show bgp peer list`, and
+`show bgp peer <sel> detail` include its `hostname` and/or `domain` on the peer
+row, and `show bgp peer <sel> detail` (`capabilities.fqdn`) and
+`show bgp peer <sel> capabilities` (`negotiated.fqdn`) carry the same fields
+under `fqdn`. Empty halves and absent capabilities are omitted, and strings
+containing invalid UTF-8 or control characters are withheld.
+<!-- source: internal/component/bgp/plugins/cmd/peer/fields.go -- addPeerFQDNRowFields, addFQDNFields -->
+
 Until 2026-08 each command answered a bare object for one matched peer and an
 array for several. `show bgp peer * statistics | count` therefore answered on a
 router with three peers, and was refused on a router with one. A script that
@@ -4489,6 +4499,8 @@ unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
 | `show bgp rib \| path <pattern>` | read-only | Stream the routes whose AS path matches the pattern: AS numbers joined by commas, matched as a run anywhere in the path. `^` first ties the run to the start of the path and `$` last ties it to the end, so `path 65001$` lists the routes AS 65001 originates and `path ^65010,65001$` lists the routes whose path is exactly those two AS numbers. A `$` anywhere but directly after the last AS number is refused. `show bgp rib best` takes the same filter <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePathPattern, pathPattern.matches --> |
 | `show bgp rib best` | read-only | Best-path per prefix |
 | `show bgp rib best status` | read-only | Best-path computation status |
+| `show bgp adj-rib-in` | read-only | Show raw hex Adj-RIB-In entries per peer; each route includes `filtered` (`bool`) and, when import-filtered, `filter-step` naming the denying ingress step <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_commands.go -- show --> |
+| `show bgp adj-rib-in status` | read-only | Adj-RIB-In summary with `total-routes`, `filtered-routes`, and per-peer counts <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_commands.go -- status --> |
 | `clear bgp rib in <selector>` | write | Clear Adj-RIB-In for the peers the selector matches (`*` for all peers; the bare `clear bgp rib in` is refused) |
 | `clear bgp rib out <selector> [family <family>]` | write | Regenerate and re-advertise Adj-RIB-Out (`*` for all peers; the bare `clear bgp rib out` is refused). Each family is sent between a BoRR and an EoRR to a peer that negotiated Enhanced Route Refresh (RFC 7313). `family` limits the replay to one family, typed after its keyword: `clear bgp rib out * family ipv4/unicast`; a family with no keyword is refused |
 | `clear bgp rib out-excluding-owner owner <id> [family <family>]` | write | Replay to live destinations except one nonzero unsigned 64-bit configured owner. Same-address owners remain separate. Ordinary destinations use selected routes; auxiliary destinations use retained SENT attributes. Completion waits for the captured session's output; a replaced or unresolved destination is refused. Returns refreshed and refused destination counts. <!-- source: internal/component/bgp/plugins/rib/rib_resend_excluding_owner.go -- parseOwnerExcludedResend, resend --> |

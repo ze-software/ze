@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Features by Data Plane: Linux Kernel and VPP - Ze</title>
+        <meta name="description" content="Ze documentation: guide/dataplane-features.md" />
+        <meta property="og:title" content="Features by Data Plane: Linux Kernel and VPP - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/dataplane-features.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Features by Data Plane: Linux Kernel and VPP - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/dataplane-features.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/guides/dataplane-features/" />
+        <meta property="og:url" content="https://ze-software.net/guides/dataplane-features/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-services">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="features-by-data-plane-linux-kernel-and-vpp">Features by Data Plane: Linux Kernel and VPP</h1>
+    <p>Ze can forward packets through the Linux kernel or through VPP. Most of Ze is
+control plane and is the same on both. The features that write forwarding state
+are different: each one has a kernel implementation, a VPP implementation, or
+both. This page lists them, so that you can see what a VPP deployment keeps and
+what it loses before you select it.</p>
+</div>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#how-the-data-plane-is-selected">How the data plane is selected</a></li>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#interfaces">Interfaces</a></li>
+<li><a href="#routes-and-mpls">Routes and MPLS</a></li>
+<li><a href="#firewall-and-nat">Firewall and NAT</a></li>
+<li><a href="#traffic-control">Traffic control</a></li>
+<li><a href="#subscriber-access">Subscriber access</a></li>
+<li><a href="#features-that-only-program-the-kernel">Features that only program the kernel</a></li>
+</ol></details></nav><div class="doc-body">
+<p>For how Ze starts and supervises VPP, see the <a href="../vpp/">VPP guide</a>.</p>
+<h2 id="how-the-data-plane-is-selected">How the data plane is selected</h2>
+<p>No single switch selects VPP. Four parts of the configuration each select
+their own backend.</p>
+<table>
+<thead>
+<tr>
+<th>Configuration</th>
+<th>Values</th>
+<th>Default</th>
+<th>What it selects</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>interface backend</code></td>
+<td><code>netlink</code>, <code>vpp</code></td>
+<td><code>netlink</code></td>
+<td>Who creates and configures interfaces. PPPoE subscriber sessions and the automatic route writer follow this leaf.</td>
+</tr>
+<tr>
+<td><code>firewall backend</code></td>
+<td><code>nft</code>, <code>vpp</code></td>
+<td><code>nft</code></td>
+<td>Who carries the firewall and NAT rules: nftables, or VPP ACL and NAT44.</td>
+</tr>
+<tr>
+<td><code>traffic control backend</code></td>
+<td><code>tc</code>, <code>vpp</code></td>
+<td><code>tc</code></td>
+<td>Who shapes traffic: Linux queueing disciplines, or VPP policers.</td>
+</tr>
+<tr>
+<td><code>fib kernel</code>, <code>fib vpp</code></td>
+<td>a block for each writer</td>
+<td>none</td>
+<td>Who writes routes. Without a <code>fib</code> block, Ze loads the writer for the data plane that <code>interface backend</code> names.</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>vpp</code> value of each leaf exists only in a build that has the <code>ze_vpp</code> tag.
+A build without the tag refuses the configuration and names the tag.</p>
+<p>Ze checks each selection against the features under it. Ze does not compare the
+selections with each other. For example, a configuration with
+<code>interface backend vpp</code> and the default <code>firewall backend nft</code> commits. The
+section <a href="#features-that-only-program-the-kernel">Features that only program the kernel</a>
+says what that combination does.</p>
+<h2 id="summary">Summary</h2>
+<p>"Refused" means that the commit, the daemon start and <code>ze config validate</code> all
+refuse the configuration and name the path. "Not built" in the VPP column means
+that the feature has a kernel implementation only. Ze accepts its configuration
+and programs the kernel, whichever interface backend is selected.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Linux kernel</th>
+<th>VPP</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ethernet, dummy, loopback, VLAN units</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td><a href="#interfaces">Interfaces</a></td>
+</tr>
+<tr>
+<td>Bridge, veth</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td><a href="#interfaces">Interfaces</a></td>
+</tr>
+<tr>
+<td>GRE, GRETAP, IPIP, VXLAN tunnels</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td><a href="#interfaces">Interfaces</a></td>
+</tr>
+<tr>
+<td>IP6GRE, IP6GRETAP, SIT, IP6TNL, IPIP6 tunnels</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td><a href="#interfaces">Interfaces</a></td>
+</tr>
+<tr>
+<td>WireGuard</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td><a href="#interfaces">Interfaces</a></td>
+</tr>
+<tr>
+<td>XFRM interface, PPPoE client</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td><a href="#interfaces">Interfaces</a></td>
+</tr>
+<tr>
+<td>Port mirroring</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td><a href="#interfaces">Interfaces</a></td>
+</tr>
+<tr>
+<td>DHCP client, SLAAC, router advertisements, reverse path check</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td><a href="#interfaces">Interfaces</a></td>
+</tr>
+<tr>
+<td>VRRP</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td><a href="#interfaces">Interfaces</a></td>
+</tr>
+<tr>
+<td>Container networks</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td><a href="#interfaces">Interfaces</a></td>
+</tr>
+<tr>
+<td>VRF on an interface unit</td>
+<td>Not built</td>
+<td>Not built</td>
+<td><a href="#interfaces">Interfaces</a></td>
+</tr>
+<tr>
+<td>IPv4 and IPv6 route install</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td><a href="#routes-and-mpls">Routes and MPLS</a></td>
+</tr>
+<tr>
+<td>MPLS push, swap and pop</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td><a href="#routes-and-mpls">Routes and MPLS</a></td>
+</tr>
+<tr>
+<td>SRv6 service routes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td><a href="#routes-and-mpls">Routes and MPLS</a></td>
+</tr>
+<tr>
+<td>Stateless packet filter</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td><a href="#firewall-and-nat">Firewall and NAT</a></td>
+</tr>
+<tr>
+<td>Connection tracking matches and helpers</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td><a href="#firewall-and-nat">Firewall and NAT</a></td>
+</tr>
+<tr>
+<td>NAT</td>
+<td class="cell-yes">✓</td>
+<td>IPv4 only, a subset</td>
+<td><a href="#firewall-and-nat">Firewall and NAT</a></td>
+</tr>
+<tr>
+<td>Traffic shaping</td>
+<td class="cell-yes">✓</td>
+<td>HTB and TBF as policers</td>
+<td><a href="#traffic-control">Traffic control</a></td>
+</tr>
+<tr>
+<td>Ingress policer</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td><a href="#traffic-control">Traffic control</a></td>
+</tr>
+<tr>
+<td>PPPoE subscriber access</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td><a href="#subscriber-access">Subscriber access</a></td>
+</tr>
+<tr>
+<td>L2TP</td>
+<td class="cell-yes">✓</td>
+<td>Not built</td>
+<td><a href="#features-that-only-program-the-kernel">Features that only program the kernel</a></td>
+</tr>
+<tr>
+<td>IPsec</td>
+<td class="cell-yes">✓</td>
+<td>Not built</td>
+<td><a href="#features-that-only-program-the-kernel">Features that only program the kernel</a></td>
+</tr>
+<tr>
+<td>Flow export packet sampling</td>
+<td class="cell-yes">✓</td>
+<td>Not built</td>
+<td><a href="#features-that-only-program-the-kernel">Features that only program the kernel</a></td>
+</tr>
+<tr>
+<td>Policy routing</td>
+<td class="cell-yes">✓</td>
+<td>Not built</td>
+<td><a href="#features-that-only-program-the-kernel">Features that only program the kernel</a></td>
+</tr>
+<tr>
+<td>Kernel tunables (<code>sysctl</code>)</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td><a href="#features-that-only-program-the-kernel">Features that only program the kernel</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="interfaces">Interfaces</h2>
+<p><code>interface backend</code> selects the backend. The schema marks each node that only
+some backends implement, and the commit refuses a marked node that the selected
+backend does not implement.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th><code>netlink</code></th>
+<th><code>vpp</code></th>
+<th>Limits</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ethernet</code>, <code>dummy</code>, <code>loopback</code>, VLAN units, addresses, MTU, MAC address</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>On VPP a dummy interface is a VPP loopback.</td>
+</tr>
+<tr>
+<td><code>bridge</code></td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>veth</code></td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>tunnel</code> with <code>gre</code>, <code>gretap</code>, <code>ipip</code></td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>The <code>ttl</code> leaf is refused on VPP: the VPP GRE and IPIP calls that Ze uses carry no hop limit.</td>
+</tr>
+<tr>
+<td><code>tunnel</code> with <code>vxlan</code></td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td></td>
+</tr>
+<tr>
+<td><code>tunnel</code> with <code>ip6gre</code>, <code>ip6gretap</code>, <code>sit</code>, <code>ip6tnl</code>, <code>ipip6</code></td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>wireguard</code></td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>VPP needs <code>vpp plugins wireguard true</code>. The commit does not check that leaf. <code>ze doctor</code> reports <code>doctor-vpp-wireguard</code> when it is off.</td>
+</tr>
+<tr>
+<td><code>xfrm</code></td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>pppoe-client</code></td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>mirror</code> on a unit</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>The kernel mirrors with tc. VPP mirrors with SPAN, as a port mirror of the device.</td>
+</tr>
+<tr>
+<td><code>mpls enable</code> on a unit</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td></td>
+</tr>
+<tr>
+<td><code>dhcp</code>, <code>dhcpv6</code>, <code>delegated-prefix</code> on a unit</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>autoconf</code>, <code>accept-ra</code> on a unit</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>router-advertisement</code> on a unit</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>rpf-check</code> on a unit</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>vrrp</code> on a unit</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td>VRRP needs macvlan devices and raw sockets. Native VPP VRRP is not built.</td>
+</tr>
+<tr>
+<td><code>vrf</code> on a unit</td>
+<td>Not built</td>
+<td>Not built</td>
+<td>Ze refuses the leaf on both backends.</td>
+</tr>
+<tr>
+<td>Container <code>network</code></td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td>A network with <code>masquerade</code>, and a container that publishes a port, also need <code>firewall backend nft</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>A refusal names the path, the selected backend and the backends that implement
+the node:</p>
+<pre><code>&lt;path&gt;: feature not supported by backend "vpp" (supported: netlink)
+</code></pre>
+<p>On VPP, BGP still uses Linux sockets. The VPP Linux Control Plane plugin shows
+each VPP interface to Linux as a TAP device, and BGP binds on that device. The
+<a href="../vpp/#how-the-two-halves-fit-together">VPP guide</a> describes the namespace
+limit of that arrangement.</p>
+<h2 id="routes-and-mpls">Routes and MPLS</h2>
+<p>One plugin writes routes for each data plane: <code>fib-kernel</code> for the kernel and
+<code>fib-vpp</code> for VPP. Ze refuses a second writer for the same data plane. <code>fib p4</code>
+is in the schema and reaches no data plane today.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Kernel (<code>fib-kernel</code>)</th>
+<th>VPP (<code>fib-vpp</code>)</th>
+<th>Limits</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IPv4 and IPv6 routes from the system RIB</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>VPP routes go to the table that <code>fib vpp table-id</code> names.</td>
+</tr>
+<tr>
+<td>Automatic writer for static, OSPF, IS-IS, LDP, RSVP-TE and BGP EPE routes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>Ze loads the writer for the selected interface backend. A build without that writer refuses to start.</td>
+</tr>
+<tr>
+<td>MPLS label push on an IP route</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>The kernel must have MPLS support. Ze refuses to start when it does not.</td>
+</tr>
+<tr>
+<td>MPLS transit swap and pop</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>VPP uses MPLS table 0. VPP has no MTU for each route, so Ze does not install the path MTU of an entry and logs one warning.</td>
+</tr>
+<tr>
+<td>MPLS push into a private table (RSVP-TE facility backup)</td>
+<td class="cell-yes">✓</td>
+<td>Refused when the entry arrives</td>
+<td>VPP has no packet mark context.</td>
+</tr>
+<tr>
+<td>SRv6 service routes</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>VPP: one encapsulation policy for each Service SID. Ze allocates no egress Service SID and installs no remote endpoint behavior.</td>
+</tr>
+<tr>
+<td><code>show mpls forwarding</code></td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>The command reads the data plane that <code>interface backend</code> selects.</td>
+</tr>
+</tbody>
+</table>
+<p><code>fib vpp</code> needs <code>interface backend vpp</code>. <code>fib-vpp</code> resolves each next-hop
+interface to a VPP interface index, and that lookup refuses while another
+interface backend is active. The commit does not check this pair, so the
+refusal comes when a route is installed.</p>
+<h2 id="firewall-and-nat">Firewall and NAT</h2>
+<p><code>firewall backend</code> selects the backend. The <code>vpp</code> backend translates filter
+chains to VPP ACL rules and NAT chains to VPP NAT44. It refuses at commit every
+rule that it cannot translate exactly, and the refusal names the table, the
+chain and the term.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th><code>nft</code></th>
+<th><code>vpp</code></th>
+<th>Limits on VPP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Match on source or destination address, protocol, ICMP type, ICMPv6 type, TCP flags</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>Match on source or destination port</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>One port range in a term.</td>
+</tr>
+<tr>
+<td><code>accept</code>, <code>drop</code></td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>Rate limit in a term</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>IPv4 addresses and exact ports only.</td>
+</tr>
+<tr>
+<td><code>connection-state</code>, <code>connection-mark</code></td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>notrack</code>, <code>flow-offload</code>, <code>flowtable</code></td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>mark-set</code>, <code>connection-mark-set</code>, mark match</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>tcp-mss-clamp-to-pmtu</code>, TCP MSS set, DSCP match, DSCP set</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>reject</code>, <code>redirect</code>, <code>counter</code>, <code>log</code></td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td>VPP ACL denies without a response and has no named counter for a rule.</td>
+</tr>
+<tr>
+<td><code>jump</code>, <code>goto</code>, <code>return</code>, chains that are not base chains</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td>A VPP ACL is a flat list of rules.</td>
+</tr>
+<tr>
+<td>Named sets</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td>Match on input or output interface</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td>A VPP ACL is bound to an interface.</td>
+</tr>
+<tr>
+<td>Match on <code>destination-local</code>, link-layer unicast, IPsec transform</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td>Conntrack helpers (<code>system conntrack module</code>)</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td><code>snat</code>, <code>masquerade</code></td>
+<td class="cell-yes">✓</td>
+<td>IPv4 only</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>dnat</code></td>
+<td class="cell-yes">✓</td>
+<td>IPv4 only</td>
+<td>Needs a protocol match and a destination port match.</td>
+</tr>
+<tr>
+<td>The <code>ruleset</code>, <code>group</code> and <code>conntrack</code> show commands</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Control-plane policing, policy routing, the local DDoS responder and the
+FlowSpec firewall bridge add their own tables to the same backend. The <code>vpp</code>
+backend checks those tables against the same limits when Ze applies them.</p>
+<h2 id="traffic-control">Traffic control</h2>
+<p><code>traffic control backend</code> selects the backend. The <code>vpp</code> backend has no
+queueing scheduler. It builds each class as a VPP policer, and it refuses at
+commit what a policer cannot do.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th><code>tc</code></th>
+<th><code>vpp</code></th>
+<th>Limits on VPP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>htb</code>, <code>tbf</code></td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>At least one class. With more than one class, each class needs a <code>protocol</code> or <code>dscp</code> filter.</td>
+</tr>
+<tr>
+<td><code>hfsc</code>, <code>fq</code>, <code>fq_codel</code>, <code>sfq</code>, <code>netem</code>, <code>prio</code></td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+<tr>
+<td>Filter on <code>protocol</code>, <code>dscp</code></td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>One value steers to one class.</td>
+</tr>
+<tr>
+<td>Filter on <code>mark</code></td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td>The Linux packet mark has no VPP equivalent.</td>
+</tr>
+<tr>
+<td>Root <code>rate</code> of a qdisc</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td>The class policers carry the rates.</td>
+</tr>
+<tr>
+<td>Ingress policer</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td>The L2TP shaper uses it for the upload rate of a subscriber.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="subscriber-access">Subscriber access</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Kernel</th>
+<th>VPP</th>
+<th>Limits</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PPPoE access interfaces</td>
+<td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
+<td>Sessions follow <code>interface backend</code>. On VPP the configuration must enable <code>vpp</code> and <code>vpp lcp</code>, and Ze loads the VPP PPPoE plugin. The commit refuses a backend that has no session provider in the build.</td>
+</tr>
+<tr>
+<td>L2TP</td>
+<td class="cell-yes">✓</td>
+<td>Not built</td>
+<td>L2TP sessions use the kernel L2TP and PPP drivers.</td>
+</tr>
+<tr>
+<td>PPPoE client</td>
+<td class="cell-yes">✓</td>
+<td>Refused</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="features-that-only-program-the-kernel">Features that only program the kernel</h2>
+<p>These features have one implementation, and it writes Linux kernel state. They
+have no backend leaf, and the commit does not look at <code>interface backend</code> for
+them.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>What Ze programs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IPsec</td>
+<td>Kernel XFRM states and policies. The configuration has no way to select another IPsec data plane.</td>
+</tr>
+<tr>
+<td>L2TP</td>
+<td>Kernel L2TP tunnels and PPP interfaces.</td>
+</tr>
+<tr>
+<td>Flow export packet sampling</td>
+<td>A tc sample action on each listed interface, read through the kernel psample channel.</td>
+</tr>
+<tr>
+<td>Policy routing</td>
+<td><code>ip rule</code> entries, and firewall tables on the selected firewall backend.</td>
+</tr>
+<tr>
+<td><code>firewall backend nft</code></td>
+<td>nftables tables in the kernel.</td>
+</tr>
+<tr>
+<td><code>traffic control backend tc</code></td>
+<td>Queueing disciplines on kernel interfaces.</td>
+</tr>
+<tr>
+<td><code>sysctl</code></td>
+<td>Kernel tunables. They are applied to the Linux kernel whatever the data plane, so a setting about kernel behaviour works the same on a VPP box. A key about packet forwarding, such as <code>rp_filter</code>, acts only on the packets that reach Linux, not on the packets VPP forwards.</td>
+</tr>
+</tbody>
+</table>
+<p>With <code>interface backend vpp</code>, VPP owns the network cards and forwards transit
+packets itself. Linux sees a VPP interface only as the TAP device that the VPP
+Linux Control Plane plugin creates. A feature in the table above that handles
+packets then acts on the packets that reach Linux through that TAP device. It
+does not act on the packets that VPP forwards. Ze accepts such a configuration
+today and does not warn about it. <code>sysctl</code> is the exception for settings about
+kernel behaviour: those apply to the Linux kernel as they do on any data plane.</p>
+<p>To filter or shape the traffic that VPP forwards, select <code>firewall backend vpp</code>
+and <code>traffic control backend vpp</code>. IPsec, L2TP, flow export sampling and policy
+routing have no VPP implementation.</p>
+<p>BFD and the DHCP server have no code that is specific to a data plane.</p>
+</div>
+</div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create the store, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 23 November 2026 20:21 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

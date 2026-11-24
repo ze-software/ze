@@ -15,8 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 18 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 18 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 18 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 38 | 38 of 38 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-| Audit verdicts | 23 | of 18 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Tests shown to detect a fault | 19 | 19 of 38 tests linked to requirements, 0 without a fault test and 19 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -55,7 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
-| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
@@ -87,9 +86,9 @@ Included in automatic checks: The document cites neither RFC 2119 nor BCP 14 and
 
 **Area:** Looking Glass command set API
 
-**Test verification:** 18 of 18 MUST proven
+**Test verification:** 9 of 18 MUST proven
 
-**Evidence:** unit 18
+**Evidence:** unit 9
 
 **Unmet:** -
 
@@ -113,19 +112,19 @@ Included in automatic checks: The document cites neither RFC 2119 nor BCP 14 and
 
 ## Figures
 
-- **MUST bar**: Ze verified 18
-- **Overview bar**: Ze MUST verified 18, SHOULD verified 5
+- **MUST bar**: Ze verified 9, Tests awaiting verification 9
+- **Overview bar**: Ze MUST verified 9, SHOULD verified 1, Tests awaiting verification 13
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | complete |
+| Mandatory requirements complete | not complete |
 | MUST rows | 18 |
 | MUST rows kept (the MUST bar) | 18 |
-| Ze verified | 18 |
+| Ze verified | 9 |
 | OS verified | 0 |
-| Tests awaiting verification | 0 |
+| Tests awaiting verification | 9 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -135,14 +134,14 @@ Included in automatic checks: The document cites neither RFC 2119 nor BCP 14 and
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 5 |
-| SHOULD verified | 5 |
+| SHOULD verified | 1 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 0 |
+| SHOULD tests awaiting verification | 4 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 0 |
 | SHOULD not built | 0 |
@@ -191,7 +190,7 @@ A test reads not verified when no record shows it failing after a deliberate fau
 
 The path component of the resource URI must use the prefix of ".well- known/looking-glass" (see Section 5.1) to stay namespace neutral. (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522WellKnownPrefixAndRejections isolates the well-known prefix in both polarities: positive GET /.well-known/looking-glass/v1/routers over TLS asserts StatusOK and jsendSuccess, and negative GET /looking-glass/v1/routers (recOutside) asserts StatusNotFound.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections, internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections#2 moved. TestRFC8522WellKnownPrefixAndRejections isolates the well-known prefix in both polarities: positive GET /.well-known/looking-glass/v1/routers over TLS asserts StatusOK and jsendSuccess, and negative GET /looking-glass/v1/routers (recOutside) asserts StatusNotFound.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -202,7 +201,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 The client must not be able to execute random commands on the targeting router. (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522WellKnownPrefixAndRejections proves both polarities: positive recPing verifies allowlisted GET /.well-known/looking-glass/v1/ping/192.0.2.1 returns StatusOK and dispatches exact router command "show ping 192.0.2.1", while negative rejected cases (unknown commands, POST, shell/pipe/space injection) return StatusBadRequest with jsendError and len(calls) == 0.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections, internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections#2 moved. TestRFC8522WellKnownPrefixAndRejections proves both polarities: positive recPing verifies allowlisted GET /.well-known/looking-glass/v1/ping/192.0.2.1 returns StatusOK and dispatches exact router command "show ping 192.0.2.1", while negative rejected cases (unknown commands, POST, shell/pipe/space injection) return StatusBadRequest with jsendError and len(calls) == 0.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -213,7 +212,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 There must not be any direct communication between the client and the router. (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522WellKnownPrefixAndRejections proves both polarities: positive recPing dispatches exclusively through CommandDispatcher with no Location redirect and recErr verifies backend errors return StatusBadGateway without leaking errRFC8522TestEngineFailed; negative upRec rejects Upgrade: websocket with StatusBadRequest, jsendError, and len(calls) == 0.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections, internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections#2 moved. TestRFC8522WellKnownPrefixAndRejections proves both polarities: positive recPing dispatches exclusively through CommandDispatcher with no Location redirect and recErr verifies backend errors return StatusBadGateway without leaking errRFC8522TestEngineFailed; negative upRec rejects Upgrade: websocket with StatusBadRequest, jsendError, and len(calls) == 0.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -224,7 +223,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 The server must ignore its value. (§2.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522RandomParameterIgnored verifies empty, alphanumeric, and special-character random/RANDOM values return StatusOK, jsendSuccess, identical payload fields via reflect.DeepEqual against baseData, and exact "show ping 192.0.2.1" dispatch; {single-polarity: positive} is justified because parseRFC8522Query ignores all values of random unconditionally.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/lg/handler_rfc8522_test.go::TestRFC8522RandomParameterIgnored moved. TestRFC8522RandomParameterIgnored verifies empty, alphanumeric, and special-character random/RANDOM values return StatusOK, jsendSuccess, identical payload fields via reflect.DeepEqual against baseData, and exact "show ping 192.0.2.1" dispatch; {single-polarity: positive} is justified because parseRFC8522Query ignores all values of random unconditionally.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -234,100 +233,100 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 The response text must comply with the JSON syntax specification JSend, which is briefly explained in Appendix A. (§2.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming verifies Content-Type application/json and strict JSend top-level keys via decodeJSend and assertJSendKeys across success, fail, 400, 401 (authSrv/recAuth), 500 (writeRFC8522JSON), 502, and 504; {single-polarity: positive} is justified because all RFC 8522 emitters unconditionally write JSend JSON.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming moved. TestRFC8522JSendEnvelopeAndTiming verifies Content-Type application/json and strict JSend top-level keys via decodeJSend and assertJSendKeys across success, fail, 400, 401 (authSrv/recAuth), 500 (writeRFC8522JSON), 502, and 504; {single-polarity: positive} is justified because all RFC 8522 emitters unconditionally write JSend JSON.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L393) | unit/verify | revert, verified |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L393) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC8522-2.3-2`](#rfc8522-2.3-2)
 
 Consequently, every response must contain a "status" field of either "success", "fail", or "error" as explained in the following sections. (§2.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming verifies status values jsendSuccess, jsendFail, and jsendError across all response categories via assertJSendKeys; {single-polarity: positive} is justified because all RFC 8522 response writers emit status solely from that closed three-value set.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming moved. TestRFC8522JSendEnvelopeAndTiming verifies status values jsendSuccess, jsendFail, and jsendError across all response categories via assertJSendKeys; {single-polarity: positive} is justified because all RFC 8522 response writers emit status solely from that closed three-value set.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L394) | unit/verify | revert, verified |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L394) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC8522-2.3.1-1`](#rfc8522-2.3.1-1)
 
 A successful response must set the "status" field to "success". (§2.3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recOK (ping) and recRouteOK (show route) assert StatusOK and jsendSuccess via assertJSendKeys, while negative recFail, recMiss (jsendFail) and recClient/recAuth/recServerErr/recRouter/recTimeout (jsendError) confirm non-success outcomes do not set status to success.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming, internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2 moved. TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recOK (ping) and recRouteOK (show route) assert StatusOK and jsendSuccess via assertJSendKeys, while negative recFail, recMiss (jsendFail) and recClient/recAuth/recServerErr/recRouter/recTimeout (jsendError) confirm non-success outcomes do not set status to success.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L396) | unit/verify | revert, verified |
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L395) | unit/verify | revert, verified |
+| negative | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L396) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L395) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC8522-2.3.1-2`](#rfc8522-2.3.1-2)
 
 It must also contain a "data" object including the following information: (§2.3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming verifies non-null data object on recOK and recRouteOK via assertJSendKeys, assertRequiredDataFields, router, format, and non-empty rfc8522OutputText; {single-polarity: positive} is justified because writeRFC8522Success and rfc8522BaseData unconditionally emit a data object.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming moved. TestRFC8522JSendEnvelopeAndTiming verifies non-null data object on recOK and recRouteOK via assertJSendKeys, assertRequiredDataFields, router, format, and non-empty rfc8522OutputText; {single-polarity: positive} is justified because writeRFC8522Success and rfc8522BaseData unconditionally emit a data object.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L397) | unit/verify | revert, verified |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L397) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC8522-2.3.1-3`](#rfc8522-2.3.1-3)
 
 Combined date and time in UTC ISO 8601 [iso8601] indicating when the operation finished. This information must be present. (§2.3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming verifies data.performed_at via assertRequiredDataFields is UTC RFC3339 ending in Z and bounded to the [beforeOK, afterOK] execution window; {single-polarity: positive} is justified because rfc8522BaseData unconditionally stamps performed_at in UTC RFC3339 at completion.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming moved. TestRFC8522JSendEnvelopeAndTiming verifies data.performed_at via assertRequiredDataFields is UTC RFC3339 ending in Z and bounded to the [beforeOK, afterOK] execution window; {single-polarity: positive} is justified because rfc8522BaseData unconditionally stamps performed_at in UTC RFC3339 at completion.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L398) | unit/verify | revert, verified |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L398) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC8522-2.3.1-4`](#rfc8522-2.3.1-4)
 
 Amount of seconds (wallclock) used to run the command. This information must be present. (§2.3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming verifies real elapsed wallclock runtime >= 0.01s on a 15ms delayed command (slowSrv/recSlow) and >= 0.015s on a 20ms timeout (recTimeout/timeoutData); {single-polarity: positive} is justified because rfc8522BaseData unconditionally computes wallclock seconds from start.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming moved. TestRFC8522JSendEnvelopeAndTiming verifies real elapsed wallclock runtime >= 0.01s on a 15ms delayed command (slowSrv/recSlow) and >= 0.015s on a 20ms timeout (recTimeout/timeoutData); {single-polarity: positive} is justified because rfc8522BaseData unconditionally computes wallclock seconds from start.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L399) | unit/verify | revert, verified |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L399) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC8522-2.3.1-5`](#rfc8522-2.3.1-5)
 
 Adding more information to the response is permitted and must be placed inside the "data" object. (§2.3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming verifies extra fields min, avg, max, rate (recOK), routers (recRouters), and id, name (recDetails) are placed inside data and never at top level (assertJSendKeys enforces len(body) == 2); {single-polarity: positive} is justified because writeRFC8522Success and writeRFC8522Fail emit a fixed two-key top-level object.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming moved. TestRFC8522JSendEnvelopeAndTiming verifies extra fields min, avg, max, rate (recOK), routers (recRouters), and id, name (recDetails) are placed inside data and never at top level (assertJSendKeys enforces len(body) == 2); {single-polarity: positive} is justified because writeRFC8522Success and writeRFC8522Fail emit a fixed two-key top-level object.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L400) | unit/verify | revert, verified |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L400) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC8522-2.3.2-1`](#rfc8522-2.3.2-1)
 
 The response message must set the "status" field to "fail" and must contain the "data" object with command-specific content listed in Section 2.3.1. (§2.3.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recFail (0% ping) and recMiss (missing route) assert StatusOK, jsendFail, bounded performed_at/runtime, format text/plain, and non-empty rfc8522OutputText; negative recOK and recRouteOK confirm succeeding commands return jsendSuccess rather than jsendFail.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming, internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2 moved. TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recFail (0% ping) and recMiss (missing route) assert StatusOK, jsendFail, bounded performed_at/runtime, format text/plain, and non-empty rfc8522OutputText; negative recOK and recRouteOK confirm succeeding commands return jsendSuccess rather than jsendFail.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L404) | unit/verify | revert, verified |
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L403) | unit/verify | revert, verified |
+| negative | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L404) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L403) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC8522-2.3.3-1`](#rfc8522-2.3.3-1)
 
 The response message must set the "status" field to "error" and must contain the "message" key, which keeps a meaningful message, explaining what went wrong. (§2.3.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recClient (host), recAuth (unauthorized), recServerErr (500), recRouter (engine error, redacted), and recTimeout (timed out) assert jsendError with meaningful cause-specific message; negative recOK/recRouteOK/recFail/recMiss verify non-error responses do not set status to error.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming, internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2 moved. TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recClient (host), recAuth (unauthorized), recServerErr (500), recRouter (engine error, redacted), and recTimeout (timed out) assert jsendError with meaningful cause-specific message; negative recOK/recRouteOK/recFail/recMiss verify non-error responses do not set status to error.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L406) | unit/verify | revert, verified |
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L405) | unit/verify | revert, verified |
+| negative | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L406) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L405) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC8522-3.1.1-1`](#rfc8522-3.1.1-1)
 
 Implementation of the ping command is mandatory. (§3.1.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522MandatoryCommands proves both polarities: positive pingCases executes IPv4, IPv6 (protocol=2,1), and DNS hostname (example.com) asserting StatusOK, jsendSuccess, exact min/avg/max, rate 100, and non-empty rfc8522OutputText; negative badPing rejects protocol mismatch and invalid host with StatusBadRequest and jsendError.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands, internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands#2 moved. TestRFC8522MandatoryCommands proves both polarities: positive pingCases executes IPv4, IPv6 (protocol=2,1), and DNS hostname (example.com) asserting StatusOK, jsendSuccess, exact min/avg/max, rate 100, and non-empty rfc8522OutputText; negative badPing rejects protocol mismatch and invalid host with StatusBadRequest and jsendError.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -338,7 +337,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 Implementation of the "show route" command is mandatory. (§3.2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522MandatoryCommands proves both polarities: positive recRoute4, recRoute6, and recLookup assert StatusOK, jsendSuccess, and route prefix/gateway in rfc8522OutputText, while recMissing and recLookupMissing return jsendFail; negative badRoute rejects malformed address and protocol mismatch with StatusBadRequest and jsendError.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands, internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands#2 moved. TestRFC8522MandatoryCommands proves both polarities: positive recRoute4, recRoute6, and recLookup assert StatusOK, jsendSuccess, and route prefix/gateway in rfc8522OutputText, while recMissing and recLookupMissing return jsendFail; negative badRoute rejects malformed address and protocol mismatch with StatusBadRequest and jsendError.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -349,7 +348,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 The following organizational commands must be included in the implementation. (§3.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522MandatoryCommands proves both polarities: positive recRouters, recDetails (routers/0), and recCmd (asserting command, href, description, arguments on every cmdList entry plus ping and show route) return StatusOK and jsendSuccess; negative badRouter rejects /v1/routers/1, /v1/routers/abc, /v1/routers/0/extra, and /v1/cmd/extra with StatusBadRequest and jsendError.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands, internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands#2 moved. TestRFC8522MandatoryCommands proves both polarities: positive recRouters, recDetails (routers/0), and recCmd (asserting command, href, description, arguments on every cmdList entry plus ping and show route) return StatusOK and jsendSuccess; negative badRouter rejects /v1/routers/1, /v1/routers/abc, /v1/routers/0/extra, and /v1/cmd/extra with StatusBadRequest and jsendError.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -360,7 +359,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 The response must contain the router's hostname and router index. (§3.3.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522MandatoryCommands proves both polarities: positive recDetails (GET /v1/routers/0) asserts StatusOK, jsendSuccess, detailsData["name"] == testRFC8522Hostname, and detailsData["id"] == 0; negative badRouter rejects /v1/routers/1, /v1/routers/abc, and /v1/routers/0/extra with StatusBadRequest and jsendError.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands, internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands#2 moved. TestRFC8522MandatoryCommands proves both polarities: positive recDetails (GET /v1/routers/0) asserts StatusOK, jsendSuccess, detailsData["name"] == testRFC8522Hostname, and detailsData["id"] == 0; negative badRouter rejects /v1/routers/1, /v1/routers/abc, and /v1/routers/0/extra with StatusBadRequest and jsendError.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -371,7 +370,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 The use of HTTPS is required to ensure a high level of security, privacy, and confidentiality during transit. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522RequiresHTTPS exercises real TCP listeners in both polarities on the identical path /.well-known/looking-glass/v1/routers: positive startTLSTestServer over HTTPS asserts StatusOK and jsendSuccess; negative startTestServer over plaintext HTTP asserts StatusBadRequest, jsendError, and an error message naming HTTPS.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/lg/handler_rfc8522_test.go::TestRFC8522RequiresHTTPS, internal/component/lg/handler_rfc8522_test.go::TestRFC8522RequiresHTTPS#2 moved. TestRFC8522RequiresHTTPS exercises real TCP listeners in both polarities on the identical path /.well-known/looking-glass/v1/routers: positive startTLSTestServer over HTTPS asserts StatusOK and jsendSuccess; negative startTestServer over plaintext HTTP asserts StatusBadRequest, jsendError, and an error message naming HTTPS.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -382,40 +381,40 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 The HTTP status code should be 200. (§2.3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recOK, recRouteOK, recFail, and recMiss assert StatusOK (200); negative recClient (400), recRouter (502), and recTimeout (504) confirm error responses do not return HTTP 200.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming, internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2 moved. TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recOK, recRouteOK, recFail, and recMiss assert StatusOK (200); negative recClient (400), recRouter (502), and recTimeout (504) confirm error responses do not return HTTP 200.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L402) | unit/verify | revert, verified |
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L401) | unit/verify | revert, verified |
+| negative | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L402) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L401) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC8522-2.3.3-3`](#rfc8522-2.3.3-3)
 
 The HTTP status code should be 400 in case of a client-side error, 500 in case of a server-side error, or 502 for errors occurring on the target router. (§2.3.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming proves both polarities across all three RFC 8522 Section 2.3.3 codes: positive recClient returns StatusBadRequest (400), recServerErr via writeRFC8522JSON returns StatusInternalServerError (500) with jsendError, and recRouter returns StatusBadGateway (502); negative recOK returns StatusOK (200).
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming, internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2 moved. TestRFC8522JSendEnvelopeAndTiming proves both polarities across all three RFC 8522 Section 2.3.3 codes: positive recClient returns StatusBadRequest (400), recServerErr via writeRFC8522JSON returns StatusInternalServerError (500) with jsendError, and recRouter returns StatusBadGateway (502); negative recOK returns StatusOK (200).
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L409) | unit/verify | revert, verified |
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L408) | unit/verify | revert, verified |
+| negative | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L409) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L408) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC8522-2.3.3-4`](#rfc8522-2.3.3-4)
 
 Code 504 should be used when a command timed out. (§2.3.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recTimeout (runtime=0.02) asserts StatusGatewayTimeout (504) with jsendError and timeout message; negative recRouter confirms non-timeout router dispatch failure returns StatusBadGateway (502) rather than 504.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming, internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2 moved. TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recTimeout (runtime=0.02) asserts StatusGatewayTimeout (504) with jsendError and timeout message; negative recRouter confirms non-timeout router dispatch failure returns StatusBadGateway (502) rather than 504.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L411) | unit/verify | revert, verified |
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L410) | unit/verify | revert, verified |
+| negative | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L411) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L410) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC8522-6.1-1`](#rfc8522-6.1-1)
 
 It is recommended that implementers of the Looking Glass API take steps to mitigate the above described abuse. (§6.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522RateLimiting proves both polarities and per-client-IP isolation: positive rfc8522RequestFrom confirms requests within the per-IP limit and from a distinct client IP (recOther) return StatusOK and jsendSuccess; negative rec3 confirms the 3rd request from the throttled IP returns StatusTooManyRequests (429) with jsendError.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/lg/handler_rfc8522_test.go::TestRFC8522RateLimiting, internal/component/lg/handler_rfc8522_test.go::TestRFC8522RateLimiting#2 moved. TestRFC8522RateLimiting proves both polarities and per-client-IP isolation: positive rfc8522RequestFrom confirms requests within the per-IP limit and from a distinct client IP (recOther) return StatusOK and jsendSuccess; negative rec3 confirms the 3rd request from the throttled IP returns StatusTooManyRequests (429) with jsendError.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -426,11 +425,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 The response may contain the "data" key with required values listed in Section 2.3.1. (§2.3.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC8522JSendEnvelopeAndTiming verifies optional data on 502 (recRouter) and 504 (recTimeout/timeoutData) via assertRequiredDataFields with bounded performed_at and elapsed runtime >= 0.015s; {single-polarity: positive} is justified for this optional MAY permission.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming moved. TestRFC8522JSendEnvelopeAndTiming verifies optional data on 502 (recRouter) and 504 (recTimeout/timeoutData) via assertRequiredDataFields with bounded performed_at and elapsed runtime >= 0.015s; {single-polarity: positive} is justified for this optional MAY permission.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L407) | unit/verify | revert, verified |
+| positive | [`TestRFC8522JSendEnvelopeAndTiming`](https://github.com/ze-software/ze/blob/main/internal/component/lg/handler_rfc8522_test.go#L407) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ## Requirement list review
 

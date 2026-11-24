@@ -10006,7 +10006,7 @@
       {
         "children": [
           {
-            "description": "The listener sends the leaf certificate and every\nintermediate certificate the store entry holds, so a client\ncan build the full chain.\nWhen this leaf is not set, ze generates a self-signed\ncertificate and serves that.\nIf the store holds no entry with that name, or the entry\nholds no private key, ze exits with an error and rejects a\nreload. ze never falls back to a self-signed certificate\nfor a configured name.\nA named certificate comes from the pki container.\nEnvironment variable: ze.looking-glass.certificate.",
+            "description": "The listener sends the leaf certificate and every\nintermediate certificate the store entry holds, so a client\ncan build the full chain.\nEvery server entry that serves HTTPS presents it; an entry\nwith tls false presents none.\nWhen this leaf is not set, ze generates a self-signed\ncertificate and serves that.\nIf the store holds no entry with that name, or the entry\nholds no private key, ze exits with an error and rejects a\nreload. ze never falls back to a self-signed certificate\nfor a configured name.\nA named certificate comes from the pki container.\nEnvironment variable: ze.looking-glass.certificate.",
             "kind": "leaf",
             "name": "certificate",
             "short-help": "PKI store certificate served on the looking-glass listener (ze.looking-glass.certificate).",
@@ -10055,21 +10055,21 @@
                 "short-help": "Listen TCP port; 0 means OS-assigned",
                 "source": "config",
                 "type": "listener-port"
+              },
+              {
+                "description": "The endpoint serves HTTPS while this leaf is true, which\nis the default, and plain HTTP when it is false. What a\nlooking glass publishes is public, so plain HTTP is a\nnormal choice, on port 80 or behind a proxy. HTTPS\nserves the certificate the certificate leaf names, or a\nself-signed one kept in the database store. On a daemon\nwith no database store and no named certificate, an\nendpoint that leaves this leaf unset serves HTTP with a\nwarning, and an endpoint that says true is refused, at\nstart and at reload. The RFC 8522 API under\n/.well-known/looking-glass/ answers on HTTPS endpoints\nonly. No environment variable sets this leaf.",
+                "kind": "leaf",
+                "name": "tls",
+                "short-help": "Serve HTTPS on this endpoint (default); false serves plain HTTP.",
+                "source": "config",
+                "type": "boolean"
               }
             ],
-            "description": "Each entry names one listen endpoint. The default endpoint\nis 0.0.0.0 on port 8443.",
+            "description": "Each entry names one listen endpoint and says, in its tls\nleaf, whether that endpoint serves HTTPS or plain HTTP, so\none looking glass serves both at once on two entries. The\ndefault endpoint is 0.0.0.0 on port 8443, over HTTPS.",
             "kind": "list[name]",
             "name": "server",
             "short-help": "Looking glass listen endpoints.",
             "source": "config"
-          },
-          {
-            "description": "Self-signed TLS certificates persist in the configuration store. The default\ntrue holds because the looking glass binds 0.0.0.0 and\npublishes route data. Set it to false to serve plaintext,\nfor example when a proxy in front of Ze serves TLS.",
-            "kind": "leaf",
-            "name": "tls",
-            "short-help": "Enable TLS. Override with the ze.looking-glass.tls variable.",
-            "source": "config",
-            "type": "boolean"
           },
           {
             "description": "Ze compares the token in constant time, with sha256 and\nsubtle.ConstantTimeCompare. An empty token leaves the\nlooking glass open, and that is the default: a looking\nglass is a public read-only surface.",
@@ -10080,7 +10080,7 @@
             "type": "string"
           }
         ],
-        "description": "The container holds the enable switch, the listen endpoints, the\nTLS switch, the bearer token and the named next-hop ranges.",
+        "description": "The container holds the enable switch, the listen endpoints, each\nwith its own tls leaf, the certificate, the bearer token and the\nnamed next-hop ranges.",
         "kind": "container",
         "name": "looking-glass",
         "short-help": "Looking glass HTTP server settings.",

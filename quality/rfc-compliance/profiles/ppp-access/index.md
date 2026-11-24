@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/ppp-access.json](../.
 
 ## Figures
 
-- **MUST bar**: Ze verified 206, Tests awaiting verification 28, OS testing gap 4, Not assessed 30, Not built 29
-- **Overview bar**: Ze MUST verified 206, SHOULD verified 11, Tests awaiting verification 29, OS testing gap 4, Not assessed 115, Not built 29
+- **MUST bar**: Ze verified 208, Tests awaiting verification 28, OS testing gap 4, Not assessed 30, Not built 27
+- **Overview bar**: Ze MUST verified 208, SHOULD verified 11, Tests awaiting verification 29, OS testing gap 4, Not assessed 115, Not built 27
 
 | Figure | Rows |
 |---|---|
@@ -18,13 +18,13 @@ Figures as of the last build, read from [data/rfc/profiles/ppp-access.json](../.
 | Mandatory requirements complete | not complete |
 | MUST rows | 297 |
 | MUST rows kept (the MUST bar) | 297 |
-| Ze verified | 206 |
+| Ze verified | 208 |
 | OS verified | 0 |
 | Tests awaiting verification | 28 |
 | OS testing gap | 4 |
 | Exclusion unchecked | 0 |
 | Not assessed | 30 |
-| Not built | 29 |
+| Not built | 27 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -80,7 +80,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze verified 10, Tests awaiting verification 2, Not built 4 | Ze MUST verified 10, Tests awaiting verification 2, Not assessed 12, Not built 4 |
+| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze verified 12, Tests awaiting verification 2, Not built 2 | Ze MUST verified 12, Tests awaiting verification 2, Not assessed 12, Not built 2 |
 
 ### Level 5
 

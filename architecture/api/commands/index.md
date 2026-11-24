@@ -11,6 +11,7 @@
 |----------|------------|--------|------|
 | The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included | Rewriting the command line to carry a pipe as an argument; refusing a pipe a command declares; a subcommand for scope or presentation | plan/records/audit-command-pipe-vs-subcommand.md, plan/records/audit-presentation-pipes.md | 2026-08-21 |
 | A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed." | Limiting overrides to a fixed list of names (`count`, `first`, `last`, `match`); an override that answers another shape than its generic; a command declaring a format's, paging's, `save`'s or `log`'s name | plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md, 69944ce197 | 2026-11-20 |
+| A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does | Describing or restricting a pipe as a filter only; refusing a pipe operation because it adds to an answer or sends it elsewhere | plan/release/fixes/spec-explicit-plugin-and-attach-config.md | 2026-11-23 |
 
 ---
 
@@ -88,6 +89,7 @@ produce continuously-updating output.
 | Announce | route, flow, vpls, eor, operational |
 | Withdraw | route, flow, vpls, watchdog |
 | RIB | routes, best, status, clear |
+| System RIB | show rib, show rib candidates, show nexthop-table, show ecmp-groups |
 | Log | levels, set (runtime log levels) |
 | Metrics | values, list (Prometheus metrics) |
 | Group | start, end (batching) |
@@ -96,6 +98,7 @@ produce continuously-updating output.
 | OSPF | show ospf neighbor, interface, database, route, border-routers, spf; for OSPFv3, show ospf ipv6 neighbor, interface, database, route, spf, graceful-restart, segment-routing, each answering every running address family and taking `address-family <af>` to narrow |
 | Reports | show warnings, show errors (cross-subsystem operational report bus) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
+<!-- source: internal/component/sysrib/register.go -- commandDecls, routeViewCommandHandler -->
 <!-- source: internal/plugins/ospf/register.go -- sdk.CommandDecl show ospf commands -->
 
 ### Dispatch keys are YANG paths
@@ -425,7 +428,8 @@ route validates its arguments against the leaves of the daemon path
 (`command.ModelPath`). `loadLocalData` serves the handler under the daemon
 path, or leaves it to the builtin that holds it, and refuses to start when no
 node declares the path. `command.AnswerSurface` offers the root on shell
-completion and `ze cli`, and the daemon path on every daemon surface. The
+completion only, and the daemon path on every daemon surface (the attached
+console of `ze start --cli` included). The
 `command-contract` gate counts the local handler as served by the daemon
 path, reading the field from the registration's source, so its value is a
 string literal.
@@ -795,7 +799,7 @@ kind and the expected answer.
 |--------------|---------------|--------------------------------|--------------------------------------------|
 | Hidden (`ze:hidden true` on the command or an ancestor, or a plugin command declared `Hidden`) | Not offered | Not offered | Not offered. It still runs when typed in full |
 | Builtin RPC, local, local-data | Offered | Offered | Offered: the daemon serves each through its handler |
-| Local or local-data at an offline root, with a declared daemon path | `ze cli` offers a local-data one, which `ze cli -c` answers in its own process; SSH, and the interactive `ze cli` shell it carries, does not, and offers the daemon path | Offered | Not offered: the daemon path is, as its own registration |
+| Local or local-data at an offline root, with a declared daemon path | Not offered: the daemon path is, as its own registration (only `ze cli -c` still answers local-data in its own process) | Offered | Not offered: the daemon path is, as its own registration |
 | Plugin command (Stage 1 declaration) | Offered | Not offered: no plugin runs in the shell's process | Offered |
 | Plugin command whose path is a schema node with no `ze:command` of its own (`Modeled`, as `show vrrp interface`, whose command node is `name` below it) | Offered | Offered: shell completion walks the shipped schema, which holds the node | Offered |
 | Streaming (`RegisterStreamingHandler`) | Offered as a stream | Offered as a stream | By its one-shot declaration: `OneShotSample` offered, `OneShotStreamingOnly` not ("One-shot answer of a streaming command") |

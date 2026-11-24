@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 
 ## Figures
 
-- **MUST bar**: Ze verified 297, Not built 9
-- **Overview bar**: Ze MUST verified 297, SHOULD verified 11, Not owed 2, Not assessed 82, Not built 9
+- **MUST bar**: Ze verified 293, Tests awaiting verification 9, Not built 4
+- **Overview bar**: Ze MUST verified 293, SHOULD verified 7, Not owed 2, Tests awaiting verification 13, Not assessed 82, Not built 4
 
 | Figure | Rows |
 |---|---|
@@ -20,26 +20,26 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 | Mandatory requirements complete | not complete |
 | MUST rows | 308 |
 | MUST rows kept (the MUST bar) | 306 |
-| Ze verified | 297 |
+| Ze verified | 293 |
 | OS verified | 0 |
-| Tests awaiting verification | 0 |
+| Tests awaiting verification | 9 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 9 |
+| Not built | 4 |
 | MUST rows not owed | 2 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 2 |
 | SHOULD / MAY rows | 93 |
-| SHOULD verified | 11 |
+| SHOULD verified | 7 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 0 |
+| SHOULD tests awaiting verification | 4 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 82 |
 | SHOULD not built | 0 |
@@ -54,7 +54,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 126, Not built 7 | Ze MUST verified 126, SHOULD verified 4, Not assessed 30, Not built 7 | looking-glass: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 131, Not built 2 | Ze MUST verified 131, SHOULD verified 4, Not assessed 30, Not built 2 | looking-glass: required by rfc/short/rfc4271.md |
 
 ### Level 4
 
@@ -78,7 +78,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 |---|---|---|---|---|
 | [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze verified 30 | Ze MUST verified 30, Not assessed 6 | looking-glass: required by rfc/short/rfc6793.md |
 | [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | Ze verified 9 | Ze MUST verified 9, Not assessed 4 | looking-glass: required by rfc/short/rfc7911.md |
-| [RFC 8522](../../rfc8522/) | Looking Glass Command Set | Ze verified 18 | Ze MUST verified 18, SHOULD verified 5 | looking-glass: required by rfc/short/rfc8522.md |
+| [RFC 8522](../../rfc8522/) | Looking Glass Command Set | Ze verified 9, Tests awaiting verification 9 | Ze MUST verified 9, SHOULD verified 1, Tests awaiting verification 13 | looking-glass: required by rfc/short/rfc8522.md |
 
 ### Level 7
 

@@ -74,6 +74,8 @@ per-node and system-wide Prometheus metrics.</p>
 interface backend is registered as <code>vpp</code>. The
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/fib/fib-depth-4-srv6.md#vpp-backend" target="_blank" rel="noopener">SRv6 path</a> creates a
 single-Service-SID encapsulation policy before installing prefix steering.</p>
+<p><a href="../dataplane-features/">Features by data plane</a> lists each forwarding feature
+and says whether it works on the Linux kernel, on VPP, or on both.</p>
 <h2 id="why-vpp-is-in-ze">Why VPP is in Ze</h2>
 <p>Ze is a BGP daemon. BGP produces forwarding decisions; something else has
 to carry the packets. The default answer on Linux is the kernel route
@@ -113,13 +115,16 @@ interface (GoVPP over a Unix socket).</p>
 │   vpp component: starts VPP, binds NICs, watches health  │
 └──────────────────────────────────────────────────────────┘
 </code></pre>
-<p>Ze keeps two FIB backends and runs them side by side. <code>fib-kernel</code>
-still programs the Linux route table so local services (SSH, the web
-UI, BGP TCP sessions) keep working. <code>fib-vpp</code> pushes the same best
-routes into VPP's FIB via the GoVPP binary API, so transit packets
-are forwarded by VPP at DPDK speed. Both plugins subscribe to the
-<code>(system-rib, best-change)</code> event on the EventBus and react
-independently.</p>
+<p>Ze has two FIB writers, and each one runs only when it is loaded. With
+no <code>fib</code> block, Ze loads the one writer for the data plane that
+<code>interface backend</code> selects: <code>fib-vpp</code> on a VPP deployment, and
+<code>fib-kernel</code> is then not loaded. To run both, write both <code>fib kernel</code>
+and <code>fib vpp</code> blocks. <code>fib-kernel</code> then programs the Linux route table
+for local services (SSH, the web UI, BGP TCP sessions), and <code>fib-vpp</code>
+pushes the same best routes into VPP's FIB via the GoVPP binary API, so
+transit packets are forwarded by VPP at DPDK speed. Each loaded writer
+subscribes to the <code>(system-rib, best-change)</code> event on the EventBus and
+reacts independently.</p>
 <p>BGP sessions themselves still use Linux sockets. VPP's Linux Control
 Plane (LCP) plugin mirrors every VPP interface as a TAP device, so ze's
 BGP reactor <code>bind()</code>s and <code>connect()</code>s exactly as it does on a kernel
@@ -847,7 +852,7 @@ and converging sub-second on a full table.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 23 November 2026 01:40 UTC</span>
+                    <span class="footer-published">Published 24 November 2026 00:05 UTC</span>
                 </div>
             </div>
         </footer>

@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 6 | of 16 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 8 | of 16 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 6 | of 16 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 16 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 16 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 16 | 16 of 24 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 21 | 21 of 29 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -22,7 +22,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Declared gap or no test | 4 | of 16 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 2 | of 16 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -73,39 +73,39 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 28 |
 | Mandatory requirements (MUST level) | 16 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 4 |
+| Declared gaps | 2 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 24 |
-| Tests linked to requirements | 24 |
-| Recorded audit verdicts | 11 |
-| Fault test records | 16 |
+| Test tags | 29 |
+| Tests linked to requirements | 29 |
+| Recorded audit verdicts | 13 |
+| Fault test records | 21 |
 | Summary | `rfc/short/rfc5072.md` |
 | Requirement table | `rfc/requirements/rfc5072.md` |
 | RFC text | `rfc/full/rfc5072.txt` |
 
 ## Automatic checks
 
-Included in automatic checks: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6CP before network phase, unique interface ID, different-non-zero->Ack, Nak->resend CR, valid Reject->teardown, exactly-one IID option enforced on receive, both-zero->Reject) + 5 single-polarity positive (no IPv6 before Opened, no double-Nak on a missing IID option, collision Nak suggests a fresh different identifier, the suggestion differs from ze's last-sent identifier, the suggestion's u/l bit is zero) + 4 gap (tentative identifier's u/l bit not zeroed under 4.1-10 and 4.1-11, 1280 MTU floor lacks tagged discrimination proof, oscillation break)
+Included in automatic checks: IPv6 over PPP / IPV6CP (RFC 5072): 9 MET (no IPV6CP before network phase, unique interface ID, different-non-zero->Ack, Nak->resend CR, valid Reject->teardown, exactly-one IID option enforced on receive, both-zero->Reject, tentative identifier's u/l bit zeroed under 4.1-10 and 4.1-11) + 5 single-polarity positive (no IPv6 before Opened, no double-Nak on a missing IID option, collision Nak suggests a fresh different identifier, the suggestion differs from ze's last-sent identifier, the suggestion's u/l bit is zero) + 2 gap (1280 MTU floor lacks tagged discrimination proof, oscillation break)
 
 ## Published support status
 
 **Area:** IPv6CP
 
-**Test verification:** 10 of 16 MUST proven
+**Test verification:** 12 of 16 MUST proven
 
-**Evidence:** unit 10
+**Evidence:** unit 12
 
-**Unmet:** RFC5072-2-2, RFC5072-4.1-10, RFC5072-4.1-11, RFC5072-4.1-8
+**Unmet:** RFC5072-2-2, RFC5072-4.1-8
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 6 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 10 | one part of the mandatory requirements |
+| Positive and negative tests | 8 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 8 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -113,14 +113,14 @@ Included in automatic checks: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6C
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **16** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (6):** [`RFC5072-3-1`](#rfc5072-3-1), [`RFC5072-4.1-1`](#rfc5072-4.1-1), [`RFC5072-4.1-2`](#rfc5072-4.1-2), [`RFC5072-4.1-3`](#rfc5072-4.1-3), [`RFC5072-4.1-7`](#rfc5072-4.1-7), [`RFC5072-4.1-12`](#rfc5072-4.1-12)
+**Positive and negative tests (8):** [`RFC5072-3-1`](#rfc5072-3-1), [`RFC5072-4.1-1`](#rfc5072-4.1-1), [`RFC5072-4.1-2`](#rfc5072-4.1-2), [`RFC5072-4.1-3`](#rfc5072-4.1-3), [`RFC5072-4.1-7`](#rfc5072-4.1-7), [`RFC5072-4.1-10`](#rfc5072-4.1-10), [`RFC5072-4.1-11`](#rfc5072-4.1-11), [`RFC5072-4.1-12`](#rfc5072-4.1-12)
 
-**Annotated (including scoped evidence) (10):** [`RFC5072-2-1`](#rfc5072-2-1), [`RFC5072-2-2`](#rfc5072-2-2), [`RFC5072-4.1-4`](#rfc5072-4.1-4), [`RFC5072-4.1-5`](#rfc5072-4.1-5), [`RFC5072-4.1-6`](#rfc5072-4.1-6), [`RFC5072-4.1-8`](#rfc5072-4.1-8), [`RFC5072-4.1-9`](#rfc5072-4.1-9), [`RFC5072-4.1-10`](#rfc5072-4.1-10), [`RFC5072-4.1-11`](#rfc5072-4.1-11), [`RFC5072-4.1-19`](#rfc5072-4.1-19)
+**Annotated (including scoped evidence) (8):** [`RFC5072-2-1`](#rfc5072-2-1), [`RFC5072-2-2`](#rfc5072-2-2), [`RFC5072-4.1-4`](#rfc5072-4.1-4), [`RFC5072-4.1-5`](#rfc5072-4.1-5), [`RFC5072-4.1-6`](#rfc5072-4.1-6), [`RFC5072-4.1-8`](#rfc5072-4.1-8), [`RFC5072-4.1-9`](#rfc5072-4.1-9), [`RFC5072-4.1-19`](#rfc5072-4.1-19)
 
 ## Figures
 
-- **MUST bar**: Ze verified 10, Tests awaiting verification 2, Not built 4
-- **Overview bar**: Ze MUST verified 10, Tests awaiting verification 2, Not assessed 12, Not built 4
+- **MUST bar**: Ze verified 12, Tests awaiting verification 2, Not built 2
+- **Overview bar**: Ze MUST verified 12, Tests awaiting verification 2, Not assessed 12, Not built 2
 
 | Figure | Rows |
 |---|---|
@@ -129,13 +129,13 @@ Included in automatic checks: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6C
 | Mandatory requirements complete | not complete |
 | MUST rows | 16 |
 | MUST rows kept (the MUST bar) | 16 |
-| Ze verified | 10 |
+| Ze verified | 12 |
 | OS verified | 0 |
 | Tests awaiting verification | 2 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 4 |
+| Not built | 2 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -164,7 +164,7 @@ Source: [data/rfc/rfc5072.json](../../../data/rfc/rfc5072.json).
 | `RFC5072-3-1` | IPV6CP packets may not be exchanged until PPP has reached the network-layer protocol phase. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIPv6CPOpenedEmitsAssigned`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L407). **positive:** `unit/verify` [`TestNCPHeldUntilNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L170). **negative:** `unit/verify` [`TestIPv6CPNoResponseBeforeNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L660). **negative:** `unit/verify` [`TestNCPHeldUntilNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L169) |
 | `RFC5072-2-1` | Before any IPv6 packets may be communicated, PPP MUST reach the network-layer protocol phase, and the IPv6 Control Protocol MUST reach the Opened state. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestIPv6ServiceStartsOnlyAfterIPv6CPOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L453). **positive:** `unit/verify` [`TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go#L75). **negative:** no negative test. **{single-polarity}:** ze starts its IPv6 service (Router Advertisements) only after IPV6CP reaches Opened, and there is no ze code path that emits an IPv6 packet before Opened to negatively exercise: internal/component/l2tp/ppp/ncp.go::ncpsComplete holds the session short of up until IPV6CP is Opened, and only then does internal/component/l2tp/ppp/session_run.go::afterLCPOpen call afterLCPOpenIPv6Service under its IPV6CP-Opened guard |
 | `RFC5072-2-2` | PPP links supporting IPv6 MUST allow the information field to be at least as large as the minimum link MTU size required for IPv6 (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** testing; ValidateNetworkMRU refuses an IPv6-enabled admission cap below 1280, and ipv6MRUSupported guards IPv6CP, IPv6 protocol support and IPv6 service against smaller negotiated directional limits. These implemented guards have no RFC5072-2-2 tagged/discriminated proof yet; full subscriber IPv6 remains the owner-approved post-release feature in plan/post-release/features/spec-l2tp-ipv6-subscriber.md |
-| `RFC5072-4.1-1` | A Configure- Request MUST contain exactly one instance of the interface-identifier option [1]. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPProposesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L123). **positive:** `unit/verify` [`TestRFC5072ClientConfigureRequestOneIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go#L78). **negative:** `unit/verify` [`TestIPv6CPDuplicateIdentifierOptionIsNotAcked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1067). **negative:** `unit/verify` [`TestIPv6CPRequestWithoutIdentifierIsNotAcked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L999) |
+| `RFC5072-4.1-1` | A Configure- Request MUST contain exactly one instance of the interface-identifier option [1]. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPProposesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L125). **positive:** `unit/verify` [`TestRFC5072ClientConfigureRequestOneIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go#L78). **negative:** `unit/verify` [`TestIPv6CPDuplicateIdentifierOptionIsNotAcked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1067). **negative:** `unit/verify` [`TestIPv6CPRequestWithoutIdentifierIsNotAcked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L999) |
 | `RFC5072-4.1-2` | The interface identifier MUST be unique within the PPP link (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPInterfaceIDsDiffer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L692). **negative:** `unit/verify` [`TestIPv6CPNaksCollidingInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L741) |
 | `RFC5072-4.1-3` | If the two interface identifiers are different and the received interface identifier is not zero, the interface identifier MUST be acknowledged, i.e., a Configure-Ack is sent with the requested interface identifier, meaning that the responding peer agrees with the interface identifier requested. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPAcksDifferentNonZeroInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L778). **negative:** `unit/verify` [`TestIPv6CPNaksZeroInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L817) |
 | `RFC5072-4.1-4` | If the two interface identifiers are equal and are not zero, Configure-Nak MUST be sent specifying a different non-zero interface-identifier value suggested for use by the remote peer. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPNakOnEqualNonZeroIdentifiers`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1226). **negative:** no negative test. **{single-polarity}:** the Nak's suggestion is drawn by suggestIPv6CPInterfaceID (ipv6cp.go) and rejects a redraw equal to s.localInterfaceID, so the value ze sends is never the identifier ze holds; the negative shape (an Ack, or a Nak echoing the collision) is what evalIPv6CPRequest's own unacceptable verdict already forecloses, both-polarity proven under RFC5072-4.1-2's negative test (TestIPv6CPNaksCollidingInterfaceID) |
@@ -172,9 +172,9 @@ Source: [data/rfc/rfc5072.json](../../../data/rfc/rfc5072.json).
 | `RFC5072-4.1-6` | If the two interface identifiers are equal to zero, the interface identifier's negotiation MUST be terminated by transmitting the Configure-Reject with the interface-identifier value set to zero. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPBothZeroIsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1139). **negative:** no negative test. **{single-polarity}:** the negative case -- a zero received identifier that does NOT equal ze's own zero-if-forced-so local one -- is the ordinary differing-and-zero fork, already both-polarity proven under RFC5072-4.1-3's negative test (TestIPv6CPNaksZeroInterfaceID), which shows Nak fires rather than Reject; a second test here would re-exercise that same fork rather than a distinct one |
 | `RFC5072-4.1-7` | In this case, a new Configure-Request MUST be sent with the identifier value suggested in the last Configure-Nak from the peer. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPResendsCRWithNakSuggestedID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L851). **positive:** `unit/verify` [`TestRFC5072ClientAdoptsNakSuggestion`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go#L123). **negative:** `unit/verify` [`TestIPv6CPNakInvalidSuggestionNotAdopted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L887) |
 | `RFC5072-4.1-8` | But if the received interface identifier is equal to the one sent in the last Configure-Nak, a new interface identifier MUST be chosen. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** absorbIPv6CPNak adopts the peer's suggestion unconditionally; ze keeps no record of the IID it suggested in its own last Nak and never regenerates on oscillation (internal/component/l2tp/ppp/ncp.go:479-487) |
-| `RFC5072-4.1-9` | The "u" (universal/local) bit of the suggested identifier MUST be set to zero (0) regardless of its source unless the globally unique EUI-48/EUI-64 derived identifier is provided for the exclusive use by the remote peer. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPSuggestionHasUniversalBitClear`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L187). **negative:** no negative test. **{single-polarity}:** suggestIPv6CPInterfaceID (ipv6cp.go) clears octet 0's bit 0x02 (canonical bit 6) on every draw; ze never derives a suggestion from a globally unique EUI-48/EUI-64 identifier loaned to the peer, so the exception this MUST carves out is never taken and there is no code path to negatively exercise. Distinct from RFC5072-4.1-11, which is the u bit of ze's own TENTATIVE identifier (requestIPv6CPInterfaceID's call to generateIPv6CPInterfaceID) rather than the SUGGESTED one this row and suggestIPv6CPInterfaceID govern -- that row's gap stands, unchanged by this phase |
-| `RFC5072-4.1-10` | If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze uses no case-2 source of uniqueness (no link-layer address, no machine serial number) for its own Interface-Identifier; it draws a random identifier from crypto/rand, which is the case-3 random identifier RFC5072-4.1-11 governs. internal/component/l2tp/ppp/ipv6cp.go::generateIPv6CPInterfaceID (ipv6cp.go:141-152) never clears that identifier's u bit, and requestIPv6CPInterfaceID (ncp.go:200-207) uses it raw, so clearing the bit in generateIPv6CPInterfaceID meets this row and RFC5072-4.1-11 together |
-| `RFC5072-4.1-11` | In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's identifier is randomly generated and the generator does not force the u bit to zero, the exact case this MUST governs (internal/component/l2tp/ppp/ipv6cp.go:141-152, generateIPv6CPInterfaceID; used raw by requestIPv6CPInterfaceID, ncp.go:200-207) |
+| `RFC5072-4.1-9` | The "u" (universal/local) bit of the suggested identifier MUST be set to zero (0) regardless of its source unless the globally unique EUI-48/EUI-64 derived identifier is provided for the exclusive use by the remote peer. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPSuggestionHasUniversalBitClear`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L189). **negative:** no negative test. **{single-polarity}:** suggestIPv6CPInterfaceID (ipv6cp.go) draws through generateIPv6CPInterfaceID, which clears octet 0's bit 0x02 (canonical bit 6) on every draw; ze never derives a suggestion from a globally unique EUI-48/EUI-64 identifier loaned to the peer, so the exception this MUST carves out is never taken and there is no code path to negatively exercise. Distinct from RFC5072-4.1-11, which governs ze's own TENTATIVE identifier (requestIPv6CPInterfaceID's call to generateIPv6CPInterfaceID) rather than the SUGGESTED one this row and suggestIPv6CPInterfaceID govern |
+| `RFC5072-4.1-10` | If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPLocallyAdministeredMACClearsUniversalBit`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L351). **positive:** `unit/verify` [`TestIPv6CPTentativeInterfaceIDHasUniversalBitClear`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L223). **negative:** `unit/verify` [`TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L312) |
+| `RFC5072-4.1-11` | In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestIPv6CPTentativeInterfaceIDHasUniversalBitClear`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L229). **negative:** `unit/verify` [`TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L317) |
 | `RFC5072-4.1-12` | A new Configure-Request MUST NOT contain the interface-identifier option if a valid Interface-Identifier Configure-Reject is received. (§4.1) | MUST NOT | 4.1 | **positive:** `unit/verify` [`TestIPv6CPInterfaceIDRejectIsFatal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L932). **negative:** `unit/verify` [`TestIPv6CPUnknownOptionRejectNotFatal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L956) |
 | `RFC5072-3-2` | Only Codes 1 through 7 (Configure-Request, Configure-Ack, Configure-Nak, Configure-Reject, Terminate-Request, Terminate- Ack and Code-Reject) are used. Other Codes should be treated as unrecognized and should result in Code-Rejects. (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5072-3-3` | IPV6CP packets that are received before this phase is reached should be silently discarded. (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
@@ -196,8 +196,6 @@ Source: [data/rfc/rfc5072.json](../../../data/rfc/rfc5072.json).
 |---|---|---|
 | [`RFC5072-2-2`](#rfc5072-2-2) PPP links supporting IPv6 MUST allow the information field to be at least as large as the minimum link MTU size required for IPv6 (§2) | {gap}, no test | testing; ValidateNetworkMRU refuses an IPv6-enabled admission cap below 1280, and ipv6MRUSupported guards IPv6CP, IPv6 protocol support and IPv6 service against smaller negotiated directional limits. These implemented guards have no RFC5072-2-2 tagged/discriminated proof yet; full subscriber IPv6 remains the owner-approved post-release feature in plan/post-release/features/spec-l2tp-ipv6-subscriber.md |
 | [`RFC5072-4.1-8`](#rfc5072-4.1-8) But if the received interface identifier is equal to the one sent in the last Configure-Nak, a new interface identifier MUST be chosen. (§4.1) | {gap}, no test | absorbIPv6CPNak adopts the peer's suggestion unconditionally; ze keeps no record of the IID it suggested in its own last Nak and never regenerates on oscillation (internal/component/l2tp/ppp/ncp.go:479-487) |
-| [`RFC5072-4.1-10`](#rfc5072-4.1-10) If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | {gap}, no test | ze uses no case-2 source of uniqueness (no link-layer address, no machine serial number) for its own Interface-Identifier; it draws a random identifier from crypto/rand, which is the case-3 random identifier RFC5072-4.1-11 governs. internal/component/l2tp/ppp/ipv6cp.go::generateIPv6CPInterfaceID (ipv6cp.go:141-152) never clears that identifier's u bit, and requestIPv6CPInterfaceID (ncp.go:200-207) uses it raw, so clearing the bit in generateIPv6CPInterfaceID meets this row and RFC5072-4.1-11 together |
-| [`RFC5072-4.1-11`](#rfc5072-4.1-11) In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | {gap}, no test | ze's identifier is randomly generated and the generator does not force the u bit to zero, the exact case this MUST governs (internal/component/l2tp/ppp/ipv6cp.go:141-152, generateIPv6CPInterfaceID; used raw by requestIPv6CPInterfaceID, ncp.go:200-207) |
 
 ## Test status
 
@@ -207,7 +205,7 @@ A test reads not verified when no record shows it failing after a deliberate fau
 
 IPV6CP packets may not be exchanged until PPP has reached the network-layer protocol phase. (§3)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNoResponseBeforeNetworkPhase, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPOpenedEmitsAssigned moved. Read RFC5072 Section3 in full, including the repeated Timeouts statement: IPv6CP must not be exchanged until Network-Layer Protocol phase; pre-phase received packets should be silently discarded. Every tagged unit was read. TestIPv6CPOpenedEmitsAssigned completes actual IPv6CP wire configuration and requires the correct family/interface identifier assignment. TestIPv6CPNoResponseBeforeNetworkPhase supplies a valid Configure-Request before ncpStarted and requires no reply or assignment; this isolates phase rather than malformed framing. TestNCPHeldUntilNetworkPhase keeps real CHAP unanswered with IPv6CP enabled, forbids an IPv6 request and all traffic except a retransmitted CHAP Challenge, then accepts the actual auth request and requires an IPv6CP Configure-Request. afterLCPOpen finishes runAuthPhase before runNCPPhase; runNCPPhase begins the real IPv6CP FSM, and handleFrame explicitly rejects early IPv6CP before parsing/replying. This covers transmit and receive gating with a genuine post-auth positive control; no IPv6 service-forwarding claim is needed for this phase rule. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Read RFC5072 Section3 in full, including the repeated Timeouts statement: IPv6CP must not be exchanged until Network-Layer Protocol phase; pre-phase received packets should be silently discarded. Every tagged unit was read. TestIPv6CPOpenedEmitsAssigned completes actual IPv6CP wire configuration and requires the correct family/interface identifier assignment. TestIPv6CPNoResponseBeforeNetworkPhase supplies a valid Configure-Request before ncpStarted and requires no reply or assignment; this isolates phase rather than malformed framing. TestNCPHeldUntilNetworkPhase keeps real CHAP unanswered with IPv6CP enabled, forbids an IPv6 request and all traffic except a retransmitted CHAP Challenge, then accepts the actual auth request and requires an IPv6CP Configure-Request. afterLCPOpen finishes runAuthPhase before runNCPPhase; runNCPPhase begins the real IPv6CP FSM, and handleFrame explicitly rejects early IPv6CP before parsing/replying. This covers transmit and receive gating with a genuine post-auth positive control; no IPv6 service-forwarding claim is needed for this phase rule. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -220,7 +218,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Before any IPv6 packets may be communicated, PPP MUST reach the network-layer protocol phase, and the IPv6 Control Protocol MUST reach the Opened state. (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened moved. Judge ppp5 2026-09-30. TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened: both NCPs enabled, IPCP Opened, IPV6CP held in Ack-Rcvd; fails on EventSessionUp and now on either attempt log, 'IPv6 service start failed' or 'refusing to start the IPv6 service', the second being what afterLCPOpenIPv6Service logs in this scenario because the peer interface id is never negotiated. So an up gate keyed on any non-Initial IPV6CP state and an early service start both turn it red (recorded ncpsComplete revert). Single-polarity positive per the row marker; ncp_test.go TestIPv6ServiceStartsOnlyAfterIPv6CPOpened proves the service does start once IPV6CP Opens.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge ppp5 2026-09-30. TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened: both NCPs enabled, IPCP Opened, IPV6CP held in Ack-Rcvd; fails on EventSessionUp and now on either attempt log, 'IPv6 service start failed' or 'refusing to start the IPv6 service', the second being what afterLCPOpenIPv6Service logs in this scenario because the peer interface id is never negotiated. So an up gate keyed on any non-Initial IPV6CP state and an early service start both turn it red (recorded ncpsComplete revert). Single-polarity positive per the row marker; ncp_test.go TestIPv6ServiceStartsOnlyAfterIPv6CPOpened proves the service does start once IPV6CP Opens.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -239,13 +237,13 @@ No test carries RFC5072-2-2, so there is no linked test.
 
 A Configure- Request MUST contain exactly one instance of the interface-identifier option [1]. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPDuplicateIdentifierOptionIsNotAcked, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPRequestWithoutIdentifierIsNotAcked moved. Rejudge 2026-11-08: new client positive TestRFC5072ClientConfigureRequestOneIdentifier asserts the PPPoE client's first IPv6CP Configure-Request has an options field of exactly 10 octets (one Interface-Identifier, so zero or two instances are red) holding the modified EUI-64. Server side unchanged: TestIPv6CPProposesInterfaceID counts type-1 options (iidCount != 1 red); negatives TestIPv6CPRequestWithoutIdentifierIsNotAcked and TestIPv6CPDuplicateIdentifierOptionIsNotAcked refuse zero- and two-option requests.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPProposesInterfaceID moved. Rejudge 2026-11-08: new client positive TestRFC5072ClientConfigureRequestOneIdentifier asserts the PPPoE client's first IPv6CP Configure-Request has an options field of exactly 10 octets (one Interface-Identifier, so zero or two instances are red) holding the modified EUI-64. Server side unchanged: TestIPv6CPProposesInterfaceID counts type-1 options (iidCount != 1 red); negatives TestIPv6CPRequestWithoutIdentifierIsNotAcked and TestIPv6CPDuplicateIdentifierOptionIsNotAcked refuse zero- and two-option requests.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPv6CPDuplicateIdentifierOptionIsNotAcked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1067) | unit/verify | revert, verified |
 | negative | [`TestIPv6CPRequestWithoutIdentifierIsNotAcked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L999) | unit/verify | revert, verified |
-| positive | [`TestIPv6CPProposesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L123) | unit/verify | not verified |
+| positive | [`TestIPv6CPProposesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L125) | unit/verify | not verified |
 | positive | [`TestRFC5072ClientConfigureRequestOneIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go#L78) | unit/verify | mutant, verified |
 
 ### [`RFC5072-4.1-2`](#rfc5072-4.1-2)
@@ -263,7 +261,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 If the two interface identifiers are different and the received interface identifier is not zero, the interface identifier MUST be acknowledged, i.e., a Configure-Ack is sent with the requested interface identifier, meaning that the responding peer agrees with the interface identifier requested. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPAcksDifferentNonZeroInterfaceID, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNaksZeroInterfaceID moved. Forbidden: Nak/Reject of a different non-zero identifier, or an Ack carrying a value other than the requested one. TestIPv6CPAcksDifferentNonZeroInterfaceID fails on response code != Configure-Ack and on ackOpts.InterfaceID != the requested ipv6cpTestPeerID. Negative TestIPv6CPNaksZeroInterfaceID fails when a zero identifier is Acked, bounding the non-zero condition.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: Nak/Reject of a different non-zero identifier, or an Ack carrying a value other than the requested one. TestIPv6CPAcksDifferentNonZeroInterfaceID fails on response code != Configure-Ack and on ackOpts.InterfaceID != the requested ipv6cpTestPeerID. Negative TestIPv6CPNaksZeroInterfaceID fails when a zero identifier is Acked, bounding the non-zero condition.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -274,7 +272,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 If the two interface identifiers are equal and are not zero, Configure-Nak MUST be sent specifying a different non-zero interface-identifier value suggested for use by the remote peer. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers moved. Forbidden: answering equal non-zero identifiers with Ack or Reject, or a Nak whose suggestion equals the colliding value or is zero. TestIPv6CPNakOnEqualNonZeroIdentifiers fails on verdict != unacceptable, code != Configure-Nak, opts.InterfaceID == local (not different) and opts.InterfaceID == zero (not non-zero). Every clause asserted; single-polarity marker present.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: answering equal non-zero identifiers with Ack or Reject, or a Nak whose suggestion equals the colliding value or is zero. TestIPv6CPNakOnEqualNonZeroIdentifiers fails on verdict != unacceptable, code != Configure-Nak, opts.InterfaceID == local (not different) and opts.InterfaceID == zero (not non-zero). Every clause asserted; single-polarity marker present.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -284,7 +282,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Such a suggested interface identifier MUST be different from the interface identifier of the last Configure-Request sent to the peer. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPSuggestionDiffersFromLocalIdentifier moved. Judge 2026-09-29. TestIPv6CPSuggestionDiffersFromLocalIdentifier now feeds crypto/rand.Reader a first draw equal to the local identifier (u bit clear) and a distinct second: the suggestion must be the second draw. Deleting the id == local rejection in suggestIPv6CPInterfaceID returns the local identifier and fails both assertions. Valid single-polarity: the forced colliding draw is the violating input; ze produces no suggestion outside this function. Marker text corrected.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-29. TestIPv6CPSuggestionDiffersFromLocalIdentifier now feeds crypto/rand.Reader a first draw equal to the local identifier (u bit clear) and a distinct second: the suggestion must be the second draw. Deleting the id == local rejection in suggestIPv6CPInterfaceID returns the local identifier and fails both assertions. Valid single-polarity: the forced colliding draw is the violating input; ze produces no suggestion outside this function. Marker text corrected.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -294,7 +292,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 If the two interface identifiers are equal to zero, the interface identifier's negotiation MUST be terminated by transmitting the Configure-Reject with the interface-identifier value set to zero. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPBothZeroIsRejected moved. Forbidden: answering equal-zero identifiers with a Nak/Ack, or a Reject not carrying the zero identifier. TestIPv6CPBothZeroIsRejected fails on code != Configure-Reject, a Reject missing the Interface-Identifier option, and opts.InterfaceID != zero. The sentence defines termination as transmitting that Reject, which is asserted. Single-polarity marker present.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: answering equal-zero identifiers with a Nak/Ack, or a Reject not carrying the zero identifier. TestIPv6CPBothZeroIsRejected fails on code != Configure-Reject, a Reject missing the Interface-Identifier option, and opts.InterfaceID != zero. The sentence defines termination as transmitting that Reject, which is asserted. Single-polarity marker present.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -304,7 +302,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 In this case, a new Configure-Request MUST be sent with the identifier value suggested in the last Configure-Nak from the peer. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID moved. Rejudge 2026-11-08: new client positive TestRFC5072ClientAdoptsNakSuggestion: a Nak suggesting 02:00:00:00:00:00:00:77 (different from any Nak the client sent, the condition of the sentence) makes the next Configure-Request carry exactly that identifier under a new Identifier. Server side unchanged: TestIPv6CPResendsCRWithNakSuggestedID requires the suggested value; negative TestIPv6CPNakInvalidSuggestionNotAdopted refuses an all-zero suggestion.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: new client positive TestRFC5072ClientAdoptsNakSuggestion: a Nak suggesting 02:00:00:00:00:00:00:77 (different from any Nak the client sent, the condition of the sentence) makes the next Configure-Request carry exactly that identifier under a new Identifier. Server side unchanged: TestIPv6CPResendsCRWithNakSuggestedID requires the suggested value; negative TestIPv6CPNakInvalidSuggestionNotAdopted refuses an all-zero suggestion.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -324,33 +322,40 @@ No test carries RFC5072-4.1-8, so there is no linked test.
 
 The "u" (universal/local) bit of the suggested identifier MUST be set to zero (0) regardless of its source unless the globally unique EUI-48/EUI-64 derived identifier is provided for the exclusive use by the remote peer. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a suggested identifier with the u bit (canonical bit 6, octet 0 mask 0x02) set. TestIPv6CPSuggestionHasUniversalBitClear fails when suggestion[0]&ipv6cpUniversalLocalBitMask != 0 over 64 random draws; deleting the `&^=` clear in suggestIPv6CPInterfaceID turns it red with probability 1-2^-64. suggestIPv6CPInterfaceID is the only source of buildNakOrReject's IPv6 Nak value (ncp.go). The EUI exception is never taken by ze; single-polarity marker present.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPSuggestionHasUniversalBitClear moved. Forbidden: a suggested identifier with the u bit (canonical bit 6, octet 0 mask 0x02) set. TestIPv6CPSuggestionHasUniversalBitClear fails when suggestion[0]&ipv6cpUniversalLocalBitMask != 0 over 64 random draws; deleting the `&^=` clear in suggestIPv6CPInterfaceID turns it red with probability 1-2^-64. suggestIPv6CPInterfaceID is the only source of buildNakOrReject's IPv6 Nak value (ncp.go). The EUI exception is never taken by ze; single-polarity marker present.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestIPv6CPSuggestionHasUniversalBitClear`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L187) | unit/verify | revert, verified |
+| positive | [`TestIPv6CPSuggestionHasUniversalBitClear`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L189) | unit/verify | revert, verified |
 
 ### [`RFC5072-4.1-10`](#rfc5072-4.1-10)
 
 If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit moved. Rejudged after adding TestIPv6CPLocallyAdministeredMACClearsUniversalBit (rfc5072_ipv6cp_test.go). Re-read RFC 5072 Section 4.1 case 2 ('If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the "u" bit of the interface identifier MUST be set to zero (0).'). The former gap is closed: TestIPv6CPLocallyAdministeredMACClearsUniversalBit supplies a non-IEEE locally-administered link-layer MAC (02:11:22:33:44:55, U/L bit 1) to TentativeIPv6CPInterfaceID (ipv6cp_client.go) and asserts both octet 0 bit 0x02 == 0 and exact modified EUI-64 {0x00, 0x11, 0x22, 0xff, 0xfe, 0x33, 0x44, 0x55} (removing the XOR or changing it to OR fails deterministically). TestIPv6CPTentativeInterfaceIDHasUniversalBitClear continues to enforce bit 0x02 == 0 on generateIPv6CPInterfaceID/requestIPv6CPInterfaceID, and TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit enforces the contrasting case-1 negative (globally unique EUI-48 00:11:22:33:44:55 keeps u bit 1, failing if bit 0x02 is unconditionally cleared).
 
-No test carries RFC5072-4.1-10, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L312) | unit/verify | revert, verified |
+| positive | [`TestIPv6CPLocallyAdministeredMACClearsUniversalBit`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L351) | unit/verify | revert, verified |
+| positive | [`TestIPv6CPTentativeInterfaceIDHasUniversalBitClear`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L223) | unit/verify | revert, verified |
 
 ### [`RFC5072-4.1-11`](#rfc5072-4.1-11)
 
 In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit moved. Audited against RFC 5072 Section 4.1 case 3 ('If a good source of uniqueness cannot be found, it is recommended that a random number be generated. In this case, the "u" bit of the interface identifier MUST be set to zero (0).'). generateIPv6CPInterfaceID (ipv6cp.go) draws via crypto/rand.Read, clears octet 0 bit 0x02 (canonical bit 6, the u bit) before isValidIPv6CPInterfaceID, and retries if clearing produced all-zero; it is the sole random tentative identifier generator for both server (requestIPv6CPInterfaceID in ncp.go) and client fallback (TentativeIPv6CPInterfaceID in ipv6cp_client.go). TestIPv6CPTentativeInterfaceIDHasUniversalBitClear proves 256 random draws have valid IIDs with bit 0x02 clear, a scripted {0x02, 0...} draw is redrawn rather than returned as zero, and a scripted {0x02, 0x02...} draw through requestIPv6CPInterfaceID emits 0x00, 0x02... in the initial IPv6CP Configure-Request (removing id[0] &^= ipv6cpUniversalLocalBitMask fails deterministically). TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit provides the contrasting case-1 negative: a globally unique EUI-48 MAC (00:11:22:33:44:55) produces modified EUI-64 with u bit 1 (0x02), failing if bit 0x02 is unconditionally cleared.
 
-No test carries RFC5072-4.1-11, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestIPv6CPGlobalEUI48TentativeIdentifierSetsUniversalBit`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L317) | unit/verify | revert, verified |
+| positive | [`TestIPv6CPTentativeInterfaceIDHasUniversalBitClear`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L229) | unit/verify | revert, verified |
 
 ### [`RFC5072-4.1-12`](#rfc5072-4.1-12)
 
 A new Configure-Request MUST NOT contain the interface-identifier option if a valid Interface-Identifier Configure-Reject is received. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPInterfaceIDRejectIsFatal, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPUnknownOptionRejectNotFatal moved. Forbidden: a further Configure-Request carrying the interface-identifier option after a valid Interface-Identifier Configure-Reject. TestIPv6CPInterfaceIDRejectIsFatal fails when no EventSessionDown follows the Reject (absorbIPv6CPReject returns ncpReplyFatal, so no new CR is ever sent); a regression that absorbs and resends keeps the session up and goes red. Negative TestIPv6CPUnknownOptionRejectNotFatal fails if a Reject of an unrequested option stops negotiation.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a further Configure-Request carrying the interface-identifier option after a valid Interface-Identifier Configure-Reject. TestIPv6CPInterfaceIDRejectIsFatal fails when no EventSessionDown follows the Reject (absorbIPv6CPReject returns ncpReplyFatal, so no new CR is ever sent); a regression that absorbs and resends keeps the session up and goes red. Negative TestIPv6CPUnknownOptionRejectNotFatal fails if a Reject of an unrequested option stops negotiation.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -361,7 +366,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 If the next Configure-Request does not include this option, the peer MUST NOT send another Configure-Nak with this option included. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPMissingOptionIsNakedOnce moved. Forbidden: Naking a second option-less Configure-Request after having Naked the first. TestIPv6CPMissingOptionIsNakedOnce fails when the second evalIPv6CPRequest verdict is not ncpRequestAcceptable (i.e. a second Nak). The first-call assertion bounds it. Single-polarity marker present.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: Naking a second option-less Configure-Request after having Naked the first. TestIPv6CPMissingOptionIsNakedOnce fails when the second evalIPv6CPRequest verdict is not ncpRequestAcceptable (i.e. a second Nak). The first-call assertion bounds it. Single-polarity marker present.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

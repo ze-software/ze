@@ -1918,8 +1918,10 @@ program is fed for this peer, and <code>send</code> is what it may originate tow
 A running plugin that a peer does not attach receives no event from that peer,
 whatever the plugin asked for when it started, and it may send that peer
 nothing. Loading a plugin and attaching it to a peer are two separate acts.</p>
-<p>Base event types for <code>receive</code>: <code>update</code>, <code>open</code>, <code>notification</code>, <code>keepalive</code>,
-<code>refresh</code>, <code>state</code>, <code>negotiated</code>, <code>eor</code>, <code>rpki</code>. Plugins may register more (for
+<p>Base event types for <code>receive</code>: <code>update</code>, <code>update-filtered</code>, <code>open</code>, <code>notification</code>, <code>keepalive</code>,
+<code>refresh</code>, <code>state</code>, <code>negotiated</code>, <code>eor</code>, <code>rpki</code>. <code>update-filtered</code> carries
+ingress-denied UPDATEs for route-server clients (<code>rs-client true</code>) so
+<code>bgp-adj-rib-in</code> retains the pre-policy population (RFC 7947 Section 2.1). Plugins may register more (for
 example <code>update-rpki</code> from bgp-rpki-decorator). A plain type is fed in both
 directions; <code>update-received</code> and <code>update-sent</code> name one. <code>*</code> names every
 registered type. Values are validated at config parse time.</p>
@@ -4413,8 +4415,8 @@ no intermediate serves the leaf alone.</p>
 <td>A <code>certificate</code> that names no store entry, or names one with no <code>private { key }</code>, stops the listener. ze never falls back to a self-signed certificate for a name the operator configured. Web and looking glass: the daemon refuses to start, and a reload naming a bad certificate is rejected. DoT/DoH: the secure listeners do not start, the error is logged, and cleartext DNS is unaffected.</td>
 </tr>
 <tr>
-<td>Plaintext</td>
-<td>A listener with TLS off presents no certificate, so its <code>certificate</code> leaf is inert. <code>looking-glass { tls false }</code> with a <code>certificate</code> starts and reloads with the name unread, rather than failing over a name nothing serves.</td>
+<td>Plain HTTP</td>
+<td>Each looking-glass <code>server</code> entry chooses HTTPS or plain HTTP in its own <code>tls</code> leaf (default true), so one looking glass serves both at once. An entry with <code>tls false</code> presents no certificate. When every entry says <code>tls false</code> the <code>certificate</code> leaf is inert: the daemon starts and reloads with the name unread, rather than failing over a name nothing serves.</td>
 </tr>
 <tr>
 <td>Mutually exclusive</td>
@@ -4431,6 +4433,10 @@ no intermediate serves the leaf alone.</p>
 <tr>
 <td>One commit</td>
 <td>A single commit can add a certificate AND reference it. The reload installs the store before any consumer applies its config.</td>
+</tr>
+<tr>
+<td>Removal</td>
+<td>Removing the web or looking-glass <code>certificate</code> leaf and reloading makes the listener serve its self-signed certificate from the next handshake, without rebinding, as a restart would. A looking glass running without the <code>database/</code> store has no self-signed certificate: an entry that left <code>tls</code> unset then serves plain HTTP from its next connection, with a warning, and an entry that says <code>tls true</code> refuses that reload.</td>
 </tr>
 <tr>
 <td>Env override</td>
@@ -6207,7 +6213,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 23 November 2026 05:43 UTC</span>
+                    <span class="footer-published">Published 24 November 2026 00:05 UTC</span>
                 </div>
             </div>
         </footer>

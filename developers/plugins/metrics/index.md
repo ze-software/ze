@@ -93,6 +93,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | Plugin (Registration Name) | Metric scope | Rationale |
 |-----------------------------|-------------|-----------|
 | `bgp-rib` | `rib` | Established; `bgp` prefix would be redundant |
+| `bgp-adj-rib-in` | `adjribin` | `bgp` prefix redundant; hyphens stripped |
 | `bgp-gr` | `gr` | Established |
 | `fib-kernel` | `fibkernel` | Hyphen stripped |
 | `rib` (sysrib) | `systemrib` | Registration name is `rib` but `ze_rib_` is taken by bgp-rib; `systemrib` reads naturally |
@@ -113,6 +114,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_rib_routes_out` | GaugeVec | peer | bgp-rib |
 | `ze_rib_route_inserts_total` | CounterVec | peer, family | bgp-rib |
 | `ze_rib_route_withdrawals_total` | CounterVec | peer, family | bgp-rib |
+| `ze_adjribin_routes_filtered` | GaugeVec | peer | bgp-adj-rib-in: import-filtered pre-policy routes retained per peer (RFC 7947 Section 2.1) <!-- source: internal/component/bgp/plugins/adj_rib_in/metrics.go -- SetMetricsRegistry, setFilteredRoutesMetric --> |
 | `ze_attr_pool_intern_total` | GaugeVec | pool | bgp-rib |
 | `ze_attr_pool_dedup_hits_total` | GaugeVec | pool | bgp-rib |
 | `ze_attr_pool_slots_used` | GaugeVec | pool | bgp-rib |

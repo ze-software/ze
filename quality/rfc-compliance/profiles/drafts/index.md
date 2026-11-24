@@ -9,7 +9,7 @@ Figures as of the last build, read from [data/rfc/profiles/drafts.json](../../..
 ## Figures
 
 - **MUST bar**: Ze verified 76, Tests awaiting verification 3, OS testing gap 1, Not built 42
-- **Overview bar**: Ze MUST verified 76, SHOULD verified 6, Tests awaiting verification 3, OS testing gap 1, Not assessed 55, Not built 42
+- **Overview bar**: Ze MUST verified 76, SHOULD verified 6, Tests awaiting verification 4, OS testing gap 1, Not assessed 54, Not built 42
 
 | Figure | Rows |
 |---|---|
@@ -37,9 +37,9 @@ Figures as of the last build, read from [data/rfc/profiles/drafts.json](../../..
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 0 |
+| SHOULD tests awaiting verification | 1 |
 | SHOULD exclusion unchecked | 0 |
-| SHOULD not assessed | 55 |
+| SHOULD not assessed | 54 |
 | SHOULD not built | 0 |
 
 The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
@@ -58,7 +58,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY](../../draft-walton-bgp-hostname-capability/) | Hostname Capability for BGP | no rows | Not assessed 1 |
+| [DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY](../../draft-walton-bgp-hostname-capability/) | Hostname Capability for BGP | no rows | Tests awaiting verification 1 |
 
 ### Level 6
 

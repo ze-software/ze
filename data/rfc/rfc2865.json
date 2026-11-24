@@ -2,7 +2,7 @@
   "stem": "rfc2865",
   "title": "Remote Authentication Dial In User Service (RADIUS)",
   "walked": true,
-  "requirements": 32,
+  "requirements": 33,
   "implementer": "ze",
   "implemented": true,
   "must": {
@@ -19,8 +19,8 @@
     "not-owed-by-kind": {}
   },
   "should": {
-    "total": 1,
-    "proven": 0,
+    "total": 2,
+    "proven": 1,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,

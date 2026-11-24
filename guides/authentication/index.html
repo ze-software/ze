@@ -508,9 +508,9 @@ listener with a bearer token, a <code>bearer-list</code> or <code>oauth</code>, 
 start the daemon with MCP disabled and a warning. It now refuses like gNMI,
 with the same block (<code>refusing to start MCP on non-loopback listener ... without TLS</code>) and the fix <code>set environment mcp tls cert &lt;cert.pem&gt; and set environment mcp tls key &lt;key.pem&gt;</code>. <code>ze config validate</code> and <code>ze doctor</code> print
 the same block for the same config.</p>
-<p><strong>The looking glass serves TLS by default.</strong> A <code>looking-glass</code> block with no
-<code>tls</code> leaf now serves <code>https://</code>, so a plaintext client fails the handshake.
-Write <code>tls false</code> in the block, or set <code>ze.looking-glass.tls=false</code>, to keep
+<p><strong>The looking glass serves TLS by default.</strong> A <code>looking-glass</code> server entry
+with no <code>tls</code> leaf now serves <code>https://</code>, so a plaintext client fails the
+handshake. Write <code>tls false</code> on each <code>server</code> entry that should keep
 plaintext. One case still serves plaintext on its own: a box with no blob
 storage that only inherited the default gets a warning naming <code>ze init</code> instead
 of a failure, because a hardening default must not remove a working looking
@@ -831,7 +831,7 @@ and continues.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 23 November 2026 05:15 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 23:44 UTC</span>
                 </div>
             </div>
         </footer>

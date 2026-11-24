@@ -117,9 +117,12 @@ are in <a href="../vpp/">VPP</a>, row vpp-3.</p>
 <pre><code>ze show mpls forwarding              # all installed MPLS entries
 ze show mpls forwarding limit 500    # cap the response size
 </code></pre>
-<p>Each row reports the incoming label (<code>in-label</code>), the <code>operation</code> (<code>swap</code> or
-<code>pop</code>), any outgoing <code>out-labels</code>, the <code>next-hop</code>, and the egress <code>device</code>. The
-data is read directly from the kernel AF_MPLS routing table.</p>
+<p>Each row reports the incoming label (<code>in-label</code>) or destination prefix (<code>fec</code>),
+the <code>operation</code> (<code>push</code>, <code>swap</code>, or <code>pop</code>), any outgoing <code>out-labels</code>, the
+<code>next-hop</code>, and the egress <code>device</code>. <code>show mpls forwarding</code> reads from the
+selected data plane's registered reader: the kernel AF_MPLS table and labeled IP
+routes under <code>netlink</code>, or VPP MPLS table 0 and VPP's labeled IP routes under
+<code>vpp</code>.</p>
 <h2 id="metrics">Metrics</h2>
 <ul>
 <li><code>ze_fibkernel_mpls_routes_installed</code> -- current MPLS labeled-route count.</li>
@@ -244,7 +247,7 @@ the command fails and names <code>ze doctor</code>. It does not answer an empty 
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 23:44 UTC</span>
                 </div>
             </div>
         </footer>

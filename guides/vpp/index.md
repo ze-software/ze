@@ -19,6 +19,9 @@ single-Service-SID encapsulation policy before installing prefix steering.
 <!-- source: internal/plugins/iface/vpp/register.go -- iface.RegisterBackend -->
 <!-- source: internal/plugins/fib/vpp/srv6.go -- acquirePolicy, addSRv6Steer -->
 
+[Features by data plane](../dataplane-features/index.md) lists each forwarding feature
+and says whether it works on the Linux kernel, on VPP, or on both.
+
 ## Why VPP is in Ze
 
 Ze is a BGP daemon. BGP produces forwarding decisions; something else has
@@ -67,13 +70,17 @@ interface (GoVPP over a Unix socket).
 └──────────────────────────────────────────────────────────┘
 ```
 
-Ze keeps two FIB backends and runs them side by side. `fib-kernel`
-still programs the Linux route table so local services (SSH, the web
-UI, BGP TCP sessions) keep working. `fib-vpp` pushes the same best
-routes into VPP's FIB via the GoVPP binary API, so transit packets
-are forwarded by VPP at DPDK speed. Both plugins subscribe to the
-`(system-rib, best-change)` event on the EventBus and react
-independently.
+Ze has two FIB writers, and each one runs only when it is loaded. With
+no `fib` block, Ze loads the one writer for the data plane that
+`interface backend` selects: `fib-vpp` on a VPP deployment, and
+`fib-kernel` is then not loaded. To run both, write both `fib kernel`
+and `fib vpp` blocks. `fib-kernel` then programs the Linux route table
+for local services (SSH, the web UI, BGP TCP sessions), and `fib-vpp`
+pushes the same best routes into VPP's FIB via the GoVPP binary API, so
+transit packets are forwarded by VPP at DPDK speed. Each loaded writer
+subscribes to the `(system-rib, best-change)` event on the EventBus and
+reacts independently.
+<!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriter, fibPluginChosen -->
 <!-- source: internal/plugins/fib/vpp/register.go -- Dependencies: ["rib", "vpp"] -->
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- Subscribe to BestChangeBatch -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- parallel backend for the kernel -->

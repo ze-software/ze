@@ -8,10 +8,10 @@
   "must": {
     "total": 18,
     "kept": 18,
-    "ze-proven": 18,
+    "ze-proven": 9,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 0,
+    "proof-pending": 9,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 0,
@@ -20,18 +20,18 @@
   },
   "should": {
     "total": 5,
-    "proven": 5,
+    "proven": 1,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
-    "proof-pending": 0,
+    "proof-pending": 4,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 0,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 18
+    "unit": 9
   },
   "unmet": []
 }

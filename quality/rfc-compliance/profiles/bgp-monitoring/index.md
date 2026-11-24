@@ -8,19 +8,19 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-monitoring.json](
 
 ## Figures
 
-- **MUST bar**: Ze verified 84
-- **Overview bar**: Ze MUST verified 84, SHOULD verified 9, Not assessed 6
+- **MUST bar**: Ze verified 75, Tests awaiting verification 9
+- **Overview bar**: Ze MUST verified 75, SHOULD verified 5, Tests awaiting verification 13, Not assessed 6
 
 | Figure | Rows |
 |---|---|
 | RFCs | 4 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | complete |
+| Mandatory requirements complete | not complete |
 | MUST rows | 84 |
 | MUST rows kept (the MUST bar) | 84 |
-| Ze verified | 84 |
+| Ze verified | 75 |
 | OS verified | 0 |
-| Tests awaiting verification | 0 |
+| Tests awaiting verification | 9 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -30,14 +30,14 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-monitoring.json](
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 15 |
-| SHOULD verified | 9 |
+| SHOULD verified | 5 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 0 |
+| SHOULD tests awaiting verification | 4 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 6 |
 | SHOULD not built | 0 |
@@ -52,7 +52,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8522](../../rfc8522/) | Looking Glass Command Set | Ze verified 18 | Ze MUST verified 18, SHOULD verified 5 |
+| [RFC 8522](../../rfc8522/) | Looking Glass Command Set | Ze verified 9, Tests awaiting verification 9 | Ze MUST verified 9, SHOULD verified 1, Tests awaiting verification 13 |
 
 ### Level 8
 

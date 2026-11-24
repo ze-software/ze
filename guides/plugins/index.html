@@ -56,6 +56,7 @@
 <li><a href="#loading-plugins">Loading Plugins</a>
 <ol>
 <li><a href="#plugin-block-settings">Plugin Block Settings</a></li>
+<li><a href="#external-plugins-with-their-own-yang-schema-and-commands">External Plugins with Their Own YANG Schema and Commands</a></li>
 </ol></li>
 <li><a href="#when-a-plugin-fails">When a Plugin Fails</a></li>
 <li><a href="#when-a-reload-changes-a-plugins-config">When a Reload Changes a Plugin&#39;s Config</a></li>
@@ -278,6 +279,10 @@ cannot run from an <code>external</code> block: the forked process does not hold
 daemon state it reaches, so it would start and do nothing. <code>ze doctor</code> reports
 such a block under <code>doctor-plugin-external-unsupported</code>, with the <code>internal</code>
 block that runs it instead.</p>
+<h3 id="external-plugins-with-their-own-yang-schema-and-commands">External Plugins with Their Own YANG Schema and Commands</h3>
+<p>An external plugin can bring its own YANG modules in its Stage 1 <code>schemas</code> list: a <code>-conf</code> module for its own configuration root (or an <code>augment</code> of a shared container such as <code>service</code>), a <code>-cmd</code> module for its CLI commands and argument leaves, and an <code>-api</code> module for MCP, REST, and gRPC command parameters. At <code>ze start</code>, the daemon parses the <code>plugin</code> and <code>environment</code> blocks first (<code>config.FirstPass</code>), starts every declared external plugin, reads each plugin's Stage 1 <code>schemas</code> list while holding Stage 1 unanswered, joins and publishes those modules once for the daemon's life, and then parses the full configuration against the combined schema. Each plugin continues its five-stage handshake in its startup tier without being forked a second time, and receives its configuration section at start and on every commit.</p>
+<p>External plugin declarations and their YANG modules are fixed until <code>ze</code> restarts. A reload (<code>SIGHUP</code> or commit) that adds, removes, or changes a <code>plugin { external &lt;name&gt; { run ... } }</code> declaration is refused whole under <code>doctor-config-reload-refused</code>, leaving the running configuration unchanged. If a running external plugin restarts and declares different YANG modules than the ones published at start, that plugin is failed at Stage 1 under <code>doctor-plugin-schema-changed</code> and its commands are released until <code>ze</code> restarts. Invalid, clashing, or unheld-registration modules refuse startup and record <code>doctor-plugin-schema-refused</code>; a declared plugin that fails to declare records <code>doctor-plugin-schema-undeclared</code>.</p>
+<p>When no <code>ze</code> daemon is running, offline commands never start external plugin programs. <code>ze config validate</code>, <code>fmt</code>, <code>dump</code>, <code>diff</code>, and <code>graph</code> ask a running <code>ze</code> daemon first when a configuration declares an external plugin; if no daemon answers, sections defined only by external plugins are reported as unavailable with <code>ze start</code> as the fix. Similarly, running an external plugin's command from the shell (<code>ze show ...</code>) forwards to the running daemon and reports the command unavailable when no daemon is running. See <a href="../../developers/plugins/schema/">YANG Schema Authoring</a> and <a href="../../developers/plugins/commands/">Adding Commands</a> for module examples and rules.</p>
 <h2 id="when-a-plugin-fails">When a Plugin Fails</h2>
 <p><code>doctor-plugin-cleanup</code> means a plugin's original resources have no confirmed
 release. Run <code>ze show warnings</code> to read the original cause and exit outcome.
@@ -784,8 +789,8 @@ BEFORE ze runs (<code>docs/architecture/doctor-and-health-checks.md</code>).</p>
 </tr>
 <tr>
 <td><code>bgp-adj-rib-in</code></td>
-<td>Adj-RIB-In (raw hex replay, auto-replays on peer-up)</td>
-<td><code>receive [ update-received state ]</code></td>
+<td>Adj-RIB-In (raw hex replay, auto-replays on peer-up, retains pre-policy filtered UPDATEs for <code>rs-client true</code> peers)</td>
+<td><code>receive [ update-received update-filtered-received state ]</code></td>
 </tr>
 <tr>
 <td><code>bgp-rs</code></td>
@@ -1038,9 +1043,12 @@ address. A session whose events named it nothing is selected by no name.</p>
 It reserves live assignments in the replacement pools and retains an
 assignment whose range was removed until that subscriber ends its session.</p>
 <p>These plugins register via the L2TP handler registry (<code>RegisterAuthHandler</code>,
-<code>RegisterPoolHandler</code>) at init time. Only one auth handler is active at a
-time (last registered wins). The pool and shaper plugins subscribe to
-session lifecycle events via the EventBus.</p>
+<code>RegisterPoolHandler</code>). Auth handlers are ordered by <code>AuthPriority</code> (lower
+non-zero wins): <code>l2tp-auth-local</code> registers <code>AuthPriorityLocal</code> (200) at init,
+and <code>l2tp-auth-radius</code> registers <code>AuthPriorityRemote</code> (50) while configured and
+unregisters it on removal, so configured RADIUS always takes precedence over
+local authentication regardless of registration timing. The pool and shaper
+plugins subscribe to session lifecycle events via the EventBus.</p>
 <p>See <a href="../l2tp/">L2TP guide</a> for configuration details.</p>
 <p>The <code>iface</code> plugin defines a <code>Backend</code> interface and loads a backend by name (YANG
 <code>backend</code> leaf, default <code>netlink</code>). The <code>iface-netlink</code> backend handles all Linux
@@ -1130,8 +1138,9 @@ when forwarding is retained. With <code>flush-on-stop true</code>, it then runs 
 route cleanup. Ordinary repair replays still reassert installed routes.</p>
 <!-- test: internal/plugins/fib/kernel/fibkernel_stop_test.go -- TestFIBKernelReplayReassertsInstalledRoutes, TestFIBKernelStopEndsReplayAdmission -->
 <p>The cleanup removes every route the writer installed, from the table it was
-installed in, and every route a previous run left that startup retained and
-the sweep has not yet removed, from each table startup listed it in. It then
+installed in, every route a previous run left that startup retained and
+the sweep has not yet removed, from each table startup listed it in, and any
+superseded Ze route whose delete failed during a metric change or table move. It then
 lists the kernel's Ze routes in every table. A delete the kernel refused, or a
 flushed prefix the kernel still lists in any table, raises one
 <code>doctor-fib-flush-incomplete</code> error (subject <code>flush</code>) and one WARN log line under the same code,
@@ -1142,6 +1151,15 @@ carries the listing's error. It reports no count of routes left, because none
 was taken.</p>
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_test.go -- TestFIBKernelFlushDeletesInTheInstalledTable, TestFIBKernelFlushReportsRoutesTheKernelKept, TestFIBKernelFlushReportsFailedDeletes, TestFIBKernelFlushRemovesRetainedRoutes -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_list_test.go -- TestFIBKernelFlushReportsUnverifiedKernel, TestFIBKernelFlushCountsNothingItCouldNotList, TestFIBKernelSweepDeletesInTheListedTable -->
+<p>A route that fails FIB programming (or leaves a superseded route behind) raises
+<code>fib-sync-failure</code> in both the error ring and the active warning set, degrading
+the <code>fib</code> health probe. The writer parks the change for bounded exponential
+backoff retry on its event-loop goroutine (up to 10 attempts, doubling from
+500ms to 30s) and also makes one immediate retry pass over earlier pending
+routes whenever another route in a later batch installs cleanly. Withdrawing a
+pending prefix cancels retry immediately, and a clean install, replace, retry,
+or withdraw clears the <code>fib-sync-failure</code> warning.</p>
+<!-- test: internal/plugins/fib/kernel/fibkernel_journal_fixes_test.go -- TestFIBKernelPendingInstallRetriesAndClearsSyncFailure, TestFIBKernelPendingInstallRetriedAfterCoveringRouteInSameBatch, TestFIBKernelPendingRetryIsBoundedByMaxAttempts, TestFIBKernelWithdrawClearsPendingInstallAndSyncFailure -->
 <p>Bus topics in the FIB pipeline:</p>
 <table>
 <thead>
@@ -2107,7 +2125,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 23 November 2026 05:15 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 23:44 UTC</span>
                 </div>
             </div>
         </footer>

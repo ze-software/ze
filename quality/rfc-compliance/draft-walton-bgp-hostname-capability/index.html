@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 0 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 0 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 0 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>0</strong><b>0 of 0 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>0</strong><b>0 of 5 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>0</strong><b>of 0 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -247,10 +247,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>0</td>
+<td>5</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
@@ -288,7 +288,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>MUST bar</strong></p>
 <div data-ze-rfc-bar="draft-walton-bgp-hostname-capability:must">no rows</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="draft-walton-bgp-hostname-capability:overview">Not assessed 1</div>
+<div data-ze-rfc-bar="draft-walton-bgp-hostname-capability:overview">Tests awaiting verification 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -366,13 +366,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="draft-walton-bgp-hostname-capability:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
 <tr><td>SHOULD tests awaiting verification</td>
-<td><span data-ze-rfc="draft-walton-bgp-hostname-capability:should.proof-pending">0</span></td>
+<td><span data-ze-rfc="draft-walton-bgp-hostname-capability:should.proof-pending">1</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
 <td><span data-ze-rfc="draft-walton-bgp-hostname-capability:should.exclusion-unchecked">0</span></td>
 </tr>
 <tr><td>SHOULD not assessed</td>
-<td><span data-ze-rfc="draft-walton-bgp-hostname-capability:should.not-assessed">1</span></td>
+<td><span data-ze-rfc="draft-walton-bgp-hostname-capability:should.not-assessed">0</span></td>
 </tr>
 <tr><td>SHOULD not built</td>
 <td><span data-ze-rfc="draft-walton-bgp-hostname-capability:should.not-built">0</span></td>
@@ -393,8 +393,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_walton_bgp_hostname_capability_test.go#L82" title="internal/core/bgp/capability/draft_walton_bgp_hostname_capability_test.go" target="_blank" rel="noopener"><code>TestFQDNCapabilityUnilateralReceiveAndDisplay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/draft_walton_bgp_hostname_capability_fqdn_test.go#L50" title="internal/component/bgp/plugins/cmd/peer/draft_walton_bgp_hostname_capability_fqdn_test.go" target="_blank" rel="noopener"><code>TestPeerShowCommandsDisplayFQDN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_walton_bgp_hostname_capability_fqdn_peer_status_test.go#L22" title="internal/component/bgp/reactor/draft_walton_bgp_hostname_capability_fqdn_peer_status_test.go" target="_blank" rel="noopener"><code>TestReactorSessionPropagatesAndClearsPeerFQDN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_walton_bgp_hostname_capability_test.go#L30" title="internal/core/bgp/capability/draft_walton_bgp_hostname_capability_test.go" target="_blank" rel="noopener"><code>TestFQDNCapabilityDecidesNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-peer-fqdn-display.ci#L16" title="test/plugin/bgp-peer-fqdn-display.ci" target="_blank" rel="noopener"><code>bgp-peer-fqdn-display.ci</code></a></span></div>
 </div></td>
 </tr>
 </tbody>
@@ -405,7 +408,42 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
 <section><h2>Test status</h2>
-<p>DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY has no requirements included in automatic checks, linked to tests, or reviewed, so there is no test evidence to show.</p>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
+<h3><a href="#draft-walton-bgp-hostname-capability-4-1"><code>DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1</code></a></h3>
+<p>The FQDN Capability SHOULD only be used for displaying the hostname and/or domain name of a speaker in order to make troubleshooting easier. (§4)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_walton_bgp_hostname_capability_test.go#L30" title="internal/core/bgp/capability/draft_walton_bgp_hostname_capability_test.go" target="_blank" rel="noopener"><code>TestFQDNCapabilityDecidesNothing</code></a></td>
+<td>unit/verify</td>
+<td>not verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/draft_walton_bgp_hostname_capability_fqdn_test.go#L50" title="internal/component/bgp/plugins/cmd/peer/draft_walton_bgp_hostname_capability_fqdn_test.go" target="_blank" rel="noopener"><code>TestPeerShowCommandsDisplayFQDN</code></a></td>
+<td>unit/verify</td>
+<td>not verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_walton_bgp_hostname_capability_fqdn_peer_status_test.go#L22" title="internal/component/bgp/reactor/draft_walton_bgp_hostname_capability_fqdn_peer_status_test.go" target="_blank" rel="noopener"><code>TestReactorSessionPropagatesAndClearsPeerFQDN</code></a></td>
+<td>unit/verify</td>
+<td>not verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_walton_bgp_hostname_capability_test.go#L82" title="internal/core/bgp/capability/draft_walton_bgp_hostname_capability_test.go" target="_blank" rel="noopener"><code>TestFQDNCapabilityUnilateralReceiveAndDisplay</code></a></td>
+<td>unit/verify</td>
+<td>not verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-peer-fqdn-display.ci#L16" title="test/plugin/bgp-peer-fqdn-display.ci" target="_blank" rel="noopener"><code>bgp-peer-fqdn-display.ci</code></a></td>
+<td>functional/verify</td>
+<td>not verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Requirement list review</h2>
 <div class="rfc-table-wrap">
@@ -566,7 +604,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 23:44 UTC</span>
                 </div>
             </div>
         </footer>

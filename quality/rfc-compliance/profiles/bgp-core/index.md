@@ -12,8 +12,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-core.json](../../
 
 ## Figures
 
-- **MUST bar**: Ze verified 335, Not built 10
-- **Overview bar**: Ze MUST verified 335, SHOULD verified 11, Not owed 3, Not assessed 103, Not built 10
+- **MUST bar**: Ze verified 341, Not built 4
+- **Overview bar**: Ze MUST verified 341, SHOULD verified 11, Not owed 3, Not assessed 103, Not built 4
 
 | Figure | Rows |
 |---|---|
@@ -22,13 +22,13 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-core.json](../../
 | Mandatory requirements complete | not complete |
 | MUST rows | 348 |
 | MUST rows kept (the MUST bar) | 345 |
-| Ze verified | 335 |
+| Ze verified | 341 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 10 |
+| Not built | 4 |
 | MUST rows not owed | 3 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -56,7 +56,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 126, Not built 7 | Ze MUST verified 126, SHOULD verified 4, Not assessed 30, Not built 7 |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 131, Not built 2 | Ze MUST verified 131, SHOULD verified 4, Not assessed 30, Not built 2 |
 
 ### Level 4
 
@@ -100,5 +100,5 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | [RFC 5549](../../rfc5549/) | Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop | Ze verified 6 | Ze MUST verified 6, SHOULD verified 1, Not assessed 2 |
 | [RFC 7313](../../rfc7313/) | Enhanced Route Refresh Capability for BGP-4 | Ze verified 11 | Ze MUST verified 11, Not assessed 6 |
 | [RFC 7607](../../rfc7607/) | Codification of AS 0 Processing | Ze verified 5 | Ze MUST verified 5 |
-| [RFC 8654](../../rfc8654/) | Extended Message Support for BGP | Ze verified 10, Not built 1 | Ze MUST verified 10, SHOULD verified 1, Not owed 1, Not assessed 3, Not built 1 |
+| [RFC 8654](../../rfc8654/) | Extended Message Support for BGP | Ze verified 11 | Ze MUST verified 11, SHOULD verified 1, Not owed 1, Not assessed 3 |
 | [RFC 9774](../../rfc9774/) | Deprecation of AS_SET and AS_CONFED_SET in BGP | Ze verified 3 | Ze MUST verified 3 |

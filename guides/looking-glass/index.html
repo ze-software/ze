@@ -53,7 +53,7 @@
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a>
 <ol>
-<li><a href="#tls-is-on-by-default">TLS is on by default</a></li>
+<li><a href="#http-and-https">HTTP and HTTPS</a></li>
 <li><a href="#serve-your-own-certificate">Serve your own certificate</a></li>
 <li><a href="#optional-bearer-token">Optional bearer token</a></li>
 </ol></li>
@@ -114,14 +114,14 @@
 <td>Listen port. Must differ from the web UI port.</td>
 </tr>
 <tr>
-<td><code>tls</code></td>
+<td><code>server &lt;name&gt; { tls }</code></td>
 <td><code>true</code></td>
-<td>Serve HTTPS. Set <code>false</code> to serve plaintext.</td>
+<td>This endpoint serves HTTPS. Set <code>false</code> to serve plain HTTP on it. See <a href="#http-and-https">HTTP and HTTPS</a>.</td>
 </tr>
 <tr>
 <td><code>certificate</code></td>
 <td>(empty)</td>
-<td>Name of a <code>pki { certificate &lt;name&gt; }</code> entry to serve. Empty selects a self-signed certificate in the live store.</td>
+<td>Name of a <code>pki { certificate &lt;name&gt; }</code> entry to serve on every HTTPS endpoint. Empty selects a self-signed certificate in the live store.</td>
 </tr>
 <tr>
 <td><code>token</code></td>
@@ -135,23 +135,65 @@
 </tr>
 </tbody>
 </table>
-<p>Environment variable overrides: <code>ze.looking-glass.listen=ip:port</code>, <code>ze.looking-glass.enabled=true</code>, <code>ze.looking-glass.tls=false</code>, <code>ze.looking-glass.token=&lt;token&gt;</code>, <code>ze.looking-glass.certificate=&lt;name&gt;</code>.</p>
-<h3 id="tls-is-on-by-default">TLS is on by default</h3>
-<p>The looking glass binds <code>0.0.0.0</code> and publishes route data and session state, so
-it serves HTTPS unless you turn TLS off. Two rules apply:</p>
-<ul>
-<li>Write <code>tls false</code> (or set <code>ze.looking-glass.tls=false</code>) to serve plaintext,
-for example behind a proxy that terminates TLS.</li>
-<li>Without a live store or named certificate, Ze cannot persist a self-signed
-certificate. Explicit <code>tls true</code> refuses the looking-glass listener.
-With the default TLS setting, it serves plaintext and warns that <code>ze init</code>
-is required for persistence. An explicit-file start creates a live store.</li>
-</ul>
+<p>Environment variable overrides: <code>ze.looking-glass.listen=ip:port</code>, <code>ze.looking-glass.enabled=true</code>, <code>ze.looking-glass.token=&lt;token&gt;</code>, <code>ze.looking-glass.certificate=&lt;name&gt;</code>. No environment variable chooses HTTP or HTTPS: write <code>tls</code> in the <code>server</code> entry.</p>
+<h3 id="http-and-https">HTTP and HTTPS</h3>
+<p>What a looking glass publishes is public, so you choose for each endpoint
+whether it serves HTTPS or plain HTTP, and one looking glass serves both at the
+same time:</p>
+<pre><code>environment {
+    looking-glass {
+        enabled true
+        server public {
+            ip 0.0.0.0
+            port 80
+            tls false
+        }
+        server secure {
+            ip 0.0.0.0
+            port 8443
+        }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Default</td>
+<td>An endpoint serves HTTPS unless its entry says <code>tls false</code>.</td>
+</tr>
+<tr>
+<td>Plain HTTP</td>
+<td>Write <code>tls false</code> in the entry, for port 80 or behind a proxy that terminates TLS. The other entries are not affected.</td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>HTTPS needs a named <code>certificate</code> or the live store, where Ze keeps its self-signed certificate. With neither, an entry that left <code>tls</code> unset serves plain HTTP, and Ze prints a warning that names the entry: run <code>ze init</code> and restart for HTTPS, or write <code>tls false</code> to serve HTTP on purpose. An entry that says <code>tls true</code> cannot be served: the looking glass does not start, and a reload is refused, with the same message. An explicit-file start creates a live store.</td>
+</tr>
+<tr>
+<td>Reload</td>
+<td>Change <code>tls</code> on an entry, add an entry, or remove one, and reload. An endpoint that stays keeps its socket: open connections finish on the protocol they started with, and the next connection takes the new one. A reload serves what a restart with the same config serves.</td>
+</tr>
+<tr>
+<td><code>ze.looking-glass.listen</code></td>
+<td>An address from this variable has no entry, so it serves HTTPS. Write the <code>server</code> entry to serve HTTP on it.</td>
+</tr>
+<tr>
+<td>RFC 8522 API</td>
+<td>answers on HTTPS endpoints only. See <a href="#rfc-8522-looking-glass-command-set-api">RFC 8522</a>. <span class="ev-src"><span class="ev-ref"><code>/.well-known/looking-glass/</code></span></span></td>
+</tr>
+</tbody>
+</table>
 <h3 id="serve-your-own-certificate">Serve your own certificate</h3>
 <p>A visitor to a public looking glass has not installed your root, so a
 self-signed certificate gives them a browser warning. Set <code>certificate</code> to the
 name of a <code>pki { certificate &lt;name&gt; }</code> entry and the listener serves that leaf
-and every intermediate the entry holds:</p>
+and every intermediate the entry holds, on every endpoint that serves HTTPS:</p>
 <pre><code>environment {
     looking-glass {
         enabled     true
@@ -180,12 +222,16 @@ and every intermediate the entry holds:</p>
 <td>Load new material under the same name and reload: the listener serves the new chain from the next handshake, with no rebind, so a viewer's open connection survives.</td>
 </tr>
 <tr>
-<td>TLS off</td>
-<td><code>tls false</code> serves no certificate, so the leaf is inert. Neither the start nor a reload reads the name.</td>
+<td>Removal</td>
+<td>Delete the <code>certificate</code> leaf and reload: the listener serves its self-signed certificate from the next handshake, with no rebind, as a restart would. Without a <code>database/</code> store there is no self-signed certificate to return to. An entry that left <code>tls</code> unset then serves plain HTTP from its next connection, with a warning, and an entry that says <code>tls true</code> refuses the reload: run <code>ze init</code> and restart, or name a certificate.</td>
 </tr>
 <tr>
-<td>Plaintext by downgrade</td>
-<td>A storeless stdin daemon took the TLS default and started the looking glass in plaintext. A later certificate name does not enable TLS; restart to serve the named chain.</td>
+<td>TLS off</td>
+<td>When every entry says <code>tls false</code> no endpoint presents a certificate, so the leaf is inert. Neither the start nor a reload reads the name. One HTTPS entry is enough for the name to be read.</td>
+</tr>
+<tr>
+<td>HTTP for want of a certificate</td>
+<td>A daemon with no live store took the TLS default and serves an entry over plain HTTP. Name a certificate and reload: that endpoint serves the named chain over HTTPS from its next connection, with no restart.</td>
 </tr>
 <tr>
 <td class="cell-no">✕</td>
@@ -212,8 +258,8 @@ constant-time over SHA-256 digests. A request with no token, a wrong token, or
 an <code>Authorization</code> header that is not <code>Bearer &lt;token&gt;</code> gets <code>401</code>.</p>
 <p>When the <code>looking-glass</code> block is absent, no HTTP server is started and no resources are consumed.</p>
 <h2 id="web-ui">Web UI</h2>
-<p>The HTMX web UI is available at <code>https://&lt;host&gt;:&lt;port&gt;/lg/</code> (<code>http://</code> when you
-set <code>tls false</code>). No authentication is required unless you set <code>token</code>.</p>
+<p>The HTMX web UI is available at <code>https://&lt;host&gt;:&lt;port&gt;/lg/</code> (<code>http://</code> on an
+endpoint whose entry says <code>tls false</code>). No authentication is required unless you set <code>token</code>.</p>
 <table>
 <thead>
 <tr>
@@ -764,7 +810,7 @@ again from zero when the daemon restarts. The normative statement is Section
 </tr>
 </tbody>
 </table>
-<p>HTTPS is required for <code>/.well-known/looking-glass/</code> per RFC 8522 Section 6: plaintext HTTP requests are refused with HTTP <code>400</code> and a JSend error envelope, while <code>/api/looking-glass/</code> and <code>/lg/</code> continue to honor <code>tls false</code>. Requests are rate-limited per client IP (default 60 requests per minute, HTTP <code>429</code> when exceeded). Supported query parameters are <code>protocol</code>, <code>router</code>, <code>routerindex</code>, <code>random</code> (ignored), <code>vrf</code>, <code>runtime</code> (seconds, default 30, 0 disables), and <code>format</code> (<code>text/plain</code> or <code>application/json</code>).</p>
+<p>HTTPS is required for <code>/.well-known/looking-glass/</code> per RFC 8522 Section 6: plaintext HTTP requests are refused with HTTP <code>400</code> and a JSend error envelope, on every endpoint whose entry says <code>tls false</code>, while <code>/api/looking-glass/</code> and <code>/lg/</code> answer there. Requests are rate-limited per client IP (default 60 requests per minute, HTTP <code>429</code> when exceeded). Supported query parameters are <code>protocol</code>, <code>router</code>, <code>routerindex</code>, <code>random</code> (ignored), <code>vrf</code>, <code>runtime</code> (seconds, default 30, 0 disables), and <code>format</code> (<code>text/plain</code> or <code>application/json</code>).</p>
 <h2 id="alice-lg-integration">Alice-LG Integration</h2>
 <p>To use Ze as a data source for <a href="https://github.com/alice-lg/alice-lg" target="_blank" rel="noopener">Alice-LG</a>, point Alice-LG's birdwatcher source configuration at the looking glass API:</p>
 <pre><code class="language-yaml">sources:
@@ -784,7 +830,7 @@ again from zero when the daemon restarts. The normative statement is Section
 <li>The <code>Content-Security-Policy</code> is <code>default-src 'self'</code>, so no page carries an inline script or an inline event handler. A test refuses one in any <code>.templ</code> source of the package.</li>
 <li>No direct RIB or plugin imports; all data accessed via command dispatcher.</li>
 </ul>
-<p>When TLS is enabled, the server uses TLS 1.2 minimum. It reads its own
+<p>An HTTPS endpoint uses TLS 1.2 minimum. The looking glass reads its own
 <code>certificate</code> leaf, resolved against the same PKI store the web UI reads, and
 serves a self-signed certificate when that leaf is unset.</p>
 </div>
@@ -836,7 +882,7 @@ serves a self-signed certificate when that leaf is unset.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
+                    <span class="footer-published">Published 24 November 2026 00:05 UTC</span>
                 </div>
             </div>
         </footer>

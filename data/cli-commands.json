@@ -37800,6 +37800,8 @@
       [
         "address",
         "name",
+        "hostname",
+        "domain",
         "description",
         "group",
         "remote-as",
@@ -39307,7 +39309,7 @@
   {
     "path": "show bgp peer capabilities",
     "short-help": "Show what capabilities were negotiated with a peer.",
-    "description": "The row carries the peer address and the FSM state. Once the OPEN exchange\ncompleted, a negotiated map follows with the address families, the extended\nmessage capability, enhanced route refresh, and 4-byte ASN support.\nnegotiated.paths-limit carries nonzero limits keyed by family: send is the\npeer's maximum paths per prefix enforced on our outbound updates; receive is\nour advertised receive request, not a locally enforced inbound limit. Zero or\nabsent limits are omitted. A selector that matches no peer is refused with\n'no matching peers'.",
+    "description": "The row carries the peer address and the FSM state. Once the OPEN exchange\ncompleted, a negotiated map follows with the address families, the extended\nmessage capability, enhanced route refresh, and 4-byte ASN support.\nnegotiated.paths-limit carries nonzero limits keyed by family: send is the\npeer's maximum paths per prefix enforced on our outbound updates; receive is\nour advertised receive request, not a locally enforced inbound limit. Zero or\nabsent limits are omitted. When the peer advertised a valid FQDN capability\n(code 73), negotiated.fqdn carries its hostname and/or domain name for\ntroubleshooting display. A selector that matches no peer is refused with\n'no matching peers'.",
     "mode": "read-only",
     "wire-method": "ze-bgp:peer-capabilities",
     "args": [
@@ -39505,7 +39507,7 @@
   {
     "path": "show bgp peer detail",
     "short-help": "Show full detail for one or more peers.",
-    "description": "Each peer row carries the remote and local ASN, the router ID, the peer type,\n'state' (the peer's lifecycle) and 'fsm-state' (the session's RFC 4271 Section 8.2.2\nstate, IDLE, ACTIVE, CONNECT, OPENSENT, OPENCONFIRM or ESTABLISHED),\nand four timers: receive hold time, send hold time, keepalive, and connect\nretry. The 'connect' and 'accept' flags say which directions this session opens.\nA 'messages' map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and\nEnd-of-RIB in each direction. Negotiated nonzero PATHS-LIMIT values appear\nunder capabilities.paths-limit, keyed by family: send is the peer's maximum\npaths per prefix enforced on our outbound updates; receive is our advertised\nreceive request, not a locally enforced inbound limit. Zero or absent limits\nare omitted.",
+    "description": "Each peer row carries the remote and local ASN, the router ID, the peer type,\n'state' (the peer's lifecycle) and 'fsm-state' (the session's RFC 4271 Section 8.2.2\nstate, IDLE, ACTIVE, CONNECT, OPENSENT, OPENCONFIRM or ESTABLISHED),\nand four timers: receive hold time, send hold time, keepalive, and connect\nretry. The 'connect' and 'accept' flags say which directions this session opens.\nA 'messages' map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and\nEnd-of-RIB in each direction. Negotiated nonzero PATHS-LIMIT values appear\nunder capabilities.paths-limit, keyed by family: send is the peer's maximum\npaths per prefix enforced on our outbound updates; receive is our advertised\nreceive request, not a locally enforced inbound limit. Zero or absent limits\nare omitted. When the peer advertised a valid FQDN capability (code 73), its\nhostname and domain appear on the peer row and under capabilities.fqdn.",
     "mode": "read-only",
     "wire-method": "ze-bgp:peer-detail",
     "args": [
@@ -39695,6 +39697,8 @@
     "column-orders": [
       [
         "name",
+        "hostname",
+        "domain",
         "group",
         "remote-as",
         "local-as",
@@ -40046,6 +40050,8 @@
     "column-orders": [
       [
         "name",
+        "hostname",
+        "domain",
         "group",
         "remote-as",
         "state",

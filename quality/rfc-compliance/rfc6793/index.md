@@ -551,7 +551,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 A NEW BGP speaker that receives a malformed AS4_AGGREGATOR attribute in an UPDATE message from an OLD BGP speaker MUST discard the attribute and continue processing the UPDATE message. (Section 6)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go::TestCollapseAS4DiscardsMalformedAS4Aggregator, internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go::TestCollapseAS4SelectsAggregatorPerSection423 moved. TestCollapseAS4DiscardsMalformedAS4Aggregator: a 7-octet AS4_AGGREGATOR is removed from the collapsed payload, not promoted, NLRI kept, drop reported; negative reads an 8-octet one.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestCollapseAS4DiscardsMalformedAS4Aggregator: a 7-octet AS4_AGGREGATOR is removed from the collapsed payload, not promoted, NLRI kept, drop reported; negative reads an 8-octet one.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

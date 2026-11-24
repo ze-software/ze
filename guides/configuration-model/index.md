@@ -1631,11 +1631,14 @@ A running plugin that a peer does not attach receives no event from that peer,
 whatever the plugin asked for when it started, and it may send that peer
 nothing. Loading a plugin and attaching it to a peer are two separate acts.
 
-Base event types for `receive`: `update`, `open`, `notification`, `keepalive`,
-`refresh`, `state`, `negotiated`, `eor`, `rpki`. Plugins may register more (for
+Base event types for `receive`: `update`, `update-filtered`, `open`, `notification`, `keepalive`,
+`refresh`, `state`, `negotiated`, `eor`, `rpki`. `update-filtered` carries
+ingress-denied UPDATEs for route-server clients (`rs-client true`) so
+`bgp-adj-rib-in` retains the pre-policy population (RFC 7947 Section 2.1). Plugins may register more (for
 example `update-rpki` from bgp-rpki-decorator). A plain type is fed in both
 directions; `update-received` and `update-sent` name one. `*` names every
 registered type. Values are validated at config parse time.
+<!-- source: internal/core/bgp/events/events.go -- EventUpdateFiltered -->
 
 Base message types for `send`: `update` to originate routes, `refresh` to ask
 the peer to re-advertise, `raw` to write a whole BGP message the program built
@@ -4014,11 +4017,12 @@ no intermediate serves the leaf alone.
 |------|--------|
 | Default | No `certificate` leaf means ze generates and serves a self-signed certificate, which is the behavior of every release before this leaf existed. |
 | Fail closed | A `certificate` that names no store entry, or names one with no `private { key }`, stops the listener. ze never falls back to a self-signed certificate for a name the operator configured. Web and looking glass: the daemon refuses to start, and a reload naming a bad certificate is rejected. DoT/DoH: the secure listeners do not start, the error is logged, and cleartext DNS is unaffected. |
-| Plaintext | A listener with TLS off presents no certificate, so its `certificate` leaf is inert. `looking-glass { tls false }` with a `certificate` starts and reloads with the name unread, rather than failing over a name nothing serves. |
+| Plain HTTP | Each looking-glass `server` entry chooses HTTPS or plain HTTP in its own `tls` leaf (default true), so one looking glass serves both at once. An entry with `tls false` presents no certificate. When every entry says `tls false` the `certificate` leaf is inert: the daemon starts and reloads with the name unread, rather than failing over a name nothing serves. |
 | Mutually exclusive | In a `tls {}` container, `certificate` and `cert-file`/`key-file` are two sources of the same material. Setting both is rejected at commit. |
 | Name | 1 to 255 characters, `A-Z a-z 0-9 . _ -`. It is a store key, never a file path. |
 | Rotation | Changing the referenced certificate's material and reloading rotates it live. The web listener and the looking glass serve the new chain from the next handshake without rebinding, so an open SSE stream and a viewer's open connection both survive. DoT/DoH rebind, because their listener signature folds in the certificate fingerprint. |
 | One commit | A single commit can add a certificate AND reference it. The reload installs the store before any consumer applies its config. |
+| Removal | Removing the web or looking-glass `certificate` leaf and reloading makes the listener serve its self-signed certificate from the next handshake, without rebinding, as a restart would. A looking glass running without the `database/` store has no self-signed certificate: an entry that left `tls` unset then serves plain HTTP from its next connection, with a warning, and an entry that says `tls true` refuses that reload. |
 | Env override | `ze.web.certificate` and `ze.looking-glass.certificate` set their listener's certificate and take precedence over the config file. |
 | Store | A named certificate comes from the `pki {}` container, so the looking glass serves one on a deployment that never ran `ze init`. The `database/` store holds the self-signed certificate only. The web server needs the store whatever it serves, because its credentials and config live there. |
 | Pre-flight | `ze doctor` reports a reference that is missing, keyless, expired, or whose intermediate does not reach a configured CA, as `doctor-tls-reference` or `doctor-tls-expired`. Run it before deploying. |

@@ -260,6 +260,11 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>Established; <code>bgp</code> prefix would be redundant</td>
 </tr>
 <tr>
+<td><code>bgp-adj-rib-in</code></td>
+<td><code>adjribin</code></td>
+<td><code>bgp</code> prefix redundant; hyphens stripped</td>
+</tr>
+<tr>
 <td><code>bgp-gr</code></td>
 <td><code>gr</code></td>
 <td>Established</td>
@@ -353,6 +358,12 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>CounterVec</td>
 <td>peer, family</td>
 <td>bgp-rib</td>
+</tr>
+<tr>
+<td><code>ze_adjribin_routes_filtered</code></td>
+<td>GaugeVec</td>
+<td>peer</td>
+<td>bgp-adj-rib-in: import-filtered pre-policy routes retained per peer (RFC 7947 Section 2.1)</td>
 </tr>
 <tr>
 <td><code>ze_attr_pool_intern_total</code></td>
@@ -1648,7 +1659,7 @@ The publisher keeps no released label sets in its custody map.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 20:13 UTC</span>
                 </div>
             </div>
         </footer>

@@ -242,7 +242,7 @@
     },
     "core_experimental": 52
   },
-  "generated_at": "2026-11-23",
+  "generated_at": "2026-11-24",
   "github_stars": 60,
   "health": {
     "adoption": {
@@ -266,13 +266,13 @@
     },
     "assert-nothing": {
       "inert": {
-        "denominator": "53490",
+        "denominator": "53587",
         "numerator": "108",
         "percent": "0.2"
       },
       "value": {
         "1": "108",
-        "2": "53490",
+        "2": "53587",
         "3": "108"
       }
     },
@@ -287,14 +287,14 @@
         "1": "6"
       },
       "detail": {
-        "1": "11394",
+        "1": "11412",
         "2": "121",
         "3": "161",
-        "4": "3218",
+        "4": "3223",
         "5": "210"
       },
       "value": {
-        "1": "53536"
+        "1": "53633"
       }
     },
     "known-failures": {
@@ -307,13 +307,13 @@
     },
     "negative-tests": {
       "overall": {
-        "denominator": "11394",
-        "numerator": "4710",
+        "denominator": "11412",
+        "numerator": "4713",
         "percent": "41.3"
       },
       "value": {
-        "1": "4710",
-        "2": "11394"
+        "1": "4713",
+        "2": "11412"
       },
       "worst": {
         "1": {
@@ -371,7 +371,7 @@
     "rfc-proof-density": {
       "detail": {
         "1": "57.7",
-        "10": "1342",
+        "10": "1301",
         "11": "74",
         "12": "2026",
         "13": "10",
@@ -380,36 +380,36 @@
         "16": "11",
         "17": "13",
         "18": "0",
-        "19": "198",
-        "2": "4724",
-        "20": "4830",
-        "21": "206",
-        "22": "2226",
+        "19": "191",
+        "2": "4633",
+        "20": "4739",
+        "21": "199",
+        "22": "2218",
         "23": "99",
-        "24": "1340",
-        "25": "38",
+        "24": "1337",
+        "25": "33",
         "26": "511",
         "27": "235",
         "28": "0",
         "29": "0",
-        "3": "2722",
+        "3": "2668",
         "30": "0",
         "31": "15",
         "4": "3",
         "5": "232",
-        "6": "1767",
-        "7": "404",
+        "6": "1730",
+        "7": "408",
         "8": "21",
         "9": "0"
       },
       "proof_density": {
-        "denominator": "4724",
-        "numerator": "2725",
+        "denominator": "4633",
+        "numerator": "2671",
         "percent": "57.7"
       },
       "value": {
-        "1": "2725",
-        "2": "4724"
+        "1": "2671",
+        "2": "4633"
       },
       "worst": {
         "1": {
@@ -477,7 +477,7 @@
     "protocols": {
       "as112": 6,
       "bfd": 5,
-      "bgp": 155,
+      "bgp": 157,
       "bmp": 4,
       "dhcpv4": 3,
       "dhcpv6": 2,
@@ -497,12 +497,12 @@
       "topology": 18,
       "vrrp": 2
     },
-    "scenario_dirs_raw": 423,
-    "scenarios": 423,
+    "scenario_dirs_raw": 425,
+    "scenarios": 425,
     "scenarios_display": "420+",
     "suite_count": 8,
     "suites": {
-      "interop": 259,
+      "interop": 261,
       "interop-ipsec": 87,
       "interop-l2tp": 18,
       "interop-pppoe": 17,
@@ -515,58 +515,58 @@
     "targets": 13
   },
   "plugin_registrations": 98,
-  "published_at": "2026-11-23T05:52:34Z",
+  "published_at": "2026-11-24T00:02:00Z",
   "release": null,
   "repo": {
-    "design_comments": 13733,
+    "design_comments": 13772,
     "design_comments_display": "13,700+",
-    "detail_comments": 13885,
-    "detail_comments_display": "13,800+",
-    "go_packages": 1075,
+    "detail_comments": 13970,
+    "detail_comments_display": "13,900+",
+    "go_packages": 1076,
     "go_packages_display": "1,000+",
-    "go_source_lines": 1986325,
-    "go_source_lines_display": "1.99 million",
-    "go_test_lines": 2407059,
-    "go_test_lines_display": "2.41 million",
+    "go_source_lines": 1995103,
+    "go_source_lines_display": "2.00 million",
+    "go_test_lines": 2418523,
+    "go_test_lines_display": "2.42 million",
     "go_vendor_lines": 2067063,
     "go_vendor_lines_display": "2.07 million"
   },
   "rfc": {
     "enrolled": 206,
     "enrolled_display": "206",
-    "gated_must": 4830,
-    "gated_must_display": "4,830",
-    "implemented": 198,
-    "implemented_display": "198",
-    "inspected": 206,
-    "inspected_display": "206",
+    "gated_must": 4739,
+    "gated_must_display": "4,739",
+    "implemented": 191,
+    "implemented_display": "191",
+    "inspected": 199,
+    "inspected_display": "199",
     "must": 5400,
     "must_display": "5,400",
-    "must_built": 3382,
-    "must_built_display": "3,382",
-    "must_kept": 4724,
-    "must_kept_display": "4,724",
-    "must_not_built": 1342,
-    "must_not_built_display": "1,342",
+    "must_built": 3332,
+    "must_built_display": "3,332",
+    "must_kept": 4633,
+    "must_kept_display": "4,633",
+    "must_not_built": 1301,
+    "must_not_built_display": "1,301",
     "not_walked": 0,
     "not_walked_display": "0",
-    "proven": 2725,
-    "proven_built_percent": "80.6",
-    "proven_display": "2,725",
+    "proven": 2671,
+    "proven_built_percent": "80.2",
+    "proven_display": "2,671",
     "proven_percent": "57.7",
-    "requirements": 7859,
-    "requirements_display": "7,859",
+    "requirements": 7860,
+    "requirements_display": "7,860",
     "summaries": 232,
     "summaries_display": "232"
   },
   "tests": {
-    "e2e": 3218,
+    "e2e": 3223,
     "e2e_display": "3,200+",
     "editor": 210,
     "editor_display": "210",
     "fuzz": 121,
     "fuzz_display": "120+",
-    "unit": 53536,
-    "unit_display": "53,500+"
+    "unit": 53633,
+    "unit_display": "53,600+"
   }
 }

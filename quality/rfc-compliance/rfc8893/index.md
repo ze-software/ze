@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 4 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 4 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 4 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 3 | 3 of 11 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 11 | 11 of 11 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -86,9 +86,9 @@ Included in automatic checks: Four MUST-level requirements, all recorded as `{ga
 
 **Area:** RPKI origin validation on export
 
-**Test verification:** 2 of 4 MUST proven
+**Test verification:** 4 of 4 MUST proven
 
-**Evidence:** unit 2
+**Evidence:** unit 4
 
 **Unmet:** -
 
@@ -110,19 +110,19 @@ Included in automatic checks: Four MUST-level requirements, all recorded as `{ga
 
 ## Figures
 
-- **MUST bar**: Ze verified 2, Tests awaiting verification 2
-- **Overview bar**: Ze MUST verified 2, Tests awaiting verification 2, Not assessed 2
+- **MUST bar**: Ze verified 4
+- **Overview bar**: Ze MUST verified 4, Not assessed 2
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 4 |
 | MUST rows kept (the MUST bar) | 4 |
-| Ze verified | 2 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Tests awaiting verification | 2 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -175,9 +175,9 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L311) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC8893EgressValidationRejectsRouteInvalidAfterEgressConfigAndPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L311) | unit/verify | revert, verified |
 | positive | [`TestRPKIPluginPublishesOriginValidatorSeam`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8893_policy_seam_test.go#L16) | unit/verify | revert, verified |
-| positive | [`TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L150) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8893EgressValidationAppliesAfterEgressConfigAndPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L150) | unit/verify | revert, verified |
 
 ### [`RFC8893-1-2`](#rfc8893-1-2)
 
@@ -187,8 +187,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L548) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC8893ASPathModificationsChangingEffectiveOriginAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L425) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC8893ASPathModificationToUnauthorizedOriginIsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L548) | unit/verify | revert, verified |
+| positive | [`TestRFC8893ASPathModificationsChangingEffectiveOriginAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L425) | unit/verify | revert, verified |
 
 ### [`RFC8893-3-1`](#rfc8893-3-1)
 
@@ -198,9 +198,9 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8893ValidationStatePrimitiveRefusesInvalidConfigAndInactiveValidator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L693) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC8893ValidationStatePrimitiveRefusesInvalidConfigAndInactiveValidator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L693) | unit/verify | revert, verified |
 | negative | [`TestRFC8893RedistributeInactiveValidatorRefusesValidMatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/redistribute/rfc8893_redistribute_validation_test.go#L113) | unit/verify | revert, verified |
-| positive | [`TestRFC8893SamePolicyPrimitiveAcrossIngressRedistributionAndEgress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L623) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8893SamePolicyPrimitiveAcrossIngressRedistributionAndEgress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L623) | unit/verify | revert, verified |
 | positive | [`TestRFC8893RedistributePolicyFiltersByRPKIValidationState`](https://github.com/ze-software/ze/blob/main/internal/plugins/redistribute/rfc8893_redistribute_validation_test.go#L24) | unit/verify | revert, verified |
 
 ### [`RFC8893-3-2`](#rfc8893-3-2)
@@ -211,8 +211,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L845) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L758) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC8893EgressValidationDoesNotUseStaleReceivedOriginAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L845) | unit/verify | revert, verified |
+| positive | [`TestRFC8893EgressValidationUsesEffectiveAnnouncedOriginAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8893_egress_validation_test.go#L758) | unit/verify | revert, verified |
 
 ## Requirement list review
 

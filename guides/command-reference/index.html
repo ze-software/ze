@@ -3052,8 +3052,9 @@ Child SA whose removal has started each return an error rather than a clean
 result.</p>
 <p>A backend that cannot enumerate the dataplane, VPP and the noop backend among
 them, reports that it cannot rather than rendering an empty table. So does a
-process without CAP_NET_ADMIN, and so does a daemon that loaded no dataplane
-backend at all. An empty table would answer "nothing is installed" to a question
+process without CAP_NET_ADMIN, a security module's denial (<code>EACCES</code>), a kernel
+built without <code>CONFIG_XFRM_USER</code>, and a daemon that loaded no dataplane backend
+at all, each with its own fix. An empty table would answer "nothing is installed" to a question
 nobody asked the kernel.</p>
 <p>RFC 4303 Section 2.1 reserves SPI 0, so the <code>spi</code> selector refuses it rather
 than reading it as "every SPI".</p>
@@ -4941,6 +4942,13 @@ Ze announces to that peer for each prefix. The <code>receive</code> map holds th
 advertised, which is what Ze asked the peer for. A family with ADD-PATH and no
 limit is in neither map, because no limit is not a limit of zero. The same
 object appears under <code>capabilities</code> on <code>show bgp peer &lt;sel&gt; detail</code>.</p>
+<p>When a peer advertised a valid FQDN capability (code 73,
+<code>draft-walton-bgp-hostname-capability</code>), <code>show bgp</code>, <code>show bgp peer list</code>, and
+<code>show bgp peer &lt;sel&gt; detail</code> include its <code>hostname</code> and/or <code>domain</code> on the peer
+row, and <code>show bgp peer &lt;sel&gt; detail</code> (<code>capabilities.fqdn</code>) and
+<code>show bgp peer &lt;sel&gt; capabilities</code> (<code>negotiated.fqdn</code>) carry the same fields
+under <code>fqdn</code>. Empty halves and absent capabilities are omitted, and strings
+containing invalid UTF-8 or control characters are withheld.</p>
 <p>Until 2026-08 each command answered a bare object for one matched peer and an
 array for several. <code>show bgp peer * statistics | count</code> therefore answered on a
 router with three peers, and was refused on a router with one. A script that
@@ -5300,6 +5308,16 @@ unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;famil
 <td><code>show bgp rib best status</code></td>
 <td>read-only</td>
 <td>Best-path computation status</td>
+</tr>
+<tr>
+<td><code>show bgp adj-rib-in</code></td>
+<td>read-only</td>
+<td>Show raw hex Adj-RIB-In entries per peer; each route includes <code>filtered</code> (<code>bool</code>) and, when import-filtered, <code>filter-step</code> naming the denying ingress step</td>
+</tr>
+<tr>
+<td><code>show bgp adj-rib-in status</code></td>
+<td>read-only</td>
+<td>Adj-RIB-In summary with <code>total-routes</code>, <code>filtered-routes</code>, and per-peer counts</td>
 </tr>
 <tr>
 <td><code>clear bgp rib in &lt;selector&gt;</code></td>
@@ -6375,7 +6393,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 23 November 2026 05:43 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 23:44 UTC</span>
                 </div>
             </div>
         </footer>

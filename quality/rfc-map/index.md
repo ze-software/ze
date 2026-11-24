@@ -6,10 +6,10 @@ The interactive graph is available on the [RFC map page](./).
 
 ## Recorded inputs
 
-RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: `a218ade1720eea26081ba93b99e2e445fd294880`. These inputs do not certify one release candidate.
+RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: `20d642984c508c69eeeaf0fd9ba2e173780af47e`. These inputs do not certify one release candidate.
 
-- RFC requirement ledger: `data/rfc-requirements.json`, SHA-256 `c7f5f3a891514b83253d1b36abedb904a37ca82e8241375005e8822f9aca317e`
-- Committed spec roadmap: `data/release-roadmap.json`, SHA-256 `5a002145e612c8c43906c610f1e84bc62d2cd8061f20de68ee30fef89d5943c0`, revision `a218ade1720eea26081ba93b99e2e445fd294880`
+- RFC requirement ledger: `data/rfc-requirements.json`, SHA-256 `63a32917037b84c495701c9566de54ffbba610d561f5f7a1770e053500897b02`
+- Committed spec roadmap: `data/release-roadmap.json`, SHA-256 `f9d54eed1f9e157bd94d310dbb3016ba465771b8679d90d0ff8779f6d750f60b`, revision `20d642984c508c69eeeaf0fd9ba2e173780af47e`
 - Proposed release layers: `website/data/rfc-release-layers.json`, SHA-256 `4718bc1578afc15183efee2fcbadd9f52ed5434b4fb57eeb61b980dbd928ac68`
 
 ## Proposed release layers
@@ -291,8 +291,6 @@ RFC evidence revision and age are unknown where the recorded input supplies neit
 - [rfc9003](../rfc-compliance/rfc9003/) — Extended BGP Administrative Shutdown Communication
 - rfc9325 (no recorded summary)
 - [draft-abraitis-idr-addpath-paths-limit](../rfc-compliance/draft-abraitis-idr-addpath-paths-limit/) — Scalability Considerations for ADD-PATH with PATHS-LIMIT
-- draft-ietf-idr-bgp-multisession (no recorded summary)
-- draft-ietf-idr-operational-message (no recorded summary)
 - [rfc3579](../rfc-compliance/rfc3579/) — RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP)
 - [rfc4576](../rfc-compliance/rfc4576/) — Using a Link State Advertisement (LSA) Options Bit to Prevent Looping in BGP/MPLS IP Virtual Private Networks (VPNs)
 - [rfc4577](../rfc-compliance/rfc4577/) — OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs)

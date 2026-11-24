@@ -132,13 +132,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10</strong><b>of 76 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 76 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 76 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>155</strong><b>155 of 224 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>157</strong><b>157 of 226 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>11</strong><b>of 76 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>64</strong><b>of 76 mandatory requirements reviewed</b><p>5 weak, wrong or unimplemented, 9 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>64</strong><b>of 76 mandatory requirements reviewed</b><p>3 weak, wrong or unimplemented, 7 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -251,16 +251,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 </tr>
 <tr><td>Test tags</td>
-<td>224</td>
+<td>226</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>224</td>
+<td>226</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>64</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>155</td>
+<td>157</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1661.md</code></td>
@@ -873,6 +873,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go#L26" title="internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckAcrossAllStates</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L564" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckSentAndLinkHeld</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L598" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoTerminateAckForTerminateAck</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L98" title="internal/le/interoplab/l2tp/ppp_code_reject.go" target="_blank" rel="noopener"><code>checkPPPCodeReject</code></a></span></div>
@@ -883,6 +884,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go#L92" title="internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectAcrossAllStates</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1141" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectForUnknownCode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1173" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoCodeRejectForKnownCode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/l2tp/ppp_code_reject.go#L84" title="internal/le/interoplab/l2tp/ppp_code_reject.go" target="_blank" rel="noopener"><code>checkPPPCodeReject</code></a></span></div>
@@ -1871,7 +1873,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC1661-3.7-2, so there is no linked test.</p>
 <h3><a href="#rfc1661-4.3-1"><code>RFC1661-4.3-1</code></a></h3>
 <p>The implementation MUST be prepared to immediately renegotiate the Configuration Options. (Section 4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged after 438bb234e4 changed handleLCPPacket: codeToEvent now reads the packet, so a Code-Reject of Codes 1-8 or a Protocol-Reject naming LCP raises RXJ- (recorded as lcpRejectFatalReason after the transition is found non-trivial), and stopRejectedCode records a rejected Echo-Request or Echo-Reply. Re-read Section 4.3&#39;s Implementation Note under RCR+/RCR- (&#39;These events may occur on a connection which is already in the Opened state. The implementation MUST be prepared to immediately renegotiate the Configuration Options.&#39;). Every new branch is keyed on pkt.Code == LCPCodeReject, LCPProtocolReject or ev == RXJ-, so a Configure-Request still reaches evalLCPRequest, the Opened resetAuthNegotiation and LCPDoTransition on byte-identical code and still raises RCR+/RCR-. None of the six tagged units sends a Code-Reject or Protocol-Reject as input, and all are unchanged. The server tests still require exact tld/scr/sca or tld/scr/scn actions, Ack-Sent, the Configure-Request and Ack output and no session-down; the Echo control still refuses scr/tld; the client Auth, IPCP and Network probes still require their own Configure-Request before an exact peer Ack, Identifier 0x73 and Magic 0x55667788. The verdict holds, with the earlier record caveat: the mutant records cover phase dispatch and the producer-disable records prove reachability only.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged after keepaliveLoop (network_phase.go) and negotiatePhases (phases.go) gained unsupported-protocol LCP Protocol-Reject dispatch (RFC 1661 Section 5.7) and the no-NCP idle-period timer (RFC 1661 Section 3.7). Re-read RFC 1661 Section 4.3&#39;s Implementation Note under RCR+/RCR- (&#39;These events may occur on a connection which is already in the Opened state. The implementation MUST be prepared to immediately renegotiate the Configuration Options.&#39;). In keepaliveLoop, clientSupportsProtocol always admits ProtoLCP, so a received LCP Configure-Request still reaches requestLCPReentry and reenter(reentry); reenter cancels any armed no-NCP idle timer before invoking connectedSession.restart, and a *lcpReentry returned from handleIPCP still routes into reenter. In negotiatePhases, runIPCP now receives ipcpRun{ipv6, lcpIdentifier} so Protocol-Rejects share the LCP Identifier sequence, while an LCP Configure-Request during Auth or IPCP still returns *lcpReentry and immediately restarts the epoch loop with scr before sca/scn. All six tagged test units are byte-identical: the server tests require exact tld/scr/sca or tld/scr/scn actions, Ack-Sent, Configure-Request and Ack output and no session-down; the Echo control refuses scr/tld; the client Auth, IPCP and Network probes require own Configure-Request directly before exact peer Ack with Identifier 0x73 and Magic-Number 0x55667788.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -2495,7 +2497,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1661-5.4-5"><code>RFC1661-5.4-5</code></a></h3>
 <p>Reception of a valid Configure-Reject indicates that when a new Configure-Request is sent, it MUST NOT include any of the Configuration Options listed in the Configure-Reject. (§5.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged after 438bb234e4 changed handleLCPPacket&#39;s Code-Reject and Protocol-Reject handling (RXJ+/RXJ- by rejected Code or protocol, stopRejectedCode, lcpRejectFatalReason). Re-read Section 5.4: &#39;when a new Configure-Request is sent, it MUST NOT include any of the Configuration Options listed in the Configure-Reject.&#39; The rejection flags sendConfigureRequest reads are still set in the unchanged Nak/Reject block, and a Configure-Reject never enters the Code-Reject branches; the new echo flags stopRejectedCode sets are read only by the echo ticker and the ser action, never by the request builder. The tagged units are unchanged. Server MRU-only rejection still keeps the other original bytes, and MRU/Auth/Magic rejection still yields an empty request that a valid Ack advances. The client MRU-only, Magic-only and all-option cases still assert the exact surviving bytes, an unchanged retransmission and no resurrection from later Nak suggestions. The IPCP DNS control still removes both DNS options, or Secondary-DNS alone, and learns no rejected DNS. Removal and preservation remain distinct assertions, so the verdict holds.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged after runIPCP (pppoeclient/session.go) gained unsupported-protocol LCP Protocol-Reject dispatch and the connected no-NCP idle-period channel. Re-read RFC 1661 Section 5.4 (&#39;Reception of a valid Configure-Reject indicates that when a new Configure-Request is sent, it MUST NOT include any of the Configuration Options listed in the Configure-Reject.&#39;). In runIPCP, ProtoIPCP is admitted by clientSupportsProtocol, reaches ValidateLCPReply for Configure-Reject subset validation, and enters the unchanged LCPConfigureReject arm that clears requested.HasPrimary/HasSecondary, advances the Identifier and resends without the rejected options; the idle channel is nil on initial negotiation and only fires when no NCP is Opened on a connected renegotiation. All five tagged units are byte-identical: server MRU-only rejection preserves other options while all-option rejection yields an empty request; client LCP MRU/Magic/all-option cases assert exact surviving bytes, unchanged retransmission and no resurrection on later Nak; IPCP DNS control removes both or Secondary-DNS alone and learns no rejected server.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -2530,7 +2532,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1661-5.5-1"><code>RFC1661-5.5-1</code></a></h3>
 <p>Upon reception of a Terminate-Request, a Terminate-Ack MUST be transmitted. (Section 5.5)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject moved. Rejudged after checkPPPCodeReject gained assertions 9 and 10. Re-read Section 5.5. Assertion 6 is unchanged in substance. triggerIPCPTerminate touches the same /run/ipcp-terminate marker and sends one detached LAC echo as the trigger datagram, and injectedTerminate still requires the fifth injected frame to be exactly IPCP 05 5a 00 04. The wire wait still requires Ze&#39;s IPCP Terminate-Ack carrying that Identifier, after assertion 5 has excluded earlier Code 1-6 traffic. Assertion 9, between the trigger and that wait, observes the IPv4 address leaving pppN (the tld half of Opened RTR) and is no substitute for the Terminate-Ack. Assertion 10 observes pppd renegotiating IPCP after the Ack and Ze reinstalling the address on the same pppN. That is Section 3.6 and Section 4.1 behaviour, not Section 5.5, and it adds no state to this row. The unit pair TestRFC1661TerminateAckSentAndLinkHeld and TestRFC1661NoTerminateAckForTerminateAck is unchanged. The whole-row gap stands: LCPDoTransition&#39;s sta edges in Stopped, Closing, Stopping, Ack-Rcvd and Ack-Sent are untagged, an open row in plan/journal/requirement-proven-in-one-state-of-many.md owned by spec-ppp-l2tp-aaa-one-off-defects. Weak stands, and no test was reduced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged after adding TestRFC1661TerminateAckAcrossAllStates (rfc1661_rtr_ruc_states_test.go) and after 7db39c4b2d replaced checkPPPCodeReject&#39;s constant-arg fail(7, parseErr) closure with equivalent pppCodeRejectFailure(name, 7, parseErr). Re-read RFC 1661 Section 5.5 (&#39;Upon reception of a Terminate-Request, a Terminate-Ack MUST be transmitted.&#39;) and Section 4.1 row RTR. The former whole-row gap (untagged non-Opened states) is closed: TestRFC1661TerminateAckAcrossAllStates drives handleLCPPacket with Terminate-Request (Identifier 0x77) in all eight packet-receiving states (Closed, Stopped, Closing, Stopping, Req-Sent, Ack-Rcvd, Ack-Sent, Opened), asserting the exact Section 4.1 next state, exact ended boolean, exactly one LCP frame, Code Terminate-Ack and echoed Identifier 0x77 (dropping LCPActSTA from any state&#39;s LCPEventRTR arm in LCPDoTransition fails that state&#39;s subtest). Existing TestRFC1661TerminateAckSentAndLinkHeld keeps the Opened no-EventSessionDown check, TestRFC1661NoTerminateAckForTerminateAck provides the negative control (Terminate-Ack draws no Terminate-Ack), and checkPPPCodeReject proves live xl2tpd/pppd Terminate-Ack echoing Identifier 0x5a.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -2539,6 +2541,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L598" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoTerminateAckForTerminateAck</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go#L26" title="internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckAcrossAllStates</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L564" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckSentAndLinkHeld</code></a></td>
@@ -2555,7 +2562,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1661-5.6-1"><code>RFC1661-5.6-1</code></a></h3>
 <p>This MUST be reported back to the sender of the unknown Code by transmitting a Code- Reject. (Section 5.6)</p>
-<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject moved. Rejudged after checkPPPCodeReject gained assertions 9 and 10, which run after the Code-Reject assertions and only add the IPCP withdrawal and reopen. Re-read Section 5.6. Assertion 2 is unchanged: two LCP and two IPCP Code-Rejects for exactly four observed injected probes. Assertions 3 and 4 still keep the exact counts, the distinct response Identifiers and the rejected packet&#39;s identity and prefix. The unit pair TestRFC1661CodeRejectForUnknownCode and TestRFC1661NoCodeRejectForKnownCode is unchanged. Those proofs isolate the report of an unknown Code in the exercised states. LCPDoTransition&#39;s RUC-to-scj edges in Closing and Stopping are still untagged, an open row in plan/journal/requirement-proven-in-one-state-of-many.md owned by spec-ppp-l2tp-aaa-one-off-defects. Weak stands, and no assertion was weakened.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged after adding TestRFC1661CodeRejectAcrossAllStates (rfc1661_rtr_ruc_states_test.go) and after 7db39c4b2d replaced checkPPPCodeReject&#39;s constant-arg fail(7, parseErr) closure with equivalent pppCodeRejectFailure(name, 7, parseErr). Re-read RFC 1661 Section 5.6 (&#39;This MUST be reported back to the sender of the unknown Code by transmitting a Code-Reject.&#39;) and Section 4.1 row RUC. The former whole-row gap (untagged Closing and Stopping states) is closed: TestRFC1661CodeRejectAcrossAllStates drives handleLCPPacket with unknownLCPCode (Identifier 0x41, payload aabb) across all eight packet-receiving states (Closed, Stopped, Closing, Stopping, Req-Sent, Ack-Rcvd, Ack-Sent, Opened), asserting unchanged state, exact ended boolean, exactly one LCP Code-Reject frame and exact Rejected-Packet bytes (dropping LCPActSCJ from any state&#39;s LCPEventRUC arm in LCPDoTransition fails that state&#39;s subtest). Existing TestRFC1661CodeRejectForUnknownCode and TestRFC1661NoCodeRejectForKnownCode keep the positive and negative unit controls, and checkPPPCodeReject proves two LCP and two IPCP Code-Rejects with distinct Identifiers and rejected packet prefixes against live xl2tpd/pppd.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -2564,6 +2571,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1173" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoCodeRejectForKnownCode</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go#L92" title="internal/component/l2tp/ppp/rfc1661_rtr_ruc_states_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectAcrossAllStates</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1141" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectForUnknownCode</code></a></td>
@@ -3711,7 +3723,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 23:44 UTC</span>
                 </div>
             </div>
         </footer>

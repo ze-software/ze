@@ -400,7 +400,7 @@ announcement with no Tunnel Encapsulation attribute is treat-as-withdraw
 <tr>
 <td>Hostname</td>
 <td>73</td>
-<td>RFC 8516</td>
+<td>draft-walton-bgp-hostname-capability</td>
 <td>FQDN capability</td>
 </tr>
 <tr>
@@ -624,6 +624,11 @@ rail did not.</p>
 <td>Configured MULTI_EXIT_DISC removal</td>
 <td>4271 Section 5.1.4</td>
 <td><code>policy/modify/&lt;name&gt;/del/med</code>, on an import chain only. On an export chain the removal is ignored with a logged warning, and the definition's other operations still apply (Section 9.1.2.2).</td>
+</tr>
+<tr>
+<td>Post-selection MULTI_EXIT_DISC preservation on iBGP readvertisement</td>
+<td>4271 Section 9.1.2.2</td>
+<td>Because Ze compares MED across same-neighbor-AS iBGP and eBGP candidates, <code>applyFactsMED</code> restores the selected MED on internal readvertisement if a raw export replacement omitted it, while standing aside for an explicit egress MED Set and never synthesizing MED when the selected route carried none. Proven on ordinary <code>bgp-rib</code> transit by <code>bgp-med-ibgp-ordinary-post-selection-removal-gobgp</code> and on the route-server rail by <code>bgp-med-ibgp-post-selection-removal-gobgp</code>.</td>
 </tr>
 <tr>
 <td class="cell-no">✕</td>
@@ -953,7 +958,7 @@ whether an enabled peer's capture directory is usable
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 23 November 2026 05:15 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 23:44 UTC</span>
                 </div>
             </div>
         </footer>

@@ -2453,9 +2453,9 @@ The api-server container under it is the shared parent of the REST and gRPC tran
       - `user`: User-level messages
       - `uucp`: UUCP subsystem
 - **looking-glass** `container`: Looking glass HTTP server settings.
-  The container holds the enable switch, the listen endpoints, the TLS switch, the bearer token and the named next-hop ranges.
+  The container holds the enable switch, the listen endpoints, each with its own tls leaf, the certificate, the bearer token and the named next-hop ranges.
   - **certificate** `string`: PKI store certificate served on the looking-glass listener (ze.looking-glass.certificate).
-    The listener sends the leaf certificate and every intermediate certificate the store entry holds, so a client can build the full chain. When this leaf is not set, ze generates a self-signed certificate and serves that. If the store holds no entry with that name, or the entry holds no private key, ze exits with an error and rejects a reload. ze never falls back to a self-signed certificate for a configured name. A named certificate comes from the pki container. Environment variable: ze.looking-glass.certificate.
+    The listener sends the leaf certificate and every intermediate certificate the store entry holds, so a client can build the full chain. Every server entry that serves HTTPS presents it; an entry with tls false presents none. When this leaf is not set, ze generates a self-signed certificate and serves that. If the store holds no entry with that name, or the entry holds no private key, ze exits with an error and rejects a reload. ze never falls back to a self-signed certificate for a configured name. A named certificate comes from the pki container. Environment variable: ze.looking-glass.certificate.
   - **enabled** `boolean`: Enable the looking glass.
     The looking glass does not start while this leaf is false, and false is the default.
   - **next-hop-range <prefix>** `list`: Names shown beside the next hops of an address range.
@@ -2463,13 +2463,13 @@ The api-server container under it is the shared parent of the REST and gRPC tran
     - **name** `string`: Name shown beside a next hop in this range (e.g. ams-ix-lan).
       The name is shown on a public page, so it takes 1 to 64 characters from A-Z a-z 0-9 . _ - and starts with a letter or a digit. An entry with no name is refused, because it would label nothing.
   - **server <name>** `list`: Looking glass listen endpoints.
-    Each entry names one listen endpoint. The default endpoint is 0.0.0.0 on port 8443.
+    Each entry names one listen endpoint and says, in its tls leaf, whether that endpoint serves HTTPS or plain HTTP, so one looking glass serves both at once on two entries. The default endpoint is 0.0.0.0 on port 8443, over HTTPS.
     - **ip** `ip-address`: Listen IP address
       The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
-  - **tls** `boolean`: Enable TLS. Override with the ze.looking-glass.tls variable.
-    Self-signed TLS certificates persist in the configuration store. The default true holds because the looking glass binds 0.0.0.0 and publishes route data. Set it to false to serve plaintext, for example when a proxy in front of Ze serves TLS.
+    - **tls** `boolean`: Serve HTTPS on this endpoint (default); false serves plain HTTP.
+      The endpoint serves HTTPS while this leaf is true, which is the default, and plain HTTP when it is false. What a looking glass publishes is public, so plain HTTP is a normal choice, on port 80 or behind a proxy. HTTPS serves the certificate the certificate leaf names, or a self-signed one kept in the database store. On a daemon with no database store and no named certificate, an endpoint that leaves this leaf unset serves HTTP with a warning, and an endpoint that says true is refused, at start and at reload. The RFC 8522 API under /.well-known/looking-glass/ answers on HTTPS endpoints only. No environment variable sets this leaf.
   - **token** `string`: Bearer token checked on every /api/ and /lg/ route (ze.looking-glass.token).
     Ze compares the token in constant time, with sha256 and subtle.ConstantTimeCompare. An empty token leaves the looking glass open, and that is the default: a looking glass is a public read-only surface.
 - **mcp** `container`: Settings of the MCP server.

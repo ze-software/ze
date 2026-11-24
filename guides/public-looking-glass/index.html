@@ -113,7 +113,7 @@ cat &gt;&gt;"$CONFIG_SET" &lt;&lt;'EOF'
 set environment looking-glass enabled enable
 set environment looking-glass server public ip 0.0.0.0
 set environment looking-glass server public port 8443
-set environment looking-glass tls false
+set environment looking-glass server public tls false
 
 set environment ssh server main ip 127.0.0.1
 set environment ssh server main port 2222
@@ -136,7 +136,7 @@ sudo systemctl reload ze.service
 <p>Expected validation output:</p>
 <pre><code class="language-text">configuration valid: /tmp/tmp.XXXXXXXXXX
 </code></pre>
-<p>The looking glass server defaults are <code>ip 0.0.0.0</code>, <code>port 8443</code>, and <code>tls true</code>. This example sets <code>tls false</code> because it puts a reverse proxy in front; the values are shown explicitly so the copy-paste config is clear. The example keeps SSH on localhost by updating the existing <code>server main</code> listener from the Ubuntu install guide.</p>
+<p>The looking glass server defaults are <code>ip 0.0.0.0</code>, <code>port 8443</code>, and <code>tls true</code>. This example sets <code>tls false</code> on its <code>public</code> server entry because it puts a reverse proxy in front; the values are shown explicitly so the copy-paste config is clear. The example keeps SSH on localhost by updating the existing <code>server main</code> listener from the Ubuntu install guide.</p>
 <h2 id="3-open-the-ui">3. Open the UI</h2>
 <p>From a browser:</p>
 <pre><code class="language-text">http://198.51.100.10:8443/lg/peers
@@ -283,15 +283,15 @@ Sections 7.2 and 7.3.</p>
 </tr>
 </tbody>
 </table>
-<p>Ze terminates TLS itself unless you set <code>tls false</code>. The self-signed certificate needs the <code>database/</code> store to hold it, so create one first with <code>ze init</code> (see <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a>). Without a store, an explicit <code>tls true</code> fails with <code>looking glass TLS requires persistent storage (run ze init first)</code>, while the default falls back to plaintext and prints a warning naming the same remedy. Set <code>certificate &lt;name&gt;</code> to serve a certificate from the <code>pki {}</code> container instead: that material needs no store, and the listener sends the full chain (see <a href="../looking-glass/">Looking Glass</a>).</p>
+<p>Ze terminates TLS itself on every server entry that does not set <code>tls false</code>. The self-signed certificate needs the <code>database/</code> store to hold it, so create one first with <code>ze init</code> (see <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a>). Without a store, an explicit <code>tls true</code> fails with <code>looking glass TLS requires persistent storage (run ze init first)</code>, while the default falls back to plaintext and prints a warning naming the same remedy. Set <code>certificate &lt;name&gt;</code> to serve a certificate from the <code>pki {}</code> container instead: that material needs no store, and the listener sends the full chain (see <a href="../looking-glass/">Looking Glass</a>).</p>
 <pre><code class="language-text">environment {
     looking-glass {
         enabled true
         server public {
             ip 0.0.0.0
             port 8443
+            tls true
         }
-        tls true
     }
 }
 </code></pre>
@@ -351,7 +351,7 @@ journalctl -u ze.service -n 100 --no-pager
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 22 November 2026 17:38 UTC</span>
+                    <span class="footer-published">Published 23 November 2026 23:44 UTC</span>
                 </div>
             </div>
         </footer>

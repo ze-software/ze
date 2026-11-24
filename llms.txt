@@ -15,22 +15,22 @@ This file collects information for AI tools in one place. It describes the produ
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 52 shipped or experimental feature cards, 624 CLI commands, 39 config sections, 98 plugin registrations, 66 direct Go dependencies, 47 update reports.
-- Test evidence counts: 53,500+ unit tests, 120+ fuzz targets, 3,200+ end-to-end transcript steps, 420+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
+- Test evidence counts: 53,600+ unit tests, 120+ fuzz targets, 3,200+ end-to-end transcript steps, 420+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
 - Plans for the release and later improvements (a plan does not mean a feature is ready): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-11-23.
+- Generated date: 2026-11-24.
 
 ## Quality and verification model
 
 Ze tests behavior at several levels because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 53,500+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 53,600+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 120+ fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 423 scenarios across 8 lab suites. The main recorded set has 13 test images; other suites use additional images. Scenarios exchange messages with FRR, BIRD, GoBGP and other real daemons where applicable.
+- Interop: 425 scenarios across 8 lab suites. The main recorded set has 13 test images; other suites use additional images. Scenarios exchange messages with FRR, BIRD, GoBGP and other real daemons where applicable.
 - Verify workflow: `./le verify worktree` runs the whole native verification population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `./le repo` is the narrower handoff gate.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Test at the layer that can observe the behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -1122,6 +1122,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Terminal Demonstrations](https://ze-software.net/demos/terminal/index.md): These recordings run real Ze commands against isolated local fixtures. Each checked-in tape file defines every keystroke, pause, and terminal size. A release can therefore regenerate the recordings when Ze changes. (web: https://ze-software.net/demos/terminal/)
 - [VRRP](https://ze-software.net/guides/vrrp/index.md): VRRP gives a LAN a gateway address that survives the loss of the router holding it. Two or more routers share a virtual IP; one is Active (Master) and answers for it, the others wait. If the Active router dies, a Backup... (web: https://ze-software.net/guides/vrrp/)
 - [VPP Data Plane](https://ze-software.net/guides/vpp/index.md): Status: the VPP component manages the VPP process lifecycle (startup, crash recovery, DPDK NIC binding, GoVPP connection), the `fib-vpp` plugin programs routes from ze's system RIB directly into VPP's FIB via the GoVPP... (web: https://ze-software.net/guides/vpp/)
+- [Features by Data Plane: Linux Kernel and VPP](https://ze-software.net/guides/dataplane-features/index.md): Ze can forward packets through the Linux kernel or through VPP. Most of Ze is control plane and is the same on both. The features that write forwarding state are different: each one has a kernel implementation, a VPP... (web: https://ze-software.net/guides/dataplane-features/)
 - [VM Appliance](https://ze-software.net/guides/appliance/index.md): Build a bootable VM image with Ze baked in using gokrazy. The default target is x86_64, and `image.arch` in `appliance.json` selects another architecture for `./ze-host appliance build`. At runtime, the appliance is... (web: https://ze-software.net/guides/appliance/)
 - [Installation](https://ze-software.net/guides/ze-install/index.md): Choose a deployment path for the environment you want to evaluate. Ze is pre-release software; start with an isolated lab. (web: https://ze-software.net/guides/ze-install/)
 - [Build and install Ze on Ubuntu](https://ze-software.net/guides/ubuntu-build-install/index.md): This page starts from a blank Ubuntu server and leaves you with an installed `ze` binary, a private `database/` store, an SSH listener, a systemd service, and one place to add Ze features. (web: https://ze-software.net/guides/ubuntu-build-install/)

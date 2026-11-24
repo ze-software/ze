@@ -13,7 +13,7 @@ Show full detail for one or more peers\.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: local\-ip\, next\-hop\-address
-- Column order: name\, group\, remote\-as\, local\-as\, peer\-type\, router\-id\, state\, uptime\, last\-notification\, local\-ip\, next\-hop\, next\-hop\-address\, timer\, capabilities
+- Column order: name\, hostname\, domain\, group\, remote\-as\, local\-as\, peer\-type\, router\-id\, state\, uptime\, last\-notification\, local\-ip\, next\-hop\, next\-hop\-address\, timer\, capabilities
 - Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save\, match\, count\, first\, last\, display\, fill\, resolve\, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log
@@ -21,7 +21,7 @@ Show full detail for one or more peers\.
 - Command pipes: none
 - Pipe aliases: none
 
-Each peer row carries the remote and local ASN\, the router ID\, the peer type\, \'state\' \(the peer\'s lifecycle\) and \'fsm\-state\' \(the session\'s RFC 4271 Section 8\.2\.2 state\, IDLE\, ACTIVE\, CONNECT\, OPENSENT\, OPENCONFIRM or ESTABLISHED\)\, and four timers\: receive hold time\, send hold time\, keepalive\, and connect retry\. The \'connect\' and \'accept\' flags say which directions this session opens\. A \'messages\' map counts OPEN\, UPDATE\, NOTIFICATION\, KEEPALIVE\, ROUTE\-REFRESH and End\-of\-RIB in each direction\. Negotiated nonzero PATHS\-LIMIT values appear under capabilities\.paths\-limit\, keyed by family\: send is the peer\'s maximum paths per prefix enforced on our outbound updates\; receive is our advertised receive request\, not a locally enforced inbound limit\. Zero or absent limits are omitted\.
+Each peer row carries the remote and local ASN\, the router ID\, the peer type\, \'state\' \(the peer\'s lifecycle\) and \'fsm\-state\' \(the session\'s RFC 4271 Section 8\.2\.2 state\, IDLE\, ACTIVE\, CONNECT\, OPENSENT\, OPENCONFIRM or ESTABLISHED\)\, and four timers\: receive hold time\, send hold time\, keepalive\, and connect retry\. The \'connect\' and \'accept\' flags say which directions this session opens\. A \'messages\' map counts OPEN\, UPDATE\, NOTIFICATION\, KEEPALIVE\, ROUTE\-REFRESH and End\-of\-RIB in each direction\. Negotiated nonzero PATHS\-LIMIT values appear under capabilities\.paths\-limit\, keyed by family\: send is the peer\'s maximum paths per prefix enforced on our outbound updates\; receive is our advertised receive request\, not a locally enforced inbound limit\. Zero or absent limits are omitted\. When the peer advertised a valid FQDN capability \(code 73\)\, its hostname and domain appear on the peer row and under capabilities\.fqdn\.
 
 ## Arguments
 

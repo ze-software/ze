@@ -49,7 +49,7 @@ A brief table (Internet-Drafts and other standards) carries Area, Proof and Unme
 
 | RFC | Area | Proof | Evidence | Unmet |
 |-----|------|-------|----------|-------|
-| RFC 4271 | BGP-4 base protocol | 126 of 133 MUST proven | interop 5, functional 13, unit 108 | RFC4271-5.1.6-1, RFC4271-6.2-3, RFC4271-9.1.2.2-2, RFC4271-9.2-2, RFC4271-9.2-3, RFC4271-9.2.1.1-2, RFC4271-9.2.1.1-3 |
+| RFC 4271 | BGP-4 base protocol | 131 of 133 MUST proven | interop 6, functional 13, unit 112 | RFC4271-9.2.1.1-2, RFC4271-9.2.1.1-3 |
 | RFC 2545 | IPv6 next-hop handling | 3 of 5 MUST proven | interop 1, functional 2 | RFC2545-3-3, RFC2545-3-6 |
 | RFC 5492 | BGP capability advertisement | 8 of 9 MUST proven | unit 8 | - |
 | RFC 6608 | BGP FSM Error subcodes | 3 of 3 MUST proven | unit 3 | - |
@@ -68,7 +68,7 @@ A brief table (Internet-Drafts and other standards) carries Area, Proof and Unme
 | RFC 5549 | Legacy extended next-hop encoding | 6 of 6 MUST proven | unit 6 | - |
 | RFC 7313 | Enhanced Route Refresh | 11 of 11 MUST proven | unit 11 | - |
 | RFC 7607 | Codification of AS 0 processing | 5 of 5 MUST proven | unit 5 | - |
-| RFC 8654 | BGP Extended Message | 10 of 12 MUST proven | interop 2, unit 8 | RFC8654-5-4 |
+| RFC 8654 | BGP Extended Message | 11 of 12 MUST proven | interop 2, unit 9 | - |
 | RFC 9774 | Deprecation of AS_SET and AS_CONFED_SET | 3 of 3 MUST proven | unit 3 | - |
 
 ## BGP Flow Specification
@@ -94,7 +94,7 @@ A brief table (Internet-Drafts and other standards) carries Area, Proof and Unme
 
 | RFC | Area | Proof | Evidence | Unmet |
 |-----|------|-------|----------|-------|
-| RFC 8522 | Looking Glass command set API | 18 of 18 MUST proven | unit 18 | - |
+| RFC 8522 | Looking Glass command set API | 9 of 18 MUST proven | unit 9 | - |
 | RFC 7854 | BMP v3 | 39 of 39 MUST proven | unit 39 | - |
 | RFC 8671 | BMP Adj-RIB-Out | 11 of 11 MUST proven | unit 11 | - |
 | RFC 9069 | BMP Loc-RIB monitoring | 16 of 16 MUST proven | unit 16 | - |
@@ -323,7 +323,7 @@ These are not RFCs, but they sit next to RFC implementation status and are usefu
 | RFC 1334 | PAP | 13 of 13 MUST proven | unit 13 | - |
 | RFC 4638 | PPPoE MTU/MRU above 1492 | 0 of 6 MUST proven | - | RFC4638-3-1, RFC4638-4-1, RFC4638-4-2, RFC4638-5.1-2, RFC4638-5.1-3, RFC4638-5.2-2 |
 | RFC 1877 | IPCP DNS options | no MUST rows | - | - |
-| RFC 5072 | IPv6CP | 10 of 16 MUST proven | unit 10 | RFC5072-2-2, RFC5072-4.1-10, RFC5072-4.1-11, RFC5072-4.1-8 |
+| RFC 5072 | IPv6CP | 12 of 16 MUST proven | unit 12 | RFC5072-2-2, RFC5072-4.1-8 |
 | RFC 2661 | L2TPv2 | 89 of 95 MUST proven | functional 5, unit 84 | RFC2661-4.2-2, RFC2661-9.5-2 |
 | RFC 3145 | L2TP PPP disconnect cause | 0 of 8 MUST proven | - | - |
 
@@ -369,7 +369,7 @@ These are not RFCs, but they sit next to RFC implementation status and are usefu
 | RFC 6811 | RPKI origin validation | 5 of 5 MUST proven | functional 1, unit 4 | - |
 | RFC 6810 | RPKI-to-Router Protocol v0 (RPKI-RTR), not spoken: ze speaks versions 1 and 2 only (RFC 8210) | 20 of 40 MUST proven | superseded 20 | RFC6810-2-1, RFC6810-3-1, RFC6810-4-2, RFC6810-5.10-3, RFC6810-5.5-1, RFC6810-5.6-1, RFC6810-5.8-1, RFC6810-7.1-2, RFC6810-7.2-3, RFC6810-7.2-5, RFC6810-7.2-6, RFC6810-7.3-1, RFC6810-7.3-2, RFC6810-7.4-1, RFC6810-7.4-2, RFC6810-7.4-3, RFC6810-7.4-4 |
 | RFC 8097 | RPKI origin validation state extended community | 5 of 5 MUST proven | unit 5 | - |
-| RFC 8893 | RPKI origin validation on export | 2 of 4 MUST proven | unit 2 | - |
+| RFC 8893 | RPKI origin validation on export | 4 of 4 MUST proven | unit 4 | - |
 | RFC 8210 | RPKI RTR v1 | 35 of 59 MUST proven | unit 35 | RFC8210-2-1, RFC8210-4-2, RFC8210-4-3, RFC8210-5.10-1, RFC8210-5.11-3, RFC8210-5.3-1, RFC8210-5.3-2, RFC8210-5.5-1, RFC8210-5.6-1, RFC8210-5.8-1, RFC8210-7-2, RFC8210-9.1-2, RFC8210-9.1-5, RFC8210-9.2-12, RFC8210-9.2-3, RFC8210-9.2-6, RFC8210-9.2-9, RFC8210-9.3-1, RFC8210-9.3-2, RFC8210-9.4-1, RFC8210-9.4-2, RFC8210-9.4-3 |
 
 ## IP-in-IP, GRE, and IPv6 transition tunnels

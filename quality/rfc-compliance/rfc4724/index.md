@@ -23,7 +23,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Audit verdicts | 25 | of 26 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 3 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 25 | of 26 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 7 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -300,7 +300,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB (Section 4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 4724 Section 4.1. TestRFC4724RestartingSpeakerForwardingState proves the full shutdown-and-restart retention lifecycle: parseFIBConfig defaults FlushOnStop to false; fib.run(ctx, false, ready) retains installed 198.51.100.0/24 across shutdown with 0 backend deletes; fib.run(ctx, true, ready) flushes 198.51.100.0/24 on shutdown (negative); and startupSweep() retains pre-restart surviving kernel routes without deleting them.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/plugins/fib/kernel/fibkernel.go::fibKernel.run, internal/plugins/fib/kernel/fibkernel.go::fibKernel.startupSweep moved. Independent re-audit against RFC 4724 Section 4.1. TestRFC4724RestartingSpeakerForwardingState proves the full shutdown-and-restart retention lifecycle: parseFIBConfig defaults FlushOnStop to false; fib.run(ctx, false, ready) retains installed 198.51.100.0/24 across shutdown with 0 backend deletes; fib.run(ctx, true, ready) flushes 198.51.100.0/24 on shutdown (negative); and startupSweep() retains pre-restart surviving kernel routes without deleting them.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -311,7 +311,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB and MUST mark them as stale. (Section 4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 4724 Section 4.1. TestRFC4724RestartingSpeakerForwardingState proves both shutdown retention and restart stale-marking: startupSweep() retains both surviving kernel routes with 0 deletes and marks both in fib.retained and fib.staleTables (positive); processEvent clears staleTables on refreshed 198.51.100.0/24 and leaves newly installed post-restart 198.18.0.0/24 unmarked (negative); and post-selection sweep deletes only the unrefreshed stale prefix.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/plugins/fib/kernel/fibkernel.go::fibKernel.processEvent, internal/plugins/fib/kernel/fibkernel.go::fibKernel.startupSweep moved. Independent re-audit against RFC 4724 Section 4.1. TestRFC4724RestartingSpeakerForwardingState proves both shutdown retention and restart stale-marking: startupSweep() retains both surviving kernel routes with 0 deletes and marks both in fib.retained and fib.staleTables (positive); processEvent clears staleTables on refreshed 198.51.100.0/24 and leaves newly installed post-restart 198.18.0.0/24 unmarked (negative); and post-selection sweep deletes only the unrefreshed stale prefix.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -322,7 +322,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 It MUST NOT differentiate between stale and other information during forwarding. (Section 4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 4724 Section 4.1 and {single-polarity: positive}. startupSweep() only records stale ownership in memory and performs zero backend adds, replaces, or deletes, leaving surviving kernel forwarding entries identical to fresh routes with no differentiating code path. TestRFC4724RestartingSpeakerForwardingState asserts backend.deleted==0, backend.replaced==0, and backend.added==0 after startupSweep().
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/plugins/fib/kernel/fibkernel.go::fibKernel.startupSweep moved. Independent re-audit against RFC 4724 Section 4.1 and {single-polarity: positive}. startupSweep() only records stale ownership in memory and performs zero backend adds, replaces, or deletes, leaving surviving kernel forwarding entries identical to fresh routes with no differentiating code path. TestRFC4724RestartingSpeakerForwardingState asserts backend.deleted==0, backend.replaced==0, and backend.added==0 after startupSweep().
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -358,7 +358,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 After the BGP speaker performs route selection, the forwarding state of the speaker MUST be updated and any previously marked stale information MUST be removed. (Section 4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent re-audit against RFC 4724 Section 4.1. Stage 2 -> Stage 5 startup race is fixed cleanly via subscribe-before-read and write-before-emit: emitSelectionDeferred calls ribevents.NoteSelectionDeferred(maxDelay) before emitting SelectionDeferred, emitSelectionComplete and selectionDeferral.stop call ribevents.ClearSelectionDeferred() before emitting SelectionComplete, and fibKernel.waitAndSweepStale reads ribevents.ActiveSelectionDeferral() immediately after subscribing to both events to seed initialDelay past active+fallbackDelay. TestRFC4724RestartingSpeakerForwardingState replicates the real Stage 2 -> Stage 5 order (NoteSelectionDeferred + emit BEFORE starting waitAndSweepStale), verifies no premature sweep past the 25ms fallback delay, proves processEvent updates forwarding state for 198.51.100.0/24 and adds 198.18.0.0/24, and proves ClearSelectionDeferred + SelectionComplete immediately sweeps unrefreshed stale 203.0.113.0/24 while preserving refreshed and fresh routes (negative).
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/plugins/fib/kernel/fibkernel.go::fibKernel.processEvent moved. Independent re-audit against RFC 4724 Section 4.1. Stage 2 -> Stage 5 startup race is fixed cleanly via subscribe-before-read and write-before-emit: emitSelectionDeferred calls ribevents.NoteSelectionDeferred(maxDelay) before emitting SelectionDeferred, emitSelectionComplete and selectionDeferral.stop call ribevents.ClearSelectionDeferred() before emitting SelectionComplete, and fibKernel.waitAndSweepStale reads ribevents.ActiveSelectionDeferral() immediately after subscribing to both events to seed initialDelay past active+fallbackDelay. TestRFC4724RestartingSpeakerForwardingState replicates the real Stage 2 -> Stage 5 order (NoteSelectionDeferred + emit BEFORE starting waitAndSweepStale), verifies no premature sweep past the 25ms fallback delay, proves processEvent updates forwarding state for 198.51.100.0/24 and adds 198.18.0.0/24, and proves ClearSelectionDeferred + SelectionComplete immediately sweeps unrefreshed stale 203.0.113.0/24 while preserving refreshed and fresh routes (negative).
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

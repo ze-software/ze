@@ -122,6 +122,23 @@ such a block under `doctor-plugin-external-unsupported`, with the `internal`
 block that runs it instead.
 <!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalInProcess, inProcessOnlyRegistration -->
 
+### External Plugins with Their Own YANG Schema and Commands
+
+An external plugin can bring its own YANG modules in its Stage 1 `schemas` list: a `-conf` module for its own configuration root (or an `augment` of a shared container such as `service`), a `-cmd` module for its CLI commands and argument leaves, and an `-api` module for MCP, REST, and gRPC command parameters. At `ze start`, the daemon parses the `plugin` and `environment` blocks first (`config.FirstPass`), starts every declared external plugin, reads each plugin's Stage 1 `schemas` list while holding Stage 1 unanswered, joins and publishes those modules once for the daemon's life, and then parses the full configuration against the combined schema. Each plugin continues its five-stage handshake in its startup tier without being forked a second time, and receives its configuration section at start and on every commit.
+<!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins -->
+<!-- source: internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins -->
+<!-- source: internal/component/config/yang/publish.go -- PublishExternalModules -->
+
+External plugin declarations and their YANG modules are fixed until `ze` restarts. A reload (`SIGHUP` or commit) that adds, removes, or changes a `plugin { external <name> { run ... } }` declaration is refused whole under `doctor-config-reload-refused`, leaving the running configuration unchanged. If a running external plugin restarts and declares different YANG modules than the ones published at start, that plugin is failed at Stage 1 under `doctor-plugin-schema-changed` and its commands are released until `ze` restarts. Invalid, clashing, or unheld-registration modules refuse startup and record `doctor-plugin-schema-refused`; a declared plugin that fails to declare records `doctor-plugin-schema-undeclared`.
+<!-- source: internal/component/plugin/server/reload_declarations.go -- RefuseChangedDeclarations -->
+<!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema -->
+<!-- source: internal/component/plugin/server/doctor_codes.go -- CodeDoctorPluginSchemaChanged, CodeDoctorPluginSchemaRefused, CodeDoctorPluginSchemaUndeclared -->
+
+When no `ze` daemon is running, offline commands never start external plugin programs. `ze config validate`, `fmt`, `dump`, `diff`, and `graph` ask a running `ze` daemon first when a configuration declares an external plugin; if no daemon answers, sections defined only by external plugins are reported as unavailable with `ze start` as the fix. Similarly, running an external plugin's command from the shell (`ze show ...`) forwards to the running daemon and reports the command unavailable when no daemon is running. See [YANG Schema Authoring](../../developers/plugins/schema/index.md) and [Adding Commands](../../developers/plugins/commands/index.md) for module examples and rules.
+<!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins, ParseRefusal -->
+<!-- source: internal/component/config/cli/daemon_route.go -- suppliedQuestion -->
+<!-- source: cmd/ze/internal/cmdutil/unheld.go -- unheld path routing -->
+
 ## When a Plugin Fails
 
 `doctor-plugin-cleanup` means a plugin's original resources have no confirmed
@@ -567,7 +584,7 @@ A reason string reaches CLI output as data, so never put a secret in one.
 | Plugin | Purpose | Typical Binding |
 |--------|---------|----------------|
 | `bgp-rib` | Mandatory Route Information Base with in-memory sent-history replay on reconnect | `receive [ update state refresh ] send [ update refresh ]` |
-| `bgp-adj-rib-in` | Adj-RIB-In (raw hex replay, auto-replays on peer-up) | `receive [ update-received state ]` |
+| `bgp-adj-rib-in` | Adj-RIB-In (raw hex replay, auto-replays on peer-up, retains pre-policy filtered UPDATEs for `rs-client true` peers) | `receive [ update-received update-filtered-received state ]` |
 | `bgp-rs` | Route server (RFC 7947): forwards each UPDATE, and a client without ADD-PATH is sent the `bgp-rib`-elected route when sources contest a prefix | `receive [ update-received state open-received refresh ] send [ update ]` |
 | `bgp-rr` | Route reflector (RFC 4456) | `receive [ update-received state open-received ]` |
 | `bgp-watchdog` | Deferred route announcement | `receive [ state ] send [ update ]` |
@@ -711,9 +728,12 @@ assignment whose range was removed until that subscriber ends its session.
 <!-- source: internal/component/l2tp/plugins/pool/reload.go -- installPoolConfiguration -->
 
 These plugins register via the L2TP handler registry (`RegisterAuthHandler`,
-`RegisterPoolHandler`) at init time. Only one auth handler is active at a
-time (last registered wins). The pool and shaper plugins subscribe to
-session lifecycle events via the EventBus.
+`RegisterPoolHandler`). Auth handlers are ordered by `AuthPriority` (lower
+non-zero wins): `l2tp-auth-local` registers `AuthPriorityLocal` (200) at init,
+and `l2tp-auth-radius` registers `AuthPriorityRemote` (50) while configured and
+unregisters it on removal, so configured RADIUS always takes precedence over
+local authentication regardless of registration timing. The pool and shaper
+plugins subscribe to session lifecycle events via the EventBus.
 
 See [L2TP guide](../l2tp/index.md) for configuration details.
 
@@ -815,8 +835,9 @@ route cleanup. Ordinary repair replays still reassert installed routes.
 <!-- test: internal/plugins/fib/kernel/fibkernel_stop_test.go -- TestFIBKernelReplayReassertsInstalledRoutes, TestFIBKernelStopEndsReplayAdmission -->
 
 The cleanup removes every route the writer installed, from the table it was
-installed in, and every route a previous run left that startup retained and
-the sweep has not yet removed, from each table startup listed it in. It then
+installed in, every route a previous run left that startup retained and
+the sweep has not yet removed, from each table startup listed it in, and any
+superseded Ze route whose delete failed during a metric change or table move. It then
 lists the kernel's Ze routes in every table. A delete the kernel refused, or a
 flushed prefix the kernel still lists in any table, raises one
 `doctor-fib-flush-incomplete` error (subject `flush`) and one WARN log line under the same code,
@@ -828,6 +849,17 @@ was taken.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- flushRoutes, flushOneLocked, flushResidueLocked, reportFlushLocked -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_test.go -- TestFIBKernelFlushDeletesInTheInstalledTable, TestFIBKernelFlushReportsRoutesTheKernelKept, TestFIBKernelFlushReportsFailedDeletes, TestFIBKernelFlushRemovesRetainedRoutes -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_list_test.go -- TestFIBKernelFlushReportsUnverifiedKernel, TestFIBKernelFlushCountsNothingItCouldNotList, TestFIBKernelSweepDeletesInTheListedTable -->
+
+A route that fails FIB programming (or leaves a superseded route behind) raises
+`fib-sync-failure` in both the error ring and the active warning set, degrading
+the `fib` health probe. The writer parks the change for bounded exponential
+backoff retry on its event-loop goroutine (up to 10 attempts, doubling from
+500ms to 30s) and also makes one immediate retry pass over earlier pending
+routes whenever another route in a later batch installs cleanly. Withdrawing a
+pending prefix cancels retry immediately, and a clean install, replace, retry,
+or withdraw clears the `fib-sync-failure` warning.
+<!-- source: internal/plugins/fib/kernel/pending_retry.go -- runRetryLoop, retryDuePending, retryPendingAfterProgressLocked -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_journal_fixes_test.go -- TestFIBKernelPendingInstallRetriesAndClearsSyncFailure, TestFIBKernelPendingInstallRetriedAfterCoveringRouteInSameBatch, TestFIBKernelPendingRetryIsBoundedByMaxAttempts, TestFIBKernelWithdrawClearsPendingInstallAndSyncFailure -->
 
 Bus topics in the FIB pipeline:
 
