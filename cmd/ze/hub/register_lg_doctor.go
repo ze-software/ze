@@ -16,6 +16,9 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
+// lgDoctorExample is the command every looking-glass listener code names first.
+const lgDoctorExample = "ze doctor"
+
 // lgDoctorCodes is the explanation metadata of the looking-glass listener codes.
 var lgDoctorCodes = []diagnostic.CodeMeta{
 	{
@@ -23,14 +26,14 @@ var lgDoctorCodes = []diagnostic.CodeMeta{
 		Title: "ze.looking-glass.listen does not parse",
 		Description: "The environment variable ze.looking-glass.listen names the addresses the looking glass binds, and its value is not a list of listen endpoints. " +
 			"ze refuses to start, and a reload is refused. Set it to endpoints such as 0.0.0.0:8443, or unset it and name the addresses in `environment looking-glass server`.",
-		Examples: []string{"ze doctor", "ze show diagnostic doctor-lg-listen-unreadable"},
+		Examples: []string{lgDoctorExample, "ze show diagnostic doctor-lg-listen-unreadable"},
 	},
 	{
 		Code:  codeDoctorLGTLSUnservable,
 		Title: "Looking-glass server entry says tls true with no certificate",
 		Description: "A looking-glass server entry says `tls true`, no certificate is named, and the self-signed certificate is kept in the database store, which the daemon runs without. " +
 			"ze refuses to start, and a reload is refused. Name a pki certificate in `environment looking-glass certificate`, or run `ze init` and restart ze, or write `tls false` in that server entry to serve HTTP.",
-		Examples:     []string{"ze doctor", "ze init", "ze show diagnostic doctor-lg-tls-unservable"},
+		Examples:     []string{lgDoctorExample, "ze init", "ze show diagnostic doctor-lg-tls-unservable"},
 		RelatedCodes: []string{codeDoctorLGPlainHTTP},
 	},
 	{
@@ -38,7 +41,7 @@ var lgDoctorCodes = []diagnostic.CodeMeta{
 		Title: "Looking-glass server serves plain HTTP for want of a certificate",
 		Description: "A looking-glass server entry left `tls` unset, which asks for HTTPS, but no certificate is named and the daemon runs without the database store that keeps the self-signed certificate, so that listener serves plain HTTP. " +
 			"Run `ze init` and restart ze to serve HTTPS, or write `tls false` in that server entry to serve HTTP on purpose.",
-		Examples:     []string{"ze doctor", "ze init", "ze show diagnostic doctor-lg-plain-http"},
+		Examples:     []string{lgDoctorExample, "ze init", "ze show diagnostic doctor-lg-plain-http"},
 		RelatedCodes: []string{codeDoctorLGTLSUnservable},
 	},
 }

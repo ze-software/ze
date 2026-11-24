@@ -7,7 +7,7 @@ package fixture
 // live in compiled code rather than in the .ci file, are lg_transport_fixture.go.
 //
 // Related: lg_transport_fixture.go -- the scenario body
-// Related: test/reload/lg-transport-mixed.ci -- the run, once promoted from test/draft/reload/
+// Related: test/reload/lg-transport-mixed.ci -- the run.
 func init() {
 	Register("reload/lg-transport-mixed", lgTransportMixed)
 }
