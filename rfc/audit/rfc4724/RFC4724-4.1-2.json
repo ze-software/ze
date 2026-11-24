@@ -1,9 +1,9 @@
 {
   "code": {
-    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.processEvent": "9c4f9cc3eda43144",
-    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.startupSweep": "012611c9dd8388a0"
+    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.processEvent": "6fb4361f8054ef4b",
+    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.startupSweep": "1b259b49657a4164"
   },
-  "note": "Independent re-audit against RFC 4724 Section 4.1. TestRFC4724RestartingSpeakerForwardingState proves both shutdown retention and restart stale-marking: startupSweep() retains both surviving kernel routes with 0 deletes and marks both in fib.retained and fib.staleTables (positive); processEvent clears staleTables on refreshed 198.51.100.0/24 and leaves newly installed post-restart 198.18.0.0/24 unmarked (negative); and post-selection sweep deletes only the unrefreshed stale prefix.",
+  "note": "Independent re-judgment against RFC 4724 Section 4.1 ('When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB and MUST mark them as stale.') after fib-kernel processEvent refactor (20d642984c). processEvent now delegates install/replace to programRouteLocked -> recordInstalledLocked, which still calls forgetStaleTableLocked and deletes retained for refreshed prefixes while never marking newly installed prefixes stale; startupSweep only gained a comment. Unchanged TestRFC4724RestartingSpeakerForwardingState asserts both surviving routes are retained and marked in fib.retained and fib.staleTables with 0 deletes (positive), refreshed 198.51.100.0/24 clears staleTables and fresh 198.18.0.0/24 stays unmarked (negative), and post-selection sweep deletes only unrefreshed 203.0.113.0/24.",
   "requirement_sha": "b6752ce2c70f05c9",
   "tests": {
     "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState": "1577840eac90ea3b",

@@ -1,15 +1,15 @@
 {
-  "note": "(a) forbidden: computing the HMAC-MD5 with the Request Authenticator or the Message-Authenticator not zeroed. (b) TestRFC5176MessageAuthenticatorRefusesEveryOtherStream refuses the Request Authenticator hashed as on the wire and the attribute not zeroed; TestRFC5176MessageAuthenticatorZeroesBothFields accepts the conformant stream with a non-zero wire Request Authenticator; the listener-level walk test discards the pre-fix computation.",
+  "note": "Independent re-judgment against RFC 5176 Section 3.4 and HEAD code (packet.go VerifyCoAMessageAuthenticator). radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields and TestRFC5176MessageAuthenticatorRefusesEveryOtherStream directly isolate VerifyCoAMessageAuthenticator with an independent RFC signer, asserting non-zero wire Request Authenticator acceptance and rejecting non-zeroed Request Authenticator, non-zeroed Message-Authenticator (0x77), tampered attributes, wrong secret and zero value. authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields proves conformant acceptance end-to-end over UDP; its negative case reproduces the coupled pre-fix inverted order (which trips VerifyCoARequestAuth before VerifyCoAMessageAuthenticator under conformant RequestAuth, while the radius direct tests isolate VerifyCoAMessageAuthenticator independently).",
   "requirement_sha": "88faa1987d20f72c",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "fc41528fea27644c",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields#2": "fc41528fea27644c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "77dcd5becb6dabff",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields#2": "77dcd5becb6dabff",
     "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorRefusesEveryOtherStream": "4e8828b1e015967c",
     "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "4e8828b1e015967c"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "693fbe320cc3371c",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields#2": "693fbe320cc3371c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "ad77cd1d5a1729fd",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields#2": "ad77cd1d5a1729fd",
     "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorRefusesEveryOtherStream": "a693a135ff7926f5",
     "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "0686affadeb345a7"
   },

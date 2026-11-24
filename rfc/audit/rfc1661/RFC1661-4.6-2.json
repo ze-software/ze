@@ -1,10 +1,10 @@
 {
   "code": {
-    "internal/component/l2tp/ppp/session_run.go::applyTransition": "764080c29b049138",
+    "internal/component/l2tp/ppp/session_run.go::applyTransition": "df22c37007e52b2e",
     "internal/component/l2tp/ppp/session_run.go::sendTerminateRequest": "17239e3886955542",
     "internal/component/l2tp/pppconfig/lcp.go::ParseLCP": "c4a2f42d76ad4fad"
   },
-  "note": "Rejudged after 438bb234e4 gave applyTransition a branch that reports lcpRejectFatalReason with TerminateCauseNASError after an RXJ-. Re-read Section 4.6: 'Max-Terminate MUST be configurable, but SHOULD default to two (2) transmissions.' The branch runs only inside sessionEndedAt and picks the EventSessionDown reason and cause. restartMax still loads s.lcpConfig.MaxTerminate() whenever the transition carries str, so the RXJ- edge now reachable from Opened (irc,str to Stopping) and the idle Close are held to the same configured Max-Terminate. Both TestConfiguredLCPMaxTerminate units are unchanged. With budgets 2 and 4 they still require exactly that many LCP Terminate-Requests and Closed on exhaustion, and they contrast a first matching Terminate-Ack that closes after one request. The verdict holds.",
+  "note": "Rejudged at HEAD after applyTransition converted its sessionEndedAt reason/cause if-else chain to a switch statement (no behavior change). Re-read RFC 1661 Section 4.6: 'Max-Terminate MUST be configurable, but SHOULD default to two (2) transmissions.' Producer applyTransition still loads s.lcpConfig.MaxTerminate() whenever tr.Actions includes LCPActSTR, sendTerminateRequest decrements via spendRestartCount, and pppconfig.ParseLCP parses max-terminate (1..255). Positive and negative TestConfiguredLCPMaxTerminate verify exact 2 and 4 Terminate-Requests before TO- reaches Closed and early close after 1 request on matching Terminate-Ack. Verdict stands.",
   "requirement_sha": "7776fff902cc3b78",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxTerminate": "5133b1b1fbe707ca",

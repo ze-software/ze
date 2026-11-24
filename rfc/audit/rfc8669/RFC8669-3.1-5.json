@@ -1,19 +1,19 @@
 {
-  "note": "Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 8669 Section 3.1: \"Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission and MUST be ignored on reception.\" (transmission; reception is RFC8669-3.1-6). ff89fc8110 (a withdraw verdict withdraws both families) changed only the egressRouteFilter closure in the tagged unit to the new three-value signature (suppress, override, follow); session_write.go writeUpdateGated and the raw-forward path read the first two exactly as before and the follow body is nil in this unit, so every input and every assertion is unchanged. The six writer paths, the override case included, still demand the full expected Prefix-SID with Flags 0000 from dirty input and unchanged adjacent content. Other carriers byte-identical. Verdict unchanged: enforced.",
+  "note": "Independent re-judgment at HEAD against RFC 8669 Section 3.1 ('Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission'). Verified attribute.EncodePrefixSID and parsePrefixSIDWithSRGB (internal/core/bgp/attribute/prefixsid.go) emit Flags=0x0000, and session_prefix_sid.go::clearLabelIndexTLVs (invoked by session_egress_normalize.go::normalizeTransmittedUpdate) zeroes Label-Index Flags on IPv4/IPv6 labeled unicast while leaving unknown TLVs and Originator SRGB unmodified. Positives assert exact zero Flags on bare and SRGB-form encoders (TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission, TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission), family-gated egress clearing on IPv4/IPv6 LU (TestClearTransmittedLabelIndexOnlyOnLabeledUnicast), and clean transmission across all 6 writer/relay rails (TestRFC8669LabelIndexTransmissionClearsReservedAndFlags). Negative sends dirty Flags=0x5aff across all 6 rails and asserts exact cleared wire bytes without mutating borrowed source or Originator SRGB. Q1-Q4 pass.",
   "requirement_sha": "00eec3b1db3275a6",
   "tests": {
     "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1",
     "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1",
     "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "274e120ed359a9db",
-    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "b72725665751d43c",
-    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "b72725665751d43c"
+    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "91608d1beb8c505e",
+    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "91608d1beb8c505e"
   },
   "units": {
     "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "6382e271224e1ed9",
     "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "8b66a6174ef13b32",
     "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "dff529a65e1207a3",
-    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "7c08d32891be960a",
-    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "7c08d32891be960a"
+    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "1915f9b37d043d53",
+    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "1915f9b37d043d53"
   },
   "verdict": "enforced"
 }

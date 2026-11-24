@@ -2,30 +2,32 @@
   "code": {
     "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks": "5d9f65046fcdd483",
     "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.removeNoLLGR": "d0b6bcfd4989d70a",
-    "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.restalePreservedLLGR": "c7f569ebb20234b4",
-    "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.llgrFamilyActive": "f2372f31b34d2677",
+    "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.restalePreservedLLGR": "076938ee56ae28ce",
+    "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.llgrFamilyActive": "8ef02ae15d4744a2",
     "internal/component/bgp/plugins/rib/rib_source_commands.go::deletePhysicalSourceCommunityCommand": "390197edf5bb14a7",
-    "internal/component/bgp/plugins/rib/rib_source_mutation.go::removePhysicalSource": "7a417447dc44c135"
+    "internal/component/bgp/plugins/rib/rib_source_mutation.go::removePhysicalSource": "3db1814fe7f6bc09"
   },
-  "note": "Independent re-audit after 26d70dfa0d. On the normal paths the tags still hold: the zero-GR real-RIB root requires the received NO_LLGR route absent while its sibling stays at level 2 with LLGR_STALE; TestDeleteWithCommunity and the LLGR_STALE-only negative pin exact community matching; the best-path pair requires the Withdraw; llgr-import-no-llgr.ci covers the policy-marked case on a real daemon. removeNoLLGR now wraps the same delete-with-community command, and restalePreservedLLGR repeats it on every retained connection at a consecutive DOWN; removePhysicalSource only gains forgetEarlier on a complete release. FINDING, single restart: llgrFamilyActive now returns false once a successor re-established, and onLLGREnter checks it before step 1. If the successor's UP is handled after the Restart Time expired but before the entry callback dispatches NO_LLGR removal, the LLGR period has begun yet NO_LLGR routes stay retained as stale through synchronization, until End-of-RIB, LLST expiry or a later DOWN. Section 4.2 says they MUST NOT be retained once that period begins. No tagged root can fail on this; before the commit the guard read only the family's timer and the removal ran. Suspected code defect, not verified by a run.",
+  "note": "Independent re-judgment against RFC 9494 Section 4.2 ('If any of the routes from the peer have been marked with the NO_LLGR community, either as sent by the peer or as the result of a configured policy, they MUST NOT be retained and MUST be removed as per the normal operation of [RFC4271].') after commit 21587224da fixed the prior reconnect-during-entry defect and 3c2a055fd9 updated the LLGR config syntax in llgr-import-no-llgr.ci. grStateManager.llgrFamilyActive no longer turns false on reconnect, so onLLGREnter runs removeNoLLGR to completion on the original connection even when a successor session comes up while the entry is in flight. New tagged real-RIB positive TestRFC9494ReconnectDuringLLGREntryStillRemovesNoLLGRRoutes proves the NO_LLGR route of connection 41 is deleted after connection 42 reconnects during the held entry. All existing proofs remain intact: TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod (received NO_LLGR removed while sibling survives), TestRFC9494NoLLGRSweepWithdrawsTheBestPath and TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR (best-path Withdraw), TestDeleteWithCommunity and TestRFC9494_StaleRouteWithoutNoLLGRRetained (exact community matching), and test/plugin/llgr-import-no-llgr.ci (policy-added 65535:7 removed on a real daemon while unmarked control survives with LLGR_STALE). removePhysicalSource only added unresolvedNextHops.purgeByOwner on complete release.",
   "requirement_sha": "fac8847e101227fd",
   "tests": {
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "a8e84939edc430d3",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "daf0c8e328bcc53f",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_entry_test.go::TestRFC9494ReconnectDuringLLGREntryStillRemovesNoLLGRRoutes": "8dba60cd6c9d4a9d",
     "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath": "6db9a071c8149288",
     "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR": "6db9a071c8149288",
     "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity": "4d7e784cb653f709",
     "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "5dcff1a63df83f39",
-    "test/plugin/llgr-import-no-llgr.ci": "a14cb4fa1d7f00cf",
-    "test/plugin/llgr-import-no-llgr.ci#2": "a14cb4fa1d7f00cf"
+    "test/plugin/llgr-import-no-llgr.ci": "501b79b2605dafd3",
+    "test/plugin/llgr-import-no-llgr.ci#2": "501b79b2605dafd3"
   },
   "units": {
     "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "e54a5a7f3e8ee0b4",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_entry_test.go::TestRFC9494ReconnectDuringLLGREntryStillRemovesNoLLGRRoutes": "3d8e024de1b42b14",
     "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath": "c168de6e2c60822d",
     "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR": "7555641637ca84bb",
     "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity": "8edf58508da6a84b",
     "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "564ba08ee088061f",
-    "test/plugin/llgr-import-no-llgr.ci": "a14cb4fa1d7f00cf",
-    "test/plugin/llgr-import-no-llgr.ci#2": "a14cb4fa1d7f00cf"
+    "test/plugin/llgr-import-no-llgr.ci": "501b79b2605dafd3",
+    "test/plugin/llgr-import-no-llgr.ci#2": "501b79b2605dafd3"
   },
-  "verdict": "weak"
+  "verdict": "enforced"
 }

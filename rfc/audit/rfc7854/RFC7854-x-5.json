@@ -1,13 +1,13 @@
 {
-  "note": "IPv4 lands in octets 12..15 with 0..11 zero; the IPv6 negative keeps its full address",
+  "note": "Independent re-audit against RFC 7854 Section 4.2 ('It is 4 bytes long if an IPv4 address is carried in this field (with the 12 most significant bytes zero-filled) and 16 bytes long if an IPv6 address is carried in this field.') at HEAD. parseIPInto (bmp_events.go) clears out[:12] and writes IPv4 into out[12:16], or writes full 16-byte IPv6 via As16(); writePeerHeader copies Address verbatim. Positive TestParseIPIntoIPv4 asserts all 12 leading bytes are zero and bytes 12..15 equal 192.168.1.1. Negative TestParseIPIntoIPv6 compares all 16 octets of 2001:db8::1 exactly against the full IPv6 representation rather than 12-byte zero padding.",
   "requirement_sha": "50f35e68afacf531",
   "tests": {
-    "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv4": "14af77651b208b50",
-    "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv6": "14af77651b208b50"
+    "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv4": "f5753dd3b688d0cf",
+    "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv6": "f5753dd3b688d0cf"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv4": "b26e3342ea933a0f",
-    "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv6": "6baaf5c69cc2152f"
+    "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv6": "84dec402916c2baa"
   },
   "verdict": "enforced"
 }

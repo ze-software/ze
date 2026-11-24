@@ -1,18 +1,17 @@
 {
-  "code": {
-    "internal/component/bgp/plugins/rib/rib_mrt.go::RIBManager.dumpRIBForMRT": "170aa860f023ae6c",
-    "internal/mrt/encode.go::WriteRIBGenericHeaderAddPath": "cc6f159c5e0e90b9",
-    "internal/plugins/mrt/dump.go::writeTableDumpV2": "97bbb1e7348bd822"
-  },
-  "note": "Independent re-judgment after 381e927417 against RFC 8050 Section 4.2 (\"These fields continue to encapsulate the raw and additional-path- enabled AFI/SAFI/NLRI in the record, and the raw attributes in the RIB Entries. For clarity, the RIB Entries in this subtype are not redefined.\"). The prior note's \"Ze writes no subtype 12 record\" is no longer true: writeTableDumpV2 writes RIB_GENERIC_ADDPATH (12) for a non-unicast/multicast family delivered on OnRouteAddPath, putting the Path Identifier ahead of the NLRI (mrtfmt.WriteRIBGenericHeaderAddPath) and the RIB Entry with entryAddPath=false. Positive TestRFC8050MRTDumpGenericWithAddPath drives the real RIB walk into the writer on the default configuration: subtype 12, AFI 1 / SAFI 133, NLRI field exactly 00 00 00 09 + the FlowSpec NLRI, entry count 1 and entry length exactly 2+2+4+2+Attribute Length. A Path Identifier written into the RIB Entry (redefining it) puts 0x0000 where Attribute Length is read and fails the length; one dropped from the NLRI fails the NLRI equality. Negative TestRFC8050MRTDumpGenericWithoutAddPath: the same FlowSpec route stored without ADD-PATH is subtype 6 with the bare NLRI and the same RFC 6396 entry. Decode side unchanged: TestRIBGenericAddPathRoundTrip reads hand-built subtype 12 bytes with the Path ID in the NLRI and an unredefined entry; TestRIBGenericRoundTrip the base subtype 6. Strength gap, not a verdict change: requireGenericRecord checks the attribute framing but not that the attribute octets equal the stored attributes (\"the raw attributes in the RIB Entries\"); attribute reconstruction is judged under the RFC 6396 rows.",
+  "note": "Independent re-audit against RFC 8050 Section 4.2 ('These fields continue to encapsulate the raw and additional-path-enabled AFI/SAFI/NLRI in the record, and the raw attributes in the RIB Entries. For clarity, the RIB Entries in this subtype are not redefined.') at HEAD. dumpRIBForMRT walks IterateFamilyWire so generic families (including labeled unicast with RFC 8277 label stacks) keep raw wire NLRI; writeTableDumpV2 writes subtype 12 via WriteRIBGenericHeaderAddPath (4-byte PathID ahead of raw NLRI) with entryAddPath=false so RIB Entries remain unredefined. End-to-end RIB->MRT tests cover both FlowSpec (TestRFC8050MRTDumpGenericWithAddPath / WithoutAddPath) and labeled unicast (TestRFC8050MRTDumpLabeledGenericWithAddPath / WithoutAddPath), asserting subtype 12 vs 6, exact AFI/SAFI/NLRI bytes (with/without PathID prefix), and exact RFC 6396 entry length (2+2+4+2+attrLen). TestRIBGenericAddPathRoundTrip and TestRIBGenericRoundTrip verify subtype 12 and 6 decode round-trips.",
   "requirement_sha": "6872cc51eafebe46",
   "tests": {
+    "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_labeled_test.go::TestRFC8050MRTDumpLabeledGenericWithAddPath": "7f7e4b232495d54b",
+    "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_labeled_test.go::TestRFC8050MRTDumpLabeledGenericWithoutAddPath": "7f7e4b232495d54b",
     "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_path_test.go::TestRFC8050MRTDumpGenericWithAddPath": "5de9ddd3322c0efd",
     "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_path_test.go::TestRFC8050MRTDumpGenericWithoutAddPath": "5de9ddd3322c0efd",
     "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip": "fb2e8a7edf55af3c",
     "internal/mrt/mrt_test.go::TestRIBGenericRoundTrip": "fb2e8a7edf55af3c"
   },
   "units": {
+    "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_labeled_test.go::TestRFC8050MRTDumpLabeledGenericWithAddPath": "5e35e9faf00d0b8b",
+    "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_labeled_test.go::TestRFC8050MRTDumpLabeledGenericWithoutAddPath": "e4cbe6e37ddd2a14",
     "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_path_test.go::TestRFC8050MRTDumpGenericWithAddPath": "32cc893f691f4718",
     "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_path_test.go::TestRFC8050MRTDumpGenericWithoutAddPath": "0c0b8ddad5d046b2",
     "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip": "9e0cd914d419a246",

@@ -9,13 +9,13 @@
     "internal/le/interoplab/l2tp/ppp_framing.go::requireCompressedPPPEcho": "654bab97992a1757",
     "internal/le/interoplab/l2tp/ppp_framing.go::requirePPPFullSessionFraming": "bab14bdf527bb7b8"
   },
-  "note": "Rejudged after checkPPPCodeReject gained assertions 9 and 10. Re-read Section 6.6. Assertion 7 is unchanged and applies strict ff03 parsing to every Ze data datagram from ordinal one. The new reopen wait routes any framing error to fail(7), and the final requirePPPFullSessionFraming now also reads the reopened IPCP Configure exchange and the ping after it: more witnesses under the same strictness, not fewer. The proof is still bounded to the kernel L2TP path. It does not exercise PPPoE or every link framing the requirement covers. The {lower-layer} attribution still names writeFrame, which is unchanged, and the relay-side break gives no OS-verified credit, so the whole row stays an OS testing gap. Weak stands.",
+  "note": "Rejudged at HEAD after checkPPPCodeReject replaced fail(7, parseErr) with pppCodeRejectFailure(name, 7, parseErr) and session_run.go::writeFrame gained a transmit MRU length guard before writing to s.chanFile. Re-read RFC 1661 Section 6.6: 'By default, all implementations MUST transmit frames with Address and Control fields appropriate to the link framing.' The transmit MRU guard in writeFrame does not alter Address/Control framing, and assertion 7 still verifies strict ff 03 framing across the full live L2TP session capture. However, the proof covers only the kernel L2TP path (not PPPoE's frameless RFC 2516 encapsulation), has only a positive tag without single-polarity, and relay-side breaks do not verify the kernel/PPP writer boundary under the {lower-layer} attribution. Weak stands.",
   "requirement_sha": "6305e61e8a9783b5",
   "tests": {
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "a0037eb000d133bc"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "efd8340a13661503"
   },
   "units": {
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "7c61f9b6f42d0268"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "0ef9501217309db2"
   },
   "verdict": "weak"
 }

@@ -9,15 +9,15 @@
     "internal/le/interoplab/l2tp/ppp_framing.go::requireCompressedPPPEcho": "654bab97992a1757",
     "internal/le/interoplab/l2tp/ppp_framing.go::requirePPPFullSessionFraming": "bab14bdf527bb7b8"
   },
-  "note": "Rejudged after checkPPPCodeReject gained assertions 9 and 10. Re-read Section 6.6. Assertion 8 is unchanged: both acknowledged Configure exchanges omit ACFC, one identified compressed peer Echo-Request is injected, and a later ff03 Echo-Reply must carry the same Identifier and Data and Ze's Magic. Assertion 7 still checks uncompressed Ze LCP output. Its final full-session read now also spans the reopened IPCP exchange, so it adds witnesses without loosening the check. Section 6.6 permits silent discard, so the accepting receive path is observed behaviour, not a receive obligation. Negotiated-ACFC LCP transmission and PPPoE stay outside the capture, the {lower-layer} attribution to the unchanged writeFrame stays, and the relay-side breaks give no OS-verified credit. Weak stands.",
+  "note": "Rejudged at HEAD after checkPPPCodeReject replaced fail(7, parseErr) with pppCodeRejectFailure(name, 7, parseErr) and session_run.go::writeFrame gained a transmit MRU length guard before writing to s.chanFile. Re-read RFC 1661 Section 6.6: 'The Address and Control fields MUST NOT be compressed when sending any LCP packet.' The writeFrame guard leaves Address/Control framing untouched. Assertion 7 checks uncompressed ff 03 on Ze's LCP packets only when ACFC is NOT negotiated, and assertion 8 observes Linux accepting one compressed Echo-Request (Section 6.6 permits silent discard) and Ze replying uncompressed. Sending LCP packets after ACFC has been negotiated and PPPoE framing remain unexercised, and relay-side breaks give no OS-verified credit for the {lower-layer} writeFrame attribution. Weak stands.",
   "requirement_sha": "fef865e8fdfa8efe",
   "tests": {
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "a0037eb000d133bc",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject#2": "a0037eb000d133bc"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "efd8340a13661503",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject#2": "efd8340a13661503"
   },
   "units": {
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "7c61f9b6f42d0268",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject#2": "7c61f9b6f42d0268"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "0ef9501217309db2",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject#2": "0ef9501217309db2"
   },
   "verdict": "weak"
 }

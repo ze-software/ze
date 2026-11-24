@@ -1,14 +1,14 @@
 {
-  "note": "after reconnect Peer Up precedes the surviving route and each family gets EOR after its routes; an incremental UPDATE and another collector's reconnect produce no EOR, and an incomplete snapshot never emits EOR",
+  "note": "Independent re-audit against RFC 7854 Section 3.3 ('Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer') and Section 5 at HEAD. primeSender -> replayPeerLocked (bmp_events.go, bmp_replay.go) emits Peer Up, replays surviving routes, then writes per-family EOR markers via buildEndOfRIBBody; any replayErr aborts without EOR and closes the collector. Positive TestRFC7854AdjReplayEndsEachFamily asserts the exact 4-message wire stream: PeerUp, surviving route only (withdrawn route excluded), IPv4 EOR, IPv6 EOR. Negatives: TestRFC7854AdjReplayCompletionIsSessionScoped proves a second collector's snapshot leaves a settled collector untouched and an incremental UPDATE emits no EOR; TestRFC7854IncompleteAdjReplayCannotClaimCompletion proves replayErr emits zero EORs and closes the collector.",
   "requirement_sha": "9e950d05f2096cce",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayCompletionIsSessionScoped": "960e596b1e5f06cd",
-    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily": "960e596b1e5f06cd",
-    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854IncompleteAdjReplayCannotClaimCompletion": "960e596b1e5f06cd"
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayCompletionIsSessionScoped": "5833d23c216987a0",
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily": "5833d23c216987a0",
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854IncompleteAdjReplayCannotClaimCompletion": "5833d23c216987a0"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayCompletionIsSessionScoped": "fc92d70bcfce5e19",
-    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily": "d85d2da065d558c9",
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily": "2e3fdbc4c38f546c",
     "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854IncompleteAdjReplayCannotClaimCompletion": "d8238646ff226e91"
   },
   "verdict": "enforced"

@@ -1,11 +1,11 @@
 {
-  "note": "Forbidden: a reserved (non-F) per-peer flag bit transmitted as 1 on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Flags != 0 is Errorf, red on any set bit. Single-polarity marker: no producer sets a flag, so no negative input exists. The row claims only the transmit half; the 'ignored on receipt' clause of the same sentence is not quoted and has no row.",
+  "note": "Independent re-audit against RFC 9069 Section 4.2 ('The unused bits are reserved for future use. They MUST be transmitted as 0') at HEAD. locRIBPeerHeader (bmp_locrib.go) is the sole PeerTypeLocRIB constructor and sets Flags=0; writePeerHeader (header.go) writes Flags unmodified. TestLocRIBPeerHeader asserts PeerType==PeerTypeLocRIB and Flags==0 (fails on any set bit). Single-polarity annotation holds (no Ze path sets any reserved bit on PeerType=3). Note: the row quotes only the transmit half; the receipt-ignore clause is not in this row.",
   "requirement_sha": "94c63e0d5de6539c",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "9bcab0976adbef2d"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "52d0f672c341ca11"
   },
   "units": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "1e0e5945d5c34c25"
   },
   "verdict": "enforced"
 }

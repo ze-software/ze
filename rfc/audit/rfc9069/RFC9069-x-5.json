@@ -1,11 +1,11 @@
 {
-  "note": "Forbidden: a non-zero Peer Address on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Address != [16]byte{} is Errorf. Single-polarity marker.",
+  "note": "Independent re-audit against RFC 9069 Section 5.1 ('Peer Address: Zero-filled. The remote peer address is not applicable.') at HEAD. locRIBPeerHeader (bmp_locrib.go) leaves Address all-zero and writePeerHeader (header.go) copies all 16 bytes directly to wire offsets 10..26. TestLocRIBPeerHeader asserts ph.Address == [16]byte{} and fails on any non-zero octet. Single-polarity annotation holds (no Ze path assigns Peer Address on PeerType=3).",
   "requirement_sha": "688398ffbc45c9e1",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "9bcab0976adbef2d"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "52d0f672c341ca11"
   },
   "units": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "1e0e5945d5c34c25"
   },
   "verdict": "enforced"
 }

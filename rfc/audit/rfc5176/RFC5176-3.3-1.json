@@ -1,24 +1,24 @@
 {
-  "note": "Independent semantic rejudgment 2026-11-12 against RFC 5176 Section 3 (the complete combination MUST match; otherwise NAK), current coa.go selectors and every tagged unit. Existing MatchedIdentificationSucceeds, UnmatchedIdentificationIsNAKed and NoSessionIdNotActedOn distinguish real CoA/Disconnect ACK/teardown from 503/no event/no teardown. ReplayReturnsCachedResponse now seeds the live accountant and still requires two ACKs but exactly one teardown. New RegisteredSubscriberAllSelectorsMustMatch sends an exact registry Acct-Session-Id plus conflicting User-Name or NAS-Port, requiring signed CoA-NAK 503 and unchanged installed rate. OldAccountingIdentityCannotSelectNewIncarnation and DisconnectOldAccountingIdentityCannotTerminateNewIncarnation keep the tuple/other selectors valid while changing only the full issued identity; they require signed 503, unchanged shaping and zero teardown. LiveAccountingOwnerIdentitySurvivesRegistryMiss supplies the actual current accountant ID alongside a different registry ID and requires signed ACK plus an installed 20M rate, preventing refusal of every fallback. Admission refuses unsupported identification types before matching; sessionSelectorsMatch intersects every occurrence of the three implemented selectors on both registry and complete-accountant fallback routes. Removing either intersection or restoring numeric-prefix matching makes exact outcome assertions fail. This judges the whole included-combination clause, not a claim to support the eleven refused types. Native proof freshness is a separate main-thread gate.",
+  "note": "Independent re-judgment against RFC 5176 Section 3 and HEAD code (coa.go findSubscriberSession, findSessions, sessionSelectorsMatch, oneSession). MatchedIdentificationSucceeds, UnmatchedIdentificationIsNAKed, NoSessionIdNotActedOn and DisconnectReplayReturnsCachedResponse prove CoA and Disconnect ACK/change/teardown on match versus NAK 503 and zero action on unmatched or absent identification. RegisteredSubscriberAllSelectorsMustMatch proves conflicting User-Name or NAS-Port beside an exact registry Acct-Session-Id yields signed CoA-NAK 503 and unchanged backend rate. OldAccountingIdentityCannotSelectNewIncarnation and DisconnectOldAccountingIdentityCannotTerminateNewIncarnation prove old full accounting IDs on a reused tuple yield signed NAK 503 with unchanged rates and zero teardowns, while LiveAccountingOwnerIdentitySurvivesRegistryMiss proves the current accountant ID selects the session and installs the 20M rate.",
   "requirement_sha": "79cb52981c308285",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss": "886403c5e0c35224",
-    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoAOldAccountingIdentityCannotSelectNewIncarnation": "886403c5e0c35224",
-    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation": "886403c5e0c35224",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "0461f962da4d97fb",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "0461f962da4d97fb",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "b2cfd60387861a53",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "25c2b53f1b101476",
-    "internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go::TestCoARegisteredSubscriberAllSelectorsMustMatch": "903ca5ccab076701"
+    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss": "cddb08175fa65a2f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoAOldAccountingIdentityCannotSelectNewIncarnation": "cddb08175fa65a2f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation": "cddb08175fa65a2f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "5f3f208e05b07a3f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "5f3f208e05b07a3f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "29009bc2185d3fd7",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "26886fa0813e7fa4",
+    "internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go::TestCoARegisteredSubscriberAllSelectorsMustMatch": "9b3a1fbc11c840c4"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss": "34a33bac1c629bb8",
+    "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss": "0bd6f435f7f44b2b",
     "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoAOldAccountingIdentityCannotSelectNewIncarnation": "721faa3336409072",
     "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation": "227c84657236e2fd",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "18fb7991d427fefe",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "48a54bb92cb5b6f7",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "0d0a6cde2f2121d5",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "0004cdb472171249",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "60c3d8662adf622a",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "63d0c67b98af8a60",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "094764483174156c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "ca1687023797275d",
     "internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go::TestCoARegisteredSubscriberAllSelectorsMustMatch": "b3eff2d7fe0ecac6"
   },
   "verdict": "enforced"

@@ -1,17 +1,17 @@
 {
-  "note": "Independent semantic rejudgment 2026-11-12 against Section 6.1's silent discard of both dynamic authorization request kinds from untrusted sources. UntrustedSourceDiscarded sends an otherwise valid signed/current Disconnect to a listener trusting a different address, then an empty allowlist: both receive no response and cause zero teardowns; a loopback-trusting listener accepts the same identity with Disconnect-ACK. The added explicit current-accountant seed makes the trusted counterpart reach the intended session rather than fail later identity matching. SourceFilterDiscardsWhenNoServerResolved independently sends correctly authenticated CoA with an empty allowlist and requires silence; SourceFilterAnswersAConfiguredClient repeats from the trusted source and requires an actual CoA-NAK response for unknown session, proving admission rather than universal discard. isAllowedSource precedes packet authentication/dispatch and is false for an empty set. A permissive empty/unlisted-source guard or blanket drop would break these opposite controls. No new proof execution is claimed.",
+  "note": "Independent re-judgment against RFC 5176 Section 6.1 and HEAD code (coa.go admitRequest, isAllowedSource). TestCoASourceFilterDiscardsWhenNoServerResolved and TestCoASourceFilterAnswersAConfiguredClient prove an empty allowlist silently discards an otherwise valid CoA-Request while a configured loopback allowlist processes it (CoA-NAK). TestRFC5176UntrustedSourceDiscarded proves an otherwise valid Disconnect-Request for a live session is silently discarded with zero teardowns under both a non-matching allowlist (192.0.2.1) and an empty allowlist, while a loopback-trusting listener answers Disconnect-ACK.",
   "requirement_sha": "44dfbd3b61d4fef1",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterAnswersAConfiguredClient": "25c2b53f1b101476",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterDiscardsWhenNoServerResolved": "25c2b53f1b101476",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded": "fc41528fea27644c",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded#2": "fc41528fea27644c"
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterAnswersAConfiguredClient": "26886fa0813e7fa4",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterDiscardsWhenNoServerResolved": "26886fa0813e7fa4",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded": "77dcd5becb6dabff",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded#2": "77dcd5becb6dabff"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterAnswersAConfiguredClient": "94a50244372986fa",
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterDiscardsWhenNoServerResolved": "da6f2603ea0f6b1b",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded": "56c8804d9306e667",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded#2": "56c8804d9306e667"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded": "5462e07c9eb5e3d6",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded#2": "5462e07c9eb5e3d6"
   },
   "verdict": "enforced"
 }

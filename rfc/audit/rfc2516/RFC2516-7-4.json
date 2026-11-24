@@ -1,13 +1,13 @@
 {
-  "note": "Rejudge 2026-11-08: TestRFC2516HostReturnsToDiscoveryForTheNextSession changed only by passing Timing: testPPPoETiming (ReconnectDelayMin 1s) now that keepalive and reconnect timing come from config, and the comment naming the delay. Assertions unchanged: after the first session's Done the client calls Dial again (Discovery) within 5s, the first session's Cleanup (PADT) ran first, and the client holds SESSION_ID 0 in state discovery.",
+  "note": "Independent rejudge against RFC 2516 Section 7 (\"If the Host wishes to start another PPP session, it MUST return to the PPPoE Discovery stage.\"). In 83b7c9c3c9, TestRFC2516HostReturnsToDiscoveryForTheNextSession updated only the NewPPPoEClient/Cleanup signatures, supplied logicalNativeWriter, and checked Stop's error; all assertions are unchanged. After closing the first session's Done channel, PPPoEClient.run/runSession runs the first session's Cleanup (PADT) first, resets state to \"discovery\" with SESSION_ID 0, and invokes Dial again (Discovery stage) within 5s. Verdict enforced stands.",
   "requirement_sha": "616cc6844fcdba92",
   "tests": {
-    "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession": "ddece88ab462653d",
-    "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession#2": "ddece88ab462653d"
+    "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession": "438a5fa56bba7ed1",
+    "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession#2": "438a5fa56bba7ed1"
   },
   "units": {
-    "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession": "a1e3e424181cb5a2",
-    "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession#2": "a1e3e424181cb5a2"
+    "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession": "580316a9025f8e41",
+    "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession#2": "580316a9025f8e41"
   },
   "verdict": "enforced"
 }

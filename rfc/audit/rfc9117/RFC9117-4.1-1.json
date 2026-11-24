@@ -1,17 +1,17 @@
 {
-  "note": "RFC9117 Section 4.1: 'b) One of the following conditions MUST hold true: 1. The originator of the Flow Specification matches the originator of the best-match unicast route for the destination prefix embedded in the Flow Specification (this is the unicast route with the longest possible prefix length covering the destination prefix embedded in the Flow Specification). 2. The AS_PATH attribute of the Flow Specification is empty or contains only an AS_CONFED_SEQUENCE segment [RFC5065].' Section 1 extends the considerations to AS_CONFED_SET. Both polarities of TestFlowSpecAuthorizationFromReceivedUpdates and TestRFC9117AuthorizationUsesLongestCoveringRoute assert current eligibility, retained presence, candidates and exact zero-or-one selected nonwithdraw NLRI/action events. Matching ORIGINATOR_ID, empty internal path and confed-only paths succeed; differing transports despite equal router IDs and unmatched ORIGINATOR_ID fail. The internal /8-/16 pair has ordinary nonempty AS_SEQUENCE and changes only originator, proving longest-cover selection without local-domain or external-AS masking. flowSpecOriginator and flowSpecASPath feed flowSpecAuthorized via handleReceivedStructured/reconcileFlowSpecs; candidate and FlowSpecChanged consumers observe its decision. All four audit questions and both polarities pass by independent source reading. Stored panic records prove producer reachability, not semantic mutation. Current execution and independent live-peer/VPP acceptance remain pending.",
+  "note": "Independent re-judgment at HEAD against RFC 9117 Section 4.1 (redefined step (b): originator matches best-match unicast route originator (b.1) OR FlowSpec AS_PATH is empty or contains only AS_CONFED_SEQUENCE/AS_CONFED_SET (b.2)). Verified rib_flowspec_validation.go::flowSpecASPath and flowSpecAuthorized select the longest covering unicast route and require flow.localDomain || flow.originator == best.originator while rejecting empty AS_PATH from an external peer. TestRFC9117AuthorizationUsesLongestCoveringRoute isolates longest-match (/16 vs /8) originator selection on received UPDATEs (positive installs /16 match; negative retains /8-only match ineligible with 0 candidates and 0 installs). TestFlowSpecAuthorizationFromReceivedUpdates covers ORIGINATOR_ID match (b.1), empty iBGP path and confederation-only paths (b.2), and rejects non-local-domain originator mismatches (different transport with same Router ID, or ORIGINATOR_ID absent on unicast). Q1-Q4 pass.",
   "requirement_sha": "68e37b051b521571",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "92bad22f663643a9",
-    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "92bad22f663643a9",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "affdd5d6e6f3bb6f",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "affdd5d6e6f3bb6f"
+    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "04cc6cf0133aa467",
+    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "04cc6cf0133aa467",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "41f1eeb965ccbf92",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "41f1eeb965ccbf92"
   },
   "units": {
-    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "c9c4af56bfe4a403",
-    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "c9c4af56bfe4a403",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "4f4fdbecc78e3c4a",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "4f4fdbecc78e3c4a"
+    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "f12e39b1ec7b36d1",
+    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "f12e39b1ec7b36d1",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "cd71064dd22f26f5",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "cd71064dd22f26f5"
   },
   "verdict": "enforced"
 }

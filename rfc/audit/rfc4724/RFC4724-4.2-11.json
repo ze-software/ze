@@ -5,19 +5,21 @@
     "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.onEORReceived": "7bd6eb0e6a14f082",
     "internal/component/bgp/plugins/rib/rib_source_commands.go::RIBManager.purgePhysicalSourceCommand": "d0ef0dc53098389d"
   },
-  "note": "Independent re-audit after 26d70dfa0d. For a single restart handleEOREvent still sends exactly one purge-stale for the End-of-RIB family to the retained connection, and the tagged roots still pin it: TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes requires the exact single command, TestRFC4724EndOfRIBLeavesOtherFamiliesStale no IPv6 or whole-peer purge and nothing for an unretained family, and the state-manager pair the per-family bookkeeping. FINDING, whole requirement: after a consecutive restart during the LLGR period, the routes still marked stale for the family belong to more than one connection (41 and 42), and all are routes from the peer. 26d70dfa0d changed handleEOREvent from dispatchSource to dispatchRetained because the purge named only the latest connection and left connection 41's stale routes in place; every tagged root of this row stayed green under that defect and would stay green if the change were reverted, because none drives a second retained connection. The untagged real-RIB root TestRFC9494ConsecutiveRestartEORDeletesEveryConnectionsStaleRoutes does require both stale routes absent and the refreshed one fresh after the third connection's End-of-RIB; tagging it as this row's positive, with its discrimination record, would close the finding.",
+  "note": "Independent re-judgment against RFC 4724 Section 4.2 ('Once the End-of-RIB marker for an address family is received from the peer, it MUST immediately remove any routes from the peer that are still marked as stale for that address family.') after commit 21587224da closed the prior multi-connection finding by tagging TestRFC9494ConsecutiveRestartEORDeletesEveryConnectionsStaleRoutes as positive. Single-restart behavior remains pinned by TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes (exact single purge-stale for IPv4 unicast), TestRFC4724EndOfRIBLeavesOtherFamiliesStale (no IPv6 or whole-peer purge; unretained family dispatches nothing), and TestGRStateManagerEORPurge / TestGRStateManagerEORForNonGRPeer. Consecutive-restart behavior is now proven end-to-end against the real registered RIB engine by TestRFC9494ConsecutiveRestartEORDeletesEveryConnectionsStaleRoutes: after connections 41 and 42 both leave stale routes retained in IPv4 unicast, End-of-RIB from connection 43 via handleEOREvent -> dispatchRetained immediately removes both connection 41's and connection 42's stale routes while keeping connection 43's refreshed route fresh.",
   "requirement_sha": "3a7dc061a2a9ae09",
   "tests": {
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORForNonGRPeer": "9f3429deeea442b3",
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORPurge": "9f3429deeea442b3",
     "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBLeavesOtherFamiliesStale": "76bbd370b1fffc20",
-    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes": "76bbd370b1fffc20"
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes": "76bbd370b1fffc20",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_rib_test.go::TestRFC9494ConsecutiveRestartEORDeletesEveryConnectionsStaleRoutes": "dd179693edaa4164"
   },
   "units": {
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORForNonGRPeer": "0b7a49426d6068bb",
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORPurge": "887c3b01fbeb6ce2",
     "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBLeavesOtherFamiliesStale": "f3a2354f259e3d45",
-    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes": "2f9317c29ef4b7ac"
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes": "2f9317c29ef4b7ac",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_rib_test.go::TestRFC9494ConsecutiveRestartEORDeletesEveryConnectionsStaleRoutes": "231aac26fe723de4"
   },
-  "verdict": "weak"
+  "verdict": "enforced"
 }

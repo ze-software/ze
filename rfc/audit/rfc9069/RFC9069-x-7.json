@@ -1,11 +1,11 @@
 {
-  "note": "Forbidden: Peer BGP ID other than the global instance router-id. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerBGPID != 0x0a141e01 Errorf. Single-polarity marker. The VRF clause is conditional on a VRF Loc-RIB instance, which ze does not implement (one global instance), so it has no reachable case.",
+  "note": "Independent re-audit against RFC 9069 Section 5.1 ('Peer BGP ID: Set the ID to the router-id of the VRF instance if VRF is used; otherwise, set to the global instance router-id.') at HEAD. locRIBPeerHeader sets PeerBGPID from localIdentity().routerID and writePeerHeader encodes it big-endian at offsets 30..34; missing identity suppresses emission rather than emitting zero. TestLocRIBPeerHeader asserts ph.PeerBGPID == 0x0a141e01. Single-polarity annotation holds (Ze has one global instance and no VRF Loc-RIB instances).",
   "requirement_sha": "0835222fb0c435e2",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "9bcab0976adbef2d"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "52d0f672c341ca11"
   },
   "units": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "1e0e5945d5c34c25"
   },
   "verdict": "enforced"
 }

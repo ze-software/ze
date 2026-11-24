@@ -1,25 +1,25 @@
 {
-  "note": "Independent semantic rejudgment: RFC8955 Section 6: \"In the absence of explicit configuration, a Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all of the conditions below are true: a) A destination prefix component is embedded in the Flow Specification. b) The originator of the Flow Specification matches the originator of the best-match unicast route for the destination prefix embedded in the Flow Specification (this is the unicast route with the longest possible prefix length covering the destination prefix embedded in the Flow Specification). c) There are no \"more-specific\" unicast routes, when compared with the flow destination prefix, that have been received from a different neighboring AS than the best-match unicast route, which has been determined in rule b.\" The existing receive-driven authorization units retain unique IDs, real received attributes and exact eligibility/candidate/selected-event effects. Tests separate longest-covering choice (with RFC9117 amendments), different-AFI/SAFI/RD routes, same-domain foreign-more-specific routes including a losing path, and removal-based reauthorization. Ignoring the losing foreign more-specific now incorrectly authorizes the route and fails the exact forbidden-candidate/install oracle; dropping route-domain comparison fails isolation while the valid matching-domain controls survive. This closes the specifically pending condition-c and route-domain producer counterfactuals without claiming that two faults exhaust all per-clause or dataplane behavior. The preserved broader assertions, not these two mutations alone, support the row. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
+  "note": "Independent re-judgment at HEAD (audit-b). RFC 8955 Section 6 (updated by RFC 9117 Sections 4.1-4.2): \"In the absence of explicit configuration, a Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all of the conditions below are true\". All 4 tagged tests (8 tags) and rib_flowspec_validation.go::flowSpecAuthorized verified at HEAD: covers destination presence (a), longest-covering-route best-match originator/local-domain/external-leftmost-AS (b & RFC 9117), foreign more-specific routes including unicast-losing paths (c), and SAFI 133/1 vs SAFI 134/128 AFI and RD isolation.",
   "requirement_sha": "c2145bef30dd5201",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "92bad22f663643a9",
-    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "92bad22f663643a9",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "affdd5d6e6f3bb6f",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "affdd5d6e6f3bb6f",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule": "affdd5d6e6f3bb6f",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule#2": "affdd5d6e6f3bb6f",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "affdd5d6e6f3bb6f",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "affdd5d6e6f3bb6f"
+    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "04cc6cf0133aa467",
+    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "04cc6cf0133aa467",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "41f1eeb965ccbf92",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "41f1eeb965ccbf92",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule": "41f1eeb965ccbf92",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule#2": "41f1eeb965ccbf92",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "41f1eeb965ccbf92",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "41f1eeb965ccbf92"
   },
   "units": {
-    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "c9c4af56bfe4a403",
-    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "c9c4af56bfe4a403",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "4f4fdbecc78e3c4a",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "4f4fdbecc78e3c4a",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule": "7078a5d42ece608a",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule#2": "7078a5d42ece608a",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "06787942c3b80776",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "06787942c3b80776"
+    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "f12e39b1ec7b36d1",
+    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "f12e39b1ec7b36d1",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "cd71064dd22f26f5",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "cd71064dd22f26f5",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule": "ca3f22ea2857bfdd",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule#2": "ca3f22ea2857bfdd",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "8d070ae1d246239a",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "8d070ae1d246239a"
   },
   "verdict": "enforced"
 }

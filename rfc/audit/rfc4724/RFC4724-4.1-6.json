@@ -5,12 +5,12 @@
     "internal/core/bgp/ribevents/ribevents.go::ActiveSelectionDeferral": "c46dd4e344976104",
     "internal/core/bgp/ribevents/ribevents.go::ClearSelectionDeferred": "6ec7bef1e00a5345",
     "internal/core/bgp/ribevents/ribevents.go::NoteSelectionDeferred": "6fd3b85a58a779cb",
-    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.processEvent": "9c4f9cc3eda43144",
+    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.processEvent": "6fb4361f8054ef4b",
     "internal/plugins/fib/kernel/fibkernel.go::fibKernel.sweepStale": "2d3bab8c947324f9",
     "internal/plugins/fib/kernel/fibkernel.go::fibKernel.waitAndSweepStale": "63c94212a96ecdbd",
     "internal/plugins/fib/kernel/register.go::runFIBKernelPlugin": "3096aeb969daea7d"
   },
-  "note": "Independent re-audit against RFC 4724 Section 4.1. Stage 2 -> Stage 5 startup race is fixed cleanly via subscribe-before-read and write-before-emit: emitSelectionDeferred calls ribevents.NoteSelectionDeferred(maxDelay) before emitting SelectionDeferred, emitSelectionComplete and selectionDeferral.stop call ribevents.ClearSelectionDeferred() before emitting SelectionComplete, and fibKernel.waitAndSweepStale reads ribevents.ActiveSelectionDeferral() immediately after subscribing to both events to seed initialDelay past active+fallbackDelay. TestRFC4724RestartingSpeakerForwardingState replicates the real Stage 2 -> Stage 5 order (NoteSelectionDeferred + emit BEFORE starting waitAndSweepStale), verifies no premature sweep past the 25ms fallback delay, proves processEvent updates forwarding state for 198.51.100.0/24 and adds 198.18.0.0/24, and proves ClearSelectionDeferred + SelectionComplete immediately sweeps unrefreshed stale 203.0.113.0/24 while preserving refreshed and fresh routes (negative).",
+  "note": "Independent re-judgment against RFC 4724 Section 4.1 ('After the BGP speaker performs route selection, the forwarding state of the speaker MUST be updated and any previously marked stale information MUST be removed.') after fib-kernel processEvent/sweepStale updates (20d642984c). processEvent (via programRouteLocked/recordInstalledLocked) still programs route updates/adds and clears staleTables for refreshed prefixes; sweepStale/sweepPrefixLocked now counts only backend-confirmed removals while still deleting every unrefreshed stale table entry and clearing staleTables; waitAndSweepStale, runFIBKernelPlugin, and ribevents/selection_deferral coordination are unchanged. Unchanged TestRFC4724RestartingSpeakerForwardingState proves Stage 2 -> Stage 5 deferral ordering, hold past 25ms fallback, forwarding update of 198.51.100.0/24 and add of 198.18.0.0/24, and immediate post-SelectionComplete removal of unrefreshed stale 203.0.113.0/24 while preserving refreshed and fresh routes (negative).",
   "requirement_sha": "702f26d8a1c2ef0b",
   "tests": {
     "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState": "1577840eac90ea3b",

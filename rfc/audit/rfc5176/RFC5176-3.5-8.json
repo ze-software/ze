@@ -1,13 +1,13 @@
 {
-  "note": "Independent semantic rejudgment 2026-11-12 against Section 3.5: NAS MUST NOT emit proxy-only Error-Cause 502. RequestNotRoutableCauseNeverSent drives coaResponsePaths across all four reply codes and all current success/refusal classes, verifies each exact code/cause, then prohibits 502 everywhere. RequestNotRoutableCauseNeverSentForAForeignSession injects 502 into both request kinds with an opaque Proxy-State copy and requires only 401 (never echoed 502) while preserving Proxy-State bytes; its foreign user/NAS-Identifier case now correctly requires only 401 because NAS-Identifier is unsupported, still forbidding 502. The changed 503-to-401 assertion follows mandatory unsupported-attribute admission and preserves the actual NAS prohibition. Exact cause assertions would fail if request content were echoed as NAS error or foreign identity were answered using proxy routing failure. These controls isolate response generation from transport/authentication failure and retain both ordinary replies and tempting forbidden input. No fresh record execution is claimed.",
+  "note": "Independent re-judgment against RFC 5176 Section 3.5 and HEAD code (coa.go). TestRFC5176RequestNotRoutableCauseNeverSent drives all 15 coaResponsePaths (including unknown sessions) across all four response codes, verifies exact code and Error-Cause per path, and forbids proxy-only Error-Cause 502 everywhere. TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession proves injected 502 in CoA and Disconnect is never echoed ([401] only) and a foreign-realm Disconnect carrying unsupported NAS-Identifier answers [401], never 502.",
   "requirement_sha": "105130563996c69c",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSent": "5031ddff52e7f84f",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession": "5031ddff52e7f84f"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSent": "3559c783a22e653e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession": "3559c783a22e653e"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSent": "6d63a1675f337700",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession": "78f86b590790282d"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession": "0628e59dd2a04311"
   },
   "verdict": "enforced"
 }

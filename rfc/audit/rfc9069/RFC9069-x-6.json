@@ -1,14 +1,14 @@
 {
-  "note": "Forbidden: Peer AS other than the router's primary ASN (zero, a constant, AS_TRANS). internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerAS != 4200000001 Errorf; ::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven two identities must give 65001 and 65002; internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity reads Peer AS 4200000001 off the wire with the OPEN cache empty.",
+  "note": "Independent re-audit against RFC 9069 Section 5.1 ('Peer Autonomous System (AS): Set to the primary router BGP autonomous system number (ASN).') at HEAD. locRIBPeerHeader sets PeerAS from localIdentity() (parsed from bgp config). Positive: TestLocRIBPeerHeader pins 4-octet ASN 4200000001; TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity commits loc-rib=true over the reload rail with an empty openCache and asserts PeerAS==4200000001 and ASN4 capability==4200000001 off the net.Pipe wire. Negative: TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven passes two distinct identities (65001, 65002) and asserts distinct exact PeerAS values, catching hardcoded or zero-filled PeerAS.",
   "requirement_sha": "a3032001657ec349",
   "tests": {
     "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "4da8e49081b6ecf6",
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "9bcab0976adbef2d",
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "9bcab0976adbef2d"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "52d0f672c341ca11",
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "52d0f672c341ca11"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "ec5d663dfbfb7e20",
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115",
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "1e0e5945d5c34c25",
     "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "c6fcdb52a185c1da"
   },
   "verdict": "enforced"

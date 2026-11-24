@@ -1,17 +1,17 @@
 {
-  "note": "NAK half added: a CoA-Request carrying State (0xdead00beef, embedded zero) answered by CoA-NAK 506 and by CoA-NAK 503 gets the State back byte-equal; a NAK to a request with no State carries none. The ACK half and its no-State counterpart were already held. Producer sendResponse.",
+  "note": "Independent re-judgment against RFC 5176 Section 3.3 and HEAD code (coa.go sendResponse). TestRFC5176StateReturnedUnmodified exercises a CoA-ACK path (though without asserting resp.Code == CodeCoAACK) and asserts State returns byte-equal and absent State produces none. TestRFC5176StateReturnedUnmodifiedInANAK explicitly asserts CoA-NAK on both 506 (nil bus) and 503 (unknown session) with embedded-zero State returned byte-equal, and TestRFC5176NAKForARequestWithoutStateCarriesNone asserts CoA-NAK with no State when absent. Breaking State echoing on ACK or NAK fails these tests.",
   "requirement_sha": "b992cfc072eb68b9",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176NAKForARequestWithoutStateCarriesNone": "0461f962da4d97fb",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176StateReturnedUnmodifiedInANAK": "0461f962da4d97fb",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified": "fc41528fea27644c",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified#2": "fc41528fea27644c"
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176NAKForARequestWithoutStateCarriesNone": "5f3f208e05b07a3f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176StateReturnedUnmodifiedInANAK": "5f3f208e05b07a3f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified": "77dcd5becb6dabff",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified#2": "77dcd5becb6dabff"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176NAKForARequestWithoutStateCarriesNone": "9bdc19e931fcb9bc",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176StateReturnedUnmodifiedInANAK": "a71098d28e9779e7",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified": "9617bef322aff058",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified#2": "9617bef322aff058"
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176NAKForARequestWithoutStateCarriesNone": "0d5224a1887427bf",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176StateReturnedUnmodifiedInANAK": "7a47a159125bdde7",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified": "ecce49676f52abbf",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified#2": "ecce49676f52abbf"
   },
   "verdict": "enforced"
 }

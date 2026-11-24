@@ -1,17 +1,17 @@
 {
-  "note": "Rejudged 2026-10-28 after BlastRADIUS: both tagged units changed only by the Exchange(ctx, pkt, Server{...}) signature. Accounting answers are not subject to the presence check (requireMessageAuthenticator is Access-Request only) and buildResponse keeps them header-only. Clause 1: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier red on a changed Identifier for identical contents. Clause 2: TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator asserts a new Identifier and Request Authenticator when Acct-Delay-Time moves, each authenticator the Section 3 MD5 of its datagram. TestRFC2866AccountingDistinctRequestsDifferIdentifier is mislabeled: it proves RFC2866-4.1-4.",
+  "note": "Independent rejudge against RFC 2866 Section 4.1 (\"For retransmissions where the contents are identical, the Identifier MUST remain unchanged. Note that if Acct-Delay-Time is included in the attributes of an Accounting-Request then the Acct-Delay-Time value will be updated when the packet is retransmitted, changing the content of the Attributes field and requiring a new Identifier and Request Authenticator.\"). TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator changed only a comment (Exchange->exchange in 69f3e72365); with 1100ms timeout it verifies Acct-Delay-Time actually changes, Identifier changes, Request Authenticator changes, and both authenticators match independent Section 3 MD5. TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier proves identical-contents retransmission (OmitAcctDelayTime=true) keeps the exact Identifier and byte-identical datagram via exchange/stampsAcctDelayTime. TestRFC2866AccountingRetransmitTakesANewIdentifier (150ms sub-second timeout) and TestRFC2866AccountingDistinctRequestsDifferIdentifier remain unchanged. Verdict enforced stands.",
   "requirement_sha": "57c04f27af1ae359",
   "tests": {
     "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingDistinctRequestsDifferIdentifier": "6dcfa6f98e925263",
     "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier": "6dcfa6f98e925263",
     "internal/component/radius/rfc2866_acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier": "4b950159b4212d2b",
-    "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "673a0e65f53e1495"
+    "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "cb72a25664654134"
   },
   "units": {
     "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingDistinctRequestsDifferIdentifier": "afc28b9ebd1ff1e0",
     "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier": "c4a07547407c5fc3",
     "internal/component/radius/rfc2866_acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier": "e7a05c2667ead367",
-    "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "5ebf368a13c2f644"
+    "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "0667f43f03be101a"
   },
   "verdict": "enforced"
 }

@@ -5,17 +5,17 @@
     "internal/le/interoplab/l2tp/ppp_framing.go::armedPPPFrames": "60132ad705f47c61",
     "internal/le/interoplab/l2tp/ppp_framing.go::readPPPFramingLog": "4e9fcdd82a3df485"
   },
-  "note": "Rejudged after checkPPPCodeReject gained assertions 9 and 10, which run after assertion 4 and leave it unchanged. Re-read Section 5.6. With peer MRU 128 and 204-octet probes, assertion 4 still requires every observed LCP and IPCP rejection to fit the MRU, keep a consistent outer Length, and preserve the rejected Code, Identifier, original Length and leading Data. Assertion 3 still keeps exactly two responses per protocol. TestRFC1661CodeRejectTruncatedToMRU (404-octet packets cut to a 100-octet Information field) and its negative TestRFC1661CodeRejectKeptWhenItFits (all 44 octets kept) are unchanged, so an unconditional cut still fails. The verdict holds.",
+  "note": "Rejudged at HEAD after checkPPPCodeReject replaced fail(7, parseErr) with pppCodeRejectFailure(name, 7, parseErr) inside Wait callbacks (identical behavior). Re-read RFC 1661 Section 5.6: 'The Rejected-Packet MUST be truncated to comply with the peer's established MRU.' Positive TestRFC1661CodeRejectTruncatedToMRU sends 404-octet LCP and IPCP unknown-code packets with negotiatedMRU 100 and asserts exact 100-octet Information field, preserved Code/Identifier/original Length 404, and first 92 octets of Data. Negative TestRFC1661CodeRejectKeptWhenItFits sends a 44-octet LCP packet with negotiatedMRU 100 and asserts all 44 octets stay intact. Interop checkPPPCodeReject assertion 4 enforces rejectsWithinMRU for 204-octet probes under MRU 128. Producer writeCodeReject clamps to min(frameLen(transmitMRU), MaxFrameBufLen). Verdict stands.",
   "requirement_sha": "0b15bfcac2103c64",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectKeptWhenItFits": "abd3fecb016ef0e7",
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectTruncatedToMRU": "abd3fecb016ef0e7",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "a0037eb000d133bc"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "efd8340a13661503"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectKeptWhenItFits": "74101e343f08a8ce",
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectTruncatedToMRU": "ac437d40d8483b7e",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "7c61f9b6f42d0268"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "0ef9501217309db2"
   },
   "verdict": "enforced"
 }

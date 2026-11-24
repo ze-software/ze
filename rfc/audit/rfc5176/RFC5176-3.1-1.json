@@ -1,17 +1,17 @@
 {
-  "note": "Clause 1 (Proxy-State returned): TestRFC5176ProxyStateReturnedUnmodified both polarities at sendResponse. Clause 2 (no modification of Proxy-State/State/Class) and clause 3 (opaque): + TestRFC5176StateAndClassUnmodifiedProxyStateOpaque, State byte-equal in the CoA-ACK, a 253-octet all-values Proxy-State and an attribute-shaped one returned byte-equal; Class is never echoed by sendResponse, so its assertion holds by construction (no Class can come back altered). Clause 4 (operation independent of Proxy-State content): the same test's two Disconnects differing only in Proxy-State both ACK with 2 teardowns, and - TestRFC5176ProxyStateContentIsNeverRead: an unknown-session Disconnect whose Proxy-State encodes the live session's Acct-Session-Id gets the same NAK code and Error-Cause as without it, 0 teardowns (recorded at handleDisconnect). All units observed red.",
+  "note": "Independent re-judgment against RFC 5176 Section 3.1 and HEAD code (coa.go sendResponse). TestRFC5176ProxyStateReturnedUnmodified verifies two Proxy-State attributes return unmodified in arrival order on Disconnect and none are invented when absent. TestRFC5176StateAndClassUnmodifiedProxyStateOpaque verifies CoA-ACK echoes State and an attribute-shaped Proxy-State byte-equal, Disconnect-ACK echoes a 253-byte all-values Proxy-State and 0xaa byte-equal with identical outcomes and two teardowns, and Class is never returned altered. TestRFC5176ProxyStateContentIsNeverRead verifies a Proxy-State encoding a live Acct-Session-Id TLV beside an unknown session produces the identical Disconnect-NAK and Error-Cause with zero teardowns.",
   "requirement_sha": "92dc63921c5c1b4c",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176ProxyStateContentIsNeverRead": "b439fffbe386e859",
-    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176StateAndClassUnmodifiedProxyStateOpaque": "b439fffbe386e859",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ProxyStateReturnedUnmodified": "fc41528fea27644c",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ProxyStateReturnedUnmodified#2": "fc41528fea27644c"
+    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176ProxyStateContentIsNeverRead": "46f1683216aff121",
+    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176StateAndClassUnmodifiedProxyStateOpaque": "46f1683216aff121",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ProxyStateReturnedUnmodified": "77dcd5becb6dabff",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ProxyStateReturnedUnmodified#2": "77dcd5becb6dabff"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176ProxyStateContentIsNeverRead": "368eb62e0d2ece49",
-    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176StateAndClassUnmodifiedProxyStateOpaque": "dee7eebefe657561",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ProxyStateReturnedUnmodified": "12bea19637fcfb73",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ProxyStateReturnedUnmodified#2": "12bea19637fcfb73"
+    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176ProxyStateContentIsNeverRead": "f7a0c47a41c883af",
+    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176StateAndClassUnmodifiedProxyStateOpaque": "3df5f3ca80720ed7",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ProxyStateReturnedUnmodified": "5b4bfa6fddff8bb7",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ProxyStateReturnedUnmodified#2": "5b4bfa6fddff8bb7"
   },
   "verdict": "enforced"
 }

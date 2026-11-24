@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden behaviour: accepting a datagram shorter than its Length field. TestRFC2866ShortPacketSilentlyDiscarded overstates the Length by 8 and fails if the exchange completes; TestRFC2866HonestLengthIsAccepted shows the same server with an honest Length completes, isolating the length claim.",
+  "note": "Independent rejudge against RFC 2866 Section 3 (\"If the packet is shorter than the Length field indicates, it MUST be silently discarded.\"). In 1b0198fb0d, TestRFC2866ShortPacketSilentlyDiscarded was strengthened: against an Accounting-Response whose Length is overstated by 8, with Retries=2 it now asserts both that SendToServers fails AND that the server received 2 requests (original + retransmission), proving silent discard in readLoop/VerifyResponseAuth/Decode rather than immediate abort. TestRFC2866HonestLengthIsAccepted proves the same server with an honest Length completes. Verdict enforced stands.",
   "requirement_sha": "aa727fbc9d9838ec",
   "tests": {
-    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866HonestLengthIsAccepted": "d31ec983abea25ed",
-    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866ShortPacketSilentlyDiscarded": "d31ec983abea25ed"
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866HonestLengthIsAccepted": "5ee7328e5d8dc6d7",
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866ShortPacketSilentlyDiscarded": "5ee7328e5d8dc6d7"
   },
   "units": {
     "internal/component/radius/rfc2866_packet_test.go::TestRFC2866HonestLengthIsAccepted": "9f6a40f7c02c2fa7",
-    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866ShortPacketSilentlyDiscarded": "1581a436c0b9f239"
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866ShortPacketSilentlyDiscarded": "8de096a382f211ca"
   },
   "verdict": "enforced"
 }

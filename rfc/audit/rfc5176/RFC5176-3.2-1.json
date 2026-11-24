@@ -1,13 +1,13 @@
 {
-  "note": "(a) forbidden: answering an Authorize Only CoA-Request with a CoA-ACK, or not NAKing an unsupported Authorize Only. (b) TestRFC5176ServiceTypeNAKed wantNAK(CoA-NAK, 405) and zero events for Service-Type 17; the same request without Service-Type is ACKed.",
+  "note": "Independent re-judgment against RFC 5176 Section 3.2 and HEAD code (coa.go answerRequest). TestRFC5176ServiceTypeNAKed sends a valid CoA-Request with Service-Type 17 (Authorize Only) and asserts CoA-NAK (not CoA-ACK), Error-Cause 405 and zero bus events, then sends the identical request without Service-Type and asserts CoA-ACK. Covers both the MUST-NAK/MUST-NOT-ACK rule and the SHOULD 405 for a NAS that declines optional Authorize Only.",
   "requirement_sha": "1fc697be0d66efdb",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed": "fc41528fea27644c",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed#2": "fc41528fea27644c"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed": "77dcd5becb6dabff",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed#2": "77dcd5becb6dabff"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed": "3dacc1223c7fc1fe",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed#2": "3dacc1223c7fc1fe"
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed": "96300d8926b25e68",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed#2": "96300d8926b25e68"
   },
   "verdict": "enforced"
 }

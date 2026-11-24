@@ -1,13 +1,13 @@
 {
-  "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176InvalidEAPPacketCauseNeverSent: no response on any of the 15 paths carries 202. - TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest (R1(b)): an injected 202 is never echoed (401 only), and a Disconnect with a malformed EAP-Message gets [401], never 202. Records observed red.",
+  "note": "Independent re-judgment against RFC 5176 Section 3.5 and HEAD code (coa.go). TestRFC5176InvalidEAPPacketCauseNeverSent drives all 15 coaResponsePaths covering all four response codes, verifies exact code and Error-Cause per path, and forbids Error-Cause 202 everywhere. TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest injects Error-Cause 202 into CoA and Disconnect (plus Proxy-State TLV) asserting [401] only and intact Proxy-State, and sends a malformed EAP-Message in Disconnect asserting Error-Cause [401], never 202.",
   "requirement_sha": "bc03b14600f3e37f",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSent": "5031ddff52e7f84f",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest": "5031ddff52e7f84f"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSent": "3559c783a22e653e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest": "3559c783a22e653e"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSent": "807fe11eaec464b2",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest": "243cbd889bf77f60"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest": "47ec9eaa2a40cd40"
   },
   "verdict": "enforced"
 }

@@ -1,15 +1,15 @@
 {
-  "note": "Independent semantic rejudgment 2026-11-12 against Section 3 plus the Section 3.6 Disconnect table and Notes 2/7. DisconnectWithANonIdentificationAttributeIsNAKed keeps valid Acct-Session-Id/User-Name while separately adding Filter-Id, Framed-MTU, Session-Timeout, Idle-Timeout, Service-Type or State (each absent from the allowed Disconnect-request column), requiring Disconnect-NAK, exactly [401] and zero teardowns. DisconnectCarryingOnlyIdentificationIsACKed now includes the three actually implemented matching selectors and requires ACK plus one teardown; unsupported NAS identification extras are correctly tested as Section 2.3 refusal cases, not placed in this accepted control. DisconnectAdmitsTheSection36TableAttributes separately requires ACK/no Error-Cause and one additional teardown for Reply-Message, Class and Acct-Terminate-Cause individually and together. EAP/VSA are not misclassified as this clause's forbidden 'other' attributes: the table permits them while this NAS can explicitly refuse unsupported services under 2.3. unsupportedAttr selects the exact Disconnect allowlist before handleDisconnect. Removing the exclusion or refusing all accepted inputs breaks exact outcomes; the complete forbidden-other rule is exercised without weakening table exceptions. Native proof refresh is separate.",
+  "note": "Independent re-judgment against RFC 5176 Section 3 and the Section 3.6 Disconnect table at HEAD (coa.go unsupportedAttr, disconnectSupportedAttrs). TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed sends Filter-Id, Framed-MTU, Session-Timeout, Idle-Timeout, Service-Type and State beside valid session identification and asserts Disconnect-NAK, Error-Cause [401] and zero teardowns. TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed confirms ACK and one teardown with implemented identification selectors alone, and TestRFC5176DisconnectAdmitsTheSection36TableAttributes confirms ACK, no Error-Cause and one teardown each for Reply-Message, Class and Acct-Terminate-Cause individually and together.",
   "requirement_sha": "1acf3639935143e4",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectAdmitsTheSection36TableAttributes": "5031ddff52e7f84f",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed": "5031ddff52e7f84f",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed": "5031ddff52e7f84f"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectAdmitsTheSection36TableAttributes": "3559c783a22e653e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed": "3559c783a22e653e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed": "3559c783a22e653e"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectAdmitsTheSection36TableAttributes": "85035e41681fdd2c",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed": "43c3f809829e6ade",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed": "63545650c8637ce5"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectAdmitsTheSection36TableAttributes": "65bd308fcd87cde0",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed": "224cbf71a8fae009",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed": "5f9a19734e7640b5"
   },
   "verdict": "enforced"
 }

@@ -1,9 +1,9 @@
 {
   "code": {
-    "internal/component/l2tp/ppp/session_run.go::applyTransition": "764080c29b049138",
+    "internal/component/l2tp/ppp/session_run.go::applyTransition": "df22c37007e52b2e",
     "internal/component/l2tp/ppp/session_run.go::armRestartTimer": "98e5417d2bbbbc45"
   },
-  "note": "Rejudged after 438bb234e4 gave applyTransition a branch that reports lcpRejectFatalReason with TerminateCauseNASError after an RXJ-. Re-read Section 4.4, the zrc Implementation Note: 'In addition to zeroing the Restart counter, the implementation MUST set the timeout period to an appropriate value.' The new branch runs only inside sessionEndedAt and chooses the EventSessionDown reason and cause. The zrc handling (restartCount = 0, armRestartTimer) and armRestartTimer's configured period are unchanged, and the peerTerminated bookkeeping before the branch is untouched. The tagged units are unchanged. TestConfiguredLCPZeroRestartPeriod still has Opened plus Terminate-Request zero a live counter, expire at the configured 500 ms into Stopped and send only the Terminate-Ack, while Closed acknowledges without arming a timer. TestLCPPeerTerminateRestartTimer keeps the default-period grace and the Closed contrast. The verdict holds.",
+  "note": "Rejudged at HEAD after applyTransition converted its sessionEndedAt reason/cause if-else chain to a switch statement (no behavior change). Re-read RFC 1661 Section 4.4 (zrc): 'In addition to zeroing the Restart counter, the implementation MUST set the timeout period to an appropriate value.' Producer applyTransition still runs s.restartCount = 0 and s.armRestartTimer() on LCPActZRC, and armRestartTimer resets s.restartTimer to s.lcpConfig.RestartTimer(). TestConfiguredLCPZeroRestartPeriod and TestLCPPeerTerminateRestartTimer (both synctest) assert that Opened+RTR zeroes a live counter and arms the exact configured 500 ms / default 3 s grace timer before Stopped, contrasted against Closed+RTR which sends Terminate-Ack without arming any timer. Verdict stands.",
   "requirement_sha": "c2f1eadb4e4f0e72",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod": "5133b1b1fbe707ca",

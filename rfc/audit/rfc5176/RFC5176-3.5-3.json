@@ -1,12 +1,12 @@
 {
-  "note": "The oracle is no longer the producer: TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5 reads CoA-ACK, CoA-NAK, Disconnect-ACK and Disconnect-NAK raw off the socket and compares the Authenticator field with an MD5 the test computes over Code, Identifier, Length, the sent Request Authenticator, the response attributes and the secret. The {single-polarity: positive} annotation holds: the NAS only emits responses.",
+  "note": "Independent re-judgment against RFC 5176 Section 2.3 and HEAD code (coa.go sendResponse, packet.go ResponseAuthenticator). TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5 reads raw CoA-ACK, CoA-NAK, Disconnect-NAK and Disconnect-ACK datagrams off the UDP socket, pins each response code, and compares bytes 4..19 against an independent MD5 over Code, Identifier, Length, sent Request Authenticator, response attributes and secret. TestRFC5176ResponseAuthenticator verifies Disconnect-NAK via radius.VerifyResponseAuth. The {single-polarity: positive} annotation holds: Ze is a NAS that only emits CoA/Disconnect responses.",
   "requirement_sha": "d0e25464235955d7",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5": "0461f962da4d97fb",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176ResponseAuthenticator": "25c2b53f1b101476"
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5": "5f3f208e05b07a3f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176ResponseAuthenticator": "26886fa0813e7fa4"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5": "c3e90e6108dc8e8c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5": "c4f9fb63638e3cd7",
     "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176ResponseAuthenticator": "0ab1d89fd07fb0a5"
   },
   "verdict": "enforced"

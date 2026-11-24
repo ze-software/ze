@@ -1,19 +1,19 @@
 {
-  "note": "Re-judged 2026-10-23 (independent auditor, after 5d4afb0c4e). RFC 7752 Section 6.2.2: \"An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.\" followed by the five length-sum questions (BGP-LS attribute, MP_REACH_NLRI, MP_UNREACH_NLRI, descriptor Total NLRI Length, fixed-length TLVs). TestRFC7752LinkStateLengthSumsOnReceive changed only the NOTIFICATION it requires for the outer NLRI overrun: across NLRI types 1, 2 and 3, in MP_REACH_NLRI and MP_UNREACH_NLRI, an NLRI length one octet too long must give SessionReset with the RFC 9552 Section 8.2.2 length-sum error and the exact frame 3/9 whose Data is the MP attribute alone (mpAttr = attrs[7:] after the 4-octet ORIGIN and 3-octet empty AS_PATH of mpReachAttrs, or the whole of mpUnreachAttrs, checked against both helpers), leaving the session Idle with nothing dispatched; descriptor over and underruns still discard exactly one NLRI with the diagnostic and no NOTIFICATION; exact-sum controls are dispatched unchanged. The assertion is as exact as before; only the expected subcode and Data moved, per RFC 4760 Section 7. TestRFC7752AttributeLengthSumsOnReceive and the ls plugin units are unchanged. Ran green. Verdict stands. Finding recorded outside this verdict: the four discrimination records on these reactor units no longer verify (producer-changed applyRFC7606, and unit-changed for TestRFC7752LinkStateLengthSumsOnReceive).",
+  "note": "Independent rejudge against RFC 7752 Section 6.2.2 (\"An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.\" followed by the five length-sum checks over BGP-LS attribute, MP_REACH_NLRI, MP_UNREACH_NLRI, descriptor Total NLRI Length, and fixed-length TLVs). In ba0f3a3a7d, rfc7752_length_sums_test.go updated only the session.onMessageReceived callback signature to add a leading _ *Session parameter (2 lines); all inputs, assertions, NOTIFICATION 3/9 frame checks, tombstone checks, and ls/rfc7752_test.go fixed-length/TLV-sum units are unchanged. Producers validateBGPLSAttr (rfc7606_bgpls.go), iterateAttrTLVs/decodeAttrTLV (ls/attr.go), and processMessage enforce the syntactic checks. Verdict enforced stands.",
   "requirement_sha": "d752ea60c051e852",
   "tests": {
     "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "6c7da98fd78cb69c",
     "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "6c7da98fd78cb69c",
-    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive": "536d6454cfcf133a",
-    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive#2": "536d6454cfcf133a",
-    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "536d6454cfcf133a",
-    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "536d6454cfcf133a"
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive": "0566ae00900d7e3a",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive#2": "0566ae00900d7e3a",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "0566ae00900d7e3a",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "0566ae00900d7e3a"
   },
   "units": {
     "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "bdebb291411ab9fb",
     "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "45729f99aa376256",
-    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive": "b7119d61ce285be4",
-    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive#2": "b7119d61ce285be4",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive": "e443fb1860f54d88",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive#2": "e443fb1860f54d88",
     "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "dce7ea14c9c5c097",
     "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "dce7ea14c9c5c097"
   },

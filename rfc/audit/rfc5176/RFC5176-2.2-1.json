@@ -1,13 +1,13 @@
 {
-  "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176UnsupportedServiceTypeValueIsNAKed: Service-Type 1/2/6/8 in a CoA-Request -> CoA-NAK with Error-Cause exactly [405], no change (MUST and the SHOULD both asserted). - TestRFC5176CoAWithoutServiceTypeIsACKed: the same request without Service-Type -> CoA-ACK, no Error-Cause, one change, so the NAK is owed to the value. Both over a real UDP socket; records observed red (handlePacket, handleCoA).",
+  "note": "Independent re-judgment against RFC 5176 Section 2.2 and HEAD code (coa.go answerRequest). TestRFC5176UnsupportedServiceTypeValueIsNAKed sends Service-Type 1, 2, 6 and 8 in valid CoA-Requests over UDP and asserts CoA-NAK, Error-Cause strictly [405] and zero bus events. TestRFC5176CoAWithoutServiceTypeIsACKed sends the identical request without Service-Type and asserts CoA-ACK, no Error-Cause and one rate-change event. Both MUST (CoA-NAK) and SHOULD (405) are isolated and fail if Service-Type refusal breaks.",
   "requirement_sha": "a8f1a3401141717d",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176CoAWithoutServiceTypeIsACKed": "5031ddff52e7f84f",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176UnsupportedServiceTypeValueIsNAKed": "5031ddff52e7f84f"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176CoAWithoutServiceTypeIsACKed": "3559c783a22e653e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176UnsupportedServiceTypeValueIsNAKed": "3559c783a22e653e"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176CoAWithoutServiceTypeIsACKed": "cb880bbd5ea1a94b",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176UnsupportedServiceTypeValueIsNAKed": "4df2782893290dc0"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176CoAWithoutServiceTypeIsACKed": "02ac026e812e9d43",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176UnsupportedServiceTypeValueIsNAKed": "9ffc402397596b9c"
   },
   "verdict": "enforced"
 }

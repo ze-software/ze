@@ -1,13 +1,13 @@
 {
-  "note": "drives unicast add of a foreign more-specific, its withdraw, loss and return of the covering route, validation eligibility flips and session down, asserting a withdraw or reinstall event for the retained rule at each step without a new FlowSpec UPDATE",
+  "note": "Independent re-judgment at HEAD (audit-b). RFC 8955 Section 6: \"Therefore, a revalidation of the Flow Specification NLRI MUST be performed whenever unicast routes change.\" TestFlowSpecUnicastLifecycleRevalidatesRetainedRule drives unicast covering-route add/withdraw/re-add, foreign more-specific add/withdraw, validation eligibility flip/recovery, and unicast session down, asserting exact install and withdraw FlowSpecChange events for the retained rule without a new FlowSpec UPDATE.",
   "requirement_sha": "508626fc308dfc4f",
   "tests": {
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "affdd5d6e6f3bb6f",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "affdd5d6e6f3bb6f"
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "41f1eeb965ccbf92",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "41f1eeb965ccbf92"
   },
   "units": {
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "c358ea038139731d",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "c358ea038139731d"
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "ebc7c614aab712ed",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "ebc7c614aab712ed"
   },
   "verdict": "enforced"
 }

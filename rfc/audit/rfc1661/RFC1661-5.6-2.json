@@ -5,17 +5,17 @@
     "internal/le/interoplab/l2tp/ppp_framing.go::armedPPPFrames": "60132ad705f47c61",
     "internal/le/interoplab/l2tp/ppp_framing.go::readPPPFramingLog": "4e9fcdd82a3df485"
   },
-  "note": "Rejudged after checkPPPCodeReject gained assertions 9 and 10, which run after assertion 3 and leave it unchanged. Re-read Section 5.6. Assertion 3 still requires exactly two distinct Code-Reject Identifiers per protocol, LCP and IPCP, on the live wire. The probes deliberately share one rejected Identifier, 0x42, which isolates a forbidden copy. TestRFC1661LCPCodeRejectIdentifierChanges and TestRFC1661NCPCodeRejectIdentifierChanges are unchanged. The single-polarity annotation is still true of the producers as they stand. sendCodeReject increments lcpCodeRejectID before writeCodeReject. sendNCPCodeReject in ncp.go passes nextNCPCodeRejectID(family), which increments ipcpCodeRejectID or ipv6cpCodeRejectID, before every packet is written. No input asks ze to hold the Identifier still. The verdict holds.",
+  "note": "Rejudged at HEAD after checkPPPCodeReject replaced fail(7, parseErr) with pppCodeRejectFailure(name, 7, parseErr) inside Wait callbacks (identical behavior). Re-read RFC 1661 Section 5.6: 'The Identifier field MUST be changed for each Code-Reject sent.' Unit tests TestRFC1661LCPCodeRejectIdentifierChanges and TestRFC1661NCPCodeRejectIdentifierChanges send two unknown-code packets sharing one Identifier (0x41 for LCP, 0x51 for IPCP and IPv6CP) and assert two distinct Code-Reject Identifiers. Interop checkPPPCodeReject assertion 3 sends two LCP (Code 99) and two IPCP (Code 12) probes all with Identifier 0x42 and asserts distinctIdentifiers. Producers sendCodeReject (lcpCodeRejectID++) and sendNCPCodeReject/nextNCPCodeRejectID (ipcpCodeRejectID++/ipv6cpCodeRejectID++) advance per-protocol counters on every send; the single-polarity annotation holds. Verdict stands.",
   "requirement_sha": "0939592602cb495b",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661LCPCodeRejectIdentifierChanges": "abd3fecb016ef0e7",
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661NCPCodeRejectIdentifierChanges": "abd3fecb016ef0e7",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "a0037eb000d133bc"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "efd8340a13661503"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661LCPCodeRejectIdentifierChanges": "c53b5be2338a9d29",
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661NCPCodeRejectIdentifierChanges": "1e7943f69d5a6fe6",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "7c61f9b6f42d0268"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "0ef9501217309db2"
   },
   "verdict": "enforced"
 }

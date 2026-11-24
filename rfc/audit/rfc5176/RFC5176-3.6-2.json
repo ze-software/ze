@@ -1,13 +1,13 @@
 {
-  "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176VendorSpecificIsAChangeOnly: Acct-Session-Id + MikroTik rate VSA -> CoA-ACK and one 10 Mbit/s change on session 20 (VSA used for change only). - TestRFC5176VendorSpecificIsNeverAnIdentity: VSA alone -> NAK 503, VSA beside an unknown Acct-Session-Id -> 503 (the VSA never selects the one live session), Disconnect + VSA -> 401; no change, no teardown. Records observed red (readCoAChange, oneSession).",
+  "note": "Independent re-judgment against RFC 5176 Section 3.6 Note 7 and HEAD code (coa.go readCoAChange, findSessions, disconnectSupportedAttrs). TestRFC5176VendorSpecificIsAChangeOnly confirms MikroTik Rate-Limit VSA beside Acct-Session-Id yields CoA-ACK and one 10M rate change on session 20. TestRFC5176VendorSpecificIsNeverAnIdentity confirms the same VSA alone or beside an unknown Acct-Session-Id yields CoA-NAK 503, and in a Disconnect-Request yields Disconnect-NAK 401, with zero changes and zero teardowns.",
   "requirement_sha": "74c4feca4fbe26ea",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsAChangeOnly": "5031ddff52e7f84f",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsNeverAnIdentity": "5031ddff52e7f84f"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsAChangeOnly": "3559c783a22e653e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsNeverAnIdentity": "3559c783a22e653e"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsAChangeOnly": "2d4aeb61bb0496f2",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsNeverAnIdentity": "a6c549f0f16f1f46"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsAChangeOnly": "45d42fda008e6f1b",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsNeverAnIdentity": "c32a22764963b3f4"
   },
   "verdict": "enforced"
 }

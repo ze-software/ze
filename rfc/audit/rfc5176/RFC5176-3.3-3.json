@@ -1,13 +1,13 @@
 {
-  "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176StateNeverChangesTheOutcome: no State, State shaped as a rate, as another session's Acct-Session-Id and as a Filter-Id TLV -> identical CoA-ACK and one 10 Mbit/s change on session 20, State returned octet-equal. - TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity: State '10mbit' with no change attribute -> NAK 401; State naming the live session beside an Acct-Session-Id naming none -> NAK 503; no change, State echoed. The Termination-Action usage is unreachable (Ze NAKs Termination-Action in a CoA). Records observed red (sendResponse, readCoAChange).",
+  "note": "Independent re-judgment against RFC 5176 Section 3.3 and HEAD code (coa.go sendResponse, readCoAChange, sessionSelectorsMatch). TestRFC5176StateNeverChangesTheOutcome sends CoA-Requests with no State, rate-shaped State, session-ID-shaped State and Filter-Id-TLV-shaped State, asserting identical CoA-ACK, unchanged 10M rate change on session 20 and byte-equal echoed State. TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity proves rate-shaped State without an authorization attribute gets CoA-NAK 401 and session-ID-shaped State beside an unknown Acct-Session-Id gets CoA-NAK 503, with zero events and State echoed. Termination-Action is refused with 401 so the second usage is unreachable.",
   "requirement_sha": "7198cd9795c1a36d",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity": "5031ddff52e7f84f",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateNeverChangesTheOutcome": "5031ddff52e7f84f"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity": "3559c783a22e653e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateNeverChangesTheOutcome": "3559c783a22e653e"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity": "be4c0db326f20665",
-    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateNeverChangesTheOutcome": "c92692833eef05d3"
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity": "252f5469e4a3e406",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateNeverChangesTheOutcome": "de004930ff242a87"
   },
   "verdict": "enforced"
 }

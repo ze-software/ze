@@ -4,15 +4,15 @@
     "internal/component/bgp/reactor/session.go::Session.detectCollision": "a87d2664ca2f495f",
     "internal/component/bgp/reactor/session.go::Session.peerAdvertisedGRFamilies": "d534a44710245821"
   },
-  "note": "Independent audit against RFC 4724 Section 4.2 and Section 5. TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification establishes a real passive session over wire OPEN+KEEPALIVE with peer GR capability carrying 1 AFI/SAFI (local BGP ID > remote BGP ID to isolate from RFC 4271 tie-break) and proves detectCollision returns (true, true) and finishCollisionHandoff treats the subsequent connection as termination of the old TCP session (0 bytes / io.EOF on old socket, no NOTIFICATION, new connection retained). Negative subtests isolate both no-GR and 0-family empty GR capabilities (with local ID < remote ID), asserting detectCollision returns (false, false) and no-GR rejects the new connection with NOTIFICATION Cease/Connection Collision (6/7) while keeping the old session open.",
+  "note": "Independent re-judgment against RFC 4724 Sections 4.2 and 5 after lint cleanup in rfc4724_collision_test.go (d3fcd1cfd7: dropped unused third return from setupEstablishedGRSession and replaced res.err != io.EOF with !errors.Is(res.err, io.EOF)). Producers detectCollision, peerAdvertisedGRFamilies, and finishCollisionHandoff are unchanged. TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification establishes a real wire OPEN+KEEPALIVE session with GR capability carrying 1 AFI/SAFI (local BGP ID > remote BGP ID to isolate from RFC 4271 tie-break) and proves detectCollision returns (true, true) and finishCollisionHandoff closes the old TCP session silently (0 bytes, io.EOF) while retaining the new connection; negative subtests prove no-GR and 0-family empty GR return (false, false) and reject the new connection with NOTIFICATION Cease/Connection Collision (6/7) while leaving the old session open.",
   "requirement_sha": "623e237c93101375",
   "tests": {
-    "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification": "c8a74024176be074",
-    "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification#2": "c8a74024176be074"
+    "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification": "21aeefca860bb429",
+    "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification#2": "21aeefca860bb429"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification": "3e72e8b4a3093213",
-    "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification#2": "3e72e8b4a3093213"
+    "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification": "b410d9d9776a668e",
+    "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification#2": "b410d9d9776a668e"
   },
   "verdict": "enforced"
 }
