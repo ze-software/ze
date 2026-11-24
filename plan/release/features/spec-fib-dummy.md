@@ -1,0 +1,1109 @@
+# Spec: fib-dummy
+
+| Field | Value |
+|-------|-------|
+| Status | design |
+| Scope | plugin |
+| Priority | P2 |
+| Release reason | Thomas put this new capability in the first release on 2026-11-24: he accepted the recommendation that the dummy FIB backend is written to first-release standard and lives in `plan/release/features/` (`plan/README.md`, "`release/features/`: new capabilities the owner put in the first release"). It also removes the only way to stop the engine-added writer today, which is to write `fib { p4 { } }`, a block that names a switch the box does not have. |
+| RFC gaps | - |
+| Depends | Ordering: `plan/release/fixes/spec-dataplane-compatibility-guard.md` (in progress, another session) lands first. Its data-plane verdict (`evaluateDataPlaneVerdict` in `internal/component/config/dataplane_verdict.go`), the candidate plugin selection it judges with (`candidatePluginSelection`, with the process record of `--plugin`, its AC-18) and its doctor code `doctor-dataplane-mismatch` are the mechanism this spec's refusal of AC-4 is a rule of; this spec also uses its plane name `kernel`. Coordination: `plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md` (skeleton) lists the configured-set defect as its item 1, and the two specs split it, as that spec now records: this spec fixes the half with a process, a plugin a reload stopped (AC-17); that spec keeps the half with no process, a plugin with no process when its roots go. Both list the owned journal row `retained-entry-still-answers-lookups.md` (2026-11-12), which turns fixed only when both halves are done. `plan/release/fixes/spec-bus-2-implied-display-and-grant-refusals.md` and `plan/release/fixes/spec-explicit-plugin-and-attach-config.md`: they own the `\| implied` view and the loader report it reads; this spec adds no implied item of its own. Coordination on the marks: the guard spec adds `HostSideDataPlane` to `Registration` and to the "Registration fields" table of `docs/architecture/plugin/plugin-system.md`; this spec adds the no-plane mark beside it. Once both land, the guard spec's text and that page name two marks, and whichever spec lands second writes its row beside the other's |
+| Phase | - |
+| Handoff | - |
+| Updated | 2026-11-24 |
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Task
+
+Thomas asked (voice-transcribed, read for meaning): "can you create a spec for a
+dummy backend which does nothing for the fib". Asked what it is for, he chose
+both purposes the main session offered:
+
+1. **A control-plane-only box.** A route reflector or a route server selects
+   routes and never forwards a packet for them, so Ze must not write the
+   routes the system RIB selects into any forwarding table.
+2. **Testing and benchmarking.** The whole route path (BGP, the protocol RIB,
+   the system RIB, the best-change event and its consumer) runs end to end
+   without the cost of programming the kernel.
+
+The goal: a new plugin, `fib-dummy`, configured by `fib { dummy { } }`. It is
+the operator's FIB choice, so the engine adds no data-plane writer beside it.
+It receives every route the system RIB selects, holds it in memory, counts it,
+and writes it nowhere. Every display says the routes are held and not
+programmed. The block can be added to and removed from a running configuration
+by reload, and each time the forwarding plugins that run are exactly the ones
+the new configuration selects.
+
+The contract is narrower than "the box never touches forwarding", and every
+page and help text says so: `fib-dummy` stops the routes that pass through the
+system RIB. A feature that writes forwarding state by its own path (a static
+route in a named table, policy routing, the IPsec tunnel-source guard, interface
+addresses and their connected routes) is not a FIB plugin and is untouched
+(choice C-4).
+
+What exists today and is not changed: `fib-p4` already declares that it
+programs the FIB, names no data plane, and programs nothing, because its
+P4Runtime client is not written. Thomas parked P4 on 2026-09-06 ("We do not
+care about p4 at the moment"). This spec does not repurpose, rename or edit
+`fib-p4`. `fib-dummy` is its own plugin, and it must not repeat the two defects
+recorded against `fib-p4`: leaves that are accepted and reach nothing, and a
+display that calls held routes programmed.
+
+Four defects in the engine's reload path block the goal and are fixed here,
+each with its own acceptance criterion, because "add the block by reload" is
+false without them (`ai/INSTRUCTIONS.md`, "Done means done, and a blocker gets
+fixed"):
+
+- A reload that adds a FIB block leaves the writer the engine added on the
+  operator's behalf running beside it (AC-5).
+- A reload that removes the only FIB block leaves a running route producer
+  with no writer (AC-6).
+- A plugin a reload stopped stays in the process manager's configured set, so
+  `request plugin restart` starts it again. After AC-5 that command would
+  start the kernel writer beside `fib-dummy` (AC-17).
+- A reload that replaces a plugin block running a FIB plugin
+  (`plugin { internal k { use fib-kernel; } }`) by `fib { dummy { } }` leaves
+  the block's writer running beside the dummy, because a plugin block is read
+  only at boot (AC-20, C-6).
+
+Two label writers also stay blind across such a reload, because neither asks
+the label sources to re-apply their entries when it opens: `fib-dummy` (new)
+and `fib-kernel` started by a reload. Both emit a targeted
+`(mpls-fib, replay-request)` as `fib-vpp` does (AC-9, AC-21).
+
+The first two exist today for `fib p4` and for `fib kernel`, and the third for
+every plugin a reload removes; `fib dummy` is the first block whose whole
+purpose they defeat.
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `ai/doors/system.md` - the design every subsystem shares
+  → Constraint: a feature registers from `init()` in its own `register.go`; no switch, factory, field list, help string or completion table elsewhere learns its name
+  → Constraint: every plugin runs internal or forked; a plain Go call into another component's package is a defect when forked
+  → Constraint: a command is declared once and reaches every interface through the command registry
+- [ ] `ai/doors/forwarding.md` - FIB writers and data planes
+  → Constraint: "One writer per data plane": a FIB plugin declares `ProgramsFIB` and the `DataPlane` it reaches; "Never add a list of FIB plugin names anywhere"
+  → Constraint: the report bus is process-local; a plugin raises an issue through SDK `RaiseIssue`, never by importing `internal/core/report`
+  → Decision: MPLS label entries reach a data plane only as `(mpls-fib, entry)` events its writer consumes, and the producer waits for the writer's acknowledgement
+- [ ] `ai/doors/plugin-infra.md` - registry, server, SDK
+  → Constraint: `Registration.Commands` and the `sdk.Registration` a runner passes to `p.Run` must come from one function, or the catalog and the daemon differ
+  → Constraint: a test that mutates the registry takes `registry.Snapshot()` and restores it in `t.Cleanup`
+  → Constraint: one plugin failure stops the startup tier, by owner ruling; a refusal must come before any plugin starts
+- [ ] `ai/doors/config-yang.md` - config and YANG
+  → Constraint: extend a container with `augment`, never with a second definition; the generated YANG glue comes from `./le yang glue update`
+  → Constraint: `ze config validate` never calls a live `OnConfigVerify`, so a rule that must hold offline is an `InProcessConfigVerifier` or a registered tree validator
+  → Constraint: a removed root arrives as `{}`; a parser that returns nothing for it hides the removal
+- [ ] `ai/doors/core.md` - core leaf registries and events
+  → Constraint: typed event handles come from `events.Register[T]`; cross-boundary values carry no pointer into producer data
+- [ ] `ai/doors/commands-cli.md` - the command model
+  → Constraint: "A handler answers data, never text"; help, usage and completion are derived from the owner's registration
+- [ ] `ai/doors/le-tooling.md` - functional tests
+  → Constraint: a `.ci` that needs a Linux kernel feature carries `option=needs-linux`; a bare `go test` omits the feature tags
+- [ ] `docs/architecture/api/commands.md` - `## Design decisions`
+  → Decision: "a command path names the subject and stops; scope, presentation and format are pipe operations after it". The second command is therefore named for its own subject, the counters, and is not a `summary` of the first
+- [ ] `docs/architecture/static-routes.md` - the paragraph on writer selection
+  → Decision: "An explicit `fib { ... }` block always wins, because the block is a config path and its own plugin is already in the startup set"
+  → Constraint: "No package holds a list of FIB plugins. The writer declares the data plane it programs and the registry answers"
+- [ ] `docs/architecture/core-design.md` - `## Design decisions`, the four data-plane rows of 2026-11-23
+  → Constraint: a feature that programs only the Linux kernel is refused when the interfaces run on VPP; `fib-dummy` programs no plane and declares none, so it is not such a feature
+- [ ] `plan/release/fixes/spec-dataplane-compatibility-guard.md` - AC-1, AC-14, Existing Mechanisms
+  → Decision: "A FIB plugin that declares no data plane (`fib-p4`) is not judged: it has declared nothing to compare", and it "still stops the engine from adding a writer"
+  → Constraint: that spec leaves `fibPluginChosen` and `appendDataPlaneWriter` unchanged at boot; this spec keeps their boot answer and adds the reload answer
+  → Decision: one verdict judges a candidate at every door with one plugin selection, the `--plugin` list included (its AC-18); a refusal that depends on which plugins a candidate selects is a rule of that verdict, never a second check with its own view of the selection
+  → Constraint: its AC-13 refuses a reload that changes `interface backend` while a feature of the old plane stays; it does not swap a running FIB writer, and neither does this spec
+- [ ] `docs/architecture/mpls/mpls-kernel.md` - the opening section and "Doctor checks"
+  → Decision: "A writer's refusal, `fib-kernel`'s included, returns to the source through the acknowledgement, so the source's check is where it is reported": the label sources report a refused entry under `doctor-fib-mpls-no-writer`, so a writer adds no code of its own for it
+  → Constraint: the page's own table is narrower for one source: the `rsvp-te-label-entries` row reports "each entry a writer's replay asked for again and did not install", and the code agrees (`internal/plugins/rsvpte/fib.go`, only `busFIB.replay` calls `b.refusals.Record`). LDP, OSPF segment routing and BGP EPE record a refusal on apply too. This spec widens RSVP-TE to record the live refusal (AC-18) and edits the row
+- [ ] `docs/architecture/plugin/plugin-system.md` - "Registration fields", the `ProgramsFIB`, `DataPlane` and `HostSideDataPlane` rows
+  → Constraint: the `ProgramsFIB` row says "The plugin writes the routes the system RIB selects into a forwarding path. It IS the operator's data-plane choice". `fib-dummy` writes no route into any forwarding path, so declaring `ProgramsFIB` on it departs from the first sentence; the field becomes "the operator's FIB choice, which a plugin may make while programming none, through the new mark", and the departure is presented to Thomas (Design presentation, "Documents departed from")
+  → Constraint: the `registry.go` comment on `Registration.ProgramsFIB` repeats the same sentence, and the `DataPlane` comment names `fib-p4` as the only plugin that reaches no plane; both comments are corrected in the same work (`ai/rules/stale-comments.md`)
+- [ ] `docs/architecture/rsvpte/mpls-rsvp-te.md` - the paragraph on the writer of the selected data plane and `rsvp-te-label-entries`
+  → Constraint: "An entry that replay asked for again and the writer did not install ... `fib.go` keeps it with the writer's cause": today RSVP-TE records replay refusals only. `busFIB.emit` returns the `mplsfib.Apply` error to the engine without `b.refusals.Record`, while LDP's `ldpFIB.emit` records it. This spec makes `busFIB.emit` record a live refusal too, so the page, `mpls-kernel.md` "Doctor checks" and the `doctor_label.go` comments change with it
+  → Constraint: `busFIB.replay` ends a successful replay with `b.refusals.Reset()`, which would erase a live refusal of an entry that is not installed and so was not replayed. Clearing per replayed entry is not enough either: `Refusals.Clear` deletes by slot (`slotOf`: a push by FEC and table, a swap or pop by in-label, `internal/core/mplsfib/refusal.go`), and `busFIB.installed` holds only accepted entries, so a refused replacement on an installed slot (a `programBackup` over an installed swap, a re-signalled swap; `mpls-rsvp-te-fast-reroute.md`: "If replacing an accepted reservation fails, the previous reservation remains in place.") or a refused removal shares its slot with the old entry the replay re-sends. A successful replay therefore clears a slot only when the recorded entry equals the replayed one, through `Refusals.ClearIf` with entry equality
+- [ ] `internal/component/config/loader.go` `loadConfig`, `finalizeConfigLoad`, `LoadConfigResult`; `internal/component/config/dataplane_verdict.go` `candidatePluginSelection`; `internal/component/plugin/server/server.go` `hasConfiguredPlugin`; `internal/component/plugin/server/reload.go` `ConfigLoader`, `ReloadFromDisk`, `ReloadConfig`, `reloadConfig`; `internal/component/plugin/server/reload_recovery_schedule.go` `restoreOriginalJournals`; `internal/component/plugin/server/reload_declarations.go` `RefuseChangedDeclarations`; `cmd/ze/hub/main_reload.go` `diskConfigLoaders` and the `ReloadConfig` call of the reload; `cmd/ze/hub/main.go` (the boot `LoadConfig` and the `ServerConfig` it fills); `docs/architecture/core-design.md`, section 19
+  → Constraint: `hasConfiguredPlugin` reads `s.config.Plugins`, the boot-time selection (the `plugin` blocks merged with the `--plugin` list through `MergeCliPlugins`), and nothing assigns it after boot. `RefuseChangedDeclarations` compares only `FirstPass.External` (`main_reload.go`), so a reload may add, remove or change a `plugin internal` block and `s.config.Plugins` does not follow; `doctor-and-health-checks.md`, "Plugin lifecycle checks": "A plugin declared in its own `plugin {}` block is read only at boot, so no reload removes it." "Chosen" in the reload writer judgement is therefore the candidate selection the data-plane verdict judged (the candidate tree's config roots, and its plugin blocks plus the recorded `--plugin` list as `candidatePluginSelection` merges them), never `s.config.Plugins`. What a reload does with a changed in-process plugin block running a `ProgramsFIB` plugin is C-6; its recommended answer (b) is AC-20
+  → Constraint: the plugin server sees a reload's candidate as a map only: `ConfigLoader` answers `map[string]any` (`reload.go`), `ReloadConfig` and `reloadConfig` take the map, and `restoreOriginalJournals` re-selects over a map. `candidatePluginSelection` is unexported and takes a `*Tree`. `LoadConfigResult.Plugins` is a second merge, not the verdict's value: `finalizeConfigLoad` runs `ExtractPluginsFromTree` and `MergeCliPlugins` again with the caller's list only, then `ExpandDependencies`. `core-design.md` section 19 lists `plugin/server` as importing aaa and audit only, so the existing `plugin/server` imports of `config` (`reload.go`, `startup_autoload.go` and twelve other files) are the known gap `ai/doors/system.md` names for `iface`, not a route to widen. The selection therefore reaches the judgement as the one value `loadConfig` judged, handed over with the tree by the loader: no second computation and no new import (Data Flow step 2)
+- [ ] `internal/plugins/fib/vpp/fibvpp.go` `requestLabelReplay`, `run`; `internal/plugins/fib/vpp/register.go` `openFibVPPWriter`, `fibVPPSends`; `internal/plugins/fib/kernel/fibkernel.go` `run`; `internal/plugins/fib/kernel/mplsentry.go` `handleMPLSEntry`; `internal/plugins/fib/kernel/register.go` `fibKernelSends`, `runFIBKernelPlugin`; `internal/core/mplsfib/events.go` `ReplayRequest`, `NewReplayToken`, `EntryBatch.Addresses` (`fibkernel.go`, `mplsentry.go` and the three `register.go` files are being edited by another session: re-read them before implementing)
+  → Constraint: `ai/doors/routing-protocols.md`, Boundaries: "A writer that opens late asks for them again with `(mpls-fib, replay-request)`, and each producer answers with `mplsfib.ApplyReplay`"; `mpls-kernel.md`: "Such a writer emits `(mpls-fib, replay-request)` with a token from `mplsfib.NewReplayToken`". `fib-vpp` draws its token in `openFibVPPWriter` and emits the request after subscribing (`requestLabelReplay`, called from `run`). `fib-kernel` emits only the broadcast `(system-rib, replay-request)` in `run`, declares no `(mpls-fib, replay-request)` in `fibKernelSends`, and `handleMPLSEntry` passes token 0 to `Addresses` ("fib-kernel holds no token"), so a `fib-kernel` a reload starts after the label sources holds none of their entries. `fib-dummy` and `fib-kernel` each draw a token, emit the targeted request once subscribed, and consume the batch tagged with their own token (AC-9, AC-21)
+- [ ] `docs/architecture/doctor-and-health-checks.md` - "Plugin lifecycle checks"
+  → Constraint: a plugin a reload removed "stays in the configured set"; the page records it as "a known defect, not the design", and says the fix "belongs where a reload's removal becomes final"
+- [ ] `plan/release/fixes/spec-bus-2-implied-display-and-grant-refusals.md` - the `| implied` view
+  → Decision: an engine-added data-plane writer is an implied item that view shows (its AC-6); the view reads what each loader reports
+- [ ] `ai/META-DECISIONS.md` - "Code and dependencies", "CLI, config, and daemon surfaces"
+  → Constraint: no engine or config code names a feature, plugin, field or path; every operator command works on every surface; `ze doctor` reports every problem class; a block is added by reload without restart; nothing Ze does on the operator's behalf is hidden; where the operator wrote two things that disagree the commit is refused with the line that completes it
+- [ ] `plan/journal/unwired-feature.md` - the 2026-09-04 row on `fib/p4/*` leaves
+  → Constraint: a leaf that is accepted and reaches nothing is a defect; `fib dummy` has no leaf
+
+### RFC Summaries (Scope: protocol)
+- [ ] `rfc/short/rfc4724.md` - Graceful Restart, the Forwarding State bit
+  → Constraint: the bit reports forwarding state kept across a restart; `fib-dummy` keeps none, so it registers no `PreservesForwardingState` answer and the bit stays clear (AC-10). No wire behavior is added or changed
+
+**Key insights:**
+- The registry already separates "the operator chose a FIB plugin" (`ProgramsFIB`) from "this plugin reaches a data plane" (`DataPlane`). `fib-dummy` is the first plugin for which the first without the second is the finished design, not a missing client.
+- With BGP alone and no `fib` block, nothing programs the kernel today: only a `NeedsDataPlane` producer (static, OSPF, IS-IS, LDP, RSVP-TE, BGP EPE) makes the engine add a writer. So for purpose 1 the block is what stops that auto-load and what makes the choice visible; for purpose 2 it is what pulls in the system RIB (`Dependencies: rib`) and gives the route path a consumer.
+- A route reflector that needs its IGP routes in the kernel and only BGP kept out already has `rib { fib-withhold [ bgp ] }`. `fib dummy` is for the box where no selected route is programmed at all. The guide states both.
+- Label producers wait for the writer's acknowledgement before they advertise a label. A dummy that acknowledged an installation that did not happen would make an LSR attract labeled traffic it drops. It answers with a refusal (choice C-3).
+- Reload judges the writer only for newly added plugins, and treats "running" as "chosen". Both are why adding or removing a FIB block by reload leaves the wrong set of forwarding plugins.
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `internal/component/plugin/registry/registry.go` - `Registration.ProgramsFIB` ("It IS the operator's data-plane choice, so a config that names such a plugin has already chosen and the engine adds none of its own"), `DataPlane` (empty for a plugin that reaches none, which "is never RESOLVED as a producer's writer"), `NeedsDataPlane`, `PreservesForwardingState`; `Register` refuses a `DataPlane` without `ProgramsFIB` and a second claim on one data plane; `PluginForDataPlane`, `ProgramsFIB`, `NeedsDataPlane`, `ForwardingStatePreserved`, `PluginsForConfigPaths`
+- [ ] `internal/component/plugin/registry/dataplane_writer.go` - `DataPlaneWriter(producer, dataPlane)`: the writer of a data plane, or the refusal boot, reload and doctor share
+- [ ] `internal/component/plugin/server/startup_autoload.go` - `getConfigPathPlugins` (boot) and `selectAutoLoad` (reload) call `appendDataPlaneWriter(needed, dataPlane)`: it looks for a `NeedsDataPlane` producer in `needed` only, the plugins about to start, and adds the writer unless `fibPluginChosen(needed)`. `fibPluginChosen` answers true for any `ProgramsFIB` plugin that is in `needed`, loaded, configured by a plugin block, or running. `collectProcessesForRemovedConfigPaths` stops the owner of a removed root and its orphaned dependencies; an engine-added writer owns no root in the tree and is no plugin's dependency, so nothing stops it
+- [ ] `internal/component/plugin/server/reload.go` - `reloadConfig` runs `autoLoadForNewConfigPaths` only when the diff holds an added or changed key, and hands it the added roots
+- [ ] `internal/component/plugin/doctor/check_dataplane_writer.go` - `checkDataPlaneWriter`, `dataPlaneWriterRows`: the doctor row of the boot refusal, code `doctor-plugin-no-dataplane-writer`, from `autoloadSet` and `registry.DataPlaneWriter`
+- [ ] `internal/plugins/fib/p4/register.go`, `fibp4.go`, `backend.go`, `yang/ze-fib-p4-conf.yang` - `ProgramsFIB: true`, no `DataPlane`, `Dependencies: rib`; subscribes to `(system-rib, best-change)`, asks for a broadcast replay, keeps `prefix -> next-hop` as strings, logs each add, replace and delete at Info, answers `show fib p4` with what it calls installed routes (ShortHelp: "Show the routes this backend programmed into the P4 forwarding pipeline"); three leaves no code reads
+- [ ] `internal/plugins/fib/kernel/register.go`, `fibkernel.go`, `mplsentry.go`, `kernelcap_linux.go`, `yang/ze-fib-conf.yang` - `ProgramsFIB`, `DataPlane: "kernel"`, `PreservesForwardingState`, `InProcessConfigVerifier`; emits the forwarding sysctl defaults; subscribes to best-change and to `(mpls-fib, entry)` and acknowledges each addressed label batch; metrics `ze_fibkernel_*`; one command, `show fib kernel`; its routes stay in the kernel after it stops unless `flush-on-stop` is true; the `fib` container description names kernel and vpp as the backends
+- [ ] `internal/plugins/fib/vpp/register.go` - `ProgramsFIB`, `DataPlane: "vpp"`, the same command and metric pattern
+- [ ] `internal/component/sysrib/events/events.go` - `BestChangeBatch` (family, replay id, changes), `BestChangeEntry` (action, prefix, next hop, interface, protocol, route type, table id, labels, ECMP paths), the typed handles `BestChange` and `ReplayRequest`
+- [ ] `internal/component/sysrib/fibimport.go` - `rib { fib-withhold [ ... ] }`: the named protocols are selected and not written to any FIB
+- [ ] `internal/core/mplsfib/events.go` - `Apply` returns `errNoOwnerAcknowledgement` when no subscriber called `EntryBatch.Acknowledge`, joins every acknowledgement's error, and "producers must not advertise the failed result"; `Addresses(token)` decides which writer a replay batch is for; `Acknowledge` is in-process only
+- [ ] `internal/component/kernelcap/predicate.go` - `hasKernelFIB`: the kernel MPLS and SRv6 capability checks are in use only when the tree holds `fib kernel`, so a `fib dummy` box is not probed
+- [ ] `internal/component/config/tree_validators.go` - `RegisterTreeValidator(name, func(*Tree) error)`: a whole-tree check registered from `init()`, run on the candidate tree by `validateOriginalTree`, which stops at the first refusal. It is handed the tree alone, so it cannot see a plugin named by `--plugin`
+- [ ] `internal/component/config/dataplane_verdict.go`, `declared_schemas.go`, `loader.go` (the guard spec's work in progress, uncommitted, read and not edited) - `evaluateDataPlaneVerdict(tree, schema, selection)` reads the registry's declarations and answers findings of three parts (problem, why, fix); `refuseDataPlaneMismatches` turns them into the refusal at `loadConfig` and `verifyTree`, and `dataPlaneMismatchDiagnostics` into doctor rows under `doctor-dataplane-mismatch`. `candidatePluginSelection(tree, cliPlugins)` is `ExtractPluginsFromTree` merged by `MergeCliPlugins`; `RecordCommandLinePlugins` and `CommandLinePlugins` hold the `--plugin` list of the process. The guard spec is writing the evaluator's rules: in the working tree `evaluateFIBWriters` judges only the FIB plugins whose config root the candidate holds (`firstPresentRoot`), so a writer selected only by a plugin block or `--plugin` gets no finding of the guard's
+- [ ] `internal/component/plugin/registry/dataplane_decl.go`, and `registry.go` `HostSideDataPlane` (the same work in progress) - the declarations the verdict reads; `HostSideDataPlane` is a mark on a registration that one verdict rule reads, validated by `validateDataPlaneDecl`
+- [ ] `internal/core/mplsfib/refusal.go`, `doctor.go` - `Refusals.Record(entry, cause)` keeps each entry no writer carried out with the writer's cause; `Refusals.Findings(source, fix)` answers the source's label-entries doctor check with one error per entry under `CodeDoctorNoWriter` (`doctor-fib-mpls-no-writer`), the cause text in the message
+- [ ] `internal/plugins/rsvpte/fib.go`, `internal/plugins/rsvpte/doctor_label.go` - `busFIB.emit` calls `mplsfibevents.Apply` and returns its error to the engine without recording it; `recordLocked` clears the slot's refusal and updates `installed` only after a writer accepted the entry; `busFIB.replay` records each replayed entry with the cause on a refused replay and calls `b.refusals.Reset()` on a successful one; `labelDoctorFindings` answers `rsvp-te-label-entries` from `b.refusals`, and the package comment says an entry refused on first apply "refuses its LSP, which the engine already reports and retries". No test of `fib_test.go` or `doctor_label_test.go` carries an `RFC requirement:` tag
+- [ ] `internal/plugins/ldp/fib.go` - `ldpFIB.emit` records every `Apply` refusal with `f.refusals.Record` and logs it with `doctor-fib-mpls-no-writer`; the replay clears each replayed entry on success, entry by entry. It is the shape RSVP-TE is brought to
+- [ ] `internal/component/config/loader.go` - `finalizeConfigLoad` merges `ExtractPluginsFromTree` with the `--plugin` list through `MergeCliPlugins`, then `ExpandDependencies`; `LoadConfigResult.Plugins` is the merged selection
+- [ ] `internal/component/plugin/server/server.go` - `hasConfiguredPlugin(name)` answers from `s.config.Plugins`, the merged selection, through `plugin.RegistryNames`, so a `--plugin ze.fib-kernel` entry answers true for `fib-kernel`
+- [ ] `internal/component/plugin/server/startup_removal.go` - `rollbackStartupProcess`: a process below `StageRunning` goes straight to `stopRemovedProcess`, which enters nothing in `s.removals`; a running one goes through `notifyPluginRemoval`, which enters a `pluginRemoval` carrying the reload's acceptance scope. Its callers are the startup rollbacks in `startup.go` and the auto-load rollback in `startup_autoload.go`
+- [ ] `internal/component/plugin/process/manager.go` - `ConfiguredNames`: "Nothing removes a name, so a plugin a reload removed is still listed"; `RemoveProcess`: "nothing drops its name from the configured set"
+- [ ] `internal/component/plugin/server/startup_removal.go` - `finishRemovalScope(scope, accepted)`: an accepted reload makes its stopped removals final by deleting them from `s.removals`; a rejected one recovers them. Nothing here tells the process manager
+- [ ] `internal/core/diagnostic/doctor_registry.go`, `types.go` - `DoctorCheck` (name, phase, codes, check), `DoctorCheckContext` (tree, plugins), severities error, warning and info
+- [ ] `pkg/plugin/rpc/types.go` - `CommandDecl`: name, one-line summary, description, answer shape, columns, address fields
+- [ ] `internal/component/plugin/all/all.go` - the generated composition root: blank imports only, written by `./le repo update`
+- [ ] `test/static/static-no-fib-block-loads-the-fib-plugin.ci`, `test/plugin/fib-sysrib.ci` - how a `.ci` proves which FIB plugin the engine started, and how a BGP route is driven through the system RIB
+
+**Behavior to preserve:**
+- With no `fib` block and a `NeedsDataPlane` producer, boot loads the writer of the data plane `interface backend` selects (`test/static/static-no-fib-block-loads-the-fib-plugin.ci`), and refuses the whole selection when no plugin programs it (`doctor-plugin-no-dataplane-writer`).
+- An explicit `fib` block always wins at boot: the engine adds no writer beside it.
+- `fib kernel` beside `fib vpp` keeps committing and running (`docs/guide/vpp.md`, "To run both, write both"; the guard spec's AC-14).
+- `fib-p4`: its registration, its three leaves, `show fib p4` and its help text, unchanged.
+- `registry.Register` keeps refusing a second writer for one data plane.
+- `fib-kernel` keeps its routes in the kernel when it stops with `flush-on-stop` false, whatever stopped it.
+
+**Behavior to change:**
+- A new block, `fib { dummy { } }`, and its plugin `fib-dummy`.
+- At reload the engine judges the data-plane writer over the whole candidate (every producer that will run, every FIB plugin the candidate chooses), not over the added plugins only. Three outcomes change, each with an acceptance criterion: an engine-added writer stops when the candidate chooses a FIB plugin (AC-5); it stops when the reload removes the last producer that needs it (AC-16); and the selected plane's writer starts when the last chosen FIB plugin is removed while a producer runs (AC-6).
+- Not changed: a reload that changes `interface backend` does not swap a running engine-added writer for the other plane's. Today's behavior stays, the running writer is kept, because moving the interfaces from one data plane to another under a running daemon is a design of its own and not part of a dummy backend. The guard spec's AC-13 already refuses such a reload while a feature of the old plane remains; the judgement of this spec acts only when the chosen FIB plugins or the set of producers change.
+- A plugin whose stop an accepted reload made final leaves the process manager's configured set, so `request plugin restart` refuses it (AC-17). So does a plugin a rejected reload started and `rollbackStartupProcess` stopped (A-8).
+- "Chosen" at reload is the candidate selection the data-plane verdict judged: the candidate tree's config roots, and its plugin blocks plus the recorded `--plugin` list. The loader hands that selection to the plugin server with the candidate tree, so the judgement reads the verdict's own value (Data Flow step 2). A FIB plugin named by `--plugin` is never stopped by the writer judgement (AC-7, AC-16).
+- A reload that adds, removes or changes an in-process plugin block (`plugin internal`, or `plugin external` with `use`) that runs a `ProgramsFIB` plugin stops the writer the old block ran, its `flush-on-stop` respected, and starts what the candidate selects (AC-20, the recommended answer (b) of C-6, awaiting Thomas). A plugin block of any other plugin keeps being read only at boot.
+- `fib-dummy` and `fib-kernel` ask the label sources for a targeted label replay when they open, so a writer a reload starts receives the entries the sources want installed (AC-9, AC-21).
+- RSVP-TE records a label entry a writer refused on apply, as LDP does, so `rsvp-te-label-entries` reports it under `doctor-fib-mpls-no-writer` with the writer's cause; today it records replay refusals only (AC-18).
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| The operator's FIB choice | `internal/component/plugin/registry/registry.go` `Registration.ProgramsFIB`; `internal/component/plugin/server/startup_autoload.go` `fibPluginChosen` | A configured plugin that declares `ProgramsFIB` stops the engine adding a writer | Extends by use, and widens its meaning: `fib-dummy` declares `ProgramsFIB`, and this declaration is the whole mechanism by which `fib dummy` stops the auto-load. The field's documented meaning, "The plugin writes the routes the system RIB selects into a forwarding path" (`plugin-system.md`, "Registration fields"; the `registry.go` comment), does not hold for `fib-dummy`, so it is reworded to the operator's FIB choice, which a plugin may make while programming none, through the no-plane mark (a `departs` row of Design documents). No field changes type or name; the mark is the one field added (row of the data-plane verdict) |
+| The data plane a FIB plugin reaches | `registry.go` `Registration.DataPlane`, `PluginForDataPlane`; `Register` (one writer per plane) | Names the plane a writer programs; empty means the plugin is never the answer to a producer | Extends by use: `fib-dummy` leaves it empty, as its comment prescribes for "a FIB plugin that reaches no data plane". A `DataPlane` of its own (such as `none`) is set aside: it would make the dummy resolvable as a producer's writer and would add a plane name no selector offers |
+| Writer resolution and its refusal | `internal/component/plugin/registry/dataplane_writer.go` `DataPlaneWriter`; `startup_autoload.go` `appendDataPlaneWriter`; `internal/component/plugin/doctor/check_dataplane_writer.go` | Boot, reload and doctor ask one function for the writer of the selected plane, or its refusal | Extends: the judgement that precedes it (is a writer needed, and which FIB plugins did the operator choose) becomes one function beside it, taking the producers that will run, the chosen FIB plugins and the data plane. Boot, reload and the doctor check call it, so reload stops giving another answer than boot (AC-5, AC-6) |
+| Reload auto-load and auto-stop | `startup_autoload.go` `selectAutoLoad`, `collectProcessesForRemovedConfigPaths`, `stopCollectedProcesses`; `internal/component/plugin/server/reload.go` `reloadConfig` | Starts the owners of added roots and stops the owners of removed roots and their orphaned dependencies. Both skip a plugin `hasConfiguredPlugin` answers for, which reads `s.config.Plugins`: the plugin blocks merged with the `--plugin` list by `finalizeConfigLoad` through `MergeCliPlugins` | Extends: the writer the judgement selects joins the start set, and a running `ProgramsFIB` process the candidate neither chooses nor needs joins the stop set, through the same start, stop and compensation paths. No second reload path. "Chosen" is the candidate selection the data-plane verdict judged (the candidate tree's config roots, and the `candidatePluginSelection` value: its plugin blocks plus the recorded `--plugin` list), never the boot-time `s.config.Plugins`, which a reload that changes a `plugin internal` block does not update (`RefuseChangedDeclarations` compares `FirstPass.External` only). A FIB plugin named by `--plugin` is therefore chosen at every reload and never stopped by the judgement. A running in-process block's process carries the block key as its name (`ExtractPluginsFromTree`: `Name` the key, `Internal` true, `Run` the `use` value), so the judgement matches a running process to its registration through `plugin.RegistryNames`, and a process whose registration declares `ProgramsFIB` that the candidate neither chooses nor needs is stopped. A chosen `ProgramsFIB` plugin named only by a plugin block that does not run joins the start set; today `selectAutoLoad` starts only owners of added roots. This is AC-20 under C-6 (b), which departs from "read only at boot" of `doctor-and-health-checks.md` for blocks that run a `ProgramsFIB` plugin |
+| The reload's config loader | `cmd/ze/hub/main_reload.go` `diskConfigLoaders`; `internal/component/config/loader.go` `loadConfig`, `LoadConfigResult`; `internal/component/plugin/server/reload.go` `ConfigLoader`, `SetConfigLoader`, `ReloadFromDisk`, `ReloadConfig`; `cmd/ze/hub/main.go` (the boot `LoadConfig`, `ServerConfig`) | Every reload reads its config through `diskConfigLoaders`, which runs `LoadConfig`; `loadConfig` computes the candidate selection, judges it with `refuseDataPlaneMismatches` and drops it; the server receives the tree as a map | Extends: `LoadConfigResult` keeps the selection `loadConfig` judged, the two loaders of `diskConfigLoaders` answer it beside the tree, `ConfigLoader` and `ReloadConfig` carry it into `reloadConfig`, and boot hands the boot result's selection to the server through `ServerConfig`. The server keeps the selection of the config it runs, replaced when a reload is accepted, so a rejected reload's recovery (`restoreOriginalJournals`) judges with the running config's selection. One value, computed once by the verdict's own function; no new import and no second merge |
+| Reload refusal of changed declarations | `internal/component/plugin/server/reload_declarations.go` `RefuseChangedDeclarations`, called by `diskConfigLoaders` | Refuses, before the full parse, a reload whose external plugins differ from the ones the daemon started with, with the fix `restart ze` (`hub-architecture.md`, "What the daemon does at start") | Does not apply under C-6 (b): external declarations are refused as today and nothing is added to the refusal. Under C-6 (a), the alternative, this mechanism would be extended to refuse a changed in-process FIB block |
+| Targeted label replay | `internal/core/mplsfib/events.go` `ReplayRequest`, `NewReplayToken`, `EntryBatch.Addresses`; `internal/plugins/fib/vpp/fibvpp.go` `requestLabelReplay`; the label sources' `ReplayRequest` subscriptions (LDP, RSVP-TE, OSPF segment routing, BGP EPE), which answer with `ApplyReplay` | A writer that opens late emits `(mpls-fib, replay-request)` with its own token and consumes the batch tagged with it; only `fib-vpp` does so today | Extends by use: `fib-dummy` draws a token, emits the request once subscribed, and refuses the replayed entries as it refuses live ones (AC-9). `fib-kernel` is brought to the same shape (AC-21), so a `fib-kernel` a reload starts receives the entries `fib-dummy` refused |
+| `fib-p4`, a FIB plugin that programs nothing | `internal/plugins/fib/p4/` | Declares `ProgramsFIB`, no plane; logs and holds routes; three leaves reach nothing; `show fib p4` calls held routes programmed | Does not apply as a base: Thomas parked P4 (`plan/post-release/features/spec-fib-p4-leaves-reach-a-noop-backend.md`), and its truthfulness is open (`plan/release/validation/spec-fib-p4-acceptance-and-state-disposition.md`). It is not edited. Its file layout (register, runner, YANG augment of `/fib:fib`) is the pattern `fib-dummy` follows |
+| FIB writer pattern | `internal/plugins/fib/kernel/register.go`, `internal/plugins/fib/vpp/register.go` | Registration, config root under `fib`, `commandDecls` shared by the registry and Stage 1, `ConfigureMetrics`, `ConfigureEventBus`, typed best-change subscription, replay request at start | Extends by shape: `fib-dummy` is a third plugin of this pattern. It emits no forwarding sysctl default, because a box that forwards nothing must not have `ip_forward` turned on for it |
+| Best-change feed and replay | `internal/component/sysrib/events/events.go` `BestChange`, `ReplayRequest` | The system RIB publishes every selection change; a consumer that starts late asks for a broadcast replay | Extends by use: `fib-dummy` subscribes and asks for the replay. It is the only interface between the two; no call into `sysrib` |
+| Label entry channel | `internal/core/mplsfib/events.go` `EntryChange`, `Apply`, `EntryBatch.Acknowledge`, `Addresses` | Producers apply label entries and wait for the writer's answer; with no answer they get `errNoOwnerAcknowledgement` | Extends by use (C-3): `fib-dummy` subscribes and answers every batch addressed to it with a refusal that names `fib dummy`, so the producer learns why and does not advertise the label |
+| Label refusal record and its doctor code | `internal/core/mplsfib/refusal.go` `Refusals.Record`, `Findings`; `internal/core/mplsfib/doctor.go` `CodeDoctorNoWriter`; `docs/architecture/mpls/mpls-kernel.md`, "Doctor checks" | LDP, OSPF segment routing and BGP EPE record every entry a writer refused, on apply and on replay, with the writer's cause, and report it from their own `*-label-entries` check as an error under `doctor-fib-mpls-no-writer`. RSVP-TE records only the entries a writer's replay asked for again and did not install: `busFIB.emit` returns the `Apply` refusal to the engine and records nothing, and a successful replay resets the whole record | Extends by use for three sources, and extends RSVP-TE (AC-18): `busFIB.emit` records the refusal as `ldpFIB.emit` does, and a successful replay clears a slot only when the recorded entry equals the entry it replayed (`Refusals.ClearIf` with entry equality), so a live refusal, a refused replacement on an installed slot and a refused removal stay reported until a later apply of the same slot succeeds. The dummy's refusal text is then the cause all four checks print. `fib-dummy` adds no code, no check and no report-bus raise for labels; it only words its refusal with what, why and the fix |
+| Data-plane verdict and its candidate selection | `internal/component/config/dataplane_verdict.go` `evaluateDataPlaneVerdict`, `refuseDataPlaneMismatches`, `dataPlaneMismatchDiagnostics`, `candidatePluginSelection`; `internal/component/config/declared_schemas.go` `RecordCommandLinePlugins`; `internal/component/config/loader.go` `ExtractPluginsFromTree`, `MergeCliPlugins`; `internal/component/plugin/registry/registry.go` `HostSideDataPlane` (the guard spec, in progress) | One evaluator in the config component reads registry declarations and marks, judges a candidate with the one plugin selection of its door (plugin blocks merged with the `--plugin` list), refuses at `loadConfig` and `verifyTree`, and feeds the doctor row `doctor-dataplane-mismatch` | Extends (C-2): the refusal of `fib dummy` beside another FIB plugin is one rule of that evaluator. `fib-dummy` sets one new mark on its own registration, as `fib-kernel` sets `HostSideDataPlane`; the rule reads the mark, `ProgramsFIB`, `DataPlane` and config roots, and decides "in use" from the candidate's config roots and from the selection the door handed the evaluator. So a FIB plugin named by `--plugin` is seen at every door, and no second view of the selection exists |
+| Removal scope and the configured set | `internal/component/plugin/server/startup_removal.go` `finishRemovalScope`; `internal/component/plugin/process/manager.go` `ProcessManager.ConfiguredNames`, `RemoveProcess`; `docs/architecture/doctor-and-health-checks.md`, "Plugin lifecycle checks" ("This is a known defect, not the design") | An accepted reload makes its removals final; the process manager still lists the removed plugin as configured, so `request plugin restart` starts it again | Extends (AC-17): where an accepted reload makes a removal final, the name leaves the configured set. The writer this spec's judgement stops goes through the same removal scope, so it is covered by the same fix. One stop path enters no scope: `rollbackStartupProcess` sends a process below `StageRunning` straight to `stopRemovedProcess`. Such a process was started by the reload being rolled back, so its stop is final when it happens and its name leaves the configured set there (A-8) |
+| Per-protocol FIB withholding | `internal/component/sysrib/fibimport.go`; `features/per-protocol-fib-withholding.md` | `rib { fib-withhold [ bgp ] }` keeps named protocols out of every FIB while the others are programmed | Does not apply: it selects by protocol and still needs a writer for the rest. `fib dummy` is the all-protocols, no-writer case. The guide names each for its case, so an operator does not use one for the other |
+| Forwarding State bit | `registry.go` `Registration.PreservesForwardingState`, `ForwardingStatePreserved` | A FIB plugin answers whether its routes survive a restart; BGP sets the Graceful Restart F-bit from it | Extends by use: `fib-dummy` registers no answer, so the bit is clear on a dummy box (AC-10) |
+| Original-tree validators | `internal/component/config/tree_validators.go` `RegisterTreeValidator` | A package registers a whole-tree check from `init()`; it is handed the candidate tree and nothing else | Does not apply: the validator sees no plugin selection, so `fib dummy` with `--plugin ze.fib-kernel` would pass it. The refusal is a rule of the data-plane verdict instead (row above) |
+| Doctor checks and codes | `internal/core/diagnostic` `RegisterDoctorCheck`, `Register`, `RegisterEventCode`; `internal/plugins/fib/vpp/register_doctor.go` | The owning package registers each check, its codes and their explanations | Extends by use: two codes owned by `fib-dummy`, `doctor-fib-dummy-holds-routes` and `doctor-fib-dummy-invalid-change` (Integration Checklist). The two other problem classes are reported by codes that exist: `doctor-dataplane-mismatch` and `doctor-fib-mpls-no-writer` |
+| Report bus from a plugin | `pkg/plugin/sdk/report.go` `RaiseIssue`, `ClearIssue` | A plugin's issue reaches the daemon's store from either side of the process boundary | Extends by use: the invalid-change warning is raised this way |
+| Command declaration | `pkg/plugin/rpc/types.go` `CommandDecl`; `docs/architecture/api/commands.md`, "A plugin declares its own answer shape" | One declaration reaches the CLI, SSH, web, REST, gRPC and MCP | Extends by use: two commands |
+| Implied configuration display | `plan/release/fixes/spec-bus-2-implied-display-and-grant-refusals.md` (the `\| implied` view); `plan/release/fixes/spec-explicit-plugin-and-attach-config.md` (each loader reports what it loaded and why) | Planned, not built: shows every item Ze adds on the operator's behalf with what implies it, an engine-added writer included | Does not apply as work here: `fib dummy` is written by the operator, so it implies nothing new. With it written the loader adds no writer and reports none, so the view lists none; without it the writer row appears. This spec keeps that true by making the reload judgement go through the same loader (AC-5, AC-6) and shows the same fact today in `show fib dummy counters` |
+| Kernel capability gate | `internal/component/kernelcap/predicate.go` `hasKernelFIB` | Probes the kernel for MPLS and SRv6 only when the tree holds `fib kernel` | Does not apply: a `fib dummy` box is not probed, which is correct, and nothing changes |
+| Test emitter of best-change | `internal/test/plugins/fakefib` | A test-only plugin that emits `(system-rib, best-change)` | Does not apply: it produces events, it does not consume them. The functional tests drive the real path (a BGP session, a static route) instead |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | The core knows nothing, and everything registers | the door every change reads | "A feature registers from `init()` in its own `register.go` and is" | agrees | `fib-dummy` registers from its own package. The reload judgement reads `ProgramsFIB`, `DataPlane`, `NeedsDataPlane` and config roots, and names no plugin |
+| `docs/architecture/plugin/plugin-system.md` | Startup phases and callbacks | the `// Design:` page of `dataplane_writer.go`; anchored to `startup_autoload.go` and `reload.go`; a page this spec modifies | "explicit `fib { ... }` block wins because its own plugin is already in the set." | agrees | `fib dummy` is such a block and wins at boot by this rule, unchanged. The page gains the reload half: the same judgement runs over the whole candidate at reload. Its sentence "A data plane no plugin programs adds nothing and logs a warning" is already wrong against `DataPlaneWriter`, which refuses, and is corrected in the same edit |
+| `docs/architecture/static-routes.md` | A main-table route reaches the FIB through the Loc-RIB | anchored to `dataplane_writer.go`, `startup_autoload.go` and `check_dataplane_writer.go`; a page this spec modifies | "No package holds a list of FIB plugins." | agrees | The dummy is found by its declaration. The page gains `fib dummy` as the plugin that is the operator's choice and reaches no plane by design, and the reload behavior |
+| `ai/doors/plugin-infra.md` | Boundaries | the door covering the four `plugin/` files and `all.go` | "The engine never enumerates plugins." | agrees | The judgement asks each registration for its own declaration; the dummy's refusal lives in the dummy's package |
+| `docs/architecture/api/process-protocol.md` | Config Reload Protocol | the `// Design:` page of `startup_autoload.go` and `reload.go`; a page this spec modifies | "If any plugin rejects, the reload is aborted." | agrees | The stop of an engine-added writer joins the reload's existing stop set and compensation, so an aborted reload leaves the running writer as it was (R-2, A-5). The page gains the writer judgement as a step of reload |
+| `docs/architecture/doctor-and-health-checks.md` | Plugin lifecycle checks | the `// Design:` page of `check_dataplane_writer.go`; anchored to `startup_autoload.go` and `reload.go`; a page this spec modifies | "the boot and reload refusal of `appendDataPlaneWriter`, in its words" | agrees | The row keeps saying what the daemon refuses, because the check and the daemon call one judgement. The page gains the `fib-dummy` check and its two codes. Its "Plugin lifecycle checks" section calls the configured set that never shrinks "a known defect, not the design" and says the fix "belongs where a reload's removal becomes final": AC-17 is that fix, and the sentences are replaced by the corrected behavior |
+| `docs/architecture/exabgp-bridge.md` | Config root | anchored to `startup_autoload.go` | - | silent | The page cites `getConfigPathPlugins` for a config root that auto-loads its plugin. That rule is unchanged and the page says nothing about FIB writers |
+| `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` | Rule 3: teardown belongs to the firewall engine, gated by config | anchored to `startup_autoload.go` | "stops on a reload only when the new config holds none of its roots, so with a" | agrees | The only plugin the judgement stops is a FIB writer the engine added, which by definition has no root in the new config. A plugin whose root is written is never stopped by it (AC-5, AC-7) |
+| `docs/architecture/ike/ipsec-7-ikev2-engine.md` | Decisions | anchored to `startup_autoload.go` | - | silent | The page cites `getConfigPathPlugins` for the IKE root's auto-load; unchanged, and nothing on FIB writers |
+| `docs/architecture/ospf/bfd-client.md` | Decisions | anchored to `startup_autoload.go` | - | silent | The page cites `getConfigPathPlugins` for a dependency's auto-load; unchanged, and nothing on FIB writers |
+| `docs/architecture/plugin/feature-gates.md` | Naming a plugin the build left out | anchored to `startup_autoload.go` | "Startup and reload consult `GatedDataPlaneWriter` only after the live writer" | agrees | `DataPlaneWriter` keeps that order; the judgement calls it and adds nothing between the two lookups |
+| `docs/architecture/behavior/signals.md` | Startup Paths | anchored to `reload.go` | - | silent | The page cites `ConfigTransactionDone`; the signal paths and the transaction end are untouched |
+| `docs/architecture/config/apply-ordering.md` | Phases 2 and 5, for BGP | anchored to `reload.go` | - | silent | The page cites `appendDecomposingPlugins` for BGP apply order; a FIB plugin joins no BGP phase |
+| `docs/architecture/config/transaction-protocol.md` | Broken Plugin Recovery | anchored to `reload.go` | - | silent | The page describes verify, apply and rollback of the transaction. The judgement runs in the start and stop steps around it, which the page does not describe; no transaction step changes |
+| `docs/architecture/command-ownership.md` | Handler Registration | anchored to `all.go` | "The codegen scans for packages" | agrees | The new package is found by the generator; `all.go` is regenerated, never edited. Both commands live in the plugin's own folder |
+| `ai/doors/forwarding.md` | Boundaries | the door covering `fib/kernel/yang` and every new `fib/dummy` file | "One writer per data plane." | agrees | The dummy claims no data plane, so it is a second writer for none. It is refused beside any other FIB plugin (C-2). The door's sentence on which FIB plugins exist gains the dummy |
+| `docs/architecture/plugin/plugin-relationships.md` | fib-p4 | a page this spec modifies | "Programs P4 switch forwarding entries from system RIB" | agrees | The `fib-p4` entry stays as it is. A `fib-dummy` entry is added in the same form, and its description says it holds routes and programs none |
+| `docs/plugin-overview.md` | Infrastructure Plugins | a page this spec modifies | "FIB route installation via P4 backend" | agrees | A row is added for `fib-dummy`; it says the plugin holds the selected routes and installs none |
+| `docs/architecture/api/commands.md` | A plugin declares its own answer shape | a page this spec modifies | "Each `CommandDecl` in the Stage 1 message carries three optional fields:" | agrees | Both commands declare their shape, columns and address fields this way; the page gains the two commands |
+| `docs/plugin-development/metrics.md` | Scope-to-Prefix Mapping | a page this spec modifies | "Hyphen stripped" | agrees | `fib-dummy` maps to the scope `fibdummy`; the gauge carries no `_total` and the counters do |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-08-21 | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | `show fib dummy` names the held routes and `show fib dummy counters` names the counters: two subjects. No word of either path selects scope or presentation; `\| count`, `\| match` and the formats are pipes |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-20 | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | Neither command overrides a pipe operation; the generic ones apply to both answers |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-23 | "A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does" | agrees | Both handlers answer data and take no pipe as an argument |
+| `docs/architecture/core-design.md` | Design decisions | owner ruling on the same surface, decision of 2026-11-23 (added beyond the derivation) | "A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now." | agrees | `fib-dummy` programs no plane and declares none, so it is not such a feature and commits under either backend (AC-11). It asks for no host-side meaning: its mark is not `HostSideDataPlane`, and `fib kernel` stays the only FIB plugin with a host-side meaning. `fib dummy` beside `fib kernel` under `vpp` gets the guard's refusal of `fib kernel` alone plus this spec's finding (AC-4) |
+| `ai/META-DECISIONS.md` | Code and dependencies | owner rule (added beyond the derivation) | "Ze is a modular engine: a feature lives in the plugin that owns it and" | agrees | The plugin owns its config root, commands, validator, doctor checks and codes. The engine change is generic over declarations |
+| `ai/META-DECISIONS.md` | CLI, config, and daemon surfaces | owner rule (added beyond the derivation) | "Nothing Ze does on an operator's behalf is hidden." | agrees | The block is written by the operator and implies nothing new. With it written the engine adds no writer, at boot and now at reload, so there is nothing hidden to show; `show fib dummy counters` states `forwarding` `none` |
+| `ai/META-DECISIONS.md` | CLI, config, and daemon surfaces | owner rule (added beyond the derivation) | "commit is refused with the line that completes it: Ze never widens what was" | agrees | `fib dummy` beside another FIB block is two written things that disagree, and it is refused with the fix line (C-2, AC-4) |
+| `docs/architecture/mpls/mpls-kernel.md` | Doctor checks | a page this spec modifies | "acknowledgement, so the source's check is where it is reported." | agrees | The dummy's refusal returns through the acknowledgement and is reported at the source; the dummy adds no code for it (AC-9). What is true today: LDP, OSPF segment routing and BGP EPE report an entry refused on apply, and the page's `rsvp-te-label-entries` row says RSVP-TE reports only "each entry a writer's replay asked for again and did not install", which `busFIB.emit` confirms. What this spec changes: RSVP-TE records the live refusal too (AC-18), and that row is reworded to "each entry a writer refused on apply or a replay did not restore, until a later apply of the same slot succeeds". The page's opening section gains `fib-dummy` as a third subscriber of `(mpls-fib, entry)`, which refuses every entry |
+| `docs/architecture/plugin/plugin-system.md` | Registration fields | the `// Design:` page of `dataplane_writer.go` and `dataplane_decl.go`; a page this spec modifies | "The plugin writes the routes the system RIB selects into a forwarding path. It IS the operator's data-plane choice, so a config that names one gets no writer added to it" | departs | `fib-dummy` declares `ProgramsFIB` and writes no route into any forwarding path. Before: `ProgramsFIB` means the plugin writes the selected routes into a forwarding path, and is therefore the operator's choice. After: `ProgramsFIB` is the operator's FIB choice, which a plugin may make while programming none, through the new no-plane mark; `fib-p4` keeps declaring it with no plane and no mark, as a writer whose client is missing. A new table row for the mark sits beside `HostSideDataPlane`, and the `DataPlane` row stops naming `fib-p4` as the only plugin that reaches no plane. Presented under "Documents departed from" |
+| `docs/architecture/api/architecture.md` | Owner ruling: implied and shown, or written | the `// Design:` page of `registry.go`; anchored to it | "without asking: the plugin that serves a block the operator wrote, and the" | agrees | `fib-dummy` is the plugin that serves a block the operator wrote. The writer the engine adds for a route producer is such an implied item too, and the reload judgement keeps it true to the candidate: added when needed, stopped when the operator writes a FIB block or no producer needs it |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "When `\| implied` modifies an existing config line (such as inserting automatic members into a `filters [ ... ];` list), it keeps the line intact and places an inline `# implied: ...` comment on the same line after the statement naming what was added and why, rather than placing a comment only above the line or splitting the list across multiple lines. In Thomas's words (2026-11-23): "No, it should be on the same line and say what was added"." | agrees | This design adds no implied item and renders nothing under `\| implied`; it modifies no config line |
+| `ai/doors/config-yang.md` | Boundaries | the door covering `dataplane_verdict.go` | "A plugin receives only the roots it declares." | agrees | `fib-dummy` declares and receives `fib/dummy` alone. The rule that needs other plugins' roots and the plugin selection lives in the config component's verdict, which holds the whole candidate, and reads a mark the plugin registers |
+| `docs/architecture/api/update-syntax.md` | Accumulator → Family Support | anchored to `registry.go` | - | silent | The page cites `SectionRouteParserFor`; the new mark is another field of `Registration` and touches no route parser |
+| `docs/architecture/bgp/structural-forwarding.md` | Receive validation and cache changes | anchored to `registry.go` | - | silent | The page cites `RelaysOnRSFastPath` and `FencesLiveForwards`; BGP forwarding of UPDATEs is untouched |
+| `docs/architecture/config/syntax.md` | What a reader receives | anchored to `registry.go` and `startup_removal.go` | - | silent | The page cites `ConfigurationFor`, `SendTypes` and the filter type registry; the grammar and config delivery are unchanged, and `finishRemovalScope` is not what the page describes |
+| `docs/architecture/decisions/001-pull-model-metrics.md` | Current Ze State | anchored to `registry.go` and `manager.go` | - | silent | The page cites `ConfigureMetrics` and `pluginMetrics`; `fib-dummy` registers its metrics through `ConfigureMetrics` as the page describes, and the metrics model is unchanged |
+| `docs/architecture/dns/geodns.md` | Observability | anchored to `registry.go` | - | silent | The page cites `ConfigureMetrics` for the GeoDNS plugin; nothing of it changes |
+| `docs/architecture/wire/nlri.md` | SR-Policy in `update text` | anchored to `registry.go` | - | silent | The page cites NLRI parser and decoder registrations; no wire or NLRI code changes |
+| `docs/architecture/hub-architecture.md` | SSH session model factory | anchored to `manager.go` | "`buildSessionModelFactory` builds the model of each interactive SSH session." | agrees | The page cites `RefuseRespawns`; the daemon's stop path and the SSH session model are unchanged. The configured set shrinks only at an accepted reload, and at the stop of a start a rejected reload rolled back. Under C-6 (b) this spec edits no section of this page; under (a) it would edit the next row's |
+| `docs/architecture/hub-architecture.md` | What the daemon does at start | the `// Design:` page of `cmd/ze/hub/main_reload.go` (and of `reload_declarations.go`, which this spec cites); anchored to `main.go` and `main_reload.go` | "it concerns the external plugins and their modules alone: every other part of the config reloads without a restart." | agrees | Under C-6 (b) a reload that changes a plugin block running a FIB plugin reloads without a restart (AC-20), and the refusal of changed external declarations is untouched. The loaders of `diskConfigLoaders` answer one more value, the selection their `LoadConfig` judged, and refuse nothing new. Under C-6 (a), the alternative, this sentence would be departed from ("Documents departed from") |
+| `ai/doors/hub-engine.md` | Boundaries | the door covering `cmd/ze/hub/main.go` and `cmd/ze/hub/main_reload.go` | "they change only when `ze` restarts, and nothing else in the config needs one" | agrees | Under C-6 (b) nothing new needs a restart, and SIGHUP and a managed push keep reaching `doReload` and reading the config through `diskConfigLoaders`: one reload path, which now carries the candidate selection to the server with the tree. Under C-6 (a) this sentence would be departed from |
+| `docs/architecture/doctor-and-health-checks.md` | Plugin lifecycle checks | a page this spec modifies; the section the `// Design:` header of `check_dataplane_writer.go` names | "A plugin declared in its own `plugin {}` block is read only at boot, so no reload removes it." | departs | Under C-6 (b), the recommended answer, a reload stops the writer a removed or changed block running a `ProgramsFIB` plugin ran and starts what the candidate selects (AC-20). Before: `plugin { internal k { use fib-kernel; } }` replaced by `fib { dummy { } }` leaves `k` running beside `fib-dummy`. After: `k` stops and `fib-dummy` alone runs. Every other plugin block stays read only at boot. Presented under "Documents departed from", awaiting Thomas; under C-6 (a) the page is kept and this row becomes agrees |
+| `docs/architecture/appliance/remote-operations.md` | Live configuration upload | anchored to `cmd/ze/hub/main.go` | - | silent | The page cites `runYANGConfig` as the owner of a configuration mutation and of the shutdown; both are unchanged, and an uploaded configuration reaches the same reload loader |
+| `docs/architecture/cli/command-completion.md` | Why web sources at request time | anchored to `cmd/ze/hub/main.go` | - | silent | The page cites `runYANGConfig` for completion sources; completion is unchanged |
+| `docs/architecture/config/yang-config-design.md` | Joining a module that no `init()` registered | anchored to `cmd/ze/hub/main.go` | - | silent | The page cites `runYANGConfig` calling `joinDeclaredPlugins` over the boot first pass; this spec changes neither the first pass nor the modules joined. It hands the boot `LoadConfig` result's selection to the plugin server |
+| `docs/architecture/diagnostics/crash-capture.md` | The decisions | anchored to `cmd/ze/hub/main.go` | - | silent | The page cites `exitForced`; crash capture is unchanged |
+| `docs/architecture/fleet-config.md` | Dedicated managed listener (reuses auth + transport) | anchored to `cmd/ze/hub/main.go` (here and in "Config Storage (Client Side)") | - | silent | The page cites `runYANGConfig` and `RunWithManagedClient`; a managed push reaches the same `doReload` and loader, and the managed listener and client storage are unchanged |
+| `docs/architecture/fleet-config.md` | Design decisions | decision of 2026-11-23 | "A reload that changes the certificate a serving hub's managed listener presents installs it on the running listener at that reload: the next handshake presents the certificate the configuration names, the listener keeps its socket and no session is closed, as the web and looking glass listeners do. The certificate stays in the configuration's `pki` block. In Thomas's words (voice-transcribed): "Keep the certificate in the configuration." and "In that case on commit we can perform the certificate change on the listener."" | agrees | This spec refuses no reload of its own and adds no step to the managed listener's: a reload that changes the managed certificate installs it as today, and the loader's added value (the candidate selection) is read only by the plugin server's writer judgement |
+| `docs/architecture/pki/pki-store.md` | Decisions | anchored to `cmd/ze/hub/main.go` | - | silent | The page cites `run` and `runYANGConfig` where the PKI issuer halves meet; unchanged |
+| `docs/architecture/pki/tls-listeners.md` | Decision: a named certificate fails closed | anchored to `cmd/ze/hub/main.go` and `cmd/ze/hub/main_reload.go` | - | silent | The page cites the certificate gates of `runYANGConfig` and the reload's certificate checks; neither changes |
+| `docs/architecture/pki/tls-listeners.md` | Design decisions | decision of 2026-11-23 | "The looking glass may serve plain HTTP, because what it publishes is public, and one looking glass serves HTTP and HTTPS at the same time. Thomas's words, as voice-transcribed: "We should allow the looking glass to be HTTP. The information is public." and "We should be able to serve on both HTTP and HTTPS, not either." Asked where the choice lives and what happens to `ze.looking-glass.tls`, he answered "1a 2a": the choice is the `tls` leaf of each `server` entry, default true, and the environment variable is removed. The no-store rule applies to each entry: an entry that left `tls` unset serves HTTP with a warning on a daemon with no `database/` store and no named certificate, an entry that says `tls true` there is refused at start and at reload, and a reload does what a restart with the same config does" | agrees | No looking-glass leaf or listener changes; a reload that changes only looking-glass entries does what it does today, and a reload that changes a FIB plugin block does what a restart with the same config does (AC-20), the rule this decision states for the looking glass |
+| `docs/architecture/storage-backends.md` | The boot record | anchored to `cmd/ze/hub/main.go` | - | silent | The page cites `runYANGConfig` writing the boot record; unchanged |
+| `docs/architecture/testing/ci-format.md` | The compiled observer API | anchored to `cmd/ze/hub/main.go` | - | silent | The page cites `apiServer.SetShutdownFunc`; unchanged |
+| `docs/architecture/web-interface.md` | Per-User Editor | anchored to `cmd/ze/hub/main.go`, and to `cmd/ze/hub/main_reload.go` in "LG Named Next-Hop Ranges" | - | silent | The page cites the session reload holder and `restoreLGNextHopRanges`; a web commit reaches the same reload loader, and the editor and the looking glass are unchanged |
+| `docs/architecture/aaa-tacacs.md` | A backend that will not BUILD is dropped, and the chain carries on | anchored to `cmd/ze/hub/main_reload.go`, here and in "Accounting hangs off one dispatch point" | - | silent | The page cites the AAA reload refusal and the bundle swap of `main_reload.go`; both are unchanged. The loader answers the candidate selection beside the tree and refuses nothing new |
+| `docs/architecture/config/deprecated-options.md` | Configuration Syntax Changes | anchored to `internal/component/config/loader.go` | - | silent | The page cites `parseSetConfig` and its unknown-field message; the parse and the message are unchanged, and `LoadConfigResult` only keeps a value `loadConfig` already computes |
+| `docs/architecture/config/environment-block.md` | TL;DR | anchored to `internal/component/config/loader.go` | - | silent | The page cites `LoadConfig`, `ReadConfig` and `applyParsedEnvironment`; when and how the environment block is applied is unchanged |
+| `docs/architecture/overview.md` | 4.1 Plugin Server (`internal/component/plugin/server/`) | anchored to `internal/component/plugin/server/server.go` | - | silent | The page names the plugin server's role; the server keeping the running config's plugin selection adds a field the overview does not describe |
+| `docs/architecture/testing/runner-architecture.md` | Shared reporting | anchored to `internal/component/plugin/server/server.go` | - | silent | The page cites `defaultStageTimeout` and `ze.plugin.stage.timeout`; the stage timeout is unchanged |
+| `docs/architecture/update-cache.md` | Opting In | anchored to `internal/component/plugin/server/server.go` | - | silent | The page cites Stage 1 reading `cache-consumer`; Stage 1 is unchanged |
+| `docs/architecture/plugin/component-boundaries.md` | The four components | anchored to `cmd/ze/hub/main_reload.go` | - | silent | The page cites `doReload` and `rollbackReload`; neither changes |
+| `docs/architecture/rsvpte/mpls-rsvp-te.md` | Dataplane | the `// Design:` page of `internal/plugins/rsvpte/fib.go` and `internal/plugins/rsvpte/doctor_label.go`; anchored to them and to `internal/core/mplsfib/events.go`; a page this spec modifies | "An entry that replay asked for again and the writer did not install leaves an LSP RSVP-TE holds up with no forwarding under it: `fib.go` keeps it with the writer's cause until it is applied again or a later replay succeeds" | agrees | Replay refusals stay recorded as the page says. What changes (AC-18): `fib.go` also keeps an entry a writer refused on apply, with the cause, until a later accepted apply of the same slot, and a successful replay clears a record only when its entry equals the entry the replay re-sent, so a refused replacement or removal on an installed slot stays. The paragraph gains that sentence; the "Up transition or outgoing label advertisement follows successful acceptance" rule is unchanged, so a refused entry is still never advertised |
+| `docs/architecture/rsvpte/mpls-rsvp-te-fast-reroute.md` | Decision: local repair moves data and control traffic | anchored to `internal/plugins/rsvpte/fib.go` | - | silent | The page cites `busFIB programBackup`, which is unchanged; a refused backup entry is now also recorded by `emit`, which the page does not describe |
+| `ai/doors/routing-protocols.md` | Boundaries | the door covering `internal/plugins/rsvpte/fib.go` and `internal/plugins/rsvpte/doctor_label.go` | "Label entries go through the bus." | agrees | RSVP-TE keeps emitting `(mpls-fib, entry)` events and recording the writer's answer in its own process; nothing reaches a writer by another path |
+| `ai/doors/routing-protocols.md` | Boundaries | the door covering the label sources whose replay answers `fib-dummy` and `fib-kernel` ask for | "A writer that opens late asks for them again with `(mpls-fib, replay-request)`, and each producer answers with `mplsfib.ApplyReplay`." | agrees | `fib-dummy` and a `fib-kernel` a reload starts are writers that open late, and each now asks (AC-9, AC-21), as `fib-vpp` does; the producers' answer is unchanged |
+| `docs/architecture/mpls/mpls-kernel.md` | Constraint: the push shares the FIB with other writers | the `// Design:` page of `internal/core/mplsfib/events.go`; a page this spec modifies | "Such a writer emits `(mpls-fib, replay-request)` with a token from `mplsfib.NewReplayToken`, and LDP, RSVP-TE, OSPF Segment Routing and BGP EPE answer with `mplsfib.ApplyReplay`," | agrees | Both new requesters draw their token there and consume only the batch tagged with it, so "Only the writer that holds the token consumes and acknowledges a tagged batch" stays true; the paragraph gains `fib-kernel` and `fib-dummy` as requesters |
+| `ai/doors/core.md` | Boundaries | the door covering `internal/core/mplsfib/events.go` | "Events register their payload type once." | agrees | Only the `EntryChange` comment changes; the handle and its payload stay as registered |
+| `ai/doors/le-tooling.md` | Boundaries | the door covering `internal/test/perfrunner/run.go` and `internal/le/perf/bench.go` | "An action stays callable as Go and answers through the shared renderer" | agrees | The history and evidence refusal of an overlay result is an error of the existing actions, through their existing report; no new action and no private output mode |
+| `docs/architecture/system-architecture.md` | Build personalities | anchored to `internal/test/perfrunner/run.go` | - | silent | The page cites `buildLinuxBinary` and `runPerf`, which are unchanged; the result's config directory is a field the page does not describe |
+| `docs/architecture/testing/interop.md` | Crash-safe teardown | anchored to `internal/test/perfrunner/run.go` | - | silent | The page cites `Runner.measure` and the image and container steps, none of which changes; the overlay is read by `Runner.config` as today |
+| `docs/architecture/testing/interop.md` | The Docker host kernel check | anchored to `internal/le/perf/bench.go` | - | silent | The page cites `Bench.Run` and the staging helpers, which are unchanged; the route-path variant needs no kernel capability of its own |
+| `docs/architecture/testing/interop.md` | Design decisions | decision of 2026-11-23 | "Each Docker interop suite and scenario checks only the kernel capabilities it actually requires (`Suite.KernelCapabilities` unioned with selected `ScenarioPlan.KernelCapabilities`); suites whose selected scenarios require none run without unrelated kernel features (such as SRv6 or IPsec)" | agrees | The route-path variant runs on the same perf lab and its kernel check (`Bench.Kernel`) is unchanged; `fib-dummy` writes nothing to the kernel and enrols no capability |
+| `docs/architecture/testing/ci-workflows.md` | Which verify events run | anchored to `internal/le/perf/bench.go` | "The performance nightly reads committed history and never measures the hosted runner. `Bench.HistoryRecord` appends existing measurements, while `Bench.EvidenceRecord` measures Ze, records it and checks the history." | agrees | Both keep doing so for the route-server DUT; they now refuse a result an overlay produced, so the committed history the nightly reads never holds a route-path figure (AC-19). The page gains that sentence |
+| `docs/performance.md` | DUT Setup | a page this spec modifies | "Config: passive peers, route-reflector plugin (bgp-rs), 1M prefix limit per family." | agrees | The route-server DUT stays as described. The page gains the route-path variant (`PERF_CONFIGS_DIR`, `bgp-rib`, `rib`, `fib dummy`), the `routes-held` check, and that its figures are recorded only from the owner's Mac and never into the committed history |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | The refusal of `fib dummy` beside another FIB plugin is a rule of that one verdict, with the same selection at every door (AC-4) |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "kernel"` annotation." | agrees | This design adds no firewall node and no `ze:backend` annotation |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every data-plane selector names the plane it programs, `kernel` or `vpp`: `interface backend`, `firewall backend` and `traffic control backend` take `kernel` where they took `netlink`, `nft` and `tc`, and each defaults to `kernel`; the `fib` blocks already name `kernel` and `vpp`. The plane a registration declares and the value a `ze:backend` annotation names are the same word. A second implementation on the same plane, such as eBPF, takes a value of its own when it exists. In Thomas's words (voice-transcribed): "should tc and netfilter be renamed to kernel? so we have vpp and kernel?", then "please do it"." | agrees | `fib-dummy` declares no plane, so it adds no word to the plane vocabulary; a plane named `none` is set aside for that reason |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "BGP egress next-hop rewriting belongs exclusively in the export filter chain, not under session configuration (`session { next-hop }`). Ze automatically appends `next-hop auto` at the end of the export chain when no earlier export filter has already set a next-hop outcome (`self`, `unchanged`, or an explicit address), so ordinary eBGP rewrites to self while iBGP and route-server clients preserve the received next hop. In Thomas's words (voice-transcribed): "I would think that all the rewrite should be in the prefix export and not under configuration. I believe we should automatically add to the export prefix list the auto at the end of the list if not defined with something else. So if no one, for example, used a self or unchanged, we should automatically change it on eBGP. Because otherwise we have two ways to modify packets on the way out to the peer.", then "Unify into the export chain it is the way I want it."" | agrees | The route-path perf variant configures its peers with the export chain as written today; it adds no session-level next-hop setting |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Egress export chains configure next-hop rewriting through one underlying `policychain.Sets` next-hop intent exposed in two authoring forms: `policy { modify <name> { set { next-hop self \| unchanged \| auto \| <ip>; } } }` for matched/conditional rules, and built-in chain references `next-hop:self`, `next-hop:unchanged`, and `next-hop:auto` for peer-wide policy without a wrapper `modify` block. Selected by Thomas on 2026-11-23 ("Option A: Extend policy modify (self\|unchanged\|auto\|<ip>) AND provide built-in next-hop:self / next-hop:unchanged / next-hop:auto chain refs")." | agrees | Nothing here writes a next-hop rewrite |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Built-in `next-hop:auto`, `next-hop:self`, and `next-hop:unchanged` are BGP engine steps compiled into `policychain.Chain` (parallel to `loop-detection`), never external plugin RPCs or a `pkg/plugin/rpc.FilterInsertion` tail extension. Config loading appends `next-hop:auto` at the tail of every export chain unless an unconditional `next-hop:self`, `next-hop:unchanged`, or `next-hop:auto` is already present, leaving `Policy.Configured()` false for unconfigured chains; operators override via `next-hop:unchanged`, and `inactive:next-hop:auto` is refused. Selected by Thomas on 2026-11-23 ("Option A: Built-in BGP engine step appended at config compile time (like loop-detection; zero RPC; override via next-hop:unchanged, no inactive:next-hop:auto)")." | agrees | No filter chain or chain step changes |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Within an export chain, explicit next-hop sets (`self`, `unchanged`, `auto`, or an IP address) use standard last-write-wins folding while the auto-appended trailing `next-hop:auto` acts only when next-hop is still unset. For a whole-UPDATE raw override (`wireOverride`), Ze compares each emitted next-hop field against the received UPDATE (matching `forward_med.go` provenance): trailing `auto` is skipped only when the raw override changed the next-hop bytes or an earlier chain member already selected `unchanged`/`self`/explicit. Selected by Thomas on 2026-11-23 ("Option A: Provenance check on raw overrides (like MED): skip trailing auto only when the raw override changed the next-hop bytes or an earlier member set unchanged/self")." | agrees | No export chain folding changes |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Explicit next-hop addresses in `policy { modify <name> { set { next-hop <ip>; } } }` and `policychain.Sets.NextHop` support both IPv4 (attr 3) and IPv6/MP_REACH (through `NextHopProfile` and `ValidatePeerGlobalNextHop`) on both export and import chains. Egress-only next-hop modes (`self`, `unchanged`, `auto`), whether written as built-in `next-hop:*` refs or inside `policy { modify }`, are refused on import chains at config load. Selected by Thomas on 2026-11-23 ("Option A: Support IPv4 + IPv6/MP_REACH for explicit next-hop on both export and import; refuse self/unchanged/auto on import at config load")." | agrees | No next-hop setting is added or accepted on any chain |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Auto-appended trailing `next-hop:auto` applies only to forwarded routes and preserves the originator-chosen next hop on locally originated routes (static config routes, ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions (`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both forwarded and locally originated routes. Selected by Thomas on 2026-11-23 ("Option A: Trailing next-hop:auto applies to forwarded routes only (preserves static/ExaBGP/API explicit next-hop); explicit next-hop:self / modify next-hop applies to both forwarded and originated routes")." | agrees | `fib-dummy` reads the next hop the system RIB selected and shows it; it rewrites none |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every automatic filter-chain member Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail, `loop-detection` at the import head) and plugin-declared `FilterInsertions` — is published through one queryable implied-filter seam carrying direction, position, reference and `implied-by` reason so `\| implied` displays every extra chain member alongside the operator's written filter list. In Thomas's words (2026-11-23): "Can you make sure that \| implied show the extra chain members when it displays the filter ?"." | agrees | `fib-dummy` inserts no filter and declares no `FilterInsertions` |
+
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+
+### Entry Point
+- Config: the `fib/dummy` root, an empty container, delivered to the plugin as a config section.
+- Events: `(system-rib, best-change)` batches from the system RIB; `(mpls-fib, entry)` batches from label producers.
+- Commands: `show fib dummy` and `show fib dummy counters`, through the daemon dispatcher.
+
+### Transformation Path
+1. Boot or reload: the candidate tree holds `fib/dummy`. `registry.PluginsForConfigPaths` selects `fib-dummy`; dependency resolution adds `rib`.
+2. The writer judgement runs over the candidate: producers that will run, FIB plugins the candidate chooses, the data plane. "Chosen" is the candidate selection the data-plane verdict judged: a `ProgramsFIB` plugin whose config root the candidate tree holds, or that the `candidatePluginSelection` value names (a plugin block of the candidate tree, or the recorded `--plugin` list). It is never read from the boot-time `s.config.Plugins`. The selection travels with the tree: `loadConfig` keeps the value it judged in `LoadConfigResult`, `diskConfigLoaders` answers it beside the map, and `ConfigLoader` and `ReloadConfig` carry it into `reloadConfig`; boot hands its own to the server through `ServerConfig`, and the server keeps the selection of the config it runs, so a rejected reload's recovery judges with it. A FIB plugin named by `--plugin` is thus chosen at every reload and is never put in the stop set. The producers that will run are the running processes, minus the stop set of this reload (owners of removed roots, their orphaned dependencies, and the `ProgramsFIB` processes the judgement stops), plus its start set (owners of added roots, their dependencies, and the writer or chosen FIB plugin the judgement starts), each counted as a producer when its registration declares `NeedsDataPlane`. A running process is matched to its registration through `plugin.RegistryNames`, so an in-process block `plugin internal k { use fib-kernel; }` is `fib-kernel`. The judgement answers, over those inputs:
+
+   | Chosen FIB plugins in the candidate | Producers that will run | Start set gains | Stop set gains |
+   |-------------------------------------|-------------------------|-----------------|----------------|
+   | One or more | Any | Each chosen one that does not run | Every running `ProgramsFIB` process that is not chosen (the engine-added writer; the writer of a removed or changed plugin block, AC-20) |
+   | None | One or more | The selected plane's writer, when it does not run | Every running `ProgramsFIB` process other than that writer |
+   | None | None | Nothing | Every running `ProgramsFIB` process (AC-16) |
+
+   A stopped writer stops after the producers the same reload stops, through `stopCollectedProcesses`, and keeps its `flush-on-stop` behavior.
+3. The data-plane verdict judges the candidate at every door with the door's plugin selection: a FIB plugin in use that carries the mark "the choice to program no data plane", beside any other FIB plugin in use, is one finding (C-2). A FIB plugin is in use when the candidate tree holds one of its config roots or the selection names it, by a plugin block or by `--plugin`.
+4. `fib-dummy` starts, draws a label replay token from `mplsfib.NewReplayToken`, subscribes to best-change and to label entries, then asks the system RIB for a broadcast replay and the label sources for a targeted replay with its token (`(mpls-fib, replay-request)`, as `fib-vpp` `requestLabelReplay` does). A `fib-kernel` the reload judgement starts does the same once its `(mpls-fib, entry)` subscription exists (AC-21).
+5. Each best-change entry: install and replace store one value under the key (table id, prefix); remove deletes it. The stored value copies scalar fields only (next hop, interface name, protocol, route type, path count). A counter per verb is incremented. No string is built and nothing is logged per route.
+6. Each label batch addressed to the plugin (`EntryBatch.Addresses` with its token: a live batch, a broadcast, or the replay it asked for): the refusal counter is incremented by the number of entries, and the batch is acknowledged with one refusal (C-3). The label source records the refusal and its own label-entries doctor check reports it. For RSVP-TE that record is new: `busFIB.emit` records the refused entry with the cause before it returns the error to the engine (AC-18).
+7. When an accepted reload makes a plugin's removal final, the plugin's name leaves the process manager's configured set; so does the name of a plugin a rejected reload started and `rollbackStartupProcess` stopped.
+8. `show fib dummy` answers one row per held route; `show fib dummy counters` answers one document. Both are data; the pipe layer renders them.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| System RIB to plugin | The typed `BestChange` handle on the EventBus; JSON when the plugin is forked | No |
+| Label producer to plugin | The typed `EntryChange` handle; the acknowledgement is in-process only, so a forked `fib-dummy` cannot answer and the producer gets the no-owner refusal, the same outcome | No |
+| Plugin to system RIB | `ReplayRequest` on the EventBus | No |
+| Plugin to label sources | `mplsfib.ReplayRequest` with the plugin's token; the sources answer with `ApplyReplay` on `EntryChange` | No |
+| Config loader to plugin server | The candidate selection the verdict judged, handed with the tree through `ConfigLoader` and `ReloadConfig` (in process, inside the daemon) | No |
+| Plugin to daemon report store | SDK `RaiseIssue`, for the invalid-change warning only | No |
+| Plugin to registry | `registry.Register` from `init()`, a pure value that carries the mark | No |
+| Registry to config component | The verdict reads `registry.All()` and the mark, as it reads `HostSideDataPlane` | No |
+| Label source to operator | The source's `*-label-entries` doctor check, answered from the source's own process | No |
+| Plugin server to process manager | At `finishRemovalScope`, the names of the final removals | No |
+| Engine to plugin | Config section for `fib/dummy`; `OnExecuteCommand` | No |
+
+### Changed-Wire Census
+
+**Search evidence:** scope: every tracked file. Terms and findings: `BestChange.Subscribe`, `BestChange.Emit` and `sysribevents.ReplayRequest` over `*.go` under `internal`, `cmd` and `pkg` found the emitters `internal/component/sysrib/route_view_output.go` (two sites) and the test emitter `internal/test/plugins/fakefib/fakefib.go`, and the subscribers `fib/kernel/fibkernel.go` `run`, `fib/vpp/register.go` and `fib/p4/fibp4.go` `run`; `best-change` over `*.py`, `*.sh` and `*.ci` found `.ci` files only, which name the event in comments and run compiled Go fixtures (`le test fixture plugin/...`), and no shell or Python reader. `EntryChange.Subscribe`, `EntryChange.Emit`, `mplsfib.Apply`, `RemoveLabelSource` and `ApplyReplay` found the one emitter `internal/core/mplsfib/events.go` `apply`, its callers in the LDP, RSVP-TE, OSPF segment routing and BGP EPE plugins and in `fib/vpp/register.go`, and the subscribers `fib/kernel/fibkernel.go` `run` and `fib/vpp/register.go`. `show fib` over `*.yang` and `*.go` found the three `commandDecls` functions and no YANG command node. `fib-p4` and `fib/p4` over the tree found the plugin, the generated composition root, `dependency-ledger.txt`, inventory tests and the pages listed in the Documentation checklist. Positive control: the search for `BestChange.Subscribe` returns `fib/kernel/fibkernel.go`, the known reader. One existing wire changes its format, the perf result and its history line, which gain the config directory of the run (AC-19, rows below); otherwise this work adds two command answers and one config root, and adds one reader to two existing events.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| `(system-rib, best-change)` | writer | `internal/component/sysrib/route_view_output.go`, the two `BestChange.Emit` sites | Search above | Preserve: unchanged |
+| `(system-rib, best-change)` | reader | `fib/kernel/fibkernel.go` `run`; `fib/vpp/register.go`; `fib/p4/fibp4.go` `run` | Search above | Preserve: unchanged |
+| `(system-rib, best-change)` | reader | New: `internal/plugins/fib/dummy`, the subscription made at start | This spec | New reader of the existing payload, typed in process and JSON when forked (`BestChangeBatch.UnmarshalJSON`) |
+| `(system-rib, replay-request)` | writer | `fib/kernel`, `fib/vpp`, `fib/p4`; new: `fib/dummy` | Search above | New writer of the existing broadcast request |
+| `(system-rib, replay-request)` | reader | The system RIB (`internal/component/sysrib`) | `ReplayRequest` handle in `sysrib/events/events.go` | Preserve: unchanged |
+| `(mpls-fib, entry)` | writer | `internal/core/mplsfib/events.go` `apply`, called by the LDP, RSVP-TE, OSPF segment routing and BGP EPE plugins | Search above | Preserve: unchanged. With `fib dummy` the result they get is a refusal (C-3) |
+| `(mpls-fib, entry)` | reader | `fib/kernel/fibkernel.go` `run` (`handleMPLSEntry`); `fib/vpp/register.go` | Search above | Preserve: unchanged |
+| `(mpls-fib, entry)` | reader | New: `internal/plugins/fib/dummy` | This spec | New reader; acknowledges with a refusal, the replay it asked for included |
+| `(mpls-fib, entry)` | reader | `fib/kernel/mplsentry.go` `handleMPLSEntry` | Search below | Changed (AC-21): consumes a targeted batch tagged with its own token, where today it consumes only token 0 (live and broadcast); a batch tagged with another writer's token stays ignored |
+| `(mpls-fib, replay-request)` | writer | `fib/vpp/fibvpp.go` `requestLabelReplay`; new: `fib/dummy` and `fib/kernel` `run` | Search of `*.go` under `internal`, `cmd` and `pkg` for `mplsfib.ReplayRequest.Emit` and `mplsfibevents.ReplayRequest.Emit`: `fib/vpp/fibvpp.go` only. Positive control: it returns `requestLabelReplay`, the known writer | New writers of the existing targeted request; each declares it in its `Sends` (`fibKernelSends`, the dummy's send function), as `fibVPPSends` does |
+| `(mpls-fib, replay-request)` | reader | The `ReplayRequest.Subscribe` of LDP (`internal/plugins/ldp/register.go`), RSVP-TE (`internal/plugins/rsvpte/register.go`), OSPF segment routing (`internal/plugins/ospf/sr_fib.go`) and the BGP EPE plugin, each answering with `mplsfib.ApplyReplay` | Search of `*.go` for `ReplayRequest.Subscribe`; the iface monitors' hits subscribe to their own namespace's request | Preserve: unchanged; they answer every writer's token the same way |
+| Answer of `show fib dummy` | writer | New: `fib/dummy`, the command handler | This spec | New: rows with the keys of the field table in Design presentation |
+| Answer of `show fib dummy` | reader | The pipe layer and every command surface (`internal/component/command`); API clients outside the repository | `ai/doors/commands-cli.md`, "A handler answers data, never text" | New: declared through `CommandDecl` |
+| Answer of `show fib dummy counters` | writer | New: `fib/dummy`, the command handler | This spec | New: one document |
+| Answer of `show fib dummy counters` | reader | The pipe layer and every command surface; API clients outside the repository | As above | New |
+| Perf result JSON and history NDJSON | writer | `internal/perf/result.go` `Result` (`test/perf/results/*.json`), built by `RunBenchmark` in `internal/perf/benchmark.go` from the `BenchmarkConfig` that `le perf send` (`internal/perf/cli/cmd_run.go`) fills from its flags, and written by `le perf send --output` in the sender container, whose arguments `internal/test/perfrunner/run.go` `runPerf` builds; `internal/le/perf/bench.go` `appendAll` appends results to `test/perf/history/*.ndjson` | Search of `*.go`, `*.yml`, `*.sh`, `*.py` under `internal`, `cmd`, `.github` and `scripts` for `test/perf/results`, `resultsDir` and `perf/history`: `internal/test/perfrunner/run.go`, `internal/le/perf/bench.go`, `internal/perf/report/perfdoc.go`, `.github/workflows/perf-nightly.yml`. Positive control: `run.go` holds `resultsDir` | Changed (AC-19): `Result` gains a kebab-case key for the config directory of the run, passed by the runner; a result without it, every committed history line included, reads as the default `test/perf/configs` |
+| Perf result JSON and history NDJSON | reader | `internal/le/perf/bench.go` `HistoryRecord`, `EvidenceRecord` (now refuse an overlay result); `./le perf track --check`, run by `.github/workflows/perf-nightly.yml` on `test/perf/history/ze.ndjson`; `./le perf compare --doc` (`internal/perf/report/perfdoc.go`) | Search above | Preserve: the track check and the comparison read the key as optional and judge what they judge today; only the two records read it, to refuse |
+| Config section `fib/dummy` | writer | The config component, delivering the root to its owner | `ai/doors/config-yang.md`, "A plugin receives only the roots it declares" | New root; an empty container; `{}` on removal |
+| Config section `fib/dummy` | reader | New: `fib/dummy`, verify and apply callbacks | This spec | New: accepts the empty container and the removal |
+
+### Integration Points
+- `registry.Register` - the registration, with `ProgramsFIB` and no `DataPlane`, and `Sends` declaring `(system-rib, replay-request)` and `(mpls-fib, replay-request)`, the two messages it sends at start. One function answers the send declarations for both the `registry.Registration` and the `sdk.Registration` the runner passes to `p.Run`, as `fibP4Sends`, `fibKernelSends` and `fibVPPSends` do for the other FIB plugins. It asks the label sources to replay, as `fib-vpp` does, so that every entry a source wants installed reaches it and is refused and reported, also the entries a source applied before `fib-dummy` opened.
+- `mplsfib.NewReplayToken`, `mplsfib.ReplayRequest`, `EntryBatch.Addresses` - the targeted label replay of `fib-dummy`, and of `fib-kernel` (`fibkernel.go` `run`, `mplsentry.go` `handleMPLSEntry`, `fibKernelSends`; AC-21).
+- `diskConfigLoaders` in `cmd/ze/hub/main_reload.go`, `LoadConfigResult` in `internal/component/config/loader.go`, `ConfigLoader`, `ReloadFromDisk` and `ReloadConfig` in `internal/component/plugin/server/reload.go`, and `ServerConfig` (`internal/component/plugin/server/config.go`) filled by `cmd/ze/hub/main.go` - the route of the candidate selection the verdict judged, with the tree, from the loader to the writer judgement.
+- `evaluateDataPlaneVerdict` in `internal/component/config/dataplane_verdict.go` - the rule that refuses a marked FIB plugin beside another one.
+- `validateDataPlaneDecl` in `internal/component/plugin/registry/dataplane_decl.go` - refuses the mark on a registration that does not declare `ProgramsFIB`, or that declares a `DataPlane`.
+- `finishRemovalScope` and the process manager - the configured set shrinks when a removal is final.
+- `diagnostic.RegisterDoctorCheck`, `diagnostic.Register`, `diagnostic.RegisterEventCode` - the check and the two codes.
+- `sysribevents.BestChange`, `sysribevents.ReplayRequest`, `mplsfib.EntryChange` - the three typed handles.
+- `startup_autoload.go` `appendDataPlaneWriter`, `selectAutoLoad`, `collectProcessesForRemovedConfigPaths` and `reload.go` `reloadConfig` - the writer judgement at reload.
+- `./le repo update` and `./le yang glue update` - the generated composition root and YANG glue.
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | No | |
+| No unintended coupling (components stay isolated) | No | |
+| No duplicated functionality (extends existing, does not recreate) | No | |
+| Zero-copy preserved where applicable (refs, not copies) | No | |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | When the guard spec has landed, its verdict runs at every door (start, reload, `ze config validate`, each editor and API commit) with the selection that includes the `--plugin` list, and its doctor check judges with the same selection | The guard spec's AC-16 and AC-18; `loader.go` calls `candidatePluginSelection` then `refuseDataPlaneMismatches` today, and `plugin_verify.go` calls `refuseDataPlaneMismatches`. The doctor check in the working tree calls `ExtractPluginsFromTree` alone, which is that spec's unfinished work | A door accepts `fib dummy` beside a FIB plugin; the defect is the verdict's and is fixed there, for every rule at once | `test/parse/fib-dummy-beside-writer-refused.ci`, `test/reload/fib-dummy-beside-writer-reload-refused.ci`, `test/parse/fib-dummy-beside-cli-plugin-refused.ci`, `test/plugin/fib-dummy-doctor.ci` | unvalidated |
+| A-8 | The writer the reload judgement stops is recorded in the reload's removal scope like the owner of a removed root, so `finishRemovalScope` sees it. It is not the only stop path: `rollbackStartupProcess` sends a process below `StageRunning` to `stopRemovedProcess`, which enters no `pluginRemoval` in `s.removals`, so `finishRemovalScope` never sees that stop. Such a process was started by the reload or startup being rolled back, so its stop is final when it happens, and the name leaves the configured set in that path | `stopCollectedProcesses` is the stop path the judgement and the removed-root owners share; `rollbackStartupProcess` (`startup_removal.go`) and its callers in `startup.go` and `startup_autoload.go` were read | The engine-added writer keeps its name in the configured set after AC-5, and the judgement must enter it in the scope itself; or a plugin a rejected reload started stays restartable through `request plugin restart` | `TestFinalRemovalLeavesConfiguredSet`, `TestRolledBackStartLeavesConfiguredSet`, `test/reload/fib-dummy-reload-add.ci` (the restart is refused) | unvalidated |
+| A-9 | The recorded `--plugin` list does not change while the daemon runs, so the candidate selection a reload judges with holds the same command-line plugins as boot. `s.config.Plugins` is the boot-time selection and does NOT follow a reload that changes a `plugin internal` block, because `RefuseChangedDeclarations` compares `FirstPass.External` only (`cmd/ze/hub/main_reload.go`). So "chosen" is the selection the loader hands over with the candidate tree, and AC-20 acts on the changed block | `RecordCommandLinePlugins` holds the process's list and `candidatePluginSelection` merges it; no assignment to `s.config.Plugins` outside boot in `internal/component/plugin/server` (search of non-test files); `reload_declarations.go` read | A judgement that read `s.config.Plugins` would keep a `plugin internal k { use fib-kernel; }` writer running beside `fib-dummy` after a reload replaced the block with `fib { dummy { } }` | `TestReloadKeepsCommandLineFIBPlugin`, `TestReloadJudgesTheLoaderSelection`, `test/reload/fib-internal-block-replaced-by-dummy.ci` | unvalidated |
+| A-12 | Every label source answers a targeted `(mpls-fib, replay-request)` by re-applying every entry it wants installed, tagged with the request's token, whatever writer asked | `mpls-kernel.md` ("LDP, RSVP-TE, OSPF Segment Routing and BGP EPE answer with `mplsfib.ApplyReplay`"); the four `ReplayRequest.Subscribe` sites (Changed-Wire Census) | `fib-dummy` misses entries a source applied before it opened, and a `fib-kernel` a reload starts installs none; the source that does not answer is fixed to answer as the others do | `TestLabelReplayRequestedOnOpen`, `TestFIBKernelRequestsLabelReplayOnOpen`, `test/reload/fib-dummy-reload-add.ci`, `test/reload/fib-dummy-reload-remove.ci` with LDP | unvalidated |
+| A-10 | `bgp-rib` without `bgp-rs` advertises the best route to the receiving peer, so the route-path perf variant still measures delivery to the receiver | Not verified: the current DUT uses `bgp-rs` and `bgp-adj-rib-in` (`test/perf/configs/ze.conf`) | The variant keeps `bgp-rs` for delivery and adds the RIB path (`bgp-rib`, `rib`, `fib-dummy`) beside it | `test/plugin/perf-route-path-dut.ci` asserts the receiver gets the routes and `routes-held` equals the routes sent | unvalidated |
+| A-11 | Within one iteration of a pass, the system RIB emits one install and one removal for each prefix to `fib-dummy`: the iteration withdraws a prefix only after the receiver holds every route, so no install is merged with its withdrawal into one best-change batch, and the Cease that follows finds no route of the sender left to remove. So after the pass `routes-held` is back to the value read before it, whatever routes the DUT held from other sources (none in the overlay as written, but the check does not depend on it) | `runIteration` (`internal/perf/benchmark.go`) waits for convergence at the receiver, then `sendWithdrawals` for every prefix, drains the forwarded withdrawals, then writes the Cease; `RunBenchmark` repeats it 1 + `Repeat` times over the same prefixes; the perf `ze.conf` configures no graceful restart, so a Cease keeps no route. Not verified: how the system RIB batches an install and a removal of one prefix that arrive close together | The rise of `installs` falls short on a correct run, and the check refuses it. The check then moves its moment into the sender, reading `routes-held` at convergence before the withdrawals (a hook in `runIteration`), rather than lowering the expected rise | The first route-path run on any host, and `TestRoutesHeldCheckJudgesEachPass` for the arithmetic | unvalidated |
+| A-2 | An empty YANG container written as `fib { dummy { } }` is kept in the tree and selects its plugin, as `fib { p4 { } }` and `fib { kernel { } }` do | `static-routes.md`; `kernelcap/predicate.go` `hasKernelFIB` reads the empty container | The block selects nothing; the container needs a presence statement | `test/plugin/fib-dummy.ci` | unvalidated |
+| A-3 | The typed best-change payload is delivered to a forked subscriber as JSON with the fields the display needs | `BestChangeBatch.MarshalJSON`, `UnmarshalJSON` | The forked display lacks a field; the row set differs by transport | `test/plugin/fib-dummy-forked.ci` | unvalidated |
+| A-4 | Every caller of `mplsfib.Apply` treats an error as "not installed" and keeps running | `mplsfib/events.go`: "producers must not advertise the failed result" | A producer treats the refusal as fatal and stops | Reading each caller at implementation; `test/plugin/fib-dummy-labels-refused.ci` with a label protocol configured | unvalidated |
+| A-5 | Stopping an engine-added writer at reload through `stopCollectedProcesses` needs no path of its own: the stop, its ordering and the compensation of a refused reload already handle a plugin that owns no root in the tree | `collectProcessesForRemovedConfigPaths` builds a name set; `stopCollectedProcesses` takes that set | The reload judgement needs its own compensation entry | `TestReloadStopsEngineAddedWriter`, `test/reload/fib-dummy-reload-add.ci`, and a refused-reload case | unvalidated |
+| A-6 | With BGP alone and no `fib` block, no FIB plugin is loaded today | The registrations that declare `NeedsDataPlane` are LDP, RSVP-TE, IS-IS, static, OSPF and BGP EPE (search for `NeedsDataPlane:`) | The purpose statement of the guide is wrong for BGP-only boxes | `test/plugin/fib-dummy.ci` asserts the plugin set; the guide sentence is written from the search result | unvalidated |
+| A-7 | The guard spec lands the rename `netlink` to `kernel` without changing the meaning of an empty `DataPlane` | Its AC-1 and AC-14 text | The dummy becomes judged; its declaration must follow that spec's vocabulary | `TestFIBDummyDeclaresNoDataPlane`; `test/vpp/fib-dummy-vpp-backend.ci` | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | The dummy runs beside a real writer and its label refusal is joined to the writer's success, so a correct label install reads as failed | An LDP or RSVP-TE install error naming `fib dummy` on a box that forwards | C-2 refuses the combination at every door, through the verdict and its one selection; the tests of AC-4 cover a config root, a plugin block and `--plugin`; AC-17 closes the restart route |
+| R-9 | After a reload stopped the kernel writer for `fib dummy`, `request plugin restart fib-kernel` starts it again beside the dummy | `show plugin list` holds both on a dummy box | AC-17: a final removal takes the name out of the configured set, so the restart is refused; a rejected reload keeps the name, because its removals are recovered |
+| R-10 | The fix of AC-17 changes the restart of every plugin a reload removed, not only FIB plugins | A `request plugin restart` that worked on a removed plugin is now refused | That is the correction the design page asks for; a plugin with no process when its roots go, and the other items of `spec-plugin-restart-bounded-and-configuration-true.md`, stay with that spec |
+| R-2 | The reload judgement stops a writer the operator chose, or one a refused reload must bring back | A reload of an unrelated change stops `fib-kernel` | "Chosen" is the candidate selection the data-plane verdict judges (`candidatePluginSelection`), read before anything stops: a `ProgramsFIB` plugin whose config root the candidate tree holds, that a plugin block of the candidate tree names, or that the recorded `--plugin` list names. It is never read from the boot-time `s.config.Plugins`, which a reload does not update: it is the value the loader hands over with the candidate tree. A running process is matched to its registration through `plugin.RegistryNames`, so an in-process block running a FIB plugin the candidate still names is chosen and kept. The stop joins the existing preflight set, so compensation restores it; `TestReloadKeepsChosenWriter`, `TestReloadKeepsCommandLineFIBPlugin`, `TestReloadJudgesTheLoaderSelection` |
+| R-13 | AC-20's stop or start reaches a plugin block whose plugin is not a FIB plugin, so an unrelated reload stops or starts a plugin that by today's rule is read only at boot | A reload that changes `plugin internal rs { use bgp-rs; }` stops or starts `bgp-rs` | The judgement acts only on processes and blocks whose registration, found through `plugin.RegistryNames`, declares `ProgramsFIB`; `TestReloadLeavesNonFIBPluginBlockAlone` holds a non-FIB block change that starts and stops nothing |
+| R-11 | RSVP-TE's new live record keeps a finding for an entry the engine later abandons (the LSP is torn down before any apply of its slot succeeds) | An `rsvp-te-label-entries` finding for an LSP `show rsvp-te` no longer lists | The record is `mplsfib.Refusals`, shared with LDP: a later accepted apply of the slot, the LSP's removal included, clears it. A successful replay clears a slot only when the recorded entry equals the entry it replayed (`Refusals.ClearIf` with entry equality), because `Refusals` keys by slot: a refused replacement on an installed slot (a `programBackup` over an installed swap, a re-signalled swap) and a refused removal of an installed entry survive the replay of the old entry. `TestRSVPTEAcceptedApplyClearsLiveRefusal`, `TestRSVPTEReplaySuccessKeepsRefusedReplacement`, `TestRSVPTEReplaySuccessKeepsRefusedRemoval` |
+| R-12 | The route-path perf variant's config drifts from the plugin set `test/plugin/perf-route-path-dut.ci` proves | The `.ci` green while a perf run fails its counter check in `Runner.measureDUT` | `TestRepositoryConfigsValidate` parses every `.conf` of the repository, the overlay included; the run itself fails, in `Runner.measureDUT`, when the rise of `installs` or `removals` across a pass differs from the routes sent times the iterations, or `routes-held` does not return to its value before the pass, so a variant that does not reach the writer cannot report a figure |
+| R-14 | A `fib-kernel` started by a reload after an earlier `fib-kernel` stopped with `flush-on-stop` false meets AF_MPLS entries it no longer tracks, and the replayed apply of one is refused (the add finds the in-label taken) | An `ldp-label-entries` finding naming an in-label `ip -f mpls route show` lists, right after `fib-dummy-reload-remove.ci`'s reload | The `.ci` asserts the finding is gone after the reload; if it stays, the defect is in `fib-kernel`'s install of an owned leftover entry and is fixed there (its `startupSweep` already marks leftover routes as Ze's own), never by skipping the replay |
+| R-3 | A box converted to `fib dummy` by reload keeps the routes the stopped kernel writer installed, and forwards on them | `ip route show proto 250` lists routes on a dummy box | Preserved behavior of `flush-on-stop`; the guide gives the conversion steps and the flush command; the doctor check for routes Ze owns with no kernel writer selected is homed outside this spec (C-5, Known Limitations) |
+| R-4 | The held table grows with the system RIB and adds to its memory | Resident memory on a full-table route reflector | One fixed-size value per selected route, no strings built, no per-path copy; the guide states the cost; C-1 offers count only |
+| R-5 | Two sessions edit `plugin/registry` and `plugin/server` at once (this spec and the guard spec) | A compile break in the shared checkout | The implementation phase reads the guard spec's current state first, commits whole files and names the concurrent edits (`ai/rules/git-safety.md`) |
+| R-6 | The best-change handler runs on the bus goroutine while a command reads the table | A race-detector report | One read-write lock around the table; counters are atomic; a `-race` unit test with a concurrent reader |
+| R-7 | A `Warn` line with no doctor code fails the doctor coverage gate | `./le arch doctor-coverage report` | Every `Warn` and `Error` line of the plugin carries one of its registered codes; lines per route are not logged at all |
+| R-8 | An operator reads `fib dummy` as "this box never forwards" and is surprised by a named-table static route | A support question | The YANG description, both command helps, the guide and the doctor info row state the exact contract (C-4) |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | The plugin: a display that misstates what a control-plane box holds. The reload judgement: a reload that stops the kernel writer of a forwarding router, or leaves it running beside a block that says nothing is programmed |
+| How is it reverted? | The plugin is one package and its generated registrations: a single commit revert. The reload judgement is a separate commit and reverts alone |
+| Who else touches this path? | `plan/release/fixes/spec-dataplane-compatibility-guard.md` (in progress): `plugin/registry/registry.go`, the plane names, the pages on data planes. `plan/release/validation/spec-fib-depth.md` (in progress): `fib/vpp`, label writers. `plan/release/fixes/spec-explicit-plugin-and-attach-config.md`: the loaders of `startup_autoload.go` |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| Config `fib { dummy { } }` at start, with a BGP session whose routes reach the system RIB | → | `fib-dummy` registration, its best-change handler and `show fib dummy` | `test/plugin/fib-dummy.ci` |
+| The same, with the plugin forked | → | The same handler over the RPC transport | `test/plugin/fib-dummy-forked.ci` |
+| Config `fib { dummy { } }` with a main-table static route, on Linux | → | The writer judgement adds no writer; the route is held; the kernel holds no such route | `test/static/static-fib-dummy-holds-route.ci` |
+| Reload that adds `fib { dummy { } }` to a running config with a static route and no `fib` block | → | The reload writer judgement stops the engine-added writer and starts `fib-dummy` | `test/reload/fib-dummy-reload-add.ci` |
+| Reload that removes `fib { dummy { } }` while a static route remains | → | The reload writer judgement starts the selected plane's writer | `test/reload/fib-dummy-reload-remove.ci` |
+| `ze config validate` on `fib { dummy { } kernel { } }` | → | The verdict rule that reads the mark `fib-dummy` registers | `test/parse/fib-dummy-beside-writer-refused.ci` |
+| `ze --plugin ze.fib-kernel config validate` on `fib { dummy { } }` | → | The same rule, over the selection that holds the `--plugin` list | `test/parse/fib-dummy-beside-cli-plugin-refused.ci` |
+| Reload that removes the `static` block, the last producer, with no `fib` block | → | The reload writer judgement stops the engine-added writer | `test/reload/static-removed-stops-engine-added-writer.ci` |
+| `request plugin restart` of a plugin an accepted reload stopped | → | `finishRemovalScope` takes the name out of the configured set | `test/reload/fib-dummy-reload-add.ci` |
+| `ze doctor` on a config with `fib dummy` and a static route | → | The `fib-dummy` doctor check | `test/plugin/fib-dummy-doctor.ci` |
+| Reload of an unrelated change on a daemon started with `--plugin ze.fib-kernel` and no `fib` block | → | The reload writer judgement reads the candidate selection, which holds the recorded `--plugin` list, and stops nothing | `TestReloadKeepsCommandLineFIBPlugin` |
+| Reload (SIGHUP) that replaces a boot-time `plugin internal k { use fib-kernel; }` by `fib { dummy { } }` | → | `diskConfigLoaders` hands the candidate selection to the server; the reload writer judgement stops the block's `fib-kernel` and starts `fib-dummy` | `test/reload/fib-internal-block-replaced-by-dummy.ci` |
+| A reload through the loader the daemon uses | → | `diskConfigLoaders` answers the selection `loadConfig` judged beside the tree, and `ReloadConfig` hands it to the judgement | `TestReloadJudgesTheLoaderSelection` |
+| A reload that starts `fib-kernel` on a box with LDP running (the removal of `fib dummy`) | → | `fib-kernel` `run` emits a targeted `(mpls-fib, replay-request)`; LDP's `ApplyReplay` batch is installed | `test/reload/fib-dummy-reload-remove.ci` |
+| An RSVP-TE label entry a writer refuses on apply, then `rsvp-te-label-entries` | → | `busFIB.emit` records the refusal; `labelDoctorFindings`, the answer of RSVP-TE's `OnDoctorCheck`, reports it | `TestRSVPTELiveRefusalIsRecorded` |
+| `./le perf` with `PERF_CONFIGS_DIR` naming the route-path overlay | → | `Runner.config` loads the overlay `ze.conf`; routes go `bgp-rib`, system RIB, best-change, `fib-dummy` | `test/plugin/perf-route-path-dut.ci` |
+| A pass of that run on the ze DUT | → | `Runner.measureDUT` reads `show fib dummy counters` from the running DUT before and after `runPerf` and judges the rises | `TestRoutesHeldCheckJudgesEachPass` |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | A daemon started with `fib { dummy { } }` and a BGP session whose routes the system RIB selects | `fib-dummy` and its dependency `rib` run; `show fib dummy` answers one row per selected route, with the route's table, prefix, protocol and next hop, and `programmed` `no` on every row; `show fib dummy counters` answers `forwarding` `none` and `routes-held` equal to the number of rows | With no `fib` block the engine still loads the selected plane's writer for a route producer, because the operator made no choice (`static-no-fib-block-loads-the-fib-plugin.ci` stays green). `fib kernel` and `fib vpp` program as today |
+| AC-2 | Install, replace and remove changes for known prefixes, then `show fib dummy counters` | `installs`, `replaces` and `removals` each equal the number of changes of that kind since the plugin started; `routes-held` equals the number of prefixes installed and not removed; a replaced prefix shows its new next hop; a route in another table is a separate row with its table id | A change with an invalid prefix is counted in `invalid-changes`, held nowhere and reported once under `doctor-fib-dummy-invalid-change`: it is a producer defect and must be visible, never a held row |
+| AC-3 | The Linux route tables of a box started with `fib { dummy { } }` and a main-table static route | The static route is in `show rib` and in `show fib dummy`, and `ip route show` for its prefix prints nothing in any table; `fib-dummy` is the only running plugin that declares `ProgramsFIB` | Routes that do not pass through the system RIB stay: connected routes of configured addresses, a static route in a named table, policy routing, the IPsec source guard. They are other features' own writes, and the contract of `fib dummy` is the system RIB's routes (C-4) |
+| AC-4 | A candidate that holds `fib dummy` beside another plugin that declares `ProgramsFIB`, in use by its config root (`fib kernel`, `fib vpp`, `fib p4`), by a plugin block, or by `--plugin` on the command line of the process (C-2) | Start, reload, commit and `ze config validate` refuse it. The rule of this spec adds exactly one finding of the data-plane verdict, in three lines. Under `interface backend kernel` (the default) with `fib kernel`, `fib p4` or a plugin that declares no plane, that finding is the only one. Where the other plugin is selected by its config root and its declared plane is not the selected one, the guard spec's own finding for that plugin is reported beside it, unchanged: its AC-1 for an unmarked writer of another plane (`fib vpp` under `kernel`), its AC-14 for `fib kernel` alone under `interface backend vpp`. A writer selected only by a plugin block or by `--plugin` gets this spec's finding alone, whatever its plane, because the guard's `evaluateFIBWriters` judges only the FIB plugins whose config root the candidate holds (`firstPresentRoot`). What: "fib dummy is configured beside fib kernel"; for a plugin named only by a plugin block or `--plugin`: "fib dummy is configured and the plugin fib-kernel is selected". Why: "fib dummy is the choice to program no route", followed, when the other plugin declares a data plane, by "and fib kernel programs the kernel data plane", and otherwise by "and fib p4 is another FIB plugin". Fix: by config root, "delete fib dummy, or delete fib kernel"; by a plugin block, "delete fib dummy, or delete plugin internal k" (or `plugin external k`), naming the block's own path and key from the selection, as the guard spec names the block for flowspec-firewall; by `--plugin`, "delete fib dummy, or start ze without --plugin ze.fib-kernel". Every name, root and plane in the text is read from the registrations and the selection. `ze doctor` reports the same three parts under `doctor-dataplane-mismatch`, from the same evaluator | `fib dummy` alone commits. `fib kernel` beside `fib vpp`, and `fib p4` beside either, commit as before: none of them carries the mark, and those pairs are the guard spec's to judge |
+| AC-5 | A running daemon with a main-table static route and no `fib` block, so the engine-added writer runs; a reload adds `fib { dummy { } }` | The reload succeeds with no restart; `fib-dummy` runs and holds the static route (it asked for a replay); the engine-added writer is stopped by the reload; a static route added by a later reload appears in `show fib dummy` and `ip route show` prints nothing for it. With LDP configured and applying a label entry, `fib-dummy`'s targeted label replay makes LDP re-apply that entry to it, `fib-dummy` refuses it, and after the reload `ze show doctor` holds the `ldp-label-entries` error under `doctor-fib-mpls-no-writer` with the refusal text of AC-9 | The routes and label entries the stopped writer had installed stay in the kernel when its `flush-on-stop` is false: that is the writer's documented stop behavior, unchanged (C-5, R-3). A writer the candidate chooses by its own block is never stopped by this rule |
+| AC-6 | A running daemon with `fib { dummy { } }` and a main-table static route; a reload removes the `fib` block, or replaces `fib dummy` by `fib kernel` in one commit | The reload succeeds with no restart; `fib-dummy` stops; the writer of the selected data plane runs (engine-added in the first case, chosen in the second) and the static route appears in `ip route show`. With LDP configured and its entry refused by `fib-dummy` before the reload, `fib-kernel` asks for a targeted label replay when it opens (AC-21), so the entry is installed (`ip -f mpls route show` lists its in-label) and the `ldp-label-entries` finding is gone from `ze show doctor` | When no route producer runs, removing the block starts no writer: nothing needs one, as at boot |
+| AC-7 | A reload of an unrelated change (a BGP peer description) on a daemon whose writer is engine-added, and on one whose writer is chosen by `fib kernel` | The same FIB plugin keeps running across the reload, as the same process, and its routes stay installed. The same holds on a daemon started with `--plugin ze.fib-kernel` and no `fib` block: the writer the operator named on the command line keeps running | None: a reload that leaves the FIB choice and the producers unchanged has no reason to start or stop a FIB plugin. A FIB plugin named by `--plugin` is in the candidate selection the verdict judges (`candidatePluginSelection`, with the recorded `--plugin` list), so it is chosen, never engine-added, and the judgement never stops it |
+| AC-8 | `ze doctor` on a config with `fib dummy` | With a plugin selected that declares `NeedsDataPlane`: one warning under `doctor-fib-dummy-holds-routes` naming each such plugin, saying that its routes are held and reach no forwarding table, with the fix `delete fib dummy`. With none selected: the same code at severity info, saying that Ze writes no route the system RIB selects to any forwarding table. The same rows through the daemon's `show doctor` | A config without `fib dummy` gets no row from this check: the check reports the block's consequence only |
+| AC-9 | A label producer applies a batch of MPLS entries on a box running `fib-dummy` in the daemon (C-3) | The producer's apply returns the dummy's refusal: "fib dummy programs no label, so this entry is not installed; delete fib dummy, or remove the label protocol". `ze show doctor` then holds, from the source's own check (`ldp-label-entries` with LDP; `rsvp-te-label-entries`, `ospf-sr-label-entries` and `bgp-epe-label-entries` for the other sources), one error under `doctor-fib-mpls-no-writer` per refused entry, whose message names the entry and ends with that refusal text. True today for LDP, OSPF segment routing and BGP EPE, which record a refusal on apply. RSVP-TE records only replay refusals today (`busFIB.emit` records nothing), so its row of this AC holds once AC-18 is done. `label-entries-refused` in the counters grows by the number of entries. Once subscribed, `fib-dummy` emits `(mpls-fib, replay-request)` with a token from `mplsfib.NewReplayToken`, so entries a source applied before it opened (to the writer a reload stopped, or to none) reach it as a batch tagged with that token and are refused, counted and reported the same way | A replay batch addressed to another writer's token is left alone and unanswered. A forked `fib-dummy` cannot acknowledge (the acknowledgement is in-process only), so the source records the generic no-owner cause and the same check reports the entry under the same code: the same outcome, a label that is not advertised and is reported. `fib-dummy` raises nothing of its own for a label. A prefix route that carries a label stack arrives by best-change and is held like any route |
+| AC-10 | The Graceful Restart capability of a BGP session on a box with `fib dummy` | `registry.ForwardingStatePreserved` answers false for a tree that holds `fib dummy` alone, so the Forwarding State bit is clear for every family | With `fib kernel` and `flush-on-stop` false the answer stays true: that plugin keeps its routes across a restart |
+| AC-11 | `fib dummy` with `interface backend vpp` and a route producer | It commits, starts and validates; the routes are held and listed by `show fib dummy`; `fib-dummy` is the only running plugin that declares `ProgramsFIB` | `fib kernel` alone under `vpp` stays refused once the guard spec lands: it declares a plane, the dummy declares none |
+| AC-12 | The schema node `fib dummy`, its description, and the help of both commands | The container holds no leaf; its description states that routes are held in memory and written nowhere, names the two commands, and states the contract of C-4; each command's one-line help says "holds" and "programs nowhere" | None: a leaf under `fib dummy` needs a reader and a reason of its own, in a later spec |
+| AC-13 | Both commands on every command surface | Each is declared once, by the one function the registration and the Stage 1 message share, and answers through the daemon dispatcher with the same data on the CLI and on one remote surface; `\| count` and `\| json` apply | None: a command reachable on one surface only is the defect the command registry exists to prevent |
+| AC-14 | The metrics endpoint of a daemon running `fib-dummy` | `ze_fibdummy_routes_held`, `ze_fibdummy_route_installs_total`, `ze_fibdummy_route_replaces_total`, `ze_fibdummy_route_removals_total` and `ze_fibdummy_label_entries_refused_total` are exported, each equal to the field of the same name in the counters command (`routes-held`, `installs`, `replaces`, `removals`, `label-entries-refused`) | The `ze_fibkernel_*` series stay registered by their own plugin and move only when it runs |
+| AC-15 | The benchmark of the best-change handler in the plugin package: a batch that replaces prefixes already held | Zero allocations per replaced route in the steady state; the figure is recorded with the Go toolchain and architecture that produced it | The first install of a prefix may allocate, because the table grows. A time or throughput figure is reported only from a host whose performance is known (`ai/META-DECISIONS.md`, "Test systems and labs") and is not an acceptance figure here |
+| AC-16 | A running daemon with a main-table static route and no `fib` block, so the engine-added writer runs and the route is in the kernel; a reload removes the `static` block, the last plugin that declares `NeedsDataPlane` | The reload succeeds; the static plugin withdraws its route and the writer removes it from the kernel before the writer stops, so `ip route show` prints nothing for the prefix; then the engine-added writer is stopped, and no plugin that declares `ProgramsFIB` runs. The judgement stops the writer after the producers the same reload stops | With another `NeedsDataPlane` producer still running, the writer keeps running: it is still needed. A writer chosen by its own `fib` block keeps running with no producer, because the operator wrote it. A FIB plugin named by `--plugin` (`ze --plugin ze.fib-kernel`) keeps running with no producer too: it is in the candidate selection the verdict judges (`candidatePluginSelection`, with the recorded `--plugin` list), so it is chosen and never engine-added, and the judgement never stops it (`TestReloadKeepsCommandLineFIBPlugin`) |
+| AC-17 | `request plugin restart <name>` for a plugin whose stop an accepted reload made final: the engine-added writer after AC-5 or AC-16, and the owner of a removed config root | The command is refused as for a plugin the configuration does not run, its completion no longer offers the name, and the plugin is not started; `ConfiguredNames` no longer lists it. After AC-5, `fib-dummy` stays the only running plugin that declares `ProgramsFIB` | A plugin a rejected reload was removing keeps its name: its removal is recovered, not final. A plugin a rejected reload started is stopped by `rollbackStartupProcess` and loses the name, below `StageRunning` as well, where its stop enters no removal scope (A-8): the configuration that runs is the old one, which does not hold it. A plugin still configured and down (a failed start) keeps its name and its restart. The other items of `plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md` (a plugin with no process when its roots go, the bounded restart) stay with that spec |
+| AC-18 | An RSVP-TE label entry a writer refuses on apply: the dummy's refusal, or any writer's (C-3). Today `busFIB.emit` returns the refusal to the engine and records nothing, so `rsvp-te-label-entries` is silent | `busFIB.emit` records the entry with the writer's cause, as `ldpFIB.emit` does. `ze show doctor` then holds, from `rsvp-te-label-entries`, one error under `doctor-fib-mpls-no-writer` for the entry, whose message names it and carries the writer's cause; on a dummy box the cause is the refusal text of AC-9. The engine still gets the error and refuses the LSP as today. The check's fix line says that RSVP-TE applies the entry again at the LSP's next retry and when the data plane's writer next opens | A later apply of the same slot that a writer accepts clears the finding: the live record is cleared where the replay record is (`recordLocked`). A successful replay clears a slot only when the recorded entry equals the entry it replayed (`Refusals.ClearIf` with entry equality), because `Refusals` keys by slot and `busFIB.installed` holds only accepted entries. So these survive a successful replay: a live refusal of an entry that is not installed; a refused replacement on an installed slot (a `programBackup` over an installed swap, a re-signalled swap whose new labels were refused, the old reservation staying in place as `mpls-rsvp-te-fast-reroute.md` says); and a refused removal of an installed entry. Replay refusals stay recorded as today. Equality was chosen over two separate records because one record per slot is what `Findings` renders and what a writer holds; two records would report one slot twice. No RFC-tagged test covers `busFIB`, so no discrimination record goes stale |
+| AC-19 | `./le perf` run with `PERF_CONFIGS_DIR` set to the route-path overlay directory, which holds a `ze.conf` (`Runner.config` in `internal/test/perfrunner/run.go` takes a file of the overlay before the default in `test/perf/configs`, as `test/perf/configs-filter` does). Today the DUT config is a route server (`bgp-rs` and `bgp-adj-rib-in`), so no route reaches the system RIB or a FIB writer | The DUT runs `bgp-rib`, `rib` and `fib { dummy { } }`, so each injected route goes through the protocol RIB, the system RIB, best-change and `fib-dummy`. The runner checks that every route reached the writer, in `Runner.measureDUT` (`internal/test/perfrunner/run.go`), the caller of `runPerf`, while the DUT container still runs: when the `ze.conf` the run mounts (the file `Runner.config` answers) holds `fib dummy`, it reads `show fib dummy counters` from the DUT, through `Docker.Exec` of the DUT's `ze cli` with the JSON answer, before each pass and again after `runPerf` returns. A pass is `le perf send` with `--warmup-runs 1` and `--repeat` `Runner.Repeat`, and each of its 1 + `Repeat` iterations announces every route, waits for convergence, withdraws every prefix (`sendWithdrawals`, "so the DUT can clean its RIB for the next iteration") and then sends a Cease on both sessions (`runIteration`, `internal/perf/benchmark.go`). So for a correct run, once the pass has ended and the DUT has settled, `routes-held` is back to the value read before the pass, and `installs` and `removals` have each risen by routes × (1 + `Repeat`) across the pass. The runner reads the counters again until `routes-held` reads its value before the pass, bounded by the convergence time `runPerf` already allows, then compares both rises. A rise that differs, a `routes-held` that does not return to its value before the pass within the bound, or a DUT that does not answer the command fails the DUT's measurement as an incomplete run (`incompleteRun`) naming the pass, the expected rise and the counters read; the ze DUT's two passes (live forwarding and RIB propagation) are each checked (A-11). The result names the config directory it ran with, and `./le perf record history` and `record evidence` refuse a result an overlay produced, so the committed route-server history never receives a route-path figure; today neither `Bench.HistoryRecord` nor `Bench.EvidenceRecord` (`internal/le/perf/bench.go`) looks at the overlay, and the result does not record it. The variant adds no `dut` name. A throughput figure is recorded only from a known host (the owner's Mac); a run anywhere else proves only that the variant reaches the writer | The route-server DUT and its history stay as they are. A-10: if `bgp-rib` without `bgp-rs` does not advertise to the receiver, the variant keeps `bgp-rs` for delivery and adds the RIB path beside it; the counter check is the same either way. A run whose `ze.conf` holds no `fib dummy` (the route-server DUT, the `test/perf/configs-filter` overlay) runs no counter check, because the config it mounts selects no plugin that answers the command |
+| AC-20 | Under C-6 (b), the recommended answer awaiting Thomas. A running daemon started with `plugin { internal k { use fib-kernel; } }` and a main-table static route; a reload whose config adds, removes or changes a plugin block that runs a compiled-in `ProgramsFIB` plugin in the daemon's process (`plugin internal k { use ... }`, or `plugin external k { use ... }`): the block replaced by `fib { dummy { } }`, a new `plugin internal d { use fib-dummy; }` beside no other FIB choice, or `use` changed to another FIB plugin | The reload succeeds with no restart and does what a restart with the candidate config would select. The block's writer is stopped by the reload writer judgement, because the candidate neither chooses nor needs it (Data Flow step 2), after the producers the same reload stops, and with its `flush-on-stop` behavior; what the candidate chooses runs: `fib-dummy` for its root, the plugin a new or changed block names, or, when the candidate chooses none and a producer runs, the selected plane's writer (AC-6). `show plugin list` then holds exactly one running plugin that declares `ProgramsFIB` in the first two cases. Whether a process or a block runs a `ProgramsFIB` plugin is read from the registry through `plugin.RegistryNames`, so the rule names no plugin | A reload that changes no such block reloads as today, whatever else it changes, a `fib { ... }` block included (AC-5, AC-6). A change of external declarations is refused as today, with the same text. A plugin block that runs a compiled-in plugin which does not declare `ProgramsFIB` (`plugin internal rs { use bgp-rs; }`) is not judged by this rule, and a reload that changes it is accepted as today, where the block is read only at boot. An unchanged block that keeps running a chosen FIB plugin keeps the same process. The routes the stopped writer installed stay in the kernel when its `flush-on-stop` is false (C-5). The `--plugin` list is the same at boot and at every reload, so it never differs (A-9). If Thomas picks C-6 (a), this row is replaced by the refusal C-6 states |
+| AC-21 | `fib-kernel` opens while label sources already run: started by a reload (AC-6, AC-20, or a reload that adds the first route producer with no `fib` block), or by `request plugin restart` | Once its `(mpls-fib, entry)` subscription exists, `fib-kernel` emits `(mpls-fib, replay-request)` with a token it drew from `mplsfib.NewReplayToken`, and `fibKernelSends` declares that message for both the registration and the runner. It consumes and acknowledges a batch tagged with its token (`EntryBatch.Addresses` with its token), so every entry a source wants installed reaches the kernel; LDP's `labelEntriesFix` ("LDP applies the entry again when the data plane's writer opens") and AC-18's new RSVP-TE fix line are then true of `fib-kernel` | A batch tagged with another writer's token (`fib-vpp` running beside it) is still ignored and not acknowledged, so `fib-kernel` never answers for another writer's replay. An entry the kernel still holds from before the writer's stop (`flush-on-stop` false) meets the replayed apply on the existing install path, which replaces an in-label only when it is Ze's own (`mplsentry_linux.go`, `mplsSwapOwned`) and otherwise adds; that path's answer is unchanged by this spec, and a refusal from it is reported by the source like any refusal (R-14) |
+
+## End-to-End User Stories
+
+| # | User does | Path through system | Test proving it works |
+|---|-----------|--------------------|-----------------------|
+| 1 | Runs a route reflector with `fib { dummy { } }` and reads what it would have programmed | BGP session, protocol RIB, system RIB, best-change, `fib-dummy`, `show fib dummy` | `test/plugin/fib-dummy.ci` |
+| 2 | Converts a running router with static routes to control-plane only, by commit | Editor commit, reload, writer judgement, stop of the engine-added writer, start of `fib-dummy`, replay | `test/reload/fib-dummy-reload-add.ci` |
+| 3 | Converts it back | Reload, writer judgement, start of the selected plane's writer, replay, kernel route | `test/reload/fib-dummy-reload-remove.ci` |
+| 4 | Writes `fib dummy` beside `fib kernel` by mistake | `ze config validate`, the data-plane verdict, three-line refusal; `ze doctor` under `doctor-dataplane-mismatch` | `test/parse/fib-dummy-beside-writer-refused.ci`, `test/plugin/fib-dummy-doctor.ci` |
+| 5 | Asks `ze doctor` why a static route is not in the kernel | Doctor check over the parsed config | `test/plugin/fib-dummy-doctor.ci` |
+| 6 | Benchmarks the route path without the kernel | `./le perf` with `PERF_CONFIGS_DIR` naming the route-path overlay: `bgp-rib`, the system RIB, best-change, `fib-dummy`; `Runner.measureDUT` checks the counters around each pass | `test/plugin/perf-route-path-dut.ci` (the reach), `TestRoutesHeldCheckJudgesEachPass`, `TestOverlayResultIsRefusedByRecord`, `BenchmarkHoldReplace` (the plugin's cost), `docs/guide/benchmarking.md` (the procedure) |
+| 7 | Reads why an RSVP-TE LSP has no label on a dummy box | `busFIB.emit`, the refusal record, `rsvp-te-label-entries`, `ze show doctor` | `TestRSVPTELiveRefusalIsRecorded` |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestFIBDummyDeclaresNoDataPlane` | `internal/plugins/fib/dummy/register_test.go` | The registration declares `ProgramsFIB`, an empty `DataPlane`, the root `fib/dummy`, the dependency `rib`, no `PreservesForwardingState`, and `Sends` holding `(system-rib, replay-request)` and `(mpls-fib, replay-request)`, the same list the runner's `sdk.Registration` carries (AC-1, AC-9, AC-11) | |
+| `TestHoldInstallReplaceRemove` | `internal/plugins/fib/dummy/fibdummy_test.go` | The table and the three counters after each verb (AC-2) | |
+| `TestHoldKeysByTable` | `internal/plugins/fib/dummy/fibdummy_test.go` | One prefix in two tables is two rows (AC-2) | |
+| `TestHoldInvalidChangeIsCounted` | `internal/plugins/fib/dummy/fibdummy_test.go` | An invalid prefix is counted, not held (AC-2) | |
+| `TestHoldConcurrentReader` | `internal/plugins/fib/dummy/fibdummy_test.go` | Batches and `show` together under the race detector (R-6) | |
+| `TestRowsSayNotProgrammed` | `internal/plugins/fib/dummy/show_test.go` | Every row carries `programmed` `no`; the counters carry `forwarding` `none` (AC-1) | |
+| `TestLabelBatchIsRefused` | `internal/plugins/fib/dummy/labels_test.go` | An addressed batch is acknowledged with the refusal and counted (AC-9) | |
+| `TestLabelReplayForAnotherWriterIsLeftAlone` | `internal/plugins/fib/dummy/labels_test.go` | A replay batch tagged with another writer's token is neither counted nor acknowledged (AC-9) | |
+| `TestLabelReplayRequestedOnOpen` | `internal/plugins/fib/dummy/labels_test.go` | Over a test event bus: once the `(mpls-fib, entry)` subscription exists, the plugin emits one `(mpls-fib, replay-request)` whose token is non-zero and not `replay.Broadcast`; a batch tagged with that token is refused, acknowledged and counted. Red with no request emitted (AC-9, A-12) | |
+| `TestVerdictRefusesNoPlaneChoiceBesideConfigRoot` | `internal/component/config/dataplane_verdict_test.go` | A marked test registration beside another `ProgramsFIB` registration's root gives one finding with the three parts; names and roots come from the test registrations, so no plugin name is in the rule (AC-4) | |
+| `TestVerdictRefusesNoPlaneChoiceBesideSelectedPlugin` | `internal/component/config/dataplane_verdict_test.go` | The same when the other FIB plugin is in the selection only, as a plugin block and as a `--plugin` entry (AC-4, R-1) | |
+| `TestVerdictWhyNamesThePlaneOrItsAbsence` | `internal/component/config/dataplane_verdict_test.go` | The why line names the declared plane of the other plugin, and says "another FIB plugin" for one that declares none (AC-4) | |
+| `TestVerdictAcceptsNoPlaneChoiceAlone` | `internal/component/config/dataplane_verdict_test.go` | The marked plugin alone, and two unmarked FIB plugins together, give no finding from this rule (AC-4) | |
+| `TestRegisterRefusesNoPlaneMarkWithoutProgramsFIB` | `internal/component/plugin/registry/dataplane_decl_test.go` | The mark is refused on a registration that does not declare `ProgramsFIB`, and on one that declares a `DataPlane` (AC-4) | |
+| `TestFIBDummyRefusedBesideEveryRegisteredFIBPlugin` | `internal/plugins/fib/dummy/register_test.go` | Over the composition root: for each other registration that declares `ProgramsFIB`, a tree with both roots is refused by the verdict (AC-4) | |
+| `TestDoctorHoldsRoutes` | `internal/plugins/fib/dummy/doctor_test.go` | Warning with a `NeedsDataPlane` producer, info without, nothing without the block (AC-8) | |
+| `TestLabelRefusalTextCarriesWhatWhyFix` | `internal/plugins/fib/dummy/labels_test.go` | The refusal names `fib dummy`, says no label is programmed, and ends with the fix; `Refusals.Findings` over it yields a `doctor-fib-mpls-no-writer` message holding that text (AC-9) | |
+| `TestReloadStopsWriterWhenLastProducerRemoved` | `internal/component/plugin/server/startup_autoload_dataplane_test.go` | Removing the last producer puts the engine-added writer in the stop set, after the producer (AC-16) | |
+| `TestFinalRemovalLeavesConfiguredSet` | `internal/component/plugin/server/startup_removal_test.go` | An accepted scope drops each final removal's name from `ConfiguredNames`; a rejected scope keeps it (AC-17, A-8) | |
+| `TestRestartRefusesPluginAReloadRemoved` | `internal/component/plugin/server/register_plugin_restart_test.go` | The restart and its completion no longer accept the removed name (AC-17) | |
+| `TestDummySchemaHasNoLeaf` | `internal/plugins/fib/dummy/yang_test.go` | The compiled schema node `fib/dummy` has no child (AC-12) | |
+| `TestCommandDeclsOneSource` | `internal/plugins/fib/dummy/register_test.go` | The registry and the Stage 1 message hold the same two declarations (AC-13) | |
+| `TestForwardingStateNotPreservedWithDummy` | `internal/plugins/fib/dummy/register_test.go` | `registry.ForwardingStatePreserved` is false for a tree with `fib dummy` alone (AC-10) | |
+| `TestWriterJudgement` | `internal/component/plugin/registry/dataplane_writer_test.go` | The one judgement, as a table: producer and no chosen plugin gives the plane's writer; a chosen plugin gives none; no producer gives none; an unresolvable plane gives the refusal (AC-5, AC-6, AC-11) | |
+| `TestReloadStopsEngineAddedWriter` | `internal/component/plugin/server/startup_autoload_dataplane_test.go` | Adding a chosen FIB plugin puts the running engine-added writer in the stop set (AC-5) | |
+| `TestReloadStartsWriterWhenChoiceRemoved` | `internal/component/plugin/server/startup_autoload_dataplane_test.go` | Removing the last chosen FIB plugin with a producer running puts the plane's writer in the start set (AC-6) | |
+| `TestReloadKeepsChosenWriter` | `internal/component/plugin/server/startup_autoload_dataplane_test.go` | An unrelated reload starts and stops no FIB plugin, engine-added or chosen (AC-7, R-2) | |
+| `TestReloadKeepsCommandLineFIBPlugin` | `internal/component/plugin/server/startup_autoload_dataplane_test.go` | A recorded `--plugin` list that names a test `ProgramsFIB` registration, with no `fib` root and no plugin block naming it in the candidate: the candidate selection holds it, and an unrelated reload, and a reload that removes the last producer, leave that plugin out of the stop set and add no writer. A server whose `s.config.Plugins` names a FIB plugin the candidate selection does not hold gives that plugin no "chosen" answer, so the judgement reads the candidate selection and never `s.config.Plugins` (AC-7, AC-16, R-2, A-9) | |
+| `TestReloadStopsWriterOfChangedFIBPluginBlock` | `internal/component/plugin/server/startup_autoload_dataplane_test.go` | Over test registrations: a running in-process process named by its block key whose `use` names a `ProgramsFIB` registration, and a candidate selection that no longer names it (the block removed, or its `use` changed), puts that process in the stop set and what the candidate chooses in the start set; a candidate that keeps the block unchanged puts it in neither (AC-20) | |
+| `TestReloadStartsChosenFIBPluginBlock` | `internal/component/plugin/server/startup_autoload_dataplane_test.go` | A candidate selection whose new plugin block names a `ProgramsFIB` registration that does not run puts it in the start set and a running engine-added writer in the stop set (AC-20) | |
+| `TestReloadLeavesNonFIBPluginBlockAlone` | `internal/component/plugin/server/startup_autoload_dataplane_test.go` | The same changes of a block whose `use` names a registration without `ProgramsFIB` start and stop nothing (AC-20, R-13) | |
+| `TestLoadConfigResultCarriesJudgedSelection` | `internal/component/config/loader_test.go` | `LoadConfig` with a recorded `--plugin` list and a plugin block answers, in its result, the selection `candidatePluginSelection` gave the verdict: the block and the recorded entry, with no dependency added (Data Flow step 2) | |
+| `TestReloadJudgesTheLoaderSelection` | `cmd/ze/hub/main_reload_test.go` | `diskConfigLoaders`, the loader the daemon uses, answers beside the tree the selection its `LoadConfig` judged, for a file holding a plugin block, and the selection reaches `ReloadConfig` unchanged (A-9) | |
+| `TestFIBKernelRequestsLabelReplayOnOpen` | `internal/plugins/fib/kernel/fibkernel_test.go` | Over a test event bus: after `run` subscribed to `(mpls-fib, entry)`, one `(mpls-fib, replay-request)` is emitted with a non-zero token; a batch tagged with that token is handled and acknowledged; one tagged with another token is ignored. Red today, because `run` emits only the system-RIB broadcast (AC-21) | |
+| `TestFIBKernelSendsDeclareLabelReplay` | `internal/plugins/fib/kernel/register_test.go` | `fibKernelSends`, carried by the registration and the runner's `sdk.Registration`, holds `(mpls-fib, replay-request)` (AC-21) | |
+| `TestRolledBackStartLeavesConfiguredSet` | `internal/component/plugin/server/startup_removal_test.go` | A process a rejected reload started and `rollbackStartupProcess` stopped below `StageRunning` leaves `ConfiguredNames`, and one stopped at `StageRunning` leaves it when the scope settles (AC-17, A-8) | |
+| `TestRSVPTELiveRefusalIsRecorded` | `internal/plugins/rsvpte/fib_test.go` | A bus whose subscriber acknowledges a refusal: `busFIB.emit` returns the error, and `labelDoctorFindings` holds one `doctor-fib-mpls-no-writer` finding naming the entry with the cause. Red today, because `emit` records nothing (AC-18) | |
+| `TestRSVPTEAcceptedApplyClearsLiveRefusal` | `internal/plugins/rsvpte/fib_test.go` | After the refused apply, an accepted apply of the same slot leaves no finding (AC-18, R-11) | |
+| `TestRSVPTEReplaySuccessKeepsLiveRefusal` | `internal/plugins/rsvpte/fib_test.go` | A live refusal of an entry not installed survives a successful replay of the installed entries; a replay refusal whose recorded entry equals a replayed entry is cleared. Red today, because the replay calls `Reset` (AC-18) | |
+| `TestRSVPTEReplaySuccessKeepsRefusedReplacement` | `internal/plugins/rsvpte/fib_test.go` | An installed swap, then a `programBackup` on the same in-label that the writer refuses: a successful replay re-sends the installed swap and the backup's refusal stays reported, because the recorded entry differs from the replayed one. Red with a slot-keyed clear (AC-18, R-11) | |
+| `TestRSVPTEReplaySuccessKeepsRefusedRemoval` | `internal/plugins/rsvpte/fib_test.go` | An installed push whose removal the writer refuses: the entry stays installed, a successful replay re-sends the add, and the refused removal stays reported (AC-18, R-11) | |
+| `TestOverlayResultIsRefusedByRecord` | `internal/le/perf/bench_test.go` | A result made with a config overlay names its directory, and the history and evidence records refuse it (AC-19) | |
+| `TestRoutesHeldCheckJudgesEachPass` | `internal/test/perfrunner/run_test.go` | With a scripted DUT exec answering `show fib dummy counters`: a pass whose `installs` and `removals` each rise by routes × (1 + repeat) and whose `routes-held` reads its value before the pass is kept, with a non-zero value before the pass among the cases; a rise one short, a `routes-held` still different from its value before the pass at the bound, and an unanswered command each record an `incompleteRun` naming the pass; a `ze.conf` without `fib dummy` runs no exec (AC-19, A-11) | |
+| `TestResultCarriesConfigDir` | `internal/perf/benchmark_test.go` | The config directory `le perf send` is given reaches the `Result` `RunBenchmark` builds, and a result without the key reads as the default directory (AC-19) | |
+| `TestDoctorWriterRowUsesTheJudgement` | `internal/component/plugin/doctor/check_dataplane_writer_test.go` | The existing doctor row still agrees with boot after it calls the shared judgement (preservation) | |
+| `BenchmarkHoldReplace` | `internal/plugins/fib/dummy/fibdummy_bench_test.go` | Allocations per replaced route (AC-15) | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| None | The block has no leaf and the commands take no argument | N/A | N/A | N/A |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `fib-dummy` | `test/plugin/fib-dummy.ci` | A BGP peer announces routes; `show fib dummy` lists them as not programmed; the counters count them (AC-1, AC-2, AC-13) | |
+| `fib-dummy-forked` | `test/plugin/fib-dummy-forked.ci` | The same answer with the plugin forked (AC-1, A-3) | |
+| `static-fib-dummy-holds-route` | `test/static/static-fib-dummy-holds-route.ci` | `option=needs-linux`: a static route is held and `ip route show` prints nothing for its prefix (AC-3) | |
+| `fib-dummy-reload-add` | `test/reload/fib-dummy-reload-add.ci` | `option=needs-linux`: add the block by reload; the engine-added writer stops; later routes reach no kernel table; `request plugin restart` of the stopped writer is refused; with LDP configured and applying a label entry (the setup of `fib-dummy-labels-refused.ci`), `ze show doctor` after the reload holds the `ldp-label-entries` finding with the dummy's refusal text (AC-5, AC-9, AC-17) | |
+| `static-removed-stops-engine-added-writer` | `test/reload/static-removed-stops-engine-added-writer.ci` | `option=needs-linux`, a `caps=` marker for the kernel write: remove the `static` block by reload; the route leaves the kernel and the writer stops (AC-16) | |
+| `fib-dummy-beside-cli-plugin-refused` | `test/parse/fib-dummy-beside-cli-plugin-refused.ci` | `ze --plugin ze.fib-kernel config validate` on a file with `fib dummy` prints the refusal that names the selected plugin and the `--plugin` fix (AC-4) | |
+| `fib-dummy-reload-remove` | `test/reload/fib-dummy-reload-remove.ci` | `option=needs-linux`, a `caps=` marker for the kernel write and for kernel MPLS: remove the block; the route appears in the kernel; with LDP configured, the label entry `fib-dummy` refused is listed by `ip -f mpls route show` and the `ldp-label-entries` finding is gone (AC-6, AC-21) | |
+| `fib-dummy-beside-writer-refused` | `test/parse/fib-dummy-beside-writer-refused.ci` | `ze config validate` prints the three-line refusal (AC-4) | |
+| `fib-dummy-beside-writer-reload-refused` | `test/reload/fib-dummy-beside-writer-reload-refused.ci` | The reload is refused and the running configuration stays active (AC-4, A-1) | |
+| `fib-internal-block-replaced-by-dummy` | `test/reload/fib-internal-block-replaced-by-dummy.ci` | `option=needs-linux`: boot with `plugin { internal k { use fib-kernel; } }` and a static route; a reload that replaces the block by `fib { dummy { } }` succeeds, the process `k` stops, `fib-dummy` runs and holds the static route, and `show plugin list` holds one running plugin that declares `ProgramsFIB`; a following reload that changes only a BGP peer description starts and stops no plugin (AC-20, R-13) | |
+| `fib-dummy-doctor` | `test/plugin/fib-dummy-doctor.ci` | `ze doctor` prints the holds-routes row, and the beside-writer row for the refused file (AC-4, AC-8) | |
+| `fib-dummy-labels-refused` | `test/plugin/fib-dummy-labels-refused.ci` | With LDP configured, `ze show doctor` holds a `doctor-fib-mpls-no-writer` finding from `ldp-label-entries` whose text names `fib dummy` and its fix, and the counters count the refused entries (AC-9) | |
+| `perf-route-path-dut` | `test/plugin/perf-route-path-dut.ci` | The plugin set and route path of the route-path overlay: a sender's routes reach the receiver and `show fib dummy counters` `routes-held` equals the routes sent (AC-19, A-10) | |
+| `fib-dummy-vpp-backend` | `test/vpp/fib-dummy-vpp-backend.ci` | `interface backend vpp` against the VPP stub: the routes are held and the stub logs no route call (AC-11) | |
+
+### Interop Tests (Scope: protocol)
+| Scenario | Directory | Peer Daemon | What It Proves | Status |
+|----------|-----------|-------------|----------------|--------|
+| None | N/A | N/A | Not owed: the plugin speaks no wire protocol and changes no byte a peer sees. It is a consumer of an internal event and has no protocol peer (`ai/rules/interop-and-goal-validation.md`: "tooling with no protocol peer", "a config-only feature with no protocol impact"). The Forwarding State bit of AC-10 is produced by existing code from an existing registry answer, unchanged | N/A |
+
+### Goal Validation (planned evidence, one row per goal of the Task)
+| Goal | Evidence |
+|------|----------|
+| Purpose 1, control-plane only: the system RIB's routes reach no forwarding table | `test/static/static-fib-dummy-holds-route.ci` (the route is selected, held, and absent from the kernel); `test/plugin/fib-dummy.ci` (BGP routes reach the dummy and are listed as not programmed); the revert walk: with the `ProgramsFIB` declaration removed the first test goes red, because the engine adds the kernel writer |
+| Purpose 2, the route path runs without kernel cost | The route-path perf variant (AC-19): `./le perf` with `PERF_CONFIGS_DIR` naming the overlay, whose run fails unless each pass raises `installs` and `removals` by the routes sent times the iterations and returns `routes-held` to its value before the pass (`Runner.measureDUT`), and `test/plugin/perf-route-path-dut.ci`, which proves the variant reaches the writer; `test/plugin/fib-dummy.ci` (the path, with counters equal to the routes sent); `BenchmarkHoldReplace` (allocations per route, reportable from any host); the procedure in `docs/guide/benchmarking.md`. A throughput figure is recorded only from the owner's Mac; a run elsewhere proves the reach only |
+| The block is added and removed by reload | `test/reload/fib-dummy-reload-add.ci`, `test/reload/fib-dummy-reload-remove.ci`; each goes red with the reload judgement reverted |
+| Every display says held, not programmed | `TestRowsSayNotProgrammed`; `test/plugin/fib-dummy.ci` asserts the `programmed` value in the JSON answer |
+
+## Files to Modify
+- `internal/component/plugin/registry/dataplane_writer.go` - the one writer judgement beside `DataPlaneWriter`
+- `internal/component/plugin/server/startup_autoload.go` - boot and reload call the judgement; the reload start and stop sets take its answer
+- `internal/component/plugin/server/reload.go` - the judgement runs on every reload, also when the diff only removes
+- `internal/component/plugin/doctor/check_dataplane_writer.go` - `dataPlaneWriterRows` calls the judgement
+- `internal/component/plugin/registry/registry.go`, `internal/component/plugin/registry/dataplane_decl.go` - one mark on `Registration`, "this FIB plugin is the choice to program no data plane", beside `HostSideDataPlane`; `validateDataPlaneDecl` refuses it without `ProgramsFIB` or with a `DataPlane`
+- `internal/component/config/dataplane_verdict.go` - one rule in `evaluateDataPlaneVerdict`: a marked FIB plugin in use beside another FIB plugin in use is a finding (after the guard spec has landed its own rules)
+- `internal/component/plugin/server/startup_removal.go`, `internal/component/plugin/process/manager.go` - `finishRemovalScope` hands the names of the final removals to the process manager, which drops them from its configured set; `rollbackStartupProcess` drops the name of a process it stops below `StageRunning`, the one stop path with no removal scope (A-8); the comments on `ConfiguredNames` and `RemoveProcess` that say nothing removes a name are corrected
+- `internal/component/config/loader.go` - `LoadConfigResult` gains the candidate selection `loadConfig` judged with `refuseDataPlaneMismatches` (the `candidatePluginSelection` value, kept, never computed again); `LoadRunningConfig` and any other result built without the verdict carry none, and a consumer that needs it refuses a result without it rather than reading an empty selection as "nothing chosen"
+- `cmd/ze/hub/main_reload.go` - the two loaders of `diskConfigLoaders` answer the selection beside the tree, and the reload's `ReloadConfig` call hands it over; the function comment names the selection's route
+- `cmd/ze/hub/main.go` - the boot `LoadConfig` result's selection goes into the `ServerConfig` it fills, beside the explicit plugins
+- `internal/component/plugin/server/reload.go` - `ConfigLoader` answers the tree map and the candidate selection; `ReloadFromDisk` and `ReloadConfig` hand both to `reloadConfig`, which hands the selection to the writer judgement and, when the reload is accepted, records it as the running config's selection
+- `internal/component/plugin/server/config.go`, `internal/component/plugin/server/server.go` - `ServerConfig` carries the boot selection; the server keeps the selection of the config it runs (`hasConfiguredPlugin` keeps its other callers and is not what the judgement reads)
+- `internal/component/plugin/server/reload_recovery_schedule.go` - `restoreOriginalJournals` re-selects the recovery set with the running config's selection, so the writer judgement of a recovery is the one boot and reload give for that config
+- `internal/plugins/fib/kernel/register.go` - `fibKernelSends` declares `(mpls-fib, replay-request)`; the runner draws the writer's label replay token from `mplsfib.NewReplayToken` (AC-21)
+- `internal/plugins/fib/kernel/fibkernel.go` - `run` emits `(mpls-fib, replay-request)` with the token once the `(mpls-fib, entry)` subscription exists, beside the system-RIB broadcast (AC-21)
+- `internal/plugins/fib/kernel/mplsentry.go` - `handleMPLSEntry` passes the writer's token to `EntryBatch.Addresses`; its comment ("fib-kernel holds no token") is corrected (AC-21)
+- `docs/architecture/doctor-and-health-checks.md` ("Plugin lifecycle checks") - under C-6 (b), once Thomas agrees: "A plugin declared in its own `plugin {}` block is read only at boot, so no reload removes it" gains the exception for a block that runs a `ProgramsFIB` plugin, which a reload stops and starts as the candidate selects (AC-20; "Documents departed from")
+- `docs/architecture/mpls/mpls-kernel.md` - the opening section ("Both writers subscribe") and "Doctor checks": `fib-dummy` subscribes too and refuses every entry, and the sources' checks report it; the paragraph on a writer that opens late names `fib-kernel` and `fib-dummy` as writers that emit the targeted request too, and drops "`fib-kernel` running beside it ignores the batch, so it never re-installs what it already holds" for a batch tagged with another writer's token, which stays true; the `rsvp-te-label-entries` row (it says the check reports "each entry a writer's replay asked for again and did not install") becomes "each entry a writer refused on apply or a replay did not restore, until a later apply of the same slot succeeds" (AC-18)
+- `internal/plugins/rsvpte/fib.go` - `busFIB.emit` records a refused entry with `b.refusals.Record` before returning the error; on a successful replay `busFIB.replay` clears, through `b.refusals.ClearIf`, only the records whose entry equals one it replayed, instead of `b.refusals.Reset()`, so a refusal sharing a slot with a replayed entry but holding another entry (a refused replacement or removal) stays; the comments on `installed` and `refusals` say the record holds live and replay refusals (AC-18)
+- `internal/plugins/rsvpte/doctor_label.go` - the package comment ("An entry a writer refuses on first apply refuses its LSP, which the engine already reports and retries"), the `labelDoctorFindings` comment and `labelEntriesFix`: the check reports live refusals too, and the fix names the LSP's next retry beside the writer's next open (AC-18)
+- `docs/architecture/rsvpte/mpls-rsvp-te.md` - the paragraph on `rsvp-te-label-entries`: the record holds an entry a writer refused on apply as well as one a replay did not restore (AC-18)
+- `internal/core/mplsfib/events.go` - the `EntryChange` comment names fib-kernel and fib-vpp as the subscribers; it names the writers by role and `fib-dummy` as a subscriber that refuses every entry
+- `docs/architecture/plugin/plugin-system.md` - "Registration fields": the `ProgramsFIB` row is reworded from "The plugin writes the routes the system RIB selects into a forwarding path" to the operator's FIB choice, which a plugin may make while programming none, through the new mark; a new row for the no-plane mark beside `HostSideDataPlane` (the guard spec's row), with the rule `validateDataPlaneDecl` enforces; the `DataPlane` row's "Empty means the plugin reaches no data plane" gains that an empty plane with the mark is a choice and without it a missing client (`fib-p4`). Once both specs land the table names two marks (the departure, presented under "Documents departed from")
+- `internal/component/plugin/registry/registry.go` - the comments on `ProgramsFIB` and `DataPlane`: `ProgramsFIB` is the operator's FIB choice, a plugin may make it while programming none, and the mark says so; `DataPlane` no longer names `fib-p4` as the only plugin that reaches no plane
+- `test/perf/configs-route-path/ze.conf` (new overlay directory) - the route-path DUT config of AC-19; `TestRepositoryConfigsValidate` parses it with every other repository config
+- `internal/test/perfrunner/run.go` - `runPerf` passes the config directory a run used (`ConfigOverlay` when `Runner.config` answered from it, or the default `configDir`) to `le perf send`, so the result records it; `measureDUT` runs the counter check of AC-19 around each `runPerf` pass, while the DUT container runs, when the `ze.conf` it mounts holds `fib dummy`, and records a failed check as an `incompleteRun`
+- `internal/perf/cli/cmd_run.go` - `le perf send` gains the flag that names the config directory of the run, into `BenchmarkConfig`
+- `internal/perf/benchmark.go` - `BenchmarkConfig` carries the config directory and `RunBenchmark` copies it into the `Result` it builds
+- `internal/perf/result.go` - `Result` gains the config directory, optional on read (Changed-Wire Census)
+- `internal/le/perf/bench.go` - `HistoryRecord` and `EvidenceRecord` refuse a result made with an overlay, naming the directory and the fix (run without `PERF_CONFIGS_DIR`); it holds no counter check, because it never sees the running DUT
+- `docs/performance.md` - the route-path variant, how it is started, what a run proves and where a figure may be recorded
+- `internal/component/plugin/all/all.go` - generated by `./le repo update`: the blank import of the new package
+- `internal/plugins/fib/kernel/yang/ze-fib-conf.yang` - the description of the `fib` container: it says what a container under it is without listing two backends as the whole set
+- `docs/architecture/api/process-protocol.md` - plugin auto-loading: the writer judgement at reload
+- `docs/architecture/plugin/plugin-system.md` - "Startup phases and callbacks": the judgement, its three callers and the reload half; the sentence "A data plane no plugin programs adds nothing and logs a warning" is corrected to the refusal `DataPlaneWriter` gives today
+- `docs/architecture/static-routes.md` - the writer selection paragraph: reload, and `fib dummy` as the plugin that is the choice and reaches nothing by design
+- `docs/architecture/doctor-and-health-checks.md` - the `fib-dummy` check and its two codes; the data-plane writer row now comes from the shared judgement; in "Plugin lifecycle checks" the known-defect sentences about the configured set are replaced by the behavior of AC-17
+- `docs/architecture/plugin/plugin-relationships.md` - the `fib-dummy` entry, its roots, events and commands
+- `docs/guide/configuration.md` - the `fib` section: `fib dummy`, when to use it, when `rib fib-withhold` is the answer instead, converting a running box
+- `docs/guide/plugins.md`, `docs/plugin-overview.md` - the plugin rows
+- `docs/guide/command-reference.md`, `docs/architecture/api/commands.md` - the two commands
+- `docs/guide/dataplane-features.md` - "Routes and MPLS": `fib dummy` reaches no data plane by design (the guard spec generates this page later; the row is then a declaration)
+- `docs/guide/benchmarking.md` - the procedure for a run on the full route path with `fib dummy`
+- `docs/plugin-development/metrics.md` - the `ze_fibdummy_*` series
+- `ai/doors/forwarding.md`, `ai/digests/fib-programming.md` - "One FIB plugin writes it": the dummy, and the reload judgement; in the door's Boundaries, the sentence that names the consumers of `(mpls-fib, entry)` gains `fib-dummy`, which consumes them to refuse them
+
+## Files to Create
+- `internal/plugins/fib/dummy/register.go` - registration, runner, `commandDecls`, and the one send-declaration function (`(system-rib, replay-request)` and `(mpls-fib, replay-request)`) that the registration and the runner's `sdk.Registration` both carry
+- `internal/plugins/fib/dummy/fibdummy.go` - the held table, the best-change handler, the counters, the metrics
+- `internal/plugins/fib/dummy/show.go` - the two command answers
+- `internal/plugins/fib/dummy/labels.go` - the label refusal, the replay token and the targeted label replay request
+- `internal/plugins/fib/dummy/doctor.go`, `internal/plugins/fib/dummy/register_doctor_codes.go` - the check and the two codes
+- `internal/plugins/fib/dummy/yang/ze-fib-dummy-conf.yang`, and `doc.go`, `embed.go`, `register.go` generated by `./le yang glue update`
+- The unit test files named in the TDD Test Plan
+- The `.ci` files named in the Functional Tests table (fourteen)
+- `test/perf/configs-route-path/ze.conf` - the route-path overlay config of AC-19
+- `features/fib-dummy.md` - the feature page
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | Yes | `internal/plugins/fib/dummy/yang/ze-fib-dummy-conf.yang`: `augment "/fib:fib"` with the container `dummy` |
+| YANG validation constraints | N-A | The container has no leaf (AC-12) |
+| YANG custom validators | N-A | No leaf. The rule of C-2 is a rule of the data-plane verdict, not a `ze:validate`, because it reads other plugins' roots and the plugin selection |
+| CLI commands/flags | Yes | `show fib dummy`, `show fib dummy counters`, declared in `internal/plugins/fib/dummy/register.go` `commandDecls` |
+| CLI grammar (keyword before value) | Yes | Neither command takes an argument. `counters` names a subject of its own (the change counters), and scope and format stay pipes (`docs/architecture/api/commands.md`, `## Design decisions`) |
+| Editor autocomplete | Yes | Automatic from the schema for `fib dummy` and from the command registry for the commands |
+| Functional test for new RPC/API | Yes | `test/plugin/fib-dummy.ci`, `test/plugin/fib-dummy-forked.ci` |
+| Pipe completeness | Yes | Both handlers answer data; `\| count`, `\| json` and `\| match` apply through the pipe layer (AC-13) |
+| Env var registration | N-A | No leaf under `environment/`, no env key |
+| Doctor check for runtime dependencies | N-A | The plugin adds no file path, socket, service, kernel module, port, procfs or sysctl key, netlink use, binary or certificate. It reads the EventBus only |
+| Doctor code per problem class | Yes | Four problem classes, two new codes. The refusal of C-2: the existing `doctor-dataplane-mismatch`, check `dataplane-compatibility` at the parsed-config phase, error (the guard spec's). A refused label entry: the existing `doctor-fib-mpls-no-writer`, each label source's `*-label-entries` runtime check, error; RSVP-TE's check reports a live refusal once AC-18 records it (today replay refusals only). Producers whose routes are held: new `doctor-fib-dummy-holds-routes`, check `fib-dummy` at the post-config phase, warning, or info with no producer. A change with an invalid prefix: new `doctor-fib-dummy-invalid-change`, a report-bus event, runtime, warning. The two new codes are registered in `register_doctor_codes.go`; no `Warn` or `Error` line of the plugin is without a code, and the label refusal's log line names `doctor-fib-mpls-no-writer` |
+| Prometheus counters/metrics | Yes | `ze_fibdummy_routes_held` (gauge), `ze_fibdummy_route_installs_total`, `ze_fibdummy_route_replaces_total`, `ze_fibdummy_route_removals_total`, `ze_fibdummy_label_entries_refused_total` (counters), no labels |
+| BGP family surface (new SAFI / capability / attribute) | N-A | No family, capability or attribute |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/fib-dummy.md` (new; its level read from `./le feature report`) |
+| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md`; `docs/architecture/config/syntax.md` is unaffected: no grammar changes, one container is added |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` |
+| 6 | Has a user guide page? | Yes | The `fib` section of `docs/guide/configuration.md`; no new page |
+| 7 | Wire format changed? | No | No wire format changes (Changed-Wire Census) |
+| 8 | Plugin SDK/protocol changed? | No | No SDK or protocol change: existing callbacks and handles only. `docs/architecture/api/process-protocol.md` changes for the reload judgement (row 12) |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | The Forwarding State bit comes from unchanged code; no `rfc/short/` row changes |
+| 10 | Test infrastructure changed? | Yes | The perf runner records the config directory of a result and the history and evidence records refuse an overlay result (AC-19): `docs/performance.md`. The new `.ci` files join existing suites; the functional runner is unchanged |
+| 11 | Affects daemon comparison? | No | `docs/comparison.md` compares protocol features; grep it for `fib` at implementation and answer again if it lists FIB backends |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/api/process-protocol.md` and `docs/architecture/plugin/plugin-system.md` (writer judgement at reload), `docs/architecture/static-routes.md`, `docs/architecture/plugin/plugin-relationships.md` |
+| 13 | Route metadata keys added/changed? | No | None |
+| 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/plugin-overview.md`, `docs/guide/plugins.md`; the generated inventories from `./le repo update` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Derived at implementation with `./le spec citation anchors spec plan/release/features/spec-fib-dummy.md`; the pages named in Files to Modify carry the known anchors to `startup_autoload.go` and `dataplane_writer.go` |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/configuration.md`, `docs/guide/dataplane-features.md`, `docs/guide/vpp.md` ("To run both, write both": verified unaffected, it describes `fib kernel` beside `fib vpp`) |
+
+## Design presentation
+
+### What changes
+
+Ze gains a third way to answer "where do the selected routes go": nowhere. An
+operator writes `fib { dummy { } }`. The system RIB keeps selecting routes and
+every protocol behaves as before, but no plugin writes those routes to the
+kernel or to VPP. The `fib-dummy` plugin holds each selected route in memory and
+counts the changes, so `show fib dummy` lists what a real backend would have been
+given, each row marked as not programmed, and `show fib dummy counters` gives the
+counters. The block has no setting. It cannot be written beside another FIB
+block: the commit is refused with the line that fixes it. It can be added to and
+removed from a running configuration by commit, and each time the forwarding
+plugins that run are the ones the new configuration selects. `ze doctor` says
+when routes are being held instead of programmed, and why.
+
+### Before and after
+
+1. **Stopping the kernel writer on a box with static routes.** Before: the only
+   way is `fib { p4 { } }`, which names a P4 switch, logs one line per route and
+   answers `show fib p4` under the help "Show the routes this backend programmed
+   into the P4 forwarding pipeline". After: `fib { dummy { } }`, and `show fib
+   dummy` under the help "Show the routes fib-dummy holds and programs nowhere".
+
+2. **`show fib dummy`.** After, as a table:
+
+   | table | prefix | protocol | next-hop | paths | programmed |
+   |-------|--------|----------|----------|-------|------------|
+   | 254 | 10.0.0.0/8 | static | 192.168.1.1 | 1 | no |
+   | 254 | 203.0.113.0/24 | bgp | 192.0.2.1 | 1 | no |
+
+   The row fields:
+
+   | Field | Type | Description |
+   |-------|------|-------------|
+   | `table` | number | The route table the change named |
+   | `prefix` | prefix | The selected prefix |
+   | `protocol` | text | The protocol that won the selection |
+   | `route-type` | text | Omitted for an ordinary route; `blackhole`, `unreachable` or `prohibit` otherwise |
+   | `next-hop` | address | Omitted when the route names none |
+   | `interface` | text | Omitted when the route names none |
+   | `paths` | number | The number of equal-cost paths |
+   | `programmed` | text | Always `no` |
+
+3. **`show fib dummy counters`.** After, one document:
+
+   | Field | Type | Description |
+   |-------|------|-------------|
+   | `forwarding` | text | Always `none`: no route is written to any forwarding table |
+   | `routes-held` | number | Routes held now |
+   | `installs`, `replaces`, `removals` | number | Changes received since the plugin started |
+   | `invalid-changes` | number | Changes refused for an invalid prefix |
+   | `label-entries-refused` | number | MPLS entries refused |
+   | `since` | time | When the plugin started |
+
+4. **`fib dummy` beside `fib kernel`.** Before: not expressible. After, at
+   commit, reload, start and `ze config validate`:
+   "fib dummy is configured beside fib kernel" /
+   "fib dummy is the choice to program no route, and fib kernel programs the kernel data plane" /
+   "delete fib dummy, or delete fib kernel".
+   Beside `fib p4`, which declares no data plane, the second line ends "and fib
+   p4 is another FIB plugin". With `ze --plugin ze.fib-kernel` and no `fib
+   kernel` block: "fib dummy is configured and the plugin fib-kernel is
+   selected" / the same second line / "delete fib dummy, or start ze without
+   --plugin ze.fib-kernel". `ze doctor` prints the same finding under
+   `doctor-dataplane-mismatch`.
+
+5. **Adding a FIB block by commit on a router whose writer the engine added.**
+   Before (shown with `fib p4`, the only such block today): the commit succeeds
+   and the kernel writer keeps running and keeps programming every new route.
+   After: the engine-added writer stops in the same reload, and the log says
+   which plugin stopped and that the configuration now chooses the FIB plugin.
+
+6. **Removing the only FIB block by commit while static routes remain.** Before:
+   the block's plugin stops and no writer starts; the static routes stay
+   selected and unprogrammed until a restart. After: the writer of the selected
+   data plane starts in the same reload and programs them.
+
+7. **`ze doctor` on a box with `fib dummy` and static routes.** After, a warning
+   under `doctor-fib-dummy-holds-routes`: "fib dummy is configured, and this
+   config loads static, whose routes reach forwarding only through a data-plane
+   writer" / "fib dummy holds those routes and writes them to no forwarding
+   table" / "delete fib dummy".
+
+8. **LDP on a box with `fib dummy`.** After, in `ze show doctor`, from the
+   `ldp-label-entries` check, one error under `doctor-fib-mpls-no-writer` for
+   each entry, such as: "ldp: the data plane does not hold the label pop of
+   in-label 16; the writer did not install it: fib dummy programs no label, so
+   this entry is not installed; delete fib dummy, or remove the label
+   protocol". The words before the last colon are the existing check's. This
+   holds today for LDP, OSPF segment routing and BGP EPE. For RSVP-TE,
+   before: `rsvp-te-label-entries` stays silent for an entry the writer
+   refused on apply, because `busFIB.emit` records nothing; it reports only an
+   entry a replay did not restore. After: the same kind of row appears from
+   `rsvp-te-label-entries` (item 11).
+
+9. **Removing the last route producer by commit.** Before: the engine-added
+   writer keeps running with nothing to write. After: it stops in the same
+   reload, once the producer's routes are withdrawn from the kernel.
+
+10. **`request plugin restart fib-kernel` after a commit stopped that plugin.**
+    Before: accepted, and the plugin starts again though the configuration no
+    longer runs it. After: refused as a plugin the configuration does not run,
+    and completion no longer offers the name.
+
+11. **An RSVP-TE label entry a writer refuses on apply.** Before: the engine
+    refuses the LSP and `ze show doctor` holds nothing from
+    `rsvp-te-label-entries`. After: one error under `doctor-fib-mpls-no-writer`
+    naming the entry and the writer's cause, cleared when a later apply of the
+    same slot succeeds.
+
+12. **Benchmarking the route path.** Before: the perf DUT is a route server,
+    so no route reaches the system RIB or a FIB writer. After: `./le perf` with
+    `PERF_CONFIGS_DIR` naming the route-path overlay runs `bgp-rib`, the system
+    RIB and `fib dummy`. Around each pass the runner reads `show fib dummy
+    counters` from the running DUT, and the run fails unless, once the pass
+    has ended, `routes-held` is back to its value before the pass and
+    `installs` and `removals` have
+    each risen by the routes sent times the iterations (one warmup and
+    `DUT_REPEAT`). `./le perf record history` refuses the result, naming the
+    overlay directory.
+
+13. **`ze --plugin ze.fib-kernel` with no `fib` block, then a reload.** Before
+    and after: `fib-kernel` keeps running. The writer judgement counts a
+    plugin named on the command line as chosen.
+
+14. **A reload that replaces `plugin { internal k { use fib-kernel; } }` by
+    `fib { dummy { } }` (C-6, (b) recommended).** Before: the reload is
+    accepted, `fib-dummy` starts for its root, and `fib-kernel` keeps running
+    from the boot-time block, because a plugin block is read only at boot;
+    `show plugin list` holds both. After (b): the same reload stops `k` and
+    starts `fib-dummy`, as a restart with the new config would, and
+    `show plugin list` holds `fib-dummy` alone among the FIB plugins. A reload
+    that changes a plugin block of a plugin that is not a FIB plugin is
+    accepted as today and starts or stops nothing. After (a), the alternative:
+    the reload is refused before anything changes, the running configuration
+    stays, and the operator restarts ze.
+
+15. **LDP labels across the conversion.** Before: after a reload adds
+    `fib { dummy { } }`, LDP keeps the labels the stopped kernel writer had
+    accepted, and nothing reports that no writer holds them; after a reload
+    removes the block again, `fib-kernel` holds none of the entries the dummy
+    refused, because it never asks for them. After: `fib-dummy` asks the label
+    sources to re-apply their entries when it opens, refuses each, and
+    `ze show doctor` reports them under `doctor-fib-mpls-no-writer`;
+    `fib-kernel` asks the same when a reload starts it, so the labels are
+    installed again and the findings clear.
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| Use `fib p4` as the dummy, or rename it | Thomas parked P4 and its display is under review; its three leaves are accepted and read by nothing, and its help calls held routes programmed. A dummy built on it inherits both defects, and a P4 client written later would take the dummy away |
+| Count only, hold no route (C-1 (b)) | Cheapest, and enough for a benchmark. Set aside as the default because purpose 1 needs the operator to see which routes would have been programmed, and the sibling commands `show fib kernel` and `show fib vpp` list routes. Left to Thomas |
+| A pure marker: declare `ProgramsFIB`, subscribe to nothing | The smallest plugin. It cannot show that the route path reaches it, so neither purpose has evidence, and a benchmark would run with no consumer of best-change |
+| A leaf on the block, such as `hold-routes` or `log-routes` | Every leaf needs a reason and a reader. No use needs one today, and an unread leaf is the recorded defect of `fib p4` |
+| One command, `show fib dummy summary`, beside the route list | `docs/architecture/api/commands.md` forbids "a subcommand for scope or presentation". The counters are a subject of their own (changes since start, refused labels), so the command is named for them; the number of held routes is also `show fib dummy \| count` |
+| Allow `fib dummy` beside `fib kernel` as a mirror (C-2 (b)) | The two blocks disagree about whether routes are programmed, and the mirror shows nothing `show fib kernel` does not. It also makes the label refusal poison the real writer's answer (R-1) |
+| Accept and hold label entries, answering success (C-3 (b)) | The label channel's contract is that the answer is the install result and that a producer must not advertise a failed one. Answering success would make an LSR advertise labels it drops |
+| A data plane named `none`, selected by `interface backend` | It would remove interface configuration with it, and it puts a non-plane in the plane vocabulary the guard spec has just reduced to `kernel` and `vpp` |
+| A tree validator registered by the dummy, with its own doctor code | A tree validator is handed the tree alone. It cannot see a FIB plugin named by `--plugin`, so "refused at every door" would be false, and it would be a second view of the plugin selection beside the verdict's. The refusal is a rule of the data-plane verdict, which reads one mark the dummy sets, as it reads `HostSideDataPlane` |
+| The dummy raises its own doctor code for refused label entries | Every label source already records a writer's refusal and reports it from its own check under `doctor-fib-mpls-no-writer`; a second code would report one fact twice |
+| Swap the engine-added writer when a reload changes `interface backend` | Moving the interfaces between data planes under a running daemon is a design of its own. Today's behavior stays, and the guard spec's AC-13 refuses the reload while a feature of the old plane remains |
+| Leave the configured-set defect to `spec-plugin-restart-bounded-and-configuration-true.md` | After AC-5 one command would start the kernel writer beside the dummy. The fix is small and on this work's own path, so it is done here and that spec's item 1 is repointed |
+| Stop the engine-added writer from inside the dummy, or by a claim the kernel and VPP writers read | A plugin would reach into another, and the writers would go silent instead of stopping. The engine added that writer, so the engine removes it |
+| Flush the kernel routes when a writer is displaced at reload (C-5 (b)) | It changes what `flush-on-stop false` means for every writer stop, which is a decision about `fib-kernel`, not about the dummy |
+
+### Documents departed from
+
+**`docs/architecture/plugin/plugin-system.md`, "Registration fields", the
+`ProgramsFIB` row** (and the same sentence in the `registry.go` comment).
+
+- Before: "The plugin writes the routes the system RIB selects into a
+  forwarding path. It IS the operator's data-plane choice, so a config that
+  names one gets no writer added to it." A plugin that writes nowhere does
+  not fit the first sentence; `fib-p4` is described as a writer whose client
+  is missing.
+- After: `ProgramsFIB` is the operator's FIB choice, which a plugin may make
+  while programming none, through the new mark. The table gains a row for the
+  mark beside `HostSideDataPlane`: a `ProgramsFIB` plugin with no `DataPlane`
+  that is the choice to program no data plane; `Register` refuses it without
+  `ProgramsFIB` or with a `DataPlane`, and the data-plane verdict refuses it
+  beside any other FIB plugin. The `DataPlane` row keeps "Empty means the
+  plugin reaches no data plane" and adds that empty with the mark is a choice,
+  empty without it a missing client (`fib-p4`).
+- What a user sees: nothing changes in `fib kernel`, `fib vpp` or `fib p4`.
+  `fib dummy` stops the engine adding a writer, as any FIB block does, and
+  every display says its routes are held and not programmed.
+- Alternatives: a data plane named `none`, and a tree validator of the dummy's
+  own (both in "Alternatives set aside"); keeping the sentence and declaring
+  no `ProgramsFIB`, which would let the engine add the kernel writer beside
+  `fib dummy`.
+- Once both this spec and the guard spec land, the page and the guard spec's
+  text name two marks.
+
+**`docs/architecture/doctor-and-health-checks.md`, "Plugin lifecycle
+checks"**, under C-6 (b), the recommended answer.
+
+- Before: "A plugin declared in its own `plugin {}` block is read only at
+  boot, so no reload removes it." A reload that replaces
+  `plugin { internal k { use fib-kernel; } }` by `fib { dummy { } }` is
+  accepted and leaves `k` running beside `fib-dummy`.
+- After: a plugin block that runs a `ProgramsFIB` plugin is judged at every
+  reload by the writer judgement: a reload that removes or changes it stops
+  the writer it ran, with that writer's `flush-on-stop` behavior, and starts
+  what the candidate selects; a new such block starts its plugin. Every other
+  plugin block keeps being read only at boot, and the sentence gains that
+  exception.
+- What a user sees: the reload of item 14 succeeds, `k` stops, and
+  `show plugin list` holds `fib-dummy` alone among the FIB plugins, as after a
+  restart with the same config.
+- Alternatives: (a) refuse such a reload with "restart ze" (C-6), which
+  departs from two other documents instead (below); leave today's behavior,
+  which keeps two FIB plugins running against a config that says nothing is
+  programmed.
+
+**Under C-6 (a), the alternative, two other documents are departed from**
+and this page is not:
+
+- `docs/architecture/hub-architecture.md`, "What the daemon does at start":
+  "it concerns the external plugins and their modules alone: every other part
+  of the config reloads without a restart". (a) adds plugin blocks that run a
+  compiled-in FIB plugin to what needs a restart.
+- `ai/doors/hub-engine.md`, Boundaries, "One reload path": "they change only
+  when `ze` restarts, and nothing else in the config needs one". (a) makes such
+  a plugin block a second thing that needs one.
+- What a user sees under (a): the reload of item 14 is refused whole before
+  the full parse with one operator error naming the block, the reason that ze
+  reads these plugin blocks once, when it starts, and the fix "restart ze";
+  `doctor-config-reload-refused` is raised; the running configuration stays.
+
+### Choices for Thomas
+
+| # | Choice | Options | Decision |
+|---|--------|---------|----------|
+| C-1 | What `fib-dummy` keeps | (a) recommended: one small value per selected route, for `show fib dummy`, plus counters; memory grows with the number of selected routes. (b) counters only: no route list, least memory | |
+| C-2 | `fib dummy` beside another FIB block | (a) recommended: refused at commit, start, reload and validate, with the line that fixes it. (b) allowed: the dummy mirrors what the real writer is given | |
+| C-3 | MPLS label entries from LDP, RSVP-TE, OSPF segment routing and BGP EPE on a dummy box | (a) recommended: refused with an error that names `fib dummy`, so the protocol does not advertise a label nothing forwards, and `ze doctor` reports it. (b) accepted and held like routes, so a label protocol can be benchmarked, at the price of advertising labels the box drops | |
+| C-4 | Features that write forwarding state without the system RIB (a static route in a named table, policy routing, the IPsec source guard) on a dummy box | (a) recommended: untouched; the description, the help, the guide and doctor state that `fib dummy` covers the system RIB's routes. (b) refused beside `fib dummy`, which needs each such feature to declare that it writes forwarding state: that declaration is what the guard spec adds, so (b) would wait for it | |
+| C-5 | A router converted to `fib dummy` by commit keeps the routes its kernel writer had installed (`flush-on-stop` false keeps them at any stop) | (a) recommended: keep that behavior; the guide gives the two-step conversion (set `fib kernel flush-on-stop true`, commit, then replace it by `fib dummy`) and the flush command; a doctor check for routes Ze owns in the kernel while no kernel writer is selected is homed in `plan/release/validation/spec-doctor-coverage-10-forwarding.md` as its AC-111 (`doctor-fib-kernel-routes-no-writer`, made). (b) a writer stopped by reload because the configuration no longer selects it removes its routes, whatever `flush-on-stop` says | |
+| C-6 | A reload that adds, removes or changes a `plugin internal` block naming a FIB plugin (boot with `plugin { internal k { use fib-kernel; } }` and a static route, then a reload that replaces it with `fib { dummy { } }`) | In both, "chosen" is the candidate selection the verdict judged, handed over with the tree by the loader. (b) recommended: accept the reload; the writer judgement stops the writer a removed or changed in-process block ran (its `flush-on-stop` respected) and starts what the candidate selects (AC-20 as written). It departs only from `doctor-and-health-checks.md`, "Plugin lifecycle checks" ("A plugin declared in its own `plugin {}` block is read only at boot, so no reload removes it"), for blocks that run a `ProgramsFIB` plugin. (a) refuse the reload whole before the full parse, through `RefuseChangedDeclarations` extended to in-process blocks whose `use` names a `ProgramsFIB` registration: one operator error naming each block the config adds, removes or changes, the reason that ze reads these plugin blocks once, when it starts, and the fix "restart ze", raised as `doctor-config-reload-refused`; the running config and the same FIB process stay. (a) replaces AC-20 by that refusal, brings back `first_pass.go` (the in-process blocks of the first pass) and `reload_declarations.go`, and departs from `hub-architecture.md`, "What the daemon does at start" ("every other part of the config reloads without a restart") and `ai/doors/hub-engine.md`, "One reload path" ("nothing else in the config needs one") | awaiting Thomas; (b) recommended |
+
+## Implementation Steps
+
+1. **Phase: Wiring (MANDATORY FIRST)** -- the package, the registration with `ProgramsFIB` and no `DataPlane`, the YANG module, the generated glue and composition root, a runner that accepts the empty config and answers both commands with empty data
+   - Tests: `test/plugin/fib-dummy.ci`, `TestFIBDummyDeclaresNoDataPlane`, `TestDummySchemaHasNoLeaf`, `TestCommandDeclsOneSource`
+   - Files: `internal/plugins/fib/dummy/register.go`, `internal/plugins/fib/dummy/yang/`, `internal/component/plugin/all/all.go` (generated)
+   - Verify: the daemon starts with the block and the commands are reachable; the wiring test fails because no route is held
+2. **Phase: Hold and show** -- the table, the best-change handler, the replay request, the counters, the metrics, the two answers
+   - Tests: `TestHold*`, `TestRowsSayNotProgrammed`, `BenchmarkHoldReplace`, `test/plugin/fib-dummy-forked.ci`, `test/static/static-fib-dummy-holds-route.ci`
+   - Files: `fibdummy.go`, `show.go`
+   - Verify: tests fail, then pass; the wiring test passes
+3. **Phase: Labels** -- the refusal and its text, its counter; the invalid-change warning and the two codes
+   - Tests: `TestLabelBatchIsRefused`, `TestLabelReplayForAnotherWriterIsLeftAlone`, `TestLabelReplayRequestedOnOpen`, `TestLabelRefusalTextCarriesWhatWhyFix`, `test/plugin/fib-dummy-labels-refused.ci`; for `fib-kernel` (AC-21), `TestFIBKernelRequestsLabelReplayOnOpen`, `TestFIBKernelSendsDeclareLabelReplay`, with the files `internal/plugins/fib/kernel/register.go`, `fibkernel.go`, `mplsentry.go` (re-read first: another session edits them); for RSVP-TE (AC-18), `TestRSVPTELiveRefusalIsRecorded`, `TestRSVPTEAcceptedApplyClearsLiveRefusal`, `TestRSVPTEReplaySuccessKeepsLiveRefusal`, `TestRSVPTEReplaySuccessKeepsRefusedReplacement`, `TestRSVPTEReplaySuccessKeepsRefusedRemoval` in `internal/plugins/rsvpte/fib_test.go`
+   - Files: `labels.go`, `register_doctor_codes.go`; `internal/plugins/rsvpte/fib.go`, `internal/plugins/rsvpte/doctor_label.go`, `internal/core/mplsfib/events.go` (the `EntryChange` comment), `docs/architecture/rsvpte/mpls-rsvp-te.md`, `docs/architecture/mpls/mpls-kernel.md`
+   - RFC check: no test of `internal/plugins/rsvpte/fib_test.go` or `doctor_label_test.go` carries an `RFC requirement:` tag, and the tagged RSVP-TE tests do not drive `busFIB`, so no discrimination record is owed; `./le rfc check` is run once to confirm nothing went stale
+   - Verify: tests fail, then pass
+4. **Phase: The no-plane rule, and doctor** -- starts only after the guard spec has landed its verdict and its `--plugin` record. The mark and its registration check, the verdict rule, the `fib-dummy` doctor check for held routes
+   - Tests: `TestVerdict*NoPlaneChoice*`, `TestVerdictWhyNamesThePlaneOrItsAbsence`, `TestRegisterRefusesNoPlaneMarkWithoutProgramsFIB`, `TestFIBDummyRefusedBesideEveryRegisteredFIBPlugin`, `TestDoctorHoldsRoutes`, `test/parse/fib-dummy-beside-writer-refused.ci`, `test/parse/fib-dummy-beside-cli-plugin-refused.ci`, `test/reload/fib-dummy-beside-writer-reload-refused.ci`, `test/plugin/fib-dummy-doctor.ci`
+   - Files: `registry.go`, `dataplane_decl.go`, `dataplane_verdict.go`, `doctor.go`
+   - Verify: tests fail, then pass; A-1 is confirmed, or the door that skips the verdict is reported to the guard spec's session
+5. **Phase: Writer judgement at reload** -- the one judgement in the registry package; boot, reload and the doctor row call it; the reload start and stop sets take its answer; its own commit
+   - Tests: `TestWriterJudgement`, `TestReload*`, `TestDoctorWriterRowUsesTheJudgement`, `test/reload/fib-dummy-reload-add.ci`, `test/reload/fib-dummy-reload-remove.ci`, `test/vpp/fib-dummy-vpp-backend.ci`, and the existing `test/static/static-no-fib-block-loads-the-fib-plugin.ci`
+   - Files: `dataplane_writer.go`, `startup_autoload.go`, `reload.go`, `check_dataplane_writer.go`; the tests in `internal/component/plugin/registry/dataplane_writer_test.go` (`TestWriterJudgement`), `internal/component/plugin/server/startup_autoload_dataplane_test.go` (`TestReloadStopsEngineAddedWriter`, `TestReloadStartsWriterWhenChoiceRemoved`, `TestReloadKeepsChosenWriter`, `TestReloadKeepsCommandLineFIBPlugin`, `TestReloadStopsWriterWhenLastProducerRemoved`), `internal/component/plugin/doctor/check_dataplane_writer_test.go` (`TestDoctorWriterRowUsesTheJudgement`); the pages `docs/architecture/plugin/plugin-system.md` ("Startup phases and callbacks" and "Registration fields"), `docs/architecture/api/process-protocol.md`, `docs/architecture/static-routes.md`; the comments in `registry.go`
+   - Verify: the two reload tests are red before and green after; the existing static and FIB suites stay green. `TestReloadStopsWriterWhenLastProducerRemoved` and `test/reload/static-removed-stops-engine-added-writer.ci` belong to this phase
+   - The route of the candidate selection lands first in this phase, because the judgement's "chosen" reads it: `TestLoadConfigResultCarriesJudgedSelection`, `TestReloadJudgesTheLoaderSelection`; files `internal/component/config/loader.go`, `cmd/ze/hub/main.go`, `cmd/ze/hub/main_reload.go`, `internal/component/plugin/server/reload.go`, `internal/component/plugin/server/config.go`, `internal/component/plugin/server/server.go`, `internal/component/plugin/server/reload_recovery_schedule.go`; the existing `test/reload/external-yang-reload-refused.ci` stays green
+   - AC-20 under C-6 (b), once Thomas has answered C-6: `TestReloadStopsWriterOfChangedFIBPluginBlock`, `TestReloadStartsChosenFIBPluginBlock`, `TestReloadLeavesNonFIBPluginBlockAlone`, `test/reload/fib-internal-block-replaced-by-dummy.ci`; the page `docs/architecture/doctor-and-health-checks.md` ("Plugin lifecycle checks"). Under (a) this bullet is replaced by the refusal C-6 states, its tests and its pages
+6. **Phase: Final removals leave the configured set** -- `finishRemovalScope` and the process manager; its own commit; the journal row of Owned journal rows is closed in that commit
+   - Tests: `TestFinalRemovalLeavesConfiguredSet`, `TestRolledBackStartLeavesConfiguredSet`, `TestRestartRefusesPluginAReloadRemoved`, the restart step of `test/reload/fib-dummy-reload-add.ci`
+   - Files: `startup_removal.go` (`finishRemovalScope`, `rollbackStartupProcess`), `manager.go`
+   - Verify: tests fail, then pass; a rejected reload still recovers its removals
+7. **Phase: Route-path perf variant** (AC-19) -- after phase 2: the overlay config, the result's config directory, the refusal of an overlay result by the history and evidence records, the `routes-held` check
+   - Tests: `test/plugin/perf-route-path-dut.ci`, `TestRoutesHeldCheckJudgesEachPass`, `TestResultCarriesConfigDir`, `TestOverlayResultIsRefusedByRecord`, `TestRepositoryConfigsValidate` (existing, now over the overlay too)
+   - Files: `test/perf/configs-route-path/ze.conf`, `internal/test/perfrunner/run.go`, `internal/perf/cli/cmd_run.go`, `internal/perf/benchmark.go`, `internal/perf/result.go`, `internal/le/perf/bench.go`, `docs/performance.md`, `docs/guide/benchmarking.md`
+   - Verify: A-10 is settled by the `.ci`; one run on any host proves the reach, and a throughput figure is recorded only from the owner's Mac
+8. **Phase: Pages** -- every page of Files to Modify, the feature page, the benchmarking procedure; each page is edited in the phase that makes it wrong, and this phase holds what is left
+   - Tests: `./le doc check all`
+   - Files: the pages listed
+   - Verify: source anchors resolve
+
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has an implementation at file:line |
+| Feature completeness | Every user story has a working path, no broken links |
+| Correctness | No path in the plugin writes to netlink, VPP, procfs or sysctl, and it emits no sysctl default; the table is keyed by table and prefix; the handler builds no string and logs nothing per route |
+| Naming | JSON keys kebab-case; plugin `fib-dummy`, root `fib/dummy`, metrics `ze_fibdummy_*`, codes `doctor-fib-dummy-*` |
+| Data flow | The plugin reaches the system RIB and the label producers through the three typed handles only; the engine change reads `ProgramsFIB`, `DataPlane`, `NeedsDataPlane` and config roots and holds no plugin name |
+| Operator errors and doctor codes | Every refusal is an `opererr` error with its fix on the last line, every `Warn`/`Error` line and raise names the code the Integration Checklist's doctor row lists, and each doctor check carries `Fix` at the phase that holds its state (`ai/rules/user-facing-errors.md`) |
+| Rule: process boundary | `test/plugin/fib-dummy-forked.ci` passes; warnings go through SDK `RaiseIssue`; `./le plugin boundary check` is clean |
+| Rule: honest display | No text of the plugin says "installed" or "programmed" of a held route without the negation; `fib-p4` is byte-identical before and after |
+| Rule: reload | A reload that leaves the FIB choice and the producers unchanged starts and stops no FIB plugin |
+
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| The plugin is registered and linked | `./le plugin imports check`; `ze show plugin list` holds `fib-dummy` |
+| The schema holds `fib dummy` with no leaf | `TestDummySchemaHasNoLeaf`; `./le yang glue check` |
+| Both commands are declared once and routed | `./le plugin declarations check`; `./le cli catalog check`; `test/plugin/fib-dummy.ci` |
+| No kernel route on a dummy box | `test/static/static-fib-dummy-holds-route.ci` |
+| Reload adds and removes the block | `test/reload/fib-dummy-reload-add.ci`, `test/reload/fib-dummy-reload-remove.ci` |
+| The refusal and its doctor row | `test/parse/fib-dummy-beside-writer-refused.ci`, `test/plugin/fib-dummy-doctor.ci` |
+| No plugin name in engine or config code | A search for `fib-dummy` and `fib/dummy` under `internal/component` returns the generated composition root only |
+| `fib-p4` unchanged | `git diff --stat -- internal/plugins/fib/p4` is empty |
+| Doctor coverage | `./le arch doctor-coverage report` counts every `Warn` and `Error` line of the package covered |
+
+### Security Review Checklist
+
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | Best-change entries come from the system RIB in process, or as JSON when forked: an invalid prefix is counted and held nowhere; no field of an entry is used as a path, a format string or a command |
+| Resource exhaustion | The table holds one fixed-size value per selected route and is bounded by the system RIB, which the prefix limits already bound; no per-route log line, no per-route allocation after the first install |
+| Fail-open | The refusal of AC-4 must hold at every door and for every way a FIB plugin is selected, `--plugin` included (A-1): a door that skips the verdict runs a real writer beside a block that says nothing is programmed. `request plugin restart` must not start a plugin a reload removed (AC-17). The label handler must never acknowledge success |
+| Error leakage | The refusals and doctor rows name config roots and plugin names only |
+| Authorization | Both commands are read-only `show` commands and take the authorization of their verb; no new privilege |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Lint failure | Fix inline. If architectural → DESIGN |
+| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| Audit finds a missing AC | Back to the relevant phase and implement |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Design Insights
+
+- `ProgramsFIB` without `DataPlane` was introduced for a plugin whose client is missing. The dummy shows the pair is a design of its own: "the operator chose, and the choice is no plane".
+- Reload conflates "a FIB plugin is running" with "the operator chose a FIB plugin". The engine-added writer is running and was never chosen, which is why adding a block by reload never displaced it.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `retained-entry-still-answers-lookups.md` | 2026-11-12 | `ProcessManager.configs`, `ConfiguredNames`: a plugin a committed reload removed is still restartable. This spec fixes the half with a process (AC-17); the row's second sentence, a plugin with no process when its roots go, stays owed to `plan/release/fixes/spec-plugin-restart-bounded-and-configuration-true.md`, which lists the same row, so the row is closed only when both halves are done |
+
+## Key Design Decisions
+
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| A plugin of its own, `fib-dummy`, with `ProgramsFIB` and no `DataPlane` | Reuse `fib-p4`; a plane named `none` | The registry already says what an empty plane means; P4 is parked and its display is under review |
+| No leaf under `fib dummy` | `hold-routes`, `log-routes` | No use needs one; an unread leaf is the recorded P4 defect |
+| Hold one value per route and count (C-1 (a)) | Count only; pure marker | Both purposes need evidence that the route path reaches the plugin, and purpose 1 needs the list |
+| Refuse beside another FIB plugin, as a rule of the data-plane verdict over one mark (C-2 (a)) | Mirror mode; the dummy's own tree validator | The two blocks disagree, and the owner rule is to refuse with the line that completes it; only the verdict holds the plugin selection of every door, `--plugin` included |
+| Refuse label entries by name, reported by the sources' existing checks (C-3 (a)) | Acknowledge success; do not subscribe; a code of the dummy's own | The label channel's answer is the install result; not subscribing gives the same refusal without its cause; the report already exists at the source |
+| Fix the configured set here, at `finishRemovalScope` | Leave it to its skeleton spec | One restart command would undo AC-5 |
+| No writer swap on an `interface backend` change | Swap in the same judgement | Not part of a dummy backend; guard AC-13 covers the refusal |
+| The engine judges the writer over the whole candidate at reload | Judge added plugins only (today); let the dummy stop the writer | Boot and reload must select the same plugins for the same configuration |
+| Two commands named for two subjects, routes and counters | One command with a `summary` word | The command decision row forbids a subcommand for presentation |
+| The loader hands the verdict's selection to the server with the tree | `LoadConfigResult.Plugins` (a second merge with the caller's list only, plus dependencies); an exported config entry point over `candidatePluginSelection` called from `plugin/server` (the server holds a map, not a `*Tree`, and section 19 lists no `plugin/server` import of `config`) | One value, computed once by the function the verdict uses, with no new import |
+| A reload stops and starts the writer of a changed FIB plugin block (C-6 (b), recommended, awaiting Thomas) | Refuse the reload with "restart ze" (C-6 (a)) | A reload does what a restart with the same config does; the departure is one sentence of one page, scoped to blocks that run a `ProgramsFIB` plugin |
+| `fib-dummy` and `fib-kernel` ask for a targeted label replay on open | Ask none and refuse only live entries | A writer that opens late must ask (`routing-protocols.md`); otherwise the conversion by reload leaves labels with no writer unreported and the reverse leaves them uninstalled |
+
+## Known Limitations
+
+- `fib dummy` covers the routes the system RIB selects. Features that write forwarding state by their own path are untouched (C-4). Refusing them beside the dummy needs the per-feature data-plane declaration that `plan/release/fixes/spec-dataplane-compatibility-guard.md` adds.
+- Routes a kernel writer installed before a reload replaced it stay in the kernel when its `flush-on-stop` is false (C-5). The doctor check that reports routes Ze owns in the kernel while no kernel writer is selected is homed in `plan/release/validation/spec-doctor-coverage-10-forwarding.md` as its AC-111 (`doctor-fib-kernel-routes-no-writer`, `test/plugin/doctor-fib-kernel-routes-no-writer.ci`); that amendment is made.
+- A reload that changes `interface backend` does not swap the running engine-added writer for the other plane's: the running writer is kept, as today. Moving the interfaces between data planes under a running daemon is a design of its own; the guard spec's AC-13 refuses such a reload while a feature of the old plane remains, and this spec's writer judgement acts only when the chosen FIB plugins or the set of producers change.
+- The `| implied` view does not exist yet. When `plan/release/fixes/spec-bus-2-implied-display-and-grant-refusals.md` builds it, a box with `fib dummy` shows no implied writer, and a box without it shows the engine-added one: that view reads what the loaders report, which this spec keeps correct at reload.
+
+## RFC Documentation (Scope: protocol)
+
+Not applicable: Scope is plugin, and no protocol code is written. AC-10 relies on
+the existing answer `registry.ForwardingStatePreserved` gives BGP for the RFC
+4724 Forwarding State bit, which this spec does not change.
+
+| RFC / section | Default configuration and required behavior | Explicit options / extensions to preserve | Tests of default behavior | Tests preserving options / extensions |
+|---------------|---------------------------------------------|-------------------------------------------|---------------------------|---------------------------------------|
+| RFC 4724, Forwarding State bit (existing code, unchanged) | With `fib dummy` alone no plugin reports preserved forwarding state, so the bit is clear | `fib kernel` with `flush-on-stop false` still reports preserved state | `TestForwardingStateNotPreservedWithDummy` | The existing `fib-kernel` registration tests, unchanged |
+
+## Checklist
+
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names feature code, not only tests
+- [ ] Current Behavior and Data Flow sections completed
+- [ ] AC-N rows carry testable assertions
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-21 all demonstrated
+- [ ] Every user story has a working path and a passing test (N-A when Scope is tooling or docs, which delete that section)
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit, and the full verification is Thomas's release check. A red CI reports gets a fix commit
+- [ ] The named runs for this spec, each by the main thread: `./le test unit pkg path ./internal/plugins/fib/dummy/`, `./le test unit pkg path ./internal/component/plugin/registry/`, `./le test unit pkg path ./internal/component/plugin/server/`, `./le test unit pkg path ./internal/component/plugin/doctor/`, `./le test unit pkg path ./internal/component/config/`, `./le test unit pkg path ./internal/component/plugin/process/`, `./le test unit pkg path ./internal/plugins/rsvpte/`, `./le test unit pkg path ./internal/plugins/fib/kernel/`, `./le test unit pkg path ./internal/core/mplsfib/`, `./le test unit pkg path ./internal/test/perfrunner/`, `./le test unit pkg path ./internal/perf/`, `./le test unit pkg path ./internal/le/perf/`, `./le test unit pkg path ./cmd/ze/hub/`, `./le rfc check`, `./le test functional plugin`, `./le test functional static`, `./le test functional reload`, `./le test functional parse`, `./le test vpp`
+- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied: lint fixed rather than disabled, the focused check for the changed behavior run once with its OUTPUT PASTED, and any red named with the one-line reason it is scaffolding
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs (or N-A when the feature takes none)
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features (or N-A with a reason)
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove plan/release/features/spec-fib-dummy.md` only, in the same `./le commit create` script (commit A preserves the spec in history)

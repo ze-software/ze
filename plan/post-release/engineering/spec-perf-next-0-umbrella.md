@@ -445,6 +445,7 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 3. **Phase: Child 2** - closed 2026-09-05, including Phase B
 4. **Phase: Child 3** - closed 2026-08-12
 5. **Phase: Re-measure + close** - resolve the outstanding AC-1/AC-3 evidence decision, record the final measurements and round summary, then review this umbrella for closure. All children are already closed
+   - Tests: the existing entry-point proof of the closed children's daemon changes, recorded here: `test/plugin/community-strip.ci` (a route forwarded by `bgp-rs` through an export filter that modifies it, the cached `ReceivedUpdate` of `received_update.go`, asserted as exact UPDATE hex) and `test/plugin/bgp-as-notation.ci` (`show bgp rib | received` renders the AS path through `rib_attr_format.go`); `filter_delta.go` was deleted by 2e5c2d012a (2026-11-03), so no test reaches it, and `community-strip.ci` now drives the filter chain that replaced it
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |

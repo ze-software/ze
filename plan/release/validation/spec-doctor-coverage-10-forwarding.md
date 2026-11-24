@@ -7,10 +7,10 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md` (Goal and scope): `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of `spec-doctor-coverage-1-audit-and-gate` makes every area child release work |
 | RFC gaps | - |
-| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the doctor-coverage gate, the `recent-events` check: landed in commits ce58dddf53 and fc96556110); AC-7 also `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` phase 4 (its name-resolver check); the cross-cutting plugin codes (`doctor-plugin-stopped`, `doctor-plugin-config-unapplied`, `doctor-plugin-setup-failed`, `doctor-plugin-external-unsupported`, `doctor-internal-defect`), the event-code registration and the report-bus fix convention are `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a; AC-2 and AC-104 also need that spec's AC-45, the `pre-config` check over `registry.SetupResults` that declares and reports `doctor-plugin-setup-failed`, which their sites feed through `registry.RecordSetup`; AC-25 and AC-26 raise under `doctor-dns-source-consumer-stale` and `doctor-resolv-conf-stale`, declared by the `dns-source-selection` check of `plan/release/validation/spec-doctor-coverage-5-appliance.md` (its AC-14, AC-17, AC-18). AC-7, AC-20 and AC-37 reuse child 2's `doctor-iface-name-unresolved`, `doctor-pppoe-client-pd-not-received` and `doctor-pppoe-client-no-session`, which no file of the tree spells yet (grep 2026-11-11), so those rows wait on child 2's registration. AC-72's IRR store lines follow `plan/release/validation/spec-doctor-coverage-15-system.md` AC-19, which moves the two shared `store.go` stale Warn lines into each owner's refresh caller. Commit 149497ce12 settles the plugin route (Existing Mechanisms, "Plugin doctor checks"). This spec builds none of them |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the doctor-coverage gate, the `recent-events` check: landed in commits ce58dddf53 and fc96556110); AC-7 also `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` phase 4 (its name-resolver check); the cross-cutting plugin codes (`doctor-plugin-stopped`, `doctor-plugin-config-unapplied`, `doctor-plugin-setup-failed`, `doctor-plugin-external-unsupported`, `doctor-internal-defect`), the event-code registration and the report-bus fix convention are `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a; AC-2 and AC-104 also need that spec's AC-45, the `pre-config` check over `registry.SetupResults` that declares and reports `doctor-plugin-setup-failed`, which their sites feed through `registry.RecordSetup`; AC-25 and AC-26 raise under `doctor-dns-source-consumer-stale` and `doctor-resolv-conf-stale`, declared by the `dns-source-selection` check of `plan/release/validation/spec-doctor-coverage-5-appliance.md` (its AC-14, AC-17, AC-18). AC-7, AC-20 and AC-37 reuse child 2's `doctor-iface-name-unresolved`, `doctor-pppoe-client-pd-not-received` and `doctor-pppoe-client-no-session`, which no file of the tree spells yet (grep 2026-11-11), so those rows wait on child 2's registration. AC-72's IRR store lines follow `plan/release/validation/spec-doctor-coverage-15-system.md` AC-19, which moves the two shared `store.go` stale Warn lines into each owner's refresh caller. Commit 149497ce12 settles the plugin route (Existing Mechanisms, "Plugin doctor checks"). This spec builds none of them. AC-111 is homed here by `plan/release/features/spec-fib-dummy.md` (its choice C-5 (a) and Known Limitations, 2026-11-24) and needs nothing from that spec: a selection of `fib p4` alone, or of the VPP plane, meets its condition today, and `fib dummy` meets it once that spec lands |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-12 |
+| Updated | 2026-11-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -23,7 +23,7 @@ Doctor reports every problem class of the forwarding area (interfaces, DHCP and 
 
 | Sub-area | Packages | Gap rows | Defects owned |
 |----------|----------|----------|---------------|
-| Interfaces, DHCP, RA | `internal/component/iface`, `internal/plugins/iface/{dhcp,netlink,ra}` | 42 | iface health row reads healthy when it read nothing; unknown `sysctl-profile` commits |
+| Interfaces, DHCP, RA | `internal/component/iface`, `internal/plugins/iface/dhcp`, `internal/plugins/iface/netlink`, `internal/plugins/iface/ra` | 42 | iface health row reads healthy when it read nothing; unknown `sysctl-profile` commits |
 | sysctl, sysrib | `internal/component/sysctl`, `internal/component/sysrib` | 7 | - |
 | Firewall and traffic | `internal/component/firewall/**`, `internal/plugins/firewall/nft`, `internal/component/traffic`, `internal/plugins/traffic/netlink` | 15 | IRR check omits a code it emits; nf_tables judged from `/proc/modules` |
 | FIB and policy routing | `internal/plugins/fib/{kernel,p4}`, `internal/plugins/policyroute` | 14 | - |
@@ -45,6 +45,8 @@ Rows child 2 owns stay there and get no AC here: interface backend not loaded (c
 - [ ] `docs/architecture/doctor-and-health-checks.md` - phases, owners, the `runtime` phase, kernel capability enrolment
   → Decision: a kernel feature a configured subsystem cannot work without is a `kernelcap.Capability` from the owning package; `/proc/modules` cannot answer it because a built-in feature lists no module
   → Constraint: a `runtime` check is handed the platform alone and reads its owner's live state, never a config tree (`RunRuntimeChecks`)
+- [ ] `docs/architecture/firewall/firewall-irr.md` - the `// Design:` page of `internal/component/firewall/plugins/irr/irr.go`: "An empty answer is not data", "A list too long for a set is refused, and each family is bounded on its own"
+  → Constraint: an oversized list is refused at commit and at apply, and `ze doctor` reports it as `doctor-firewall-irr-oversized-data`, the code AC-73 makes the check declare
 - [ ] `spec-doctor-coverage-1-audit-and-gate` - O-1, O-2, O-3, Data Flow 2a and 4b amendments
   → Decision: a report-bus code counts as covered only when its owner's check declares it; the `recent-events` check then shows each event under that code (Data Flow 2a, amended)
   → Constraint: a health row takes no code; the audit maps each row to a check by hand (Data Flow 4b)
@@ -133,7 +135,7 @@ Rows child 2 owns stay there and get no AC here: interface backend not loaded (c
 - `./le arch doctor-coverage check` and `report` for the line codes
 
 ### Transformation Path
-1. Local-route checks (`post-config`) read config plus sysfs, procfs, netlink, the zefs store or `ip rule` and `ip route` reads; they apply nothing
+1. Local-route checks (`post-config`) read config plus sysfs, procfs, the netlink socket, the zefs store or `ip rule` and `ip route` reads; they apply nothing
 2. Runtime checks (`runtime`) read the owner's live state (status producers, pending maps, last-outcome records, the report bus for an in-process owner) and run only in the daemon; the local route asks the daemon (O-1)
 3. A transient class raises on the report bus under its doctor code; `recent-events` shows it with its subject, count and time
 4. Each diagnostic carries code, severity, message and `fix`; `show doctor` returns it on every surface
@@ -162,14 +164,14 @@ Rows child 2 owns stay there and get no AC here: interface backend not loaded (c
 ### Integration Points
 - `diagnostic.RegisterDoctorCheck` in each component owner; the `sdk.Registration` `DoctorChecks` with `OnDoctorCheck` in each forkable plugin owner of a `runtime` check
 - `report.RaiseWarning` and `RaiseError` in each producer of a transient class
-- `kernelcap.MustRegister` in the nft backend
+- `kernelcap.MustRegister` in the kernel backend
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes | names resolve through the iface resolver; checks read owner state, never another component's internals |
 | No unintended coupling (components stay isolated) | Yes | each check lives in the package that owns the state |
-| No duplicated functionality (extends existing, does not recreate) | Yes | Existing Mechanisms; the nft module check is replaced, not kept beside a capability |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Existing Mechanisms; the nftables module check is replaced, not kept beside a capability |
 | Zero-copy preserved where applicable (refs, not copies) | Yes | no hot path; checks read snapshots |
 | Registration over hardcoding, outbound | Yes | every check and code registers from its owner |
 | Registration over hardcoding, inbound | Yes | searched: the health-row filters in `firewall/nft/health.go` and `fib/kernel/register.go` were literal lists; they now read the owner's constants; the gate and `recent-events` derive from the registries |
@@ -179,7 +181,7 @@ Rows child 2 owns stay there and get no AC here: interface backend not loaded (c
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | fib-kernel, firewall, iface and sysrib raise on the report bus from the daemon process | forwarding door: every nft producer runs in process; fib-kernel is the netlink data-plane writer | a bus-reading runtime check reads an empty bus for a forked owner | each phase reads the owner's `Registration` for a forked mode; a forkable owner keeps its record in its own state and declares the check in its `sdk.Registration` `DoctorChecks`, answered by `OnDoctorCheck` (a `registry.DoctorCheckDef` cannot carry `runtime`, commit 149497ce12) | unvalidated |
+| A-1 | fib-kernel, firewall, iface and sysrib raise on the report bus from the daemon process | forwarding door: every nftables producer runs in process; fib-kernel is the kernel data-plane writer | a bus-reading runtime check reads an empty bus for a forked owner | each phase reads the owner's `Registration` for a forked mode; a forkable owner keeps its record in its own state and declares the check in its `sdk.Registration` `DoctorChecks`, answered by `OnDoctorCheck` (a `registry.DoctorCheckDef` cannot carry `runtime`, commit 149497ce12) | unvalidated |
 | A-2 | Every fix command named in an AC exists with that grammar | the command registry | the fix line names a command that does not exist | each check's unit test resolves its fix through the command registry or the YANG schema | unvalidated |
 | A-3 | An nfnetlink request answers presence of nf_tables, and answers unknown without `CAP_NET_ADMIN` | the kernel's nfnetlink receive path checks the capability | the capability reads absent for an unprivileged run | `TestNftablesCapabilityProbe` under QEMU, privileged and unprivileged | unvalidated |
 | A-4 | The doctor storage checks cover the resolve store directory | `checkIRRDataFreshness` returns nil, "the storage check reports unavailable or unsafe stores" | an unreadable IRR or domain cache shows no row anywhere | read the storage checks' paths in phase P4 | unvalidated |
@@ -190,7 +192,7 @@ Rows child 2 owns stay there and get no AC here: interface backend not loaded (c
 |----|------|--------------|----------------------|
 | R-1 | A runtime check over the report bus reads healthy for a forked owner | the plugin runs external in a test | A-1; the owner keeps its own record and answers through its `OnDoctorCheck` callback |
 | R-2 | A left-behind check counts state another owner installed | a row names a DHCP route or a foreign nft table | count only Ze-owned state: `rtm_protocol` 250 and 251, `ze_` tables, `ze/` VPP tags, the persisted qdisc snapshot |
-| R-3 | A left-behind check runs while the daemon runs and its state is legitimate | rows on a healthy box | local-only checks that judge left-behind state run only when no daemon answers (O-1 fallback) |
+| R-3 | A left-behind check runs while the daemon runs and its state is legitimate | rows on a healthy box | local-only checks that judge left-behind state run only when no daemon answers (O-1 fallback); AC-111 is the exception, and it reports only when the selection holds no kernel writer, so no running plugin owns the state it counts |
 | R-4 | A pending or lag check fires during a normal convergence | rows during startup | thresholds are the owner's own (`fibLagTimeout`, DHCP and RA protocol timers), never a new constant |
 | R-5 | Renaming report codes breaks a test or page that reads them | red tests listed in the census | the rename phase converts every reader in the census in the same commit |
 | R-6 | A recent-event code a check declares but never answers with a live row confuses a reader | `ze show diagnostic` lists a code no row shows | the code metadata says it is shown by `recent-events` |
@@ -207,7 +209,7 @@ Rows child 2 owns stay there and get no AC here: interface backend not loaded (c
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `show doctor` with a `ze_` table removed by `nft` | → | firewall runtime audit check | `test/firewall/show-doctor-firewall-drift.ci` (`option=needs-linux`) |
+| `show doctor` with a `ze_` table removed by the nft command | → | firewall runtime audit check | `test/firewall/show-doctor-firewall-drift.ci` (`option=needs-linux`) |
 | `show doctor` with a route the kernel refuses | → | fib-kernel runtime sync check | `test/plugin/show-doctor-fib-sync-failure.ci` (`option=needs-linux`) |
 | `ze doctor --json` with `firewall { }` on a kernel with nf_tables built in | → | nf_tables capability | `TestNftablesCapabilityProbe` (QEMU), `test/ui/doctor-firewall-nftables.ci` |
 | `ze config validate` with an unknown `sysctl-profile` | → | iface verify | `test/parse/iface-sysctl-profile-unknown.ci` |
@@ -215,6 +217,7 @@ Rows child 2 owns stay there and get no AC here: interface backend not loaded (c
 | `show health` with no interface backend | → | `checkHealth` degraded with cause | `TestIfaceHealthDegradedWhenCountersUnread` |
 | `show doctor` with a sysctl key rewritten outside Ze | → | sysctl runtime check | `test/plugin/show-doctor-sysctl-not-applied.ci` (`option=needs-linux`) |
 | `show doctor` with fib-vpp and no VPP | → | fib-vpp writer check | `TestFIBVPPNoWriterDoctor` |
+| `ze doctor` and `show doctor` with a protocol 250 route in the kernel and a configuration that selects no kernel writer | → | fib-kernel routes-no-writer check (AC-111) | `test/plugin/doctor-fib-kernel-routes-no-writer.ci` (`option=needs-linux`) |
 | `./le arch doctor-coverage report` | → | every forwarding site resolves | `TestForwardingSitesCovered` |
 
 ## Acceptance Criteria
@@ -273,9 +276,9 @@ Every row below holds for every check it names: the message states the cause in 
 | AC-41 | An unnumbered borrowed /32 differs from its donor's addresses | `doctor-iface-unnumbered-unreconciled` (warning, runtime) naming unit and donor | none |
 | AC-42 | A route Ze deleted is still held by the kernel under another protocol, or its holder is unknown | recent event `doctor-iface-route-held-by-other` naming prefix and protocol | none |
 | AC-43 | Interface event monitoring degraded (link cache seed failed, address or neighbor watch ended, resolver subscriber overflowed) | `doctor-iface-monitor-degraded` (error, runtime) naming which watch and since when, from monitor state and `countResolverEventDropped` | none |
-| AC-44 | An `ip6` rpf-check nft table of the netlink backend may remain and an unprivileged run cannot confirm or remove it | `doctor-iface-rpf-table-stale` (warning, local) naming the table; unprivileged it reads cannot determine with the reason | none |
+| AC-44 | An `ip6` rpf-check nft table of the kernel backend may remain and an unprivileged run cannot confirm or remove it | `doctor-iface-rpf-table-stale` (warning, local) naming the table; unprivileged it reads cannot determine with the reason | none |
 | AC-45 | A link created and then rolled back left a netdev (macvlan, tunnel, wireguard, doctor probe macvlan) | `doctor-iface-netdev-left` (warning, runtime) naming the device, counted only for kinds and names Ze creates | R-2: a netdev another owner created is never counted |
-| AC-46 | A configured bridge, veth, dummy, tunnel, wireguard or vlan is absent or down in the kernel | `iface-ethernet` becomes a walk of every configured kind and reports the existing `doctor-iface-missing` (absent) and a new `doctor-iface-down` (configured up, kernel down) | a kind the backend does not create (VPP-only kinds on netlink) is skipped with the reason |
+| AC-46 | A configured bridge, veth, dummy, tunnel, wireguard or vlan is absent or down in the kernel | `iface-ethernet` becomes a walk of every configured kind and reports the existing `doctor-iface-missing` (absent) and a new `doctor-iface-down` (configured up, kernel down) | a kind the backend does not create (VPP-only kinds on kernel) is skipped with the reason |
 | AC-47 | A configured static address failed DAD or stays tentative | `doctor-iface-address-dad-failed` (error, runtime) from `ReadAddressState` | on VPP (`DADReported` false) the row reads cannot determine (forwarding door trap) |
 | AC-48 | A wireguard peer has no handshake within its keepalive bound | `doctor-iface-wireguard-no-handshake` (warning, local) naming interface and peer from the kernel peer state | a peer with no endpoint configured that never initiated is not reported |
 | AC-49 | Interface-area lines whose class is already covered: `iface-ethernet` sites | each line carries `doctor-iface-missing`, `doctor-iface-selector-unmatched` or `doctor-iface-selector-ambiguous` | none |
@@ -305,11 +308,11 @@ Every row below holds for every check it names: the message states the cause in 
 | AC-63 | A table is held back because a rule names a set no owner registered | `doctor-firewall-table-held-back` (error, runtime) naming table and set, from the registry's held-back set | none |
 | AC-64 | `firewall global-options` sysctl defaults were not extracted or not emitted | `doctor-firewall-global-options-unapplied` (warning, runtime) comparing the sysctl default layer (source `firewall-global-options`) with `ExtractGlobalOptions` | none |
 | AC-65 | `ze_` nft tables are in the kernel while no daemon runs and `flush-on-shutdown` is true | `doctor-firewall-tables-left-after-stop` (warning, local, only when no daemon answers) naming the tables; fix names `nft delete table` for each | R-3: with a daemon running the tables are its own |
-| AC-66 | `firewall { }` on the nft backend | nf_tables is a `kernelcap.Capability` of the nft backend: absent reports `doctor-firewall-nftables` (error), unknown reports `doctor-firewall-nftables-unknown` (warning, with the probe's reason); `checkFirewallNftables` and its `/proc/modules` read are deleted first (journal row `probe-inability-read-as-absence`, 2026-11-10) | a built-in nf_tables reads present, with no row |
+| AC-66 | `firewall { }` on the kernel backend | nf_tables is a `kernelcap.Capability` of the kernel backend: absent reports `doctor-firewall-nftables` (error), unknown reports `doctor-firewall-nftables-unknown` (warning, with the probe's reason); `checkFirewallNftables` and its `/proc/modules` read are deleted first (journal row `probe-inability-read-as-absence`, 2026-11-10) | a built-in nf_tables reads present, with no row |
 | AC-67 | A domain group answer exceeds the per-name address cap | the domain plugin stores the truncation per name; `doctor-firewall-domain-group-truncated` (warning, runtime) naming group, name and the kept count | none |
 | AC-68 | A domain cache or change-log write fails on a healthy store | recent event `doctor-firewall-domain-cache-write` naming the group and error | a broken store is the storage checks' row (A-4) |
 | AC-69 | The IRR or domain cache cannot be opened for the doctor read | a row names the store path and the cause, from the storage checks when they cover the resolve store directory, else from the IRR and domain checks under the storage owner's `doctor-store-integrity` | none: a check that cannot look says so |
-| AC-70 | A persisted tc original-qdisc snapshot does not match the box (boot id, name, ifindex, MAC) or the store is unreadable | `doctor-traffic-tc-snapshot-mismatch` (error, local) naming interface and the mismatched field; fix names the command that clears the snapshot | none |
+| AC-70 | A persisted traffic control original-qdisc snapshot does not match the box (boot id, name, ifindex, MAC) or the store is unreadable | `doctor-traffic-tc-snapshot-mismatch` (error, local) naming interface and the mismatched field; fix names the command that clears the snapshot | none |
 | AC-71 | Ze's qdisc is still on an interface while no daemon runs (`KeyTrafficTCSnapshot` non-empty) | `doctor-traffic-qdisc-not-restored` (warning, local, only when no daemon answers) naming interface and original qdisc | R-3 |
 | AC-72 | Firewall-area lines whose class is already covered: domain-group no-data and stale, IRR no-data and stale (the refresh-failed line included, see Findings) | each line carries that code; the firewall's IRR stale Warn is logged by its refresh caller in `irr.go` under `doctor-firewall-irr-stale-data`, after `plan/release/validation/spec-doctor-coverage-15-system.md` AC-19 moves the two shared stale lines out of `internal/component/resolve/irr/store/store.go`, so no shared line names the firewall's code | none |
 | AC-73 | `firewall-irr-data-freshness` emits `doctor-firewall-irr-oversized-data` | its `Codes` declares it, and a test asserts every code the check emits is declared (journal row `declared-format-contradicts-payload`, 2026-11-10) | none |
@@ -318,12 +321,13 @@ Every row below holds for every check it names: the message states the cause in 
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-74 | fib-kernel's route netlink handle could not open (`failedBackend`) | `doctor-fib-kernel-netlink` (error, runtime); a `post-config` probe opens route netlink when fib-kernel is the writer and reports the same code locally | none |
+| AC-74 | fib-kernel's route netlink handle could not open (`failedBackend`) | `doctor-fib-kernel-netlink` (error, runtime); a `post-config` probe opens a route netlink socket when fib-kernel is the writer and reports the same code locally | none |
 | AC-75 | The private MPLS context guard `ip rule` is missing per family | `doctor-fib-kernel-mpls-guard` (error, local) naming family, priority and mark | none |
 | AC-76 | fib-kernel is loaded and `net.ipv4` or `net.ipv6` `conf.all.forwarding` is 0 with no sysctl override | `doctor-fib-kernel-forwarding-off` (error, local and runtime) naming the family | an operator `sysctl` override to 0 is reported as config, at warning |
 | AC-77 | A route sysrib selected is not installed (add, replace or delete failed; pending over `fibLagTimeout`; replay lost; pending cap reached) | a `runtime` fib-kernel check declares `doctor-fib-sync-failure` and `doctor-fib-programming-lag`, naming prefix, error and age from `pending` | a route pending less than `fibLagTimeout` reports only sync-failure, not lag |
 | AC-78 | Orphan Ze routes (protocol 250) were swept at start | recent event `doctor-fib-orphan`, declared by the AC-77 check | none |
 | AC-79 | Ze-owned kernel routes (protocol 250) remain while no daemon runs, or after the sweep window | `doctor-fib-kernel-routes-left` (warning, local) counting protocol 250 routes; fix names `ip route flush proto 250` | R-3 |
+| AC-111 | Ze-owned kernel routes (routing protocol 250, `rtproto.FIBKernel`, in any table, IPv4 or IPv6) are in the kernel while the configuration selects no plugin that programs the `kernel` data plane: `fib dummy`, `fib p4` alone, or a selection whose only FIB writer programs VPP. Nothing the configuration runs will replace or withdraw those routes, so the box forwards on routes Ze no longer programs. A router converted to `fib dummy` by commit is in this state when its kernel writer stopped with `flush-on-stop` false (`plan/release/features/spec-fib-dummy.md`, C-5 (a) and R-3) | a `post-config` fib-kernel check reports `doctor-fib-kernel-routes-no-writer` (error, local, on both routes, so with a daemon running too), counting the routes per family and table, naming the FIB plugin the configuration selects, and saying that no running plugin will remove them; fix `ip route flush table all proto 250`, with `ip -6 route flush table all proto 250` when IPv6 routes are counted. Whether a kernel writer is selected is read from the selection boot and reload make, the one `checkDataPlaneWriter` judges (`internal/component/plugin/doctor/check_dataplane_writer.go`), and from each selected plugin's `ProgramsFIB` and `DataPlane` declarations, never from a plugin name | A selection that holds a kernel writer gets no row here: that writer owns the routes, and its sweep and AC-77 to AC-79 judge them. While this row reports, AC-79's `doctor-fib-kernel-routes-left` is not raised for the same routes: one fact, one row. Protocol 251 routes (static routes in a named table) are the static plugin's own writes and are not counted (R-2; spec-fib-dummy C-4) |
 | AC-80 | MPLS is in use, fib-kernel started, and `net.mpls.platform_labels` is still 0 | `doctor-mpls-label-space-empty` (error, runtime) | none |
 | AC-81 | Another program overwrote a Ze route and the re-assert failed | recent event `doctor-fib-kernel-reassert-failed` naming prefix and error; the external-change emit lines carry it | none |
 | AC-82 | The kernel route monitor gave up | `doctor-fib-kernel-monitor-stopped` (error, runtime); fix names the restart | none |
@@ -332,7 +336,7 @@ Every row below holds for every check it names: the message states the cause in 
 | AC-108 | The selected data plane is VPP and a label source (LDP, RSVP-TE) has `(mpls-fib, entry)` entries: only fib-kernel consumes them (`internal/plugins/fib/kernel/mplsentry.go`), fib-vpp subscribes to system-RIB best changes alone (`subscribeFibVPP`, `internal/plugins/fib/vpp/register.go`), and the sources' `Dependencies` load fib-kernel, so the swap and pop entries land in the Linux AF_MPLS table VPP does not forward through | a `runtime` check reports `doctor-fib-mpls-no-writer` (new, error) naming the data plane, the label source and the entry count, with the fix the backend-parity work makes true; the check reads the writer's declared data plane (`registry.Registration` `ProgramsFIB`, `DataPlane`) and the entries' owner, never a plugin name. The defect itself is journal row `guard-added-to-one-half-of-a-pair.md` (2026-11-11), owned by `plan/release/validation/spec-fib-depth.md` (backend parity); once fib-vpp consumes the entries the check reports only an entry no writer acknowledged. -> Decision (2026-11-11): `plan/release/validation/spec-fib-depth.md` Phase 13 declared this code (`mplsfib.CodeDoctorNoWriter`, `internal/core/mplsfib/doctor.go`) through the producers' runtime checks `ldp-label-entries` and `rsvp-te-label-entries` and fib-vpp's `fib-vpp-label-entries`, and the fix command is now Phase 13's behaviour (fib-vpp consumes the entries, the producers declare `NeedsDataPlane`). This child builds no second declaration of the code; Phase 13 also declared `doctor-fib-vpp-mpls-path-mtu` through `fib-vpp-label-entries` | none: an entry programmed into a data plane that does not forward is the fault doctor must name |
 | AC-109 | MPLS in use on the kernel FIB (`kernelcap.MPLSInUse`) and the kernel's `net.mpls.ip_ttl_propagate` is 0, written outside Ze | fib-kernel `post-config` check `mpls-ttl-propagate` reports `doctor-mpls-ttl-propagate-off` (error) citing RFC 3032 Section 2.4.3, fix `sysctl -w net.mpls.ip_ttl_propagate=1`; an unreadable key or a value other than 0/1 reports `doctor-mpls-ttl-propagate-unknown` (warning) with the cause. -> Met (2026-11-12) by commit 5d3d7e3a6d (`internal/plugins/fib/kernel/doctor_mplsttl_linux.go`, `TestCheckMPLSTTLPropagate*`) | no label work on the kernel FIB, or label work on VPP: no read |
 | AC-85 | `fib p4` is configured (no P4Runtime backend exists, so every route reads installed while nothing is programmed) | `doctor-fib-p4-no-backend` (error, local) | none |
-| AC-86 | Policy-route `ip rule` entries and tables Ze allocated remain while no daemon runs (cleanup could not open netlink, rule not encodable, `RuleDel` errors ignored) | `doctor-policyroute-rules-left` (warning, local) naming marks and tables; the ignored `RuleDel` error is logged under it | R-3 |
+| AC-86 | Policy-route `ip rule` entries and tables Ze allocated remain while no daemon runs (cleanup could not open a netlink socket, rule not encodable, `RuleDel` errors ignored) | `doctor-policyroute-rules-left` (warning, local) naming marks and tables; the ignored `RuleDel` error is logged under it | R-3 |
 | AC-87 | Lines whose class is already covered: MPLS capability sites, `policyroute-netlink` | each line carries `doctor-mpls-transit-mtu-unenforced`, `doctor-mpls-transit-mtu-unknown`, `doctor-mpls-unavailable`, `doctor-mpls-unknown` or `doctor-policyroute-netlink` | none |
 | AC-88 | AC-6 holds a failed policyroute rollback | `doctor-policyroute-rollback-partial` (error, runtime) naming the rules and tables left | none |
 
@@ -399,7 +403,8 @@ Every row below holds for every check it names: the message states the cause in 
 | `TestNftablesCapabilityProbe` | `internal/plugins/firewall/nft/kernelcap_linux_test.go` (QEMU) | AC-66, A-3 | |
 | `TestIRRCheckDeclaresEveryEmittedCode` | `internal/component/firewall/plugins/irr/doctor_test.go` | AC-73 | |
 | `TestDoctorTraffic<Class>` | `internal/component/traffic/doctor_test.go` | AC-70, AC-71 | |
-| `TestDoctorFIBKernel<Class>` | `internal/plugins/fib/kernel/doctor_test.go` | AC-74..AC-84 | |
+| `TestDoctorFIBKernel<Class>` | `internal/plugins/fib/kernel/doctor_test.go` | AC-74..AC-84, AC-111 | |
+| `TestDoctorFIBKernelRoutesNoWriter` | `internal/plugins/fib/kernel/doctor_test.go` | AC-111 as a table: protocol 250 routes with `fib p4` alone, with the VPP plane, and (once `plan/release/features/spec-fib-dummy.md` lands) with `fib dummy` each give one row; the same routes with a kernel writer selected give none; protocol 251 routes give none; AC-79's code is not raised beside it | |
 | `TestDoctorFIBP4NoBackend` | `internal/plugins/fib/p4/doctor_test.go` | AC-85 | |
 | `TestDoctorPolicyroute<Class>` | `internal/plugins/policyroute/doctor_test.go` | AC-86, AC-88 | |
 | `TestDoctorVPP<Class>` | `internal/component/vpp/doctor_test.go` | AC-89..AC-92 | |
@@ -422,6 +427,7 @@ Every row below holds for every check it names: the message states the cause in 
 | `show-doctor-dhcp-client-no-lease` | `test/plugin/` | operator reads why the unit has no address | |
 | `doctor-firewall-nftables` | `test/ui/` | operator on Ze's kernel sees no false warning | |
 | `show-doctor-sysctl-not-applied` | `test/plugin/` | operator reads the drifted key | |
+| `doctor-fib-kernel-routes-no-writer` | `test/plugin/` | `option=needs-linux`: a protocol 250 route is in the kernel and the config selects `fib p4` alone (`fib dummy` once `plan/release/features/spec-fib-dummy.md` lands); `ze doctor` and `show doctor` both report the AC-111 row with the flush fix, and after the flush neither does | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -464,7 +470,7 @@ Every row below holds for every check it names: the message states the cause in 
 - `internal/plugins/firewall/nft/kernelcap_linux.go` - AC-66 capability enrolment and probe
 - `internal/plugins/iface/dhcp/status.go` - AC-4
 - one doctor file per owner package that has none today, each with its test
-- the six `.ci` files in the Functional Tests table
+- the seven `.ci` files in the Functional Tests table
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -518,9 +524,9 @@ Each package is sized for one agent of about 60 tool calls. Agents edit; every t
 | P2 setup-line collisions | `firewall/plugins/{domain,irr}/register.go`; IRR `Codes` | AC-2, AC-73 | - | ∥ P1 |
 | P3 firewall runtime | audit, apply-behind and held-back checks | AC-59..AC-63 | P1 | ∥ P6 |
 | P4 firewall local and store | global options, tables left, IRR and domain store rows, domain truncation and cache write, covered lines | AC-64, AC-65, AC-67..AC-69, AC-72 | P2 | ∥ P6 |
-| P5 nf_tables capability and traffic | delete the module-list check, enrol the capability; tc snapshot and qdisc checks | AC-66, AC-70, AC-71 | - | ∥ P7 |
+| P5 nf_tables capability and traffic | delete the module-list check, enrol the capability; traffic control snapshot and qdisc checks | AC-66, AC-70, AC-71 | - | ∥ P7 |
 | P6 fib-kernel runtime | sync, lag, orphan, reassert, monitor, MPLS install and remove, label space | AC-77, AC-78, AC-80..AC-84 | P1 | ∥ P3 |
-| P7 fib-kernel local, p4, policyroute | netlink probe, MPLS guard, forwarding off, routes left, p4, rules left, rollback record and check, covered lines | AC-6 (policyroute half), AC-74..AC-76, AC-79, AC-85..AC-88 | - | ∥ P5 |
+| P7 fib-kernel local, p4, policyroute | netlink socket probe, MPLS guard, forwarding off, routes left, p4, rules left, rollback record and check, covered lines, routes with no kernel writer | AC-6 (policyroute half), AC-74..AC-76, AC-79, AC-85..AC-88, AC-111 | - | ∥ P5 |
 | P8 VPP component | restart required, process restarting, stats, dpdk left bound, name map | AC-89..AC-93 | - | ∥ P9 |
 | P9 fib-vpp and VPP backends | pending record, no writer, SRv6 ownership and steer, sync check, NAT and traffic orphans | AC-5, AC-94..AC-99 | - | ∥ P8 |
 | P10 sysctl and sysrib | the sysctl and sysrib checks and lines | AC-50..AC-58 | - | ∥ P11 |
@@ -531,18 +537,18 @@ Each package is sized for one agent of about 60 tool calls. Agents edit; every t
 | P15 DHCP client | status and show command, then the six DHCP checks, the external refusal line | AC-4, AC-30..AC-36 | - | ∥ P16 |
 | P16 PPPoE and plugin lines | PPPoE IPv4 route, session sysctls, redial line, plugin-stopped lines | AC-37..AC-39, AC-57 | child 12 phase P0a registers `doctor-plugin-stopped` and its phase P2 AC-9 check declares it; child 2 registers `doctor-pppoe-client-no-session` | ∥ P15 |
 | P17 not problem classes | the remaining lines of both slices | AC-100..AC-105 | P3..P16 (codes exist) | - |
-| P17b existing findings | `Fix` on the area's existing doctor findings | AC-107 | P5 (the nft check is deleted first) | ∥ P17 |
+| P17b existing findings | `Fix` on the area's existing doctor findings | AC-107 | P5 (the nftables check is deleted first) | ∥ P17 |
 | P18 coverage proof | `TestForwardingSitesCovered`, the coverage report | AC-106 | all | - |
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | every AC at file and symbol; every site of the area covered (AC-106) |
-| Correctness | no check reads healthy for state it could not read; left-behind checks count only Ze-owned state (R-2) and run only when no daemon answers (R-3) |
+| Correctness | no check reads healthy for state it could not read; left-behind checks count only Ze-owned state (R-2) and run only when no daemon answers (R-3), except AC-111, which runs on both routes because no running plugin owns the routes it counts |
 | Naming | codes kebab-case with the `doctor-` prefix, one declaration each; the renamed report codes have no second spelling |
 | Data flow | a bus-reading runtime check only for an in-process owner (A-1) |
 | Rule: user-facing-errors | every fix a command on its own line |
-| Rule: no-layering | the `/proc/modules` nft check is deleted before the capability lands |
+| Rule: no-layering | the `/proc/modules` nftables check is deleted before the capability lands |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -587,6 +593,8 @@ Each package is sized for one agent of about 60 tool calls. Agents edit; every t
 | nf_tables as a `kernelcap.Capability` | keep `/proc/modules` and add a built-in check | the doctor page rules a configured subsystem's kernel feature a capability; no-layering deletes the old check |
 | Code names for the A8 gap rows chosen here | wait for the inventory merge | the canonical table holds none for A8 (A-5); the merge adds these names |
 | Left-behind checks run only when no daemon answers | run on both routes | with a daemon up the state is its own, and the daemon route already reports it through the runtime checks |
+| The routes-no-writer check (AC-111) runs on both routes, the one left-behind check that does | only when no daemon answers, like AC-79 | with no kernel writer selected, no plugin of the running daemon owns protocol 250 routes, so no runtime check reports them; the condition is read from the configuration's selection, which is the same with a daemon up or down |
+| AC-111's row is an error, where AC-79's is a warning | a warning like AC-79 | AC-79's routes are swept by the kernel writer's next start; AC-111's are forwarded on and never replaced or withdrawn by anything the configuration runs |
 | Lines with no lasting effect go to Info | give them a code | a line with no operator state is not a problem site; logging it at Warn is the class `normal-state-logged-at-error` |
 
 ## Known Limitations
@@ -609,7 +617,7 @@ Each package is sized for one agent of about 60 tool calls. Agents edit; every t
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-107 all demonstrated
+- [ ] AC-1..AC-111 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] Scoped package tests under `./le job run`, with the tags `./le repo changed scope print both` names, for each package a phase changed; the named `.ci` files run alone; `needs-linux` files under `./le test qemu`. No agent runs any `./le verify` command
