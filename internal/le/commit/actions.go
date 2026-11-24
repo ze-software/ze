@@ -132,7 +132,7 @@ var declaredTrailers = []struct {
 	{trailerNoNews, `the spec closure: create ... remove <spec> ` + keywordNoNews + ` "<reason>"`, true},
 	{trailerSpecWork, "./le commit create under a claim (./le spec claim), from the claimed spec", true},
 	{docconsistency.DecisionChangedTrailer, `create ... ` + keywordDecisionChange + ` "<owner words>" from Thomas's terminal`, true},
-	{specdesign.DesignApprovedTrailer, "create from Thomas's approval record (./le spec design approve), or his away admission", true},
+	{specdesign.DesignApprovedTrailer, "create from Thomas's approval record (./le spec design approve), the record that carries it to a later text (./le spec design carry), or his away admission", true},
 }
 
 // retiredVerbs maps each verb the derived debt removed to what replaced it. It

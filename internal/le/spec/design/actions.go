@@ -15,7 +15,8 @@ const area = "spec design"
 // areaDescription is the area's long help.
 const areaDescription = "A spec lists every design document its files link and every decision those pages " +
 	"carry, each with a verdict; an independent judge confirms the verdicts; Thomas approves the design " +
-	"from his own terminal before the spec moves to ready, or records that he is away."
+	"from his own terminal before the spec moves to ready, or records that he is away; his approval " +
+	"carries over to a later text that only writes in decisions he made."
 
 // The parameters the actions share, declared once so two actions cannot spell
 // one keyword two ways.
@@ -81,6 +82,18 @@ var actions = leaction.New(area,
 		AnswerArgs: answerApprove,
 	},
 	leaction.Action{
+		Verb:    "carry",
+		Does:    doesRecord,
+		Summary: "carry Thomas's approval to a text that only writes in his own decisions",
+		Why: "a change that only adds a verdict on a row of a page's Design decisions section, or follows a " +
+			"rename on a page a row quotes, is not put back to him: the judge approves the new text, this " +
+			"action proves nothing else changed against the text he approved, and anything else is refused " +
+			"by name and goes back to him",
+		Writes:     true,
+		Parameters: []leaction.Parameter{specParameter},
+		AnswerArgs: answerCarry,
+	},
+	leaction.Action{
 		Verb:    "pending",
 		Does:    "list",
 		Summary: "list the ready specs whose design waits for Thomas",
@@ -90,7 +103,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    "away",
-		Does:    "record",
+		Does:    doesRecord,
 		Summary: "record that Thomas is away until a date, from his terminal",
 		Why: "while he is away a judged fix spec with no departure starts without his approval, " +
 			"and pending lists each such start for his return",
@@ -106,7 +119,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    "return",
-		Does:    "record",
+		Does:    doesRecord,
 		Summary: "record that Thomas is back, from his terminal",
 		Why:     "removes the away record, so every ready spec again needs his approval",
 		Writes:  true,
@@ -122,3 +135,6 @@ func Subs() string { return actions.Subs() }
 
 // Answer is the `le spec design` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
+
+// doesRecord is the Does word of an action that writes a design record.
+const doesRecord = "record"

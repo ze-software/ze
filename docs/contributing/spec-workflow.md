@@ -200,13 +200,54 @@ The record binds the design digest: the SHA-256 of four sections, in order,
 answers in the Choices subsection, moving the Status and implementation
 bookkeeping leave the approval current. A change of scope, criteria, verdicts
 or presentation makes it stale, and the design goes back to the judge and to
-him.
+him, except for the one kind of change the next section carries his approval
+over.
+
+The action also keeps the approved text beside the record, as
+`approved/<stem>.text`, so the next section can compare a later text with it
+before any commit holds the approval.
+
+### An approval carries over to his own decisions
+
+<!-- source: internal/le/spec/design/carry.go -- carry, carryChanges, renameProblem, addedRowProblem, approvedBases, localApproval -->
+A change to an approved design that only writes in a choice Thomas made
+himself is not put back to him ("Design decisions" below). The independent
+judge still judges the changed text, and `./le spec design carry spec <path>`
+proves, against the text he approved, that nothing else changed. Any agent
+runs it, the main session included: the independence is the judge's, and the
+action only compares texts and reads the pages.
+
+It first runs the check with the judge's approval owed, so the new text has
+every owed row, every quote verbatim, and a judge record of this digest that
+says `approve`. It then recovers the text he approved and accepts the change
+only when all of this holds:
+
+| Part of the design | What may change |
+|--------------------|-----------------|
+| `## Task`, `## Acceptance Criteria`, `## Design presentation` without `### Choices for Thomas` | Nothing: each is compared as the digest reads it |
+| `## Design documents` outside its table rows | Nothing |
+| A row of the approved table | It stays as approved, or only its Binding statement changes, the row is not `departs`, the section it names no longer holds the approved quote and holds the new one: a rename on the page. A row removed, or changed in any other cell, is refused |
+| A row the table gained | Its Section is `Design decisions`, its verdict is `agrees` or `silent`, and its statement carries a decision `./le spec design documents` derives for the spec. Any other added row is refused, a `departs` row included |
+
+The text he approved comes from the most recent of: the carried record's own
+copy, the copy `approve` kept, then each `Design-approved:` line reachable
+from HEAD, read as the spec its commit carries. An away admission is not his
+approval and is never a base. A carried approval is a base like his own, so a
+second ruling is carried from the first carry and keeps his date and words.
+
+On a pass the action writes `carried/<stem>.md` and the carried text beside
+it, and prints the chain. It exits 0 with `already approved` and writes
+nothing when the text needs no carry. It exits 2 and writes nothing when the
+check fails, when he approved no text of the spec, when the text he approved
+is kept nowhere, or when a change is not one of the two above: the refusal
+lists each such change and ends with the `approve` line that puts the design
+back to him.
 
 ### The records
 
 <!-- source: internal/le/spec/design/records.go -- replaceRecord, readRecord -->
 <!-- source: internal/le/spec/design/away.go -- recordAway, ActiveAway, answerReturn -->
-All three are untracked files under `tmp/spec-design/`, each `Key: value`
+All four are untracked files under `tmp/spec-design/`, each `Key: value`
 lines, written only by `./le spec design` and replaced atomically. A record
 that cannot be read or parsed is refused, never read as absent.
 
@@ -214,6 +255,7 @@ that cannot be read or parsed is refused, never read as absent.
 |--------|------------|--------|
 | `judged/<stem>.md` | `judge`, from an agent | `Spec`, `Digest`, `Verdict`, `Sentence`, `Judge` (the agent fingerprint), `Date` |
 | `approved/<stem>.md` | `approve`, from Thomas's terminal | `Spec`, `Digest`, `Date`, `Machine`, `Owner words`, `Judge` (the judge record's digest, date and sentence), one `Departure` line per `departs` row: page, section and quoted statement |
+| `carried/<stem>.md` | `carry`, from any agent | The approval record's fields, with `Digest` the later text, `Date` and `Owner words` those of his approval, `Machine` the host that carried it, `Judge` the judge's verdict on the later text, and two more: `Carried from` (the digest he approved) and `Carried on` |
 | `away.md` | `away until <YYYY-MM-DD> words "<text>"`, from Thomas's terminal; `return` removes it | `From`, `Until`, `Owner words` |
 
 `away` refuses a missing `until`, a value that is not a date, and a day
@@ -230,15 +272,20 @@ is made only of readers (`ls`, `cat`) or is `./le commit create`.
 <!-- source: internal/le/spec/design/approval.go -- Approved, FormatApprovalTrailer, DepartureApproved -->
 <!-- source: internal/le/spec/design/admission.go -- Admit, OwedApprovalTrailer -->
 One lookup answers whether a spec's design is approved: the local record whose
-digest matches the spec's text, else a `Design-approved: <stem> <digest>: ...`
-line in a commit reachable from HEAD. The local record never reaches a
+digest matches the spec's text, his approval record or else the carried
+record, else a `Design-approved: <stem> <digest>: ...` line in a commit
+reachable from HEAD. Every gate below asks that lookup, so a carried approval
+passes each of them as his own does. The local record never reaches a
 worktree or the other machine, so `./le commit create` writes the trailer from
-it into the next commit that carries the spec. A trailer-only approval lists
-the `departs` rows of the spec text in the commit that carries it.
+it into the next commit that carries the spec. For a carried record the line
+is `Design-approved: <stem> <digest>: carried <approved digest> <date
+carried> judge "<the judge's sentence>" approved <date> <his words>`, and the
+lookup reads the same chain back from it. A trailer-only approval lists the
+`departs` rows of the spec text in the commit that carries it.
 
 | Gate | What it refuses |
 |------|-----------------|
-| `./le spec claim` (`Claim`) | A `ready` spec whose design text has no approval and no away admission. Checked before the WIP cap. The spec stays `ready` and the session keeps its previous claim. The refusal says when the design changed after an earlier approval. An admitted claim reports `approved: <date> "<owner words>"` |
+| `./le spec claim` (`Claim`) | A `ready` spec whose design text has no approval and no away admission. Checked before the WIP cap. The spec stays `ready` and the session keeps its previous claim. The refusal says when the design changed after an earlier approval, and names the `carry` command beside the `approve` one. An admitted claim reports `approved: <date> "<owner words>"`, followed for a carried approval by the day it was carried and the judge's sentence |
 | `writeSpecReady` (pre-write hook) | An edit that makes a spec `ready`, from another Status or as a new file: from a subagent always, from the main session without an approval or away admission of the proposed text. An edit of a spec already `ready` is not judged |
 | `./le commit create` | A hand-written `Design-approved:` body line. When closing a spec: a `departs` row its approval does not list, and an approved `departs` row whose page the spec's change set does not modify |
 | `./le doc consistency`, on commit | A changed or removed row of a page's `## Design decisions` section, unless an approval lists a departure naming that page and decision, or Thomas ran the commit with `decision-change "<his words>"` |
@@ -265,7 +312,14 @@ design has no matching approval of his (an away admission is not one, since
 he reviews that spec on return), by Priority, then by category in
 `specpath.Categories` order, then by Updated, each with what it lacks (the two
 sections, the judge, the approval); then every started spec whose only
-approval is an away admission; then whether he is away.
+approval is an away admission; then whether he is away. A carried approval is
+his approval, so its spec is not listed.
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| A change to an approved design that only writes in a choice Thomas himself made (an answer he gave to a question the spec put to him) is not put back to him for approval. The independent design judge still judges the changed text, and the work continues once it approves; Thomas may review it later or not. A change that carries anything he did not decide goes back to him as before. The tooling lets an approval carry over when the judge confirms the changes only record his own rulings or text renames. | A gate that sends a design back to Thomas because rows for his own decisions were added to it, or because a quote followed a rename on its page; and an approval carried over a change of scope, criteria, presentation, a removed row, a `departs` row or any text he did not decide | plan/records/ruling-design-approval-carry-over.md, ai/META-DECISIONS.md "How agents work" | 2026-11-24 |
 
 ## Work queues and placement
 

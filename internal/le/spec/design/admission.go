@@ -43,7 +43,8 @@ type Admission struct {
 // Admit answers whether the design text of the spec at relative, a
 // checkout-relative path, may start implementation on the day now falls on:
 // Thomas's approval of this text (the local record or a reachable
-// Design-approved: line), else, while he is away, a fix spec with no departs
+// Design-approved: line), his approval of an earlier text carried to this one
+// (carry.go), else, while he is away, a fix spec with no departs
 // row whose check passes with the judge's current approval. An error is a
 // record or a history that could not be read, or a file name no record can
 // key on, never "not admitted".
@@ -103,8 +104,12 @@ func (a Admission) Refusal(relative string) []string {
 			lines = append(lines, "    - "+problem)
 		}
 	}
+	lines = append(lines,
+		"  if the change only adds rows for decisions Thomas made, or follows a rename on a page a row quotes, "+
+			"his earlier approval carries over: have ze-design-judge judge it, then run",
+		"    ./le spec design carry spec "+relative)
 	return append(lines,
-		"  fix: run ./le spec design check spec "+relative+", have ze-design-judge judge it, present its ## "+
+		"  fix: otherwise run ./le spec design check spec "+relative+", have ze-design-judge judge it, present its ## "+
 			presentationHeading+" to Thomas; he runs, from his own terminal:",
 		"    ./le spec design approve spec "+relative+` words "<what he said>"`)
 }
@@ -116,12 +121,18 @@ func (a Admission) Report() string {
 		return "admitted while Thomas is away (" + a.Approval.From + " to " + a.Approval.Until +
 			"): no design approval; he reviews it on return"
 	}
-	return "approved: " + a.Approval.Date + ` "` + a.Approval.Words + `"`
+	approved := "approved: " + a.Approval.Date + ` "` + a.Approval.Words + `"`
+	if a.Approval.CarriedFrom == "" {
+		return approved
+	}
+	return approved + ", carried on " + a.Approval.CarriedOn + " to this text, which adds only his own decisions (judge: " +
+		a.Approval.JudgeSentence + ")"
 }
 
 // OwedApprovalTrailer answers the Design-approved: line a commit carrying the
 // spec at relative, with text, owes on the day now falls on: Thomas's approval
-// from the local record whose digest matches (AC-31), else the away admission
+// from the local record whose digest matches, his own or the one carry wrote
+// (AC-31, carry.go), else the away admission
 // of the text (AC-28), and "" when no reachable commit is to carry it: one
 // already carries his approval of this stem and digest, an away line already
 // carries it and he has not approved it since, or nothing admits the text.
@@ -149,14 +160,14 @@ func OwedApprovalTrailer(root, relative, text string, now time.Time) (string, er
 		}
 		awayCarried = true
 	}
-	record, found, err := readApprovalFile(approvedPath(root, spec.stem))
+	record, found, err := localApproval(root, spec.stem, digest)
 	if err != nil {
 		return "", err
 	}
-	// Thomas's approval is owed even over an away trailer of the same text:
-	// the away line is no approval, and without his trailer every other
-	// checkout keeps listing the spec as waiting for him.
-	if found && record.digest == digest {
+	// Thomas's approval, of this text or carried to it, is owed even over an
+	// away trailer of the same text: the away line is no approval, and without
+	// his trailer every other checkout keeps listing the spec as waiting for him.
+	if found {
 		return FormatApprovalTrailer(record.approval(spec.stem)), nil
 	}
 	if awayCarried {

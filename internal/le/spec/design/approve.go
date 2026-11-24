@@ -38,6 +38,13 @@ const (
 	fieldDeparture  = "Departure"
 )
 
+// The two fields only a carried approval carries (carry.go): the digest of
+// the text Thomas approved, and the day his approval was carried to Digest.
+const (
+	fieldCarriedFrom = "Carried from"
+	fieldCarriedOn   = "Carried on"
+)
+
 // approvalFields are the single fields every approval record carries.
 var approvalFields = []string{fieldSpec, fieldDigest, fieldDate, fieldMachine, fieldOwnerWords, fieldJudge}
 
@@ -80,13 +87,18 @@ func (d Departure) names(page, decision string) bool {
 
 // approvalRecord is one record under tmp/spec-design/approved/.
 type approvalRecord struct {
-	spec       string
-	digest     string
-	date       string
-	machine    string
-	words      string
-	judge      string
-	departures []Departure
+	spec    string
+	digest  string
+	date    string
+	machine string
+	words   string
+	judge   string
+	// carriedFrom and carriedOn are set together, on a carried approval only:
+	// digest is then a later text, and date and words stay those of Thomas's
+	// approval of carriedFrom.
+	carriedFrom string
+	carriedOn   string
+	departures  []Departure
 }
 
 // approvedPath is the approval record of stem, from the checkout root.
@@ -103,27 +115,47 @@ func (a approvalRecord) render() string {
 	} {
 		tb.Str(pair[0]).Str(": ").Str(pair[1]).Byte('\n')
 	}
+	if a.carriedFrom != "" {
+		tb.Str(fieldCarriedFrom).Str(": ").Str(a.carriedFrom).Byte('\n')
+		tb.Str(fieldCarriedOn).Str(": ").Str(a.carriedOn).Byte('\n')
+	}
 	for _, departure := range a.departures {
 		tb.Str(fieldDeparture).Str(": ").Str(departure.line()).Byte('\n')
 	}
 	return tb.String()
 }
 
+// approveRepair is the repair of an approval record that cannot be used.
+const approveRepair = "; fix: have Thomas approve the spec again (./le spec design approve spec <path> words \"<what he said>\")"
+
 // readApprovalFile reads the approval record at file. A missing file answers
 // found false; one that cannot be read or lacks a field is an error naming
 // the file and the repair (AC-26).
 func readApprovalFile(file string) (record approvalRecord, found bool, err error) {
+	return readApprovalRecord(file, approveRepair)
+}
+
+// readApprovalRecord reads the record at file, an approval or a carried
+// approval, and names repair in the error of one that cannot be used.
+func readApprovalRecord(file, repair string) (record approvalRecord, found bool, err error) {
 	lines, found, err := readRecord(file, fieldDeparture)
-	if err != nil || !found {
-		return approvalRecord{}, found, err
+	if err != nil {
+		return approvalRecord{}, false, err
 	}
-	repair := "; fix: have Thomas approve the spec again (./le spec design approve spec <path> words \"<what he said>\")"
+	if !found {
+		return approvalRecord{}, false, nil
+	}
 	if missing := lines.missingField(approvalFields); missing != "" {
 		return approvalRecord{}, false, &recordError{file: file, problem: "carries no " + missing + " line" + repair}
 	}
 	record = approvalRecord{
 		spec: lines.single[fieldSpec], digest: lines.single[fieldDigest], date: lines.single[fieldDate],
 		machine: lines.single[fieldMachine], words: lines.single[fieldOwnerWords], judge: lines.single[fieldJudge],
+		carriedFrom: lines.single[fieldCarriedFrom], carriedOn: lines.single[fieldCarriedOn],
+	}
+	if (record.carriedFrom == "") != (record.carriedOn == "") {
+		return approvalRecord{}, false, &recordError{file: file, problem: "carries only one of its " + fieldCarriedFrom +
+			" and " + fieldCarriedOn + " lines" + repair}
 	}
 	for _, value := range lines.repeated[fieldDeparture] {
 		departure, ok := parseDeparture(value)
@@ -234,6 +266,11 @@ func approve(root string, spec specFile, words string) (any, int) {
 		case verdictSilent:
 			answer.Silent++
 		}
+	}
+	// The text goes first: a record with no text beside it still approves, and
+	// only cannot be carried to a later text before a commit holds it.
+	if err := replaceRecord(root, approvedDir, approvedTextName(spec.stem), spec.text); err != nil {
+		return nil, refuseAction("refused: " + err.Error())
 	}
 	if err := replaceRecord(root, approvedDir, spec.stem+".md", record.render()); err != nil {
 		return nil, refuseAction("refused: " + err.Error())

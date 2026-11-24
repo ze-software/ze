@@ -2,10 +2,12 @@
 // Related: judge.go -- the judge record, bound to this digest
 //
 // Related: approve.go -- the approval record the lookup reads first
+// Related: carry.go -- the carried record the lookup reads next, and what lets an approval carry over
 //
 // approval.go computes the design digest, what the judge judged and what
 // Thomas approves, and holds the one lookup that answers whether a spec's
-// design is approved: the local record whose digest matches, else a
+// design is approved: the local record whose digest matches, his own or the
+// carried one, else a
 // Design-approved: line reachable from HEAD with the stem and the digest
 // (spec-design-needs-owner-approval, "The records",
 // C-8). Claim, the ready hook, the closure checks and the decision-row check
@@ -23,6 +25,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -52,18 +55,31 @@ func DesignDigest(text string) string {
 	for _, heading := range digestSections {
 		hash.Write([]byte(heading)) //nolint:errcheck // a hash never fails a write
 		hash.Write([]byte{0})       //nolint:errcheck // a hash never fails a write
-		section, found := spec.section(heading)
+		body, found := spec.digestBody(heading)
 		if !found {
 			continue
 		}
-		body := section.Text
-		if heading == presentationHeading {
-			body = spec.withoutChoices(section)
-		}
-		hash.Write([]byte(strings.TrimRight(body, " \t\r\n"))) //nolint:errcheck // a hash never fails a write
-		hash.Write([]byte{0})                                  //nolint:errcheck // a hash never fails a write
+		hash.Write([]byte(body)) //nolint:errcheck // a hash never fails a write
+		hash.Write([]byte{0})    //nolint:errcheck // a hash never fails a write
 	}
 	return hex.EncodeToString(hash.Sum(nil))
+}
+
+// digestBody answers the text of the section headed heading as the design
+// digest covers it: its trailing blanks trimmed, and ## Design presentation
+// without its Choices for Thomas subsection. found false means the spec has
+// no such section. The digest and the carry-over comparison (carry.go) both
+// read a section through it, so they cannot disagree on what changed.
+func (s specFile) digestBody(heading string) (body string, found bool) {
+	section, found := s.section(heading)
+	if !found {
+		return "", false
+	}
+	body = section.Text
+	if heading == presentationHeading {
+		body = s.withoutChoices(section)
+	}
+	return strings.TrimRight(body, " \t\r\n"), true
 }
 
 // withoutChoices answers presentation's text with the lines of its Choices
@@ -95,15 +111,28 @@ func shortDigest(digest string) string {
 // approval to every checkout git reaches. Its line is
 // `Design-approved: <stem> <digest>: <date> <owner words>` for Thomas's
 // approval, and `Design-approved: <stem> <digest>: away <from>..<until>` for
-// an admission while he is away, with the whole 64-digit digest
-// (FormatApprovalTrailer).
+// an admission while he is away, and `Design-approved: <stem> <digest>:
+// carried <approved digest> <date> judge "<sentence>" approved <date> <owner
+// words>` for his approval of an earlier text carried to this one (carry.go),
+// each with the whole 64-digit digest (FormatApprovalTrailer).
 const DesignApprovedTrailer = "Design-approved: "
 
 // awayWord opens the value of an away admission's trailer.
 const awayWord = "away "
 
+// carriedWord opens the value of a carried approval's trailer. Thomas's own
+// approval opens with its date, so neither word can open his words.
+const carriedWord = "carried "
+
+// The words between the cells of a carried approval's trailer value.
+const (
+	carriedJudgeWord    = "judge "
+	carriedApprovedWord = " approved "
+)
+
 // Approval is a design approval the lookup found: Thomas's, from his record or
-// a trailer, or an admission while he was away (Away, From, Until).
+// a trailer, his approval of an earlier text carried to this one
+// (CarriedFrom), or an admission while he was away (Away, From, Until).
 type Approval struct {
 	Stem   string `json:"stem"`
 	Digest string `json:"digest"`
@@ -117,6 +146,14 @@ type Approval struct {
 	// local record.
 	Commit     string      `json:"commit"`
 	Departures []Departure `json:"departures"`
+	// CarriedFrom is the digest of the text Thomas approved, when his approval
+	// was carried to Digest because the later text only writes in decisions he
+	// made (carry.go), and "" for an approval of Digest itself. Date and Words
+	// stay those of his approval; CarriedOn is the day it was carried, and
+	// JudgeSentence what the independent judge said of the later text.
+	CarriedFrom   string `json:"carried-from,omitempty"`
+	CarriedOn     string `json:"carried-on,omitempty"`
+	JudgeSentence string `json:"judge-sentence,omitempty"`
 }
 
 // FormatApprovalTrailer answers the trailer line that carries approval, the
@@ -126,7 +163,45 @@ func FormatApprovalTrailer(approval Approval) string {
 	if approval.Away {
 		return head + awayWord + approval.From + ".." + approval.Until
 	}
+	if approval.CarriedFrom != "" {
+		return head + carriedWord + approval.CarriedFrom + " " + approval.CarriedOn + " " + carriedJudgeWord +
+			strconv.Quote(approval.JudgeSentence) + carriedApprovedWord + approval.Date + " " + approval.Words
+	}
 	return head + approval.Date + " " + approval.Words
+}
+
+// parseCarried reads the value of a carried approval's trailer after its
+// opening word, as FormatApprovalTrailer spells it, into approval. An error
+// names the cell the value does not spell.
+func parseCarried(value string, approval *Approval) error {
+	from, rest, found := strings.Cut(value, " ")
+	if !found {
+		return errors.New("it names no digest it is carried from")
+	}
+	on, rest, found := strings.Cut(rest, " ")
+	if !found {
+		return errors.New("it names no day it was carried on")
+	}
+	rest, found = strings.CutPrefix(rest, carriedJudgeWord)
+	if !found {
+		return errors.New("it carries no judge sentence")
+	}
+	quotedSentence, err := strconv.QuotedPrefix(rest)
+	if err != nil {
+		return fmt.Errorf("its judge sentence is not a quoted string: %w", err)
+	}
+	sentence, err := strconv.Unquote(quotedSentence)
+	if err != nil {
+		return fmt.Errorf("its judge sentence is not a quoted string: %w", err)
+	}
+	rest, found = strings.CutPrefix(rest[len(quotedSentence):], carriedApprovedWord)
+	if !found {
+		return errors.New("it carries no approval date and owner words")
+	}
+	date, words, _ := strings.Cut(rest, " ")
+	approval.CarriedFrom, approval.CarriedOn, approval.JudgeSentence = from, on, sentence
+	approval.Date, approval.Words = date, words
+	return nil
 }
 
 // Approved is the one lookup: it answers the approval of the design text of
@@ -155,7 +230,21 @@ func ReadApproval(root, stem string) (approval Approval, found bool, err error) 
 
 // approval converts the local record to the lookup's answer.
 func (a approvalRecord) approval(stem string) Approval {
-	return Approval{Stem: stem, Digest: a.digest, Date: a.date, Words: a.words, Departures: a.departures}
+	approval := Approval{Stem: stem, Digest: a.digest, Date: a.date, Words: a.words, Departures: a.departures}
+	if a.carriedFrom != "" {
+		approval.CarriedFrom, approval.CarriedOn, approval.JudgeSentence = a.carriedFrom, a.carriedOn, a.judgeSentence()
+	}
+	return approval
+}
+
+// judgeSentence answers the sentence of the record's Judge line, which is the
+// judge record's digest, date and sentence.
+func (a approvalRecord) judgeSentence() string {
+	cells := strings.SplitN(a.judge, " ", 3)
+	if len(cells) != 3 {
+		return a.judge
+	}
+	return cells[2]
 }
 
 // approvalLookup answers approvals for one checkout, reading the history at
@@ -181,11 +270,11 @@ func (l *approvalLookup) approved(stem, text string) (Approval, bool, error) {
 		return Approval{}, false, errors.New(stem + errNotASpec)
 	}
 	digest := DesignDigest(text)
-	record, found, err := readApprovalFile(approvedPath(l.root, stem))
+	record, found, err := localApproval(l.root, stem, digest)
 	if err != nil {
 		return Approval{}, false, err
 	}
-	if found && record.digest == digest {
+	if found {
 		return record.approval(stem), true, nil
 	}
 	trailers, err := l.load()
@@ -214,8 +303,15 @@ func (l *approvalLookup) trailerApproval(trailer approvalTrailer) (Approval, boo
 		approval.Away, approval.From, approval.Until, approval.Date = true, from, until, from
 		return approval, true, nil
 	}
-	date, words, _ := strings.Cut(trailer.value, " ")
-	approval.Date, approval.Words = date, words
+	if rest, carried := strings.CutPrefix(trailer.value, carriedWord); carried {
+		if err := parseCarried(rest, &approval); err != nil {
+			return Approval{}, false, fmt.Errorf("commit %s carries a Design-approved: carried line that cannot be read: %w; "+
+				"fix: have Thomas approve %s.md (./le spec design approve)", trailer.commit, err, trailer.stem)
+		}
+	} else {
+		date, words, _ := strings.Cut(trailer.value, " ")
+		approval.Date, approval.Words = date, words
+	}
 	departures, err := l.departuresAt(trailer.commit, trailer.stem)
 	if err != nil {
 		return Approval{}, false, err
@@ -296,21 +392,27 @@ func parseApprovalTrailers(out string) []approvalTrailer {
 // departuresAt answers the departs rows of the spec stem names, as commit
 // carries it: the departures of a trailer-only approval ("The records").
 func (l *approvalLookup) departuresAt(commit, stem string) ([]Departure, error) {
-	names, err := l.git("show", "--name-only", "--format=", commit)
+	text, err := l.specTextAt(commit, stem)
 	if err != nil {
 		return nil, err
+	}
+	return departsRows(specFile{text: text, sections: readrecord.Sections(text)}), nil
+}
+
+// specTextAt answers the text of the spec stem names as commit carries it:
+// the text a Design-approved: line of that commit approves.
+func (l *approvalLookup) specTextAt(commit, stem string) (string, error) {
+	names, err := l.git("show", "--name-only", "--format=", commit)
+	if err != nil {
+		return "", err
 	}
 	for name := range strings.SplitSeq(names, "\n") {
 		if path.Base(name) != stem+".md" {
 			continue
 		}
-		text, err := l.git("show", commit+":"+name)
-		if err != nil {
-			return nil, err
-		}
-		return departsRows(specFile{text: text, sections: readrecord.Sections(text)}), nil
+		return l.git("show", commit+":"+name)
 	}
-	return nil, errors.New("commit " + commit + " carries a Design-approved: line for " + stem + ".md but not the spec; " +
+	return "", errors.New("commit " + commit + " carries a Design-approved: line for " + stem + ".md but not the spec; " +
 		"fix: have Thomas approve the spec again (./le spec design approve)")
 }
 
@@ -366,23 +468,14 @@ func gitError(args []string, err error, stderr string) error {
 // (docconsistency.RegisterDepartureLookup). An error is a record or a history
 // that could not be read.
 func DepartureApproved(root, page string, row docconsistency.DecisionRow) (bool, error) {
-	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(approvedDir)))
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return false, fmt.Errorf("read %s: %w", approvedDir, err)
-	}
-	for _, entry := range entries {
-		stem, isRecord := strings.CutSuffix(entry.Name(), ".md")
-		if !isRecord {
-			continue
-		}
-		if !specStem.MatchString(stem) {
-			continue
-		}
-		record, found, err := readApprovalFile(approvedPath(root, stem))
+	// A carried record lists the departures of the approval it carries, which a
+	// carry never changes, so it names a departure as his own record does.
+	for _, records := range []struct{ dir, repair string }{{approvedDir, approveRepair}, {carriedDir, carryRepair}} {
+		named, err := departureRecorded(root, records.dir, records.repair, page, row)
 		if err != nil {
 			return false, err
 		}
-		if found && departureNamed(record.departures, page, row) {
+		if named {
 			return true, nil
 		}
 	}
@@ -402,6 +495,39 @@ func DepartureApproved(root, page string, row docconsistency.DecisionRow) (bool,
 			return false, err
 		}
 		if departureNamed(departures, page, row) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// departureRecorded reports whether a record of dir, the approval records or
+// the carried ones, lists a departure from row of page. A directory that does
+// not exist holds no record; one that cannot be read is an error.
+func departureRecorded(root, dir, repair, page string, row docconsistency.DecisionRow) (bool, error) {
+	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(dir)))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, fmt.Errorf("read %s: %w", dir, err)
+	}
+	for _, entry := range entries {
+		stem, isRecord := strings.CutSuffix(entry.Name(), ".md")
+		if !isRecord {
+			continue
+		}
+		if !specStem.MatchString(stem) {
+			continue
+		}
+		record, found, err := readApprovalRecord(filepath.Join(root, filepath.FromSlash(dir), entry.Name()), repair)
+		if err != nil {
+			return false, err
+		}
+		if !found {
+			continue
+		}
+		if departureNamed(record.departures, page, row) {
 			return true, nil
 		}
 	}

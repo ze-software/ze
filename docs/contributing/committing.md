@@ -208,7 +208,11 @@ digest matches, and no commit reachable from HEAD already carries that stem
 and digest (`designApprovedTrailers`, `specdesign.OwedApprovalTrailer`). While
 Thomas is away and the away rule admits the text (a judged fix spec with no
 departs row), the line reads `Design-approved: <spec stem> <digest>: away
-<from>..<until>` instead. A removed spec carries no text, so a closure writes
+<from>..<until>` instead. When the local record is one `./le spec design
+carry` wrote, the line records the chain: `Design-approved: <spec stem>
+<digest>: carried <approved digest> <date carried> judge "<the judge's
+sentence>" approved <date> <his words>` (`docs/contributing/spec-workflow.md`,
+"An approval carries over to his own decisions"). A removed spec carries no text, so a closure writes
 none. The line closes the message after `Decision-changed:` and before
 `No-news:`; the push derivation owes nothing for it (`OwesNothing`), and a
 hand-written one is refused like any declared key. `./le spec claim` and the

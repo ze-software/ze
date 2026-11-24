@@ -102,7 +102,7 @@ other research. A feature can be more than one type -- read every row that appli
 | Component | `ai/patterns/registration.md`, `ai/rules/architecture.md` | new `internal/component/<name>/` |
 | CLI command | `ai/patterns/cli-command.md` | new verb/subcommand or `ze:command` YANG node |
 | Config option / YANG leaf / env var | `ai/patterns/config-option.md`, `ai/rules/config.md` | new YANG leaf, container, or `ze.*` env var |
-| Runtime dependency | `ai/rules/repo-maintenance.md` | new file path, socket, listen port, kernel module, external binary, cert, procfs/sysctl, or netlink use |
+| Runtime dependency | `ai/rules/repo-maintenance.md` | new file path, socket, listen port, kernel module, external binary, cert, procfs/sysctl, or netlink socket use |
 
 `ai/INDEX.md` (the "Build / extend" table) is the authoritative feature-type to
 pattern map; consult it if the type is unclear.
@@ -396,6 +396,11 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
     (`./le spec design away`), a judged fix spec under `plan/release/fixes/`
     with no `departs` row needs no approval; any other spec waits for him
     (`docs/contributing/spec-workflow.md`, "Design approval").
+    A later change that only adds rows for decisions he made (rows of a
+    page's `## Design decisions` section), or follows a rename on a page a
+    row quotes, is not put back to him: have `ze-design-judge` judge the new
+    text, then run `./le spec design carry spec <path>`. It refuses any
+    other change by name, and that change goes back to him.
 12. **Status transition:** only after the approval printed `approved`, edit the spec: set `Status` to `ready`, `Updated` to today. The write hook `writeSpecReady` refuses the edit without a matching approval, and always from a subagent. `./le spec design pending` lists every ready spec still waiting for him.
 13. Save the spec at its bucket path. Do not stage it: `git add` is banned as a direct call (`ai/rules/git-safety.md`), and `./le commit create` names the file instead; the commit that carries the spec writes its `Design-approved:` trailer.
 
