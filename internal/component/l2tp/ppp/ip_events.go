@@ -104,6 +104,7 @@ type ipResponseMsg struct {
 	local            netip.Addr
 	peer             netip.Addr
 	peerNegotiated   bool
+	checkPeerIPv4    func(netip.Addr) bool
 	admitPeerIPv4    func(netip.Addr) bool
 	releasePeerIPv4  func()
 	dnsPrimary       netip.Addr

@@ -255,11 +255,15 @@ type IPResponseArgs struct {
 	Local          netip.Addr
 	Peer           netip.Addr
 	PeerNegotiated bool
-	// AdmitPeerIPv4, when non-nil alongside PeerNegotiated, judges and
-	// exclusively reserves a peer-proposed IPv4 address (refusing addresses
-	// inside configured pools or already held by another live session). It
-	// MUST be idempotent for repeated proposals of the same address by the
-	// same session and safe for concurrent use.
+	// CheckPeerIPv4, when non-nil alongside PeerNegotiated, performs a
+	// read-only check on whether a peer-proposed IPv4 address is eligible
+	// (outside configured pools and not held by another live session) without
+	// reserving it. Used while evaluating requests and building Configure-Rejects.
+	CheckPeerIPv4 func(netip.Addr) bool
+	// AdmitPeerIPv4, when non-nil alongside PeerNegotiated, atomically checks
+	// and exclusively reserves a peer-proposed IPv4 address once IPCP is about
+	// to send Configure-Ack. It MUST be idempotent for repeated proposals of
+	// the same address by the same session and safe for concurrent use.
 	AdmitPeerIPv4 func(netip.Addr) bool
 	// ReleasePeerIPv4, when non-nil alongside PeerNegotiated, releases any
 	// address reserved via AdmitPeerIPv4 when IPCP leaves Opened (TLD) or
@@ -291,6 +295,7 @@ func (d *Driver) IPResponse(request EventIPRequest, args IPResponseArgs) error {
 		local:            args.Local,
 		peer:             args.Peer,
 		peerNegotiated:   args.PeerNegotiated,
+		checkPeerIPv4:    args.CheckPeerIPv4,
 		admitPeerIPv4:    args.AdmitPeerIPv4,
 		releasePeerIPv4:  args.ReleasePeerIPv4,
 		dnsPrimary:       args.DNSPrimary,

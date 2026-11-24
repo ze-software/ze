@@ -42,24 +42,27 @@ sets `AuthMetadata.FramedIPNegotiated` for `0xFFFFFFFF` alone. The pool handler
 allocates from the pool for `0xFFFFFFFE` or an absent attribute, pins the
 address for a unicast `FramedIP`, and for `FramedIPNegotiated` skips pool
 allocation while supplying the selected pool's gateway, DNS, and
-`AdmitPeerIPv4`/`ReleasePeerIPv4` callbacks with `PeerNegotiated: true`. IPCP
-then accepts a peer-proposed unicast IPv4 address only when it is distinct from
-the local gateway, falls outside every configured IPv4 pool (default and named),
-and is not already held by any other live session (pool-allocated, static
-RADIUS, or peer-negotiated). Admitted peer-negotiated addresses are recorded
+`CheckPeerIPv4`/`AdmitPeerIPv4`/`ReleasePeerIPv4` callbacks with
+`PeerNegotiated: true`. IPCP evaluates peer-proposed IP-Address options and
+builds Configure-Rejects read-only via `CheckPeerIPv4` (rejecting unusable,
+in-pool, already-held, or conflicting duplicate IP-Address options without
+reserving any slot), and atomically reserves the accepted unicast IPv4 address
+via `AdmitPeerIPv4` only when the FSM transition is about to transmit
+Configure-Ack (`LCPActSCA`). Admitted peer-negotiated addresses are recorded
 exclusively in `sessionAddrs` (`fromPool: false`), carried safely across pool
-reloads, and released on IPCP This-Layer-Down, LCP reset, or session teardown.
-Unusable, in-pool, or already-held proposals draw a Configure-Reject because Ze
-holds no pool address to Nak with; an omitted IP-Address option draws a
-Configure-Nak carrying `0.0.0.0` per RFC 1332 Section 3.3. The negotiated
-address is what programs `pppN` and reaches `EventSessionIPAssigned` and RADIUS
-accounting.
+reloads, preserved across Opened IPCP renegotiation to a replacement address,
+and released on IPCP This-Layer-Down, LCP reset, or session teardown. Unusable,
+in-pool, already-held, or conflicting duplicate proposals draw a
+Configure-Reject because Ze holds no pool address to Nak with; an omitted
+IP-Address option draws a Configure-Nak carrying `0.0.0.0` per RFC 1332 Section
+3.3. The negotiated address is what programs `pppN` and reaches
+`EventSessionIPAssigned` and RADIUS accounting.
 
 <!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractAuthMetadata, framedIPUserSelects, framedIPNASSelects -->
 <!-- source: internal/component/l2tp/session_metadata.go -- AuthMetadata -->
 <!-- source: internal/component/l2tp/plugins/pool/register.go -- handle -->
-<!-- source: internal/component/l2tp/plugins/pool/radius.go -- peerNegotiatedAnswer, admitPeerAddress, releasePeerAddress, addressInAnyPoolLocked -->
-<!-- source: internal/component/l2tp/ppp/ncp.go -- requestIPCPAddresses, evalIPCPRequest, buildNakOrReject, copyRejectedIPCPOptions, isValidNegotiatedPeerIPv4 -->
+<!-- source: internal/component/l2tp/plugins/pool/radius.go -- peerNegotiatedAnswer, checkPeerAddress, admitPeerAddress, releasePeerAddress, addressInAnyPoolLocked -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- requestIPCPAddresses, handleNCPPacket, evalIPCPRequest, buildNakOrReject, copyRejectedIPCPOptions, validateNegotiatedPeerIPv4Options, isValidNegotiatedPeerIPv4 -->
 
 **Framed-MTU lowers the interface MTU, never the LCP MRU.** RFC 2865 Section
 5.12 gives the MTU "to be configured for the user, when it is not negotiated by
@@ -84,7 +87,7 @@ count does not justify.
 
 **Idle detection reads the Linux sysfs interface statistics.** The receive-byte
 counter under the interface's statistics directory needs no socket and is
-readable from any goroutine. Netlink statistics were rejected for that reason.
+readable from any goroutine. Netlink link statistics were rejected for that reason.
 The non-Linux build returns 0, so the timer fires unconditionally there.
 
 <!-- source: internal/component/l2tp/iface_stats_linux.go -- interface byte counters from sysfs -->

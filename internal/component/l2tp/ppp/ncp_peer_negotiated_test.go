@@ -15,6 +15,7 @@ package ppp
 import (
 	"bytes"
 	"net/netip"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -289,6 +290,9 @@ func TestIPCPPeerNegotiatedRefusesAddressRejectedByAdmitCallback(t *testing.T) {
 				Family:         req.Family,
 				Local:          ipcpTestLocal,
 				PeerNegotiated: true,
+				CheckPeerIPv4: func(addr netip.Addr) bool {
+					return addr != inPool && addr != heldByOther
+				},
 				AdmitPeerIPv4: func(addr netip.Addr) bool {
 					return addr != inPool && addr != heldByOther
 				},
@@ -353,5 +357,180 @@ func TestIPCPPeerNegotiatedRefusesAddressRejectedByAdmitCallback(t *testing.T) {
 	}
 	if released.Load() == 0 {
 		t.Error("ReleasePeerIPv4 was not called on IPCP This-Layer-Down")
+	}
+}
+
+// TestIPCPPeerNegotiatedDoesNotReserveOnRejectedRequest verifies that
+// copyRejectedIPCPOptions and evalIPCPRequest never call AdmitPeerIPv4 (never
+// reserve an address) when an IPCP Configure-Request is rejected or naked:
+//   - duplicate IP-Address [valid, in-pool] and [in-pool, valid]
+//   - conflicting duplicate valid IP-Address [valid1, valid2]
+//   - valid IP-Address alongside an unserved DNS option (Configure-Reject)
+//   - valid IP-Address alongside a mismatched served DNS option (Configure-Nak)
+//   - a concurrent race where CheckPeerIPv4 succeeds but AdmitPeerIPv4 refuses
+//
+// It also verifies that IPCP renegotiation while Opened replaces the
+// reservation cleanly without LCPActTLD wiping the newly admitted address.
+func TestIPCPPeerNegotiatedDoesNotReserveOnRejectedRequest(t *testing.T) {
+	inPool := netip.MustParseAddr("10.0.0.10")
+	raced := netip.MustParseAddr("198.51.100.88")
+	valid1 := netip.MustParseAddr("198.51.100.71")
+	valid2 := netip.MustParseAddr("198.51.100.72")
+	dnsPrimary := netip.MustParseAddr("198.51.100.53")
+
+	var admitCalls atomic.Int32
+	var releaseCalls atomic.Int32
+	var reserved atomic.Value
+	reserved.Store(netip.Addr{})
+
+	ipFn := func(d *Driver) {
+		for ev := range d.IPEventsOut() {
+			req, ok := ev.(EventIPRequest)
+			if !ok {
+				continue
+			}
+			args := IPResponseArgs{
+				Accept:         true,
+				Family:         req.Family,
+				Local:          ipcpTestLocal,
+				PeerNegotiated: true,
+				DNSPrimary:     dnsPrimary,
+				CheckPeerIPv4: func(addr netip.Addr) bool {
+					return addr != inPool
+				},
+				AdmitPeerIPv4: func(addr netip.Addr) bool {
+					admitCalls.Add(1)
+					if addr == inPool || addr == raced {
+						return false
+					}
+					reserved.Store(addr)
+					return true
+				},
+				ReleasePeerIPv4: func() {
+					releaseCalls.Add(1)
+					reserved.Store(netip.Addr{})
+				},
+			}
+			_ = d.IPResponse(req, args) //nolint:errcheck // ignore teardown race
+		}
+	}
+
+	td := newNCPTestDriverIP(t, &StartSession{DisableIPv6CP: true}, ipFn)
+	defer td.cleanup()
+
+	cr := td.readPeerNCPPacket(t, ProtoIPCP)
+	if cr.Code != LCPConfigureRequest {
+		t.Fatalf("got code %d, want Configure-Request", cr.Code)
+	}
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureAck, cr.Identifier, cr.Data)
+
+	valid1Opt := ipcpOpt(IPCPOptIPAddress, valid1)
+	valid2Opt := ipcpOpt(IPCPOptIPAddress, valid2)
+	inPoolOpt := ipcpOpt(IPCPOptIPAddress, inPool)
+	unservedSecDNS := ipcpOpt(IPCPOptSecondaryDNS, netip.IPv4Unspecified())
+	wrongPriDNS := ipcpOpt(IPCPOptPrimaryDNS, netip.IPv4Unspecified())
+
+	// 1. Duplicate [valid, in-pool] -> Configure-Reject of in-pool, zero admit calls.
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureRequest, 0x70, append(slices.Clone(valid1Opt), inPoolOpt...))
+	reply := readIPCPReply(t, td)
+	if reply.Code != LCPConfigureReject || !bytes.Equal(reply.Data, inPoolOpt) {
+		t.Fatalf("[valid, in-pool]: got code=%d data=% x, want Reject % x", reply.Code, reply.Data, inPoolOpt)
+	}
+	if got := admitCalls.Load(); got != 0 {
+		t.Fatalf("[valid, in-pool]: AdmitPeerIPv4 called %d times, want 0", got)
+	}
+
+	// 2. Duplicate [in-pool, valid] (reversed) -> Configure-Reject of in-pool, zero admit calls.
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureRequest, 0x71, append(slices.Clone(inPoolOpt), valid1Opt...))
+	reply = readIPCPReply(t, td)
+	if reply.Code != LCPConfigureReject || !bytes.Equal(reply.Data, inPoolOpt) {
+		t.Fatalf("[in-pool, valid]: got code=%d data=% x, want Reject % x", reply.Code, reply.Data, inPoolOpt)
+	}
+	if got := admitCalls.Load(); got != 0 {
+		t.Fatalf("[in-pool, valid]: AdmitPeerIPv4 called %d times, want 0", got)
+	}
+
+	// 3. Conflicting duplicate valid options [valid1, valid2] -> Configure-Reject of valid2, zero admit calls.
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureRequest, 0x72, append(slices.Clone(valid1Opt), valid2Opt...))
+	reply = readIPCPReply(t, td)
+	if reply.Code != LCPConfigureReject || !bytes.Equal(reply.Data, valid2Opt) {
+		t.Fatalf("[valid1, valid2]: got code=%d data=% x, want Reject % x", reply.Code, reply.Data, valid2Opt)
+	}
+	if got := admitCalls.Load(); got != 0 {
+		t.Fatalf("[valid1, valid2]: AdmitPeerIPv4 called %d times, want 0", got)
+	}
+
+	// 4. Valid IP + unserved Secondary-DNS -> Configure-Reject of DNS, zero admit calls.
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureRequest, 0x73, append(slices.Clone(valid1Opt), unservedSecDNS...))
+	reply = readIPCPReply(t, td)
+	if reply.Code != LCPConfigureReject || !bytes.Equal(reply.Data, unservedSecDNS) {
+		t.Fatalf("[valid, unserved DNS]: got code=%d data=% x, want Reject % x", reply.Code, reply.Data, unservedSecDNS)
+	}
+	if got := admitCalls.Load(); got != 0 {
+		t.Fatalf("[valid, unserved DNS]: AdmitPeerIPv4 called %d times, want 0", got)
+	}
+
+	// 5. Valid IP + mismatched served Primary-DNS -> Configure-Nak, zero admit calls.
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureRequest, 0x74, append(slices.Clone(valid1Opt), wrongPriDNS...))
+	reply = readIPCPReply(t, td)
+	if reply.Code != LCPConfigureNak {
+		t.Fatalf("[valid, wrong PriDNS]: got code=%d, want Configure-Nak", reply.Code)
+	}
+	if got := admitCalls.Load(); got != 0 {
+		t.Fatalf("[valid, wrong PriDNS]: AdmitPeerIPv4 called %d times, want 0", got)
+	}
+
+	// 6. Race: CheckPeerIPv4 allows raced, AdmitPeerIPv4 refuses -> Configure-Reject echoing raced.
+	racedOpt := ipcpOpt(IPCPOptIPAddress, raced)
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureRequest, 0x75, racedOpt)
+	reply = readIPCPReply(t, td)
+	if reply.Code != LCPConfigureReject || !bytes.Equal(reply.Data, racedOpt) {
+		t.Fatalf("raced commit: got code=%d data=% x, want Reject % x", reply.Code, reply.Data, racedOpt)
+	}
+	if got, ok := reserved.Load().(netip.Addr); !ok || got.IsValid() {
+		t.Fatalf("raced commit left reserved=%v (ok=%v), want invalid", got, ok)
+	}
+
+	// 7. Valid single proposal opens IPCP on valid1; then IPCP renegotiation while
+	// Opened switches cleanly to valid2 without LCPActTLD wiping valid2.
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureRequest, 0x76, valid1Opt)
+	reply = readIPCPReply(t, td)
+	if reply.Code != LCPConfigureAck {
+		t.Fatalf("valid1: got code=%d, want Configure-Ack", reply.Code)
+	}
+	assigned1, ok := waitForEventOfType[EventSessionIPAssigned](t, td.driver.EventsOut(), 2*time.Second)
+	if !ok || assigned1.Peer != valid1 {
+		t.Fatalf("first EventSessionIPAssigned = %+v (ok=%v), want Peer=%v", assigned1, ok, valid1)
+	}
+	if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 2*time.Second); !ok {
+		t.Fatal("no EventSessionUp after initial IPCP open")
+	}
+
+	// Renegotiate while Opened with valid2.
+	releasesBefore := releaseCalls.Load()
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureRequest, 0x77, valid2Opt)
+	if _, ok := waitForEventOfType[EventSessionIPReleased](t, td.driver.EventsOut(), 2*time.Second); !ok {
+		t.Fatal("no EventSessionIPReleased on Opened IPCP renegotiation")
+	}
+	// Expect Ze's new Configure-Request and Configure-Ack for valid2 (in order: SCR then SCA).
+	renegCR := td.readPeerNCPPacket(t, ProtoIPCP)
+	if renegCR.Code != LCPConfigureRequest {
+		t.Fatalf("reneg packet 1 code = %d, want Configure-Request", renegCR.Code)
+	}
+	renegAck := td.readPeerNCPPacket(t, ProtoIPCP)
+	if renegAck.Code != LCPConfigureAck || !bytes.Equal(renegAck.Data, valid2Opt) {
+		t.Fatalf("reneg packet 2 = code=%d data=% x, want Configure-Ack % x", renegAck.Code, renegAck.Data, valid2Opt)
+	}
+	if releaseCalls.Load() != releasesBefore {
+		t.Fatalf("ReleasePeerIPv4 fired during Opened renegotiation with replacement admission")
+	}
+	if got, ok := reserved.Load().(netip.Addr); !ok || got != valid2 {
+		t.Fatalf("reserved after Opened renegotiation = %v (ok=%v), want %v", got, ok, valid2)
+	}
+	// Ack Ze's renegotiated Configure-Request -> IPCP reopens with valid2.
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureAck, renegCR.Identifier, renegCR.Data)
+	assigned2, ok := waitForEventOfType[EventSessionIPAssigned](t, td.driver.EventsOut(), 2*time.Second)
+	if !ok || assigned2.Peer != valid2 {
+		t.Fatalf("second EventSessionIPAssigned = %+v (ok=%v), want Peer=%v", assigned2, ok, valid2)
 	}
 }

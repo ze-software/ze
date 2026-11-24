@@ -334,12 +334,15 @@ func (s *pppSession) requestIPCPAddresses() bool {
 	s.peerIPv4Selectable = msg.peerNegotiated
 	if msg.peerNegotiated {
 		// RFC 2865 Section 5.8: peer selects its own IPv4 address via IPCP;
-		// keep peerIPv4 unset until evalIPCPRequest accepts a valid proposal.
+		// keep peerIPv4 unset until an IPCP Configure-Request is accepted for
+		// Configure-Ack.
 		s.peerIPv4 = netip.Addr{}
+		s.checkPeerIPv4 = msg.checkPeerIPv4
 		s.admitPeerIPv4 = msg.admitPeerIPv4
 		s.releasePeerIPv4 = msg.releasePeerIPv4
 	} else {
 		s.peerIPv4 = msg.peer
+		s.checkPeerIPv4 = nil
 		s.admitPeerIPv4 = nil
 		s.releasePeerIPv4 = nil
 	}
@@ -701,7 +704,19 @@ func (s *pppSession) handleNCPPacket(
 	// RFC 1332 Section 2.
 	ev := ncpCodeToEvent(pkt, optsBad)
 	tr := LCPDoTransition(cur, ev)
+	s.refusedPeerIPv4 = netip.Addr{}
+	if family == AddressFamilyIPv4 && pkt.Code == LCPConfigureRequest &&
+		s.peerIPv4Selectable && transitionHasAction(tr, LCPActSCA) {
+		proposed, ok := validateNegotiatedPeerIPv4Options(pkt.Data, s.localIPv4)
+		if !ok || (s.admitPeerIPv4 != nil && !s.admitPeerIPv4(proposed)) {
+			s.refusedPeerIPv4 = proposed
+			tr = LCPDoTransition(cur, LCPEventRCRMinus)
+		} else {
+			s.peerIPv4 = proposed
+		}
+	}
 	if tr.NewState == cur && len(tr.Actions) == 0 {
+		s.refusedPeerIPv4 = netip.Addr{}
 		s.logger.Debug("ppp: NCP no-op transition",
 			"family", family.String(),
 			"state", cur.String(),
@@ -709,7 +724,9 @@ func (s *pppSession) handleNCPPacket(
 		return false
 	}
 
-	return s.applyNCPTransition(family, cur, tr, pkt)
+	stop := s.applyNCPTransition(family, cur, tr, pkt)
+	s.refusedPeerIPv4 = netip.Addr{}
+	return stop
 }
 
 // ncpCodeToEvent maps the Code of a received IPCP or IPv6CP packet to the
@@ -800,13 +817,13 @@ func (s *pppSession) evalIPCPRequest(pkt LCPPacket) ncpRequestVerdict {
 	if s.peerIPv4Selectable {
 		// RFC 2865 Section 5.8: "The value 0xFFFFFFFF indicates that the NAS
 		// Should allow the user to select an address (e.g. Negotiated)."
-		if !opts.HasIPAddress {
+		// Pure read-only check here; atomic reservation happens in
+		// handleNCPPacket only when the FSM transition carries LCPActSCA.
+		proposed, ok := validateNegotiatedPeerIPv4Options(pkt.Data, s.localIPv4)
+		if !ok {
 			return ncpRequestUnacceptable
 		}
-		if !isValidNegotiatedPeerIPv4(opts.IPAddress, s.localIPv4) {
-			return ncpRequestUnacceptable
-		}
-		if s.admitPeerIPv4 != nil && !s.admitPeerIPv4(opts.IPAddress) {
+		if s.checkPeerIPv4 != nil && !s.checkPeerIPv4(proposed) {
 			return ncpRequestUnacceptable
 		}
 	} else if opts.HasIPAddress && opts.IPAddress != s.peerIPv4 {
@@ -823,10 +840,53 @@ func (s *pppSession) evalIPCPRequest(pkt LCPPacket) ncpRequestVerdict {
 	if opts.HasSecondary && opts.SecondaryDNS != s.dnsSecondary {
 		return ncpRequestUnacceptable
 	}
-	if s.peerIPv4Selectable {
-		s.peerIPv4 = opts.IPAddress
-	}
 	return ncpRequestAcceptable
+}
+
+// transitionHasAction reports whether tr includes target among its actions.
+func transitionHasAction(tr lCPTransition, target LCPAction) bool {
+	return slices.Contains(tr.Actions, target)
+}
+
+// validateNegotiatedPeerIPv4Options walks an IPCP Configure-Request option
+// list and verifies that at least one IP-Address option is present, every
+// IP-Address option carries a usable unicast IPv4 address distinct from local,
+// and duplicate IP-Address options do not propose conflicting addresses.
+func validateNegotiatedPeerIPv4Options(data []byte, local netip.Addr) (netip.Addr, bool) {
+	var first netip.Addr
+	var seen bool
+	i := 0
+	for i < len(data) {
+		if len(data)-i < 2 {
+			return netip.Addr{}, false
+		}
+		l := int(data[i+1])
+		if l < 2 {
+			return netip.Addr{}, false
+		}
+		if i+l > len(data) {
+			return netip.Addr{}, false
+		}
+		if data[i] == IPCPOptIPAddress {
+			addr, err := parseIPCPv4Option(l, data[i+2:i+l])
+			if err != nil {
+				return netip.Addr{}, false
+			}
+			if !isValidNegotiatedPeerIPv4(addr, local) {
+				return netip.Addr{}, false
+			}
+			if seen && addr != first {
+				return netip.Addr{}, false
+			}
+			first = addr
+			seen = true
+		}
+		i += l
+	}
+	if !seen {
+		return netip.Addr{}, false
+	}
+	return first, true
 }
 
 var limitedBroadcastIPv4 = netip.AddrFrom4([4]byte{255, 255, 255, 255})
@@ -1020,8 +1080,11 @@ func (s *pppSession) absorbIPv6CPReject(pkt LCPPacket) ncpReplyVerdict {
 }
 
 // performNCPAction translates one FSM action into wire I/O on the
-// chan fd for the given family.
-func (s *pppSession) performNCPAction(family AddressFamily, act LCPAction, current LCPPacket) bool {
+// chan fd for the given family. keepPeerIPv4 is true when the same transition
+// also emits LCPActSCA for an already-admitted peer-negotiated IPv4 address
+// (for example, IPCP renegotiation while Opened), so LCPActTLD withdraws the
+// old kernel assignment without releasing the replacement reservation.
+func (s *pppSession) performNCPAction(family AddressFamily, act LCPAction, current LCPPacket, keepPeerIPv4 bool) bool {
 	switch act {
 	case LCPActSCR:
 		s.spendNCPRestartCount(family)
@@ -1052,7 +1115,7 @@ func (s *pppSession) performNCPAction(family AddressFamily, act LCPAction, curre
 		// RFC 1661 Section 4.4, This-Layer-Down: the transport learns the
 		// family left Opened only after the kernel stopped carrying it.
 		s.publishNCPRelease(family)
-		if family == AddressFamilyIPv4 && s.peerIPv4Selectable {
+		if family == AddressFamilyIPv4 && s.peerIPv4Selectable && !keepPeerIPv4 {
 			s.peerIPv4 = netip.Addr{}
 			if s.releasePeerIPv4 != nil {
 				s.releasePeerIPv4()
@@ -1454,6 +1517,8 @@ func copyUnknownOptions(src []byte, known func(uint8) bool, buf []byte, off int)
 // wrong length because Ze holds no pool address to offer in a Configure-Nak.
 func (s *pppSession) copyRejectedIPCPOptions(src, buf []byte, off int) int {
 	start := off
+	var firstValidIP netip.Addr
+	var hasValidIP bool
 	i := 0
 	for i < len(src) {
 		if len(src)-i < 2 {
@@ -1475,8 +1540,15 @@ func (s *pppSession) copyRejectedIPCPOptions(src, buf []byte, off int) int {
 				reject = true
 			case !isValidNegotiatedPeerIPv4(addr, s.localIPv4):
 				reject = true
-			case s.admitPeerIPv4 != nil && !s.admitPeerIPv4(addr):
+			case s.refusedPeerIPv4.IsValid() && addr == s.refusedPeerIPv4:
 				reject = true
+			case s.checkPeerIPv4 != nil && !s.checkPeerIPv4(addr):
+				reject = true
+			case hasValidIP && addr != firstValidIP:
+				reject = true
+			default:
+				firstValidIP = addr
+				hasValidIP = true
 			}
 		}
 		if reject {
@@ -1740,6 +1812,7 @@ func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
 		timeout = defaultIPTimeout
 	}
 	approval, deadline, err := admission.armAssignmentApproval(timeout)
+	// refuse-by-default: guards pppSession.onNCPOpened -- false stops NCP activation when auth admission already ended.
 	if err != nil {
 		return false
 	}
@@ -1842,8 +1915,10 @@ func (s *pppSession) resetNCP() bool {
 	s.localIPv4 = netip.Addr{}
 	s.peerIPv4 = netip.Addr{}
 	s.peerIPv4Selectable = false
+	s.checkPeerIPv4 = nil
 	s.admitPeerIPv4 = nil
 	s.releasePeerIPv4 = nil
+	s.refusedPeerIPv4 = netip.Addr{}
 	s.dnsPrimary = netip.Addr{}
 	s.dnsSecondary = netip.Addr{}
 	s.localInterfaceID = [8]byte{}

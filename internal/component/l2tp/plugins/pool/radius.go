@@ -105,6 +105,9 @@ func (p *poolPlugin) peerNegotiatedAnswer(
 		Family:         ppp.AddressFamilyIPv4,
 		Local:          local,
 		PeerNegotiated: true,
+		CheckPeerIPv4: func(addr netip.Addr) bool {
+			return p.checkPeerAddress(key, addr)
+		},
 		AdmitPeerIPv4: func(addr netip.Addr) bool {
 			return p.admitPeerAddress(key, tunnelID, sessionID, local, dnsPrimary, dnsSecondary, addr)
 		},
@@ -132,31 +135,12 @@ func (p *poolPlugin) addressInAnyPoolLocked(addr netip.Addr) bool {
 	return false
 }
 
-// admitPeerAddress enforces pool-range and active-session exclusivity for a
-// peer-negotiated IPv4 address (RFC 2865 Section 5.8, 0xFFFFFFFF) and records
-// it exclusively in sessionAddrs under mu. Idempotent when the same subscriber
-// re-proposes the address it already holds; replaces a prior negotiated
-// address for the same subscriber on IPCP renegotiation. Safe for concurrent
-// use.
-func (p *poolPlugin) admitPeerAddress(
-	key string,
-	tunnelID, sessionID uint16,
-	local, dnsPrimary, dnsSecondary, addr netip.Addr,
-) bool {
-	if !addr.Is4() {
-		return false
-	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
+// peerAddressAvailabilityLocked checks pool-range and active-session
+// exclusivity for addr under mu without modifying pool state.
+func (p *poolPlugin) peerAddressAvailabilityLocked(key string, addr netip.Addr) (inPool, heldByOther, alreadySame bool) {
 	if p.addressInAnyPoolLocked(addr) {
-		logger().Info("l2tp-pool: refused peer-negotiated address inside configured pool",
-			"subscriber", key, "tunnel", tunnelID, "session", sessionID, "address", addr)
-		return false
+		return true, false, false
 	}
-
-	var alreadySame bool
-	var heldByOther bool
 	p.sessionAddrs.Range(func(k, value any) bool {
 		owner, ok := k.(string)
 		if !ok {
@@ -178,6 +162,45 @@ func (p *poolPlugin) admitPeerAddress(
 		}
 		return true
 	})
+	return false, heldByOther, alreadySame
+}
+
+// checkPeerAddress reports whether addr is eligible for peer-negotiated IPv4
+// admission (outside all configured pools and not held by another live
+// session) without reserving it. Safe for concurrent use.
+func (p *poolPlugin) checkPeerAddress(key string, addr netip.Addr) bool {
+	if !addr.Is4() {
+		return false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	inPool, heldByOther, _ := p.peerAddressAvailabilityLocked(key, addr)
+	return !inPool && !heldByOther
+}
+
+// admitPeerAddress enforces pool-range and active-session exclusivity for a
+// peer-negotiated IPv4 address (RFC 2865 Section 5.8, 0xFFFFFFFF) and records
+// it exclusively in sessionAddrs under mu. Idempotent when the same subscriber
+// re-proposes the address it already holds; replaces a prior negotiated
+// address for the same subscriber on IPCP renegotiation. Safe for concurrent
+// use.
+func (p *poolPlugin) admitPeerAddress(
+	key string,
+	tunnelID, sessionID uint16,
+	local, dnsPrimary, dnsSecondary, addr netip.Addr,
+) bool {
+	if !addr.Is4() {
+		return false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	inPool, heldByOther, alreadySame := p.peerAddressAvailabilityLocked(key, addr)
+	if inPool {
+		logger().Info("l2tp-pool: refused peer-negotiated address inside configured pool",
+			"subscriber", key, "tunnel", tunnelID, "session", sessionID, "address", addr)
+		return false
+	}
 	if heldByOther {
 		logger().Info("l2tp-pool: refused peer-negotiated address already in use",
 			"subscriber", key, "tunnel", tunnelID, "session", sessionID, "address", addr)

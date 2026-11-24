@@ -180,7 +180,7 @@ func TestPoolPeerNegotiatedAdmissionExcludesPoolsAndActiveSessions(t *testing.T)
 	negA := p.handle(ppp.EventIPRequest{
 		SubscriberID: negAID, TunnelID: 20, SessionID: 3, Family: ppp.AddressFamilyIPv4,
 	})
-	if !negA.Accept || negA.AdmitPeerIPv4 == nil || negA.ReleasePeerIPv4 == nil {
+	if !negA.Accept || negA.CheckPeerIPv4 == nil || negA.AdmitPeerIPv4 == nil || negA.ReleasePeerIPv4 == nil {
 		t.Fatalf("negA answer = %+v, want Accept with callbacks", negA)
 	}
 
@@ -195,13 +195,25 @@ func TestPoolPeerNegotiatedAdmissionExcludesPoolsAndActiveSessions(t *testing.T)
 		{"named-pool-free", netip.MustParseAddr("10.1.0.3")},
 		{"static-radius-active", staticAddr},
 	} {
+		if negA.CheckPeerIPv4(tc.addr) {
+			t.Errorf("CheckPeerIPv4(%s, %s) = true, want false", tc.name, tc.addr)
+		}
 		if negA.AdmitPeerIPv4(tc.addr) {
 			t.Errorf("AdmitPeerIPv4(%s, %s) = true, want false", tc.name, tc.addr)
 		}
 	}
 
-	// Admitted: free external unicast address.
+	// CheckPeerIPv4 is read-only: checking a free address returns true without
+	// reserving it in sessionAddrs.
 	chosenA := netip.MustParseAddr("198.51.100.42")
+	if !negA.CheckPeerIPv4(chosenA) {
+		t.Fatalf("CheckPeerIPv4(%s) = false, want true", chosenA)
+	}
+	if _, exists := p.sessionAddrs.Load(negAID); exists {
+		t.Fatal("CheckPeerIPv4 reserved an address in sessionAddrs; must be read-only")
+	}
+
+	// Admitted: free external unicast address.
 	if !negA.AdmitPeerIPv4(chosenA) {
 		t.Fatalf("AdmitPeerIPv4(%s) = false, want true", chosenA)
 	}

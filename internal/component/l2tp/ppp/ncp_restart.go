@@ -74,12 +74,13 @@ func (s *pppSession) applyNCPTransition(family AddressFamily, current LCPState, 
 			restartMax = s.lcpConfig.MaxTerminate()
 		}
 	}
+	keepPeerIPv4 := family == AddressFamilyIPv4 && transitionHasAction(transition, LCPActSCA)
 	for _, action := range transition.Actions {
 		if action == LCPActIRC {
 			s.ncpRestart(family).count = restartMax
 			continue
 		}
-		if !s.performNCPAction(family, action, packet) {
+		if !s.performNCPAction(family, action, packet, keepPeerIPv4) {
 			return true
 		}
 	}
