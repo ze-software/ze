@@ -3,6 +3,7 @@ package ssh
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -175,7 +177,7 @@ func TestStreamHeadUsesTheSelectedPositionalSchema(t *testing.T) {
 		}, nil
 	})
 
-	_, stderr := execUndeclared(t, srv, "system command list | display help value")
+	_, stderr := execDeclared(t, srv, "system command list | display help value")
 	var head rpc.AnswerTail
 	for line := range strings.SplitSeq(strings.TrimRight(stderr, "\n"), "\n") {
 		kind, tail, err := rpc.ParseAnswerLine([]byte(line))
@@ -277,20 +279,43 @@ func execUndeclared(t *testing.T, srv *Server, command string) (string, string) 
 	return stdout.String(), stderr.String()
 }
 
-// TestExecAnswerUnconditional drives the exec channel from a client that
-// requests no environment, and reads the frame it is answered with.
+// execDeclared runs one command over a real SSH exec channel after opting into
+// stderr answer framing with ZE_ANSWER_FRAME=1, as sshclient does.
+func execDeclared(t *testing.T, srv *Server, command string) (string, string) {
+	t.Helper()
+
+	client, err := gossh.Dial("tcp", srv.Address(), &gossh.ClientConfig{
+		User:            "operator",
+		Auth:            []gossh.AuthMethod{gossh.Password("read-pass")},
+		HostKeyCallback: gossh.InsecureIgnoreHostKey(), //nolint:gosec // the test server key is generated per run
+		Timeout:         5 * time.Second,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+
+	session, err := client.NewSession()
+	require.NoError(t, err)
+	defer session.Close() //nolint:errcheck // best-effort cleanup
+
+	require.NoError(t, session.Setenv(sshclient.EnvAnswerFrame, sshclient.AnswerFrameEnabled))
+
+	var stdout, stderr strings.Builder
+	session.Stdout = &stdout
+	session.Stderr = &stderr
+	require.NoError(t, session.Run(command))
+	return stdout.String(), stderr.String()
+}
+
+// TestExecAnswerOptIn drives the exec channel from both an undeclared plain
+// SSH client and a client that opted in via ZE_ANSWER_FRAME=1.
 //
-// The frame used to be negotiated: a session that named no shape in an SSH env
-// request received the rendering and nothing else. One answer has one encoding,
-// so the frame is now written for every session and no code reads an
-// environment variable to decide.
-//
-// VALIDATES: AC-2 -- a client that requests no environment receives the head
-// and the terminator, and the records between them.
-// PREVENTS: the declaration returning as the condition on the frame, which
-// would leave a peer unable to tell a complete answer from a truncated one
-// unless it knew to ask.
-func TestExecAnswerUnconditional(t *testing.T) {
+// VALIDATES: AC-25 (journal 2026-10-10) -- a plain SSH client receives only
+// the rendered payload on stdout and zero frame lines on stderr; a client that
+// sets ZE_ANSWER_FRAME=1 receives the head and terminator frame on stderr.
+// PREVENTS: plugin frame trailers (`top doc 0: 0:`, `end 1 0 0:`) leaking onto
+// stderr for plain `ssh <host> <command>` sessions, or breaking framing for
+// opt-in clients.
+func TestExecAnswerOptIn(t *testing.T) {
 	t.Setenv("ze.cli.format", "text")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
@@ -304,17 +329,18 @@ func TestExecAnswerUnconditional(t *testing.T) {
 		}, nil
 	})
 
-	stdout, stderr := execUndeclared(t, srv, "system command list | ndjson")
+	plainStdout, plainStderr := execUndeclared(t, srv, "system command list | ndjson")
+	assert.Empty(t, plainStderr, "plain SSH exec must emit zero frame lines on stderr")
 
-	// The rendering is unchanged: one line for each record, on stdout, and no
-	// frame line among them.
+	stdout, stderr := execDeclared(t, srv, "system command list | ndjson")
+	assert.Equal(t, stdout, plainStdout, "stdout rendering must be identical with or without framing")
+
 	body := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
 	require.Len(t, body, rows, "one line for each record")
 	for i, line := range body {
 		assert.Equal(t, `{"value":"show cmd-`+textbuf.StringInt(int64(i))+`"}`, line)
 	}
 
-	// The frame is on stderr, and this client asked for nothing to receive it.
 	var frame []rpc.AnswerTail
 	for line := range strings.SplitSeq(strings.TrimRight(stderr, "\n"), "\n") {
 		if line == "" {
@@ -326,10 +352,105 @@ func TestExecAnswerUnconditional(t *testing.T) {
 		frame = append(frame, tail)
 	}
 
-	require.Len(t, frame, 2, "an undeclared client must receive the head and the terminator; stderr was %q", stderr)
+	require.Len(t, frame, 2, "an opted-in client must receive the head and the terminator; stderr was %q", stderr)
 	assert.Equal(t, rpc.AnswerKindHead, frame[0].Kind, "the first line states the head kind")
 	require.Equal(t, rpc.AnswerKindTerminator, frame[1].Kind, "the second line ends the answer")
 	assert.Equal(t, uint64(rows), frame[1].Count, "the terminator counts the records the operator received")
+}
+
+// TestPlainSSHExecEmitsNoAnswerFrame proves that plain SSH exec sessions (no
+// ZE_ANSWER_FRAME env) never emit top/end/wrn/nay frame trailers on stderr
+// across document, warning, failure, and unknown-command outcomes.
+//
+// VALIDATES: AC-25 (plan/journal/declared-format-contradicts-payload.md,
+// 2026-10-10) -- piping plain `ssh <host> 'show ... | json'` produces only
+// valid JSON with no trailing `top doc 0: 0:` / `end 1 0 0:` lines.
+// PREVENTS: unconditional answer framing corrupting operator or scripted SSH
+// exec sessions.
+func TestPlainSSHExecEmitsNoAnswerFrame(t *testing.T) {
+	t.Run("json document has empty stderr", func(t *testing.T) {
+		srv := answerServer(t, func(string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"kernel":"6.12.0"}`)), nil
+		})
+		stdout, stderr, err := runRawSSHExecEnv(t, srv, "show host kernel | json", nil)
+		require.NoError(t, err)
+		assert.Empty(t, stderr, "plain SSH exec must write zero bytes to stderr on success")
+
+		var decoded map[string]any
+		require.NoError(t, json.Unmarshal([]byte(stdout), &decoded), "stdout must be valid JSON alone: %q", stdout)
+		assert.Equal(t, "6.12.0", decoded["kernel"])
+	})
+
+	t.Run("warning writes only warning lines", func(t *testing.T) {
+		srv := answerServer(t, func(string) (*plugin.Response, error) {
+			return &plugin.Response{
+				Status:   plugin.StatusWarning,
+				Data:     plugin.Map{"answer": "kept"},
+				Warnings: []string{"warning: check config"},
+			}, nil
+		})
+		stdout, stderr, err := runRawSSHExecEnv(t, srv, "show config dump | json compact", nil)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"answer":"kept"}`, stdout)
+		assert.Equal(t, "warning: check config\n", stderr)
+	})
+
+	t.Run("failed command writes only error line", func(t *testing.T) {
+		srv := answerServer(t, func(string) (*plugin.Response, error) {
+			return nil, errors.New("peer 10.0.0.1 not configured")
+		})
+		stdout, stderr, err := runRawSSHExecEnv(t, srv, "show bgp peer 10.0.0.1", nil)
+		require.Error(t, err)
+		assert.Empty(t, stdout)
+		assert.Equal(t, "error: peer 10.0.0.1 not configured\n", stderr)
+	})
+
+	t.Run("unknown command writes only error line", func(t *testing.T) {
+		srv := answerServer(t, func(input string) (*plugin.Response, error) {
+			return nil, fmt.Errorf("unknown command: %s: %w", input, pluginserver.ErrUnknownCommand)
+		})
+		stdout, stderr, err := runRawSSHExecEnv(t, srv, "shwo bgp peers", nil)
+		require.Error(t, err)
+		assert.Empty(t, stdout)
+		assert.Equal(t, "error: unknown command: shwo bgp peers: unknown command\n", stderr)
+	})
+}
+
+// TestAnswerFrameKeyUnknownValueRefused verifies that an unrecognized or
+// duplicate ZE_ANSWER_FRAME env value is refused by name before any command
+// runs, on both the exec channel and interactive session parsing.
+//
+// VALIDATES: unknown or duplicate ZE_ANSWER_FRAME values fail closed rather
+// than silently falling back to unframed output.
+// PREVENTS: silent misconfiguration when a client sends an unsupported frame
+// version or sets the key twice.
+func TestAnswerFrameKeyUnknownValueRefused(t *testing.T) {
+	var dispatched atomic.Bool
+	srv := answerServer(t, func(string) (*plugin.Response, error) {
+		dispatched.Store(true)
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"ok":true}`)), nil
+	})
+
+	for _, bad := range []string{"0", "true", "2", ""} {
+		stdout, stderr, err := runRawSSHExecEnv(t, srv, "show version | json", map[string]string{
+			sshclient.EnvAnswerFrame: bad,
+		})
+		require.Error(t, err, "bad value %q must be refused", bad)
+		assert.Empty(t, stdout)
+		assert.Contains(t, stderr, sshclient.EnvAnswerFrame)
+	}
+	assert.False(t, dispatched.Load(), "a command ran under a refused ZE_ANSWER_FRAME value")
+
+	_, dupErr := execAnswerFramed([]string{
+		sshclient.EnvAnswerFrame + "=" + sshclient.AnswerFrameEnabled,
+		sshclient.EnvAnswerFrame + "=" + sshclient.AnswerFrameEnabled,
+	}, routeSSHExec)
+	require.Error(t, dupErr)
+	assert.ErrorContains(t, dupErr, sshclient.EnvAnswerFrame)
+
+	_, interactiveErr := parseSessionRequest([]string{sshclient.EnvAnswerFrame + "=bogus"})
+	require.Error(t, interactiveErr)
+	assert.ErrorContains(t, interactiveErr, sshclient.EnvAnswerFrame)
 }
 
 // TestAnUndeclaredClientReadsTodaysBytes reads what ExecCommand returns for a

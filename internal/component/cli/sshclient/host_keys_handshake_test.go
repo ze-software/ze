@@ -129,6 +129,10 @@ func serveKnownHostCommandConfig(listener net.Listener, signer ssh.Signer, confi
 			return err
 		}
 		for request := range channelRequests {
+			if request.Type == "env" {
+				_ = request.Reply(true, nil)
+				continue
+			}
 			if request.Type != "exec" {
 				_ = request.Reply(false, nil)
 				continue

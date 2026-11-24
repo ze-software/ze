@@ -193,7 +193,6 @@ const (
 	reasonTUIOnly      = "declared TUI-only on its view: only the interactive CLI renders it"
 	reasonTUIOnlyOff   = "declared TUI-only on its view: a one-shot surface cannot render it"
 	reasonOfflineRoot  = "a local command at an offline root, run by `ze <root>` with no daemon"
-	reasonOfflineCLI   = "a local-data command at an offline root: `ze cli` answers it in its own process"
 	reasonDaemonPath   = "a local command at an offline root: the daemon surfaces offer its declared daemon path instead"
 )
 
@@ -213,9 +212,9 @@ const (
 //     answers one sample);
 //   - a local or local-data command at an offline root declares the YANG path
 //     that answers it on the daemon (DaemonPath): shell completion offers the
-//     root, `ze cli` offers a local-data one (it answers local-data in its own
-//     process), and the daemon surfaces offer the declared path, judged as its
-//     own registration, rather than a path no YANG node can carry;
+//     root, and every daemon surface (the attached console `SurfaceCLI`
+//     included) offers the declared path, judged as its own registration,
+//     rather than a path no YANG node can carry;
 //   - a builtin, local or local-data command is served by the daemon and by
 //     `ze <verb>`, so every surface offers it;
 //   - a plugin command with no YANG node exists only in a running daemon's
@@ -272,23 +271,19 @@ func AnswerSurface(reg CommandRegistration, s Surface) (SurfaceAnswer, error) {
 }
 
 // answerOfflineRoot answers a local command whose daemon form is another path:
-// listed on shell completion, which runs `ze <root>` locally, and on the
-// SurfaceCLI tree when it is local-data. Of the `ze cli` forms, only `ze cli -c`
-// answers local-data in its own process (command.ServeLocal) before it asks
-// the daemon; an interactive `ze cli` session is an SSH shell dispatched on
-// the daemon, and the SurfaceCLI tree is the attached console's
-// (cli/client BuildRuntimeTreeFromDispatch), whose lines the daemon's
-// dispatcher answers. No daemon surface lists it: each offers the declared
-// daemon path instead.
+// listed only on shell completion, which runs `ze <root>` locally. Of the
+// `ze cli` forms, only `ze cli -c` answers local-data in its own process
+// (command.ServeLocal) before it asks the daemon; an interactive `ze cli`
+// session is an SSH shell dispatched on the daemon, and SurfaceCLI is the
+// attached console of `ze start --cli` (cli/client BuildRuntimeTreeFromDispatch),
+// whose typed lines go to the daemon's dispatcher. No daemon surface lists an
+// offline root: each offers the declared daemon path instead.
 func answerOfflineRoot(reg CommandRegistration, s Surface) (SurfaceAnswer, error) {
 	if reg.Kind != KindLocal && reg.Kind != KindLocalData {
 		return SurfaceAnswer{}, fmt.Errorf("command %q: kind %s declares a daemon path; only a local command at an offline root may", reg.Path, reg.Kind)
 	}
 	if s == SurfaceShell {
 		return SurfaceAnswer{Offer: OfferMust, Reason: reasonOfflineRoot}, nil
-	}
-	if s == SurfaceCLI && reg.Kind == KindLocalData {
-		return SurfaceAnswer{Offer: OfferMust, Reason: reasonOfflineCLI}, nil
 	}
 	return SurfaceAnswer{Offer: OfferMustNot, Reason: reasonDaemonPath + " (" + reg.DaemonPath + ")"}, nil
 }

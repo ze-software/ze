@@ -428,7 +428,8 @@ route validates its arguments against the leaves of the daemon path
 (`command.ModelPath`). `loadLocalData` serves the handler under the daemon
 path, or leaves it to the builtin that holds it, and refuses to start when no
 node declares the path. `command.AnswerSurface` offers the root on shell
-completion and `ze cli`, and the daemon path on every daemon surface. The
+completion only, and the daemon path on every daemon surface (the attached
+console of `ze start --cli` included). The
 `command-contract` gate counts the local handler as served by the daemon
 path, reading the field from the registration's source, so its value is a
 string literal.
@@ -798,7 +799,7 @@ kind and the expected answer.
 |--------------|---------------|--------------------------------|--------------------------------------------|
 | Hidden (`ze:hidden true` on the command or an ancestor, or a plugin command declared `Hidden`) | Not offered | Not offered | Not offered. It still runs when typed in full |
 | Builtin RPC, local, local-data | Offered | Offered | Offered: the daemon serves each through its handler |
-| Local or local-data at an offline root, with a declared daemon path | `ze cli` offers a local-data one, which `ze cli -c` answers in its own process; SSH, and the interactive `ze cli` shell it carries, does not, and offers the daemon path | Offered | Not offered: the daemon path is, as its own registration |
+| Local or local-data at an offline root, with a declared daemon path | Not offered: the daemon path is, as its own registration (only `ze cli -c` still answers local-data in its own process) | Offered | Not offered: the daemon path is, as its own registration |
 | Plugin command (Stage 1 declaration) | Offered | Not offered: no plugin runs in the shell's process | Offered |
 | Plugin command whose path is a schema node with no `ze:command` of its own (`Modeled`, as `show vrrp interface`, whose command node is `name` below it) | Offered | Offered: shell completion walks the shipped schema, which holds the node | Offered |
 | Streaming (`RegisterStreamingHandler`) | Offered as a stream | Offered as a stream | By its one-shot declaration: `OneShotSample` offered, `OneShotStreamingOnly` not ("One-shot answer of a streaming command") |

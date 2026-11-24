@@ -34,11 +34,19 @@ func (s *Server) createSessionModel(sessionCtx context.Context, username, remote
 	return factory(sessionCtx, username, remoteAddr, authorizer, request)
 }
 
+const (
+	routeInteractiveSSH = "interactive SSH"
+	routeSSHExec        = "SSH exec"
+)
+
 func parseSessionRequest(environ []string) (SessionRequest, error) {
 	var request SessionRequest
-	// The interactive session honors no rendering key, but a value of it
-	// this daemon does not define is refused here as on the exec channel.
-	if _, err := clientPresents(environ, "interactive SSH"); err != nil {
+	// The interactive session honors no exec-only session keys, but a value of
+	// either key this daemon does not define is refused here as on the exec channel.
+	if _, err := clientPresents(environ, routeInteractiveSSH); err != nil {
+		return SessionRequest{}, err
+	}
+	if _, err := execAnswerFramed(environ, routeInteractiveSSH); err != nil {
 		return SessionRequest{}, err
 	}
 	var configSeen, modeSeen bool
@@ -77,7 +85,7 @@ func parseSessionRequest(environ []string) (SessionRequest, error) {
 // exec channel still ignores the interactive keys (ZE_CONFIG_NAME,
 // ZE_CLI_MODE) as it always did.
 func execStreamRendering(environ []string) (command.StreamRendering, error) {
-	presents, err := clientPresents(environ, "SSH exec")
+	presents, err := clientPresents(environ, routeSSHExec)
 	if err != nil {
 		return command.StreamRenderingUnspecified, err
 	}
@@ -87,35 +95,73 @@ func execStreamRendering(environ []string) (command.StreamRendering, error) {
 	return command.StreamRenderingTerminal, nil
 }
 
-// clientPresents reads the rendering key from environ: true when it holds its
-// one value, false when it is absent. The key is untrusted input from any
-// client and hands over presentation only, so a second setting or any other
-// value is refused by name; route names the channel in the refusal.
-func clientPresents(environ []string, route string) (bool, error) {
+// sessionEnvFlag describes a single-valued SSH session environment key that
+// clients may set once to its one declared value or leave unset.
+type sessionEnvFlag struct {
+	key      string
+	value    string
+	kind     string
+	dupWhy   string
+	unsetFix string
+}
+
+// parseSessionEnvFlag reads a single-valued session key from environ: true
+// when set once to flag.value, false when absent. Because the key is untrusted
+// client input, a duplicate setting or any other value is refused by name.
+func parseSessionEnvFlag(environ []string, route string, flag sessionEnvFlag) (bool, error) {
 	seen := false
 	for _, entry := range environ {
 		key, value, found := strings.Cut(entry, "=")
 		if !found {
 			continue
 		}
-		if key != sshclient.EnvCLIRender {
+		if key != flag.key {
 			continue
 		}
 		if seen {
 			var problem textbuf.Buffer
 			return false, opererr.New(
-				problem.Str(route).Str(": the session sets ").Str(sshclient.EnvCLIRender).Str(" more than once").String(),
-				"the daemon cannot tell which rendering the client asked for, so it runs no command",
-				"set "+sshclient.EnvCLIRender+"="+sshclient.CLIRenderClient+" once, or leave it unset")
+				problem.Str(route).Str(": the session sets ").Str(flag.key).Str(" more than once").String(),
+				flag.dupWhy,
+				"set "+flag.key+"="+flag.value+" once, or leave it unset")
 		}
 		seen = true
-		if value != sshclient.CLIRenderClient {
+		if value != flag.value {
 			var problem textbuf.Buffer
 			return false, opererr.New(
-				problem.Str(route).Str(": ").Str(sshclient.EnvCLIRender).Str("=").Quoted(value).Str(" is not a rendering this daemon knows").String(),
-				"the key's one value is "+sshclient.CLIRenderClient+", and an unknown value is refused rather than guessed",
-				"set "+sshclient.EnvCLIRender+"="+sshclient.CLIRenderClient+", or leave it unset so the daemon renders")
+				problem.Str(route).Str(": ").Str(flag.key).Str("=").Quoted(value).Str(" is not a ").Str(flag.kind).Str(" this daemon knows").String(),
+				"the key's one value is "+flag.value+", and an unknown value is refused rather than guessed",
+				"set "+flag.key+"="+flag.value+", or "+flag.unsetFix)
 		}
 	}
 	return seen, nil
+}
+
+// clientPresents reads the rendering key from environ: true when it holds its
+// one value, false when it is absent. The key is untrusted input from any
+// client and hands over presentation only, so a second setting or any other
+// value is refused by name; route names the channel in the refusal.
+func clientPresents(environ []string, route string) (bool, error) {
+	return parseSessionEnvFlag(environ, route, sessionEnvFlag{
+		key:      sshclient.EnvCLIRender,
+		value:    sshclient.CLIRenderClient,
+		kind:     "rendering",
+		dupWhy:   "the daemon cannot tell which rendering the client asked for, so it runs no command",
+		unsetFix: "leave it unset so the daemon renders",
+	})
+}
+
+// execAnswerFramed reports whether the session opted into the stderr answer
+// frame (sshclient.EnvAnswerFrame=1). Absent means a plain SSH client that
+// receives rendered output without frame lines on stderr. Because the key is
+// untrusted client input, a duplicate setting or an unknown value is refused
+// by name rather than silently ignored.
+func execAnswerFramed(environ []string, route string) (bool, error) {
+	return parseSessionEnvFlag(environ, route, sessionEnvFlag{
+		key:      sshclient.EnvAnswerFrame,
+		value:    sshclient.AnswerFrameEnabled,
+		kind:     "framing value",
+		dupWhy:   "the daemon cannot tell whether the client wants answer framing, so it runs no command",
+		unsetFix: "leave it unset for plain SSH output",
+	})
 }

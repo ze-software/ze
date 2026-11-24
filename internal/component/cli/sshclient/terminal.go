@@ -17,14 +17,20 @@ import (
 // that the client presents the events of the stream it asks for: the daemon
 // then applies every pipe operation before the presentation suffix and the
 // client applies the suffix (formats, paging, `save`). CLIRenderClient is its
-// one value; the server refuses any other.
+// one value; the server refuses any other. EnvAnswerFrame opts an exec session
+// into the stderr answer frame (top/end/wrn/nay): plain SSH clients leave it
+// unset and receive only rendered output on stdout and plain warnings or
+// errors on stderr. AnswerFrameEnabled is its one value; the server refuses
+// any other.
 const (
-	EnvConfigName   = "ZE_CONFIG_NAME"
-	EnvCLIMode      = "ZE_CLI_MODE"
-	CLIModeEdit     = "edit"
-	CLIModeCommand  = "command"
-	EnvCLIRender    = "ZE_CLI_RENDER"
-	CLIRenderClient = "client"
+	EnvConfigName      = "ZE_CONFIG_NAME"
+	EnvCLIMode         = "ZE_CLI_MODE"
+	CLIModeEdit        = "edit"
+	CLIModeCommand     = "command"
+	EnvCLIRender       = "ZE_CLI_RENDER"
+	CLIRenderClient    = "client"
+	EnvAnswerFrame     = "ZE_ANSWER_FRAME"
+	AnswerFrameEnabled = "1"
 )
 
 // RunInteractive runs the daemon's model over a persistent SSH PTY. The daemon

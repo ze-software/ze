@@ -4,6 +4,10 @@
 // Package cli provides the ze cli subcommand.
 package client
 
+// plugin/all is GENERATED (internal/le/plugin/imports/pluginimports.go) and blank-
+// imports every schema, RPC command, and plugin package -- including the
+// verb/cmd packages this file used to enumerate by hand. Never re-add
+// per-package blank imports here; regenerate with `make generate`.
 import (
 	"context"
 	"encoding/json"
@@ -18,24 +22,17 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"golang.org/x/sys/unix"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
-
 	unicli "github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	cmd "github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	pingcmd "github.com/ze-software/ze/internal/component/ping/cmd" // init() registers ping RPCs; NewPingSession used below
 	"github.com/ze-software/ze/internal/component/plugin"
-
-	// plugin/all is GENERATED (internal/le/plugin/imports/pluginimports.go) and blank-
-	// imports every schema, RPC command, and plugin package -- including the
-	// verb/cmd packages this file used to enumerate by hand. Never re-add
-	// per-package blank imports here; regenerate with `make generate`.
-	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	traceroutecmd "github.com/ze-software/ze/internal/component/traceroute/cmd" // init() registers traceroute RPCs; NewTracerouteSession used below
@@ -43,9 +40,8 @@ import (
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 // Run executes the cli subcommand with the given arguments.
@@ -1147,12 +1143,14 @@ func buildRuntimeTree(client *cliClient) (*Command, error) {
 
 // BuildRuntimeTreeFromDispatch is the completion tree of the attached console
 // of `ze start --cli` (RunAttached, newAttachedModel): the daemon's commands as
-// runtimeTreeFromDispatch reads them, plus every local-data command
-// (mergeLocalDataCommands). A line typed in that console goes to dispatch,
-// which is the daemon's dispatcher: it serves a local-data command only under
-// a path a YANG node declares (plugin/server loadLocalData). Only `ze cli -c`
-// answers a local-data command in its own process (command.ServeLocal, in run
-// and cliClient.execute); an interactive `ze cli` session is an SSH shell
+// runtimeTreeFromDispatch reads them, plus the local-data commands the daemon
+// serves (mergeLocalDataCommands). A line typed in that console goes to
+// dispatch, which is the daemon's dispatcher: it serves a local-data command
+// only under a path a YANG node declares (plugin/server loadLocalData), so
+// offline-root registrations (DaemonPath != "") are offered at their declared
+// daemon path rather than at the offline root. Only `ze cli -c` answers a
+// local-data command in its own process (command.ServeLocal, in run and
+// cliClient.execute); an interactive `ze cli` session is an SSH shell
 // dispatched on the daemon, and builds no tree here. The surface parity check
 // (cmd/ze/hub TestEveryCommandOnEverySurface) asks this producer for the
 // surface command.SurfaceCLI names.
@@ -1166,15 +1164,33 @@ func BuildRuntimeTreeFromDispatch(dispatch CommandFunc) (*Command, error) {
 }
 
 // mergeLocalDataCommands adds each local-data registration to tree as a
-// completion node, with its summary. A path the tree already holds keeps its
-// own node (command.MergeCommandPaths is non-destructive).
+// completion node, with its summary, following command.OffersCommand for
+// SurfaceCLI. A registration at an offline root (DaemonPath != "") is not
+// offered on SurfaceCLI because the attached console dispatches through the
+// daemon, which refuses the offline root; its declared DaemonPath is merged
+// instead. A path the tree already holds keeps its own node
+// (command.MergeCommandPaths is non-destructive).
 func mergeLocalDataCommands(tree *Command) {
 	var entries []cmd.CommandEntry
 	for _, e := range cmd.ListLocal() {
 		if !cmd.HasLocalData(e.Path) {
 			continue
 		}
-		entries = append(entries, cmd.CommandEntry{Name: e.Path, ShortHelp: e.Meta.ShortHelp})
+		listed, err := cmd.OffersCommand(cmd.CommandRegistration{
+			Path:       e.Path,
+			Kind:       cmd.KindLocalData,
+			DaemonPath: e.Meta.DaemonPath,
+		}, cmd.SurfaceCLI)
+		if err != nil {
+			continue
+		}
+		if listed {
+			entries = append(entries, cmd.CommandEntry{Name: e.Path, ShortHelp: e.Meta.ShortHelp})
+			continue
+		}
+		if e.Meta.DaemonPath != "" {
+			entries = append(entries, cmd.CommandEntry{Name: e.Meta.DaemonPath, ShortHelp: e.Meta.ShortHelp})
+		}
 	}
 	cmd.MergeCommandPaths(tree, entries)
 }

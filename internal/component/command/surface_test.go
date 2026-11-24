@@ -1,6 +1,9 @@
 package command
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestSurfacePredicateByKind states the target answer of OffersCommand for
 // every registration kind on every surface, hidden, streaming and TUI-only
@@ -139,5 +142,52 @@ func TestListedOnDaemonSurfaces(t *testing.T) {
 	}
 	if _, err := ListedOnDaemonSurfaces(CommandRegistration{Path: "a b"}); err == nil {
 		t.Error("an unspecified kind was answered, want a refusal")
+	}
+}
+
+// TestAnswerSurfaceOfflineRootOnAttachedCLI proves that local and local-data
+// commands at an offline root (DaemonPath != "") are offered only on
+// SurfaceShell and refused on SurfaceCLI alongside every other daemon surface.
+//
+// VALIDATES: plan/journal/inert-registration-offered-as-a-choice.md
+// (2026-11-14) -- the attached console of `ze start --cli` dispatches through
+// the daemon, so it must offer the declared DaemonPath rather than the offline
+// root path.
+// PREVENTS: answerOfflineRoot answering OfferMust on SurfaceCLI for
+// KindLocalData registrations such as `help command` and `thanks`.
+func TestAnswerSurfaceOfflineRootOnAttachedCLI(t *testing.T) {
+	regs := []CommandRegistration{
+		{Path: "help command", Kind: KindLocalData, DaemonPath: "show command catalog"},
+		{Path: "thanks", Kind: KindLocalData, DaemonPath: "show thanks list"},
+		{Path: "doctor", Kind: KindLocal, DaemonPath: "show doctor"},
+	}
+	for _, reg := range regs {
+		for _, s := range Surfaces() {
+			got, err := AnswerSurface(reg, s)
+			if err != nil {
+				t.Errorf("%s on %s: %v", reg.Path, s, err)
+				continue
+			}
+			if s == SurfaceShell {
+				if got.Offer != OfferMust {
+					t.Errorf("%s on %s: got %s, want %s", reg.Path, s, got.Offer, OfferMust)
+				}
+				continue
+			}
+			if got.Offer != OfferMustNot {
+				t.Errorf("%s on %s: got %s, want %s", reg.Path, s, got.Offer, OfferMustNot)
+			}
+			if !strings.Contains(got.Reason, reg.DaemonPath) {
+				t.Errorf("%s on %s: reason %q does not name daemon path %q", reg.Path, s, got.Reason, reg.DaemonPath)
+			}
+		}
+		listed, err := ListedOnDaemonSurfaces(reg)
+		if err != nil {
+			t.Errorf("%s ListedOnDaemonSurfaces: %v", reg.Path, err)
+			continue
+		}
+		if listed {
+			t.Errorf("%s ListedOnDaemonSurfaces = true, want false", reg.Path)
+		}
 	}
 }

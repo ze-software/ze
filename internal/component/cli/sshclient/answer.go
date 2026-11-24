@@ -60,10 +60,11 @@ var ErrAnswerTruncated = errors.New("answer ended before its terminator")
 // ExecCommandStream runs a command over the SSH exec channel and copies the
 // daemon's rendering to body as it arrives.
 //
-// The daemon frames every exec-channel answer on stderr, so nothing is declared
-// and no environment is set up. A peer that writes no frame leaves the answer
-// reading as truncated, which is the correct verdict for one that cannot say
-// when it has finished.
+// The client opts into stderr answer framing by setting EnvAnswerFrame to
+// AnswerFrameEnabled before starting the command, so plain SSH sessions remain
+// unframed while ze clients detect truncation and read structured completion
+// counts. A peer that writes no frame leaves the answer reading as truncated,
+// which is the correct verdict for one that cannot say when it has finished.
 //
 // The returned error is the command's failure, the connection's, or
 // ErrAnswerTruncated. Bytes may already have reached body when it is non-nil:
@@ -80,6 +81,10 @@ func ExecCommandStream(creds Credentials, command string, body io.Writer) (Answe
 		return Answer{}, fmt.Errorf("create session: %w", err)
 	}
 	defer session.Close() //nolint:errcheck // best-effort cleanup
+
+	if err := session.Setenv(EnvAnswerFrame, AnswerFrameEnabled); err != nil {
+		return Answer{}, fmt.Errorf("request answer framing: %w", err)
+	}
 
 	stdout, err := session.StdoutPipe()
 	if err != nil {

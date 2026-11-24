@@ -792,17 +792,24 @@ cannot travel inside a `row` record, which is one line by construction.
 | Stream | Carries | When |
 |--------|---------|------|
 | stdout | the rendering, written as the records arrive | always |
-| stderr | head, terminator, or the `nay` line | always |
+| stderr | plain warning or error lines | when the command warns or fails |
+| stderr | head, terminator, or the `nay` line | when the client opts in via `ZE_ANSWER_FRAME=1` (`sshclient.EnvAnswerFrame`) |
 <!-- source: internal/component/ssh/answer.go -- answerFrame, writeExecAnswer, writeExecRecords, writeExecDocument -->
+<!-- source: internal/component/ssh/session.go -- execAnswerFramed -->
 
 Here the head's item type describes what the ANSWER turned out to be. It does
 not describe the rendering on stdout, which the operator's chain decides.
 
-Every session gets the frame. A plain `ssh <host> <command>` receives it on
-stderr with no env request and no setup, and a client that reads only stdout
-takes the rendering and ignores it.
+Answer framing on the SSH exec channel is opt-in. Ze's SSH clients
+(`sshclient.ExecCommandStream`, `sshclient.ExecCommand`) set the SSH session
+environment request `ZE_ANSWER_FRAME=1` before running a command so they
+receive the frame and detect truncation. A plain `ssh <host> <command>` leaves
+the key unset and receives zero frame lines on stderr, so piping output to a
+parser sees only the command's rendered payload. A duplicate or unknown
+`ZE_ANSWER_FRAME` value is refused before any command runs.
 <!-- source: internal/component/ssh/answer.go -- newAnswerFrame -->
 <!-- source: internal/component/cli/sshclient/answer.go -- ExecCommandStream, readAnswerFrame, ErrAnswerTruncated -->
+<!-- source: internal/component/cli/sshclient/terminal.go -- EnvAnswerFrame, AnswerFrameEnabled -->
 
 The head is written after the body, because the type is read from the walk. The
 two streams are read independently, so no reader can order them anyway.

@@ -921,15 +921,20 @@ func (s *Server) execMiddleware() wish.Middleware {
 			// the logged form is sanitized via loggedCommand.
 			s.logger.Info("SSH exec command", "user", sess.User(), "command", loggedCommand(input), "remote", sess.RemoteAddr().String())
 
-			// The exec channel reads the rendering key alone, before any
-			// command runs, so a value of it this daemon does not define is
-			// refused by name rather than ignored (execStreamRendering). Only
-			// the stream route below honors it. The interactive keys
-			// (ZE_CONFIG_NAME, ZE_CLI_MODE) select a terminal, and a one-shot
-			// exec has none, so it still ignores them.
+			// The exec channel reads its declared session keys before any
+			// command runs, so an unknown or duplicate value is refused by name
+			// rather than ignored (execStreamRendering, execAnswerFramed). The
+			// interactive keys (ZE_CONFIG_NAME, ZE_CLI_MODE) select a terminal,
+			// and a one-shot exec has none, so it still ignores them.
 			rendering, renderingErr := execStreamRendering(sess.Environ())
 			if renderingErr != nil {
 				writeExecError(sess, renderingErr)
+				sess.Exit(1) //nolint:errcheck // best-effort
+				return
+			}
+			framed, frameErr := execAnswerFramed(sess.Environ(), routeSSHExec)
+			if frameErr != nil {
+				writeExecError(sess, frameErr)
 				sess.Exit(1) //nolint:errcheck // best-effort
 				return
 			}
@@ -1029,12 +1034,14 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
-			// The frame holds one pooled line buffer for the whole answer, and
-			// the session ends by every path below, so the release is deferred
-			// here rather than repeated at each of them.
-
-			frame := newAnswerFrame(sess.Stderr())
-			defer frame.release()
+			// Only a client that opted in via ZE_ANSWER_FRAME=1 receives the
+			// stderr answer frame. When enabled, the frame holds one pooled
+			// line buffer for the whole answer and releases it on every exit.
+			var frame *answerFrame
+			if framed {
+				frame = newAnswerFrame(sess.Stderr())
+				defer frame.release()
+			}
 
 			executor := factory(sess.Context(), sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
 			result, err := executor(input)

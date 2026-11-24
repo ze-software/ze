@@ -1184,24 +1184,37 @@ func TestStreamMonitorFailureKeepsDestinationAndRemovesTemp(t *testing.T) {
 	}
 }
 
-// TestRuntimeTreeOffersLocalDataCommands checks that the `ze cli` completion
-// tree offers every local-data command it answers in its own process
-// (command.ServeLocal), both when the daemon answers its command list without
-// them and when no daemon answers at all.
+// TestRuntimeTreeOffersLocalDataCommands checks that the attached console
+// completion tree offers every daemon-served local-data command (both when the
+// daemon answers an empty list and when no daemon answers), while offering an
+// offline-root local-data command only under its declared DaemonPath and never
+// at the offline root the daemon refuses.
 //
-// VALIDATES: G4 of spec-command-surface-parity: BuildRuntimeTreeFromDispatch
-// offers the local-data commands `ze cli` serves.
-// PREVENTS: `show env list` running when typed in `ze cli` and never being
-// offered by its tab completion.
+// VALIDATES: G4 of spec-command-surface-parity and journal 2026-11-14
+// (inert-registration-offered-as-a-choice): BuildRuntimeTreeFromDispatch
+// offers local-data commands at the paths the attached console's daemon
+// dispatcher actually serves.
+// PREVENTS: `show env list` missing from tab completion, and offline-root
+// local-data paths (`help command`, `thanks`) being offered on a daemon
+// console that refuses them.
 func TestRuntimeTreeOffersLocalDataCommands(t *testing.T) {
-	var localData []string
+	var directPaths []string
+	var offlineRoots []command.LocalCommandEntry
 	for _, e := range command.ListLocal() {
-		if command.HasLocalData(e.Path) {
-			localData = append(localData, e.Path)
+		if !command.HasLocalData(e.Path) {
+			continue
 		}
+		if e.Meta.DaemonPath != "" {
+			offlineRoots = append(offlineRoots, e)
+			continue
+		}
+		directPaths = append(directPaths, e.Path)
 	}
-	if len(localData) == 0 {
-		t.Fatal("no local-data command is linked into this test, so nothing is checked")
+	if len(directPaths) == 0 {
+		t.Fatal("no direct local-data command is linked into this test, so nothing is checked")
+	}
+	if len(offlineRoots) == 0 {
+		t.Fatal("no offline-root local-data command is linked into this test, so exclusion is not checked")
 	}
 
 	noDaemon := func(string) (unicli.CommandOutput, error) {
@@ -1216,17 +1229,91 @@ func TestRuntimeTreeOffersLocalDataCommands(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		for _, path := range localData {
-			node := tree
-			for word := range strings.FieldsSeq(path) {
-				if node == nil {
-					break
-				}
-				node = node.Children[word]
+		for _, path := range directPaths {
+			if nodeAtPath(tree, path) == nil {
+				t.Errorf("%s: the attached CLI tree does not offer local-data command %q", name, path)
 			}
-			if node == nil {
-				t.Errorf("%s: the ze cli tree does not offer local-data command %q", name, path)
+		}
+		for _, entry := range offlineRoots {
+			if nodeAtPath(tree, entry.Path) != nil {
+				t.Errorf("%s: the attached CLI tree offers offline-root local-data command %q, which the daemon refuses", name, entry.Path)
 			}
+			if nodeAtPath(tree, entry.Meta.DaemonPath) == nil {
+				t.Errorf("%s: the attached CLI tree does not offer daemon path %q for offline root %q", name, entry.Meta.DaemonPath, entry.Path)
+			}
+		}
+	}
+}
+
+// TestAttachedConsoleExcludesOfflineRootLocalDataCommands drives the attached
+// console model constructor (newAttachedModel) and its command completer to
+// prove that offline-root local-data commands are excluded from completion
+// while their daemon paths remain offered.
+//
+// VALIDATES: plan/journal/inert-registration-offered-as-a-choice.md
+// (2026-11-14) through the real attached-console entry point.
+// PREVENTS: `ze start --cli` offering `thanks` or `help command` in tab
+// completion when its dispatcher only serves `show thanks list` and
+// `show command catalog`.
+func TestAttachedConsoleExcludesOfflineRootLocalDataCommands(t *testing.T) {
+	daemonOnly := func(input string) (unicli.CommandOutput, error) {
+		if input == "system command list" {
+			return unicli.CommandOutput{
+				Text: `{"commands":[` +
+					`{"value":"show thanks list","short-help":"List credits."},` +
+					`{"value":"show thanks licence","short-help":"Print licence texts."},` +
+					`{"value":"show command catalog","short-help":"List command catalog."},` +
+					`{"value":"show command reference","short-help":"Print AI command reference."}` +
+					`]}`,
+			}, nil
+		}
+		return unicli.CommandOutput{}, errors.New("unknown command: " + input)
+	}
+
+	m, err := newAttachedModel(daemonOnly, unicli.CommandExecutor(daemonOnly), nil, nil)
+	if err != nil {
+		t.Fatalf("newAttachedModel: %v", err)
+	}
+	if m.Mode() != unicli.ModeOperational {
+		t.Fatalf("mode = %v, want operational", m.Mode())
+	}
+
+	tree, err := BuildRuntimeTreeFromDispatch(daemonOnly)
+	if err != nil {
+		t.Fatalf("BuildRuntimeTreeFromDispatch: %v", err)
+	}
+	completer := unicli.NewCommandCompleter(tree)
+	for _, cand := range completer.Complete("th") {
+		if cand.Text == "thanks" {
+			t.Errorf("attached console completer offered offline root %q", cand.Text)
+		}
+	}
+	// Bare `help` is a daemon builtin (ze-meta:bgp-help); its offline-root
+	// local-data subcommands (`help command`, `help ai`) must not be offered.
+	for _, cand := range completer.Complete("help ") {
+		if cand.Text == "command" || cand.Text == "ai" {
+			t.Errorf("attached console completer offered offline-root subcommand %q under help", cand.Text)
+		}
+	}
+	for _, prefix := range []struct {
+		input string
+		want  string
+	}{
+		{"show thanks ", "list"},
+		{"show thanks ", "licence"},
+		{"show command ", "catalog"},
+		{"show command ", "reference"},
+		{"show env ", "list"},
+	} {
+		found := false
+		for _, cand := range completer.Complete(prefix.input) {
+			if cand.Text == prefix.want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("attached console completer for %q did not offer %q", prefix.input, prefix.want)
 		}
 	}
 }

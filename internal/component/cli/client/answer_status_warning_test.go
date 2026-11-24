@@ -167,12 +167,33 @@ func cliStatusWarningServe(listener net.Listener, signer ssh.Signer, body, outco
 		return err
 	}
 	defer channel.Close() //nolint:errcheck // Owned test channel cleanup.
-	request, ok := <-commands
-	if !ok {
+	var request *ssh.Request
+	var framed bool
+	for req := range commands {
+		if req.Type == "env" {
+			var envReq struct{ Name, Value string }
+			if err := ssh.Unmarshal(req.Payload, &envReq); err != nil {
+				return err
+			}
+			if envReq.Name == sshclient.EnvAnswerFrame && envReq.Value == sshclient.AnswerFrameEnabled {
+				framed = true
+			}
+			if err := req.Reply(true, nil); err != nil {
+				return err
+			}
+			continue
+		}
+		request = req
+		break
+	}
+	if request == nil {
 		return errors.New("warning fixture received no command")
 	}
 	if request.Type != "exec" {
 		return fmt.Errorf("warning fixture received request %q", request.Type)
+	}
+	if !framed {
+		return fmt.Errorf("warning fixture received no %s=%s opt-in before exec", sshclient.EnvAnswerFrame, sshclient.AnswerFrameEnabled)
 	}
 	var input struct{ Command string }
 	if err := ssh.Unmarshal(request.Payload, &input); err != nil {

@@ -66,9 +66,10 @@ type Credentials struct {
 // Returns the command output and any error, retaining output on failure.
 //
 // The two streams are read apart rather than merged. stdout is the answer, and
-// stderr carries the answer frame the daemon writes for every session, plus any
-// plain text it wrote for a person (answer.go, internal/component/ssh). A
-// merged read would put frame lines inside the payload a caller unmarshals.
+// stderr carries the answer frame this client opts into via EnvAnswerFrame,
+// plus any plain text the daemon wrote for a person (answer.go,
+// internal/component/ssh). A merged read would put frame lines inside the
+// payload a caller unmarshals.
 //
 // A failure is reported from stderr, and readAnswerFrame is what reads it, so
 // this call and ExecCommandStream report one message from one parser.
@@ -84,6 +85,10 @@ func ExecCommand(creds Credentials, command string) (string, error) {
 		return "", fmt.Errorf("create session: %w", err)
 	}
 	defer session.Close() //nolint:errcheck // best-effort cleanup
+
+	if err := session.Setenv(EnvAnswerFrame, AnswerFrameEnabled); err != nil {
+		return "", fmt.Errorf("request answer framing: %w", err)
+	}
 
 	var frame textbuf.Buffer
 	session.Stderr = &frame

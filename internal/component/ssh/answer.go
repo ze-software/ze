@@ -12,13 +12,14 @@
 //
 //	stdout  the rendering, written as the records arrive. For `ssh <host>
 //	        <command>` this is the whole answer and it is what it always was.
-//	stderr  the head, the terminator and the not-understood line, for every
-//	        session. One answer has one encoding, so nothing is declared and
-//	        nothing is negotiated.
+//	stderr  plain warning or error lines for every session, plus the head,
+//	        terminator or not-understood frame when the client opted in by
+//	        setting ZE_ANSWER_FRAME=1 (sshclient.EnvAnswerFrame).
 //
-// Truncation is then a missing terminator, which is what AC-9 asks for: a
-// connection that dies part way leaves the records that arrived and no line
-// saying how many there should have been.
+// Truncation is then a missing terminator for a framed client, which is what
+// AC-9 asks for: a connection that dies part way leaves the records that
+// arrived and no line saying how many there should have been. Plain SSH
+// clients leave the env key unset and receive zero frame lines on stderr.
 
 package ssh
 
@@ -54,9 +55,9 @@ type answerFrame struct {
 	line *[]byte
 }
 
-// newAnswerFrame returns the frame for this session. Every session gets one:
-// the frame is what says how many records the answer holds and whether it
-// finished, and a client that cannot ask for it still needs to be told.
+// newAnswerFrame returns the frame for a session that opted into answer
+// framing (sshclient.EnvAnswerFrame=1). Plain SSH sessions pass a nil frame
+// and receive no frame lines on stderr.
 //
 // w is the session's stderr, which is the stream the frame travels on. The
 // caller MUST call release when the answer ends, on every path out of the
@@ -189,6 +190,9 @@ func writeExecRecords(sess ssh.Session, frame *answerFrame, input string, record
 		return rpc.AnswerTail{}, err
 	}
 
+	if frame == nil {
+		return completion, nil
+	}
 	key := records.Key
 	fields := answer.Fields
 	if answer.Type == rpc.AnswerTypeDocument {
@@ -288,8 +292,10 @@ func writeExecDocument(sess ssh.Session, frame *answerFrame, input string, forma
 	if err := writeExecCompletionText(sess, completion); err != nil {
 		return rpc.AnswerTail{}, err
 	}
-	if err := frame.head(rpc.AnswerTypeDocument, "", nil); err != nil {
-		return rpc.AnswerTail{}, err
+	if frame != nil {
+		if err := frame.head(rpc.AnswerTypeDocument, "", nil); err != nil {
+			return rpc.AnswerTail{}, err
+		}
 	}
 	// The formatter can end its rendering with a newline; Fprintln adds the
 	// only one the caller needs.
@@ -298,13 +304,17 @@ func writeExecDocument(sess ssh.Session, frame *answerFrame, input string, forma
 			return rpc.AnswerTail{}, err
 		}
 	}
+	if frame == nil {
+		return completion, nil
+	}
 	return completion, frame.terminator(completion.Count, completion.Faults, completion.Warning && completion.Message == "", completion.Message)
 }
 
 // A counted document is rendered before any bytes are written. Its pipe
-// refusal therefore earns a complete failed frame, while a later I/O failure
-// still returns without a fabricated terminator. Source warnings remain plain
-// stderr text, and the failure message stays authoritative on the frame.
+// refusal therefore earns a complete failed frame when the client opted in,
+// while a later I/O failure still returns without a fabricated terminator.
+// Source warnings remain plain stderr text, and the failure message stays
+// authoritative on the frame.
 func writeExecDocumentRefusal(sess ssh.Session, frame *answerFrame, original rpc.AnswerTail, cause error) (rpc.AnswerTail, error) {
 	if original.Message != "" {
 		cause = errors.Join(errors.New(original.Message), cause)
@@ -315,10 +325,13 @@ func writeExecDocumentRefusal(sess ssh.Session, frame *answerFrame, original rpc
 	if err := writeExecErrorLine(sess, cause); err != nil {
 		return rpc.AnswerTail{}, err
 	}
+	completion := rpc.AnswerTail{Kind: rpc.AnswerKindTerminator, Message: cause.Error()}
+	if frame == nil {
+		return completion, nil
+	}
 	if err := frame.head(rpc.AnswerTypeDocument, "", nil); err != nil {
 		return rpc.AnswerTail{}, err
 	}
-	completion := rpc.AnswerTail{Kind: rpc.AnswerKindTerminator, Message: cause.Error()}
 	return completion, frame.terminator(0, 0, false, completion.Message)
 }
 
@@ -379,6 +392,9 @@ func writeExecCompletionText(sess ssh.Session, completion rpc.AnswerTail) error 
 // a client reads that the document it received is real.
 func writeExecFailure(sess ssh.Session, frame *answerFrame, documents uint64, err error) {
 	writeExecError(sess, err)
+	if frame == nil {
+		return
+	}
 	if errors.Is(err, pluginserver.ErrUnknownCommand) {
 		frame.notUnderstood(err.Error()) //nolint:errcheck // the session is ending; a lost line reads as truncated
 		return

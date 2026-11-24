@@ -218,12 +218,33 @@ func sshClientProgressServe(listener net.Listener, signer ssh.Signer, body, warn
 		return err
 	}
 	defer channel.Close() //nolint:errcheck // owned fixture channel cleanup
-	request, ok := <-commands
-	if !ok {
+	var request *ssh.Request
+	var framed bool
+	for req := range commands {
+		if req.Type == "env" {
+			var envReq struct{ Name, Value string }
+			if err := ssh.Unmarshal(req.Payload, &envReq); err != nil {
+				return err
+			}
+			if envReq.Name == EnvAnswerFrame && envReq.Value == AnswerFrameEnabled {
+				framed = true
+			}
+			if err := req.Reply(true, nil); err != nil {
+				return err
+			}
+			continue
+		}
+		request = req
+		break
+	}
+	if request == nil {
 		return errors.New("fixture received no command")
 	}
 	if request.Type != "exec" {
 		return fmt.Errorf("fixture received request %q", request.Type)
+	}
+	if !framed {
+		return fmt.Errorf("fixture received no %s=%s opt-in before exec", EnvAnswerFrame, AnswerFrameEnabled)
 	}
 	var input struct{ Command string }
 	if err := ssh.Unmarshal(request.Payload, &input); err != nil {

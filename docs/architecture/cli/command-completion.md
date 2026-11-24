@@ -25,7 +25,7 @@ every producer below for its list and compares it with the predicate.
 | Web | `pluginAwareCommandCompleter` builds a throwaway overlay per `/cli/complete` request, with YANG winning a name collision; the browser CLI offers registered streams | the shared YANG tree stays immutable; `WithArgCompletion` copies one snapshot of builtin/plugin paths before attaching caller-bound argument producers |
 | Web admin | `adminCommandTrees` (`cmd/ze/hub/service_web.go`) answers, per request, `command.OverlayCommandPaths` of the YANG tree and `VisibleCommandEntries()`: a copy of each node on a merged path, every other subtree shared, with every streaming-only command removed (`streamingPathsOff`) | the shared YANG tree is never written, so a plugin that exited is gone on the next request |
 | MCP, REST, gRPC | `buildCommandMeta` (`cmd/ze/hub/command_meta.go`) lists the dispatcher's commands (builtins and the local-data commands it serves) and the plugin commands `ListedOnDaemonSurfaces` lists, minus every streaming-only command (`streamingPathsOff`) | built from the live dispatcher on each list call |
-| `ze cli` | `BuildRuntimeTreeFromDispatch` (`internal/component/cli/client/main.go`): the daemon's `system command list`, plus every local-data command the client answers itself (`command.ServeLocal`) | built at attach; the local-data commands are offered with or without a daemon |
+| `ze cli` (attached console) | `BuildRuntimeTreeFromDispatch` (`internal/component/cli/client/main.go`): the daemon's `system command list`, plus every local-data command `AnswerSurface` offers on `SurfaceCLI` (offering the declared `DaemonPath` for offline-root registrations instead of the offline root) | built at attach; offline-root local-data paths are excluded because the console dispatches through the daemon |
 
 <!-- source: internal/component/command/surface.go -- AnswerSurface, ListedOnDaemonSurfaces -->
 <!-- source: internal/component/plugin/server/command_registry.go -- VisibleCommandEntries -->
@@ -41,8 +41,11 @@ rule. Each fetches the command list from the daemon. `injectPluginCommands`
 drops a command `ListedOnDaemonSurfaces` does not list (a hidden one) and hands
 every other one to `MergeCommandPaths`. A command therefore enters the client's
 tree as it enters the SSH and web trees. `BuildRuntimeTreeFromDispatch` then
-merges every local-data registration, because the client answers those in its
-own process (`mergeLocalDataCommands`).
+merges local-data registrations according to `command.OffersCommand` for
+`SurfaceCLI` (`mergeLocalDataCommands`): direct verb-first local-data commands
+are merged at their own path, while offline-root registrations (`DaemonPath !=
+""`) are offered at their declared daemon path because every line typed in the
+attached console is dispatched by the daemon.
 
 That answer carries visibility and both texts of every command. The `short-help`
 key holds the summary, and `description` holds the explanation. `applyCommandText`
