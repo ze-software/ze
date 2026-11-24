@@ -42,15 +42,14 @@ func subscriberSession(t *testing.T, id, accessInterface string) {
 }
 
 // vsa answers a Vendor-Specific attribute, failing the test if it cannot be
-// encoded. EncodeVSA writes the outer Type and Length octets, which the
-// attribute value does not carry.
+// encoded.
 func vsa(t *testing.T, vendorID uint32, vendorType uint8, value string) radius.Attr {
 	t.Helper()
 	raw, err := radius.EncodeVSA(vendorID, vendorType, []byte(value))
 	if err != nil {
 		t.Fatal(err)
 	}
-	return radius.Attr{Type: radius.AttrVendorSpecific, Value: raw[2:]}
+	return radius.Attr{Type: radius.AttrVendorSpecific, Value: raw}
 }
 
 // RFC requirement: RFC5176-2.3-5 positive -- a CoA-Request carrying a supported

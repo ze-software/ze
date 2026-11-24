@@ -13,7 +13,7 @@ func buildVSAAttr(t *testing.T, vendorID uint32, vendorType uint8, value []byte)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return radius.Attr{Type: radius.AttrVendorSpecific, Value: encoded[2:]}
+	return radius.Attr{Type: radius.AttrVendorSpecific, Value: encoded}
 }
 
 // VALIDATES: AC-1 -- Cisco-AVPair "subscriber:sub-qos-policy-in=gold".
@@ -334,7 +334,7 @@ func TestAccessAcceptKeepsMikrotikUploadHalf(t *testing.T) {
 		t.Fatal(err)
 	}
 	pkt := &radius.Packet{
-		Attrs: []radius.Attr{{Type: radius.AttrVendorSpecific, Value: encoded[2:]}},
+		Attrs: []radius.Attr{{Type: radius.AttrVendorSpecific, Value: encoded}},
 	}
 	meta := extractAuthMetadata(pkt, "")
 	if meta == nil {

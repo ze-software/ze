@@ -1,12 +1,15 @@
 {
-  "note": "Rejudged 2026-10-28 after BlastRADIUS (only change: Exchange takes a Server, buildResponse now signs non-accounting answers). TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort still leaves the first datagram unanswered and byte-compares Identifier, all 16 Request Authenticator octets, attributes and source addr:port of every retransmit against the first; the signed answer only lets the exchange complete under the default presence check, it does not touch what is compared. {single-polarity: positive} holds. TestClientRetransmit remains a floor assertion.",
+  "code": {
+    "internal/component/radius/client.go::Client.Exchange": "105753442ddbbee3"
+  },
+  "note": "Rejudged after TestClientRetransmit (rfc2865_client_test.go) was strengthened to capture the raw bytes of attempt 1 and attempt 2 and assert both Identifier (byte 1) and all 16 Request Authenticator octets (bytes 4..20) remain identical across retransmission (no longer a floor assertion). Re-read RFC 2865 Section 2.5 ('If the NAS is retransmitting a RADIUS request to the same server as before, and the attributes haven't changed, you MUST use the same Request Authenticator, ID, and source port.'). TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort (rfc2865_wire_rules_test.go) is unchanged and additionally byte-compares Identifier, all 16 Request Authenticator octets, attributes and UDP source addr:port across attempts; TestAccessRequestRetransmitIsByteIdentical guards full-packet equality including User-Name and User-Password. {single-polarity: positive} holds because Exchange resends the identical pre-encoded buffer over the same UDP socket.",
   "requirement_sha": "5c737904eded8aeb",
   "tests": {
-    "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit": "1761e266bef616f1",
+    "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit": "d92f006b27d64378",
     "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort": "2303f11cca7174af"
   },
   "units": {
-    "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit": "68bdb3711a592ff1",
+    "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit": "5a362e246447fc7b",
     "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort": "4e503ec77e49e2ab"
   },
   "verdict": "enforced"

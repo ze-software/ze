@@ -3,7 +3,7 @@
   "requirement_sha": "57dcd4808cf06bba",
   "tests": {
     "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured": "b090f2710856c0e7",
-    "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress": "731fd53fb2a3534b",
+    "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress": "65c7c2d20b235c15",
     "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestIdentifiesTheNAS": "a27d914d3a804f8a"
   },
   "units": {

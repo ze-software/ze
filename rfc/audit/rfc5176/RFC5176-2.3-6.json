@@ -1,27 +1,31 @@
 {
-  "note": "Independent semantic rejudgment 2026-11-12 against all CoA atomicity and unsuccessful Disconnect clauses in Section 2.3. Existing ChangeThatCannotBeCarriedOutIsNAKed and CoANAKMakesNoPartialChange cover unavailable dispatch/no access interface on L2TP; SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange covers the subscriber path, requiring 506 and no change notification. RequestWhoseEveryValueIsSupportedIsACKed retains all requested control notifications. New MixedOwnerFailureRestoresBothControls drives real registered shaper and CoS owners through signed UDP, makes VLAN application partially write after rate application, then requires CoA-NAK 506 with original 10M/5M shaping and both original empty VLAN maps. MixedOwnersApplyBeforeACK supplies the same valid request without backend failure and requires signed ACK only with actual 20M/8M shaping plus both gold maps installed. Thus an ACK after mere notification, incomplete application or failure without reverse compensation fails actual state assertions. DisconnectThatCannotTerminateIsNAKed requires NAK after the failed single teardown; DisconnectThatTerminatesIsACKed requires ACK and one completed teardown. This NAS refuses multiple matches before any mutation, so the unsupported-multiple-session route cannot partially terminate or update a set. confirmCoA prepares all bounded owners, applies/commits synchronously and rolls back in reverse on failure. Native new-pair records are not asserted by this source judgement.",
+  "code": {
+    "internal/component/radius/attr.go::DecodeVSA": "a684adc6afa07dfb",
+    "internal/component/radius/attr.go::EncodeVSA": "08817eece119618b"
+  },
+  "note": "Rejudged after rfc5176_coa_values_test.go updated its vsa() helper from raw[2:] to raw (wire-identical Vendor-Specific value encoding with radius.EncodeVSA), 585fcdb081 admitted canonical Birth identity in oneSessionService(t), and 1b0198fb0d narrowed TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed's positive tag claim to the CoA-NAK 506 assertion its body makes. Re-read RFC 5176 Section 2.3 Attributes ('State changes resulting from a CoA-Request MUST be atomic: if the CoA-Request is successful for all matching sessions, the NAS MUST send a CoA-ACK in reply, and all requested authorization changes MUST be made. If the CoA-Request is unsuccessful for any matching sessions, the NAS MUST send a CoA-NAK in reply, and the requested authorization changes MUST NOT be made for any of the matching sessions. Similarly, a state change MUST NOT occur as a result of a Disconnect-Request that is unsuccessful with respect to any of the matching sessions; a NAS MUST send a Disconnect-NAK in reply if any of the matching sessions cannot be successfully terminated.'). Atomic no-partial-change and reverse rollback remain enforced by TestCoAMixedOwnerFailureRestoresBothControls, TestCoAMixedOwnersApplyBeforeACK, TestRFC5176CoANAKMakesNoPartialChange, TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange, TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed, and the Disconnect ACK/NAK pair.",
   "requirement_sha": "1aade4585fa5416c",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go::TestCoAMixedOwnerFailureRestoresBothControls": "8c3531eb5cabcd22",
-    "internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go::TestCoAMixedOwnersApplyBeforeACK": "8c3531eb5cabcd22",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoANAKMakesNoPartialChange": "0461f962da4d97fb",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatCannotTerminateIsNAKed": "0461f962da4d97fb",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatTerminatesIsACKed": "0461f962da4d97fb",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "ecb662b2b1728786",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange": "ecb662b2b1728786",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed": "fc41528fea27644c",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed#2": "fc41528fea27644c"
+    "internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go::TestCoAMixedOwnerFailureRestoresBothControls": "e89237e7faba98c9",
+    "internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go::TestCoAMixedOwnersApplyBeforeACK": "e89237e7faba98c9",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoANAKMakesNoPartialChange": "5f3f208e05b07a3f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatCannotTerminateIsNAKed": "5f3f208e05b07a3f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatTerminatesIsACKed": "5f3f208e05b07a3f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "3a27a8d6fbc4947c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange": "3a27a8d6fbc4947c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed": "77dcd5becb6dabff",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed#2": "77dcd5becb6dabff"
   },
   "units": {
     "internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go::TestCoAMixedOwnerFailureRestoresBothControls": "e5b8b5680aace857",
     "internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go::TestCoAMixedOwnersApplyBeforeACK": "9e59f33667ea7881",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoANAKMakesNoPartialChange": "b32c057e9acbc2a5",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatCannotTerminateIsNAKed": "5a82ceeb940fc217",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatTerminatesIsACKed": "540126093cbd42ed",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "cf8f0a20e2c7c708",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange": "7883cd09177c5069",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed": "71d553e710b2095a",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed#2": "71d553e710b2095a"
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoANAKMakesNoPartialChange": "8297365e6cc90973",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatCannotTerminateIsNAKed": "1e6acc5f8cf322b4",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatTerminatesIsACKed": "6debd699c469d2a5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "08194e46125422f4",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange": "176b262f6de7de8c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed": "23e0e6595aef950e",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed#2": "23e0e6595aef950e"
   },
   "verdict": "enforced"
 }

@@ -152,6 +152,8 @@ func TestClientExchangeReject(t *testing.T) {
 func TestClientRetransmit(t *testing.T) {
 	sharedKey := []byte("testing123")
 	var attempts atomic.Int32
+	var reqMu sync.Mutex
+	var firstReq, secondReq []byte
 
 	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
@@ -169,10 +171,20 @@ func TestClientRetransmit(t *testing.T) {
 				return
 			}
 			a := attempts.Add(1)
+			raw := make([]byte, n)
+			copy(raw, buf[:n])
+			reqMu.Lock()
+			if a == 1 {
+				firstReq = raw
+			}
+			if a == 2 {
+				secondReq = raw
+			}
+			reqMu.Unlock()
 			if a < 2 {
 				continue
 			}
-			resp := buildResponse(CodeAccessAccept, buf[:n], sharedKey)
+			resp := buildResponse(CodeAccessAccept, raw, sharedKey)
 			conn.WriteToUDP(resp, from) //nolint:errcheck // test mock
 		}
 	}()
@@ -209,6 +221,23 @@ func TestClientRetransmit(t *testing.T) {
 	}
 	if attempts.Load() < 2 {
 		t.Errorf("expected at least 2 attempts, got %d", attempts.Load())
+	}
+
+	reqMu.Lock()
+	gotFirst := firstReq
+	gotSecond := secondReq
+	reqMu.Unlock()
+	if len(gotFirst) < HeaderLen {
+		t.Fatalf("first attempt length %d, want at least %d", len(gotFirst), HeaderLen)
+	}
+	if len(gotSecond) < HeaderLen {
+		t.Fatalf("second attempt length %d, want at least %d", len(gotSecond), HeaderLen)
+	}
+	if gotSecond[1] != gotFirst[1] {
+		t.Errorf("retransmit Identifier changed: first=%d second=%d", gotFirst[1], gotSecond[1])
+	}
+	if !bytes.Equal(gotSecond[4:20], gotFirst[4:20]) {
+		t.Errorf("retransmit Request Authenticator changed: first=%x second=%x", gotFirst[4:20], gotSecond[4:20])
 	}
 }
 
@@ -517,10 +546,8 @@ func TestClientTimeout(t *testing.T) {
 }
 
 // TestAccessRequestRetransmitIsByteIdentical captures the datagrams Exchange
-// actually puts on the wire and compares them, which is the assertion
-// TestClientRetransmit's prose claims and its body does not make: that test
-// counts attempts and reads the reply code, so it would pass against a client
-// that re-encoded every retry with a fresh Identifier.
+// actually puts on the wire and compares the full encoded packet across
+// attempts, including attributes such as User-Name and User-Password.
 //
 // The guard matters because the accounting path is about to stop behaving this
 // way. RFC 2866 Section 4.1 requires a retransmitted Accounting-Request to

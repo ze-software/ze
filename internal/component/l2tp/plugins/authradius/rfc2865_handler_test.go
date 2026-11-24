@@ -220,18 +220,13 @@ func TestRADIUSAuthMSCHAPv2Accept(t *testing.T) {
 	// so an Access-Accept that omits it cannot complete the method.
 	// RFC 2548 Section 2.3.3 gives the attribute an Ident octet in front of the
 	// "S=<40 hex digits>" string, which is what decodeMSCHAP2Success strips.
-	//
-	// EncodeVSA returns the WHOLE attribute, Type and Length octets included,
-	// while an Attr carries only the value, so the first two bytes come off
-	// here. buildVSAAttr (extract_vsa_test.go) and the package fuzz seeds do
-	// the same, for the same reason.
 	success, err := radius.EncodeVSA(radius.VendorMicrosoft, radius.MSCHAP2Success,
 		append([]byte{7}, []byte("S=0123456789ABCDEF0123456789ABCDEF01234567")...))
 	if err != nil {
 		t.Fatal(err)
 	}
 	a, resp, cleanup := setupAuthWithAttrs(t, []byte("testing123"), radius.CodeAccessAccept,
-		[]radius.Attr{{Type: radius.AttrVendorSpecific, Value: success[2:]}})
+		[]radius.Attr{{Type: radius.AttrVendorSpecific, Value: success}})
 	defer cleanup()
 
 	mschapResp := make([]byte, 40)

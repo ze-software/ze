@@ -144,12 +144,12 @@ func TestEncodeMSCHAPv2Response(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Outer VSA: Type(1=26) + Length(1) + VendorID(4=311) + VendorType(1=25) + VendorLength(1) + Value(50).
-	if vsaValue[0] != AttrVendorSpecific {
-		t.Errorf("VSA type: got %d, want %d", vsaValue[0], AttrVendorSpecific)
+	// VSA attribute value: VendorID(4=311) + VendorType(1=25) + VendorLength(1=52) + Value(50) = 56.
+	if len(vsaValue) != 56 {
+		t.Fatalf("VSA value length: got %d, want 56", len(vsaValue))
 	}
 
-	vendorID, vendorType, value, err := DecodeVSA(vsaValue[2:])
+	vendorID, vendorType, value, err := DecodeVSA(vsaValue)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +197,7 @@ func TestEncodeVSARoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	vendorID, vendorType, value, err := DecodeVSA(encoded[2:])
+	vendorID, vendorType, value, err := DecodeVSA(encoded)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,6 +209,136 @@ func TestEncodeVSARoundTrip(t *testing.T) {
 	}
 	if !bytes.Equal(value, data) {
 		t.Error("value mismatch")
+	}
+}
+
+// VALIDATES: AC-14 -- EncodeVSA and DecodeVSA are inverses on the same octets
+// (the Vendor-Specific attribute value) and Packet.EncodeTo writes one Type and
+// one Length octet for an Attr holding EncodeVSA's output.
+// PREVENTS: double-writing Type(26)+Length when a caller puts EncodeVSA,
+// EncodeMSCHAP2Response, or EncodeMSCHAPChallenge directly into an Attr.Value.
+func TestEncodeDecodeVSAInverse(t *testing.T) {
+	cases := []struct {
+		name       string
+		vendorID   uint32
+		vendorType uint8
+		payload    []byte
+	}{
+		{"short", VendorCisco, CiscoAVPair, []byte("subscriber:sub-qos-policy-in=gold")},
+		{"empty", VendorMikrotik, MikrotikRateLimit, []byte{}},
+		{"max-payload", VendorMicrosoft, MSCHAPChallenge, bytes.Repeat([]byte{0xAB}, maxVSAValueLen)},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded, err := EncodeVSA(tc.vendorID, tc.vendorType, tc.payload)
+			if err != nil {
+				t.Fatalf("EncodeVSA: %v", err)
+			}
+			wantValLen := 6 + len(tc.payload)
+			if len(encoded) != wantValLen {
+				t.Fatalf("encoded length: got %d, want %d", len(encoded), wantValLen)
+			}
+
+			// Direct inverse: DecodeVSA reads the exact octets EncodeVSA produced.
+			gotVendor, gotType, gotVal, err := DecodeVSA(encoded)
+			if err != nil {
+				t.Fatalf("DecodeVSA(EncodeVSA): %v", err)
+			}
+			if gotVendor != tc.vendorID || gotType != tc.vendorType || !bytes.Equal(gotVal, tc.payload) {
+				t.Fatalf("DecodeVSA = (%d, %d, %x), want (%d, %d, %x)",
+					gotVendor, gotType, gotVal, tc.vendorID, tc.vendorType, tc.payload)
+			}
+
+			// Wire round-trip: Packet.EncodeTo writes exactly ONE outer Type and Length.
+			pkt := &Packet{
+				Code:       CodeAccessRequest,
+				Identifier: 1,
+				Attrs:      []Attr{{Type: AttrVendorSpecific, Value: encoded}},
+			}
+			buf := make([]byte, MaxPacketLen)
+			n, err := pkt.EncodeTo(buf, 0)
+			if err != nil {
+				t.Fatalf("Packet.EncodeTo: %v", err)
+			}
+			wantPktLen := HeaderLen + 2 + len(encoded)
+			if n != wantPktLen {
+				t.Fatalf("wire packet length: got %d, want %d", n, wantPktLen)
+			}
+			if buf[HeaderLen] != AttrVendorSpecific {
+				t.Errorf("outer Type: got %d, want %d", buf[HeaderLen], AttrVendorSpecific)
+			}
+			if int(buf[HeaderLen+1]) != 2+len(encoded) {
+				t.Errorf("outer Length: got %d, want %d", buf[HeaderLen+1], 2+len(encoded))
+			}
+			if !bytes.Equal(buf[HeaderLen+2:n], encoded) {
+				t.Error("wire attribute value does not match EncodeVSA output")
+			}
+
+			decoded, err := Decode(buf[:n])
+			if err != nil {
+				t.Fatalf("Packet Decode: %v", err)
+			}
+			raw := decoded.FindAttr(AttrVendorSpecific)
+			if !bytes.Equal(raw, encoded) {
+				t.Fatalf("decoded Attr.Value = %x, want %x", raw, encoded)
+			}
+			gotVendor, gotType, gotVal, err = DecodeVSA(raw)
+			if err != nil {
+				t.Fatalf("DecodeVSA after wire Decode: %v", err)
+			}
+			if gotVendor != tc.vendorID || gotType != tc.vendorType || !bytes.Equal(gotVal, tc.payload) {
+				t.Fatalf("wire round-trip = (%d, %d, %x), want (%d, %d, %x)",
+					gotVendor, gotType, gotVal, tc.vendorID, tc.vendorType, tc.payload)
+			}
+		})
+	}
+
+	// Reject a payload that would make the outer RADIUS attribute exceed MaxAttrLen (255).
+	if _, err := EncodeVSA(VendorMicrosoft, MSCHAPChallenge, make([]byte, maxVSAValueLen+1)); err == nil {
+		t.Errorf("EncodeVSA accepted payload of %d octets (> maxVSAValueLen %d)", maxVSAValueLen+1, maxVSAValueLen)
+	}
+
+	// MS-CHAP helpers return attribute values ready for AttrVendorSpecific with no slicing.
+	chal := bytes.Repeat([]byte{0x11}, 16)
+	vsaChal, err := EncodeMSCHAPChallenge(chal)
+	if err != nil {
+		t.Fatalf("EncodeMSCHAPChallenge: %v", err)
+	}
+	vsaResp, err := EncodeMSCHAP2Response(7, bytes.Repeat([]byte{0x22}, 16), bytes.Repeat([]byte{0x33}, 24))
+	if err != nil {
+		t.Fatalf("EncodeMSCHAP2Response: %v", err)
+	}
+	pkt := &Packet{
+		Code:       CodeAccessRequest,
+		Identifier: 2,
+		Attrs: []Attr{
+			{Type: AttrVendorSpecific, Value: vsaChal},
+			{Type: AttrVendorSpecific, Value: vsaResp},
+		},
+	}
+	buf := make([]byte, MaxPacketLen)
+	n, err := pkt.EncodeTo(buf, 0)
+	if err != nil {
+		t.Fatalf("MS-CHAP Packet.EncodeTo: %v", err)
+	}
+	decoded, err := Decode(buf[:n])
+	if err != nil {
+		t.Fatalf("MS-CHAP Packet Decode: %v", err)
+	}
+	vsas := decoded.FindAllAttr(AttrVendorSpecific)
+	if len(vsas) != 2 {
+		t.Fatalf("decoded VSA count: got %d, want 2", len(vsas))
+	}
+	vid, vtype, gotChal, err := DecodeVSA(vsas[0])
+	if err != nil || vid != VendorMicrosoft || vtype != MSCHAPChallenge || !bytes.Equal(gotChal, chal) {
+		t.Fatalf("decoded MS-CHAP-Challenge = (%d, %d, %x, %v), want (%d, %d, %x, nil)",
+			vid, vtype, gotChal, err, VendorMicrosoft, MSCHAPChallenge, chal)
+	}
+	vid, vtype, gotResp, err := DecodeVSA(vsas[1])
+	if err != nil || vid != VendorMicrosoft || vtype != MSCHAP2Response || len(gotResp) != 50 {
+		t.Fatalf("decoded MS-CHAP2-Response = (%d, %d, len=%d, %v), want (%d, %d, len=50, nil)",
+			vid, vtype, len(gotResp), err, VendorMicrosoft, MSCHAP2Response)
 	}
 }
 

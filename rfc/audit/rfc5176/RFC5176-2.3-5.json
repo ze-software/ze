@@ -1,25 +1,29 @@
 {
-  "note": "Independent semantic rejudgment 2026-11-12 against the complete Section 2.3 Attributes paragraph, including mandatory attributes, changes that cannot be carried out, and unsupported attribute types/values for BOTH CoA and Disconnect. Existing UnsupportedAttributeNAKed and CoAWithAnUnsupportedAttributeValueIsNAKed require exact NAKs for unsupported types and sole invalid values; CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed keeps a supported rate beside an invalid second Filter-Id/duplicate rate/unknown vendor, requiring 407 and no emitted change. DisconnectWithAnUnsupportedValueIsNAKed isolates malformed NAS-Port versus unsupported VSA, requires 407/401 and zero teardown. RequestWhoseEveryValueIsSupportedIsACKed retains useful CoA and Disconnect acceptance. New DynamicAuthorizationRefusesUnimplementedIdentification supplies valid signed wire encodings of each of eleven unsupported identification types, one at a time alongside all three matching supported selectors, for both request kinds: NAK 401, both shaping directions unchanged, subscriber retained and no teardown. CoAImplementedIdentificationStillApplies uses only the three implemented selectors and explicit 20mbit/5mbit, requiring signed ACK and those actual backend rates. Section 2.3 expressly allows a NAS to omit CoA support for attributes it supports in authentication/accounting, so explicit 401 replaces the former silent ignore correctly. readCoAChange walks every authorization attribute; unsupportedAttr/unsupportedAttrValue run before application; the companion atomicity units enforce unavailable-backend refusal rather than event-only success. Accepting/ignoring any of these extras or values breaks the exact NAK/no-change controls; blanket refusal breaks useful ACK controls. Native proof freshness remains main's separate gate.",
+  "code": {
+    "internal/component/radius/attr.go::DecodeVSA": "a684adc6afa07dfb",
+    "internal/component/radius/attr.go::EncodeVSA": "08817eece119618b"
+  },
+  "note": "Rejudged after rfc5176_coa_values_test.go updated its vsa() helper from raw[2:] to raw (matching radius.EncodeVSA now returning the Vendor-Specific attribute value directly as the inverse of DecodeVSA, producing byte-identical wire packets) and after 585fcdb081 admitted canonical Birth identity in oneSessionService(t). Re-read RFC 5176 Section 2.3 Attributes ('In CoA-Request and Disconnect-Request packets, all attributes MUST be treated as mandatory. If one or more authorization changes specified in a CoA-Request cannot be carried out, the NAS MUST send a CoA-NAK. A NAS MUST respond to a CoA-Request containing one or more unsupported attributes or Attribute values with a CoA-NAK ... A NAS MUST respond to a Disconnect-Request containing one or more unsupported attributes or Attribute values with a Disconnect-NAK'). All eight tagged units retain exact NAK 401/407, zero event emission, zero teardown and positive ACK assertions for unsupported attribute types, unsupported values beside supported ones (including unknown-vendor VSA and Disconnect MikroTik VSA via vsa()), and the eleven unimplemented identification attributes.",
   "requirement_sha": "9b063492f7eea058",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed": "0461f962da4d97fb",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed": "ecb662b2b1728786",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed": "ecb662b2b1728786",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "ecb662b2b1728786",
-    "internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go::TestCoAImplementedIdentificationStillApplies": "ea56be686a13e8ad",
-    "internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go::TestDynamicAuthorizationRefusesUnimplementedIdentification": "ea56be686a13e8ad",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed": "fc41528fea27644c",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed#2": "fc41528fea27644c"
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed": "5f3f208e05b07a3f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed": "3a27a8d6fbc4947c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed": "3a27a8d6fbc4947c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "3a27a8d6fbc4947c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go::TestCoAImplementedIdentificationStillApplies": "5886dd26c6f6c191",
+    "internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go::TestDynamicAuthorizationRefusesUnimplementedIdentification": "5886dd26c6f6c191",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed": "77dcd5becb6dabff",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed#2": "77dcd5becb6dabff"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed": "b26bec63e7ea6a69",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed": "fd119ef22edaef4d",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed": "66433e1f7620d4c3",
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "cf8f0a20e2c7c708",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed": "64288501d122a8dd",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed": "3fe55db23d920d24",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed": "bb92900ee685f8f3",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "08194e46125422f4",
     "internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go::TestCoAImplementedIdentificationStillApplies": "88c9b61277ab90fd",
-    "internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go::TestDynamicAuthorizationRefusesUnimplementedIdentification": "23acf922fee99544",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed": "9770d3018300a43a",
-    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed#2": "9770d3018300a43a"
+    "internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go::TestDynamicAuthorizationRefusesUnimplementedIdentification": "1ead5116bc191cbb",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed": "91ea8d819cf930db",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed#2": "91ea8d819cf930db"
   },
   "verdict": "enforced"
 }

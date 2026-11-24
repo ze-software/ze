@@ -577,7 +577,7 @@ func TestCoAExtractCiscoCoS(t *testing.T) {
 	}
 	pkt := &radius.Packet{
 		Attrs: []radius.Attr{
-			{Type: radius.AttrVendorSpecific, Value: encoded[2:]},
+			{Type: radius.AttrVendorSpecific, Value: encoded},
 		},
 	}
 	change, cause := readCoAChange(pkt)
@@ -597,7 +597,7 @@ func TestCoAExtractMikrotikRate(t *testing.T) {
 	}
 	pkt := &radius.Packet{
 		Attrs: []radius.Attr{
-			{Type: radius.AttrVendorSpecific, Value: encoded[2:]},
+			{Type: radius.AttrVendorSpecific, Value: encoded},
 		},
 	}
 	change, cause := readCoAChange(pkt)
@@ -673,7 +673,7 @@ func TestExtractRatesKeepsMikrotikUploadHalf(t *testing.T) {
 		t.Fatal(err)
 	}
 	pkt := &radius.Packet{
-		Attrs: []radius.Attr{{Type: radius.AttrVendorSpecific, Value: encoded[2:]}},
+		Attrs: []radius.Attr{{Type: radius.AttrVendorSpecific, Value: encoded}},
 	}
 	change, cause := readCoAChange(pkt)
 	if cause != 0 {

@@ -93,9 +93,9 @@ func (a *radiusAuth) handle(req ppp.EventAuthRequest, respond l2tp.AuthRespondFu
 	// Access-Request would have asked.
 	//
 	// Admitting it HERE is what lets a RADIUS server be configured for
-	// accounting alone. activateRadiusConfig (register.go) claims the single
-	// auth slot for every RADIUS deployment, accounting-only included, so a
-	// refusal here refuses every session on a wholesale LNS that bills and
+	// accounting alone. activateRadiusConfig (register.go) registers RADIUS at
+	// AuthPriorityRemote for every RADIUS deployment, accounting-only included,
+	// so a refusal here refuses every session on a wholesale LNS that bills and
 	// never authenticates. The guard below still holds for every method that
 	// does carry a credential: buildAccessRequestAttrs refuses to build a
 	// request without one.
@@ -367,8 +367,8 @@ func buildAuthAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr net.IP) (
 			return nil, false
 		}
 		attrs = append(attrs,
-			radius.Attr{Type: radius.AttrVendorSpecific, Value: vsaResp[2:]},
-			radius.Attr{Type: radius.AttrVendorSpecific, Value: vsaChal[2:]},
+			radius.Attr{Type: radius.AttrVendorSpecific, Value: vsaResp},
+			radius.Attr{Type: radius.AttrVendorSpecific, Value: vsaChal},
 		)
 
 	case ppp.AuthMethodNone:

@@ -7,8 +7,8 @@ import (
 // FuzzDecodeRADIUSVSA feeds arbitrary bytes into DecodeVSA, the vendor-specific
 // attribute decoder the L2TP RADIUS client (authradius) runs over vendor
 // attributes extracted from RADIUS server replies. Input shape is the
-// attribute value AFTER the outer Type+Length, matching the real callers
-// (they pass data[2:]); seeds use EncodeVSA(...)[2:] for that reason.
+// attribute value AFTER the outer Type+Length, matching Packet.FindAllAttr and
+// EncodeVSA.
 //
 // The decoder must never panic, and on success the returned value must be
 // exactly vendorLen-2 bytes and lie within the input (4+vendorLen <= len),
@@ -47,11 +47,11 @@ func radiusVSASeeds() [][]byte {
 		if err != nil {
 			return nil
 		}
-		return b[2:] // strip the outer Type(1)+Length(1)
+		return b
 	}
 
 	// valid() never returns nil for these small values (EncodeVSA only errors
-	// when 2+len(value) > 255); a nil seed would be a harmless empty input anyway.
+	// when len(value) > maxVSAValueLen); a nil seed would be a harmless empty input anyway.
 	return [][]byte{
 		valid(311, 25, []byte("hello")),      // vendor Microsoft, non-empty value
 		valid(9, 1, []byte{}),                // vendor Cisco, empty value (vendorLen==2)

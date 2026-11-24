@@ -3,7 +3,7 @@
     "rid": "RFC2865-2.5-1",
     "polarity": "positive",
     "unit": "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit",
-    "unit-sha": "985ee5fd2ec5f2ad",
+    "unit-sha": "bd67b969d51bdb59",
     "claim-sha": "608208e6ea9ad0cf",
     "route": "revert",
     "producer": "internal/component/radius/client.go::Exchange",

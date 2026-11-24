@@ -67,8 +67,15 @@ func EncodeCHAPPassword(identifier uint8, response []byte) []byte {
 	return val
 }
 
+// maxVSAValueLen is the largest Attribute-Specific payload a Vendor-Specific
+// attribute value can carry while keeping the enclosing RADIUS attribute within
+// MaxAttrLen (255 octets): 255 - Type(1) - Length(1) - VendorID(4) -
+// VendorType(1) - VendorLength(1) = 247.
+const maxVSAValueLen = MaxAttrLen - 8
+
 // EncodeMSCHAP2Response encodes an MS-CHAP2-Response as a vendor-specific
-// attribute (RFC 2548). The outer VSA wraps vendor 311, type 25.
+// attribute value (RFC 2548 Section 2.3.2, RFC 2865 Section 5.26), ready for
+// Attr{Type: AttrVendorSpecific, Value: ...}. Vendor 311, type 25.
 // Value format: Ident(1) + Flags(1) + Peer-Challenge(16) + Reserved(8) + Response(24).
 func EncodeMSCHAP2Response(identifier uint8, peerChallenge, ntResponse []byte) ([]byte, error) {
 	if len(peerChallenge) != 16 {
@@ -87,38 +94,76 @@ func EncodeMSCHAP2Response(identifier uint8, peerChallenge, ntResponse []byte) (
 	// msValue[18:26] = Reserved (zero)
 	copy(msValue[26:50], ntResponse)
 
+	// RFC 2865 Section 5.26.
 	return EncodeVSA(VendorMicrosoft, MSCHAP2Response, msValue)
 }
 
 // EncodeMSCHAPChallenge encodes an MS-CHAP-Challenge as a vendor-specific
-// attribute. Vendor 311, type 11.
+// attribute value (RFC 2548 Section 2.1.2, RFC 2865 Section 5.26), ready for
+// Attr{Type: AttrVendorSpecific, Value: ...}. Vendor 311, type 11.
 func EncodeMSCHAPChallenge(challenge []byte) ([]byte, error) {
+	// RFC 2865 Section 5.26.
 	return EncodeVSA(VendorMicrosoft, MSCHAPChallenge, challenge)
 }
 
-// EncodeVSA encodes a vendor-specific attribute.
-// RFC 2865 Section 5.26: Type(26) + Length + VendorID(4) + VendorType(1) + VendorLength(1) + Value.
+// EncodeVSA encodes the value of a Vendor-Specific attribute (everything after
+// the outer Type(26) and Length octets), ready to place in
+// Attr{Type: AttrVendorSpecific, Value: ...}. It is the inverse of DecodeVSA on
+// the same octets.
+//
+// RFC 2865 Section 5.26: "It SHOULD be encoded as a sequence of vendor type /
+// vendor length / value fields, as follows."
+// RFC 2865 Section 5.26: "The high-order octet is 0 and the low-order 3 octets
+// are the SMI Network Management Private Enterprise Code of the Vendor in
+// network byte order, as defined in the "Assigned Numbers" RFC [6]."
+//
+// Wire format of the returned attribute value (RFC 2865 Section 5.26), with
+// byte offsets:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                          Vendor-Id                            |  0..3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Vendor type  | Vendor length |    Attribute-Specific ...     |  4..5, 6..
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Packet.EncodeTo writes the outer Type (26) and Length octets.
 func EncodeVSA(vendorID uint32, vendorType uint8, value []byte) ([]byte, error) {
-	// Outer: Type(1) + Length(1) + VendorID(4) + VendorType(1) + VendorLength(1) + Value
-	if 2+len(value) > 255 {
-		return nil, fmt.Errorf("radius: VSA value too long (%d > 253)", len(value))
+	if len(value) > maxVSAValueLen {
+		return nil, fmt.Errorf("radius: VSA value too long (%d > %d)", len(value), maxVSAValueLen)
 	}
-	vendorLen := uint8(2 + len(value)) // VendorType + VendorLength + Value
-	totalLen := 6 + int(vendorLen)     // Type + Length + VendorID(4) + vendor portion
+	vendorLen := uint8(2 + len(value)) // VendorType(1) + VendorLength(1) + Value
+	valLen := 4 + int(vendorLen)       // VendorID(4) + vendor portion
 
-	buf := make([]byte, totalLen)
-	buf[0] = AttrVendorSpecific
-	buf[1] = uint8(totalLen)
-	binary.BigEndian.PutUint32(buf[2:6], vendorID)
-	buf[6] = vendorType
-	buf[7] = vendorLen
-	copy(buf[8:], value)
+	buf := make([]byte, valLen)
+	binary.BigEndian.PutUint32(buf[0:4], vendorID)
+	buf[4] = vendorType
+	buf[5] = vendorLen
+	copy(buf[6:], value)
 
 	return buf, nil
 }
 
-// DecodeVSA decodes a vendor-specific attribute value (everything after
-// the outer Type+Length). Returns vendorID, vendorType, vendorValue.
+// DecodeVSA decodes the value of a Vendor-Specific attribute (everything after
+// the outer Type(26) and Length octets), the exact octets EncodeVSA produces
+// and Packet.FindAllAttr(AttrVendorSpecific) returns.
+//
+// RFC 2865 Section 5.26: "It SHOULD be encoded as a sequence of vendor type /
+// vendor length / value fields, as follows."
+//
+// Wire format of data (RFC 2865 Section 5.26), with byte offsets:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                          Vendor-Id                            |  0..3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Vendor type  | Vendor length |    Attribute-Specific ...     |  4..5, 6..
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Returns vendorID, vendorType, and a subslice of data holding the
+// Attribute-Specific octets.
 func DecodeVSA(data []byte) (vendorID uint32, vendorType uint8, value []byte, err error) {
 	if len(data) < 6 {
 		return 0, 0, nil, fmt.Errorf("radius: VSA too short (%d)", len(data))
@@ -126,7 +171,10 @@ func DecodeVSA(data []byte) (vendorID uint32, vendorType uint8, value []byte, er
 	vendorID = binary.BigEndian.Uint32(data[0:4])
 	vendorType = data[4]
 	vendorLen := int(data[5])
-	if vendorLen < 2 || 4+vendorLen > len(data) {
+	if vendorLen < 2 {
+		return 0, 0, nil, fmt.Errorf("radius: VSA vendor length invalid (%d)", vendorLen)
+	}
+	if 4+vendorLen > len(data) {
 		return 0, 0, nil, fmt.Errorf("radius: VSA vendor length invalid (%d)", vendorLen)
 	}
 	value = data[6 : 4+vendorLen]
