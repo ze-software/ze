@@ -1,0 +1,35 @@
+module ze-fib-dummy-conf {
+    namespace "urn:ze:fib:dummy:conf";
+    prefix fibdummy;
+
+    import ze-fib-conf { prefix fib; }
+    import ze-extensions { prefix ze; }
+
+    description
+        "FIB dummy backend configuration for Ze.
+         Augments the fib container with a backend that holds selected
+         system RIB routes in memory and writes them nowhere.";
+
+    revision 2026-11-24 {
+        description "Initial revision.";
+    }
+
+    augment "/fib:fib" {
+        container dummy {
+            description
+                "fib-dummy subscribes to the best-change event of the system RIB,
+                 holds each selected route in memory, counts the changes, and
+                 writes them to no forwarding table. Because this container is
+                 the operator's FIB choice, Ze adds no data-plane writer beside
+                 it. Use `show fib dummy` to list the routes held in memory and
+                 `show fib dummy counters` to read the change and label counters.
+                 This contract covers routes selected by the system RIB only:
+                 named-table static routes, policy routing, the IPsec
+                 tunnel-source guard, and interface addresses with their
+                 connected routes write forwarding state by their own path and
+                 are untouched.";
+            ze:help
+                "Hold selected system RIB routes in memory and program nowhere.";
+        }
+    }
+}

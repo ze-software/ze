@@ -1,0 +1,88 @@
+# Test: `fib { dummy { } }` with a main-table static route holds the route in
+#       `show fib dummy` without loading `fib-kernel` or writing any entry to
+#       the Linux kernel routing tables.
+#
+# VALIDATES: spec-fib-dummy AC-3 -- the static route appears in `show rib` and
+#            in `show fib dummy` with `programmed: "no"`, `ip route show` prints
+#            nothing for its prefix in any table, and `fib-dummy` is the only
+#            running `ProgramsFIB` plugin (`fib-kernel` is never auto-loaded).
+# PREVENTS:  `fib { dummy { } }` failing to suppress engine auto-load of
+#            `fib-kernel`, or programming main-table static routes into Linux.
+#
+# Requires Linux to inspect the kernel routing tables with `ip route show`.
+# Reading kernel routes needs no CAP_NET_ADMIN.
+option=needs-linux
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.log.plugin.server:value=info
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=static-fib-dummy.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 198.51.100.0/24 {
+			next { hop 192.0.2.1 { } }
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start static-fib-dummy.conf:name=daemon:ready=Ze running.
+reject=stderr:contains=auto-loading the FIB plugin for the configured data plane
+
+cmd=foreground:seq=3:exec=le test fixture daemon/await-answer-all "show rib" 198.51.100.0/24:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=4:exec=le test fixture daemon/await-answer-all "show fib dummy" 198.51.100.0/24:exit=0
+expect=stdout:contains=OK:
+
+# AC-3: `show fib dummy | json` holds the static route with `programmed: "no"`.
+cmd=foreground:seq=5:exec=ze cli -c "show fib dummy | json":exit=0
+expect=stdout:pattern="prefix": ?"198\.51\.100\.0/24"
+expect=stdout:pattern="next-hop": ?"192\.0\.2\.1"
+expect=stdout:pattern="protocol": ?"static"
+expect=stdout:pattern="programmed": ?"no"
+reject=stdout:pattern="programmed": ?"yes"
+
+# AC-3: `show fib dummy counters | json` reports `forwarding: "none"`.
+cmd=foreground:seq=6:exec=ze cli -c "show fib dummy counters | json":exit=0
+expect=stdout:pattern="forwarding": ?"none"
+expect=stdout:pattern="routes-held": ?1
+expect=stdout:pattern="installs": ?1
+
+# AC-3: Linux kernel routing tables hold no entry for 198.51.100.0/24 in any table.
+cmd=foreground:seq=7:exec=ip -N route show table all exact 198.51.100.0/24:exit=0
+reject=stdout:contains=198.51.100.0/24
+
+# AC-3: `fib-kernel` is not running (its command is not served by the daemon).
+cmd=foreground:seq=8:exec=ze cli -c "show fib kernel":exit=1
+
+cmd=stop:seq=9:name=daemon:signal=term

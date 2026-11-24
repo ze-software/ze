@@ -1,0 +1,139 @@
+# Test: `fib { dummy { } }` holds BGP routes selected by the system RIB and
+#       reports them as not programmed through `show fib dummy` and
+#       `show fib dummy counters`.
+#
+# VALIDATES: spec-fib-dummy AC-1, AC-2, AC-13 -- `fib { dummy { } }` starts
+#            `fib-dummy` and its dependency `rib`, receives BGP routes selected
+#            by the system RIB, lists each prefix in `show fib dummy` with
+#            `programmed: "no"`, counts them with `| count`, and reports
+#            `forwarding: "none"` and matching counters in
+#            `show fib dummy counters`.
+# PREVENTS:  `fib-dummy` failing to register, failing to pull in `rib`,
+#            failing to consume `(system-rib, best-change)`, or misstating held
+#            routes as programmed.
+#
+# Flow:
+# 1. Start `le test peer` announcing 198.51.100.0/24 and 203.0.113.0/24 with
+#    next-hop 192.0.2.1 (lingering so routes remain in the RIB during reads).
+# 2. Boot `ze` with `fib { dummy { } }` (no explicit `rib` block -- `fib-dummy`
+#    pulls `rib` in via Dependencies), `bgp-rib`, and a main-table static
+#    covering route for 192.0.2.0/24 so 192.0.2.1 resolves per RFC 4271
+#    Section 9.1.2 and both BGP prefixes enter the system RIB.
+# 3. Wait until `show rib` carries all three prefixes, then verify
+#    `show fib dummy` (`| json` and `| count`) and `show fib dummy counters | json`.
+
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via Linux netlink.
+option=needs-linux
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=80s
+option=asn:value=65001
+option=linger:value=true
+option=update:value=send-route:prefix=198.51.100.0/24:next-hop=192.0.2.1
+option=update:value=send-route:prefix=203.0.113.0/24:next-hop=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=fib-dummy.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 192.0.2.0/24 {
+			next { interface lo { } }
+		}
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=3:exec=ze start fib-dummy.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=4:exec=le test fixture daemon/await-answer-all "show bgp peer list" established:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=5:exec=le test fixture daemon/await-answer-all "show rib" 192.0.2.0/24 198.51.100.0/24 203.0.113.0/24:exit=0
+expect=stdout:contains=OK:
+cmd=foreground:seq=6:exec=le test fixture daemon/await-answer-all "show fib dummy" 192.0.2.0/24 198.51.100.0/24 203.0.113.0/24:exit=0
+expect=stdout:contains=OK:
+
+# AC-1, AC-13: `show fib dummy | json` lists the selected prefixes with
+# `programmed: "no"`, protocol, and next-hop.
+cmd=foreground:seq=7:exec=ze cli -c "show fib dummy | json":exit=0
+expect=stdout:pattern="prefix": ?"198\.51\.100\.0/24"
+expect=stdout:pattern="prefix": ?"203\.0\.113\.0/24"
+expect=stdout:pattern="next-hop": ?"192\.0\.2\.1"
+expect=stdout:pattern="protocol": ?"bgp"
+expect=stdout:pattern="programmed": ?"no"
+reject=stdout:pattern="programmed": ?"yes"
+
+# AC-13: `| count` applies to `show fib dummy`.
+cmd=foreground:seq=8:exec=ze cli -c "show fib dummy | count | json":exit=0
+expect=stdout:pattern="count": ?3
+
+# AC-1, AC-2: `show fib dummy counters | json` reports `forwarding: "none"` and
+# counters matching the held routes.
+cmd=foreground:seq=9:exec=ze cli -c "show fib dummy counters | json":exit=0
+expect=stdout:pattern="forwarding": ?"none"
+expect=stdout:pattern="routes-held": ?3
+expect=stdout:pattern="installs": ?3
+expect=stdout:pattern="removals": ?0
+expect=stdout:pattern="invalid-changes": ?0
+expect=stdout:pattern="label-entries-refused": ?0
+
+cmd=stop:seq=10:name=daemon:signal=term
