@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7752-3.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9552_next_hop_test.go::TestRFC9552BGPLSNextHopFramingPositive",
+    "unit-sha": "0175e014859bfaf1",
+    "claim-sha": "4dc8c32c4a82dd82",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo",
+    "producer-sha": "9ae401765f3b7014",
+    "break": "body of MPReachNLRI.WriteTo replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7752-3.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9552_next_hop_test.go::TestRFC9552BGPLSNextHopFramingRejectsInvalidLengths",
+    "unit-sha": "45b47e51a23480ff",
+    "claim-sha": "6e2286f2685e2cc6",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/mpnexthop.go::NextHopProfile.DecodeNextHops",
+    "producer-sha": "27a8985909e0d4dd",
+    "break": "body of NextHopProfile.DecodeNextHops replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

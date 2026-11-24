@@ -1,0 +1,336 @@
+# Question: does real ExaBGP at immutable commit 3790c532eb1d799b51db6e12ca2662f747e85042
+# accept and natively decode Ze's forwarded BGP-LS VPN (AFI 16388 / SAFI 72)
+# 12-octet IPv4 (`next-hop:auto`) and 24-octet IPv6 (`modify`) single-address
+# announcements plus subsequent LS-VPN withdrawal over a live TCP session while
+# keeping the session healthy for a separate IPv4 control route?
+#
+# A unit test or Ze's own mock peer cannot prove another implementation's real
+# wire decoder accepts Ze's RD-prefixed LS-VPN next hops. Paired 48-octet IPv6
+# next hops are intentionally excluded from this ExaBGP oracle because
+# 3790c532eb's receiver rejects both 40- and 48-octet LS-VPN next-hop fields.
+#
+# VALIDATES: AC-12 step 8 (spec-bgp-next-hop-auto-rewrites-for-ebgp),
+# RFC 9552 Section 5.5 live peer receipt of 12-octet IPv4 and 24-octet IPv6
+# zero-RD LS-VPN singles and withdrawal.
+# PREVENTS: Ze emitting LS-VPN next-hop framing that real ExaBGP rejects or
+# misparses (such as naked 4/16-octet fields or corrupting the NLRI RD), or
+# breaking session health during LS-VPN withdrawal.
+#
+# Prerequisite: either `exabgp` (pinned to 3790c532eb1d799b51db6e12ca2662f747e85042)
+# or `uv` on PATH to resolve that immutable commit. Absence is a loud setup
+# failure (`SETUP ERROR`), never a skip or passing result.
+
+option=timeout:value=90s
+option=env:var=ze.log.bgp.rs:value=info
+
+tmpfs=exabgp.conf:terminator=EOF_EXABGP_CONF
+process ls-vpn-reader {
+	run ./exabgp-reader.py;
+	encoder json;
+	respawn false;
+}
+
+neighbor 127.0.0.4 {
+	router-id 127.0.0.2;
+	local-address 127.0.0.2;
+	local-as 65002;
+	peer-as 65000;
+	hold-time 180;
+	group-updates false;
+
+	capability {
+		graceful-restart disable;
+	}
+
+	family {
+		ipv4 unicast;
+		bgp-ls bgp-ls-vpn;
+	}
+
+	api {
+		processes [ ls-vpn-reader ];
+		neighbor-changes;
+		receive {
+			parsed;
+			update;
+		}
+	}
+}
+EOF_EXABGP_CONF
+
+tmpfs=exabgp-reader.py:mode=755:terminator=EOF_EXABGP_READER
+#!/usr/bin/env python3
+import json
+import os
+import sys
+
+
+def node_descriptors_match(entry, want_as, want_router_id):
+    descs = entry.get("node-descriptors")
+    if isinstance(descs, dict):
+        return (
+            descs.get("autonomous-system") == want_as
+            and descs.get("router-id") == want_router_id
+        )
+    if isinstance(descs, list):
+        got_as = None
+        got_rid = None
+        for item in descs:
+            if not isinstance(item, dict):
+                continue
+            if "autonomous-system" in item:
+                got_as = item["autonomous-system"]
+            if "router-id" in item:
+                got_rid = item["router-id"]
+        return got_as == want_as and got_rid == want_router_id
+    return False
+
+
+def matches_ls72_node(entry, want_rd, want_router_id):
+    if not isinstance(entry, dict):
+        return False
+    if entry.get("ls-nlri-type") != "bgpls-node":
+        return False
+    if entry.get("protocol-id") != 3:
+        return False
+    if entry.get("l3-routing-topology") != 256:
+        return False
+    got_rd = entry.get("route-distinguisher")
+    if got_rd is None:
+        got_rd = entry.get("rd")
+    if got_rd != want_rd:
+        return False
+    return node_descriptors_match(entry, 65001, want_router_id)
+
+
+def has_ipv4_prefix(entries, want_prefix):
+    if not isinstance(entries, list):
+        return False
+    for item in entries:
+        if isinstance(item, dict) and item.get("nlri") == want_prefix:
+            return True
+        if item == want_prefix:
+            return True
+    return False
+
+
+def main():
+    state = {
+        "v4_announced": False,
+        "v6_announced": False,
+        "ctrl1_announced": False,
+        "v4_withdrawn": False,
+        "ctrl2_announced": False,
+    }
+    up_written = False
+    completed = False
+
+    for raw in sys.stdin:
+        line = raw.strip()
+        if not line:
+            continue
+        sys.stderr.write(f"[exabgp-reader] {line}\n")
+        sys.stderr.flush()
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError as exc:
+            sys.stderr.write(f"FAIL: invalid JSON from ExaBGP: {exc}: {line}\n")
+            sys.stderr.flush()
+            return 1
+
+        ev_type = ev.get("type")
+        neighbor = ev.get("neighbor", {})
+
+        if ev_type == "state":
+            st = neighbor.get("state")
+            if st == "up" and not up_written:
+                work_dir = os.path.dirname(os.path.abspath(__file__))
+                tmp_path = os.path.join(work_dir, "exabgp.up.tmp")
+                up_path = os.path.join(work_dir, "exabgp.up")
+                with open(tmp_path, "w", encoding="utf-8") as fh:
+                    fh.write("up\n")
+                os.replace(tmp_path, up_path)
+                up_written = True
+            elif st == "down" and not completed:
+                sys.stderr.write(
+                    f"FAIL: ExaBGP session went down before verification completed: {state}\n"
+                )
+                sys.stderr.flush()
+                return 1
+            continue
+
+        if ev_type != "update":
+            continue
+
+        upd = neighbor.get("message", {}).get("update", {})
+        announce = upd.get("announce", {})
+        withdraw = upd.get("withdraw", {})
+
+        ls_ann = announce.get("bgp-ls bgp-ls-vpn") or announce.get("bgp-ls bgp-ls", {})
+        if isinstance(ls_ann, dict):
+            for entry in ls_ann.get("127.0.0.4", []):
+                if matches_ls72_node(entry, "65001:7", "192.0.2.9"):
+                    state["v4_announced"] = True
+            for entry in ls_ann.get("2001:db8::fe", []):
+                if matches_ls72_node(entry, "65001:8", "192.0.2.10"):
+                    state["v6_announced"] = True
+
+        v4_ann = announce.get("ipv4 unicast", {})
+        if isinstance(v4_ann, dict):
+            if has_ipv4_prefix(v4_ann.get("127.0.0.4", []), "10.88.0.0/24"):
+                state["ctrl1_announced"] = True
+            if has_ipv4_prefix(v4_ann.get("127.0.0.4", []), "10.88.1.0/24"):
+                state["ctrl2_announced"] = True
+
+        ls_wd = withdraw.get("bgp-ls bgp-ls-vpn") or withdraw.get("bgp-ls bgp-ls", [])
+        if isinstance(ls_wd, list):
+            for entry in ls_wd:
+                if matches_ls72_node(entry, "65001:7", "192.0.2.9"):
+                    state["v4_withdrawn"] = True
+
+        if all(state.values()) and not completed:
+            completed = True
+            sys.stderr.write(
+                "OK: exabgp decoded ls72 ipv4=127.0.0.4 ipv6=2001:db8::fe "
+                "withdraw=65001:7 control=10.88.1.0/24\n"
+            )
+            sys.stderr.flush()
+            sys.stdout.write("shutdown\n")
+            sys.stdout.flush()
+            return 0
+
+    if not completed:
+        sys.stderr.write(
+            f"FAIL: ExaBGP stream ended before all LS-VPN events were verified: {state}\n"
+        )
+        sys.stderr.flush()
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF_EXABGP_READER
+
+tmpfs=run-exabgp.sh:mode=755:terminator=EOF_EXABGP_RUN
+#!/bin/sh
+set -eu
+unset PYTHONPATH
+export exabgp_tcp_port="$1"
+export exabgp_api_cli=false
+export exabgp_debug_rotate=true
+export exabgp_debug_configuration=true
+export exabgp_api_socketname="exabgp-lsvpn-$1"
+if command -v exabgp >/dev/null 2>&1; then
+	exec exabgp server exabgp.conf
+fi
+if command -v uv >/dev/null 2>&1; then
+	exec uv run --no-project --python 3.12 \
+		--with "exabgp @ git+https://github.com/Exa-Networks/exabgp@3790c532eb1d799b51db6e12ca2662f747e85042" \
+		exabgp server exabgp.conf
+fi
+echo "SETUP ERROR: neither exabgp nor uv found on PATH for pinned ExaBGP 3790c532eb1d799b51db6e12ca2662f747e85042" >&2
+exit 127
+EOF_EXABGP_RUN
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=90s
+option=asn:value=65001
+option=linger:value=true
+option=await-file:path=exabgp.up:timeout=60s
+# 1. LS72 Node 1 (RD 65001:7, Router-ID 192.0.2.9, received NH [8x00][192.0.2.9]):
+#    unmatched by modify:ls-nh6 -> trailing next-hop:auto rewrites to 12B [8x00][127.0.0.4].
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006902000000524001010040020602010000FDE9800E424004480C0000000000000000C0000209000001002D0000FDE90000000703000000000000010001000018020000040000FDE9020100041234567802030004C0000209
+# 2. LS72 Node 2 (RD 65001:8, Router-ID 192.0.2.10, community 65000:6):
+#    matches modify:ls-nh6 -> export chain rewrites to 24B [8x00][2001:db8::fe].
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007002000000594001010040020602010000FDE9C00804FDE80006800E424004480C0000000000000000C0000209000001002D0000FDE90000000803000000000000010001000018020000040000FDE9020100041234567802030004C000020A
+# 3. Control route 1: IPv4 unicast 10.88.0.0/24 -> next-hop:auto rewrites to 127.0.0.4.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9400304C0000209180A5800
+# 4. Exact withdrawal of LS72 Node 1 (MP_UNREACH_NLRI AFI 16388 / SAFI 72).
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E0200000037800F344004480001002D0000FDE90000000703000000000000010001000018020000040000FDE9020100041234567802030004C0000209
+# 5. Control route 2: IPv4 unicast 10.88.1.0/24 after withdrawal (proves healthy session).
+action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9400304C0000209180A5801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003400448
+EOF_SOURCE
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs { use bgp-rs; }
+	internal adj-rib-in { use bgp-adj-rib-in; }
+	internal bgp-filter-modify { use bgp-filter-modify; }
+}
+policy {
+	modify ls-nh6 {
+		match {
+			community [ 65000:6 ];
+		}
+		set {
+			next-hop 2001:db8::fe;
+		}
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.3; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				bgp-ls/bgp-ls-vpn { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+	peer exabgp-dest {
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.4; port $PORT2; accept true; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				bgp-ls/bgp-ls-vpn { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		filter {
+			export { filters [ modify:ls-nh6 ]; final accept; }
+		}
+		behavior { group-updates disable; }
+		attach process rs {
+			receive [ update-received state open-received refresh ];
+			send [ update ];
+		}
+		attach process adj-rib-in { receive [ update-received state ]; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:name=daemon:exec=ze -:stdin=ze-bgp:ready=Ze running.
+cmd=foreground:seq=3:exec=./run-exabgp.sh $PORT2:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: exabgp decoded ls72 ipv4=127.0.0.4 ipv6=2001:db8::fe withdraw=65001:7 control=10.88.1.0/24
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=FAIL:
+reject=stderr:pattern=SETUP ERROR:
+reject=stderr:pattern=send refused
+reject=stderr:pattern=forward-cached failed
