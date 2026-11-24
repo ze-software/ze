@@ -1,13 +1,14 @@
 // Design: docs/architecture/testing/interop.md -- ze against a real VPP daemon
 // Overview: actions.go -- the deployment action that reaches this run
-// Detail: vppevidencescenarios.go -- the nine scenario inputs
-// Detail: vppevidencerun.go -- the nine scenario producers
-// Detail: vppevidencempls.go -- the mpls-label-pop producer and its packet trace
+// Detail: vppevidencescenarios.go -- the eleven scenario inputs
+// Detail: vppevidencerun.go -- the legacy scenario producers
+// Detail: vppevidencempls.go -- the mpls-label-pop producer, packet trace and show mpls forwarding
+// Detail: vppevidencefib.go -- the fib-ecmp and fib-stale-sweep producers
 // Detail: vppevidencereport.go -- the structured result of each scenario
 // Related: vppiface.go -- the shared VPP container and command machinery
 //
 // This runner ports the legacy effective-VPP harness without starting it. One VPP container is
-// shared by nine ordered scenarios. A proof failure stops the sequence because
+// shared by eleven ordered scenarios. A proof failure stops the sequence because
 // the next scenario would inherit state that the failed scenario did not prove.
 package testdeployment
 
@@ -25,6 +26,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/interoplab"
@@ -44,6 +46,11 @@ const (
 	vppDaemonReadyLine = "Ze running."
 )
 
+// vppStaleSweepWait bounds the stale IP route sweep wait: fib-vpp fires its
+// sweep after labelSweepDelay (30s, internal/plugins/fib/vpp/mplsstale.go),
+// so 45s gives a 15s margin past the timer.
+const vppStaleSweepWait = 45 * time.Second
+
 // vppDaemonStopWait bounds a daemon's own stop after SIGTERM. ze waits for its
 // boot-configuration record before it exits, with no bound of its own, and a
 // slow store holds that for many seconds; two minutes is far past any stop the
@@ -55,14 +62,17 @@ const (
 	vppDaemonKillWait = 30 * time.Second
 )
 
-// VPP is one run of the nine deployment scenarios. It
+// VPP is one run of the eleven deployment scenarios. It
 // embeds the existing VPP runner because both proofs use the same image,
 // container, sockets, vppctl path, daemon settings, and bounded process helpers.
+// When Scenarios is non-empty, Run validates every name against the declared
+// scenario table and runs only those scenarios in declaration order.
 //
 // Not safe for concurrent use.
 type VPP struct {
 	*vppIface
-	iface string
+	Scenarios []string
+	iface     string
 }
 
 type vppEvidenceRunStep struct {
@@ -75,7 +85,8 @@ func newVPP(tree string) *VPP {
 	return &VPP{vppIface: newVPPIface(tree)}
 }
 
-// Run performs all nine scenarios and returns the completed report.
+// Run performs the selected scenarios (all eleven when Scenarios is empty) and
+// returns the completed report.
 // Operating failures return an error. A VPP answer that disproves a claim is a
 // failed report with a nil error.
 //
@@ -84,11 +95,18 @@ func newVPP(tree string) *VPP {
 func (v *VPP) Run(ctx context.Context) (report VPPReport, err error) {
 	v.ctx = ctx
 	report = VPPReport{Image: v.Image}
+	steps, err := v.selectedScenarioRuns()
+	if err != nil {
+		return report, err
+	}
 	if err := look("docker", "go"); err != nil {
 		return report, err
 	}
-	// The kernel check comes before the image, so a refused host pulls nothing.
-	if err := buildCheckedDaemon(ctx, v.Tree, v.Goarch, interoplab.KernelCapabilitiesAll(), v.buildBinaries); err != nil {
+	// VPP userspace proofs need no special host kernel capabilities and run on
+	// stock Linux or older ze kernels (plan/records/ruling-interop-scoped-kernel-capabilities.md).
+	if err := buildCheckedDaemon(ctx, v.Tree, v.Goarch, interoplab.KernelCapabilitiesNone(), func() error {
+		return v.buildBinaries(steps)
+	}); err != nil {
 		return report, err
 	}
 	if err := v.readyImage(); err != nil {
@@ -129,7 +147,7 @@ func (v *VPP) Run(ctx context.Context) (report VPPReport, err error) {
 	report.Interface = iface
 	v.iface = iface
 
-	for _, step := range v.scenarioRuns() {
+	for _, step := range steps {
 		scenario, runErr := step.run(report.Container, work)
 		if runErr != nil {
 			return report, runErr
@@ -157,6 +175,8 @@ func (v *VPP) scenarioRuns() []vppEvidenceRunStep {
 		{name: VPPScenarioIPv4FIB, run: v.runIPv4FIB},
 		{name: VPPScenarioMPLSFIB, run: v.runMPLSFIB},
 		{name: VPPScenarioMPLSLabelPop, run: v.runMPLSLabelPop},
+		{name: VPPScenarioFIBECMP, run: v.runFIBECMP},
+		{name: VPPScenarioFIBStaleSweep, run: v.runFIBStaleSweep},
 		{name: VPPScenarioTrafficInterface, run: v.runTrafficInterface},
 		{name: VPPScenarioTrafficProtocol, run: v.runTrafficProtocol},
 		{name: VPPScenarioTrafficDSCP, run: v.runTrafficDSCP},
@@ -165,12 +185,53 @@ func (v *VPP) scenarioRuns() []vppEvidenceRunStep {
 	}
 }
 
+func (v *VPP) selectedScenarioRuns() ([]vppEvidenceRunStep, error) {
+	all := v.scenarioRuns()
+	if len(v.Scenarios) == 0 {
+		return all, nil
+	}
+	valid := make(map[string]struct{}, len(all))
+	names := make([]string, 0, len(all))
+	for _, step := range all {
+		valid[step.name] = struct{}{}
+		names = append(names, step.name)
+	}
+	wanted := make(map[string]struct{}, len(v.Scenarios))
+	for _, name := range v.Scenarios {
+		if _, ok := valid[name]; !ok {
+			var tb textbuf.Buffer
+			return nil, opererr.New(
+				tb.Str("unknown VPP deployment scenario ").Quoted(name).String(),
+				tb.Reset().Str("valid scenarios are: ").Join(names, ", ").String(),
+				"pass declared names with `scenario <name>`, or omit `scenario` to run all eleven",
+			)
+		}
+		wanted[name] = struct{}{}
+	}
+	selected := make([]vppEvidenceRunStep, 0, len(wanted))
+	for _, step := range all {
+		if _, ok := wanted[step.name]; ok {
+			selected = append(selected, step)
+		}
+	}
+	return selected, nil
+}
+
+func needsIPsecProbe(steps []vppEvidenceRunStep) bool {
+	for _, step := range steps {
+		if step.name == VPPScenarioIPsec {
+			return true
+		}
+	}
+	return false
+}
+
 func appendVPPScenario(report *VPPReport, scenario VPPScenarioReport) bool {
 	report.Scenarios = append(report.Scenarios, scenario)
 	return scenario.Verdict != VPPProofPass
 }
 
-func (v *VPP) buildBinaries() error {
+func (v *VPP) buildBinaries(steps []vppEvidenceRunStep) error {
 	if err := buildDaemon(v.ctx, v.Tree, v.Goarch, v.Progress); err != nil {
 		return err
 	}
@@ -184,6 +245,9 @@ func (v *VPP) buildBinaries() error {
 	if err := v.runBuild(linuxle.Argv(tags, filepath.Join(v.Tree, vppLeRel(v.Goarch)))[1:],
 		errors.New("building the linux le (./cmd/ze) failed")); err != nil {
 		return err
+	}
+	if !needsIPsecProbe(steps) {
+		return nil
 	}
 	return v.runBuild([]string{
 		"test", "-c", goBuildTagsArg, "ze_core ze_vpp integration",
@@ -398,6 +462,12 @@ func (v *VPP) writeConfig(work, name, content string) error {
 }
 
 func (v *VPP) startEvidenceDaemon(container, configFile string, port int) (*running, *collector, error) {
+	return v.startEvidenceDaemonWithEnv(container, configFile, port, nil)
+}
+
+func (v *VPP) startEvidenceDaemonWithEnv(container, configFile string, port int,
+	extra []interoplab.EnvironmentVariable,
+) (*running, *collector, error) {
 	if err := v.checkDaemonsStopped(); err != nil {
 		return nil, nil, err
 	}
@@ -405,7 +475,7 @@ func (v *VPP) startEvidenceDaemon(container, configFile string, port int) (*runn
 		return nil, nil, err
 	}
 	seen := newCollector(vppTrafficLogLine, vppFirewallLine, vppDaemonReadyLine)
-	spec := v.evidenceDaemonExec(container, configFile, port)
+	spec := v.evidenceDaemonExecWithEnv(container, configFile, port, extra)
 	daemon, err := startWatchedExec(v.ctx, v.Docker, spec, "ze> ", seen, v.Progress)
 	if err != nil {
 		return nil, nil, err
@@ -429,11 +499,17 @@ func (v *VPP) startEvidenceDaemon(container, configFile string, port int) (*runn
 	return daemon, seen, nil
 }
 
+// daemonBinary answers the path of the cross-compiled ze binary inside the
+// container.
+func (v *VPP) daemonBinary() string {
+	var tb textbuf.Buffer
+	return tb.Str("/src/").Str(filepath.ToSlash(daemonRel(v.Goarch))).String()
+}
+
 // evidenceDaemonExec answers ze started on one evidence configuration, with
 // the debug logging the scenario's verdict lines come from.
 func (v *VPP) evidenceDaemonExec(container, configFile string, port int) interoplab.ContainerExec {
-	var tb textbuf.Buffer
-	binary := tb.Str("/src/").Str(filepath.ToSlash(daemonRel(v.Goarch))).String()
+	binary := v.daemonBinary()
 	config := filepath.Join(zeRunDir, configFile, "ze.conf")
 	environ := []interoplab.EnvironmentVariable{
 		{Name: "ZE_LOG_VPP", Value: zeLogInfo},
@@ -452,6 +528,28 @@ func (v *VPP) evidenceDaemonExec(container, configFile string, port int) interop
 		Container: container, Command: []string{binary, "start", config},
 		Environment: environ, Interactive: true,
 	}
+}
+
+// evidenceDaemonExecWithEnv answers ze started on one evidence configuration,
+// with the debug logging the scenario's verdict lines come from and any extra
+// scenario environment variables.
+func (v *VPP) evidenceDaemonExecWithEnv(container, configFile string, port int,
+	extra []interoplab.EnvironmentVariable,
+) interoplab.ContainerExec {
+	spec := v.evidenceDaemonExec(container, configFile, port)
+	spec.Environment = append(spec.Environment, extra...)
+	return spec
+}
+
+// killVPPProcess abruptly terminates proc with SIGKILL and awaits its exit,
+// recording a stop failure only if the process survived SIGKILL.
+func (v *vppIface) killVPPProcess(proc *running, seen *collector) {
+	err := proc.killAwaitingExit(vppDaemonKillWait)
+	seen.wait()
+	if err == nil {
+		return
+	}
+	v.recordStopFailure(err)
 }
 
 // stopVPPProcess is the stop contract of every daemon a VPP scenario starts:

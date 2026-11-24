@@ -376,6 +376,26 @@ func (r *running) stopAwaitingExit(termWait, killWait time.Duration) error {
 	return fmt.Errorf("process %s %w within %s", r.command, errProcessSurvived, termWait+killWait)
 }
 
+// killAwaitingExit signals SIGKILL directly and waits up to killWait for the
+// process to exit, releasing its pipe either way. Scenarios that prove
+// stale-state recovery across an abrupt daemon crash use this so graceful
+// plugin shutdown does not withdraw the route before exit.
+func (r *running) killAwaitingExit(killWait time.Duration) error {
+	if r.owner != nil {
+		return r.closeNative()
+	}
+	defer r.read.Close() //nolint:errcheck // the stream is finished either way
+
+	if r.exited() {
+		return nil
+	}
+	r.signal(syscall.SIGKILL) //nolint:errcheck // the wait below judges whether it reached the process
+	if r.awaitExit(killWait) {
+		return nil
+	}
+	return fmt.Errorf("process %s %w within %s", r.command, errProcessSurvived, killWait)
+}
+
 // awaitExit answers whether the process exited within wait.
 func (r *running) awaitExit(wait time.Duration) bool {
 	timer := time.NewTimer(wait)

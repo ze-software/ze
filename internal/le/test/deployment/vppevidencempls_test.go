@@ -238,3 +238,83 @@ func TestMPLSLabelPopConfigLeavesTheWriterToTheEngine(t *testing.T) {
 		t.Fatalf("the reload configuration still holds ldp:\n%s", without)
 	}
 }
+
+// TestParseMPLSForwardingJSONValidatesShowOutput validates the JSON parser and
+// predicates used to verify `ze show mpls forwarding` against real VPP.
+//
+// VALIDATES: a JSON array listing the LDP label with operation pop matches
+// mplsForwardingListsPop, an empty array [] parses cleanly and reports absent,
+// and a swap row, wrong label, null, or malformed JSON is rejected.
+// PREVENTS: a null/malformed answer passing as an empty table after reload, or
+// a swap entry or another label passing as LDP's egress pop.
+func TestParseMPLSForwardingJSONValidatesShowOutput(t *testing.T) {
+	popPayload := []byte(`[{"in-label":16,"operation":"pop"}]`)
+	entries, err := parseMPLSForwardingJSON(popPayload)
+	if err != nil {
+		t.Fatalf("parse pop payload: %v", err)
+	}
+	if !mplsForwardingListsPop(entries, 16) {
+		t.Fatal("mplsForwardingListsPop missed label 16 pop")
+	}
+	if mplsForwardingListsPop(entries, 17) {
+		t.Fatal("mplsForwardingListsPop matched absent label 17")
+	}
+	if !mplsForwardingListsLabel(entries, 16) {
+		t.Fatal("mplsForwardingListsLabel missed label 16")
+	}
+	if mplsForwardingListsLabel(entries, 17) {
+		t.Fatal("mplsForwardingListsLabel matched absent label 17")
+	}
+
+	swapEntries, err := parseMPLSForwardingJSON([]byte(`[{"in-label":16,"operation":"swap","out-labels":[200],"next-hop":"10.0.0.2"}]`))
+	if err != nil {
+		t.Fatalf("parse swap payload: %v", err)
+	}
+	if mplsForwardingListsPop(swapEntries, 16) {
+		t.Fatal("mplsForwardingListsPop accepted a swap entry as pop")
+	}
+	if !mplsForwardingListsLabel(swapEntries, 16) {
+		t.Fatal("mplsForwardingListsLabel missed a swap entry for label 16")
+	}
+
+	emptyEntries, err := parseMPLSForwardingJSON([]byte(`[]`))
+	if err != nil {
+		t.Fatalf("parse empty array: %v", err)
+	}
+	if mplsForwardingListsLabel(emptyEntries, 16) {
+		t.Fatal("empty array reported label 16 present")
+	}
+
+	for name, bad := range map[string]string{
+		"null":      "null",
+		"empty":     "",
+		"object":    `{"entries":[]}`,
+		"malformed": "[{",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := parseMPLSForwardingJSON([]byte(bad)); err == nil {
+				t.Fatalf("parseMPLSForwardingJSON(%q) succeeded, want error", bad)
+			}
+		})
+	}
+}
+
+// TestVPPShowLoginConfigFormatsAuthBlock validates the SSH login block appended
+// to mpls-label-pop so `ze cli` can query `show mpls forwarding`.
+//
+// VALIDATES: the generated block configures user ci with the supplied hash and
+// an admin profile allowing operational commands.
+// PREVENTS: malformed auth config blocking `ze cli` during the real-VPP run.
+func TestVPPShowLoginConfigFormatsAuthBlock(t *testing.T) {
+	block := vppShowLoginConfig("$2a$10$examplehash")
+	for _, needle := range []string{
+		"user ci {",
+		`password "$2a$10$examplehash"`,
+		"profile [ admin ]",
+		"profile admin { run { default-action allow; } edit { default-action allow; } }",
+	} {
+		if !strings.Contains(block, needle) {
+			t.Fatalf("vppShowLoginConfig missing %q:\n%s", needle, block)
+		}
+	}
+}

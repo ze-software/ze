@@ -1,18 +1,20 @@
-// Design: docs/architecture/testing/interop.md -- the nine real VPP proof scenarios
+// Design: docs/architecture/testing/interop.md -- the eleven real VPP proof scenarios
 // Overview: vppevidence.go -- the run that drives these configurations
 //
-// The constants and configurations are data shared by the nine native scenarios.
+// The constants and configurations are data shared by the eleven native scenarios.
 // The parity test compares every value and every written file.
 package testdeployment
 
 import "github.com/ze-software/ze/internal/core/textbuf"
 
-// The nine producer scenarios, in execution order.
+// The eleven producer scenarios, in execution order.
 const (
 	VPPScenarioIPsec             = "ipsec"
 	VPPScenarioIPv4FIB           = "ipv4-fib"
 	VPPScenarioMPLSFIB           = "mpls-fib"
 	VPPScenarioMPLSLabelPop      = "mpls-label-pop"
+	VPPScenarioFIBECMP           = "fib-ecmp"
+	VPPScenarioFIBStaleSweep     = "fib-stale-sweep"
 	VPPScenarioTrafficInterface  = "traffic-interface-class"
 	VPPScenarioTrafficProtocol   = "traffic-protocol-class"
 	VPPScenarioTrafficDSCP       = "traffic-dscp-class"
@@ -41,6 +43,22 @@ const (
 	VPPIPsecSalt                    = "0xdeadbeef"
 	VPPIPsecCipherKey               = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" //nolint:gosec // G101: a public fixed test vector
 	VPPFirewallACLTag               = "ze/ze_wan/input"
+)
+
+// The fib-ecmp and fib-stale-sweep inputs. VPPFIBSourceName is the VPP FIB
+// source fib-vpp registers and installs every IP route under
+// (fibSourceName, internal/plugins/fib/vpp/routesource.go).
+const (
+	VPPFIBSourceName           = "ze-fib-vpp"
+	VPPECMPPrefix              = "10.28.0.0/24"
+	VPPECMPLoopAddressA        = "10.28.98.254/24"
+	VPPECMPNextHopA            = "10.28.98.1"
+	VPPECMPLoopAddressB        = "10.28.99.254/24"
+	VPPECMPNextHopB            = "10.28.99.1"
+	VPPStaleSweepPrefix        = "10.29.0.0/24"
+	VPPStaleSweepControlPrefix = "10.29.1.0/24"
+	VPPStaleSweepLoopAddress   = "10.29.99.254/24"
+	VPPStaleSweepNextHop       = "10.29.99.1"
 )
 
 const vppExternalConfig = `vpp {
@@ -93,10 +111,41 @@ func vppFIBConfig(mpls bool) string {
 
 `)
 	}
-	tb.Str(vppExternalConfig).Str(`fib {
+	tb.Str(vppExternalConfig).Str(`interface {
+    backend vpp;
+}
+fib {
     vpp { enabled true; }
 }
 `)
+	return tb.String()
+}
+
+// vppStaticRoute is one main-table static route rendered into a VPP FIB
+// evidence configuration.
+type vppStaticRoute struct {
+	prefix   string
+	nextHops []string
+}
+
+// vppStaticFIBConfig answers a Ze configuration with external VPP, fib-vpp
+// enabled, and the given main-table static routes. An empty routes slice omits
+// the static block so a reload withdraws every previously programmed route.
+func vppStaticFIBConfig(routes []vppStaticRoute) string {
+	var tb textbuf.Buffer
+	tb.Str(vppExternalConfig).Str("interface {\n    backend vpp;\n}\nfib {\n    vpp { enabled true; }\n}\n")
+	if len(routes) == 0 {
+		return tb.String()
+	}
+	tb.Str("\nstatic {\n    table default {\n")
+	for _, route := range routes {
+		tb.Str("        route ").Str(route.prefix).Str(" {\n            next {\n")
+		for _, hop := range route.nextHops {
+			tb.Str("                hop ").Str(hop).Str(" { }\n")
+		}
+		tb.Str("            }\n        }\n")
+	}
+	tb.Str("    }\n}\n")
 	return tb.String()
 }
 
@@ -132,7 +181,7 @@ func vppMPLSLabelPopConfig(withLDP bool) string {
 
 func vppTrafficConfig(iface, kind string, withInterface bool) string {
 	var tb textbuf.Buffer
-	tb.Str(vppExternalConfig).Byte('\n').Str("traffic {\n    control {\n        backend vpp;\n")
+	tb.Str(vppExternalConfig).Byte('\n').Str("interface {\n    backend vpp;\n}\n\ntraffic {\n    control {\n        backend vpp;\n")
 	if withInterface {
 		tb.Str("        interface ").Str(iface).Str(" {\n            qdisc {\n                type htb;\n")
 		switch kind {
@@ -180,7 +229,7 @@ func vppTrafficConfig(iface, kind string, withInterface bool) string {
 
 func vppFirewallConfig(withRules bool) string {
 	var tb textbuf.Buffer
-	tb.Str(vppExternalConfig).Byte('\n').Str("firewall {\n    backend vpp;\n")
+	tb.Str(vppExternalConfig).Byte('\n').Str("interface {\n    backend vpp;\n}\n\nfirewall {\n    backend vpp;\n")
 	if withRules {
 		tb.Str(`    table wan {
         family inet;

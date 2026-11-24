@@ -4,14 +4,15 @@
 // Related: vpp_srv6_pg_integration_linux_test.go -- the packet-generator pcap pattern reused here
 //
 // mpls-label-pop proves that an LDP egress pop reaches VPP's MPLS table 0
-// through fib-vpp with no fib block, that VPP forwards a labeled frame by it,
-// and that a reload which removes LDP removes both entries. Every verdict
-// comes from VPP's own CLI: `show mpls fib`, `show mpls interface` and
-// `show trace`, never from a ze log line.
+// through fib-vpp with no fib block, that `ze show mpls forwarding` reads that
+// live table back from real VPP, that VPP forwards a labeled frame by it, and
+// that a reload which removes LDP removes both VPP entries and drops the label
+// from `ze show mpls forwarding`.
 package testdeployment
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -25,6 +26,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/internal/core/pcap"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
@@ -35,9 +37,13 @@ const (
 	vppMPLSFIBQuery      = "show mpls fib table 0"
 	// vppMPLSLabelMin is the first label outside the reserved range (RFC 3032
 	// Section 2.1 reserves 0 to 15). VPP prints a reserved label by name.
-	vppMPLSLabelMin   = 16
-	vppPGGenerateWait = 5 * time.Second
-	vppTraceCapacity  = "8"
+	vppMPLSLabelMin          = 16
+	vppPGGenerateWait        = 5 * time.Second
+	vppTraceCapacity         = "8"
+	vppShowUser              = "ci"
+	vppShowCredential        = "vpp-evidence-cli-login" //nolint:gosec // G101: fixed test credential for an isolated container daemon
+	vppSSHEphemeralEnv       = "ZE_SSH_EPHEMERAL"
+	vppShowMPLSForwardingCmd = "show mpls forwarding | json"
 )
 
 // vppMPLSFIBEntryLine matches the first line of one entry of `show mpls fib`.
@@ -62,14 +68,22 @@ type vppMPLSFIBEntry struct {
 }
 
 func (v *VPP) runMPLSLabelPop(container, work string) (VPPScenarioReport, error) {
-	checks := make([]VPPCheck, 0, 5)
+	checks := make([]VPPCheck, 0, 7)
 	if err := v.createMPLSPopInterface(container); err != nil {
 		return VPPScenarioReport{}, err
 	}
-	if err := v.writeConfig(work, vppMPLSPopConfigFile, vppMPLSLabelPopConfig(true)); err != nil {
+	login, err := v.vppShowLogin(container)
+	if err != nil {
 		return VPPScenarioReport{}, err
 	}
-	daemon, seen, err := v.startEvidenceDaemon(container, vppMPLSPopConfigFile, 0)
+	if err := v.writeConfig(work, vppMPLSPopConfigFile, vppMPLSLabelPopConfig(true)+login); err != nil {
+		return VPPScenarioReport{}, err
+	}
+	configDir := filepath.Join(zeRunDir, vppMPLSPopConfigFile)
+	sshAddrPath := filepath.Join(configDir, "ssh.addr")
+	daemon, seen, err := v.startEvidenceDaemonWithEnv(container, vppMPLSPopConfigFile, 0, []interoplab.EnvironmentVariable{
+		{Name: vppSSHEphemeralEnv, Value: sshAddrPath},
+	})
 	if err != nil {
 		return VPPScenarioReport{}, err
 	}
@@ -106,6 +120,24 @@ func (v *VPP) runMPLSLabelPop(container, work string) (VPPScenarioReport, error)
 	checks = append(checks, passVPPCheck("mpls-input",
 		tbDetail("real VPP reports MPLS enabled on ", VPPMPLSPopInterface), tailLines(text)...))
 
+	host, port, err := v.awaitContainerAddress(container, sshAddrPath, vppQueryWait)
+	if err != nil {
+		return VPPScenarioReport{}, err
+	}
+	entries, rawForwarding, err := v.queryMPLSForwarding(container, host, port, configDir)
+	if err != nil {
+		return VPPScenarioReport{}, err
+	}
+	if !mplsForwardingListsPop(entries, label) {
+		checks = append(checks, failVPPCheck("mpls-forwarding-show",
+			tbDetail("ze show mpls forwarding did not list LDP label ", textbuf.StringUint32(label),
+				" as operation pop from real VPP MPLS table 0"), rawForwarding, seen))
+		return finishVPPScenario(VPPScenarioMPLSLabelPop, checks), nil
+	}
+	checks = append(checks, passVPPCheck("mpls-forwarding-show",
+		tbDetail("ze show mpls forwarding reported LDP label ", textbuf.StringUint32(label),
+			" as pop from real VPP MPLS table 0"), tailLines(rawForwarding)...))
+
 	check, err := v.traceMPLSFrame(container, work, label, true)
 	if err != nil {
 		return VPPScenarioReport{}, err
@@ -123,7 +155,7 @@ func (v *VPP) runMPLSLabelPop(container, work string) (VPPScenarioReport, error)
 		return finishVPPScenario(VPPScenarioMPLSLabelPop, checks), nil
 	}
 
-	if err := v.reloadEvidenceConfig(container, vppMPLSPopConfigFile, vppMPLSLabelPopConfig(false), daemon); err != nil {
+	if err := v.reloadEvidenceConfig(container, vppMPLSPopConfigFile, vppMPLSLabelPopConfig(false)+login, daemon); err != nil {
 		return VPPScenarioReport{}, err
 	}
 	ok, text, err = v.awaitQuery(container, vppMPLSFIBQuery, false, vppWithdrawWait, func(text string) bool {
@@ -141,7 +173,150 @@ func (v *VPP) runMPLSLabelPop(container, work string) (VPPScenarioReport, error)
 	checks = append(checks, passVPPCheck("removed",
 		tbDetail("real VPP removed both entries of label ", textbuf.StringUint32(label),
 			" when a reload removed ldp")))
+
+	entries, rawForwarding, err = v.queryMPLSForwarding(container, host, port, configDir)
+	if err != nil {
+		return VPPScenarioReport{}, err
+	}
+	if mplsForwardingListsLabel(entries, label) {
+		checks = append(checks, failVPPCheck("mpls-forwarding-removed",
+			tbDetail("ze show mpls forwarding still lists label ", textbuf.StringUint32(label),
+				" after the reload that removed ldp"), rawForwarding, seen))
+		return finishVPPScenario(VPPScenarioMPLSLabelPop, checks), nil
+	}
+	checks = append(checks, passVPPCheck("mpls-forwarding-removed",
+		tbDetail("ze show mpls forwarding no longer lists label ", textbuf.StringUint32(label),
+			" after the reload that removed ldp")))
 	return finishVPPScenario(VPPScenarioMPLSLabelPop, checks), nil
+}
+
+// vppShowLoginConfig answers the system authentication and authorization block
+// that lets ze cli authenticate to the running container daemon over its
+// ephemeral SSH listener.
+func vppShowLoginConfig(passwordHash string) string {
+	var tb textbuf.Buffer
+	return tb.Str("\nsystem {\n    authentication {\n        user ").Str(vppShowUser).
+		Str(" {\n            password ").Quoted(passwordHash).
+		Str("\n            profile [ admin ]\n        }\n    }\n").
+		Str("    authorization {\n        profile admin { run { default-action allow; } edit { default-action allow; } }\n    }\n}\n").
+		String()
+}
+
+// vppShowLogin hashes vppShowCredential with the container's ze binary and
+// returns the system block that authorizes it.
+func (v *VPP) vppShowLogin(container string) (string, error) {
+	var stdout, stderr textbuf.Buffer
+	_, err := v.Docker.ExecAttached(v.ctx, interoplab.ContainerExec{
+		Container:   container,
+		Command:     []string{v.daemonBinary(), "passwd"},
+		Interactive: true,
+		Stdin:       strings.NewReader(vppShowCredential + "\n"),
+		Stdout:      &stdout,
+		Stderr:      &stderr,
+		Timeout:     vppctlTimeout,
+	})
+	if err != nil {
+		return "", fmt.Errorf("ze passwd inside container: %w: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	hash := strings.TrimSpace(stdout.String())
+	if hash == "" {
+		return "", errors.New("ze passwd inside container produced an empty hash")
+	}
+	return vppShowLoginConfig(hash), nil
+}
+
+// awaitContainerAddress polls path inside container until it holds a host:port
+// address written by the daemon's ephemeral SSH listener.
+func (v *VPP) awaitContainerAddress(container, path string, timeout time.Duration) (host, port string, err error) {
+	deadline := time.Now().Add(timeout)
+	last := ""
+	for {
+		text, ok := v.containerText(container, "cat", path)
+		if ok {
+			trimmed := strings.TrimSpace(text)
+			if trimmed != "" {
+				h, p, splitErr := net.SplitHostPort(trimmed)
+				if splitErr == nil {
+					return h, p, nil
+				}
+				last = trimmed
+			}
+		} else {
+			last = strings.TrimSpace(text)
+		}
+		if !time.Now().Before(deadline) {
+			return "", "", fmt.Errorf("ephemeral SSH address file %s did not appear within %s: %s", path, timeout, last)
+		}
+		time.Sleep(vppQueryPoll)
+	}
+}
+
+// queryMPLSForwarding runs `ze cli -c "show mpls forwarding | json"` inside
+// container against the running daemon and decodes its JSON entry array.
+func (v *VPP) queryMPLSForwarding(container, host, port, configDir string) ([]mplsfib.ForwardingEntry, string, error) {
+	var stdout, stderr textbuf.Buffer
+	_, err := v.Docker.ExecAttached(v.ctx, interoplab.ContainerExec{
+		Container: container,
+		Command:   []string{v.daemonBinary(), "cli", "-c", vppShowMPLSForwardingCmd},
+		Environment: []interoplab.EnvironmentVariable{
+			{Name: "ZE_SSH_HOST", Value: host},
+			{Name: "ZE_SSH_PORT", Value: port},
+			{Name: "ZE_SSH_USERNAME", Value: vppShowUser},
+			{Name: "ZE_SSH_PASSWORD", Value: vppShowCredential},
+			{Name: zeConfigDirVariable, Value: configDir},
+		},
+		Stdout:  &stdout,
+		Stderr:  &stderr,
+		Timeout: vppctlTimeout,
+	})
+	raw := strings.TrimSpace(stdout.String())
+	if err != nil {
+		return nil, raw, fmt.Errorf("ze cli %q: %w: %s %s", vppShowMPLSForwardingCmd, err, raw, strings.TrimSpace(stderr.String()))
+	}
+	entries, err := parseMPLSForwardingJSON([]byte(raw))
+	if err != nil {
+		return nil, raw, err
+	}
+	return entries, raw, nil
+}
+
+// parseMPLSForwardingJSON decodes the JSON array that
+// `ze cli -c "show mpls forwarding | json"` writes to stdout. A null or
+// non-array payload is an error rather than an empty table.
+func parseMPLSForwardingJSON(data []byte) ([]mplsfib.ForwardingEntry, error) {
+	var entries []mplsfib.ForwardingEntry
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return nil, fmt.Errorf("show mpls forwarding answered no JSON array: %w: %s", err, strings.TrimSpace(string(data)))
+	}
+	if entries == nil {
+		return nil, fmt.Errorf("show mpls forwarding answered null instead of a JSON array: %s", strings.TrimSpace(string(data)))
+	}
+	return entries, nil
+}
+
+// mplsForwardingListsPop reports whether entries list label with operation pop.
+func mplsForwardingListsPop(entries []mplsfib.ForwardingEntry, label uint32) bool {
+	want := int(label)
+	for i := range entries {
+		if entries[i].InLabel != want {
+			continue
+		}
+		if entries[i].Operation == "pop" {
+			return true
+		}
+	}
+	return false
+}
+
+// mplsForwardingListsLabel reports whether entries hold any row for label.
+func mplsForwardingListsLabel(entries []mplsfib.ForwardingEntry, label uint32) bool {
+	want := int(label)
+	for i := range entries {
+		if entries[i].InLabel == want {
+			return true
+		}
+	}
+	return false
 }
 
 // createMPLSPopInterface adds the packet-generator interface ze enables MPLS

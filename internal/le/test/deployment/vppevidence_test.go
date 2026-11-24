@@ -2,14 +2,15 @@ package testdeployment
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
 // TestVPPScenarioTableNamesEveryProducerScenario validates the complete and
 // ordered producer population.
 //
-// VALIDATES: the eight legacy effective-VPP scenarios and mpls-label-pop are
-// represented as data, in execution order.
+// VALIDATES: the eight legacy effective-VPP scenarios, mpls-label-pop,
+// fib-ecmp and fib-stale-sweep are represented as data, in execution order.
 // PREVENTS: a scenario disappearing while the command still reports a pass.
 func TestVPPScenarioTableNamesEveryProducerScenario(t *testing.T) {
 	want := []string{
@@ -17,21 +18,23 @@ func TestVPPScenarioTableNamesEveryProducerScenario(t *testing.T) {
 		VPPScenarioIPv4FIB,
 		VPPScenarioMPLSFIB,
 		VPPScenarioMPLSLabelPop,
+		VPPScenarioFIBECMP,
+		VPPScenarioFIBStaleSweep,
 		VPPScenarioTrafficInterface,
 		VPPScenarioTrafficProtocol,
 		VPPScenarioTrafficDSCP,
 		VPPScenarioTrafficMultiClass,
 		VPPScenarioFirewall,
 	}
-	got := make([]string, 0, 9)
+	got := make([]string, 0, len(want))
 	for _, step := range newVPP(t.TempDir()).scenarioRuns() {
 		got = append(got, step.name)
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("scenarioRuns() = %v, want %v", got, want)
 	}
-	if len(want) != 9 {
-		t.Fatalf("the absolute scenario count is %d, want 9", len(want))
+	if len(want) != 11 {
+		t.Fatalf("the absolute scenario count is %d, want 11", len(want))
 	}
 }
 
@@ -161,6 +164,100 @@ func TestVPPBuildErrorsStayOperatingErrors(t *testing.T) {
 	}
 	if vppExitCode(report.Passed, err) != 1 {
 		t.Fatal("an operating error exited zero")
+	}
+}
+
+// TestVPPSelectedScenariosFilterAndOrder validates scenario filtering,
+// declaration-order preservation, and conditional IPsec probe selection.
+//
+// VALIDATES: an empty selector runs all eleven scenarios; a non-empty selector
+// runs only the named scenarios in declaration order and drops the IPsec probe
+// build whenever ipsec is not selected.
+// PREVENTS: scenario filtering reordering steps, duplicating runs, or forcing
+// an unrelated ike/dataplane build during FIB/MPLS runs.
+func TestVPPSelectedScenariosFilterAndOrder(t *testing.T) {
+	v := newVPP(t.TempDir())
+	all, err := v.selectedScenarioRuns()
+	if err != nil {
+		t.Fatalf("empty selection failed: %v", err)
+	}
+	if len(all) != 11 {
+		t.Fatalf("empty selection returned %d scenarios, want 11", len(all))
+	}
+	if !needsIPsecProbe(all) {
+		t.Fatal("default selection did not request the IPsec probe")
+	}
+
+	v.Scenarios = []string{VPPScenarioFIBStaleSweep, VPPScenarioIPv4FIB, VPPScenarioFIBECMP, VPPScenarioIPv4FIB}
+	fibSteps, err := v.selectedScenarioRuns()
+	if err != nil {
+		t.Fatalf("FIB selection failed: %v", err)
+	}
+	gotFIB := make([]string, 0, len(fibSteps))
+	for _, step := range fibSteps {
+		gotFIB = append(gotFIB, step.name)
+	}
+	wantFIB := []string{VPPScenarioIPv4FIB, VPPScenarioFIBECMP, VPPScenarioFIBStaleSweep}
+	if !reflect.DeepEqual(gotFIB, wantFIB) {
+		t.Fatalf("FIB selection = %v, want %v", gotFIB, wantFIB)
+	}
+	if needsIPsecProbe(fibSteps) {
+		t.Fatal("FIB selection requested the IPsec probe without ipsec selected")
+	}
+
+	v.Scenarios = []string{VPPScenarioFirewall, VPPScenarioIPsec}
+	withIPsec, err := v.selectedScenarioRuns()
+	if err != nil {
+		t.Fatalf("ipsec selection failed: %v", err)
+	}
+	gotIPsec := make([]string, 0, len(withIPsec))
+	for _, step := range withIPsec {
+		gotIPsec = append(gotIPsec, step.name)
+	}
+	wantIPsec := []string{VPPScenarioIPsec, VPPScenarioFirewall}
+	if !reflect.DeepEqual(gotIPsec, wantIPsec) {
+		t.Fatalf("ipsec selection = %v, want %v", gotIPsec, wantIPsec)
+	}
+	if !needsIPsecProbe(withIPsec) {
+		t.Fatal("selection containing ipsec did not request the IPsec probe")
+	}
+}
+
+// TestVPPUnknownScenarioRefusedBeforeDocker validates that unknown scenario
+// names are refused before looking up binaries, building daemons, or starting
+// Docker, and that the CLI action exits with the usage code.
+//
+// VALIDATES: an unknown scenario name returns an error naming both the bad
+// input and every declared scenario, and `test deployment vpp scenario <bad>`
+// exits 2 without invoking Docker.
+// PREVENTS: a typo burning minutes on a daemon build or silently running zero
+// scenarios and reporting a pass.
+func TestVPPUnknownScenarioRefusedBeforeDocker(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	run := newVPP(t.TempDir())
+	run.Progress = nil
+	run.Scenarios = []string{VPPScenarioIPv4FIB, "no-such-scenario"}
+
+	report, err := run.Run(t.Context())
+	if err == nil {
+		t.Fatal("unknown scenario succeeded")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "no-such-scenario") {
+		t.Fatalf("error did not name the unknown scenario: %s", msg)
+	}
+	for _, step := range run.scenarioRuns() {
+		if !strings.Contains(msg, step.name) {
+			t.Fatalf("error did not list valid scenario %q: %s", step.name, msg)
+		}
+	}
+	if len(report.Scenarios) != 0 {
+		t.Fatalf("unknown scenario produced %d scenario verdicts", len(report.Scenarios))
+	}
+
+	_, code := Answer([]string{"vpp", vppScenarioKeyword, "no-such-scenario"})
+	if code != composeUsageExit {
+		t.Fatalf("Answer with unknown scenario exited %d, want %d", code, composeUsageExit)
 	}
 }
 

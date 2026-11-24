@@ -9,10 +9,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/appliance"
 	testdeployment "github.com/ze-software/ze/internal/le/test/deployment"
 )
 
@@ -37,7 +39,8 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	// The le child reads the checkout out of its own environment, so this
 	// fixture only holds it to the variable being set: an unset one sends the
 	// evidence run at whatever tree the temporary directory sits under.
-	if os.Getenv("ZE_REPO_ROOT") == "" {
+	repo := os.Getenv("ZE_REPO_ROOT")
+	if repo == "" {
 		return errors.New("ZE_REPO_ROOT is not set")
 	}
 	work, _, err := temporaryLEFixtureWorkspace("le-evidence-vpp-answers-")
@@ -60,11 +63,21 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	if err := os.MkdirAll(fixtureRoot, 0o750); err != nil {
 		return fmt.Errorf("create fixture checkout: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(fixtureRoot, "go.mod"), []byte("module example.test/m\n\ngo 1.26\n"), 0o600); err != nil {
-		return fmt.Errorf("write fixture go.mod: %w", err)
+	for _, rel := range []string{pathGokrazyKernel, pathKernelBuilder, "internal/appliance/kernelbuilder", fileGoMod, "internal/core"} {
+		if err := copyFixtureTree(filepath.Join(repo, filepath.FromSlash(rel)), filepath.Join(fixtureRoot, filepath.FromSlash(rel))); err != nil {
+			return fmt.Errorf("copy fixture %s: %w", rel, err)
+		}
 	}
 	if err := os.WriteFile(filepath.Join(fixtureRoot, "feature-gates.txt"), []byte("ze_bgp internal/component/bgp\nze_vpp internal/component/vpp\n"), 0o600); err != nil {
 		return fmt.Errorf("write fixture feature manifest: %w", err)
+	}
+	cacheHome := filepath.Join(work, "cache")
+	hostArch := archAMD64
+	if runtime.GOARCH == archARM64 {
+		hostArch = archARM64
+	}
+	if err := seedCachedRuntimeKernel(fixtureRoot, cacheHome, hostArch); err != nil {
+		return err
 	}
 
 	stubs := filepath.Join(work, "stubs")
@@ -131,6 +144,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		env := overlayEnv(os.Environ(), map[string]string{
 			envPath:                  stubs + string(os.PathListSeparator) + os.Getenv("PATH"),
 			envRepoRoot:              fixtureRoot,
+			"XDG_CACHE_HOME":         cacheHome,
 			"ZE_RECORD_DOCKER":       record,
 			"ZE_VPP_WORK":            filepath.Join(work, "vpp-work"),
 			"ZE_VPP_STATE":           filepath.Join(work, "vpp-state-"+filepath.Base(record)),
@@ -144,7 +158,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 			"ZE_HP_CMDLINE":          cmdline,
 			"ZE_HP_TOTAL":            total,
 		})
-		cmd := exec.CommandContext(ctx, binary, args...) //nolint:gosec // the fixture chooses the program and its arguments
+		cmd := exec.CommandContext(ctx, binary, expandAreaArgv(args)...) //nolint:gosec // the fixture chooses the program and its arguments
 		cmd.Dir = work
 		cmd.Env = env
 		var stdout, stderr bytes.Buffer
@@ -286,8 +300,8 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	if !ok {
 		return fmt.Errorf("the VPP deployment scenarios have unexpected type %T", vpp["scenarios"])
 	}
-	if len(vppScenarios) != 8 {
-		return fmt.Errorf("the VPP deployment proof ran %d scenarios, want 8", len(vppScenarios))
+	if len(vppScenarios) != 11 {
+		return fmt.Errorf("the VPP deployment proof ran %d scenarios, want 11", len(vppScenarios))
 	}
 	checkCount := 0
 	for _, raw := range vppScenarios {
@@ -304,20 +318,34 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 			return fmt.Errorf("VPP scenario %v answered %v", one["scenario"], one["verdict"])
 		}
 	}
-	if checkCount != 21 {
-		return fmt.Errorf("the VPP deployment proof returned %d checks, want 21", checkCount)
+	if checkCount != 43 {
+		return fmt.Errorf("the VPP deployment proof returned %d checks, want 43", checkCount)
 	}
 	vppCalls, err := uiLeEvidenceVppAnswersRecorded(vppRecord)
 	if err != nil {
 		return err
 	}
-	if len(vppCalls) != 104 {
-		return fmt.Errorf("the VPP deployment proof made %d Docker calls, want 104 (57 distinct steps, five cleanup polls, the mkdir plus cp that stage each of the fourteen daemon configs, and the SIGTERM pkill that stops each daemon):\n%s", len(vppCalls), uiLeEvidenceVppAnswersTally(vppCalls))
+	if len(vppCalls) != 233 {
+		return fmt.Errorf("the VPP deployment proof made %d Docker calls, want 233:\n%s", len(vppCalls), uiLeEvidenceVppAnswersTally(vppCalls))
 	}
-	for _, owed := range []string{"TestVPPRealDataplaneInstalls", "show ip fib 10.20.0.0/24", "show classify tables", "show acl-plugin acl"} {
+	for _, owed := range []string{
+		"TestVPPRealDataplaneInstalls",
+		"TestVPPRealCleartextProbe",
+		"show ip fib 10.20.0.0/24",
+		"show mpls fib table 0",
+		"show mpls forwarding | json",
+		"show ip fib 10.28.0.0/24",
+		"show ip fib 10.29.0.0/24",
+		"show ip fib 10.29.1.0/24",
+		"show classify tables",
+		"show acl-plugin acl",
+	} {
 		if !containsCall(vppCalls, owed) {
 			return fmt.Errorf("the VPP deployment proof made no call carrying %q", owed)
 		}
+	}
+	if containsCall(vppCalls, "kernel-capabilities") {
+		return fmt.Errorf("the VPP deployment proof unexpectedly probed host kernel-capabilities:\n%s", uiLeEvidenceVppAnswersTally(vppCalls))
 	}
 
 	evidenceYAML := runLE([]string{areaDeployment, actionVPPTest, "|", renderYAML}, leOptions{record: filepath.Join(work, "vpp-evidence-yaml-argv")})
@@ -337,7 +365,10 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 			return fmt.Errorf("the VPP table has no %q scenario column: %q", heading, head(evidenceTable.stdout, 500))
 		}
 	}
-	for _, scenario := range []string{"ipsec", "ipv4-fib", "mpls-fib", "traffic-interface-class", "traffic-protocol-class", "traffic-dscp-class", "traffic-multi-class", "firewall-acl"} {
+	for _, scenario := range []string{
+		"ipsec", "ipv4-fib", "mpls-fib", "mpls-label-pop", "fib-ecmp", "fib-stale-sweep",
+		"traffic-interface-class", "traffic-protocol-class", "traffic-dscp-class", "traffic-multi-class", "firewall-acl",
+	} {
 		if !strings.Contains(evidenceTable.stdout, scenario) {
 			return fmt.Errorf("the VPP table omitted scenario %q: %q", scenario, head(evidenceTable.stdout, 500))
 		}
@@ -403,6 +434,63 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 
 	fmt.Println("OK")
 	return nil
+}
+
+// seedCachedRuntimeKernel populates a stub runtime kernel entry under cacheHome
+// at the exact cache key `vpp-hugepages` checks via CachedRuntimeKernelTree, so
+// the fixture does not depend on the host having a warm runtime kernel cache.
+func seedCachedRuntimeKernel(fixtureRoot, cacheHome, arch string) error {
+	restore := setFixtureEnv("XDG_CACHE_HOME", cacheHome)
+	defer restore()
+
+	_, err := appliance.CachedRuntimeKernelTree(fixtureRoot, arch, func(string) string { return "stub" })
+	if err == nil {
+		return nil
+	}
+	const marker = " is not in the cache at "
+	_, rest, ok := strings.Cut(err.Error(), marker)
+	if !ok {
+		return fmt.Errorf("resolve runtime kernel cache path: %w", err)
+	}
+	entry := rest
+	if before, _, cut := strings.Cut(entry, ", nor at "); cut {
+		entry = before
+	}
+	if before, _, cut := strings.Cut(entry, "\n"); cut {
+		entry = before
+	}
+	entry = strings.TrimSpace(entry)
+	if !strings.HasPrefix(entry, cacheHome+string(os.PathSeparator)) {
+		return fmt.Errorf("unexpected runtime kernel cache path %q outside %q", entry, cacheHome)
+	}
+	if err := os.MkdirAll(entry, 0o750); err != nil {
+		return fmt.Errorf("create runtime kernel cache dir: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(entry, "vmlinuz"), []byte("stub kernel"), 0o600); err != nil {
+		return fmt.Errorf("write stub runtime kernel: %w", err)
+	}
+	if _, err := appliance.CachedRuntimeKernelTree(fixtureRoot, arch, func(string) string { return "stub" }); err != nil {
+		return fmt.Errorf("verify seeded runtime kernel cache: %w", err)
+	}
+	return nil
+}
+
+// expandAreaArgv splits a leading multi-word le area constant ("test deployment",
+// "test qemu") into separate argv words so LookupLocalData matches the registered
+// command path segment by segment.
+func expandAreaArgv(args []string) []string {
+	if len(args) == 0 {
+		return args
+	}
+	switch args[0] {
+	case areaDeployment, areaQEMU:
+		words := strings.Fields(args[0])
+		out := make([]string, 0, len(words)+len(args)-1)
+		out = append(out, words...)
+		return append(out, args[1:]...)
+	default:
+		return args
+	}
 }
 
 func overlayEnv(base []string, changes map[string]string) []string {
@@ -632,15 +720,68 @@ func dockerExec(args []string, joined string) {
         fmt.Println("ze-vpp-ipsec:sad-id=42")
         fmt.Println("ze-vpp-ipsec:close-removed-spi=43")
         fmt.Println("ze-vpp-ipsec:close-removed-spd-id=44")
+    case strings.Contains(joined, "TestVPPRealCleartextProbe"):
+        record(args)
+        fmt.Println("ze-vpp-cleartext:spd-id=42")
     case strings.Contains(joined, "show ipsec sa 0"):
         record(args)
         fmt.Print("salt 0xdeadbeef aes-gcm-256 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f integrity alg none encap-copy-ecn decap-copy-ecn")
     case strings.Contains(joined, "show ipsec sa"):
         record(args)
         fmt.Print("[0] spi 287454020 protocol:esp tunnel\n[1] spi 1432778632 protocol:esp tunnel inbound")
+    case strings.Contains(joined, "show ipsec spd"):
+        record(args)
+        fmt.Print("spd 42\n")
     case strings.Contains(joined, "show ipsec all"):
         record(args)
-        fmt.Print("spd 41\n41 -> loop0\npriority -100 action bypass type ip4-outbound protocol any\npriority -2000 action protect type ip4-outbound protocol any")
+        fmt.Print("spd 41\n41 -> loop0\n" +
+            "priority 2147483647 action bypass type ip4-outbound protocol UDP\n" +
+            "  local addr range 192.0.2.1 - 192.0.2.1 port range 500 - 500\n" +
+            "priority 2147483647 action bypass type ip4-outbound protocol UDP\n" +
+            "  local addr range 192.0.2.1 - 192.0.2.1 port range 4500 - 4500\n" +
+            "priority -100 action bypass type ip4-outbound protocol any\n" +
+            "  local addr range 0.0.0.0 - 255.255.255.255 port range 0 - 65535\n" +
+            "priority -2000 action protect type ip4-outbound protocol any\n" +
+            "  local addr range 0.0.0.0 - 255.255.255.255 port range 0 - 65535\n" +
+            "spd 42\n42 -> pg1\n" +
+            "priority 10 action protect type ip4-inbound-protect protocol any\n" +
+            "priority 10 action discard type ip4-inbound-discard protocol any\n" +
+            "priority 10 action bypass type ip4-inbound-bypass protocol any\n")
+    case strings.Contains(joined, "packet-generator enable-stream"):
+        record(args)
+        _ = os.WriteFile(statePath("pg-stream"), []byte(args[len(args)-1]), 0644)
+    case strings.Contains(joined, "show packet-generator"):
+        record(args)
+        stream, _ := os.ReadFile(statePath("pg-stream"))
+        fmt.Printf("%s No 1 limit 1\n", strings.TrimSpace(string(stream)))
+    case strings.Contains(joined, "show trace"):
+        record(args)
+        streamBytes, _ := os.ReadFile(statePath("pg-stream"))
+        switch strings.TrimSpace(string(streamBytes)) {
+        case "ct-bypass", "esp-decrypt":
+            fmt.Print("00:00:01:000001: pg-input\n00:00:01:000002: ip4-input\n00:00:01:000003: ip4-lookup\n")
+        case "ct-protect", "ct-discard", "esp-discard", "esp-discard-rev":
+            fmt.Print("00:00:01:000001: pg-input\n00:00:01:000002: ip4-input\n00:00:01:000003: error-drop\n")
+        case "mpls-pop":
+            fmt.Print("00:00:01:000001: pg-input\n00:00:01:000002: mpls-lookup\n00:00:01:000003: lookup-ip4-dst\n")
+        case "mpls-pop-control":
+            fmt.Print("00:00:01:000001: pg-input\n00:00:01:000002: mpls-lookup\n00:00:01:000003: mpls-drop\n")
+        }
+    case strings.Contains(joined, "show errors"):
+        record(args)
+        streamBytes, _ := os.ReadFile(statePath("pg-stream"))
+        switch strings.TrimSpace(string(streamBytes)) {
+        case "ct-protect":
+            fmt.Print("1 ipsec4-input-feature IPSec pkts received info\n1 ipsec4-input-feature IPSec cleartext matched protect error\n")
+        case "ct-discard", "esp-discard":
+            fmt.Print("1 ipsec4-input-feature IPSec pkts received info\n1 ipsec4-input-feature IPSec policy discard error\n")
+        case "ct-bypass":
+            fmt.Print("1 ipsec4-input-feature IPSec pkts received info\n1 ipsec4-input-feature IPSec policy bypass info\n")
+        case "esp-discard-rev":
+            fmt.Print("1 ipsec4-input-feature IPSec pkts received info\n1 ipsec4-input-feature IPSec policy not matched info\n")
+        case "esp-decrypt":
+            fmt.Print("2 ipsec4-input-feature IPSec pkts received info\n1 ipsec4-input-feature IPSec policy match info\n1 ipsec4-input-feature IPSec decrypted packet info\n")
+        }
     case strings.Contains(joined, "show plugins"):
         record(args)
         code, _ := strconv.Atoi(os.Getenv("ZE_PLUGINS_EXIT"))
@@ -675,7 +816,61 @@ func dockerExec(args []string, joined string) {
         if hasState("pol-tcp") || hasState("pol-cs6") || hasState("pol-web") || hasState("pol-dns") { fmt.Println("policer-classify") }
     case strings.Contains(joined, "show interface"):
         record(args)
-        fmt.Print("loop0 7 up\nlocal0 0 down\n")
+        fmt.Print("loop0 7 up\npg1 8 up\nlocal0 0 down\n")
+        if hasState("qos-vlan") {
+            fmt.Print("loop2.100 9 up\n")
+        }
+    case strings.Contains(joined, "show qos egress map"):
+        record(args)
+        if !hasState("qos-vlan") {
+            return
+        }
+        entries := make([]string, 256)
+        for i := range entries {
+            entries[i] = "0"
+        }
+        if hasState("qos-pcp3") {
+            entries[3] = "3"
+        }
+        if hasState("qos-pcp5") {
+            entries[5] = "5"
+        }
+        fmt.Printf(" Map-ID:9\n vlan:[%s]\n", strings.Join(entries, ","))
+    case strings.Contains(joined, "show qos mark "):
+        record(args)
+        if hasState("qos-marked") {
+            fmt.Print(" loop2.100:\n  vlan: map:0\n")
+        }
+    case strings.Contains(joined, "show mpls fib table 0"):
+        record(args)
+        if hasState("mpls-pop") {
+            fmt.Print("MPLS-VRF:0, fib_index:0\n16:eos/21 fib:0 index:40 locks:2\n  API refs:1\n    path-list:[50]\n      path:[52] pl-index:50 ip4 weight=1 pref=0 deag: oper-flags:resolved,\n16:neos/21 fib:0 index:41 locks:2\n  API refs:1\n    path-list:[51]\n      path:[53] pl-index:51 mpls weight=1 pref=0 deag: oper-flags:resolved,\n")
+        } else {
+            fmt.Print("MPLS-VRF:0, fib_index:0\n")
+        }
+    case strings.Contains(joined, "show mpls interface"):
+        record(args)
+        fmt.Print("pg0\n\n  MPLS enabled\n")
+    case strings.HasSuffix(joined, " passwd"):
+        record(args)
+        _, _ = io.ReadAll(os.Stdin)
+        fmt.Println("$2a$10$stubhash")
+    case strings.Contains(joined, "cat /run/ze/mpls-label-pop.conf/ssh.addr"):
+        record(args)
+        fmt.Println("127.0.0.1:22222")
+    case strings.Contains(joined, "show mpls forwarding | json"):
+        record(args)
+        if hasState("mpls-pop") {
+            fmt.Println("[{\"in-label\":16,\"operation\":\"pop\"}]")
+        } else {
+            fmt.Println("[]")
+        }
+    case strings.Contains(joined, "tee /run/ze/"):
+        record(args)
+        body, _ := io.ReadAll(os.Stdin)
+        target := args[len(args)-1]
+        conf := strings.TrimSuffix(strings.TrimPrefix(target, "/run/ze/"), "/ze.conf")
+        _ = os.WriteFile(statePath("reloaded."+conf), body, 0644)
     case strings.Contains(joined, "show wireguard interface"):
         awaitDaemon("wg.conf")
         record(args)
@@ -690,6 +885,34 @@ func dockerExec(args []string, joined string) {
     case strings.Contains(joined, "show ip fib 10.30.0.0/24"):
         record(args)
         if hasState("mpls") { fmt.Println("10.30.0.0/24 via 10.0.0.1 label 100") }
+    case strings.Contains(joined, "show ip fib 10.28.0.0/24"):
+        record(args)
+        switch {
+        case hasState("fib-ecmp-2"):
+            fmt.Print("10.28.0.0/24 fib:0 index:24 locks:2\n  ze-fib-vpp refs:1\n    path-list:[32]\n      path:[40] pl-index:32 ip4 weight=1 pref=0 recursive:\n        via 10.28.98.1 in fib:0\n      path:[41] pl-index:32 ip4 weight=1 pref=0 recursive:\n        via 10.28.99.1 in fib:0\n forwarding: unicast-ip4-chain\n")
+        case hasState("fib-ecmp-1"):
+            fmt.Print("10.28.0.0/24 fib:0 index:24 locks:2\n  ze-fib-vpp refs:1\n    path-list:[33]\n      path:[42] pl-index:33 ip4 weight=1 pref=0 recursive:\n        via 10.28.98.1 in fib:0\n forwarding: unicast-ip4-chain\n")
+        default:
+            fmt.Print("0.0.0.0/0 fib:0 index:0 locks:2\n")
+        }
+    case strings.Contains(joined, "show ip fib 10.29.0.0/24"):
+        record(args)
+        if hasState("clear-fib-stale-1029") {
+            clearState("fib-stale-1029")
+            clearState("clear-fib-stale-1029")
+        }
+        if hasState("fib-stale-1029") {
+            fmt.Print("10.29.0.0/24 fib:0 index:25 locks:2\n  ze-fib-vpp refs:1\n    path-list:[34]\n      path:[43] pl-index:34 ip4 weight=1 pref=0 recursive:\n        via 10.29.99.1 in fib:0\n forwarding: unicast-ip4-chain\n")
+        } else {
+            fmt.Print("0.0.0.0/0 fib:0 index:0 locks:2\n")
+        }
+    case strings.Contains(joined, "show ip fib 10.29.1.0/24"):
+        record(args)
+        if hasState("fib-stale-ctrl") {
+            fmt.Print("10.29.1.0/24 fib:0 index:26 locks:2\n  ze-fib-vpp refs:1\n    path-list:[35]\n      path:[44] pl-index:35 ip4 weight=1 pref=0 recursive:\n        via 10.29.99.1 in fib:0\n forwarding: unicast-ip4-chain\n")
+        } else {
+            fmt.Print("0.0.0.0/0 fib:0 index:0 locks:2\n")
+        }
     case strings.Contains(joined, "show policer"):
         if hasState("pol-default") && !configHas("traffic.conf", "interface loop0") { awaitState("clear-pol-default") }
         if hasState("pol-tcp") && !configHas("traffic-proto.conf", "interface loop0") { awaitState("clear-pol-tcp") }
@@ -730,6 +953,39 @@ func dockerExec(args []string, joined string) {
     case strings.Contains(joined, "ip link show"):
         record(args)
         fmt.Println("1: lo: <LOOPBACK,UP>")
+    case strings.Contains(joined, "pkill -1 -f ") && strings.Contains(joined, " start /run/ze/"):
+        record(args)
+        pattern := args[len(args)-1]
+        conf := strings.ReplaceAll(pattern[strings.Index(pattern, "/run/ze/")+len("/run/ze/"):], "\\.", ".")
+        conf = strings.TrimSuffix(conf, "/ze.conf$")
+        bodyBytes, _ := os.ReadFile(statePath("reloaded." + conf))
+        body := string(bodyBytes)
+        switch conf {
+        case "mpls-label-pop.conf":
+            if !strings.Contains(body, "ldp {") { clearState("mpls-pop") }
+        case "fib-ecmp.conf":
+            clearState("fib-ecmp-2")
+            clearState("fib-ecmp-1")
+            if strings.Contains(body, "10.28.98.1") && strings.Contains(body, "10.28.99.1") {
+                setState("fib-ecmp-2")
+            } else if strings.Contains(body, "10.28.98.1") {
+                setState("fib-ecmp-1")
+            }
+        case "fib-stale-after.conf":
+            if !strings.Contains(body, "10.29.1.0/24") { clearState("fib-stale-ctrl") }
+        case "qos.conf":
+            clearState("qos-pcp3")
+            clearState("qos-pcp5")
+            clearState("qos-marked")
+            if strings.Contains(body, "egress-qos-map 3") {
+                setState("qos-pcp3")
+                setState("qos-marked")
+            }
+            if strings.Contains(body, "egress-qos-map 5") {
+                setState("qos-pcp5")
+                setState("qos-marked")
+            }
+        }
     case strings.Contains(joined, "pkill -15 -f ") && strings.Contains(joined, " start /run/ze/"):
         // The proof stops each daemon with SIGTERM through pkill on its exact
         // start command (122bd2106e). A real ze exits on it, so the fake
@@ -741,6 +997,10 @@ func dockerExec(args []string, joined string) {
         setState("stop." + conf)
     case strings.Contains(joined, "pkill -9 -f ") && strings.Contains(joined, " start /run/ze/"):
         record(args)
+        pattern := args[len(args)-1]
+        conf := strings.ReplaceAll(pattern[strings.Index(pattern, "/run/ze/")+len("/run/ze/"):], "\\.", ".")
+        conf = strings.TrimSuffix(conf, "/ze.conf$")
+        setState("stop." + conf)
     case strings.Contains(joined, "start /run/ze/"):
         record(args)
         conf := ""
@@ -754,8 +1014,28 @@ func dockerExec(args []string, joined string) {
         // for before it reads any config-specific line.
         fmt.Println("Ze running. Press Ctrl+C to stop.")
         switch conf {
+        case "mpls-label-pop.conf":
+            if configHas(conf, "ldp {") { setState("mpls-pop") }
+        case "fib-ecmp.conf":
+            setState("fib-ecmp-2")
+        case "fib-stale-before.conf":
+            setState("fib-stale-1029")
+        case "fib-stale-after.conf":
+            setState("fib-stale-ctrl")
+            setState("clear-fib-stale-1029")
         case "urpf.conf":
             if configHas(conf, "rpf-check strict") { setState("urpf") }
+            fmt.Fprintln(os.Stderr, "ze: interface backend vpp ready")
+        case "qos.conf":
+            setState("qos-vlan")
+            if configHas(conf, "egress-qos-map 3") {
+                setState("qos-pcp3")
+                setState("qos-marked")
+            }
+            if configHas(conf, "egress-qos-map 5") {
+                setState("qos-pcp5")
+                setState("qos-marked")
+            }
             fmt.Fprintln(os.Stderr, "ze: interface backend vpp ready")
         case "traffic.conf":
             if configHas(conf, "interface loop0") { setState("pol-default") } else { setState("clear-pol-default") }

@@ -6,9 +6,11 @@
 //
 // daemonkernel.go is the one step every proof that cross-compiles its own
 // daemon takes between the build and its first container: the Docker daemon's
-// kernel must carry every feature Ze enrolls (owner D-4: a wrong kernel "should
-// not be possible - fail"). The interop suites take the same check through
-// Suite.Run; these proofs do not run a Suite, so they call it here, once.
+// kernel must carry the capabilities required by that proof (scoped per
+// plan/records/ruling-interop-scoped-kernel-capabilities.md; proofs declaring
+// KernelCapabilitiesNone skip the probe). The interop suites take the same
+// check through Suite.Run; these proofs do not run a Suite, so they call it
+// here, once.
 
 package testdeployment
 
@@ -28,7 +30,8 @@ import (
 const daemonKernelTimeout = 3 * time.Minute
 
 // buildCheckedDaemon runs build, then refuses a Docker daemon whose kernel lacks
-// an enrolled feature, probing with the daemon that build writes for goarch.
+// any capability named in required, probing with the daemon that build writes
+// for goarch (or skipping the probe when required is KernelCapabilitiesNone).
 // The probe runs under ctx, the verb's signal root, so a Ctrl-C ends its
 // docker client, which heads a process group of its own.
 //

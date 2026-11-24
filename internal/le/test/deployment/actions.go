@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the deployment area, as one command
 // Detail: l2tp.go -- the L2TP peer proof this table reaches
 // Detail: vppiface.go -- the VPP interface proof this table reaches
-// Detail: vppevidence.go -- the nine real VPP deployment scenarios
+// Detail: vppevidence.go -- the eleven real VPP deployment scenarios
 // Detail: l2tpppp.go -- the on-host L2TP PPP proof this table reaches
 // Detail: l2tpdiag.go -- the two gateless native L2TP diagnostics
 //
@@ -20,6 +20,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	interopl2tp "github.com/ze-software/ze/internal/le/interoplab/l2tp"
 	interoppppoe "github.com/ze-software/ze/internal/le/interoplab/pppoe"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
@@ -32,6 +33,22 @@ const area = "test deployment"
 
 // doesRun is the vocabulary verb every suite name of this area performs.
 const doesRun = "run"
+
+// vppScenarioKeyword names the repeatable scenario selector on `test deployment vpp`.
+const vppScenarioKeyword = "scenario"
+
+func vppParameters() []leaction.Parameter {
+	return []leaction.Parameter{
+		{
+			Keyword:     vppScenarioKeyword,
+			Kind:        leaction.KindString,
+			Value:       "name",
+			Requirement: leaction.Optional,
+			Repeat:      true,
+			Help:        "run only the named scenario; repeat for several",
+		},
+	}
+}
 
 var actions = leaction.New(area,
 	leaction.Action{Verb: "l2tp", Does: doesRun, Summary: "test the L2TP control session against a peer", Why: "the L2TP control session against an external peer." +
@@ -52,14 +69,21 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "vpp-iface", Does: doesRun, Summary: "test VPP interface features against a real daemon", Why: "the VPP interface features against a real daemon: tunnels, mirror," +
 		" wireguard, LCP. Needs Docker and the host's /dev/net/tun and /dev/vhost-net",
 		Answer: signalRooted(runVPPIfaceAt)},
-	leaction.Action{Verb: "vpp", Does: doesRun, Summary: "test ze driving a real VPP daemon", Why: "ze driving a real VPP daemon, not a fake channel. Needs Docker and the" +
-		" host's /dev/net/tun and /dev/vhost-net",
-		Answer: signalRooted(runVPPAt)},
+	leaction.Action{
+		Verb:    "vpp",
+		Does:    doesRun,
+		Summary: "test ze driving a real VPP daemon",
+		Why: "ze driving a real VPP daemon, not a fake channel. Pass `scenario <name>`" +
+			" one or more times to run a subset in declaration order; omit it to run all eleven." +
+			" Needs Docker and the host's /dev/net/tun and /dev/vhost-net",
+		Parameters: vppParameters(),
+		AnswerArgs: runVPPHere,
+	},
 	leaction.Action{
 		Verb:       l2tpPPPoXDiagnosticName,
 		Does:       doesRun,
-		Summary:    "diagnose the netlink, PPPoX and PPP ioctl path",
-		Why:        "the native Linux netlink, PPPoX and PPP ioctl path. Leaves created L2TP objects for inspection",
+		Summary:    "diagnose the netlink socket, PPPoX and PPP ioctl path",
+		Why:        "the native Linux netlink socket, PPPoX and PPP ioctl path. Leaves created L2TP objects for inspection",
 		Parameters: pppoxDiagnosticParameters(),
 		AnswerArgs: runL2TPPPoXDiagnosticHere,
 	},
@@ -258,9 +282,28 @@ func runVPPIface(ctx context.Context, run proofRun[VPPIfaceReport]) (any, int) {
 	return report, 0
 }
 
-// runVPPAt proves all nine VPP deployment scenarios over the checkout at root.
-func runVPPAt(ctx context.Context, root string) (any, int) {
-	return runVPP(ctx, newVPP(root))
+// runVPPHere proves the selected VPP deployment scenarios (all eleven when none
+// are named) over the checkout under one signal root.
+func runVPPHere(args leaction.Arguments) (any, int) {
+	scenarios := args.Values(vppScenarioKeyword)
+	var check VPP
+	check.Scenarios = scenarios
+	if _, err := check.selectedScenarioRuns(); err != nil {
+		leaction.ReportError(err)
+		return nil, composeUsageExit
+	}
+	root, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(opererr.Wrap(err, "the VPP deployment proof cannot find the Ze checkout",
+			"it builds ze and le from the checkout to drive VPP inside the container",
+			"change to the Ze checkout, then run `./le test deployment vpp`"))
+		return nil, 1
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	run := newVPP(root)
+	run.Scenarios = scenarios
+	return runVPP(ctx, run)
 }
 
 // runVPP maps the report and operating error onto the action exit code, in

@@ -4,7 +4,7 @@
 // Detail: vppifacereport.go -- the payload this run answers
 // Related: deployment.go -- the container and the collector
 // Related: daemonbuild.go -- the daemon this proof builds
-// Related: vppevidence.go -- the nine-scenario proof that shares this VPP lab
+// Related: vppevidence.go -- the eleven-scenario proof that shares this VPP lab
 //
 // vppiface.go proves that ze programs interface features on a VPP daemon that
 // somebody else built. ze sends a GRE tunnel, a SPAN mirror, a wireguard
@@ -276,13 +276,13 @@ func (v *vppIface) writeScratch(work string) error {
 	return nil
 }
 
-// prepareDaemon readies the linux daemon and refuses a Docker kernel that
-// lacks an enrolled feature, then readies the VPP image: the steps a proof that
-// starts one VPP container and Ze in it takes first, vpp-iface and
-// TestVPPSRv6ServiceRoute (build tag integration). The check comes before the
-// image, so a refused host pulls nothing.
+// prepareDaemon readies the linux daemon and the VPP image: the steps a proof
+// that starts one VPP container and Ze in it takes first, vpp-iface and
+// TestVPPSRv6ServiceRoute (build tag integration). VPP userspace proofs need no
+// special host kernel capabilities and run on stock Linux or older ze kernels
+// (plan/records/ruling-interop-scoped-kernel-capabilities.md).
 func (v *vppIface) prepareDaemon() error {
-	if err := buildCheckedDaemon(v.ctx, v.Tree, v.Goarch, interoplab.KernelCapabilitiesAll(), func() error { return buildDaemon(v.ctx, v.Tree, v.Goarch, v.Progress) }); err != nil {
+	if err := buildCheckedDaemon(v.ctx, v.Tree, v.Goarch, interoplab.KernelCapabilitiesNone(), func() error { return buildDaemon(v.ctx, v.Tree, v.Goarch, v.Progress) }); err != nil {
 		return err
 	}
 	return v.readyImage()
