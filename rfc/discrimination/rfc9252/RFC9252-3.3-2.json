@@ -14,22 +14,22 @@
     "rid": "RFC9252-3.3-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs",
-    "unit-sha": "552322be601aad02",
+    "unit-sha": "a9cd8ec914b0e79d",
     "claim-sha": "e783cfd346fd3347",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop",
-    "producer-sha": "16586491bb65a11b",
+    "producer-sha": "75945d85d99ab96b",
     "break": "body of applyEgressPrefixSIDNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9252-3.3-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs",
-    "unit-sha": "552322be601aad02",
+    "unit-sha": "a9cd8ec914b0e79d",
     "claim-sha": "36256e8d9288cba7",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop",
-    "producer-sha": "16586491bb65a11b",
+    "producer-sha": "75945d85d99ab96b",
     "break": "body of applyEgressPrefixSIDNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

@@ -3,23 +3,23 @@
     "rid": "RFC9252-5-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestIsSRv6Ineligible_InvalidSIDStructure",
-    "unit-sha": "37d57d4fb9378275",
+    "unit-sha": "db9b446c4617a09a",
     "claim-sha": "ee28bbde3bb90a28",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible",
     "producer-sha": "d1f15612beac651f",
-    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9252-5-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestSRv6TranspositionAtLabelWidthIsEligible",
-    "unit-sha": "130d2055b9205e4f",
+    "unit-sha": "9ff406ed0b3c93c2",
     "claim-sha": "63aecb5105c72a22",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible",
     "producer-sha": "d1f15612beac651f",
-    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9252-5-1",
@@ -36,12 +36,12 @@
     "rid": "RFC9252-5-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible",
-    "unit-sha": "91f2cc6d2f2079c3",
+    "unit-sha": "7e54a81a598c4c0b",
     "claim-sha": "0d7dd43cc55ed5d5",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible",
     "producer-sha": "d1f15612beac651f",
-    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9252-5-1",
