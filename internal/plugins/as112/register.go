@@ -245,7 +245,7 @@ func runAS112Plugin(conn net.Conn) int {
 	// plain Go function, not through DirectBridge/DispatchCommand -- that
 	// only reaches the engine's real iface.addressOwners registry when this
 	// plugin shares process memory with it. An external as112 (operator
-	// explicitly writes plugin { external as112 { ... } }; nothing in config
+	// explicitly writes bus { endpoint as112 { external { ... } } }; nothing in config
 	// validation forbids it) would otherwise "succeed" at every config
 	// commit while silently never landing its anycast addresses on any real
 	// kernel interface. Refuse to start rather than degrade silently.

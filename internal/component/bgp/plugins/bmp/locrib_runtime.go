@@ -8,7 +8,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-var errLocRIBEventBusUnavailable = errors.New("bgp-bmp Loc-RIB monitoring cannot run because the BGP RIB event bus is unavailable in this process; replace the external instance with plugin { internal bmp { use bgp-bmp; } }")
+var errLocRIBEventBusUnavailable = errors.New("bgp-bmp Loc-RIB monitoring cannot run because the BGP RIB event bus is unavailable in this process; replace the external instance with bus { endpoint bmp { internal bgp-bmp; } }")
 
 // validateLocRIBRuntimeConfig checks the live feed before runtime configuration
 // can start sessions. The offline sender parser remains independent of it.

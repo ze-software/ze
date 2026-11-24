@@ -85,15 +85,15 @@ const catalogConfig = `bgp {
         }
     }
 }
-plugin {
-    internal rpki {
-        use bgp-rpki
+bus {
+    endpoint rpki {
+        internal bgp-rpki
     }
-    internal adj-rib-in {
-        use bgp-adj-rib-in
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in
     }
-    internal rib {
-        use bgp-rib
+    endpoint rib {
+        internal bgp-rib
     }
 }
 system {

@@ -308,7 +308,7 @@ func TestStoppedRecordCheckWithNoConfigurationAndNoStoreIsSilentWhileNothingRuns
 // Lineage: it replaces TestOrphanRecordCheckWithTheSectionUnrunPrintsTheWithdrawal
 // (doctor_stopped_test.go) and judges the same state. That test expected the
 // withdrawal as the fix, and a withdrawal can end a live mitigation that a
-// `plugin { internal <x> { use ddos-flowspec } }` block runs.
+// `bus { endpoint <x> { internal ddos-flowspec; } }` block runs.
 //
 // VALIDATES: AC-16 for the state no other check reports on the daemon route.
 // METHOD: judgeStoppedRecord with a tree naming the section, a run answering

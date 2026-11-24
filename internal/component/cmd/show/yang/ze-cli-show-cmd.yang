@@ -413,12 +413,12 @@ they are.";
                 config false;
                 ze:command "ze-cmd:show-event-delivery";
                 ze:rpc "ze-cli-show-api:event-delivery";
-                description "One block per peer, one row per `attach process` block on it: the
-event types that process is fed, and the message types it may send
+                description "One block per peer, one row per `bus` delivery participant on it: the
+event types that participant is fed, and the message types it may send
 toward that peer. A token the event registry does not know is listed
 as unresolved and carries no edge. Answer to 'why does my program
 see nothing from this peer'.";
-                ze:help "Show which peers feed which attached processes.";
+                ze:help "Show which peers feed which bus participants.";
             }
         }
 

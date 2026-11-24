@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -13,13 +14,15 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// These tests give `ze config validate` a config that declares an external
-// plugin, with a real program behind the run string: a shell script that
-// leaves a marker file when it is started, in any mode. Validate must never
-// start it. None runs in parallel: each resets the module set the process
-// published.
+// These tests exercise `ze config validate` with a config that declares an
+// external plugin under S-3 / AC-18: offline validation queries external
+// programs in declare mode (ZE_PLUGIN_MODE=declare) without starting their run
+// loop and refuses closed when a program cannot declare; inside a daemon whose
+// module set is fixed, no external program is started. None runs in parallel:
+// each resets the module set the process published.
 
 // monitorModule is the module of the test plugin: its own root and a leaf
 // whose range is 1..10.
@@ -31,14 +34,60 @@ const monitorModule = `module acme-monitor-conf {
     }
 }`
 
+// monitorSchemaDecl returns the Stage 1 SchemaDecl for monitorModule.
+func monitorSchemaDecl() rpc.SchemaDecl {
+	return rpc.SchemaDecl{
+		Module:    "acme-monitor-conf",
+		Namespace: "urn:acme:monitor",
+		YANGText:  monitorModule,
+	}
+}
+
 // markingPlugin writes a program that creates the file `started` beside it
-// when it is started, and answers its run string and the marker's path.
+// whenever it is started in any mode, and exits 0 without writing a Stage 1
+// declaration. Used by daemon-mode tests where no program may be started at all.
 func markingPlugin(t *testing.T) (run, marker string) {
 	t.Helper()
 	dir := t.TempDir()
 	marker = filepath.Join(dir, "started")
 	program := filepath.Join(dir, "plugin.sh")
 	require.NoError(t, os.WriteFile(program, []byte("#!/bin/sh\necho run >> "+marker+"\n"), 0o600))
+	return "sh " + program, marker
+}
+
+// silentPlugin writes a program that honors ZE_PLUGIN_MODE=declare by exiting 0
+// without writing a Stage 1 declaration (so query mode fails closed) and
+// without touching `started`. Any non-declare run writes `started` and exits 1.
+func silentPlugin(t *testing.T) (run, marker string) {
+	t.Helper()
+	dir := t.TempDir()
+	marker = filepath.Join(dir, "started")
+	program := filepath.Join(dir, "silent.sh")
+	script := "#!/bin/sh\nif [ \"$ZE_PLUGIN_MODE\" = \"declare\" ]; then\n  exit 0\nfi\necho run >> " + marker + "\nexit 1\n"
+	require.NoError(t, os.WriteFile(program, []byte(script), 0o600))
+	return "sh " + program, marker
+}
+
+// declaringPlugin writes a program that honors ZE_PLUGIN_MODE=declare by
+// writing one valid Stage 1 declare-registration line carrying schemas and
+// exiting 0 without touching `started`. Any non-declare run writes `started`
+// and exits 1, proving offline query mode never starts the run loop.
+func declaringPlugin(t *testing.T, schemas ...rpc.SchemaDecl) (run, marker string) {
+	t.Helper()
+	payload, err := json.Marshal(rpc.DeclareRegistrationInput{
+		ProtocolVersion: 1,
+		Schemas:         schemas,
+	})
+	require.NoError(t, err)
+	dir := t.TempDir()
+	marker = filepath.Join(dir, "started")
+	declFile := filepath.Join(dir, "decl.line")
+	line := append([]byte("#1 ze-plugin-engine:declare-registration "), payload...)
+	line = append(line, '\n')
+	require.NoError(t, os.WriteFile(declFile, line, 0o600))
+	program := filepath.Join(dir, "declare.sh")
+	script := "#!/bin/sh\nif [ \"$ZE_PLUGIN_MODE\" = \"declare\" ]; then\n  cat " + declFile + "\n  exit 0\nfi\necho run >> " + marker + "\nexit 1\n"
+	require.NoError(t, os.WriteFile(program, []byte(script), 0o600))
 	return "sh " + program, marker
 }
 
@@ -52,7 +101,7 @@ func requireNotStarted(t *testing.T, marker string) {
 // monitorConfig answers a config that declares external plugin acme with run,
 // followed by section.
 func monitorConfig(run, section string) string {
-	return "plugin {\n\texternal acme {\n\t\trun \"" + run + "\"\n\t\tencoder json\n\t}\n}\n\n" + section
+	return "bus {\n\tendpoint acme {\n\t\texternal {\n\t\t\trun \"" + run + "\"\n\t\t}\n\t\tencoding json\n\t}\n}\n\n" + section
 }
 
 // messagesOf answers the messages of result's diagnostics of one severity,
@@ -67,52 +116,65 @@ func messagesOf(result *validationResult, severity diagnostic.Severity) string {
 	return strings.Join(messages, "\n")
 }
 
-// TestValidateRefusesSectionOfExternalPluginWithoutStartingIt: with no daemon,
-// the validation a command runs in its own process (runValidation, which asks
-// no daemon) refuses a section only an external plugin's schema defines, says
-// why, names the command that asks a running ze, and starts no program.
-// Method: a run string whose program leaves a marker.
+// TestValidateRefusesSectionOfExternalPluginWithoutStartingIt verifies S-3 /
+// AC-18 at runValidation: offline validation queries declared external programs
+// in declare mode (ZE_PLUGIN_MODE=declare) without starting their run loop,
+// validates their declared YANG module when they declare, and refuses closed
+// with the conformance command when a program cannot declare.
 //
-// VALIDATES: the owner ruling that what needs an external plugin is not
-// available with no daemon: the config is not valid, the diagnostics hold the
-// unknown keyword, the declared plugin's name, that this command starts no
-// plugin and asked no running ze, and `fix: ze config validate ze.conf` last;
-// the marker is absent.
-// PREVENTS: validate running the command a config names, validate passing a
-// section it could not check, and a bare "unknown top-level keyword".
+// VALIDATES: S-3 / AC-18 / S16 — declare-mode schema validation accepts valid
+// values and refuses out-of-range values without touching the run-loop marker,
+// while a non-declaring program is refused naming endpoint, run line, cause,
+// and `ze show plugin conformance run "<run>"`.
+// PREVENTS: offline validation starting an external program's run loop or
+// accepting a program that cannot declare.
 func TestValidateRefusesSectionOfExternalPluginWithoutStartingIt(t *testing.T) {
-	t.Cleanup(config.ResetDeclaredSchemasForTest())
-	run, marker := markingPlugin(t)
+	t.Run("non_declaring_program_refused", func(t *testing.T) {
+		t.Cleanup(config.ResetDeclaredSchemasForTest())
+		run, marker := silentPlugin(t)
 
-	result := runValidation(monitorConfig(run, "acme-monitor {\n\tinterval 5\n}\n"), "ze.conf")
+		result := runValidation(monitorConfig(run, "acme-monitor {\n\tinterval 5\n}\n"), "ze.conf")
 
-	require.False(t, result.Valid, "a section ze could not check was accepted")
-	errs := messagesOf(result, diagnostic.SeverityError)
-	assert.Contains(t, errs, "unknown top-level keyword: acme-monitor")
-	assert.Contains(t, errs, `the config declares external plugin "acme"`)
-	assert.Contains(t, errs, "starts no plugin")
-	assert.Contains(t, errs, "asked no running ze", "runValidation asks no daemon and must say so")
-	assert.NotContains(t, errs, "show config validation", "the daemon refuses that form for a file outside its config directories")
-	assert.True(t, strings.HasSuffix(errs, "fix: ze config validate ze.conf"), "the command that asks a running ze is not the last line:\n%s", errs)
-	assert.Equal(t, 1, strings.Count(errs, "fix: "), "one fix line:\n%s", errs)
-	requireNotStarted(t, marker)
+		require.False(t, result.Valid, "a program that cannot declare must be refused")
+		require.NotEmpty(t, result.Diagnostics)
+		assert.Contains(t, result.Diagnostics[0].Message, `bus endpoint "acme"`)
+		assert.Contains(t, result.Diagnostics[0].Message, run)
+		assert.Contains(t, result.Diagnostics[0].Message, "without writing a Stage 1 declaration")
+		assert.Equal(t, `ze show plugin conformance run "`+run+`"`, result.Diagnostics[0].Fix)
+		requireNotStarted(t, marker)
+	})
+
+	t.Run("declaring_program_validated_without_run_loop", func(t *testing.T) {
+		t.Cleanup(config.ResetDeclaredSchemasForTest())
+		run, marker := declaringPlugin(t, monitorSchemaDecl())
+
+		valid := runValidation(monitorConfig(run, "acme-monitor {\n\tinterval 5\n}\n"), "ze.conf")
+		require.True(t, valid.Valid, "valid section of declare-mode plugin refused:\n%s", messagesOf(valid, diagnostic.SeverityError))
+		assert.Equal(t, []string{"acme"}, valid.Queried)
+
+		refused := runValidation(monitorConfig(run, "acme-monitor {\n\tinterval 11\n}\n"), "ze.conf")
+		require.False(t, refused.Valid, "out-of-range interval must be refused")
+		assert.Contains(t, messagesOf(refused, diagnostic.SeverityError), "interval")
+		requireNotStarted(t, marker)
+	})
 }
 
 // TestValidateAcceptsConfigWithNoSectionOfExternalPlugin: a declared external
-// plugin refuses nothing when the config holds no name only its schema could
-// define. Method: the same declaration and no section.
+// program that honors declare mode validates cleanly when the config holds no
+// section of it, without starting its run loop.
 //
-// VALIDATES: the config is valid, with no diagnostic about the plugin, and
-// the program was not started.
-// PREVENTS: validate refusing, or warning on, every config that declares an
-// external plugin, which boot accepts.
+// VALIDATES: S-3 / AC-18 — declare-mode query succeeds with Queried=["acme"],
+// no warning about acme, and run-loop marker untouched.
+// PREVENTS: validate refusing, or warning on, a valid declare-mode external
+// endpoint with no extra config section.
 func TestValidateAcceptsConfigWithNoSectionOfExternalPlugin(t *testing.T) {
 	t.Cleanup(config.ResetDeclaredSchemasForTest())
-	run, marker := markingPlugin(t)
+	run, marker := declaringPlugin(t)
 
 	result := runValidation(monitorConfig(run, ""), "ze.conf")
 
-	require.True(t, result.Valid, "a config with no section of the plugin is refused:\n%s", messagesOf(result, diagnostic.SeverityError))
+	require.True(t, result.Valid, "a config with a declaring plugin is refused:\n%s", messagesOf(result, diagnostic.SeverityError))
+	assert.Equal(t, []string{"acme"}, result.Queried)
 	assert.NotContains(t, messagesOf(result, diagnostic.SeverityWarning), "acme")
 	requireNotStarted(t, marker)
 }

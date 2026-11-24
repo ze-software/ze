@@ -78,7 +78,7 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 	}
 	switch scenario {
 	case "auth-reject":
-		config := `plugin { hub { server central { ip 0.0.0.0; port 1791; secret "central-secret-that-is-at-least32"; client edge-01 { secret "short"; } } } }`
+		config := `bus { hub { server central { ip 0.0.0.0; port 1791; secret "central-secret-that-is-at-least32"; client edge-01 { secret "short"; } } } }`
 		if _, err := commandOutput(ctx, "", os.Environ(), config, "ze", "config", "validate", "-"); err == nil {
 			return errors.New("expected validation failure for short client secret")
 		}
@@ -104,7 +104,7 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 				return err
 			}
 		}
-		config := managedCachedBase + `plugin { hub { server local { ip 127.0.0.1; port 1790; secret "local-secret-that-is-at-least-32ch"; }`
+		config := managedCachedBase + `bus { hub { server local { ip 127.0.0.1; port 1790; secret "local-secret-that-is-at-least-32ch"; }`
 		if scenario != scenarioClientCachedBoot {
 			config += ` client edge-01 { host 10.0.0.1; port 1791; secret "client-token-that-is-at-least-32ch"; }`
 		}
@@ -144,7 +144,7 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 		}
 		fmt.Fprintln(os.Stderr, "OK: first boot without hub info exits with clear error")
 	case "client-reject-invalid":
-		config := `plugin { hub { server local { ip 127.0.0.1; port notanumber; secret "local-secret-that-is-at-least-32ch"; } } }`
+		config := `bus { hub { server local { ip 127.0.0.1; port notanumber; secret "local-secret-that-is-at-least-32ch"; } } }`
 		if _, err := commandOutput(ctx, "", os.Environ(), config, "ze", "config", "validate", "-"); err == nil {
 			return errors.New("expected validation failure for invalid port")
 		}
@@ -211,5 +211,5 @@ func managedValidationConfig(twoServers bool) string {
 		localServer = `server local { ip 127.0.0.1; port 1790; secret "local-secret-that-is-at-least-32ch"; }`
 		secondClient = ""
 	}
-	return managedCachedBase + `plugin { hub { ` + localServer + ` server central { ip 0.0.0.0; port 1791; secret "central-secret-that-is-at-least32"; client edge-01 { secret "edge01-secret-that-is-at-least-32"; }` + secondClient + ` } } }`
+	return managedCachedBase + `bus { hub { ` + localServer + ` server central { ip 0.0.0.0; port 1791; secret "central-secret-that-is-at-least32"; client edge-01 { secret "edge01-secret-that-is-at-least-32"; }` + secondClient + ` } } }`
 }

@@ -31,7 +31,7 @@ const (
 // metricsForked proves that a plugin ze forks publishes its own counter into
 // the daemon's registry, under the name it gave it, at the cadence it chose.
 //
-// The observer IS the forked plugin: ze runs it from `plugin { external ... }`
+// The observer IS the forked plugin: ze runs it from `bus { endpoint ... { external { ... } } }`
 // as its own process, so the counter lives in that process and reaches the
 // daemon only over ze-plugin-engine:metrics-publish. Three states are read from
 // `show metrics name`, which the daemon answers from its own registry: the

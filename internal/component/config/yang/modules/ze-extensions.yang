@@ -38,8 +38,8 @@ module ze-extensions {
 
     // Extension: flatten
     // Writes a container's children with the container name as a leading
-    // keyword, so `attach { process foo { ... } }` is written and printed as
-    // `attach process foo { ... }`. The parser accepts both spellings for
+    // keyword, so `bind { target foo { ... } }` is written and printed as
+    // `bind target foo { ... }`. The parser accepts both spellings for
     // every container (automatic brace insertion); this extension makes the
     // flat one the form ze prints back.
     extension flatten {

@@ -546,8 +546,8 @@ func (pm *ProcessManager) GetProcess(name string) *Process {
 // (Process.RegistrationName). It answers nil when no process runs it.
 //
 // The process filed under the registration's own name answers in one map
-// lookup, which is the common `plugin { internal bgp-gr { ... } }` and every
-// auto-loaded plugin; only an aliased block (`internal gr { use bgp-gr; }`)
+// lookup, which is the common `bus { endpoint bgp-gr { internal bgp-gr; } }` and every
+// auto-loaded plugin; only an aliased block (`endpoint gr { internal bgp-gr; }`)
 // walks the processes. When two blocks run the registration the walk answers
 // an error naming both, because the reference cannot say which one judges the
 // route. Stage 1 refuses the second such block of a plugin that declares
@@ -631,7 +631,7 @@ func AmbiguousRegistration(registration string, blocks []string) error {
 	}
 	tb.Str(" all run ").Quoted(registration).Str(", and a filter reference ").Quoted(registration + ":<filter>").
 		Str(" names the plugin, not the block, so it cannot say which one judges the route; ").
-		Str("keep one block that runs ").Quoted(registration).Str(" under plugin { }")
+		Str("keep one block that runs ").Quoted(registration).Str(" under bus { }")
 	return errors.New(tb.String())
 }
 

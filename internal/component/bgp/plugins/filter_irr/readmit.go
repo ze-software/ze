@@ -330,7 +330,7 @@ func (r *readmitter) readmit(pf peerFamily, keys []heldKey) {
 			// Asking again cannot work until the operator changes the config.
 			r.warnOnce(pf.peer, "permission", "irr: a route the IRR list now authorizes stays rejected: the peer's config does not let bgp-filter-irr ask it to send the route again",
 				"peer", pf.peer, "family", pf.family, "prefixes", len(keys), "error", err,
-				"action", "add `attach process bgp-filter-irr { send [ refresh ] }` to the peer, then run `request peer <peer> refresh <family>`")
+				"action", "allow bgp:refresh from /bus/endpoint/bgp-filter-irr in the peer's bus block, then run `request peer <peer> refresh <family>`")
 			return
 		}
 		r.restore(taken)

@@ -515,7 +515,7 @@ var (
 	runtimeReplayFence *replayFenceLookup
 
 	// runtimeRegistryNames resolves a running process name to the registry
-	// names its config uses (`plugin { internal rs { use bgp-rs } }` answers
+	// names its config uses (`bus { endpoint rs { internal bgp-rs; } }` answers
 	// ["bgp-rs"]), for compiled implementation metadata such as RS fast-path
 	// participation. The plugin server installs it beside
 	// runtimeSessionReady. Nil resolves no names for compiled metadata lookup.
@@ -1988,7 +1988,7 @@ func FencesLiveForwards(name string) bool {
 
 // RelaysOnRSFastPath reports whether the plugin running under the process
 // name declares Registration.RelaysOnRSFastPath, resolving an alias
-// (`plugin { internal relay { use bgp-rs } }`) the way FencesLiveForwards
+// (`bus { endpoint relay { internal bgp-rs; } }`) the way FencesLiveForwards
 // does. A name that resolves to no declaring registration answers false: the
 // fast path then relays on behalf of no binding to that process.
 func RelaysOnRSFastPath(name string) bool {

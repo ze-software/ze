@@ -9,6 +9,7 @@ package config
 import (
 	"context"
 	"errors"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -342,9 +343,32 @@ var declaredStep struct {
 	// commandLinePlugins is the --plugin selector list the ze dispatcher parsed
 	// before any verb ran or daemon started (RecordCommandLinePlugins). Nil or
 	// empty in a process started with no --plugin.
+	commandLinePlugins []string
 	// queried records the external endpoint names queried in query mode when
 	// this process fixed its module set offline.
 	queried []string
+}
+
+// RecordCommandLinePlugins records the global --plugin selector list parsed for
+// this process. The ze dispatcher calls it once after parsing global flags and
+// before any verb runs or daemon starts so every validation and commit door in
+// the process judges with the same command-line plugin selection, while display
+// and forwarding readers (such as the SSH upload receipt and ephemeral daemon
+// launcher) carry the same list. Passing nil or an empty slice records an empty
+// list, which is the true answer for a process with no --plugin. Safe for
+// concurrent use.
+func RecordCommandLinePlugins(plugins []string) {
+	declaredStep.mu.Lock()
+	defer declaredStep.mu.Unlock()
+	declaredStep.commandLinePlugins = slices.Clone(plugins)
+}
+
+// CommandLinePlugins returns a copy of the --plugin selector list recorded for
+// this process by RecordCommandLinePlugins. Safe for concurrent use.
+func CommandLinePlugins() []string {
+	declaredStep.mu.Lock()
+	defer declaredStep.mu.Unlock()
+	return slices.Clone(declaredStep.commandLinePlugins)
 }
 
 // RecordDaemonUnanswered records that this process, a command with no daemon
@@ -662,7 +686,7 @@ func declaredExternalPlugins(sources []ConfigSource) []plugin.PluginConfig {
 			continue
 		}
 		for _, external := range firstPass.External {
-			if external.WorkDir == "" {
+			if external.WorkDir == "" && existingDir(firstPass.ConfigDir) {
 				external.WorkDir = firstPass.ConfigDir
 			}
 			sameName := func(held plugin.PluginConfig) bool { return held.Name == external.Name }
@@ -675,10 +699,18 @@ func declaredExternalPlugins(sources []ConfigSource) []plugin.PluginConfig {
 	return externals
 }
 
+func existingDir(path string) bool {
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
 // ResetDeclaredSchemasForTest puts the process back to one that has published
 // no module set (yang.ResetPublishedModulesForTest), that this file fixed
-// nothing in and that recorded no started plugin, and returns the function
-// that restores what it found. A test that calls
+// nothing in and that recorded no started plugin or command-line plugins, and
+// returns the function that restores what it found. A test that calls
 // SchemaWithDeclaredPlugins, or an entry that does, with a config that declares
 // an external plugin calls it first.
 // MUST be paired with the returned restore, typically through t.Cleanup. Not
@@ -691,10 +723,12 @@ func ResetDeclaredSchemasForTest() (restore func()) {
 	saved := declaredStep.fixedHere
 	savedStarted := declaredStep.started
 	savedUnanswered := declaredStep.unanswered
+	savedCommandLinePlugins := declaredStep.commandLinePlugins
 	savedQueried := declaredStep.queried
 	declaredStep.fixedHere = false
 	declaredStep.started = nil
 	declaredStep.unanswered = nil
+	declaredStep.commandLinePlugins = nil
 	declaredStep.queried = nil
 	declaredStep.mu.Unlock()
 	return func() {
@@ -702,6 +736,7 @@ func ResetDeclaredSchemasForTest() (restore func()) {
 		declaredStep.fixedHere = saved
 		declaredStep.started = savedStarted
 		declaredStep.unanswered = savedUnanswered
+		declaredStep.commandLinePlugins = savedCommandLinePlugins
 		declaredStep.queried = savedQueried
 		declaredStep.mu.Unlock()
 		restoreBusDecls()

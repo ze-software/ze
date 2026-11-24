@@ -10,8 +10,8 @@ import (
 // TestFormatOneLineListEntries checks that a list entry written on one line
 // survives `ze config fmt`, for the two shapes FuzzFormatRoundTrip found:
 //   - a key that is one of the list's child names: the positional block form
-//     `internal { use 000 }` reads back as an anonymous entry setting the
-//     child `use`, so the printer writes such a list one block per entry;
+//     `client { secret 000 }` reads back as an anonymous entry setting the
+//     child `secret`, so the printer writes such a list one block per entry;
 //   - a leaf-list child before the last (`pppoe { interface 0 0 }` gives `0`
 //     to service-name): the parser stored it with a plain Set, where no
 //     printer reads a leaf-list, so it now goes through the member store.
@@ -23,8 +23,8 @@ func TestFormatOneLineListEntries(t *testing.T) {
 		t.Fatalf("YANG schema: %v", err)
 	}
 	for _, input := range []string{
-		"plugin internal  use 000",
-		"plugin { internal use 000; internal other 001; }",
+		"bus { hub { server local { client  secret 000 } } }",
+		"bus { hub { server local { client secret 000; client other 001; } } }",
 		"pppoe{interface 0 0}",
 		"pppoe { interface eth0 svc 10 }",
 	} {

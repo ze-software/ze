@@ -53,7 +53,7 @@ func notJudged(order int, name, stage, reason string) Check {
 			Stage:   stage,
 			Verdict: VerdictNotJudged,
 			Reason:  reason,
-			Fix:     "test this behavior under a daemon: configure the plugin with plugin { external <name> { run ...; } } and start ze",
+			Fix:     "test this behavior under a daemon: configure the plugin with bus { endpoint <name> { external { run ...; } } } and start ze",
 		}}
 	}}
 }
@@ -287,7 +287,7 @@ func daemonStateRows(evidence *Evidence) []Row {
 		rows = append(rows, Row{
 			Check: unjudged[i].Check, Stage: stageOne, Verdict: VerdictNotJudged,
 			Reason: reason.Str("only a running daemon judges this check: ").Str(unjudged[i].Reason).String(),
-			Fix:    "configure the plugin with plugin { external <name> { run ...; } } and start ze: the daemon judges this check at Stage 1",
+			Fix:    "configure the plugin with bus { endpoint <name> { external { run ...; } } } and start ze: the daemon judges this check at Stage 1",
 		})
 	}
 	return rows

@@ -138,21 +138,21 @@ func showBGPPluginShapes(ctx context.Context) error {
 	}
 	passwordHash := strings.TrimSpace(passwd.stdout)
 
-	config := `plugin {
-    internal rpki {
-        use bgp-rpki
+	config := `bus {
+    endpoint rpki {
+        internal bgp-rpki
     }
-    internal adj-rib-in {
-        use bgp-adj-rib-in
+    endpoint adj-rib-in {
+        internal bgp-adj-rib-in
     }
-    internal rs {
-        use bgp-rs
+    endpoint rs {
+        internal bgp-rs
     }
-    internal watchdog {
-        use bgp-watchdog
+    endpoint watchdog {
+        internal bgp-watchdog
     }
-    internal healthcheck {
-        use bgp-healthcheck
+    endpoint healthcheck {
+        internal bgp-healthcheck
     }
 }
 

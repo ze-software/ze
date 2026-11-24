@@ -620,7 +620,7 @@ func (node *rsvpProducerNode) configuration(t *testing.T, tunnels string) string
 	}
 	observer := self + " -test.run=^TestRSVPNativeProducerObserver$ -rsvp-producer-observer=" + filepath.Join(node.dir, "events.jsonl")
 	var config strings.Builder
-	fmt.Fprintf(&config, "plugin { external native-proof { run %q; encoder json; } }\n", observer)
+	fmt.Fprintf(&config, "bus { endpoint native-proof { external { run %q; } encoding json; } }\n", observer)
 	fmt.Fprintln(&config, `fib { kernel { flush-on-stop true; } }
 system {
  authentication { user admin {

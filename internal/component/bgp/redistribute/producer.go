@@ -138,9 +138,9 @@ const LocRIBPlugin = "bgp-rib"
 // redistribution batch to a consumer. A `destination bgp` rule reaches a peer's
 // wire through that plugin.
 //
-// A peer grants a process the right to put a message on its wire with
-// `attach process <name> { send [ update ] }`
-// (Peer.maySend, internal/component/bgp/reactor/send_permission.go).
+// A peer grants an endpoint the right to put a message on its wire through its
+// compiled bus filter (allowing `bgp:update` from the endpoint; see
+// Peer.maySend, internal/component/bgp/reactor/send_permission.go).
 //
 // The name is spelled here for the reason LocRIBPlugin is, and
 // TestOrchestratorPluginNamesARegisteredPlugin holds it to the registry row.

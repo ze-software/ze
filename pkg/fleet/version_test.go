@@ -21,7 +21,7 @@ func TestVersionHash(t *testing.T) {
 func TestVersionHashSameContent(t *testing.T) {
 	// VALIDATES: Identical content produces identical hash.
 	// PREVENTS: Hash including timestamps or random salt.
-	content := []byte("plugin { hub { server local { host 127.0.0.1; port 1790; } } }")
+	content := []byte("bus { hub { server local { host 127.0.0.1; port 1790; } } }")
 	h1 := VersionHash(content)
 	h2 := VersionHash(content)
 	if h1 != h2 {

@@ -20,7 +20,7 @@ import (
 )
 
 // aliasTestRegistration is the registry row an aliased block runs in these
-// tests, the way `plugin { internal gr { use bgp-gr; } }` runs bgp-gr as "gr".
+// tests, the way `bus { endpoint gr { internal bgp-gr; } }` runs bgp-gr as "gr".
 const aliasTestRegistration = "test-alias-inserter"
 
 // aliasTestFact is a session fact only these tests register, so an insertion

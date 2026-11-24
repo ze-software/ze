@@ -46,9 +46,9 @@ const webDaemonConfig = `bgp {
 func WebDaemon(plugins []string) []byte {
 	var body textbuf.Buffer
 	if len(plugins) > 0 {
-		body.Str("plugin {\n")
+		body.Str("bus {\n")
 		for _, name := range plugins {
-			body.Str("\tinternal ").Str(name).Str(" {\n\t\tuse ").Str(name).Str("\n\t}\n")
+			body.Str("\tendpoint ").Str(name).Str(" {\n\t\tinternal ").Str(name).Str("\n\t}\n")
 		}
 		body.Str("}\n")
 	}

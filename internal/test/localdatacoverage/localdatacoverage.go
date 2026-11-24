@@ -1075,7 +1075,7 @@ func runScenario(output io.Writer, work string) error {
 	// start, because nobody tried (unavailableDeclarationRow,
 	// internal/component/plugin/declarations.go).
 	pluginConfigPath := filepath.Join(work, "pipe-local-plugin.conf")
-	if err := writeFixture(pluginConfigPath, "plugin {\n    external pipe-local-absent {\n        run \"/no/such/ze-plugin\"\n        encoder json\n    }\n}\n"); err != nil {
+	if err := writeFixture(pluginConfigPath, "bus {\n    endpoint pipe-local-absent {\n        external {\n            run \"/no/such/ze-plugin\"\n        }\n        encoding json\n    }\n}\n"); err != nil {
 		return err
 	}
 	payload, err = localJSON(

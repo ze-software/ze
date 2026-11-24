@@ -69,7 +69,7 @@ func newMissingDependencyError(plugin, dependency string) *MissingDependencyErro
 }
 
 // UnloadedDependencyError builds the refusal for a dependency plugin declared
-// at Stage 1 that no `plugin { }` block configures and no startup phase loaded.
+// at Stage 1 that no `bus { }` block configures and no startup phase loaded.
 // Nobody resolves a declared dependency for the operator, so the fix names what
 // to configure: the plugin this build carries, or an external program for a
 // name no build carries. A dependency this build was compiled without names
@@ -121,12 +121,12 @@ func (e *MissingDependencyError) refusal() *opererr.Error {
 			remove+`, and report the unknown dependency "`+e.Dependency+`" to the ze developers`)
 	case absenceNotLoaded:
 		return opererr.New(needs+", and the configuration does not load it", why,
-			`add 'plugin { internal `+e.Dependency+` { use `+e.Dependency+`; } }' to the config, or `+remove)
+			`add 'bus { endpoint `+e.Dependency+` { internal `+e.Dependency+`; } }' to the config, or `+remove)
 	case absenceNotConfigured:
 		return opererr.New(needs+`, and no plugin called "`+e.Dependency+`" is configured`,
 			why+`; ze does not include a plugin of that name, so only an external program can provide it`,
-			`add 'plugin { external `+e.Dependency+` { run "<the command that starts `+e.Dependency+
-				`>"; } }' to the config, or `+remove)
+			`add 'bus { endpoint `+e.Dependency+` { external { run "<the command that starts `+e.Dependency+
+				`>"; } } }' to the config, or `+remove)
 	case absenceUnspecified:
 	}
 

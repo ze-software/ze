@@ -159,8 +159,8 @@ func subscriptionDropFix(name string, cause process.SubscriptionDropCause) strin
 	return fix.String()
 }
 
-// deliveryDisagreementRows answers one warning per disagreement between an
-// `attach process` grant and the events a plugin declared (AC-15).
+// deliveryDisagreementRows answers one warning per disagreement between a
+// `bus` delivery filter and the events a plugin declared (AC-15).
 func deliveryDisagreementRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic {
 	rows := make([]diagnostic.Diagnostic, 0, len(snapshot.DeliveryDisagreements))
 	for i := range snapshot.DeliveryDisagreements {

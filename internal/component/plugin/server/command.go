@@ -239,7 +239,7 @@ type CommandContext struct {
 	// server's own dispatch paths, plugin.OperatorSender() on the operator
 	// surfaces (dispatch.go, dispatch_registry.go, cmd/ze/hub).
 	//
-	// A peer's `attach process <name> { send [ ... ] }` block is written against
+	// A peer's `bus { receive { ... } }` block is evaluated against
 	// it, so a guard that puts a message on a peer's wire reads THIS field and
 	// nothing else. Process above answers a different question, which is the RPC
 	// session the command arrived on, and no guard consults it.

@@ -64,8 +64,8 @@ func TestGatedConfigRootRequirementsNamesTheSmallestTags(t *testing.T) {
 			t.Errorf("%s requirements = %v, want [[ze_bgp]]", root, requirements)
 		}
 	}
-	if requirements, _ := GatedConfigRootRequirements("exabgp"); len(requirements) != 1 || !slices.Equal(requirements[0], []string{"ze_exabgp"}) {
-		t.Errorf("exabgp requirements = %v, want [[ze_exabgp]]", requirements)
+	if requirements, _ := GatedConfigRootRequirements("ospf"); len(requirements) != 1 || !slices.Equal(requirements[0], []string{"ze_ospf"}) {
+		t.Errorf("ospf requirements = %v, want [[ze_ospf]]", requirements)
 	}
 	if requirements, gated := GatedConfigRootRequirements("bgpp"); gated || requirements != nil {
 		t.Errorf("typo bgpp answered gated=%v requirements=%v, want ungated and none", gated, requirements)

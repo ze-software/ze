@@ -34,7 +34,7 @@ const srLabelEntriesFix = "fix the cause named in the message; OSPF Segment Rout
 // errSRNoEventBus is the cause recorded when an SR producer has no event bus
 // to reach a writer through. The engine hands its bus only to a plugin it runs
 // in its own process, so an OSPF the operator runs as a forked process
-// (`plugin { external ... }`) meets this for every SR label it wants.
+// (`bus { endpoint ... { external { ... } } }`) meets this for every SR label it wants.
 var errSRNoEventBus = errors.New("OSPF has no event bus, so no forwarding writer can be reached: Segment Routing labels are programmed only when OSPF runs inside the daemon, not as an external plugin")
 
 // srLabelEntriesCheckDecl declares the runtime check in OSPF's Stage 1

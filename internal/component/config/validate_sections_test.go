@@ -9,18 +9,17 @@ import (
 )
 
 // TestLoadConfigRefusesAnInvalidCustomValidatorValue is AC-1: LoadConfig applies
-// the registered ze:validate custom validators and refuses a value one rejects.
+// the registered custom validation walk and refuses a value it rejects.
 //
-// The input passes the YANG schema on its own. `plugin/internal/use` is
-// `type string { length "1..64" }` in
-// internal/component/plugin/yang/ze-plugin-conf.yang, so this name is well typed
-// and only InternalPluginNameValidator (internal/component/config/validators.go)
+// The input passes the YANG schema on its own. `bus/endpoint/internal` is
+// `type string` in internal/component/plugin/yang/ze-plugin-conf.yang, so this
+// name is well typed and only ValidateBusConfig / InternalPluginNameValidator
 // can refuse it. Revert LoadConfig's refuseInvalidCustomSections call and this
 // test goes red, which is what makes it evidence rather than decoration.
 func TestLoadConfigRefusesAnInvalidCustomValidatorValue(t *testing.T) {
-	const src = `plugin {
-	internal p1 {
-		use no-such-plugin-here
+	const src = `bus {
+	endpoint p1 {
+		internal no-such-plugin-here
 	}
 }
 `
@@ -31,9 +30,9 @@ func TestLoadConfigRefusesAnInvalidCustomValidatorValue(t *testing.T) {
 	msg := err.Error()
 	for _, want := range []string{
 		"config validation failed",
-		"plugin",
+		"bus",
 		"no-such-plugin-here",
-		"is not a registered internal plugin",
+		"unknown compiled-in plugin",
 	} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("error does not name %q: %s", want, msg)

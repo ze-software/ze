@@ -122,7 +122,7 @@ func TestStaticRegistersRedistributeSource(t *testing.T) {
 // TestWarnIfExternal
 // VALIDATES: warnIfExternal logs a warning exactly when static is NOT running
 // in-process (plan/spec-fixit-verify-stage-ssot.md, plugin-boundary gate).
-// PREVENTS: an operator running `plugin { external static { ... } }` with
+// PREVENTS: an operator running `bus { endpoint static { external { ... } } }` with
 // interface next-hops getting the misleading error "no interface backend
 // loaded" for every such route. The iface component lives in the HOST process,
 // so resolveNexthopIndex's iface.GetBackend() (backend_linux.go) is nil for an

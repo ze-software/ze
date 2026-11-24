@@ -26,10 +26,12 @@
 // directory of every further daemon (daemon-N/, runner_exec.go), and the .ci
 // declares the executor as a regular external plugin:
 //
-//	plugin {
-//		external engine-steps {
-//			run "le mock engine-steps ./engine-steps.json"
-//			encoder json
+//	bus {
+//		endpoint engine-steps {
+//			external {
+//				run "le mock engine-steps ./engine-steps.json"
+//			}
+//			encoding json
 //		}
 //	}
 //

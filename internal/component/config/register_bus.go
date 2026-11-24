@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -264,19 +265,22 @@ func init() {
 }
 
 // collectBusParticipantTargets returns all YANG schema paths registered as bus
-// participant nodes by compiled-in plugins and active external declarations.
+// participant nodes by compiled-in plugins and active external declarations,
+// normalized to unprefixed short paths for synthetic augmentation.
 func collectBusParticipantTargets() []string {
 	seen := make(map[string]bool)
 	var out []string
 	add := func(schemaPath string) {
-		if schemaPath == "" {
+		segs := stripSchemaPrefixes(schemaPath)
+		if len(segs) == 0 {
 			return
 		}
-		if seen[schemaPath] {
+		shortPath := "/" + textbuf.Join(segs, "/")
+		if seen[shortPath] {
 			return
 		}
-		seen[schemaPath] = true
-		out = append(out, schemaPath)
+		seen[shortPath] = true
+		out = append(out, shortPath)
 	}
 	for _, reg := range registry.All() {
 		for _, node := range reg.ParticipantNodes {

@@ -34,9 +34,9 @@ func displayFillFilteredCommand(ctx context.Context) error {
 		return err
 	}
 
-	config := `plugin {
-    internal bgp-rib {
-        use bgp-rib
+	config := `bus {
+    endpoint bgp-rib {
+        internal bgp-rib
     }
 }
 
@@ -61,10 +61,6 @@ bgp {
                 asn {
                     remote 65001
                 }
-            }
-            attach process bgp-rib {
-                receive [ update state refresh ]
-                send [ update ]
             }
         }
     }

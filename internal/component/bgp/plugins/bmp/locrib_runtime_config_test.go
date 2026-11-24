@@ -149,7 +149,7 @@ func withoutLocRIBBus(t *testing.T) {
 
 func requireLocRIBRuntimeCause(t *testing.T, err error) {
 	t.Helper()
-	for _, part := range []string{"Loc-RIB", "event bus", "plugin { internal"} {
+	for _, part := range []string{"Loc-RIB", "event bus", "bus { endpoint"} {
 		if !strings.Contains(err.Error(), part) {
 			t.Errorf("runtime refusal %q does not name %q", err, part)
 		}

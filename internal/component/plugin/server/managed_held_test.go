@@ -190,7 +190,7 @@ func TestHeldUploadRefusalQuotesNoConfiguration(t *testing.T) {
 // MUTATION: answer every parse refusal as the error in checkHeldConfig and
 // this fails.
 func TestHeldUploadUncheckedPluginSection(t *testing.T) {
-	text := "plugin {\n\texternal acme {\n\t\trun \"acme-monitor\";\n\t}\n}\nacme {\n\tinterval 7;\n}\n"
+	text := "bus {\n\tendpoint acme {\n\t\texternal {\n\t\t\trun \"acme-monitor\";\n\t\t}\n\t}\n}\nacme {\n\tinterval 7;\n}\n"
 	record, err := takeHeld(heldParams(t, fleet.VersionHash([]byte(text)), text), time.Now())
 	require.NoError(t, err)
 	assert.Equal(t, []string{"acme"}, record.UncheckedPlugins())

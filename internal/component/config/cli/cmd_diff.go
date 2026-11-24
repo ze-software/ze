@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -12,12 +13,12 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/component/config/infra"
-
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -196,6 +197,10 @@ func compareDiffInputs(inputs diffInputs, diag *textbuf.Buffer) (*config.ConfigD
 	}
 	schema, declared, err := config.SchemaWithDeclaredPlugins(sources...)
 	if err != nil {
+		if opErr, isOperErr := errors.AsType[*opererr.Error](err); isOperErr {
+			diag.Str(command.LocalErrorLine(opErr))
+			return nil, exitError
+		}
 		diag.Str("error: YANG schema: ").Err(err).Byte('\n')
 		return nil, exitError
 	}

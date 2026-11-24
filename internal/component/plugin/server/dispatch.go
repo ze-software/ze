@@ -413,10 +413,9 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 	// built on; the peer NAME is empty on this path and is not needed, because
 	// PeerScopedProcs matches on the address.
 	//
-	// This path used to call getMatching directly, so `attach process <name>
-	// { receive [ update-rpki ] }` decided nothing for the two bgp events that
-	// travel it, bgp/update-rpki from bgp-rpki-decorator and bgp/rpki from
-	// bgp-rpki. It was left unfiltered because the peer name is empty, which is
+	// This path used to call getMatching directly, so a peer's `bus` delivery
+	// rules decided nothing for the two bgp events that travel it,
+	// bgp/update-rpki from bgp-rpki-decorator and bgp/rpki from bgp-rpki. It was left unfiltered because the peer name is empty, which is
 	// a true statement about a field the lookup does not read.
 	//
 	// An event with NO peer address is not peer-scoped, no attach block can

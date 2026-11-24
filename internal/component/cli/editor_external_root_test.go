@@ -17,10 +17,12 @@ import (
 
 // externalRootConfig is a config that declares an external plugin and holds a
 // section under the root that plugin's module defines.
-const externalRootConfig = `plugin {
-	external acme-monitor {
-		run "./acme-monitor-program"
-		encoder json
+const externalRootConfig = `bus {
+	endpoint acme-monitor {
+		external {
+			run "./acme-monitor-program"
+		}
+		encoding json
 	}
 }
 

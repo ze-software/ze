@@ -78,11 +78,11 @@ func TestRFC7950RunningDatastoreRefusesAViolationAtParse(t *testing.T) {
 // RFC requirement: RFC7950-8.3-1 negative — a value the parser accepts but a ze:validate rule refuses is caught in the whole-tree window after parsing, so a violation the first window cannot see is still refused
 // RFC requirement: RFC7950-8.3.3-1 negative — a tree that violates a constraint at the end of processing is refused as a whole; no partial tree is returned beside the error.
 func TestRFC7950RunningDatastoreRefusesAViolationAfterParse(t *testing.T) {
-	// `plugin/internal/use` is `type string { length "1..64" }`, so this name
-	// passes the parse window and only InternalPluginNameValidator refuses it.
-	const src = `plugin {
-	internal p1 {
-		use no-such-plugin-here
+	// `bus/endpoint/internal` is `type string`, so this name passes the parse
+	// window and only InternalPluginNameValidator refuses it.
+	const src = `bus {
+	endpoint p1 {
+		internal no-such-plugin-here
 	}
 }
 `

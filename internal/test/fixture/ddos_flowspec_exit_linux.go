@@ -74,17 +74,15 @@ bgp {
 				graceful-restart disable
 			}
 		}
-
-		attach process ddos-flowspec {
-			send [ update ]
-		}
 	}
 }
 
-plugin {
-	external ddos-flowspec-parent-removed-probe {
-		run "le test fixture plugin/ddos-flowspec-parent-removed-driver"
-		encoder json
+bus {
+	endpoint ddos-flowspec-parent-removed-probe {
+		external {
+			run "le test fixture plugin/ddos-flowspec-parent-removed-driver"
+		}
+		encoding json
 	}
 }
 `

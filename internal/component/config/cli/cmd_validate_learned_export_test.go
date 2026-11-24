@@ -26,6 +26,12 @@ func TestValidateReportsLearnedExportAbsenceAndConfiguredSurvivor(t *testing.T) 
 			t.Cleanup(func() { registry.Restore(snapshot) })
 			require.NoError(t, registry.Register(registry.Registration{
 				Name: "validate-ordinary-owner", RunEngine: func(net.Conn) int { return 0 }, CLIHandler: func([]string) int { return 0 },
+				Sends: []rpc.MessageSendDecl{{Message: "bgp:update"}},
+				Receives: []rpc.MessageReceiveDecl{
+					{Message: "bgp:update", Tags: []rpc.MessageTagDecl{{Name: events.TagDirection, Values: []string{events.DirectionReceived, events.DirectionSent}}}},
+					{Message: "bgp:state"},
+					{Message: "bgp:refresh"},
+				},
 				Dissemination: []rpc.DisseminationDecl{{Namespace: "bgp", Role: "bgp-selected-output",
 					SourceReceive: []string{"update-received", "state"}, DestinationReceive: []string{"state", "refresh", "update-sent"}, DestinationSend: []string{"update"}}},
 			}))
@@ -33,18 +39,20 @@ func TestValidateReportsLearnedExportAbsenceAndConfiguredSurvivor(t *testing.T) 
 			if final != "" {
 				export = "filter { export { final " + final + "; } }"
 			}
-			input := fmt.Sprintf(`bgp {
+			input := fmt.Sprintf(`bus {
+    endpoint bgp-rib { internal bgp-rib; receive { allow none; } send { allow none; } }
+    endpoint validate-ordinary-owner { internal validate-ordinary-owner; }
+   }
+   bgp {
     router-id 192.0.2.254; session { asn { local 65000; } }
     peer source {
      connection { remote { ip 192.0.2.1; } local { ip 192.0.2.254; } }
      session { asn { remote 65001; } }
      filter { import { final accept; } export { final accept; } }
-     attach process validate-ordinary-owner { receive [ update state ]; }
     }
     peer C {
      connection { remote { ip 192.0.2.2; } local { ip 192.0.2.254; } }
      session { asn { remote 65000; } } %s
-     attach process validate-ordinary-owner { receive [ state refresh update-sent ]; send [ update ]; }
     }
    }`, export)
 			result := runValidation(input, "learned-export.conf")

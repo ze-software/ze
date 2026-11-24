@@ -56,15 +56,11 @@ func ValidatePluginReferences(tree *config.Tree, plugins []reactor.PluginConfig)
 // ze's own registry holds. context is the error message prefix
 // (e.g., "bgp.peer 10.0.0.1").
 //
-// The registry is consulted because `attach process` states this peer's
-// RELATIONSHIP to a program, while `plugin { }` states HOW to start one, and a
-// plugin ze auto-loads from a config path is started without either. Requiring
-// the declaration as well made ze contradict itself once the send permission
-// became enforceable: the refusal tells the operator to write
-// `attach process redistribute-orchestrator { send [ update ] }`, and this
-// function used to refuse that exact line, because the orchestrator is loaded by
-// the `redistribute { }` root rather than declared. Declaring it instead is not
-// the same config: it takes the plugin off the auto-load path.
+// The registry is consulted because a peer's process reference states this
+// peer's relationship to a program, while `bus { endpoint ... }` states how to
+// start one, and a plugin ze auto-loads from a config root is started without
+// an explicit endpoint declaration (for example `redistribute-orchestrator` is
+// auto-loaded by the `redistribute { }` root rather than declared in `bus`).
 //
 // The guard keeps its purpose. A typo is still refused, because a misspelled
 // name is in neither the config nor the registry.

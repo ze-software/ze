@@ -7,7 +7,8 @@ header: X-Content-Type-Options: nosniff
 header: X-Frame-Options: DENY
 header: X-Ze-Version: <VERSION>
 
-<nav class="breadcrumb-bar" id="breadcrumb-bar" hx-swap-oob="innerHTML"><ol class="breadcrumb-list"></ol></nav><main class="content-area" id="content-area"><pre class="config-output">router-id 1.2.3.4
+<nav class="breadcrumb-bar" id="breadcrumb-bar" hx-swap-oob="innerHTML"><ol class="breadcrumb-list"></ol></nav><main class="content-area" id="content-area"><pre class="config-output">81 implied item(s) active — use | implied to view
+router-id 1.2.3.4
 peer alpha {
 	connection {
 		local {

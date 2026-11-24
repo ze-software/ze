@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // These tests give the reader `show plugin declarations config` asks a config
@@ -41,27 +42,25 @@ func declaredRun(t *testing.T, plugins []plugin.PluginConfig, name string) strin
 }
 
 // TestConfiguredPluginReaderNamesACommandWithNoDaemon: in a process that
-// published nothing and keeps no module set, the reader says the file was read
-// by a command with no daemon. Method: read a config that declares an external
-// plugin, in a process reset to that state.
+// published nothing and keeps no module set, the reader queries the external
+// plugin in declare mode (S-3), never starts its run loop, and says the file
+// was read by a command with no daemon.
 //
-// VALIDATES: the owner ruling "plugin command requiring external plugins which
-// can not be started from the code when no daemon is running to pass it to are
-// not available", at the seam `show plugin declarations config` decides from:
-// the process is ConfigProcessOffline, the plugin is listed with its run
-// string, and the reader started nothing.
-// PREVENTS: the command reading a missing answer as a running daemon and
-// starting the program.
+// VALIDATES: S-3 / AC-18 at the seam `show plugin declarations config` decides
+// from: the process is ConfigProcessOffline, the plugin is listed with its run
+// string, and the run loop was never started.
+// PREVENTS: the command reading a missing answer as a running daemon or
+// starting the program's run loop.
 func TestConfiguredPluginReaderNamesACommandWithNoDaemon(t *testing.T) {
 	offlineProcess(t)
-	run, _, runs := markingPlugin(t)
+	run, _, runs := declaringPlugin(t, rpc.DeclareRegistrationInput{})
 
 	configured, err := readConfiguredPlugins(writeDeclaringConfig(t, run))
 	require.NoError(t, err)
 
 	assert.Equal(t, plugin.ConfigProcessOffline, configured.Process)
 	assert.Equal(t, run, declaredRun(t, configured.Plugins, "acme"))
-	assert.Zero(t, runCount(t, runs), "the reader started the declared program")
+	assert.Zero(t, runCount(t, runs), "the reader must never start the program's run loop")
 }
 
 // TestConfiguredPluginReaderNamesARunningDaemon: in a process whose module set

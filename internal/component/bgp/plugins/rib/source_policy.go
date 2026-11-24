@@ -225,8 +225,8 @@ func (r *RIBManager) applySourcePolicy(peer netip.Addr, input rpc.SourcePolicyIn
 func sourcePolicyWithdrawRefused(source netip.Addr, refused error) error {
 	return fmt.Errorf("bgp-rib could not withdraw the routes of peer %s that the new import policy rejects, "+
 		"so a destination still advertises them and the import change is refused: %w; "+
-		"each destination must grant this RIB process `send [ update ]` in its `attach process` block: "+
-		"add it, then commit the import change again", source, refused)
+		"each destination's bus filter must allow `bgp:update` from this RIB endpoint: "+
+		"restore the bus permission, then commit the import change again", source, refused)
 }
 
 // sourcePolicyRestoreRefused is the abort receipt's error when a destination
@@ -234,7 +234,7 @@ func sourcePolicyWithdrawRefused(source netip.Addr, refused error) error {
 func sourcePolicyRestoreRefused(source netip.Addr, refused error) error {
 	return fmt.Errorf("bgp-rib could not announce again the routes of peer %s that the restored import policy accepts, "+
 		"so a destination lacks them until that peer's session restarts: %w; "+
-		"each destination must grant this RIB process `send [ update ]` in its `attach process` block", source, refused)
+		"each destination's bus filter must allow `bgp:update` from this RIB endpoint", source, refused)
 }
 
 // pinDeniedSentLocked withdraws the forwarded copies the denied received

@@ -26,14 +26,18 @@ func init() {
 // `show reload-status`. The failer's name sorts before "static", and section
 // applies run in sorted participant order, so it fails before static applies
 // anything. The driver declares no config root and is never a participant.
-const staticRollbackFailer = `plugin {
-	external config-apply-ordering-mixed-rollback-failer {
-		run "le test fixture reload/config-apply-ordering-mixed-rollback-failer"
-		encoder json
+const staticRollbackFailer = `bus {
+	endpoint config-apply-ordering-mixed-rollback-failer {
+		external {
+			run "le test fixture reload/config-apply-ordering-mixed-rollback-failer"
+		}
+		encoding json
 	}
-	external static-rollback-driver {
-		run "le test fixture static/static-rollback-keeps-committed"
-		encoder json
+	endpoint static-rollback-driver {
+		external {
+			run "le test fixture static/static-rollback-keeps-committed"
+		}
+		encoding json
 	}
 }
 `

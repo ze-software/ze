@@ -21,22 +21,21 @@ import (
 )
 
 // sendOrigin says who is about to generate a BGP message toward a peer, and
-// what kind of message it is. A peer's
-// `attach process <name> { send [ ... ] }` block is the permission, so the
-// resolver needs both halves before it can apply it.
+// what kind of message it is. The peer's compiled `bus` filter is the
+// permission, so the resolver needs both halves before it can apply it.
 type sendOrigin struct {
 	// sender is who issued the command, in the three states plugin.Sender
 	// distinguishes.
 	//
-	// A named PROCESS is gated on the peer's attach block. The OPERATOR is
-	// exempt: an operator command carries the operator's own authority, checked
-	// by AAA before dispatch (dispatcher.IsAuthorized), and `send` grants
-	// authority to a process, never to a person, so an operator who may run
-	// `bgp peer 192.0.2.1 refresh` is not stopped by the absence of an attach
-	// block. The zero Sender says NOBODY named the issuer, and the resolver
-	// refuses it: reading it as the operator would hand operator authority to
-	// any dispatch path that forgot to name its sender, on the one guard whose
-	// purpose is to stop a process reaching a peer that never attached it
+	// A named PROCESS is gated on the peer's compiled bus filter. The OPERATOR
+	// is exempt: an operator command carries the operator's own authority,
+	// checked by AAA before dispatch (dispatcher.IsAuthorized), and bus filters
+	// gate endpoints, never a person, so an operator who may run
+	// `bgp peer 192.0.2.1 refresh` is not stopped by a bus filter restriction.
+	// The zero Sender says NOBODY named the issuer, and the resolver refuses
+	// it: reading it as the operator would hand operator authority to any
+	// dispatch path that forgot to name its sender, on the one guard whose
+	// purpose is to stop a process reaching a peer whose bus filter forbids it
 	// (ai/rules/evidence.md).
 	//
 	// Each dispatch path states the sender where the command enters the daemon:

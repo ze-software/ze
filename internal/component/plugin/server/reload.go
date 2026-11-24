@@ -249,10 +249,10 @@ func (s *Server) ConfigTransactionDone() <-chan struct{} {
 // decide whether to queue the reload (SIGHUP) or reject it (CLI/API).
 var ErrReloadInProgress = errors.New("config reload already in progress")
 
-// ConfigLoader loads a new config tree from disk or other source.
-// Returns the parsed config tree or an error.
+// ConfigLoader loads a new config tree and its judged candidate plugin
+// selection from disk or another source.
 // Set on Server.configLoader before calling ReloadFromDisk.
-type ConfigLoader func() (map[string]any, error)
+type ConfigLoader func() (map[string]any, []plugin.PluginConfig, error)
 
 // FullReloadFunc runs the hub-level reload path for commits triggered through RPC.
 // It includes plugin transactions plus ConfigProvider, engine, and subsystem refresh.
@@ -294,20 +294,29 @@ func (s *Server) ReloadFromDisk(ctx context.Context) error {
 		return errNoConfigLoaderConfigured
 	}
 
-	newTree, err := s.configLoader()
+	newTree, selection, err := s.configLoader()
 	if err != nil {
 		return fmt.Errorf("config parse error: %w", err)
 	}
 
-	return s.reloadConfig(ctx, newTree)
+	return s.reloadConfig(ctx, newTree, selection, true)
 }
 
-// ReloadConfig orchestrates config reload across all config-interested plugins.
+// ReloadConfig orchestrates config reload across all config-interested plugins,
+// keeping the server's current running plugin selection.
 // Follows verify→apply protocol: all plugins must verify before any apply.
 // Returns nil if there are no changes, or if verify→apply succeeds.
 // Returns error if verify fails for any plugin, or if a reload is already in progress.
 func (s *Server) ReloadConfig(ctx context.Context, newTree map[string]any) error {
-	return s.reloadConfig(ctx, newTree)
+	return s.reloadConfig(ctx, newTree, nil, false)
+}
+
+// ReloadConfigWithSelection orchestrates config reload across all
+// config-interested plugins using selection, the candidate plugin selection
+// the config loader judged (declared bus endpoints merged with the process's
+// --plugin list, with no dependencies expanded).
+func (s *Server) ReloadConfigWithSelection(ctx context.Context, newTree map[string]any, selection []plugin.PluginConfig) error {
+	return s.reloadConfig(ctx, newTree, selection, true)
 }
 
 // txShutdownGrace bounds how long Stop waits for a canceled transaction to
@@ -350,8 +359,11 @@ func (s *Server) stopTransaction(grace time.Duration) {
 	}
 }
 
-// reloadConfig is the internal implementation of ReloadConfig.
-func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (result error) {
+// reloadConfig is the internal implementation of ReloadConfig and
+// ReloadConfigWithSelection. When hasSelection is true, candidateSelection is
+// the exact selection the config loader judged and is never replaced by
+// s.config.Plugins.
+func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any, candidateSelection []plugin.PluginConfig, hasSelection bool) (result error) {
 	// Prevent concurrent reloads via transaction lock.
 	if !s.txLock.tryAcquire() {
 		return s.txLock.admissionError()
@@ -430,10 +442,17 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		return fmt.Errorf("bus config verify: %w", busCfgErr)
 	}
 
-	// Collect removed config keys for deferred stop (after verify+apply succeeds).
-	// Stopping plugins before the transaction is proven risks divergence: if
-	// verify/apply fails, the stopped plugins are gone and cannot be restarted
-	// with their old config.
+	// Collect added and removed config keys for writer judgement, auto-load,
+	// and deferred stop (after verify+apply succeeds). Stopping plugins before
+	// the transaction is proven risks divergence: if verify/apply fails, the
+	// stopped plugins are gone and cannot be restarted with their old config.
+	var addedKeys []string
+	if len(diff.Added) > 0 {
+		addedKeys = make([]string, 0, len(diff.Added))
+		for k := range diff.Added {
+			addedKeys = append(addedKeys, k)
+		}
+	}
 	var removedKeys []string
 	if len(diff.Removed) > 0 {
 		removedKeys = make([]string, 0, len(diff.Removed))
@@ -442,7 +461,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		}
 	}
 
-	preflightStopped := s.collectProcessesForRemovedConfigPaths(removedKeys, newTree)
+	preflightStopped := s.collectReloadStopProcesses(running, newTree, addedKeys, removedKeys, candidateSelection, hasSelection)
 	if caller := reloadCallerFromContext(ctx); caller != nil && preflightStopped[caller.Name()] {
 		return fmt.Errorf("config reload would stop calling plugin %q", caller.Name())
 	}
@@ -452,19 +471,13 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 	// these marks, the ones the prior tree held.
 	created := s.reactor.CreatedPeers()
 
-	// Auto-load plugins for newly added config sections.
-	// When a user adds fib { kernel { } } to their config, the fib-kernel plugin
-	// needs to start before we can send it config.
-	//
-	// A changed leaf auto-loads too: turning on a ConfigNeed of a running
-	// plugin (flow-export enrichment bgp from false to true) adds no config
-	// section, yet the provider the need names must start.
+	// Auto-load plugins for newly added config sections, newly held ConfigNeeds,
+	// and the reload data-plane writer judgement. The judgement runs on remove-
+	// only diffs too: removing the only FIB block while a route producer remains
+	// must start the selected data plane's writer (AC-6, AC-20).
 	var autoLoaded []string
-	if len(diff.Added) > 0 || len(diff.Changed) > 0 {
-		addedKeys := make([]string, 0, len(diff.Added))
-		for k := range diff.Added {
-			addedKeys = append(addedKeys, k)
-		}
+	var deferredAutoLoad []AutoLoadedEndpoint
+	if len(diff.Added) > 0 || len(diff.Changed) > 0 || len(diff.Removed) > 0 {
 		// Startup can publish a newly constructed runtime before verify/apply,
 		// and a detaching runtime leaves its map behind, so the reload owns the
 		// prior map as soon as the running tree moved, whether startup succeeded
@@ -473,7 +486,9 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		// last applied tree stays the one an earlier reload recorded.
 		authority := s.reactor.GetConfigTree()
 		var autoLoadErr error
-		autoLoaded, autoLoadErr = s.autoLoadForNewConfigPaths(ctx, newTree, addedKeys)
+		autoLoaded, deferredAutoLoad, autoLoadErr = s.autoLoadForReload(
+			ctx, running, newTree, addedKeys, removedKeys, candidateSelection, hasSelection, preflightStopped,
+		)
 		if !reflect.DeepEqual(authority, s.reactor.GetConfigTree()) {
 			recordReloadCompensation(ctx, running, newTree, nil, created)
 		}
@@ -514,12 +529,22 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 			return errors.Join(fmt.Errorf("reactor config apply: %w", err), s.compensateReload(ctx))
 		}
 		// No plugins care about these changes. Recompute orphan ownership after
-		// auto-load, stop removed config owners, then update the running config.
+		// auto-load, stop removed config owners and displaced FIB writers, start
+		// any same-name FIB endpoint replacements, then update the running config.
 		logger().Info("config reload: no affected plugins, updating config")
-		if err := s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys, newTree)); err != nil {
+		if err := s.stopCollectedProcesses(s.collectReloadStopProcesses(running, newTree, addedKeys, removedKeys, candidateSelection, hasSelection)); err != nil {
 			return errors.Join(err, s.compensateReload(ctx))
 		}
+		if len(deferredAutoLoad) > 0 {
+			s.recordAutoLoadReasons(deferredAutoLoad)
+			if _, err := s.startAutoLoaded(ctx, autoLoadedConfigs(deferredAutoLoad), newTree, false); err != nil {
+				return errors.Join(err, s.compensateReload(ctx))
+			}
+		}
 		s.reactor.SetConfigTree(newTree)
+		if hasSelection {
+			s.setRunningSelection(candidateSelection, true)
+		}
 		s.SetBusConfig(busCfg)
 		s.RefreshDeliveryGraph()
 		return nil
@@ -565,8 +590,14 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 
 	// Transaction committed. Recompute against the post-auto-load process set
 	// so new dependents keep shared dependencies alive.
-	if err := s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys, newTree)); err != nil {
+	if err := s.stopCollectedProcesses(s.collectReloadStopProcesses(running, newTree, addedKeys, removedKeys, candidateSelection, hasSelection)); err != nil {
 		return errors.Join(err, s.compensateReload(ctx))
+	}
+	if len(deferredAutoLoad) > 0 {
+		s.recordAutoLoadReasons(deferredAutoLoad)
+		if _, err := s.startAutoLoaded(ctx, autoLoadedConfigs(deferredAutoLoad), newTree, false); err != nil {
+			return errors.Join(err, s.compensateReload(ctx))
+		}
 	}
 
 	if err := s.reactor.ApplyConfigDiff(newTree); err != nil {
@@ -577,6 +608,9 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 	// the reactor's config view happens last so the BGP peer reconcile
 	// step sees every other plugin's apply in place.
 	s.reactor.SetConfigTree(newTree)
+	if hasSelection {
+		s.setRunningSelection(candidateSelection, true)
+	}
 	s.SetBusConfig(busCfg)
 	s.RefreshDeliveryGraph()
 	logger().Info("config reload completed")

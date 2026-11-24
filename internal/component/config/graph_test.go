@@ -82,17 +82,25 @@ func TestBuildGraph_ProcessBindings(t *testing.T) {
 	schema := graphTestSchema(t)
 	tree := NewTree()
 
+	bus := NewTree()
+	ep := NewTree()
+	ext := NewTree()
+	ext.Set("run", "/usr/local/bin/my-filter")
+	ep.SetContainer("external", ext)
+	bus.AddListEntry("endpoint", "my-filter", ep)
+	tree.SetContainer("bus", bus)
+
 	bgp := NewTree()
 	peer := NewTree()
-	proc := NewTree()
-	proc.Set("run", "/usr/local/bin/my-filter")
-	peer.GetOrCreateContainer("attach").AddListEntry("process", "my-filter", proc)
+	peerBus := peer.GetOrCreateContainer("bus")
+	peerBus.GetOrCreateContainer("send").SetSlice("to", []string{"/bus/endpoint/my-filter"})
 	bgp.AddListEntry("peer", "peer-x", peer)
 	tree.SetContainer("bgp", bgp)
 
 	g := BuildGraph(tree, schema)
 
 	assert.NotNil(t, findNode(g, "plugin/my-filter"))
+	assert.True(t, hasEdge(g, "section/bus", "plugin/my-filter", EdgeContains))
 	assert.True(t, hasEdge(g, "peer/peer-x", "plugin/my-filter", EdgeProcessBinds))
 }
 
@@ -160,18 +168,20 @@ func TestBuildGraph_NoDuplicateNodes(t *testing.T) {
 	schema := graphTestSchema(t)
 	tree := NewTree()
 
+	bus := NewTree()
+	ep := NewTree()
+	ep.Set("internal", "bgp-rib")
+	bus.AddListEntry("endpoint", "bgp-rib", ep)
+	tree.SetContainer("bus", bus)
+
 	bgp := NewTree()
 	group := NewTree()
 	p1 := NewTree()
-	proc1 := NewTree()
-	proc1.Set("use", "bgp-rib")
-	p1.GetOrCreateContainer("attach").AddListEntry("process", "bgp-rib", proc1)
+	p1.GetOrCreateContainer("bus").GetOrCreateContainer("send").SetSlice("to", []string{"/bus/endpoint/bgp-rib"})
 	group.AddListEntry("peer", "peer1", p1)
 
 	p2 := NewTree()
-	proc2 := NewTree()
-	proc2.Set("use", "bgp-rib")
-	p2.GetOrCreateContainer("attach").AddListEntry("process", "bgp-rib", proc2)
+	p2.GetOrCreateContainer("bus").GetOrCreateContainer("send").SetSlice("to", []string{"/bus/endpoint/bgp-rib"})
 	group.AddListEntry("peer", "peer2", p2)
 	bgp.AddListEntry("group", "grp", group)
 	tree.SetContainer("bgp", bgp)

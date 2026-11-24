@@ -186,7 +186,7 @@ func TestRunInvalidConfig(t *testing.T) {
 func TestRunPassesCLIPluginsToConfigLoad(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "hub.conf")
-	err := os.WriteFile(configPath, []byte("plugin { external demo { } }\n"), 0o600)
+	err := os.WriteFile(configPath, []byte("bus { endpoint demo { internal crashes; } }\n"), 0o600)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -62,7 +62,7 @@ func ownedPeerFence(ctx context.Context, args []string) error {
 		fieldPeer: []byte("option=linger:value=true\n" +
 			"expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000\n" +
 			"expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020000000018C63364\n"),
-		sourceConfig: []byte(`plugin { internal bgp-rib { use bgp-rib; } }
+		sourceConfig: []byte(`bus { endpoint bgp-rib { internal bgp-rib; } }
 bgp {
  peer fence {
   connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
@@ -72,7 +72,6 @@ bgp {
    family { ipv4/unicast { prefix { maximum 10000; } } }
    capability { graceful-restart { short-lived { restart-time 120; } } }
   }
-  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
  }
 }
 `),

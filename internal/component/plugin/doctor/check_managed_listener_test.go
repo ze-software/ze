@@ -19,7 +19,7 @@ import (
 	zeplugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 
-	// The plugin schema is what makes `plugin { hub { ... } }` a config a
+	// The bus schema is what makes `bus { hub { ... } }` a config a
 	// parser accepts. The daemon links it through the composition root. A
 	// package test links only what it names, so it is named here.
 	_ "github.com/ze-software/ze/internal/component/plugin/yang"

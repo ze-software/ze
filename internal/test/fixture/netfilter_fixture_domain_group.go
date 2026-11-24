@@ -100,7 +100,7 @@ const domainGroupPollAttempts = 100
 //
 // The three scenarios drive the daemon over the real operator path rather than
 // over a plugin channel, which is what Wiring rows 4 and 5 of
-// spec-firewall-domain-group asked for. A `plugin { external ... }` block
+// spec-firewall-domain-group asked for. A `bus { endpoint ... { external { ... } } }` block
 // would give a fixture a channel to dispatch on, and would change what the
 // daemon under test is running.
 //

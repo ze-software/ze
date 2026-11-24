@@ -44,7 +44,7 @@ type DoctorSnapshot struct {
 	// then one per process the manager runs that no configuration names.
 	Plugins []PluginDoctorState
 	// DeliveryDisagreements is every finding of deliveryDisagreements(nil):
-	// a peer's `attach process` grant and a plugin's declared events that do
+	// a peer's `bus` delivery filter and a plugin's declared events that do
 	// not meet, so the event is never delivered.
 	DeliveryDisagreements []DeliveryDisagreement
 	// UnbackedClaims is every exclusive role advertised with no claimant
@@ -71,23 +71,23 @@ type DeliveryDisagreement struct {
 	Declared string
 }
 
-// Fix answers the `attach process` change that makes the two halves meet.
+// Fix answers the `bus` configuration change that makes the two halves meet.
 func (d *DeliveryDisagreement) Fix() string {
 	var fix textbuf.Buffer
 	switch d.Reason {
 	case reasonUndeclared:
-		fix.Str("remove ").Str(d.Granted).Str(" from the `attach process ").Str(d.Process).
-			Str("` block of peer ").Str(d.Peer).Str(", or run a plugin version that declares it")
+		fix.Str("remove ").Str(d.Granted).Str(" from the `bus` block for endpoint ").Str(d.Process).
+			Str(" on peer ").Str(d.Peer).Str(", or run a plugin version that declares it")
 	case reasonUngranted:
-		fix.Str("add ").Str(d.Declared).Str(" to the `attach process ").Str(d.Process).
-			Str("` block of peer ").Str(d.Peer)
+		fix.Str("allow ").Str(d.Declared).Str(" in the `bus` block for endpoint ").Str(d.Process).
+			Str(" on peer ").Str(d.Peer)
 	case reasonDirection:
-		fix.Str("set ").Str(d.Granted).Str(" in the `attach process ").Str(d.Process).
-			Str("` block of peer ").Str(d.Peer).Str(" to the direction the plugin declared, ").Str(d.Declared)
+		fix.Str("set ").Str(d.Granted).Str(" in the `bus` block for endpoint ").Str(d.Process).
+			Str(" on peer ").Str(d.Peer).Str(" to the direction the plugin declared, ").Str(d.Declared)
 	default:
 		// reasonUnattached, and any reason this method does not name: the
-		// process is in no attach block at all.
-		fix.Str("name ").Str(d.Process).Str(" in an `attach process` block on each peer it serves")
+		// endpoint has no bus delivery edge from any peer.
+		fix.Str("allow /bus/endpoint/").Str(d.Process).Str(" in the `bus` configuration of each peer it serves")
 	}
 	return fix.String()
 }

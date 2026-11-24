@@ -48,6 +48,9 @@ func formatConfigBytes(source string, input []byte) (string, bool, []string, err
 	// that reaches a running ze (config.SchemaWithDeclaredPlugins).
 	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: string(input), Path: source})
 	if err != nil {
+		if _, isOperErr := errors.AsType[*opererr.Error](err); isOperErr {
+			return "", false, nil, err
+		}
 		return "", false, nil, fmt.Errorf("YANG schema: %w", err)
 	}
 	p := config.NewParser(schema)

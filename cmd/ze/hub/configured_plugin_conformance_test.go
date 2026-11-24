@@ -82,9 +82,9 @@ func configuredConformanceConfig(names ...string) string {
 	}
 	var entries []string
 	for _, name := range names {
-		entries = append(entries, fmt.Sprintf("external %s { run %q; encoder json; }", name, "sh ./"+name+".sh"))
+		entries = append(entries, fmt.Sprintf("endpoint %s { external { run %q; } encoding json; }", name, "sh ./"+name+".sh"))
 	}
-	return configuredConformanceBase + "plugin {\n" + strings.Join(entries, "\n") + "\n}\n"
+	return configuredConformanceBase + "bus {\n" + strings.Join(entries, "\n") + "\n}\n"
 }
 
 // program records the selected identity in the daemon-resolved work directory,

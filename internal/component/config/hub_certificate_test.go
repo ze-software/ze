@@ -23,7 +23,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/pki/yang"
 )
 
-var hubTrustConfig = `plugin {
+var hubTrustConfig = `bus {
     hub {
         server central {
             ip 10.0.0.1
@@ -123,10 +123,10 @@ func TestFingerprintConfigIsRefused(t *testing.T) {
 // silently dropped.
 func TestHubRefusesDisagreeingCertificates(t *testing.T) {
 	tree := NewTree()
-	pluginContainer := NewTree()
-	tree.SetContainer("plugin", pluginContainer)
+	busContainer := NewTree()
+	tree.SetContainer("bus", busContainer)
 	hubContainer := NewTree()
-	pluginContainer.SetContainer("hub", hubContainer)
+	busContainer.SetContainer("hub", hubContainer)
 
 	block := func(cert string) *Tree {
 		serverTree := NewTree()

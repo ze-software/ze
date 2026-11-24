@@ -82,7 +82,7 @@ type startupSink interface {
 	// registrationName names the registration the process runs, the name a
 	// `<plugin>:<filter>` reference and a declared filter insertion carry as
 	// their prefix. It differs from pluginName for an aliased block:
-	// `plugin { internal gr { use bgp-gr; } }` runs "bgp-gr" as "gr".
+	// `bus { endpoint gr { internal bgp-gr; } }` runs "bgp-gr" as "gr".
 	registrationName() string
 
 	// onRegistration processes the decoded declare-registration input after the

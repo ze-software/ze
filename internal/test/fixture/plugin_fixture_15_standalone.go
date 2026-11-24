@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -77,38 +78,13 @@ func plugin15RPKIPipeSummary(ctx context.Context, _ []string) error {
 	if err != nil || code != 0 {
 		return fmt.Errorf("ze passwd: exit=%d error=%w stderr=%s", code, err, passwordErr)
 	}
-	config := fmt.Sprintf(`plugin {
-    internal rpki {
-        use bgp-rpki
-    }
-    internal adj-rib-in {
-        use bgp-adj-rib-in
-    }
-}
-
-bgp {
-    router-id 203.0.113.253;
-    session { asn { local 65000; } }
-    rpki {
-        cache-server 127.0.0.1 {
-            trusted-network true
-            port %d
-        }
-    }
-}
-
-system {
-    authentication {
-        user ci {
-            password %q
-            profile [ admin ]
-        }
-    }
-    authorization {
-        profile admin { run { default-action allow; } edit { default-action allow; } }
-    }
-}
-`, cachePort, strings.TrimSpace(passwordHash))
+	var configBuf textbuf.Buffer
+	configBuf.Str("bus {\n    endpoint rpki {\n        internal bgp-rpki\n    }\n    endpoint adj-rib-in {\n        internal bgp-adj-rib-in\n    }\n}\n\nbgp {\n    router-id 203.0.113.253;\n    session { asn { local 65000; } }\n    rpki {\n        cache-server 127.0.0.1 {\n            trusted-network true\n            port ").
+		Int(int64(cachePort)).
+		Str("\n        }\n    }\n}\n\nsystem {\n    authentication {\n        user ci {\n            password ").
+		Quoted(strings.TrimSpace(passwordHash)).
+		Str("\n            profile [ admin ]\n        }\n    }\n    authorization {\n        profile admin { run { default-action allow; } edit { default-action allow; } }\n    }\n}\n")
+	config := configBuf.String()
 	if err := os.WriteFile("rpki-pipe.conf", []byte(config), 0o600); err != nil {
 		return err
 	}
@@ -288,10 +264,12 @@ func plugin15StreamAnswerTable(ctx context.Context, args []string) error {
 	if err := os.WriteFile("daemon.ready", nil, 0o600); err != nil {
 		return err
 	}
-	const config = `plugin {
-	external record-plugin {
-		run "le mock record-plugin"
-		encoder json
+	const config = `bus {
+	endpoint record-plugin {
+		external {
+			run "le mock record-plugin"
+		}
+		encoding json
 	}
 }
 

@@ -131,11 +131,13 @@ func TestCIDRPatternMatch(t *testing.T) {
 // PREVENTS: Invalid timeout being silently ignored.
 func TestPluginConfigTimeout(t *testing.T) {
 	input := `
-plugin {
-    external myapp {
-        run ./myapp;
-        encoder json;
-        timeout 10s;
+bus {
+    endpoint myapp {
+        external {
+            run ./myapp;
+            timeout 10s;
+        }
+        encoding json;
     }
 }
 `
@@ -159,9 +161,11 @@ plugin {
 // PREVENTS: Non-zero default breaking existing configs.
 func TestPluginConfigTimeoutDefault(t *testing.T) {
 	input := `
-plugin {
-    external myapp {
-        run ./myapp;
+bus {
+    endpoint myapp {
+        external {
+            run ./myapp;
+        }
     }
 }
 `
@@ -184,10 +188,12 @@ plugin {
 // PREVENTS: Invalid durations being silently ignored.
 func TestPluginConfigTimeoutInvalid(t *testing.T) {
 	input := `
-plugin {
-    external myapp {
-        run ./myapp;
-        timeout abc;
+bus {
+    endpoint myapp {
+        external {
+            run ./myapp;
+            timeout abc;
+        }
     }
 }
 `
@@ -210,10 +216,12 @@ plugin {
 // PREVENTS: Negative duration causing immediate context expiration.
 func TestPluginConfigTimeoutNegative(t *testing.T) {
 	input := `
-plugin {
-    external myapp {
-        run ./myapp;
-        timeout -5s;
+bus {
+    endpoint myapp {
+        external {
+            run ./myapp;
+            timeout -5s;
+        }
     }
 }
 `
@@ -249,10 +257,12 @@ func TestPluginConfigTimeoutVariants(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
-plugin {
-    external myapp {
-        run ./myapp;
-        timeout ` + tt.timeout + `;
+bus {
+    endpoint myapp {
+        external {
+            run ./myapp;
+            timeout ` + tt.timeout + `;
+        }
     }
 }
 `

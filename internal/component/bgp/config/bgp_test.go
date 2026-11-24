@@ -484,21 +484,25 @@ bgp {
 	require.Equal(t, "require", mode)
 }
 
-// TestBGPSchemaProcess verifies API process configuration.
+// TestBGPSchemaProcess verifies bus external endpoint configuration.
 //
-// VALIDATES: External process config parses correctly.
+// VALIDATES: External bus endpoint config parses correctly.
 //
 // PREVENTS: Broken API integration.
 func TestBGPSchemaProcess(t *testing.T) {
 	input := `
-plugin {
-    external announce-routes {
-        run "/usr/local/bin/exabgp-announce";
-        encoder json;
+bus {
+    endpoint announce-routes {
+        external {
+            run "/usr/local/bin/exabgp-announce";
+        }
+        encoding json;
     }
-    external receive-routes {
-        run "/usr/local/bin/exabgp-receive";
-        encoder text;
+    endpoint receive-routes {
+        external {
+            run "/usr/local/bin/exabgp-receive";
+        }
+        encoding text;
     }
 }
 `
@@ -510,17 +514,20 @@ plugin {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	pluginContainer := tree.GetContainer("plugin")
-	require.NotNil(t, pluginContainer)
+	busContainer := tree.GetContainer("bus")
+	require.NotNil(t, busContainer)
 
-	plugins := pluginContainer.GetList("external")
-	require.Len(t, plugins, 2)
+	endpoints := busContainer.GetList("endpoint")
+	require.Len(t, endpoints, 2)
 
-	p1 := plugins["announce-routes"]
-	val, _ := p1.Get("run")
+	p1 := endpoints["announce-routes"]
+	require.NotNil(t, p1)
+	ext1 := p1.GetContainer("external")
+	require.NotNil(t, ext1)
+	val, _ := ext1.Get("run")
 	require.Equal(t, "/usr/local/bin/exabgp-announce", val)
 
-	val, _ = p1.Get("encoder")
+	val, _ = p1.Get("encoding")
 	require.Equal(t, "json", val)
 }
 

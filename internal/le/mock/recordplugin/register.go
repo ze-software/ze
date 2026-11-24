@@ -17,7 +17,7 @@ const name = "mock record-plugin"
 
 func init() {
 	// Spawned BY test daemons as an external plugin
-	// (plugin { external record-plugin { run "le mock record-plugin" } })
+	// (bus { endpoint record-plugin { external { run "le mock record-plugin"; } } })
 	// to drive test/plugin/plugin-owned-command-streams.ci,
 	// plugin-reads-engine-answer.ci and plugin-command-partial-fault.ci.
 	leroot.Register(name, leroot.GroupTool, harnesstool.Answer(cli.CmdRecordPlugin), harnesstool.Meta("answer commands with a record walk"))

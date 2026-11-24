@@ -234,7 +234,7 @@ func deviceNameRefused(name, reason string) error {
 // placeholder: it is never shown once set.
 func joinLines(name string) string {
 	return textbuf.New().
-		Str("plugin {\n    hub {\n        client ").Str(name).Str(" {\n").
+		Str("bus {\n    hub {\n        client ").Str(name).Str(" {\n").
 		Str("            host HUB-ADDRESS;\n").
 		Str("            port HUB-CLIENT-PORT;\n").
 		Str("            secret \"the secret set for ").Str(name).Str(" on the hub\";\n").

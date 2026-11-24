@@ -20,9 +20,11 @@ import (
 const reloadAddsPlugin = `system {
 	host reload-valid-host;
 }
-plugin {
-	external late-plugin {
-		run "./late-plugin";
+bus {
+	endpoint late-plugin {
+		external {
+			run "./late-plugin";
+		}
 	}
 }
 `

@@ -326,15 +326,15 @@ func caTrustActiveConfig(ctx context.Context, client *caTrustDaemon) (string, er
 // block is which.
 func caTrustHubConfig(pluginPort, managedPort int, exportPath string) string {
 	var b textbuf.Buffer
-	b.Str("plugin {\n    hub {\n")
+	b.Str("bus {\n    hub {\n")
 	b.Str("        server local { ip 127.0.0.1; port ").Str(strconv.Itoa(pluginPort)).
 		Str("; secret \"").Str(caTrustPluginSecret).Str("\"; }\n")
 	b.Str("        server remote-fleet { ip 127.0.0.1; port ").Str(strconv.Itoa(managedPort)).
 		Str("; secret \"").Str(caTrustHubSecret).Str("\";\n")
 	b.Str("            client ").Str(caTrustClientName).Str(" { secret \"").Str(caTrustClientSecret).Str("\"; }\n")
 	b.Str("        }\n    }\n")
-	b.Str("    external ca-export { run \"le test fixture managed/hub-ca-export -out ").Str(exportPath).
-		Str("\"; encoder json; }\n")
+	b.Str("    endpoint ca-export { external { run \"le test fixture managed/hub-ca-export -out ").Str(exportPath).
+		Str("\"; } encoding json; }\n")
 	b.Str("}\n")
 	b.Str("bgp {\n    session { asn { local 65000; } }\n    router-id 10.0.0.1\n}\n")
 	return b.String()
@@ -347,7 +347,7 @@ func caTrustClientConfig(managedPort int, routerID, anchorPEM string) string {
 	var b textbuf.Buffer
 	b.Str("pki {\n    ca ").Str(caTrustAnchorName).Str(" {\n        certificate \"").
 		Str(anchorPEM).Str("\";\n    }\n}\n")
-	b.Str("plugin {\n    hub {\n")
+	b.Str("bus {\n    hub {\n")
 	b.Str("        client ").Str(caTrustClientName).Str(" { host 127.0.0.1; port ").
 		Str(strconv.Itoa(managedPort)).Str("; secret \"").Str(caTrustClientSecret).
 		Str("\"; ca ").Str(caTrustAnchorName).Str("; }\n")

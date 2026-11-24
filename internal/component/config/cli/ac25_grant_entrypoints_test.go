@@ -23,10 +23,11 @@ import (
 // The complete graph must validate and publish a candidate through the same
 // path. This test does not start a daemon or claim startup or peer-wire proof.
 func TestAC25ParsedGrantRefusalsReachValidateAndCommit(t *testing.T) {
-	configuration := func(routerID, sourceProcess, sourceReceive, destinationReceive string) string {
-		return fmt.Sprintf(`plugin {
- internal ac25-table { use bgp-rib; }
- internal ac25-other { use bgp-rib; }
+	configuration := func(routerID, sourceProcess, sourceAllow, destinationSend string) string {
+		return fmt.Sprintf(`bus {
+ endpoint bgp-rib { internal bgp-rib; receive { allow none; } send { allow none; } }
+ endpoint ac25-table { internal bgp-rib; }
+ endpoint ac25-other { internal bgp-rib; }
 }
 bgp {
  router-id %s;
@@ -35,45 +36,56 @@ bgp {
   connection { local { ip 192.0.2.254; } remote { ip 192.0.2.1; } }
   session { asn { remote 65001; } }
   filter { import { final accept; } export { final reject; } }
-  attach process %s { receive [ %s ]; }
+  bus {
+   send { to [ /bus/endpoint/%s ]; allow [ %s ]; }
+   receive { from none; }
+  }
  }
  peer destination {
   connection { local { ip 192.0.2.254; } remote { ip 192.0.2.2; } }
   session { asn { remote 65002; } }
   filter { import { final reject; } export { final accept; } }
-  attach process ac25-table { send [ update ]; %s }
+  bus {
+   %s
+   receive { from [ /bus/endpoint/ac25-table ]; allow [ bgp:update ]; }
+  }
  }
 }
-`, routerID, sourceProcess, sourceReceive, destinationReceive)
+`, routerID, sourceProcess, sourceAllow, destinationSend)
 	}
-	const sourceGrants = "update-received state"
-	const destinationGrants = "receive [ state refresh update-sent ];"
+	const sourceGrants = "bgp:update bgp:state"
+	const destinationGrants = "send { to [ /bus/endpoint/ac25-table ]; allow [ bgp:state bgp:refresh bgp:update ]; message bgp:update { tag direction { value [ sent ]; } } }"
+	const destinationPartial = "send { to [ /bus/endpoint/ac25-table ]; allow [ bgp:state ]; }"
 	base := configuration("192.0.2.254", "ac25-table", sourceGrants, destinationGrants)
 	for _, question := range []struct {
-		name               string
-		sourceProcess      string
-		sourceReceive      string
-		destinationReceive string
-		refusal            string
+		name            string
+		sourceProcess   string
+		sourceAllow     string
+		destinationSend string
+		refusal         string
+		fixLine         string
 	}{
 		{
-			name: "source state only", sourceProcess: "ac25-table", sourceReceive: "state", destinationReceive: destinationGrants,
-			refusal: "peer \"source\" process \"ac25-table\" has incomplete source grants; complete with `attach process ac25-table { receive [ update-received state ]; }`",
+			name: "source state only", sourceProcess: "ac25-table", sourceAllow: "bgp:state", destinationSend: destinationGrants,
+			refusal: `participant "source" endpoint "ac25-table" has incomplete source grants for dissemination role "bgp-selected-output"`,
+			fixLine: `bus { endpoint ac25-table { receive { allow [ bgp:update bgp:state ]; } } }`,
 		},
 		{
-			name: "destination send only", sourceProcess: "ac25-table", sourceReceive: sourceGrants,
-			refusal: "peer \"destination\" process \"ac25-table\" has incomplete destination grants; complete with `attach process ac25-table { receive [ state refresh update-sent ]; send [ update ]; }`",
+			name: "destination send only", sourceProcess: "ac25-table", sourceAllow: sourceGrants, destinationSend: destinationPartial,
+			refusal: `participant "destination" endpoint "ac25-table" has incomplete destination grants for dissemination role "bgp-selected-output"`,
+			fixLine: `bus { endpoint ac25-table { receive { allow [ bgp:state bgp:refresh bgp:update ]; } send { allow [ bgp:update ]; } } }`,
 		},
 		{
-			name: "split instances", sourceProcess: "ac25-other", sourceReceive: sourceGrants, destinationReceive: destinationGrants,
-			refusal: "peer \"destination\" destination process \"ac25-table\" has no complete source on this same instance; attach a source peer with `attach process ac25-table { receive [ update-received state ]; }`",
+			name: "split instances", sourceProcess: "ac25-other", sourceAllow: sourceGrants, destinationSend: destinationGrants,
+			refusal: `participant "destination" destination endpoint "ac25-table" has no complete source on this same instance for dissemination role "bgp-selected-output"`,
+			fixLine: `bus { endpoint ac25-table { receive { allow [ bgp:update bgp:state ]; } } }`,
 		},
 		{
-			name: "complete instance", sourceProcess: "ac25-table", sourceReceive: sourceGrants, destinationReceive: destinationGrants,
+			name: "complete instance", sourceProcess: "ac25-table", sourceAllow: sourceGrants, destinationSend: destinationGrants,
 		},
 	} {
 		t.Run(question.name, func(t *testing.T) {
-			candidate := configuration("192.0.2.253", question.sourceProcess, question.sourceReceive, question.destinationReceive)
+			candidate := configuration("192.0.2.253", question.sourceProcess, question.sourceAllow, question.destinationSend)
 			file := filepath.Join(t.TempDir(), "ac25.conf")
 			require.NoError(t, os.WriteFile(file, []byte(candidate), 0o600))
 			validationError := ValidateContent(candidate, file)
@@ -81,6 +93,7 @@ bgp {
 			if question.refusal != "" {
 				wantCode = exitInvalid
 				require.ErrorContains(t, validationError, question.refusal)
+				require.ErrorContains(t, validationError, question.fixLine)
 			} else {
 				require.NoError(t, validationError)
 			}

@@ -503,7 +503,7 @@ func firstStartRefusedCertificate(output string) bool {
 // that authority after it.
 func firstStartHubConfig(pluginPort, managedPort int) string {
 	var b textbuf.Buffer
-	b.Str("plugin {\n    hub {\n")
+	b.Str("bus {\n    hub {\n")
 	b.Str("        server local { ip 127.0.0.1; port ").Str(strconv.Itoa(pluginPort)).
 		Str("; secret \"").Str(caTrustPluginSecret).Str("\"; }\n")
 	b.Str("        server remote-fleet { ip 127.0.0.1; port ").Str(strconv.Itoa(managedPort)).
@@ -523,7 +523,7 @@ func firstStartHubConfig(pluginPort, managedPort int) string {
 // client's store holds.
 func firstStartServedConfig(name string, pluginPort, hubPort int) string {
 	var b textbuf.Buffer
-	b.Str("plugin {\n    hub {\n")
+	b.Str("bus {\n    hub {\n")
 	b.Str("        server local { ip 127.0.0.1; port ").Str(strconv.Itoa(pluginPort)).
 		Str("; secret \"").Str(firstStartPluginSecret).Str("\"; }\n")
 	b.Str("        client ").Str(name).Str(" { host 127.0.0.1; port ").

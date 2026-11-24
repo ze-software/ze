@@ -17,9 +17,9 @@ const firstPassRun = "/opt/acme/monitor --fast"
 
 // firstPassPluginBlock is the one declaration the brace-form tests look for
 // after the roots they expect skipped.
-const firstPassPluginBlock = `plugin {
-    external acme {
-        run "/opt/acme/monitor --fast";
+const firstPassPluginBlock = `bus {
+    endpoint acme {
+        external { run "/opt/acme/monitor --fast"; }
     }
 }
 `
@@ -70,9 +70,9 @@ func TestFirstPassSkipsNestedBlock(t *testing.T) {
         }
         retries 3;
     }
-    plugin {
-        external decoy {
-            run /bin/false;
+    bus {
+        endpoint decoy {
+            external { run /bin/false; }
         }
     }
     interval 5;
@@ -161,8 +161,8 @@ func TestFirstPassKeepsKnownRootsStrict(t *testing.T) {
 		name  string
 		input string
 	}{
-		{name: "brace form", input: "plugin {\n    external acme {\n        runn /bin/true;\n    }\n}\n"},
-		{name: "set form", input: "set plugin external acme runn /bin/true\n"},
+		{name: "brace form", input: "bus {\n    endpoint acme {\n        external {\n            runn /bin/true;\n        }\n    }\n}\n"},
+		{name: "set form", input: "set bus endpoint acme external runn /bin/true\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -184,22 +184,22 @@ func TestFirstPassSetForm(t *testing.T) {
 	brace := `acme-monitor {
     target 192.0.2.1;
 }
-plugin {
-    external acme {
-        run "/opt/acme/monitor --fast";
-        encoder json;
+bus {
+    endpoint acme {
+        external { run "/opt/acme/monitor --fast"; }
+        encoding json;
     }
-    external second {
-        run "/opt/second/run";
+    endpoint second {
+        external { run "/opt/second/run"; }
     }
 }
 `
 	set := `set acme-monitor target 192.0.2.1
-set plugin external acme run "/opt/acme/monitor --fast"
-set plugin external acme encoder json
+set bus endpoint acme external run "/opt/acme/monitor --fast"
+set bus endpoint acme encoding json
 set bgp router-id 192.0.2.254
 delete acme-monitor interval
-set plugin external second run /opt/second/run
+set bus endpoint second external run /opt/second/run
 `
 	fromBrace, err := FirstPass(brace, "", nil)
 	require.NoError(t, err)
@@ -217,7 +217,7 @@ set plugin external second run /opt/second/run
 // PREVENTS: a committed config that holds a plugin's root being refused at boot.
 func TestFirstPassSetMetaForm(t *testing.T) {
 	input := `#thomas @local %2026-11-16T10:00:00Z set acme-monitor target 192.0.2.1
-#thomas @local %2026-11-16T10:00:00Z set plugin external acme run "/opt/acme/monitor --fast"
+#thomas @local %2026-11-16T10:00:00Z set bus endpoint acme external run "/opt/acme/monitor --fast"
 `
 	require.Equal(t, FormatSetMeta, DetectFormat(input))
 	result, err := FirstPass(input, "", nil)
@@ -259,20 +259,21 @@ func TestFirstPassMergesCommandLineWithConfigPlugins(t *testing.T) {
 		"a command-line plugin whose name the config already declares is not added twice")
 }
 
-// TestFirstPassLeavesOutCompiledInPlugins declares a plugin block with no run
-// string and an inactive external entry beside a running one.
+// TestFirstPassLeavesOutCompiledInPlugins declares a compiled-in internal
+// endpoint and an inactive external entry beside a running external one.
 //
-// VALIDATES: only a plugin that runs as another program is in the list.
-// PREVENTS: the caller forking a plugin the operator deactivated, or one that
-// names no program.
+// VALIDATES: only an active external endpoint that runs as another program is
+// in the list.
+// PREVENTS: the caller forking a compiled-in plugin or one the operator
+// deactivated.
 func TestFirstPassLeavesOutCompiledInPlugins(t *testing.T) {
-	input := `plugin {
-    external placeholder { }
-    inactive: external parked {
-        run "/opt/parked/run";
+	input := `bus {
+    endpoint placeholder { internal crashes; }
+    inactive: endpoint parked {
+        external { run "/opt/parked/run"; }
     }
-    external acme {
-        run "/opt/acme/monitor --fast";
+    endpoint acme {
+        external { run "/opt/acme/monitor --fast"; }
     }
 }
 `
@@ -309,15 +310,15 @@ func TestFirstPassAnswersHubAndEnvironment(t *testing.T) {
 acme-monitor {
     target 192.0.2.1;
 }
-plugin {
+bus {
     hub {
         server local {
             ip 127.0.0.1;
             port 1790;
         }
     }
-    external acme {
-        run "/opt/acme/monitor --fast";
+    endpoint acme {
+        external { run "/opt/acme/monitor --fast"; }
     }
 }
 `
@@ -382,7 +383,7 @@ func TestParseAtNeverSkips(t *testing.T) {
 
 	parser := NewParser(schema)
 	parser.SkipUnknownRoots()
-	_, err = parser.ParseAt("bogus 1;\n", []string{"plugin"})
+	_, err = parser.ParseAt("bogus 1;\n", []string{"bus"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "bogus")
 }
@@ -402,11 +403,11 @@ func TestPluginOnlySchemaSharesTheResolvedSet(t *testing.T) {
 
 	sub, err := PluginOnlySchema()
 	require.NoError(t, err)
-	require.NotNil(t, sub.Get("plugin"))
+	require.NotNil(t, sub.Get("bus"))
 	require.NotNil(t, sub.Get("environment"))
-	assert.Same(t, full.Get("plugin"), sub.Get("plugin"))
+	assert.Same(t, full.Get("bus"), sub.Get("bus"))
 	assert.Same(t, full.Get("environment"), sub.Get("environment"))
-	assert.ElementsMatch(t, []string{"plugin", "environment"}, sub.Children())
+	assert.ElementsMatch(t, []string{"bus", "environment"}, sub.Children())
 
 	_, err = FirstPass("bgp {\n    router-id 192.0.2.254;\n}\n", "", nil)
 	require.NoError(t, err)

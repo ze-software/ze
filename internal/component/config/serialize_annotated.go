@@ -340,7 +340,7 @@ func serializeAnnotatedContainer(b *textbuf.Buffer, tree *Tree, meta *MetaTree, 
 		childMeta := metaContainerChild(meta, name)
 		switch {
 		case node.Flatten && canFlattenContainer(child, node):
-			// Flat form: "attach process looking-glass { ... }" (flatten.go).
+			// Flat form: "bind target looking-glass { ... }" (flatten.go).
 			serializeAnnotatedFlattenedContainer(b, child, childMeta, name, node, columns, indent)
 		case CanInlineContainer(child, node):
 			// Inline form: write gutter + "containerName childName value"

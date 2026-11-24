@@ -171,7 +171,7 @@ func restoreClientDaemon(ctx context.Context, base, role string, managedClient b
 func restoreClientHubConfig(sshPort, pluginPort, managedPort string) string {
 	var b textbuf.Buffer
 	b.Str(restoreClientSSHListener(sshPort))
-	b.Str("plugin {\n    hub {\n")
+	b.Str("bus {\n    hub {\n")
 	b.Str("        server local { ip 127.0.0.1; port ").Str(pluginPort).
 		Str("; secret \"").Str(caTrustPluginSecret).Str("\"; }\n")
 	b.Str("        server remote-fleet { ip 127.0.0.1; port ").Str(managedPort).
@@ -197,7 +197,7 @@ func restoreClientSSHListener(sshPort string) string {
 // restoreClientConfig is the managed client's config with the given router-id.
 func restoreClientConfig(managedPort, routerID string) string {
 	var b textbuf.Buffer
-	b.Str("plugin {\n    hub {\n")
+	b.Str("bus {\n    hub {\n")
 	b.Str("        client ").Str(caTrustClientName).Str(" { host 127.0.0.1; port ").Str(managedPort).
 		Str("; secret \"").Str(caTrustClientSecret).Str("\"; }\n")
 	b.Str("    }\n}\n")

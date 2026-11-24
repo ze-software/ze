@@ -468,9 +468,9 @@ func as112Health02(ctx context.Context, plugin *sdk.Plugin) error {
 // A fixture that meets a failed assertion MUST return an error
 // (ai/rules/testing.md).
 //
-// The caller's peer MUST carry `attach process` for the adj-rib-in plugin.
-// Loading it and attaching it to no peer stores no route, so the poll would
-// time out on a route the chain accepted.
+// The caller's config MUST declare the adj-rib-in endpoint on the bus so the
+// Adj-RIB-In receives accepted routes; without it the poll would time out on a
+// route the chain accepted.
 func adjRIBRouteObserver02(ctx context.Context, plugin *sdk.Plugin) error {
 	if !eorSent02(ctx, plugin, "peer1", 1, 40) {
 		return errors.New("peer1 initial-sync EOR never reached the wire")

@@ -10,12 +10,12 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 )
 
-const twoAttachedProcessesConfig = `plugin {
-	external alpha {
-		run ./alpha.py
+const twoBusEndpointsConfig = `bus {
+	endpoint alpha {
+		internal bgp
 	}
-	external beta {
-		run ./beta.py
+	endpoint beta {
+		internal static
 	}
 }
 bgp {
@@ -37,26 +37,30 @@ bgp {
 			}
 		}
 		timer { receive-hold-time 90; }
-		attach process alpha {
-			receive [ state ]
-		}
-		attach process beta {
-			send [ update ]
+		bus {
+			send {
+				to [ /bus/endpoint/alpha ]
+				allow [ bgp:state ]
+			}
+			receive {
+				from [ /bus/endpoint/beta ]
+				allow [ bgp:update ]
+			}
 		}
 	}
 }
 `
 
 // TestLoadEditCommitKeepsBothAttachedProcesses drives the round trip AC-13
-// names: a peer attaches two processes, the config is loaded, edited and
-// committed through the editor, and both attachments survive with their own
-// name and their own body.
+// names: a peer narrows bus delivery to two endpoints, the config is loaded,
+// edited and committed through the editor, and both endpoints and the peer bus
+// rules survive with their own names and bodies.
 //
 // VALIDATES: AC-13.
-// PREVENTS: R-13 — the two-word keyword collapsing every attachment of a peer
-// onto one key, which drops all but the first.
+// PREVENTS: editor load/edit/commit collapsing or dropping bus endpoints or
+// peer bus delivery rules.
 func TestLoadEditCommitKeepsBothAttachedProcesses(t *testing.T) {
-	configPath := writeTestConfig(t, twoAttachedProcessesConfig)
+	configPath := writeTestConfig(t, twoBusEndpointsConfig)
 
 	store := newTestTreeStore(t, configPath)
 	ed, err := NewEditorWithStorage(store, configPath)
@@ -65,10 +69,10 @@ func TestLoadEditCommitKeepsBothAttachedProcesses(t *testing.T) {
 
 	ed.SetSession(NewEditSession("thomas", "local"))
 
-	// Both attachments are in the loaded tree, each keyed by its own name.
+	// Both endpoints and peer bus rules are in the loaded tree.
 	loaded := ed.WorkingContent()
-	assert.Contains(t, loaded, "alpha", "the first attachment must load")
-	assert.Contains(t, loaded, "beta", "the second attachment must load")
+	assert.Contains(t, loaded, "alpha", "the first endpoint must load")
+	assert.Contains(t, loaded, "beta", "the second endpoint must load")
 
 	require.NoError(t, ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
 
@@ -80,35 +84,45 @@ func TestLoadEditCommitKeepsBothAttachedProcesses(t *testing.T) {
 	require.NoError(t, err)
 	committed := string(data)
 
-	assert.Contains(t, committed, "bgp peer peer1 attach process alpha receive state",
-		"the first attachment lost its body:\n%s", committed)
-	assert.Contains(t, committed, "bgp peer peer1 attach process beta send update",
-		"the second attachment lost its body:\n%s", committed)
+	assert.Contains(t, committed, "bgp peer peer1 bus send to /bus/endpoint/alpha",
+		"the peer send target lost its body:\n%s", committed)
+	assert.Contains(t, committed, "bgp peer peer1 bus send allow bgp:state",
+		"the peer send allow list lost its body:\n%s", committed)
+	assert.Contains(t, committed, "bgp peer peer1 bus receive from /bus/endpoint/beta",
+		"the peer receive source lost its body:\n%s", committed)
+	assert.Contains(t, committed, "bgp peer peer1 bus receive allow bgp:update",
+		"the peer receive allow list lost its body:\n%s", committed)
 	assert.Contains(t, committed, "9.9.9.9", "the edit must reach the committed file")
 }
 
-// TestMergeConfigsKeepsEveryAttachedProcess covers the load merge of a peer
-// whose ze:flatten attach list gains two entries: a fragment naming two
-// attachments must not lose one, nor drop the one the peer already holds.
+// TestMergeConfigsKeepsEveryAttachedProcess covers the load merge of a bus
+// endpoint list gaining two entries: a fragment naming two endpoints must not
+// lose one, nor drop the endpoint the config already holds.
 func TestMergeConfigsKeepsEveryAttachedProcess(t *testing.T) {
 	ed, _, _ := newLoadSessionEditor(t, validBGPConfig)
 	ed.SetSession(nil)
-	require.NoError(t, ed.LoadMerge(nil, parseLoadInput(t, ed, `bgp { peer peer1 {
-	attach process alpha {
-		receive [ state ]
+	require.NoError(t, ed.LoadMerge(nil, parseLoadInput(t, ed, `bus {
+	endpoint alpha {
+		external {
+			run ./alpha.py
+		}
 	}
-} }`)))
-	merge := `bgp { peer peer1 {
-	attach process beta {
-		send [ update ]
+}`)))
+	merge := `bus {
+	endpoint beta {
+		external {
+			run ./beta.py
+		}
 	}
-	attach process gamma {
-		receive [ update ]
+	endpoint gamma {
+		external {
+			run ./gamma.py
+		}
 	}
-} }`
+}`
 	require.NoError(t, ed.LoadMerge(nil, parseLoadInput(t, ed, merge)))
 	out := config.Serialize(ed.tree, ed.schema)
-	for _, want := range []string{"attach process alpha", "attach process beta", "attach process gamma"} {
+	for _, want := range []string{"endpoint alpha", "endpoint beta", "endpoint gamma"} {
 		assert.Equal(t, 1, strings.Count(out, want), "%s survives exactly once in:\n%s", want, out)
 	}
 }

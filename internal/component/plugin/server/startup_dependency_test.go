@@ -36,7 +36,7 @@ func registerStage1DependencyPlugins(t *testing.T, provider, dependent string) {
 
 // TestStage1DependencyAcceptsAutoLoadedProvider proves a Stage 1 dependency
 // is satisfied by a provider the daemon auto-loaded, not only by one the
-// operator wrote in a `plugin { }` block.
+// operator wrote in a `bus { }` block.
 //
 // VALIDATES: a plugin auto-loaded for a config root, whose dependency the
 // registry resolution started beside it, passes its own Stage 1 declaration.
@@ -92,7 +92,7 @@ func TestStage1DependencyRefusesAbsentProvider(t *testing.T) {
 	require.ErrorAs(t, err, &missing)
 	assert.Equal(t, `plugin "stage1-absent-dependent" needs plugin "stage1-absent-provider", and the configuration does not load it`+"\n"+
 		`"stage1-absent-dependent" does not work without "stage1-absent-provider", so ze refuses to start it`+"\n"+
-		`fix: add 'plugin { internal stage1-absent-provider { use stage1-absent-provider; } }' to the config, `+
+		`fix: add 'bus { endpoint stage1-absent-provider { internal stage1-absent-provider; } }' to the config, `+
 		`or remove the configuration that loads "stage1-absent-dependent"`, missing.Error())
 	assert.Contains(t, err.Error(), missing.Error())
 }

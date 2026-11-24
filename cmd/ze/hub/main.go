@@ -248,7 +248,7 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	}
 
 	// One config, one parser, one runtime. Every config the YANG schema accepts
-	// boots here, `plugin {}` on its own included: a config that passes
+	// boots here, `bus {}` on its own included: a config that passes
 	// `ze config validate` must boot, and a second runtime with its own parser
 	// is how the two used to disagree.
 	return runYANGConfig(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliAttach, buildClient)

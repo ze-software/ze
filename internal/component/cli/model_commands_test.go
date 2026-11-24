@@ -2125,11 +2125,19 @@ func TestCmdCommitSessionValidatesSetFormat(t *testing.T) {
 // blocking commits before transactional reload can reject a candidate.
 func TestCmdCommitSessionValidatesPeerProcessConfig(t *testing.T) {
 	tmpDir := t.TempDir()
+	pluginScript := filepath.Join(tmpDir, "cli-reject-plugin.sh")
+	require.NoError(t, os.WriteFile(pluginScript, []byte(
+		"#!/bin/sh\nif [ \"$ZE_PLUGIN_MODE\" = \"declare\" ]; then\n"+
+			"  printf '#1 ze-plugin-engine:declare-registration {\"protocol-version\":1,\"receives\":[{\"message\":\"bgp:state\"}]}\\n'\n"+
+			"  exit 0\nfi\nexit 1\n",
+	), 0o700))
 	configPath := filepath.Join(tmpDir, "test.conf")
-	content := `plugin {
-    external cli-reject-plugin {
-        run ./cli-reject-plugin.run
-        encoder json
+	content := `bus {
+    endpoint cli-reject-plugin {
+        external {
+            run "sh ` + pluginScript + `"
+        }
+        encoding json
     }
 }
 
@@ -2180,7 +2188,11 @@ bgp {
         behavior {
             group-updates disable
         }
-        attach process cli-reject-plugin { }
+        bus {
+            send {
+                to [ /bus/endpoint/cli-reject-plugin ]
+            }
+        }
     }
 }`
 	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))

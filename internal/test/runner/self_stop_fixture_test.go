@@ -17,8 +17,8 @@ var declareSelfStopFixture sync.Once
 // observerConfig is a ze configuration whose only observer is the external
 // plugin run.
 func observerConfig(run string) []byte {
-	return []byte("plugin {\n\texternal observer {\n\t\trun \"" + run +
-		"\"\n\t\tencoder json\n\t}\n}\n")
+	return []byte("bus {\n\tendpoint observer {\n\t\texternal {\n\t\t\trun \"" + run +
+		"\"\n\t\t}\n\t\tencoding json\n\t}\n}\n")
 }
 
 // TestRecordStartsSelfStoppingFixture proves a .ci whose observer is a compiled

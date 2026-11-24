@@ -118,7 +118,7 @@ func TestInterfaceCountersFromUnknownSpeed(t *testing.T) {
 // handshake/registration protocol times out (tens of seconds), not because
 // external mode was detected. A refuse-immediately guard must return well
 // under that timeout.
-// PREVENTS: flow-export configured `plugin { external flow-export { ... } }`
+// PREVENTS: flow-export configured `bus { endpoint flow-export { external { ... } } }`
 // silently accepting every config commit while never exporting any counters.
 func TestRunEngine_RefusesExternalProcess(t *testing.T) {
 	pluginEnd, engineEnd := net.Pipe()

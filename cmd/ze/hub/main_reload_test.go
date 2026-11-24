@@ -70,9 +70,6 @@ func (r *reloadTestReactor) UpdateDelayStatus() plugin.UpdateDelayStatus {
 func (r *reloadTestReactor) Stats() plugin.ReactorStats {
 	return plugin.ReactorStats{}
 }
-func (r *reloadTestReactor) GetPeerProcessBindings(netip.Addr) []plugin.PeerProcessBinding {
-	return nil
-}
 func (r *reloadTestReactor) PeerNegotiatedCapabilities(netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return nil
 }

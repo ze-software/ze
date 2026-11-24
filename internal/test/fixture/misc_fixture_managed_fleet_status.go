@@ -425,7 +425,7 @@ func fleetStatusConfig(pluginPort, hubPort, sshPort int) string {
 	var b textbuf.Buffer
 	b.Str("environment {\n    ssh {\n        enabled true\n        server main {\n")
 	b.Str("            ip 127.0.0.1;\n            port ").Str(strconv.Itoa(sshPort)).Str(";\n        }\n    }\n}\n")
-	b.Str("plugin {\n    hub {\n")
+	b.Str("bus {\n    hub {\n")
 	b.Str("        server local { ip 127.0.0.1; port ").Str(strconv.Itoa(pluginPort)).
 		Str("; secret \"").Str(fleetStatusPluginSecret).Str("\"; }\n")
 	b.Str("        client ").Str(fleetStatusClientName).Str(" { host 127.0.0.1; port ").

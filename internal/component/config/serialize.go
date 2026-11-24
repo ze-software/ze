@@ -573,7 +573,7 @@ func serializeListMultiBlock(b *textbuf.Buffer, name string, entries map[string]
 
 // serializeListBlocks writes one block per list entry: "name key { ... }".
 // keyword is empty for a plain list, and holds the parent container's name for
-// a child of a ze:flatten container, which writes "attach process key { ... }"
+// a child of a ze:flatten container, which writes "bind target key { ... }"
 // (flatten.go).
 // order is the entry order the tree recorded for the list.
 func serializeListBlocks(b *textbuf.Buffer, entries map[string]*Tree, order []string, name string, node *ListNode, indent int, keyword string) {

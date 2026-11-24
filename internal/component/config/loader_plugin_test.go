@@ -17,7 +17,7 @@ import (
 // ExtractPluginsFromTree -- and returns the block named "watched".
 func pluginConfigFromFile(t *testing.T, body string) plugin.PluginConfig {
 	t.Helper()
-	input := "plugin {\n\texternal watched {\n\t\trun \"/bin/true\";\n" + body + "\t}\n}\n"
+	input := "bus {\n\tendpoint watched {\n\t\texternal {\n\t\t\trun \"/bin/true\";\n" + body + "\t\t}\n\t}\n}\n"
 
 	result, err := LoadConfig(input, filepath.Join(t.TempDir(), "plugin.conf"), nil)
 	require.NoError(t, err)

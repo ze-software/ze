@@ -17,7 +17,7 @@ import (
 // tracker when this plugin shares process memory with it. An external
 // ddos-detect would silently never receive a rate signal, with no error
 // anywhere until this warning.
-// PREVENTS: an operator running `plugin { external ddos-detect { ... } }`
+// PREVENTS: an operator running `bus { endpoint ddos-detect { external { ... } } }`
 // getting no indication that detection is permanently starved of input.
 func TestWarnIfExternal(t *testing.T) {
 	t.Cleanup(func() { setLogger(slogutil.DiscardLogger()) })

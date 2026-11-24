@@ -257,7 +257,7 @@ func editorReportsSectionFailure(f config.SectionValidationError) bool {
 // Validate, the engine's peer resolution in ValidateTransition), the relayed
 // copy is skipped: it repeats the first of those errors. When that pass found nothing,
 // the relayed copy is the only report of a bgp tree the daemon cannot load, so
-// it is added. Every other error, the `plugin { }` block's own extraction
+// it is added. Every other error, the `bus { }` block's own extraction
 // failures included, is always added.
 func editorReportsPluginVerifyError(err error, editorRefused bool) bool {
 	var extractErr *config.PluginExtractionError

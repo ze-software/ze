@@ -710,81 +710,39 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 	}{
 		{
 			name: "bracket form",
-			input: `bgp {
-    session {
-        asn {
-            local 65000
-        }
-    }
-    peer upstream {
-        connection {
-            remote {
-                ip 192.168.1.1
-            }
-        }
-        session {
-            asn {
-                remote 65001
-            }
-        }
-        attach process rib {
-            receive [ update state ]
+			input: `bus {
+    endpoint rib {
+        internal bgp-rib
+        receive {
+            allow [ bgp:update bgp:state ]
         }
     }
 }`,
-			want: []string{"update", "state"},
+			want: []string{"bgp:update", "bgp:state"},
 		},
 		{
 			name: "single value",
-			input: `bgp {
-    session {
-        asn {
-            local 65000
-        }
-    }
-    peer upstream {
-        connection {
-            remote {
-                ip 192.168.1.1
-            }
-        }
-        session {
-            asn {
-                remote 65001
-            }
-        }
-        attach process rib {
-            receive update
+			input: `bus {
+    endpoint rib {
+        internal bgp-rib
+        receive {
+            allow bgp:update
         }
     }
 }`,
-			want: []string{"update"},
+			want: []string{"bgp:update"},
 		},
 		{
 			name: "space-separated values",
-			input: `bgp {
-    session {
-        asn {
-            local 65000
-        }
-    }
-    peer upstream {
-        connection {
-            remote {
-                ip 192.168.1.1
-            }
-        }
-        session {
-            asn {
-                remote 65001
-            }
-        }
-        attach process rib {
-            receive update state
+			input: `bus {
+    endpoint rib {
+        internal bgp-rib
+        receive {
+            allow bgp:update bgp:state
         }
     }
 }`,
-			want: []string{"update", "state"},
+			want: []string{"bgp:update", "bgp:state"},
 		},
 	}
 
@@ -794,21 +752,17 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 			tree, err := parser.Parse(tt.input)
 			require.NoError(t, err)
 
-			bgp := tree.GetContainer("bgp")
-			require.NotNil(t, bgp)
-			peers := bgp.GetList("peer")
-			require.Len(t, peers, 1)
-			peer := peers["upstream"]
-			require.NotNil(t, peer)
-			attach := peer.GetContainer("attach")
-			require.NotNil(t, attach)
-			processes := attach.GetList("process")
-			require.Len(t, processes, 1)
-			proc := processes["rib"]
-			require.NotNil(t, proc)
+			bus := tree.GetContainer("bus")
+			require.NotNil(t, bus)
+			endpoints := bus.GetList("endpoint")
+			require.Len(t, endpoints, 1)
+			ep := endpoints["rib"]
+			require.NotNil(t, ep)
+			receive := ep.GetContainer("receive")
+			require.NotNil(t, receive)
 
-			items := proc.GetSlice("receive")
-			require.NotEmpty(t, items, "receive should be set")
+			items := receive.GetSlice("allow")
+			require.NotEmpty(t, items, "allow should be set")
 			assert.Equal(t, tt.want, items)
 		})
 	}
@@ -1159,41 +1113,24 @@ func TestProcessReceiveAcceptsStrings(t *testing.T) {
 	}{
 		{
 			name:  "receive custom event type",
-			field: "receive [ update-rpki ]",
+			field: "receive { allow [ bgp:update-rpki ] }",
 		},
 		{
 			name:  "receive mixed base and custom",
-			field: "receive [ update update-rpki ]",
+			field: "receive { allow [ bgp:update bgp:update-rpki ] }",
 		},
 		{
 			name:  "send custom type",
-			field: "send [ update ]",
+			field: "send { allow [ bgp:update ] }",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := `bgp {
-    session {
-        asn {
-            local 65000
-        }
-    }
-    peer upstream {
-        connection {
-            remote {
-                ip 192.168.1.1
-            }
-        }
-        session {
-            asn {
-                remote 65001
-            }
-        }
-        attach process rib {
-            
-            ` + tt.field + `
-        }
+			input := `bus {
+    endpoint rib {
+        internal bgp-rib
+        ` + tt.field + `
     }
 }`
 			parser := NewParser(schema)

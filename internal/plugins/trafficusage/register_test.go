@@ -53,7 +53,7 @@ func TestTrafficUsageRegistration(t *testing.T) {
 // permanently empty and no error anywhere. A plain net.Pipe() end matches
 // exactly what an external plugin's non-bridged conn looks like from the
 // SDK's perspective (see sdk.Plugin.IsInternal).
-// PREVENTS: traffic-usage configured `plugin { external traffic-usage { ... } }`
+// PREVENTS: traffic-usage configured `bus { endpoint traffic-usage { external { ... } } }`
 // silently accepting every config commit while never collecting any traffic.
 //
 // The elapsed-time assertion matters: without the guard, runEngine falls

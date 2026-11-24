@@ -16,7 +16,7 @@ import (
 
 // engineStepsPluginName is the plugin name .ci files must declare:
 //
-//	plugin { external engine-steps { run "le mock engine-steps ./engine-steps.json" } }
+//	bus { endpoint engine-steps { external { run "le mock engine-steps ./engine-steps.json" } } }
 //
 // The spawn env binds the connect-back token to this exact name.
 const engineStepsPluginName = "engine-steps"

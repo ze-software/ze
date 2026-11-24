@@ -19,7 +19,7 @@ func init() {
 }
 
 // bfdObserver builds the driver a test/bfd `.ci` names in its
-// `plugin { external <name> }` block. The name MUST be that block's name: it is
+// `bus { endpoint <name> { external { ... } } }` block. The name MUST be that block's name: it is
 // what the daemon calls the plugin back on.
 func bfdObserver(name string, scenario ObserverScenario) Driver {
 	return func(ctx context.Context, _ []string) error {

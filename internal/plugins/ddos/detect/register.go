@@ -121,7 +121,8 @@ func warnIfExternal(isInternal bool) {
 	if isInternal {
 		return
 	}
-	logger().Warn("ddos-detect: running as an external plugin process -- the trafficstat subscription is a same-process call that cannot reach the engine's real background tracker, so the detector will never receive a rate signal; remove the `plugin { external ddos-detect { ... } }` block so ze runs ddos-detect internal")
+	logger().Warn("ddos-detect: running as an external plugin process -- the trafficstat subscription is a same-process call that cannot reach the engine's real background tracker, so the detector will never receive a rate signal; remove the `bus { endpoint ddos-detect { external { ... } } }` block so ze runs ddos-detect internal",
+		"code", codeDoctorDDoSDetectBlind)
 }
 
 // byeSaveBudget bounds the baseline save a bye performs. It sits below

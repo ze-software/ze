@@ -626,7 +626,7 @@ func ExpandDependencies(plugins []plugin.PluginConfig, needHolds registry.NeedHo
 }
 
 // dependencyRequest answers what registry.ResolveDependencies is asked for the
-// plugins a config declares in its `plugin { }` block: each one's registered
+// plugins a config declares in its `bus { }` block: each one's registered
 // name, and the names an `external` block runs as another program. Boot
 // (ExpandDependencies) and the validate and commit doors
 // (refuseUnresolvableDependencies) both ask through it, so they resolve the

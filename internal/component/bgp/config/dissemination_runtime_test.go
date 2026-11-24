@@ -11,11 +11,16 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestRuntimePeerBuilderDefersCompiledOwnership keeps offline validation strict
 // while a runtime build leaves the authoritative declaration check to its reactor.
+//
+// VALIDATES: offline PeersFromConfigTree refuses competing compiled selected-output
+// claimants on the same destination peer, while reloadPeersFromTree defers to runtime.
+// PREVENTS: silent winner selection offline or premature compiled-metadata ownership at runtime.
 func TestRuntimePeerBuilderDefersCompiledOwnership(t *testing.T) {
 	snapshot := registry.Snapshot()
 	t.Cleanup(func() { registry.Restore(snapshot) })
@@ -24,25 +29,41 @@ func TestRuntimePeerBuilderDefersCompiledOwnership(t *testing.T) {
 			Name: name, Description: "compiled ownership differs from runtime",
 			RunEngine: func(net.Conn) int { return 0 }, CLIHandler: func([]string) int { return 0 },
 			Claims: []string{reactor.SelectedDisseminationRole},
-			Dissemination: []rpc.DisseminationDecl{{Namespace: bgpevents.Namespace, Role: reactor.SelectedDisseminationRole,
-				SourceReceive: []string{"update-received", "state"}, DestinationReceive: []string{"state", "refresh", "update-sent"}, DestinationSend: []string{"update"}}},
+			Sends: []rpc.MessageSendDecl{
+				{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate},
+			},
+			Receives: []rpc.MessageReceiveDecl{
+				{
+					Message: bgpevents.Namespace + ":" + bgpevents.EventUpdate,
+					Tags:    []rpc.MessageTagDecl{{Name: events.TagDirection, Values: []string{events.DirectionReceived, events.DirectionSent}}},
+				},
+				{Message: bgpevents.Namespace + ":" + bgpevents.EventState},
+				{Message: bgpevents.Namespace + ":" + bgpevents.EventRefresh},
+			},
+			Dissemination: []rpc.DisseminationDecl{{
+				Namespace:          bgpevents.Namespace,
+				Role:               reactor.SelectedDisseminationRole,
+				SourceReceive:      []string{"update-received", "state"},
+				DestinationReceive: []string{"state", "refresh", "update-sent"},
+				DestinationSend:    []string{"update"},
+			}},
 		}))
 	}
 	tree, err := config.ParseTreeForValidation(`
+bus {
+ endpoint runtime-owner-one { internal runtime-owner-one; }
+ endpoint runtime-owner-two { internal runtime-owner-two; }
+}
 bgp {
  router-id 192.0.2.254;
  session { asn { local 65000; } }
  peer source {
   connection { remote { ip 192.0.2.1; } local { ip 192.0.2.254; } }
   session { asn { remote 65001; } }
-  attach process runtime-owner-one { receive [ update state ]; }
-  attach process runtime-owner-two { receive [ update state ]; }
  }
  peer destination {
   connection { remote { ip 192.0.2.2; } local { ip 192.0.2.254; } }
   session { asn { remote 65002; } }
-  attach process runtime-owner-one { receive [ state refresh update-sent ]; send [ update ]; }
-  attach process runtime-owner-two { receive [ state refresh update-sent ]; send [ update ]; }
  }
 }`)
 	require.NoError(t, err)

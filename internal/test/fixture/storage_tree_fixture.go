@@ -19,6 +19,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -100,10 +101,12 @@ func storageProbe(ctx context.Context, _ []string) error {
 	})
 }
 
-const storageProbeConfig = `plugin {
- external storage-probe {
-  run "le test fixture storage/probe"
-  encoder json
+const storageProbeConfig = `bus {
+ endpoint storage-probe {
+  external {
+   run "le test fixture storage/probe"
+  }
+  encoding json
  }
 }
 bgp { router-id 1.2.3.4; session { asn { local 65000; } } }
@@ -936,7 +939,11 @@ func storageStateObserver(ctx context.Context, args []string) error {
 
 func storageStateRestart(ctx context.Context) error {
 	for _, mode := range []string{observerModeWrite, observerModeRead} {
-		config := fmt.Sprintf("plugin { external ospf { run \"le test fixture storage/state-observer %s\"; encoder json; } }\n", mode)
+		var tb textbuf.Buffer
+		tb.Str("bus { endpoint ospf { external { run \"le test fixture storage/state-observer ").
+			Str(mode).
+			Str("\"; } encoding json; } }\n")
+		config := tb.String()
 		if err := os.WriteFile("state.conf", []byte(config), 0o600); err != nil {
 			return err
 		}

@@ -31,8 +31,8 @@ const (
 
 // dispatchEngine reaches the engine through dispatched commands, the same
 // commands an operator types. The ROUTE-REFRESH it asks for is gated by the
-// peer's `attach process bgp-filter-irr { send [ refresh ] }`, like any other
-// process's.
+// peer's bus filter allowing bgp:refresh from /bus/endpoint/bgp-filter-irr,
+// like any other endpoint's.
 type dispatchEngine struct {
 	plugin *sdk.Plugin
 }

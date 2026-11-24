@@ -16,11 +16,11 @@ import (
 // A ze:flatten container is written with its own name as a leading keyword on
 // each child statement:
 //
-//	attach process looking-glass { receive [ update ] }
+//	bind target looking-glass { run x }
 //
 // rather than as a nested block:
 //
-//	attach { process looking-glass { receive [ update ] } }
+//	bind { target looking-glass { run x } }
 //
 // The parser reads both spellings for every container already (parser.go,
 // automatic brace insertion), so the extension changes what ze PRINTS, not what
@@ -92,7 +92,7 @@ func usesMultiBlockForm(node *ListNode) bool {
 }
 
 // serializeFlattenedContainer writes each entry of each list child with the
-// container name in front: "attach process looking-glass { ... }".
+// container name in front: "bind target looking-glass { ... }".
 func serializeFlattenedContainer(b *textbuf.Buffer, tree *Tree, name string, node *ContainerNode, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()

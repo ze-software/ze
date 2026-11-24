@@ -527,10 +527,12 @@ func aliasConfig(which aliasCase) string {
 }
 `
 	}
-	return bgp + `plugin {
-    external ` + pluginName + ` {
-        run "le test fixture ` + provider + `"
-        encoder json
+	return bgp + `bus {
+    endpoint ` + pluginName + ` {
+        external {
+            run "le test fixture ` + provider + `"
+        }
+        encoding json
     }
 }
 system {

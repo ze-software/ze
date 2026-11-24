@@ -192,14 +192,14 @@ func runManagedScenario(ctx context.Context, name string, hubPort, pluginPort in
 
 func managedConfig(routerID string, hubPort, pluginPort int, reject bool) string {
 	var builder textbuf.Buffer
-	builder.Str("plugin {\n  hub {\n")
+	builder.Str("bus {\n  hub {\n")
 	fmt.Fprintf(&builder, "    client %s { host 127.0.0.1; port %d; secret %q; }\n", managedClientName, hubPort, managedToken)
 	if reject {
 		fmt.Fprintf(&builder, "    server local { ip 127.0.0.1; port %d; secret %q; }\n", pluginPort, managedServerSecret)
 	}
 	builder.Str("  }\n")
 	if reject {
-		builder.Str("  external managed-reject-plugin { run \"le test fixture managed/config-push-transactional-observer\"; encoder json; }\n")
+		builder.Str("  endpoint managed-reject-plugin { external { run \"le test fixture managed/config-push-transactional-observer\"; } encoding json; }\n")
 	}
 	builder.Str("}\n")
 	fmt.Fprintf(&builder, "bgp {\n  router-id %s\n", routerID)
@@ -209,7 +209,6 @@ func managedConfig(routerID string, hubPort, pluginPort int, reject bool) string
 		builder.Str("    connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }\n")
 		builder.Str("    session { asn { remote 1; } router-id 1.2.3.4; family { ipv4/unicast { prefix { maximum 10000; } } } }\n")
 		builder.Str("    behavior { group-updates disable; }\n")
-		builder.Str("    attach process managed-reject-plugin { }\n")
 		builder.Str("  }\n")
 	}
 	builder.Str("}\n")

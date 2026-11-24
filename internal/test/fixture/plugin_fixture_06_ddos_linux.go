@@ -473,10 +473,12 @@ traffic {
 	}
 }
 
-plugin {
-	external ddos-local-cap-survives-reload-probe {
-		run "le test fixture plugin/ddos-local-cap-survives-reload-driver"
-		encoder json
+bus {
+	endpoint ddos-local-cap-survives-reload-probe {
+		external {
+			run "le test fixture plugin/ddos-local-cap-survives-reload-driver"
+		}
+		encoding json
 	}
 }
 `
@@ -658,10 +660,12 @@ traffic {
 	}
 }
 
-plugin {
-	external ddos-local-config-removed-probe {
-		run "le test fixture plugin/ddos-local-config-removed-driver"
-		encoder json
+bus {
+	endpoint ddos-local-config-removed-probe {
+		external {
+			run "le test fixture plugin/ddos-local-config-removed-driver"
+		}
+		encoding json
 	}
 }
 `
@@ -783,10 +787,12 @@ traffic {
 	}
 }
 
-plugin {
-	external ddos-parent-config-removed-probe {
-		run "le test fixture plugin/ddos-parent-config-removed-driver"
-		encoder json
+bus {
+	endpoint ddos-parent-config-removed-probe {
+		external {
+			run "le test fixture plugin/ddos-parent-config-removed-driver"
+		}
+		encoding json
 	}
 }
 `

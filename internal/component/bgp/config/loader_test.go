@@ -202,7 +202,7 @@ bgp {
 // PREVENTS: RFC 7313 BoRR/EoRR failing due to missing EnhancedRouteRefresh capability.
 func TestLoadReactorRouteRefreshCapabilities(t *testing.T) {
 	input := `
-plugin { external rib { run ./rib; } }
+bus { endpoint rib { external { run ./rib; } } }
 
 bgp {
     router-id 10.0.0.1;
@@ -357,59 +357,58 @@ func TestOldSyntaxHint(t *testing.T) {
 	})
 }
 
-// TestLoadReactor_MVPNRouteReflector verifies full config→reactor flow for RFC 4456.
-// TestPluginOnlySchema verifies that config.PluginOnlySchema() parses plugin blocks.
+// TestPluginOnlySchema verifies that config.PluginOnlySchema() parses bus blocks.
 //
-// VALIDATES: First phase parsing extracts plugin definitions.
-// PREVENTS: The first-pass schema losing the plugin block it exists to read.
+// VALIDATES: First phase parsing extracts bus endpoint definitions.
+// PREVENTS: The first-pass schema losing the bus block it exists to read.
 func TestPluginOnlySchema(t *testing.T) {
-	// Input with ONLY plugin blocks (no peer block)
+	// Input with ONLY bus blocks (no peer block)
 	input := `
-plugin {
-    external gr {
-        use gr;
-        encoder json;
+bus {
+    endpoint gr {
+        internal gr;
+        encoding json;
     }
-    external rib {
-        use rib;
+    endpoint rib {
+        internal rib;
     }
 }
 `
-	// config.PluginOnlySchema should only parse plugin blocks
+	// config.PluginOnlySchema should only parse first-pass blocks (bus and environment).
 	pluginSchema, schemaErr := config.PluginOnlySchema()
 	require.NoError(t, schemaErr)
 	p := config.NewParser(pluginSchema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	// Should have parsed plugin container with external list
-	pluginContainer := tree.GetContainer("plugin")
-	require.NotNil(t, pluginContainer)
-	plugins := pluginContainer.GetList("external")
-	require.Len(t, plugins, 2)
+	// Should have parsed bus container with endpoint list
+	busContainer := tree.GetContainer("bus")
+	require.NotNil(t, busContainer)
+	endpoints := busContainer.GetList("endpoint")
+	require.Len(t, endpoints, 2)
 
-	// Verify GR plugin config
-	grPlugin := plugins["gr"]
-	require.NotNil(t, grPlugin)
-	use, ok := grPlugin.Get("use")
+	// Verify GR endpoint config
+	grEndpoint := endpoints["gr"]
+	require.NotNil(t, grEndpoint)
+	internalName, ok := grEndpoint.Get("internal")
 	require.True(t, ok)
-	require.Equal(t, "gr", use)
+	require.Equal(t, "gr", internalName)
 
-	encoder, ok := grPlugin.Get("encoder")
+	encoding, ok := grEndpoint.Get("encoding")
 	require.True(t, ok)
-	require.Equal(t, "json", encoder)
+	require.Equal(t, "json", encoding)
 
-	// Verify RIB plugin
-	ribPlugin := plugins["rib"]
-	require.NotNil(t, ribPlugin)
-	use, ok = ribPlugin.Get("use")
+	// Verify RIB endpoint
+	ribEndpoint := endpoints["rib"]
+	require.NotNil(t, ribEndpoint)
+	internalName, ok = ribEndpoint.Get("internal")
 	require.True(t, ok)
-	require.Equal(t, "rib", use)
+	require.Equal(t, "rib", internalName)
 }
 
 // TestPluginOnlySchemaRejectsUnknown verifies unknown blocks are rejected.
 //
-// VALIDATES: config.PluginOnlySchema holds the first-pass roots (plugin and
+// VALIDATES: config.PluginOnlySchema holds the first-pass roots (bus and
 // environment) alone, and a strict parse over it refuses every other root.
 // PREVENTS: Accidental parsing of peer/template blocks in first phase.
 func TestPluginOnlySchemaRejectsUnknown(t *testing.T) {
@@ -1511,13 +1510,13 @@ func TestCollectPrefixWarningsRuntime(t *testing.T) {
 // TestExpandDependenciesResolvesUseLabel pins dependency resolution to the
 // REGISTERED plugin name rather than the operator's config label.
 //
-// VALIDATES: `plugin { internal <label> { use <plugin> } }` expands the
+// VALIDATES: `bus { endpoint <label> { internal <plugin>; } }` expands the
 // dependencies declared by <plugin>.
 //
 // PREVENTS: the shipped defect where ExpandDependencies keyed on p.Name (the
 // label). ResolveDependencies treats a name absent from the registry as an
 // external plugin and skips expanding it, so a route server configured as
-// `internal rs { use bgp-rs }` silently loaded no bgp-adj-rib-in and lost its
+// `endpoint rs { internal bgp-rs; }` silently loaded no bgp-adj-rib-in and lost its
 // peer-up replay entirely -- no error, no warning. Hard Dependencies were
 // dropped just as silently on the same path.
 func TestExpandDependenciesResolvesUseLabel(t *testing.T) {

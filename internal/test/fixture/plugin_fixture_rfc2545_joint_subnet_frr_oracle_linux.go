@@ -41,8 +41,8 @@ router bgp 65003
 !
 `
 
-const jointSubnetFRRZeConfig = `plugin {
- internal rs { use bgp-rs; }
+const jointSubnetFRRZeConfig = `bus {
+ endpoint rs { internal bgp-rs; }
 }
 bgp {
  router-id 203.0.113.253;
@@ -55,7 +55,6 @@ bgp {
   }
   filter { export { filters [ next-hop:unchanged ]; final accept; } }
   behavior { rs-fast-path enable; }
-  attach process rs { receive [ update-received ]; send [ update ]; }
   timer { connect-retry 2; }
  }
  peer receive {
@@ -67,7 +66,6 @@ bgp {
   }
   filter { export { filters [ next-hop:unchanged ]; final accept; } }
   behavior { rs-fast-path enable; }
-  attach process rs { receive [ update-received ]; send [ update ]; }
   timer { connect-retry 2; }
  }
 }

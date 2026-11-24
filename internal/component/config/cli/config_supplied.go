@@ -125,6 +125,9 @@ func suppliedDiff(_ command.ValidatedArgs, data []byte, _ string) command.LocalA
 		config.ConfigSource{Text: string(after)},
 	)
 	if err != nil {
+		if opErr, isOperErr := errors.AsType[*opererr.Error](err); isOperErr {
+			return command.LocalRefusal(exitError, command.LocalErrorLine(opErr))
+		}
 		return suppliedRefusal(path, "configuration schema is unavailable", err)
 	}
 	first, err := parseAndResolve(schema, before)

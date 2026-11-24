@@ -156,9 +156,9 @@ func TestSerializeBracketComment(t *testing.T) {
 func inlineCommentSchema() *Schema {
 	schema := NewSchema()
 	schema.Define("local", Container(Field("ip", Leaf(TypeIPv4))))
-	attach := Container(Field("process", List(TypeString, Field("run", Leaf(TypeString)))))
-	attach.Flatten = true
-	schema.Define("attach", attach)
+	bind := Container(Field("target", List(TypeString, Field("run", Leaf(TypeString)))))
+	bind.Flatten = true
+	schema.Define("bind", bind)
 	return schema
 }
 
@@ -200,23 +200,23 @@ func TestSerializeCommentBlocksInline(t *testing.T) {
 		},
 		{
 			name:  "flatten without comment",
-			input: "attach {\n\tprocess lg {\n\t\trun x\n\t}\n}\n",
-			want:  "attach process lg {\n\trun x\n}\n",
+			input: "bind {\n\ttarget lg {\n\t\trun x\n\t}\n}\n",
+			want:  "bind target lg {\n\trun x\n}\n",
 		},
 		{
 			name:  "flatten with a comment above an entry",
-			input: "attach {\n\t# the looking glass\n\tprocess lg {\n\t\trun x\n\t}\n}\n",
-			want:  "attach {\n\t# the looking glass\n\tprocess lg {\n\t\trun x\n\t}\n}\n",
+			input: "bind {\n\t# the looking glass\n\ttarget lg {\n\t\trun x\n\t}\n}\n",
+			want:  "bind {\n\t# the looking glass\n\ttarget lg {\n\t\trun x\n\t}\n}\n",
 		},
 		{
 			name:  "flatten with a closing comment",
-			input: "attach {\n\tprocess lg {\n\t\trun x\n\t}\n\t# more to come\n}\n",
-			want:  "attach {\n\tprocess lg {\n\t\trun x\n\t}\n\t# more to come\n}\n",
+			input: "bind {\n\ttarget lg {\n\t\trun x\n\t}\n\t# more to come\n}\n",
+			want:  "bind {\n\ttarget lg {\n\t\trun x\n\t}\n\t# more to come\n}\n",
 		},
 		{
 			name:  "flatten with a comment above the container",
-			input: "# processes\nattach {\n\tprocess lg {\n\t\trun x\n\t}\n}\n",
-			want:  "# processes\nattach process lg {\n\trun x\n}\n",
+			input: "# targets\nbind {\n\ttarget lg {\n\t\trun x\n\t}\n}\n",
+			want:  "# targets\nbind target lg {\n\trun x\n}\n",
 		},
 	}
 	for _, tc := range cases {

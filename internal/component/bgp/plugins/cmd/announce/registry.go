@@ -243,7 +243,7 @@ func (r *Registry) removeEntryLocked(e *tagEntry) {
 // paths: the entry is already gone from the registry, nothing will retry, and
 // the route stays on the peer for the life of the session with every operator
 // view agreeing it was withdrawn. A withdraw became refusable when the send
-// permission landed, and a reload that removes the peer's attach block between
+// permission landed, and a reload that restricts the peer's bus filter between
 // the announce and the expiry is enough to reach it.
 func (r *Registry) withdrawEntryByTimer(id uint64) {
 	r.mu.Lock()
@@ -262,7 +262,7 @@ func (r *Registry) withdrawEntryByTimer(id uint64) {
 			"selector", e.Selector.String(), "family", e.Family,
 			"process", e.Sender.String(), "err", err,
 			"effect", "the route may still be on the peer, and this announcement is no longer tracked",
-			"action", "check the peer's `attach process` block still grants send [ update ], then withdraw the prefix by hand")
+			"action", "check the peer's bus filter still allows bgp:update from this endpoint, then withdraw the prefix by hand")
 	}
 }
 

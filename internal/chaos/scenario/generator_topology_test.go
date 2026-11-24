@@ -109,10 +109,10 @@ func peerBlock(t *testing.T, config string, index int) string {
 // TestConfigGenCollectorForTopology writes the daemon config of a generated
 // network and checks both sides come from the one model.
 //
-// VALIDATES: a collector config runs bgp-rib inside the daemon and no route
-// server, every speaker of the model is a peer at its own address with its own
-// AS and its own listen port, each attaching bgp-rib alone, and the looking
-// glass is served over plain HTTP when asked. The text parses against the schema.
+// VALIDATES: a collector config runs bgp-rib inside the daemon as a bus
+// endpoint and no route server, every speaker of the model is a peer at its own
+// address with its own AS and its own listen port, and the looking glass is
+// served over plain HTTP when asked. The text parses against the schema.
 // PREVENTS: a speaker of the model with no peer in the daemon's config, whose
 // session the daemon would refuse.
 func TestConfigGenCollectorForTopology(t *testing.T) {
@@ -137,10 +137,10 @@ func TestConfigGenCollectorForTopology(t *testing.T) {
 	}
 	config := GenerateConfig(params)
 
-	assert.Contains(t, config, "internal bgp-rib {\n        use bgp-rib;\n    }")
+	assert.Contains(t, config, "bus {\n    endpoint bgp-rib {\n        internal bgp-rib;\n    }\n}")
 	assert.NotContains(t, config, "bgp-rs")
 	assert.NotContains(t, config, "external")
-	assert.Equal(t, len(profiles), strings.Count(config, "attach process bgp-rib {"))
+	assert.NotContains(t, config, "attach")
 	assert.Contains(t, config, "looking-glass {\n        enabled true;\n        server main {\n            ip 127.0.0.1;\n            port 8080;\n            tls false;\n        }\n")
 
 	for index, speaker := range topology.Speakers() {
@@ -171,7 +171,7 @@ func TestConfigGenCollectorForTopology(t *testing.T) {
 	assert.NotContains(t, GenerateConfig(params), "tls false")
 
 	// The schema this test links holds no looking glass module, so the shape is
-	// parsed without that block: plugins, peers and their attach blocks.
+	// parsed without that block: bus endpoints and peers.
 	params.LGPort = 0
 	_, err = zeconfig.ParseTreeWithYANG(GenerateConfig(params), nil)
 	require.NoError(t, err)

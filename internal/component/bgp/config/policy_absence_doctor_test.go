@@ -29,6 +29,12 @@ func policyAbsenceDoctorTree(t *testing.T, remote, final string, explicit bool) 
 	}
 	require.NoError(t, registry.Register(registry.Registration{
 		Name: "absence-owner", RunEngine: func(net.Conn) int { return 0 }, CLIHandler: func([]string) int { return 0 }, Claims: claims,
+		Sends: []rpc.MessageSendDecl{{Message: "bgp:update"}},
+		Receives: []rpc.MessageReceiveDecl{
+			{Message: "bgp:update", Tags: []rpc.MessageTagDecl{{Name: events.TagDirection, Values: []string{events.DirectionReceived, events.DirectionSent}}}},
+			{Message: "bgp:state"},
+			{Message: "bgp:refresh"},
+		},
 		Dissemination: []rpc.DisseminationDecl{{Namespace: "bgp", Role: reactor.SelectedDisseminationRole,
 			SourceReceive: []string{"update-received", "state"}, DestinationReceive: []string{"state", "refresh", "update-sent"}, DestinationSend: []string{"update"}}},
 	}))
@@ -36,18 +42,20 @@ func policyAbsenceDoctorTree(t *testing.T, remote, final string, explicit bool) 
 	if final != "" {
 		filter = "filter { import { final accept; } export { final " + final + "; } }"
 	}
-	tree, err := config.ParseTreeForValidation(fmt.Sprintf(`bgp {
+	tree, err := config.ParseTreeForValidation(fmt.Sprintf(`bus {
+  endpoint bgp-rib { internal bgp-rib; receive { allow none; } send { allow none; } }
+  endpoint absence-owner { internal absence-owner; }
+ }
+ bgp {
   router-id 192.0.2.254; session { asn { local 65000; } }
   peer source {
    connection { remote { ip 192.0.2.1; } local { ip 192.0.2.254; } }
    session { asn { remote 65001; } }
    filter { import { final accept; } export { final accept; } }
-   attach process absence-owner { receive [ update state ]; }
   }
   peer C {
    connection { remote { ip 192.0.2.2; } local { ip 192.0.2.254; } }
    session { asn { remote %s; } } %s
-   attach process absence-owner { receive [ state refresh update-sent ]; send [ update ]; }
   }
  }`, remote, filter))
 	require.NoError(t, err)

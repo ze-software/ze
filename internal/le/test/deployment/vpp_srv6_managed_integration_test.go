@@ -101,10 +101,12 @@ func vppSRv6Managed(t *testing.T, v *VPP, container, work string) {
 	vppSRv6StopDaemon(t, v, container, daemon, seen)
 }
 
-const vppSRv6ManagedConfig = `plugin {
-    external srv6-evidence {
-        run "exec /run/vpp/srv6-probe -test.run ^TestVPPSRv6ManagedProbe$ -test.v -test.timeout 140s -vpp-srv6-plugin > /run/vpp/srv6-managed.log 2>&1";
-        encoder json;
+const vppSRv6ManagedConfig = `bus {
+    endpoint srv6-evidence {
+        external {
+            run "exec /run/vpp/srv6-probe -test.run ^TestVPPSRv6ManagedProbe$ -test.v -test.timeout 140s -vpp-srv6-plugin > /run/vpp/srv6-managed.log 2>&1";
+        }
+        encoding json;
     }
 }
 vpp {

@@ -415,7 +415,7 @@ func runPlugin(conn net.Conn) int {
 	// A child can configure only its disconnected copy of poolInstance.
 	if !p.IsInternal() {
 		issue := opererr.New("l2tp-pool cannot run as an external plugin",
-			"A separate process cannot configure the daemon's address and prefix handlers. Replace its external block with plugin { internal l2tp-pool { use l2tp-pool; } }.",
+			"A separate process cannot configure the daemon's address and prefix handlers. Replace its external block with bus { endpoint l2tp-pool { internal l2tp-pool; } }.",
 			"ze config edit")
 		logger().LogAttrs(context.Background(), slog.LevelError, issue.Problem(),
 			issue.LogAttrs(slog.String("code", diagnostic.CodeDoctorPluginExternalUnsupported))...)

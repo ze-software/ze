@@ -6,7 +6,7 @@
 // for a SAME-PROCESS-EFFECT operation (one that only reaches the engine's real,
 // shared package state when the plugin runs in the same OS process as the
 // engine) silently no-ops, or never fires, when that plugin is configured to
-// run as an external subprocess (plugin { external <name> { ... } }). Six
+// run as an external subprocess (bus { endpoint <name> { external { ... } } }). Six
 // confirmed instances so far, all fixed: as112
 // (iface.RegisterOwnedAddresses/UnregisterOwnedAddresses -- refuses to start
 // external), iface-dhcp (iface.RegisterLeasedAddresses/UnregisterLeasedAddresses

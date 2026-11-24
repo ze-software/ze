@@ -34,10 +34,12 @@ const externalYANGSessionConfig = `system {
         profile admin { run { default-action allow; } edit { default-action allow; } }
     }
 }
-plugin {
-    external acme-monitor {
-        run "le test fixture plugin/external-yang valid"
-        encoder json
+bus {
+    endpoint acme-monitor {
+        external {
+            run "le test fixture plugin/external-yang valid"
+        }
+        encoding json
     }
 }
 acme-monitor {

@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -51,12 +52,12 @@ func blobBody(t *testing.T, text string) []byte {
 	return body
 }
 
-// routedConfig writes a config that declares external plugin acme and holds a
-// section only its module defines, and answers its text, its path and the
-// marker of the plugin's program.
+// routedConfig writes a config that declares external plugin acme (using
+// silentPlugin so declare-mode queries fail closed without touching marker) and
+// holds a section only its module defines.
 func routedConfig(t *testing.T) (text, path, marker string) {
 	t.Helper()
-	run, marker := markingPlugin(t)
+	run, marker := silentPlugin(t)
 	text = monitorConfig(run, routeSection)
 	return text, writeTestConfig(t, text), marker
 }
@@ -167,7 +168,7 @@ func TestInspectRouteAsksTheRunningZe(t *testing.T) {
 // the daemon's refusal; a -w that writes nothing because the daemon's supplied
 // fmt has no write option.
 func TestFmtRouteMakesTheOperatorsChoicesFromTheDaemonsText(t *testing.T) {
-	const formatted = "plugin {\n}\n"
+	const formatted = "bus {\n}\n"
 	ask := func(t *testing.T) *askRecorder {
 		return &askRecorder{verdict: daemonVerdict{body: blobBody(t, formatted), address: daemonAddress}}
 	}
@@ -348,19 +349,19 @@ func TestDaemonRefusalHoldsOneFix(t *testing.T) {
 	assert.Equal(t, "ze config validate <config-file>", validateFix("-"))
 }
 
-// TestInspectRouteFallsBackWhenNoZeAnswers: with no running ze, each command
-// judges the config here, and its refusal of the external section says a ze
-// was asked, why none answered, and one fix. Method: the ask of a host where
-// no ze listens, through the registered handlers.
+// TestInspectRouteFallsBackWhenNoZeAnswers verifies S-3 / AC-18 fallback across
+// all four inspection routes when no daemon listens: a non-declaring external
+// program is refused naming endpoint, cause, and one conformance fix line, and
+// a declare-mode external program succeeds offline without starting its run loop.
 //
-// VALIDATES: the refusal names the unknown keyword and the declared plugin,
-// says none answered and why, names `ze start` as the one fix and the command
-// to run again as the operator typed it; no program is started.
-// PREVENTS: a failed ask read as an answer; a refusal that says no ze was
-// asked, or that names `ze config validate`, after one was asked.
+// VALIDATES: S-3 / AC-18 — local fallback queries external programs in declare
+// mode without starting their run loop, succeeding on declaring programs and
+// failing closed with `fix: ze show plugin conformance run ...` otherwise.
+// PREVENTS: a failed ask read as an answer, starting an external run loop
+// offline, or omitting the conformance fix.
 func TestInspectRouteFallsBackWhenNoZeAnswers(t *testing.T) {
 	for _, route := range inspectionRoutes() {
-		t.Run(route.name, func(t *testing.T) {
+		t.Run(route.name+"/non_declaring_refused", func(t *testing.T) {
 			t.Cleanup(config.ResetDeclaredSchemasForTest())
 			_, path, marker := routedConfig(t)
 
@@ -368,38 +369,62 @@ func TestInspectRouteFallsBackWhenNoZeAnswers(t *testing.T) {
 
 			assert.NotEqual(t, exitOK, code)
 			assert.False(t, answered)
-			assert.Contains(t, diagnostic, "unknown top-level keyword: acme-monitor")
-			assert.Contains(t, diagnostic, `external plugin "acme"`)
-			assert.Contains(t, diagnostic, "starts no plugin")
-			assert.Contains(t, diagnostic, "none answered: no ze listens at "+daemonAddress)
-			assert.Contains(t, diagnostic, "then `"+route.typed(path)+"` again")
-			assert.NotContains(t, diagnostic, "asked no running ze")
+			assert.Contains(t, diagnostic, `bus endpoint "acme"`)
+			assert.Contains(t, diagnostic, "without writing a Stage 1 declaration")
 			assert.Equal(t, 1, strings.Count(diagnostic, "fix: "), "one fix: %s", diagnostic)
-			assert.True(t, strings.HasSuffix(diagnostic, "fix: ze start\n"), "the fix of the failed ask was lost: %s", diagnostic)
+			assert.Contains(t, diagnostic, "fix: ze show plugin conformance run ")
+			requireNotStarted(t, marker)
+		})
+
+		t.Run(route.name+"/declaring_succeeds", func(t *testing.T) {
+			t.Cleanup(config.ResetDeclaredSchemasForTest())
+			run, marker := declaringPlugin(t, monitorSchemaDecl())
+			path := writeTestConfig(t, monitorConfig(run, routeSection)+testConfigBase)
+
+			code, answered, diagnostic := route.answer(t, path, noDaemonListens)
+
+			assert.Equal(t, exitOK, code, diagnostic)
+			assert.True(t, answered)
 			requireNotStarted(t, marker)
 		})
 	}
 }
 
-// TestInspectRouteNamesTheAccountFixOfTheCommandItself: an ask the daemon did
-// not answer names the asking command, with the account option, as its fix.
-// Method: a stub ask that fails as a refused login does.
+// TestInspectRouteNamesTheAccountFixOfTheCommandItself verifies that a failed
+// login ask builds the `--user <name>` fix for each inspection command, and
+// that local fallback fails closed on a non-declaring program without starting
+// its run loop.
 //
-// VALIDATES: the fix is the command the operator ran with `--user <name>`.
-// PREVENTS: a fix that names `ze config validate`, which does not make the
-// command the operator ran answer.
+// VALIDATES: suppliedQuestion.unanswered produces the `--user <name>` fix for
+// each route, and local fallback fails closed under S-3.
+// PREVENTS: a fix that names `ze config validate` instead of the command the
+// operator typed.
 func TestInspectRouteNamesTheAccountFixOfTheCommandItself(t *testing.T) {
 	for _, route := range inspectionRoutes() {
 		t.Run(route.name, func(t *testing.T) {
 			t.Cleanup(config.ResetDeclaredSchemasForTest())
-			_, path, _ := routedConfig(t)
-			recorder := &askRecorder{err: notAnswered(daemonAddress, route.supplied, errors.New("ssh: handshake failed"))}
-
-			_, _, diagnostic := route.answer(t, path, recorder.ask)
-
+			_, path, marker := routedConfig(t)
+			askErr := notAnswered(daemonAddress, route.supplied, errors.New("ssh: handshake failed"))
+			q := suppliedQuestion{
+				local:    "ze config " + route.name,
+				operands: path,
+				files:    []string{path},
+			}
+			if route.name == "diff" {
+				q.operands = path + " " + path
+				q.files = []string{path, path}
+			}
+			unanswered := q.unanswered(askErr)
 			fix := strings.Replace(route.typed(path), " "+path, " --user <name> "+path, 1)
-			assert.Contains(t, diagnostic, "did not answer "+route.supplied+" (ssh: handshake failed)")
-			assert.True(t, strings.HasSuffix(diagnostic, "fix: "+fix+"\n"), "want fix %q: %s", fix, diagnostic)
+			assert.Contains(t, unanswered.Why, "did not answer "+route.supplied+" (ssh: handshake failed)")
+			assert.Equal(t, fix, unanswered.Fix)
+
+			recorder := &askRecorder{err: askErr}
+			code, answered, diagnostic := route.answer(t, path, recorder.ask)
+			assert.NotEqual(t, exitOK, code)
+			assert.False(t, answered)
+			assert.Contains(t, diagnostic, "fix: ze show plugin conformance run ")
+			requireNotStarted(t, marker)
 		})
 	}
 }
@@ -415,7 +440,7 @@ func TestInspectRouteAsksNobodyForACompiledInConfig(t *testing.T) {
 	for _, route := range inspectionRoutes() {
 		t.Run(route.name, func(t *testing.T) {
 			t.Cleanup(config.ResetDeclaredSchemasForTest())
-			path := writeTestConfig(t, "plugin {\n}\n"+testConfigBase)
+			path := writeTestConfig(t, "bus {\n}\n"+testConfigBase)
 			recorder := &askRecorder{err: errors.New("asked")}
 
 			code, _, diagnostic := route.answer(t, path, recorder.ask)
@@ -440,7 +465,7 @@ func TestInspectRouteKeepsTheLocalAnswerWhenTheDaemonRefusesWhatThisProcessAccep
 	for _, route := range inspectionRoutes() {
 		t.Run(route.name, func(t *testing.T) {
 			t.Cleanup(config.ResetDeclaredSchemasForTest())
-			run, marker := markingPlugin(t)
+			run, marker := declaringPlugin(t)
 			path := writeTestConfig(t, monitorConfig(run, testConfigBase))
 			recorder := &askRecorder{verdict: daemonVerdict{refused: true, refusal: "not authorized", address: daemonAddress}}
 
@@ -455,19 +480,18 @@ func TestInspectRouteKeepsTheLocalAnswerWhenTheDaemonRefusesWhatThisProcessAccep
 }
 
 // TestInspectRouteDoesNotSendContentOverTheBound: a config too large for one
-// command is not sent, and the refusal says so with the bound the model
-// states. Method: a config padded past the content leaf's length, in a
-// directory the daemon does not read.
+// command is not sent over SSH; local fallback runs S-3 query mode without
+// sending the oversize payload.
 //
-// VALIDATES: zero asks; the refusal says the config does not travel in one
-// command, names the bound in input bytes, and holds one fix.
+// VALIDATES: zero asks; local fallback fails closed on a non-declaring program
+// with one conformance fix and never starts its run loop.
 // PREVENTS: a line the daemon's validator refuses, or one that does not fit an
-// SSH packet, being sent and its failure read as the daemon's answer.
+// SSH packet, being sent over SSH.
 func TestInspectRouteDoesNotSendContentOverTheBound(t *testing.T) {
 	for _, route := range inspectionRoutes() {
 		t.Run(route.name, func(t *testing.T) {
 			t.Cleanup(config.ResetDeclaredSchemasForTest())
-			run, marker := markingPlugin(t)
+			run, marker := silentPlugin(t)
 			padding := strings.Repeat("# "+strings.Repeat("x", 78)+"\n", 2600)
 			path := filepath.Join(t.TempDir(), "large.conf")
 			require.NoError(t, os.WriteFile(path, []byte(monitorConfig(run, routeSection)+padding), 0o600))
@@ -478,8 +502,8 @@ func TestInspectRouteDoesNotSendContentOverTheBound(t *testing.T) {
 			assert.Equal(t, 0, recorder.calls, "content over the bound was sent")
 			assert.NotEqual(t, exitOK, code)
 			assert.False(t, answered)
-			assert.Contains(t, diagnostic, "does not travel in one command")
-			assert.Contains(t, diagnostic, "195,840 input bytes")
+			assert.Contains(t, diagnostic, `bus endpoint "acme"`)
+			assert.Contains(t, diagnostic, "fix: ze show plugin conformance run ")
 			assert.Equal(t, 1, strings.Count(diagnostic, "fix: "), "one fix: %s", diagnostic)
 			requireNotStarted(t, marker)
 		})
@@ -487,14 +511,16 @@ func TestInspectRouteDoesNotSendContentOverTheBound(t *testing.T) {
 }
 
 // TestInspectRouteAsksNobodyOnTheDaemonRoute: the daemon is the process that
-// answers, so a command served on its route asks no other ze. Method: the
-// dump and the diff on the remote route with a recording ask.
+// answers, so a command served on its route asks no other ze and starts no
+// external program. Method: fix the module set as a running daemon does, then
+// run dump and diff on RouteRemote with a recording ask.
 //
-// VALIDATES: zero asks on the remote route, for a config that would be sent
-// from the operator's own process.
-// PREVENTS: a daemon that asks a daemon.
+// VALIDATES: zero asks on the remote route, no external program started, and
+// daemon refusal naming `restart ze`.
+// PREVENTS: a daemon that asks a daemon or forks external programs on inspect.
 func TestInspectRouteAsksNobodyOnTheDaemonRoute(t *testing.T) {
 	t.Cleanup(config.ResetDeclaredSchemasForTest())
+	configyang.KeepsModuleSet("test daemon")
 	_, path, marker := routedConfig(t)
 	recorder := &askRecorder{err: errors.New("asked")}
 
@@ -505,7 +531,9 @@ func TestInspectRouteAsksNobodyOnTheDaemonRoute(t *testing.T) {
 	assert.Equal(t, 0, recorder.calls)
 	assert.NotEqual(t, 0, dumpCode)
 	assert.NotEqual(t, exitOK, diffCode)
-	assert.Contains(t, diag.String(), "asked no running ze")
+	got := diag.String()
+	assert.Contains(t, got, "this ze holds no config schema")
+	assert.Contains(t, got, "fix: restart ze")
 	requireNotStarted(t, marker)
 }
 
@@ -540,7 +568,7 @@ func storedDiffForms() []storedDiffForm {
 // texts and the marker of the plugin's program.
 func storedDiffSides(t *testing.T) (store storage.Storage, before, after, revision, marker string) {
 	t.Helper()
-	run, marker := markingPlugin(t)
+	run, marker := silentPlugin(t)
 	base := monitorConfig(run, routeSection)
 	before, after, revision = base+"# before\n", base+"# after\n", base+"# revision\n"
 	store, err := storage.Create(t.TempDir())
@@ -609,7 +637,7 @@ func TestDiffRouteAsksTheRunningZeAboutStoredSides(t *testing.T) {
 // drops the option and so names two files that do not exist.
 func TestDiffCommandAsksAboutABackupArtifactAndNamesItWhenNoZeAnswers(t *testing.T) {
 	t.Cleanup(config.ResetDeclaredSchemasForTest())
-	run, marker := markingPlugin(t)
+	run, marker := silentPlugin(t)
 	base := monitorConfig(run, routeSection)
 	before, after := base+"# before\n", base+"# after\n"
 	artifact := filepath.Join(t.TempDir(), "site.zefs")
@@ -638,24 +666,20 @@ func TestDiffCommandAsksAboutABackupArtifactAndNamesItWhenNoZeAnswers(t *testing
 	useRouteAsk(t, noDaemonListens)
 	code, diagnostic := captureStderr(t, func() int { return cmdDiffImpl(nil, args) })
 	assert.NotEqual(t, exitOK, code)
-	assert.Contains(t, diagnostic, "unknown top-level keyword: acme-monitor")
-	assert.Contains(t, diagnostic, "then `ze config diff --backup "+artifact+" before.conf after.conf` again")
+	assert.Contains(t, diagnostic, `bus endpoint "acme"`)
+	assert.Contains(t, diagnostic, "without writing a Stage 1 declaration")
 	assert.Equal(t, 1, strings.Count(diagnostic, "fix: "), "one fix: %s", diagnostic)
-	assert.True(t, strings.HasSuffix(diagnostic, "fix: ze start\n"), "the fix of the failed ask was lost: %s", diagnostic)
+	assert.True(t, strings.HasSuffix(diagnostic, `fix: ze show plugin conformance run "`+run+"\"\n"), "conformance fix lost: %s", diagnostic)
 	requireNotStarted(t, marker)
 }
 
-// TestDiffRouteFallsBackOverStoredSidesWhenNoZeAnswers: with no running ze,
-// `ze config diff` over a store compares here, and its refusal of the external
-// section says a ze was asked, why none answered, and one fix. Method:
-// diffAsking with a store and the ask of a host where no ze listens.
+// TestDiffRouteFallsBackOverStoredSidesWhenNoZeAnswers verifies S-3 / AC-18
+// fallback on stored diff sides when no running ze answers: offline query mode
+// refuses a non-declaring external program naming endpoint, cause, and one
+// conformance fix line, without starting its run loop.
 //
-// VALIDATES: no comparison; the refusal names the unknown keyword and the
-// declared plugin, says none answered and why, names `ze start` as the one fix
-// and the command to run again as the operator typed it, with its --backup
-// option when one was given.
-// PREVENTS: the stored and revision forms ending with `ze config validate`
-// after a running ze was asked, or naming a command the operator did not type.
+// VALIDATES: S-3 / AC-18 on stored and revision diff forms.
+// PREVENTS: silent acceptance or run-loop execution on offline stored diffs.
 func TestDiffRouteFallsBackOverStoredSidesWhenNoZeAnswers(t *testing.T) {
 	for _, form := range storedDiffForms() {
 		t.Run(form.name, func(t *testing.T) {
@@ -668,13 +692,10 @@ func TestDiffRouteFallsBackOverStoredSidesWhenNoZeAnswers(t *testing.T) {
 			diagnostic := diag.String()
 			assert.NotEqual(t, exitOK, code)
 			assert.Nil(t, diff)
-			assert.Contains(t, diagnostic, "unknown top-level keyword: acme-monitor")
-			assert.Contains(t, diagnostic, `external plugin "acme"`)
-			assert.Contains(t, diagnostic, "none answered: no ze listens at "+daemonAddress)
-			assert.Contains(t, diagnostic, "then `ze config diff "+form.typed+"` again")
-			assert.NotContains(t, diagnostic, "asked no running ze")
+			assert.Contains(t, diagnostic, `bus endpoint "acme"`)
+			assert.Contains(t, diagnostic, "without writing a Stage 1 declaration")
 			assert.Equal(t, 1, strings.Count(diagnostic, "fix: "), "one fix: %s", diagnostic)
-			assert.True(t, strings.HasSuffix(diagnostic, "fix: ze start\n"), "the fix of the failed ask was lost: %s", diagnostic)
+			assert.Contains(t, diagnostic, "fix: ze show plugin conformance run ")
 			requireNotStarted(t, marker)
 		})
 	}

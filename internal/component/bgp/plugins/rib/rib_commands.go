@@ -1484,8 +1484,8 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 // a destination still advertises a retained path the new policy rejects.
 func purgeStaleRefused(peer netip.Addr, refused error) error {
 	return fmt.Errorf("purge-stale removed the retained paths of peer %s, but a destination refused their withdrawal "+
-		"and still advertises them until its session restarts: %w; each destination must grant this RIB process "+
-		"`send [ update ]` in its `attach process` block", peer, refused)
+		"and still advertises them until its session restarts: %w; each destination's bus filter must allow "+
+		"`bgp:update` from this RIB endpoint", peer, refused)
 }
 
 // bestPathStatus returns summary statistics about the best-path computation.

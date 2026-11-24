@@ -206,10 +206,12 @@ environment {
 }
 `
 
-const plugin01RecordPluginConfig = `plugin {
-	external record-plugin {
-		run "le mock record-plugin"
-		encoder json
+const plugin01RecordPluginConfig = `bus {
+	endpoint record-plugin {
+		external {
+			run "le mock record-plugin"
+		}
+		encoding json
 	}
 }
 

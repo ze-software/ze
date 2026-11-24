@@ -28,10 +28,12 @@ const historyObserverPrefix = "history-observer bgp: "
 
 // historyConfig is a config whose router ID identifies it at runtime: the
 // observer plugin prints the bgp section the daemon hands it.
-const historyConfig = `plugin {
- external history-observer {
-  run "le test fixture storage/history-observer"
-  encoder json
+const historyConfig = `bus {
+ endpoint history-observer {
+  external {
+   run "le test fixture storage/history-observer"
+  }
+  encoding json
  }
 }
 bgp { router-id ROUTER-ID; session { asn { local 65000; } } }

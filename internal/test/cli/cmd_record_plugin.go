@@ -30,7 +30,7 @@ import (
 
 // recordPluginName is the plugin name a .ci file must declare:
 //
-//	plugin { external record-plugin { run "le mock record-plugin" } }
+//	bus { endpoint record-plugin { external { run "le mock record-plugin" } } }
 //
 // The spawn env binds the connect-back token to this exact name.
 const recordPluginName = "record-plugin"

@@ -544,10 +544,12 @@ func fixture10DocumentTooWide(ctx context.Context, _ []string) error {
 		return err
 	}
 	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
-	config := `plugin {
-	external record-plugin {
-		run "le mock record-plugin"
-		encoder json
+	config := `bus {
+	endpoint record-plugin {
+		external {
+			run "le mock record-plugin"
+		}
+		encoding json
 	}
 }
 bgp {

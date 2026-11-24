@@ -56,7 +56,7 @@ func init() { //nolint:gochecknoinits // plugin registration
 //
 // The registry requires an engine run from every plugin, and this one declares
 // no config root, no family and no event type, so nothing auto-loads it. An
-// operator who names memlock in a `plugin { }` block gets this.
+// operator who names memlock in a `bus { }` block gets this.
 func runMemlockPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn(pluginName, conn)
 	defer func() { _ = p.Close() }()

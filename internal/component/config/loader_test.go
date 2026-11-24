@@ -270,9 +270,9 @@ func TestLoadConfigNamesNoSourceItWasNotGiven(t *testing.T) {
 }
 
 // TestLoadConfigMergesCLIPluginsIntoAPluginOnlyConfig: a config whose only
-// top-level block is `plugin` takes the --plugin list like any other config.
+// top-level block is `bus` takes the --plugin list like any other config.
 //
-// VALIDATES: the plugin-only shape, which commit 8d92e9fab moved off the deleted
+// VALIDATES: the bus-only shape, which commit 8d92e9fab moved off the deleted
 // orchestrator runtime and onto runYANGConfig, loads with cliPlugins set, and the
 // result carries both the plugin the file declares and the plugin the flag names.
 //
@@ -281,7 +281,7 @@ func TestLoadConfigNamesNoSourceItWasNotGiven(t *testing.T) {
 // passes it to LoadConfig instead. Every other LoadConfig test here passes nil
 // for cliPlugins, so the shape and the flag were never exercised together.
 func TestLoadConfigMergesCLIPluginsIntoAPluginOnlyConfig(t *testing.T) {
-	input := "plugin { external demo { } }\n"
+	input := "bus { endpoint demo { internal crashes; } }\n"
 
 	result, err := LoadConfig(input, filepath.Join(t.TempDir(), "plugin-only.conf"), []string{"extra-demo"})
 	require.NoError(t, err)

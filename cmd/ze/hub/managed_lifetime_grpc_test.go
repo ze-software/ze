@@ -79,7 +79,7 @@ func TestHubManagedServerStopsItsOwner(t *testing.T) {
 		observed <- err
 		return false
 	}}
-	hub := startManagedLifetimeHub(t, newTestStore(t), client, `plugin {
+	hub := startManagedLifetimeHub(t, newTestStore(t), client, `bus {
 	hub {
 		server local { ip 127.0.0.1; port 0; }
 		server central {

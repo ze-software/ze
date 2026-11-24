@@ -427,7 +427,7 @@ func runEngine(conn net.Conn) int {
 			activeCfg.Store(cfg)
 			// No one-time legacy sweep here. This branch is reached only when
 			// the plugin was started with nothing to install: an explicit
-			// `plugin { internal firewall }` block, or a `system conntrack`
+			// `bus { endpoint firewall { internal firewall; } }` block, or a `system conntrack`
 			// block that lists no helper. getConfigPathPlugins
 			// (internal/component/plugin/server/startup_autoload.go) starts
 			// this plugin for a PRESENT config root and there is no always-load

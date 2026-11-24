@@ -241,7 +241,7 @@ func lgPKIIssueLeaf(commonName string, serial int64, issuer *x509.Certificate, i
 // does with the reference.
 func lgPKIConfig(chain *lgPKIChain, storeNames []string, certificate, token string, port int) string {
 	var tb textbuf.Buffer
-	tb.Str("plugin {\n}\n\n")
+	tb.Str("bus {\n}\n\n")
 	writeLGPKIStore(&tb, chain, storeNames)
 	tb.Str("\nenvironment {\n\tlooking-glass {\n\t\tenabled true\n")
 	// An empty certificate leaves the leaf out: the looking glass then serves

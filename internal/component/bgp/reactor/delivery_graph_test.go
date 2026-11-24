@@ -137,10 +137,10 @@ func recv(g *pluginserver.DeliveryGraph, eventType string, dir events.Direction,
 // TestDynamicPeerEntersTheIndexUnderItsOwnAddress answers AC-6 at the producer,
 // and it answers R-2 in the negative: no group key is needed, because the index
 // is built from RESOLVED settings and a dynamic member's settings already carry
-// its group's attach blocks.
+// its group's bus block.
 //
 // The chain is three functions and this test drives all three. The group's
-// `attach process` block is read by the SAME parser a static peer's is
+// `bus` block is read by the SAME parser a static peer's is
 // (ParseDynamicGroupTemplate -> parsePeerSettings -> parsePeerBusFromTree),
 // buildDynamicPeerSettings copies the template whole so Bus arrives
 // by inheritance rather than by a copy list, and the index keys the member on

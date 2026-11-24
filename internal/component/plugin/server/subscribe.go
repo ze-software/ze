@@ -187,7 +187,7 @@ func (sm *SubscriptionManager) clearRuntimeOverrides() {
 
 // processNamed returns the running process registered under one plugin name,
 // or nil when no process of that name has subscribed to anything. The name is
-// the one an operator writes in `attach process <name>`.
+// the endpoint name an operator configures under `bus { endpoint <name> { ... } }`.
 func (sm *SubscriptionManager) processNamed(name string) *process.Process {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()

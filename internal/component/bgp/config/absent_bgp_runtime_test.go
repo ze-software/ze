@@ -19,9 +19,9 @@ l2tp {
  enabled false;
  pool { ipv4 { gateway 10.100.0.1; start 10.100.0.10; end 10.100.0.10; } }
 }
-plugin {
- internal pool-source { use fakel2tp; }
- external pool-observer { run "le test fixture reload/l2tp-pool-range"; }
+bus {
+ endpoint pool-source { internal fakel2tp; }
+ endpoint pool-observer { external { run "le test fixture reload/l2tp-pool-range"; } }
 }`)
 	require.NoError(t, err)
 	peers, groups, err := peerPopulationsFromTree(tree.Clone())

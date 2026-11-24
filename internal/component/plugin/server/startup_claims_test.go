@@ -205,7 +205,7 @@ func TestAdvertiseClaimsFromExplicitConfig(t *testing.T) {
 }
 
 // TestAdvertiseClaimsResolvesRenamedImplementation covers the operator spelling
-// the real tests use: `plugin { internal rs { use bgp-rs } }`.
+// the real tests use: `bus { endpoint rs { internal bgp-rs; } }`.
 //
 // VALIDATES: a claim declared by the IMPLEMENTATION (registry name "bgp-rs") is
 // advertised even though the plugin runs under the operator's chosen process
@@ -435,7 +435,7 @@ func TestUnheldRolesRetractsAClaimForAPeerTheClaimantIsNotFed(t *testing.T) {
 }
 
 // TestUnheldRolesOverTheRealDeliverySet drives the retraction from the operator
-// input that produces it: a peer's `attach process` blocks.
+// input that produces it: a peer's `bus` delivery rules.
 //
 // VALIDATES: the set UnheldRoles judges is the set the event is delivered to,
 // so a peer that attaches the stood-down plugin and not the claimant retracts

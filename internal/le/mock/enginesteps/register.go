@@ -17,7 +17,7 @@ const name = "mock engine-steps"
 
 func init() {
 	// Spawned BY test daemons as an external plugin
-	// (plugin { external engine-steps { run "le mock engine-steps ./engine-steps.json" } })
+	// (bus { endpoint engine-steps { external { run "le mock engine-steps ./engine-steps.json"; } } })
 	// to drive .ci command=/stream=/expect=output|event|stream directives.
 	leroot.Register(name, leroot.GroupTool, harnesstool.Answer(cli.CmdEngineSteps), harnesstool.Meta("run .ci engine steps as a plugin"))
 	leroot.RegisterShape(name, command.ShapeDoc)

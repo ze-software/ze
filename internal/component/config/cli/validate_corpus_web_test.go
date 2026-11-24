@@ -237,12 +237,12 @@ func TestBrowserCorpusBaselineRetainsPluginOverlay(t *testing.T) {
 			}
 		}
 	}
-	internal := tree.GetContainer("plugin").GetList("internal")
-	if internal["fakeenrich"] == nil {
-		t.Fatal("parsed workflow plugin overlay is missing")
+	endpoints := tree.GetContainer("bus").GetList("endpoint")
+	if endpoints["fakeenrich"] == nil {
+		t.Fatal("parsed workflow bus endpoint overlay is missing")
 	}
-	if value, _ := internal["fakeenrich"].Get("use"); value != "fakeenrich" {
-		t.Errorf("plugin use = %q", value)
+	if value, _ := endpoints["fakeenrich"].Get("internal"); value != "fakeenrich" {
+		t.Errorf("endpoint internal = %q", value)
 	}
 }
 

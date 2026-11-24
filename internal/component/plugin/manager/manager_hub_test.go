@@ -3,7 +3,7 @@
 // out-of-process clients such as the .ci engine-step runner authenticate with
 // the configured secret; before this, ensureAcceptor returned early and the
 // configured listener silently never existed).
-// PREVENTS: `plugin { hub { server ... } }` configs where the listener only
+// PREVENTS: `bus { hub { server ... } }` configs where the listener only
 // appears once some external plugin happens to be declared.
 package plugin
 

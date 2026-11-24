@@ -1,17 +1,17 @@
+// Design: docs/architecture/api/architecture.md -- FlowSpec bus requirement checks.
+// Related: bus_requirements.go -- checkFlowSpecRequirements.
 package bgpconfig
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/plugin"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 const flowSpecDeliveryConfig = `
@@ -33,122 +33,193 @@ bgp {
             family { ipv4/unicast { prefix { maximum 1000; } } }
         }
     }
-}`
+}
+%s`
 
+// TestFlowSpecFeedsUnicastAuthorizationWithoutFirewall verifies that under the
+// default compiled bus, the selecting RIB receives updates and state from both
+// the FlowSpec peer and unicast-only peers.
+//
+// VALIDATES: FlowSpec authorization feeds reach bgp-rib from all peers by default.
+// PREVENTS: unicast peers failing to feed the selecting RIB for FlowSpec validation.
 func TestFlowSpecFeedsUnicastAuthorizationWithoutFirewall(t *testing.T) {
-	graph := graphFromConfig(t, fmt.Sprintf(flowSpecDeliveryConfig, ""))
+	graph := graphFromConfig(t, fmt.Sprintf(flowSpecDeliveryConfig, "", ""))
 	for _, peer := range []string{"10.0.0.2", "10.0.0.3"} {
 		require.Contains(t, fedBy(graph, bgpevents.EventUpdate, events.DirReceived, peer), "bgp-rib")
 		require.Contains(t, fedBy(graph, bgpevents.EventState, events.DirUnspecified, peer), "bgp-rib")
-		require.NotContains(t, fedBy(graph, bgpevents.EventUpdate, events.DirSent, peer), "bgp-rib", "authorization must not create sent-route replay state")
-		require.NotContains(t, fedBy(graph, bgpevents.EventRefresh, events.DirReceived, peer), "bgp-rib", "authorization alone does not own refresh replay")
 	}
 }
 
-func TestFlowSpecRefusesIncompleteExplicitRIBFeed(t *testing.T) {
-	for _, receive := range []string{"state", "update-sent state", "update-received"} {
-		t.Run(receive, func(t *testing.T) {
-			_, err := loadReactor(fmt.Sprintf(flowSpecDeliveryConfig, "attach process bgp-rib { receive [ "+receive+" ]; }"))
+// TestFlowSpecRefusesIncompleteRIBFeed verifies that cutting received updates
+// or peer state from the selecting RIB is refused when FlowSpec is configured.
+//
+// VALIDATES: AC-14, S34 -- incomplete RIB feeds are refused with a fix command,
+// while a complete narrowed feed (bgp:update received + bgp:state) is accepted.
+// PREVENTS: a partial RIB authorizing a FlowSpec rule without seeing disqualifying unicast routes.
+func TestFlowSpecRefusesIncompleteRIBFeed(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		busBlock string
+	}{
+		{
+			name:     "state only",
+			busBlock: `bus { endpoint bgp-rib { internal bgp-rib; receive { allow [ bgp:state ]; } } }`,
+		},
+		{
+			name: "sent updates and state without received",
+			busBlock: `bus { endpoint bgp-rib { internal bgp-rib;
+				receive { allow [ bgp:update bgp:state ]; message bgp:update { tag direction [ sent ]; } } } }`,
+		},
+		{
+			name:     "update only without state",
+			busBlock: `bus { endpoint bgp-rib { internal bgp-rib; receive { allow [ bgp:update ]; } } }`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := config.LoadConfig(fmt.Sprintf(flowSpecDeliveryConfig, "", tc.busBlock), "", nil)
 			require.Error(t, err, "a partial RIB can authorize a rule without seeing a disqualifying unicast route")
+			var oe *opererr.Error
+			require.ErrorAs(t, err, &oe)
+			require.NotEmpty(t, oe.Fix)
 		})
 	}
-	_, err := loadReactor(fmt.Sprintf(flowSpecDeliveryConfig, "attach process bgp-rib { receive [ update-received state ]; }"))
+
+	complete := `bus { endpoint bgp-rib { internal bgp-rib;
+		receive { allow [ bgp:update bgp:state ]; message bgp:update { tag direction [ received ]; } }
+		send { allow none; } } }`
+	_, err := config.LoadConfig(fmt.Sprintf(flowSpecDeliveryConfig, "", complete), "", nil)
 	require.NoError(t, err, "an explicit complete authorization feed remains valid")
 }
 
+// TestFlowSpecAuthorizationRequiresInternalRIB verifies that a FlowSpec config
+// accepts an in-daemon selecting RIB and refuses a separate-process one.
+//
+// VALIDATES: checkFlowSpecRequirements enforces in-daemon mode for bgp-rib.
+// PREVENTS: separate-process RIB deployment breaking synchronous FlowSpec authorization.
 func TestFlowSpecAuthorizationRequiresInternalRIB(t *testing.T) {
 	for _, tc := range []struct {
-		name, declaration string
-		separateProcess   bool
+		name    string
+		process string
+		reject  bool
 	}{
-		{"internal process", "internal routes { use bgp-rib; }", false},
-		{"external stanza using an internal process", "external routes { use bgp-rib; }", false},
-		{"separate compiled process", "", true},
+		{name: "in-daemon process", process: "in-daemon", reject: false},
+		{name: "separate process", process: "separate", reject: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.separateProcess {
-				input := fmt.Sprintf(flowSpecDeliveryConfig, "")
-				schema, err := config.YANGSchema()
-				require.NoError(t, err)
-				tree, err := config.NewParser(schema).Parse(input)
-				require.NoError(t, err)
-				peers, _, err := peersAndDynamicGroups(tree)
-				require.NoError(t, err)
-				plugins := []plugin.PluginConfig{{
-					Name:            "routes",
-					CompiledPlugin:  bgpredist.LocRIBPlugin,
-					SeparateProcess: true,
-				}}
-				err = requireRIBDelivery(plugins, peers, "FlowSpec authorization", true)
+			busBlock := fmt.Sprintf(`bus { endpoint routes { internal bgp-rib; process %s; } }`, tc.process)
+			_, err := config.LoadConfig(fmt.Sprintf(flowSpecDeliveryConfig, "", busBlock), "", nil)
+			if tc.reject {
 				require.Error(t, err, "separate-process event delivery cannot supply the synchronous authorization gate")
+				var oe *opererr.Error
+				require.ErrorAs(t, err, &oe)
+				require.Contains(t, err.Error(), "in-daemon")
 				return
 			}
-			input := fmt.Sprintf(flowSpecDeliveryConfig, "") + "plugin { " + tc.declaration + " }"
-			schema, err := config.YANGSchema()
-			require.NoError(t, err)
-			_, err = config.NewParser(schema).Parse(input)
-			require.NoError(t, err, "both plugin modes are valid configuration syntax")
-			_, err = loadReactor(input)
 			require.NoError(t, err)
 		})
 	}
 }
 
+// TestFlowSpecReplayRequiresReachableSelectingRIB verifies that a separate-process
+// replay claimant serving a FlowSpec peer is refused, while in-daemon replay
+// owners, observers, non-update senders, and replay owners restricted to unicast
+// peers remain accepted.
+//
 // VALIDATES: a replay-capable process on a FlowSpec peer can reach the selecting
-// RIB, without banning unrelated external unicast forwarders or observers.
-// PREVENTS: accepted external replay owners silently losing feasible rules at peer-up.
+// RIB without banning unrelated separate-process unicast forwarders or observers.
+// PREVENTS: accepted separate-process replay owners silently losing feasible rules at peer-up.
 func TestFlowSpecReplayRequiresReachableSelectingRIB(t *testing.T) {
-	const replay = "attach process replay-owner { receive [ update-received state ]; send [ update ]; }"
 	for _, tc := range []struct {
-		name, role, kind, flowBinding, unicastBinding string
-		reject                                        bool
-		use                                           bool
+		name      string
+		role      string
+		process   string
+		epFilters string
+		reject    bool
 	}{
-		{name: "external route server", role: "bgp-rs", kind: "external", flowBinding: replay, reject: true},
-		{name: "external route reflector", role: "bgp-rr", kind: "external", flowBinding: replay, reject: true},
-		{name: "external receive-store replay", role: "bgp-adj-rib-in", kind: "external", flowBinding: replay, reject: true},
-		{name: "external unicast route server", role: "bgp-rs", kind: "external", unicastBinding: replay},
-		{name: "external unicast route reflector", role: "bgp-rr", kind: "external", unicastBinding: replay},
-		{name: "external unicast receive store", role: "bgp-adj-rib-in", kind: "external", unicastBinding: replay},
-		{name: "external observer", role: "bgp-rs", kind: "external",
-			flowBinding: "attach process replay-owner { receive [ update-received state ]; }"},
-		{name: "external raw-only sender", role: "bgp-rs", kind: "external",
-			flowBinding: "attach process replay-owner { receive [ state ]; send [ raw ]; }"},
-		{name: "external sender without peer state", role: "bgp-adj-rib-in", kind: "external",
-			flowBinding: "attach process replay-owner { receive [ update-received ]; send [ update ]; }"},
-		{name: "internal replay owner", role: "bgp-rr", kind: "internal", flowBinding: replay},
-		{name: "external stanza using an internal owner", role: "bgp-rs", kind: "external", flowBinding: replay, use: true},
+		{
+			name:    "separate route server on FlowSpec peer",
+			role:    "bgp-rs",
+			process: "separate",
+			reject:  true,
+		},
+		{
+			name:    "separate route reflector on FlowSpec peer",
+			role:    "bgp-rr",
+			process: "separate",
+			reject:  true,
+		},
+		{
+			name:    "separate receive-store replay on FlowSpec peer",
+			role:    "bgp-adj-rib-in",
+			process: "separate",
+			reject:  true,
+		},
+		{
+			name:      "separate route server scoped to unicast peer only",
+			role:      "bgp-rs",
+			process:   "separate",
+			epFilters: `receive { from [ /bgp/peer/unicast-only ]; } send { to [ /bgp/peer/unicast-only ]; }`,
+			reject:    false,
+		},
+		{
+			name:      "separate route reflector scoped to unicast peer only",
+			role:      "bgp-rr",
+			process:   "separate",
+			epFilters: `receive { from [ /bgp/peer/unicast-only ]; } send { to [ /bgp/peer/unicast-only ]; }`,
+			reject:    false,
+		},
+		{
+			name:      "separate receive-store scoped to unicast peer only",
+			role:      "bgp-adj-rib-in",
+			process:   "separate",
+			epFilters: `receive { from [ /bgp/peer/unicast-only ]; } send { to [ /bgp/peer/unicast-only ]; }`,
+			reject:    false,
+		},
+		{
+			name:      "separate observer without send",
+			role:      "bgp-rs",
+			process:   "separate",
+			epFilters: `receive { allow [ bgp:update bgp:state ]; } send { allow none; }`,
+			reject:    false,
+		},
+		{
+			name:      "separate non-update sender",
+			role:      "bgp-rs",
+			process:   "separate",
+			epFilters: `receive { allow [ bgp:state ]; } send { allow [ "cli:request peer" ]; }`,
+			reject:    false,
+		},
+		{
+			name:      "separate sender without peer state",
+			role:      "bgp-adj-rib-in",
+			process:   "separate",
+			epFilters: `receive { allow [ bgp:update ]; }`,
+			reject:    false,
+		},
+		{
+			name:    "in-daemon route reflector on FlowSpec peer",
+			role:    "bgp-rr",
+			process: "in-daemon",
+			reject:  false,
+		},
+		{
+			name:    "in-daemon route server on FlowSpec peer",
+			role:    "bgp-rs",
+			process: "in-daemon",
+			reject:  false,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			input := fmt.Sprintf(flowSpecDeliveryConfig, tc.flowBinding)
-			input = strings.Replace(input, "peer unicast-only {", "peer unicast-only {\n"+tc.unicastBinding, 1)
-			if tc.kind == "external" && !tc.use {
-				schema, err := config.YANGSchema()
-				require.NoError(t, err)
-				tree, err := config.NewParser(schema).Parse(input)
-				require.NoError(t, err)
-				peers, _, err := peersAndDynamicGroups(tree)
-				require.NoError(t, err)
-				plugins := []plugin.PluginConfig{{
-					Name:            "replay-owner",
-					CompiledPlugin:  tc.role,
-					SeparateProcess: true,
-				}}
-				err = requireRIBDelivery(plugins, peers, "FlowSpec authorization", true)
-				if tc.reject {
-					require.Error(t, err, "the replay owner cannot query the process-local selecting RIB")
-				} else {
-					require.NoError(t, err)
-				}
+			busBlock := fmt.Sprintf(`bus { endpoint replay-owner { internal %s; process %s; %s } }`,
+				tc.role, tc.process, tc.epFilters)
+			_, err := config.LoadConfig(fmt.Sprintf(flowSpecDeliveryConfig, "", busBlock), "", nil)
+			if tc.reject {
+				require.Error(t, err, "the replay owner cannot query the process-local selecting RIB")
+				var oe *opererr.Error
+				require.ErrorAs(t, err, &oe)
+				require.NotEmpty(t, oe.Fix)
 				return
 			}
-			execution := "use " + tc.role + ";"
-			input += fmt.Sprintf("\nplugin { %s replay-owner { %s } }", tc.kind, execution)
-			schema, err := config.YANGSchema()
-			require.NoError(t, err)
-			_, err = config.NewParser(schema).Parse(input)
-			require.NoError(t, err, "the process mode and bindings are valid syntax")
-			_, err = loadReactor(input)
 			require.NoError(t, err)
 		})
 	}

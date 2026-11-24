@@ -12,7 +12,7 @@ import (
 
 	_ "github.com/ze-software/ze/internal/component/bgp/yang"    // registers ze-bgp-conf.yang
 	_ "github.com/ze-software/ze/internal/component/hub/yang"    // ze-bgp-conf.yang imports ze-hub-conf
-	_ "github.com/ze-software/ze/internal/component/plugin/yang" // the config's own plugin block
+	_ "github.com/ze-software/ze/internal/component/plugin/yang" // the config's own bus block
 )
 
 // TestConfigGenStructure verifies the generated config has the required
@@ -317,15 +317,15 @@ func TestConfigGenerateMCPPort(t *testing.T) {
 	assert.NotContains(t, config, "mcp {")
 }
 
-// TestConfigGenAttachesEveryPluginItRuns verifies each generated peer attaches
-// the plugins the same config starts, and that the generated text parses against
-// the real schema.
+// TestConfigGenAttachesEveryPluginItRuns verifies the generated bus block
+// declares the required route-server endpoints when NoPlugin is false, omits
+// the bus block in in-process mode, relies on default bus wiring instead of
+// removed per-peer attach blocks, and parses against the real YANG schema.
 //
-// VALIDATES: every peer carries an attach block for bgp-rs, and for bgp-rib when
-// the plugin block declares it.
-// PREVENTS: the silent daemon. A peer that attaches no process is fed nothing
-// and may announce nothing (pluginserver.Server.PeerScopedProcs), so chaos
-// route forwarding stops with no parse error and no log line.
+// VALIDATES: generated chaos config declares bus endpoints for bgp-rs and
+// bgp-rib when NoPlugin is false, omits the bus block when NoPlugin is true,
+// and parses against the real YANG schema.
+// PREVENTS: stale legacy plugin/attach syntax that the YANG schema rejects.
 func TestConfigGenAttachesEveryPluginItRuns(t *testing.T) {
 	profiles := []PeerProfile{
 		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
@@ -341,32 +341,21 @@ func TestConfigGenAttachesEveryPluginItRuns(t *testing.T) {
 
 	config := GenerateConfig(params)
 
-	// One attach block per peer, for each plugin the plugin block declares.
-	assert.Equal(t, len(profiles), strings.Count(config, "attach process bgp-rs {"))
-	assert.Equal(t, len(profiles), strings.Count(config, "attach process bgp-rib {"))
-	// bgp-rs takes UPDATEs in the received direction alone: both directions are
-	// the delivery loop bgp/plugins/rr/rr.go describes.
-	assert.Contains(t, config, "receive [ update-received state open-received refresh ];")
-	assert.NotContains(t, config, "attach process bgp-rs {\n            receive [ update ];")
-	// Both plugins announce toward the peer, so both need the send permission.
-	assert.Equal(t, 2*len(profiles), strings.Count(config, "send [ update ];"))
+	// Bus block declares external endpoints for bgp-rs and bgp-rib, and peers
+	// rely on default bus wiring rather than per-peer attach blocks.
+	assert.Contains(t, config, "bus {\n")
+	assert.Contains(t, config, "    endpoint bgp-rs {\n        external {\n            run \"ze plugin bgp-rs\";\n        }\n    }\n")
+	assert.Contains(t, config, "    endpoint bgp-rib {\n        external {\n            run \"ze plugin bgp-rib\";\n        }\n    }\n")
+	assert.NotContains(t, config, "attach")
 
-	// In-process mode starts bgp-rs alone, so the RIB is attached nowhere.
+	// In-process mode passes plugins via CLI flags, so no bus block is emitted.
 	params.NoPlugin = true
 	inProcess := GenerateConfig(params)
-	assert.Equal(t, len(profiles), strings.Count(inProcess, "attach process bgp-rs {"))
-	assert.NotContains(t, inProcess, "attach process bgp-rib")
+	assert.NotContains(t, inProcess, "bus {")
+	assert.NotContains(t, inProcess, "endpoint bgp-rib")
+	assert.NotContains(t, inProcess, "attach")
 
-	// The generated text is schema-valid: it parses against the YANG schema.
-	//
-	// That is LESS than it looks, and the difference is worth stating. This parse
-	// does NOT judge the receive and send tokens: validatedSections
-	// (internal/component/config/validate_sections.go) excludes `bgp`, so the
-	// `receive-event-type` and `send-message-type` custom validators never run
-	// over a peer's attach block here. An unregistered token is caught later, by
-	// parseOneReceiveFlag / parseOneSendFlag (bgp/reactor/config.go), on the
-	// startup path this test does not take. What this parse proves is the SHAPE:
-	// that the generator emits containers and leaf-lists the schema knows.
+	// Both generated texts are schema-valid: they parse against the YANG schema.
 	_, err := zeconfig.ParseTreeWithYANG(config, nil)
 	require.NoError(t, err)
 	_, err = zeconfig.ParseTreeWithYANG(inProcess, nil)

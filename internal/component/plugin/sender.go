@@ -11,8 +11,7 @@ import "github.com/ze-software/ze/internal/core/opererr"
 //
 // The zero value is neither, and that is deliberate. An operator command
 // carries the operator's own authority, checked by AAA at dispatch, while a
-// process command carries only what a peer's `attach process <name>` block
-// grants it. A guard that read "no process" as "the operator" would give that
+// process command carries only what a peer's `bus` delivery rules grant it. A guard that read "no process" as "the operator" would give that
 // operator authority to any dispatch path that forgot to say who it was, so a
 // guard MUST refuse a Sender whose IsSet reports false (ai/rules/evidence.md).
 //

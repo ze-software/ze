@@ -54,7 +54,7 @@ func sessionReadyTestServer() *Server {
 // registration its `use` spelling names, and an alias whose implementation
 // declares nothing is still answered false.
 // PREVENTS: the barrier silently dropping every aliased binding of a declaring
-// plugin. `plugin { internal rs { use bgp-rs } }` runs the process as "rs" while
+// plugin. `bus { endpoint rs { internal bgp-rs; } }` runs the process as "rs" while
 // the registration is filed under "bgp-rs", and the repository's own scenarios
 // bind the alias form (82 `internal rs`, 86 `internal adj-rib-in`, 28
 // `internal rib`). Answering false for those names sends the peer's End-of-RIB

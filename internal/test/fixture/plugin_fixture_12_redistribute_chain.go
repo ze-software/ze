@@ -306,11 +306,11 @@ func redistChainPeerRouteReachesAdjRIBIn(ctx context.Context, plugin *sdk.Plugin
 }
 
 // redistChainOperatorStateGrantServes is AC-4 at the process boundary: an
-// operator who wrote `attach process bgp-rib { receive [ state ]; }` on a peer
-// whose `redistribute` rule imports BGP keeps that grant, and is served by it.
+// operator who narrowed bgp-rib delivery to state events on a peer whose
+// `redistribute` rule imports BGP keeps that filter, and is served by it.
 //
 // It waits until the Loc-RIB counts the peer as up, which only a state event
-// granted by the operator's own attach block can make it do. The other half of
+// allowed by the operator's own bus block can make it do. The other half of
 // AC-4, that the daemon says the grant is narrower than the Loc-RIB declared,
 // is the .ci's stderr assertion on the reconcile warning
 // (reconcileDelivery, internal/component/plugin/server/delivery_reconcile.go).

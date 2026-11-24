@@ -143,10 +143,12 @@ func TestSerializeFamily(t *testing.T) {
 //
 // PREVENTS: Lost plugin settings.
 func TestSerializePlugin(t *testing.T) {
-	input := `plugin {
-    external watcher {
-        run "/usr/bin/watcher"
-        encoder json
+	input := `bus {
+    endpoint watcher {
+        external {
+            run "/usr/bin/watcher"
+        }
+        encoding json
     }
 }
 `

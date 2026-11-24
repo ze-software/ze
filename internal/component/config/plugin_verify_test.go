@@ -286,7 +286,7 @@ func TestVerifyPluginConfigRefusesMissingHardDependency(t *testing.T) {
 		t.Errorf("transition door errors = %v, want the same refusal", errs)
 	}
 
-	external := config + "plugin { external root-owner { run \"/bin/true\"; } }\n"
+	external := config + "bus { endpoint root-owner { external { run \"/bin/true\"; } } }\n"
 	if errs := VerifyPluginConfig(mustParsePluginVerifyConfig(t, external)); len(errs) != 0 {
 		t.Errorf("an external block runs its own program, so boot does not resolve the registration: errors = %v, want none", errs)
 	}

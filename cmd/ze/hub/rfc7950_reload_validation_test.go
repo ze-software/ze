@@ -23,15 +23,15 @@ const reloadValidHost = `system {
 }
 `
 
-// reloadRefusedPlugin passes the parse window, since plugin/internal/use is a
+// reloadRefusedPlugin passes the parse window, since bus/endpoint/internal is a
 // string of 1..64 characters, and only the ze:validate rule that names the
 // internal plugins refuses it.
 const reloadRefusedPlugin = `system {
 	host reload-refused-host;
 }
-plugin {
-	internal p1 {
-		use no-such-plugin-here
+bus {
+	endpoint p1 {
+		internal no-such-plugin-here
 	}
 }
 `

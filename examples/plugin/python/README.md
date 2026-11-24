@@ -69,10 +69,12 @@ Declare the plugin in the config. Give the full path of the file, because Ze
 may start the program from another directory:
 
 ```
-plugin {
-    external acme-monitor {
-        run "python3 /path/to/ze/examples/plugin/python/acme_monitor.py"
-        encoder json
+bus {
+    endpoint acme-monitor {
+        external {
+            run "python3 /path/to/ze/examples/plugin/python/acme_monitor.py";
+        }
+        encoding json;
     }
 }
 ```

@@ -41,7 +41,7 @@ func diffBGP(routerID, remoteAS string) string {
 
 // diffHub is a hub block with one client edge-01 at host, holding secret.
 func diffHub(host, secret string) string {
-	return "plugin {\n\thub {\n\t\tclient edge-01 {\n\t\t\thost " + host + "\n\t\t\tport 1790\n" +
+	return "bus {\n\thub {\n\t\tclient edge-01 {\n\t\t\thost " + host + "\n\t\t\tport 1790\n" +
 		"\t\t\tsecret " + secret + "\n\t\t}\n\t}\n}\n"
 }
 
@@ -78,7 +78,7 @@ func TestWholeTreeDiffNonBGPRoot(t *testing.T) {
 	assert.Empty(t, diff.Added)
 	assert.Empty(t, diff.Removed)
 	assert.Equal(t, map[string]config.DiffPair{
-		"plugin/hub/client/edge-01/host": {Old: "10.0.0.1", New: "10.0.0.2"},
+		"bus/hub/client/edge-01/host": {Old: "10.0.0.1", New: "10.0.0.2"},
 	}, diff.Changed)
 	assert.Equal(t, 1, infra.DiffChangeCount(diff))
 }
@@ -96,7 +96,7 @@ func TestWholeTreeDiffMasksSecrets(t *testing.T) {
 		diff := wholeTreeDiff(t, diffHub("10.0.0.1", diffHubSecretOld), diffHub("10.0.0.1", diffHubSecretNew))
 
 		assert.Equal(t, map[string]config.DiffPair{
-			"plugin/hub/client/edge-01/secret": {Old: config.SecretDataPlaceholder, New: config.SecretDataPlaceholder},
+			"bus/hub/client/edge-01/secret": {Old: config.SecretDataPlaceholder, New: config.SecretDataPlaceholder},
 		}, diff.Changed)
 		assert.Equal(t, 1, infra.DiffChangeCount(diff))
 	})
@@ -107,9 +107,9 @@ func TestWholeTreeDiffMasksSecrets(t *testing.T) {
 		assert.Empty(t, diff.Removed)
 		assert.Empty(t, diff.Changed)
 		assert.Equal(t, map[string]any{
-			"plugin/hub/client/edge-01/host":   "10.0.0.1",
-			"plugin/hub/client/edge-01/port":   "1790",
-			"plugin/hub/client/edge-01/secret": config.SecretDataPlaceholder,
+			"bus/hub/client/edge-01/host":   "10.0.0.1",
+			"bus/hub/client/edge-01/port":   "1790",
+			"bus/hub/client/edge-01/secret": config.SecretDataPlaceholder,
 		}, diff.Added)
 		assert.NotContains(t, fmt.Sprint(diff.Added), diffHubSecretNew)
 	})

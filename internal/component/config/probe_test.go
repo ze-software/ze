@@ -27,23 +27,20 @@ func TestProbeConfigType(t *testing.T) {
 			want:    ConfigTypeBGP,
 		},
 		{
-			name:    "plugin_external",
-			content: "plugin {\n\texternal bgp { run \"ze bgp\"; }\n}",
+			name:    "bus_external",
+			content: "bus {\n\tendpoint bgp { external { run \"ze bgp\"; } }\n}",
 			want:    ConfigTypeUnknown,
 		},
 		{
-			// A plugin-only config declares no bgp block, so it is unknown here and
-			// boots on the single YANG daemon path like every other config. Until
-			// 2026-08-12 this shape selected a second runtime whose hand-written
-			// parser accepted only `external`, so `plugin { internal ... }` passed
-			// `ze config validate` and then refused to boot.
-			name:    "plugin_internal",
-			content: "plugin {\n\tinternal static { use static; }\n}",
+			// A bus-only config declares no bgp block, so it is unknown here and
+			// boots on the single YANG daemon path like every other config.
+			name:    "bus_internal",
+			content: "bus {\n\tendpoint static { internal static; }\n}",
 			want:    ConfigTypeUnknown,
 		},
 		{
-			name:    "plugin_with_ospf",
-			content: "plugin {\n\texternal obs { run \"./obs\"; }\n}\nospf {\n\trouter-id 1.2.3.4\n}",
+			name:    "bus_with_ospf",
+			content: "bus {\n\tendpoint obs { external { run \"./obs\"; } }\n}\nospf {\n\trouter-id 1.2.3.4\n}",
 			want:    ConfigTypeUnknown,
 		},
 		{
@@ -62,8 +59,8 @@ func TestProbeConfigType(t *testing.T) {
 			want:    ConfigTypeUnknown,
 		},
 		{
-			name:    "bgp_precedence_over_plugin",
-			content: "plugin { external x { } }\nbgp { peer 1.2.3.4 { } }",
+			name:    "bgp_precedence_over_bus",
+			content: "bus { endpoint x { external { } } }\nbgp { peer 1.2.3.4 { } }",
 			want:    ConfigTypeBGP,
 		},
 		{
@@ -72,8 +69,8 @@ func TestProbeConfigType(t *testing.T) {
 			want:    ConfigTypeUnknown,
 		},
 		{
-			name:    "nested_plugin_ignored",
-			content: "foo { plugin { } }",
+			name:    "nested_bus_ignored",
+			content: "foo { bus { } }",
 			want:    ConfigTypeUnknown,
 		},
 		{
@@ -82,13 +79,13 @@ func TestProbeConfigType(t *testing.T) {
 			want:    ConfigTypeBGP,
 		},
 		{
-			name:    "set_format_plugin",
-			content: "set plugin hub listen 127.0.0.1:5555",
+			name:    "set_format_bus",
+			content: "set bus hub server local ip 127.0.0.1",
 			want:    ConfigTypeUnknown,
 		},
 		{
-			name:    "set_format_plugin_with_ospf",
-			content: "set plugin external obs run ./obs\nset ospf router-id 1.2.3.4",
+			name:    "set_format_bus_with_ospf",
+			content: "set bus endpoint obs external run ./obs\nset ospf router-id 1.2.3.4",
 			want:    ConfigTypeUnknown,
 		},
 		{
@@ -112,13 +109,13 @@ func TestProbeConfigType(t *testing.T) {
 			want:    ConfigTypeBGP,
 		},
 		{
-			name:    "delete_format_plugin",
-			content: "delete plugin hub listen",
+			name:    "delete_format_bus",
+			content: "delete bus hub server local",
 			want:    ConfigTypeUnknown,
 		},
 		{
 			name:    "set_format_bgp_precedence",
-			content: "set plugin hub listen 127.0.0.1:5555\nset bgp router-id 1.2.3.4",
+			content: "set bus hub server local ip 127.0.0.1\nset bgp router-id 1.2.3.4",
 			want:    ConfigTypeBGP,
 		},
 		{

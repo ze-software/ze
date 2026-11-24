@@ -134,7 +134,7 @@ func sectionRoots(sections []rpc.ConfigSection) []string {
 // VALIDATES: the read roots joined at Stage 1 come from the registry row of the
 // implementation a process runs, found through its use/run spelling, not from
 // the operator's block name.
-// PREVENTS: `plugin { internal rpki { use bgp-rpki } }` looking the registry up
+// PREVENTS: `bus { endpoint rpki { internal bgp-rpki; } }` looking the registry up
 // as "rpki", finding nothing, and bgp-rpki never receiving its pki section, so
 // its TLS certificate lookup fails. Static and bgp under a renamed block lost
 // their bfd section the same way.

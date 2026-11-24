@@ -141,10 +141,12 @@ func vppSRv6StopDaemon(t *testing.T, v *VPP, container string, daemon *running, 
 
 const vppSRv6Config = `connected {}
 interface { backend netlink; }
-plugin {
-    external srv6-connected {
-        run "exec /run/vpp/srv6-probe -test.run ^TestVPPSRv6ConnectedProbe$ -test.v -test.timeout 150s -vpp-srv6-connected > /run/vpp/srv6-connected.log 2>&1";
-        encoder json;
+bus {
+    endpoint srv6-connected {
+        external {
+            run "exec /run/vpp/srv6-probe -test.run ^TestVPPSRv6ConnectedProbe$ -test.v -test.timeout 150s -vpp-srv6-connected > /run/vpp/srv6-connected.log 2>&1";
+        }
+        encoding json;
     }
 }
 bgp {

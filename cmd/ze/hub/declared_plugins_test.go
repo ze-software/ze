@@ -87,9 +87,11 @@ func TestDeclaredPluginsAreGivenTheEnvironmentBlock(t *testing.T) {
 		require.NoError(t, os.Unsetenv(key))
 	}
 
-	const config = `plugin {
-    external acme-monitor {
-        run "./acme-monitor-plugin";
+	const config = `bus {
+    endpoint acme-monitor {
+        external {
+            run "./acme-monitor-plugin";
+        }
     }
 }
 environment {
@@ -136,7 +138,7 @@ func TestDeclaredPluginsWithNoEnvironmentBlockAreGivenNothing(t *testing.T) {
 	restore := yang.ResetPublishedModulesForTest()
 	defer restore()
 
-	firstPass, err := zeconfig.FirstPass("plugin {\n    external acme-monitor {\n        run \"./acme-monitor-plugin\";\n    }\n}\n", "", nil)
+	firstPass, err := zeconfig.FirstPass("bus {\n    endpoint acme-monitor {\n        external {\n            run \"./acme-monitor-plugin\";\n        }\n    }\n}\n", "", nil)
 	require.NoError(t, err)
 	require.Len(t, firstPass.External, 1)
 	spawner := &recordingSpawner{cause: errors.New("plugin TLS acceptor: no listener")}

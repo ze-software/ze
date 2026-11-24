@@ -97,14 +97,14 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// attachForDelivery publishes the CONFIG half of the edges a delivery test
-// needs: the peer's `attach process <name>` blocks, granting every registered
-// event type in both directions (`receive [ * ]`).
+// attachForDelivery publishes the compiled bus edges a delivery test needs:
+// one endpoint participant per name declaring reception of every registered
+// BGP event type in both directions.
 //
-// Delivery is the overlap of what a process subscribed to and what the peer's
-// config grants it (pluginserver.Server.PeerScopedProcs), so a test that
-// registers a subscription and expects delivery must state the attachment an
-// operator would have written. Without it the peer feeds nobody, which is the
+// Delivery is the overlap of what an endpoint subscribed to and what the
+// compiled bus filter allows (pluginserver.Server.PeerScopedProcs), so a test
+// that registers a subscription and expects delivery must publish the bus
+// participant declarations. Without them the peer feeds nobody, which is the
 // point of the filter rather than a defect in it.
 func attachForDelivery(t *testing.T, srv *pluginserver.Server, peer *plugin.PeerInfo, names ...string) {
 	t.Helper()

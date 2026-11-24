@@ -175,7 +175,7 @@ func (s *Server) runPluginStartup() {
 		}
 	}
 
-	// Phase 2: Explicit plugins (from config plugin { external ... } section).
+	// Phase 2: Explicit plugins (from config bus { endpoint ... } section).
 	// These run after config-path plugins so infrastructure is available.
 	if len(explicitPhase) > 0 {
 		logger().Debug("starting explicit plugins", "count", len(explicitPhase))

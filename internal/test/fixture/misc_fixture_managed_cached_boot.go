@@ -217,7 +217,7 @@ func cachedBootFailedConnections(output, hubAddress string) int {
 // its own plugin transport, the hub it follows, and a BGP section with no peer.
 func cachedBootConfig(pluginPort, hubPort int) string {
 	var b textbuf.Buffer
-	b.Str("plugin {\n    hub {\n")
+	b.Str("bus {\n    hub {\n")
 	b.Str("        server local { ip 127.0.0.1; port ").Str(strconv.Itoa(pluginPort)).
 		Str("; secret \"").Str(cachedBootPluginSecret).Str("\"; }\n")
 	b.Str("        client ").Str(cachedBootClientName).Str(" { host 127.0.0.1; port ").

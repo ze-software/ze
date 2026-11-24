@@ -268,9 +268,9 @@ interface tunnel1
 ipv4 route v1 198.18.1.1 255.255.255.255 10.254.0.1
 `
 
-const rsvpFreeZeConfig = `plugin {
- internal rsvp-te { use rsvp-te; }
- internal fib-kernel { use fib-kernel; }
+const rsvpFreeZeConfig = `bus {
+ endpoint rsvp-te { internal rsvp-te; }
+ endpoint fib-kernel { internal fib-kernel; }
 }
 rsvp-te {
  router-id 198.18.0.1

@@ -209,35 +209,21 @@ bgp {
 	require.Equal(t, "true", val)
 }
 
-// TestArraySyntax verifies array parsing of a leaf-list in an anonymous block.
+// TestArraySyntax verifies array parsing of a leaf-list in a bus endpoint block.
 //
-// VALIDATES: "receive [ name1 name2 ];" parses as array.
+// VALIDATES: "allow [ name1 ];" parses as array.
 //
 // PREVENTS: Breaking on bracket syntax.
 func TestArraySyntax(t *testing.T) {
 	input := `
-plugin {
-    external watcher {
-        run "/usr/bin/watcher"
-        encoder json
-    }
-}
-
-bgp {
-    peer peer1 {
-        connection {
-            remote {
-                ip 192.0.2.1
-            }
+bus {
+    endpoint watcher {
+        external {
+            run "/usr/bin/watcher"
         }
-        session {
-            asn {
-                local 65000
-                remote 65001
-            }
-        }
-        attach process {
-            receive [ update ]
+        encoding json
+        receive {
+            allow [ bgp:update ]
         }
     }
 }
@@ -248,44 +234,34 @@ bgp {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	bgpContainer := tree.GetContainer("bgp")
-	require.NotNil(t, bgpContainer)
-	neighbors := bgpContainer.GetList("peer")
-	n := neighbors["peer1"]
+	busContainer := tree.GetContainer("bus")
+	require.NotNil(t, busContainer)
+	endpoints := busContainer.GetList("endpoint")
+	ep := endpoints["watcher"]
+	require.NotNil(t, ep, "endpoint watcher should exist")
 
-	// process is now List(TypeString, ...), so use GetList with KeyDefault key
-	processList := n.GetContainer("attach").GetList("process")
-	require.NotNil(t, processList)
-	processBlock := processList[KeyDefault]
-	require.NotNil(t, processBlock, "anonymous process block should exist")
+	receiveBlock := ep.GetContainer("receive")
+	require.NotNil(t, receiveBlock, "receive block should exist")
 
-	items := processBlock.GetSlice("receive")
+	items := receiveBlock.GetSlice("allow")
 	require.NotEmpty(t, items)
-	require.Equal(t, []string{"update"}, items)
+	require.Equal(t, []string{"bgp:update"}, items)
 }
 
 // TestArrayMultipleValues verifies multiple array values.
 //
-// VALIDATES: "receive [ a b c ];" parses all values.
+// VALIDATES: "allow [ a b c ];" parses all values.
 //
 // PREVENTS: Lost array elements.
 func TestArrayMultipleValues(t *testing.T) {
 	input := `
-bgp {
-    peer peer1 {
-        connection {
-            remote {
-                ip 192.0.2.1
-            }
+bus {
+    endpoint watcher {
+        external {
+            run "/usr/bin/watcher"
         }
-        session {
-            asn {
-                local 65000
-                remote 65001
-            }
-        }
-        attach process {
-            receive [ update state negotiated ]
+        receive {
+            allow [ bgp:update bgp:state bgp:refresh ]
         }
     }
 }
@@ -296,20 +272,18 @@ bgp {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	bgpContainer := tree.GetContainer("bgp")
-	require.NotNil(t, bgpContainer)
-	neighbors := bgpContainer.GetList("peer")
-	n := neighbors["peer1"]
+	busContainer := tree.GetContainer("bus")
+	require.NotNil(t, busContainer)
+	endpoints := busContainer.GetList("endpoint")
+	ep := endpoints["watcher"]
+	require.NotNil(t, ep, "endpoint watcher should exist")
 
-	// api is now List(TypeString, ...), so use GetList with KeyDefault key
-	apiList := n.GetContainer("attach").GetList("process")
-	require.NotNil(t, apiList)
-	api := apiList[KeyDefault]
-	require.NotNil(t, api, "anonymous process block should exist")
+	receiveBlock := ep.GetContainer("receive")
+	require.NotNil(t, receiveBlock, "receive block should exist")
 
-	items := api.GetSlice("receive")
+	items := receiveBlock.GetSlice("allow")
 	require.NotEmpty(t, items)
-	require.Equal(t, []string{"update", "state", "negotiated"}, items)
+	require.Equal(t, []string{"bgp:update", "bgp:state", "bgp:refresh"}, items)
 }
 
 // TestArrayRoundtrip verifies array serialization.
@@ -319,21 +293,13 @@ bgp {
 // PREVENTS: Lost array syntax.
 func TestArrayRoundtrip(t *testing.T) {
 	input := `
-bgp {
-    peer peer1 {
-        connection {
-            remote {
-                ip 192.0.2.1
-            }
+bus {
+    endpoint watcher {
+        external {
+            run "/usr/bin/watcher"
         }
-        session {
-            asn {
-                local 65000
-                remote 65001
-            }
-        }
-        attach process {
-            receive [ update ]
+        receive {
+            allow [ bgp:update ]
         }
     }
 }

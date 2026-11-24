@@ -63,7 +63,7 @@ func (snapshot *disseminationSnapshot) ExportKind(owner plugin.SelectedOwner, re
 		return filterapi.ExportUnknown, errors.New("select-routes: caller is not a configured process")
 	}
 	if !snapshot.owner.IsSet() {
-		return filterapi.ExportUnknown, errors.New("select-routes: destination has no eligible configured dissemination owner; complete its attach process grants")
+		return filterapi.ExportUnknown, errors.New("select-routes: destination has no eligible configured dissemination owner; complete its bus filter grants")
 	}
 	if snapshot.owner.Name() != name {
 		return filterapi.ExportUnknown, fmt.Errorf("select-routes: destination belongs to process %q, not %q; reconcile through its configured owner", snapshot.owner.Name(), name)

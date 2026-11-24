@@ -43,7 +43,7 @@ func TestUnloadedDependencyErrorNamesWhatToConfigure(t *testing.T) {
 			dependency: "provider",
 			want: `plugin "feed" needs plugin "provider", and the configuration does not load it` + "\n" +
 				`"feed" does not work without "provider", so ze refuses to start it` + "\n" +
-				`fix: add 'plugin { internal provider { use provider; } }' to the config, ` +
+				`fix: add 'bus { endpoint provider { internal provider; } }' to the config, ` +
 				`or remove the configuration that loads "feed"`,
 		},
 		{
@@ -52,7 +52,7 @@ func TestUnloadedDependencyErrorNamesWhatToConfigure(t *testing.T) {
 			want: `plugin "feed" needs plugin "collector", and no plugin called "collector" is configured` + "\n" +
 				`"feed" does not work without "collector", so ze refuses to start it; ` +
 				`ze does not include a plugin of that name, so only an external program can provide it` + "\n" +
-				`fix: add 'plugin { external collector { run "<the command that starts collector>"; } }' to the config, ` +
+				`fix: add 'bus { endpoint collector { external { run "<the command that starts collector>"; } } }' to the config, ` +
 				`or remove the configuration that loads "feed"`,
 		},
 		{

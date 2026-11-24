@@ -17,10 +17,12 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-const recordDriverConfig = `plugin {
-	external record-plugin {
-		run "le mock record-plugin"
-		encoder json
+const recordDriverConfig = `bus {
+	endpoint record-plugin {
+		external {
+			run "le mock record-plugin"
+		}
+		encoding json
 	}
 }
 

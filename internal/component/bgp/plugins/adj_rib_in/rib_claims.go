@@ -62,8 +62,8 @@ func (r *AdjRIBInManager) applyStartupClaims(claimActive func(role string) bool)
 //
 // unheldRoles says that owner takes no delivery of THIS peer's events, so the
 // claim does not reach it (pluginserver.Server.UnheldRoles). Delivery is
-// per-peer and a claim is not. Take a peer whose `attach process` block gives
-// `state` to this plugin and not to bgp-rs. bgp-rs cannot replay it, and it
+// per-peer and a claim is not. Take a peer whose `bus` block delivers
+// `bgp:state` to this plugin and not to bgp-rs. bgp-rs cannot replay it, and it
 // never becomes a forward target either: selectForwardTargets keys on peer.Up
 // (rs/server_forward.go), which only handleState sets. Standing down there
 // serves that peer to nobody.

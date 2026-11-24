@@ -189,7 +189,7 @@ func blindMessage(f feedFinding) string {
 	case feedStateExternal:
 		return "ddos-detect is enabled but runs as an external plugin process, so it never receives the " +
 			f.feed + " (a same-process subscription) and cannot detect an attack." +
-			" Remove the `plugin { external ddos-detect { ... } }` block from the config so ze runs ddos-detect internal"
+			" Remove the `bus { endpoint ddos-detect { external { ... } } }` block from the config so ze runs ddos-detect internal"
 	case feedStateNoSample:
 		return "ddos-detect is enabled but has received no sample from the " + f.feed +
 			" for " + seconds + "s, so it cannot detect an attack. Check the feed with: ze show interface rate"

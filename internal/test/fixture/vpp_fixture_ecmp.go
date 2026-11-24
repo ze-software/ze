@@ -40,16 +40,18 @@ type vppECMPEvidence struct {
 func vppECMPConfig(socket, logPath string) string {
 	var tb textbuf.Buffer
 	tb.Str("environment {\n}\n").
-		Str("plugin {\n").
-		Str("    external ").Str(vppECMPObserverPlugin).Str(" {\n").
-		Str("        run \"le test fixture vpp/vpp-fib-ecmp-observer ").Str(logPath).Str("\";\n").
-		Str("        encoder json;\n").
+		Str("bus {\n").
+		Str("    endpoint ").Str(vppECMPObserverPlugin).Str(" {\n").
+		Str("        external {\n").
+		Str("            run \"le test fixture vpp/vpp-fib-ecmp-observer ").Str(logPath).Str("\";\n").
+		Str("        }\n").
+		Str("        encoding json;\n").
 		Str("    }\n").
-		Str("    internal bgp-rib {\n").
-		Str("        use bgp-rib;\n").
+		Str("    endpoint bgp-rib {\n").
+		Str("        internal bgp-rib;\n").
 		Str("    }\n").
-		Str("    internal rib {\n").
-		Str("        use rib;\n").
+		Str("    endpoint rib {\n").
+		Str("        internal rib;\n").
 		Str("    }\n").
 		Str("}\n").
 		Str("bgp {\n").

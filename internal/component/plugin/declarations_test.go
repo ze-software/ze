@@ -84,7 +84,7 @@ func withPluginReaderInProcess(t *testing.T, process ConfigProcess, read func(pa
 
 func TestDeclarationConfigPathReadsTheKeyword(t *testing.T) {
 	present := filepath.Join(t.TempDir(), "ze.conf")
-	if err := os.WriteFile(present, []byte("plugin {}\n"), 0o600); err != nil {
+	if err := os.WriteFile(present, []byte("bus {}\n"), 0o600); err != nil {
 		t.Fatalf("cannot write the config file the test reads: %v", err)
 	}
 	absent := filepath.Join(t.TempDir(), "absent.conf")

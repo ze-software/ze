@@ -61,10 +61,10 @@ module ze-rs-conf {
             default false;
             description "Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin
                 dispatch chain. This path gives lower latency for route server forwarding. A peer with an export
-                filter is excluded and uses the normal path. The fast path obeys the route server's attach grants:
-                it forwards only from a peer that attaches this plugin with receive [ update-received ], and only
-                to a peer that attaches it with send [ update ]. Add both to every rs-fast-path peer:
-                attach process <route-server> { receive [ update-received ]; send [ update ]; }.";
+                filter is excluded and uses the normal path. The fast path obeys the route server's compiled bus
+                filter: it forwards only from a peer whose bus rules deliver received bgp:update messages to this
+                route server, and only to a peer whose bus rules accept bgp:update from this route server (both
+                are enabled by default when no bus restriction removes them).";
             ze:help "Forward an RS-client UPDATE inside the reactor. Needs the route server's update grants.";
         }
     }

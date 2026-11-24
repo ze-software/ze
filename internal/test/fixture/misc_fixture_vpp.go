@@ -231,15 +231,9 @@ func vppRouteConfig(socket string, mpls, observer bool) string {
 	if mpls {
 		families += " ipv4/mpls-label { prefix { maximum 10000; } }"
 	}
-	plugin := ""
-	// The RIB is fed by peer-scoped events only: runRIBPlugin drops an event
-	// that carries no peer address. A peer attaching no process therefore
-	// stores no route and emits no best-change, so fib-vpp has nothing to
-	// program and the stub log stays empty.
-	process := "attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }"
+	busBlock := "bus { endpoint bgp-rib { internal bgp-rib; } }\n"
 	if observer {
-		plugin = "plugin { external lookup-test { run \"le test fixture vpp/vpp-fib-route-lookup-observer\"; encoder json; } }\n"
-		process += " attach process lookup-test { }"
+		busBlock = "bus { endpoint bgp-rib { internal bgp-rib; } endpoint lookup-test { external { run \"le test fixture vpp/vpp-fib-route-lookup-observer\"; } encoding json; } }\n"
 	}
 	fib := "\nfib { vpp { enabled true; } }\n"
 	access := "interface { backend vpp; }"
@@ -255,7 +249,13 @@ func vppRouteConfig(socket string, mpls, observer bool) string {
 	if observer {
 		fib = ""
 	}
-	return fmt.Sprintf("environment {\n}\n%sbgp { peer peer1 { connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } } session { asn { local 1; remote 1; } router-id 1.2.3.4; family { %s } capability { graceful-restart disable; } } behavior { group-updates disable; } %s } }\nvpp { enabled true; external true; api-socket %s;%s }\n%s%s", plugin, families, process, socket, vppExtra, access, fib)
+	var tb textbuf.Buffer
+	tb.Str("environment {\n}\n").Str(busBlock).
+		Str("bgp { peer peer1 { connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } } session { asn { local 1; remote 1; } router-id 1.2.3.4; family { ").
+		Str(families).
+		Str(" } capability { graceful-restart disable; } } behavior { group-updates disable; } } }\nvpp { enabled true; external true; api-socket ").
+		Str(socket).Str(";").Str(vppExtra).Str(" }\n").Str(access).Str(fib)
+	return tb.String()
 }
 
 func vppRouteDriver(ctx context.Context, args []string) error {

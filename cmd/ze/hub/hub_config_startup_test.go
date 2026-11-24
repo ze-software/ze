@@ -31,7 +31,7 @@ func TestRunHubConfigurationOutcomes(t *testing.T) {
 	}{
 		{
 			name: "invalid explicit hub",
-			content: `plugin {
+			content: `bus {
     hub {
         server invalid-hub {
             ip 127.0.0.1
@@ -44,7 +44,7 @@ func TestRunHubConfigurationOutcomes(t *testing.T) {
 		},
 		{
 			name: "valid explicit hub",
-			content: `plugin {
+			content: `bus {
     hub {
         server valid-hub {
             ip 127.0.0.1
@@ -54,7 +54,7 @@ func TestRunHubConfigurationOutcomes(t *testing.T) {
     }
 }`,
 		},
-		{name: "omitted hub", content: "plugin {}\n"},
+		{name: "omitted hub", content: "bus {}\n"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -77,7 +77,7 @@ func (s *Server) advertiseClaims(forPlugin string) []string {
 // under both the names it answers to.
 //
 // The two differ whenever the operator renames an implementation:
-// `plugin { internal rs { use bgp-rs } }` yields PluginConfig{Name: "rs",
+// `bus { endpoint rs { internal bgp-rs; } }` yields PluginConfig{Name: "rs",
 // Run: "bgp-rs"}, so the ProcessManager and every log line say "rs" while the
 // compile-time registration is filed under "bgp-rs". Looking a claim up by the
 // process name alone silently finds nothing, and -- worse -- checking that a
@@ -223,7 +223,7 @@ func (s *Server) advertisedClaimants() map[string][]string {
 // make it wrong for one peer, and the plugin that stood down can see neither:
 //
 //   - The claimant takes no delivery of this peer's events. Delivery is
-//     per-peer: an `attach process <name> { receive ... }` block grants it, and
+//     per-peer: a peer's `bus` delivery rules grant it, and
 //     PeerScopedProcs takes the overlap of that grant with what the plugin
 //     subscribed to. Take a peer that gives `state` to bgp-adj-rib-in and not
 //     to bgp-rs. The claimant cannot act on it, and the claim keeps the other

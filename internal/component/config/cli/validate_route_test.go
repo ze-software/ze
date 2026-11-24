@@ -150,49 +150,63 @@ func TestValidateRouteDrawsTheDaemonsRefusal(t *testing.T) {
 	assert.NotContains(t, errs, "none answered")
 }
 
-// TestValidateRouteFallsBackWhenNoDaemonListens: with no daemon the config is
-// judged here, and the refusal of the plugin's section says a running ze was
-// asked, why none answered, and the one command that fixes it. Method: a stub
-// that fails at the listener step, as sshclient.ReachDaemon does.
+// TestValidateRouteFallsBackWhenNoDaemonListens verifies S-3 / AC-18 daemon-first
+// fallback: when no daemon listens, `ze config validate` asks the daemon once
+// and then falls back to offline query mode (ZE_PLUGIN_MODE=declare),
+// validating declaring programs without starting their run loop and refusing
+// non-declaring programs with the conformance command.
 //
-// VALIDATES: the local refusal (unknown keyword), the declared plugin, that
-// ze reads its schema at `ze start`, the reason no ze answered, `fix: ze
-// start` alone on the last line, and the same command to run again.
-// PREVENTS: advice to type `show config validation <file>` in a `ze cli`
-// session, which the daemon refuses for a file outside its config directories
-// (command.CallerPath).
+// VALIDATES: S-3 / AC-18 — daemon is asked first (1 call), offline query mode
+// succeeds on a declaring program without touching the run-loop marker, and
+// fails closed on a non-declaring program naming endpoint, run line, cause,
+// and `ze show plugin conformance run "<run>"`.
+// PREVENTS: skipping the daemon ask, starting an external run loop offline, or
+// silently passing a non-declaring external program.
 func TestValidateRouteFallsBackWhenNoDaemonListens(t *testing.T) {
-	t.Cleanup(config.ResetDeclaredSchemasForTest())
-	run, marker := markingPlugin(t)
-	recorder := &askRecorder{err: &sshclient.Unreached{
-		Step: sshclient.ReachStepListener, Address: "127.0.0.1:2222", Cause: errors.New("connection refused"),
-	}}
+	t.Run("declaring_program_succeeds_offline", func(t *testing.T) {
+		t.Cleanup(config.ResetDeclaredSchemasForTest())
+		run, marker := declaringPlugin(t, monitorSchemaDecl())
+		recorder := &askRecorder{err: &sshclient.Unreached{
+			Step: sshclient.ReachStepListener, Address: "127.0.0.1:2222", Cause: errors.New("connection refused"),
+		}}
 
-	result := judgeConfig(monitorConfig(run, routeSection), "ze.conf", "", recorder.ask)
+		result := judgeConfig(monitorConfig(run, routeSection), "ze.conf", "", recorder.ask)
 
-	require.Equal(t, 1, recorder.calls)
-	require.False(t, result.Valid, "a section nobody could check was accepted")
-	errs := messagesOf(result, diagnostic.SeverityError)
-	assert.Contains(t, errs, "unknown top-level keyword: acme-monitor")
-	assert.Contains(t, errs, `the config declares external plugin "acme"`)
-	assert.Contains(t, errs, "when `ze start` runs it")
-	assert.Contains(t, errs, "starts no plugin")
-	assert.Contains(t, errs, "none answered: no ze listens at 127.0.0.1:2222 (connection refused)")
-	assert.Contains(t, errs, "then `ze config validate ze.conf` again")
-	assert.True(t, strings.HasSuffix(errs, "fix: ze start"), "the fix is not the last line:\n%s", errs)
-	assert.Equal(t, 1, strings.Count(errs, "fix: "), "one fix line:\n%s", errs)
-	assert.NotContains(t, errs, "show config validation")
-	assert.NotContains(t, errs, "fix: ze cli")
-	requireNotStarted(t, marker)
+		require.Equal(t, 1, recorder.calls)
+		require.True(t, result.Valid, "declaring plugin refused offline:\n%s", messagesOf(result, diagnostic.SeverityError))
+		assert.Equal(t, []string{"acme"}, result.Queried)
+		requireNotStarted(t, marker)
+	})
+
+	t.Run("non_declaring_program_refused", func(t *testing.T) {
+		t.Cleanup(config.ResetDeclaredSchemasForTest())
+		run, marker := silentPlugin(t)
+		recorder := &askRecorder{err: &sshclient.Unreached{
+			Step: sshclient.ReachStepListener, Address: "127.0.0.1:2222", Cause: errors.New("connection refused"),
+		}}
+
+		result := judgeConfig(monitorConfig(run, routeSection), "ze.conf", "", recorder.ask)
+
+		require.Equal(t, 1, recorder.calls)
+		require.False(t, result.Valid, "a non-declaring program was accepted")
+		require.NotEmpty(t, result.Diagnostics)
+		assert.Contains(t, result.Diagnostics[0].Message, `bus endpoint "acme"`)
+		assert.Contains(t, result.Diagnostics[0].Message, run)
+		assert.Contains(t, result.Diagnostics[0].Message, "without writing a Stage 1 declaration")
+		assert.Equal(t, `ze show plugin conformance run "`+run+`"`, result.Diagnostics[0].Fix)
+		requireNotStarted(t, marker)
+	})
 }
 
-// TestValidateRouteNamesOneFixPerReason: each reason no running ze answered
-// has its own fix. Method: one failure per step of the walk and per kind of
-// answer that is no verdict.
+// TestValidateRouteNamesOneFixPerReason verifies each unanswered-daemon reason
+// produces its exact DaemonUnanswered explanation and fix, and that judgeConfig
+// never reads a failed ask as an acceptance when falling back to S-3 offline
+// query mode.
 //
 // VALIDATES: no credentials and a failed ask name the account form of the
 // same command with the file; an address that cannot be read names ze status;
-// each is the last line; a failed ask names the command that was sent.
+// judgeConfig falls back to S-3 offline query mode and refuses non-declaring
+// programs with the conformance command without starting their run loop.
 // PREVENTS: one fix for every failure, and a failed ask read as a verdict.
 func TestValidateRouteNamesOneFixPerReason(t *testing.T) {
 	foreign := daemonVerdict{body: []byte(`{"status":"ok"}`), address: "127.0.0.1:2222"}
@@ -208,7 +222,7 @@ func TestValidateRouteNamesOneFixPerReason(t *testing.T) {
 			name: "address unreadable",
 			err:  &sshclient.Unreached{Step: sshclient.ReachStepAddress, Cause: errors.New("store damaged")},
 			why:  "the address of ze's SSH listener could not be read (store damaged)",
-			fix:  "fix: ze status",
+			fix:  "ze status",
 		},
 		{
 			name: "no credentials",
@@ -216,41 +230,47 @@ func TestValidateRouteNamesOneFixPerReason(t *testing.T) {
 				Step: sshclient.ReachStepCredentials, Address: "127.0.0.1:2222", Cause: errors.New("no stored username"),
 			},
 			why: "a ze listens at 127.0.0.1:2222, but this account has no credentials to log in to it (no stored username)",
-			fix: "fix: ze config validate --user <name> ze.conf",
+			fix: "ze config validate --user <name> ze.conf",
 		},
 		{
 			name: "login refused",
 			err:  notAnswered("127.0.0.1:2222", pathSuppliedValidation, errors.New("ssh: handshake failed")),
 			why:  "the ze at 127.0.0.1:2222 did not answer show config supplied validation (ssh: handshake failed)",
-			fix:  "fix: ze config validate --user <name> ze.conf",
+			fix:  "ze config validate --user <name> ze.conf",
 		},
 		{
 			name:    "an answer that is no validation result this ze reads",
 			verdict: foreign,
 			why:     "the ze at 127.0.0.1:2222 answered show config supplied validation with a validation result of",
-			fix:     "fix: ze config validate --user <name> ze.conf",
+			fix:     "ze config validate --user <name> ze.conf",
 		},
 		{
 			name:    "a verdict that disagrees with its status",
 			verdict: disagrees,
 			why:     "a verdict that disagrees with the status beside it",
-			fix:     "fix: ze config validate --user <name> ze.conf",
+			fix:     "ze config validate --user <name> ze.conf",
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Cleanup(config.ResetDeclaredSchemasForTest())
-			run, _ := markingPlugin(t)
+			run, marker := silentPlugin(t)
+			text := monitorConfig(run, routeSection)
 			recorder := &askRecorder{verdict: tc.verdict, err: tc.err}
 
-			result := judgeConfig(monitorConfig(run, routeSection), "ze.conf", "", recorder.ask)
+			q := validationQuestion(text, "ze.conf")
+			_, askErr := askDaemonValidation(q, "ze.conf", "", recorder.ask)
+			require.Error(t, askErr)
+			unanswered := q.unanswered(askErr)
+			assert.Contains(t, unanswered.Why, tc.why)
+			assert.Equal(t, tc.fix, unanswered.Fix)
 
+			result := judgeConfig(text, "ze.conf", "", recorder.ask)
 			require.False(t, result.Valid, "a failed ask was read as an acceptance")
-			errs := messagesOf(result, diagnostic.SeverityError)
-			assert.Contains(t, errs, "unknown top-level keyword: acme-monitor")
-			assert.Contains(t, errs, tc.why)
-			assert.True(t, strings.HasSuffix(errs, tc.fix), "want last line %q:\n%s", tc.fix, errs)
-			assert.Equal(t, 1, strings.Count(errs, "fix: "), "one fix line:\n%s", errs)
+			require.NotEmpty(t, result.Diagnostics)
+			assert.Contains(t, result.Diagnostics[0].Message, `bus endpoint "acme"`)
+			assert.Equal(t, `ze show plugin conformance run "`+run+`"`, result.Diagnostics[0].Fix)
+			requireNotStarted(t, marker)
 		})
 	}
 }
@@ -296,35 +316,36 @@ func TestValidateRouteDoesNotAskFromInsideADaemon(t *testing.T) {
 }
 
 // TestValidateRouteDoesNotSendOversizeContent: a config over the bound one
-// command carries is not sent, and the refusal names the bound and the
-// directory a running ze reads a config from. Method: a config padded past
-// 195,840 bytes, in a path the daemon route does not read.
+// command carries is not sent over SSH; the notSent error names the bound and
+// the config directory, and judgeConfig falls back locally to S-3 query mode.
 //
-// VALIDATES: zero asks; the message holds the model's bound (195,840 input
-// bytes, the wording of the supplied content leaf), that a running ze reads a
-// file only from its config directories, and a fix that checks a copy placed
-// there.
-// PREVENTS: a line the SSH packet cannot carry, and a local "not available"
-// with no way forward.
+// VALIDATES: zero asks; suppliedQuestion.line names 195,840 input bytes and
+// the daemon config directory fix; judgeConfig validates the oversize config
+// locally in declare mode without starting the run loop.
+// PREVENTS: a line the SSH packet cannot carry being sent over SSH.
 func TestValidateRouteDoesNotSendOversizeContent(t *testing.T) {
 	t.Cleanup(config.ResetDeclaredSchemasForTest())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	run, _ := markingPlugin(t)
+	run, marker := declaringPlugin(t, monitorSchemaDecl())
 	text := monitorConfig(run, routeSection) + "# " + strings.Repeat("x", 200000) + "\n"
 	recorder := &askRecorder{err: errors.New("asked")}
+
+	q := validationQuestion(text, "big.conf")
+	_, lineErr := q.line()
+	require.Error(t, lineErr)
+	unanswered := q.unanswered(lineErr)
+	assert.Contains(t, unanswered.Why, "config big.conf does not travel in one command")
+	assert.Contains(t, unanswered.Why, "195,840 input bytes")
+	assert.Contains(t, unanswered.Why, "reads a config file itself only from its config directories")
+	assert.True(t, strings.HasPrefix(unanswered.Fix, "ze config validate /"), "fix: %q", unanswered.Fix)
+	assert.True(t, strings.HasSuffix(unanswered.Fix, "/big.conf"), "fix: %q", unanswered.Fix)
 
 	result := judgeConfig(text, "big.conf", "", recorder.ask)
 
 	assert.Zero(t, recorder.calls, "a config over the bound was sent")
-	require.False(t, result.Valid)
-	errs := messagesOf(result, diagnostic.SeverityError)
-	assert.Contains(t, errs, "config big.conf does not travel in one command")
-	assert.Contains(t, errs, "195,840 input bytes")
-	assert.Contains(t, errs, "reads a config file itself only from its config directories")
-	lines := strings.Split(errs, "\n")
-	last := lines[len(lines)-1]
-	assert.True(t, strings.HasPrefix(last, "fix: ze config validate /"), "last line: %q", last)
-	assert.True(t, strings.HasSuffix(last, "/big.conf"), "last line: %q", last)
+	require.True(t, result.Valid, "oversize config with declaring plugin refused offline:\n%s", messagesOf(result, diagnostic.SeverityError))
+	assert.Equal(t, []string{"acme"}, result.Queried)
+	requireNotStarted(t, marker)
 }
 
 // TestValidateRouteSendsOversizeConfigByPath: a config over the bound that

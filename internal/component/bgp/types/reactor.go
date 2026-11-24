@@ -21,11 +21,11 @@ import (
 // BGPReactor and plugin.ReactorLifecycle.
 //
 // Every method on this interface that puts a message on a peer's wire takes a
-// trailing plugin.Sender: the attached process that issued the command, or the
-// operator who typed it at the CLI, SSH or REST surface. The peer's
-// `attach process <name> { send [ ... ] }` block is the permission, and the
-// reactor refuses a peer that grants none (reactor/send_permission.go). Pass
-// CommandContext.Sender, which every dispatch path states.
+// trailing plugin.Sender: the bus endpoint that issued the command, or the
+// operator who typed it at the CLI, SSH or REST surface. The peer's compiled
+// bus filter is the permission, and the reactor refuses a peer that denies it
+// (reactor/send_permission.go). Pass CommandContext.Sender, which every
+// dispatch path states.
 //
 // The zero Sender says nobody named the issuer, and the reactor refuses it
 // rather than reading it as the operator: an operator command carries the

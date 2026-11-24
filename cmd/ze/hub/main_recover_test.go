@@ -24,9 +24,9 @@ import (
 // must come from the walk, so dropping the %w wrap in
 // refuseInvalidCustomSections turns this test red.
 func TestRecoverableLoadErrorDeclinesAValidationRefusal(t *testing.T) {
-	const refused = `plugin {
-	internal p1 {
-		use no-such-plugin-here
+	const refused = `bus {
+	endpoint p1 {
+		internal no-such-plugin-here
 	}
 }
 `

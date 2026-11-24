@@ -1,7 +1,7 @@
 """ze_plugin: a small library for writing an external Ze plugin in Python.
 
-An external plugin is a program Ze starts from a `plugin { external <name> {
-run ...; } }` block. This library lets that program bring its own YANG
+An external plugin is a program Ze starts from a `bus { endpoint <name> {
+external { run ...; } } }` block. This library lets that program bring its own YANG
 modules, be told its config at start and on each commit, and serve the
 commands its modules define:
 

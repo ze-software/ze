@@ -90,6 +90,9 @@ func graphAnswer(route command.Route, args []string) command.LocalAnswer {
 func graphBytesAnswer(data []byte) command.LocalAnswer {
 	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: string(data)})
 	if err != nil {
+		if opErr, isOperErr := errors.AsType[*opererr.Error](err); isOperErr {
+			return command.LocalRefusal(exitError, command.LocalErrorLine(opErr))
+		}
 		return command.LocalRefusal(exitError, command.LocalErrorLine(opererr.Wrap(err,
 			"The configuration schema could not be loaded.",
 			"The configuration could not be interpreted; no dependency graph was produced.",

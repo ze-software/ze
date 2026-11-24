@@ -22,7 +22,7 @@ import (
 // evicted before the lock is a page the lock must fault back in, and the
 // engine run is later still: this plugin declares no config root, no family
 // and no event type, so nothing auto-loads it and the engine run is reached
-// only when an operator names it in a `plugin { }` block. It sits in a register
+// only when an operator names it in a `bus { }` block. It sits in a register
 // file because recording the outcome is a write to the plugin registry, and
 // every such write does (`./le plugin registration-sites check`).
 //

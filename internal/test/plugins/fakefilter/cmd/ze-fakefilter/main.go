@@ -5,7 +5,7 @@
 // binary, the way a third party builds a Go filter plugin: it links
 // pkg/plugin/sdk and the SDK-only fakefilter package, and nothing that
 // registers with ze (spec-filter-wire-0-umbrella AC-35). ze forks it from
-// `plugin { external <name> { run "ze-fakefilter"; } }`, it connects back
+// `bus { endpoint <name> { external { run "ze-fakefilter"; } } }`, it connects back
 // over TLS, and it answers the batched filter-update message. Asked for its
 // declaration (query mode) it prints its Stage 1 line and exits.
 package main
@@ -41,7 +41,7 @@ func run() int {
 	tr.Process = name
 	return sdk.RunOrDeclare(fakefilter.Registration(tr), func() int {
 		if name == "" {
-			log.Error("ze-fakefilter: ZE_PLUGIN_NAME is not set; run it from a ze `plugin { external <name> { run ... } }` entry")
+			log.Error("ze-fakefilter: ZE_PLUGIN_NAME is not set; run it from a ze `bus { endpoint <name> { external { run ... } } }` entry")
 			return 1
 		}
 		p, err := sdk.NewFromTLSEnv(name)

@@ -165,9 +165,9 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	},
 	{
 		Code:  CodeDoctorPluginDeliveryDisagreement,
-		Title: "Event delivery and attach process disagree",
-		Description: "The `attach process` configuration and the events the plugins declare disagree, so some events are sent to a plugin that does not handle them, or never reach the plugin that does. " +
-			"The row names each disagreement. Change the attach process configuration to match the plugin.",
+		Title: "Event delivery and bus configuration disagree",
+		Description: "The `bus` delivery configuration and the events the plugins declare disagree, so some events are sent to a plugin that does not handle them, or never reach the plugin that does. " +
+			"The row names each disagreement. Change the bus configuration to match the plugin.",
 		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-delivery-disagreement"},
 	},
 	{

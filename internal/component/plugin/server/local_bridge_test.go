@@ -65,7 +65,7 @@ func TestDeclarationsConfigRefusedReadOnly(t *testing.T) {
 	}
 	marker := filepath.Join(dir, "started")
 	configFile := filepath.Join(dir, "probe.conf")
-	config := "plugin {\n\texternal probe {\n\t\trun \"touch " + marker + "\";\n\t}\n}\n"
+	config := "bus {\n\tendpoint probe {\n\t\texternal {\n\t\t\trun \"touch " + marker + "\";\n\t\t}\n\t}\n}\n"
 	if err := os.WriteFile(configFile, []byte(config), 0o600); err != nil {
 		t.Fatal(err)
 	}

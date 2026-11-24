@@ -15,7 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
-const managedClientConfigText = `plugin {
+const managedClientConfigText = `bus {
     hub {
         server local {
             ip 127.0.0.1;
@@ -31,7 +31,7 @@ const managedClientConfigText = `plugin {
 }
 `
 
-const standaloneConfigText = `plugin {
+const standaloneConfigText = `bus {
     hub {
         server local {
             ip 127.0.0.1;

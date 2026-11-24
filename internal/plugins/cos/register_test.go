@@ -53,7 +53,7 @@ func TestShowProfiles(t *testing.T) {
 // wired through plugin.GetInternalPluginRunner and never invoked for an
 // external plugin, so an external cos silently never pushes EventBus-
 // triggered VLAN QoS map updates with no error anywhere until this warning.
-// PREVENTS: an operator running `plugin { external cos { ... } }` getting no
+// PREVENTS: an operator running `bus { endpoint cos { external { ... } } }` getting no
 // indication that dynamic QoS updates are disabled (fork round-2 finding 4).
 func TestWarnIfExternal(t *testing.T) {
 	t.Cleanup(func() { setLogger(slogutil.DiscardLogger()) })

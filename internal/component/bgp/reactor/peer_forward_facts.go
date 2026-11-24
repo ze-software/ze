@@ -236,52 +236,50 @@ func (r *redirectNextHop) add(addr netip.Addr) {
 	}
 }
 
-// rsRelaySendProcessName returns the first process name in bindings that
-// grants `send [ update ]` to a plugin declaring registry.RelaysOnRSFastPath,
-// or "" when none does. It applies the grant the route server's cached forward
-// is checked against (ProcessBinding.MaySend, through Peer.maySend and
-// filterPermittedPeers), so the fast path and the cached rail answer one
-// declaration. It runs once per snapshot, never once per UPDATE: the registry
-// lookup resolves an alias through the process manager.
-func rsRelaySendProcessName(bindings []ProcessBinding) string {
-	for i := range bindings {
-		b := &bindings[i]
-		if !b.MaySend(bgpevents.SendUpdate) {
+// rsRelaySendProcessName returns the first process name in the compiled
+// delivery graph that is permitted to send bgp:update to p, whose plugin
+// declares registry.RelaysOnRSFastPath, and whose ClaimSessionScope matches p,
+// or "" when none does. It runs once per snapshot, never once per UPDATE.
+func rsRelaySendProcessName(p *Peer, s *PeerSettings, peerAS uint32) string {
+	g := p.reactor.DeliveryGraph()
+	if g == nil {
+		return ""
+	}
+	for _, name := range g.SendersForPeer(p.addrString, bgpevents.SendUpdate) {
+		regName := resolveRegistrationName(p.reactor, name)
+		if !registry.RelaysOnRSFastPath(regName) && !registry.RelaysOnRSFastPath(name) {
 			continue
 		}
-		if registry.RelaysOnRSFastPath(b.PluginName) {
-			return b.PluginName
+		if !peerSettingsMatchesClaimScope(s, peerAS, registry.ClaimSessionScopeFor(regName)) {
+			continue
 		}
+		return name
 	}
 	return ""
 }
 
-// rsRelayReceiveGranted reports whether bindings grant the peer's received
-// UPDATEs to a process whose plugin declares registry.RelaysOnRSFastPath. It
-// reads the grant the delivery graph builds its UPDATE edges from
-// (deliveryPeersFromSettings, grantDirection in the plugin server): the
-// wildcard carries both directions, a named type the directions it names. Like
+// rsRelayReceiveGranted reports whether the compiled delivery graph feeds p's
+// received UPDATEs to a process whose plugin declares
+// registry.RelaysOnRSFastPath and whose ClaimSessionScope matches p. Like
 // rsRelaySendProcessName it runs once per snapshot.
-func rsRelayReceiveGranted(bindings []ProcessBinding) bool {
-	for i := range bindings {
-		b := &bindings[i]
-		if !bindingReceivesPeerUpdates(b) {
+func rsRelayReceiveGranted(p *Peer, s *PeerSettings, peerAS uint32) bool {
+	g := p.reactor.DeliveryGraph()
+	if g == nil {
+		return false
+	}
+	bgpNS := events.LookupNamespaceID(bgpevents.Namespace)
+	updateET := events.LookupEventTypeID(bgpevents.EventUpdate)
+	for _, name := range g.ReceiversForPeer(p.addrString, bgpNS, updateET, events.DirReceived) {
+		regName := resolveRegistrationName(p.reactor, name)
+		if !registry.RelaysOnRSFastPath(regName) && !registry.RelaysOnRSFastPath(name) {
 			continue
 		}
-		if registry.RelaysOnRSFastPath(b.PluginName) {
-			return true
+		if !peerSettingsMatchesClaimScope(s, peerAS, registry.ClaimSessionScopeFor(regName)) {
+			continue
 		}
-	}
-	return false
-}
-
-// bindingReceivesPeerUpdates reports whether b delivers the UPDATEs the peer
-// sends to its process.
-func bindingReceivesPeerUpdates(b *ProcessBinding) bool {
-	if b.ReceiveAll {
 		return true
 	}
-	return b.Receive[bgpevents.EventUpdate]&events.DirReceived != 0
+	return false
 }
 
 func (p *Peer) forwardFacts() *peerForwardFacts {
@@ -318,27 +316,24 @@ func (p *Peer) reportRSRelayGrants(previous, next *peerForwardFacts) {
 		return
 	}
 
-	p.mu.RLock()
-	relay := rsRelayProcessName(p.settings.ProcessBindings)
-	p.mu.RUnlock()
+	relay := rsRelayProcessName(p)
 
 	var missing, effect, action textbuf.Buffer
-	action.Str("add `attach process ").Str(relay).Str(" {")
+	action.Str("permit /bus/endpoint/").Str(relay).Str(" in this peer's bus block:")
 	if missingReceive {
-		missing.Str("receive [ update-received ]")
+		missing.Str("send bgp:update (direction received)")
 		effect.Str("the routes this peer sends are relayed to no other peer")
-		action.Str(" receive [ update-received ];")
+		action.Str(" send { allow [ bgp:update ]; to [ /bus/endpoint/").Str(relay).Str(" ]; }")
 	}
 	if missingSend {
 		if missingReceive {
 			missing.Str(" and ")
 			effect.Str("; ")
 		}
-		missing.Str("send [ update ]")
+		missing.Str("receive bgp:update")
 		effect.Str("this peer is sent no route the route server relays")
-		action.Str(" send [ update ];")
+		action.Str(" receive { allow [ bgp:update ]; from [ /bus/endpoint/").Str(relay).Str(" ]; }")
 	}
-	action.Str(" }` to this peer")
 	fwdLogger().Warn("rs-fast-path: this peer does not grant the route server what the fast path needs",
 		"peer", p.settings.Address,
 		"process", relay,
@@ -348,13 +343,17 @@ func (p *Peer) reportRSRelayGrants(previous, next *peerForwardFacts) {
 }
 
 // rsRelayProcessName answers the process name an operator's fix names: the
-// route-server process the peer already attaches, else the first registered
-// plugin declaring registry.RelaysOnRSFastPath. It runs only when
-// reportRSRelayGrants warns, never per UPDATE.
-func rsRelayProcessName(bindings []ProcessBinding) string {
-	for i := range bindings {
-		if registry.RelaysOnRSFastPath(bindings[i].PluginName) {
-			return bindings[i].PluginName
+// route-server process already linked to p in the delivery graph, else the
+// first registered plugin declaring registry.RelaysOnRSFastPath. It runs only
+// when reportRSRelayGrants warns, never per UPDATE.
+func rsRelayProcessName(p *Peer) string {
+	for _, name := range p.reactor.DeliveryGraph().ProcessListForPeer(p.addrString) {
+		regName := resolveRegistrationName(p.reactor, name)
+		if registry.RelaysOnRSFastPath(regName) {
+			return name
+		}
+		if registry.RelaysOnRSFastPath(name) {
+			return name
 		}
 	}
 	for _, reg := range registry.All() {
@@ -427,7 +426,8 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	isEBGP := s.IsEBGP()
 	isIBGP := s.IsIBGP()
 	aigpEnabled := s.AIGPEnabled()
-	bindings := s.ProcessBindings
+	settingsSnap := *s
+	settingsSnap.Bus = s.Bus.Clone()
 	p.mu.RUnlock()
 
 	ctx := p.sendCtx.Load()
@@ -440,9 +440,9 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 
 	extendedMsg := nc != nil && nc.ExtendedMessage
 
-	rsRelaySendProc := rsRelaySendProcessName(bindings)
+	rsRelaySendProc := rsRelaySendProcessName(p, &settingsSnap, peerAS)
 	facts := &peerForwardFacts{
-		dissemination: p.buildDisseminationSnapshot(session, bindings),
+		dissemination: p.buildDisseminationSnapshot(session, &settingsSnap),
 		addr:          s.Address,
 		peerKey:       s.PeerKey(),
 		addrStr:       p.addrString,
@@ -460,7 +460,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 		asOverride:         s.ASOverride,
 		rsRelaySend:        rsRelaySendProc != "",
 		rsRelaySendProcess: rsRelaySendProc,
-		rsRelayReceive:     rsRelayReceiveGranted(bindings),
+		rsRelayReceive:     rsRelayReceiveGranted(p, &settingsSnap, peerAS),
 		propagatePrefixSID: s.PropagateSRv6PrefixSID,
 		name:               s.Name,
 		groupName:          s.GroupName,

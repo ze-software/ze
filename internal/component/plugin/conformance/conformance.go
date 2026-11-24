@@ -55,7 +55,7 @@ const (
 
 // Target names the program to judge, as an operator would configure it.
 type Target struct {
-	// Run is the run string of `plugin { external <name> { run ...; } }`. A
+	// Run is the run string of `bus { endpoint <name> { external { run ...; } } }`. A
 	// shell starts it, as the daemon's live start does.
 	Run string
 	// Name is the plugin name the daemon's checks name in their refusals.

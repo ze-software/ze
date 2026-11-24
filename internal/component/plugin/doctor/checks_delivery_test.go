@@ -69,8 +69,8 @@ func TestDoctorClassChecks(t *testing.T) {
 		}}}
 		row := oneRow(t, deliveryDisagreementRows(snapshot), server.CodeDoctorPluginDeliveryDisagreement,
 			diagnostic.SeverityWarning, "watcher")
-		if !strings.Contains(row.Fix, "attach process") {
-			t.Fatalf("fix %q does not name the attach process change", row.Fix)
+		if !strings.Contains(row.Fix, "bus") {
+			t.Fatalf("fix %q does not name the bus configuration change", row.Fix)
 		}
 	})
 	t.Run("AC-16 claim unbacked", func(t *testing.T) {

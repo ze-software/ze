@@ -20,9 +20,18 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// TestConfigInspectionExplainsUnavailableExternalSchema reaches local and
-// supplied readers with no published external module. Each comparison puts
-// the declaration and unknown section on either side, including stored history.
+// TestConfigInspectionExplainsUnavailableExternalSchema verifies S-3 / AC-18
+// across every local and supplied inspection route (dump, graph, diff): when no
+// daemon answers, a non-declaring external program is refused naming endpoint,
+// run line, cause, and `fix: ze show plugin conformance run "<run>"`, while a
+// declare-mode external program succeeds and produces the expected payload
+// without ever starting its run loop.
+//
+// VALIDATES: S-3 / AC-18 — all 8 inspection paths fail closed on non-declaring
+// external programs with the conformance fix, and succeed via declare mode
+// without touching the run-loop marker.
+// PREVENTS: offline config dump/graph/diff starting external run loops or
+// losing the conformance fix on declaration query refusal.
 func TestConfigInspectionExplainsUnavailableExternalSchema(t *testing.T) {
 	for _, path := range declaredInspectionPaths() {
 		sides := []string{"before"}
@@ -30,31 +39,60 @@ func TestConfigInspectionExplainsUnavailableExternalSchema(t *testing.T) {
 			sides = append(sides, "after")
 		}
 		for _, side := range sides {
-			t.Run(path.name+"/"+side, func(t *testing.T) {
+			t.Run(path.name+"/"+side+"/non_declaring_refused", func(t *testing.T) {
 				t.Cleanup(config.ResetDeclaredSchemasForTest())
-				run, marker := markingPlugin(t)
+				run, marker := silentPlugin(t)
 				before := monitorConfig(run, "acme-monitor { interval 5; }\n")
-				after := "plugin {}\n"
+				after := "bus {}\n"
 				if side == "after" {
 					before, after = after, before
 				}
 				answer := inspectDeclaredSchema(t, path.name, before, after)
-				require.NotEqual(t, exitOK, answer.Code, "an unavailable section was accepted")
+				require.NotEqual(t, exitOK, answer.Code, "a non-declaring external program was accepted")
 				require.Nil(t, answer.Payload, "a refused source produced an inspection payload")
-				assert.Contains(t, answer.Diagnostic, "unknown top-level keyword: acme-monitor")
-				assert.Contains(t, answer.Diagnostic, `external plugin "acme"`)
-				assert.Contains(t, answer.Diagnostic, "starts no plugin")
+				assert.Contains(t, answer.Diagnostic, `bus endpoint "acme"`)
+				assert.Contains(t, answer.Diagnostic, run)
+				assert.Contains(t, answer.Diagnostic, "without writing a Stage 1 declaration")
 				assert.Equal(t, 1, strings.Count(answer.Diagnostic, "fix: "), "one recovery command: %s", answer.Diagnostic)
-				if path.asked {
-					assert.True(t, strings.HasSuffix(answer.Diagnostic, "fix: ze start\n"), "the fix of the failed ask was lost: %s", answer.Diagnostic)
-					assert.Contains(t, answer.Diagnostic, "none answered: no ze listens at ")
-				} else {
-					assert.True(t, strings.HasSuffix(answer.Diagnostic, "fix: ze config validate <config-file>\n"), "the content-validation recovery was lost: %s", answer.Diagnostic)
-				}
-				assert.NotContains(t, answer.Diagnostic, "fix: ze cli")
+				assert.True(t, strings.HasSuffix(answer.Diagnostic, `fix: ze show plugin conformance run "`+run+"\"\n"),
+					"conformance fix missing or not last: %s", answer.Diagnostic)
 				requireNotStarted(t, marker)
 			})
 		}
+
+		t.Run(path.name+"/declaring_program_succeeds", func(t *testing.T) {
+			t.Cleanup(config.ResetDeclaredSchemasForTest())
+			run, marker := declaringPlugin(t, monitorSchemaDecl())
+			content := monitorConfig(run, "acme-monitor { interval 5; }\n") + validConfig
+			answer := inspectDeclaredSchema(t, path.name, content, content)
+			require.Equal(t, exitOK, answer.Code, answer.Diagnostic)
+			require.NotNil(t, answer.Payload)
+			switch {
+			case strings.HasPrefix(path.name, "dump"):
+				document, ok := answer.Payload.(map[string]any)
+				require.True(t, ok, "dump answered %T", answer.Payload)
+				section, ok := document["acme-monitor"].(map[string]any)
+				require.True(t, ok, "dump lost the queried external section: %#v", document)
+				assert.Equal(t, "5", section["interval"])
+			case strings.HasPrefix(path.name, "graph"):
+				document, ok := answer.Payload.(command.Blob)
+				require.True(t, ok, "graph answered %T", answer.Payload)
+				var graph config.Graph
+				require.NoError(t, json.Unmarshal([]byte(document), &graph))
+				assert.Contains(t, graph.Nodes, config.GraphNode{
+					ID: "section/acme-monitor", Kind: config.NodeSection, Name: "acme-monitor",
+				})
+			default:
+				document, ok := answer.Payload.(map[string]any)
+				require.True(t, ok, "diff answered %T", answer.Payload)
+				require.Len(t, document, 3, "the comparison envelope changed")
+				for _, name := range []string{"added", "removed", "changed"} {
+					require.Contains(t, document, name)
+					assert.Empty(t, document[name], "identical declared sources differed")
+				}
+			}
+			requireNotStarted(t, marker)
+		})
 	}
 }
 

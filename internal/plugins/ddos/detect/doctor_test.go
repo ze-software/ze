@@ -244,7 +244,7 @@ func TestRateFeedExternalReportsCause(t *testing.T) {
 	assert.Equal(t, codeDoctorDDoSDetectBlind, diags[0].Code)
 	assert.Equal(t, "warning", diags[0].Severity)
 	assert.Contains(t, diags[0].Message, "runs as an external plugin process")
-	assert.Contains(t, diags[0].Message, "plugin { external ddos-detect { ... } }")
+	assert.Contains(t, diags[0].Message, "bus { endpoint ddos-detect { external { ... } } }")
 
 	feedSamples(d, clock, 25, nil)
 	diags, err = checkRateFeed(rateFeedCheck, d)

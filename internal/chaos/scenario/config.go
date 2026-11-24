@@ -15,9 +15,9 @@ type ConfigParams struct {
 	RouterID  netip.Addr
 	LocalAddr string
 	BasePort  int
-	ZeBinary  string // Path to ze binary for plugin run directives (default: "ze").
+	ZeBinary  string // Path to ze binary for bus endpoint run directives (default: "ze").
 	Profiles  []PeerProfile
-	NoPlugin  bool   // When true, omit the plugin block (in-process mode adds plugins via CLI args).
+	NoPlugin  bool   // When true, omit the bus block (in-process mode adds plugins via CLI args).
 	PprofAddr string // When set, inject environment { debug { pprof <addr>; } } into generated config.
 	SSHPort   int    // When >0, add system { ssh + authentication } block with test/test user.
 	WebUIPort int    // When >0, add environment { web { insecure; } } block.
@@ -25,10 +25,10 @@ type ConfigParams struct {
 	MCPPort   int    // When >0, add environment { mcp { port N; } } block.
 
 	// Collector makes the config a route collector's: bgp-rib runs inside the
-	// daemon and is the only process a peer attaches, and no route server
-	// forwards between the peers. It is what a simulated network topology runs
-	// against (GenerateFromTopology), where each speaker's routes are read back
-	// from the RIB and nothing is propagated.
+	// daemon as the only bus endpoint, and no route server forwards between the
+	// peers. It is what a simulated network topology runs against
+	// (GenerateFromTopology), where each speaker's routes are read back from
+	// the RIB and nothing is propagated.
 	Collector bool
 
 	// LGPlaintext serves the looking glass of LGPort over plain HTTP, so a test
@@ -47,19 +47,19 @@ func GenerateConfig(params ConfigParams) string {
 		zeBin = "ze"
 	}
 
-	// The plugin block: bgp-rib alone for a collector, and otherwise the route
-	// reflector plugin, required for route forwarding between peers, beside it.
+	// The bus block: bgp-rib alone for a collector, and otherwise the route
+	// server plugin, required for route forwarding between peers, beside it.
 	// In-process mode adds plugins via CLI args to LoadReactorWithPlugins,
-	// so emitting an external plugin block would create a duplicate that
+	// so emitting an external endpoint block would create a duplicate that
 	// tries to fork a subprocess and fails.
 	if !params.NoPlugin {
-		fmt.Fprintf(&b, "plugin {\n") //nolint:errcheck // config output
+		b.Str("bus {\n")
 		if params.Collector {
 			writeCollectorPlugins(&b)
 		} else {
 			writeRouteServerPlugins(&b, zeBin, params.PprofAddr)
 		}
-		fmt.Fprintf(&b, "}\n\n") //nolint:errcheck // config output
+		b.Str("}\n\n")
 	}
 
 	// Environment block — debug settings, SSH, web UI, looking glass.
@@ -132,31 +132,35 @@ func GenerateConfig(params ConfigParams) string {
 	return b.String()
 }
 
-// writeCollectorPlugins writes the plugins of a route collector: bgp-rib alone,
-// inside the daemon.
+// writeCollectorPlugins writes the bus endpoint of a route collector: bgp-rib
+// alone, inside the daemon.
 func writeCollectorPlugins(b *textbuf.Buffer) {
-	b.Str("    internal bgp-rib {\n").
-		Str("        use bgp-rib;\n").
+	b.Str("    endpoint bgp-rib {\n").
+		Str("        internal bgp-rib;\n").
 		Str("    }\n")
 }
 
-// writeRouteServerPlugins writes the two forked plugins a chaos run against a
-// route server needs: bgp-rs to forward between the peers, and bgp-rib.
+// writeRouteServerPlugins writes the two external bus endpoints a chaos run
+// against a route server needs: bgp-rs to forward between the peers, and bgp-rib.
 func writeRouteServerPlugins(b *textbuf.Buffer, zeBin, pprofAddr string) {
-	fmt.Fprintf(b, "    external bgp-rs {\n") //nolint:errcheck // config output
+	b.Str("    endpoint bgp-rs {\n").
+		Str("        external {\n")
 	if pprofAddr == "" {
-		fmt.Fprintf(b, "        run \"%s plugin bgp-rs\";\n", zeBin) //nolint:errcheck // config output
+		b.Str("            run \"").Str(zeBin).Str(" plugin bgp-rs\";\n")
 	} else {
-		fmt.Fprintf(b, "        run \"ze.bgp-rs\";\n") //nolint:errcheck // config output
+		b.Str("            run \"ze.bgp-rs\";\n")
 	}
-	fmt.Fprintf(b, "    }\n")                  //nolint:errcheck // config output
-	fmt.Fprintf(b, "    external bgp-rib {\n") //nolint:errcheck // config output
+	b.Str("        }\n").
+		Str("    }\n").
+		Str("    endpoint bgp-rib {\n").
+		Str("        external {\n")
 	if pprofAddr == "" {
-		fmt.Fprintf(b, "        run \"%s plugin bgp-rib\";\n", zeBin) //nolint:errcheck // config output
+		b.Str("            run \"").Str(zeBin).Str(" plugin bgp-rib\";\n")
 	} else {
-		fmt.Fprintf(b, "        run \"ze.bgp-rib\";\n") //nolint:errcheck // config output
+		b.Str("            run \"ze.bgp-rib\";\n")
 	}
-	fmt.Fprintf(b, "    }\n") //nolint:errcheck // config output
+	b.Str("        }\n").
+		Str("    }\n")
 }
 
 // PeerSummary returns a compact one-line-per-peer summary for stderr display.
@@ -261,29 +265,8 @@ func writeFullPeerBlock(b *textbuf.Buffer, params ConfigParams, p PeerProfile) {
 		}
 	}
 
-	// Attach container — this peer's relationship to each plugin the config runs.
-	// A peer that attaches no process is fed nothing and may announce nothing
-	// (pluginserver.Server.PeerScopedProcs, reactor/send_permission.go), so route
-	// forwarding stops without these blocks. Each receive list restates that
-	// plugin's own startup subscription, the mapping
-	// reactor.TestEveryStartupSubscriptionIsExpressible holds. bgp-rs takes
-	// UPDATEs in the RECEIVED direction alone: granting the sent direction as
-	// well is the delivery loop bgp/plugins/rr/rr.go describes. A collector runs
-	// no route server, so its peers attach the RIB alone.
-	if !params.Collector {
-		b.Str("        attach process bgp-rs {\n").
-			Str("            receive [ update-received state open-received refresh ];\n").
-			Str("            send [ update ];\n").
-			Str("        }\n")
-	}
-	// bgp-rib runs only when the plugin block declares it. In-process mode loads
-	// bgp-rs alone, so attaching the RIB there would name no running program.
-	if !params.NoPlugin {
-		b.Str("        attach process bgp-rib {\n").
-			Str("            receive [ update state refresh ];\n").
-			Str("            send [ update ];\n").
-			Str("        }\n")
-	}
+	// Bus wiring is default-on: each endpoint's registered receives and sends
+	// connect to every BGP peer without per-peer attach blocks.
 
 	b.Str("    }\n")
 }

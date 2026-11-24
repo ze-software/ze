@@ -65,14 +65,14 @@ func VerifyPluginConfig(tree *Tree) []error {
 
 // verifyTree runs the dependency refusal over candidate, then the map door.
 // The refusal reads the tree rather than a lowered map because the producers
-// boot uses read the tree: ExtractPluginsFromTree for the `plugin { }` block and
+// boot uses read the tree: ExtractPluginsFromTree for the `bus { }` block and
 // CollectContainerPaths for the roots that auto-load a plugin.
 //
 // An extraction failure is reported here, once, as a *PluginExtractionError,
 // and the dependency refusal is then not asked: the set of plugins boot would
 // start is unknown, so it cannot answer, and the extraction failure already
 // refuses the config, as LoadConfig refuses it. A failure ExtractPluginsFromTree
-// produced in the `plugin { }` block carries no Section. Doors whose own check
+// produced in the `bus { }` block carries no Section. Doors whose own check
 // of a section reports that section's failure skip the relayed copy by its
 // Section; every other door reports it from here.
 func verifyTree(previous map[string]any, candidate *Tree) []error {

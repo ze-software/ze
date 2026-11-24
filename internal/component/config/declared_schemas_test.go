@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -14,12 +15,14 @@ import (
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// These tests give the shared step a config that declares an external plugin
-// whose run string is a real program: a shell script that appends a line to a
-// marker file each time it is started. The step must never start it. None
-// runs in parallel: each resets the module set the process published.
+// These tests exercise SchemaWithDeclaredPlugins in both offline query mode
+// (S-3 / AC-18: ZE_PLUGIN_MODE=declare without starting the run loop, failing
+// closed when a program cannot declare) and daemon mode (fixed module set,
+// never starting external programs). None runs in parallel: each resets the
+// module set the process published.
 
 // offlineProcess puts the process back to one that has published nothing and
 // keeps no module set, and restores what it found.
@@ -29,15 +32,38 @@ func offlineProcess(t *testing.T) {
 }
 
 // markingPlugin writes, in a directory of its own, a program that appends a
-// line to its `runs` file each time it is started, in any mode. It answers
-// the program's run string, the program's path and the path of the `runs`
-// file.
+// line to its `runs` file each time it is started, in any mode, and exits 0
+// without writing a Stage 1 declaration. It answers the program's run string,
+// the program's path and the path of the `runs` file.
 func markingPlugin(t *testing.T) (run, program, runs string) {
 	t.Helper()
 	dir := t.TempDir()
 	runs = filepath.Join(dir, "runs")
 	program = filepath.Join(dir, "plugin.sh")
 	script := "#!/bin/sh\necho run >> " + runs + "\n"
+	require.NoError(t, os.WriteFile(program, []byte(script), 0o600))
+	return "sh " + program, program, runs
+}
+
+// declaringPlugin writes a program that honors ZE_PLUGIN_MODE=declare by
+// writing one valid Stage 1 declare-registration line for decl and exiting 0
+// without touching its `runs` marker file. Any non-declare invocation appends
+// to `runs` and exits 1, proving the run loop never ran.
+func declaringPlugin(t *testing.T, decl rpc.DeclareRegistrationInput) (run, program, runs string) {
+	t.Helper()
+	if decl.ProtocolVersion == 0 {
+		decl.ProtocolVersion = 1
+	}
+	payload, err := json.Marshal(decl)
+	require.NoError(t, err)
+	dir := t.TempDir()
+	runs = filepath.Join(dir, "runs")
+	declFile := filepath.Join(dir, "decl.line")
+	line := append([]byte("#1 ze-plugin-engine:declare-registration "), payload...)
+	line = append(line, '\n')
+	require.NoError(t, os.WriteFile(declFile, line, 0o600))
+	program = filepath.Join(dir, "plugin.sh")
+	script := "#!/bin/sh\nif [ \"$ZE_PLUGIN_MODE\" = \"declare\" ]; then\n  cat " + declFile + "\n  exit 0\nfi\necho run >> " + runs + "\nexit 1\n"
 	require.NoError(t, os.WriteFile(program, []byte(script), 0o600))
 	return "sh " + program, program, runs
 }
@@ -56,121 +82,147 @@ func runCount(t *testing.T, runs string) int {
 // configDeclaring answers a config that declares external plugin name with
 // run, followed by section.
 func configDeclaring(name, run, section string) string {
-	return "plugin {\n\texternal " + name + " {\n\t\trun \"" + run + "\"\n\t\tencoder json\n\t}\n}\n\n" + section
+	return "bus {\n\tendpoint " + name + " {\n\t\texternal {\n\t\t\trun \"" + run + "\"\n\t\t}\n\t\tencoding json\n\t}\n}\n\n" + section
 }
 
-// TestDeclaredSchemasStartsNoDeclaredProgram: a command that parses a config
-// with no daemon never starts a program the config's plugin block names.
-// Method: a run string whose program leaves a marker when started, the step,
-// the full parse and the refusal; then the program is started by the test, as
-// the control that the marker would have shown a start.
+// TestDeclaredSchemasStartsNoDeclaredProgram verifies S-3 / AC-18 offline query
+// mode: a command that parses a config with no daemon queries each declared
+// external program in declare mode (ZE_PLUGIN_MODE=declare), joins its declared
+// YANG module, and NEVER starts its run loop.
 //
-// VALIDATES: the owner ruling "plugin command requiring external plugins which
-// can not be started from the code when no daemon is running to pass it to are
-// not available": the marker is absent after the step and the parse, the
-// schema is the compiled-in one, the plugin's section is refused as an unknown
-// name, and the plugin is remembered by name.
-// PREVENTS: inspecting a config someone else wrote running their command.
+// VALIDATES: S-3 / AC-18 — query mode publishes the plugin's declared schema,
+// records Queried, leaves WithoutSchema empty, accepts valid values and refuses
+// out-of-range values, and never touches the run-loop marker (with a non-declare
+// control invocation proving the marker catches a real run-loop start).
+// PREVENTS: offline commands starting an external program's run loop or failing
+// to join a declare-mode plugin's YANG module offline.
 func TestDeclaredSchemasStartsNoDeclaredProgram(t *testing.T) {
 	offlineProcess(t)
-	run, program, runs := markingPlugin(t)
-	before, err := YANGSchema()
-	require.NoError(t, err)
+	run, program, runs := declaringPlugin(t, rpc.DeclareRegistrationInput{
+		Schemas: []rpc.SchemaDecl{{
+			Module:    "acme-monitor-conf",
+			Namespace: "urn:acme:monitor",
+			YANGText:  joinedMonitorModule,
+		}},
+	})
 
 	text := configDeclaring("acme", run, "acme-monitor {\n\tinterval 5\n}\n")
 	schema, declared, err := SchemaWithDeclaredPlugins(ConfigSource{Text: text, Path: "ze.conf"})
 	require.NoError(t, err)
 
-	assert.Same(t, before, schema, "the step answers another schema than the compiled-in one")
-	assert.Nil(t, schema.Get("acme-monitor"), "a root only the plugin's schema defines is known with no daemon")
-	assert.Equal(t, []string{"acme"}, declared.WithoutSchema())
+	require.NotNil(t, schema.Get("acme-monitor"), "the schema must hold the queried plugin's module root")
+	assert.Equal(t, []string{"acme"}, declared.Queried())
+	assert.Empty(t, declared.WithoutSchema())
 	modules, published := yang.PublishedExternalModules()
-	assert.True(t, published, "the process's module set is not recorded as fixed")
-	assert.Empty(t, modules)
+	assert.True(t, published, "the process's module set is recorded as fixed")
+	require.Len(t, modules, 1)
+	assert.Equal(t, "acme-monitor-conf", modules[0].Module)
 
 	_, parseErr := NewParser(schema).Parse(text)
-	require.Error(t, parseErr, "a section ze could not check was accepted")
-	assert.Contains(t, parseErr.Error(), "unknown top-level keyword: acme-monitor")
-	require.NotNil(t, declared.ParseRefusal("ze.conf", parseErr, "the command did nothing"))
+	require.NoError(t, parseErr, "a valid section of the queried plugin must parse offline")
+	_, badErr := NewParser(schema).Parse(configDeclaring("acme", run, "acme-monitor {\n\tinterval 11\n}\n"))
+	require.Error(t, badErr, "an out-of-range value in the queried plugin's module must be refused")
+	assert.Contains(t, badErr.Error(), "interval")
 
-	assert.Zero(t, runCount(t, runs), "a command with no daemon started the declared program")
+	assert.Zero(t, runCount(t, runs), "query mode must never start the program's run loop")
 
-	// Control: the marker shows a start when the program is started.
-	require.NoError(t, exec.CommandContext(t.Context(), "sh", program).Run())
-	assert.Equal(t, 1, runCount(t, runs), "the marker does not show a start, so its absence above proves nothing")
+	// Control: a non-declare invocation writes the marker and exits non-zero.
+	require.Error(t, exec.CommandContext(t.Context(), "sh", program).Run())
+	assert.Equal(t, 1, runCount(t, runs), "the marker must catch a non-declare start, or its absence above proves nothing")
 }
 
-// TestParseRefusalSaysTheSectionIsNotAvailableOffline: the refusal of a name
-// only an external plugin's schema could define says what is true with no
-// daemon, and names the command that reaches a running ze. Method: one
-// declared plugin, the refusal of its section through ParseRefusal, Explain
-// and Unchecked.
+// TestParseRefusalSaysTheSectionIsNotAvailableOffline verifies S-3 / AC-18
+// offline failure handling: when a declared external program cannot declare in
+// query mode (exits without a Stage 1 line, exits non-zero, or is missing),
+// SchemaWithDeclaredPlugins refuses closed naming the endpoint, its run line,
+// the cause, and `fix: ze show plugin conformance run "<run>"`. When a program
+// declares no schema, its query succeeds without starting its run loop and an
+// unknown root is refused as a plain unknown keyword.
 //
-// VALIDATES: the message holds the parser's refusal, the declared plugin's
-// name, that ze reads that schema when `ze start` runs the plugin, that this
-// command starts no plugin, that only a running ze checks such a section and
-// that this command asked none; its fix is `ze config validate <file>`, which
-// asks one, alone on the last line, once. It claims no plugin as the owner of
-// the refused name.
-// PREVENTS: a bare "unknown top-level keyword", a fix that runs the plugin, a
-// fix (`ze cli -c "show config validation ..."`) that is answered in the
-// caller's own process and gives the same refusal again, and the session form
-// `show config validation <file>`, which the daemon refuses for a file outside
-// its config directories (command.CallerPath).
+// VALIDATES: S-3 / AC-18 / S16 — fail-closed offline query refusals carry one
+// conformance fix line, and a schema-less declare-mode plugin is not blamed for
+// unrelated unknown keywords.
+// PREVENTS: silently accepting undeclared external programs offline or omitting
+// the endpoint, run line, cause, or conformance fix.
 func TestParseRefusalSaysTheSectionIsNotAvailableOffline(t *testing.T) {
-	offlineProcess(t)
-	run, _, runs := markingPlugin(t)
-	text := configDeclaring("acme", run, "acme-monitor {\n\tinterval 5\n}\n")
-	schema, declared, err := SchemaWithDeclaredPlugins(ConfigSource{Text: text, Path: "ze.conf"})
-	require.NoError(t, err)
-	_, parseErr := NewParser(schema).Parse(text)
-	require.Error(t, parseErr)
+	failDir := t.TempDir()
+	failProg := filepath.Join(failDir, "fail.sh")
+	require.NoError(t, os.WriteFile(failProg, []byte("#!/bin/sh\nexit 7\n"), 0o600))
 
-	refusal := declared.ParseRefusal("ze.conf", parseErr, "the command did nothing")
-	require.ErrorIs(t, refusal, parseErr, "the parser's refusal is lost")
-	assert.Equal(t, "ze config validate ze.conf", refusal.Fix())
-	message := refusal.Error()
-	lines := strings.Split(message, "\n")
-	assert.Contains(t, lines[0], "config ze.conf does not parse")
-	assert.Contains(t, lines[0], "no config schema compiled into ze defines")
-	assert.Equal(t, "fix: ze config validate ze.conf", lines[len(lines)-1], "the command is not alone on the last line")
-	assert.Equal(t, 1, strings.Count(message, "\nfix: "), "one fix line: %s", message)
-	assert.Contains(t, message, `the config declares external plugin "acme"`)
-	assert.Contains(t, message, "when `ze start` runs it")
-	assert.Contains(t, message, "starts no plugin")
-	assert.Contains(t, message, "only a running ze that started with these plugins checks a section")
-	assert.Contains(t, message, "asked no running ze", "a command that asked no daemon claims one was asked")
-	assert.NotContains(t, message, "none answered", "a command that asked no daemon claims one was asked")
-	assert.NotContains(t, message, "show config validation", "the daemon refuses that form for a file outside its config directories")
-	assert.Contains(t, message, "unknown top-level keyword: acme-monitor")
-	assert.NotContains(t, message, "ze cli -c", "that form is answered in the caller's own process")
-	assert.NotContains(t, message, "conformance", "the fix runs the plugin")
+	t.Run("no_declaration_line", func(t *testing.T) {
+		offlineProcess(t)
+		run, _, _ := markingPlugin(t)
+		text := configDeclaring("acme", run, "acme-monitor {\n\tinterval 5\n}\n")
+		_, _, err := SchemaWithDeclaredPlugins(ConfigSource{Text: text, Path: "ze.conf"})
+		require.Error(t, err)
+		opErr, ok := errors.AsType[*opererr.Error](err)
+		require.True(t, ok, "query failure must return *opererr.Error")
+		msg := opErr.Error()
+		lines := strings.Split(msg, "\n")
+		assert.Contains(t, msg, `bus endpoint "acme"`)
+		assert.Contains(t, msg, run)
+		assert.Contains(t, msg, "without writing a Stage 1 declaration")
+		assert.Equal(t, `fix: ze show plugin conformance run "`+run+`"`, lines[len(lines)-1])
+		assert.Equal(t, 1, strings.Count(msg, "\nfix: "), "one fix line: %s", msg)
+	})
 
-	explained := declared.Explain(parseErr)
-	require.ErrorIs(t, explained, parseErr)
-	assert.Equal(t, message, explained.Error(), "Explain and ParseRefusal word one refusal two ways")
+	t.Run("nonzero_exit", func(t *testing.T) {
+		offlineProcess(t)
+		run := "sh " + failProg
+		text := configDeclaring("acme", run, "")
+		_, _, err := SchemaWithDeclaredPlugins(ConfigSource{Text: text, Path: "ze.conf"})
+		require.Error(t, err)
+		opErr, ok := errors.AsType[*opererr.Error](err)
+		require.True(t, ok)
+		assert.Contains(t, opErr.Error(), `bus endpoint "acme"`)
+		assert.Contains(t, opErr.Error(), run)
+		assert.Contains(t, opErr.Error(), "status 7")
+		assert.Equal(t, `ze show plugin conformance run "`+run+`"`, opErr.Fix())
+	})
 
-	unchecked := declared.Unchecked("ze.conf")
-	require.NotNil(t, unchecked)
-	assert.Equal(t, "ze config validate ze.conf", unchecked.Fix())
-	assert.Contains(t, unchecked.Error(), `external plugin "acme"`)
-	assert.NotContains(t, unchecked.Error(), "unknown top-level keyword", "the entry beside a refusal repeats the refusal")
+	t.Run("missing_binary", func(t *testing.T) {
+		offlineProcess(t)
+		const run = "./no-such-acme-binary"
+		text := configDeclaring("acme", run, "")
+		_, _, err := SchemaWithDeclaredPlugins(ConfigSource{Text: text, Path: "ze.conf"})
+		require.Error(t, err)
+		opErr, ok := errors.AsType[*opererr.Error](err)
+		require.True(t, ok)
+		assert.Contains(t, opErr.Error(), `bus endpoint "acme"`)
+		assert.Contains(t, opErr.Error(), run)
+		assert.Contains(t, opErr.Error(), "not found")
+		assert.Equal(t, `ze show plugin conformance run "`+run+`"`, opErr.Fix())
+	})
 
-	assert.Zero(t, runCount(t, runs))
+	t.Run("declared_without_schema", func(t *testing.T) {
+		offlineProcess(t)
+		run, _, runs := declaringPlugin(t, rpc.DeclareRegistrationInput{})
+		text := configDeclaring("acme", run, "acme-monitor {\n\tinterval 5\n}\n")
+		schema, declared, err := SchemaWithDeclaredPlugins(ConfigSource{Text: text, Path: "ze.conf"})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"acme"}, declared.Queried())
+		assert.Empty(t, declared.WithoutSchema())
+		assert.Zero(t, runCount(t, runs))
+
+		_, parseErr := NewParser(schema).Parse(text)
+		require.Error(t, parseErr)
+		assert.Contains(t, parseErr.Error(), "unknown top-level keyword: acme-monitor")
+		assert.Same(t, parseErr, declared.Explain(parseErr), "a queried plugin that declared no schema must not explain unknown keywords")
+	})
 }
 
-// TestParseRefusalNamesEveryDeclaredPluginAndNoFile: the message lists each
-// declared plugin once and names no file it was not given. Method: two
-// declared plugins, one of them declared twice, in a text read from stdin.
+// TestParseRefusalNamesEveryDeclaredPluginAndNoFile: inside a daemon whose
+// module set is fixed without these plugins, the message lists each declared
+// plugin once in config order and names no file it was not given.
 //
-// VALIDATES: both names in config order, the plural form, and the placeholder
-// `<config-file>` for a text with no file.
+// VALIDATES: both names in config order, the plural form, and "the config does
+// not parse" for a text with no file (`Path: "-"`).
 // PREVENTS: a message that names one plugin as the cause when the config
-// declares several, and a daemon form that names the file `-`.
+// declares several, and naming `-` as a file path.
 func TestParseRefusalNamesEveryDeclaredPluginAndNoFile(t *testing.T) {
-	offlineProcess(t)
-	text := "plugin {\n\texternal acme {\n\t\trun \"./acme\"\n\t\tencoder json\n\t}\n" +
-		"\texternal acme-shell {\n\t\trun \"./acme-shell\"\n\t\tencoder json\n\t}\n}\n\nacme-monitor {\n\tinterval 5\n}\n"
+	startedDaemon(t)
+	text := "bus {\n\tendpoint acme {\n\t\texternal {\n\t\t\trun \"./acme\"\n\t\t}\n\t\tencoding json\n\t}\n" +
+		"\tendpoint acme-shell {\n\t\texternal {\n\t\t\trun \"./acme-shell\"\n\t\t}\n\t\tencoding json\n\t}\n}\n\nacme-monitor {\n\tinterval 5\n}\n"
 	schema, declared, err := SchemaWithDeclaredPlugins(ConfigSource{Text: text, Path: "-"})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"acme", "acme-shell"}, declared.WithoutSchema())
@@ -179,8 +231,7 @@ func TestParseRefusalNamesEveryDeclaredPluginAndNoFile(t *testing.T) {
 	require.Error(t, parseErr)
 	message := declared.Explain(parseErr).Error()
 	assert.Contains(t, message, `the config declares external plugins "acme", "acme-shell"`)
-	assert.True(t, strings.HasSuffix(message, "\nfix: ze config validate <config-file>"), "the fix names the file `-`: %s", message)
-	assert.NotContains(t, message, "validate -", "the fix names the file `-`")
+	assert.True(t, strings.HasSuffix(message, "\nfix: restart ze"), "daemon refusal ends with restart ze: %s", message)
 	assert.True(t, strings.HasPrefix(message, "the config does not parse"), "a text with no file is named as a file: %s", message)
 }
 
@@ -326,16 +377,15 @@ func TestPublishedExternalModuleOwesItsMandatoryLeaf(t *testing.T) {
 }
 
 // TestDeclaredSchemasSecondCallAnswersTheSame: a command that reads its config
-// twice gets the same answer twice. Method: the step twice over one config.
+// twice gets the same answer twice without re-querying or starting the run loop.
 //
-// VALIDATES: the second call answers the same schema, the same plugin, and
-// the wording of a command with no daemon, although the first call fixed the
-// process's module set.
-// PREVENTS: `ze doctor`, which reads its config twice, telling its operator
-// to restart ze on the second read.
+// VALIDATES: the second call answers the same schema, Offline()==true, and the
+// same Queried list, although the first call fixed the process's module set.
+// PREVENTS: `ze doctor`, which reads its config twice, losing offline state or
+// re-executing external plugins on the second read.
 func TestDeclaredSchemasSecondCallAnswersTheSame(t *testing.T) {
 	offlineProcess(t)
-	run, _, runs := markingPlugin(t)
+	run, _, runs := declaringPlugin(t, rpc.DeclareRegistrationInput{})
 	source := ConfigSource{Text: configDeclaring("acme", run, ""), Path: "ze.conf"}
 
 	first, _, err := SchemaWithDeclaredPlugins(source)
@@ -344,36 +394,39 @@ func TestDeclaredSchemasSecondCallAnswersTheSame(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Same(t, first, second)
-	assert.Equal(t, []string{"acme"}, declared.WithoutSchema())
-	unchecked := declared.Unchecked("ze.conf")
-	require.NotNil(t, unchecked)
-	// A read inside a daemon answers `restart ze`; the fix of a command with
-	// no daemon is the command that asks a running ze.
-	assert.Equal(t, "ze config validate ze.conf", unchecked.Fix(), "the second read answers as a daemon would")
-	assert.True(t, declared.Offline(), "the second read answers as a daemon would")
+	assert.Equal(t, []string{"acme"}, declared.Queried())
+	assert.Empty(t, declared.WithoutSchema())
+	assert.True(t, declared.Offline(), "the second read answers as offline")
 	assert.Zero(t, runCount(t, runs))
 }
 
 // TestDeclaredSchemasTakesPluginsOfEverySource: a command that reads two
-// configs remembers the plugins of both. Method: two configs, each declaring
-// a plugin of its own.
+// configs queries the external plugins of both in source order without starting
+// either run loop.
 //
-// VALIDATES: both plugins are listed, in source order, so the refusal of a
-// name on either side of `ze config diff` names the plugins of both.
-// PREVENTS: the second side of a diff refused with no word about the plugin
-// it declares.
+// VALIDATES: both plugins are queried in source order and joined into the
+// schema so both sides of `ze config diff` parse cleanly offline.
+// PREVENTS: the second side of a diff missing its plugin's schema.
 func TestDeclaredSchemasTakesPluginsOfEverySource(t *testing.T) {
 	offlineProcess(t)
-	monitorRun, _, monitorRuns := markingPlugin(t)
-	shellRun, _, shellRuns := markingPlugin(t)
+	monitorRun, _, monitorRuns := declaringPlugin(t, rpc.DeclareRegistrationInput{
+		Schemas: []rpc.SchemaDecl{{
+			Module:    "acme-monitor-conf",
+			Namespace: "urn:acme:monitor",
+			YANGText:  joinedMonitorModule,
+		}},
+	})
+	shellRun, _, shellRuns := declaringPlugin(t, rpc.DeclareRegistrationInput{})
 
-	_, declared, err := SchemaWithDeclaredPlugins(
+	schema, declared, err := SchemaWithDeclaredPlugins(
 		ConfigSource{Text: configDeclaring("acme", monitorRun, ""), Path: "before.conf"},
 		ConfigSource{Text: configDeclaring("acme-shell", shellRun, ""), Path: "after.conf"},
 	)
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"acme", "acme-shell"}, declared.WithoutSchema())
+	assert.Equal(t, []string{"acme", "acme-shell"}, declared.Queried())
+	assert.Empty(t, declared.WithoutSchema())
+	require.NotNil(t, schema.Get("acme-monitor"))
 	assert.Zero(t, runCount(t, monitorRuns))
 	assert.Zero(t, runCount(t, shellRuns))
 }
@@ -388,7 +441,7 @@ func TestDeclaredSchemasTakesPluginsOfEverySource(t *testing.T) {
 // parse, and a config mistake reported as a schema failure.
 func TestDeclaredSchemasSkipsSourceTheFirstPassRefuses(t *testing.T) {
 	offlineProcess(t)
-	const text = "plugin {\n\tno-such-leaf yes\n}\n"
+	const text = "bus {\n\tno-such-leaf yes\n}\n"
 
 	schema, declared, err := SchemaWithDeclaredPlugins(ConfigSource{Text: text, Path: "ze.conf"})
 	require.NoError(t, err)
@@ -412,7 +465,7 @@ func TestDeclaredSchemasSkipsSourceTheFirstPassRefuses(t *testing.T) {
 // naming that plugin, which sends the operator to a plugin the mistake has
 // nothing to do with.
 func TestDeclaredSchemasExplainsOnlyUnknownNames(t *testing.T) {
-	offlineProcess(t)
+	startedDaemon(t)
 	declaring := configDeclaring("acme", "./acme-monitor", "")
 	schema, declared, err := SchemaWithDeclaredPlugins(ConfigSource{Text: declaring, Path: filepath.Join(t.TempDir(), "ze.conf")})
 	require.NoError(t, err)
@@ -423,7 +476,7 @@ func TestDeclaredSchemasExplainsOnlyUnknownNames(t *testing.T) {
 	assert.True(t, RefusesUnknownNode(unknownRoot), "an unknown top-level keyword is not marked: %v", unknownRoot)
 	assert.Contains(t, declared.Explain(unknownRoot).Error(), `external plugin "acme"`)
 
-	_, unknownField := NewParser(schema).Parse("plugin {\n\tno-such-leaf yes\n}\n")
+	_, unknownField := NewParser(schema).Parse("bus {\n\tno-such-leaf yes\n}\n")
 	require.Error(t, unknownField)
 	assert.True(t, RefusesUnknownNode(unknownField), "an unknown field of a known section is not marked: %v", unknownField)
 	assert.Contains(t, declared.Explain(unknownField).Error(), `external plugin "acme"`)
@@ -473,7 +526,7 @@ func TestFreeformUnknownFieldIsAnUnknownName(t *testing.T) {
 // PREVENTS: a parse refusal printed with two fix lines, or with a plugin the
 // mistake has nothing to do with.
 func TestParseRefusalNamesOneFix(t *testing.T) {
-	offlineProcess(t)
+	startedDaemon(t)
 	declaring := configDeclaring("acme", "./acme-monitor", "")
 	schema, declared, err := SchemaWithDeclaredPlugins(ConfigSource{Text: declaring, Path: filepath.Join(t.TempDir(), "ze.conf")})
 	require.NoError(t, err)
@@ -481,7 +534,7 @@ func TestParseRefusalNamesOneFix(t *testing.T) {
 	_, unknownRoot := NewParser(schema).Parse("acme-monitor {\n\tinterval 5\n}\n")
 	require.Error(t, unknownRoot)
 	explained := declared.ParseRefusal("ze.conf", unknownRoot, "the command did nothing")
-	assert.Equal(t, "ze config validate ze.conf", explained.Fix())
+	assert.Equal(t, "restart ze", explained.Fix())
 	assert.Contains(t, explained.Error(), "config ze.conf does not parse")
 	assert.Contains(t, explained.Error(), `external plugin "acme"`)
 	assert.Contains(t, explained.Error(), "acme-monitor")
@@ -592,4 +645,39 @@ func TestDeclaredSchemasWithoutARecordNamesEveryPlugin(t *testing.T) {
 	_, declared, err := SchemaWithDeclaredPlugins(ConfigSource{Text: text, Path: "ze.conf"})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"observer"}, declared.WithoutSchema())
+}
+
+// TestRecordCommandLinePluginsClonesAndResets proves the process-wide
+// command-line plugin record isolates caller and reader slices, records empty
+// lists cleanly, and participates in ResetDeclaredSchemasForTest.
+//
+// VALIDATES: AC-18 record semantics: input/output slice mutations never alias
+// the stored record, nil/empty clears prior entries, and
+// ResetDeclaredSchemasForTest clears and restores the recorded list.
+// PREVENTS: Shared backing-array mutation across doors or leaked test state.
+func TestRecordCommandLinePluginsClonesAndResets(t *testing.T) {
+	saved := CommandLinePlugins()
+	t.Cleanup(func() { RecordCommandLinePlugins(saved) })
+
+	input := []string{"ze.flowspec-firewall", "ze.hostname"}
+	RecordCommandLinePlugins(input)
+	input[0] = "mutated-input"
+
+	got := CommandLinePlugins()
+	assert.Equal(t, []string{"ze.flowspec-firewall", "ze.hostname"}, got)
+
+	got[1] = "mutated-output"
+	assert.Equal(t, []string{"ze.flowspec-firewall", "ze.hostname"}, CommandLinePlugins())
+
+	restore := ResetDeclaredSchemasForTest()
+	assert.Empty(t, CommandLinePlugins(), "ResetDeclaredSchemasForTest must clear command-line plugins")
+	restore()
+	assert.Equal(t, []string{"ze.flowspec-firewall", "ze.hostname"}, CommandLinePlugins(), "restore must put command-line plugins back")
+
+	RecordCommandLinePlugins(nil)
+	assert.Empty(t, CommandLinePlugins())
+
+	RecordCommandLinePlugins([]string{"ze.flowspec-firewall"})
+	RecordCommandLinePlugins([]string{})
+	assert.Empty(t, CommandLinePlugins())
 }

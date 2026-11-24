@@ -287,7 +287,7 @@ func (plug *irrPlugin) handleConfigure(delivery irrDelivery) {
 	for _, name := range peersMissingRefreshGrant(cfg) {
 		logger().Warn("irr: a route this peer sends before its IRR list authorizes it stays rejected until the peer sends it again: the peer does not let bgp-filter-irr ask it for its routes",
 			"peer", name,
-			"action", "add `attach process bgp-filter-irr { send [ refresh ] }` to this peer, or to its group")
+			"action", "allow bgp:refresh from /bus/endpoint/bgp-filter-irr in this peer's (or group's) bus block")
 	}
 	for _, name := range peersMissingRouteRefresh(cfg) {
 		logger().Warn("irr: a route this peer sends before its IRR list authorizes it stays rejected until the peer sends it again: ze does not advertise Route Refresh to this peer, so the capability is never negotiated and bgp-filter-irr cannot ask the peer for its routes",

@@ -110,7 +110,8 @@ func ResetBusParticipantTargetsForTest() (restore func()) {
 }
 
 // normalizeBusTargetPath returns "/a/b" for a non-empty slash-separated schema
-// path, or "" if the input is blank or contains empty segments.
+// path (stripping any YANG module prefixes such as "/bgp:bgp/bgp:peer"), or ""
+// if the input is blank or contains empty segments.
 func normalizeBusTargetPath(raw string) string {
 	trimmed := strings.TrimSpace(raw)
 	trimmed = strings.Trim(trimmed, "/")
@@ -118,9 +119,15 @@ func normalizeBusTargetPath(raw string) string {
 		return ""
 	}
 	parts := strings.Split(trimmed, "/")
-	for _, part := range parts {
+	for i, part := range parts {
 		if part == "" {
 			return ""
+		}
+		if _, local, hasPrefix := strings.Cut(part, ":"); hasPrefix {
+			if local == "" {
+				return ""
+			}
+			parts[i] = local
 		}
 	}
 	return "/" + strings.Join(parts, "/")

@@ -60,9 +60,9 @@ const keyDeclarations = "declarations"
 const keywordConfig = "config"
 
 // The kinds a row can carry. They are the two words the config file already
-// uses for the same split, `plugin { internal ... }` against
-// `plugin { external ... }`, so an operator reads one vocabulary in both
-// places.
+// uses for the same split, `bus { endpoint <name> { internal ... } }` against
+// `bus { endpoint <name> { external { ... } } }`, so an operator reads one
+// vocabulary in both places.
 const (
 	kindInternal = "internal"
 	kindExternal = "external"

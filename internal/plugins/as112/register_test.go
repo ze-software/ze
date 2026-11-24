@@ -77,7 +77,7 @@ func TestOnConfigure_RegistersAddressesOnEnable(t *testing.T) {
 // state instead of erroring. A plain net.Pipe() end here matches exactly what
 // an external plugin's non-bridged conn looks like from the SDK's
 // perspective (see sdk.Plugin.IsInternal).
-// PREVENTS: as112 configured `plugin { external as112 { ... } }` silently
+// PREVENTS: as112 configured `bus { endpoint as112 { external { ... } } }` silently
 // accepting every config commit while never landing its anycast addresses on
 // any real kernel interface.
 func TestRunAS112Plugin_RefusesExternalProcess(t *testing.T) {
